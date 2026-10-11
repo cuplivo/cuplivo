@@ -425,6 +425,9 @@ class HomeViewModel extends ChangeNotifier {
     );
     if (assistant == null) return;
     if (!ProactiveCareConversationPolicy.isEligible(conversation, assistant)) {
+      debugPrint(
+        '[ProactiveCare] decision skipped: not eligible $conversationId',
+      );
       return;
     }
 
@@ -433,7 +436,10 @@ class HomeViewModel extends ChangeNotifier {
       assistant,
       conversation: conversation,
     );
-    if (model == null) return;
+    if (model == null) {
+      debugPrint('[ProactiveCare] decision skipped: no decision model');
+      return;
+    }
     final userNickname = _contextProvider.read<UserProvider>().name;
     final history = ProactiveCareMessageFlow.historyFromMessages(
       await _chatService.loadMessages(conversationId),
@@ -451,7 +457,11 @@ class HomeViewModel extends ChangeNotifier {
       conversationId: conversationId,
       currentNextCareTime: conversation.proactiveCareNextMessageAt,
     );
-    if (nextAt == null) return;
+    if (nextAt == null) {
+      debugPrint('[ProactiveCare] decision kept the current time');
+      return;
+    }
+    debugPrint('[ProactiveCare] decision set next time $nextAt');
     // The extras write re-arms the Android alarm (see ChatService's
     // proactive-care hook).
     await _chatService.updateConversationExtras(conversationId, (extras) {
@@ -459,6 +469,25 @@ class HomeViewModel extends ChangeNotifier {
           .toIso8601String();
       return extras;
     });
+  }
+
+  /// Re-arms every pending letter after the app came back to the foreground:
+  /// an alarm the system (or our own handoff) lost must not depend on the next
+  /// process start to come back. Mirrors the native `ready` re-arm Kelivo's
+  /// scheduled tasks do.
+  Future<void> reschedulePendingProactiveCare() async {
+    if (!ProactiveCareAlarmService.isSupported) return;
+    try {
+      await ProactiveCareAlarmService.rescheduleAll(
+        conversations: _chatService.getAllConversations(),
+        assistants: _contextProvider.read<AssistantProvider>().assistants,
+      );
+    } catch (e, st) {
+      FlutterLogger.log(
+        '[ProactiveCare] resume re-arm failed: $e\n$st',
+        tag: 'HomeViewModel',
+      );
+    }
   }
 
   /// Delivers every due care letter for all eligible conversations (app
@@ -475,6 +504,9 @@ class HomeViewModel extends ChangeNotifier {
         decisionPromptFallback: _proactiveCareDecisionPromptFallback,
         failureNotificationBody: _proactiveCareFailureBody,
       );
+      if (delivered.isNotEmpty) {
+        debugPrint('[ProactiveCare] catch-up delivered ${delivered.length}');
+      }
       await _refreshCurrentConversationAfterCare(
         delivered.map((d) => d.conversationId).toSet(),
       );
@@ -495,6 +527,7 @@ class HomeViewModel extends ChangeNotifier {
     required DateTime expectedAt,
   }) async {
     if (!ProactiveCareAlarmService.isSupported) return false;
+    debugPrint('[ProactiveCare] deliver $conversationId @ $expectedAt');
     try {
       final flow = _proactiveCareFlow();
       final outcome = await flow.runSchedule(
@@ -507,7 +540,10 @@ class HomeViewModel extends ChangeNotifier {
         failureNotificationBody: _proactiveCareFailureBody,
         notificationId: NotificationService.proactiveCareIdFor(conversationId),
       );
-      if (outcome == null) return false;
+      if (outcome == null) {
+        debugPrint('[ProactiveCare] nothing to deliver for $conversationId');
+        return false;
+      }
       await _refreshCurrentConversationAfterCare({conversationId});
       return outcome.successful;
     } catch (e, st) {

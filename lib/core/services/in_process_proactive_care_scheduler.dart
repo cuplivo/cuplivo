@@ -8,12 +8,16 @@ import '../models/conversation.dart';
 import 'desktop_power_state.dart';
 import 'proactive_care_conversation_policy.dart';
 
-/// In-process timer-based proactive care scheduler for desktop and foreground platforms.
+/// In-process timer-based proactive care scheduler: the primary trigger on
+/// desktop and the foreground safety net on Android, where the native exact
+/// alarm can be lost (dropped handoff, cleared by the OEM, refused service
+/// start).
 ///
 /// Dispatches when `DateTime.now() >= dueAt`, taking native system sleep/wake
-/// transitions into account through [DesktopPowerState].
-class DesktopProactiveCareScheduler {
-  DesktopProactiveCareScheduler({
+/// transitions into account through [DesktopPowerState]. The letter flow's
+/// atomic claim keeps this from double-delivering alongside the native alarm.
+class InProcessProactiveCareScheduler {
+  InProcessProactiveCareScheduler({
     DateTime Function()? now,
     Future<DesktopPowerState> Function()? readPowerState,
   }) : _now = now ?? DateTime.now,

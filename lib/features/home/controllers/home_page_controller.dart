@@ -620,6 +620,10 @@ class HomePageController extends ChangeNotifier {
   /// Delivers every due proactive care letter (start/resume catch-up).
   Future<int> deliverDueProactiveCare() => _viewModel.deliverDueProactiveCare();
 
+  /// Re-arms every pending proactive care letter (resume recovery).
+  Future<void> reschedulePendingProactiveCare() =>
+      _viewModel.reschedulePendingProactiveCare();
+
   bool get isTemporaryConversation =>
       _chatService.isTemporaryConversation(currentConversation?.id);
 
@@ -3555,8 +3559,11 @@ class HomePageController extends ChangeNotifier {
     }
     if (state == AppLifecycleState.resumed) {
       ScreenWakelock.reassert();
-      // Proactive care catch-up: deliver anything the alarms missed while
-      // the process was dead or frozen (claim contract prevents doubles).
+      // Proactive care recovery: re-arm what is still pending (an alarm lost
+      // while the app was away must not wait for the next process start), then
+      // deliver anything the alarms missed while the process was dead or
+      // frozen (the claim contract prevents doubles).
+      unawaited(_viewModel.reschedulePendingProactiveCare());
       unawaited(_viewModel.deliverDueProactiveCare());
     }
   }

@@ -1,16 +1,16 @@
 import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/services/desktop_power_state.dart';
-import 'package:Cuplivo/core/services/desktop_proactive_care_scheduler.dart';
+import 'package:Cuplivo/core/services/in_process_proactive_care_scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('DesktopProactiveCareScheduler', () {
+  group('InProcessProactiveCareScheduler', () {
     var currentTime = DateTime(2026, 8, 14, 12, 0, 0);
     var powerState = const DesktopPowerState();
 
-    DesktopProactiveCareScheduler createScheduler() {
-      return DesktopProactiveCareScheduler(
+    InProcessProactiveCareScheduler createScheduler() {
+      return InProcessProactiveCareScheduler(
         now: () => currentTime,
         readPowerState: () async => powerState,
       );

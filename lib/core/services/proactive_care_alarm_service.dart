@@ -1,13 +1,18 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart'
-    show debugPrint, kIsWeb, visibleForTesting;
+    show
+        TargetPlatform,
+        debugPrint,
+        defaultTargetPlatform,
+        kIsWeb,
+        visibleForTesting;
 import 'package:flutter/services.dart';
 
+import '../../utils/platform_utils.dart';
 import '../models/assistant.dart';
 import '../models/conversation.dart';
-import 'desktop_proactive_care_scheduler.dart';
+import 'in_process_proactive_care_scheduler.dart';
 import 'ios_proactive_care_scheduler.dart';
 import 'notification_service.dart';
 import 'proactive_care_conversation_policy.dart';
@@ -15,8 +20,10 @@ import 'proactive_care_conversation_policy.dart';
 /// Cross-platform proactive-care alarm & scheduling service facade.
 ///
 /// Native Android owner: `android/.../scheduled/ProactiveCareAlarms.kt` over
-/// MethodChannel `app.proactive_care_alarms`.
-/// Desktop owner: `DesktopProactiveCareScheduler` with system power sleep/wake tracking.
+/// MethodChannel `app.proactive_care_alarms`, backed by
+/// [InProcessProactiveCareScheduler] while the app is alive.
+/// Desktop owner: [InProcessProactiveCareScheduler] with system power
+/// sleep/wake tracking.
 /// iOS owner: `IosProactiveCareScheduler` with `app.scheduled_notifications`.
 class ProactiveCareAlarmService {
   ProactiveCareAlarmService._();
@@ -27,12 +34,21 @@ class ProactiveCareAlarmService {
 
   static bool get isSupported => !kIsWeb;
 
+  /// Platform checks read `defaultTargetPlatform` (the tree's shared pattern)
+  /// so the Android branch stays unit-testable off-device.
+  static bool get _isDesktopTarget => !kIsWeb && PlatformUtils.isDesktopTarget;
+  static bool get _isAndroidTarget =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  static bool get _isIOSTarget =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
   /// Localized line for the iOS arrival notification, wired at startup. iOS
   /// cannot generate the letter on a timer, so the notification announces it
   /// and the letter is delivered by the start/resume catch-up.
   static String? Function()? proactiveCareArrivalBodyResolver;
 
-  static DesktopProactiveCareScheduler? _desktopScheduler;
+  static InProcessProactiveCareScheduler? _desktopScheduler;
+  static InProcessProactiveCareScheduler? _inProcessScheduler;
   static IosProactiveCareScheduler? _iosScheduler;
 
   static IosProactiveCareScheduler _ensureIosScheduler() =>
@@ -41,14 +57,29 @@ class ProactiveCareAlarmService {
       );
 
   @visibleForTesting
-  static DesktopProactiveCareScheduler? get desktopScheduler =>
+  static InProcessProactiveCareScheduler? get desktopScheduler =>
       _desktopScheduler;
 
   @visibleForTesting
   static void setDesktopSchedulerForTesting(
-    DesktopProactiveCareScheduler? scheduler,
+    InProcessProactiveCareScheduler? scheduler,
   ) {
     _desktopScheduler = scheduler;
+  }
+
+  /// Foreground safety net for Android: while the process is alive it delivers
+  /// a due letter even if the native alarm was never scheduled, was cleared by
+  /// the system, or handed off nowhere. Created on [attach] only, so nothing
+  /// starts polling before the app wired its fire handler.
+  @visibleForTesting
+  static InProcessProactiveCareScheduler? get inProcessScheduler =>
+      _inProcessScheduler;
+
+  @visibleForTesting
+  static void setInProcessSchedulerForTesting(
+    InProcessProactiveCareScheduler? scheduler,
+  ) {
+    _inProcessScheduler = scheduler;
   }
 
   /// Stable conversation-owned id shared by the alarm and the letter
@@ -77,33 +108,40 @@ class ProactiveCareAlarmService {
   ) async {
     if (!isSupported) return;
 
-    if (!kIsWeb &&
-        (Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
-      _desktopScheduler ??= DesktopProactiveCareScheduler();
+    if (_isDesktopTarget) {
+      _desktopScheduler ??= InProcessProactiveCareScheduler();
       await _desktopScheduler!.attach(onFire);
       return;
     }
 
-    if (!kIsWeb && Platform.isIOS) {
+    if (_isIOSTarget) {
       await _ensureIosScheduler().attach(onFire);
       return;
     }
 
-    if (!kIsWeb && Platform.isAndroid) {
+    if (_isAndroidTarget) {
+      // Foreground safety net first: the native alarm below is the
+      // background/dead-process owner, this timer covers every moment the app
+      // is alive (lost alarm, refused service start, held handoff).
+      _inProcessScheduler ??= InProcessProactiveCareScheduler();
+      await _inProcessScheduler!.attach(onFire);
       _channel.setMethodCallHandler((call) async {
         if (call.method != 'fire') return null;
         final args = Map<Object?, Object?>.from(call.arguments as Map);
         final conversationId = args['conversationId'];
         final dueAtMillis = args['dueAt'];
         if (conversationId is! String || dueAtMillis is! int) {
-          debugPrint('[ProactiveCareAlarm] invalid fire payload: $args');
+          debugPrint('[ProactiveCare] invalid fire payload: $args');
           return null;
         }
         final expectedAt = DateTime.fromMillisecondsSinceEpoch(dueAtMillis);
+        debugPrint(
+          '[ProactiveCare] native fire: $conversationId @ $expectedAt',
+        );
         try {
           await onFire(conversationId, expectedAt);
         } catch (e, st) {
-          debugPrint('[ProactiveCareAlarm] fire handling failed: $e\n$st');
+          debugPrint('[ProactiveCare] fire handling failed: $e\n$st');
         } finally {
           await _completeRun(conversationId);
         }
@@ -122,10 +160,13 @@ class ProactiveCareAlarmService {
     if (_desktopScheduler != null) {
       await _desktopScheduler!.detach();
     }
+    if (_inProcessScheduler != null) {
+      await _inProcessScheduler!.detach();
+    }
     if (_iosScheduler != null) {
       await _iosScheduler!.detach();
     }
-    if (!kIsWeb && Platform.isAndroid) {
+    if (_isAndroidTarget) {
       try {
         _channel.setMethodCallHandler(null);
       } catch (_) {}
@@ -152,9 +193,8 @@ class ProactiveCareAlarmService {
   }) async {
     if (!isSupported) return;
 
-    if (!kIsWeb &&
-        (Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
-      _desktopScheduler ??= DesktopProactiveCareScheduler();
+    if (_isDesktopTarget) {
+      _desktopScheduler ??= InProcessProactiveCareScheduler();
       await _desktopScheduler!.sync(
         conversation: conversation,
         assistant: assistant,
@@ -162,7 +202,7 @@ class ProactiveCareAlarmService {
       return;
     }
 
-    if (!kIsWeb && Platform.isIOS) {
+    if (_isIOSTarget) {
       await _ensureIosScheduler().sync(
         conversation: conversation,
         assistant: assistant,
@@ -170,7 +210,13 @@ class ProactiveCareAlarmService {
       return;
     }
 
-    if (!kIsWeb && Platform.isAndroid) {
+    if (_isAndroidTarget) {
+      // The in-process safety net only exists once the app attached its fire
+      // handler; mirroring into a null scheduler is a no-op.
+      await _inProcessScheduler?.sync(
+        conversation: conversation,
+        assistant: assistant,
+      );
       try {
         final at =
             assistant != null &&
@@ -181,15 +227,17 @@ class ProactiveCareAlarmService {
             ? conversation.proactiveCareNextMessageAt
             : null;
         if (at == null || !at.isAfter(DateTime.now())) {
+          debugPrint('[ProactiveCare] alarm cancel: ${conversation.id}');
           await cancelFor(conversation.id);
           return;
         }
+        debugPrint('[ProactiveCare] alarm arm: ${conversation.id} @ $at');
         await _channel.invokeMethod<void>('sync', {
           'conversationId': conversation.id,
           'dueAt': at.millisecondsSinceEpoch,
         });
       } catch (e) {
-        debugPrint('[ProactiveCareAlarm] sync failed: $e');
+        debugPrint('[ProactiveCare] alarm sync failed: $e');
       }
     }
   }
@@ -197,39 +245,38 @@ class ProactiveCareAlarmService {
   static Future<void> cancelFor(String conversationId) async {
     if (!isSupported) return;
 
-    if (!kIsWeb &&
-        (Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
+    if (_isDesktopTarget) {
       await _desktopScheduler?.cancelFor(conversationId);
       return;
     }
 
-    if (!kIsWeb && Platform.isIOS) {
+    if (_isIOSTarget) {
       await _iosScheduler?.cancelFor(conversationId);
       return;
     }
 
-    if (!kIsWeb && Platform.isAndroid) {
+    if (_isAndroidTarget) {
+      await _inProcessScheduler?.cancelFor(conversationId);
       try {
         await _channel.invokeMethod<void>('cancel', {
           'conversationId': conversationId,
         });
       } catch (e) {
-        debugPrint('[ProactiveCareAlarm] cancel failed: $e');
+        debugPrint('[ProactiveCare] alarm cancel failed: $e');
       }
     }
   }
 
-  /// Re-arms every pending future schedule (app start, alarm permission
-  /// granted, restore import).
+  /// Re-arms every pending future schedule (app start, app resume, alarm
+  /// permission granted, restore import).
   static Future<void> rescheduleAll({
     required List<Conversation> conversations,
     required List<Assistant> assistants,
   }) async {
     if (!isSupported) return;
 
-    if (!kIsWeb &&
-        (Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
-      _desktopScheduler ??= DesktopProactiveCareScheduler();
+    if (_isDesktopTarget) {
+      _desktopScheduler ??= InProcessProactiveCareScheduler();
       await _desktopScheduler!.rescheduleAll(
         conversations: conversations,
         assistants: assistants,
@@ -237,7 +284,7 @@ class ProactiveCareAlarmService {
       return;
     }
 
-    if (!kIsWeb && Platform.isIOS) {
+    if (_isIOSTarget) {
       await _ensureIosScheduler().rescheduleAll(
         conversations: conversations,
         assistants: assistants,
@@ -245,11 +292,18 @@ class ProactiveCareAlarmService {
       return;
     }
 
-    if (!kIsWeb && Platform.isAndroid) {
+    if (_isAndroidTarget) {
+      await _inProcessScheduler?.rescheduleAll(
+        conversations: conversations,
+        assistants: assistants,
+      );
       try {
         final pending = pendingForReschedule(
           conversations: conversations,
           assistants: assistants,
+        );
+        debugPrint(
+          '[ProactiveCare] re-arm ${pending.length} pending letter(s)',
         );
         final payload = [
           for (final target in pending)
@@ -260,7 +314,7 @@ class ProactiveCareAlarmService {
         ];
         await _channel.invokeMethod<void>('rescheduleAll', {'alarms': payload});
       } catch (e) {
-        debugPrint('[ProactiveCareAlarm] rescheduleAll failed: $e');
+        debugPrint('[ProactiveCare] alarm rescheduleAll failed: $e');
       }
     }
   }

@@ -2,11 +2,13 @@ package com.cuplivo.cuplivo.scheduled
 
 import android.app.AlarmManager
 import android.content.Context
+import android.os.Looper
 import com.cuplivo.cuplivo.KelivoApplication
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.StandardMethodCodec
 import java.nio.ByteBuffer
+import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -127,6 +129,8 @@ class ProactiveCareAlarmsTest {
     @Test fun anInFlightLetterIsNotConsumedByALaterFire() {
         val messenger = ready()
         app.backgroundRuntime.setForeground(true)
+        ShadowAlarmManager.setCanScheduleExactAlarms(true)
+        val manager = app.getSystemService(AlarmManager::class.java)
         val first = System.currentTimeMillis() + 60_000
 
         sync(messenger, "c1", first)
@@ -134,18 +138,64 @@ class ProactiveCareAlarmsTest {
         assertEquals(1, messenger.fired().size)
 
         // A rescheduled occurrence arrives while the first is still in flight:
-        // it stays in the registry instead of being consumed and dropped.
+        // it stays in the registry instead of being consumed and dropped. The
+        // system consumes the one-shot alarm while firing it, so the test does
+        // the same — otherwise the registry would look armed by accident.
         val second = first + 60_000
         sync(messenger, "c1", second)
+        manager.cancel(
+            Shadows.shadowOf(manager).scheduledAlarms.single { it.triggerAtTime == second }.operation,
+        )
         alarms.fire("c1", second)
 
         assertEquals(1, messenger.fired().size)
         assertEquals(second, prefs.getLong("alarm:c1", -1))
+        assertTrue(
+            Shadows.shadowOf(manager).scheduledAlarms.none { it.triggerAtTime == second },
+        )
 
         messenger.call("done", mapOf("conversationId" to "c1"))
+
+        // Finishing the first delivery gives the ignored occurrence a carrier
+        // again: a registry entry alone is armed nowhere.
+        val rearmed = Shadows.shadowOf(manager).scheduledAlarms
+            .single { it.triggerAtTime == second }
+        assertEquals(second, rearmed.triggerAtTime)
+
+        // That occurrence delivers the second letter.
         alarms.fire("c1", second)
         assertEquals(2, messenger.fired().size)
         assertEquals(second, dueAtOf(messenger.fired().last()))
+    }
+
+    /** A handoff that never completes must not park the conversation forever,
+     *  and releasing it must be visible instead of silent (#1007). */
+    @Test fun aDeliveryThatNeverCompletesIsReleasedAndRecorded() {
+        val messenger = ready()
+        app.backgroundRuntime.setForeground(false)
+        ShadowAlarmManager.setCanScheduleExactAlarms(true)
+        val dueAt = System.currentTimeMillis() + 60_000
+
+        sync(messenger, "c1", dueAt)
+        alarms.fire("c1", dueAt)
+        assertTrue(messenger.fired().isEmpty())
+
+        Shadows.shadowOf(Looper.getMainLooper()).idleFor(10, TimeUnit.MINUTES)
+
+        assertTrue(messenger.fired().isEmpty())
+        assertFalse(app.backgroundRuntime.hasScheduledRuns)
+        assertTrue(
+            app.getSharedPreferences("kelivo_background", Context.MODE_PRIVATE)
+                .getString("last_error", "")
+                .orEmpty()
+                .contains("care_delivery_timeout"),
+        )
+
+        // The occurrence is released, not replayed: the foreground drain has
+        // nothing left to hand over.
+        app.backgroundRuntime.setForeground(true)
+        alarms.dispatchPending()
+        assertTrue(messenger.fired().isEmpty())
     }
 
     @Test fun aStaleFireIsIgnored() {

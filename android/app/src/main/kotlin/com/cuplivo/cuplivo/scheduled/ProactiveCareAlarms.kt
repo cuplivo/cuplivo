@@ -52,6 +52,8 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
     private val due = mutableMapOf<String, Long>()
     private val inFlight = mutableMapOf<String, Long>()
     private val dispatched = mutableSetOf<String>()
+    /** Fires that actually began a foreground-service run (`Service` plan). */
+    private val serviceRuns = mutableSetOf<String>()
     private val deadlines = mutableMapOf<String, Runnable>()
     private var channel: MethodChannel? = null
     private var ready = false
@@ -167,13 +169,22 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
         if (due[id] != dueAt) return
         // Never consume an occurrence another delivery still owns: the parked
         // fire would be dropped along with it.
-        if (inFlight.containsKey(id)) return
+        if (inFlight.containsKey(id)) {
+            Log.i(TAG, "fire $id due=$dueAt ignored: a delivery for this conversation is in flight")
+            return
+        }
         due.remove(id)
         persist(id, null)
         inFlight[id] = dueAt
         // Both plans arm the deadline, so a handoff that never completes is
-        // reclaimed instead of parking the conversation forever.
-        val timeout = Runnable { finish(id) }
+        // released instead of parking the conversation forever. Releasing is a
+        // drop on the native side: the Dart schedule is still unconsumed, so
+        // the overdue catch-up owns this letter from here on.
+        val timeout = Runnable {
+            Log.w(TAG, "fire $id due=$dueAt released after the deadline")
+            app.backgroundRuntime.recordError("care_delivery_timeout: $id")
+            finish(id)
+        }
         deadlines[id] = timeout
         main.postDelayed(timeout, LIMIT_MS)
         val plan = careFirePlan(ready, app.backgroundRuntime.foreground)
@@ -190,13 +201,15 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
                     // warming Flutter, and is the only owner that guarantees
                     // the channel gets a listener.
                     if (!app.hasEngine) app.backgroundRuntime.setForeground(false)
+                    serviceRuns.add(id)
                     app.backgroundRuntime.beginScheduledRun(RUN_PREFIX + id)
                     dispatchPending()
                 }
             }
         } catch (error: RuntimeException) {
-            // Keep the fire parked: the deadline reclaims it, and the next
-            // foreground dispatch (MainActivity.onStart) can still deliver it.
+            // Keep the fire parked: the next foreground dispatch
+            // (MainActivity.onStart) can still deliver it, and the deadline
+            // releases it otherwise.
             app.backgroundRuntime.recordError("care_delivery_failed: ${error.message}")
             Log.w(TAG, "fire $id failed to dispatch", error)
         }
@@ -207,8 +220,10 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
         if (!ready) return
         // When the process was dead, the engine only exists under the
         // foreground service; without it the channel has no listener yet.
-        // Nothing is dropped here: the entry keeps its deadline and the next
-        // foreground dispatch drains it (see MainActivity.onStart).
+        // Nothing is dropped *here*: the entry keeps its deadline and the next
+        // foreground dispatch drains it (see MainActivity.onStart). If that
+        // never comes, the deadline releases the occurrence and the Dart-side
+        // overdue catch-up is the last resort.
         if (inFlight.isNotEmpty() && app.backgroundRuntime.service == null && !app.backgroundRuntime.foreground) {
             Log.i(TAG, "dispatchPending: holding ${inFlight.size} letter(s) for the foreground")
             return
@@ -225,7 +240,17 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
         if (inFlight.remove(id) != null) {
             dispatched.remove(id)
             Log.i(TAG, "finish $id")
-            app.backgroundRuntime.endScheduledRun(RUN_PREFIX + id)
+            // Only the Service plan began a scheduled run; a foreground fire
+            // never did, and ending one it never started would touch
+            // accounting that belongs to another run.
+            if (serviceRuns.remove(id)) {
+                app.backgroundRuntime.endScheduledRun(RUN_PREFIX + id)
+            }
+            // An occurrence that arrived while this delivery was in flight kept
+            // its registry entry but lost its one-shot alarm (the system
+            // consumed it). Re-arm it so the newer letter keeps a carrier
+            // instead of waiting for the next sync/resume.
+            due[id]?.let { arm(id, it) }
         }
     }
 }

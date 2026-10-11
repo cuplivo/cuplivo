@@ -74,11 +74,21 @@ removes pending requests, which is the right behaviour for `prepared: false` let
 2. **Both plans arm the watchdog.** A handoff that never completes is reclaimed by `finish(id)`
    instead of parking the conversation forever.
 3. **In-flight before consumption.** `fire()` returns early while another delivery for the same
-   conversation is in flight, leaving the registry entry intact. An occurrence is only consumed
-   when this fire owns the handoff.
+   conversation is in flight, leaving the registry entry intact (and saying so in the log). An
+   occurrence is only consumed when this fire owns the handoff; when that handoff finishes, a
+   registry entry that arrived meanwhile is re-armed, so the newer letter keeps a native carrier
+   instead of waiting for the next `sync`/resume. A deadline that expires without an answer is
+   logged and recorded (`care_delivery_timeout`) rather than passing silently.
 4. **The foreground drains what is held.** `MainActivity.onStart` calls
    `proactiveCareAlarms.dispatchPending()` right after `setForeground(true)`, so a fire parked
-   by a refused service start still reaches Dart minutes later rather than never.
+   by a refused service start still reaches Dart minutes later rather than never. The
+   `dispatchPending()` a `Service` fire calls right after `beginScheduledRun` is a no-op — the
+   service starts asynchronously, so `service` is still null at that instant; the drain that
+   actually completes that handoff is `GenerationForegroundService.onStartCommand` (it calls
+   `proactiveCareAlarms.dispatchPending()` while `hasScheduledRuns`) plus the Dart `ready`
+   handshake. If neither ever comes, the 10-minute deadline releases the occurrence and the
+   **Dart-side overdue catch-up is the last resort** — the native side cannot promise delivery
+   without a listener, it can only promise not to strand the conversation.
 5. **The in-process scheduler is the foreground executor on Android *and* iOS.**
    `InProcessProactiveCareScheduler` (renamed from `DesktopProactiveCareScheduler`, whose doc
    already claimed "foreground platforms") is attached alongside the native owner in
@@ -89,9 +99,16 @@ removes pending requests, which is the right behaviour for `prepared: false` let
    app was already in the foreground. Delivery stays exactly-once because `_claimSchedule` is
    the only place a schedule is consumed — a native fire and the timer racing each other resolve
    to one letter.
-6. **Resume re-arms.** `HomePageController.onAppLifecycleStateChanged(resumed)` now runs
-   `HomeViewModel.reschedulePendingProactiveCare()` before the overdue catch-up, mirroring the
-   native `ready` → `rescheduleAll` re-arm Kelivo's scheduled tasks do.
+6. **Resume re-arms, from a trustworthy snapshot, before the catch-up.**
+   `HomePageController.onAppLifecycleStateChanged(resumed)` runs
+   `HomeViewModel.reschedulePendingProactiveCare()` and then the overdue catch-up, mirroring the
+   native `ready` → `rescheduleAll` re-arm Kelivo's scheduled tasks do. Two constraints make that
+   safe: the re-arm is a *replace-all* (the native registry cancels whatever the payload omits,
+   the in-process mirror clears and refills), so it (a) is skipped while the chat stores are
+   unloaded or the assistant list cannot resolve the owner of a scheduled conversation, and (b)
+   runs **before** the catch-up — concurrent, the catch-up's freshly decided next occurrence could
+   be armed first and cancelled by the re-arm's older snapshot. Sequenced, everything due is
+   claimed by the catch-up and everything later stays armed.
 7. **Silent failures are over.** Every early return on the trigger chain logs
    `[ProactiveCare] …` (`debugPrint` on the Dart side, tag `ProactiveCare` on the Kotlin side),
    and native dispatch failures also go through `BackgroundRuntime.recordError`, the same
@@ -136,6 +153,15 @@ removes pending requests, which is the right behaviour for `prepared: false` let
 - The readiness card now auto-expands once per pane lifetime when the grant is missing; a user
   who collapses it again is not fought. `AndroidProactiveCareSettingsStatus.waitsForExactAlarm`
   is the single predicate behind the conversation row's waiting text and its tests.
+- A re-arm is only as good as its snapshot: the resume path and `rescheduleAll` itself refuse to
+  run on a snapshot that cannot resolve the owner of every scheduled conversation, because a
+  replace-all would cancel exactly the alarms it failed to see. A cold-start `resumed` that
+  arrives before `initChat` therefore changes nothing (the startup re-arm still runs), instead of
+  wiping the registry.
+- The 10-minute deadline *releases* an occurrence rather than replaying it. Re-arming a past
+  occurrence there would re-enter the parked state every 10 minutes whenever no listener exists,
+  so the recovery stays where the truth is: the Dart schedule is unconsumed, and the overdue
+  catch-up delivers it on the next resume. The release is logged and recorded so it is visible.
 - A future re-base must replay this contract as part of the care unit
   (`docs/rebase-runbook.md`); the deviations it fixes are exactly the kind of thing a mechanical
   port reintroduces.

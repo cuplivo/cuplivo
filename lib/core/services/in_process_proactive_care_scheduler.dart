@@ -157,9 +157,7 @@ class InProcessProactiveCareScheduler {
       try {
         await _onFire?.call(entry.key, entry.value);
       } catch (e, st) {
-        debugPrint(
-          '[DesktopProactiveCare] fire failed for ${entry.key}: $e\n$st',
-        );
+        debugPrint('[ProactiveCare] fire failed for ${entry.key}: $e\n$st');
       }
     }
     _updateTimer();

@@ -267,6 +267,55 @@ void main() {
       scheduler.dispose();
     });
 
+    test('rescheduleAll refuses a snapshot with no owner assistant', () async {
+      final scheduler = InProcessProactiveCareScheduler();
+      ProactiveCareAlarmService.setInProcessSchedulerForTesting(scheduler);
+      final dueAt = now.add(const Duration(minutes: 10));
+
+      // A letter is already mirrored: a refused re-arm must leave it alone
+      // instead of clearing the mirror it cannot rebuild.
+      await scheduler.sync(
+        conversation: conversation(nextAt: dueAt),
+        assistant: assistant(),
+      );
+      expect(scheduler.schedules.keys, ['c1']);
+
+      await ProactiveCareAlarmService.rescheduleAll(
+        conversations: [conversation(nextAt: dueAt)],
+        assistants: const [],
+      );
+
+      expect(calls.map((c) => c.method), isNot(contains('rescheduleAll')));
+      expect(scheduler.schedules.keys, ['c1']);
+
+      scheduler.dispose();
+    });
+
+    test(
+      'rescheduleAll refuses a snapshot missing a scheduled owner',
+      () async {
+        final scheduler = InProcessProactiveCareScheduler();
+        ProactiveCareAlarmService.setInProcessSchedulerForTesting(scheduler);
+
+        await ProactiveCareAlarmService.rescheduleAll(
+          conversations: [
+            conversation(
+              assistantId: 'a1',
+              nextAt: now.add(const Duration(minutes: 10)),
+            ),
+          ],
+          // The scheduled conversation is owned by a1; a partially loaded store
+          // would look exactly like this, and a replace-all would cancel it.
+          assistants: [assistant(id: 'a2')],
+        );
+
+        expect(calls.map((c) => c.method), isNot(contains('rescheduleAll')));
+        expect(scheduler.schedules, isEmpty);
+
+        scheduler.dispose();
+      },
+    );
+
     test('the exact-alarm grant the native owner reports is kept', () async {
       messenger.setMockMethodCallHandler(alarmChannel, (call) async {
         calls.add(call);

@@ -3559,13 +3559,26 @@ class HomePageController extends ChangeNotifier {
     }
     if (state == AppLifecycleState.resumed) {
       ScreenWakelock.reassert();
-      // Proactive care recovery: re-arm what is still pending (an alarm lost
-      // while the app was away must not wait for the next process start), then
-      // deliver anything the alarms missed while the process was dead or
-      // frozen (the claim contract prevents doubles).
-      unawaited(_viewModel.reschedulePendingProactiveCare());
-      unawaited(_viewModel.deliverDueProactiveCare());
+      // Re-arm only once the chat stores are loaded: the re-arm replaces the
+      // whole schedule set, and a cold-start `resumed` can arrive before
+      // `initChat` filled them (which re-arms again when it finishes).
+      if (_chatInitialized) unawaited(_recoverProactiveCareOnResume());
     }
+  }
+
+  /// Proactive care recovery on the way back to the foreground: re-arm what is
+  /// still pending (an alarm lost while the app was away must not wait for the
+  /// next process start), *then* deliver anything the alarms missed while the
+  /// process was dead or frozen (the claim contract prevents doubles).
+  ///
+  /// The order is load-bearing: the re-arm replaces the whole schedule set from
+  /// a snapshot taken now, so a delivery that armed its freshly decided next
+  /// occurrence first would have it cancelled again. Sequenced, everything due
+  /// is claimed by the catch-up and everything later stays armed — no moment is
+  /// left both unarmed and undelivered.
+  Future<void> _recoverProactiveCareOnResume() async {
+    await _viewModel.reschedulePendingProactiveCare();
+    await _viewModel.deliverDueProactiveCare();
   }
 
   void onDidPopNext() {

@@ -462,7 +462,12 @@ class HomeViewModel extends ChangeNotifier {
       currentNextCareTime: conversation.proactiveCareNextMessageAt,
     );
     if (nextAt == null) {
-      debugPrint('[ProactiveCare] decision kept the current time');
+      // decideNextCareTime returns null for keep / declined / failed / invalid
+      // alike, so this line must not claim the model decided anything.
+      debugPrint(
+        '[ProactiveCare] decision left the next time unchanged '
+        '(kept/declined/failed)',
+      );
       return;
     }
     debugPrint('[ProactiveCare] decision set next time $nextAt');
@@ -479,12 +484,23 @@ class HomeViewModel extends ChangeNotifier {
   /// an alarm the system (or our own handoff) lost must not depend on the next
   /// process start to come back. Mirrors the native `ready` re-arm Kelivo's
   /// scheduled tasks do.
+  ///
+  /// The re-arm is a replace-all, so an unloaded store has to skip instead of
+  /// arming: an empty snapshot would cancel every alarm it cannot see. A store
+  /// that is genuinely empty has no letter to preserve, and the startup /
+  /// restore / sync paths still own cleaning up stale registry entries.
   Future<void> reschedulePendingProactiveCare() async {
     if (!ProactiveCareAlarmService.isSupported) return;
+    final conversations = _chatService.getAllConversations();
+    final assistants = _contextProvider.read<AssistantProvider>().assistants;
+    if (conversations.isEmpty || assistants.isEmpty) {
+      debugPrint('[ProactiveCare] re-arm skipped: stores not ready');
+      return;
+    }
     try {
       await ProactiveCareAlarmService.rescheduleAll(
-        conversations: _chatService.getAllConversations(),
-        assistants: _contextProvider.read<AssistantProvider>().assistants,
+        conversations: conversations,
+        assistants: assistants,
       );
     } catch (e, st) {
       FlutterLogger.log(
@@ -496,7 +512,7 @@ class HomeViewModel extends ChangeNotifier {
 
   /// Delivers every due care letter for all eligible conversations (app
   /// start / resume catch-up; the alarm channel covers on-time delivery).
-  /// Returns the number of letters delivered.
+  /// Returns the number of letters delivered, excluding failed attempts.
   Future<int> deliverDueProactiveCare() async {
     if (!ProactiveCareAlarmService.isSupported) return 0;
     try {
@@ -508,11 +524,14 @@ class HomeViewModel extends ChangeNotifier {
         decisionPromptFallback: _proactiveCareDecisionPromptFallback,
         failureNotificationBody: _proactiveCareFailureBody,
       );
+      final succeeded = delivered.where((d) => d.successful).length;
       if (delivered.isNotEmpty) {
-        debugPrint('[ProactiveCare] catch-up delivered ${delivered.length}');
+        debugPrint(
+          '[ProactiveCare] catch-up delivered $succeeded/${delivered.length}',
+        );
       }
       // Each letter already reloaded the timeline through onLetterPersisted.
-      return delivered.length;
+      return succeeded;
     } catch (e, st) {
       FlutterLogger.log(
         '[ProactiveCare] due delivery failed: $e\n$st',

@@ -52,6 +52,9 @@ class ProactiveCareAlarmService {
   static String? Function()? proactiveCareArrivalBodyResolver;
 
   static InProcessProactiveCareScheduler? _desktopScheduler;
+
+  /// Android and iOS mirror their schedules into this one; desktop uses it as
+  /// the primary owner. Each platform fills at most one of the two fields.
   static InProcessProactiveCareScheduler? _inProcessScheduler;
   static IosProactiveCareScheduler? _iosScheduler;
 
@@ -104,6 +107,9 @@ class ProactiveCareAlarmService {
   /// Android only: whether the system lets this app schedule exact alarms, as
   /// reported by the native owner (the same fact Kelivo's scheduled-task
   /// surface reports). Null until the native side has answered.
+  ///
+  /// Diagnostic mirror only — the readiness UI reads
+  /// `AndroidProactiveCareSettingsService`, which queries the grant itself.
   static bool? exactAlarmsPermitted;
 
   @visibleForTesting
@@ -187,7 +193,7 @@ class ProactiveCareAlarmService {
       try {
         await _channel.invokeMethod<void>('ready');
       } catch (e) {
-        debugPrint('[ProactiveCareAlarm] ready failed: $e');
+        debugPrint('[ProactiveCare] ready failed: $e');
       }
     }
   }
@@ -208,6 +214,7 @@ class ProactiveCareAlarmService {
         _channel.setMethodCallHandler(null);
       } catch (_) {}
     }
+    exactAlarmsPermitted = null;
   }
 
   static Future<void> _completeRun(String conversationId) async {
@@ -216,7 +223,7 @@ class ProactiveCareAlarmService {
         'conversationId': conversationId,
       });
     } catch (e) {
-      debugPrint('[ProactiveCareAlarm] done failed: $e');
+      debugPrint('[ProactiveCare] done failed: $e');
     }
   }
 
@@ -318,13 +325,45 @@ class ProactiveCareAlarmService {
     }
   }
 
+  /// Whether [assistants] can resolve the owner of every conversation that
+  /// still carries a schedule. An unloaded assistant store, or a resolver that
+  /// dropped an owner, makes the snapshot unusable for a replace-all: the
+  /// conversation would silently fall out of the payload and lose its alarm.
+  static bool _resolvesEveryScheduledOwner(
+    List<Conversation> conversations,
+    List<Assistant> assistants,
+  ) {
+    final ownerIds = {for (final assistant in assistants) assistant.id};
+    return !conversations.any(
+      (conversation) =>
+          conversation.proactiveCareNextMessageAt != null &&
+          conversation.assistantId != null &&
+          !ownerIds.contains(conversation.assistantId),
+    );
+  }
+
   /// Re-arms every pending future schedule (app start, app resume, alarm
   /// permission granted, restore import).
+  ///
+  /// Every owner is a replace-all: the native registry cancels whatever the
+  /// payload omits and the in-process mirror clears and refills. A partial
+  /// snapshot would therefore cancel letters it simply cannot see, so the call
+  /// is refused outright when an owner is missing for a scheduled
+  /// conversation, rather than arming less than the caller asked for.
   static Future<void> rescheduleAll({
     required List<Conversation> conversations,
     required List<Assistant> assistants,
   }) async {
     if (!isSupported) return;
+
+    if (!_resolvesEveryScheduledOwner(conversations, assistants)) {
+      debugPrint(
+        '[ProactiveCare] re-arm skipped: incomplete snapshot '
+        '(${conversations.length} conversation(s), '
+        '${assistants.length} owner(s))',
+      );
+      return;
+    }
 
     if (_isDesktopTarget) {
       _desktopScheduler ??= InProcessProactiveCareScheduler();

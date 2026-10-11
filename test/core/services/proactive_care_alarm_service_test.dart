@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/services/in_process_proactive_care_scheduler.dart';
+import 'package:Cuplivo/core/services/ios_proactive_care_scheduler.dart';
 import 'package:Cuplivo/core/services/proactive_care_alarm_service.dart';
 import 'package:Cuplivo/core/services/notification_service.dart';
 import 'package:flutter/foundation.dart';
@@ -29,6 +30,7 @@ void main() {
   tearDown(() {
     ProactiveCareAlarmService.setInProcessSchedulerForTesting(null);
     ProactiveCareAlarmService.setDesktopSchedulerForTesting(null);
+    ProactiveCareAlarmService.resetExactAlarmStatusForTesting();
     debugDefaultTargetPlatformOverride = null;
     messenger.setMockMethodCallHandler(alarmChannel, null);
   });
@@ -265,6 +267,43 @@ void main() {
       scheduler.dispose();
     });
 
+    test('the exact-alarm grant the native owner reports is kept', () async {
+      messenger.setMockMethodCallHandler(alarmChannel, (call) async {
+        calls.add(call);
+        return {'exactAlarms': false};
+      });
+      final scheduler = InProcessProactiveCareScheduler();
+      ProactiveCareAlarmService.setInProcessSchedulerForTesting(scheduler);
+
+      await ProactiveCareAlarmService.sync(
+        conversation: conversation(
+          nextAt: now.add(const Duration(minutes: 10)),
+        ),
+        assistant: assistant(),
+      );
+
+      // Dart may not claim a background schedule the system refused.
+      expect(ProactiveCareAlarmService.exactAlarmsPermitted, isFalse);
+
+      scheduler.dispose();
+    });
+
+    test('rescheduleAll also refreshes the grant state', () async {
+      messenger.setMockMethodCallHandler(alarmChannel, (call) async {
+        calls.add(call);
+        return {'exactAlarms': true};
+      });
+
+      await ProactiveCareAlarmService.rescheduleAll(
+        conversations: [
+          conversation(nextAt: now.add(const Duration(minutes: 10))),
+        ],
+        assistants: [assistant()],
+      );
+
+      expect(ProactiveCareAlarmService.exactAlarmsPermitted, isTrue);
+    });
+
     test('detach stops the safety net from firing held schedules', () async {
       // The facade's eligibility check reads the real clock, so the injected
       // scheduler clock has to start from now.
@@ -297,6 +336,130 @@ void main() {
       currentTime = currentTime.add(const Duration(minutes: 2));
       await scheduler.tickForTesting();
       expect(fired, isEmpty);
+
+      scheduler.dispose();
+    });
+  });
+
+  // Kelivo's own iOS scheduler runs due scheduled tasks in-app while the app is
+  // alive (PreparedScheduledTasks); proactive care reused only its arrival
+  // notification, which is why a care time reached in the foreground produced
+  // nothing at all. These tests pin the parity.
+  group('ProactiveCareAlarmService iOS trigger chain', () {
+    const scheduledChannel = MethodChannel('app.scheduled_notifications');
+    final scheduledCalls = <MethodCall>[];
+
+    setUp(() {
+      scheduledCalls.clear();
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      messenger.setMockMethodCallHandler(scheduledChannel, (call) async {
+        scheduledCalls.add(call);
+        return null;
+      });
+      ProactiveCareAlarmService.setIosSchedulerForTesting(
+        IosProactiveCareScheduler(
+          channel: scheduledChannel,
+          isIos: () => true,
+          arrivalBodyResolver: () => 'A letter has arrived.',
+        ),
+      );
+    });
+
+    tearDown(() {
+      ProactiveCareAlarmService.setIosSchedulerForTesting(null);
+      messenger.setMockMethodCallHandler(scheduledChannel, null);
+    });
+
+    final now = DateTime.now();
+
+    Assistant assistant({String id = 'a1', bool enabled = true}) =>
+        Assistant(id: id, name: 'Test', enableProactiveCare: enabled);
+
+    Conversation conversation({
+      String id = 'c1',
+      String? assistantId = 'a1',
+      DateTime? nextAt,
+    }) {
+      var conv = Conversation(id: id, title: 'Chat', assistantId: assistantId);
+      if (nextAt != null) {
+        conv = conv.setProactiveCareNextMessageAt(nextAt);
+      }
+      return conv;
+    }
+
+    test('attach installs the in-app executor without touching the alarm '
+        'channel', () async {
+      await ProactiveCareAlarmService.attach((_, _) async {});
+
+      expect(ProactiveCareAlarmService.inProcessScheduler, isNotNull);
+      expect(calls, isEmpty);
+    });
+
+    test(
+      'sync mirrors into the executor and arms the arrival notification',
+      () async {
+        final scheduler = InProcessProactiveCareScheduler();
+        ProactiveCareAlarmService.setInProcessSchedulerForTesting(scheduler);
+        final dueAt = now.add(const Duration(minutes: 10));
+
+        await ProactiveCareAlarmService.sync(
+          conversation: conversation(nextAt: dueAt),
+          assistant: assistant(),
+        );
+
+        expect(scheduler.schedules['c1'], dueAt);
+        final schedule = scheduledCalls.singleWhere(
+          (c) => c.method == 'schedule',
+        );
+        final args = schedule.arguments as Map;
+        expect(args['runId'], 'c1');
+        expect(args['at'], dueAt.millisecondsSinceEpoch);
+        expect(args['title'], 'Test');
+        expect(args['prepared'], isFalse);
+        expect(args['payload'], 'proactive-care:c1');
+
+        scheduler.dispose();
+      },
+    );
+
+    test('a due letter fires in-app while the app is alive', () async {
+      var currentTime = DateTime.now();
+      final scheduler = InProcessProactiveCareScheduler(now: () => currentTime);
+      ProactiveCareAlarmService.setInProcessSchedulerForTesting(scheduler);
+      final fired = <String>[];
+      await ProactiveCareAlarmService.attach((conversationId, _) async {
+        fired.add(conversationId);
+      });
+
+      await ProactiveCareAlarmService.sync(
+        conversation: conversation(
+          nextAt: currentTime.add(const Duration(minutes: 1)),
+        ),
+        assistant: assistant(),
+      );
+      currentTime = currentTime.add(const Duration(minutes: 2));
+      await scheduler.tickForTesting();
+
+      expect(fired, ['c1']);
+
+      scheduler.dispose();
+    });
+
+    test('cancelFor clears both owners', () async {
+      final scheduler = InProcessProactiveCareScheduler();
+      ProactiveCareAlarmService.setInProcessSchedulerForTesting(scheduler);
+
+      await ProactiveCareAlarmService.sync(
+        conversation: conversation(nextAt: now.add(const Duration(minutes: 5))),
+        assistant: assistant(),
+      );
+      expect(scheduler.schedules, isNotEmpty);
+      scheduledCalls.clear();
+
+      await ProactiveCareAlarmService.cancelFor('c1');
+
+      expect(scheduler.schedules.containsKey('c1'), isFalse);
+      expect(scheduledCalls.map((c) => c.method), contains('cancel'));
 
       scheduler.dispose();
     });

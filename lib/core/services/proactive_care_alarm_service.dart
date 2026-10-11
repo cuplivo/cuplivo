@@ -24,7 +24,10 @@ import 'proactive_care_conversation_policy.dart';
 /// [InProcessProactiveCareScheduler] while the app is alive.
 /// Desktop owner: [InProcessProactiveCareScheduler] with system power
 /// sleep/wake tracking.
-/// iOS owner: `IosProactiveCareScheduler` with `app.scheduled_notifications`.
+/// iOS owner: [InProcessProactiveCareScheduler] while the app is alive (the
+/// same in-app executor Kelivo's own iOS scheduler runs due tasks with),
+/// backed by `IosProactiveCareScheduler`'s arrival notification for a
+/// suspended or dead app.
 class ProactiveCareAlarmService {
   ProactiveCareAlarmService._();
 
@@ -43,8 +46,9 @@ class ProactiveCareAlarmService {
       !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
   /// Localized line for the iOS arrival notification, wired at startup. iOS
-  /// cannot generate the letter on a timer, so the notification announces it
-  /// and the letter is delivered by the start/resume catch-up.
+  /// cannot generate the letter while the app is suspended, so the
+  /// notification announces it and the letter is delivered by the in-app
+  /// executor or the start/resume catch-up.
   static String? Function()? proactiveCareArrivalBodyResolver;
 
   static InProcessProactiveCareScheduler? _desktopScheduler;
@@ -57,6 +61,20 @@ class ProactiveCareAlarmService {
       );
 
   @visibleForTesting
+  static IosProactiveCareScheduler? get iosScheduler => _iosScheduler;
+
+  @visibleForTesting
+  static void setIosSchedulerForTesting(IosProactiveCareScheduler? scheduler) {
+    _iosScheduler = scheduler;
+  }
+
+  /// The in-app trigger: primary owner on desktop, foreground executor on
+  /// Android and iOS. Created lazily so nothing polls before the app wired its
+  /// fire handler.
+  static InProcessProactiveCareScheduler _ensureInProcessScheduler() =>
+      _inProcessScheduler ??= InProcessProactiveCareScheduler();
+
+  @visibleForTesting
   static InProcessProactiveCareScheduler? get desktopScheduler =>
       _desktopScheduler;
 
@@ -67,10 +85,11 @@ class ProactiveCareAlarmService {
     _desktopScheduler = scheduler;
   }
 
-  /// Foreground safety net for Android: while the process is alive it delivers
-  /// a due letter even if the native alarm was never scheduled, was cleared by
-  /// the system, or handed off nowhere. Created on [attach] only, so nothing
-  /// starts polling before the app wired its fire handler.
+  /// Foreground executor for Android and iOS: while the process is alive it
+  /// delivers a due letter even if the native alarm was never scheduled, was
+  /// cleared by the system, handed off nowhere, or (on iOS) was suppressed
+  /// because the app was already in the foreground. Created on [attach] only,
+  /// so nothing starts polling before the app wired its fire handler.
   @visibleForTesting
   static InProcessProactiveCareScheduler? get inProcessScheduler =>
       _inProcessScheduler;
@@ -80,6 +99,20 @@ class ProactiveCareAlarmService {
     InProcessProactiveCareScheduler? scheduler,
   ) {
     _inProcessScheduler = scheduler;
+  }
+
+  /// Android only: whether the system lets this app schedule exact alarms, as
+  /// reported by the native owner (the same fact Kelivo's scheduled-task
+  /// surface reports). Null until the native side has answered.
+  static bool? exactAlarmsPermitted;
+
+  @visibleForTesting
+  static void resetExactAlarmStatusForTesting() => exactAlarmsPermitted = null;
+
+  static void _absorbExactAlarmStatus(Object? reply) {
+    if (reply is Map && reply['exactAlarms'] is bool) {
+      exactAlarmsPermitted = reply['exactAlarms'] as bool;
+    }
   }
 
   /// Stable conversation-owned id shared by the alarm and the letter
@@ -115,6 +148,11 @@ class ProactiveCareAlarmService {
     }
 
     if (_isIOSTarget) {
+      // Same foreground-executor contract as Android, and the same in-app
+      // executor Kelivo's own iOS scheduler runs due work with: while the app
+      // is alive the letter is generated here; the arrival notification stays
+      // the fallback for a suspended or dead app.
+      await _ensureInProcessScheduler().attach(onFire);
       await _ensureIosScheduler().attach(onFire);
       return;
     }
@@ -123,8 +161,7 @@ class ProactiveCareAlarmService {
       // Foreground safety net first: the native alarm below is the
       // background/dead-process owner, this timer covers every moment the app
       // is alive (lost alarm, refused service start, held handoff).
-      _inProcessScheduler ??= InProcessProactiveCareScheduler();
-      await _inProcessScheduler!.attach(onFire);
+      await _ensureInProcessScheduler().attach(onFire);
       _channel.setMethodCallHandler((call) async {
         if (call.method != 'fire') return null;
         final args = Map<Object?, Object?>.from(call.arguments as Map);
@@ -203,6 +240,12 @@ class ProactiveCareAlarmService {
     }
 
     if (_isIOSTarget) {
+      // The in-app executor only exists once the app attached its fire
+      // handler; mirroring into a null scheduler is a no-op.
+      await _inProcessScheduler?.sync(
+        conversation: conversation,
+        assistant: assistant,
+      );
       await _ensureIosScheduler().sync(
         conversation: conversation,
         assistant: assistant,
@@ -232,10 +275,17 @@ class ProactiveCareAlarmService {
           return;
         }
         debugPrint('[ProactiveCare] alarm arm: ${conversation.id} @ $at');
-        await _channel.invokeMethod<void>('sync', {
+        final reply = await _channel.invokeMethod<Object?>('sync', {
           'conversationId': conversation.id,
           'dueAt': at.millisecondsSinceEpoch,
         });
+        _absorbExactAlarmStatus(reply);
+        if (exactAlarmsPermitted == false) {
+          debugPrint(
+            '[ProactiveCare] exact alarm not permitted; '
+            '${conversation.id} only fires while the app is alive',
+          );
+        }
       } catch (e) {
         debugPrint('[ProactiveCare] alarm sync failed: $e');
       }
@@ -251,6 +301,7 @@ class ProactiveCareAlarmService {
     }
 
     if (_isIOSTarget) {
+      await _inProcessScheduler?.cancelFor(conversationId);
       await _iosScheduler?.cancelFor(conversationId);
       return;
     }
@@ -285,6 +336,10 @@ class ProactiveCareAlarmService {
     }
 
     if (_isIOSTarget) {
+      await _inProcessScheduler?.rescheduleAll(
+        conversations: conversations,
+        assistants: assistants,
+      );
       await _ensureIosScheduler().rescheduleAll(
         conversations: conversations,
         assistants: assistants,
@@ -312,7 +367,10 @@ class ProactiveCareAlarmService {
               'dueAt': target.expectedAt.millisecondsSinceEpoch,
             },
         ];
-        await _channel.invokeMethod<void>('rescheduleAll', {'alarms': payload});
+        final reply = await _channel.invokeMethod<Object?>('rescheduleAll', {
+          'alarms': payload,
+        });
+        _absorbExactAlarmStatus(reply);
       } catch (e) {
         debugPrint('[ProactiveCare] alarm rescheduleAll failed: $e');
       }

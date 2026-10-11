@@ -110,6 +110,7 @@ class ProactiveCareMessageFlow {
     this.worldBookStore,
     ProactiveCareDecisionSender? decisionSender,
     ProactiveCareCareSender? careSender,
+    this.onLetterPersisted,
     this.decisionTimeout = const Duration(seconds: 45),
   }) : decisionSender = decisionSender ?? _defaultDecisionSender,
        careSender = careSender ?? _defaultCareSender;
@@ -121,6 +122,14 @@ class ProactiveCareMessageFlow {
   final WorldBookStore? worldBookStore;
   final ProactiveCareDecisionSender decisionSender;
   final ProactiveCareCareSender careSender;
+
+  /// Called the moment a letter is durable in the conversation, before
+  /// [runSchedule] spends another model round trip on the next-time decision.
+  /// The silent insert bypasses the streaming path, so whoever owns the UI has
+  /// to reload the timeline here or the letter stays invisible on screen until
+  /// the next navigation.
+  final Future<void> Function(String conversationId)? onLetterPersisted;
+
   final Duration decisionTimeout;
 
   static Future<dynamic> _defaultDecisionSender({
@@ -626,6 +635,15 @@ class ProactiveCareMessageFlow {
       providerId: model.providerKey,
       modelId: model.modelId,
     );
+
+    // The letter is durable now. Hand the conversation to the UI before the
+    // trailing next-time decision (another model round trip) runs, so an open
+    // chat shows the letter immediately instead of minutes later.
+    try {
+      await onLetterPersisted?.call(claimed.id);
+    } catch (e) {
+      debugPrint('[ProactiveCare] post-letter refresh failed: $e');
+    }
 
     var notified = false;
     try {

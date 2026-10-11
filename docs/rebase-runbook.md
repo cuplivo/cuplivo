@@ -20,7 +20,7 @@ the same regions, so the crop unit goes last.
 | 2 | `fix(android): bundle the current proot tooling and fix the fetchProot 404` | `tool/fetch_proot.sh`, `tool/proot_checksums.txt`, `android/app/src/main/jniLibs/NOTICE`. Build tooling on purpose kept out of the feature units |
 | 3 | `feat(image): manual compression editor with explicit format control and bounded working memory` | ADR-0002 + ADR-0005 |
 | 4 | `feat(sync): LAN sync, the dual stack, candidate probing and a panel that tells the truth` | ADR-0003 |
-| 5 | `feat(care): 「Ta的来信」跨平台回归，助手设置新增「角色扮演」页签` | proactive care: the port, the audit fix split out of it, and the desktop entry points |
+| 5 | `feat(care): 「Ta的来信」跨平台回归，助手设置新增「角色扮演」页签` | proactive care: the port, the audit fix split out of it, the `#1007` trigger contract ([ADR-0006](adr/0006-proactive-care-trigger-contract.md): the native fire plan, the cross-platform in-app executor, the exact-alarm truth, the post-letter refresh), and the desktop entry points |
 | 6 | `feat(image): crop the unsent image in its preview` | depends on 3 (the compression pipeline and its deferred crop step) and 5 (the composer it edits) |
 
 After the feature units come the non-feature tail, normally one commit each: the carry of Cuplivo's
@@ -182,6 +182,12 @@ git branch -f master rebase/onto-<new-baseline>
   of per-request `ReasoningRequest`. The fix is to port the unit's *intent* onto the new API (the
   care flow now calls `selectReasoningRequest`, the same chain the file already documented for model
   resolution) — not to reinstate the retired parameter or the retired preference key.
+- **A reused subsystem brings its *scheduling* half and its *reporting* half.** The care port took
+  Kelivo's alarm plumbing and arrival notification but dropped `PreparedScheduledTasks` (the in-app
+  executor Kelivo's own iOS scheduler runs due work with) and the exact-alarm state its task list
+  reports — so care looked armed everywhere and delivered nothing in the foreground on iOS. When a
+  unit reuses an upstream subsystem, diff the whole subsystem, not just the entry point it calls
+  ([ADR-0006](adr/0006-proactive-care-trigger-contract.md)).
 - **Registering a test failure as "known" needs a control run.** Nine Windows failures looked like
   our regression; running the same files in a clean worktree at upstream's own tip reproduced them
   (ten, in fact). Only after that is a failure honestly "upstream's, on this platform".

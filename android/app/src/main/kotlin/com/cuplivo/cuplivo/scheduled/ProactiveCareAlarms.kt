@@ -79,12 +79,13 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
                             val id = args["conversationId"] as String
                             val dueAt = (args["dueAt"] as Number).toLong()
                             if (dueAt <= System.currentTimeMillis()) cancel(id) else arm(id, dueAt)
-                            result.success(null)
+                            result.success(status())
                         }
                         "cancel" -> {
                             cancel(args["conversationId"] as String)
                             result.success(null)
                         }
+                        "status" -> result.success(status())
                         "rescheduleAll" -> {
                             @Suppress("UNCHECKED_CAST")
                             val list = args["alarms"] as? List<Map<String, Any>> ?: emptyList()
@@ -93,7 +94,7 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
                                 val at = (row["dueAt"] as? Number)?.toLong() ?: return@mapNotNull null
                                 id to at
                             })
-                            result.success(null)
+                            result.success(status())
                         }
                         "done" -> {
                             finish(args["conversationId"] as String)
@@ -121,10 +122,23 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
         else prefs.edit().putLong("alarm:$id", dueAt).apply()
     }
 
+    // Whether the system lets this app schedule exact alarms. Mirrors
+    // ScheduledTasks: the native owner is the only one that can answer, and
+    // without the grant nothing is scheduled in the background at all.
+    private fun permitted() = ExactAlarmHelper.isExactAlarmPermitted(alarms)
+
+    private fun status() = mapOf("exactAlarms" to permitted())
+
     private fun arm(id: String, dueAt: Long) {
         ExactAlarmHelper.cancel(alarms, pendingIntent(id, 0))
         due[id] = dueAt
         persist(id, dueAt)
+        if (!permitted()) {
+            // Same contract as ScheduledTasks.arm: no exact-alarm grant, no
+            // alarm. Say so instead of logging a successful arm.
+            Log.w(TAG, "exact alarm not permitted; $id can only fire while the app is alive")
+            return
+        }
         ExactAlarmHelper.scheduleExact(alarms, dueAt, pendingIntent(id, dueAt))
     }
 

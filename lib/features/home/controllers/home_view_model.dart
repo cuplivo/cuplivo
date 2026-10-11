@@ -392,6 +392,10 @@ class HomeViewModel extends ChangeNotifier {
     worldBookStore: WorldBookStore(
       _contextProvider.read<BusinessPreferences>(),
     ),
+    // A letter is inserted silently, outside the streaming path: reload the
+    // timeline as soon as it is durable, before the next-time decision call.
+    onLetterPersisted: (conversationId) =>
+        _refreshCurrentConversationAfterCare({conversationId}),
   );
 
   String? _proactiveCareL10n(String? Function(AppLocalizations) pick) {
@@ -507,9 +511,7 @@ class HomeViewModel extends ChangeNotifier {
       if (delivered.isNotEmpty) {
         debugPrint('[ProactiveCare] catch-up delivered ${delivered.length}');
       }
-      await _refreshCurrentConversationAfterCare(
-        delivered.map((d) => d.conversationId).toSet(),
-      );
+      // Each letter already reloaded the timeline through onLetterPersisted.
       return delivered.length;
     } catch (e, st) {
       FlutterLogger.log(
@@ -544,7 +546,7 @@ class HomeViewModel extends ChangeNotifier {
         debugPrint('[ProactiveCare] nothing to deliver for $conversationId');
         return false;
       }
-      await _refreshCurrentConversationAfterCare({conversationId});
+      // A successful letter already reloaded the timeline in the flow.
       return outcome.successful;
     } catch (e, st) {
       FlutterLogger.log(

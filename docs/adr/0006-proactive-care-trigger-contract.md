@@ -36,6 +36,34 @@ The code is byte-identical between 4.1 and 4.2 (`scheduled/` has no diff between
 and HEAD), so 4.2 did not introduce the defect; 4.2 merely hit it. This is a *reuse* error, not
 a Kelivo bug: no upstream issue is warranted.
 
+### The second half of #1007
+
+Three more gaps surfaced while verifying that fix, all of them on the *reporting* side of the
+same contract — where the care path told the user (or the log) something the system was not
+doing:
+
+- **iOS had no foreground executor at all.** `IosProactiveCareScheduler` only schedules an
+  arrival notification and leaves `attach`/`detach` empty, so a care time reached while the app
+  was alive produced nothing until the next `resumed` transition — and never when the user was
+  looking at the app. Kelivo's own iOS scheduler does not work that way: `PreparedScheduledTasks`
+  runs a 1 s `Timer.periodic` in the app and executes due tasks in the foreground, with the
+  notification only as the suspended-app fallback. The care port dropped that half.
+- **The exact-alarm grant was invisible.** `ProactiveCareAlarms.arm()` wrote the registry and
+  called the (permission-gated, silently no-op) `ExactAlarmHelper.scheduleExact`, logging
+  `alarm arm` either way, and never reported the grant back to Dart; the readiness card also
+  stayed collapsed, so "care is on, the alarm is not" looked exactly like "care is on". Kelivo's
+  `ScheduledTasks` treats the grant as a first-class state instead: `snapshot()` reports
+  `exactAlarms`, `arm()` is gated on it, and the task list blocks with a waiting state.
+- **The letter was not durable on screen.** The silent insert bypasses the streaming path, and
+  the timeline was only reloaded *after* the trailing next-time decision (another model round
+  trip, tens of seconds to minutes). A foreground delivery therefore looked like a failure until
+  the user navigated away and back.
+
+Two further deviations were examined and deliberately left alone, because they are Kelivo's own
+contract rather than a porting gap: the 1 s foreground cadence (Kelivo's desktop/iOS schedulers
+poll at 1 Hz) and the arrival notification's second identity (`ScheduledTaskNotifications` only
+removes pending requests, which is the right behaviour for `prepared: false` letters).
+
 ## Decisions
 
 1. **A fire always ends in one of two states.** `careFirePlan(ready, foreground)` yields
@@ -51,13 +79,16 @@ a Kelivo bug: no upstream issue is warranted.
 4. **The foreground drains what is held.** `MainActivity.onStart` calls
    `proactiveCareAlarms.dispatchPending()` right after `setForeground(true)`, so a fire parked
    by a refused service start still reaches Dart minutes later rather than never.
-5. **The in-process scheduler is the Android foreground safety net.**
+5. **The in-process scheduler is the foreground executor on Android *and* iOS.**
    `InProcessProactiveCareScheduler` (renamed from `DesktopProactiveCareScheduler`, whose doc
-   already claimed "foreground platforms") is attached alongside the native alarm in
-   `ProactiveCareAlarmService.attach`. While the app is alive it delivers a due letter even when
-   the alarm was never scheduled, was cleared by the OEM, or handed off nowhere. Delivery stays
-   exactly-once because `_claimSchedule` is the only place a schedule is consumed — a native
-   fire and the timer racing each other resolve to one letter.
+   already claimed "foreground platforms") is attached alongside the native owner in
+   `ProactiveCareAlarmService.attach`: next to the Android alarm, and next to the iOS arrival
+   notification — the same role `PreparedScheduledTasks` plays for Kelivo's own iOS scheduled
+   tasks. While the app is alive it delivers a due letter even when the alarm was never
+   scheduled, was cleared by the OEM, handed off nowhere, or (on iOS) was suppressed because the
+   app was already in the foreground. Delivery stays exactly-once because `_claimSchedule` is
+   the only place a schedule is consumed — a native fire and the timer racing each other resolve
+   to one letter.
 6. **Resume re-arms.** `HomePageController.onAppLifecycleStateChanged(resumed)` now runs
    `HomeViewModel.reschedulePendingProactiveCare()` before the overdue catch-up, mirroring the
    native `ready` → `rescheduleAll` re-arm Kelivo's scheduled tasks do.
@@ -67,6 +98,24 @@ a Kelivo bug: no upstream issue is warranted.
    observability Kelivo's scheduled tasks have. This follows the 3.x debug-first strategy
    recorded in that line's ADR-0031, which found an earlier instance of the same class of bug
    (re-arming before assistants had loaded).
+8. **The letter reaches the UI as soon as it is durable.** `ProactiveCareMessageFlow` calls
+   `onLetterPersisted(conversationId)` right after `addMessage`, before the trailing next-time
+   decision, and `HomeViewModel` is the only owner of that callback: it reloads the timeline when
+   the letter belongs to the open conversation. The delivery entry points no longer refresh
+   after the fact, so a slow decision round trip cannot hide a letter that is already in the
+   database, and `deliverProactiveCareSchedule` cannot reload twice.
+9. **The exact-alarm grant is reported, not assumed.** `ProactiveCareAlarms` answers
+   `status`, and every `sync`/`rescheduleAll` reply carries `exactAlarms`; `arm()` logs
+   `Log.w` and returns without pretending instead of describing a no-op as `alarm arm`. Dart
+   stores the flag in `ProactiveCareAlarmService.exactAlarmsPermitted` and logs the downgrade for
+   the affected conversation, and the Roleplay care pane mirrors Kelivo's gating: the readiness
+   card auto-expands when the grant is missing, and a future-only conversation row reads
+   `scheduledTasksWaitingPermission` instead of promising a time the platform will not honour.
+   The registry write stays where it is — the in-app executor is a legitimate delivery path, so a
+   missing grant downgrades care to "foreground only" rather than cancelling it.
+10. **Parity is a finding too.** The 1 s foreground cadence and the arrival notification's
+    pending-request-only removal are Kelivo's own behaviour, so they are recorded here and left
+    alone; a re-base must preserve them, not "fix" them.
 
 ## Consequences
 
@@ -78,10 +127,15 @@ a Kelivo bug: no upstream issue is warranted.
 - `ProactiveCareAlarmService` now branches on `defaultTargetPlatform` (the tree's
   `PlatformUtils` pattern) instead of `dart:io Platform.is*`, which is what makes the Android
   branch unit-testable off-device.
-- iOS is unchanged: its arrival notification plus resume-generated letter is a deliberate design
-  (the letter cannot be generated while the app is suspended). Extending the in-process safety
-  net to iOS would only shorten the delay when the app is already alive; that is a follow-up,
-  not part of this fix.
+- iOS keeps the arrival notification: the in-app executor covers "the app is alive", the
+  notification covers "the app is suspended or dead" and the start/resume catch-up still writes
+  the letter. The two cannot double-deliver, because both paths claim the same persisted
+  schedule. The residual gap — a letter whose time passes while the app is suspended, announced
+  by the notification but written only on the next resume — is inherent to iOS background
+  limits, not to this port.
+- The readiness card now auto-expands once per pane lifetime when the grant is missing; a user
+  who collapses it again is not fought. `AndroidProactiveCareSettingsStatus.waitsForExactAlarm`
+  is the single predicate behind the conversation row's waiting text and its tests.
 - A future re-base must replay this contract as part of the care unit
   (`docs/rebase-runbook.md`); the deviations it fixes are exactly the kind of thing a mechanical
   port reintroduces.

@@ -426,6 +426,130 @@ void main() {
   });
 
   test(
+    'runSchedule hands the persisted letter to the UI before the decision call',
+    () async {
+      final dueAt = DateTime.now().subtract(const Duration(minutes: 5));
+      final assistant = Assistant(
+        id: 'a',
+        name: 'A',
+        chatModelProvider: 'openai',
+        chatModelId: 'gpt-test',
+        enableProactiveCare: true,
+        proactiveCarePrompt: '问候我',
+      );
+      final conversation = await seededConversation(assistant, dueAt);
+      final events = <String>[];
+      final flow = ProactiveCareMessageFlow(
+        chatService: chatService,
+        settings: settings,
+        careSender:
+            ({
+              required config,
+              required modelId,
+              required messages,
+              reasoning = ReasoningRequest.auto,
+              topP,
+              maxTokens,
+              conversationId,
+            }) async {
+              events.add('care');
+              return 'letter';
+            },
+        decisionSender:
+            ({
+              required config,
+              required modelId,
+              required messages,
+              required tools,
+              onToolCall,
+              reasoning = ReasoningRequest.auto,
+              topP,
+              maxTokens,
+              requestId,
+              conversationId,
+            }) async {
+              events.add('decision');
+              return null;
+            },
+        onLetterPersisted: (conversationId) async {
+          final messages = await chatService.loadMessages(conversationId);
+          events.add(
+            'persisted:${messages.where((m) => m.role == 'assistant').length}',
+          );
+        },
+      );
+
+      final delivery = await flow.runSchedule(
+        conversationId: conversation.id,
+        expectedAt: dueAt,
+        assistants: [assistant],
+        userNickname: 'User',
+      );
+
+      expect(delivery, isNotNull);
+      expect(delivery!.successful, isTrue);
+      // The letter is durable when the refresh runs, and the refresh runs
+      // before the trailing decision round trip can delay the on-screen letter
+      // (the decision call itself may retry once with the tool-only directive).
+      expect(events.take(2), ['care', 'persisted:1']);
+      expect(events.skip(2), everyElement('decision'));
+    },
+  );
+
+  test('a throwing refresh callback never costs the letter', () async {
+    final dueAt = DateTime.now().subtract(const Duration(minutes: 5));
+    final assistant = Assistant(
+      id: 'a',
+      name: 'A',
+      chatModelProvider: 'openai',
+      chatModelId: 'gpt-test',
+      enableProactiveCare: true,
+      proactiveCarePrompt: '问候我',
+    );
+    final conversation = await seededConversation(assistant, dueAt);
+    final flow = ProactiveCareMessageFlow(
+      chatService: chatService,
+      settings: settings,
+      careSender:
+          ({
+            required config,
+            required modelId,
+            required messages,
+            reasoning = ReasoningRequest.auto,
+            topP,
+            maxTokens,
+            conversationId,
+          }) async => 'letter',
+      decisionSender:
+          ({
+            required config,
+            required modelId,
+            required messages,
+            required tools,
+            onToolCall,
+            reasoning = ReasoningRequest.auto,
+            topP,
+            maxTokens,
+            requestId,
+            conversationId,
+          }) async => null,
+      onLetterPersisted: (_) async => throw StateError('refresh exploded'),
+    );
+
+    final delivery = await flow.runSchedule(
+      conversationId: conversation.id,
+      expectedAt: dueAt,
+      assistants: [assistant],
+      userNickname: 'User',
+    );
+
+    expect(delivery, isNotNull);
+    expect(delivery!.successful, isTrue);
+    final messages = await chatService.loadMessages(conversation.id);
+    expect(messages.where((m) => m.role == 'assistant').length, 1);
+  });
+
+  test(
     'runSchedule claims successfully across UTC and local time representation',
     () async {
       final dueAtLocal = DateTime.now().subtract(const Duration(minutes: 5));

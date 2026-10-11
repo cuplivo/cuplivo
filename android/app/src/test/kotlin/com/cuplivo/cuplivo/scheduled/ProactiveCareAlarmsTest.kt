@@ -1,5 +1,6 @@
 package com.cuplivo.cuplivo.scheduled
 
+import android.app.AlarmManager
 import android.content.Context
 import com.cuplivo.cuplivo.KelivoApplication
 import io.flutter.plugin.common.BinaryMessenger
@@ -14,7 +15,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowAlarmManager
 
 /**
  * The trigger chain around a fired letter (#1007): a fire must always end up
@@ -28,6 +31,9 @@ class ProactiveCareAlarmsTest {
     private class Messenger : BinaryMessenger {
         val events = mutableListOf<MethodCall>()
         private val handlers = mutableMapOf<String, BinaryMessenger.BinaryMessageHandler>()
+
+        /** Decoded replies, one per [call]. */
+        val replies = mutableListOf<Any?>()
 
         override fun setMessageHandler(
             channel: String,
@@ -55,6 +61,7 @@ class ProactiveCareAlarmsTest {
             data.flip()
             handlers.getValue("app.proactive_care_alarms").onMessage(data) { response ->
                 response?.flip()
+                replies += StandardMethodCodec.INSTANCE.decodeEnvelope(response!!)
             }
         }
 
@@ -151,5 +158,39 @@ class ProactiveCareAlarmsTest {
 
         assertTrue(messenger.fired().isEmpty())
         assertEquals(dueAt, prefs.getLong("alarm:c1", -1))
+    }
+
+    /** Nothing is scheduled without the exact-alarm grant, and Dart has to hear
+     *  that instead of believing an arm that never happened (#1007). */
+    @Test
+    @Config(sdk = [33])
+    fun withoutTheExactAlarmGrantNothingIsScheduledAndDartIsTold() {
+        val manager = app.getSystemService(AlarmManager::class.java)
+        ShadowAlarmManager.setCanScheduleExactAlarms(false)
+        val messenger = ready()
+        val dueAt = System.currentTimeMillis() + 60_000
+
+        sync(messenger, "c1", dueAt)
+
+        assertEquals(mapOf("exactAlarms" to false), messenger.replies.last())
+        assertTrue(Shadows.shadowOf(manager).scheduledAlarms.isEmpty())
+
+        // The grant flips both the report and the real registration.
+        ShadowAlarmManager.setCanScheduleExactAlarms(true)
+        sync(messenger, "c1", dueAt)
+
+        assertEquals(mapOf("exactAlarms" to true), messenger.replies.last())
+        assertEquals(1, Shadows.shadowOf(manager).scheduledAlarms.size)
+    }
+
+    @Test
+    @Config(sdk = [33])
+    fun theStatusCallAnswersTheSameQuestion() {
+        ShadowAlarmManager.setCanScheduleExactAlarms(false)
+        val messenger = ready()
+
+        messenger.call("status")
+
+        assertEquals(mapOf("exactAlarms" to false), messenger.replies.last())
     }
 }

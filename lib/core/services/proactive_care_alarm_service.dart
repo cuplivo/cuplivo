@@ -19,13 +19,15 @@ import 'proactive_care_conversation_policy.dart';
 
 /// Cross-platform proactive-care alarm & scheduling service facade.
 ///
+/// Care is a consumer of Kelivo's scheduled-task layer: every platform's
+/// trigger is the one upstream already owns for that platform.
 /// Native Android owner: `android/.../scheduled/ProactiveCareAlarms.kt` over
-/// MethodChannel `app.proactive_care_alarms`, backed by
-/// [InProcessProactiveCareScheduler] while the app is alive.
+/// MethodChannel `app.proactive_care_alarms` (Kelivo has no in-app executor on
+/// Android, so neither has care).
 /// Desktop owner: [InProcessProactiveCareScheduler] with system power
-/// sleep/wake tracking.
+/// sleep/wake tracking (the platform where care is the primary trigger).
 /// iOS owner: [InProcessProactiveCareScheduler] while the app is alive (the
-/// same in-app executor Kelivo's own iOS scheduler runs due tasks with),
+/// same in-app executor role Kelivo's own iOS scheduler runs due tasks with),
 /// backed by `IosProactiveCareScheduler`'s arrival notification for a
 /// suspended or dead app.
 class ProactiveCareAlarmService {
@@ -53,8 +55,10 @@ class ProactiveCareAlarmService {
 
   static InProcessProactiveCareScheduler? _desktopScheduler;
 
-  /// Android and iOS mirror their schedules into this one; desktop uses it as
-  /// the primary owner. Each platform fills at most one of the two fields.
+  /// The platforms whose upstream counterpart is an in-app executor: desktop
+  /// (primary owner) and iOS (foreground executor). Android deliberately has
+  /// none — Kelivo's own Android scheduled tasks run through the native exact
+  /// alarm only, so care consumes that and nothing else.
   static InProcessProactiveCareScheduler? _inProcessScheduler;
   static IosProactiveCareScheduler? _iosScheduler;
 
@@ -71,9 +75,8 @@ class ProactiveCareAlarmService {
     _iosScheduler = scheduler;
   }
 
-  /// The in-app trigger: primary owner on desktop, foreground executor on
-  /// Android and iOS. Created lazily so nothing polls before the app wired its
-  /// fire handler.
+  /// The in-app trigger: primary owner on desktop, foreground executor on iOS.
+  /// Created lazily so nothing polls before the app wired its fire handler.
   static InProcessProactiveCareScheduler _ensureInProcessScheduler() =>
       _inProcessScheduler ??= InProcessProactiveCareScheduler();
 
@@ -88,11 +91,11 @@ class ProactiveCareAlarmService {
     _desktopScheduler = scheduler;
   }
 
-  /// Foreground executor for Android and iOS: while the process is alive it
-  /// delivers a due letter even if the native alarm was never scheduled, was
-  /// cleared by the system, handed off nowhere, or (on iOS) was suppressed
-  /// because the app was already in the foreground. Created on [attach] only,
-  /// so nothing starts polling before the app wired its fire handler.
+  /// Foreground executor for iOS: while the process is alive it delivers a due
+  /// letter even when the arrival notification was suppressed because the app
+  /// was already in the foreground. Created on [attach] only, so nothing starts
+  /// polling before the app wired its fire handler. Null on every other
+  /// platform, Android included.
   @visibleForTesting
   static InProcessProactiveCareScheduler? get inProcessScheduler =>
       _inProcessScheduler;
@@ -164,10 +167,9 @@ class ProactiveCareAlarmService {
     }
 
     if (_isAndroidTarget) {
-      // Foreground safety net first: the native alarm below is the
-      // background/dead-process owner, this timer covers every moment the app
-      // is alive (lost alarm, refused service start, held handoff).
-      await _ensureInProcessScheduler().attach(onFire);
+      // Android consumes the native exact alarm only: Kelivo's own Android
+      // scheduled tasks have no in-app executor either, so care must not add a
+      // second trigger (and a permanent 1 s poll) of its own.
       _channel.setMethodCallHandler((call) async {
         if (call.method != 'fire') return null;
         final args = Map<Object?, Object?>.from(call.arguments as Map);
@@ -261,12 +263,6 @@ class ProactiveCareAlarmService {
     }
 
     if (_isAndroidTarget) {
-      // The in-process safety net only exists once the app attached its fire
-      // handler; mirroring into a null scheduler is a no-op.
-      await _inProcessScheduler?.sync(
-        conversation: conversation,
-        assistant: assistant,
-      );
       try {
         final at =
             assistant != null &&
@@ -314,7 +310,6 @@ class ProactiveCareAlarmService {
     }
 
     if (_isAndroidTarget) {
-      await _inProcessScheduler?.cancelFor(conversationId);
       try {
         await _channel.invokeMethod<void>('cancel', {
           'conversationId': conversationId,
@@ -325,38 +320,48 @@ class ProactiveCareAlarmService {
     }
   }
 
-  /// Whether [assistants] can resolve the owner of every conversation that
-  /// still carries a schedule. An unloaded assistant store, or a resolver that
-  /// dropped an owner, makes the snapshot unusable for a replace-all: the
-  /// conversation would silently fall out of the payload and lose its alarm.
+  /// Whether [assistants] can resolve the owner of every conversation the
+  /// re-arm would actually arm — a future schedule that [pendingForReschedule]
+  /// would include once its owner is known. An unloaded assistant store, or a
+  /// resolver that dropped an owner, makes the snapshot unusable for a
+  /// replace-all: the conversation would silently fall out of the payload and
+  /// lose its alarm.
+  ///
+  /// Schedules the re-arm omits by design must not veto it: a past-due one is
+  /// cancelled on purpose, and one whose owner id is gone can never be armed
+  /// again, so neither may block every other pending letter.
   static bool _resolvesEveryScheduledOwner(
     List<Conversation> conversations,
-    List<Assistant> assistants,
-  ) {
+    List<Assistant> assistants, {
+    DateTime? now,
+  }) {
     final ownerIds = {for (final assistant in assistants) assistant.id};
+    final current = now ?? DateTime.now();
     return !conversations.any(
       (conversation) =>
-          conversation.proactiveCareNextMessageAt != null &&
           conversation.assistantId != null &&
+          conversation.proactiveCareNextMessageAt?.isAfter(current) == true &&
           !ownerIds.contains(conversation.assistantId),
     );
   }
 
   /// Re-arms every pending future schedule (app start, app resume, alarm
-  /// permission granted, restore import).
+  /// permission granted, restore import). This only *consumes* the upstream
+  /// re-arm API — it never owns timing itself on Android.
   ///
   /// Every owner is a replace-all: the native registry cancels whatever the
   /// payload omits and the in-process mirror clears and refills. A partial
   /// snapshot would therefore cancel letters it simply cannot see, so the call
-  /// is refused outright when an owner is missing for a scheduled
-  /// conversation, rather than arming less than the caller asked for.
+  /// is refused outright when an owner is missing for a schedule that would
+  /// otherwise be armed, rather than arming less than the caller asked for.
   static Future<void> rescheduleAll({
     required List<Conversation> conversations,
     required List<Assistant> assistants,
   }) async {
     if (!isSupported) return;
 
-    if (!_resolvesEveryScheduledOwner(conversations, assistants)) {
+    final now = DateTime.now();
+    if (!_resolvesEveryScheduledOwner(conversations, assistants, now: now)) {
       debugPrint(
         '[ProactiveCare] re-arm skipped: incomplete snapshot '
         '(${conversations.length} conversation(s), '
@@ -387,14 +392,11 @@ class ProactiveCareAlarmService {
     }
 
     if (_isAndroidTarget) {
-      await _inProcessScheduler?.rescheduleAll(
-        conversations: conversations,
-        assistants: assistants,
-      );
       try {
         final pending = pendingForReschedule(
           conversations: conversations,
           assistants: assistants,
+          now: now,
         );
         debugPrint(
           '[ProactiveCare] re-arm ${pending.length} pending letter(s)',

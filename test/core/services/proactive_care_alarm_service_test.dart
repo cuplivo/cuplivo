@@ -167,12 +167,18 @@ void main() {
       return conv;
     }
 
-    test('attach installs the in-process foreground safety net', () async {
-      await ProactiveCareAlarmService.attach((_, _) async {});
+    test(
+      'attach readies the native owner and installs no in-app executor',
+      () async {
+        await ProactiveCareAlarmService.attach((_, _) async {});
 
-      expect(ProactiveCareAlarmService.inProcessScheduler, isNotNull);
-      expect(calls.map((c) => c.method), contains('ready'));
-    });
+        // Kelivo has no in-app executor on Android (ScheduledTasksService
+        // .configureDevice returns early there), so care must not add one: the
+        // native exact alarm is the only trigger.
+        expect(ProactiveCareAlarmService.inProcessScheduler, isNull);
+        expect(calls.map((c) => c.method), contains('ready'));
+      },
+    );
 
     test('a native fire reaches the handler and completes the run', () async {
       final fired = <String>[];
@@ -194,7 +200,7 @@ void main() {
     });
 
     test(
-      'sync arms the native alarm and mirrors into the safety net',
+      'sync arms the native alarm and leaves the mirror untouched',
       () async {
         final scheduler = InProcessProactiveCareScheduler();
         ProactiveCareAlarmService.setInProcessSchedulerForTesting(scheduler);
@@ -210,21 +216,19 @@ void main() {
           'conversationId': 'c1',
           'dueAt': dueAt.millisecondsSinceEpoch,
         });
-        expect(scheduler.schedules['c1'], dueAt);
+        // Android has no in-process owner, so nothing may be mirrored into one.
+        expect(scheduler.schedules, isEmpty);
 
         scheduler.dispose();
       },
     );
 
-    test('a past or ineligible schedule cancels both owners', () async {
-      final scheduler = InProcessProactiveCareScheduler();
-      ProactiveCareAlarmService.setInProcessSchedulerForTesting(scheduler);
-
+    test('a past or ineligible schedule cancels the native alarm', () async {
       await ProactiveCareAlarmService.sync(
         conversation: conversation(nextAt: now.add(const Duration(minutes: 5))),
         assistant: assistant(),
       );
-      expect(scheduler.schedules, isNotEmpty);
+      expect(calls.map((c) => c.method), contains('sync'));
 
       await ProactiveCareAlarmService.sync(
         conversation: conversation(
@@ -234,14 +238,9 @@ void main() {
       );
 
       expect(calls.map((c) => c.method), contains('cancel'));
-      expect(scheduler.schedules.containsKey('c1'), isFalse);
-
-      scheduler.dispose();
     });
 
     test('rescheduleAll sends only future eligible letters', () async {
-      final scheduler = InProcessProactiveCareScheduler();
-      ProactiveCareAlarmService.setInProcessSchedulerForTesting(scheduler);
       final dueAt = now.add(const Duration(minutes: 10));
 
       await ProactiveCareAlarmService.rescheduleAll(
@@ -262,41 +261,24 @@ void main() {
       expect(payload, [
         {'conversationId': 'c1', 'dueAt': dueAt.millisecondsSinceEpoch},
       ]);
-      expect(scheduler.schedules.keys, ['c1']);
-
-      scheduler.dispose();
     });
 
     test('rescheduleAll refuses a snapshot with no owner assistant', () async {
-      final scheduler = InProcessProactiveCareScheduler();
-      ProactiveCareAlarmService.setInProcessSchedulerForTesting(scheduler);
       final dueAt = now.add(const Duration(minutes: 10));
-
-      // A letter is already mirrored: a refused re-arm must leave it alone
-      // instead of clearing the mirror it cannot rebuild.
-      await scheduler.sync(
-        conversation: conversation(nextAt: dueAt),
-        assistant: assistant(),
-      );
-      expect(scheduler.schedules.keys, ['c1']);
 
       await ProactiveCareAlarmService.rescheduleAll(
         conversations: [conversation(nextAt: dueAt)],
         assistants: const [],
       );
 
+      // A replace-all on a snapshot whose assistant store is unloaded would
+      // cancel the alarms it cannot see, so the whole call must be refused.
       expect(calls.map((c) => c.method), isNot(contains('rescheduleAll')));
-      expect(scheduler.schedules.keys, ['c1']);
-
-      scheduler.dispose();
     });
 
     test(
       'rescheduleAll refuses a snapshot missing a scheduled owner',
       () async {
-        final scheduler = InProcessProactiveCareScheduler();
-        ProactiveCareAlarmService.setInProcessSchedulerForTesting(scheduler);
-
         await ProactiveCareAlarmService.rescheduleAll(
           conversations: [
             conversation(
@@ -310,19 +292,42 @@ void main() {
         );
 
         expect(calls.map((c) => c.method), isNot(contains('rescheduleAll')));
-        expect(scheduler.schedules, isEmpty);
-
-        scheduler.dispose();
       },
     );
+
+    test('a stale schedule no longer vetoes the whole re-arm', () async {
+      final dueAt = now.add(const Duration(minutes: 10));
+
+      // Only the past-due row has a dangling owner. It can never be armed
+      // again, so it must not block the healthy pending letter (the same
+      // applies to a schedule whose owner id is gone entirely).
+      await ProactiveCareAlarmService.rescheduleAll(
+        conversations: [
+          conversation(nextAt: dueAt),
+          conversation(
+            id: 'stale',
+            assistantId: 'deleted',
+            nextAt: now.subtract(const Duration(minutes: 5)),
+          ),
+          conversation(id: 'ownerless', assistantId: null, nextAt: dueAt),
+        ],
+        assistants: [assistant()],
+      );
+
+      final payload =
+          (calls.singleWhere((c) => c.method == 'rescheduleAll').arguments
+                  as Map)['alarms']
+              as List;
+      expect(payload, [
+        {'conversationId': 'c1', 'dueAt': dueAt.millisecondsSinceEpoch},
+      ]);
+    });
 
     test('the exact-alarm grant the native owner reports is kept', () async {
       messenger.setMockMethodCallHandler(alarmChannel, (call) async {
         calls.add(call);
         return {'exactAlarms': false};
       });
-      final scheduler = InProcessProactiveCareScheduler();
-      ProactiveCareAlarmService.setInProcessSchedulerForTesting(scheduler);
 
       await ProactiveCareAlarmService.sync(
         conversation: conversation(
@@ -333,8 +338,6 @@ void main() {
 
       // Dart may not claim a background schedule the system refused.
       expect(ProactiveCareAlarmService.exactAlarmsPermitted, isFalse);
-
-      scheduler.dispose();
     });
 
     test('rescheduleAll also refreshes the grant state', () async {
@@ -351,42 +354,6 @@ void main() {
       );
 
       expect(ProactiveCareAlarmService.exactAlarmsPermitted, isTrue);
-    });
-
-    test('detach stops the safety net from firing held schedules', () async {
-      // The facade's eligibility check reads the real clock, so the injected
-      // scheduler clock has to start from now.
-      var currentTime = DateTime.now();
-      final scheduler = InProcessProactiveCareScheduler(now: () => currentTime);
-      ProactiveCareAlarmService.setInProcessSchedulerForTesting(scheduler);
-      final fired = <String>[];
-      await ProactiveCareAlarmService.attach((conversationId, _) async {
-        fired.add(conversationId);
-      });
-
-      await ProactiveCareAlarmService.sync(
-        conversation: conversation(
-          nextAt: currentTime.add(const Duration(minutes: 1)),
-        ),
-        assistant: assistant(),
-      );
-      currentTime = currentTime.add(const Duration(minutes: 2));
-      await scheduler.tickForTesting();
-      expect(fired, ['c1']);
-
-      await ProactiveCareAlarmService.detach();
-      fired.clear();
-      await ProactiveCareAlarmService.sync(
-        conversation: conversation(
-          nextAt: currentTime.add(const Duration(minutes: 1)),
-        ),
-        assistant: assistant(),
-      );
-      currentTime = currentTime.add(const Duration(minutes: 2));
-      await scheduler.tickForTesting();
-      expect(fired, isEmpty);
-
-      scheduler.dispose();
     });
   });
 

@@ -89,26 +89,37 @@ removes pending requests, which is the right behaviour for `prepared: false` let
    handshake. If neither ever comes, the 10-minute deadline releases the occurrence and the
    **Dart-side overdue catch-up is the last resort** — the native side cannot promise delivery
    without a listener, it can only promise not to strand the conversation.
-5. **The in-process scheduler is the foreground executor on Android *and* iOS.**
-   `InProcessProactiveCareScheduler` (renamed from `DesktopProactiveCareScheduler`, whose doc
-   already claimed "foreground platforms") is attached alongside the native owner in
-   `ProactiveCareAlarmService.attach`: next to the Android alarm, and next to the iOS arrival
-   notification — the same role `PreparedScheduledTasks` plays for Kelivo's own iOS scheduled
-   tasks. While the app is alive it delivers a due letter even when the alarm was never
-   scheduled, was cleared by the OEM, handed off nowhere, or (on iOS) was suppressed because the
-   app was already in the foreground. Delivery stays exactly-once because `_claimSchedule` is
-   the only place a schedule is consumed — a native fire and the timer racing each other resolve
-   to one letter.
+5. **The in-process scheduler exists only where Kelivo has one.** Care is a *consumer* of
+   Kelivo's scheduled-task layer, so each platform's trigger is the one upstream already owns
+   there. `InProcessProactiveCareScheduler` (renamed from `DesktopProactiveCareScheduler`, whose
+   doc already claimed "foreground platforms") is attached in `ProactiveCareAlarmService.attach`
+   only for **desktop** (primary owner, matching `DesktopScheduledTasks`) and **iOS** (foreground
+   executor, the same role `PreparedScheduledTasks` plays for Kelivo's own iOS scheduled tasks).
+   **Android deliberately has none**: `ScheduledTasksService.configureDevice` returns early for
+   Android and `attach` only readies the native channel, so Kelivo's Android tasks run through the
+   native exact alarm alone. Adding a Dart timer there would not be reuse but a second trigger (and
+   a permanent 1 s poll) that upstream does not have. Delivery stays exactly-once because
+   `_claimSchedule` is the only place a schedule is consumed — a native fire and the timer racing
+   each other resolve to one letter.
 6. **Resume re-arms, from a trustworthy snapshot, before the catch-up.**
    `HomePageController.onAppLifecycleStateChanged(resumed)` runs
-   `HomeViewModel.reschedulePendingProactiveCare()` and then the overdue catch-up, mirroring the
-   native `ready` → `rescheduleAll` re-arm Kelivo's scheduled tasks do. Two constraints make that
+   `HomeViewModel.reschedulePendingProactiveCare()` and then the overdue catch-up. The re-arm only
+   *calls* the upstream `rescheduleAll` API (it owns no timing), so it stays inside the
+   consumption layer even though upstream does not re-arm on every resume. Two constraints make it
    safe: the re-arm is a *replace-all* (the native registry cancels whatever the payload omits,
    the in-process mirror clears and refills), so it (a) is skipped while the chat stores are
-   unloaded or the assistant list cannot resolve the owner of a scheduled conversation, and (b)
-   runs **before** the catch-up — concurrent, the catch-up's freshly decided next occurrence could
-   be armed first and cancelled by the re-arm's older snapshot. Sequenced, everything due is
-   claimed by the catch-up and everything later stays armed.
+   unloaded or the assistant list cannot resolve the owner of a schedule it would otherwise arm,
+   and (b) runs **before** the catch-up — and (b) only sequences the catch-up the same call
+   performs. No lock is needed for other triggers (the in-app timer on desktop/iOS, or a native
+   `fire` on Android): from the snapshot read (`getAllConversations()`) to the native
+   `rescheduleAll` invocation the path contains no `await` — `_resolvesEveryScheduledOwner` and
+   `pendingForReschedule` are synchronous — so no concurrent delivery can arm a newer occurrence
+   inside the replace-all's window, and any `sync` that lands afterwards is ordered behind it on
+   the same MethodChannel. The re-arm itself
+   is **gated** on `_chatInitialized` (an unloaded snapshot must not clear alarms it cannot see),
+   while the catch-up is not: `runDueSchedules` finds no candidates while the conversation cache is
+   empty, so gating it would only drop the delivery a `resumed` in the window between
+   `ChatService.init()` and `_chatInitialized = true` used to perform.
 7. **Silent failures are over.** Every early return on the trigger chain logs
    `[ProactiveCare] …` (`debugPrint` on the Dart side, tag `ProactiveCare` on the Kotlin side),
    and native dispatch failures also go through `BackgroundRuntime.recordError`, the same
@@ -128,22 +139,34 @@ removes pending requests, which is the right behaviour for `prepared: false` let
    the affected conversation, and the Roleplay care pane mirrors Kelivo's gating: the readiness
    card auto-expands when the grant is missing, and a future-only conversation row reads
    `scheduledTasksWaitingPermission` instead of promising a time the platform will not honour.
-   The registry write stays where it is — the in-app executor is a legitimate delivery path, so a
-   missing grant downgrades care to "foreground only" rather than cancelling it.
-10. **Parity is a finding too.** The 1 s foreground cadence and the arrival notification's
-    pending-request-only removal are Kelivo's own behaviour, so they are recorded here and left
-    alone; a re-base must preserve them, not "fix" them.
+   `AndroidProactiveCareSettingsStatus.waitsForExactAlarm` counts both `notReady` and `unknown`
+   (a failed query is not a licence to promise the time). The registry write stays where it is —
+   a missing grant downgrades care rather than cancelling it, because the Dart schedule is
+   unconsumed: on desktop/iOS the in-app executor still delivers it while the app is alive, and on
+   Android the next resume's catch-up does (upstream parity: Kelivo's own Android tasks do not run
+   without the grant either).
+10. **Parity is a finding too.** The 1 s foreground cadence — on the platforms that have an
+    in-app executor, i.e. desktop and iOS, exactly where Kelivo polls at 1 Hz — and the arrival
+    notification's pending-request-only removal are Kelivo's own behaviour, so they are recorded
+    here and left alone; a re-base must preserve them, not "fix" them. Android is *not* a cadence
+    case: it has no in-app executor on either side, and a re-base must not reintroduce one.
 
 ## Consequences
 
 - The five `[ProactiveCare]` log lines now describe a whole delivery: `alarm arm` → `native fire`
-  (or the in-process timer) → `deliver` → `claim lost`/letter → `finish`. A future report can be
-  pinned from logcat without guessing.
+  (on desktop/iOS, or the in-process timer) → `deliver` → `claim lost`/letter → `finish`. A future
+  report can be pinned from logcat without guessing.
 - Two triggers can race for one schedule; the atomic claim makes that a no-op for the loser, so
   the extra trigger costs one extra channel round-trip at most.
 - `ProactiveCareAlarmService` now branches on `defaultTargetPlatform` (the tree's
   `PlatformUtils` pattern) instead of `dart:io Platform.is*`, which is what makes the Android
   branch unit-testable off-device.
+- Android has exactly three recovery points, all consuming Kelivo's native layer: the exact
+  alarm, the `MainActivity.onStart` drain, and the resume re-arm/catch-up. A fire whose handoff
+  never completes is released by the deadline (logged and recorded), and a letter whose alarm was
+  lost, cleared by the OEM, or never scheduled for lack of the grant is delivered by the next
+  resume instead of within a second — the same guarantee, and the same limit, Kelivo's own Android
+  scheduled tasks work under.
 - iOS keeps the arrival notification: the in-app executor covers "the app is alive", the
   notification covers "the app is suspended or dead" and the start/resume catch-up still writes
   the letter. The two cannot double-deliver, because both paths claim the same persisted
@@ -152,12 +175,15 @@ removes pending requests, which is the right behaviour for `prepared: false` let
   limits, not to this port.
 - The readiness card now auto-expands once per pane lifetime when the grant is missing; a user
   who collapses it again is not fought. `AndroidProactiveCareSettingsStatus.waitsForExactAlarm`
-  is the single predicate behind the conversation row's waiting text and its tests.
+  is the single predicate behind the conversation row's waiting text and its tests, and it treats
+  a failed grant query (`unknown`) as waiting too.
 - A re-arm is only as good as its snapshot: the resume path and `rescheduleAll` itself refuse to
-  run on a snapshot that cannot resolve the owner of every scheduled conversation, because a
-  replace-all would cancel exactly the alarms it failed to see. A cold-start `resumed` that
+  run on a snapshot that cannot resolve the owner of a future schedule the replace-all would
+  otherwise arm, because it would cancel exactly the alarms it failed to see. Schedules the
+  re-arm omits by design — past-due, or owned by an assistant that no longer exists — must not
+  veto it, or one stale row would freeze every other pending letter. A cold-start `resumed` that
   arrives before `initChat` therefore changes nothing (the startup re-arm still runs), instead of
-  wiping the registry.
+  wiping the registry; the same `resumed` still runs the catch-up.
 - The 10-minute deadline *releases* an occurrence rather than replaying it. Re-arming a past
   occurrence there would re-enter the parked state every 10 minutes whenever no listener exists,
   so the recovery stays where the truth is: the Dart schedule is unconsumed, and the overdue

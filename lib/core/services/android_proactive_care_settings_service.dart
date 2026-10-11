@@ -36,14 +36,16 @@ class AndroidProactiveCareSettingsStatus {
   /// do not expose a truthful grant query for auto-start settings.
   final AndroidProactiveCareSettingState autoStart;
 
-  /// True when a schedule in the future can only be delivered while the app is
-  /// alive, because Android refuses to schedule exact alarms. Kelivo shows
-  /// "waiting for permission" for the same state.
+  /// True when a schedule in the future cannot be promised to the platform:
+  /// Android refuses to schedule exact alarms, or the grant query failed. Both
+  /// are "not granted as far as we know", so the row must not show a concrete
+  /// time. Kelivo shows "waiting for permission" for the same state.
   bool waitsForExactAlarm({
     required DateTime? nextMessageAt,
     required DateTime now,
   }) =>
-      exactAlarms == AndroidProactiveCareSettingState.notReady &&
+      (exactAlarms == AndroidProactiveCareSettingState.notReady ||
+          exactAlarms == AndroidProactiveCareSettingState.unknown) &&
       nextMessageAt != null &&
       nextMessageAt.isAfter(now);
 }

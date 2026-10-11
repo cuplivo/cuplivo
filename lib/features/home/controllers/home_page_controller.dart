@@ -620,10 +620,6 @@ class HomePageController extends ChangeNotifier {
   /// Delivers every due proactive care letter (start/resume catch-up).
   Future<int> deliverDueProactiveCare() => _viewModel.deliverDueProactiveCare();
 
-  /// Re-arms every pending proactive care letter (resume recovery).
-  Future<void> reschedulePendingProactiveCare() =>
-      _viewModel.reschedulePendingProactiveCare();
-
   bool get isTemporaryConversation =>
       _chatService.isTemporaryConversation(currentConversation?.id);
 
@@ -3559,10 +3555,18 @@ class HomePageController extends ChangeNotifier {
     }
     if (state == AppLifecycleState.resumed) {
       ScreenWakelock.reassert();
-      // Re-arm only once the chat stores are loaded: the re-arm replaces the
-      // whole schedule set, and a cold-start `resumed` can arrive before
-      // `initChat` filled them (which re-arms again when it finishes).
-      if (_chatInitialized) unawaited(_recoverProactiveCareOnResume());
+      if (_chatInitialized) {
+        unawaited(_recoverProactiveCareOnResume());
+      } else {
+        // The gate protects the *re-arm* only: its replace-all must not run on
+        // an unloaded snapshot, and a cold-start `resumed` can arrive before
+        // `initChat` filled the stores (which re-arms again when it finishes).
+        // The catch-up is safe either way — `runDueSchedules` simply finds no
+        // candidates while the conversation cache is empty — and gating it
+        // would drop the delivery a `resumed` in the window between
+        // `ChatService.init()` and `_chatInitialized = true` used to do.
+        unawaited(_viewModel.deliverDueProactiveCare());
+      }
     }
   }
 
@@ -3571,11 +3575,15 @@ class HomePageController extends ChangeNotifier {
   /// next process start), *then* deliver anything the alarms missed while the
   /// process was dead or frozen (the claim contract prevents doubles).
   ///
-  /// The order is load-bearing: the re-arm replaces the whole schedule set from
-  /// a snapshot taken now, so a delivery that armed its freshly decided next
-  /// occurrence first would have it cancelled again. Sequenced, everything due
-  /// is claimed by the catch-up and everything later stays armed — no moment is
-  /// left both unarmed and undelivered.
+  /// The order is load-bearing, and only the re-arm below is gated on
+  /// `_chatInitialized` by the caller. The re-arm replaces the whole schedule
+  /// set from a snapshot taken now, so a delivery that armed its freshly decided
+  /// next occurrence first would have it cancelled again. Sequenced, everything
+  /// due is claimed by the catch-up and everything later stays armed — no moment
+  /// is left both unarmed and undelivered. No lock is needed beyond that
+  /// sequencing: from the snapshot read to the native `rescheduleAll` call the
+  /// path contains no `await`, so no concurrent delivery can slip an arm in
+  /// between (see ADR-0006).
   Future<void> _recoverProactiveCareOnResume() async {
     await _viewModel.reschedulePendingProactiveCare();
     await _viewModel.deliverDueProactiveCare();

@@ -9,9 +9,11 @@ import 'desktop_power_state.dart';
 import 'proactive_care_conversation_policy.dart';
 
 /// In-process timer-based proactive care scheduler: the primary trigger on
-/// desktop and the foreground safety net on Android, where the native exact
-/// alarm can be lost (dropped handoff, cleared by the OEM, refused service
-/// start).
+/// desktop and the foreground executor on iOS — the two platforms whose
+/// Kelivo counterpart is an in-app executor (`DesktopScheduledTasks` and
+/// `PreparedScheduledTasks`). Android deliberately has none: Kelivo's Android
+/// scheduled tasks run through the native exact alarm only, and care consumes
+/// that rather than adding a second trigger.
 ///
 /// Dispatches when `DateTime.now() >= dueAt`, taking native system sleep/wake
 /// transitions into account through [DesktopPowerState]. The letter flow's

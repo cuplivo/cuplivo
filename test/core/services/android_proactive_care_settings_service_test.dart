@@ -7,7 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 void main() {
   group('AndroidProactiveCareSettingsService', () {
     test(
-      'waitsForExactAlarm only fires for a future letter without the grant',
+      'waitsForExactAlarm fires for a future letter without a trustworthy grant',
       () {
         final now = DateTime(2026, 1, 1, 12);
         AndroidProactiveCareSettingsStatus statusWith(
@@ -27,6 +27,13 @@ void main() {
           ).waitsForExactAlarm(nextMessageAt: future, now: now),
           isTrue,
         );
+        // A query that failed is not a licence to promise the time either.
+        expect(
+          statusWith(
+            AndroidProactiveCareSettingState.unknown,
+          ).waitsForExactAlarm(nextMessageAt: future, now: now),
+          isTrue,
+        );
         // A granted alarm, no schedule, and an already-due schedule never wait.
         expect(
           statusWith(
@@ -36,7 +43,19 @@ void main() {
         );
         expect(
           statusWith(
+            AndroidProactiveCareSettingState.notApplicable,
+          ).waitsForExactAlarm(nextMessageAt: future, now: now),
+          isFalse,
+        );
+        expect(
+          statusWith(
             AndroidProactiveCareSettingState.notReady,
+          ).waitsForExactAlarm(nextMessageAt: null, now: now),
+          isFalse,
+        );
+        expect(
+          statusWith(
+            AndroidProactiveCareSettingState.unknown,
           ).waitsForExactAlarm(nextMessageAt: null, now: now),
           isFalse,
         );

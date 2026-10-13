@@ -478,69 +478,76 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
           final idx = imgs.indexOf(url);
           final initial = idx >= 0 ? idx : 0;
           final provider = _imageProviderFor(url);
-          return GestureDetector(
-            onTap: () {
-              Navigator.of(ctx).push(
-                PageRouteBuilder(
-                  pageBuilder: (_, __, ___) =>
-                      ImageViewerPage(images: imgs, initialIndex: initial),
-                  transitionDuration: const Duration(milliseconds: 360),
-                  reverseTransitionDuration: const Duration(milliseconds: 280),
-                  transitionsBuilder: (context, anim, sec, child) {
-                    final curved = CurvedAnimation(
-                      parent: anim,
-                      curve: Curves.easeOutCubic,
-                      reverseCurve: Curves.easeInCubic,
-                    );
-                    return FadeTransition(
-                      opacity: curved,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0, 0.02),
-                          end: Offset.zero,
-                        ).animate(curved),
-                        child: child,
-                      ),
-                    );
-                  },
-                ),
-              );
-            },
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: () {
-                    if (provider == null) {
-                      // Missing or unsupported source: show a broken image indicator
-                      return const Icon(Icons.broken_image);
-                    }
-                    final displayWidth = width ?? constraints.maxWidth;
-                    final devicePixelRatio = MediaQuery.devicePixelRatioOf(
-                      context,
-                    );
-                    final cacheWidth = displayWidth.isFinite
-                        ? math.max(1, (displayWidth * devicePixelRatio).ceil())
-                        : null;
-                    final cacheHeight = height == null
-                        ? null
-                        : math.max(1, (height * devicePixelRatio).ceil());
-                    final resized = ResizeImage.resizeIfNeeded(
-                      cacheWidth,
-                      cacheHeight,
-                      provider,
-                    );
-                    return Image(
-                      image: resized,
-                      width: displayWidth,
-                      height: height,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stack) =>
-                          const Icon(Icons.broken_image),
-                    );
-                  }(),
+          return _clickCursor(
+            GestureDetector(
+              onTap: () {
+                Navigator.of(ctx).push(
+                  PageRouteBuilder(
+                    pageBuilder: (_, __, ___) =>
+                        ImageViewerPage(images: imgs, initialIndex: initial),
+                    transitionDuration: const Duration(milliseconds: 360),
+                    reverseTransitionDuration: const Duration(
+                      milliseconds: 280,
+                    ),
+                    transitionsBuilder: (context, anim, sec, child) {
+                      final curved = CurvedAnimation(
+                        parent: anim,
+                        curve: Curves.easeOutCubic,
+                        reverseCurve: Curves.easeInCubic,
+                      );
+                      return FadeTransition(
+                        opacity: curved,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.02),
+                            end: Offset.zero,
+                          ).animate(curved),
+                          child: child,
+                        ),
+                      );
+                    },
+                  ),
                 );
               },
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: () {
+                      if (provider == null) {
+                        // Missing or unsupported source: show a broken image indicator
+                        return const Icon(Icons.broken_image);
+                      }
+                      final displayWidth = width ?? constraints.maxWidth;
+                      final devicePixelRatio = MediaQuery.devicePixelRatioOf(
+                        context,
+                      );
+                      final cacheWidth = displayWidth.isFinite
+                          ? math.max(
+                              1,
+                              (displayWidth * devicePixelRatio).ceil(),
+                            )
+                          : null;
+                      final cacheHeight = height == null
+                          ? null
+                          : math.max(1, (height * devicePixelRatio).ceil());
+                      final resized = ResizeImage.resizeIfNeeded(
+                        cacheWidth,
+                        cacheHeight,
+                        provider,
+                      );
+                      return Image(
+                        image: resized,
+                        width: displayWidth,
+                        height: height,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stack) =>
+                            const Icon(Icons.broken_image),
+                      );
+                    }(),
+                  );
+                },
+              ),
             ),
           );
         },
@@ -961,33 +968,35 @@ class _KelivoMarkdownImageState extends State<_KelivoMarkdownImage> {
         }
         final file = snapshot.data;
         if (file == null) return _broken(context);
-        return GestureDetector(
-          onTap: () {
-            Navigator.of(context).push(
-              PageRouteBuilder<void>(
-                pageBuilder: (_, __, ___) =>
-                    ImageViewerPage(images: [file.path]),
-                transitionDuration: const Duration(milliseconds: 360),
-                reverseTransitionDuration: const Duration(milliseconds: 280),
-                transitionsBuilder: (context, anim, sec, child) {
-                  final curved = CurvedAnimation(
-                    parent: anim,
-                    curve: Curves.easeOutCubic,
-                    reverseCurve: Curves.easeInCubic,
-                  );
-                  return FadeTransition(opacity: curved, child: child);
-                },
+        return _clickCursor(
+          GestureDetector(
+            onTap: () {
+              Navigator.of(context).push(
+                PageRouteBuilder<void>(
+                  pageBuilder: (_, __, ___) =>
+                      ImageViewerPage(images: [file.path]),
+                  transitionDuration: const Duration(milliseconds: 360),
+                  reverseTransitionDuration: const Duration(milliseconds: 280),
+                  transitionsBuilder: (context, anim, sec, child) {
+                    final curved = CurvedAnimation(
+                      parent: anim,
+                      curve: Curves.easeOutCubic,
+                      reverseCurve: Curves.easeInCubic,
+                    );
+                    return FadeTransition(opacity: curved, child: child);
+                  },
+                ),
+              );
+            },
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.file(
+                file,
+                width: widget.width,
+                height: widget.height,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stack) => _broken(context),
               ),
-            );
-          },
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.file(
-              file,
-              width: widget.width,
-              height: widget.height,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stack) => _broken(context),
             ),
           ),
         );
@@ -6304,10 +6313,8 @@ class _DetailsHtmlBlockState extends State<_DetailsHtmlBlock> {
                 ),
                 const SizedBox(width: 7),
                 Expanded(
-                  child: Text(
-                    widget.summary,
-                    style: summaryStyle,
-                    softWrap: true,
+                  child: _clickCursor(
+                    Text(widget.summary, style: summaryStyle, softWrap: true),
                   ),
                 ),
               ],

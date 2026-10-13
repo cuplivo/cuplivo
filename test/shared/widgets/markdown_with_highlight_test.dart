@@ -1,4 +1,5 @@
 import "../../support/business_test_harness.dart";
+import '../../support/mouse_hover.dart';
 
 import 'dart:async';
 import 'dart:io';
@@ -103,29 +104,6 @@ RenderParagraph _paragraphContaining(String text) {
       .whereType<RenderParagraph>()
       .firstWhere((paragraph) => paragraph.text.toPlainText().contains(text));
 }
-
-/// Adds a mouse pointer (device 1) so cursor resolution runs.
-Future<TestGesture> _addMouse(WidgetTester tester) async {
-  final mouse = await tester.createGesture(kind: ui.PointerDeviceKind.mouse);
-  await mouse.addPointer(location: Offset.zero);
-  addTearDown(mouse.removePointer);
-  await tester.pump();
-  return mouse;
-}
-
-/// Moves [mouse] onto [target] so the cursor is re-resolved.
-Future<void> _hover(
-  WidgetTester tester,
-  TestGesture mouse,
-  Offset target,
-) async {
-  await mouse.moveTo(target);
-  await tester.pump();
-}
-
-/// The cursor the mouse tracker currently shows; a mouse pointer is device 1.
-MouseCursor? _activeMouseCursor() =>
-    RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1);
 
 const _transparentPngDataUrl =
     'data:image/png;base64,'
@@ -782,19 +760,19 @@ Inline ***strong emphasis*** text.
       );
       await tester.pumpAndSettle();
 
-      final mouse = await _addMouse(tester);
+      final mouse = await addMousePointer(tester);
 
-      await _hover(tester, mouse, tester.getCenter(find.text('example')));
-      expect(_activeMouseCursor(), SystemMouseCursors.click);
+      await hoverAt(tester, mouse, tester.getCenter(find.text('example')));
+      expect(activeMouseCursor(), SystemMouseCursors.click);
 
       // Link-scoped: body text keeps the I-beam selection needs.
       final paragraph = _paragraphContaining('plain body');
-      await _hover(
+      await hoverAt(
         tester,
         mouse,
         paragraph.localToGlobal(Offset(4, paragraph.size.height - 8)),
       );
-      expect(_activeMouseCursor(), SystemMouseCursors.text);
+      expect(activeMouseCursor(), SystemMouseCursors.text);
     },
   );
 
@@ -818,10 +796,10 @@ Inline ***strong emphasis*** text.
       );
       await tester.pumpAndSettle();
 
-      final mouse = await _addMouse(tester);
+      final mouse = await addMousePointer(tester);
 
-      await _hover(tester, mouse, tester.getCenter(find.text('1')));
-      expect(_activeMouseCursor(), SystemMouseCursors.click);
+      await hoverAt(tester, mouse, tester.getCenter(find.text('1')));
+      expect(activeMouseCursor(), SystemMouseCursors.click);
     },
   );
 
@@ -844,14 +822,14 @@ Inline ***strong emphasis*** text.
       );
       await tester.pumpAndSettle();
 
-      final mouse = await _addMouse(tester);
+      final mouse = await addMousePointer(tester);
 
-      await _hover(
+      await hoverAt(
         tester,
         mouse,
         tester.getCenter(find.text('example anchor')),
       );
-      expect(_activeMouseCursor(), SystemMouseCursors.click);
+      expect(activeMouseCursor(), SystemMouseCursors.click);
     },
   );
 
@@ -863,10 +841,119 @@ Inline ***strong emphasis*** text.
       );
       await tester.pump();
 
-      final mouse = await _addMouse(tester);
+      final mouse = await addMousePointer(tester);
 
-      await _hover(tester, mouse, tester.getCenter(find.text('example')));
-      expect(_activeMouseCursor(), SystemMouseCursors.click);
+      await hoverAt(tester, mouse, tester.getCenter(find.text('example')));
+      expect(activeMouseCursor(), SystemMouseCursors.click);
+    },
+  );
+
+  testWidgets(
+    'MarkdownWithCodeHighlight shows the hand cursor over a details summary label',
+    (tester) async {
+      await tester.pumpWidget(
+        _settingsHarness(
+          onSettingsReady: (_) {},
+          child: SelectionArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: MarkdownWithCodeHighlight(
+                text:
+                    '前言\n\n<details>\n<summary>SUMMARY</summary>\n\n'
+                    'hidden body\n\n</details>\n',
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final mouse = await addMousePointer(tester);
+
+      await hoverAt(tester, mouse, tester.getCenter(find.text('SUMMARY')));
+      expect(activeMouseCursor(), SystemMouseCursors.click);
+
+      // The disclosure chevron already showed the hand; it must stay that way.
+      await hoverAt(
+        tester,
+        mouse,
+        tester.getCenter(find.byIcon(Lucide.ChevronRight)),
+      );
+      expect(activeMouseCursor(), SystemMouseCursors.click);
+
+      // The wrapper must not swallow the disclosure tap.
+      await tester.tap(find.text('SUMMARY'));
+      await tester.pumpAndSettle();
+      expect(find.text('hidden body', findRichText: true), findsOneWidget);
+
+      // Scope: the expanded body keeps the I-beam selection needs.
+      final body = _paragraphContaining('hidden body');
+      await hoverAt(
+        tester,
+        mouse,
+        body.localToGlobal(Offset(4, body.size.height - 8)),
+      );
+      expect(activeMouseCursor(), SystemMouseCursors.text);
+    },
+  );
+
+  testWidgets(
+    'MarkdownWithCodeHighlight shows the hand cursor over an inline image',
+    (tester) async {
+      await tester.pumpWidget(
+        _settingsHarness(
+          onSettingsReady: (_) {},
+          child: SelectionArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: MarkdownWithCodeHighlight(
+                text: 'before ![42x24]($_transparentPngDataUrl) after',
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final mouse = await addMousePointer(tester);
+
+      await hoverAt(tester, mouse, tester.getCenter(find.byType(Image)));
+      expect(activeMouseCursor(), SystemMouseCursors.click);
+
+      // Scope: the text beside the image keeps the I-beam.
+      final paragraph = _paragraphContaining('before');
+      await hoverAt(tester, mouse, paragraph.localToGlobal(const Offset(4, 8)));
+      expect(activeMouseCursor(), SystemMouseCursors.text);
+    },
+  );
+
+  testWidgets(
+    'MarkdownWithCodeHighlight keeps the I-beam over an unresolved workspace image',
+    (tester) async {
+      await tester.pumpWidget(
+        _settingsHarness(
+          onSettingsReady: (_) {},
+          child: SelectionArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: MarkdownWithCodeHighlight(
+                text: 'before ![plot](kelivo://workspace/plot.png) after',
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // No workspace provider, so the link cannot resolve and the placeholder
+      // renders. It is not tappable, so it must not advertise a click.
+      expect(find.byType(Image), findsNothing);
+      final placeholder = find.byIcon(Lucide.ImageOff);
+      expect(placeholder, findsOneWidget);
+
+      final mouse = await addMousePointer(tester);
+      await hoverAt(tester, mouse, tester.getCenter(placeholder));
+      expect(activeMouseCursor(), SystemMouseCursors.text);
     },
   );
 

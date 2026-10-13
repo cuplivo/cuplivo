@@ -358,6 +358,143 @@ void main() {
     ]);
   });
 
+  /// The mutation clock the merge rules read for a stored row:
+  /// `COALESCE(updated_at, timestamp)`, exactly as `messageRowMutationUs`.
+  Future<int> storedMutationUs(String id) async {
+    final row = await database
+        .customSelect(
+          'SELECT COALESCE(updated_at, timestamp) AS mutation_us '
+          'FROM message_rows WHERE id = ?;',
+          variables: [Variable.withString(id)],
+        )
+        .getSingle();
+    return row.read<int>('mutation_us');
+  }
+
+  Future<List<String>> runTargets() async {
+    final rows = await database
+        .customSelect(
+          'SELECT target_revision_id FROM generation_run_rows '
+          'ORDER BY target_revision_id;',
+        )
+        .get();
+    return [for (final row in rows) row.read<String>('target_revision_id')];
+  }
+
+  /// Every generation writes a run row targeting the assistant revision it
+  /// streams into, and `generation_run_rows.target_revision_id` is the one
+  /// child of `message_rows` that does not cascade. These are the two message
+  /// deletions a sync apply performs: the checkpoint-detected one (the peer no
+  /// longer has the message) and the version-group slot loser.
+  group('a deleted revision takes its generation run with it', () {
+    test('the peer deleted a message this device generated', () async {
+      await seed([
+        (id: 'm1', order: 0, timestampUs: 1000000),
+        (id: 'm2', order: 1, timestampUs: 2000000),
+      ]);
+      await repository.createGenerationRun(
+        id: 'run-m2',
+        conversationId: conversationId,
+        targetRevisionId: 'm2',
+        createdAt: DateTime.fromMicrosecondsSinceEpoch(2000000),
+      );
+
+      // The checkpoint says the peer used to hold m2 and the incoming subtree
+      // omits it: the peer deleted it, so this device deletes its copy — and
+      // the run row has to go with it. Left behind, the deferred NO ACTION
+      // foreign key fails the transaction's COMMIT (code 787) and, because the
+      // checkpoint then never advances, every later session as well.
+      final outcome = await repository.syncApplySubtree(
+        payload: SyncSubtreePayload(
+          conversation: conversationRow(),
+          messages: [messageRow('m1', 1000000, order: 0)],
+          parts: [partRow('m1', 1000000)],
+        ),
+        myDeviceId: 'me',
+        peerDeviceId: 'peer',
+        checkpointRows: {'m2': await storedMutationUs('m2')},
+      );
+
+      expect(outcome.deferred, isFalse);
+      expect(outcome.deletedMessages, 1);
+      expect(await storedOrder(), [(id: 'm1', order: 0)]);
+      expect(await runTargets(), isEmpty);
+    });
+
+    test('a rival regeneration loses the version slot', () async {
+      // This device regenerated m1 into m3; the peer regenerated the same slot
+      // into m2. Both rows carry (group m1, version 1) and only one may exist,
+      // so the older revision is deleted here — with the run row that produced
+      // it.
+      await repository.putMigrationBatch(
+        conversations: [
+          Conversation(
+            id: conversationId,
+            title: conversationId,
+          ).copyWith(messageIds: const ['m1', 'm3']),
+        ],
+        messages: [
+          (
+            message: ChatMessage(
+              id: 'm1',
+              conversationId: conversationId,
+              role: 'user',
+              content: 'm1',
+              timestamp: DateTime.fromMicrosecondsSinceEpoch(1000000),
+            ),
+            messageOrder: 0,
+          ),
+          (
+            message: ChatMessage(
+              id: 'm3',
+              conversationId: conversationId,
+              role: 'assistant',
+              content: 'mine',
+              timestamp: DateTime.fromMicrosecondsSinceEpoch(3000000),
+              groupId: 'm1',
+              version: 1,
+            ),
+            messageOrder: 1,
+          ),
+        ],
+        toolEventsByMessageId: const {},
+        geminiSignaturesByMessageId: const {},
+      );
+      await repository.createGenerationRun(
+        id: 'run-m3',
+        conversationId: conversationId,
+        targetRevisionId: 'm3',
+        createdAt: DateTime.fromMicrosecondsSinceEpoch(3000000),
+      );
+
+      final outcome = await apply(
+        SyncSubtreePayload(
+          conversation: conversationRow(),
+          messages: [
+            messageRow('m1', 1000000, order: 0),
+            messageRow(
+              'm2',
+              4000000,
+              order: 1,
+              role: 'assistant',
+              groupId: 'm1',
+              version: 1,
+            ),
+          ],
+          parts: [partRow('m1', 1000000), partRow('m2', 4000000)],
+        ),
+      );
+
+      expect(outcome.deferred, isFalse);
+      expect(await storedSlots(), [
+        (id: 'm1', groupId: null, version: 0),
+        (id: 'm2', groupId: 'm1', version: 1),
+      ]);
+      expect(outcome.deletedMessages, 1);
+      expect(await runTargets(), isEmpty);
+    });
+  });
+
   test(
     'a tie on the slot clock falls to the higher row id, on both peers',
     () async {

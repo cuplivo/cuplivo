@@ -5364,7 +5364,19 @@ class ChatDatabaseRepository {
 
       // Phase 2: deletions (parts cascade). The checkpoint-detected ones plus
       // the rival rows a version-group slot had to resolve.
+      //
+      // Generation runs go first: `generation_run_rows.target_revision_id` is
+      // the one child of `message_rows` the schema does not cascade (NO ACTION,
+      // deferred), so a run row left behind by the delete below fails the
+      // transaction at COMMIT with a foreign-key error (code 787) — and since
+      // the checkpoint then never advances, every later session with the peer
+      // re-plans the same apply and fails the same way. A deleted revision
+      // takes the run that produced it, exactly as `_deleteMessages` does for a
+      // local deletion.
       if (deletes.isNotEmpty) {
+        await (_db.delete(
+          _db.generationRunRows,
+        )..where((row) => row.targetRevisionId.isIn(deletes))).go();
         await (_db.delete(
           _db.messageRows,
         )..where((row) => row.id.isIn(deletes))).go();

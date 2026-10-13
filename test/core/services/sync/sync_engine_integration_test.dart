@@ -4951,6 +4951,53 @@ void main() {
     );
   });
 
+  test('a session the peer ran here is presence evidence too', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    sides.addAll([a, b]);
+
+    // The probe never finds anything, so every green below has to come from a
+    // session — the strongest evidence there is.
+    final provider = await a.startProvider(presenceProbe: (_) async => false);
+    final pin = b.engine.openPairing();
+    await provider.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
+
+    // Park this device's dial on a port nothing listens on: the next round it
+    // starts cannot talk, which is the gray the dot has to show. The peer's own
+    // record of this device is untouched, so it can still dial in.
+    final parked = await a.peer(b);
+    parked.replaceEndpoints('127.0.0.1', await _unusedPort());
+    await a.store.savePeer(parked);
+    await provider.refreshPeers();
+
+    final silent = await provider.syncNow(b.identity.deviceId);
+    expect(silent?.failure, SyncFailureReason.unreachable);
+    expect(
+      provider.peerPresenceSource(b.identity.deviceId),
+      PresenceSource.sessionSilent,
+      reason: 'the round this device started reached nothing',
+    );
+
+    // Now the peer runs the session and this device answers it, starting
+    // nothing of its own — so the responder path is the only place a verdict
+    // can come from. Without one the dot stays gray right after a session that
+    // demonstrably got an answer.
+    final inbound = await b.peer(a);
+    inbound.replaceEndpoints('127.0.0.1', a.port);
+    await b.store.savePeer(inbound);
+    final received = await b.engine.syncWithPeer(inbound);
+    expect(received.success, isTrue, reason: received.summary);
+
+    expect(
+      provider.peerPresenceSource(b.identity.deviceId),
+      PresenceSource.sessionAnswered,
+    );
+    expect(provider.isPeerOnline(b.identity.deviceId), isTrue);
+  });
+
   test('a dial names the address and its rank', () async {
     // The beat that can hang is the dial, so the label has to say *which*
     // address is hanging — otherwise a stuck candidate is indistinguishable

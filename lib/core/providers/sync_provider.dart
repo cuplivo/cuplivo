@@ -619,7 +619,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// round) rather than one the user pressed for: a manual press already gets
   /// its snackbar from the card, and its user is on the panel — so only an
   /// automatic session that *brought data here* is announced on
-  /// [autoSyncArrivals], and only while no panel is mounted to show the same
+  /// [autoSyncArrivals], and only while no panel is visible to show the same
   /// news on its card.
   Future<SyncSessionReport?> syncNow(
     String deviceId, {
@@ -689,6 +689,20 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         // answer, so the reason alone cannot grade this.
         answered = true;
     }
+    _filePresenceVerdict(deviceId, answered: answered);
+  }
+
+  /// Files one session's verdict about reaching [deviceId] and republishes the
+  /// dots.
+  ///
+  /// [answered] defaults to the strongest verdict, which is the one the
+  /// responder files outright: the peer reached this device and authenticated,
+  /// so the dial-side reasons cannot grade that session — `unreachable`
+  /// describes failing to reach *out*, which is not what happened here. (The
+  /// report the responder builds carries no failure today; filing the verdict
+  /// instead of grading it keeps that from turning into a silent wrong answer
+  /// if it ever does.)
+  void _filePresenceVerdict(String deviceId, {bool answered = true}) {
     _sessionVerdicts[deviceId] = (answered: answered, at: DateTime.now());
     if (answered) {
       onlineDeviceIds.add(deviceId);
@@ -911,10 +925,17 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// gates are the arrival's own: the session must have brought data here
   /// ([syncBroughtDataHere]), and no sync panel may be showing the same news
   /// on its cards.
+  ///
+  /// The presence verdict is filed first and unconditionally: those gates say
+  /// what the *user* is told, not whether the peer answered, and this session is
+  /// the only evidence a device that started nothing can have. A session that
+  /// moved nothing — the common case — would otherwise leave the dot to the
+  /// probe, which can show gray right after an answer.
   void _onEngineResponderSession(
     SyncPeerRecord peer,
     SyncSessionReport report,
   ) {
+    _filePresenceVerdict(peer.deviceId);
     if (_panelViewers > 0 || !syncBroughtDataHere(report)) return;
     _announce(SyncArrival(peer.displayName, report));
   }

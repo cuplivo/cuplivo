@@ -10,7 +10,8 @@ import 'package:flutter/foundation.dart'
 ///
 /// A link is a pointer, not a copy: it resolves only where the conversation
 /// exists — the install that copied it, or a device LAN sync carried it to
-/// (merged rows keep their ids).
+/// (merged rows keep their ids). The same URL crosses the iOS bridge whole, so
+/// the Live Activity widget's id and a copied link are read by one grammar.
 class ConversationLink {
   const ConversationLink({required this.conversationId, this.messageId});
 
@@ -34,9 +35,17 @@ class ConversationLink {
 
   /// The canonical string a user copies. Encoded with [Uri.encodeComponent] so
   /// no id can introduce a path separator or a second parameter.
+  ///
+  /// Only ever called for ids [supportsId] accepts; the asserts are the
+  /// tripwire, and the copy entries are hidden where they would fire.
   String get url {
+    assert(supportsId(conversationId), 'a link cannot carry this id');
     final path = Uri.encodeComponent(conversationId);
     final message = messageId;
+    assert(
+      message == null || supportsId(message),
+      'a link cannot carry this message id',
+    );
     if (message == null) return '$scheme://$host/$path';
     return '$scheme://$host/$path?$messageParameter='
         '${Uri.encodeComponent(message)}';
@@ -96,7 +105,7 @@ class ConversationLink {
   /// `+` (a link this app writes encodes it as `%2B`), so the string a user
   /// copies always round-trips to the same id.
   static String? _decodeId(String raw) {
-    if (!raw.contains('%')) return _isSafeId(raw) ? raw : null;
+    if (!raw.contains('%')) return supportsId(raw) ? raw : null;
     final normalized = StringBuffer();
     for (final rune in raw.runes) {
       if (rune > 127) {
@@ -113,15 +122,19 @@ class ConversationLink {
     } on FormatException {
       return null;
     }
-    return _isSafeId(decoded) ? decoded : null;
+    return supportsId(decoded) ? decoded : null;
   }
 
-  static bool _isSafeId(String id) {
-    if (id.isEmpty || id.length > _maxIdLength) return false;
-    for (final rune in id.runes) {
-      if (rune < 0x21 || rune == 0x7f) return false;
-      if (rune == 0x2f || rune == 0x5c) return false;
-    }
-    return true;
-  }
+  /// Whether the grammar can carry [id] — the one rule [url] and [tryParse]
+  /// share, so a link this app writes always parses back to the same ids.
+  ///
+  /// A conversation or message id is an opaque row key: it is only ever looked
+  /// up, never a path or a command, so the grammar constrains *structure*
+  /// (scheme, host, one segment, no fragment, one known parameter) and leaves
+  /// the id's characters alone. Ids carrying a space, `/`, `\` or a control
+  /// character round-trip through percent-encoding like any other. The length
+  /// cap bounds what an untrusted link can hand to a lookup, and it is the only
+  /// reason a stored id has no link — the copy entries are hidden for it.
+  static bool supportsId(String id) =>
+      id.isNotEmpty && id.length <= _maxIdLength;
 }

@@ -120,7 +120,9 @@ Future<MessageMoreAction?> showMessageMoreSheet(
           selected = MessageMoreAction.share;
         },
       ),
-      if (ConversationLink.osRegistered)
+      if (ConversationLink.osRegistered &&
+          ConversationLink.supportsId(message.conversationId) &&
+          ConversationLink.supportsId(message.id))
         DesktopContextMenuItem(
           icon: Lucide.Link,
           label: l10n.messageMoreSheetCopyLink,
@@ -348,7 +350,11 @@ class _MessageMoreSheetState extends State<_MessageMoreSheet> {
                         Navigator.of(context).pop(MessageMoreAction.share);
                       },
                     ),
-                    if (ConversationLink.osRegistered)
+                    if (ConversationLink.osRegistered &&
+                        ConversationLink.supportsId(
+                          widget.message.conversationId,
+                        ) &&
+                        ConversationLink.supportsId(widget.message.id))
                       _actionItem(
                         icon: Lucide.Link,
                         label: l10n.messageMoreSheetCopyLink,

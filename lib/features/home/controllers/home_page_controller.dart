@@ -1045,6 +1045,10 @@ class HomePageController extends ChangeNotifier {
               type: NotificationType.info,
             );
           }
+          // The anchor that arrived with it goes with it: an anchor is only
+          // read after a successful switch, so leaving it behind would scroll a
+          // later, anchor-less open of this id to a message of this dead request.
+          NotificationService.takePendingMessageId(conversationId);
           continue;
         }
         if (!_context.mounted || !_homeRouteVisible) {

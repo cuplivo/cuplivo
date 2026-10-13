@@ -314,7 +314,8 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
               await chatService.duplicateConversation(chat.id);
             },
           ),
-          if (ConversationLink.osRegistered)
+          if (ConversationLink.osRegistered &&
+              ConversationLink.supportsId(chat.id))
             DesktopContextMenuItem(
               icon: Lucide.Link,
               label: l10n.sideDrawerMenuCopyLink,
@@ -530,7 +531,8 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                         await chatService.duplicateConversation(chat.id);
                       },
                     ),
-                    if (ConversationLink.osRegistered)
+                    if (ConversationLink.osRegistered &&
+                        ConversationLink.supportsId(chat.id))
                       row(
                         icon: Lucide.Link,
                         label: l10n.sideDrawerMenuCopyLink,

@@ -18,20 +18,43 @@ void main() {
         ).url,
         'cuplivo://conversation/chat-1?message=msg-2',
       );
+      // An id is encoded, never rejected: a space survives the round trip.
+      expect(
+        const ConversationLink(conversationId: 'my chat').url,
+        'cuplivo://conversation/my%20chat',
+      );
     });
 
     test('round-trips every id it builds', () {
-      for (final link in const [
-        ConversationLink(conversationId: 'chat-1'),
-        ConversationLink(conversationId: 'chat-1', messageId: 'msg-2'),
-        // Ids are UUIDs today, but nothing here may depend on that.
-        ConversationLink(conversationId: '会话-1', messageId: 'run:2'),
-        ConversationLink(conversationId: 'a%20b', messageId: 'x+y?z&w#v'),
-      ]) {
-        final parsed = ConversationLink.tryParse(link.url);
-        expect(parsed, isNotNull, reason: link.url);
-        expect(parsed!.conversationId, link.conversationId);
-        expect(parsed.messageId, link.messageId);
+      // Ids are opaque row keys, so the grammar has to carry whatever the
+      // importer stored — whitespace, separators and control characters
+      // included — for the conversation and for the message anchor alike.
+      final ids = <String>[
+        'chat-1',
+        '会话-1',
+        'my chat',
+        'a\tb',
+        'a\nb',
+        'a\u007fb',
+        'a/b',
+        r'a\b',
+        'a%b',
+        'x+y?z&w#v',
+        'x' * 200,
+      ];
+      for (final id in ids) {
+        final conversationOnly = ConversationLink(conversationId: id);
+        expect(
+          ConversationLink.tryParse(conversationOnly.url)?.conversationId,
+          id,
+          reason: conversationOnly.url,
+        );
+
+        final anchored = ConversationLink(conversationId: id, messageId: id);
+        final parsed = ConversationLink.tryParse(anchored.url);
+        expect(parsed, isNotNull, reason: anchored.url);
+        expect(parsed!.conversationId, id);
+        expect(parsed.messageId, id);
       }
     });
 
@@ -54,6 +77,13 @@ void main() {
         )?.conversationId,
         '会话-1',
       );
+      // What the Live Activity widget writes around an id it encodes.
+      expect(
+        ConversationLink.tryParse(
+          'cuplivo://conversation/my%20chat',
+        )?.conversationId,
+        'my chat',
+      );
       expect(
         ConversationLink.tryParse(
           'cuplivo://conversation/chat-1?message=m-1',
@@ -73,8 +103,6 @@ void main() {
         'https://conversation/chat-1',
         'cuplivo://other/chat-1',
         'cuplivo://conversation/chat-1/msg-2',
-        'cuplivo://conversation/%2Fetc%2Fpasswd',
-        'cuplivo://conversation/%20',
         'cuplivo://user@conversation/chat-1',
         'cuplivo://conversation:9/chat-1',
         'cuplivo://conversation/chat-1#fragment',
@@ -99,6 +127,54 @@ void main() {
         ConversationLink.tryParse('cuplivo://conversation/${'x' * 201}'),
         isNull,
       );
+    });
+
+    test('an encoded id decodes to a row key, not a path', () {
+      // The id is only ever handed to a lookup, so an encoded separator is an
+      // id character like any other — the grammar guards *structure* instead:
+      // the raw `cuplivo://conversation/a/b` above stays rejected.
+      expect(
+        ConversationLink.tryParse(
+          'cuplivo://conversation/%2Fetc%2Fpasswd',
+        )?.conversationId,
+        '/etc/passwd',
+      );
+      expect(
+        ConversationLink.tryParse('cuplivo://conversation/%20')?.conversationId,
+        ' ',
+      );
+    });
+
+    test('the builder writes only what the parser accepts', () {
+      // One predicate, both directions: the copy entries are hidden where it is
+      // false (a stored id longer than the cap), so no link is ever handed out
+      // that `tryParse` would refuse.
+      final ids = <String>[
+        '',
+        'chat-1',
+        'my chat',
+        'a/b',
+        r'a\b',
+        'a\u007fb',
+        '会话',
+        'x' * 200,
+        'x' * 201,
+      ];
+      for (final id in ids) {
+        if (!ConversationLink.supportsId(id)) {
+          expect(
+            () => ConversationLink(conversationId: id).url,
+            throwsA(isA<AssertionError>()),
+            reason: id,
+          );
+          continue;
+        }
+        final url = ConversationLink(conversationId: id).url;
+        expect(ConversationLink.tryParse(url)?.conversationId, id, reason: url);
+      }
+      expect(ConversationLink.supportsId(''), isFalse);
+      expect(ConversationLink.supportsId('x' * 200), isTrue);
+      expect(ConversationLink.supportsId('x' * 201), isFalse);
     });
 
     test('the entry point is gated on the platform that registers it', () {

@@ -11,9 +11,9 @@ import 'package:Cuplivo/l10n/app_localizations.dart';
 
 import 'support/business_test_harness.dart';
 
-ChatMessage _message() {
+ChatMessage _message({String id = 'message-1'}) {
   return ChatMessage(
-    id: 'message-1',
+    id: id,
     role: 'assistant',
     content: 'hello',
     conversationId: 'conversation-1',
@@ -24,6 +24,7 @@ Future<void> _openMoreSheet(
   WidgetTester tester, {
   required bool canDeleteAllVersions,
   bool canCreateBranch = true,
+  String messageId = 'message-1',
 }) async {
   await tester.pumpWidget(
     // The sheet's tiles are IosCardPress, which reads the haptics preference.
@@ -44,7 +45,7 @@ Future<void> _openMoreSheet(
                 onPressed: () {
                   showMessageMoreSheet(
                     context,
-                    _message(),
+                    _message(id: messageId),
                     canDeleteAllVersions: canDeleteAllVersions,
                     canCreateBranch: canCreateBranch,
                   );
@@ -128,6 +129,27 @@ void main() {
       expect(tester.takeException(), isNull);
     } finally {
       messenger.setMockMethodCallHandler(SystemChannels.platform, null);
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('iOS offers no link for an id the grammar cannot carry', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    try {
+      await _openMoreSheet(
+        tester,
+        canDeleteAllVersions: false,
+        // Past the cap: the link would be dropped on the way back in.
+        messageId: 'x' * 201,
+      );
+
+      // The sheet is open (its neighbour is there), so the absence below is the
+      // gate and not a sheet that never appeared.
+      expect(find.text('Select Messages'), findsOneWidget);
+      expect(find.text('Copy Link'), findsNothing);
+    } finally {
       debugDefaultTargetPlatformOverride = null;
     }
   });

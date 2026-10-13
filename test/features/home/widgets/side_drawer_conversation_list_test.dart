@@ -838,4 +838,33 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     }
   });
+
+  testWidgets('iOS offers no link for an id the grammar cannot carry', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    try {
+      final service = createService();
+      await tester.runAsync(() => service.init());
+      // A stored id past the cap has no link, so the entry must not be offered:
+      // the link would be dropped on the way back in.
+      service.seedConversationsForTest([
+        Conversation(id: 'x' * 201, title: 'Unlinkable'),
+      ]);
+      await pumpDrawer(tester, service);
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(SideDrawer)),
+      )!;
+
+      await tester.longPress(find.text('Unlinkable'));
+      await tester.pumpAndSettle();
+
+      // The menu itself is open (its neighbour is there), so the absence below
+      // is the gate and not a menu that never appeared.
+      expect(find.text(l10n.sideDrawerMenuCopy), findsOneWidget);
+      expect(find.text(l10n.sideDrawerMenuCopyLink), findsNothing);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 }

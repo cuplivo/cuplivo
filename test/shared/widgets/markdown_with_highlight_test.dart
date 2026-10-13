@@ -1,4 +1,5 @@
 import "../../support/business_test_harness.dart";
+
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -102,6 +103,29 @@ RenderParagraph _paragraphContaining(String text) {
       .whereType<RenderParagraph>()
       .firstWhere((paragraph) => paragraph.text.toPlainText().contains(text));
 }
+
+/// Adds a mouse pointer (device 1) so cursor resolution runs.
+Future<TestGesture> _addMouse(WidgetTester tester) async {
+  final mouse = await tester.createGesture(kind: ui.PointerDeviceKind.mouse);
+  await mouse.addPointer(location: Offset.zero);
+  addTearDown(mouse.removePointer);
+  await tester.pump();
+  return mouse;
+}
+
+/// Moves [mouse] onto [target] so the cursor is re-resolved.
+Future<void> _hover(
+  WidgetTester tester,
+  TestGesture mouse,
+  Offset target,
+) async {
+  await mouse.moveTo(target);
+  await tester.pump();
+}
+
+/// The cursor the mouse tracker currently shows; a mouse pointer is device 1.
+MouseCursor? _activeMouseCursor() =>
+    RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1);
 
 const _transparentPngDataUrl =
     'data:image/png;base64,'
@@ -737,6 +761,112 @@ Inline ***strong emphasis*** text.
 
       expect(find.text('?'), findsOneWidget);
       expect(find.textContaining('cite:deadbe'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'MarkdownWithCodeHighlight shows the hand cursor over a link in a selection area',
+    (tester) async {
+      await tester.pumpWidget(
+        _settingsHarness(
+          onSettingsReady: (_) {},
+          child: SelectionArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: MarkdownWithCodeHighlight(
+                text: '[example](https://example.com)\n\nplain body',
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final mouse = await _addMouse(tester);
+
+      await _hover(tester, mouse, tester.getCenter(find.text('example')));
+      expect(_activeMouseCursor(), SystemMouseCursors.click);
+
+      // Link-scoped: body text keeps the I-beam selection needs.
+      final paragraph = _paragraphContaining('plain body');
+      await _hover(
+        tester,
+        mouse,
+        paragraph.localToGlobal(Offset(4, paragraph.size.height - 8)),
+      );
+      expect(_activeMouseCursor(), SystemMouseCursors.text);
+    },
+  );
+
+  testWidgets(
+    'MarkdownWithCodeHighlight shows the hand cursor over a citation capsule',
+    (tester) async {
+      await tester.pumpWidget(
+        _settingsHarness(
+          onSettingsReady: (_) {},
+          child: SelectionArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: MarkdownWithCodeHighlight(
+                text: '结论如下。[cite:96d0ed]',
+                onCitationTap: (_) {},
+                citationIndexResolver: (id) => id == '96d0ed' ? '1' : null,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final mouse = await _addMouse(tester);
+
+      await _hover(tester, mouse, tester.getCenter(find.text('1')));
+      expect(_activeMouseCursor(), SystemMouseCursors.click);
+    },
+  );
+
+  testWidgets(
+    'MarkdownWithCodeHighlight shows the hand cursor over an inline html anchor',
+    (tester) async {
+      await tester.pumpWidget(
+        _settingsHarness(
+          onSettingsReady: (_) {},
+          child: SelectionArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: MarkdownWithCodeHighlight(
+                text:
+                    'see <a href="https://example.com">example anchor</a> now',
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final mouse = await _addMouse(tester);
+
+      await _hover(
+        tester,
+        mouse,
+        tester.getCenter(find.text('example anchor')),
+      );
+      expect(_activeMouseCursor(), SystemMouseCursors.click);
+    },
+  );
+
+  testWidgets(
+    'MarkdownWithCodeHighlight shows the hand cursor over a link with no selection area',
+    (tester) async {
+      await tester.pumpWidget(
+        _markdownHarness('[example](https://example.com)', width: 360),
+      );
+      await tester.pump();
+
+      final mouse = await _addMouse(tester);
+
+      await _hover(tester, mouse, tester.getCenter(find.text('example')));
+      expect(_activeMouseCursor(), SystemMouseCursors.click);
     },
   );
 

@@ -569,32 +569,34 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
               // below the line. Translate it up (layout-neutral) so it looks
               // vertically centered, and pad horizontally so adjacent capsules
               // don't touch.
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 1.5),
-                child: Transform.translate(
-                  offset: const Offset(0, -2),
-                  child: GestureDetector(
-                    onTap: () {
-                      if (widget.onCitationTap != null &&
-                          citation.id.isNotEmpty) {
-                        widget.onCitationTap!(citation.id);
-                      } else {
-                        // Fallback: do nothing
-                      }
-                    },
-                    child: Container(
-                      constraints: const BoxConstraints(minWidth: 20),
-                      height: 20,
-                      padding: const EdgeInsets.symmetric(horizontal: 5),
-                      decoration: BoxDecoration(
-                        color: cs.primary.withValues(alpha: 0.20),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Center(
-                        widthFactor: 1.0,
-                        child: Text(
-                          display,
-                          style: TextStyle(fontSize: 12, height: 1.0),
+              return _clickCursor(
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                  child: Transform.translate(
+                    offset: const Offset(0, -2),
+                    child: GestureDetector(
+                      onTap: () {
+                        if (widget.onCitationTap != null &&
+                            citation.id.isNotEmpty) {
+                          widget.onCitationTap!(citation.id);
+                        } else {
+                          // Fallback: do nothing
+                        }
+                      },
+                      child: Container(
+                        constraints: const BoxConstraints(minWidth: 20),
+                        height: 20,
+                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        decoration: BoxDecoration(
+                          color: cs.primary.withValues(alpha: 0.20),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Center(
+                          widthFactor: 1.0,
+                          child: Text(
+                            display,
+                            style: TextStyle(fontSize: 12, height: 1.0),
+                          ),
                         ),
                       ),
                     ),
@@ -605,13 +607,15 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
           }
           // Default link appearance
           final cs = Theme.of(ctx).colorScheme;
-          return Text(
-            span.toPlainText(),
-            style: style.copyWith(
-              color: cs.primary,
-              decoration: TextDecoration.none,
+          return _clickCursor(
+            Text(
+              span.toPlainText(),
+              style: style.copyWith(
+                color: cs.primary,
+                decoration: TextDecoration.none,
+              ),
+              textAlign: TextAlign.start,
             ),
-            textAlign: TextAlign.start,
           );
         },
         orderedListBuilder: (ctx, no, child, cfg) {
@@ -1163,6 +1167,22 @@ class _MarkdownBlockSeparator extends StatelessWidget {
     );
   }
 }
+
+/// Wraps an inline tap target so hovering it shows the hand cursor.
+///
+/// A bare [MouseRegion] is not enough: inside a [SelectionArea] the target's
+/// own [Text] registers a `SystemMouseCursors.text` region, and the innermost
+/// annotation wins the cursor, so the override has to reach
+/// [DefaultSelectionStyle.mouseCursor] as well. `merge` keeps the ambient
+/// selection colour intact. The [MouseRegion] covers hosts with no selection
+/// registrar, where no `Text` region exists.
+Widget _clickCursor(Widget child) => MouseRegion(
+  cursor: SystemMouseCursors.click,
+  child: DefaultSelectionStyle.merge(
+    mouseCursor: SystemMouseCursors.click,
+    child: child,
+  ),
+);
 
 String _displayLanguage(BuildContext context, String? raw) {
   final zh = _isZh(context);
@@ -6369,13 +6389,17 @@ class HtmlAnchorMd extends InlineMd {
     return WidgetSpan(
       baseline: TextBaseline.alphabetic,
       alignment: PlaceholderAlignment.baseline,
-      child: GestureDetector(
-        onTap: url.isEmpty ? null : () => config.onLinkTap?.call(url, linkText),
-        child: Text(
-          linkText,
-          style: (config.style ?? TextStyle()).copyWith(
-            color: cs.primary,
-            decoration: TextDecoration.none,
+      child: _clickCursor(
+        GestureDetector(
+          onTap: url.isEmpty
+              ? null
+              : () => config.onLinkTap?.call(url, linkText),
+          child: Text(
+            linkText,
+            style: (config.style ?? TextStyle()).copyWith(
+              color: cs.primary,
+              decoration: TextDecoration.none,
+            ),
           ),
         ),
       ),

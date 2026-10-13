@@ -4582,6 +4582,12 @@ abstract class AppLocalizations {
   /// **'Share'**
   String get messageMoreSheetShare;
 
+  /// No description provided for @messageMoreSheetCopyLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Link'**
+  String get messageMoreSheetCopyLink;
+
   /// No description provided for @messageMoreSheetSelectMessages.
   ///
   /// In en, this message translates to:
@@ -5236,6 +5242,12 @@ abstract class AppLocalizations {
   /// **'Copy'**
   String get sideDrawerMenuCopy;
 
+  /// No description provided for @sideDrawerMenuCopyLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Link'**
+  String get sideDrawerMenuCopyLink;
+
   /// No description provided for @sideDrawerMenuMoveTo.
   ///
   /// In en, this message translates to:
@@ -5475,6 +5487,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Link copied'**
   String get sideDrawerLinkCopied;
+
+  /// No description provided for @conversationLinkCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Link copied'**
+  String get conversationLinkCopied;
+
+  /// No description provided for @conversationLinkMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'This conversation isn\'t on this device.'**
+  String get conversationLinkMissing;
 
   /// No description provided for @sideDrawerPinnedLabel.
   ///

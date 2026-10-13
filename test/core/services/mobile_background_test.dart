@@ -472,4 +472,58 @@ void main() {
       expect(notifications, isEmpty);
     },
   );
+
+  test('a link buffered before Dart was ready opens its target', () async {
+    intercept = (call) async {
+      if (call.method == 'takePendingConversationLink') {
+        return 'cuplivo://conversation/conv-1?message=msg-2';
+      }
+      return null;
+    };
+    final ios = MobileBackgroundCoordinator(
+      channel: channel,
+      platform: TargetPlatform.iOS,
+      notificationSender: ({required conversationId, title, body}) async {},
+    );
+    addTearDown(ios.dispose);
+    await ios.configure(const MobileBackgroundSettings(), l10n);
+
+    expect(NotificationService.takePendingConversationId(), 'conv-1');
+    expect(NotificationService.takePendingMessageId('conv-1'), 'msg-2');
+  });
+
+  test('a link delivered while Dart runs opens the same target', () async {
+    await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .handlePlatformMessage(
+          channel.name,
+          const StandardMethodCodec().encodeMethodCall(
+            const MethodCall(
+              'openConversationLink',
+              'cuplivo://conversation/conv-7?message=msg-8',
+            ),
+          ),
+          (_) {},
+        );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(NotificationService.takePendingConversationId(), 'conv-7');
+    expect(NotificationService.takePendingMessageId('conv-7'), 'msg-8');
+  });
+
+  test('a foreign URL is not treated as a conversation id', () async {
+    await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .handlePlatformMessage(
+          channel.name,
+          const StandardMethodCodec().encodeMethodCall(
+            const MethodCall(
+              'openConversationLink',
+              'kelivo://conversation/conv-7',
+            ),
+          ),
+          (_) {},
+        );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(NotificationService.takePendingConversationId(), isNull);
+  });
 }

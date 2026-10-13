@@ -1,5 +1,6 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -2359,6 +2360,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get messageMoreSheetShare => '分享';
 
   @override
+  String get messageMoreSheetCopyLink => '复制链接';
+
+  @override
   String get messageMoreSheetSelectMessages => '选择消息';
 
   @override
@@ -2728,6 +2732,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sideDrawerMenuCopy => '复制';
 
   @override
+  String get sideDrawerMenuCopyLink => '复制链接';
+
+  @override
   String get sideDrawerMenuMoveTo => '移动到';
 
   @override
@@ -2862,6 +2869,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get sideDrawerLinkCopied => '已复制下载链接';
+
+  @override
+  String get conversationLinkCopied => '已复制链接';
+
+  @override
+  String get conversationLinkMissing => '此对话不在本设备上。';
 
   @override
   String get sideDrawerPinnedLabel => '置顶';
@@ -15433,6 +15446,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get messageMoreSheetShare => '分享';
 
   @override
+  String get messageMoreSheetCopyLink => '复制链接';
+
+  @override
   String get messageMoreSheetSelectMessages => '选择消息';
 
   @override
@@ -15802,6 +15818,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get sideDrawerMenuCopy => '复制';
 
   @override
+  String get sideDrawerMenuCopyLink => '复制链接';
+
+  @override
   String get sideDrawerMenuMoveTo => '移动到';
 
   @override
@@ -15936,6 +15955,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get sideDrawerLinkCopied => '已复制下载链接';
+
+  @override
+  String get conversationLinkCopied => '已复制链接';
+
+  @override
+  String get conversationLinkMissing => '此对话不在本设备上。';
 
   @override
   String get sideDrawerPinnedLabel => '置顶';
@@ -28433,6 +28458,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get messageMoreSheetShare => '分享';
 
   @override
+  String get messageMoreSheetCopyLink => '複製連結';
+
+  @override
   String get messageMoreSheetSelectMessages => '選擇訊息';
 
   @override
@@ -28802,6 +28830,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get sideDrawerMenuCopy => '複製';
 
   @override
+  String get sideDrawerMenuCopyLink => '複製連結';
+
+  @override
   String get sideDrawerMenuMoveTo => '移動到';
 
   @override
@@ -28936,6 +28967,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get sideDrawerLinkCopied => '已複製下載連結';
+
+  @override
+  String get conversationLinkCopied => '已複製連結';
+
+  @override
+  String get conversationLinkMissing => '此對話不在本裝置上。';
 
   @override
   String get sideDrawerPinnedLabel => '置頂';

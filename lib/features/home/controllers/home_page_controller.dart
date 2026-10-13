@@ -1034,7 +1034,19 @@ class HomePageController extends ChangeNotifier {
           _context.mounted) {
         final conversationId = _pendingNotificationConversationId!;
         _pendingNotificationConversationId = null;
-        if (_chatService.getConversation(conversationId) == null) continue;
+        if (_chatService.getConversation(conversationId) == null) {
+          // A tap on a notification whose run was deleted, or a link whose
+          // conversation is not on this device (it never synced here): say so
+          // rather than swallowing the tap.
+          if (_context.mounted) {
+            showAppSnackBar(
+              _context,
+              message: AppLocalizations.of(_context)!.conversationLinkMissing,
+              type: NotificationType.info,
+            );
+          }
+          continue;
+        }
         if (!_context.mounted || !_homeRouteVisible) {
           _pendingNotificationConversationId = conversationId;
           break;

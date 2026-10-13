@@ -18,6 +18,7 @@ import 'package:Cuplivo/features/home/controllers/stream_controller.dart'
     show ReasoningData, ReasoningSegmentData;
 import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 
 class _PageRequest {
   _PageRequest({required this.conversationId, required this.completer});
@@ -424,6 +425,44 @@ void main() {
             await tester.pump(const Duration(milliseconds: 10));
           }
           expect(controller.currentConversation?.id, 'conv-b');
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox());
+        });
+      },
+    );
+
+    testWidgets(
+      'a target that is not on this device is reported, not ignored',
+      (tester) async {
+        await runAsDesktop(() async {
+          final service = _ControlledChatService({
+            'conv-a': [_message('conv-a', 0)],
+          });
+          final controller = await pumpHarness(tester, service);
+          await switchAndSettle(tester, controller, service, 'conv-a');
+          controller.debugSetChatInitialized();
+          final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+          // A copied link whose conversation never reached this device (or a
+          // notification whose run was deleted) must say so: the tap would
+          // otherwise look like the app ignoring it.
+          NotificationService.openConversation('missing-conversation');
+          for (var i = 0; i < 20; i++) {
+            await tester.pump(const Duration(milliseconds: 10));
+          }
+
+          expect(
+            AppSnackBarManager().activeToasts.any(
+              (entry) =>
+                  entry.notification.message == l10n.conversationLinkMissing,
+            ),
+            isTrue,
+          );
+          expect(controller.currentConversation?.id, 'conv-a');
+          // Let the toast auto-dismiss and its controller dispose before the
+          // tree goes away, or the manager's ticker outlives the Navigator.
+          await tester.pump(const Duration(seconds: 4));
+          await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
           await tester.pumpWidget(const SizedBox());
         });

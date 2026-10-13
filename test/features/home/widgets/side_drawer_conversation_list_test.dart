@@ -14,6 +14,7 @@ import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 // ignore: depend_on_referenced_packages
@@ -792,4 +793,49 @@ void main() {
       });
     },
   );
+
+  testWidgets('iOS long-press copies a link to the conversation', (
+    tester,
+  ) async {
+    // The override must be reset inside the body: the binding verifies
+    // foundation debug variables before package:test tearDowns.
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    String? clipboard;
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        clipboard = (call.arguments as Map)['text'] as String?;
+      }
+      return null;
+    });
+    try {
+      final service = createService();
+      late final Conversation alpha;
+      await tester.runAsync(() async {
+        await service.init();
+        alpha = await service.createConversation(title: 'Alpha');
+      });
+      await pumpDrawer(tester, service);
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(SideDrawer)),
+      )!;
+
+      await tester.longPress(find.text('Alpha'));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.sideDrawerMenuCopyLink), findsOneWidget);
+
+      await tester.tap(find.text(l10n.sideDrawerMenuCopyLink));
+      await tester.pumpAndSettle();
+
+      expect(clipboard, 'cuplivo://conversation/${alpha.id}');
+      // Let the confirmation toast dismiss before the tree goes away.
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    } finally {
+      messenger.setMockMethodCallHandler(SystemChannels.platform, null);
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 }

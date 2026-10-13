@@ -1508,6 +1508,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hotkeyToggleTopicPanel => 'Toggle Topics';
 
   @override
+  String get hotkeyFocusInput => 'Focus Input';
+
+  @override
   String get hotkeysPressShortcut => 'Press a shortcut';
 
   @override

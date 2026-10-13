@@ -1459,6 +1459,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get hotkeyToggleTopicPanel => '切换话题显示';
 
   @override
+  String get hotkeyFocusInput => '聚焦输入框';
+
+  @override
   String get hotkeysPressShortcut => '按下快捷键';
 
   @override
@@ -14795,6 +14798,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get hotkeyToggleTopicPanel => '切换话题显示';
 
   @override
+  String get hotkeyFocusInput => '聚焦输入框';
+
+  @override
   String get hotkeysPressShortcut => '按下快捷键';
 
   @override
@@ -28055,6 +28061,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get hotkeyToggleTopicPanel => '切換話題顯示';
+
+  @override
+  String get hotkeyFocusInput => '聚焦輸入框';
 
   @override
   String get hotkeysPressShortcut => '按下快捷鍵';

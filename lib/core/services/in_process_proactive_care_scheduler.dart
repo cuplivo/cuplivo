@@ -8,12 +8,18 @@ import '../models/conversation.dart';
 import 'desktop_power_state.dart';
 import 'proactive_care_conversation_policy.dart';
 
-/// In-process timer-based proactive care scheduler for desktop and foreground platforms.
+/// In-process timer-based proactive care scheduler: the primary trigger on
+/// desktop and the foreground executor on iOS — the two platforms whose
+/// Kelivo counterpart is an in-app executor (`DesktopScheduledTasks` and
+/// `PreparedScheduledTasks`). Android deliberately has none: Kelivo's Android
+/// scheduled tasks run through the native exact alarm only, and care consumes
+/// that rather than adding a second trigger.
 ///
 /// Dispatches when `DateTime.now() >= dueAt`, taking native system sleep/wake
-/// transitions into account through [DesktopPowerState].
-class DesktopProactiveCareScheduler {
-  DesktopProactiveCareScheduler({
+/// transitions into account through [DesktopPowerState]. The letter flow's
+/// atomic claim keeps this from double-delivering alongside the native alarm.
+class InProcessProactiveCareScheduler {
+  InProcessProactiveCareScheduler({
     DateTime Function()? now,
     Future<DesktopPowerState> Function()? readPowerState,
   }) : _now = now ?? DateTime.now,
@@ -153,9 +159,7 @@ class DesktopProactiveCareScheduler {
       try {
         await _onFire?.call(entry.key, entry.value);
       } catch (e, st) {
-        debugPrint(
-          '[DesktopProactiveCare] fire failed for ${entry.key}: $e\n$st',
-        );
+        debugPrint('[ProactiveCare] fire failed for ${entry.key}: $e\n$st');
       }
     }
     _updateTimer();

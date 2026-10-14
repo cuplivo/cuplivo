@@ -8,9 +8,25 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import com.cuplivo.cuplivo.KelivoApplication
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
+
+/** How a fired letter reaches the Dart side. */
+internal enum class CareFirePlan { Direct, Service }
+
+/**
+ * A letter only reaches Dart through a live channel: either the app is in
+ * front (no foreground service needed, and no notification flash), or the run
+ * goes through the same foreground-service contract as a scheduled task.
+ *
+ * There is deliberately no third option. A fire held back while neither holds
+ * has no listener for the channel, and drifting there used to drop the letter
+ * (and, because the occurrence was already consumed, every later one too).
+ */
+internal fun careFirePlan(ready: Boolean, foreground: Boolean): CareFirePlan =
+    if (ready && foreground) CareFirePlan.Direct else CareFirePlan.Service
 
 /**
  * Native owner of the proactive-care ("Ta的来信") letter alarms.
@@ -25,6 +41,7 @@ import io.flutter.plugin.common.MethodChannel
 class ProactiveCareAlarms(private val app: KelivoApplication) {
     companion object {
         const val FIRE = "com.cuplivo.cuplivo.care.FIRE"
+        private const val TAG = "ProactiveCare"
         private const val LIMIT_MS = 10 * 60 * 1000L
         private const val RUN_PREFIX = "care:"
     }
@@ -35,6 +52,8 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
     private val due = mutableMapOf<String, Long>()
     private val inFlight = mutableMapOf<String, Long>()
     private val dispatched = mutableSetOf<String>()
+    /** Fires that actually began a foreground-service run (`Service` plan). */
+    private val serviceRuns = mutableSetOf<String>()
     private val deadlines = mutableMapOf<String, Runnable>()
     private var channel: MethodChannel? = null
     private var ready = false
@@ -62,12 +81,13 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
                             val id = args["conversationId"] as String
                             val dueAt = (args["dueAt"] as Number).toLong()
                             if (dueAt <= System.currentTimeMillis()) cancel(id) else arm(id, dueAt)
-                            result.success(null)
+                            result.success(status())
                         }
                         "cancel" -> {
                             cancel(args["conversationId"] as String)
                             result.success(null)
                         }
+                        "status" -> result.success(status())
                         "rescheduleAll" -> {
                             @Suppress("UNCHECKED_CAST")
                             val list = args["alarms"] as? List<Map<String, Any>> ?: emptyList()
@@ -76,7 +96,7 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
                                 val at = (row["dueAt"] as? Number)?.toLong() ?: return@mapNotNull null
                                 id to at
                             })
-                            result.success(null)
+                            result.success(status())
                         }
                         "done" -> {
                             finish(args["conversationId"] as String)
@@ -104,10 +124,23 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
         else prefs.edit().putLong("alarm:$id", dueAt).apply()
     }
 
+    // Whether the system lets this app schedule exact alarms. Mirrors
+    // ScheduledTasks: the native owner is the only one that can answer, and
+    // without the grant nothing is scheduled in the background at all.
+    private fun permitted() = ExactAlarmHelper.isExactAlarmPermitted(alarms)
+
+    private fun status() = mapOf("exactAlarms" to permitted())
+
     private fun arm(id: String, dueAt: Long) {
         ExactAlarmHelper.cancel(alarms, pendingIntent(id, 0))
         due[id] = dueAt
         persist(id, dueAt)
+        if (!permitted()) {
+            // Same contract as ScheduledTasks.arm: no exact-alarm grant, no
+            // alarm. Say so instead of logging a successful arm.
+            Log.w(TAG, "exact alarm not permitted; $id can only fire while the app is alive")
+            return
+        }
         ExactAlarmHelper.scheduleExact(alarms, dueAt, pendingIntent(id, dueAt))
     }
 
@@ -134,33 +167,70 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
         // A stale delivery (alarm raced a reschedule/cancel) is ignored; the
         // registry still holds the authoritative next time.
         if (due[id] != dueAt) return
-        due.remove(id)
-        persist(id, null)
-        if (inFlight.containsKey(id)) return
-        inFlight[id] = dueAt
-        if (app.hasEngine && ready) {
-            // Foreground path: the engine is alive, dispatch without the
-            // foreground-service dance (no notification flash).
-            dispatchPending()
+        // Never consume an occurrence another delivery still owns: the parked
+        // fire would be dropped along with it.
+        if (inFlight.containsKey(id)) {
+            Log.i(TAG, "fire $id due=$dueAt ignored: a delivery for this conversation is in flight")
             return
         }
-        val timeout = Runnable { finish(id) }
+        due.remove(id)
+        persist(id, null)
+        inFlight[id] = dueAt
+        // Both plans arm the deadline, so a handoff that never completes is
+        // released instead of parking the conversation forever. Releasing is a
+        // drop on the native side: the Dart schedule is still unconsumed, so
+        // the overdue catch-up owns this letter from here on.
+        val timeout = Runnable {
+            Log.w(TAG, "fire $id due=$dueAt released after the deadline")
+            app.backgroundRuntime.recordError("care_delivery_timeout: $id")
+            finish(id)
+        }
         deadlines[id] = timeout
         main.postDelayed(timeout, LIMIT_MS)
-        // The service posts its foreground notification before warming Flutter.
-        if (!app.hasEngine) app.backgroundRuntime.setForeground(false)
-        app.backgroundRuntime.beginScheduledRun(RUN_PREFIX + id)
-        dispatchPending()
+        val plan = careFirePlan(ready, app.backgroundRuntime.foreground)
+        Log.i(TAG, "fire $id due=$dueAt plan=$plan")
+        try {
+            when (plan) {
+                // The app owns the foreground: the engine is alive and the
+                // channel has a listener, so dispatch without the
+                // foreground-service dance (no notification flash).
+                CareFirePlan.Direct -> dispatchPending()
+
+                CareFirePlan.Service -> {
+                    // The service posts its foreground notification before
+                    // warming Flutter, and is the only owner that guarantees
+                    // the channel gets a listener.
+                    if (!app.hasEngine) app.backgroundRuntime.setForeground(false)
+                    serviceRuns.add(id)
+                    app.backgroundRuntime.beginScheduledRun(RUN_PREFIX + id)
+                    dispatchPending()
+                }
+            }
+        } catch (error: RuntimeException) {
+            // Keep the fire parked: the next foreground dispatch
+            // (MainActivity.onStart) can still deliver it, and the deadline
+            // releases it otherwise.
+            app.backgroundRuntime.recordError("care_delivery_failed: ${error.message}")
+            Log.w(TAG, "fire $id failed to dispatch", error)
+        }
     }
 
     /** Sends every claimed-but-undelivered fire to the Dart side. */
     fun dispatchPending() {
         if (!ready) return
         // When the process was dead, the engine only exists under the
-        // foreground service; without it the channel has no listener.
-        if (inFlight.isNotEmpty() && app.backgroundRuntime.service == null && !app.backgroundRuntime.foreground) return
+        // foreground service; without it the channel has no listener yet.
+        // Nothing is dropped *here*: the entry keeps its deadline and the next
+        // foreground dispatch drains it (see MainActivity.onStart). If that
+        // never comes, the deadline releases the occurrence and the Dart-side
+        // overdue catch-up is the last resort.
+        if (inFlight.isNotEmpty() && app.backgroundRuntime.service == null && !app.backgroundRuntime.foreground) {
+            Log.i(TAG, "dispatchPending: holding ${inFlight.size} letter(s) for the foreground")
+            return
+        }
         inFlight.toMap().forEach { (id, dueAt) ->
             if (!dispatched.add(id)) return@forEach
+            Log.i(TAG, "dispatchPending: handing off $id due=$dueAt")
             channel?.invokeMethod("fire", mapOf("conversationId" to id, "dueAt" to dueAt))
         }
     }
@@ -169,7 +239,18 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
         deadlines.remove(id)?.let(main::removeCallbacks)
         if (inFlight.remove(id) != null) {
             dispatched.remove(id)
-            app.backgroundRuntime.endScheduledRun(RUN_PREFIX + id)
+            Log.i(TAG, "finish $id")
+            // Only the Service plan began a scheduled run; a foreground fire
+            // never did, and ending one it never started would touch
+            // accounting that belongs to another run.
+            if (serviceRuns.remove(id)) {
+                app.backgroundRuntime.endScheduledRun(RUN_PREFIX + id)
+            }
+            // An occurrence that arrived while this delivery was in flight kept
+            // its registry entry but lost its one-shot alarm (the system
+            // consumed it). Re-arm it so the newer letter keeps a carrier
+            // instead of waiting for the next sync/resume.
+            due[id]?.let { arm(id, it) }
         }
     }
 }

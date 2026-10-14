@@ -39,6 +39,7 @@ class _AssistantSettingsEditRoleplayTabState
   AndroidProactiveCareSettingsStatus? _settingsStatus;
   bool _conversationTimesExpanded = false;
   bool _permissionsExpanded = false;
+  bool _permissionsAutoExpanded = false;
   bool _refreshingSettings = false;
   String? _activeSettingsAction;
   final Set<String> _savingConversationIds = <String>{};
@@ -112,7 +113,19 @@ class _AssistantSettingsEditRoleplayTabState
     _refreshingSettings = true;
     final status = await _settingsService.queryStatus();
     _refreshingSettings = false;
-    if (mounted) setState(() => _settingsStatus = status);
+    if (!mounted) return;
+    setState(() {
+      _settingsStatus = status;
+      // A missing exact-alarm grant is the one readiness problem the user
+      // cannot see from the collapsed card, and it silently downgrades care to
+      // "in-app only". Surface it once, the way Kelivo's scheduled-task page
+      // blocks an unpermitted task list.
+      if (!_permissionsAutoExpanded &&
+          status.exactAlarms == AndroidProactiveCareSettingState.notReady) {
+        _permissionsExpanded = true;
+        _permissionsAutoExpanded = true;
+      }
+    });
   }
 
   Future<void> _setConversationTime(
@@ -288,8 +301,16 @@ class _AssistantSettingsEditRoleplayTabState
     final cs = Theme.of(context).colorScheme;
     final saving = _savingConversationIds.contains(conversation.id);
     final time = conversation.proactiveCareNextMessageAt;
+    // Without the exact-alarm grant Android cannot wake the app for this
+    // conversation, so the time is a promise only the in-app executor keeps.
+    // Kelivo's scheduled-task list says "waiting for permission" here.
+    final waitingForExactAlarm =
+        _settingsStatus?.waitsForExactAlarm(nextMessageAt: time, now: now) ??
+        false;
     String statusText;
-    if (time == null) {
+    if (waitingForExactAlarm) {
+      statusText = l10n.scheduledTasksWaitingPermission;
+    } else if (time == null) {
       statusText = l10n.assistantEditProactiveCareConversationTimeUnset;
     } else {
       final formatted = proactiveCareNextMessageLabel(context, time);

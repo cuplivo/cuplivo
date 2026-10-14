@@ -7,6 +7,71 @@ import 'package:permission_handler/permission_handler.dart';
 void main() {
   group('AndroidProactiveCareSettingsService', () {
     test(
+      'waitsForExactAlarm fires for a future letter without a trustworthy grant',
+      () {
+        final now = DateTime(2026, 1, 1, 12);
+        AndroidProactiveCareSettingsStatus statusWith(
+          AndroidProactiveCareSettingState exactAlarms,
+        ) => AndroidProactiveCareSettingsStatus(
+          appNotifications: AndroidProactiveCareSettingState.ready,
+          proactiveCareChannel: AndroidProactiveCareSettingState.ready,
+          exactAlarms: exactAlarms,
+          batteryOptimizationExemption: AndroidProactiveCareSettingState.ready,
+          autoStart: AndroidProactiveCareSettingState.manual,
+        );
+        final future = now.add(const Duration(hours: 1));
+
+        expect(
+          statusWith(
+            AndroidProactiveCareSettingState.notReady,
+          ).waitsForExactAlarm(nextMessageAt: future, now: now),
+          isTrue,
+        );
+        // A query that failed is not a licence to promise the time either.
+        expect(
+          statusWith(
+            AndroidProactiveCareSettingState.unknown,
+          ).waitsForExactAlarm(nextMessageAt: future, now: now),
+          isTrue,
+        );
+        // A granted alarm, no schedule, and an already-due schedule never wait.
+        expect(
+          statusWith(
+            AndroidProactiveCareSettingState.ready,
+          ).waitsForExactAlarm(nextMessageAt: future, now: now),
+          isFalse,
+        );
+        expect(
+          statusWith(
+            AndroidProactiveCareSettingState.notApplicable,
+          ).waitsForExactAlarm(nextMessageAt: future, now: now),
+          isFalse,
+        );
+        expect(
+          statusWith(
+            AndroidProactiveCareSettingState.notReady,
+          ).waitsForExactAlarm(nextMessageAt: null, now: now),
+          isFalse,
+        );
+        expect(
+          statusWith(
+            AndroidProactiveCareSettingState.unknown,
+          ).waitsForExactAlarm(nextMessageAt: null, now: now),
+          isFalse,
+        );
+        expect(
+          statusWith(
+            AndroidProactiveCareSettingState.notReady,
+          ).waitsForExactAlarm(
+            nextMessageAt: now.subtract(const Duration(minutes: 1)),
+            now: now,
+          ),
+          isFalse,
+        );
+      },
+    );
+
+    test(
       'non-Android is not applicable and performs no platform calls',
       () async {
         final platform = _FakePlatform(isAndroid: false);

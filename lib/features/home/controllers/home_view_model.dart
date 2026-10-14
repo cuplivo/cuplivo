@@ -392,6 +392,10 @@ class HomeViewModel extends ChangeNotifier {
     worldBookStore: WorldBookStore(
       _contextProvider.read<BusinessPreferences>(),
     ),
+    // A letter is inserted silently, outside the streaming path: reload the
+    // timeline as soon as it is durable, before the next-time decision call.
+    onLetterPersisted: (conversationId) =>
+        _refreshCurrentConversationAfterCare({conversationId}),
   );
 
   String? _proactiveCareL10n(String? Function(AppLocalizations) pick) {
@@ -425,6 +429,9 @@ class HomeViewModel extends ChangeNotifier {
     );
     if (assistant == null) return;
     if (!ProactiveCareConversationPolicy.isEligible(conversation, assistant)) {
+      debugPrint(
+        '[ProactiveCare] decision skipped: not eligible $conversationId',
+      );
       return;
     }
 
@@ -433,7 +440,10 @@ class HomeViewModel extends ChangeNotifier {
       assistant,
       conversation: conversation,
     );
-    if (model == null) return;
+    if (model == null) {
+      debugPrint('[ProactiveCare] decision skipped: no decision model');
+      return;
+    }
     final userNickname = _contextProvider.read<UserProvider>().name;
     final history = ProactiveCareMessageFlow.historyFromMessages(
       await _chatService.loadMessages(conversationId),
@@ -451,7 +461,16 @@ class HomeViewModel extends ChangeNotifier {
       conversationId: conversationId,
       currentNextCareTime: conversation.proactiveCareNextMessageAt,
     );
-    if (nextAt == null) return;
+    if (nextAt == null) {
+      // decideNextCareTime returns null for keep / declined / failed / invalid
+      // alike, so this line must not claim the model decided anything.
+      debugPrint(
+        '[ProactiveCare] decision left the next time unchanged '
+        '(kept/declined/failed)',
+      );
+      return;
+    }
+    debugPrint('[ProactiveCare] decision set next time $nextAt');
     // The extras write re-arms the Android alarm (see ChatService's
     // proactive-care hook).
     await _chatService.updateConversationExtras(conversationId, (extras) {
@@ -461,9 +480,39 @@ class HomeViewModel extends ChangeNotifier {
     });
   }
 
+  /// Re-arms every pending letter after the app came back to the foreground:
+  /// an alarm the system (or our own handoff) lost must not depend on the next
+  /// process start to come back. Mirrors the native `ready` re-arm Kelivo's
+  /// scheduled tasks do.
+  ///
+  /// The re-arm is a replace-all, so an unloaded store has to skip instead of
+  /// arming: an empty snapshot would cancel every alarm it cannot see. A store
+  /// that is genuinely empty has no letter to preserve, and the startup /
+  /// restore / sync paths still own cleaning up stale registry entries.
+  Future<void> reschedulePendingProactiveCare() async {
+    if (!ProactiveCareAlarmService.isSupported) return;
+    final conversations = _chatService.getAllConversations();
+    final assistants = _contextProvider.read<AssistantProvider>().assistants;
+    if (conversations.isEmpty || assistants.isEmpty) {
+      debugPrint('[ProactiveCare] re-arm skipped: stores not ready');
+      return;
+    }
+    try {
+      await ProactiveCareAlarmService.rescheduleAll(
+        conversations: conversations,
+        assistants: assistants,
+      );
+    } catch (e, st) {
+      FlutterLogger.log(
+        '[ProactiveCare] resume re-arm failed: $e\n$st',
+        tag: 'HomeViewModel',
+      );
+    }
+  }
+
   /// Delivers every due care letter for all eligible conversations (app
   /// start / resume catch-up; the alarm channel covers on-time delivery).
-  /// Returns the number of letters delivered.
+  /// Returns the number of letters delivered, excluding failed attempts.
   Future<int> deliverDueProactiveCare() async {
     if (!ProactiveCareAlarmService.isSupported) return 0;
     try {
@@ -475,10 +524,14 @@ class HomeViewModel extends ChangeNotifier {
         decisionPromptFallback: _proactiveCareDecisionPromptFallback,
         failureNotificationBody: _proactiveCareFailureBody,
       );
-      await _refreshCurrentConversationAfterCare(
-        delivered.map((d) => d.conversationId).toSet(),
-      );
-      return delivered.length;
+      final succeeded = delivered.where((d) => d.successful).length;
+      if (delivered.isNotEmpty) {
+        debugPrint(
+          '[ProactiveCare] catch-up delivered $succeeded/${delivered.length}',
+        );
+      }
+      // Each letter already reloaded the timeline through onLetterPersisted.
+      return succeeded;
     } catch (e, st) {
       FlutterLogger.log(
         '[ProactiveCare] due delivery failed: $e\n$st',
@@ -495,6 +548,7 @@ class HomeViewModel extends ChangeNotifier {
     required DateTime expectedAt,
   }) async {
     if (!ProactiveCareAlarmService.isSupported) return false;
+    debugPrint('[ProactiveCare] deliver $conversationId @ $expectedAt');
     try {
       final flow = _proactiveCareFlow();
       final outcome = await flow.runSchedule(
@@ -507,8 +561,11 @@ class HomeViewModel extends ChangeNotifier {
         failureNotificationBody: _proactiveCareFailureBody,
         notificationId: NotificationService.proactiveCareIdFor(conversationId),
       );
-      if (outcome == null) return false;
-      await _refreshCurrentConversationAfterCare({conversationId});
+      if (outcome == null) {
+        debugPrint('[ProactiveCare] nothing to deliver for $conversationId');
+        return false;
+      }
+      // A successful letter already reloaded the timeline in the flow.
       return outcome.successful;
     } catch (e, st) {
       FlutterLogger.log(

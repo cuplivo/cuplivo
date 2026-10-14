@@ -41,6 +41,7 @@ import '../../../utils/markdown_media_sanitizer.dart';
 import '../../../utils/platform_utils.dart';
 import '../../../utils/assistant_regex.dart';
 import '../../chat/models/message_edit_result.dart';
+import '../../chat/utils/selection_markdown_memory.dart';
 import '../../chat/widgets/chat_message_widget.dart' show ToolUIPart;
 import '../../chat/widgets/message_edit_sheet.dart';
 import '../../chat/widgets/message_export_sheet.dart';
@@ -966,6 +967,25 @@ class HomePageController extends ChangeNotifier {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _inputFocus.requestFocus();
             });
+          }
+          break;
+        case ChatAction.copySelectionMarkdown:
+          // The desktop hotkey path for "copy as Markdown": acts on the
+          // recorded selection instead of the context menu, which the
+          // framework can dismiss on a long backward selection.
+          if (isDesktopPlatform) {
+            final context = _context;
+            final text = SelectionMarkdownMemory.instance
+                .markdownForSelection();
+            if (text == null) break;
+            unawaited(Clipboard.setData(ClipboardData(text: text)));
+            showAppSnackBar(
+              context,
+              message: AppLocalizations.of(
+                context,
+              )!.chatMessageWidgetCopiedToClipboard,
+              type: NotificationType.info,
+            );
           }
           break;
         case ChatAction.switchModel:

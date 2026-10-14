@@ -679,3 +679,35 @@ contradicts one of them is a bug, not a preference.
   code span has no escapes: `` `D:\ComfyUI\` `` is one span whose closer is the backslash-preceded backtick
   (#544). One component rule reaches the renderer, the IR/copy mapping and the streaming splitter at once
   (ADR-0008).
+
+## Selection copy (选区复制) — ADR-0009
+
+- **Markdown copy (Markdown 复制)**: a selection made inside an assistant reply can be copied as the
+  markdown source that produced it. The mapping is the IR's 选区映射 — `MdDocument.emitSelectionMarkdown` —
+  so a cut run gets its markers completed instead of left dangling, and a miss falls back to 净化复制: the
+  action is never worse than a plain copy. Its menu item is the single word `Markdown`.
+- **Match source (匹配源)**: the bubble's own rendered source, captured by value, so streaming growth cannot
+  shift a selection that already happened. With the split-paragraph option each bubble matches its own
+  segment, and the walk is rebuilt per copy — which is why 展开状态 is an input to that build.
+- **Sanitized copy (净化复制)**: a selection with the characters the renderer inserts into rendered text
+  removed — the U+200B soft breaks in over-long inline-code and table-cell tokens. It is the one side that
+  must not be lossy: other invisible characters are content and survive, notably the ZWJ that joins emoji
+  sequences and the ZWNJ that Persian, Arabic and Urdu write. Plain copy, keyboard copy and share from every
+  markdown surface are sanitized.
+- **Selection memory (选区记忆)**: the last assistant selection together with the way to rebuild its 匹配源,
+  held so the `Copy Selection as Markdown` hotkey can act without a context menu. It is cleared when the
+  selection is cleared or emptied.
+- **Nested selection owner (嵌套选区归属)**: a code block and a table cell own their selection area, so their
+  text is reached through that area and never through the text around them. The sanitizer's copy-intent
+  override is registered only while the bubble's own area owns a selection; a nested owner copies through the
+  framework, un-sanitized, which is only reachable where a table cell carries a soft break.
+
+### Relationships
+
+- A selection has exactly one owner, and at most the assistant one has a 匹配源. 选区记忆 keeps only the most
+  recent assistant selection.
+- Markdown 复制 is offered while a reply is still streaming: the source was captured by value, so one that has
+  been rewritten since degrades to 净化复制 rather than to nothing.
+- The hotkey and the menu item produce the same text, through one mapping. The hotkey exists because the
+  framework can dismiss a long backward selection on right-click, which the copy path does not work around.
+- Reasoning text is 净化复制 but has no Markdown 复制: what it displays is not a 匹配源.

@@ -380,17 +380,34 @@ review 的两条发现**都成立**，核验时又确认了第三条，并把「
 
 - **全量 `flutter test` 已完成**：8256 通过 / 8 失败，8 条全部命中 `.toolbridge/known-failures.json`
   台账（0 new）。`dart analyze --fatal-infos lib test integration_test` 零问题、`dart format` 零变更。
-- **`feat/direct-select-text-v4` 移植：未做，等用户定时机**（2026-10-15 决定）。已核实的形状：
-  - 分支 `59adc53b8`，**3 个提交**（`2f505090d` 恢复朴素匹配器、`daf83af47` chat 侧复制、
-    `59adc53b8` 桌面快捷键），23 文件 +1143/−6，与 master 同基点 ⇒ 与本分支**大概率无冲突**
-    （它动 `chat_message_widget.dart`/l10n/hotkeys/新增文件，本分支未动前三者）。
-  - 要做的三件事：删 `lib/utils/markdown_subsequence_match.dart`（108）及其测试（144）；
-    `SelectionMarkdownMemory.takeCopyText()` 改走 `markdownDocument(...).emitSelectionMarkdown(...)`；
-    它自带的 ADR 编 **0009**（原计划写的「0007→0008」已过时：本分支已占用 0007 与 0008；用户确认用 0009）。
-  - 落点二选一：**(a)** 在本 worktree 新建分支、cherry-pick 那三个提交后就地改造（不碰它的 worktree、
-    无需越界权限，之后把它快进过去即可）；**(b)** 在它自己的 worktree
-    （`.../cuplivo-feat-direct-select-text-v4`，位于本会话沙箱之外）就地 rebase，需要一次越界写权限批准。
+- **`feat/direct-select-text-v4` 移植：已完成**（2026-10-16，落点 (b)：在它自己的 worktree 就地重定基）。
+  分支已从 `bc9fb4823` 重定基到本分支 tip（`172aa09b`），最终四个提交：
+  - `fix(markdown): walk a heading body inline and drop the ATX enumeration mask`（新增，见下）
+  - `feat(chat): copy an assistant selection as Markdown through the Markdown IR`
+  - `fix(selection): the copy shortcut serves nested selection owners`（新增）
+  - `feat(desktop): copy the selected assistant text as Markdown with a hotkey`（+ ADR-0009、CONTEXT、本台账）
+  - 原 `2f505090d`（恢复朴素匹配器）**整体丢弃**：ADR-0007 decision 5 说得很清楚，它是第二个 fallback，
+    只会在未建模的 case 里开火。三件事都做了：删 `lib/utils/markdown_subsequence_match.dart`（108）及其
+    测试（144 → 23 例）；`SelectionMarkdownMemory` 改为记录「重建 IR 的 thunk + 原始选区」，`markdownForSelection()`
+    走 `emitSelectionMarkdown(...) ?? 净化文本`；自带 ADR 编 **0009**（`docs/adr/0009-selection-copy.md`，
+    只记表层决定，映射按 ADR-0007/0008）。
+  - **ATX 枚举掩码（step 6）已退役**：先写守卫 `an enumerated heading is a heading, never a list`（两形状 ×
+    两路径），**带掩码时绿** ⇒ 它确实在测掩码保护的那个形状；删掩码后**红**（`Found 1 widget with text "1."`，
+    `## 1. 引言` 的 streaming 路径）⇒ 掩码是承重的，不是冗余。根因在下一层：`AtxHeadingMd` 让标题正文走
+    global 组件，`OrderedList`（`([0-9]+)\.\ ([^\n]+)$` 加 BlockMd 的 `^\ *?` 前缀）于是认领了以 `1. ` 开头的
+    正文。改成 inline walk（标题正文本来就是 inline 内容）后转绿，渲染器/IR 全套 **264 条**通过；引用与
+    `<details>` 正文保留 document walk（那儿嵌套列表是真内容，ADR-0008 dec. 3）。随之处置 finding 4：
+    `stripRendererInsertedCharacters` 删掉 U+200C 规则 —— 没有插入就没有可误伤的波斯/阿拉伯/乌尔都正字法 ZWNJ。
+  - **嵌套选区归属（review finding 1）**：`SelectableRegionState.getSelectedContent()` 在本 SDK（3.47.x）
+    **不是公开 API**（`selectable_region.dart:2829` 属私有 delegate），所以「回落到焦点所有者」不可行；
+    drop-in 的 copy override 改为**只在本面拥有选区时注册**，无选区的嵌套归属交回框架。用 review 的探针实测
+    （真实渲染 + 真实鼠标拖选 + 从 primary focus 派发 Ctrl+C）：短代码块 `<nothing copied>` →
+    `void main() { print("hi"); }`；长代码块（>2048）`<nothing copied>` → 928 字符；对照散文不变（仍净化）。
+  - 复核 gates（本轮）：`dart format --set-exit-if-changed` 0 变更；`dart analyze --fatal-infos`（渲染器、
+    IR 包、copy 相关文件）零问题；copy 相关测试 38 条 + 净化器 11 条；全量与 CI 结果见 PR #1015。
 - 已知限制台账（ADR-0007/0008 已有）：同一气泡内重复文本解析到首次出现；HTML 标签组件 best-effort；quote 整体重发射。
+  选区复制的两条（ADR-0009）：嵌套归属（代码块、表格单元）走框架**不净化**，可观测处只剩表格单元的软断 ZWSP；
+  选区记忆单槽且只记 assistant 选区。
 
 ---
 
@@ -399,6 +416,6 @@ review 的两条发现**都成立**，核验时又确认了第三条，并把「
 1. ~~Phase D（见 §5）~~ **已完成**（§5.3 的六个提交）。
 2. ~~全量 `flutter test`~~ **已完成**（8 known / 0 new，见 §6）。
 3. ~~PR #1017 第一轮 review 的核验与修复~~ **已完成**（§6.1：不变量 + 分块守卫 + 死面删除 + 注入证明）。
-4. `feat/direct-select-text-v4` 移植（§6 的两条路径与三件事），**等用户定时机**。
+4. ~~`feat/direct-select-text-v4` 移植~~ **已完成**（§6：落点 (b) + 三件事 + ATX 掩码退役 + 嵌套归属修复）。
 5. ~~待用户决定：本线上是否窄修 #544（一行 + 一处测试重定基，见 §5.4）~~ **已完成**（§5.4：一行 +
    重定基一条 + 三条守卫测试 + 一条漂移 fixture）。

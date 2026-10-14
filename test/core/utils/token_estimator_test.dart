@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Cuplivo/core/providers/settings_provider.dart' show ProviderKind;
+import 'package:Cuplivo/core/providers/settings_provider.dart'
+    show ProviderKind;
 import 'package:Cuplivo/core/utils/token_estimator.dart';
 import 'package:flutter_test/flutter_test.dart';
 

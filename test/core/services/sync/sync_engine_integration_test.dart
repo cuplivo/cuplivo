@@ -2559,11 +2559,10 @@ void main() {
     final bPeer = await b.peer(a);
     expect(bPeer.primaryEndpoint?.host, '127.0.0.1');
     expect(bPeer.primaryEndpoint?.port, provider.port);
-    expect(
-      bPeer.endpoints.skip(1).map((endpoint) => endpoint.label).toList(),
-      ['10.9.8.7:${provider.port}', '10.9.8.8:${provider.port}'],
-      reason: 'only advertised candidates join the set, after the proven one',
-    );
+    expect(bPeer.endpoints.skip(1).map((endpoint) => endpoint.label).toList(), [
+      '10.9.8.7:${provider.port}',
+      '10.9.8.8:${provider.port}',
+    ], reason: 'only advertised candidates join the set, after the proven one');
   });
 
   test('a foreground round syncs paired peers, then throttles', () async {
@@ -2856,11 +2855,9 @@ void main() {
       await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
 
       await provider.refreshPresence();
-      expect(
-        probed.last,
-        [('127.0.0.1', b.port)],
-        reason: 'the dot is about the addresses the card shows and dials',
-      );
+      expect(probed.last, [
+        ('127.0.0.1', b.port),
+      ], reason: 'the dot is about the addresses the card shows and dials');
 
       // A peer mid-session is not probed again: the session files its own
       // verdict when it lands, so the probe has nothing to add while it runs.
@@ -4143,11 +4140,9 @@ void main() {
 
     final report = await a.engine.syncWithPeer(await a.peer(b));
     expect(report.success, isTrue, reason: report.summary);
-    expect(
-      await _messageIds(b, 'conv-b'),
-      {'conv-b-m0'},
-      reason: "the other conversation's row must not move, nor gain a ghost",
-    );
+    expect(await _messageIds(b, 'conv-b'), {
+      'conv-b-m0',
+    }, reason: "the other conversation's row must not move, nor gain a ghost");
     expect(await _messageIds(b, 'conv-a'), {'conv-a-m0', 'conv-a-m1'});
   });
 
@@ -4758,11 +4753,9 @@ void main() {
     await provider.refreshPeers();
 
     await provider.refreshPresence();
-    expect(
-      probed.last,
-      [('10.0.0.9', 9527)],
-      reason: 'the dot is about the addresses the card shows and dials',
-    );
+    expect(probed.last, [
+      ('10.0.0.9', 9527),
+    ], reason: 'the dot is about the addresses the card shows and dials');
     expect(provider.isPeerOnline('peer-device'), isTrue);
     expect(provider.peerPresenceSource('peer-device'), PresenceSource.probe);
 

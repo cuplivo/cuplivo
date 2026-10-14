@@ -478,69 +478,76 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
           final idx = imgs.indexOf(url);
           final initial = idx >= 0 ? idx : 0;
           final provider = _imageProviderFor(url);
-          return GestureDetector(
-            onTap: () {
-              Navigator.of(ctx).push(
-                PageRouteBuilder(
-                  pageBuilder: (_, __, ___) =>
-                      ImageViewerPage(images: imgs, initialIndex: initial),
-                  transitionDuration: const Duration(milliseconds: 360),
-                  reverseTransitionDuration: const Duration(milliseconds: 280),
-                  transitionsBuilder: (context, anim, sec, child) {
-                    final curved = CurvedAnimation(
-                      parent: anim,
-                      curve: Curves.easeOutCubic,
-                      reverseCurve: Curves.easeInCubic,
-                    );
-                    return FadeTransition(
-                      opacity: curved,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0, 0.02),
-                          end: Offset.zero,
-                        ).animate(curved),
-                        child: child,
-                      ),
-                    );
-                  },
-                ),
-              );
-            },
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: () {
-                    if (provider == null) {
-                      // Missing or unsupported source: show a broken image indicator
-                      return const Icon(Icons.broken_image);
-                    }
-                    final displayWidth = width ?? constraints.maxWidth;
-                    final devicePixelRatio = MediaQuery.devicePixelRatioOf(
-                      context,
-                    );
-                    final cacheWidth = displayWidth.isFinite
-                        ? math.max(1, (displayWidth * devicePixelRatio).ceil())
-                        : null;
-                    final cacheHeight = height == null
-                        ? null
-                        : math.max(1, (height * devicePixelRatio).ceil());
-                    final resized = ResizeImage.resizeIfNeeded(
-                      cacheWidth,
-                      cacheHeight,
-                      provider,
-                    );
-                    return Image(
-                      image: resized,
-                      width: displayWidth,
-                      height: height,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stack) =>
-                          const Icon(Icons.broken_image),
-                    );
-                  }(),
+          return _clickCursor(
+            GestureDetector(
+              onTap: () {
+                Navigator.of(ctx).push(
+                  PageRouteBuilder(
+                    pageBuilder: (_, __, ___) =>
+                        ImageViewerPage(images: imgs, initialIndex: initial),
+                    transitionDuration: const Duration(milliseconds: 360),
+                    reverseTransitionDuration: const Duration(
+                      milliseconds: 280,
+                    ),
+                    transitionsBuilder: (context, anim, sec, child) {
+                      final curved = CurvedAnimation(
+                        parent: anim,
+                        curve: Curves.easeOutCubic,
+                        reverseCurve: Curves.easeInCubic,
+                      );
+                      return FadeTransition(
+                        opacity: curved,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.02),
+                            end: Offset.zero,
+                          ).animate(curved),
+                          child: child,
+                        ),
+                      );
+                    },
+                  ),
                 );
               },
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: () {
+                      if (provider == null) {
+                        // Missing or unsupported source: show a broken image indicator
+                        return const Icon(Icons.broken_image);
+                      }
+                      final displayWidth = width ?? constraints.maxWidth;
+                      final devicePixelRatio = MediaQuery.devicePixelRatioOf(
+                        context,
+                      );
+                      final cacheWidth = displayWidth.isFinite
+                          ? math.max(
+                              1,
+                              (displayWidth * devicePixelRatio).ceil(),
+                            )
+                          : null;
+                      final cacheHeight = height == null
+                          ? null
+                          : math.max(1, (height * devicePixelRatio).ceil());
+                      final resized = ResizeImage.resizeIfNeeded(
+                        cacheWidth,
+                        cacheHeight,
+                        provider,
+                      );
+                      return Image(
+                        image: resized,
+                        width: displayWidth,
+                        height: height,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stack) =>
+                            const Icon(Icons.broken_image),
+                      );
+                    }(),
+                  );
+                },
+              ),
             ),
           );
         },
@@ -569,32 +576,34 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
               // below the line. Translate it up (layout-neutral) so it looks
               // vertically centered, and pad horizontally so adjacent capsules
               // don't touch.
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 1.5),
-                child: Transform.translate(
-                  offset: const Offset(0, -2),
-                  child: GestureDetector(
-                    onTap: () {
-                      if (widget.onCitationTap != null &&
-                          citation.id.isNotEmpty) {
-                        widget.onCitationTap!(citation.id);
-                      } else {
-                        // Fallback: do nothing
-                      }
-                    },
-                    child: Container(
-                      constraints: const BoxConstraints(minWidth: 20),
-                      height: 20,
-                      padding: const EdgeInsets.symmetric(horizontal: 5),
-                      decoration: BoxDecoration(
-                        color: cs.primary.withValues(alpha: 0.20),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Center(
-                        widthFactor: 1.0,
-                        child: Text(
-                          display,
-                          style: TextStyle(fontSize: 12, height: 1.0),
+              return _clickCursor(
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                  child: Transform.translate(
+                    offset: const Offset(0, -2),
+                    child: GestureDetector(
+                      onTap: () {
+                        if (widget.onCitationTap != null &&
+                            citation.id.isNotEmpty) {
+                          widget.onCitationTap!(citation.id);
+                        } else {
+                          // Fallback: do nothing
+                        }
+                      },
+                      child: Container(
+                        constraints: const BoxConstraints(minWidth: 20),
+                        height: 20,
+                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        decoration: BoxDecoration(
+                          color: cs.primary.withValues(alpha: 0.20),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Center(
+                          widthFactor: 1.0,
+                          child: Text(
+                            display,
+                            style: TextStyle(fontSize: 12, height: 1.0),
+                          ),
                         ),
                       ),
                     ),
@@ -605,13 +614,15 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
           }
           // Default link appearance
           final cs = Theme.of(ctx).colorScheme;
-          return Text(
-            span.toPlainText(),
-            style: style.copyWith(
-              color: cs.primary,
-              decoration: TextDecoration.none,
+          return _clickCursor(
+            Text(
+              span.toPlainText(),
+              style: style.copyWith(
+                color: cs.primary,
+                decoration: TextDecoration.none,
+              ),
+              textAlign: TextAlign.start,
             ),
-            textAlign: TextAlign.start,
           );
         },
         orderedListBuilder: (ctx, no, child, cfg) {
@@ -957,33 +968,35 @@ class _KelivoMarkdownImageState extends State<_KelivoMarkdownImage> {
         }
         final file = snapshot.data;
         if (file == null) return _broken(context);
-        return GestureDetector(
-          onTap: () {
-            Navigator.of(context).push(
-              PageRouteBuilder<void>(
-                pageBuilder: (_, __, ___) =>
-                    ImageViewerPage(images: [file.path]),
-                transitionDuration: const Duration(milliseconds: 360),
-                reverseTransitionDuration: const Duration(milliseconds: 280),
-                transitionsBuilder: (context, anim, sec, child) {
-                  final curved = CurvedAnimation(
-                    parent: anim,
-                    curve: Curves.easeOutCubic,
-                    reverseCurve: Curves.easeInCubic,
-                  );
-                  return FadeTransition(opacity: curved, child: child);
-                },
+        return _clickCursor(
+          GestureDetector(
+            onTap: () {
+              Navigator.of(context).push(
+                PageRouteBuilder<void>(
+                  pageBuilder: (_, __, ___) =>
+                      ImageViewerPage(images: [file.path]),
+                  transitionDuration: const Duration(milliseconds: 360),
+                  reverseTransitionDuration: const Duration(milliseconds: 280),
+                  transitionsBuilder: (context, anim, sec, child) {
+                    final curved = CurvedAnimation(
+                      parent: anim,
+                      curve: Curves.easeOutCubic,
+                      reverseCurve: Curves.easeInCubic,
+                    );
+                    return FadeTransition(opacity: curved, child: child);
+                  },
+                ),
+              );
+            },
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.file(
+                file,
+                width: widget.width,
+                height: widget.height,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stack) => _broken(context),
               ),
-            );
-          },
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.file(
-              file,
-              width: widget.width,
-              height: widget.height,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stack) => _broken(context),
             ),
           ),
         );
@@ -1163,6 +1176,22 @@ class _MarkdownBlockSeparator extends StatelessWidget {
     );
   }
 }
+
+/// Wraps an inline tap target so hovering it shows the hand cursor.
+///
+/// A bare [MouseRegion] is not enough: inside a [SelectionArea] the target's
+/// own [Text] registers a `SystemMouseCursors.text` region, and the innermost
+/// annotation wins the cursor, so the override has to reach
+/// [DefaultSelectionStyle.mouseCursor] as well. `merge` keeps the ambient
+/// selection colour intact. The [MouseRegion] covers hosts with no selection
+/// registrar, where no `Text` region exists.
+Widget _clickCursor(Widget child) => MouseRegion(
+  cursor: SystemMouseCursors.click,
+  child: DefaultSelectionStyle.merge(
+    mouseCursor: SystemMouseCursors.click,
+    child: child,
+  ),
+);
 
 String _displayLanguage(BuildContext context, String? raw) {
   final zh = _isZh(context);
@@ -6284,10 +6313,8 @@ class _DetailsHtmlBlockState extends State<_DetailsHtmlBlock> {
                 ),
                 const SizedBox(width: 7),
                 Expanded(
-                  child: Text(
-                    widget.summary,
-                    style: summaryStyle,
-                    softWrap: true,
+                  child: _clickCursor(
+                    Text(widget.summary, style: summaryStyle, softWrap: true),
                   ),
                 ),
               ],
@@ -6369,13 +6396,17 @@ class HtmlAnchorMd extends InlineMd {
     return WidgetSpan(
       baseline: TextBaseline.alphabetic,
       alignment: PlaceholderAlignment.baseline,
-      child: GestureDetector(
-        onTap: url.isEmpty ? null : () => config.onLinkTap?.call(url, linkText),
-        child: Text(
-          linkText,
-          style: (config.style ?? TextStyle()).copyWith(
-            color: cs.primary,
-            decoration: TextDecoration.none,
+      child: _clickCursor(
+        GestureDetector(
+          onTap: url.isEmpty
+              ? null
+              : () => config.onLinkTap?.call(url, linkText),
+          child: Text(
+            linkText,
+            style: (config.style ?? TextStyle()).copyWith(
+              color: cs.primary,
+              decoration: TextDecoration.none,
+            ),
           ),
         ),
       ),

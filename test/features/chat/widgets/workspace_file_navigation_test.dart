@@ -26,6 +26,7 @@ import 'package:Cuplivo/shared/widgets/markdown_with_highlight.dart';
 import 'package:Cuplivo/shared/widgets/snackbar.dart';
 
 import '../../../support/business_test_harness.dart';
+import '../../../support/mouse_hover.dart';
 
 class _Chat extends ChatService {
   _Chat(this.conversation);
@@ -257,4 +258,52 @@ void main() {
       await tester.pumpAndSettle();
     },
   );
+
+  testWidgets('a resolved workspace image shows the hand cursor', (
+    tester,
+  ) async {
+    final imageFile = File(p.join(root.path, 'plot.png'));
+    await tester.runAsync(
+      () => imageFile.writeAsBytes(
+        base64Decode(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/Kz0AAAAASUVORK5CYII=',
+        ),
+      ),
+    );
+    await tester.pumpWidget(
+      harness(
+        SelectionArea(
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: const MarkdownWithCodeHighlight(
+              // `120x80` sizes the image box, so the cursor check does not
+              // depend on the 1x1 PNG having finished decoding.
+              text: '![120x80](kelivo://workspace/plot.png)',
+              conversationId: 'c1',
+            ),
+          ),
+        ),
+      ),
+    );
+    await settle(tester);
+
+    // The resolved branch renders Image.file; the unresolved placeholder is an
+    // icon, so finding an Image proves the tap target under test is the real one.
+    final image = find.byType(Image);
+    expect(image, findsOneWidget);
+    expect(tester.getSize(image).width, 120);
+
+    final mouse = await addMousePointer(tester);
+    await hoverAt(tester, mouse, tester.getCenter(image));
+    expect(activeMouseCursor(), SystemMouseCursors.click);
+
+    // Image.file reads the PNG asynchronously. Let that read finish and drop
+    // the cached/live image, otherwise tearDown cannot delete the temp root
+    // (Windows keeps the file open until the decode releases it).
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 200)),
+    );
+    await tester.runAsync(() => tester.widget<Image>(image).image.evict());
+    await tester.pump();
+  });
 }

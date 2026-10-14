@@ -52,6 +52,16 @@ contradicts one of them is a bug, not a preference.
 
 - **App scheme vs content scheme**: OS-registered deep links use `cuplivo` (MCP OAuth callback uses
   the current application id); the `kelivo://` namespace is content, never registered with the OS.
+- **Conversation link (对话链接)**: `cuplivo://conversation/<conversationId>[?message=<messageId>]` is
+  the app-scheme route — what the iOS Live Activity opens, and what **Copy Link** writes on a
+  conversation or on a single message. It is a pointer, not a copy: it resolves only where the
+  conversation exists (the device that copied it, or a device LAN sync carried it to, because merged
+  rows keep their ids), so a device that does not hold it says so instead of ignoring the tap, and a
+  link never creates a conversation. An id is an opaque row key — the grammar carries whatever a
+  stored conversation or message has, percent-encoded, and `ConversationLink.supportsId` is the one
+  rule the writer and the parser share, so no copied link is ever one the parser would refuse. Only
+  a platform that registers `cuplivo` offers the copy action (`ConversationLink.osRegistered`; iOS
+  today).
 - **Side-by-side installs**: the applicationId differs from both Kelivo and Cuplivo 3.x, so
   installs coexist and never overwrite each other. Data migration is therefore *not* implemented;
   restoring a backup is the supported path between them.

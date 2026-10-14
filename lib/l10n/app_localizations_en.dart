@@ -2447,6 +2447,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageMoreSheetShare => 'Share';
 
   @override
+  String get messageMoreSheetCopyLink => 'Copy Link';
+
+  @override
   String get messageMoreSheetSelectMessages => 'Select Messages';
 
   @override
@@ -2884,6 +2887,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sideDrawerMenuCopy => 'Copy';
 
   @override
+  String get sideDrawerMenuCopyLink => 'Copy Link';
+
+  @override
   String get sideDrawerMenuMoveTo => 'Move to';
 
   @override
@@ -3021,6 +3027,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sideDrawerLinkCopied => 'Link copied';
+
+  @override
+  String get conversationLinkCopied => 'Link copied';
+
+  @override
+  String get conversationLinkMissing =>
+      'This conversation isn\'t on this device.';
 
   @override
   String get sideDrawerPinnedLabel => 'Pinned';

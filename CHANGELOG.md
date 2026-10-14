@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Copy a link to a conversation, or to one message**: the conversation menu and the message ⋯ menu now offer **Copy Link**, writing `cuplivo://conversation/<id>` — with `?message=<id>` when copied from a message — which iOS opens straight into that conversation, scrolled to the message. A link is a pointer, not a copy: it resolves where the conversation exists (the device that copied it, or a device LAN sync carried it to), and a link whose conversation is not on this device now says so instead of doing nothing (#981)
+
 ### Fixed
 
 - **LAN sync stalls on a foreign-key error**: when one device had deleted a message (or regenerated past it) that the other device had generated, every sync session with that peer failed forever with `FOREIGN KEY constraint failed`. Applying the deletion removed the message row but left the generation run that targets it, and that run's deferred foreign key rejected the transaction at commit — so the checkpoint never advanced and each retry repeated the same failure. A deleted revision now takes its generation run with it, exactly as a local deletion does.

@@ -1,20 +1,69 @@
 # Changelog
 
-## [Unreleased]
+## [4.3.0] - 2026-10-14
 
 ### Added
 
-- **Copy a link to a conversation, or to one message**: the conversation menu and the message ⋯ menu now offer **Copy Link**, writing `cuplivo://conversation/<id>` — with `?message=<id>` when copied from a message — which iOS opens straight into that conversation, scrolled to the message. A link is a pointer, not a copy: it resolves where the conversation exists (the device that copied it, or a device LAN sync carried it to), and a link whose conversation is not on this device now says so instead of doing nothing (#981)
+- **A LAN sync that brings data says so**: a LAN sync that receives messages shows a toast, so you no longer have to open the LAN Sync panel to check (#1006 by @cup113)
+- **Conversation and message links**: the message ⋯ menu now offers **Copy Link**, writing a `cuplivo://` link — on iOS, tapping it opens that conversation scrolled to the message (#1013 by @cup113)
+- **A configurable "Focus Input" shortcut**: desktop only; the chat interface can bind a shortcut that focuses the composer (#1012 by @cup113)
 
 ### Fixed
 
-- **LAN sync stalls on a foreign-key error**: when one device had deleted a message (or regenerated past it) that the other device had generated, every sync session with that peer failed forever with `FOREIGN KEY constraint failed`. Applying the deletion removed the message row but left the generation run that targets it, and that run's deferred foreign key rejected the transaction at commit — so the checkpoint never advanced and each retry repeated the same failure. A deleted revision now takes its generation run with it, exactly as a local deletion does.
-- **Clickable things in replies did not look clickable**: hovering a Markdown link, a citation capsule, an inline `<a href>` link, an inline image, or a `<details>` disclosure label kept the text-selection I-beam instead of the hand cursor, even though clicking still worked. Those tap targets now show the hand cursor, while the surrounding reply text keeps the I-beam selection needs; a workspace image that cannot be resolved is not clickable and keeps the I-beam (#983).
-- **Proactive care ("Their Letter") delivery**: a fired letter is no longer dropped when the app is alive but backgrounded (the handoff waited for a channel listener that never came, and later letters for that conversation were consumed on the way), and pending letters are re-armed on resume before the overdue catch-up runs — so a lost or cleared exact alarm is recovered at the next resume instead of never (#1007)
-- **Proactive care ("Their Letter") on iOS**: a care time reached while the app is alive now generates the letter in-app, the same foreground executor Kelivo's own iOS scheduled tasks run, instead of waiting for the next resume (#1007)
-- **Proactive care readiness on Android**: a missing — or unreadable — exact-alarm grant now expands the readiness card and shows 「Waiting for permission」 on a scheduled conversation rather than a time the system will not honour, and the native side warns instead of logging an arm that never happened (#1007)
-- **Proactive care letters in the open chat**: a delivered letter reloads the conversation the moment it is stored instead of after the trailing next-time decision, so it no longer looks like the letter never arrived (#1007)
-- **Assistant name in chat**: 「Use Assistant Name」 now shows the name on its own instead of being suppressed by the global 「Show Model Name」 switch (#1007)
+- **LAN sync no longer fails permanently**: when one device had deleted (or regenerated past) a message that the other device had generated, every sync session with that peer failed with `FOREIGN KEY constraint failed` (#1009 by @cup113)
+- **The LAN sync status dot**: an automatic sync that has not actually connected no longer turns the dot green for a while (#1006 by @cup113)
+- **A re-pair keeps the networks already used**: moving between n locations now needs n pairings, instead of a re-pair every time the location changes (#1006 by @cup113)
+- **Clickable things in assistant replies show the hand cursor**: hovering a link, an inline image, a `<details>` label and the like shows the hand instead of the I-beam (#1014 by @cup113)
+- **Composer focus after returning to the foreground**: re-applies the v2/3 change — on platforms other than iOS the composer no longer loses focus when the app is resumed (#1012 by @cup113)
+- **Their Letter delivery**: a fired letter is no longer dropped when the app is alive but backgrounded (#1008 by @Pheobe-Southwood)
+- **Their Letter on iOS**: a care time reached while the app is alive now generates the letter in-app, the same foreground executor Kelivo's own iOS scheduled tasks run, instead of waiting for the next resume (#1008 by @Pheobe-Southwood)
+- **Proactive care readiness on Android**: with the exact-alarm grant missing (or unreadable), a scheduled conversation shows 「Waiting for permission」 rather than a time the system will not honour (#1008 by @Pheobe-Southwood)
+- **Care letters in the open chat**: a delivered letter reloads the conversation the moment it is stored instead of after the trailing next-time decision, so it no longer looks like the letter never arrived (#1008 by @Pheobe-Southwood)
+- **Assistant name in chat**: 「Use Assistant Name」 now shows the name on its own instead of being suppressed by the global 「Show Model Name」 switch (#1008 by @Pheobe-Southwood)
+
+## [4.2.0] - 2026-10-09
+
+> Cuplivo 4.2 re-bases on Kelivo **v1.3.1**. As with every re-base, Cuplivo's own features are re-implemented on the new baseline rather than ported forward from the old one, so this release also carries every upstream change since Kelivo v1.3.0.
+>
+> Worth repeating as well: Cuplivo v4 and v3 have different package names, so both can be installed side by side — and data has to be migrated by hand.
+
+### Changed
+
+- Re-based on **Kelivo v1.3.1** (Flutter 3.47.6). The upstream changes this brings in are mainly:
+  - A **context indicator bar**
+  - **Queued sending** for the composer button
+  - Native **audio, video and PDF input**
+  - DeepSeek can return its thinking on turns without a tool call
+  - Ctrl+C on desktop copies directly instead of requiring a right-click
+  - MCP tool schemas are persisted, so API requests no longer break once an MCP tool's state changes
+  - Per-conversation draft persistence (QQ-style; it absorbs and improves on the Cuplivo feature)
+  - A better Bing search experience
+  - Improved OAuth request and callback compatibility
+  - Fine-grained scope selection for backup / import
+  - Fewer cases where a restore leaves the app locked
+- **Unsent image preview and cropping**: clicking an image draft in the composer now opens a preview whether or not manual compression is on, with manual compression and cropping moved into its toolbar — so on mobile, users who enable the crop setting no longer land in the cropper automatically after choosing or taking a photo (#992 by @hstate, @cup113)
+
+### Fixed
+
+- **Their Letter (Proactive Care) on desktop**: Windows, macOS and Linux now have an entry point, in the **Roleplay** tab of the assistant settings dialog. Windows still shows no system notification for a delivered letter; the letter itself lands in the conversation (#996 by @Pheobe-Southwood)
+
+## [4.1.0] - 2026-10-04
+
+### Added
+
+- **Their Letter (Proactive Care) returns, now cross-platform**: the proactive care of v3.2.1 is back, reusing Kelivo v1.3.0's scheduled-tasks infrastructure and broadened from Android to every platform, with a new **Roleplay** tab (#935, #976 by @Pheobe-Southwood)
+
+### Fixed
+
+- **LAN sync panel**: peer connectivity is now correct in an environment that has a proxy (#952 by @cup113)
+
+## [4.0.1] - 2026-09-30
+
+### Fixed
+
+- **Manual image compression**: the resolution is shown as soon as the editor opens instead of waiting for the decode to finish, the before/after preview reflects the change more truthfully and reacts immediately, and compressing the same image twice is prevented (#946 by @cup113)
+- **LAN sync**: IPv6 support, refined filtering, multi-IP connection probing and a polished panel make it markedly more usable (#947 by @cup113)
+- Developer experience: contributors to this repository no longer see unrelated Windows-side errors
 
 ## [4.0.0] - 2026-09-28
 

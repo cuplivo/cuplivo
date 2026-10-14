@@ -611,6 +611,7 @@
   "hotkeyToggleAssistantPanel": "Toggle Assistants",
   "hotkeyToggleTopicPanel": "Toggle Topics",
   "hotkeyFocusInput": "Focus Input",
+  "hotkeyCopySelectionMarkdown": "Copy Selection as Markdown",
   "hotkeysPressShortcut": "Press a shortcut",
   "hotkeysResetDefault": "Reset to default",
   "hotkeysClearShortcut": "Clear shortcut",
@@ -1078,6 +1079,7 @@
     }
   },
   "chatMessageWidgetCopiedToClipboard": "Copied to clipboard",
+  "chatMessageWidgetCopyAsMarkdown": "Markdown",
   "chatMessageWidgetResendTooltip": "Resend",
   "chatMessageWidgetMoreTooltip": "More",
   "chatMessageWidgetThinking": "Thinking...",

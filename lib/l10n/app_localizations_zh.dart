@@ -1462,6 +1462,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get hotkeyFocusInput => '聚焦输入框';
 
   @override
+  String get hotkeyCopySelectionMarkdown => '复制选中为 Markdown';
+
+  @override
   String get hotkeysPressShortcut => '按下快捷键';
 
   @override
@@ -2401,6 +2404,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chatMessageWidgetCopiedToClipboard => '已复制到剪贴板';
+
+  @override
+  String get chatMessageWidgetCopyAsMarkdown => 'Markdown';
 
   @override
   String get chatMessageWidgetResendTooltip => '重新发送';
@@ -14568,6 +14574,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get hotkeyFocusInput => '聚焦输入框';
 
   @override
+  String get hotkeyCopySelectionMarkdown => '复制选中为 Markdown';
+
+  @override
   String get hotkeysPressShortcut => '按下快捷键';
 
   @override
@@ -15507,6 +15516,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get chatMessageWidgetCopiedToClipboard => '已复制到剪贴板';
+
+  @override
+  String get chatMessageWidgetCopyAsMarkdown => 'Markdown';
 
   @override
   String get chatMessageWidgetResendTooltip => '重新发送';
@@ -27600,6 +27612,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get hotkeyFocusInput => '聚焦輸入框';
 
   @override
+  String get hotkeyCopySelectionMarkdown => '複製選取為 Markdown';
+
+  @override
   String get hotkeysPressShortcut => '按下快捷鍵';
 
   @override
@@ -28539,6 +28554,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get chatMessageWidgetCopiedToClipboard => '已複製到剪貼簿';
+
+  @override
+  String get chatMessageWidgetCopyAsMarkdown => 'Markdown';
 
   @override
   String get chatMessageWidgetResendTooltip => '重新傳送';

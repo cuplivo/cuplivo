@@ -454,14 +454,18 @@ String normalizeDisplayText(String input) {
 }
 
 /// Removes exactly the characters the Markdown renderer inserts into rendered
-/// text — zero-width space soft breaks and zero-width non-joiner heading
-/// disambiguators — so text copied out of the rendered widgets matches the
-/// underlying content.
+/// text — the zero-width spaces it writes to make an over-long token breakable
+/// — so text copied out of the rendered widgets matches the underlying
+/// content.
 ///
 /// Deliberately narrow: other invisible characters can be legitimate content,
-/// so the lossy set is confined to matching (see [normalizeDisplayText]).
+/// so the lossy set is confined to matching (see [normalizeDisplayText]). That
+/// is why U+200C is *not* here any more: it used to be the enumerated ATX
+/// heading's disambiguator, and a heading body is now walked with the inline
+/// components, so nothing inserts it — while a ZWNJ in copied text is
+/// orthography (Persian, Arabic, Urdu) that a clipboard must keep.
 String stripRendererInsertedCharacters(String input) {
-  return input.replaceAll('\u200B', '').replaceAll('\u200C', '');
+  return input.replaceAll('\u200B', '');
 }
 
 /// The display text a list of nodes contributes: the concatenation of their

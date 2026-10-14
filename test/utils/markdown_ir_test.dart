@@ -240,10 +240,14 @@ void main() {
     });
 
     test('strips only what the renderer inserts', () {
-      expect(stripRendererInsertedCharacters('a\u200bb\u200cc'), 'abc');
+      expect(stripRendererInsertedCharacters('a\u200bb'), 'ab');
       // A zero-width joiner holds an emoji sequence together; it is content.
       expect(stripRendererInsertedCharacters('👩\u200d💻'), '👩\u200d💻');
       expect(stripRendererInsertedCharacters('\u2060'), '\u2060');
+      // A zero-width non-joiner is orthography (Persian, Arabic, Urdu), not an
+      // insertion: nothing in the renderer writes one any more.
+      expect(stripRendererInsertedCharacters('می\u200cرود'), 'می\u200cرود');
+      expect(stripRendererInsertedCharacters('1.\u200c引言'), '1.\u200c引言');
     });
   });
 }

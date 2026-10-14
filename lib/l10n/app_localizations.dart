@@ -2896,6 +2896,12 @@ abstract class AppLocalizations {
   /// **'Focus Input'**
   String get hotkeyFocusInput;
 
+  /// No description provided for @hotkeyCopySelectionMarkdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Selection as Markdown'**
+  String get hotkeyCopySelectionMarkdown;
+
   /// No description provided for @hotkeysPressShortcut.
   ///
   /// In en, this message translates to:
@@ -4653,6 +4659,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copied to clipboard'**
   String get chatMessageWidgetCopiedToClipboard;
+
+  /// No description provided for @chatMessageWidgetCopyAsMarkdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Markdown'**
+  String get chatMessageWidgetCopyAsMarkdown;
 
   /// No description provided for @chatMessageWidgetResendTooltip.
   ///

@@ -1511,6 +1511,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hotkeyFocusInput => 'Focus Input';
 
   @override
+  String get hotkeyCopySelectionMarkdown => 'Copy Selection as Markdown';
+
+  @override
   String get hotkeysPressShortcut => 'Press a shortcut';
 
   @override
@@ -2477,6 +2480,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatMessageWidgetCopiedToClipboard => 'Copied to clipboard';
+
+  @override
+  String get chatMessageWidgetCopyAsMarkdown => 'Markdown';
 
   @override
   String get chatMessageWidgetResendTooltip => 'Resend';

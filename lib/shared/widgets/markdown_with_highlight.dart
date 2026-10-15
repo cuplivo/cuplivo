@@ -45,7 +45,6 @@ import '../cache/byte_lru_cache.dart';
 import 'markdown_streaming_split.dart';
 import 'markdown_block_list.dart';
 import 'streaming_rich_text.dart';
-import 'streaming_code_fence.dart';
 import 'markdown_line_lexer.dart';
 import 'markdown_source_scan.dart';
 
@@ -334,7 +333,6 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
       markdownStreamingSplit();
   late final MarkdownDetailsExpansion _detailsExpansion =
       widget.detailsExpansion ?? MarkdownDetailsExpansion();
-  final _codeFenceParser = StreamingCodeFenceParser();
   String? _liveBlockSource;
   String? _liveBlockNormalized;
   (bool, bool)? _liveBlockOptions;
@@ -481,13 +479,8 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
     _previousBlockSourceUnchanged =
         useIncrementalBlocks && blockSourceUnchanged;
     final sourceAppended = _incrementalDocument.lastUpdateAppended;
-    final wholeFence = useIncrementalBlocks
-        ? null
-        : _codeFenceParser.update(sanitizedText.trimRight());
     final normalized = useIncrementalBlocks
         ? null
-        : wholeFence != null
-        ? sanitizedText
         : normalize(sanitizedText, streaming: widget.streaming);
     // Base text style (can be overridden by caller)
     final inkColor = _markdownInkColor(context);
@@ -536,11 +529,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
     final themeSignature =
         '${Theme.of(context).brightness.index}-${cs.surface.toARGB32()}-${inkColor.toARGB32()}-${cs.primary.toARGB32()}-${cs.outlineVariant.toARGB32()}-${settings.enableMathRendering}-${settings.enableDollarLatex}-${widget.streaming}-${baseTextStyle?.fontSize}-${baseTextStyle?.height}-${baseTextStyle?.letterSpacing}-${baseTextStyle?.fontFamily}-$codeFontFamily-$appFontFamily-$documentRevision';
 
-    Widget buildMarkdown(
-      String markdown,
-      Key key, {
-      StreamingCodeFence? fence,
-    }) {
+    Widget buildMarkdown(String markdown, Key key) {
       final detailsRegistry = MarkdownDetailsRegistry(
         enableMath: settings.enableMathRendering,
       );
@@ -558,27 +547,6 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
         textBuilder: (text) =>
             StreamingRichText(text: text, streaming: widget.streaming),
         streaming: widget.streaming,
-        spanBuilder: fence == null
-            ? null
-            : (ctx, config) => [
-                WidgetSpan(
-                  alignment: PlaceholderAlignment.baseline,
-                  baseline: TextBaseline.alphabetic,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(
-                        child: _buildFencedContent(
-                          fence.language,
-                          _unmaskHtmlTagStartsInsideFencedCode(fence.code),
-                          widget.streaming && !fence.closed,
-                          fence.closed,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
         components: [
           DetailsHtmlMd(detailsRegistry, _detailsExpansion),
           ...components,
@@ -886,12 +854,10 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
             signature: themeSignature,
             itemBuilder: (_, i) {
               final block = sourceBlocks[i];
-              final fence = _codeFenceParser.update(
-                block.text.trimRight(),
-                sourceStart: block.start,
-                appendOnly: sourceAppended,
-              );
-              final content = fence != null || preprocessedBlocks
+              // A fence reaches the renderer as it stands: the walk claims it
+              // whether or not a closer has arrived, so the block's own text is
+              // what the code component parses.
+              final content = preprocessedBlocks
                   ? block.text
                   : normalize(
                       block.text,
@@ -910,8 +876,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
                     content: content,
                     signature: themeSignature,
                     appendOnly: sourceAppended,
-                    builder: (markdown, key) =>
-                        buildMarkdown(markdown, key, fence: fence),
+                    builder: (markdown, key) => buildMarkdown(markdown, key),
                   ),
                 ],
               );
@@ -921,8 +886,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
             source: sanitizedText,
             content: normalized!,
             signature: themeSignature,
-            builder: (markdown, key) =>
-                buildMarkdown(markdown, key, fence: wholeFence),
+            builder: (markdown, key) => buildMarkdown(markdown, key),
           );
 
     final result = appFontFamily.isEmpty
@@ -1323,7 +1287,14 @@ String _preprocessFences(
   out = out.replaceAllMapped(bulletFence, (m) => "${m[1]}\n```${m[2]}");
 
   // STEP 1: MASKING - Protect code blocks from LaTeX processing
-  // This prevents $...$ inside code from being converted to LaTeX
+  // This prevents $...$ inside code from being converted to LaTeX.
+  //
+  // This is load-bearing and not a leftover of the fence fast path the
+  // splitter replaced: with the mask disabled, a fence body's `$5` reaches the
+  // code view as `\(5\)` — the passes below run on this text whether or not
+  // the walk claims the fence. The tag half of the same mask is kept too, but
+  // no case in the suite distinguishes it: disabling it leaves every markdown
+  // test green, so it is unproven rather than proven necessary.
   final Map<String, String> codeMap = {};
   int codeCount = 0;
 

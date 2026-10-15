@@ -59,6 +59,19 @@ const List<_DriftFixture> _fixtures = [
     'before![alt](https://example.com/image.png)after',
   ),
   _DriftFixture('horizontal rule contributes no display text', 'a\n\n---\n\nb'),
+  // The preprocessor masks code before its own math and tag passes, so a fence
+  // body reaches the code view verbatim. Removing the fence fast path did not
+  // make that masking redundant: with it disabled the body's dollars come back
+  // as LaTeX.
+  _DriftFixture(
+    'fence body holding dollars and tags',
+    '```text\nprice \$5 and <b>bold</b> and \$x\$\n```',
+  ),
+  _DriftFixture(
+    'unclosed fence body holding dollars and tags',
+    '```text\nprice \$5 and <b>bold</b>',
+    streaming: true,
+  ),
   _DriftFixture('link label', '[label](https://example.com) tail'),
   _DriftFixture(
     'details block',

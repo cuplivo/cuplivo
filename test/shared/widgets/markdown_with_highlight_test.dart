@@ -425,6 +425,34 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  // A fence body is code: the dollars and tags inside it must reach the code
+  // view verbatim, never the inline-math or html paths. This is what the
+  // preprocessor's code masking is for, so it is also what decides whether
+  // that masking is still load-bearing.
+  testWidgets('a closed fence body keeps its dollars and tags', (tester) async {
+    const source = '```text\nprice \$5 and <b>bold</b> and \$x\$\n```';
+    await tester.pumpWidget(_markdownHarness(source));
+    await tester.pumpAndSettle();
+    final code = tester.widget<SelectableHighlightView>(
+      find.byType(SelectableHighlightView),
+    );
+    expect(code.source, 'price \$5 and <b>bold</b> and \$x\$');
+    expect(_mathWidgets(tester), isEmpty);
+  });
+
+  testWidgets('an unclosed fence body keeps its dollars and tags', (
+    tester,
+  ) async {
+    const source = '```text\nprice \$5 and <b>bold</b>';
+    await tester.pumpWidget(_markdownHarness(source, streaming: true));
+    await tester.pumpAndSettle();
+    final code = tester.widget<SelectableHighlightView>(
+      find.byType(SelectableHighlightView),
+    );
+    expect(code.source, 'price \$5 and <b>bold</b>');
+    expect(_mathWidgets(tester), isEmpty);
+  });
+
   testWidgets('root fence parsing preserves the renderer whitespace contract', (
     tester,
   ) async {

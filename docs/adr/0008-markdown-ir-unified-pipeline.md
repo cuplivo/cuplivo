@@ -64,7 +64,14 @@ order and the size of each step, and this ADR fixes both so the work can land in
    be reused unchanged — not description. Since the walk produces the spans, the fast paths need no IR
    variant. The escape hatch if node allocation ever shows up in the streaming benchmark is a degenerate
    elision inside the render sink (emit plain elements without materializing a node), in one place
-   rather than per component.
+   rather than per component. Phase C measured that hatch instead of assuming it: the node
+   materialization phase B added lives inside `InlineMd`'s default `span` — the render sink never builds
+   a node itself — and no active inline component has the default content-leaf node, so "emit plain
+   elements without a node" would elide nothing. What the one shape that leaned actually does is append
+   without parsing at all: its suffix carries no delimiter, so `_plainAppendable` extends the last span
+   and the walk is never entered (measured for phase C: one `_parse` for the first frame, none for the
+   appends). The hatch therefore stays closed, and a future regression has to show up as a parse-path
+   cost rather than as an append cost.
 5. **Block splitting is derived from the walk.** A block boundary is a `NewLines` gap node in the
    document walk; fences, details placeholders and closed display formulas are single nodes, so their
    interiors can contain no boundary — which is what the lexer's fence/depth tracking was hand-coding.
@@ -119,8 +126,32 @@ the A/B spread, so once more the harness reports no resolvable difference. That 
 predicts: it trades one parse per inverted element (the saving) for one `MdNode` tree with a `MdRange`
 per leaf (the cost), and neither dominates a measurement whose noise floor is this high. The one shape
 that leans consistently the other way is `single` (one long paragraph, so the append fast path:
-+14–29% in all three pairs) — the shape where per-element allocation would show up, and the reason
-phase C keeps the elision escape hatch rather than dropping it.
++14–29% in all three pairs) — the shape where per-element allocation would show up. Phase C chased that
+lead to ground instead of dropping it, and closed it (below).
+
+Phase C re-measured with an instrument that removes the pump entirely:
+`test/perf/inline_walk_bench.dart` pumps once for a real `BuildContext`, then calls
+`MarkdownComponent.generate` (`walkNodes` beside it as the node-side reference) in a loop, and reports
+the median of the per-call times. Two same-revision sweeps of that harness (three shapes × two methods
+× two sizes) span 0.84–1.08. Interleaving it against `c27fc9c6a` — three pairs, 1000 elements,
+`plain` (a control: it matches no element, so the code path is identical in both revisions),
+`emphasis` and `mixed` — resolved no direction: after÷before was 0.92 / 1.07 / 1.10 on `emphasis`,
+1.04 / 1.10 / 1.10 on `mixed` and 1.02 / 0.95 / 0.97 on the `plain` control, while `walkNodes` — code
+the two revisions share, and therefore the experiment's own drift control — spanned 0.84–1.14 on the
+same shapes. The medians-of-three lean 7–8% slower at HEAD on the two shapes that carry inline
+elements, which is inside the spread the identical-code control reproduces.
+
+The magnitudes decide it even without the interleave. Inside one run at HEAD, the whole inline walk
+over a 1000-element emphasis source costs ~32–35 ms and the same walk over 1000 plain sentences (twice
+the characters, no elements) ~14–20 ms. Per sentence that is 17–21 µs more for the two emphasis
+elements; dividing by the two elements, and charging the emphasis sentence for its own (shorter) text
+at the plain shape's per-character rate, puts one element's entire parse — pattern match, recursion,
+node, span, everything — at ~10–14 µs. The append frames the widget benchmark measures on `single` are
+3.3–6.4 ms, and phase B added only the node objects to those 10–14 µs. The shape's appends do not reach
+the walk at all: its suffix (`'新增输出。'`) has no delimiter from `MdWidget._markdownDelimiter`, so
+`_plainAppendable` extends the last span. Probed directly for this phase by printing in `_parse` and in
+the fast-path branch, then appending three plain suffixes to a streaming paragraph: one `_parse` for the
+initial frame, three fast-path appends, no further parses.
 
 ## Phases and gates
 
@@ -137,14 +168,24 @@ phase C keeps the elision escape hatch rather than dropping it.
   `build` and `node`; the app's *inline* table component aligned with its global one, which closes the
   last open drift (`**| a | b |\n| - | - |**`); `SetextHeadingMd` and `LabelValueLineMd` deleted with
   their commented-out registration. Gate: the package's own suite (144) and the markdown suite (352)
-  pass, both analyzers are clean, and the drift file grew from 16 cases to 29 — thirteen new fixtures,
+  pass, both analyzers are clean, and the drift file grew from 16 cases to 28 — twelve new fixtures,
   one per previously unexercised active component, plus the coverage registry over them. The registry was
   shown to fail (naming `StrikeMd`) with one fixture removed and to pass again after a byte-exact
   restore; the emphasis-ink lookup was shown the same way, by hard-coding the weight, which turns the two
   Android weight tests red.
-- **C — the streaming path.** Streaming fixtures for unclosed constructs (fence, emphasis, inline math)
-  under the streaming component set; the benchmark re-recorded; the degenerate elision only if B
-  regressed.
+- **C — the streaming path. Done, no production change.** Seven streaming fixtures — unclosed fence,
+  closed fence, unclosed emphasis, unclosed dollar math, unclosed display math, a paragraph followed by
+  an unclosed fence, and a plain paragraph — assert the copy-equals-display-space equality under
+  `streaming: true`, and each asserts that the incremental block list is what rendered it, so a surface
+  that silently fell back to the static path cannot satisfy the equality vacuously (shown to fail by
+  dropping the flag at the widget call: `MarkdownBlockList` disappeared and the first streaming fixture
+  went red). The benchmark question was answered rather than the elision being built: the interleaved
+  pairs above resolve no regression, one element's entire parse is ~10–14 µs against 3.3–6.4 ms append
+  frames, and the shape that leaned never enters the walk. The conditional elision is
+  not justified, so decision 4's escape hatch stays closed and no node-elision variant exists. Gate: the
+  drift file's 28 cases became 35, the markdown suite (417 cases over the fourteen markdown files), both
+  analyzers and the formatter pass, and the full `flutter test` shows only the eight registered Windows
+  failures.
 - **D — block splitting.** Splitter goldens ported first (whitespace-bearing blank lines, pending lists,
   indent merging, math-tail protection, CR normalization, append proofs), then the walk-derived
   splitter replaces `IncrementalMarkdownDocument`, `StreamingCodeFenceParser`, the fence `spanBuilder`

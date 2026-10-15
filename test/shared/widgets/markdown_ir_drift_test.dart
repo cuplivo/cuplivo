@@ -1,5 +1,6 @@
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/markdown_block_list.dart';
 import 'package:Cuplivo/shared/widgets/markdown_line_lexer.dart';
 import 'package:Cuplivo/shared/widgets/markdown_with_highlight.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +23,7 @@ final class _DriftFixture {
     this.source, {
     this.expand,
     this.tracksExpansion = false,
+    this.streaming = false,
   });
 
   final String name;
@@ -33,6 +35,10 @@ final class _DriftFixture {
 
   /// Whether the source carries a `<details>` block whose state is read back.
   final bool tracksExpansion;
+
+  /// Whether the surface renders this source the way a growing reply does.
+  /// An unfinished construct only reaches its streaming form this way.
+  final bool streaming;
 }
 
 const List<_DriftFixture> _fixtures = [
@@ -88,6 +94,43 @@ const List<_DriftFixture> _fixtures = [
   _DriftFixture('paren inline formula', r'the \(x^2\) value'),
   _DriftFixture('display formula block', '\$\$\nx\n\$\$'),
   _DriftFixture('table nested in emphasis', '**| a | b |\n| - | - |**'),
+  // Streaming fixtures: the last construct is unfinished, which is the state a
+  // growing reply spends most of its time in.
+  _DriftFixture(
+    'unclosed fenced code while streaming',
+    '```dart\nfinal a = 1;',
+    streaming: true,
+  ),
+  _DriftFixture(
+    'closed fence still a gap while streaming',
+    '```dart\nfinal a = 1;\n```',
+    streaming: true,
+  ),
+  _DriftFixture(
+    'unclosed emphasis while streaming',
+    'text **par',
+    streaming: true,
+  ),
+  _DriftFixture(
+    'unclosed dollar inline math while streaming',
+    r'the value is $x',
+    streaming: true,
+  ),
+  _DriftFixture(
+    'unclosed display math while streaming',
+    '\$\$\n\\frac{1}{2}',
+    streaming: true,
+  ),
+  _DriftFixture(
+    'paragraph then unclosed fence while streaming',
+    'intro\n\n```python\nprint(1)',
+    streaming: true,
+  ),
+  _DriftFixture(
+    'plain paragraph while streaming',
+    'plain streaming text',
+    streaming: true,
+  ),
 ];
 
 /// Pumps [source] as an assistant reply and returns the text the framework
@@ -100,6 +143,7 @@ Future<String> _copiedText(
   String source, {
   String? expand,
   MarkdownDetailsExpansion? expansion,
+  bool streaming = false,
 }) async {
   String selected = '';
   await tester.pumpWidget(
@@ -118,6 +162,7 @@ Future<String> _copiedText(
                 width: 420,
                 child: MarkdownWithCodeHighlight(
                   text: source,
+                  streaming: streaming,
                   detailsExpansion: expansion,
                 ),
               ),
@@ -128,6 +173,12 @@ Future<String> _copiedText(
     ),
   );
   await tester.pumpAndSettle();
+  if (streaming) {
+    // The flag has to have reached the surface: a streaming source renders
+    // through the incremental block list, and a source that never got there
+    // could satisfy the equality below by rendering as a static document.
+    expect(find.byType(MarkdownBlockList), findsOneWidget);
+  }
   if (expand != null) {
     await tester.tap(find.text(expand));
     await tester.pumpAndSettle();
@@ -145,12 +196,13 @@ MdDocument _document(
   WidgetTester tester,
   String source, {
   MarkdownDetailsExpansion? expansion,
+  bool streaming = false,
 }) {
   final settings = _settings(tester);
   return MarkdownWithCodeHighlight.markdownDocument(
     source,
     settings: settings,
-    streaming: false,
+    streaming: streaming,
     detailsExpansion: expansion,
   );
 }
@@ -170,14 +222,21 @@ Future<void> _expectDisplaySpaceMatchesCopy(
   String source, {
   String? expand,
   MarkdownDetailsExpansion? expansion,
+  bool streaming = false,
 }) async {
   final copied = await _copiedText(
     tester,
     source,
     expand: expand,
     expansion: expansion,
+    streaming: streaming,
   );
-  final predicted = _document(tester, source, expansion: expansion);
+  final predicted = _document(
+    tester,
+    source,
+    expansion: expansion,
+    streaming: streaming,
+  );
   expect(
     normalizeDisplayText(copied),
     predicted.displayText,
@@ -193,6 +252,7 @@ void main() {
         fixture.source,
         expand: fixture.expand,
         expansion: fixture.tracksExpansion ? MarkdownDetailsExpansion() : null,
+        streaming: fixture.streaming,
       );
     });
   }
@@ -229,13 +289,20 @@ void main() {
       final registry = MarkdownDetailsRegistry(
         enableMath: settings.enableMathRendering,
       );
+      // A streaming source is walked with the component set it renders with:
+      // the two sets differ only in the fence component's mode, so the walk
+      // must not be the place where the flag is dropped.
+      final fixtureSet = markdownComponentsFor(
+        settings: settings,
+        streaming: fixture.streaming,
+      );
       MarkdownComponent.walkNodes(
         fixture.source,
         config: GptMarkdownConfig(
-          components: [DetailsHtmlMd(registry), ...set.global],
-          inlineComponents: set.inline,
+          components: [DetailsHtmlMd(registry), ...fixtureSet.global],
+          inlineComponents: fixtureSet.inline,
           preprocessBlocks: registry.rewrite,
-          streaming: false,
+          streaming: fixture.streaming,
         ),
         onNode: (node, start, end, component, block) =>
             hit.add(component.runtimeType),

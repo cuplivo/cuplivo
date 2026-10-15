@@ -165,7 +165,8 @@ walk 每个 fixture 源（用 markdownComponentsFor(...) 的组件集 + DetailsH
 - **差异 3**：app 侧 `EscapeAwareItalicMd`/`EscapeAwareHighlightedTextMd`/`EscapeAwareImageMd`/`LineSafeLinkMd`
   本来就只覆写 `exp`（无需改动）；只有 `EscapeAwareBoldMd` 删掉了 `span`，改为 `exp` + `emphasisWeight`。
 - `markdownQuoteText` 的逐行判定放宽为 `[ \t]*>`：app 的 `span` 原本接受 tab、`node` 不接受，本身就是一处漂移。
-- fixture 实际为 27 个源（原 15 + 新 12），drift 文件用例数 16 → 29；覆盖注册测试的排除列表为空。
+- fixture 实际为 26 个源（原 14 + 新 12），drift 文件用例数 16 → 28（C 期再增 7 个流式源 → 33 源 / 35 用例，
+  见 §4.3；§3.6 的「15 个源」是计划期的估算，实际原文件为 14 个）；覆盖注册测试的排除列表为空。
 - **收口提交**：三个**仍自带 span**（即发射器回退目标）的组件把显示规则抽成类内共享助手，span 与 node 各调一次——
   `SourceTag._contentOf`、`AllowedHtmlTagsMd._displayOf`、`BackslashEscapeMd._escapedOf`。行为逐字不变
   （`_escapedOf` 复现的两个兜底分支本来就是 span 与 node 一致的），`_displayOf` 的合并正则与原先分开写的两个判定等价。
@@ -177,13 +178,65 @@ walk 每个 fixture 源（用 markdownComponentsFor(...) 的组件集 + DetailsH
 
 ---
 
-## 4. Phase C（薄期）：流式路径
+## 4. Phase C（薄期）：流式路径（已完成）
 
-1. **流式 fixture**：`streaming: true` 组件集下的未闭合构造——未闭 fence（` ```dart\nfinal a = 1;`）、未闭强调（`**par`）、未闭行内公式——断言 `normalizeDisplayText(copied) == displayText`。
-2. **bench 复核**：B 落地后的数字入 ADR；若不一致方向成立则进入第 3 步。
-3. **条件项（叶快路径 IR 变体）**：只有 bench 显示分配回退时才做——在 `_walk` 的 render sink 里对「node 为默认内容叶的组件」直接产 `TextSpan(text: element)`，不物化 `MdNode`/`MdRange`。只改一处，不逐组件。
-4. `MdWidget` 的 `_prose` 提交逻辑（`component is ItalicMd` 前瞻检查）**不动**：组件身份仍经 `onSpan` 传递。
+### 4.1 计划条目（含执行中的修正）
+
+1. **流式 fixture**：`streaming: true` 下的未闭合构造，断言 `normalizeDisplayText(copied) == displayText`。
+   实际 7 个：未闭 fence、已闭 fence（钉住流式模式下 fence 仍是 gap）、未闭强调、未闭 `$` 行内公式、
+   未闭 `$$` 显示公式、段落+未闭 fence、纯段落。每个流式 fixture 另断言 `MarkdownBlockList` 命中——
+   旗标确实生效，否则「等式成立」可能只是静态路径又渲染了一遍。
+2. **bench 复核**：见 4.2。
+3. **条件项（叶快路径 IR 变体）——原计划与修正**：原写「在 `_walk` 的 render sink 里对『node 为默认
+   内容叶的组件』直接产 `TextSpan(text: element)`」。执行时逐类核对后**该集合在活跃组件里为空**：七个被
+   倒置的行内组件全部覆写 `node`，而唯一用默认 `node` 的 `NewLines` 自带 `span`（渲染时不物化节点）。
+   B 期真正的每元素成本在 `InlineMd.span` 默认实现内：`MdNodeContext`/`MdNode`/`MdRange` 分配、
+   每次构造 `MdSpanEmitter`、以及 `_emphasisWeightOf` 对组件集的逐元素扫描。故条件项重划为
+   **3a** 字重查询缓存（机械、保 B 期不变式）／**3b** 节点消解（必须在 `span` 里重新解析，等于局部
+   回滚 B 期「解析只此一处」，属架构取舍，需单独立项并经确认）。
+4. `MdWidget` 的 `_prose` 提交逻辑（`component is ItalicMd` 前瞻）**不动**：组件身份仍经 `onSpan` 传递。
 5. ADR-0008 补记：保留机制留在 span 层是设计选择（节点是遍历瞬态产物，保留关心输出身份）。
+
+### 4.2 bench 与条件项判决（不触发）
+
+新仪器 `test/perf/inline_walk_bench.dart`：pump 一次取 `BuildContext`，之后**进程内循环**调
+`MarkdownComponent.generate`（旁挂 `walkNodes` 作节点侧参照），报**逐次调用的中位数**；`--dart-define`
+可筛形状/尺寸/运行标签，便于定点 A/B。它只引用 `generate`/`walkNodes`/`markdownComponentsFor`，因此两代
+代码都能编译（A/B 期间 bench 文件本身不参与翻转）。
+
+- **同版本抖动**：两次全扫（3 形状 × 2 方法 × 2 尺寸）比值 0.84–1.08 —— 比 widget bench 的 ±40% 好一个量级，
+  但仍是进程级漂移，不是采样不足（改用中位数后仍在）。
+- **交错 A/B**（3 对，1000 元素，after÷before）：`emphasis` 0.92 / 1.07 / 1.10，`mixed` 1.04 / 1.10 / 1.10，
+  `plain` 对照 1.02 / 0.95 / 0.97。两版本**代码完全相同**的 `walkNodes` 在同形状上跨 0.84–1.14 ——
+  未改动路径复现了同量级漂移，方向不可辨。中位数×3 在带行内元素的两个形状上偏高 7–8%，落在控制组噪声内。
+- **量级论证**：同一次运行内，1000 元素强调源的整体 inline walk ≈32–35 ms，1000 句纯文本（字数翻倍、零元素）
+  ≈14–20 ms → 每句多 17–21 µs，除以两个元素、再按纯文本形状的每字符成本给强调句自己的文本计费 →
+  单元素「匹配+递归+节点+发射」全链路 ≈10–14 µs；而 widget bench 在 `single` 上测的追加帧是 3.3–6.4 ms。
+  B 期只在这 10–14 µs 之上加了节点对象。
+- **机制实测**：`single` 的追加后缀 `'新增输出。'` 不含 `MdWidget._markdownDelimiter` 字符 → 走
+  `_plainAppendable` 快路径，**根本不进入 walk**。临时在 `_parse` 与快路径分支各插一行 print，对流式段落
+  追加 3 次：初始帧 1 次 `_parse`、3 次 fastpath、之后无解析（探针与临时测试均删除，字节还原）。
+- **判决**：**条件项不触发**——不做 3a/3b，Phase C 无生产代码变更，故也未重跑 `long_streaming_bench`
+  （无运行时变更可测）。
+
+### 4.3 落地结果
+
+- drift 用例 **28 → 35**（fixture 26 → 33，新增 7 个流式源）；覆盖注册测试改为按每个 fixture 自己的
+  `streaming` 旗标 walk（两套组件集只差 fence 组件的模式，但 walk 不该是丢弃该旗标的地方）。
+- **非空洞证明**：把 `_copiedText` 传给 widget 的 `streaming` 硬编码为 `false` → 首个流式 fixture 变红
+  （`MarkdownBlockList` 命中 0 个）；字节还原并校验 sha256（`2d9973ae…`）。
+- **编译响应性证明**（A/B 前提）：删除 `md_span_emitter.dart` → `flutter test` 立即编译失败，证明无陈旧
+  增量缓存；字节还原并校验 sha256（`3f5029d8…`）。
+- **A/B 翻转机制**：只用 `git cat-file blob <rev>:<path>` 取字节写入（pre-B 侧删除当时不存在的
+  `md_span_emitter.dart`），每次翻转后 `git status --short` 确认状态，结束后工作树与 HEAD blob 逐字节一致
+  （仅剩本期的两个文件）。
+- 门槛：见 §1 表。
+
+### 4.4 明确不做
+
+- 流式 `<details>` fixture（details 占位 + registry 键属 D 期 §5.4）。
+- fence 内含 `<`/`$` 的 fixture（属 D 期 §5.5 决策门）。
+- 3b 节点消解（架构取舍，未获证据支持且需单独确认）。
 
 ---
 
@@ -235,7 +288,6 @@ walk 每个 fixture 源（用 markdownComponentsFor(...) 的组件集 + DetailsH
 
 ## 7. 下一步动作（按序）
 
-1. Phase C（见 §4）；第 3 步（叶快路径）的触发条件是 `single` 形状那 +14–29% 是否真实。
-2. Phase D（见 §5），金标必须先绿。
-3. 收尾（见 §6）：全量 `flutter test` 已有基线（8 个失败全部在 `.toolbridge/known-failures.json` 台账内，
+1. Phase D（见 §5），金标必须先绿。
+2. 收尾（见 §6）：全量 `flutter test` 已有基线（8 个失败全部在 `.toolbridge/known-failures.json` 台账内，
    本 worktree 已放入该台账以便 toolbridge 自动分类）；`feat/direct-select-text-v4` rebase。

@@ -150,6 +150,46 @@ removes pending requests, which is the right behaviour for `prepared: false` let
     notification's pending-request-only removal are Kelivo's own behaviour, so they are recorded
     here and left alone; a re-base must preserve them, not "fix" them. Android is *not* a cadence
     case: it has no in-app executor on either side, and a re-base must not reintroduce one.
+11. **The iOS arrival notification's identity belongs to Kelivo's adapter.** Care registers its
+    arrival notification through `app.scheduled_notifications`, and
+    `ScheduledTaskNotifications.schedule` stores every request in that channel as
+    `scheduled-task:<runId>` — `cancel` removes exactly that form, and `PreparedScheduledTasks.load`
+    cancels every pending identifier that is not one of its runs. The port passed a bare
+    conversation id, so `cancelFor` removed nothing: once a schedule moved, was disabled, or the
+    conversation was deleted, the old arrival notification stayed pending and a tap on it opened an
+    empty chat. `IosProactiveCareScheduler.notificationIdFor` is now the single builder of that
+    identifier and both `schedule` and `cancel` go through it, which keeps the adapter contract
+    without editing the shared Swift channel (conversation ids are not run UUIDs, so Kelivo's own
+    tasks never adopt a care notification).
+12. **A cold start recovers once the stores are loaded, and the resume path is unconditional.**
+    `resumed` fires before `ChatService.init()` on a notification-tap cold start, and back then
+    `getAllConversations()` returns nothing, so the catch-up found no candidates; gating the whole
+    recovery on `_chatInitialized` (`HomePageController.onAppLifecycleStateChanged`) dropped the one
+    delivery that scenario needs, and nothing retried because the app was already in the
+    foreground. Recovery is now the same pair in both places — re-arm, then catch-up — called from
+    `resumed` unconditionally and once at the end of `initChat` after the caches are warm, drained
+    *before* the `finally` opens the tapped conversation so the letter is usually in the window by
+    the time it is read. The re-arm keeps its own guard inside the view model (an unloaded snapshot
+    must not clear alarms it cannot see); the catch-up stays idempotent through the atomic claim.
+    On iOS this is what turns "the notification announced a letter, the chat was empty" into "the
+    letter is written as soon as the app has the data to write it".
+13. **A live Dart listener is the only precondition for a direct Android hand-off.** `careFirePlan`
+    took `(ready, foreground)` and chose `Direct` only when the Activity owned the foreground. That
+    parked every fire in the state the app spends most of its life in — process alive, screen off,
+    another app in front — behind a foreground-service start that Android 12+ may refuse from the
+    background, or behind the next `MainActivity.onStart`: a letter due at 10:55 surfaced at 11:08.
+    `ready` already carries the real fact (Dart installed its `fire` handler), so the plan is now
+    `careFirePlan(ready)`; `Direct` hands off through `dispatchToChannel`, and `dispatchPending`
+    keeps its foreground/service hold for the `Service` plan, whose whole purpose is that no
+    listener exists yet. A direct hand-off is not silent either: the persisted letter posts its own
+    notification. `configure` resets `ready`, because a recreated engine has no listener until it
+    answers again.
+14. **A refused arrival notification is reported.** `ScheduledTaskNotifications.schedule` returns
+    `false` when notifications are not authorized or the adapter's 60-request queue is full, and the
+    port ignored that result: care looked scheduled while nothing would ever fire.
+    `IosProactiveCareScheduler.lastScheduleAccepted` mirrors the answer and the refusal is logged
+    with the `[ProactiveCare]`-family tag, the same way the exact-alarm grant is reported on
+    Android.
 
 ## Consequences
 
@@ -191,3 +231,27 @@ removes pending requests, which is the right behaviour for `prepared: false` let
 - A future re-base must replay this contract as part of the care unit
   (`docs/rebase-runbook.md`); the deviations it fixes are exactly the kind of thing a mechanical
   port reintroduces.
+- Care's arrival notification now shares Kelivo's `scheduled-task:` namespace on iOS. The
+  consequence is a hard invariant to keep: the identifier a notification is registered under is the
+  identifier `cancel` must pass, and `ScheduledTaskNotifications` is the authority on that string.
+  `IosProactiveCareScheduler.notificationIdFor` is the only place it is built, and the test that
+  pins it fails before the notification could ever be orphaned again.
+- Android now has two dispatch entries into the same channel: `dispatchToChannel` (a live listener,
+  plan `Direct`) and `dispatchPending` (waits for the service or the foreground, plan `Service`).
+  They share `dispatched`, so a fire is handed over at most once regardless of which path gets
+  there first.
+- Known and deliberately deferred: `BackgroundRuntime.beginScheduledRun` sets `blocked` when the
+  foreground service cannot start and then calls `scheduledTasks.stopAll("foreground_service_start_failed")`,
+  which aborts unrelated scheduled-task runs as collateral. Care's own recovery (the `MainActivity.onStart`
+  drain, the deadline, the Dart catch-up) does not depend on that call, and changing it touches
+  shared runtime behaviour for every background feature — so it is recorded here as an observation
+  rather than changed with this fix.
+- The residual iOS gap is unchanged and is a platform limit, not a port bug: while the app is
+  suspended or dead no letter text exists, so the arrival notification can only announce it and the
+  letter is written on the next foreground (a model round trip, so tens of seconds to a minute).
+  What this decision set removes is the *silent* part — the orphaned notification, the dropped
+  cold-start catch-up, and the refusal nobody could see.
+- iOS native code has no unit-test source set and `pr-check` compiles no Swift, so a `Runner/`-level
+  regression is caught by dispatching `release.yml` (iOS, `publish_release=false`) or by a device
+  test. The Dart side of this contract is covered in `ios_proactive_care_scheduler_test.dart`,
+  `proactive_care_alarm_service_test.dart`, and the Kotlin fire plan tests.

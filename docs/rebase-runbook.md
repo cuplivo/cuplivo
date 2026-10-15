@@ -220,6 +220,14 @@ git branch -f master rebase/onto-<new-baseline>
   on that platform: Kelivo has no in-app executor on Android (`ScheduledTasksService.configureDevice`
   returns early there), so care must not add one either
   ([ADR-0006](adr/0006-proactive-care-trigger-contract.md)).
+- **Reusing an upstream channel means reusing its *identifiers* and its *timing*.** The care port
+  registered arrival notifications with a bare conversation id on a channel whose Swift adapter
+  stores every request as `scheduled-task:<runId>`, so nothing could ever cancel them; and it ran the
+  catch-up on a `resumed` that precedes the conversation cache on a notification-tap cold start, so
+  the one delivery that path needs found nothing to deliver. Both mistakes are invisible from the
+  Dart call site — read the adapter, and check when the lifecycle event actually fires.
+  ADR-0006 decisions 11-13 pin them down; the native gate in `pr-check.yml` exists because reviewing
+  Kotlin by eye is what let the first one through.
 - **Registering a test failure as "known" needs a control run.** Nine Windows failures looked like
   our regression; running the same files in a clean worktree at upstream's own tip reproduced them
   (ten, in fact). Only after that is a failure honestly "upstream's, on this platform".

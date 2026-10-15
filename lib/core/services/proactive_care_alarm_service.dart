@@ -197,6 +197,14 @@ class ProactiveCareAlarmService {
       } catch (e) {
         debugPrint('[ProactiveCare] ready failed: $e');
       }
+      // The grant is a first-class fact even before the first sync: a schedule
+      // that carries over a process restart must not be described as armed
+      // while the platform will not honour it.
+      try {
+        _absorbExactAlarmStatus(await _channel.invokeMethod<Object?>('status'));
+      } catch (e) {
+        debugPrint('[ProactiveCare] status failed: $e');
+      }
     }
   }
 

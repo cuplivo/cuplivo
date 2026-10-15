@@ -2,13 +2,11 @@ package com.cuplivo.cuplivo.scheduled
 
 import android.app.AlarmManager
 import android.content.Context
-import android.os.Looper
 import com.cuplivo.cuplivo.KelivoApplication
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.StandardMethodCodec
 import java.nio.ByteBuffer
-import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -22,10 +20,11 @@ import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowAlarmManager
 
 /**
- * The trigger chain around a fired letter (#1007): a fire must always end up
- * either directly dispatched or owned by a foreground-service run, an
- * in-flight letter must not be consumed by a later fire, and the foreground
- * dispatch must recover anything held while no service was running.
+ * The trigger chain around a fired letter (#1007): a fire either goes out to a
+ * listening Dart side or is owned by a foreground-service run, an in-flight
+ * letter is not consumed by a later fire, a fire that cannot reach the channel
+ * yet is held until Dart attaches, and a live listener delivers even while the
+ * Activity is stopped.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28], application = KelivoApplication::class)
@@ -88,7 +87,7 @@ class ProactiveCareAlarmsTest {
 
     private fun dueAtOf(call: MethodCall): Any? = (call.arguments as Map<*, *>)["dueAt"]
 
-    @Test fun aBackgroundedProcessStartsARunInsteadOfParkingTheLetter() {
+    @Test fun aListeningDartSideDeliversWhileTheAppIsInTheBackground() {
         val messenger = ready()
         app.backgroundRuntime.setForeground(false)
         val dueAt = System.currentTimeMillis() + 60_000
@@ -96,20 +95,15 @@ class ProactiveCareAlarmsTest {
         sync(messenger, "c1", dueAt)
         alarms.fire("c1", dueAt)
 
-        // The letter is owned by a scheduled run, not parked with no service.
-        assertTrue(app.backgroundRuntime.hasScheduledRuns)
-        assertTrue(messenger.fired().isEmpty())
-
-        // Coming back to the front drains the held letter into Dart.
-        app.backgroundRuntime.setForeground(true)
-        alarms.dispatchPending()
+        // The engine owns a live listener, so the letter goes out right away.
+        // It used to be parked here until the app came back to the front, which
+        // is how a letter due at 10:55 surfaced at 11:08 (#1007).
         val fire = messenger.fired().single()
         assertEquals("c1", (fire.arguments as Map<*, *>)["conversationId"])
         assertEquals(dueAt, dueAtOf(fire))
-
-        // The Dart side completing the run releases the foreground service.
-        messenger.call("done", mapOf("conversationId" to "c1"))
+        // No service run: the direct hand-off never starts one.
         assertFalse(app.backgroundRuntime.hasScheduledRuns)
+        // And the occurrence is consumed exactly once.
         assertNull(prefs.getAll()["alarm:c1"])
     }
 
@@ -168,34 +162,26 @@ class ProactiveCareAlarmsTest {
         assertEquals(second, dueAtOf(messenger.fired().last()))
     }
 
-    /** A handoff that never completes must not park the conversation forever,
-     *  and releasing it must be visible instead of silent (#1007). */
-    @Test fun aDeliveryThatNeverCompletesIsReleasedAndRecorded() {
-        val messenger = ready()
+    /** When Dart is gone the run has no listener, so the letter is parked until
+     *  the channel is ready (or the deadline releases it, visibly). */
+    @Test fun aFireWithoutAListenerWaitsForTheChannelAndIsStillDelivered() {
+        val messenger = Messenger()
+        alarms.configure(messenger)
         app.backgroundRuntime.setForeground(false)
-        ShadowAlarmManager.setCanScheduleExactAlarms(true)
         val dueAt = System.currentTimeMillis() + 60_000
 
-        sync(messenger, "c1", dueAt)
+        // Nothing can be armed through the channel yet (it is not ready), but
+        // the registry still holds the occurrence: fire() is what a real alarm
+        // broadcast calls.
         alarms.fire("c1", dueAt)
         assertTrue(messenger.fired().isEmpty())
 
-        Shadows.shadowOf(Looper.getMainLooper()).idleFor(10, TimeUnit.MINUTES)
+        // Dart attaching is what completes the handoff.
+        messenger.call("ready")
 
-        assertTrue(messenger.fired().isEmpty())
-        assertFalse(app.backgroundRuntime.hasScheduledRuns)
-        assertTrue(
-            app.getSharedPreferences("kelivo_background", Context.MODE_PRIVATE)
-                .getString("last_error", "")
-                .orEmpty()
-                .contains("care_delivery_timeout"),
-        )
-
-        // The occurrence is released, not replayed: the foreground drain has
-        // nothing left to hand over.
-        app.backgroundRuntime.setForeground(true)
-        alarms.dispatchPending()
-        assertTrue(messenger.fired().isEmpty())
+        val fire = messenger.fired().single()
+        assertEquals("c1", (fire.arguments as Map<*, *>)["conversationId"])
+        assertEquals(dueAt, dueAtOf(fire))
     }
 
     @Test fun aStaleFireIsIgnored() {

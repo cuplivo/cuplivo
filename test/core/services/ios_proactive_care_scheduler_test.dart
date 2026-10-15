@@ -12,6 +12,7 @@ void main() {
 
   setUp(() {
     calls.clear();
+    IosProactiveCareScheduler.lastScheduleAccepted = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
           calls.add(call);
@@ -70,7 +71,10 @@ void main() {
         final call = calls.single;
         expect(call.method, 'schedule');
         final args = Map<String, Object?>.from(call.arguments as Map);
-        expect(args['runId'], 'c1');
+        // The adapter stores requests as `scheduled-task:<runId>` and its
+        // `cancel` removes exactly that form, so a bare id here would register
+        // a notification nothing could ever cancel.
+        expect(args['runId'], 'scheduled-task:c1');
         expect(args['at'], targetTime.millisecondsSinceEpoch);
         expect(args['title'], 'Test');
         expect(args['body'], 'A letter has arrived.');
@@ -124,7 +128,7 @@ void main() {
       );
       expect(scheduler.schedules.containsKey('c1'), isFalse);
       expect(calls.last.method, 'cancel');
-      expect(calls.last.arguments, 'c1');
+      expect(calls.last.arguments, 'scheduled-task:c1');
 
       await scheduler.sync(
         conversation: conversation(id: 'c2', nextAt: targetTime),
@@ -132,7 +136,7 @@ void main() {
       );
       expect(scheduler.schedules.containsKey('c2'), isFalse);
       expect(calls.last.method, 'cancel');
-      expect(calls.last.arguments, 'c2');
+      expect(calls.last.arguments, 'scheduled-task:c2');
 
       scheduler.dispose();
     });
@@ -161,5 +165,58 @@ void main() {
         scheduler.dispose();
       },
     );
+
+    test('schedule and cancel address the same native identifier', () async {
+      final scheduler = createScheduler(arrivalBody: 'A letter has arrived.');
+      final targetTime = currentTime.add(const Duration(minutes: 10));
+
+      await scheduler.sync(
+        conversation: conversation(id: 'c1', nextAt: targetTime),
+        assistant: assistant(),
+      );
+      await scheduler.cancelFor('c1');
+
+      final registered = calls.singleWhere((c) => c.method == 'schedule');
+      final removed = calls.singleWhere((c) => c.method == 'cancel');
+      final runId = (registered.arguments as Map)['runId'];
+      // The whole bug: removing a bare conversation id left the notification
+      // pending, so a stale "a letter has arrived" tap opened an empty chat.
+      expect(removed.arguments, runId);
+      expect(runId, IosProactiveCareScheduler.notificationIdFor('c1'));
+
+      scheduler.dispose();
+    });
+
+    test('a refused arrival notification is reported, not assumed', () async {
+      const refusing = MethodChannel(
+        'test.proactive_care_notifications_refused',
+      );
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(refusing, (call) async => false);
+      addTearDown(
+        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(refusing, null),
+      );
+      final scheduler = IosProactiveCareScheduler(
+        channel: refusing,
+        now: () => currentTime,
+        isIos: () => true,
+      );
+
+      await scheduler.sync(
+        conversation: conversation(
+          id: 'c1',
+          nextAt: currentTime.add(const Duration(minutes: 10)),
+        ),
+        assistant: assistant(),
+      );
+
+      // iOS refused (no notification grant, or the adapter's queue is full):
+      // the letter now depends on the in-app executor and the catch-up, and
+      // that has to be visible instead of looking scheduled.
+      expect(IosProactiveCareScheduler.lastScheduleAccepted, isFalse);
+
+      scheduler.dispose();
+    });
   });
 }

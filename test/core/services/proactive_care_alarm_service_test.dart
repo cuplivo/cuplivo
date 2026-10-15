@@ -383,6 +383,7 @@ void main() {
 
     tearDown(() {
       ProactiveCareAlarmService.setIosSchedulerForTesting(null);
+      IosProactiveCareScheduler.lastScheduleAccepted = null;
       messenger.setMockMethodCallHandler(scheduledChannel, null);
     });
 
@@ -428,7 +429,9 @@ void main() {
           (c) => c.method == 'schedule',
         );
         final args = schedule.arguments as Map;
-        expect(args['runId'], 'c1');
+        // Kelivo's adapter namespaces requests as `scheduled-task:<runId>` and
+        // only its own `cancel` can remove that form.
+        expect(args['runId'], 'scheduled-task:c1');
         expect(args['at'], dueAt.millisecondsSinceEpoch);
         expect(args['title'], 'Test');
         expect(args['prepared'], isFalse);
@@ -475,7 +478,10 @@ void main() {
       await ProactiveCareAlarmService.cancelFor('c1');
 
       expect(scheduler.schedules.containsKey('c1'), isFalse);
-      expect(scheduledCalls.map((c) => c.method), contains('cancel'));
+      final cancel = scheduledCalls.singleWhere((c) => c.method == 'cancel');
+      // The identifier has to be the one the adapter registered, or the
+      // arrival notification survives the cancel (see #1007 follow-up).
+      expect(cancel.arguments, 'scheduled-task:c1');
 
       scheduler.dispose();
     });

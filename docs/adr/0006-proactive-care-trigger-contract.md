@@ -264,11 +264,19 @@ removes pending requests, which is the right behaviour for `prepared: false` let
   letter is written on the next foreground (a model round trip, so tens of seconds to a minute).
   What this decision set removes is the *silent* part — the orphaned notification, the dropped
   cold-start catch-up, and the refusal nobody could see.
-- Native code has no gate of its own for anything but Android: `pr-check.yml` gained a job that
-  compiles the Android release variant and runs `ProactiveCareAlarmsTest`/`ProactiveCareFirePlanTest`
-  (scoped, because the rest of `android/app/src/test/` has pre-existing failures and no workflow had
-  ever compiled it; the job is advisory until it has a track record). iOS has no unit-test source set
-  and nothing compiles Swift, so a `Runner/`-level regression is caught by dispatching `release.yml`
-  (`publish_release=false`) or by a device test. The Dart side of this contract is covered in
-  `ios_proactive_care_scheduler_test.dart`, `proactive_care_alarm_service_test.dart`, and the Kotlin
-  fire plan tests.
+- **Verification is uneven across the three platforms, and that is worth knowing when reading this
+  document's claims.** The Dart half is gated on every PR (`pr-check`: format, l10n, analyze, tests).
+  Nothing compiles Swift (`Runner/ScheduledTaskNotifications` included), so a `Runner/`-level
+  regression is caught only by dispatching `release.yml` (`publish_release=false`) or by a device
+  test. Kotlin production code is compiled by `release.yml`, but `android/app/src/test/` is compiled
+  by neither workflow — `ScheduledAlarm.operation` had been nullable for a year without anyone
+  noticing, because the file never type-checked anywhere. The two care suites
+  (`ProactiveCareAlarmsTest`, `ProactiveCareFirePlanTest`) were compiled and run through a temporary
+  gate on this change's branch and are green there, but nothing in the repository will run them
+  again: treat a care edit's Kotlin tests as something to run deliberately
+  (`./gradlew :app:testReleaseUnitTest`), and treat the remaining 52 pre-existing failures in that
+  source set (`OAuthLifecycleTest`, plus one `HighRefreshRateControllerTest` initializer) as debt
+  this document is only recording.
+- The Dart side of this contract is covered in `ios_proactive_care_scheduler_test.dart` (the
+  identifier invariant), `proactive_care_alarm_service_test.dart` (both platform branches), and the
+  pure fire-plan decision in `ProactiveCareFirePlanTest`.

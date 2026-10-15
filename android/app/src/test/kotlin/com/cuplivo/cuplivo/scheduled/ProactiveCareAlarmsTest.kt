@@ -137,9 +137,11 @@ class ProactiveCareAlarmsTest {
         // the same — otherwise the registry would look armed by accident.
         val second = first + 60_000
         sync(messenger, "c1", second)
-        manager.cancel(
-            Shadows.shadowOf(manager).scheduledAlarms.single { it.triggerAtTime == second }.operation,
-        )
+        // `ScheduledAlarm.operation` is nullable in Robolectric's shadow; in a
+        // scheduled alarm it is always set.
+        val secondAlarm = Shadows.shadowOf(manager).scheduledAlarms
+            .single { it.triggerAtTime == second }
+        manager.cancel(requireNotNull(secondAlarm.operation))
         alarms.fire("c1", second)
 
         assertEquals(1, messenger.fired().size)

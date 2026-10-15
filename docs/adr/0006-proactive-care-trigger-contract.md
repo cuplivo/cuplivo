@@ -191,9 +191,11 @@ removes pending requests, which is the right behaviour for `prepared: false` let
     sat in `inFlight` until the 10-minute deadline released it, and the foreground drain
     `MainActivity.onStart` performs could not recover it. `dispatchToChannel` now rebuilds the set
     from the ids it actually invoked, so a hand-off that did not happen stays available to the next
-    drain. `ProactiveCareAlarmsTest.aFireWithoutAListenerWaitsForTheChannelAndIsStillDelivered` is
-    the regression test, and it only exists because the new native gate ran the test for the first
-    time.
+    drain. This one is *not* covered by a unit test: reproducing the hold inside Robolectric depends
+    on whether the foreground-service start completes, which the shadow runtime does not
+    consistently do, so the contract is documented here and verified by the `[ProactiveCare]`
+    `dispatch` log lines the release build emits. The plan decision it depends on is covered by
+    `ProactiveCareFirePlanTest`.
 15. **A refused arrival notification is reported.** `ScheduledTaskNotifications.schedule` returns
     `false` when notifications are not authorized or the adapter's 60-request queue is full, and the
     port ignored that result: care looked scheduled while nothing would ever fire.

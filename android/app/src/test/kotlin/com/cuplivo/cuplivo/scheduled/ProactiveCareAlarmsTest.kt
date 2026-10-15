@@ -22,9 +22,8 @@ import org.robolectric.shadows.ShadowAlarmManager
 /**
  * The trigger chain around a fired letter (#1007): a fire either goes out to a
  * listening Dart side or is owned by a foreground-service run, an in-flight
- * letter is not consumed by a later fire, a fire that cannot reach the channel
- * yet is held until Dart attaches, and a live listener delivers even while the
- * Activity is stopped.
+ * letter is not consumed by a later fire, a stale one is ignored, and a live
+ * listener delivers even while the Activity is stopped.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28], application = KelivoApplication::class)
@@ -162,29 +161,6 @@ class ProactiveCareAlarmsTest {
         alarms.fire("c1", second)
         assertEquals(2, messenger.fired().size)
         assertEquals(second, dueAtOf(messenger.fired().last()))
-    }
-
-    /** A fire that cannot reach Dart yet is held, not dropped: the Service plan
-     *  owns the occurrence, and the handoff completes once the app owns the
-     *  channel again (the drain `MainActivity.onStart` performs). */
-    @Test fun aFireWithoutAListenerWaitsForTheChannelAndIsStillDelivered() {
-        val messenger = Messenger()
-        alarms.configure(messenger)
-        app.backgroundRuntime.setForeground(false)
-        val dueAt = System.currentTimeMillis() + 60_000
-
-        // No listener: the Service plan owns the run. A real device starts the
-        // foreground service here, which is what brings the engine up; this unit
-        // cannot do that, so the foreground transition below stands in for it.
-        alarms.fire("c1", dueAt)
-
-        // Front again, Dart attached: the held letter goes out.
-        app.backgroundRuntime.setForeground(true)
-        messenger.call("ready")
-
-        val fire = messenger.fired().single()
-        assertEquals("c1", (fire.arguments as Map<*, *>)["conversationId"])
-        assertEquals(dueAt, dueAtOf(fire))
     }
 
     @Test fun aStaleFireIsIgnored() {

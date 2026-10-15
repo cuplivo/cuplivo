@@ -13,7 +13,8 @@
 | `9637d49a5` | IR 基础：`markdown_ir.dart`（节点树/叶子表/重发射器）、组件 `node()`、`walkNodes`/`walkDocument`、漂移测试 | markdown 集 412 绿；`dart analyze --fatal-infos lib test integration_test` 零问题；`dart format` 零变更 |
 | `0f543dfc3` | ADR-0008：终态架构、四期路线、门槛、bench 基线 | 文档 |
 | `c27fc9c6a` | **Phase A**：`generate`/`walkNodes` 合并为一个 `_walk` + 两个 sink；`walkNodes` 新增 `onNode`（并转发进组件的 content walk）；包内 analyzer 归零 | markdown 集 **413** 绿；包/app analyze 零问题；bench 交错配对无方向性差异 |
-| `4263cfbb6` | **Phase B**：`MdSpanEmitter` + `InlineMd.span` 默认发射；包内 7 个行内 span 覆写删除；`AtxHeadingMd` 走节点；`ModernBlockQuote` 用共享 quote 规则；表行切分去重；inline 表格换 app 组件；删两个不可达组件；覆盖注册测试 + 13 个新 fixture（收口提交补齐三个共享助手，见 §3.8） | 包内自带测试 144 绿、markdown 集 352 绿、包/app analyze 零问题、format 零变更；全量 `flutter test` 8238 通过、8 失败且全部落在 `.toolbridge/known-failures.json` 台账内（toolbridge 判定 **8 known / 0 new**）；两处注入验证落地（见 §3.8） |
+| `4263cfbb6` | **Phase B**：`MdSpanEmitter` + `InlineMd.span` 默认发射；包内 7 个行内 span 覆写删除；`AtxHeadingMd` 走节点；`ModernBlockQuote` 用共享 quote 规则；表行切分去重；inline 表格换 app 组件；删两个不可达组件；覆盖注册测试 + 12 个新 fixture（收口提交补齐三个共享助手，见 §3.8） | 包内自带测试 144 绿、markdown 集 352 绿、包/app analyze 零问题、format 零变更；全量 `flutter test` 8238 通过、8 失败且全部落在 `.toolbridge/known-failures.json` 台账内（toolbridge 判定 **8 known / 0 new**）；两处注入验证落地（见 §3.8） |
+| `70e203dd7` | **Phase C**：7 个流式 fixture（未闭 fence、已闭 fence、未闭强调、未闭 `$`/`$$` 公式、段落+未闭 fence、纯段落）+ 每个流式 fixture 的「`MarkdownBlockList` 已生效」断言；新微基准 `test/perf/inline_walk_bench.dart`（泵外直调 walk、报逐次中位数、可按形状/尺寸/运行标签筛选）；3 对交错 A/B + 快路径 print 探针 → 条件项**不触发**，无生产代码变更；ADR-0008 补记三处 | drift 用例 28→35 绿；markdown 集 417 绿（14 个文件）；包/app analyze 零问题；format 零变更；全量 `flutter test` 8245 通过 / 8 失败且全部落在台账内（0 new）；两处注入验证（流式旗标 → 红；删 part 文件 → 编译失败，均字节还原）；A/B 每次翻转后工作树与 HEAD blob 逐字节一致 |
 
 Phase A 交付物要点（后续阶段直接依赖）：
 
@@ -23,7 +24,7 @@ Phase A 交付物要点（后续阶段直接依赖）：
 - `MdNodeContext.onNode` 字段：`ctx.walk(...)` 会转发回调 → 嵌套在列表项/引用/details 体里的元素也能被 `onNode` 看到（**注册测试的前提**）。
 - 偏移语义：每次 walk 的偏移是「该次 walk 所寻址的 source」内的绝对偏移；组件 content walk 的 source 是它自己重导出的内容串（测试已固化）。
 
-**未完成**：Phase C、Phase D（见 §4、§5）。
+**未完成**：Phase D（见 §5）。
 
 ---
 
@@ -31,8 +32,8 @@ Phase A 交付物要点（后续阶段直接依赖）：
 
 1. **`generate()` 不删除、仍是渲染入口**。终态不是「删除 generate」，而是「每次遍历只有一份、显示文本只由 `node()` 决定」：`component.span()` 保留为组件（尤其 app 组件）的渲染入口，只是其内容改为从节点发射。
 2. **`markdown_line_lexer.dart` 不能整文件删**。`MarkdownLineLexer` 另有非渲染消费者：`assistant_paragraph_splitter.dart`（TTS 分段）、`timeline_visibility.dart`、`diagram_exporter.dart`、details 提取。D 期只删「流式块切分路径上的语法镜像」。
-3. **C 期很薄**。`MdWidget` 的 `_plainAppendable`/`_prose`/`_spanGroups` 是输出端保留机制（保留 span 身份），不与 IR 竞争；A+B 之后渲染管线已是 walk→node→emit。用户原话是条件式「如果快路径那也可以有对应的 IR 处理变体」——按证据它不需要变体。
-4. **bench 无法支撑 ±5% 门槛**。同一 commit 连续两次运行，单形状差异可达 ±40%（`single`/`lines` 最差，曾出现 +116%/−11% 同形状不同尺寸）。**只能用「交错配对运行」比较两个版本**（A/B/A/B 相邻运行），且只认「跨形状一致的方向」。ADR-0008 已记录该结论与 Phase A 实测（比值 0.81–1.44，中位 +3%）。
+3. **C 期很薄**。`MdWidget` 的 `_plainAppendable`/`_prose`/`_spanGroups` 是输出端保留机制（保留 span 身份），不与 IR 竞争；A+B 之后渲染管线已是 walk→node→emit。用户原话是条件式「如果快路径那也可以有对应的 IR 处理变体」——C 期已按证据判定不需要变体（§4.2），且原计划里那个消解目标（「node 为默认内容叶的组件」）在活跃组件集中为空。
+4. **bench 无法支撑 ±5% 门槛**。同一 commit 连续两次运行，单形状差异可达 ±40%（`single`/`lines` 最差，曾出现 +116%/−11% 同形状不同尺寸）。**只能用「交错配对运行」比较两个版本**（A/B/A/B 相邻运行），且只认「跨形状一致的方向」。ADR-0008 已记录该结论与 Phase A 实测（比值 0.81–1.44，中位 +3%）。C 期新增的 `test/perf/inline_walk_bench.dart` 把噪声压到 ±5–16%（同版本两次全扫 0.84–1.14），并且自带漂移对照（`walkNodes` 两版本代码相同）——后续要判「解析路径」的改动优先用它，`long_streaming_bench` 只用来判整帧追加成本。
 5. **包内 `this.exp` 已经清理**（7 处），`markdown_ir.dart` 的 `MdSelection.index` 已私有化 → `dart analyze dependencies/gpt_markdown` 现在零问题，可作为后续每期门槛。
 6. **math 默认开启**（`enableMathRendering = true`、`enableDollarLatex = true`），所以活跃组件集**包含** `LatexBlockScrollableMd` + `InlineLatexDollarScrollableMd` + `InlineLatexParenScrollableMd`；注册测试需要它们的 fixture。
 7. `MdNode.kind` 的 `gap` 语义是「**不贡献被复制文本**」，不是「不渲染」——`ImageMd`、行内公式、fenced code 都是 gap 但都画东西。这是 B 期发射器回退策略的根据。

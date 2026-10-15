@@ -6281,23 +6281,20 @@ class BackslashEscapeMd extends InlineMd {
 
   @override
   InlineSpan span(BuildContext context, String text, GptMarkdownConfig config) {
-    final m = exp.firstMatch(text);
-    if (m == null) return TextSpan(text: text, style: config.style);
-    final ch = m.group(1) ?? '';
     // Render only the escaped character (drop the backslash)
-    return TextSpan(text: ch, style: config.style);
+    return TextSpan(text: _escapedOf(text), style: config.style);
   }
 
   @override
   MdNode node(MdNodeContext ctx, String text) {
-    final m = exp.firstMatch(text);
     // Only the escaped character is shown; the pair re-emits whole.
-    return MdNode.opaque(
-      MdNodeKind.group,
-      ctx.rangeOf(text),
-      m?.group(1) ?? text,
-    );
+    return MdNode.opaque(MdNodeKind.group, ctx.rangeOf(text), _escapedOf(text));
   }
+
+  /// The character an escape pair shows: the escaped punctuation, or the
+  /// element itself when it is not a pair — which its own `exp` never lets
+  /// through. Shared by the rendered span and the IR node.
+  String _escapedOf(String text) => exp.firstMatch(text)?.group(1) ?? text;
 }
 
 class DetailsHtmlMd extends BlockMd {
@@ -6582,27 +6579,26 @@ class AllowedHtmlTagsMd extends InlineMd {
   );
 
   @override
-  InlineSpan span(BuildContext context, String text, GptMarkdownConfig config) {
-    if (RegExp(r"<br\s*/?>", caseSensitive: false).hasMatch(text)) {
-      return const TextSpan(text: '\n');
-    }
-    if (RegExp(r"<\/p\s*>", caseSensitive: false).hasMatch(text)) {
-      return const TextSpan(text: '\n');
-    }
-    return const TextSpan(text: '');
-  }
+  InlineSpan span(
+    BuildContext context,
+    String text,
+    GptMarkdownConfig config,
+  ) => TextSpan(text: _displayOf(text));
 
   @override
   MdNode node(MdNodeContext ctx, String text) {
-    final display =
-        RegExp(r"<br\s*/?>", caseSensitive: false).hasMatch(text) ||
-            RegExp(r"</p\s*>", caseSensitive: false).hasMatch(text)
-        ? '\n'
-        : '';
     // A tag that renders as nothing re-emits as nothing; a line break keeps
     // its newline.
-    return MdNode.opaque(MdNodeKind.group, ctx.rangeOf(text), display);
+    return MdNode.opaque(MdNodeKind.group, ctx.rangeOf(text), _displayOf(text));
   }
+
+  /// What a whitelisted tag shows: a line break for the tags that stand for
+  /// one, and nothing for the paragraph wrapper the renderer only uses to end
+  /// a block. Shared by the rendered span and the IR node.
+  static String _displayOf(String text) =>
+      RegExp(r"<br\s*/?>|<\/p\s*>", caseSensitive: false).hasMatch(text)
+      ? '\n'
+      : '';
 }
 
 /// A selectable version of HighlightView that allows users to select

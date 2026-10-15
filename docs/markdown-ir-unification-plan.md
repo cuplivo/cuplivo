@@ -13,7 +13,7 @@
 | `9637d49a5` | IR 基础：`markdown_ir.dart`（节点树/叶子表/重发射器）、组件 `node()`、`walkNodes`/`walkDocument`、漂移测试 | markdown 集 412 绿；`dart analyze --fatal-infos lib test integration_test` 零问题；`dart format` 零变更 |
 | `0f543dfc3` | ADR-0008：终态架构、四期路线、门槛、bench 基线 | 文档 |
 | `c27fc9c6a` | **Phase A**：`generate`/`walkNodes` 合并为一个 `_walk` + 两个 sink；`walkNodes` 新增 `onNode`（并转发进组件的 content walk）；包内 analyzer 归零 | markdown 集 **413** 绿；包/app analyze 零问题；bench 交错配对无方向性差异 |
-| 本次提交 | **Phase B**：`MdSpanEmitter` + `InlineMd.span` 默认发射；包内 7 个行内 span 覆写删除；`AtxHeadingMd` 走节点；`ModernBlockQuote` 用共享 quote 规则；表行切分去重；inline 表格换 app 组件；删两个不可达组件；覆盖注册测试 + 13 个新 fixture | 包内自带测试 144 绿、markdown 集 352 绿、包/app analyze 零问题、format 零变更；两处注入验证落地（见 §3.8） |
+| `4263cfbb6` | **Phase B**：`MdSpanEmitter` + `InlineMd.span` 默认发射；包内 7 个行内 span 覆写删除；`AtxHeadingMd` 走节点；`ModernBlockQuote` 用共享 quote 规则；表行切分去重；inline 表格换 app 组件；删两个不可达组件；覆盖注册测试 + 13 个新 fixture（收口提交补齐三个共享助手，见 §3.8） | 包内自带测试 144 绿、markdown 集 352 绿、包/app analyze 零问题、format 零变更；全量 `flutter test` 8238 通过、8 失败且全部落在 `.toolbridge/known-failures.json` 台账内（toolbridge 判定 **8 known / 0 new**）；两处注入验证落地（见 §3.8） |
 
 Phase A 交付物要点（后续阶段直接依赖）：
 
@@ -166,6 +166,10 @@ walk 每个 fixture 源（用 markdownComponentsFor(...) 的组件集 + DetailsH
   本来就只覆写 `exp`（无需改动）；只有 `EscapeAwareBoldMd` 删掉了 `span`，改为 `exp` + `emphasisWeight`。
 - `markdownQuoteText` 的逐行判定放宽为 `[ \t]*>`：app 的 `span` 原本接受 tab、`node` 不接受，本身就是一处漂移。
 - fixture 实际为 27 个源（原 15 + 新 12），drift 文件用例数 16 → 29；覆盖注册测试的排除列表为空。
+- **收口提交**：三个**仍自带 span**（即发射器回退目标）的组件把显示规则抽成类内共享助手，span 与 node 各调一次——
+  `SourceTag._contentOf`、`AllowedHtmlTagsMd._displayOf`、`BackslashEscapeMd._escapedOf`。行为逐字不变
+  （`_escapedOf` 复现的两个兜底分支本来就是 span 与 node 一致的），`_displayOf` 的合并正则与原先分开写的两个判定等价。
+  至此 §3.1 第二句（显示文本只在 `node()` 或 node/span 共享助手里决定）**字面成立**。
 - 门槛：包内自带测试 144 绿、markdown 集 352 绿、包/app `analyze --fatal-infos` 零问题、`dart format` 零变更。
   bench（顺序 B A B A B B）三组 after÷before 比值 0.76–1.39、中位 1.01/1.09/1.05；**同一版本**相邻两次
   比值 0.66–1.80、中位 1.06 —— 噪声包住了信号，无一致方向。唯一一致偏高的形状是 `single`（+14–29%），

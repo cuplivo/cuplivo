@@ -1185,8 +1185,7 @@ class SourceTag extends InlineMd {
     String text,
     final GptMarkdownConfig config,
   ) {
-    var match = exp.firstMatch(text.trim());
-    var content = match?[1];
+    final content = _contentOf(text);
     if (content == null) {
       return const TextSpan();
     }
@@ -1222,13 +1221,18 @@ class SourceTag extends InlineMd {
 
   @override
   MdNode node(MdNodeContext ctx, String text) {
-    final m = exp.firstMatch(text.trim());
-    final content = m?.group(1);
+    final content = _contentOf(text);
     if (content == null) return MdNode.text(ctx.rangeOf(text));
     // A citation chip shows its number in its own text widget, so the source
     // that carries the chip is re-emitted whole.
     return MdNode.opaque(MdNodeKind.group, ctx.rangeOf(text), content);
   }
+
+  /// The number a citation chip shows, or `null` when the element is not one.
+  ///
+  /// Shared by the chip and the IR node, so the two cannot disagree about what
+  /// the chip says.
+  String? _contentOf(String text) => exp.firstMatch(text.trim())?.group(1);
 }
 
 /// Link text component

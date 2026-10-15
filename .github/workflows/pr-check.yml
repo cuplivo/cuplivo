@@ -137,11 +137,18 @@ jobs:
         if: steps.changed.outputs.native == 'true'
         run: flutter pub get
 
-      - name: Compile Android release sources
+      # `flutter build` owns the whole Android setup here: it writes
+      # `android/local.properties` (`settings.gradle.kts` hard-requires
+      # `flutter.sdk` from it) and it is the only entry point that knows where
+      # the Gradle wrapper for this project lives. It compiles every Kotlin
+      # source, including the release variant with the care alarm code, which is
+      # the half no other workflow ever compiled.
+      - name: Compile Android (Kotlin, release variant)
         if: steps.changed.outputs.native == 'true'
-        working-directory: android
-        run: ./gradlew :app:compileReleaseKotlin :app:compileReleaseUnitTestKotlin --no-daemon
+        run: flutter build apk --release
 
+      # The Kotlin unit tests that cover the fire plan and the alarm handoff.
+      # `flutter build apk` above is what materializes the wrapper.
       - name: Android Kotlin unit tests
         if: steps.changed.outputs.native == 'true'
         working-directory: android

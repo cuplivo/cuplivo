@@ -690,6 +690,23 @@ void main() {
     expect(plain.first.swallowsSeparator, isFalse);
   });
 
+  test('a blank run that grows after a list waits still ends the block', () {
+    // The first update leaves the run in place, because the next item may
+    // still belong to the list. The second grows that same run and then denies
+    // the list, so the block has to end where the run begins — not part-way
+    // into it, which would leave the block ending on the newlines it skips.
+    final document = markdownStreamingSplit();
+    final first = document.update('- a\n\n');
+    expect(first, hasLength(1));
+    expect(first.single.stable, isFalse);
+
+    final second = document.update('- a\n\n\n\nnext');
+    expect(second, hasLength(2));
+    expect(second.first.text, '- a');
+    expect(second.first.stable, isTrue);
+    expect(second.last.text, 'next');
+  });
+
   test('an unfinished details holds its blank lines until it closes', () {
     // A `<details>` without its closer is prose to the walk, so its blank runs
     // are gaps and only the lexer's depth stops them from splitting.
@@ -713,12 +730,15 @@ void main() {
     final document = markdownStreamingSplit();
     document.update('hello\n\nwor');
     final walks = document.debugWalkedRegions;
-    final blocks = document.update('hello\n\nworld');
+    // The region holds no run and does not open on whitespace, so nothing in
+    // it has a decision to change: punctuation included, because only a run
+    // can become a boundary. The tail still grows.
+    final blocks = document.update('hello\n\nworld *');
     expect(document.debugWalkedRegions, walks);
-    expect(blocks.last.text, 'world');
+    expect(blocks.last.text, 'world *');
 
-    // A character that can start or complete a match does re-walk.
-    document.update('hello\n\nworld *');
+    // A blank run is something to decide, so the walk runs again.
+    document.update('hello\n\nworld *\n\nnext');
     expect(document.debugWalkedRegions, greaterThan(walks));
   });
 

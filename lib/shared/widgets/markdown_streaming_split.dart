@@ -79,8 +79,8 @@ final class _BlankRun {
 ///    insert a separator either — while the blocks still split, which is what
 ///    keeps a finished element's identity.
 ///
-/// Only the appended suffix is walked, and only while it can change the
-/// structure, so an append costs what it added.
+/// The region is walked only while it holds a run or opens on whitespace, so a
+/// stream that is still growing one paragraph pays nothing for the splitter.
 final class MarkdownStreamingSplit {
   MarkdownStreamingSplit({
     required List<MarkdownComponent> global,
@@ -103,17 +103,6 @@ final class MarkdownStreamingSplit {
   static final _listMarker = RegExp(
     r'^(?:[*+-](?:\s+\[[ xX]\])?|\d{1,9}[.)])(?:\s|$)',
   );
-
-  /// Every character that can start or complete a match in one of the active
-  /// patterns: whitespace — which covers the newlines a blank run needs, the
-  /// U+2028 / U+2029 line terminators `^` and `$` recognise, and the wide
-  /// spaces a `\s*` tail consumes — and ASCII punctuation.
-  ///
-  /// A walk is skipped while every appended character is outside this set. No
-  /// pattern matches text without one of these characters, so such a suffix
-  /// can neither start a match, complete one, nor open a run: the region's
-  /// structure cannot have changed, and only its last element grew.
-  static final _matchTrigger = RegExp(r'[\s!-/:-@\[-`{-~]');
 
   String _rawSource = '';
   String _source = '';
@@ -195,13 +184,31 @@ final class MarkdownStreamingSplit {
     _rawSource = source;
     _rawEndsWithCR =
         source.isNotEmpty && source.codeUnitAt(source.length - 1) == 0x0D;
-    if (!_lastUpdateAppended ||
-        debugAlwaysWalk ||
-        _matchTrigger.hasMatch(appended)) {
+    if (!_lastUpdateAppended || debugAlwaysWalk || _regionHasCandidate()) {
       _decideBoundaries();
     }
     _blocks = List<MarkdownStreamBlock>.unmodifiable(_visibleBlocks());
     return _blocks;
+  }
+
+  /// Whether the region holds anything this update could decide.
+  ///
+  /// A boundary is only ever a blank run, and the walk exists to answer the
+  /// questions a run raises, so a region without one has nothing to decide: an
+  /// append can then only grow its last element, which the block text already
+  /// covers. A region that opens on whitespace is the exception — the block
+  /// before it may still swallow that line, and only the walk's first element
+  /// can tell an indented continuation apart from an indented fence or
+  /// `<details>`.
+  ///
+  /// The run is looked for from the region's start rather than the run cursor,
+  /// because a run that was left in place — the next item of a list may still
+  /// belong to the block — has to be re-read when the line after it changes.
+  bool _regionHasCandidate() {
+    if (_source.indexOf('\n\n', _blockStart) >= 0) return true;
+    if (_blockStart >= _source.length) return false;
+    final unit = _source.codeUnitAt(_blockStart);
+    return unit != 0x0A && unit != 0x0D && _isWhitespace(unit);
   }
 
   /// The common path never contained a CR, so [source] is already the
@@ -346,10 +353,20 @@ final class MarkdownStreamingSplit {
 
   /// The first blank run at or after [from], or null when the region has none
   /// left.
+  ///
+  /// The run's start is walked back to the first of its newlines. A run the
+  /// walk left in place — a list waiting for the line after it — can gain
+  /// newlines from a later append, and the search then finds it part-way in;
+  /// committing from there would end the block with the newlines it is
+  /// supposed to skip.
   _BlankRun? _nextRun(int from) {
-    final start = _source.indexOf('\n\n', from);
-    if (start < 0) return null;
-    var end = start + 2;
+    final found = _source.indexOf('\n\n', from);
+    if (found < 0) return null;
+    var start = found;
+    while (start > _blockStart && _source.codeUnitAt(start - 1) == 0x0A) {
+      start--;
+    }
+    var end = found + 2;
     while (end < _source.length && _source.codeUnitAt(end) == 0x0A) {
       end++;
     }

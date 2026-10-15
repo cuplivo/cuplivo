@@ -317,8 +317,18 @@ walk 每个 fixture 源（用 markdownComponentsFor(...) 的组件集 + DetailsH
 
 ## 6. 收尾（工程外）
 
-- 全量 `flutter test`（含 perf bench 单独跑）与 CI 三闸。
-- `feat/direct-select-text-v4` rebase 到本分支：删 `subsequenceMatch` 及其测试、ADR 0007→0008 重编号、`SelectionMarkdownMemory.takeCopyText()` 改走 `markdownDocument(...).emitSelectionMarkdown(...)`。
+- **全量 `flutter test` 已完成**：8256 通过 / 8 失败，8 条全部命中 `.toolbridge/known-failures.json`
+  台账（0 new）。`dart analyze --fatal-infos lib test integration_test` 零问题、`dart format` 零变更。
+- **`feat/direct-select-text-v4` 移植：未做，等用户定时机**（2026-10-15 决定）。已核实的形状：
+  - 分支 `59adc53b8`，**3 个提交**（`2f505090d` 恢复朴素匹配器、`daf83af47` chat 侧复制、
+    `59adc53b8` 桌面快捷键），23 文件 +1143/−6，与 master 同基点 ⇒ 与本分支**大概率无冲突**
+    （它动 `chat_message_widget.dart`/l10n/hotkeys/新增文件，本分支未动前三者）。
+  - 要做的三件事：删 `lib/utils/markdown_subsequence_match.dart`（108）及其测试（144）；
+    `SelectionMarkdownMemory.takeCopyText()` 改走 `markdownDocument(...).emitSelectionMarkdown(...)`；
+    它自带的 ADR 编 **0009**（原计划写的「0007→0008」已过时：本分支已占用 0007 与 0008；用户确认用 0009）。
+  - 落点二选一：**(a)** 在本 worktree 新建分支、cherry-pick 那三个提交后就地改造（不碰它的 worktree、
+    无需越界权限，之后把它快进过去即可）；**(b)** 在它自己的 worktree
+    （`.../cuplivo-feat-direct-select-text-v4`，位于本会话沙箱之外）就地 rebase，需要一次越界写权限批准。
 - 已知限制台账（ADR-0007/0008 已有）：同一气泡内重复文本解析到首次出现；HTML 标签组件 best-effort；quote 整体重发射。
 
 ---
@@ -326,6 +336,6 @@ walk 每个 fixture 源（用 markdownComponentsFor(...) 的组件集 + DetailsH
 ## 7. 下一步动作（按序）
 
 1. ~~Phase D（见 §5）~~ **已完成**（§5.3 的六个提交）。
-2. 收尾（见 §6）：全量 `flutter test` 已有基线（8 个失败全部在 `.toolbridge/known-failures.json` 台账内，
-   本 worktree 已放入该台账以便 toolbridge 自动分类）；`feat/direct-select-text-v4` rebase。
-3. 待用户决定：本线上是否窄修 #544（一行 + 一处测试重定基，见 §5.4）。
+2. ~~全量 `flutter test`~~ **已完成**：8256 通过 / 8 失败（8 known / 0 new，见 §6）。
+3. `feat/direct-select-text-v4` 移植（§6 的两条路径与三件事），**等用户定时机**。
+4. 待用户决定：本线上是否窄修 #544（一行 + 一处测试重定基，见 §5.4）。

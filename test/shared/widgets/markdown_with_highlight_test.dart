@@ -4663,6 +4663,26 @@ press5
     }
   });
 
+  testWidgets('MarkdownWithCodeHighlight keeps the app weight for emphasis '
+      'nested in other emphasis', (tester) async {
+    // The emitter draws emphasis from the bold component the surface renders
+    // with, so a bold inside italic must take the same ink as a top-level one.
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    try {
+      await tester.pumpWidget(_markdownHarness('这是 *斜体 **粗体** 结束*'));
+      await tester.pump();
+
+      final spans = _resolvedTextSpansFromRichText(tester);
+      final strongSpan = spans.singleWhere((span) => span.text == '粗体');
+
+      expect(strongSpan.style.fontWeight, FontWeight.w500);
+      final italicSpan = spans.singleWhere((span) => span.text == '斜体 ');
+      expect(italicSpan.style.fontStyle, FontStyle.italic);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   testWidgets('MarkdownWithCodeHighlight keeps p tag spacing compact', (
     tester,
   ) async {

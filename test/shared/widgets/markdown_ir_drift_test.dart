@@ -1,12 +1,94 @@
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/markdown_line_lexer.dart';
 import 'package:Cuplivo/shared/widgets/markdown_with_highlight.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gpt_markdown/markdown_ir.dart';
+import 'package:gpt_markdown/custom_widgets/markdown_config.dart';
+import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:provider/provider.dart';
 
 import '../../support/business_test_harness.dart';
+
+/// One document the drift check runs over.
+///
+/// The list is also the coverage of the check itself: every component the
+/// surface can claim text with is matched by at least one source here, which is
+/// what keeps the equality below from holding vacuously (see the coverage test
+/// at the end of this file).
+final class _DriftFixture {
+  const _DriftFixture(
+    this.name,
+    this.source, {
+    this.expand,
+    this.tracksExpansion = false,
+  });
+
+  final String name;
+  final String source;
+
+  /// Summary text to tap before selecting, so the same document is measured
+  /// with that `<details>` block open.
+  final String? expand;
+
+  /// Whether the source carries a `<details>` block whose state is read back.
+  final bool tracksExpansion;
+}
+
+const List<_DriftFixture> _fixtures = [
+  _DriftFixture(
+    'emphasis, inline code and paragraphs',
+    '**Bold**, and *italic* with `code`.\n\nSecond paragraph.',
+  ),
+  _DriftFixture('heading and body', '# Heading\n\nbody text'),
+  _DriftFixture(
+    'bullet and task lists',
+    '- first\n- second\n\n- [x] done\n- [ ] todo',
+  ),
+  _DriftFixture('ordered list', '1. one\n2. two'),
+  _DriftFixture('block quote', '> quoted\n> lines'),
+  _DriftFixture('fenced code block', '```dart\nfinal a = 1;\n```'),
+  _DriftFixture(
+    'image rides along without display text',
+    'before![alt](https://example.com/image.png)after',
+  ),
+  _DriftFixture('horizontal rule contributes no display text', 'a\n\n---\n\nb'),
+  _DriftFixture('link label', '[label](https://example.com) tail'),
+  _DriftFixture(
+    'details block',
+    '<details><summary>More</summary>hidden body</details>',
+  ),
+  _DriftFixture(
+    'details block that the user expanded',
+    '<details><summary>More</summary>hidden body</details>',
+    expand: 'More',
+    tracksExpansion: true,
+  ),
+  _DriftFixture(
+    'details block that opens by its own attribute',
+    '<details open><summary>More</summary>hidden body</details>',
+    tracksExpansion: true,
+  ),
+  _DriftFixture('plain table', '| A | B |\n| --- | --- |\n| 1 | 2 |'),
+  _DriftFixture(
+    'table cell holding an escaped pipe',
+    // A table contributes nothing to the surrounding copy on any platform, so
+    // whether its cells split on the escaped pipe never reaches this mapping.
+    '| cell \\| pipe | plain |\n| --- | --- |\n| x | y |',
+  ),
+  _DriftFixture('strikethrough', '~~strike~~'),
+  _DriftFixture('underline tag', '<u>under</u>'),
+  _DriftFixture('citation chip', 'cite [1] here'),
+  _DriftFixture('html anchor', '<a href="https://example.com">site</a>'),
+  _DriftFixture('allowed html line break', 'line<br>break'),
+  _DriftFixture('backslash-escaped punctuation', r'\*not emphasis\*'),
+  _DriftFixture('radio button line', '(x) selected'),
+  _DriftFixture('indented continuation line', '- item\n\n  continued'),
+  _DriftFixture('dollar inline formula', r'value $x$ here'),
+  _DriftFixture('paren inline formula', r'the \(x^2\) value'),
+  _DriftFixture('display formula block', '\$\$\nx\n\$\$'),
+  _DriftFixture('table nested in emphasis', '**| a | b |\n| - | - |**'),
+];
 
 /// Pumps [source] as an assistant reply and returns the text the framework
 /// actually copies when everything is selected.
@@ -64,10 +146,7 @@ MdDocument _document(
   String source, {
   MarkdownDetailsExpansion? expansion,
 }) {
-  final settings = Provider.of<SettingsProvider>(
-    tester.element(find.byType(MarkdownWithCodeHighlight)),
-    listen: false,
-  );
+  final settings = _settings(tester);
   return MarkdownWithCodeHighlight.markdownDocument(
     source,
     settings: settings,
@@ -75,6 +154,12 @@ MdDocument _document(
     detailsExpansion: expansion,
   );
 }
+
+SettingsProvider _settings(WidgetTester tester) =>
+    Provider.of<SettingsProvider>(
+      tester.element(find.byType(MarkdownWithCodeHighlight)),
+      listen: false,
+    );
 
 /// The proof that keeps the IR honest: for every surface, the text the
 /// framework copies out of the rendered widgets must equal the display space
@@ -101,95 +186,16 @@ Future<void> _expectDisplaySpaceMatchesCopy(
 }
 
 void main() {
-  testWidgets('emphasis, inline code and paragraphs', (tester) async {
-    await _expectDisplaySpaceMatchesCopy(
-      tester,
-      '**Bold**, and *italic* with `code`.\n\nSecond paragraph.',
-    );
-  });
-
-  testWidgets('heading and body', (tester) async {
-    await _expectDisplaySpaceMatchesCopy(tester, '# Heading\n\nbody text');
-  });
-
-  testWidgets('bullet and task lists', (tester) async {
-    await _expectDisplaySpaceMatchesCopy(
-      tester,
-      '- first\n- second\n\n- [x] done\n- [ ] todo',
-    );
-  });
-
-  testWidgets('ordered list', (tester) async {
-    await _expectDisplaySpaceMatchesCopy(tester, '1. one\n2. two');
-  });
-
-  testWidgets('block quote', (tester) async {
-    await _expectDisplaySpaceMatchesCopy(tester, '> quoted\n> lines');
-  });
-
-  testWidgets('fenced code block', (tester) async {
-    await _expectDisplaySpaceMatchesCopy(tester, '```dart\nfinal a = 1;\n```');
-  });
-
-  testWidgets('image rides along without display text', (tester) async {
-    await _expectDisplaySpaceMatchesCopy(
-      tester,
-      'before![alt](https://example.com/image.png)after',
-    );
-  });
-
-  testWidgets('horizontal rule contributes no display text', (tester) async {
-    await _expectDisplaySpaceMatchesCopy(tester, 'a\n\n---\n\nb');
-  });
-
-  testWidgets('link label', (tester) async {
-    await _expectDisplaySpaceMatchesCopy(
-      tester,
-      '[label](https://example.com) tail',
-    );
-  });
-
-  testWidgets('details block', (tester) async {
-    await _expectDisplaySpaceMatchesCopy(
-      tester,
-      '<details><summary>More</summary>hidden body</details>',
-    );
-  });
-
-  testWidgets('details block that the user expanded', (tester) async {
-    const source = '<details><summary>More</summary>hidden body</details>';
-    final expansion = MarkdownDetailsExpansion();
-    await _expectDisplaySpaceMatchesCopy(
-      tester,
-      source,
-      expand: 'More',
-      expansion: expansion,
-    );
-  });
-
-  testWidgets('details block that opens by its own attribute', (tester) async {
-    await _expectDisplaySpaceMatchesCopy(
-      tester,
-      '<details open><summary>More</summary>hidden body</details>',
-      expansion: MarkdownDetailsExpansion(),
-    );
-  });
-
-  testWidgets('plain table', (tester) async {
-    await _expectDisplaySpaceMatchesCopy(
-      tester,
-      '| A | B |\n| --- | --- |\n| 1 | 2 |',
-    );
-  });
-
-  testWidgets('table cell holding an escaped pipe', (tester) async {
-    // A table contributes nothing to the surrounding copy on any platform, so
-    // whether its cells split on the escaped pipe never reaches this mapping.
-    await _expectDisplaySpaceMatchesCopy(
-      tester,
-      '| cell \\| pipe | plain |\n| --- | --- |\n| x | y |',
-    );
-  });
+  for (final fixture in _fixtures) {
+    testWidgets(fixture.name, (tester) async {
+      await _expectDisplaySpaceMatchesCopy(
+        tester,
+        fixture.source,
+        expand: fixture.expand,
+        expansion: fixture.tracksExpansion ? MarkdownDetailsExpansion() : null,
+      );
+    });
+  }
 
   testWidgets('details block collapsed again after being read', (tester) async {
     const source = '<details><summary>More</summary>hidden body</details>';
@@ -199,5 +205,52 @@ void main() {
     await _copiedText(tester, source, expand: 'More', expansion: expansion);
     await _copiedText(tester, source, expand: 'More', expansion: expansion);
     await _expectDisplaySpaceMatchesCopy(tester, source, expansion: expansion);
+  });
+
+  // Every fixture above asserts that one document's display space is right.
+  // That guarantee is only as wide as the fixtures are, so this test pins the
+  // width: a component the surface can claim text with, and that no fixture
+  // matches, is a component the drift check stopped watching.
+  testWidgets('every component the surface can claim text with is covered', (
+    tester,
+  ) async {
+    await _copiedText(tester, 'plain');
+    final settings = _settings(tester);
+    final set = markdownComponentsFor(settings: settings, streaming: false);
+    final active = <Type>{
+      for (final component in [DetailsHtmlMd(), ...set.global, ...set.inline])
+        component.runtimeType,
+    };
+
+    final hit = <Type>{};
+    for (final fixture in _fixtures) {
+      // A registry is per document: it binds its placeholder nonce to the
+      // first source it rewrites, exactly as a rendered surface does.
+      final registry = MarkdownDetailsRegistry(
+        enableMath: settings.enableMathRendering,
+      );
+      MarkdownComponent.walkNodes(
+        fixture.source,
+        config: GptMarkdownConfig(
+          components: [DetailsHtmlMd(registry), ...set.global],
+          inlineComponents: set.inline,
+          preprocessBlocks: registry.rewrite,
+          streaming: false,
+        ),
+        onNode: (node, start, end, component, block) =>
+            hit.add(component.runtimeType),
+      );
+    }
+
+    expect(
+      hit,
+      containsAll(active),
+      reason:
+          'no fixture reaches: '
+          '${active.difference(hit).map((type) => type.toString())}',
+    );
+    // An empty active set would make the assertion above pass whatever the
+    // fixtures do, so the check would stop being one without ever going red.
+    expect(active, isNotEmpty);
   });
 }

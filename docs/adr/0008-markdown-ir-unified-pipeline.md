@@ -38,13 +38,20 @@ order and the size of each step, and this ADR fixes both so the work can land in
    the render sink's callback offsets stay exactly what `MdWidget`'s append parser expects. The public
    signatures and the `onSpan` contract do not change.
 2. **A text-bearing component renders from its node.** `MdSpanEmitter` (a package part file) turns the
-   inline vocabulary — text, decoration, group, bold, italic, strike, underline, inline code, link —
-   into spans, and a component's `span()` becomes `node()` plus that emitter with the component's own
-   style. The parsing disappears from `span()`, so the emphasis family, inline code, links and headings
-   each decide their text in one place. App variants that differ only in style (`EscapeAwareBoldMd`,
-   `EscapeAwareItalicMd`, `EscapeAwareHighlightedTextMd`, `LineSafeLinkMd`) shrink to an `exp` and a
-   style hook, which removes the "overrides `span`, inherits `node`" hazard structurally rather than by
-   review.
+   inline vocabulary — text, decoration, group, bold, italic, strike, underline, inline code, link and
+   the image gap — into spans, and a component's `span()` becomes `node()` plus that emitter with the
+   component's own styling. `InlineMd`'s default `span` is exactly that pair, so the emphasis family,
+   inline code, links and images declare their text once, in `node()`, and the parse leaves `span()`
+   entirely. A node the emitter does not describe is handed back to the component set
+   (`generate(element)`), which is what re-rendering that element on its own does: that is how formula
+   widgets, citation chips, HTML tags and block containers keep their own builders. The consequence is
+   an invariant, not a preference — the emitter's handled kinds and the components that render from a
+   node are the same set, because a node whose component renders itself would reach the emitter again
+   and never return. App variants that differ only in ink shrink to an `exp` plus one hook: the
+   `EscapeAware*` family and `LineSafeLinkMd` keep their pattern, `EscapeAwareBoldMd` also declares
+   `emphasisWeight`, and the emitter reads that weight from the bold component the configuration renders
+   with — the surface declares its emphasis ink where it already declares its components, and a bold
+   nested in italic takes the same ink as a top-level one.
 3. **Block components that nest block content keep delegating through the whole component set.**
    A details body, a quote's content and a list item can hold fences, tables and lists, which are
    widgets rather than spans; those components re-render their inner text through the same component set
@@ -105,17 +112,36 @@ twelve shapes with a median of +3%, inside the spread described above. That matc
 does — it removes one `config.copyWith()` and one span-rebasing closure per recursion and adds one sink
 dispatch per matched element — so no direction was expected, and none holds across shapes.
 
+Phase B, same method (run order after, before, after, before, after, after): the three after÷before
+pairs spanned 0.76–1.39 with medians of 1.01, 1.09 and 1.05, and 6, 9 and 9 of the twelve shapes landed
+above 1.00. A back-to-back pair of the *same* revision spanned 0.66–1.80 (median 1.06), which brackets
+the A/B spread, so once more the harness reports no resolvable difference. That is also what the change
+predicts: it trades one parse per inverted element (the saving) for one `MdNode` tree with a `MdRange`
+per leaf (the cost), and neither dominates a measurement whose noise floor is this high. The one shape
+that leans consistently the other way is `single` (one long paragraph, so the append fast path:
++14–29% in all three pairs) — the shape where per-element allocation would show up, and the reason
+phase C keeps the elision escape hatch rather than dropping it.
+
 ## Phases and gates
 
 - **A — one traversal. Done.** Private `_walk` with two sinks; `walkNodes` gains an optional element
   callback and forwards it into the content walks a component's `node()` starts, so the coverage
   registry can see an element nested in a list item or details body. Gate: no contract change, the
   markdown suite passes, benchmark inside the harness's spread (above).
-- **B — components emit from their node.** `MdSpanEmitter`; the inline families and the heading and
-  quote builders inverted; the unreachable `SetextHeadingMd` and `LabelValueLineMd` deleted; the
-  package table's row splitting shared between `build` and `node`; the coverage registry added; drift
-  fixtures extended per inverted component. Gate: the coverage registry is green (and provably non-
-  vacuous), benchmark within ±5%, otherwise phase C's elision is pulled in.
+- **B — components emit from their node. Done.** `MdSpanEmitter` (`md_span_emitter.dart`) plus
+  `InlineMd`'s default `span`; the seven inline `span` overrides deleted from the package
+  (`HighlightedText`, `BoldMd`, `StrikeMd`, `ItalicMd`, `ATagMd`, `ImageMd`, `UnderLineMd`), with the
+  bold component's `emphasisWeight` as the one style hook; `AtxHeadingMd` rendering its body from its
+  own node; `ModernBlockQuote` on the shared `markdownQuoteText` (widened to the tabs the app already
+  accepted, so the render and the node agree there too); the package table's row splitting shared between
+  `build` and `node`; the app's *inline* table component aligned with its global one, which closes the
+  last open drift (`**| a | b |\n| - | - |**`); `SetextHeadingMd` and `LabelValueLineMd` deleted with
+  their commented-out registration. Gate: the package's own suite (144) and the markdown suite (352)
+  pass, both analyzers are clean, and the drift file grew from 16 cases to 29 — thirteen new fixtures,
+  one per previously unexercised active component, plus the coverage registry over them. The registry was
+  shown to fail (naming `StrikeMd`) with one fixture removed and to pass again after a byte-exact
+  restore; the emphasis-ink lookup was shown the same way, by hard-coding the weight, which turns the two
+  Android weight tests red.
 - **C — the streaming path.** Streaming fixtures for unclosed constructs (fence, emphasis, inline math)
   under the streaming component set; the benchmark re-recorded; the degenerate elision only if B
   regressed.

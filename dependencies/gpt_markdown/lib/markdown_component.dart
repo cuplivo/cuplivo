@@ -81,6 +81,22 @@ abstract class MarkdownComponent {
   MdNode node(MdNodeContext ctx, String text) =>
       MdNode.text(MdRange(ctx.source, ctx.start, ctx.start + text.length));
 
+  /// The node for one matched [element], as this component's own [span] sees it.
+  ///
+  /// A component is handed the element it matched, never the document it came
+  /// from, so the element is its own source and starts at 0; the walk mode is
+  /// the one [inline] implies. A component that renders through [MdSpanEmitter]
+  /// builds its node this way instead of waiting for a walk to build it.
+  MdNode nodeOfElement(GptMarkdownConfig config, String element) => node(
+    MdNodeContext(
+      source: element,
+      start: 0,
+      includeGlobal: !inline,
+      config: config,
+    ),
+    element,
+  );
+
   /// Builds the IR for [text] with the same component rules [generate] uses.
   ///
   /// The rules live in the components, so this walk shares the grammar rather
@@ -429,12 +445,19 @@ abstract class InlineMd extends MarkdownComponent {
   @override
   bool get inline => true;
 
+  /// Renders this element from its own node, which is what keeps what the
+  /// component shows and what it reported to the IR from drifting apart.
+  ///
+  /// A component whose [node] describes something the emitter does not render
+  /// (a formula widget, a citation chip, an HTML tag) overrides this with its
+  /// own span: the emitter hands such a node back to the component set, so
+  /// rendering from the node there would never return.
   @override
   InlineSpan span(
     BuildContext context,
     String text,
     final GptMarkdownConfig config,
-  );
+  ) => MdSpanEmitter(context, config).emitNode(nodeOfElement(config, text));
 }
 
 /// Block component
@@ -772,11 +795,12 @@ class BlockQuote extends InlineMd {
 /// dropped per line, then the whole is trimmed.
 ///
 /// Shared by the rendered spans and the IR so the two cannot disagree about
-/// what a quote says.
+/// what a quote says. Leading blanks are spaces or tabs, the two a quote may
+/// be indented with.
 String markdownQuoteText(String matched) {
   final builder = StringBuffer();
   for (var each in matched.split('\n')) {
-    if (each.startsWith(RegExp(r'\ *>'))) {
+    if (each.startsWith(RegExp(r'[ \t]*>'))) {
       var subString = each.trimLeft().substring(1);
       if (subString.startsWith(' ')) {
         subString = subString.substring(1);
@@ -895,47 +919,6 @@ class HighlightedText extends InlineMd {
   RegExp get exp => RegExp(r"`(?!`)(.+?)(?<!`)`(?!`)");
 
   @override
-  InlineSpan span(
-    BuildContext context,
-    String text,
-    final GptMarkdownConfig config,
-  ) {
-    var match = exp.firstMatch(text.trim());
-    var highlightedText = match?[1] ?? "";
-
-    if (config.highlightBuilder != null) {
-      return WidgetSpan(
-        alignment: PlaceholderAlignment.middle,
-        child: config.highlightBuilder!(
-          context,
-          highlightedText,
-          config.style ?? const TextStyle(),
-        ),
-      );
-    }
-
-    var style =
-        config.style?.copyWith(
-          fontWeight: FontWeight.bold,
-          background:
-              Paint()
-                ..color = GptMarkdownTheme.of(context).highlightColor
-                ..strokeCap = StrokeCap.round
-                ..strokeJoin = StrokeJoin.round,
-        ) ??
-        TextStyle(
-          fontWeight: FontWeight.bold,
-          background:
-              Paint()
-                ..color = GptMarkdownTheme.of(context).highlightColor
-                ..strokeCap = StrokeCap.round
-                ..strokeJoin = StrokeJoin.round,
-        );
-
-    return TextSpan(text: highlightedText, style: style);
-  }
-
-  @override
   MdNode node(MdNodeContext ctx, String text) {
     final m = exp.firstMatch(text.trim());
     final inner = m?.group(1);
@@ -958,28 +941,12 @@ class BoldMd extends InlineMd {
   RegExp get exp =>
       RegExp(r"(?<!\*)\*\*(?<!\s)(.+?)(?<!\s)\*\*(?!\*)", dotAll: true);
 
-  @override
-  InlineSpan span(
-    BuildContext context,
-    String text,
-    final GptMarkdownConfig config,
-  ) {
-    var match = exp.firstMatch(text.trim());
-    var conf = config.copyWith(
-      style:
-          config.style?.copyWith(fontWeight: FontWeight.bold) ??
-          const TextStyle(fontWeight: FontWeight.bold),
-    );
-    return TextSpan(
-      children: MarkdownComponent.generate(
-        context,
-        "${match?[1]}",
-        conf,
-        false,
-      ),
-      style: conf.style,
-    );
-  }
+  /// The weight this surface draws emphasis with.
+  ///
+  /// [MdSpanEmitter] reads it from the bold component the configuration
+  /// renders with, so a theme that renders emphasis differently only has to
+  /// replace the component.
+  FontWeight get emphasisWeight => FontWeight.bold;
 
   @override
   MdNode node(MdNodeContext ctx, String text) {
@@ -1000,32 +967,6 @@ class StrikeMd extends InlineMd {
   RegExp get exp => RegExp(r"(?<!\*)\~\~(?<!\s)(.+?)(?<!\s)\~\~(?!\*)");
 
   @override
-  InlineSpan span(
-    BuildContext context,
-    String text,
-    final GptMarkdownConfig config,
-  ) {
-    var match = exp.firstMatch(text.trim());
-    var conf = config.copyWith(
-      style:
-          config.style?.copyWith(
-            decoration: TextDecoration.lineThrough,
-            decorationColor: config.style?.color,
-          ) ??
-          const TextStyle(decoration: TextDecoration.lineThrough),
-    );
-    return TextSpan(
-      children: MarkdownComponent.generate(
-        context,
-        "${match?[1]}",
-        conf,
-        false,
-      ),
-      style: conf.style,
-    );
-  }
-
-  @override
   MdNode node(MdNodeContext ctx, String text) {
     final m = exp.firstMatch(text.trim());
     final inner = m?.group(1);
@@ -1044,25 +985,6 @@ class ItalicMd extends InlineMd {
   @override
   RegExp get exp =>
       RegExp(r"(?:(?<!\*)\*(?<!\s)(.+?)(?<!\s)\*(?!\*))", dotAll: true);
-
-  @override
-  InlineSpan span(
-    BuildContext context,
-    String text,
-    final GptMarkdownConfig config,
-  ) {
-    var match = exp.firstMatch(text.trim());
-    var data = match?[1] ?? match?[2];
-    var conf = config.copyWith(
-      style: (config.style ?? const TextStyle()).copyWith(
-        fontStyle: FontStyle.italic,
-      ),
-    );
-    return TextSpan(
-      children: MarkdownComponent.generate(context, "$data", conf, false),
-      style: conf.style,
-    );
-  }
 
   @override
   MdNode node(MdNodeContext ctx, String text) {
@@ -1315,101 +1237,6 @@ class ATagMd extends InlineMd {
   RegExp get exp => RegExp(r"(?<!\!)\[.*\]\([^\s]*\)");
 
   @override
-  InlineSpan span(
-    BuildContext context,
-    String text,
-    final GptMarkdownConfig config,
-  ) {
-    final link = _parseLinkElement(text);
-    if (link == null) {
-      return const TextSpan();
-    }
-
-    final linkText = link.label;
-    final url = link.url;
-
-    var builder = config.linkBuilder;
-
-    var ending = link.ending;
-
-    var endingSpans = MarkdownComponent.generate(
-      context,
-      ending,
-      config,
-      false,
-    );
-    var theme = GptMarkdownTheme.of(context);
-
-    // Use custom builder if provided
-    WidgetSpan? child;
-    if (builder != null) {
-      // Build a styled span to hand off to the custom linkBuilder.
-      final linkStyle = (config.style ?? const TextStyle()).copyWith(
-        color: theme.linkColor,
-        decorationColor: theme.linkColor,
-        decoration: TextDecoration.underline,
-      );
-      final linkConfig = config.copyWith(style: linkStyle);
-      final linkTextSpan = TextSpan(
-        children: MarkdownComponent.generate(
-          context,
-          linkText,
-          linkConfig,
-          false,
-        ),
-        style: linkStyle,
-      );
-      child = WidgetSpan(
-        baseline: TextBaseline.alphabetic,
-        alignment: PlaceholderAlignment.baseline,
-        child: GestureDetector(
-          onTap: () => config.onLinkTap?.call(url, linkText),
-          child: builder(
-            context,
-            linkTextSpan,
-            url,
-            config.style ?? const TextStyle(),
-          ),
-        ),
-      );
-    }
-
-    // Default rendering — LinkButton rebuilds the span on every hover change
-    // so bold/italic text inside a link also picks up the hover colour.
-    child ??= WidgetSpan(
-      alignment: PlaceholderAlignment.baseline,
-      baseline: TextBaseline.alphabetic,
-      child: LinkButton(
-        hoverColor: theme.linkHoverColor,
-        color: theme.linkColor,
-        onPressed: () {
-          config.onLinkTap?.call(url, linkText);
-        },
-        text: linkText,
-        config: config,
-        spanBuilder: (color) {
-          final spanStyle = (config.style ?? const TextStyle()).copyWith(
-            color: color,
-            decorationColor: color,
-            decoration: TextDecoration.underline,
-          );
-          return TextSpan(
-            children: MarkdownComponent.generate(
-              context,
-              linkText,
-              config.copyWith(style: spanStyle),
-              false,
-            ),
-            style: spanStyle,
-          );
-        },
-      ),
-    );
-    var textSpan = TextSpan(children: [child, ...endingSpans]);
-    return textSpan;
-  }
-
-  @override
   MdNode node(MdNodeContext ctx, String text) {
     final link = _parseLinkElement(text);
     if (link == null) return MdNode.text(ctx.rangeOf(text));
@@ -1515,96 +1342,83 @@ class ImageMd extends InlineMd {
   RegExp get exp => RegExp(r"\!\[[^\[\]]*\]\([^\s]*\)");
 
   @override
-  InlineSpan span(
-    BuildContext context,
-    String text,
-    final GptMarkdownConfig config,
-  ) {
-    // First try to find the basic pattern
-    final basicMatch = RegExp(r'\!\[([^\[\]]*)\]\(').firstMatch(text.trim());
-    if (basicMatch == null) {
-      return const TextSpan();
-    }
-
-    final altText = basicMatch.group(1) ?? '';
-    final urlStart = basicMatch.end;
-
-    // Now find the balanced closing parenthesis
-    int parenCount = 0;
-    int urlEnd = urlStart;
-
-    for (int i = urlStart; i < text.length; i++) {
-      final char = text[i];
-
-      if (char == '(') {
-        parenCount++;
-      } else if (char == ')') {
-        if (parenCount == 0) {
-          // This is the closing parenthesis of the image
-          urlEnd = i;
-          break;
-        } else {
-          parenCount--;
-        }
-      }
-    }
-
-    if (urlEnd == urlStart) {
-      // No closing parenthesis found
-      return const TextSpan();
-    }
-
-    final url = text.substring(urlStart, urlEnd).trim();
-
-    double? height;
-    double? width;
-    if (altText.isNotEmpty) {
-      var size = RegExp(r"^([0-9]+)?x?([0-9]+)?").firstMatch(altText.trim());
-      width = double.tryParse(size?[1]?.toString().trim() ?? 'a');
-      height = double.tryParse(size?[2]?.toString().trim() ?? 'a');
-    }
-
-    final Widget image;
-    if (config.imageBuilder != null) {
-      image = config.imageBuilder!(context, url, width, height);
-    } else {
-      image = SizedBox(
-        width: width,
-        height: height,
-        child: Image(
-          image: NetworkImage(url),
-          loadingBuilder: (
-            BuildContext context,
-            Widget child,
-            ImageChunkEvent? loadingProgress,
-          ) {
-            if (loadingProgress == null) {
-              return child;
-            }
-            return CustomImageLoading(
-              progress:
-                  loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded /
-                          loadingProgress.expectedTotalBytes!
-                      : 1,
-            );
-          },
-          fit: BoxFit.fill,
-          errorBuilder: (context, error, stackTrace) {
-            return const CustomImageError();
-          },
-        ),
-      );
-    }
-    return WidgetSpan(alignment: PlaceholderAlignment.bottom, child: image);
-  }
-
-  @override
   MdNode node(MdNodeContext ctx, String text) =>
   // An image is a widget: it contributes no text to a selection, and it
   // re-emits whole whenever a selection spans across it.
   MdNode.gap(MdNodeKind.image, ctx.rangeOf(text));
 }
+
+/// The parts of an image element `![alt](url)`.
+final class _ImageElement {
+  const _ImageElement({
+    required this.url,
+    required this.width,
+    required this.height,
+  });
+
+  final String url;
+  final double? width;
+  final double? height;
+}
+
+/// Scans one image element, including the size `alt` spells as `WxH`.
+///
+/// The source is scanned rather than matched again, because an image target may
+/// contain balanced parentheses that a pattern would cut short.
+_ImageElement? _parseImageElement(String text) {
+  final basicMatch = RegExp(r'\!\[([^\[\]]*)\]\(').firstMatch(text.trim());
+  if (basicMatch == null) return null;
+
+  final altText = basicMatch.group(1) ?? '';
+  final urlStart = basicMatch.end;
+
+  var parenCount = 0;
+  var urlEnd = urlStart;
+  for (var i = urlStart; i < text.length; i++) {
+    final char = text[i];
+    if (char == '(') {
+      parenCount++;
+    } else if (char == ')') {
+      if (parenCount == 0) {
+        urlEnd = i;
+        break;
+      }
+      parenCount--;
+    }
+  }
+  if (urlEnd == urlStart) return null;
+
+  double? height;
+  double? width;
+  if (altText.isNotEmpty) {
+    final size = RegExp(r"^([0-9]+)?x?([0-9]+)?").firstMatch(altText.trim());
+    width = double.tryParse(size?[1]?.toString().trim() ?? 'a');
+    height = double.tryParse(size?[2]?.toString().trim() ?? 'a');
+  }
+  return _ImageElement(
+    url: text.substring(urlStart, urlEnd).trim(),
+    width: width,
+    height: height,
+  );
+}
+
+/// Splits a table into rows of cells: rows on newlines, cells on the pipes
+/// between them, empty cells dropped.
+///
+/// Shared by the rendered table and the IR node so the two cannot disagree
+/// about which cell holds which text.
+List<List<String>> _markdownTableRows(String text) =>
+    text
+        .split('\n')
+        .map(
+          (e) =>
+              e
+                  .trim()
+                  .split('|')
+                  .where((element) => element.isNotEmpty)
+                  .toList(),
+        )
+        .toList();
 
 /// Table component
 class TableMd extends BlockMd {
@@ -1618,18 +1432,7 @@ class TableMd extends BlockMd {
     final GptMarkdownConfig config,
   ) {
     final List<Map<int, String>> value =
-        text
-            .split('\n')
-            .map<Map<int, String>>(
-              (e) =>
-                  e
-                      .trim()
-                      .split('|')
-                      .where((element) => element.isNotEmpty)
-                      .toList()
-                      .asMap(),
-            )
-            .toList();
+        _markdownTableRows(text).map((row) => row.asMap()).toList();
 
     // Check if table has a header and separator row
     bool hasHeader = value.length >= 2;
@@ -1796,18 +1599,7 @@ class TableMd extends BlockMd {
   MdNode node(MdNodeContext ctx, String text) {
     // Mirror how the table is split for rendering: rows on newlines, cells on
     // unescaped pipes, the alignment row skipped, empty cells showing nothing.
-    final rows =
-        text
-            .split('\n')
-            .map(
-              (e) =>
-                  e
-                      .trim()
-                      .split('|')
-                      .where((element) => element.isNotEmpty)
-                      .toList(),
-            )
-            .toList();
+    final rows = _markdownTableRows(text);
     final hasHeader = rows.length >= 2;
     final buffer = StringBuffer();
     for (var row = 0; row < rows.length; row++) {
@@ -1857,30 +1649,6 @@ class UnderLineMd extends InlineMd {
   @override
   RegExp get exp =>
       RegExp(r"<u>(.*?)(?:</u>|$)", multiLine: true, dotAll: true);
-
-  @override
-  InlineSpan span(
-    BuildContext context,
-    String text,
-    final GptMarkdownConfig config,
-  ) {
-    var match = exp.firstMatch(text.trim());
-    var conf = config.copyWith(
-      style: (config.style ?? const TextStyle()).copyWith(
-        decoration: TextDecoration.underline,
-        decorationColor: config.style?.color,
-      ),
-    );
-    return TextSpan(
-      children: MarkdownComponent.generate(
-        context,
-        "${match?[1]}",
-        conf,
-        false,
-      ),
-      style: conf.style,
-    );
-  }
 
   @override
   MdNode node(MdNodeContext ctx, String text) {

@@ -136,9 +136,6 @@ markdownComponentsFor({
   final tableIdx = components.indexWhere((c) => c is TableMd);
   if (tableIdx != -1) components[tableIdx] = EscapeAwareTableMd();
   // Prepend custom renderers in priority order.
-  // Temporarily disable custom bold label line transformer to avoid
-  // interfering with block parsing for complex documents.
-  // components.insert(0, LabelValueLineMd());
   components.removeWhere((c) => c is CodeBlockMd);
   // Conditionally add LaTeX/math renderers
   if (settings.enableMathRendering) {
@@ -194,6 +191,13 @@ markdownComponentsFor({
   final linkIdxInline = inlineComponents.indexWhere((c) => c is ATagMd);
   if (linkIdxInline != -1) {
     inlineComponents[linkIdxInline] = LineSafeLinkMd();
+  }
+  // An inline table is a table nested in emphasis, and it is drawn by the
+  // same widget as a top-level one: its cells are reached through the table's
+  // own area, never through the text around it.
+  final tableIdxInline = inlineComponents.indexWhere((c) => c is TableMd);
+  if (tableIdxInline != -1) {
+    inlineComponents[tableIdxInline] = EscapeAwareTableMd();
   }
   // Keep escaped punctuation out of block parsing so it cannot split
   // \( ... \) math containing \{...\}; inline math is registered ahead of it.
@@ -5677,13 +5681,18 @@ class AtxHeadingMd extends BlockMd {
     final m = exp.firstMatch(text.trim());
     if (m == null) return const SizedBox.shrink();
     final hashes = m.group(1) ?? '#';
-    final raw = (m.group(2) ?? '').trim();
     final lvl = hashes.length;
     final level = lvl < 1 ? 1 : (lvl > 6 ? 6 : lvl);
 
     final innerCfg = config.copyWith(style: TextStyle());
+    // Rendered from the same nodes the IR reports, and walked the same way:
+    // a heading body is a document walk, as it is for node().
     final inner = TextSpan(
-      children: MarkdownComponent.generate(context, raw, innerCfg, true),
+      children: MdSpanEmitter(
+        context,
+        innerCfg,
+        includeGlobal: true,
+      ).emit(nodeOfElement(innerCfg, text).children),
     );
     final style = _headingTextStyle(context, config, level);
     // Slightly tighter spacing between headings and body
@@ -5783,96 +5792,6 @@ class AtxHeadingMd extends BlockMd {
   }
 }
 
-// Setext-style headings (underlines with === or ---)
-class SetextHeadingMd extends BlockMd {
-  @override
-  String get expString => (r"^(.+?)\n(=+|-+)\s*$");
-
-  @override
-  Widget build(BuildContext context, String text, GptMarkdownConfig config) {
-    final m = exp.firstMatch(text.trimRight());
-    if (m == null) return const SizedBox.shrink();
-    final title = (m.group(1) ?? '').trim();
-    final underline = (m.group(2) ?? '').trim();
-    final level = underline.startsWith('=') ? 1 : 2;
-
-    final innerCfg = config.copyWith(style: TextStyle());
-    final inner = TextSpan(
-      children: MarkdownComponent.generate(context, title, innerCfg, true),
-    );
-    final style = AtxHeadingMd()._headingTextStyle(context, config, level);
-    // Match the tighter spacing used in ATX headings
-    final top = level == 1 ? 10.0 : 9.0;
-    final bottom = 6.0;
-
-    return Padding(
-      padding: EdgeInsets.only(top: top, bottom: bottom),
-      child: DefaultTextStyle.merge(
-        // Use selection-aware renderer from config so headings can be selected/copied
-        style: style,
-        child: config.getRich(inner),
-      ),
-    );
-  }
-}
-
-// Label-value strong lines like "**作者:** 张三" should not render as heading-sized text
-class LabelValueLineMd extends InlineMd {
-  @override
-  // Treat this as an inline transform so it only affects the matched
-  // line segment and does not interfere with block parsing.
-  bool get inline => false;
-
-  @override
-  // 同时匹配两种写法：
-  // 1) **标签:** 值   （冒号在加粗内）
-  // 2) **标签**: 值   （冒号在加粗外）
-  // 支持半角/全角冒号
-  RegExp get exp =>
-      RegExp(r"(?:(?:^|\n)\*\*([^*]+?)\*\*\s*[：:]?\s+(.+)$)", multiLine: true);
-
-  @override
-  InlineSpan span(BuildContext context, String text, GptMarkdownConfig config) {
-    final match = exp.firstMatch(text);
-    if (match == null) return TextSpan(text: text, style: config.style);
-
-    // 提取并规范化标签与值
-    var rawLabel = (match.group(1) ?? '').trim();
-    final value = (match.group(2) ?? '').trim();
-    // 如果标签末尾自带冒号，去掉以避免重复
-    rawLabel = rawLabel.replaceFirst(RegExp(r"[：:]+$"), '');
-
-    final t = Theme.of(context).textTheme;
-    // 继承基础样式，确保字间距/行高一致
-    final base = (config.style ?? t.bodyMedium ?? TextStyle(fontSize: 14));
-    final labelStyle = base.copyWith(
-      fontWeight: AppFontWeights.strong,
-      color: _markdownInkColor(context),
-    );
-    final valueStyle = base.copyWith(
-      fontWeight: AppFontWeights.regular,
-      color: _markdownInkColor(context, 0.92),
-    );
-
-    // 将值部分继续按 markdown 解析，保证链接/引用等语法正常
-    final valueChildren = MarkdownComponent.generate(
-      context,
-      value,
-      config.copyWith(style: valueStyle),
-      true,
-    );
-
-    // 返回 TextSpan（而非 WidgetSpan）以保证在外层 RichText/SelectionArea 中可选择复制
-    return TextSpan(
-      children: [
-        TextSpan(text: rawLabel, style: labelStyle),
-        const TextSpan(text: '： '),
-        ...valueChildren,
-      ],
-    );
-  }
-}
-
 // Minimal block quote with a neutral rounded leading line.
 class ModernBlockQuote extends InlineMd {
   @override
@@ -5885,19 +5804,11 @@ class ModernBlockQuote extends InlineMd {
   @override
   InlineSpan span(BuildContext context, String text, GptMarkdownConfig config) {
     final match = exp.firstMatch(text);
-    final m = match?[0] ?? '';
-    final sb = StringBuffer();
-    for (final line in m.split('\n')) {
-      if (RegExp(r'^[ \t]*>').hasMatch(line)) {
-        var sub = line.trimLeft();
-        sub = sub.substring(1); // remove '>'
-        if (sub.startsWith(' ')) sub = sub.substring(1);
-        sb.writeln(sub);
-      } else {
-        sb.writeln(line);
-      }
-    }
-    final data = _unmaskBlockquoteFenceMarkers(sb.toString().trim());
+    // The body is the shared quote rule, so what is rendered and what the IR
+    // reports cannot disagree about the `>` markers.
+    final data = _unmaskBlockquoteFenceMarkers(
+      markdownQuoteText(match?[0] ?? ''),
+    );
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
@@ -6336,24 +6247,10 @@ class EscapeAwareBoldMd extends BoldMd {
   RegExp get exp =>
       RegExp(r"(?<![\\*])\*\*(?!\s)(.+?)(?<![\s\\])\*\*(?!\*)", dotAll: true);
 
+  // Emphasis renders from its IR node, so the app only declares the ink it
+  // draws with; the emitter reads this from the component set.
   @override
-  InlineSpan span(BuildContext context, String text, GptMarkdownConfig config) {
-    final match = exp.firstMatch(text.trim());
-    final conf = config.copyWith(
-      style:
-          config.style?.copyWith(fontWeight: AppFontWeights.strong) ??
-          TextStyle(fontWeight: AppFontWeights.strong),
-    );
-    return TextSpan(
-      children: MarkdownComponent.generate(
-        context,
-        '${match?[1]}',
-        conf,
-        false,
-      ),
-      style: conf.style,
-    );
-  }
+  FontWeight get emphasisWeight => AppFontWeights.strong;
 }
 
 class EscapeAwareItalicMd extends ItalicMd {

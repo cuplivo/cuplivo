@@ -877,6 +877,20 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
       );
     }
 
+    /// Whether the renderer lays out the gap after [block] itself, so a
+    /// separator would double it.
+    ///
+    /// The splitter reports which element matched into the block's blank run; a
+    /// rule is always rendered, while a display formula only claims that run
+    /// when math rendering is on — with it off those dollars are prose and the
+    /// gap is the renderer's.
+    bool absorbsSeparator(MarkdownStreamBlock block) {
+      final swallowedBy = block.swallowedBy;
+      if (swallowedBy == null) return false;
+      if (swallowedBy == MdNodeKind.math) return settings.enableMathRendering;
+      return true;
+    }
+
     final markdownWidget = useIncrementalBlocks
         ? MarkdownBlockList(
             blocks: sourceBlocks,
@@ -898,7 +912,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (previous != null && !previous.swallowsSeparator)
+                  if (previous != null && !absorbsSeparator(previous))
                     _MarkdownBlockSeparator(style: baseTextStyle),
                   _CachedMarkdownBlock(
                     source: block.text,

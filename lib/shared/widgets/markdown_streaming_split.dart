@@ -9,7 +9,7 @@ final class MarkdownStreamBlock {
     required this.start,
     required this.text,
     required this.stable,
-    this.swallowsSeparator = false,
+    this.swallowedBy,
   });
 
   final int start;
@@ -26,15 +26,18 @@ final class MarkdownStreamBlock {
   /// math).
   final bool stable;
 
-  /// Whether a whole-document render folds the blank run after this block into
-  /// the block's own last element, leaving no gap for a separator to
-  /// reproduce.
+  /// The kind of element that matched into the blank run after this block, or
+  /// null when the run is a gap the renderer lays out.
   ///
   /// A rule (`---`) and a display formula close their pattern with `\s*$`, so
   /// the match runs past the newline that ends the block and `NewLines` never
-  /// lays the run out. Every other block leaves the run behind, which is what
-  /// the widget's separator stands in for.
-  final bool swallowsSeparator;
+  /// lays the run out — the boundary is still real, but the widget must not
+  /// stand a separator in for it.
+  ///
+  /// The kind rather than a flag, because whether the element is there at all
+  /// can depend on a setting: with math rendering off a display formula's
+  /// dollars are prose, the gap is laid out, and the separator is right.
+  final MdNodeKind? swallowedBy;
 }
 
 /// One top-level element of the walked region, at the position the walk
@@ -272,6 +275,12 @@ final class MarkdownStreamingSplit {
       // the blank lines inside it belong to the construct the closer will
       // complete.
       if (_lexer.detailsDepth > 0 || mathScan.covers(run.start + 1)) continue;
+      // A blank line that carries whitespace is content to the renderers around
+      // it: a rule, a heading and a display-math block each swallow it into
+      // their own match, and plain text lays it out as a line of its own. Rather
+      // than model all of that, the whole gap stays inside one block, which
+      // renders the way the document reads.
+      if (_gapCarriesWhitespace(run)) continue;
       final contentAfter = _hasContentAfter(run.end);
       if (!contentAfter) {
         // Nothing but whitespace follows the run yet. A list waits for the line
@@ -317,7 +326,7 @@ final class MarkdownStreamingSplit {
           !_indentExempt(after)) {
         continue;
       }
-      _commit(run, absorbed: covering != null);
+      _commit(run, absorbed: covering?.kind);
     }
   }
 
@@ -395,6 +404,41 @@ final class MarkdownStreamingSplit {
     return null;
   }
 
+  /// Whether a line in the gap this run opens is blank but not empty — the
+  /// rule the old scanner kept with its `_blankRunCarriesWhitespace` flag.
+  ///
+  /// Such a line is content to the renderers around it: a rule, a heading and a
+  /// display-math block each swallow it into their own match, and plain text
+  /// lays it out as a line of its own. Rather than model all of that, the whole
+  /// gap between two content lines stays inside one block, which renders the
+  /// way the document reads.
+  ///
+  /// The walk starts on the line the run closes, so a whitespace-bearing blank
+  /// line before the run counts too, and ends at the next line with content.
+  /// Whitespace *on* a line with content — trailing spaces, indentation — is
+  /// not blank-line whitespace and does not refuse the boundary: an indented
+  /// continuation has to reach the next test as its own block.
+  bool _gapCarriesWhitespace(_BlankRun run) {
+    var i = run.start;
+    while (i > _blockStart && _source.codeUnitAt(i - 1) != 0x0A) {
+      i--;
+    }
+    var passedContent = false;
+    while (i < _source.length) {
+      var end = _source.indexOf('\n', i);
+      if (end < 0) end = _source.length;
+      final line = _source.substring(i, end);
+      if (line.trim().isNotEmpty) {
+        if (passedContent) return false;
+        passedContent = true;
+      } else if (line.isNotEmpty) {
+        return true;
+      }
+      i = end + 1;
+    }
+    return false;
+  }
+
   /// Whether anything but whitespace follows [position].
   ///
   /// This is the text-level form of "is there an element after the run": the
@@ -459,17 +503,16 @@ final class MarkdownStreamingSplit {
 
   /// Commits the block the run closes and skips the run.
   ///
-  /// [absorbed] records that the block's own last element matched into the run
-  /// — a rule or a display formula closing with `\s*$` consumed the newline
-  /// that ends the block — so a whole-document render lays out no gap there and
-  /// the widget inserts no separator.
-  void _commit(_BlankRun run, {required bool absorbed}) {
+  /// [absorbed] is the kind of element that matched into the run — a rule or a
+  /// display formula closing with `\s*$` consumed the newline that ends the
+  /// block — or null when the run stays a gap.
+  void _commit(_BlankRun run, {required MdNodeKind? absorbed}) {
     _stableBlocks.add(
       MarkdownStreamBlock(
         start: _blockStart,
         text: _source.substring(_blockStart, run.start),
         stable: true,
-        swallowsSeparator: absorbed,
+        swallowedBy: absorbed,
       ),
     );
     _blockStart = run.end;

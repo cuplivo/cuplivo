@@ -11,7 +11,7 @@ String _shape(List<MarkdownStreamBlock> blocks) => blocks
     .map(
       (block) =>
           '${block.start}:${block.text}:${block.stable}:'
-          '${block.swallowsSeparator}',
+          '${block.swallowedBy}',
     )
     .join('|');
 
@@ -681,13 +681,13 @@ void main() {
       final document = markdownStreamingSplit();
       final blocks = document.update(source);
       expect(blocks, hasLength(2), reason: source);
-      expect(blocks.first.swallowsSeparator, isTrue, reason: source);
+      expect(blocks.first.swallowedBy, isNotNull, reason: source);
       expect(blocks.last.text, 'next', reason: source);
     }
     // Every other block leaves the run behind, and the separator reproduces it.
     final plain = markdownStreamingSplit().update('a\n\nb');
     expect(plain, hasLength(2));
-    expect(plain.first.swallowsSeparator, isFalse);
+    expect(plain.first.swallowedBy, isNull);
   });
 
   test('a blank run that grows after a list waits still ends the block', () {

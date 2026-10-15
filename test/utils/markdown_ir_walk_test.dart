@@ -119,4 +119,33 @@ void main() {
   test('reports null when the selection is not in the document', () {
     expect(_document('**Hello**').emitSelectionMarkdown('absent'), isNull);
   });
+
+  test('the walk reports each element with the rule that claimed it', () {
+    const source = '- **bold** item\n\nplain';
+    final seen = <(MarkdownComponent, MdNode, int, int, bool)>[];
+    MarkdownComponent.walkNodes(
+      source,
+      config: const GptMarkdownConfig(textDirection: TextDirection.ltr),
+      onNode: (node, start, end, component, block) =>
+          seen.add((component, node, start, end, block)),
+    );
+
+    final list = seen.singleWhere((entry) => entry.$1 is UnOrderedList);
+    // The document walk's offsets are absolute in the text it was given, and
+    // the node it built addresses that same range.
+    expect(source.substring(list.$3, list.$4), '- **bold** item');
+    expect(list.$2.range!.source, source);
+    expect((list.$2.range!.start, list.$2.range!.end), (list.$3, list.$4));
+    expect(list.$5, isTrue, reason: 'a list item is a block');
+
+    // A component's node() walks the content it re-derived, so an element
+    // inside it is reported against that content rather than the document.
+    final bold = seen.singleWhere((entry) => entry.$1 is BoldMd);
+    expect('**bold** item'.substring(bold.$3, bold.$4), '**bold**');
+    expect(bold.$5, isFalse, reason: 'emphasis is inline');
+
+    // A blank run is reported too, so a consumer that needs block boundaries
+    // can read them from the walk instead of re-matching newlines.
+    expect(seen.singleWhere((entry) => entry.$1 is NewLines).$5, isTrue);
+  });
 }

@@ -57,77 +57,16 @@ abstract class MarkdownComponent {
         text = rewritten;
       }
     }
-    var components =
-        includeGlobalComponents
-            ? config.components ?? MarkdownComponent.globalComponents
-            : config.inlineComponents ?? MarkdownComponent.inlineComponents;
-    List<InlineSpan> spans = [];
-    final expressions = [for (final component in components) component.exp];
-    final patternKey =
-        expressions
-            .map(
-              (exp) =>
-                  '${exp.isMultiLine}:${exp.isDotAll}:${exp.pattern.length}:${exp.pattern}',
-            )
-            .join();
-    final patterns = _patterns.putIfAbsent(
-      patternKey,
-      () => _MarkdownPatterns(expressions),
+    final spans = <InlineSpan>[];
+    _walk(
+      text,
+      spans,
+      _MdSpanSink(context, config, onSpan),
+      config: config,
+      includeGlobal: includeGlobalComponents,
+      source: text,
+      start: 0,
     );
-    if (_patterns.length > 64) _patterns.remove(_patterns.keys.first);
-    var offset = 0;
-    text.splitMapJoin(
-      patterns.combined,
-      onMatch: (p0) {
-        String element = p0[0] ?? "";
-        final index = patterns.componentIndex(element);
-        if (index >= 0) {
-          final span = components[index].span(context, element, config);
-          spans.add(span);
-          onSpan?.call(
-            span,
-            p0.start,
-            p0.end,
-            components[index],
-            includeGlobalComponents,
-          );
-        }
-        offset = p0.end;
-        return "";
-      },
-      onNonMatch: (p0) {
-        final start = offset;
-        offset += p0.length;
-        if (p0.isEmpty) {
-          return "";
-        }
-        if (includeGlobalComponents) {
-          var newSpans = generate(
-            context,
-            p0,
-            config.copyWith(),
-            false,
-            onSpan:
-                onSpan == null
-                    ? null
-                    : (span, from, to, matched, block) => onSpan?.call(
-                      span,
-                      start + from,
-                      start + to,
-                      matched,
-                      block,
-                    ),
-          );
-          spans.addAll(newSpans);
-          return "";
-        }
-        final span = TextSpan(text: p0, style: config.style);
-        spans.add(span);
-        onSpan?.call(span, start, offset, null, false);
-        return "";
-      },
-    );
-
     return spans;
   }
 
@@ -146,14 +85,22 @@ abstract class MarkdownComponent {
   ///
   /// The rules live in the components, so this walk shares the grammar rather
   /// than restating it: a component's [exp] claims the same text here as it
-  /// does for rendering. [source] and [offset] let a recursion keep addressing
-  /// the document it started from.
+  /// does for rendering, and both entry points run the one traversal in
+  /// [_walk]. [source] and [offset] let a recursion keep addressing the
+  /// document it started from.
+  ///
+  /// [onNode] reports each element with the component that claimed it, the way
+  /// [generate] reports a span. A consumer that has to know which rule matched
+  /// — rather than what the match says — uses it. A component's own content is
+  /// walked on its own, so an element nested in a list item, quote or details
+  /// body is reported too, against the content string that walk addressed.
   static List<MdNode> walkNodes(
     String text, {
     required GptMarkdownConfig config,
     bool includeGlobal = true,
     String? source,
     int offset = 0,
+    MdNodeCallback? onNode,
   }) {
     if (includeGlobal) {
       final preprocess = config.preprocessBlocks;
@@ -162,13 +109,48 @@ abstract class MarkdownComponent {
         // Rewritten offsets belong to another source, so the IR is built for
         // the text the renderer actually consumed.
         if (rewritten != text) {
-          return walkNodes(rewritten, config: config, includeGlobal: true);
+          return walkNodes(
+            rewritten,
+            config: config,
+            includeGlobal: true,
+            onNode: onNode,
+          );
         }
       }
     }
     final root = source ?? text;
     final start = source == null ? 0 : offset;
-    var components =
+    final nodes = <MdNode>[];
+    _walk(
+      text,
+      nodes,
+      _MdNodeSink(root, config, onNode),
+      config: config,
+      includeGlobal: includeGlobal,
+      source: root,
+      start: start,
+    );
+    return nodes;
+  }
+
+  /// The one traversal both entry points run.
+  ///
+  /// It owns the grammar the components declare — the `exp` patterns, the
+  /// component set for this walk, the pattern cache and where a walk recurses —
+  /// and the offsets; [sink] owns what an element becomes. [source] is the
+  /// document the walk addresses and [start] where [text] begins in it, so a
+  /// recursion keeps naming the document it started from and every offset the
+  /// sink reports is absolute in that document.
+  static void _walk<R>(
+    String text,
+    List<R> out,
+    _MdWalkSink<R> sink, {
+    required GptMarkdownConfig config,
+    required bool includeGlobal,
+    required String source,
+    required int start,
+  }) {
+    final components =
         includeGlobal
             ? config.components ?? MarkdownComponent.globalComponents
             : config.inlineComponents ?? MarkdownComponent.inlineComponents;
@@ -185,21 +167,21 @@ abstract class MarkdownComponent {
       () => _MarkdownPatterns(expressions),
     );
     if (_patterns.length > 64) _patterns.remove(_patterns.keys.first);
-    final nodes = <MdNode>[];
     var cursor = 0;
     text.splitMapJoin(
       patterns.combined,
       onMatch: (p0) {
-        String element = p0[0] ?? "";
+        final element = p0[0] ?? "";
         final index = patterns.componentIndex(element);
         if (index >= 0) {
-          final ctx = MdNodeContext(
-            source: root,
-            start: start + p0.start,
-            includeGlobal: includeGlobal,
-            config: config,
+          sink.component(
+            out,
+            components[index],
+            element,
+            start + p0.start,
+            start + p0.end,
+            includeGlobal,
           );
-          nodes.add(components[index].node(ctx, element));
         }
         cursor = p0.end;
         return "";
@@ -207,28 +189,23 @@ abstract class MarkdownComponent {
       onNonMatch: (p0) {
         final chunkStart = start + cursor;
         cursor += p0.length;
-        if (p0.isEmpty) {
-          return "";
-        }
+        if (p0.isEmpty) return "";
         if (includeGlobal) {
-          nodes.addAll(
-            walkNodes(
-              p0,
-              config: config,
-              includeGlobal: false,
-              source: root,
-              offset: chunkStart,
-            ),
+          _walk(
+            p0,
+            out,
+            sink,
+            config: config,
+            includeGlobal: false,
+            source: source,
+            start: chunkStart,
           );
         } else {
-          nodes.add(
-            MdNode.text(MdRange(root, chunkStart, chunkStart + p0.length)),
-          );
+          sink.leaf(out, p0, chunkStart, chunkStart + p0.length);
         }
         return "";
       },
     );
-    return nodes;
   }
 
   /// The IR for a whole document, ready for selection mapping.
@@ -253,6 +230,116 @@ abstract class MarkdownComponent {
   bool get inline;
 }
 
+/// What one element of the shared traversal becomes.
+///
+/// The traversal ([MarkdownComponent._walk]) owns the grammar and the offsets;
+/// a sink decides whether an element is a span a renderer lays out or a node the
+/// IR describes. [includeGlobal] is the walk that produced the element, which is
+/// the `block` flag the element callbacks report.
+abstract interface class _MdWalkSink<R> {
+  /// The element [component] claimed, at `[start, end)` in the walk's source.
+  void component(
+    List<R> out,
+    MarkdownComponent component,
+    String element,
+    int start,
+    int end,
+    bool includeGlobal,
+  );
+
+  /// Text no component claimed, in an inline walk.
+  void leaf(List<R> out, String text, int start, int end);
+}
+
+/// The render sink: each element becomes the span its component builds.
+final class _MdSpanSink implements _MdWalkSink<InlineSpan> {
+  _MdSpanSink(this.context, this.config, this.onSpan);
+
+  final BuildContext context;
+  final GptMarkdownConfig config;
+  final void Function(
+    InlineSpan span,
+    int start,
+    int end,
+    MarkdownComponent? component,
+    bool block,
+  )?
+  onSpan;
+
+  @override
+  void component(
+    List<InlineSpan> out,
+    MarkdownComponent component,
+    String element,
+    int start,
+    int end,
+    bool includeGlobal,
+  ) {
+    final span = component.span(context, element, config);
+    out.add(span);
+    onSpan?.call(span, start, end, component, includeGlobal);
+  }
+
+  @override
+  void leaf(List<InlineSpan> out, String text, int start, int end) {
+    final span = TextSpan(text: text, style: config.style);
+    out.add(span);
+    onSpan?.call(span, start, end, null, false);
+  }
+}
+
+/// The IR sink: each element becomes the node its component describes.
+final class _MdNodeSink implements _MdWalkSink<MdNode> {
+  _MdNodeSink(this.source, this.config, this.onNode);
+
+  /// The document every node built here addresses.
+  final String source;
+  final GptMarkdownConfig config;
+  final MdNodeCallback? onNode;
+
+  @override
+  void component(
+    List<MdNode> out,
+    MarkdownComponent component,
+    String element,
+    int start,
+    int end,
+    bool includeGlobal,
+  ) {
+    final node = component.node(
+      MdNodeContext(
+        source: source,
+        start: start,
+        includeGlobal: includeGlobal,
+        config: config,
+        onNode: onNode,
+      ),
+      element,
+    );
+    out.add(node);
+    onNode?.call(node, start, end, component, includeGlobal);
+  }
+
+  @override
+  void leaf(List<MdNode> out, String text, int start, int end) =>
+      out.add(MdNode.text(MdRange(source, start, end)));
+}
+
+/// Reports one element a walk matched, with the rule that claimed it.
+///
+/// [start] and [end] address the source the walk that reported the element was
+/// given: the document, or the content string a component re-derived and walked
+/// itself. Set [block] when that walk was a document walk rather than an inline
+/// one.
+typedef MdNodeCallback =
+    void Function(
+      MdNode node,
+      int start,
+      int end,
+      MarkdownComponent component,
+      bool block,
+    );
+
 /// What a component needs to describe one matched element as an IR node.
 final class MdNodeContext {
   const MdNodeContext({
@@ -260,6 +347,7 @@ final class MdNodeContext {
     required this.start,
     required this.includeGlobal,
     required this.config,
+    this.onNode,
   });
 
   /// The document the walk is addressing.
@@ -273,6 +361,10 @@ final class MdNodeContext {
   final bool includeGlobal;
 
   final GptMarkdownConfig config;
+
+  /// The callback the walk that produced this element was given, forwarded so a
+  /// nested walk reports the elements inside a component's own content too.
+  final MdNodeCallback? onNode;
 
   /// Walks [inner] with the rule set a component's own content uses.
   ///
@@ -289,6 +381,7 @@ final class MdNodeContext {
         inner,
         config: config,
         includeGlobal: includeGlobal,
+        onNode: onNode,
       );
 
   /// The range of the element [text] that starts at [start].
@@ -844,7 +937,7 @@ class HighlightedText extends InlineMd {
 
   @override
   MdNode node(MdNodeContext ctx, String text) {
-    final m = this.exp.firstMatch(text.trim());
+    final m = exp.firstMatch(text.trim());
     final inner = m?.group(1);
     if (inner == null) return MdNode.text(ctx.rangeOf(text));
     // Inline code is rendered as plain text with a highlight style, so its
@@ -890,7 +983,7 @@ class BoldMd extends InlineMd {
 
   @override
   MdNode node(MdNodeContext ctx, String text) {
-    final m = this.exp.firstMatch(text.trim());
+    final m = exp.firstMatch(text.trim());
     final inner = m?.group(1);
     return MdNode(
       kind: MdNodeKind.bold,
@@ -934,7 +1027,7 @@ class StrikeMd extends InlineMd {
 
   @override
   MdNode node(MdNodeContext ctx, String text) {
-    final m = this.exp.firstMatch(text.trim());
+    final m = exp.firstMatch(text.trim());
     final inner = m?.group(1);
     return MdNode(
       kind: MdNodeKind.strike,
@@ -973,7 +1066,7 @@ class ItalicMd extends InlineMd {
 
   @override
   MdNode node(MdNodeContext ctx, String text) {
-    final m = this.exp.firstMatch(text.trim());
+    final m = exp.firstMatch(text.trim());
     final inner = m?.group(1) ?? m?.group(2);
     return MdNode(
       kind: MdNodeKind.italic,
@@ -1058,7 +1151,7 @@ class LatexMathMultiLine extends BlockMd {
 
   @override
   MdNode node(MdNodeContext ctx, String text) {
-    final m = this.exp.firstMatch(text.trim());
+    final m = exp.firstMatch(text.trim());
     final body = m?.group(1) ?? m?.group(2) ?? '';
     final workaround = ctx.config.latexWorkaround ?? (String tex) => tex;
     // The default rendering wraps the formula in a SelectableAdapter that
@@ -1148,7 +1241,7 @@ class LatexMath extends InlineMd {
 
   @override
   MdNode node(MdNodeContext ctx, String text) {
-    final m = this.exp.firstMatch(text.trim());
+    final m = exp.firstMatch(text.trim());
     final workaround = ctx.config.latexWorkaround ?? (String tex) => tex;
     // The widget declares this exact text through its SelectableAdapter.
     return MdNode.opaque(
@@ -1207,7 +1300,7 @@ class SourceTag extends InlineMd {
 
   @override
   MdNode node(MdNodeContext ctx, String text) {
-    final m = this.exp.firstMatch(text.trim());
+    final m = exp.firstMatch(text.trim());
     final content = m?.group(1);
     if (content == null) return MdNode.text(ctx.rangeOf(text));
     // A citation chip shows its number in its own text widget, so the source
@@ -1791,7 +1884,7 @@ class UnderLineMd extends InlineMd {
 
   @override
   MdNode node(MdNodeContext ctx, String text) {
-    final m = this.exp.firstMatch(text.trim());
+    final m = exp.firstMatch(text.trim());
     final inner = m?.group(1);
     return MdNode(
       kind: MdNodeKind.underline,

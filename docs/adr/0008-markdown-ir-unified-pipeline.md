@@ -83,8 +83,15 @@ order and the size of each step, and this ADR fixes both so the work can land in
 
 ## Baseline
 
-`flutter test test/perf/long_streaming_bench.dart`, medians in µs (p95 in parentheses). The gate for
-every phase is ±5% on the same shapes; the numbers are re-recorded in the phase commits.
+`flutter test test/perf/long_streaming_bench.dart`, medians in µs (p95 in parentheses), each figure the
+median of 25 in-process appends. The gate for every phase is that paired runs show no consistent
+regression across shapes; the numbers are re-recorded in the phase commits.
+
+The harness cannot support a percentage gate on this machine. Two runs of the same commit back to back
+differ by up to ±40% on a single shape (`single`, `lines`), and one shape can swing 100% while the
+others move 10%. A phase's change is therefore judged by interleaving runs of the two revisions — never
+by comparing one block of runs against another — and only a difference that holds across shapes is
+treated as real.
 
 | shape      | 20           | 200          | 2000         |
 | ---------- | ------------ | ------------ | ------------ |
@@ -93,11 +100,17 @@ every phase is ±5% on the same shapes; the numbers are re-recorded in the phase
 | single     | 3349 (6320)  | 6421 (8418)  | 6223 (12451) |
 | code       | 11939 (19053)| 13503 (20592)| 13270 (18031)|
 
+Phase A, measured with interleaved pairs: the ratios (phase A ÷ before) spanned 0.81–1.44 over the
+twelve shapes with a median of +3%, inside the spread described above. That matches what the change
+does — it removes one `config.copyWith()` and one span-rebasing closure per recursion and adds one sink
+dispatch per matched element — so no direction was expected, and none holds across shapes.
+
 ## Phases and gates
 
-- **A — one traversal.** Private `_walk` with two sinks; `walkNodes` gains an optional element callback
-  (the coverage registry uses it). Gate: no contract change, the markdown suite passes unmodified,
-  benchmark within ±5%.
+- **A — one traversal. Done.** Private `_walk` with two sinks; `walkNodes` gains an optional element
+  callback and forwards it into the content walks a component's `node()` starts, so the coverage
+  registry can see an element nested in a list item or details body. Gate: no contract change, the
+  markdown suite passes, benchmark inside the harness's spread (above).
 - **B — components emit from their node.** `MdSpanEmitter`; the inline families and the heading and
   quote builders inverted; the unreachable `SetextHeadingMd` and `LabelValueLineMd` deleted; the
   package table's row splitting shared between `build` and `node`; the coverage registry added; drift

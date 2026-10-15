@@ -315,18 +315,18 @@ final class _MdIndex {
 
 /// A contiguous cover of the display space.
 final class MdSelection {
-  MdSelection._(this.document, this.index, this.startOffset, this.endOffset);
+  MdSelection._(this.document, this._index, this.startOffset, this.endOffset);
 
   final MdDocument document;
-  final _MdIndex index;
+  final _MdIndex _index;
 
   /// Normalized display offsets, inclusive.
   final int startOffset;
   final int endOffset;
 
-  MdItem get firstItem => document.items[index.itemAt(startOffset)!];
+  MdItem get firstItem => document.items[_index.itemAt(startOffset)!];
 
-  MdItem get lastItem => document.items[index.itemAt(endOffset)!];
+  MdItem get lastItem => document.items[_index.itemAt(endOffset)!];
 
   /// Re-emits the covered items as Markdown, completing the markers of every
   /// node the selection cut.
@@ -335,8 +335,8 @@ final class MdSelection {
   /// text like any other, so they are covered items that emit themselves.
   String emit() {
     final items = document.items;
-    final first = index.itemAt(startOffset)!;
-    final last = index.itemAt(endOffset)!;
+    final first = _index.itemAt(startOffset)!;
+    final last = _index.itemAt(endOffset)!;
     final buffer = StringBuffer();
     var stack = <MdNode>[];
 
@@ -373,8 +373,8 @@ final class MdSelection {
   String _coveredSource(MdItem item, int itemIndex, bool isFirst, bool isLast) {
     var start = 0;
     var end = item.sourceText.length;
-    final itemStart = index.starts[itemIndex];
-    final itemEnd = index.ends[itemIndex];
+    final itemStart = _index.starts[itemIndex];
+    final itemEnd = _index.ends[itemIndex];
     if (isFirst && itemStart >= 0 && startOffset > itemStart) {
       if (!item.isOpaqueSource) {
         start = rawOffsetForNormalizedPrefix(

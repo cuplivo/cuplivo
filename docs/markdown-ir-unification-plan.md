@@ -16,6 +16,8 @@
 | `4263cfbb6` | **Phase B**：`MdSpanEmitter` + `InlineMd.span` 默认发射；包内 7 个行内 span 覆写删除；`AtxHeadingMd` 走节点；`ModernBlockQuote` 用共享 quote 规则；表行切分去重；inline 表格换 app 组件；删两个不可达组件；覆盖注册测试 + 12 个新 fixture（收口提交补齐三个共享助手，见 §3.8） | 包内自带测试 144 绿、markdown 集 352 绿、包/app analyze 零问题、format 零变更；全量 `flutter test` 8238 通过、8 失败且全部落在 `.toolbridge/known-failures.json` 台账内（toolbridge 判定 **8 known / 0 new**）；两处注入验证落地（见 §3.8） |
 | `70e203dd7` | **Phase C**：7 个流式 fixture（未闭 fence、已闭 fence、未闭强调、未闭 `$`/`$$` 公式、段落+未闭 fence、纯段落）+ 每个流式 fixture 的「`MarkdownBlockList` 已生效」断言；新微基准 `test/perf/inline_walk_bench.dart`（泵外直调 walk、报逐次中位数、可按形状/尺寸/运行标签筛选）；3 对交错 A/B + 快路径 print 探针 → 条件项**不触发**，无生产代码变更；ADR-0008 补记三处 | drift 用例 28→35 绿；markdown 集 417 绿（14 个文件）；包/app analyze 零问题；format 零变更；全量 `flutter test` 8245 通过 / 8 失败且全部落在台账内（0 new）；两处注入验证（流式旗标 → 红；删 part 文件 → 编译失败，均字节还原）；A/B 每次翻转后工作树与 HEAD blob 逐字节一致 |
 
+| `751c82289`..`6f0557935` | **Phase D**（6 提交）：切分器纯改名 → walk 派生边界（54 金标零重定基）→ 实测两个缺陷修复（run 增长、每帧重走整区）→ 删 fence parser/spanBuilder（净 −188）→ details 偏移量键 + registry 提级。§5.5 掩码判定与 §5.4 键设计见 §5 | 切分器 59 金标、markdown 集 348 绿；两处 analyze 零问题；format 零变更；新 bench `test/perf/split_cost_bench.dart`；注入证明四组（`$` 掩码、键回退、守卫、run 增长金标），新 parity 测试首跑即抓到缓存键 bug |
+
 Phase A 交付物要点（后续阶段直接依赖）：
 
 - `MarkdownComponent._walk<R>(String text, List<R> out, _MdWalkSink<R> sink, {config, includeGlobal, source, start})` —— 唯一遍历，拥有语法（`exp` 模式、组件集、pattern 缓存、递归位置）与偏移。
@@ -24,7 +26,7 @@ Phase A 交付物要点（后续阶段直接依赖）：
 - `MdNodeContext.onNode` 字段：`ctx.walk(...)` 会转发回调 → 嵌套在列表项/引用/details 体里的元素也能被 `onNode` 看到（**注册测试的前提**）。
 - 偏移语义：每次 walk 的偏移是「该次 walk 所寻址的 source」内的绝对偏移；组件 content walk 的 source 是它自己重导出的内容串（测试已固化）。
 
-**未完成**：Phase D（见 §5）。
+**未完成**：无（Phase D 已完成，见 §5.3；剩余只有 §6 的收尾）。
 
 ---
 
@@ -241,41 +243,75 @@ walk 每个 fixture 源（用 markdownComponentsFor(...) 的组件集 + DetailsH
 
 ---
 
-## 5. Phase D：块切分归入 IR
+## 5. Phase D：块切分归入 IR（已完成）
 
-### 5.1 现状与要删的东西
+### 5.1 计划条目与执行中的修正
 
-现在这套东西**镜像渲染器语法**：
-- `IncrementalMarkdownDocument`（303 行）：按物理空行切块 + fence 保护 + 列表 pending + 缩进并回 + 空白空行拒切 + CR 归一。
-- `StreamingCodeFenceParser`（~135 行，`streaming_code_fence.dart`）：独立探测整篇 fence。
-- `swallowsSeparator`/`_separatorCache`/`_swallowsTrailingBlankLine`（~80 行）：镜像 `NewLines` 间隙语义。
-- `MarkdownDisplayMathScanner`：仅在切分路径中作公式保护。
+1. **金标先行**：计划写「移植为新 API，先对旧实现跑绿」。实际做法更省事也更硬：D1 把模块**纯改名**
+   （`incremental_markdown_document.dart` → `markdown_streaming_split.dart`，零行为变更），矩阵当场对
+   旧实现绿；D2 再换实现。于是「54 条金标零重定基」成了等价性证明，而不是新测试通过了事。
+2. **边界来自遍历**，三个否决与两条谓词（§5.2 原文）基本成立，但有两处必须修正：
+   - 「pending 列表自动消解」**不成立**：`UnOrderedList`/`OrderedList` 的 exp 只 claim 单行（`[^\n]+`），
+     松散列表项之间是真的间隙。列表并回谓词是主路径而非兜底（kind 优先，`_listMarker` 兜住 `+`、`1)`、
+     任务框这类写不出的形态）。
+   - 「details 深度跟踪自动消解」**只对闭合 details 成立**：`DetailsHtmlMd` 的 pattern 要求 `</details>`，
+     未闭合的流式 details 在 walk 眼里就是普通文本，其内部空行是真间隙 → 保留 `MarkdownLineLexer` 的
+     details 深度作否决（它本来就是 details 提取共用的 `MarkdownDetailsWalker`，不是语法镜像）。
+3. **`swallowsSeparator` 没有删除，而是上移**：`---`/`$$` 以 `\s*$` 收尾会把 run 的一个换行吃进匹配，
+   边界仍然存在、只是不插分隔符。计划里「间隙判定即得」的说法只对「节点是否吞掉整个 run」成立，而
+   吞掉一个换行的那类要保留。块因此多一个 `swallowsSeparator` 字段，widget 的 `swallowsSeparator`/
+   `_separatorCache`/`_swallowsTrailingBlankLine` 及其助手整体删除。
+4. **§5.4 的键改成「绝对偏移 + 源文本」**，不用计划里写的「token 序号」。理由：序号要保证两侧分配顺序
+   一致（widget 逐块、复制侧整源、嵌套 body 由渲染方触发），而偏移量键**与遍历顺序无关** —— 三处对同一个块
+   mint 同一个 token。另：只加偏移不行（同位置被替换的块会继承旧状态，`replacing a tail resets` 会红），
+   只加文本也不行（就是这个 bug 本身），两者合起来才对。
+5. **§5.5 用注入判定**（不是论证）：关掉 `_preprocessFences` 的代码掩码后，fence 体内的 `$5` 以 `\(5\)`
+   到达代码视图 ⇒ `$` 那一半**承重，保留**；单独关掉 `<` 标签那一半后 168 个用例全绿 ⇒ **未被证明必要**，
+   保留但记录为未证明，不凭无证据删除。
 
-### 5.2 新切分器设计（`lib/shared/widgets/markdown_streaming_split.dart`，app 侧）
+### 5.2 bench 与判决（新仪器）
 
-- **边界来自遍历**：`walkNodes(global)` 顶层节点序列中，`NewLines` 间隙节点之后即候选边界。fence/details 占位/已闭合公式都是单节点 claiming，内部**天然无间隙** → 现行 fence 保护与 details 深度跟踪自动消解。
-- **带空白的空行**（`a\n \nb`）无 `\n\n+` 邻接 → 无间隙 → 不切，与现行拒切规则一致。
-- **列表/缩进并回谓词**：优先用节点 kind（前块首节点 `listItem`、后块首节点 `listItem`/缩进 `group` → 不切）；kind 粒度不足时回落现行 `_listMarker` 行级正则，并把它记为**唯一保留的行级规则**。
-- **未闭合公式守卫（唯一保留的前瞻）**：未闭合 `\[`/`$$` 内部空行会产生间隙，而 walk 在闭合前无法产出 math 节点 → 保留 `MarkdownDisplayMathScanner`，只回答「此边界之前是否存在未闭合开符」，用于否决边界。ADR 记录理由。
-- **冻结前缀**：已提交块复用**同一块对象**（`MarkdownBlockList` 靠 `identical(_previous[i], blocks[i])` 做保留）；追加只重走尾部；边界只落在换行 run 之后，保证 lookbehind（`(?<!\\)` 等）在子串与全文等价（文档化为不变式）。
-- **`swallowsSeparator`**：直接由「walk 是否在该块后产出间隙节点」得出，`_separatorCache` 删除。
-- 保留：CR 归一、`MarkdownSourceScan` 的 append 证明、`_preprocessFences`（正交，见 5.4）。
+`test/perf/split_cost_bench.dart`（新）按形状与追加类型打印 **walk 次数**与每次追加的耗时中位数，可复现到
+几个百分点；`long_streaming_bench` **不再作为本阶段门槛**：同版本重复就能差 20–30%（它的 `lines` 形状在
+105KB 是 6.8ms、在 175KB 反而 5.9ms，线性成本不可能如此），只留作整帧粗看。
 
-### 5.3 执行顺序（先立金标）
+实测抓到两个金标看不见的缺陷，都已修（D2b）：
 
-1. **金标先行**：把 `incremental_markdown_document_test.dart` 的切分用例矩阵移植为新 API 的测试（含带空白空行拒切、列表 pending、缩进并回、公式尾部保护、CR 归一、append 证明），先对**旧实现**跑绿。
-2. 实现新切分器并接线 `_MarkdownWithCodeHighlightState`；金标测试不变，红→绿即证明等价。
-3. 删除：`incremental_markdown_document.dart`、`streaming_code_fence.dart`（含 `_codeFenceParser` 与 `spanBuilder` fence 路径，walk 已原生 claim 未闭 fence）、`_swallowsTrailingBlankLine` 机制及其独占依赖、对应测试文件（已移植）。`markdownEndsWithDisplayMath` 若无剩余调用者，连 `MarkdownDisplayMathScanner` 一并评估删除。
-4. **保留**：`MarkdownLineLexer`（TTS 分段/timeline/diagram/details 提取）、`MarkdownSourceScan`、details 占位机制。
-5. 净估计：约 −550~600 行、+300 行（含测试）。
+| 症状 | 修前 | 修后 |
+| --- | --- | --- |
+| run 被留在原地后又增长（列表等下一行）→ 提交的块文本尾随换行 | `- a\n\n\n\nnext` 得 `- a\n\n` | `- a`（`_nextRun` 回退到 run 首个换行，并重判该 run） |
+| 守卫问「追加后缀是否含标点」= 英文散文每帧都成立 → 整区重走 | 175KB 上 67–110 ms/帧 | 改问区域：无 run 即无事可决 → **0.5 ms、0 walk** |
+| 松散列表（run 未决时期留在区内） | 87–164 ms/帧 | **28 µs、0 walk**（文本层先答，仅提交/缩进豁免才 walk） |
 
-### 5.4 details 按出现序键（关闭遗留项）
+一次性的成本留在台账：长段落后**首个**边界要 walk 一整区 —— 175KB 一帧 74–106 ms（之后区域变小）。
 
-同一回复里两个相同 `<details>` 目前共享展开键。改法：registry 提升为 `_MarkdownWithCodeHighlightState` 级（非 append 重建时重置），展开键用 registry 的 token 序号而非 `parsed.source` 文本；`_DetailsHtmlBlock.expansionKey` 随之更换；补「两个相同 details 独立展开/复制」测试。
+### 5.3 落地结果（提交与门槛）
 
-### 5.5 决策门（实现时判定，不预设答案）
+| commit | 内容 |
+| --- | --- |
+| `751c82289` | D1 纯改名（金标先绿） |
+| `c6fe90325` | D2 walk 派生边界；54 金标零重定基 + 4 条新金标 |
+| `8cd894e89` | D2b 修 run 增长 bug；守卫改问区域 |
+| `281f4eb0c` | D2b walk 惰性化（文本层先答）；新 bench |
+| `17e8f419f` | D3 删 fence parser/spanBuilder/wholeFence（净 −188） |
+| `6f0557935` | D4 details 偏移量键 + registry 提级 + 缓存有界 |
 
-- `_preprocessFences` 的 `<`/`$` 掩码是否因 walk 原生 claim fence 而冗余：用「fence 内含 `<` 与 `$`」的漂移 fixture 判定，冗余则删，不冗余则保留并记录原因。
+- 门槛：切分器 59 金标、markdown 集 **348** 用例、`dart analyze --fatal-infos` 两处零问题、`dart format`
+  零变更；全量 `flutter test` 见 §6。本阶段净 **+905/−761**（含测试）。
+- 注入证明（均字节还原并校 sha）：`$` 掩码 ⇒ 两条 fence 体守卫红；键改回 `parsed.source` ⇒ 漂移 fixture 红
+  （widget 那条不红——块在自己的 state 里保存展开态，直到 state 重建才会读到共享键，已如实记录）；
+  新增的 parity 测试**第一次运行就抓到真 bug**：重写缓存只按文本作键，同文本在不同偏移会返回第一个位置的
+  token（正是 §5.4 要修的重复块情形），缓存键已含 base。
+- 与计划的三处差异已写进 ADR-0008 的 D 条目（列表/details 否决、`swallowsSeparator` 上移、偏移量键）。
+
+### 5.4 明确不做
+
+- **不修 #544**（`D:\ComfyUI\` 代码跨度被吞）：#561 已把它与 ADR-0042 的「唯一代码识别引擎」一起
+  合入**被归档的 3.x 线**（`cuplivo` 分支，Sep 13 归档），本基线按 ADR-0004 重写过、不含该引擎；
+  实测该 bug 在本线仍在。窄修只需一行（闭符 lookbehind 去掉 `\`）+ 一处测试重定基，但它属于「另一条线的
+  遗产」，等用户决定后再做。
+- `<` 标签掩码半边的删除（无证据）。
+- 3b 节点消解（架构取舍，需单独立项）。
 
 ---
 
@@ -289,6 +325,7 @@ walk 每个 fixture 源（用 markdownComponentsFor(...) 的组件集 + DetailsH
 
 ## 7. 下一步动作（按序）
 
-1. Phase D（见 §5），金标必须先绿。
+1. ~~Phase D（见 §5）~~ **已完成**（§5.3 的六个提交）。
 2. 收尾（见 §6）：全量 `flutter test` 已有基线（8 个失败全部在 `.toolbridge/known-failures.json` 台账内，
    本 worktree 已放入该台账以便 toolbridge 自动分类）；`feat/direct-select-text-v4` rebase。
+3. 待用户决定：本线上是否窄修 #544（一行 + 一处测试重定基，见 §5.4）。

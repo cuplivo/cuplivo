@@ -186,12 +186,66 @@ initial frame, three fast-path appends, no further parses.
   drift file's 28 cases became 35, the markdown suite (417 cases over the fourteen markdown files), both
   analyzers and the formatter pass, and the full `flutter test` shows only the eight registered Windows
   failures.
-- **D — block splitting.** Splitter goldens ported first (whitespace-bearing blank lines, pending lists,
-  indent merging, math-tail protection, CR normalization, append proofs), then the walk-derived
-  splitter replaces `IncrementalMarkdownDocument`, `StreamingCodeFenceParser`, the fence `spanBuilder`
-  path and the trailing-separator classifier. `MarkdownLineLexer` stays: its other consumers
-  (`assistant_paragraph_splitter`, `timeline_visibility`, `diagram_exporter`, details extraction) are
-  line classifiers for other features, not renderer mirrors.
+- **D — block splitting. Done.** The goldens moved first — `incremental_markdown_document.dart` became
+  `markdown_streaming_split.dart` with no behaviour change at all, so the ported matrix (whitespace-bearing
+  blank lines, loose lists, indent merging and reopening, math pairing, CR normalization, append identity,
+  scan budgets) was green against the implementation it was written for. The walk-derived splitter then
+  replaced that implementation, and **all 54 goldens passed unchanged**: no expectation needed a new
+  baseline, which is what makes the swap an equivalence rather than a rewrite with new tests.
+
+  A boundary is now a bare `\n\n+` run the walk leaves behind. A fence, a table, a closed `<details>` and
+  a display formula claim their own element, so the runs inside them are never gaps; a `NewLines` node is
+  recognised as the run itself, so it marks a boundary rather than absorbing it; and a run an element
+  matches *into* — `---` and `$$` close with `\s*$` — keeps the boundary and drops the separator, which
+  is how the trailing-separator classifier and its `_separatorCache` went away. What the walk cannot
+  answer stays, with the reason written down: `MarkdownDisplayMathScanner` and the `MarkdownLineLexer`
+  details depth veto a run inside an unfinished formula or `<details>` (both are unfinished *prose* to the
+  walk), `_listMarker` is the last line-level rule (the list components claim one line each, so a loose
+  list's items are separate elements), and an indented continuation still merges upward while an indented
+  fence or `<details>` does not.
+
+  Measuring the splitter, not reasoning about it, found two defects the goldens could not see, and
+  `test/perf/split_cost_bench.dart` exists because of them. A run left in place — a list waiting for the
+  line after it — can gain newlines from a later append, and committing from part-way into it ended the
+  block with the newlines it is supposed to skip; the run's start is walked back now. And the guard that
+  decided whether to walk asked about the appended suffix, which is every space and punctuation mark, so
+  every frame of English prose re-walked the whole region: 67–110 ms per append on 175 KB. Asking the
+  region instead — a boundary is only ever a run, so a region without one has nothing to decide — and
+  walking only for the two questions the text cannot answer (is the run inside a claim, did that claim
+  match into it) cut the punctuation append to 0.5 ms and a loose list from 87–164 ms to 28 µs. The
+  inverse is recorded too: the first boundary after a long paragraph is one frame of 74–106 ms for a
+  175 KB region.
+
+  The fence fast path went with it. `StreamingCodeFenceParser` re-detected what the walk claims, and the
+  walk claims an unclosed fence, so the block reaches the renderer as it stands; the parser, the fence
+  `spanBuilder`, `wholeFence` and their test are gone (−188 net). The whitespace contract they pinned is
+  unchanged and measured, not assumed: `'```text\nx \n\n'` still shows `x` while the fence is open and
+  `'```text\nx \n\n```'` still shows `x `.
+
+  §5.5 was answered by injection: the preprocessor's code masking is **not** redundant now that the walk
+  claims fences. Disabled, a fence body's `$5` reaches the code view as `\(5\)` — the math pass runs on
+  that text regardless — so the mask stays with its reason recorded where it happens. Its tag half is
+  unproven rather than proven: disabling it leaves every markdown test green, so it is kept and recorded
+  as such instead of removed on no evidence. Two widget guards (a closed and an unclosed fence body with
+  `$` and `<b>`, read from the code view's own text) and the matching drift fixtures fail with the mask
+  disabled, which is what makes that answer mean anything.
+
+  §5.4 landed with it: a `<details>` block is keyed by where it starts in the document together with its
+  text, so two identical blocks keep their own state and a block that replaced another at the same offset
+  starts collapsed. Offsets rather than an ordinal, because that makes the key independent of traversal —
+  the surface rewrites block by block, the copy mapping rewrites the whole source, a nested body is
+  rewritten by whoever renders its parent, and all three mint the same token for the same block. The
+  registry moved from per-block to per-surface and its rewrite cache is bounded; the parity test that
+  compares the two traversals caught a real bug on its first run (a cache keyed by text alone returned
+  the first place's token to the second place, which is exactly the duplicate case §5.4 is about).
+
+  `MarkdownLineLexer` stays: its other consumers (`assistant_paragraph_splitter`, `timeline_visibility`,
+  `diagram_exporter`, details extraction) are line classifiers for other features, not renderer mirrors.
+  Gate: the splitter's 59 goldens, the markdown suite (348 cases), both analyzers and the formatter pass;
+  the phase's net is +905/−761 including tests. The performance gate for the rest of the work is
+  `split_cost_bench` — `long_streaming_bench` cannot resolve a gap: the same revision differs by 20–30%
+  run to run (its `lines` shape measured 6.8 ms at 105 KB and 5.9 ms at 175 KB, which is not a linear
+  cost), so it is kept for a coarse whole-frame look and not as a threshold.
 
 ## Consequences
 
@@ -200,8 +254,8 @@ initial frame, three fast-path appends, no further parses.
   overrides is the *parse*. The invariant is "a component whose rendering changes structure declares its
   own node", and the registry makes an omission fail a test rather than a review.
 - Deleted by the end: the second traversal (~90 lines), the parsing halves of the inverted components,
-  `IncrementalMarkdownDocument` (303), `StreamingCodeFenceParser` (~135), the fence span path and the
-  trailing-separator classifier (~120), and two unreachable components.
+  `IncrementalMarkdownDocument` (303) and its line scanner, `StreamingCodeFenceParser` (134) with the
+  fence span path, the trailing-separator classifier (~120), and two unreachable components.
 - The details placeholder rewrite stays. It has a measured history (nonce minting, sibling-fragment
   aliasing) and decision 1 of ADR-0007 still holds: the placeholder keeps a rewritten offset space out
   of the walk. Decision 8 changes keys, not the mechanism.

@@ -63,6 +63,15 @@ const List<_DriftFixture> _fixtures = [
   // body reaches the code view verbatim. Removing the fence fast path did not
   // make that masking redundant: with it disabled the body's dollars come back
   // as LaTeX.
+  // Two blocks with identical text: each keeps its own expansion state, so the
+  // document measured with the first one open has to be the one copied.
+  _DriftFixture(
+    'two identical details, the first opened',
+    '<details><summary>More</summary>body</details>\n\n'
+        '<details><summary>More</summary>body</details>',
+    expand: 'More',
+    tracksExpansion: true,
+  ),
   _DriftFixture(
     'fence body holding dollars and tags',
     '```text\nprice \$5 and <b>bold</b> and \$x\$\n```',
@@ -193,7 +202,9 @@ Future<String> _copiedText(
     expect(find.byType(MarkdownBlockList), findsOneWidget);
   }
   if (expand != null) {
-    await tester.tap(find.text(expand));
+    // The first match: a document may hold two identical blocks, and then only
+    // one of them is being opened.
+    await tester.tap(find.text(expand).first);
     await tester.pumpAndSettle();
   }
   final region = tester.state<SelectableRegionState>(

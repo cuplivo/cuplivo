@@ -348,12 +348,17 @@ final class MarkdownDetailsBlock {
     required this.attrs,
     required this.summary,
     required this.body,
+    required this.bodyOffset,
     required this.source,
   });
 
   final String attrs;
   final String summary;
   final String body;
+
+  /// Where [body] starts inside [source], so a rewrite of the body can name the
+  /// offsets its own blocks sit at.
+  final int bodyOffset;
 
   /// The block's own markdown, from `<details>` through `</details>`.
   ///
@@ -423,6 +428,8 @@ MarkdownDetailsBlock? markdownParseDetails(
     attrs: capture.attrs,
     summary: slice.substring(capture.summaryStart, capture.summaryEnd),
     body: slice.substring(capture.bodyStart, capture.bodyEnd),
+    // The slice starts the source, so an offset in the slice is one in it.
+    bodyOffset: capture.bodyStart,
     source: slice.substring(0, end),
   );
 }
@@ -433,11 +440,14 @@ String _detailsOpenAttrs(String tag) {
 }
 
 final class MarkdownDetailsSegment {
-  const MarkdownDetailsSegment.prose(this.text) : details = null;
-  const MarkdownDetailsSegment.details(this.details) : text = '';
+  const MarkdownDetailsSegment.prose(this.text, this.start) : details = null;
+  const MarkdownDetailsSegment.details(this.details, this.start) : text = '';
 
   final String text;
   final MarkdownDetailsBlock? details;
+
+  /// Where this segment starts in the text that was walked.
+  final int start;
 }
 
 /// Top-level details blocks, in source order.
@@ -507,10 +517,13 @@ List<MarkdownDetailsSegment> markdownExtractTopLevelDetails(
         if (parsed != null) {
           if (topStart > cursor) {
             segments.add(
-              MarkdownDetailsSegment.prose(text.substring(cursor, topStart)),
+              MarkdownDetailsSegment.prose(
+                text.substring(cursor, topStart),
+                cursor,
+              ),
             );
           }
-          segments.add(MarkdownDetailsSegment.details(parsed));
+          segments.add(MarkdownDetailsSegment.details(parsed, topStart));
           cursor = boundary;
         }
       }
@@ -520,9 +533,9 @@ List<MarkdownDetailsSegment> markdownExtractTopLevelDetails(
     i = _skipLogicalLineBreak(text, lineEnd, text.length);
   }
   if (cursor < text.length) {
-    segments.add(MarkdownDetailsSegment.prose(text.substring(cursor)));
+    segments.add(MarkdownDetailsSegment.prose(text.substring(cursor), cursor));
   } else if (segments.isEmpty) {
-    segments.add(MarkdownDetailsSegment.prose(text));
+    segments.add(MarkdownDetailsSegment.prose(text, 0));
   }
   return segments;
 }
@@ -554,11 +567,34 @@ final class MarkdownDetailsRegistry {
 
   final bool enableMath;
   final Map<String, MarkdownDetailsBlock> _blocks = {};
+
+  /// The expansion key of each token this registry issued.
+  final Map<String, String> _keys = {};
+
+  /// Rewritten text, bounded: a streaming tail is rewritten again as it grows,
+  /// and only the current text is worth keeping. Dropping an entry costs a
+  /// re-extraction, never a different token, because a token is derived from
+  /// where the block sits rather than from when it was seen.
   final Map<String, String> _rewritten = {};
+  static const int _rewriteCacheLimit = 32;
+
   String? _nonce;
-  int _nextId = 0;
 
   bool get hasIssuedPlaceholders => _blocks.isNotEmpty;
+
+  /// How many rewritten texts are cached. Bounded on purpose; see [_rewritten].
+  int get debugRewrittenCount => _rewritten.length;
+
+  /// Forgets every block, key and cached rewrite. A surface calls this when the
+  /// text it renders is replaced rather than appended to, so a new document's
+  /// blocks cannot be mistaken for the ones it replaced.
+  void reset() {
+    _blocks.clear();
+    _keys.clear();
+    _rewritten.clear();
+    _nonce = null;
+    _rootSource = null;
+  }
 
   String? _rootSource;
 
@@ -575,7 +611,13 @@ final class MarkdownDetailsRegistry {
     return '\uE010${RegExp.escape(nonce)}:[0-9]+\uE011';
   }
 
-  String rewrite(String text) {
+  /// [base] is where [text] starts in the document the surface is rendering.
+  ///
+  /// A token names the block's offset in that document, so a surface that
+  /// rewrites block by block and one that rewrites the whole source mint the
+  /// same token for the same block — and a block keeps it while the text around
+  /// it grows.
+  String rewrite(String text, {int base = 0}) {
     if (!text.contains('<') || !MarkdownDetailsWalker.open.hasMatch(text)) {
       // A nested fragment cannot introduce a tag absent from its parent.
       // Still reserve literal tokens from a root without details, so later
@@ -583,28 +625,61 @@ final class MarkdownDetailsRegistry {
       if (_rootSource == null && text.contains('\uE010')) _bindRoot(text);
       return text;
     }
-    return _rewritten.putIfAbsent(text, () {
-      _bindRoot(text);
-      final segments = markdownExtractTopLevelDetails(
-        text,
-        enableMath: enableMath,
-      );
-      if (segments.length == 1 && segments.first.details == null) {
-        return text;
+    // The offset a token names is part of the result, so two blocks with the
+    // same text at different places must not share a cache entry.
+    final cacheKey = '$base\u0000$text';
+    final cached = _rewritten[cacheKey];
+    if (cached != null) return cached;
+    _bindRoot(text);
+    final segments = markdownExtractTopLevelDetails(
+      text,
+      enableMath: enableMath,
+    );
+    if (segments.length == 1 && segments.first.details == null) return text;
+    final out = StringBuffer();
+    for (final segment in segments) {
+      final details = segment.details;
+      if (details == null) {
+        out.write(segment.text);
+        continue;
       }
-      final out = StringBuffer();
-      for (final segment in segments) {
-        final details = segment.details;
-        if (details == null) {
-          out.write(segment.text);
-          continue;
-        }
-        final token = '\uE010$_nonce:${_nextId++}\uE011';
-        _blocks[token] = details;
-        out.write(token);
-      }
-      return out.toString();
-    });
+      final offset = base + segment.start;
+      final token = '\uE010$_nonce:$offset\uE011';
+      _blocks[token] = details;
+      _keys[token] = _expansionKey(offset, details.source);
+      out.write(token);
+    }
+    final rewritten = out.toString();
+    _rewritten[cacheKey] = rewritten;
+    while (_rewritten.length > _rewriteCacheLimit) {
+      _rewritten.remove(_rewritten.keys.first);
+    }
+    return rewritten;
+  }
+
+  /// What a block's expansion state is recorded under.
+  ///
+  /// The offset tells two blocks with identical text apart, and holds while the
+  /// text around a block grows; the text itself keeps a block that replaced
+  /// another at the same offset from inheriting the state it replaced.
+  static String _expansionKey(int offset, String source) =>
+      '$offset\u0000$source';
+
+  /// The expansion key of the block a token names, or null when [text] is not a
+  /// token this registry issued.
+  String? expansionKeyFor(String text) {
+    final match = _issuedToken.firstMatch(text.trim());
+    if (match == null) return null;
+    return _keys[match.group(0)!];
+  }
+
+  /// Where the block a token names starts in the document, or null when [text]
+  /// is not a token this registry issued. A nested rewrite needs it to keep its
+  /// own offsets absolute.
+  int? offsetOf(String text) {
+    final match = _issuedToken.firstMatch(text.trim());
+    if (match == null) return null;
+    return int.tryParse(match.group(1)!);
   }
 
   MarkdownDetailsBlock? lookup(String text) {
@@ -648,7 +723,7 @@ final class MarkdownDetailsRegistry {
   }
 
   RegExp get _issuedToken =>
-      RegExp('\uE010${RegExp.escape(_nonce ?? '')}:[0-9]+\uE011');
+      RegExp('\uE010${RegExp.escape(_nonce ?? '')}:([0-9]+)\uE011');
 }
 
 enum _DetailsRegion { afterOpen, inSummary, inBody }

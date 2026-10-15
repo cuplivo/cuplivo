@@ -12,6 +12,8 @@ String _unmatchedBacktickRuns({int maxRun = 200}) {
 }
 
 void main() {
+  _registryTests();
+
   tearDown(debugDisableMarkdownScanVisits);
 
   test('unclosed inline code does not hide a later display-math closer', () {
@@ -629,6 +631,63 @@ List<(int, int)> _rendererSpans(String text) {
     for (final match in LatexBlockScrollableMd().exp.allMatches(text))
       (_skipWsStart(text, match.start, match.end), _trimWsEnd(text, match.end)),
   ];
+}
+
+/// Every token a rewritten text carries, in order.
+List<String> _tokens(String rewritten) => RegExp(
+  '\uE010[^\uE011]*\uE011',
+).allMatches(rewritten).map((match) => match.group(0)!).toList();
+
+void _registryTests() {
+  const block = '<details><summary>a</summary>body</details>';
+  const source = 'text\n\ntail\n\nmore';
+
+  test('a details key follows the block, not the way the text was split', () {
+    // One pass over a whole document.
+    final whole = MarkdownDetailsRegistry();
+    final wholeSource = 'text\n\n$block\n\ntail\n\n$block\n\nmore';
+    final wholeKeys = [
+      for (final token in _tokens(whole.rewrite(wholeSource)))
+        whole.expansionKeyFor(token),
+    ];
+
+    // The same document rewritten block by block, the way a surface does, with
+    // each block's offset in the document.
+    final perBlock = MarkdownDetailsRegistry();
+    final blockKeys = <String?>[];
+    var base = 0;
+    for (final text in <String>['text', block, 'tail', block, 'more']) {
+      for (final token in _tokens(perBlock.rewrite(text, base: base))) {
+        blockKeys.add(perBlock.expansionKeyFor(token));
+      }
+      base += text.length + 2; // the blank run between blocks
+    }
+
+    // Both sides name the same blocks, and identical text is still two blocks.
+    expect(wholeSource.length, base - 2, reason: source);
+    expect(blockKeys, wholeKeys);
+    expect(wholeKeys.toSet(), hasLength(2));
+  });
+
+  test('a block keeps its key while the text around it grows', () {
+    final registry = MarkdownDetailsRegistry();
+    final grown = 'text\n\n$block';
+    final grownMore = 'text\n\n$block\n\nmore';
+    final first = _tokens(registry.rewrite(grown)).single;
+    final second = _tokens(registry.rewrite(grownMore)).single;
+    expect(second, first);
+    expect(registry.expansionKeyFor(second), registry.expansionKeyFor(first));
+  });
+
+  test('the rewrite cache stays bounded while a tail grows', () {
+    final registry = MarkdownDetailsRegistry();
+    var text = '';
+    for (var i = 0; i < 80; i++) {
+      text = '${text}line $i\n\n$block';
+      registry.rewrite(text);
+    }
+    expect(registry.debugRewrittenCount, lessThanOrEqualTo(32));
+  });
 }
 
 bool _scanEnds(String text) => markdownEndsWithDisplayMath(text, text.length);

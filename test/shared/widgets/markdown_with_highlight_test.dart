@@ -5425,6 +5425,30 @@ Fenced code body
     },
   );
 
+  testWidgets('two identical details blocks expand independently', (
+    tester,
+  ) async {
+    const block = '<details><summary>s</summary>\n\nhidden\n</details>';
+    await tester.pumpWidget(_markdownHarness('$block\n\n$block'));
+    await tester.pump();
+
+    expect(find.text('s'), findsNWidgets(2));
+    expect(find.textContaining('hidden', findRichText: true), findsNothing);
+
+    await tester.tap(find.text('s').first);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('hidden', findRichText: true), findsOneWidget);
+
+    // The second block is its own: opening the first left it collapsed.
+    await tester.tap(find.text('s').last);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('hidden', findRichText: true), findsNWidgets(2));
+
+    await tester.tap(find.text('s').first);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('hidden', findRichText: true), findsOneWidget);
+  });
+
   testWidgets('appending to the same tail keeps an expanded details open', (
     tester,
   ) async {

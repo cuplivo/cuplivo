@@ -333,6 +333,14 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
       markdownStreamingSplit();
   late final MarkdownDetailsExpansion _detailsExpansion =
       widget.detailsExpansion ?? MarkdownDetailsExpansion();
+
+  /// One registry per surface, not one per block: a `<details>` block's
+  /// expansion state is keyed by where the block sits and by its text, and the
+  /// token that carries it has to survive every rebuild and append a streaming
+  /// reply goes through. Reset when the document is replaced rather than
+  /// appended to, rebuilt when the math flag it reads changes.
+  MarkdownDetailsRegistry? _detailsRegistry;
+  bool? _detailsRegistryMath;
   String? _liveBlockSource;
   String? _liveBlockNormalized;
   (bool, bool)? _liveBlockOptions;
@@ -348,6 +356,21 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
         maxBytes: 4 << 20,
         sizeOf: (key, value) => (key.length + value.length) * 2,
       );
+
+  /// The registry a rendering pass rewrites details with. See [_detailsRegistry].
+  MarkdownDetailsRegistry _detailsRegistryFor(SettingsProvider settings) {
+    final existing = _detailsRegistry;
+    if (existing != null &&
+        _detailsRegistryMath == settings.enableMathRendering) {
+      return existing;
+    }
+    final registry = MarkdownDetailsRegistry(
+      enableMath: settings.enableMathRendering,
+    );
+    _detailsRegistry = registry;
+    _detailsRegistryMath = settings.enableMathRendering;
+    return registry;
+  }
 
   @override
   void initState() {
@@ -493,6 +516,11 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
           color: inkColor,
         );
 
+    final detailsRegistry = _detailsRegistryFor(settings);
+    // A document that was replaced rather than appended to starts its blocks
+    // over, so no block can be mistaken for the one it replaced.
+    if (!sourceAppended) detailsRegistry.reset();
+
     // Replace default components and add our own where needed
     final set = markdownComponentsFor(
       enableMathRendering: settings.enableMathRendering,
@@ -529,10 +557,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
     final themeSignature =
         '${Theme.of(context).brightness.index}-${cs.surface.toARGB32()}-${inkColor.toARGB32()}-${cs.primary.toARGB32()}-${cs.outlineVariant.toARGB32()}-${settings.enableMathRendering}-${settings.enableDollarLatex}-${widget.streaming}-${baseTextStyle?.fontSize}-${baseTextStyle?.height}-${baseTextStyle?.letterSpacing}-${baseTextStyle?.fontFamily}-$codeFontFamily-$appFontFamily-$documentRevision';
 
-    Widget buildMarkdown(String markdown, Key key) {
-      final detailsRegistry = MarkdownDetailsRegistry(
-        enableMath: settings.enableMathRendering,
-      );
+    Widget buildMarkdown(String markdown, Key key, {int base = 0}) {
       return GptMarkdown(
         key: key,
         markdown,
@@ -541,7 +566,11 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
         // Disable built-in $...$ LaTeX so our custom scrollable handlers take over
         useDollarSignsForLatex: false,
         onLinkTap: (url, title) => _handleLinkTap(context, url),
-        preprocessBlocks: _sourceScan.hasHtml ? detailsRegistry.rewrite : null,
+        // The block's own offset, so a token names the block's place in the
+        // document rather than its place in this fragment.
+        preprocessBlocks: _sourceScan.hasHtml
+            ? (text) => detailsRegistry.rewrite(text, base: base)
+            : null,
         newlinesNormalized: !_sourceScan.hasCarriageReturns,
         generation: themeSignature,
         textBuilder: (text) =>
@@ -876,7 +905,8 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
                     content: content,
                     signature: themeSignature,
                     appendOnly: sourceAppended,
-                    builder: (markdown, key) => buildMarkdown(markdown, key),
+                    builder: (markdown, key) =>
+                        buildMarkdown(markdown, key, base: block.start),
                   ),
                 ],
               );
@@ -6242,12 +6272,32 @@ class DetailsHtmlMd extends BlockMd {
     final body = parsed.body.trim();
     return _DetailsHtmlBlock(
       summary: _plainHtmlText(parsed.summary).trim(),
-      body: registry?.rewrite(body) ?? body,
+      body: _rewriteBody(body, parsed, text),
       initiallyExpanded: parsed.initiallyExpanded,
       config: config,
       expansion: expansion,
-      expansionKey: parsed.source,
+      expansionKey: expansionKeyOf(parsed, text),
     );
+  }
+
+  /// The key this block's expansion state is recorded under.
+  ///
+  /// The registry keys a block by where it sits in the document together with
+  /// its own text, so two identical blocks keep their own state, a block keeps
+  /// its state while the tail it sits in grows, and a block that replaced
+  /// another at the same offset starts collapsed instead of inheriting. With no
+  /// registry the block's text is all there is to key on.
+  String expansionKeyOf(MarkdownDetailsBlock parsed, String text) =>
+      registry?.expansionKeyFor(text) ?? parsed.source;
+
+  /// The body with its own blocks tokenized, at offsets that stay absolute in
+  /// the document: a nested block's key must not depend on where the surface
+  /// happened to start the text it rewrote.
+  String _rewriteBody(String body, MarkdownDetailsBlock parsed, String text) {
+    final registry = this.registry;
+    if (registry == null || body.isEmpty) return body;
+    final offset = registry.offsetOf(text);
+    return registry.rewrite(body, base: (offset ?? 0) + parsed.bodyOffset);
   }
 
   static String _plainHtmlText(String input) {
@@ -6265,13 +6315,15 @@ class DetailsHtmlMd extends BlockMd {
     // the block is open, and then it is selectable like any other text. The
     // record decides, and a block with no recorded state follows its own
     // `open` attribute.
-    final open = expansion?.stateOf(parsed.source) ?? parsed.initiallyExpanded;
+    final open =
+        expansion?.stateOf(expansionKeyOf(parsed, text)) ??
+        parsed.initiallyExpanded;
     final body = parsed.body.trim();
     return MdNode.opaque(
       MdNodeKind.details,
       MdRange(parsed.source, 0, parsed.source.length),
       '${_plainHtmlText(parsed.summary).trim()}'
-      '${open && body.isNotEmpty ? mdDisplayOf(ctx.walk(registry?.rewrite(body) ?? body, includeGlobal: true)) : ''}',
+      '${open && body.isNotEmpty ? mdDisplayOf(ctx.walk(_rewriteBody(body, parsed, text), includeGlobal: true)) : ''}',
     );
   }
 }

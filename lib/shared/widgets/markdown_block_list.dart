@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
-import 'incremental_markdown_document.dart';
+import 'markdown_streaming_split.dart';
 import 'export_capture_scope.dart';
 
 /// Retains completed Markdown subtrees. An append rebuilds and lays out only
@@ -18,7 +18,7 @@ class MarkdownBlockList extends StatefulWidget {
     required this.itemBuilder,
   });
 
-  final List<IncrementalMarkdownBlock> blocks;
+  final List<MarkdownStreamBlock> blocks;
   final Object signature;
   final IndexedWidgetBuilder itemBuilder;
 
@@ -28,7 +28,7 @@ class MarkdownBlockList extends StatefulWidget {
 
 class _MarkdownBlockListState extends State<MarkdownBlockList> {
   final _root = _BlockForest();
-  List<IncrementalMarkdownBlock> _previous = const [];
+  List<MarkdownStreamBlock> _previous = const [];
   Object? _signature;
 
   @override

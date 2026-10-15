@@ -42,7 +42,7 @@ import '../../core/services/workspace/file_link_resolver.dart';
 import '../../features/workspace/workspace_file_navigation.dart';
 import 'package:Cuplivo/desktop/html_preview_dialog.dart';
 import '../cache/byte_lru_cache.dart';
-import 'incremental_markdown_document.dart';
+import 'markdown_streaming_split.dart';
 import 'markdown_block_list.dart';
 import 'streaming_rich_text.dart';
 import 'streaming_code_fence.dart';
@@ -295,8 +295,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
 
   late String _renderText;
   Timer? _renderDebounce;
-  final IncrementalMarkdownDocument _incrementalDocument =
-      IncrementalMarkdownDocument();
+  final MarkdownStreamingSplit _incrementalDocument = MarkdownStreamingSplit();
   late final MarkdownDetailsExpansion _detailsExpansion =
       widget.detailsExpansion ?? MarkdownDetailsExpansion();
   final _codeFenceParser = StreamingCodeFenceParser();
@@ -443,7 +442,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
                 ? _metadataAppended
                 : null,
           )
-        : const <IncrementalMarkdownBlock>[];
+        : const <MarkdownStreamBlock>[];
     _previousBlockSourceUnchanged =
         useIncrementalBlocks && blockSourceUnchanged;
     final sourceAppended = _incrementalDocument.lastUpdateAppended;
@@ -845,7 +844,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
       );
     }
 
-    bool swallowsSeparator(IncrementalMarkdownBlock block) {
+    bool swallowsSeparator(MarkdownStreamBlock block) {
       final cached = _separatorCache[block];
       if (cached != null &&
           cached.$1 == settings.enableMathRendering &&

@@ -1,8 +1,8 @@
 import 'markdown_line_lexer.dart';
 
 /// A source block in an append-only streaming Markdown document.
-final class IncrementalMarkdownBlock {
-  const IncrementalMarkdownBlock({
+final class MarkdownStreamBlock {
+  const MarkdownStreamBlock({
     required this.start,
     required this.text,
     required this.stable,
@@ -24,7 +24,7 @@ final class IncrementalMarkdownBlock {
 
 /// Splits streaming Markdown at safe blank-line boundaries and only rescans
 /// the last (possibly incomplete) block when content is appended.
-final class IncrementalMarkdownDocument {
+final class MarkdownStreamingSplit {
   static final _listMarker = RegExp(
     r'^(?:[*+-](?:\s+\[[ xX]\])?|\d{1,9}[.)])(?:\s|$)',
   );
@@ -32,8 +32,8 @@ final class IncrementalMarkdownDocument {
   String _rawSource = '';
   String _source = '';
   bool _rawEndsWithCR = false;
-  List<IncrementalMarkdownBlock> _blocks = const [];
-  final List<IncrementalMarkdownBlock> _stableBlocks = [];
+  List<MarkdownStreamBlock> _blocks = const [];
+  final List<MarkdownStreamBlock> _stableBlocks = [];
   final MarkdownLineLexer _lexer = MarkdownLineLexer();
   final MarkdownDisplayMathScanner _mathScanner = MarkdownDisplayMathScanner();
   int _rescannedCodeUnits = 0;
@@ -45,7 +45,7 @@ final class IncrementalMarkdownDocument {
   int? _pendingListContentEnd;
   bool _blankRunCarriesWhitespace = false;
 
-  List<IncrementalMarkdownBlock> get blocks => _blocks;
+  List<MarkdownStreamBlock> get blocks => _blocks;
   int get rescannedCodeUnits => _rescannedCodeUnits;
 
   /// The last source retained its previous prefix. Blocks at the same start
@@ -58,7 +58,7 @@ final class IncrementalMarkdownDocument {
 
   /// [appendOnly] may be supplied when the owner already compared this exact
   /// source with the preceding update. Omit it for independently rewritten text.
-  List<IncrementalMarkdownBlock> update(String source, {bool? appendOnly}) {
+  List<MarkdownStreamBlock> update(String source, {bool? appendOnly}) {
     if (source == _rawSource) {
       _lastUpdateAppended = true;
       return _blocks;
@@ -92,7 +92,7 @@ final class IncrementalMarkdownDocument {
     _rawEndsWithCR =
         source.isNotEmpty && source.codeUnitAt(source.length - 1) == 0x0D;
     _scanCompletedLines();
-    _blocks = List<IncrementalMarkdownBlock>.unmodifiable(_visibleBlocks());
+    _blocks = List<MarkdownStreamBlock>.unmodifiable(_visibleBlocks());
     return _blocks;
   }
 
@@ -132,14 +132,14 @@ final class IncrementalMarkdownDocument {
   /// A real indented tail re-parses the last committed block on each token
   /// of that one unfinished line. That is the cost of keeping indent as
   /// syntax; the alternative is a layout jump when the line completes.
-  List<IncrementalMarkdownBlock> _visibleBlocks() {
+  List<MarkdownStreamBlock> _visibleBlocks() {
     final tailText = _source.substring(_blockStart);
     if (tailText.trim().isEmpty) return List.of(_stableBlocks);
     if (_stableBlocks.isNotEmpty && _startsWithIndent(tailText)) {
       final last = _stableBlocks.last;
       return [
         ..._stableBlocks.sublist(0, _stableBlocks.length - 1),
-        IncrementalMarkdownBlock(
+        MarkdownStreamBlock(
           start: last.start,
           text: _source.substring(last.start),
           stable: false,
@@ -148,11 +148,7 @@ final class IncrementalMarkdownDocument {
     }
     return [
       ..._stableBlocks,
-      IncrementalMarkdownBlock(
-        start: _blockStart,
-        text: tailText,
-        stable: false,
-      ),
+      MarkdownStreamBlock(start: _blockStart, text: tailText, stable: false),
     ];
   }
 
@@ -223,7 +219,7 @@ final class IncrementalMarkdownDocument {
   void _emitStableBlock(int contentEnd, int nextStart) {
     if (contentEnd > _blockStart) {
       _stableBlocks.add(
-        IncrementalMarkdownBlock(
+        MarkdownStreamBlock(
           start: _blockStart,
           text: _source.substring(_blockStart, contentEnd),
           stable: true,

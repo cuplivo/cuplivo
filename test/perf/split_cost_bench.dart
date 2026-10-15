@@ -26,6 +26,9 @@ void main() {
       'list': [
         for (var i = 0; i < _elements; i++) '- item $i **加粗** 中文内容。',
       ].join('\n\n'),
+      // A fence whose body holds blank lines: the runs inside it are not text
+      // answerable, so this is where the walk cannot be skipped.
+      'fence': '```text\n${_corpus('\n\n')}\n```',
     };
     final appends = <String, String>{
       // No ASCII punctuation and no newline: nothing in the region can change.

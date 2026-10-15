@@ -137,8 +137,9 @@ final class MarkdownStreamingSplit {
   /// claim honest: the two must agree on every source.
   bool debugAlwaysWalk = false;
 
-  /// How many times the region has been walked. An append whose suffix cannot
-  /// change the structure must not raise it.
+  /// How many times the region has actually been walked. A decision the text
+  /// answers on its own — a loose list waiting for its next item, a fence whose
+  /// runs are all decided — must not raise it.
   int get debugWalkedRegions => _walkedRegions;
 
   /// The last source retained its previous prefix. Blocks at the same start
@@ -204,12 +205,8 @@ final class MarkdownStreamingSplit {
   /// The run is looked for from the region's start rather than the run cursor,
   /// because a run that was left in place — the next item of a list may still
   /// belong to the block — has to be re-read when the line after it changes.
-  bool _regionHasCandidate() {
-    if (_source.indexOf('\n\n', _blockStart) >= 0) return true;
-    if (_blockStart >= _source.length) return false;
-    final unit = _source.codeUnitAt(_blockStart);
-    return unit != 0x0A && unit != 0x0D && _isWhitespace(unit);
-  }
+  bool _regionHasCandidate() =>
+      _source.indexOf('\n\n', _blockStart) >= 0 || _regionStartsIndented();
 
   /// The common path never contained a CR, so [source] is already the
   /// accumulated document. Reuse it instead of copying `_source + suffix`.
@@ -240,15 +237,24 @@ final class MarkdownStreamingSplit {
 
   /// Answers the boundary questions for every run the region has not decided
   /// yet, in order.
+  ///
+  /// Only two of those questions need the walk — whether the run is inside a
+  /// claimed element, and whether that claim matched into it, which only an
+  /// element's own match can say. The rest are answered from the text, and they
+  /// are asked first, so a region whose runs stay undecided — a loose list,
+  /// whose next item may still belong to it — never pays for a walk. The walk
+  /// happens the first time an answer actually needs it.
   void _decideBoundaries() {
-    _walkedRegions++;
     final mathScan = _mathScanner.synchronize(_source, appendOnly: true);
-    var elements = _walkRegion();
+    List<_MdElement>? walked;
+    List<_MdElement> elements() => walked ??= _walkRegion();
     // A block that ended before an indented line is the same block: a
     // block-by-block render trims the leading whitespace off every fragment,
     // and the indentation is part of the syntax the renderer matches, so the
     // line has to reach the renderer inside the block above it.
-    if (_reopenIndentedTail(elements)) elements = _walkRegion();
+    if (_regionStartsIndented() && _reopenIndentedTail(elements())) {
+      walked = _walkRegion();
+    }
     var elementIndex = 0;
     while (true) {
       final run = _nextRun(_runCursor);
@@ -262,14 +268,28 @@ final class MarkdownStreamingSplit {
         _blockStart = run.end;
         continue;
       }
-      while (elementIndex < elements.length &&
-          elements[elementIndex].end <= run.start) {
+      // An unfinished display formula or `<details>` is prose to the walk, and
+      // the blank lines inside it belong to the construct the closer will
+      // complete.
+      if (_lexer.detailsDepth > 0 || mathScan.covers(run.start + 1)) continue;
+      final contentAfter = _hasContentAfter(run.end);
+      if (!contentAfter) {
+        // Nothing but whitespace follows the run yet. A list waits for the line
+        // after it — the next item may still belong to it — while every other
+        // block commits here, which is what lets a finished paragraph survive
+        // the blank lines the stream appends behind it.
+        if (_blockIsList()) continue;
+      } else if (_blockIsList() && _listContinues(run)) {
+        continue;
+      }
+      final list = elements();
+      while (elementIndex < list.length &&
+          list[elementIndex].end <= run.start) {
         elementIndex++;
       }
       var covering =
-          elementIndex < elements.length &&
-              elements[elementIndex].start <= run.start
-          ? elements[elementIndex]
+          elementIndex < list.length && list[elementIndex].start <= run.start
+          ? list[elementIndex]
           : null;
       // The gap itself is an element too (`NewLines` claims the run). It marks
       // the boundary rather than absorbing it, so it never suppresses the
@@ -279,7 +299,7 @@ final class MarkdownStreamingSplit {
           covering.end == run.end) {
         covering = null;
       }
-      final after = _firstElementFrom(elements, elementIndex, run.end);
+      final after = _firstElementFrom(list, elementIndex, run.end);
       // A run a claimed element reaches past is inside that element: it is one
       // block, and the renderer lays its own text out across the run.
       if (covering != null && covering.end > run.end) continue;
@@ -291,19 +311,8 @@ final class MarkdownStreamingSplit {
       if (covering != null && covering.end == run.end && after == null) {
         continue;
       }
-      // An unfinished display formula or `<details>` is prose to the walk, and
-      // the blank lines inside it belong to the construct the closer will
-      // complete.
-      if (_lexer.detailsDepth > 0 || mathScan.covers(run.start + 1)) continue;
-      if (_tailIsBlank(after)) {
-        // Nothing follows the run yet, or only whitespace does. A list waits
-        // for the line after it — the next item may still belong to it — while
-        // every other block commits here, which is what lets a finished
-        // paragraph survive the blank lines the stream appends behind it.
-        if (_blockIsList()) continue;
-      } else if (_blockIsList() && _listContinues(run)) {
-        continue;
-      } else if (run.end < _source.length &&
+      if (contentAfter &&
+          run.end < _source.length &&
           _isWhitespace(_source.codeUnitAt(run.end)) &&
           !_indentExempt(after)) {
         continue;
@@ -314,6 +323,7 @@ final class MarkdownStreamingSplit {
 
   /// The region's top-level elements, in document order.
   List<_MdElement> _walkRegion() {
+    _walkedRegions++;
     final reported = <MdNode, (int, int)>{};
     final nodes = MarkdownComponent.walkNodes(
       _source.substring(_blockStart),
@@ -385,16 +395,26 @@ final class MarkdownStreamingSplit {
     return null;
   }
 
-  /// Whether nothing but whitespace follows the run: the walk reported no
-  /// element there, or the only one reaches the end of the source and holds no
-  /// content.
-  bool _tailIsBlank(_MdElement? after) {
-    if (after == null) return true;
-    if (after.end != _source.length) return false;
-    for (var i = after.start; i < after.end; i++) {
-      if (!_isWhitespace(_source.codeUnitAt(i))) return false;
+  /// Whether anything but whitespace follows [position].
+  ///
+  /// This is the text-level form of "is there an element after the run": the
+  /// walk reports no element for whitespace alone, and an element that holds
+  /// content is exactly a non-whitespace code unit.
+  bool _hasContentAfter(int position) {
+    for (var i = position; i < _source.length; i++) {
+      if (!_isWhitespace(_source.codeUnitAt(i))) return true;
     }
-    return true;
+    return false;
+  }
+
+  /// Whether the region opens on whitespace, which is the one case the text
+  /// cannot decide: the block before it may swallow that line, and telling an
+  /// indented continuation apart from an indented fence or `<details>` needs
+  /// the walk's first element.
+  bool _regionStartsIndented() {
+    if (_blockStart >= _source.length) return false;
+    final unit = _source.codeUnitAt(_blockStart);
+    return unit != 0x0A && unit != 0x0D && _isWhitespace(unit);
   }
 
   /// Whether the block the run would close is a list. Such a block commits

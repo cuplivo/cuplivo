@@ -348,11 +348,18 @@ final class MarkdownDetailsBlock {
     required this.attrs,
     required this.summary,
     required this.body,
+    required this.source,
   });
 
   final String attrs;
   final String summary;
   final String body;
+
+  /// The block's own markdown, from `<details>` through `</details>`.
+  ///
+  /// A renderer may hand the walk a placeholder instead of this text, so a
+  /// consumer that re-emits the block needs the original to quote.
+  final String source;
 
   bool get initiallyExpanded =>
       RegExp(r'(?:^|\s)open(?:\s|$|=)', caseSensitive: false).hasMatch(attrs);
@@ -416,6 +423,7 @@ MarkdownDetailsBlock? markdownParseDetails(
     attrs: capture.attrs,
     summary: slice.substring(capture.summaryStart, capture.summaryEnd),
     body: slice.substring(capture.bodyStart, capture.bodyEnd),
+    source: slice.substring(0, end),
   );
 }
 

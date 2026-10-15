@@ -91,6 +91,116 @@ void debugResetHighlightNodeCache() {
   debugHighlightParseCount = 0;
 }
 
+/// Which `<details>` blocks a markdown surface currently shows open.
+///
+/// Expansion is widget state, and it changes what a selection can reach: a
+/// collapsed block never builds its body, so the body contributes no copied
+/// text, while an open one's body is ordinary selectable rich text. The record
+/// is keyed by the block's own source, so a block recycled by viewport
+/// virtualization keeps its state, and a copy action can read back exactly what
+/// the renderer wrote.
+///
+/// A block with no entry here is in the state its own `open` attribute asks
+/// for, which is why [stateOf] answers null rather than false.
+class MarkdownDetailsExpansion {
+  final Map<String, bool> _expanded = <String, bool>{};
+
+  /// The state this block was last seen in, or null when it has none yet.
+  bool? stateOf(String source) => _expanded[source];
+
+  void set(String source, {required bool expanded}) {
+    _expanded[source] = expanded;
+  }
+}
+
+/// The component set a markdown surface renders with, in match order.
+///
+/// Shared by the renderer and the IR walk: a copied selection is mapped
+/// against the grammar that produced what the user sees.
+({List<MarkdownComponent> global, List<MarkdownComponent> inline})
+markdownComponentsFor({
+  required SettingsProvider settings,
+  required bool streaming,
+}) {
+  final components = List<MarkdownComponent>.from(
+    MarkdownComponent.globalComponents,
+  );
+  components.removeWhere((c) => c is LatexMathMultiLine || c is HTag);
+  final hrIdx = components.indexWhere((c) => c is HrLine);
+  if (hrIdx != -1) components[hrIdx] = SoftHrLine();
+  components.removeWhere((c) => c is BlockQuote);
+  final cbIdx = components.indexWhere((c) => c is CheckBoxMd);
+  if (cbIdx != -1) components[cbIdx] = ModernCheckBoxMd();
+  final rbIdx = components.indexWhere((c) => c is RadioButtonMd);
+  if (rbIdx != -1) components[rbIdx] = ModernRadioMd();
+  final tableIdx = components.indexWhere((c) => c is TableMd);
+  if (tableIdx != -1) components[tableIdx] = EscapeAwareTableMd();
+  // Prepend custom renderers in priority order.
+  // Temporarily disable custom bold label line transformer to avoid
+  // interfering with block parsing for complex documents.
+  // components.insert(0, LabelValueLineMd());
+  components.removeWhere((c) => c is CodeBlockMd);
+  // Conditionally add LaTeX/math renderers
+  if (settings.enableMathRendering) {
+    // Block-level LaTeX (e.g., $$...$$ or \[...\])
+    components.insert(0, LatexBlockScrollableMd());
+  }
+  components.insert(0, AtxHeadingMd());
+  // Ensure fenced code blocks take precedence over headings and other blocks
+  // so lines like "# comment" inside code fences are not parsed as headings.
+  components.insert(0, ModernBlockQuote());
+  components.insert(0, FencedCodeBlockMd(streaming: streaming));
+  // Inline components: keep defaults but make link parsing line-scoped
+  final inlineComponents = List<MarkdownComponent>.from(
+    MarkdownComponent.inlineComponents,
+  );
+  inlineComponents.removeWhere(
+    (c) => c is LatexMath || c is LatexMathMultiLine,
+  );
+  // Add whitelist-based HTML tag renderer (e.g., <br>)
+  inlineComponents.insert(0, HtmlAnchorMd());
+  inlineComponents.insert(0, AllowedHtmlTagsMd());
+
+  // Conditionally add inline LaTeX/math renderers
+  if (settings.enableMathRendering) {
+    // Inline LaTeX: $...$ and \(...\)
+    if (settings.enableDollarLatex) {
+      inlineComponents.insert(0, InlineLatexParenScrollableMd());
+      inlineComponents.insert(0, InlineLatexDollarScrollableMd());
+    } else {
+      // Only \(...\) inline
+      inlineComponents.insert(0, InlineLatexParenScrollableMd());
+    }
+  }
+
+  final boldIdxInline = inlineComponents.indexWhere((c) => c is BoldMd);
+  if (boldIdxInline != -1) {
+    inlineComponents[boldIdxInline] = EscapeAwareBoldMd();
+  }
+  final italicIdxInline = inlineComponents.indexWhere((c) => c is ItalicMd);
+  if (italicIdxInline != -1) {
+    inlineComponents[italicIdxInline] = EscapeAwareItalicMd();
+  }
+  final imageIdxInline = inlineComponents.indexWhere((c) => c is ImageMd);
+  if (imageIdxInline != -1) {
+    inlineComponents[imageIdxInline] = EscapeAwareImageMd();
+  }
+  final codeIdxInline = inlineComponents.indexWhere(
+    (c) => c is HighlightedText,
+  );
+  if (codeIdxInline != -1) {
+    inlineComponents[codeIdxInline] = EscapeAwareHighlightedTextMd();
+  }
+  final linkIdxInline = inlineComponents.indexWhere((c) => c is ATagMd);
+  if (linkIdxInline != -1) {
+    inlineComponents[linkIdxInline] = LineSafeLinkMd();
+  }
+  // Keep escaped punctuation out of block parsing so it cannot split
+  // \( ... \) math containing \{...\}; inline math is registered ahead of it.
+  inlineComponents.add(BackslashEscapeMd());
+  return (global: components, inline: inlineComponents);
+}
+
 /// gpt_markdown with custom code block highlight and inline code styling.
 class MarkdownWithCodeHighlight extends StatefulWidget {
   const MarkdownWithCodeHighlight({
@@ -102,6 +212,7 @@ class MarkdownWithCodeHighlight extends StatefulWidget {
     this.streaming = false,
     this.useBlockRendering = false,
     this.conversationId,
+    this.detailsExpansion,
   });
 
   final String text;
@@ -119,6 +230,12 @@ class MarkdownWithCodeHighlight extends StatefulWidget {
   /// highlighting, tables and interactive state.
   final bool useBlockRendering;
 
+  /// Where this surface records which `<details>` blocks the user opened.
+  ///
+  /// Pass one in to read the state back when mapping a copied selection;
+  /// a surface without one keeps the state to itself.
+  final MarkdownDetailsExpansion? detailsExpansion;
+
   static const int _streamingTableMaxRows = 30;
   static const int _streamingHighlightMaxLines = 300;
   static const int _streamingHighlightMaxChars = 12000;
@@ -132,6 +249,34 @@ class MarkdownWithCodeHighlight extends StatefulWidget {
   @override
   State<MarkdownWithCodeHighlight> createState() =>
       _MarkdownWithCodeHighlightState();
+
+  /// The markdown IR for [source] under this surface's component set, ready to
+  /// map a copied selection onto.
+  ///
+  /// The walk uses the same components the renderer uses, so the text the
+  /// selection was made over and the markdown it re-emits come from one
+  /// grammar. A copy action rebuilds the document per copy — one parse — rather
+  /// than caching one per rendered widget.
+  static MdDocument markdownDocument(
+    String source, {
+    required SettingsProvider settings,
+    required bool streaming,
+    MarkdownDetailsExpansion? detailsExpansion,
+  }) {
+    final set = markdownComponentsFor(settings: settings, streaming: streaming);
+    final registry = MarkdownDetailsRegistry(
+      enableMath: settings.enableMathRendering,
+    );
+    return MarkdownComponent.walkDocument(
+      source,
+      config: GptMarkdownConfig(
+        components: [DetailsHtmlMd(registry, detailsExpansion), ...set.global],
+        inlineComponents: set.inline,
+        preprocessBlocks: registry.rewrite,
+        streaming: streaming,
+      ),
+    );
+  }
 }
 
 class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
@@ -148,6 +293,8 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
   Timer? _renderDebounce;
   final IncrementalMarkdownDocument _incrementalDocument =
       IncrementalMarkdownDocument();
+  late final MarkdownDetailsExpansion _detailsExpansion =
+      widget.detailsExpansion ?? MarkdownDetailsExpansion();
   final _codeFenceParser = StreamingCodeFenceParser();
   final _separatorCache = Expando<(bool, bool, bool)>();
   String? _liveBlockSource;
@@ -316,82 +463,12 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
         );
 
     // Replace default components and add our own where needed
-    final components = List<MarkdownComponent>.from(
-      MarkdownComponent.globalComponents,
+    final set = markdownComponentsFor(
+      settings: settings,
+      streaming: widget.streaming,
     );
-    components.removeWhere((c) => c is LatexMathMultiLine || c is HTag);
-    final hrIdx = components.indexWhere((c) => c is HrLine);
-    if (hrIdx != -1) components[hrIdx] = SoftHrLine();
-    components.removeWhere((c) => c is BlockQuote);
-    final cbIdx = components.indexWhere((c) => c is CheckBoxMd);
-    if (cbIdx != -1) components[cbIdx] = ModernCheckBoxMd();
-    final rbIdx = components.indexWhere((c) => c is RadioButtonMd);
-    if (rbIdx != -1) components[rbIdx] = ModernRadioMd();
-    final tableIdx = components.indexWhere((c) => c is TableMd);
-    if (tableIdx != -1) components[tableIdx] = EscapeAwareTableMd();
-    // Prepend custom renderers in priority order.
-    // Temporarily disable custom bold label line transformer to avoid
-    // interfering with block parsing for complex documents.
-    // components.insert(0, LabelValueLineMd());
-    components.removeWhere((c) => c is CodeBlockMd);
-    // Conditionally add LaTeX/math renderers
-    if (settings.enableMathRendering) {
-      // Block-level LaTeX (e.g., $$...$$ or \[...\])
-      components.insert(0, LatexBlockScrollableMd());
-    }
-    components.insert(0, AtxHeadingMd());
-    // Ensure fenced code blocks take precedence over headings and other blocks
-    // so lines like "# comment" inside code fences are not parsed as headings.
-    components.insert(0, ModernBlockQuote());
-    components.insert(0, FencedCodeBlockMd(streaming: widget.streaming));
-    // Inline components: keep defaults but make link parsing line-scoped
-    final inlineComponents = List<MarkdownComponent>.from(
-      MarkdownComponent.inlineComponents,
-    );
-    inlineComponents.removeWhere(
-      (c) => c is LatexMath || c is LatexMathMultiLine,
-    );
-    // Add whitelist-based HTML tag renderer (e.g., <br>)
-    inlineComponents.insert(0, HtmlAnchorMd());
-    inlineComponents.insert(0, AllowedHtmlTagsMd());
-
-    // Conditionally add inline LaTeX/math renderers
-    if (settings.enableMathRendering) {
-      // Inline LaTeX: $...$ and \(...\)
-      if (settings.enableDollarLatex) {
-        inlineComponents.insert(0, InlineLatexParenScrollableMd());
-        inlineComponents.insert(0, InlineLatexDollarScrollableMd());
-      } else {
-        // Only \(...\) inline
-        inlineComponents.insert(0, InlineLatexParenScrollableMd());
-      }
-    }
-
-    final boldIdxInline = inlineComponents.indexWhere((c) => c is BoldMd);
-    if (boldIdxInline != -1) {
-      inlineComponents[boldIdxInline] = EscapeAwareBoldMd();
-    }
-    final italicIdxInline = inlineComponents.indexWhere((c) => c is ItalicMd);
-    if (italicIdxInline != -1) {
-      inlineComponents[italicIdxInline] = EscapeAwareItalicMd();
-    }
-    final imageIdxInline = inlineComponents.indexWhere((c) => c is ImageMd);
-    if (imageIdxInline != -1) {
-      inlineComponents[imageIdxInline] = EscapeAwareImageMd();
-    }
-    final codeIdxInline = inlineComponents.indexWhere(
-      (c) => c is HighlightedText,
-    );
-    if (codeIdxInline != -1) {
-      inlineComponents[codeIdxInline] = EscapeAwareHighlightedTextMd();
-    }
-    final linkIdxInline = inlineComponents.indexWhere((c) => c is ATagMd);
-    if (linkIdxInline != -1) {
-      inlineComponents[linkIdxInline] = LineSafeLinkMd();
-    }
-    // Keep escaped punctuation out of block parsing so it cannot split
-    // \( ... \) math containing \{...\}; inline math is registered ahead of it.
-    inlineComponents.add(BackslashEscapeMd());
+    final components = set.global;
+    final inlineComponents = set.inline;
     // codeBuilder handles rendering. A custom BlockMd for fences can
     // interfere with block segmentation in some cases.
     // Resolve user preferred code font family (default to monospace)
@@ -463,7 +540,10 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
                   ),
                 ),
               ],
-        components: [DetailsHtmlMd(detailsRegistry), ...components],
+        components: [
+          DetailsHtmlMd(detailsRegistry, _detailsExpansion),
+          ...components,
+        ],
         inlineComponents: inlineComponents,
         imageBuilder: (ctx, url, width, height) {
           if (KelivoLink.tryParse(url) != null) {
@@ -4207,25 +4287,6 @@ class _MarkdownTableCell extends StatelessWidget {
         return Alignment.centerLeft;
     }
   }
-
-  String _softBreakTableCellText(String input) {
-    // Keep markdown links intact. Inserting ZWSP into `[label](kelivo://…)`
-    // (long snake_case names are one token because `_` is not a wrap point)
-    // corrupts the scheme so KelivoLink.tryParse fails and launchUrl opens
-    // the system browser.
-    final link = RegExp(r'\[[^\]]*\]\([^)]*\)');
-    final buffer = StringBuffer();
-    var start = 0;
-    for (final match in link.allMatches(input)) {
-      buffer.write(
-        _softBreakLongTableTokens(input.substring(start, match.start)),
-      );
-      buffer.write(match.group(0));
-      start = match.end;
-    }
-    buffer.write(_softBreakLongTableTokens(input.substring(start)));
-    return buffer.toString();
-  }
 }
 
 class _MarkdownTableToolbar extends StatelessWidget {
@@ -4448,6 +4509,30 @@ String _markdownTableCell(String value) {
       .replaceAll('\r\n', '<br>')
       .replaceAll('\n', '<br>')
       .replaceAll('\r', '<br>');
+}
+
+/// The text a table cell shows: unmasked, trimmed, and soft-broken the same way
+/// the cell renderer breaks it.
+///
+/// Shared by the cell widget and the IR so a copied selection is matched
+/// against the text the cell actually contributes.
+String _softBreakTableCellText(String input) {
+  // Keep markdown links intact. Inserting ZWSP into `[label](kelivo://…)`
+  // (long snake_case names are one token because `_` is not a wrap point)
+  // corrupts the scheme so KelivoLink.tryParse fails and launchUrl opens
+  // the system browser.
+  final link = RegExp(r'\[[^\]]*\]\([^)]*\)');
+  final buffer = StringBuffer();
+  var start = 0;
+  for (final match in link.allMatches(input)) {
+    buffer.write(
+      _softBreakLongTableTokens(input.substring(start, match.start)),
+    );
+    buffer.write(match.group(0));
+    start = match.end;
+  }
+  buffer.write(_softBreakLongTableTokens(input.substring(start)));
+  return buffer.toString();
 }
 
 String _csvCell(String value) {
@@ -5358,6 +5443,11 @@ class SoftHrLine extends BlockMd {
       ),
     );
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) =>
+      // A rule is a painted line: it contributes no display text.
+      MdNode.gap(MdNodeKind.group, ctx.rangeOf(text));
 }
 
 // Robust fenced code block that takes precedence over other blocks
@@ -5390,6 +5480,13 @@ class FencedCodeBlockMd extends BlockMd {
     final isStreamingFence = streaming && !closed;
     return _buildFencedContent(lang, code, isStreamingFence, closed);
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) =>
+      // The code body is selectable only within the code view's own selection
+      // area, so it contributes no text to the surrounding document. The whole
+      // fence rides along when a selection spans it.
+      MdNode.gap(MdNodeKind.codeBlock, ctx.rangeOf(text));
 }
 
 Widget _buildFencedContent(
@@ -5450,6 +5547,12 @@ class LatexBlockScrollableMd extends BlockMd {
       ),
     );
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) =>
+      // The formula sits in a disabled SelectionContainer: it contributes no
+      // display text, and rides along when a selection spans it.
+      MdNode.gap(MdNodeKind.math, ctx.rangeOf(text));
 }
 
 /// Inline LaTeX `$...$` rendered in the text flow.
@@ -5473,6 +5576,12 @@ class InlineLatexScrollableMd extends InlineMd {
     final math = _renderMath(body, style: _inlineMathTextStyle(config.style));
     return _inlineMathSpan(math);
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) =>
+      // The formula sits in a disabled SelectionContainer: it contributes no
+      // display text, and rides along when a selection spans it.
+      MdNode.gap(MdNodeKind.math, ctx.rangeOf(text));
 }
 
 /// Inline LaTeX for dollar delimiters only: `$...$`
@@ -5503,6 +5612,22 @@ class InlineLatexDollarScrollableMd extends InlineMd {
       ],
     );
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final m = exp.firstMatch(text);
+    final prefix = m?.group(1) ?? '';
+    // The formula sits in a disabled SelectionContainer, so it contributes no
+    // display text but still rides along in the re-emitted source.
+    return MdNode(
+      kind: MdNodeKind.group,
+      range: ctx.rangeOf(text),
+      children: [
+        if (prefix.isNotEmpty) MdNode.text(MdRange.all(prefix)),
+        MdNode.gap(MdNodeKind.math, MdRange.all(text.substring(prefix.length))),
+      ],
+    );
+  }
 }
 
 /// Inline LaTeX for parenthesis delimiters only: `\(...\)`
@@ -5523,6 +5648,12 @@ class InlineLatexParenScrollableMd extends InlineMd {
     final math = _renderMath(body, style: _inlineMathTextStyle(config.style));
     return _inlineMathSpan(math);
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) =>
+      // The formula sits in a disabled SelectionContainer: it contributes no
+      // display text, and rides along when a selection spans it.
+      MdNode.gap(MdNodeKind.math, ctx.rangeOf(text));
 }
 
 /// Single-line ATX. Opening `#{1,6}`, closing `#+`, horizontal blanks only.
@@ -5634,6 +5765,20 @@ class AtxHeadingMd extends BlockMd {
       color: _markdownInkColor(ctx),
       fontFamily: appFamily,
       fontFamilyFallback: getPlatformFontFallback(),
+    );
+  }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final m = exp.firstMatch(text.trim());
+    final raw = (m?.group(2) ?? '').trim();
+    return MdNode(
+      kind: MdNodeKind.heading,
+      range: ctx.rangeOf(text),
+      open: '${m?.group(1) ?? '#'} ',
+      block: true,
+      // The body is parsed with the global components, as it is when rendered.
+      children: raw.isEmpty ? const [] : ctx.walk(raw, includeGlobal: true),
     );
   }
 }
@@ -5813,6 +5958,21 @@ class ModernBlockQuote extends InlineMd {
       child: child,
     );
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final m = exp.firstMatch(text);
+    final data = _unmaskBlockquoteFenceMarkers(
+      markdownQuoteText(m?[0] ?? text),
+    );
+    // A quote re-emits whole: its rendered text drops the `>` markers per
+    // line, so a partial re-emission could not put them back.
+    return MdNode.opaque(
+      MdNodeKind.quote,
+      ctx.rangeOf(text),
+      mdDisplayOf(ctx.walk(data, includeGlobal: true)),
+    );
+  }
 }
 
 class _BlockquoteMarkdownContent extends StatelessWidget {
@@ -5979,6 +6139,20 @@ class ModernCheckBoxMd extends BlockMd {
       ),
     );
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final m = exp.firstMatch(text.trim());
+    final item = m?.group(2);
+    final checked = m?.group(1) == 'x';
+    return MdNode(
+      kind: MdNodeKind.listItem,
+      range: ctx.rangeOf(text),
+      open: '${checked ? '[x]' : '[ ]'} ',
+      block: true,
+      children: item == null ? const [] : ctx.walk(item),
+    );
+  }
 }
 
 // Modern radio (optional): circle with primary dot when selected
@@ -6042,6 +6216,19 @@ class ModernRadioMd extends BlockMd {
           Flexible(child: child),
         ],
       ),
+    );
+  }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final m = exp.firstMatch(text.trim());
+    final item = m?.group(2);
+    return MdNode(
+      kind: MdNodeKind.listItem,
+      range: ctx.rangeOf(text),
+      open: '(${m?.group(1) == 'x' ? 'x' : ' '}) ',
+      block: true,
+      children: item == null ? const [] : ctx.walk(item),
     );
   }
 }
@@ -6122,6 +6309,13 @@ class EscapeAwareTableMd extends TableMd {
       config,
     );
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) =>
+      // A table owns its selection: its cells are reached through the table's
+      // own area, never through the text around it (measured on every
+      // platform). The whole table rides along when a selection spans it.
+      MdNode.gap(MdNodeKind.table, ctx.rangeOf(text));
 }
 
 // Prevent link regex from spanning across lines (dotAll=true in engine).
@@ -6196,12 +6390,26 @@ class BackslashEscapeMd extends InlineMd {
     // Render only the escaped character (drop the backslash)
     return TextSpan(text: ch, style: config.style);
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final m = exp.firstMatch(text);
+    // Only the escaped character is shown; the pair re-emits whole.
+    return MdNode.opaque(
+      MdNodeKind.group,
+      ctx.rangeOf(text),
+      m?.group(1) ?? text,
+    );
+  }
 }
 
 class DetailsHtmlMd extends BlockMd {
-  DetailsHtmlMd([this.registry]);
+  DetailsHtmlMd([this.registry, this.expansion]);
 
   final MarkdownDetailsRegistry? registry;
+
+  /// The record a copy action reads expansion from, when the surface has one.
+  final MarkdownDetailsExpansion? expansion;
 
   @override
   RegExp get exp => RegExp(
@@ -6228,6 +6436,8 @@ class DetailsHtmlMd extends BlockMd {
       body: registry?.rewrite(body) ?? body,
       initiallyExpanded: parsed.initiallyExpanded,
       config: config,
+      expansion: expansion,
+      expansionKey: parsed.source,
     );
   }
 
@@ -6237,6 +6447,24 @@ class DetailsHtmlMd extends BlockMd {
         .replaceAll(RegExp(r"<[^>]+>"), '')
         .trim();
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final parsed = registry?.lookup(text) ?? markdownParseDetails(text);
+    if (parsed == null) return MdNode.text(ctx.rangeOf(text));
+    // A collapsed block shows its summary alone; the body is built only while
+    // the block is open, and then it is selectable like any other text. The
+    // record decides, and a block with no recorded state follows its own
+    // `open` attribute.
+    final open = expansion?.stateOf(parsed.source) ?? parsed.initiallyExpanded;
+    final body = parsed.body.trim();
+    return MdNode.opaque(
+      MdNodeKind.details,
+      MdRange(parsed.source, 0, parsed.source.length),
+      '${_plainHtmlText(parsed.summary).trim()}'
+      '${open && body.isNotEmpty ? mdDisplayOf(ctx.walk(registry?.rewrite(body) ?? body, includeGlobal: true)) : ''}',
+    );
+  }
 }
 
 class _DetailsHtmlBlock extends StatefulWidget {
@@ -6245,6 +6473,8 @@ class _DetailsHtmlBlock extends StatefulWidget {
     required this.body,
     required this.initiallyExpanded,
     required this.config,
+    this.expansion,
+    this.expansionKey,
   });
 
   final String summary;
@@ -6252,12 +6482,24 @@ class _DetailsHtmlBlock extends StatefulWidget {
   final bool initiallyExpanded;
   final GptMarkdownConfig config;
 
+  /// The surface's record of which blocks are open, and this block's key in it.
+  final MarkdownDetailsExpansion? expansion;
+  final String? expansionKey;
+
   @override
   State<_DetailsHtmlBlock> createState() => _DetailsHtmlBlockState();
 }
 
 class _DetailsHtmlBlockState extends State<_DetailsHtmlBlock> {
-  late bool _expanded = widget.initiallyExpanded;
+  // A re-mounted block (viewport virtualization recycles these) resumes the
+  // state the surface recorded; only a block with no record falls back to its
+  // own `open` attribute.
+  late bool _expanded = _recordedExpansion ?? widget.initiallyExpanded;
+
+  bool? get _recordedExpansion {
+    final key = widget.expansionKey;
+    return key == null ? null : widget.expansion?.stateOf(key);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -6294,7 +6536,13 @@ class _DetailsHtmlBlockState extends State<_DetailsHtmlBlock> {
         mainAxisSize: MainAxisSize.min,
         children: [
           IosCardPress(
-            onTap: () => setState(() => _expanded = !_expanded),
+            onTap: () => setState(() {
+              _expanded = !_expanded;
+              final key = widget.expansionKey;
+              if (key != null) {
+                widget.expansion?.set(key, expanded: _expanded);
+              }
+            }),
             baseColor: Colors.transparent,
             borderRadius: BorderRadius.circular(16),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -6415,6 +6663,17 @@ class HtmlAnchorMd extends InlineMd {
 
   static String _stripTags(String input) =>
       input.replaceAll(RegExp(r"<[^>]+>"), '').trim();
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final m = exp.firstMatch(text);
+    if (m == null) return MdNode.text(ctx.rangeOf(text));
+    // The anchor shows its text and re-emits its whole tag when covered.
+    return MdNode.opaque(
+      MdNodeKind.link,
+      ctx.rangeOf(text),
+      _stripTags(m.group(3) ?? ''),
+    );
+  }
 }
 
 /// Whitelist-based HTML tag renderer.
@@ -6434,6 +6693,18 @@ class AllowedHtmlTagsMd extends InlineMd {
       return const TextSpan(text: '\n');
     }
     return const TextSpan(text: '');
+  }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final display =
+        RegExp(r"<br\s*/?>", caseSensitive: false).hasMatch(text) ||
+            RegExp(r"</p\s*>", caseSensitive: false).hasMatch(text)
+        ? '\n'
+        : '';
+    // A tag that renders as nothing re-emits as nothing; a line break keeps
+    // its newline.
+    return MdNode.opaque(MdNodeKind.group, ctx.rangeOf(text), display);
   }
 }
 

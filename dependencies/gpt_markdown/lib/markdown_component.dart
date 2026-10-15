@@ -131,6 +131,118 @@ abstract class MarkdownComponent {
     return spans;
   }
 
+  /// Describes the element this component matched as an IR node.
+  ///
+  /// [text] is exactly the matched element and the node's source range starts
+  /// at [MdNodeContext.start]. The default is a content leaf: the element
+  /// re-emits the source it claimed. A component whose rendering shows
+  /// something other than that source — a math widget showing its TeX body, a
+  /// list item dropping its marker, an image showing nothing — overrides this,
+  /// which is what keeps the IR and the rendered widgets from drifting apart.
+  MdNode node(MdNodeContext ctx, String text) =>
+      MdNode.text(MdRange(ctx.source, ctx.start, ctx.start + text.length));
+
+  /// Builds the IR for [text] with the same component rules [generate] uses.
+  ///
+  /// The rules live in the components, so this walk shares the grammar rather
+  /// than restating it: a component's [exp] claims the same text here as it
+  /// does for rendering. [source] and [offset] let a recursion keep addressing
+  /// the document it started from.
+  static List<MdNode> walkNodes(
+    String text, {
+    required GptMarkdownConfig config,
+    bool includeGlobal = true,
+    String? source,
+    int offset = 0,
+  }) {
+    if (includeGlobal) {
+      final preprocess = config.preprocessBlocks;
+      if (preprocess != null) {
+        final rewritten = preprocess(text);
+        // Rewritten offsets belong to another source, so the IR is built for
+        // the text the renderer actually consumed.
+        if (rewritten != text) {
+          return walkNodes(rewritten, config: config, includeGlobal: true);
+        }
+      }
+    }
+    final root = source ?? text;
+    final start = source == null ? 0 : offset;
+    var components =
+        includeGlobal
+            ? config.components ?? MarkdownComponent.globalComponents
+            : config.inlineComponents ?? MarkdownComponent.inlineComponents;
+    final expressions = [for (final component in components) component.exp];
+    final patternKey =
+        expressions
+            .map(
+              (exp) =>
+                  '${exp.isMultiLine}:${exp.isDotAll}:${exp.pattern.length}:${exp.pattern}',
+            )
+            .join();
+    final patterns = _patterns.putIfAbsent(
+      patternKey,
+      () => _MarkdownPatterns(expressions),
+    );
+    if (_patterns.length > 64) _patterns.remove(_patterns.keys.first);
+    final nodes = <MdNode>[];
+    var cursor = 0;
+    text.splitMapJoin(
+      patterns.combined,
+      onMatch: (p0) {
+        String element = p0[0] ?? "";
+        final index = patterns.componentIndex(element);
+        if (index >= 0) {
+          final ctx = MdNodeContext(
+            source: root,
+            start: start + p0.start,
+            includeGlobal: includeGlobal,
+            config: config,
+          );
+          nodes.add(components[index].node(ctx, element));
+        }
+        cursor = p0.end;
+        return "";
+      },
+      onNonMatch: (p0) {
+        final chunkStart = start + cursor;
+        cursor += p0.length;
+        if (p0.isEmpty) {
+          return "";
+        }
+        if (includeGlobal) {
+          nodes.addAll(
+            walkNodes(
+              p0,
+              config: config,
+              includeGlobal: false,
+              source: root,
+              offset: chunkStart,
+            ),
+          );
+        } else {
+          nodes.add(
+            MdNode.text(MdRange(root, chunkStart, chunkStart + p0.length)),
+          );
+        }
+        return "";
+      },
+    );
+    return nodes;
+  }
+
+  /// The IR for a whole document, ready for selection mapping.
+  ///
+  /// [MdDocument.source] records the text the walk addressed, which is the
+  /// rewritten text when the renderer rewrote one.
+  static MdDocument walkDocument(
+    String text, {
+    required GptMarkdownConfig config,
+  }) {
+    final rewritten = config.preprocessBlocks?.call(text) ?? text;
+    return MdDocument(walkNodes(rewritten, config: config), source: rewritten);
+  }
+
   InlineSpan span(
     BuildContext context,
     String text,
@@ -139,6 +251,48 @@ abstract class MarkdownComponent {
 
   RegExp get exp;
   bool get inline;
+}
+
+/// What a component needs to describe one matched element as an IR node.
+final class MdNodeContext {
+  const MdNodeContext({
+    required this.source,
+    required this.start,
+    required this.includeGlobal,
+    required this.config,
+  });
+
+  /// The document the walk is addressing.
+  final String source;
+
+  /// Offset of the matched element in [source].
+  final int start;
+
+  /// Whether the walk that produced this element was a document walk (blocks)
+  /// or an inline walk.
+  final bool includeGlobal;
+
+  final GptMarkdownConfig config;
+
+  /// Walks [inner] with the rule set a component's own content uses.
+  ///
+  /// [inner] becomes the source its nodes address: a component's content is a
+  /// rewritten string (a list item drops its marker, a quote drops its `>`),
+  /// so its offsets belong to that string rather than to the document. Nothing
+  /// needs the absolute position — an item re-emits its own source text.
+  ///
+  /// Component content is inline by default, because that is what the
+  /// rendering path recurses with ([MarkdownComponent.generate] with
+  /// `includeGlobalComponents: false`).
+  List<MdNode> walk(String inner, {bool includeGlobal = false}) =>
+      MarkdownComponent.walkNodes(
+        inner,
+        config: config,
+        includeGlobal: includeGlobal,
+      );
+
+  /// The range of the element [text] that starts at [start].
+  MdRange rangeOf(String text) => MdRange(source, start, start + text.length);
 }
 
 // Matching depends on the patterns and source alone, not on widget state or
@@ -270,6 +424,18 @@ class IndentMd extends BlockMd {
       ),
     );
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final m = this.exp.firstMatch(text);
+    final content = (m?.group(2) ?? '').trim();
+    return MdNode(
+      kind: MdNodeKind.group,
+      range: ctx.rangeOf(text),
+      open: m?.group(1) ?? '',
+      children: content.isEmpty ? const [] : ctx.walk(content),
+    );
+  }
 }
 
 /// Heading component
@@ -322,6 +488,21 @@ class HTag extends BlockMd {
       ),
     );
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final m = this.exp.firstMatch(text.trim());
+    final data = m?.group(2);
+    // The optional divider a level-1 heading may draw is a widget, so it never
+    // reaches a copied selection and needs no item.
+    return MdNode(
+      kind: MdNodeKind.heading,
+      range: ctx.rangeOf(text),
+      open: '${m?.group(1) ?? '#'} ',
+      block: true,
+      children: data == null ? const [] : ctx.walk(data),
+    );
+  }
 }
 
 class NewLines extends InlineMd {
@@ -361,6 +542,10 @@ class HrLine extends BlockMd {
       padding: gptTheme.hrLinePadding,
     );
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) =>
+      MdNode.gap(MdNodeKind.group, ctx.rangeOf(text));
 }
 
 /// Checkbox component
@@ -381,6 +566,20 @@ class CheckBoxMd extends BlockMd {
       child: MdWidget(context, "${match?[2]}", false, config: config),
     );
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final m = this.exp.firstMatch(text.trim());
+    final item = m?.group(2);
+    final checked = m?.group(1) == 'x';
+    return MdNode(
+      kind: MdNodeKind.listItem,
+      range: ctx.rangeOf(text),
+      open: '${checked ? '[x]' : '[ ]'} ',
+      block: true,
+      children: item == null ? const [] : ctx.walk(item),
+    );
+  }
 }
 
 /// Radio Button component
@@ -399,6 +598,19 @@ class RadioButtonMd extends BlockMd {
       value: ("${match?[1]}" == "x"),
       textDirection: config.textDirection,
       child: MdWidget(context, "${match?[2]}", false, config: config),
+    );
+  }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final m = this.exp.firstMatch(text.trim());
+    final item = m?.group(2);
+    return MdNode(
+      kind: MdNodeKind.listItem,
+      range: ctx.rangeOf(text),
+      open: '(${m?.group(1) == 'x' ? 'x' : ' '}) ',
+      block: true,
+      children: item == null ? const [] : ctx.walk(item),
     );
   }
 }
@@ -423,20 +635,7 @@ class BlockQuote extends InlineMd {
     final GptMarkdownConfig config,
   ) {
     var match = exp.firstMatch(text);
-    var dataBuilder = StringBuffer();
-    var m = match?[0] ?? '';
-    for (var each in m.split('\n')) {
-      if (each.startsWith(RegExp(r'\ *>'))) {
-        var subString = each.trimLeft().substring(1);
-        if (subString.startsWith(' ')) {
-          subString = subString.substring(1);
-        }
-        dataBuilder.writeln(subString);
-      } else {
-        dataBuilder.writeln(each);
-      }
-    }
-    var data = dataBuilder.toString().trim();
+    var data = markdownQuoteText(match?[0] ?? '');
     var child = TextSpan(
       children: MarkdownComponent.generate(context, data, config, true),
     );
@@ -462,6 +661,39 @@ class BlockQuote extends InlineMd {
       ],
     );
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final data = markdownQuoteText(exp.firstMatch(text)?[0] ?? text);
+    // A quote re-emits whole: its rendered text drops one `>` per line, so a
+    // partial re-emission could not put the markers back where they were.
+    return MdNode.opaque(
+      MdNodeKind.quote,
+      ctx.rangeOf(text),
+      mdDisplayOf(ctx.walk(data, includeGlobal: true)),
+    );
+  }
+}
+
+/// The content of a block quote: one leading `>` and one optional space are
+/// dropped per line, then the whole is trimmed.
+///
+/// Shared by the rendered spans and the IR so the two cannot disagree about
+/// what a quote says.
+String markdownQuoteText(String matched) {
+  final builder = StringBuffer();
+  for (var each in matched.split('\n')) {
+    if (each.startsWith(RegExp(r'\ *>'))) {
+      var subString = each.trimLeft().substring(1);
+      if (subString.startsWith(' ')) {
+        subString = subString.substring(1);
+      }
+      builder.writeln(subString);
+    } else {
+      builder.writeln(each);
+    }
+  }
+  return builder.toString().trim();
 }
 
 /// Unordered list component
@@ -498,6 +730,19 @@ class UnOrderedList extends BlockMd {
           child: child,
         );
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final m = this.exp.firstMatch(text);
+    final item = (m?.group(1) ?? '').trim();
+    return MdNode(
+      kind: MdNodeKind.listItem,
+      range: ctx.rangeOf(text),
+      open: '- ',
+      block: true,
+      children: item.isEmpty ? const [] : ctx.walk(item, includeGlobal: true),
+    );
+  }
 }
 
 /// Ordered list component
@@ -530,6 +775,25 @@ class OrderedList extends BlockMd {
           ),
           child: child,
         );
+  }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final m = this.exp.firstMatch(text);
+    final item = (m?.group(2) ?? '').trim();
+    final number = (m?.group(1) ?? '').trim();
+    return MdNode(
+      kind: MdNodeKind.listItem,
+      range: ctx.rangeOf(text),
+      open: '$number. ',
+      block: true,
+      children: [
+        // The renderer draws the number as its own text, so a selection
+        // includes it; the marker re-emitted above carries it as well.
+        if (number.isNotEmpty) MdNode.decoration('$number.'),
+        if (item.isNotEmpty) ...ctx.walk(item, includeGlobal: true),
+      ],
+    );
   }
 }
 
@@ -577,6 +841,22 @@ class HighlightedText extends InlineMd {
 
     return TextSpan(text: highlightedText, style: style);
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final m = this.exp.firstMatch(text.trim());
+    final inner = m?.group(1);
+    if (inner == null) return MdNode.text(ctx.rangeOf(text));
+    // Inline code is rendered as plain text with a highlight style, so its
+    // content is never parsed again.
+    return MdNode(
+      kind: MdNodeKind.inlineCode,
+      range: ctx.rangeOf(text),
+      open: '`',
+      close: '`',
+      children: [MdNode.text(MdRange.all(inner))],
+    );
+  }
 }
 
 /// Bold text component
@@ -605,6 +885,19 @@ class BoldMd extends InlineMd {
         false,
       ),
       style: conf.style,
+    );
+  }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final m = this.exp.firstMatch(text.trim());
+    final inner = m?.group(1);
+    return MdNode(
+      kind: MdNodeKind.bold,
+      range: ctx.rangeOf(text),
+      open: '**',
+      close: '**',
+      children: inner == null ? const [] : ctx.walk(inner),
     );
   }
 }
@@ -638,6 +931,19 @@ class StrikeMd extends InlineMd {
       style: conf.style,
     );
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final m = this.exp.firstMatch(text.trim());
+    final inner = m?.group(1);
+    return MdNode(
+      kind: MdNodeKind.strike,
+      range: ctx.rangeOf(text),
+      open: '~~',
+      close: '~~',
+      children: inner == null ? const [] : ctx.walk(inner),
+    );
+  }
 }
 
 /// Italic text component
@@ -662,6 +968,19 @@ class ItalicMd extends InlineMd {
     return TextSpan(
       children: MarkdownComponent.generate(context, "$data", conf, false),
       style: conf.style,
+    );
+  }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final m = this.exp.firstMatch(text.trim());
+    final inner = m?.group(1) ?? m?.group(2);
+    return MdNode(
+      kind: MdNodeKind.italic,
+      range: ctx.rangeOf(text),
+      open: '*',
+      close: '*',
+      children: inner == null ? const [] : ctx.walk(inner),
     );
   }
 }
@@ -735,6 +1054,16 @@ class LatexMathMultiLine extends BlockMd {
       config.style ?? const TextStyle(),
       false,
     );
+  }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final m = this.exp.firstMatch(text.trim());
+    final body = m?.group(1) ?? m?.group(2) ?? '';
+    final workaround = ctx.config.latexWorkaround ?? (String tex) => tex;
+    // The default rendering wraps the formula in a SelectableAdapter that
+    // declares exactly this text, so a selection sees the TeX source.
+    return MdNode.opaque(MdNodeKind.math, ctx.rangeOf(text), workaround(body));
   }
 }
 
@@ -816,6 +1145,18 @@ class LatexMath extends InlineMd {
       ),
     );
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final m = this.exp.firstMatch(text.trim());
+    final workaround = ctx.config.latexWorkaround ?? (String tex) => tex;
+    // The widget declares this exact text through its SelectableAdapter.
+    return MdNode.opaque(
+      MdNodeKind.math,
+      ctx.rangeOf(text),
+      workaround(m?.group(1) ?? ''),
+    );
+  }
 }
 
 /// source text component
@@ -863,6 +1204,16 @@ class SourceTag extends InlineMd {
       ),
     );
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final m = this.exp.firstMatch(text.trim());
+    final content = m?.group(1);
+    if (content == null) return MdNode.text(ctx.rangeOf(text));
+    // A citation chip shows its number in its own text widget, so the source
+    // that carries the chip is re-emitted whole.
+    return MdNode.opaque(MdNodeKind.group, ctx.rangeOf(text), content);
+  }
 }
 
 /// Link text component
@@ -876,64 +1227,17 @@ class ATagMd extends InlineMd {
     String text,
     final GptMarkdownConfig config,
   ) {
-    var bracketCount = 0;
-    var start = 1;
-    var end = 0;
-    for (var i = 0; i < text.length; i++) {
-      if (text[i] == '[') {
-        bracketCount++;
-      } else if (text[i] == ']') {
-        bracketCount--;
-        if (bracketCount == 0) {
-          end = i;
-          break;
-        }
-      }
-    }
-
-    if (text[end + 1] != '(') {
+    final link = _parseLinkElement(text);
+    if (link == null) {
       return const TextSpan();
     }
 
-    // First try to find the basic pattern
-    // final basicMatch = RegExp(r'(?<!\!)\[(.*)\]\(').firstMatch(text.trim());
-    // if (basicMatch == null) {
-    //   return const TextSpan();
-    // }
-
-    final linkText = text.substring(start, end);
-    final urlStart = end + 2;
-
-    // Now find the balanced closing parenthesis
-    int parenCount = 0;
-    int urlEnd = urlStart;
-
-    for (int i = urlStart; i < text.length; i++) {
-      final char = text[i];
-
-      if (char == '(') {
-        parenCount++;
-      } else if (char == ')') {
-        if (parenCount == 0) {
-          // This is the closing parenthesis of the link
-          urlEnd = i;
-          break;
-        } else {
-          parenCount--;
-        }
-      }
-    }
-
-    if (urlEnd == urlStart) {
-      // No closing parenthesis found
-      return const TextSpan();
-    }
-
-    final url = text.substring(urlStart, urlEnd).trim();
+    final linkText = link.label;
+    final url = link.url;
 
     var builder = config.linkBuilder;
 
-    var ending = text.substring(urlEnd + 1);
+    var ending = link.ending;
 
     var endingSpans = MarkdownComponent.generate(
       context,
@@ -1011,6 +1315,105 @@ class ATagMd extends InlineMd {
     var textSpan = TextSpan(children: [child, ...endingSpans]);
     return textSpan;
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final link = _parseLinkElement(text);
+    if (link == null) return MdNode.text(ctx.rangeOf(text));
+    final children = <MdNode>[
+      MdNode(
+        kind: MdNodeKind.link,
+        range: MdRange(text, 0, link.closingParen + 1),
+        open: '[',
+        close: '](${link.url})',
+        children: ctx.walk(link.label),
+      ),
+    ];
+    if (link.ending.isNotEmpty) {
+      children.addAll(ctx.walk(link.ending));
+    }
+    return MdNode(
+      kind: MdNodeKind.group,
+      range: ctx.rangeOf(text),
+      children: children,
+    );
+  }
+}
+
+/// The parts of a link element `[label](url)` and whatever follows it.
+final class _LinkElement {
+  const _LinkElement({
+    required this.label,
+    required this.labelStart,
+    required this.url,
+    required this.closingParen,
+    required this.ending,
+    required this.endingStart,
+  });
+
+  final String label;
+  final int labelStart;
+  final String url;
+
+  /// Offset of the `)` that closes the target.
+  final int closingParen;
+
+  /// Text after the link, which the component renders as its own content.
+  final String ending;
+  final int endingStart;
+}
+
+/// Scans one link element.
+///
+/// Shared by the rendered span and the IR node so the two cannot disagree
+/// about where a label ends and a target begins.
+_LinkElement? _parseLinkElement(String text) {
+  var bracketCount = 0;
+  const start = 1;
+  var end = 0;
+  for (var i = 0; i < text.length; i++) {
+    if (text[i] == '[') {
+      bracketCount++;
+    } else if (text[i] == ']') {
+      bracketCount--;
+      if (bracketCount == 0) {
+        end = i;
+        break;
+      }
+    }
+  }
+
+  if (end + 1 >= text.length || text[end + 1] != '(') return null;
+
+  final label = text.substring(start, end);
+  final urlStart = end + 2;
+
+  // Find the balanced closing parenthesis.
+  var parenCount = 0;
+  var urlEnd = urlStart;
+  for (var i = urlStart; i < text.length; i++) {
+    final char = text[i];
+    if (char == '(') {
+      parenCount++;
+    } else if (char == ')') {
+      if (parenCount == 0) {
+        urlEnd = i;
+        break;
+      }
+      parenCount--;
+    }
+  }
+
+  if (urlEnd == urlStart) return null;
+
+  return _LinkElement(
+    label: label,
+    labelStart: start,
+    url: text.substring(urlStart, urlEnd).trim(),
+    closingParen: urlEnd,
+    ending: text.substring(urlEnd + 1),
+    endingStart: urlEnd + 1,
+  );
 }
 
 /// Image component
@@ -1102,6 +1505,12 @@ class ImageMd extends InlineMd {
     }
     return WidgetSpan(alignment: PlaceholderAlignment.bottom, child: image);
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) =>
+  // An image is a widget: it contributes no text to a selection, and it
+  // re-emits whole whenever a selection spans across it.
+  MdNode.gap(MdNodeKind.image, ctx.rangeOf(text));
 }
 
 /// Table component
@@ -1289,6 +1698,41 @@ class TableMd extends BlockMd {
       ),
     );
   }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    // Mirror how the table is split for rendering: rows on newlines, cells on
+    // unescaped pipes, the alignment row skipped, empty cells showing nothing.
+    final rows =
+        text
+            .split('\n')
+            .map(
+              (e) =>
+                  e
+                      .trim()
+                      .split('|')
+                      .where((element) => element.isNotEmpty)
+                      .toList(),
+            )
+            .toList();
+    final hasHeader = rows.length >= 2;
+    final buffer = StringBuffer();
+    for (var row = 0; row < rows.length; row++) {
+      if (hasHeader && row == 1) continue;
+      for (final cell in rows[row]) {
+        final data = cell.trim();
+        if (data.isEmpty || RegExp(r'^:?--+:?$').hasMatch(data)) continue;
+        buffer.write(mdDisplayOf(ctx.walk(data)));
+      }
+    }
+    // A table re-emits whole: a partly covered row would have to invent its own
+    // pipes and alignment, which is a different table.
+    return MdNode.opaque(
+      MdNodeKind.table,
+      ctx.rangeOf(text),
+      buffer.toString(),
+    );
+  }
 }
 
 class CodeBlockMd extends BlockMd {
@@ -1307,6 +1751,12 @@ class CodeBlockMd extends BlockMd {
 
     return config.codeBuilder?.call(context, name, codes, closed) ??
         CodeField(name: name, codes: codes);
+  }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final codes = (this.exp.firstMatch(text)?[2] ?? '').replaceAll(r'```', '');
+    return MdNode.opaque(MdNodeKind.codeBlock, ctx.rangeOf(text), codes);
   }
 }
 
@@ -1336,6 +1786,19 @@ class UnderLineMd extends InlineMd {
         false,
       ),
       style: conf.style,
+    );
+  }
+
+  @override
+  MdNode node(MdNodeContext ctx, String text) {
+    final m = this.exp.firstMatch(text.trim());
+    final inner = m?.group(1);
+    return MdNode(
+      kind: MdNodeKind.underline,
+      range: ctx.rangeOf(text),
+      open: '<u>',
+      close: '</u>',
+      children: inner == null ? const [] : ctx.walk(inner),
     );
   }
 }

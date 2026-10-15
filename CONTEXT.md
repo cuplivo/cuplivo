@@ -629,3 +629,47 @@ contradicts one of them is a bug, not a preference.
 - Short edge case that motivates the manual default: a long screenshot whose long edge is far larger
   than any preset cap would be reduced to illegibility by 自动, so 手动 leaves that decision to the user.
   The same screenshots are why the editor decodes at the artifact's size instead of the source's.
+
+## Markdown IR (结构中间表示) — ADR-0007
+
+- **Markdown IR（结构中间表示）**: the widget-agnostic tree the Markdown renderer's own walk produces —
+  node kind, source range, children, display text and the markers a node re-emits. It is a *product of the
+  same traversal* that builds the spans, never a second parse: a component's pattern claims the same text
+  in both paths, so a rule change reaches both or neither. It carries no Flutter type, so a widget builder
+  and a future PDF emitter consume the same tree.
+- **源区间 (source range)**: `[start, end)` of the source a node came from. A range carries its own source
+  string, because not every node addresses the same one: a rewritten document (a `<details>` block
+  replaced by a placeholder token, a quote whose `>` markers are stripped) is walked in rewritten space
+  while its children address the original text.
+- **显示文本 (display text)**: the text a node contributes to what a selection sees. It is the node's own
+  business — content contributes its source slice, a widget that declares text through a
+  `SelectableAdapter` contributes that, a painted line contributes nothing — which is what keeps the IR
+  and the rendered widgets from drifting.
+- **装饰文本 (decoration)**: display text the source does not contain (an ordered list's rendered number,
+  an enumerated heading's number). It occupies display space so a selection matches, and emits nothing.
+- **空隙节点 (gap node)**: a node that occupies no display space but re-emits its source when a selection
+  spans across it — an image, a horizontal rule, a disabled display-math block, a fenced code body whose
+  selection lives in its own area. This is why selecting a whole reply can still copy its images.
+- **叶子表 (item table)**: the ordered `(display text, source, ancestors)` list a document flattens to.
+  **显示空间 (display space)** is its concatenation, and it equals what a selection over the rendered
+  widgets copies: `SelectableRegion` contributes one run per selectable, a `RichText` contributes the runs
+  between its `WidgetSpan`s (the placeholders themselves are never copied), and a `SelectableAdapter`
+  contributes the text it declares.
+- **选区映射 (selection mapping)**: locating a copied selection in the display space by *text*, not by
+  framework offsets. The offsets a selection reports live in a space where a `SelectableAdapter`
+  contributes one unit while copying its whole declared text, so they are not the display space; text is
+  the one thing both sides agree on. Normalization (CRLF folding, folded newline runs, stripped invisible
+  characters) runs over the whole concatenation on both sides, never per item.
+- **结构保真补全 (structure-faithful completion)**: the re-emission rule. A node the selection cut
+  re-emits its own markers around the covered text (`**lo**, wor`), a block re-emits its structural marker
+  (`- `, `### `), and a node whose display text is not its source is emitted whole, because a cut inside it
+  cannot be resolved. A miss falls back to sanitized plain text, so the action is never worse than a copy.
+- **发射器 (emitter)**: a consumer that walks the IR to a target. The span builder is one; the markdown
+  re-emitter that turns a covered range back into source is another; a PDF writer would be a third.
+- **展开状态 (details expansion)**: which `<details>` blocks a surface currently shows open, recorded in
+  a `MarkdownDetailsExpansion` keyed by the block's own source. It is an *input to the document build*,
+  not something the parse can infer: a collapsed block builds no body (so the body is not in the copied
+  text) while an open one's body is selectable like any other text, and the same source therefore has two
+  display spaces. A block with no record follows its own `open` attribute.
+- The copy action's **match source** is the bubble's own rendered source, so the split-paragraph option
+  matches per bubble, and the walk is rebuilt per copy rather than cached per rendered widget.

@@ -184,7 +184,17 @@ removes pending requests, which is the right behaviour for `prepared: false` let
     listener exists yet. A direct hand-off is not silent either: the persisted letter posts its own
     notification. `configure` resets `ready`, because a recreated engine has no listener until it
     answers again.
-14. **A refused arrival notification is reported.** `ScheduledTaskNotifications.schedule` returns
+14. **`dispatched` records deliveries, not attempts.** The first version of decision 13 kept the
+    old `dispatched.add(id)` guard inside the hand-off loop, so a fire that arrived while Dart had
+    not attached yet marked its own id as dispatched *and then* returned without handing anything
+    over. The hold in `dispatchPending` then looked like a duplicate to the next drain — the letter
+    sat in `inFlight` until the 10-minute deadline released it, and the foreground drain
+    `MainActivity.onStart` performs could not recover it. `dispatchToChannel` now rebuilds the set
+    from the ids it actually invoked, so a hand-off that did not happen stays available to the next
+    drain. `ProactiveCareAlarmsTest.aFireWithoutAListenerWaitsForTheChannelAndIsStillDelivered` is
+    the regression test, and it only exists because the new native gate ran the test for the first
+    time.
+15. **A refused arrival notification is reported.** `ScheduledTaskNotifications.schedule` returns
     `false` when notifications are not authorized or the adapter's 60-request queue is full, and the
     port ignored that result: care looked scheduled while nothing would ever fire.
     `IosProactiveCareScheduler.lastScheduleAccepted` mirrors the answer and the refusal is logged
@@ -238,8 +248,9 @@ removes pending requests, which is the right behaviour for `prepared: false` let
   pins it fails before the notification could ever be orphaned again.
 - Android now has two dispatch entries into the same channel: `dispatchToChannel` (a live listener,
   plan `Direct`) and `dispatchPending` (waits for the service or the foreground, plan `Service`).
-  They share `dispatched`, so a fire is handed over at most once regardless of which path gets
-  there first.
+  They share `dispatched`, which records *hand-offs that happened*; a fire is therefore delivered at
+  most once, and one that could not be handed over stays queued for the next drain instead of being
+  silently retired.
 - Known and deliberately deferred: `BackgroundRuntime.beginScheduledRun` sets `blocked` when the
   foreground service cannot start and then calls `scheduledTasks.stopAll("foreground_service_start_failed")`,
   which aborts unrelated scheduled-task runs as collateral. Care's own recovery (the `MainActivity.onStart`

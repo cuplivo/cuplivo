@@ -235,11 +235,19 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
      */
     private fun dispatchToChannel() {
         if (!ready) return
+        val handedOver = mutableSetOf<String>()
         inFlight.toMap().forEach { (id, dueAt) ->
             if (!dispatched.add(id)) return@forEach
             Log.i(TAG, "dispatch: handing off $id due=$dueAt")
             channel?.invokeMethod("fire", mapOf("conversationId" to id, "dueAt" to dueAt))
+            handedOver.add(id)
         }
+        // `dispatched` is a delivery record, not an attempt record: when the
+        // channel is gone the hand-off did not happen, and keeping the entry
+        // would make the hold in [dispatchPending] permanent — the letter would
+        // never be offered to Dart again until the deadline released it. Drop
+        // the ids that could not be handed over so the next drain retries them.
+        dispatched.retainAll(handedOver)
     }
 
     /** Sends every claimed-but-undelivered fire to the Dart side. */

@@ -115,11 +115,17 @@ class MarkdownDetailsExpansion {
 
 /// The component set a markdown surface renders with, in match order.
 ///
-/// Shared by the renderer and the IR walk: a copied selection is mapped
-/// against the grammar that produced what the user sees.
+/// Shared by the renderer, the IR walk and the streaming splitter: a copied
+/// selection is mapped against the grammar that produced what the user sees,
+/// and a block boundary is decided by the same rules.
+///
+/// The flags are passed rather than the settings object, because the splitter
+/// builds its set where no provider is in scope (see
+/// `_MarkdownWithCodeHighlightState._createSplit`).
 ({List<MarkdownComponent> global, List<MarkdownComponent> inline})
 markdownComponentsFor({
-  required SettingsProvider settings,
+  required bool enableMathRendering,
+  required bool enableDollarLatex,
   required bool streaming,
 }) {
   final components = List<MarkdownComponent>.from(
@@ -138,7 +144,7 @@ markdownComponentsFor({
   // Prepend custom renderers in priority order.
   components.removeWhere((c) => c is CodeBlockMd);
   // Conditionally add LaTeX/math renderers
-  if (settings.enableMathRendering) {
+  if (enableMathRendering) {
     // Block-level LaTeX (e.g., $$...$$ or \[...\])
     components.insert(0, LatexBlockScrollableMd());
   }
@@ -159,9 +165,9 @@ markdownComponentsFor({
   inlineComponents.insert(0, AllowedHtmlTagsMd());
 
   // Conditionally add inline LaTeX/math renderers
-  if (settings.enableMathRendering) {
+  if (enableMathRendering) {
     // Inline LaTeX: $...$ and \(...\)
-    if (settings.enableDollarLatex) {
+    if (enableDollarLatex) {
       inlineComponents.insert(0, InlineLatexParenScrollableMd());
       inlineComponents.insert(0, InlineLatexDollarScrollableMd());
     } else {
@@ -203,6 +209,31 @@ markdownComponentsFor({
   // \( ... \) math containing \{...\}; inline math is registered ahead of it.
   inlineComponents.add(BackslashEscapeMd());
   return (global: components, inline: inlineComponents);
+}
+
+/// The splitter a streaming markdown surface decides its block boundaries
+/// with.
+///
+/// Its grammar is the surface's — the same [markdownComponentsFor] list the
+/// renderer walks — with two deliberate differences. Display math is always
+/// on, because a display formula claims the blank runs inside it whether or
+/// not the setting renders math, which is what the old line scanner's
+/// always-enabled math pairing did; and `<details>` is claimed by a
+/// registry-less [DetailsHtmlMd], which matches a closed block in the raw
+/// source the way the rendering surface matches its placeholder token.
+///
+/// Built without a settings object, so the splitter can exist where no
+/// provider is in scope.
+MarkdownStreamingSplit markdownStreamingSplit() {
+  final set = markdownComponentsFor(
+    enableMathRendering: true,
+    enableDollarLatex: true,
+    streaming: true,
+  );
+  return MarkdownStreamingSplit(
+    global: [DetailsHtmlMd(), ...set.global],
+    inline: set.inline,
+  );
 }
 
 /// gpt_markdown with custom code block highlight and inline code styling.
@@ -267,7 +298,11 @@ class MarkdownWithCodeHighlight extends StatefulWidget {
     required bool streaming,
     MarkdownDetailsExpansion? detailsExpansion,
   }) {
-    final set = markdownComponentsFor(settings: settings, streaming: streaming);
+    final set = markdownComponentsFor(
+      enableMathRendering: settings.enableMathRendering,
+      enableDollarLatex: settings.enableDollarLatex,
+      streaming: streaming,
+    );
     final registry = MarkdownDetailsRegistry(
       enableMath: settings.enableMathRendering,
     );
@@ -295,11 +330,11 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
 
   late String _renderText;
   Timer? _renderDebounce;
-  final MarkdownStreamingSplit _incrementalDocument = MarkdownStreamingSplit();
+  late final MarkdownStreamingSplit _incrementalDocument =
+      markdownStreamingSplit();
   late final MarkdownDetailsExpansion _detailsExpansion =
       widget.detailsExpansion ?? MarkdownDetailsExpansion();
   final _codeFenceParser = StreamingCodeFenceParser();
-  final _separatorCache = Expando<(bool, bool, bool)>();
   String? _liveBlockSource;
   String? _liveBlockNormalized;
   (bool, bool)? _liveBlockOptions;
@@ -467,7 +502,8 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
 
     // Replace default components and add our own where needed
     final set = markdownComponentsFor(
-      settings: settings,
+      enableMathRendering: settings.enableMathRendering,
+      enableDollarLatex: settings.enableDollarLatex,
       streaming: widget.streaming,
     );
     final components = set.global;
@@ -844,30 +880,6 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
       );
     }
 
-    bool swallowsSeparator(MarkdownStreamBlock block) {
-      final cached = _separatorCache[block];
-      if (cached != null &&
-          cached.$1 == settings.enableMathRendering &&
-          cached.$2 == settings.enableDollarLatex) {
-        return cached.$3;
-      }
-      final result = _swallowsTrailingBlankLine(
-        preprocessedBlocks
-            ? block.text
-            : normalize(
-                block.text,
-                streaming: widget.streaming && !block.stable,
-              ),
-        mathEnabled: settings.enableMathRendering,
-      );
-      _separatorCache[block] = (
-        settings.enableMathRendering,
-        settings.enableDollarLatex,
-        result,
-      );
-      return result;
-    }
-
     final markdownWidget = useIncrementalBlocks
         ? MarkdownBlockList(
             blocks: sourceBlocks,
@@ -879,13 +891,6 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
                 sourceStart: block.start,
                 appendOnly: sourceAppended,
               );
-              if (fence != null) {
-                _separatorCache[block] = (
-                  settings.enableMathRendering,
-                  settings.enableDollarLatex,
-                  false,
-                );
-              }
               final content = fence != null || preprocessedBlocks
                   ? block.text
                   : normalize(
@@ -898,7 +903,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (previous != null && !swallowsSeparator(previous))
+                  if (previous != null && !previous.swallowsSeparator)
                     _MarkdownBlockSeparator(style: baseTextStyle),
                   _CachedMarkdownBlock(
                     source: block.text,
@@ -1147,70 +1152,10 @@ class _CachedMarkdownBlockState extends State<_CachedMarkdownBlock> {
   }
 }
 
-/// Whether a whole-document render would fold the blank line after [content]
-/// into the block itself, leaving no gap for a separator to reproduce.
-///
-/// [SoftHrLine] and [LatexBlockScrollableMd] close their pattern with `\s*$`.
-/// The match then runs past the newline that ends the block, so `NewLines`
-/// never sees the `\n\n` it needs and the render lays out no gap. Every other
-/// block — ATX headings included, which only allow horizontal whitespace —
-/// leaves the blank line behind, which is what [_MarkdownBlockSeparator]
-/// stands in for.
-///
-/// This walks in from the end of the block rather than matching a regex over
-/// the whole of it: a pattern like `\$\$[\s\S]*?\$\$\s*$` retries from every
-/// line-leading `$$`, which turns quadratic on a block full of unclosed math,
-/// and the check runs for every stable block on every streaming frame.
-bool _swallowsTrailingBlankLine(String content, {required bool mathEnabled}) {
-  final end = _lastNonWhitespace(content);
-  if (end == 0) return false;
-  if (_isSoftHrLine(content, _lineStartBefore(content, end), end)) return true;
-  return mathEnabled && markdownEndsWithDisplayMath(content, end);
-}
-
-/// One past the last non-whitespace code unit of [content].
-int _lastNonWhitespace(String content) {
-  var end = content.length;
-  while (end > 0 && _isWhitespace(content.codeUnitAt(end - 1))) {
-    end--;
-  }
-  return end;
-}
-
-/// The start of the line that [end] (exclusive) sits on.
-int _lineStartBefore(String content, int end) {
-  var i = end;
-  while (i > 0 && !_isLineBreak(content.codeUnitAt(i - 1))) {
-    i--;
-  }
-  return i;
-}
-
-/// Whether `[start, end)` holds nothing but a run of one rule marker, the way
-/// [SoftHrLine] matches it.
-bool _isSoftHrLine(String content, int start, int end) {
-  var i = start;
-  while (i < end && _isWhitespace(content.codeUnitAt(i))) {
-    i++;
-  }
-  if (i >= end) return false;
-  final marker = content.codeUnitAt(i);
-  if (marker == 0x2E3B) return i + 1 == end; // ⸻, matched on its own
-  if (marker != 0x2D && marker != 0x2A && marker != 0x5F) return false; // -*_
-  var run = 0;
-  while (i < end && content.codeUnitAt(i) == marker) {
-    i++;
-    run++;
-  }
-  return run >= 3 && i == end;
-}
-
-/// Whitespace as `\s` in a Dart pattern reads it, so leading and trailing runs
-/// are judged the same way the block patterns judge them.
+/// Whitespace as `\s` in a Dart pattern reads it: [_codeBlockStateKey] folds a
+/// run of it into one space, and the renderer's own patterns judge the same
+/// runs the same way.
 bool _isWhitespace(int unit) => markdownIsWhitespace(unit);
-
-/// The line terminators `^` and `$` recognise in a multi-line Dart pattern.
-bool _isLineBreak(int unit) => markdownIsLogicalLineBreak(unit);
 
 /// The blank line a whole-document render keeps between two blocks.
 ///

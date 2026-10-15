@@ -276,7 +276,11 @@ void main() {
   ) async {
     await _copiedText(tester, 'plain');
     final settings = _settings(tester);
-    final set = markdownComponentsFor(settings: settings, streaming: false);
+    final set = markdownComponentsFor(
+      enableMathRendering: settings.enableMathRendering,
+      enableDollarLatex: settings.enableDollarLatex,
+      streaming: false,
+    );
     final active = <Type>{
       for (final component in [DetailsHtmlMd(), ...set.global, ...set.inline])
         component.runtimeType,
@@ -293,7 +297,8 @@ void main() {
       // the two sets differ only in the fence component's mode, so the walk
       // must not be the place where the flag is dropped.
       final fixtureSet = markdownComponentsFor(
-        settings: settings,
+        enableMathRendering: settings.enableMathRendering,
+        enableDollarLatex: settings.enableDollarLatex,
         streaming: fixture.streaming,
       );
       MarkdownComponent.walkNodes(

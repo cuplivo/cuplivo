@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'package:Cuplivo/shared/widgets/markdown_streaming_split.dart';
+import 'package:Cuplivo/shared/widgets/markdown_with_highlight.dart';
 import 'package:Cuplivo/shared/widgets/markdown_block_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -23,7 +24,7 @@ void main() {
       final scroll = ScrollController();
       final capture = GlobalKey();
       try {
-        final blocks = MarkdownStreamingSplit().update(
+        final blocks = markdownStreamingSplit().update(
           List.generate(80, (i) => 'block $i').join('\n\n'),
         );
         final content = Column(

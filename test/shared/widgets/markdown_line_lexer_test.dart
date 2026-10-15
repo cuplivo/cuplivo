@@ -1,4 +1,3 @@
-import 'package:Cuplivo/shared/widgets/markdown_streaming_split.dart';
 import 'package:Cuplivo/shared/widgets/markdown_line_lexer.dart';
 import 'package:Cuplivo/shared/widgets/markdown_with_highlight.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -484,7 +483,7 @@ void main() {
   test('splitter visits stay linear on unmatched backtick runs', () {
     final source = 'before\n\n${_unmatchedBacktickRuns()}\n\nafter';
     debugResetMarkdownScanVisits();
-    final blocks = MarkdownStreamingSplit().update(source);
+    final blocks = markdownStreamingSplit().update(source);
     expect(blocks, hasLength(3));
     expect(
       debugMarkdownScanVisits,

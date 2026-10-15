@@ -55,7 +55,11 @@ void main() {
     );
     final context = tester.element(find.byType(Scaffold));
     final settings = Provider.of<SettingsProvider>(context, listen: false);
-    final set = markdownComponentsFor(settings: settings, streaming: false);
+    final set = markdownComponentsFor(
+      enableMathRendering: settings.enableMathRendering,
+      enableDollarLatex: settings.enableDollarLatex,
+      streaming: false,
+    );
     final config = GptMarkdownConfig(
       components: set.global,
       inlineComponents: set.inline,

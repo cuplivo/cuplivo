@@ -253,8 +253,9 @@ removes pending requests, which is the right behaviour for `prepared: false` let
   cold-start catch-up, and the refusal nobody could see.
 - Native code has no gate of its own for anything but Android: `pr-check.yml` gained a job that
   compiles the Android release variant and runs `ProactiveCareAlarmsTest`/`ProactiveCareFirePlanTest`
-  (advisory until it has a track record), while iOS has no unit-test source set and nothing compiles
-  Swift, so a `Runner/`-level regression is caught by dispatching `release.yml`
+  (scoped, because the rest of `android/app/src/test/` has pre-existing failures and no workflow had
+  ever compiled it; the job is advisory until it has a track record). iOS has no unit-test source set
+  and nothing compiles Swift, so a `Runner/`-level regression is caught by dispatching `release.yml`
   (`publish_release=false`) or by a device test. The Dart side of this contract is covered in
   `ios_proactive_care_scheduler_test.dart`, `proactive_care_alarm_service_test.dart`, and the Kotlin
   fire plan tests.

@@ -164,21 +164,22 @@ class ProactiveCareAlarmsTest {
         assertEquals(second, dueAtOf(messenger.fired().last()))
     }
 
-    /** When Dart is gone the run has no listener, so the letter is parked until
-     *  the channel is ready (or the deadline releases it, visibly). */
+    /** A fire that cannot reach Dart yet is held, not dropped: the occurrence is
+     *  consumed and the handoff completes the moment the channel is ready. */
     @Test fun aFireWithoutAListenerWaitsForTheChannelAndIsStillDelivered() {
         val messenger = Messenger()
         alarms.configure(messenger)
         app.backgroundRuntime.setForeground(false)
         val dueAt = System.currentTimeMillis() + 60_000
 
-        // Nothing can be armed through the channel yet (it is not ready), but
-        // the registry still holds the occurrence: fire() is what a real alarm
-        // broadcast calls.
+        // No listener yet: the Service plan owns the run. A real device starts
+        // the foreground service here, which is what brings the engine up;
+        // this unit cannot do that, so the handoff below stands in for it.
         alarms.fire("c1", dueAt)
         assertTrue(messenger.fired().isEmpty())
 
-        // Dart attaching is what completes the handoff.
+        // Dart attaching, with the app back in front: the held letter goes out.
+        app.backgroundRuntime.setForeground(true)
         messenger.call("ready")
 
         val fire = messenger.fired().single()

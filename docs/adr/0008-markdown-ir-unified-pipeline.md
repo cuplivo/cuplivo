@@ -1,6 +1,6 @@
 # ADR-0008: One walk, and one markdown → IR → widget/copy pipeline
 
-**Status:** Accepted (2026-10) — being carried out in four phases (A–D)
+**Status:** Accepted (2026-10) — carried out in four phases (A–D), all four landed
 **Deciders:** cuplivo
 **Supersedes:** ADR-0007 decision 1 ("`generate()` is untouched") and its "Not in scope" entries for
 migrating the block splitter and the line lexer onto the IR. Everything else in ADR-0007 stands.
@@ -163,13 +163,18 @@ initial frame, three fast-path appends, no further parses.
   `InlineMd`'s default `span`; the seven inline `span` overrides deleted from the package
   (`HighlightedText`, `BoldMd`, `StrikeMd`, `ItalicMd`, `ATagMd`, `ImageMd`, `UnderLineMd`), with the
   bold component's `emphasisWeight` as the one style hook; `AtxHeadingMd` rendering its body from its
-  own node; `ModernBlockQuote` on the shared `markdownQuoteText` (widened to the tabs the app already
-  accepted, so the render and the node agree there too); the package table's row splitting shared between
+  own node — with the inline components, not the global set, which is what retired the enumerated-heading
+  U+200C mask (ADR-0007, consequences); `ModernBlockQuote` on the shared `markdownQuoteText` (widened to
+  the tabs the app already accepted, so the render and the node agree there too); the package table's row
+  splitting shared between
   `build` and `node`; the app's *inline* table component aligned with its global one, which closes the
   last open drift (`**| a | b |\n| - | - |**`); `SetextHeadingMd` and `LabelValueLineMd` deleted with
   their commented-out registration. Gate: the package's own suite (144) and the markdown suite (352)
   pass, both analyzers are clean, and the drift file grew from 16 cases to 28 — twelve new fixtures,
-  one per previously unexercised active component, plus the coverage registry over them. The registry was
+  one per previously unexercised active component, plus the coverage registry over them. Three of those
+  fixtures exist because math rendering defaults on: the active set therefore holds the dollar and paren
+  inline components and the display-math block, and a registry that skipped them would pass while
+  proving nothing about them. The registry was
   shown to fail (naming `StrikeMd`) with one fixture removed and to pass again after a byte-exact
   restore; the emphasis-ink lookup was shown the same way, by hard-coding the weight, which turns the two
   Android weight tests red.
@@ -280,7 +285,7 @@ initial frame, three fast-path appends, no further parses.
   unchanged and measured, not assumed: `'```text\nx \n\n'` still shows `x` while the fence is open and
   `'```text\nx \n\n```'` still shows `x `.
 
-  §5.5 was answered by injection: the preprocessor's code masking is **not** redundant now that the walk
+  The preprocessor's code masking was answered by injection: it is **not** redundant now that the walk
   claims fences. Disabled, a fence body's `$5` reaches the code view as `\(5\)` — the math pass runs on
   that text regardless — so the mask stays with its reason recorded where it happens. Its tag half is
   unproven rather than proven: disabling it leaves every markdown test green, so it is kept and recorded
@@ -288,14 +293,14 @@ initial frame, three fast-path appends, no further parses.
   `$` and `<b>`, read from the code view's own text) and the matching drift fixtures fail with the mask
   disabled, which is what makes that answer mean anything.
 
-  §5.4 landed with it: a `<details>` block is keyed by where it starts in the document together with its
+  The details key landed with it: a `<details>` block is keyed by where it starts in the document together with its
   text, so two identical blocks keep their own state and a block that replaced another at the same offset
   starts collapsed. Offsets rather than an ordinal, because that makes the key independent of traversal —
   the surface rewrites block by block, the copy mapping rewrites the whole source, a nested body is
   rewritten by whoever renders its parent, and all three mint the same token for the same block. The
   registry moved from per-block to per-surface and its rewrite cache is bounded; the parity test that
   compares the two traversals caught a real bug on its first run (a cache keyed by text alone returned
-  the first place's token to the second place, which is exactly the duplicate case §5.4 is about).
+  the first place's token to the second place, which is exactly the duplicate case the key change is about).
 
   `MarkdownLineLexer` stays: its other consumers (`assistant_paragraph_splitter`, `timeline_visibility`,
   `diagram_exporter`, details extraction) are line classifiers for other features, not renderer mirrors.
@@ -317,10 +322,15 @@ initial frame, three fast-path appends, no further parses.
 - The details placeholder rewrite stays. It has a measured history (nonce minting, sibling-fragment
   aliasing) and decision 1 of ADR-0007 still holds: the placeholder keeps a rewritten offset space out
   of the walk. Decision 8 changes keys, not the mechanism.
+- The IR package is analyzed as its own root, and that is part of the gate rather than a formality:
+  `dart analyze --fatal-infos dependencies/gpt_markdown` had to reach zero before any phase could claim
+  one, which is why the package's stray `this.exp` uses are gone and `MdSelection`'s index is private.
+  `dependencies/` sits outside the app's analyzed roots, so this is the only check that sees it.
 
 ## Not in scope
 
 - Migrating the line-level heuristics of other features (TTS paragraph splitting, timeline culling,
   diagram export) onto the IR.
 - Handing pre-walked nodes into nested block widgets (decision 3).
-- PDF export, the copy path's caching, and the `feat/direct-select-text-v4` rebase onto this work.
+- PDF export, and the copy path's caching: the selection-copy surface is ADR-0009's record, and the
+  branch carrying it was rebased onto this work rather than merged into it.

@@ -42,9 +42,10 @@ without a webview, which image export (slow, large) and plain markdown (poor on 
 3. **Display text is owned by the node, and it is the contract.** A node's display text is what a
    selection sees: the source slice for content, the declared `selectedText` for a widget that
    announces one (math), nothing for a painted line or a disabled container, a `decoration` for text the
-   source lacks (an ordered list's number), and a `gap` for a node that shows nothing but must re-emit
-   when a selection spans it (an image, a rule, a fenced code body). Components whose display text is not
-   their source are emitted whole, because a cut inside them cannot be resolved.
+   source lacks (an ordered list's number), and a `gap` for a node that contributes no display text but
+   still paints, and must re-emit when a selection spans it (an image, an inline formula, a rule, a fenced
+   code body). Components whose display text is not their source are emitted whole, because a cut inside
+   them cannot be resolved.
 4. **The selection is mapped by text, not by framework offsets.** `RenderParagraph` splits its
    selectables on widget placeholders and never copies them, while `SelectableAdapter` reports one unit
    of length and copies its whole declared text — so the offset space a `TextSelection` uses is not the
@@ -56,7 +57,10 @@ without a webview, which image export (slow, large) and plain markdown (poor on 
    are never synthesized — the newlines between blocks are source text and are covered items themselves.
    A miss returns `null` and the caller falls back to sanitized plain text, so the action is never worse
    than a copy. `subsequenceMatch` is deleted rather than kept as a second fallback: it would fire
-   exactly in the unmodelled cases that are the bug.
+   exactly in the unmodelled cases that are the bug. Which text *is* a span is the surface component's
+   rule, and for a code span that rule is the app's escape convention: a backslash escapes the **opener**
+   only — `` \`code\` `` is a literal backtick drawn by `BackslashEscapeMd` — because a code span has no
+   escapes, so `` `D:\ComfyUI\` `` is one span whose closer is the backslash-preceded backtick (#544).
 6. **PDF only constrains the design.** The IR imports nothing, so a `pdf` emitter can walk it later.
    Export itself is a separate feature with its own decisions (CJK font subsetting, rasterizing
    formulas, pagination) and is not built here.
@@ -92,7 +96,22 @@ without a webview, which image export (slow, large) and plain markdown (poor on 
   token for it and the token must never reach the clipboard.
 - Component assembly moved out of `build()` into `markdownComponentsFor()`, so the renderer and the IR
   walk cannot disagree about which components are in play; the app's component set is now one value
-  rather than two lists assembled in a build method.
+  rather than two lists assembled in a build method. The code-span rule above is what that buys: one
+  component rule reaches the renderer, this walk's copy mapping and the streaming splitter together
+  (ADR-0008), and the #544 fix is that rule's closer lookbehind no longer reading a backslash as an
+  escape. Its guards are the two reported shapes, a `$` span behind a span that ends in a backslash
+  (where the preprocessor's mask and the walk must claim the same span), a drift fixture pinning that a
+  trailing-backslash chip re-emits its delimiters when copied, and the escape-literal rule.
+- The enumerated-heading zero-width mask is retired. `AtxHeadingMd` used to write U+200C between a
+  list-shaped prefix and the rest of a heading body because it walked that body with the **global**
+  components, where `OrderedList` (behind `BlockMd`'s `^\ *?` prefix) claimed the body of `## 1. 引言` as
+  a list item. The mask was written into the source *before* the walk, so the IR could not tell it from
+  content: it sat inside the node's range, reached the display space and the re-emitted markdown, and
+  only a character-level strip could remove it — the same strip that would have removed a ZWNJ that
+  Persian, Arabic and Urdu spell with. A heading body is inline content, so it is walked with the inline
+  components now and nothing inserts U+200C; quote and `<details>` bodies keep the document walk
+  (ADR-0008 decision 3), where a nested list is real content. `stripRendererInsertedCharacters`
+  therefore removes U+200B alone.
 - The streaming infrastructure (`IncrementalMarkdownDocument`, `markdown_line_lexer.dart`,
   `MarkdownSourceScan`) is deliberately untouched: it is finely tuned and heavily tested, and
   re-deriving block splitting from the IR is a separate question with its own risk.
@@ -102,5 +121,13 @@ without a webview, which image export (slow, large) and plain markdown (poor on 
 - Migrating the block splitter or the line lexer onto the IR.
 - PDF export.
 - Offsets as a proximity hint for repeated text.
-- Quote, reply-with-quote and speak-selection, and any change to how the renderer inserts zero-width
-  characters.
+- Quote, reply-with-quote and speak-selection.
+- CommonMark's code-span doubling rule (`` `` `x` `` `` is one span) and the chat API's fence widening:
+  both belong to the single code-identification engine of the archived 3.x line (#561 / ADR-0042), which
+  this baseline does not carry. Two consequences were read out of the code and are recorded as
+  **unreproduced**: the preprocessor's `$` mask matches single-backtick spans only, so a `$` inside a
+  multi-backtick span is protected by the mask and claimed by no chip — the placeholder reaches the text
+  — and the anchored classifier's `dotAll: false` cannot see an inline-code element that spans lines, so
+  such an element is dropped.
+- Any further change to what the renderer inserts: the U+200B soft break stays, and stripping it is the
+  clipboard's job (ADR-0009 decision 4).

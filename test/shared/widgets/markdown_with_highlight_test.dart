@@ -5407,24 +5407,62 @@ Fenced code body
     },
   );
 
-  testWidgets(
-    'ATX enumeration rewrite does not cross a blank line into a list',
-    (tester) async {
+  testWidgets('an enumerated line after a heading stays a list item', (
+    tester,
+  ) async {
+    final pad = 'Body. ${'The rain kept falling on the quiet street. ' * 16}';
+    final text = '$pad\n\n#\n\n1. item';
+    for (final streaming in const [true, false]) {
+      await tester.pumpWidget(_markdownHarness(text, streaming: streaming));
+      await tester.pump();
+      final plain = tester
+          .widgetList<RichText>(find.byType(RichText))
+          .map((widget) => widget.text.toPlainText())
+          .join('\n');
+      expect(plain, contains('item'), reason: '$streaming');
+      expect(_spanFontSize(tester, 'item'), isNot(24), reason: '$streaming');
+    }
+  });
+
+  testWidgets('an enumerated heading is a heading, never a list', (
+    tester,
+  ) async {
+    // The shape the ATX enumeration rewrite exists for: an LLM-authored
+    // numbered heading, with and without the space after the dot. A heading
+    // body is walked with the global components, and the ordered-list pattern
+    // needs only "digits, dot, space", so without the rewrite the list
+    // component claims the body and draws the number as its own text. The
+    // scope test above only pins that the rewrite does not reach a real list
+    // item; this one pins what the rewrite is there to protect.
+    for (final source in const ['## 1.引言', '## 1. 引言']) {
       final pad = 'Body. ${'The rain kept falling on the quiet street. ' * 16}';
-      final text = '$pad\n\n#\n\n1. item';
       for (final streaming in const [true, false]) {
-        await tester.pumpWidget(_markdownHarness(text, streaming: streaming));
+        await tester.pumpWidget(
+          _markdownHarness('$pad\n\n$source\n\nNext', streaming: streaming),
+        );
         await tester.pump();
+        final reason = '$source (${streaming ? 'streaming' : 'finished'})';
+        // The list component renders its number as its own Text, and hosts the
+        // item body in a nested block widget (a WidgetSpan in the paragraph).
+        // A heading body must have neither: it is emitted inline.
+        expect(find.text('1.'), findsNothing, reason: reason);
+        expect(
+          _collectWidgetSpans(_paragraphContaining('引言').text),
+          isEmpty,
+          reason: reason,
+        );
+        // The heading component owns the body, at heading ink (h2 is 20).
+        expect(_spanFontSize(tester, '引言'), 20, reason: reason);
+        // ... and the source is no longer poisoned for this shape: the mask
+        // that used to insert an invisible U+200C after the dot is gone.
         final plain = tester
             .widgetList<RichText>(find.byType(RichText))
             .map((widget) => widget.text.toPlainText())
             .join('\n');
-        expect(plain, isNot(contains('\u200C')), reason: '$streaming');
-        expect(plain, contains('item'));
-        expect(_spanFontSize(tester, 'item'), isNot(24));
+        expect(plain, isNot(contains('\u200C')), reason: reason);
       }
-    },
-  );
+    }
+  });
 
   testWidgets('a completed pipe row is not turned into a streaming table', (
     tester,

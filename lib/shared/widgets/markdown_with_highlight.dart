@@ -1462,14 +1462,6 @@ String _preprocessFences(
   );
   out = out.replaceAllMapped(labelThenDash, (m) => "${m[1]}\n\n${m[2]}");
 
-  // 6) Allow ATX headings starting with enumerations like "## 1.引言" or "## 1. 引言"
-  // Insert a zero-width non-joiner after the dot to prevent list parsing without changing visual text.
-  final atxEnum = RegExp(
-    r'^([ \t]{0,3}#{1,6}[ \t]+\d+)\.([ \t]*)(\S)',
-    multiLine: true,
-  );
-  out = out.replaceAllMapped(atxEnum, (m) => "${m[1]}.\u200C${m[2]}${m[3]}");
-
   // 7) Normalize double-bracket citation links: [[n]](url) → [n](url)
   //    Many LLMs with built-in web search (DashScope, Perplexity, etc.) emit
   //    citations as [[1]](url), where the inner [1] is the display text. The
@@ -5645,12 +5637,15 @@ class AtxHeadingMd extends BlockMd {
 
     final innerCfg = config.copyWith(style: TextStyle());
     // Rendered from the same nodes the IR reports, and walked the same way:
-    // a heading body is a document walk, as it is for node().
+    // a heading body is inline content, so it is parsed with the inline
+    // components (see node()). A block component claiming inside it would
+    // render a block widget inside the heading -- an ordered list claiming an
+    // enumerated heading's "1. " is the case that happened.
     final inner = TextSpan(
       children: MdSpanEmitter(
         context,
         innerCfg,
-        includeGlobal: true,
+        includeGlobal: false,
       ).emit(nodeOfElement(innerCfg, text).children),
     );
     final style = _headingTextStyle(context, config, level);
@@ -5744,8 +5739,10 @@ class AtxHeadingMd extends BlockMd {
       kind: MdNodeKind.heading,
       range: ctx.rangeOf(text),
       open: '${m?.group(1) ?? '#'} ',
-      // The body is parsed with the global components, as it is when rendered.
-      children: raw.isEmpty ? const [] : ctx.walk(raw, includeGlobal: true),
+      // The body is inline content: parsed with the inline components, the
+      // same walk the renderer uses. Offering it to the global set let a block
+      // component claim it -- an enumerated heading rendered as a list.
+      children: raw.isEmpty ? const [] : ctx.walk(raw),
     );
   }
 }

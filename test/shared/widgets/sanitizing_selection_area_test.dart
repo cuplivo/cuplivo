@@ -9,6 +9,7 @@ import 'package:Cuplivo/shared/widgets/sanitizing_selection_area.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
@@ -36,6 +37,47 @@ Future<Widget> _harness(Widget child) async {
       ),
     ),
   );
+}
+
+/// A desktop table: `useCompactTable` is false there, so its cells are
+/// selectable.
+void _forceDesktopTables() {
+  markdownTableTargetPlatformOverride = TargetPlatform.windows;
+  addTearDown(() => markdownTableTargetPlatformOverride = null);
+}
+
+/// The paragraph whose plain text contains [text].
+Finder _paragraphContaining(String text) => find
+    .byWidgetPredicate(
+      (widget) =>
+          widget is RichText && widget.text.toPlainText().contains(text),
+    )
+    .first;
+
+/// A mouse drag from one point to another, which is how a selection is made on
+/// desktop (a touch drag would scroll or long-press instead).
+Future<void> _dragSelection(WidgetTester tester, Offset from, Offset to) async {
+  final gesture = await tester.startGesture(
+    from,
+    kind: PointerDeviceKind.mouse,
+  );
+  await tester.pump(const Duration(milliseconds: 20));
+  await gesture.moveTo(to);
+  await tester.pump(const Duration(milliseconds: 20));
+  await gesture.up();
+  await tester.pumpAndSettle();
+}
+
+/// Copies the current selection from the focused owner, as the keyboard
+/// shortcut does.
+Future<String?> _copySelection(
+  WidgetTester tester,
+  _ClipboardRecorder recorder,
+) async {
+  final focus = FocusManager.instance.primaryFocus!;
+  Actions.invoke(focus.context!, CopySelectionTextIntent.copy);
+  await tester.pumpAndSettle();
+  return recorder.copiedText();
 }
 
 class _ClipboardRecorder {
@@ -72,20 +114,6 @@ class _ClipboardRecorder {
   }
 }
 
-/// A mouse drag from one point to another, which is how a selection is made on
-/// desktop (a touch drag would scroll or long-press instead).
-Future<void> _dragSelection(WidgetTester tester, Offset from, Offset to) async {
-  final gesture = await tester.startGesture(
-    from,
-    kind: PointerDeviceKind.mouse,
-  );
-  await tester.pump(const Duration(milliseconds: 20));
-  await gesture.moveTo(to);
-  await tester.pump(const Duration(milliseconds: 20));
-  await gesture.up();
-  await tester.pumpAndSettle();
-}
-
 /// A mouse drag across [finder] at the middle of its first visible line.
 Future<void> _dragAcross(WidgetTester tester, Finder finder) async {
   final rect = tester.getRect(finder);
@@ -118,13 +146,6 @@ Future<void> _dragInside(WidgetTester tester, Finder finder) async {
     await _dragAcross(tester, finder);
   }
 }
-
-/// The selectable whose own text contains [text] — a table cell, whose text is
-/// a span rather than `data`.
-Finder _selectableContaining(String text) => find.byWidgetPredicate((widget) {
-  if (widget is! SelectableText) return false;
-  return widget.textSpan?.toPlainText().contains(text) ?? false;
-});
 
 /// The keyboard shortcut, dispatched from the focused owner — which is what the
 /// framework does.
@@ -443,49 +464,136 @@ void main() {
       expect(copied, isNot(contains('prose words here')));
     });
 
-    testWidgets('a table cell takes the copy back from our selection', (
+    testWidgets('a table cell copies its inline code, not a placeholder', (
       tester,
     ) async {
-      // A desktop table's cells are `SelectableText`s: nested owners on this
-      // branch, reached through their own area rather than through the text
-      // around them.
-      markdownTableTargetPlatformOverride = TargetPlatform.windows;
-      addTearDown(() => markdownTableTargetPlatformOverride = null);
+      // The reported bug: the cell owned its selection with a nested
+      // `SelectableText`, whose edit value holds one U+FFFC where the
+      // inline-code chip sits. The clipboard got that character, and the code
+      // had no interior position to select into.
       final recorder = _ClipboardRecorder()..install(tester);
+      _forceDesktopTables();
       await tester.pumpWidget(
         await _harness(
           const MarkdownWithCodeHighlight(
-            text:
-                'prose words here\n\n| head | second |\n| --- | --- |\n| alpha | bravo |',
+            text: '| head | second |\n| --- | --- |\n| `code` | tail |',
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      await _selectProseFirst(tester, recorder, 'prose words here');
-      await _dragAcross(tester, _selectableContaining('alpha'));
-      await _copyFromFocus(tester);
+      final table = find.byType(Table);
+      expect(
+        find.descendant(of: table, matching: find.byType(SelectableText)),
+        findsNothing,
+        reason: 'a cell must be a paragraph of the enclosing owner',
+      );
+      final chip = find.descendant(
+        of: table,
+        matching: find.byKey(const ValueKey('inline-code-surface')),
+      );
+      expect(chip, findsOneWidget);
 
-      expect(recorder.copiedText(), 'alpha');
+      final rect = tester.getRect(chip);
+      await _dragSelection(
+        tester,
+        Offset(rect.left + 2, rect.center.dy),
+        Offset(rect.right - 2, rect.center.dy),
+      );
+      final copied = await _copySelection(tester, recorder);
+      debugPrint('TABLE CELL COPY: "$copied"');
+      expect(copied, contains('code'));
+      expect(copied, isNot(contains('\uFFFC')));
     });
 
+    testWidgets('one drag crosses from one table cell into the next', (
+      tester,
+    ) async {
+      final recorder = _ClipboardRecorder()..install(tester);
+      _forceDesktopTables();
+      await tester.pumpWidget(
+        await _harness(
+          const MarkdownWithCodeHighlight(
+            text: '| head | second |\n| --- | --- |\n| alpha | bravo |',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final alpha = tester.getRect(_paragraphContaining('alpha'));
+      final bravo = tester.getRect(_paragraphContaining('bravo'));
+      await _dragSelection(
+        tester,
+        Offset(alpha.left + 2, alpha.center.dy),
+        Offset(bravo.right - 2, bravo.center.dy),
+      );
+      final copied = await _copySelection(tester, recorder);
+      debugPrint('TABLE CELL CROSSING COPY: "$copied"');
+      expect(copied, contains('alpha'));
+      expect(copied, contains('bravo'));
+    });
+
+    testWidgets('a drag across a table copies the cells with the text', (
+      tester,
+    ) async {
+      // The cells are paragraphs of the enclosing owner now, so a selection
+      // spanning the table reports their text. (The Markdown form of the same
+      // selection is the menu item's path, covered where the bubble wires
+      // `SelectionMarkdownMemory`.)
+      final recorder = _ClipboardRecorder()..install(tester);
+      _forceDesktopTables();
+      await tester.pumpWidget(
+        await _harness(
+          const MarkdownWithCodeHighlight(
+            text:
+                'before\n\n| head | second |\n| --- | --- |\n'
+                '| alpha | bravo |\n\nafter',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // The whole document renders as one paragraph — "before\n\n<U+FFFC>\n\n
+      // after", the table embedded as a widget between the two runs — so the
+      // spanning drag has to follow the paragraph's own caret geometry.
+      final block = find.byType(RichText).first;
+      final paragraph = tester.renderObject<RenderParagraph>(block);
+      final box = tester.getRect(block);
+      final plain = paragraph.text.toPlainText();
+      debugPrint(
+        'TABLE SPANNING PARAGRAPH: "${plain.replaceAll('\n', r'\n')}"',
+      );
+      Offset caret(int offset) {
+        final local = paragraph.getOffsetForCaret(
+          TextPosition(offset: offset),
+          Rect.zero,
+        );
+        return Offset(box.left + local.dx + 1, box.top + local.dy + 6);
+      }
+
+      await _dragSelection(tester, caret(0), caret(plain.length));
+      final copied = await _copySelection(tester, recorder);
+      debugPrint('TABLE SPANNING COPY: "${copied?.replaceAll('\n', r'\n')}"');
+      expect(copied, contains('before'));
+      expect(copied, contains('after'));
+      expect(
+        copied,
+        contains('alpha'),
+        reason: 'the cells must be part of the selection, not a nested owner',
+      );
+    });
     testWidgets('every nested owner the renderer creates claims the selection', (
       tester,
     ) async {
-      // The three guards above name the owners this branch knows about. This one
+      // The guards above name the owners this branch knows about. This one
       // asks the tree, per kind of content, so a component that nests a
       // selectable cannot be added without wiring the claim: an owner that does
       // not claim leaves this area's override registered, and the copy then
       // writes the area's stale text instead of the owner's.
-      markdownTableTargetPlatformOverride = TargetPlatform.windows;
-      addTearDown(() => markdownTableTargetPlatformOverride = null);
       final recorder = _ClipboardRecorder()..install(tester);
       final corpora = <String, String>{
         'short code': 'prose words here\n\n```dart\nvoid main() {}\n```',
         'long code': 'prose words here\n\n${_longCode()}',
-        'table':
-            'prose words here\n\n'
-            '| head | second |\n| --- | --- |\n| alpha | bravo |',
       };
       var exercised = 0;
       for (final corpus in corpora.entries) {
@@ -529,10 +637,10 @@ void main() {
           );
         }
       }
-      // Four cells, one short code view, one long code region. A corpus that
-      // stopped producing owners would make the loop vacuous, so the count is
-      // part of the guard.
-      expect(exercised, 6);
+      // One short code view, one long code region. A corpus that stopped
+      // producing owners would make the loop vacuous, so the count is part of
+      // the guard.
+      expect(exercised, 2);
     });
   });
 

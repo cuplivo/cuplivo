@@ -4216,30 +4216,43 @@ class _MarkdownTableCell extends StatelessWidget {
     );
     final textSpan = TextSpan(style: baseStyle, children: spans);
 
+    // A cell is a paragraph of whatever selection owner is above it. Joining
+    // that owner keeps a widget-backed run in the cell — an inline code chip, a
+    // citation, an inline formula, a link — as *declared text* inside one
+    // selection. The cell's own `SelectableText` instead bakes every such run
+    // into a single U+FFFC in its edit value, so copying a cell put that
+    // placeholder character on the clipboard and the run had no interior
+    // position to select into. A surface with no owner above it (see
+    // `SelectionContainer.maybeOf`) leaves the cell to own its own selection,
+    // so no caller loses the ability to select.
+    final Widget content;
+    if (!selectable) {
+      content = RichText(
+        text: textSpan,
+        textAlign: data.alignment,
+        softWrap: true,
+        overflow: TextOverflow.visible,
+        textWidthBasis: TextWidthBasis.parent,
+      );
+    } else if (SelectionContainer.maybeOf(context) != null) {
+      content = Text.rich(textSpan, textAlign: data.alignment);
+    } else {
+      // A surface with no owner above still leaves the cell owning its own
+      // selection, so it reports the claim like any other nested owner.
+      content = SelectableText.rich(
+        textSpan,
+        textAlign: data.alignment,
+        onSelectionChanged: (selection, _) {
+          if (!selection.isCollapsed) {
+            reportNestedSelectionClaimed(context);
+          }
+        },
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-      child: Align(
-        alignment: _alignmentFor(data.alignment),
-        child: selectable
-            ? SelectableText.rich(
-                textSpan,
-                textAlign: data.alignment,
-                // A cell owns its selection (it is a nested EditableText), so
-                // the selection area above is told it lost this one.
-                onSelectionChanged: (selection, _) {
-                  if (!selection.isCollapsed) {
-                    reportNestedSelectionClaimed(context);
-                  }
-                },
-              )
-            : RichText(
-                text: textSpan,
-                textAlign: data.alignment,
-                softWrap: true,
-                overflow: TextOverflow.visible,
-                textWidthBasis: TextWidthBasis.parent,
-              ),
-      ),
+      child: Align(alignment: _alignmentFor(data.alignment), child: content),
     );
   }
 
@@ -6186,11 +6199,40 @@ class EscapeAwareTableMd extends TableMd {
   }
 
   @override
-  MdNode node(MdNodeContext ctx, String text) =>
-      // A table owns its selection: its cells are reached through the table's
-      // own area, never through the text around it (measured on every
-      // platform). The whole table rides along when a selection spans it.
-      MdNode.gap(MdNodeKind.table, ctx.rangeOf(text));
+  MdNode node(MdNodeContext ctx, String text) {
+    // A cell is a paragraph of the enclosing selection owner, so a selection
+    // over the table reports the cells' own text — the display space has to
+    // declare exactly that, or a selection spanning the table cannot be mapped
+    // back to its source at all (it silently fell back to plain text). The
+    // table still re-emits whole: its pipes live between the cells, so no
+    // single cell's source can stand in for the table.
+    final lines = text
+        .trim()
+        .split('\n')
+        .where((line) => line.trim().isNotEmpty)
+        .toList();
+    final hasHeader = lines.length >= 2;
+    final display = StringBuffer();
+    for (var index = 0; index < lines.length; index++) {
+      // The divider row is the table's header separator, not a row of cells.
+      if (hasHeader && index == 1) continue;
+      for (final cell in _splitMarkdownTableLine(lines[index].trim())) {
+        display.write(
+          mdDisplayOf(
+            ctx.walk(
+              cell.trim().replaceAll(_codeDollarMask, r'$'),
+              includeGlobal: true,
+            ),
+          ),
+        );
+      }
+    }
+    return MdNode.opaque(
+      MdNodeKind.table,
+      ctx.rangeOf(text),
+      display.toString(),
+    );
+  }
 }
 
 // Prevent link regex from spanning across lines (dotAll=true in engine).

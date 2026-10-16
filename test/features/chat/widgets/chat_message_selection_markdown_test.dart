@@ -8,6 +8,7 @@ import 'package:Cuplivo/features/chat/widgets/chat_message_widget.dart';
 import 'package:Cuplivo/features/home/services/ask_user_interaction_service.dart';
 import 'package:Cuplivo/features/home/services/tool_approval_service.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/markdown_with_highlight.dart';
 import 'package:Cuplivo/shared/widgets/sanitizing_selection_area.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -88,9 +89,10 @@ Future<void> _pumpMessages(
 Future<void> _pumpAssistant(
   WidgetTester tester, {
   bool streaming = false,
+  String content = _content,
 }) async {
   await _pumpMessages(tester, [
-    _message('assistant-1', _content, streaming: streaming),
+    _message('assistant-1', content, streaming: streaming),
   ]);
 }
 
@@ -307,5 +309,31 @@ void main() {
 
     await tester.pumpWidget(const SizedBox.shrink());
     expect(SelectionMarkdownMemory.instance.markdownForSelection(), isNull);
+  });
+
+  testWidgets('the Markdown item keeps a table the selection spans', (
+    tester,
+  ) async {
+    // The cells are paragraphs of the bubble's own selection owner, so the
+    // selection reports their text. The Markdown mapping has to declare that
+    // same display text — a table that contributed none left the mapping
+    // unmatched, and the item silently handed back the plain selection.
+    final recorder = _ClipboardRecorder()..install(tester);
+    markdownTableTargetPlatformOverride = TargetPlatform.windows;
+    addTearDown(() => markdownTableTargetPlatformOverride = null);
+    await _pumpAssistant(
+      tester,
+      content:
+          'before\n\n| head | second |\n| --- | --- |\n'
+          '| alpha | bravo |\n\nafter',
+    );
+
+    final item = await _markdownMenuItem(tester);
+    item.onPressed!();
+    await tester.pump();
+
+    expect(recorder.text, contains('before'));
+    expect(recorder.text, contains('after'));
+    expect(recorder.text, contains('| alpha | bravo |'));
   });
 }

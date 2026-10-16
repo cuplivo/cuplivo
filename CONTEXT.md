@@ -152,12 +152,25 @@ contradicts one of them is a bug, not a preference.
   `tts_engine_v1`/`tts_language_v1` (platform fallbacks), and the session-position keys
   `current_assistant_id_v1` / `selected_model_v1` — those say where *this device* is
   looking, not how the app should be configured.
-- **`syncedPreference`**: a new disposition in `BusinessKeyRegistry` (the classifier stays
-  the single authority; no parallel allowlist). Contains theme/locale, title/summary/
-  translate/ocr/compress model+prompt keys, memory prompts, `asr_services_v1`,
+- **`syncedPreference`**: a disposition in `BusinessKeyRegistry` (the classifier stays
+  the single authority; no parallel allowlist). Contains theme/locale **plus the custom
+  palettes `theme_palette_v1` can name**, title/summary/translate/ocr/compress model+prompt
+  keys **with their limits and thinking toggles**, memory prompts **and the rest of the memory
+  configuration (model, thinking, legacy mode, injection cap, migration batch size)**,
+  `asr_services_v1`/`asr_selected_service_id_v1`,
   `tts_speech_rate_v1`/`tts_pitch_v1`/`tts_selected_service_id_v1`, `search_*`,
   `pinned_models_v1`, user name/avatar, `webdav_config_v1`/`s3_config_v1`,
   `chat_bubble_style_overrides_v1`, `tool_schema_overrides_v1`.
+- **Half a family is a bug**: a key that names, selects or configures something whose sibling
+  already rides sync must ride too, or the new device arrives with the feature half-configured
+  — `theme_palette_v1` = `custom` with no palette definition (falls back to the default palette
+  while the settings page still shows it as selected), a compress model and prompt with different
+  limits, a memory pipeline that cannot run for want of a model. Membership follows the family,
+  not the key.
+- **The writers are checked, not just the list**: `business_key_registry_sync_test.dart` walks
+  `lib/` for every key written through a preference setter and fails on any that classifies as
+  `unknownPreference`. Fail-closed is the right default for a key nobody has thought about — but
+  it is also how whole families stayed behind while only the listed keys were ever asserted.
 - **Skill and workspace holdbacks**: workspaces stay device-local permanently. A skill's record
   and its directory blob travel together (slice 3): the record is applied only once its body has
   converged — already identical here, or pulled and re-hash verified in this session — because a

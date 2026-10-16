@@ -336,4 +336,25 @@ void main() {
     expect(recorder.text, contains('after'));
     expect(recorder.text, contains('| alpha | bravo |'));
   });
+
+  testWidgets('the Markdown item keeps the fence of a code block', (
+    tester,
+  ) async {
+    // The block's body is part of the display space a selection reports, so the
+    // walk has to declare it — otherwise a selection over the block matched
+    // nothing and the item handed back the plain selection.
+    final recorder = _ClipboardRecorder()..install(tester);
+    await _pumpAssistant(
+      tester,
+      content: 'before\n\n```dart\nvoid main() {}\n```\n\nafter',
+    );
+
+    final item = await _markdownMenuItem(tester);
+    item.onPressed!();
+    await tester.pump();
+
+    expect(recorder.text, contains('```dart'));
+    expect(recorder.text, contains('void main() {}'));
+    expect(recorder.text, contains('after'));
+  });
 }

@@ -31,7 +31,6 @@ import 'export_capture_scope.dart';
 import 'mermaid_image_cache.dart';
 import 'diagram_exporter.dart';
 import 'plantuml_block.dart';
-import 'selection_ownership.dart';
 import 'package:path/path.dart' as p;
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/theme/app_font_weights.dart';
@@ -111,6 +110,25 @@ class MarkdownDetailsExpansion {
   void set(String source, {required bool expanded}) {
     _expanded[source] = expanded;
   }
+}
+
+/// How a code block decides what it shows right now.
+///
+/// A block shows itself whole, or — when the user collapsed it, or the
+/// auto-collapse setting did — only its first lines. A selection over the block
+/// reports whatever it shows, so the walk that maps a copied selection back to
+/// its source has to be told the same facts the rendered widget uses. The manual
+/// toggles are recorded by the blocks themselves (see
+/// `_CollapsibleCodeBlockState.manualExpansionOf`); only the setting travels
+/// here, which is why a walk that knows nothing declares nothing.
+class MarkdownCodeExpansion {
+  const MarkdownCodeExpansion({
+    required this.autoCollapse,
+    required this.collapsedLines,
+  });
+
+  final bool autoCollapse;
+  final int collapsedLines;
 }
 
 /// The component set a markdown surface renders with, in match order.
@@ -306,10 +324,27 @@ class MarkdownWithCodeHighlight extends StatefulWidget {
     final registry = MarkdownDetailsRegistry(
       enableMath: settings.enableMathRendering,
     );
+    // What a code block shows is an input to the walk, exactly like the details
+    // expansion above: a collapsed block reports only its first lines, so the
+    // display space declares those rather than the whole fence.
+    final codeExpansion = MarkdownCodeExpansion(
+      autoCollapse: settings.autoCollapseCodeBlock,
+      collapsedLines: settings.autoCollapseCodeBlockLines,
+    );
     return MarkdownComponent.walkDocument(
       source,
       config: GptMarkdownConfig(
-        components: [DetailsHtmlMd(registry, detailsExpansion), ...set.global],
+        components: [
+          DetailsHtmlMd(registry, detailsExpansion),
+          for (final component in set.global)
+            if (component is FencedCodeBlockMd)
+              FencedCodeBlockMd(
+                streaming: component.streaming,
+                codeExpansion: codeExpansion,
+              )
+            else
+              component,
+        ],
         inlineComponents: set.inline,
         preprocessBlocks: registry.rewrite,
         streaming: streaming,
@@ -3057,12 +3092,12 @@ class _CollapsibleCodeBlockState extends State<_CollapsibleCodeBlock> {
   bool _hasCollapsedHiddenLines(SettingsProvider settings) {
     return _exceedsLineThreshold(
       widget.code,
-      _collapsedVisibleLineCount(settings),
+      _collapsedVisibleLineCount(settings.autoCollapseCodeBlockLines),
     );
   }
 
-  int _collapsedVisibleLineCount(SettingsProvider settings) {
-    return settings.autoCollapseCodeBlockLines.clamp(1, 999999);
+  static int _collapsedVisibleLineCount(int configuredLines) {
+    return configuredLines.clamp(1, 999999);
   }
 
   bool _isEffectivelyExpanded(SettingsProvider settings) {
@@ -3178,14 +3213,41 @@ class _CollapsibleCodeBlockState extends State<_CollapsibleCodeBlock> {
     }
   }
 
-  String _collapsedHighlightedCode(SettingsProvider settings) {
-    final visibleLines = _collapsedVisibleLineCount(settings);
-    final trimmed = _trimTrailingNewlines(widget.code);
+  String _collapsedHighlightedCode(SettingsProvider settings) => collapsedCode(
+    widget.code,
+    _collapsedVisibleLineCount(settings.autoCollapseCodeBlockLines),
+  );
+
+  /// The manual toggle recorded for [stateKey], or null when the block has
+  /// never been toggled — the copy walk reads this back.
+  static bool? manualExpansionOf(String stateKey) =>
+      _manualExpansionByCodeKey[stateKey];
+
+  /// The first [visibleLines] lines of [code], which is what a collapsed block
+  /// shows.
+  static String collapsedCode(String code, int visibleLines) {
+    final trimmed = _trimTrailingNewlines(code);
     if (trimmed.isEmpty) return trimmed;
     return trimmed.split(RegExp(r'\r\n|\r|\n')).take(visibleLines).join('\n');
   }
 
-  bool _exceedsLineThreshold(String code, int threshold) {
+  /// The code a block for [language]/[code] shows right now, or — put the other
+  /// way — the text a selection over that block reports.
+  static String shownCode({
+    required String language,
+    required String code,
+    required bool autoCollapse,
+    required int collapsedLines,
+  }) {
+    final manual = manualExpansionOf(_codeBlockStateKey(language, code));
+    final expanded =
+        manual ??
+        !(autoCollapse && _exceedsLineThreshold(code, collapsedLines));
+    if (expanded) return _trimTrailingNewlines(code);
+    return collapsedCode(code, _collapsedVisibleLineCount(collapsedLines));
+  }
+
+  static bool _exceedsLineThreshold(String code, int threshold) {
     if (threshold < 1) return true;
     final end = _trimTrailingNewlinesEndIndex(code);
     if (end <= 0) return false;
@@ -3218,7 +3280,7 @@ class _CollapsibleCodeBlockState extends State<_CollapsibleCodeBlock> {
             MarkdownWithCodeHighlight._streamingHighlightMaxChars;
   }
 
-  int _trimTrailingNewlinesEndIndex(String s) {
+  static int _trimTrailingNewlinesEndIndex(String s) {
     int end = s.length;
     while (end > 0) {
       final ch = s.codeUnitAt(end - 1);
@@ -3232,7 +3294,7 @@ class _CollapsibleCodeBlockState extends State<_CollapsibleCodeBlock> {
   }
 
   // Remove trailing newlines to avoid rendering an extra empty line at the bottom
-  String _trimTrailingNewlines(String s) {
+  static String _trimTrailingNewlines(String s) {
     if (s.isEmpty) return s;
     final end = _trimTrailingNewlinesEndIndex(s);
     return end == s.length ? s : s.substring(0, end);
@@ -5406,9 +5468,13 @@ class SoftHrLine extends BlockMd {
 
 // Robust fenced code block that takes precedence over other blocks
 class FencedCodeBlockMd extends BlockMd {
-  FencedCodeBlockMd({required this.streaming});
+  FencedCodeBlockMd({required this.streaming, this.codeExpansion});
 
   final bool streaming;
+
+  /// The collapse facts of the walk this component belongs to, or null when the
+  /// walk maps no selections (only the copy walk needs them).
+  final MarkdownCodeExpansion? codeExpansion;
 
   @override
   RegExp get exp => RegExp(expString, dotAll: true, multiLine: true);
@@ -5436,11 +5502,31 @@ class FencedCodeBlockMd extends BlockMd {
   }
 
   @override
-  MdNode node(MdNodeContext ctx, String text) =>
-      // The code body is selectable only within the code view's own selection
-      // area, so it contributes no text to the surrounding document. The whole
-      // fence rides along when a selection spans it.
-      MdNode.gap(MdNodeKind.codeBlock, ctx.rangeOf(text));
+  MdNode node(MdNodeContext ctx, String text) {
+    final expansion = codeExpansion;
+    final m = exp.firstMatch(text);
+    if (expansion == null || m == null) {
+      // A walk without the collapse facts cannot know what the block shows, so
+      // the whole fence rides along the way it always did.
+      return MdNode.gap(MdNodeKind.codeBlock, ctx.rangeOf(text));
+    }
+    // The body is a paragraph of the surface's selection owner, so a selection
+    // over the block reports the code it shows: the display space declares
+    // exactly that, and the fence still re-emits whole, because its backticks
+    // live outside the body.
+    return MdNode.opaque(
+      MdNodeKind.codeBlock,
+      ctx.rangeOf(text),
+      _CollapsibleCodeBlockState.shownCode(
+        language: (m.group(3) ?? '').trim(),
+        code: _unmaskHtmlTagStartsInsideFencedCode(
+          m.group(4) ?? m.group(5) ?? '',
+        ),
+        autoCollapse: expansion.autoCollapse,
+        collapsedLines: expansion.collapsedLines,
+      ),
+    );
+  }
 }
 
 Widget _buildFencedContent(
@@ -6636,22 +6722,16 @@ class SelectableHighlightView extends StatefulWidget {
 }
 
 class _SelectableHighlightViewState extends State<SelectableHighlightView> {
-  static const MethodChannel _iosTranslationChannel = MethodChannel(
-    'app.ios_translation',
-  );
-
   late List<TextSpan> _codeTextSpans;
-  bool _iosTranslationAvailable = false;
-  Widget? _selectable;
-  String _selectedCode = '';
+
+  /// The built view, kept until the source, theme or highlight flag changes:
+  /// shaping a long code block is the expensive part of this widget.
+  Widget? _view;
 
   @override
   void initState() {
     super.initState();
     _codeTextSpans = _highlightSource();
-    if (defaultTargetPlatform == TargetPlatform.iOS) {
-      unawaited(_loadIosTranslationAvailability());
-    }
   }
 
   @override
@@ -6665,7 +6745,7 @@ class _SelectableHighlightViewState extends State<SelectableHighlightView> {
       return;
     }
     _codeTextSpans = _highlightSource();
-    _selectable = null;
+    _view = null;
   }
 
   List<TextSpan> _highlightSource() {
@@ -6683,75 +6763,6 @@ class _SelectableHighlightViewState extends State<SelectableHighlightView> {
       return _convertNodes(nodes);
     } catch (_) {
       return const [];
-    }
-  }
-
-  Future<void> _loadIosTranslationAvailability() async {
-    try {
-      final available =
-          await _iosTranslationChannel.invokeMethod<bool>('isAvailable') ??
-          false;
-      if (mounted && available != _iosTranslationAvailable) {
-        setState(() => _iosTranslationAvailable = available);
-      }
-    } on MissingPluginException {
-      // Keep the stock selection menu when the native bridge is unavailable.
-    } on PlatformException {
-      // Keep the stock selection menu when the availability check fails.
-    }
-  }
-
-  Widget _buildSelectionContextMenu(
-    BuildContext context,
-    EditableTextState editableTextState,
-  ) {
-    final value = editableTextState.textEditingValue;
-    final selection = value.selection;
-    if (!_iosTranslationAvailable ||
-        !selection.isValid ||
-        selection.isCollapsed) {
-      return AdaptiveTextSelectionToolbar.editableText(
-        editableTextState: editableTextState,
-      );
-    }
-
-    final selectedText = selection.textInside(value.text);
-    if (selectedText.trim().isEmpty) {
-      return AdaptiveTextSelectionToolbar.editableText(
-        editableTextState: editableTextState,
-      );
-    }
-
-    final anchors = editableTextState.contextMenuAnchors;
-    final buttonItems = <ContextMenuButtonItem>[
-      ...editableTextState.contextMenuButtonItems,
-      ContextMenuButtonItem(
-        label: AppLocalizations.of(context)!.chatMessageWidgetTranslateTooltip,
-        onPressed: () {
-          editableTextState.hideToolbar();
-          unawaited(
-            _presentIosTranslation(selectedText, anchors.primaryAnchor),
-          );
-        },
-      ),
-    ];
-    return AdaptiveTextSelectionToolbar.buttonItems(
-      anchors: anchors,
-      buttonItems: buttonItems,
-    );
-  }
-
-  Future<void> _presentIosTranslation(String text, Offset anchor) async {
-    try {
-      await _iosTranslationChannel.invokeMethod<void>('present', {
-        'text': text,
-        'anchorX': anchor.dx,
-        'anchorY': anchor.dy,
-      });
-    } on MissingPluginException {
-      // The toolbar has already closed; there is no native UI to present.
-    } on PlatformException {
-      // Do not let a native presentation failure affect text selection.
     }
   }
 
@@ -6787,57 +6798,13 @@ class _SelectableHighlightViewState extends State<SelectableHighlightView> {
           ? [TextSpan(text: widget.source)]
           : _codeTextSpans,
     );
-    return _selectable ??= widget.source.length > 2048
-        ? SelectionArea(
-            onSelectionChanged: (selection) {
-              _selectedCode = selection?.plainText ?? '';
-              if (_selectedCode.isNotEmpty) {
-                reportNestedSelectionClaimed(context);
-              }
-            },
-            contextMenuBuilder: _buildChunkSelectionContextMenu,
-            // SelectableText reserves its 2px cursor plus RenderEditable's 1px
-            // caret gap, even when read-only. Keep the same wrapping and width.
-            child: Padding(
-              padding: const EdgeInsets.only(right: 3),
-              child: StreamingRichText(text: Text.rich(span)),
-            ),
-          )
-        : SelectableText.rich(
-            span,
-            contextMenuBuilder: _buildSelectionContextMenu,
-            onSelectionChanged: (selection, _) {
-              if (!selection.isCollapsed) {
-                reportNestedSelectionClaimed(context);
-              }
-            },
-          );
-  }
-
-  Widget _buildChunkSelectionContextMenu(
-    BuildContext context,
-    SelectableRegionState region,
-  ) {
-    final anchors = region.contextMenuAnchors;
-    final selectedText = _selectedCode;
-    return AdaptiveTextSelectionToolbar.buttonItems(
-      anchors: anchors,
-      buttonItems: [
-        ...region.contextMenuButtonItems,
-        if (_iosTranslationAvailable && selectedText.trim().isNotEmpty)
-          ContextMenuButtonItem(
-            label: AppLocalizations.of(
-              context,
-            )!.chatMessageWidgetTranslateTooltip,
-            onPressed: () {
-              region.hideToolbar();
-              unawaited(
-                _presentIosTranslation(selectedText, anchors.primaryAnchor),
-              );
-            },
-          ),
-      ],
-    );
+    // The code is a paragraph of the surface's selection owner, not a view that
+    // owns a selection: one drag crosses the block, and what the selection
+    // reports is the code the block shows. Past the threshold the shaping is
+    // windowed for cost, which is a layout choice, not a selection one.
+    return _view ??= widget.source.length > 2048
+        ? StreamingRichText(text: Text.rich(span))
+        : Text.rich(span);
   }
 }
 

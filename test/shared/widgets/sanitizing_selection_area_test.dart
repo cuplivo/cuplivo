@@ -114,93 +114,15 @@ class _ClipboardRecorder {
   }
 }
 
-/// A mouse drag across [finder] at the middle of its first visible line.
-Future<void> _dragAcross(WidgetTester tester, Finder finder) async {
-  final rect = tester.getRect(finder);
-  await _dragSelection(
-    tester,
-    Offset(rect.left + 2, rect.center.dy),
-    Offset(rect.right - 2, rect.center.dy),
-  );
-}
+/// The nested selection owners a source file creates for itself: a
+/// `SelectableText` or a `SelectionArea` of its own.
+int _nestedOwners(String source) => RegExp(
+  r'SelectableText(\.rich)?\(|SelectionArea\(',
+).allMatches(source).length;
 
-/// A mouse drag across the first line of [finder], which is where a tall or
-/// clipped block is actually on screen.
-Future<void> _dragFirstLine(WidgetTester tester, Finder finder) async {
-  final rect = tester.getRect(finder);
-  await _dragSelection(
-    tester,
-    Offset(rect.left + 6, rect.top + 8),
-    Offset(rect.right - 6, rect.top + 8),
-  );
-}
-
-/// Selects inside [finder]: the middle of its first visible line when it is tall
-/// or clipped, the middle of the box when it is short (a padded cell's text does
-/// not start at its own top edge).
-Future<void> _dragInside(WidgetTester tester, Finder finder) async {
-  final rect = tester.getRect(finder);
-  if (rect.height > 60) {
-    await _dragFirstLine(tester, finder);
-  } else {
-    await _dragAcross(tester, finder);
-  }
-}
-
-/// The keyboard shortcut, dispatched from the focused owner — which is what the
-/// framework does.
-Future<void> _copyFromFocus(WidgetTester tester) async {
-  final focus = FocusManager.instance.primaryFocus!;
-  Actions.invoke(focus.context!, CopySelectionTextIntent.copy);
-  await tester.pumpAndSettle();
-}
-
-/// The region this widget owns.
-Finder _ownRegion() => find
-    .descendant(
-      of: find.byType(SanitizingSelectionArea),
-      matching: find.byType(SelectableRegion),
-    )
-    .first;
-
-/// Copies through this widget's own override, which is also what proves the
-/// override is registered — the region's own copy action is overridable and
-/// forwards to it, so dispatching from the region's element reaches ours.
-Future<void> _copyThroughOverride(WidgetTester tester) async {
-  Actions.invoke(tester.element(_ownRegion()), CopySelectionTextIntent.copy);
-  await tester.pumpAndSettle();
-}
-
-/// Selects everything this region owns and proves it owns that selection,
-/// leaving an empty clipboard record. Every nested-owner guard needs this state:
-/// the bug they cover is a *stale* selection, so a guard that never held one
-/// first would pass by accident.
-Future<void> _selectProseFirst(
-  WidgetTester tester,
-  _ClipboardRecorder recorder,
-  String prose,
-) async {
-  final state = tester.state<SelectableRegionState>(_ownRegion());
-  // Clear first: a claim leaves this region's own selection in place, and a
-  // re-selection of the *same* text reports no change, so the cache would stay
-  // empty.
-  state.clearSelection();
-  await tester.pumpAndSettle();
-  state.selectAll(SelectionChangedCause.keyboard);
-  await tester.pumpAndSettle();
-  await _copyThroughOverride(tester);
-  expect(
-    recorder.copiedText(),
-    contains(prose),
-    reason: 'the region must own a selection before a nested owner takes one',
-  );
-  recorder.calls.clear();
-}
-
-/// A code block past 2048 characters, i.e. one the code view shapes windowed
-/// and wraps in a selection area of its own.
-String _longCode() =>
-    '```dart\n${List.generate(120, (i) => 'final value$i = "x";').join('\n')}\n```';
+/// How many of a source file's nested owners report the claim.
+int _claims(String source) =>
+    RegExp(r'reportNestedSelectionClaimed\(').allMatches(source).length;
 
 void main() {
   group('stripRendererInsertedCharacters', () {
@@ -344,39 +266,6 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     });
 
-    testWidgets('keyboard copy inside a nested code block copies its text', (
-      tester,
-    ) async {
-      // The markdown renderer nests a SelectableText (short code) or a nested
-      // SelectionArea (long code) inside this widget, so that selection belongs
-      // to the nested owner and never reaches ours. Without the fallback to the
-      // focused owner's selection, this copied nothing at all.
-      final recorder = _ClipboardRecorder()..install(tester);
-      const code = '```dart\nvoid main() { print("hi"); }\n```';
-      await tester.pumpWidget(
-        await _harness(MarkdownWithCodeHighlight(text: code)),
-      );
-      await tester.pumpAndSettle();
-
-      final rect = tester.getRect(find.byType(SelectableHighlightView).first);
-      final gesture = await tester.startGesture(
-        Offset(rect.left + 6, rect.top + 8),
-        kind: PointerDeviceKind.mouse,
-      );
-      await tester.pump(const Duration(milliseconds: 20));
-      await gesture.moveTo(Offset(rect.right - 6, rect.top + 8));
-      await tester.pump(const Duration(milliseconds: 20));
-      await gesture.up();
-      await tester.pumpAndSettle();
-
-      // The framework dispatches the shortcut from the focused widget.
-      final focus = FocusManager.instance.primaryFocus!;
-      Actions.invoke(focus.context!, CopySelectionTextIntent.copy);
-      await tester.pumpAndSettle();
-
-      expect(recorder.copiedText(), 'void main() { print("hi"); }');
-    });
-
     testWidgets('a nested selectable copies through the framework, not us', (
       tester,
     ) async {
@@ -384,9 +273,10 @@ void main() {
       // selection we cannot read it — `SelectableRegionState` exposes no public
       // selection getter, and an ancestor cannot reach an [EditableText]'s
       // state — so the copy override stands down and the framework copies the
-      // text it owns, un-sanitized. A code block carries no renderer-inserted
-      // characters; what is left is a table cell's soft-break ZWSPs, which
-      // leaked before this branch existed too (ADR-0009).
+      // text it owns, un-sanitized. The one owner the app still nests is a
+      // diagram's code view (ADR-0010), whose text is the diagram source and
+      // carries nothing to strip; a caller that nests a selectable of its own
+      // without reporting owes this same shape (ADR-0009 decision 5).
       final recorder = _ClipboardRecorder()..install(tester);
       const display = 'before\u200Btarget after';
       await tester.pumpWidget(
@@ -412,56 +302,89 @@ void main() {
       expect(recorder.copiedText(), 'before\u200Btarget after');
     });
 
-    testWidgets('a nested code block takes the copy back from our selection', (
+    testWidgets('a code block copies its code, and a part of it on request', (
       tester,
     ) async {
-      // Review of this PR: select prose, then select inside the code block, then
-      // press Ctrl+C. The block's selection never reaches this region, so a
-      // stand-down keyed on "the cache is empty" kept our override registered
-      // and the clipboard got the *prose* — where master, which registers no
-      // override at all, copies the code. The override now stands down as soon
-      // as a nested owner reports a selection.
+      // The block is a paragraph of this widget's own selection owner, so a
+      // drag inside it selects part of the code, and the copy reaches our
+      // sanitizing path with the code the block shows.
       final recorder = _ClipboardRecorder()..install(tester);
+      const code = '```dart\nvoid main() { print("hi"); }\n```';
       await tester.pumpWidget(
-        await _harness(
-          const MarkdownWithCodeHighlight(
-            text:
-                'prose words here\n\n```dart\nvoid main() { print("hi"); }\n```',
-          ),
-        ),
+        await _harness(MarkdownWithCodeHighlight(text: code)),
       );
       await tester.pumpAndSettle();
 
-      await _selectProseFirst(tester, recorder, 'prose words here');
-      await _dragFirstLine(tester, find.byType(SelectableHighlightView).first);
-      await _copyFromFocus(tester);
+      final view = find.byType(SelectableHighlightView).first;
+      final rect = tester.getRect(view);
+      await _dragSelection(
+        tester,
+        Offset(rect.left + 6, rect.top + 8),
+        Offset(rect.right - 6, rect.top + 8),
+      );
+      expect(
+        await _copySelection(tester, recorder),
+        'void main() { print("hi"); }',
+      );
 
-      expect(recorder.copiedText(), 'void main() { print("hi"); }');
+      // Partial: the first four characters only, which a nested owner could
+      // never do from a drag that reaches into the block.
+      final paragraphFinder = find
+          .descendant(of: view, matching: find.byType(RichText))
+          .first;
+      final paragraph = tester.renderObject<RenderParagraph>(paragraphFinder);
+      final box = tester.getRect(paragraphFinder);
+      Offset caret(int offset) {
+        final local = paragraph.getOffsetForCaret(
+          TextPosition(offset: offset),
+          Rect.zero,
+        );
+        return Offset(box.left + local.dx + 1, box.top + local.dy + 4);
+      }
+
+      await _dragSelection(tester, caret(0), caret(4));
+      final partial = await _copySelection(tester, recorder);
+      debugPrint('CODE PARTIAL COPY: "$partial"');
+      expect(partial, 'void');
     });
 
-    testWidgets('a long nested code block takes the copy back too', (
+    testWidgets('a copy of the whole surface leaves the code header out', (
       tester,
     ) async {
-      // Past 2048 characters the code view is a selection area of its own, and
-      // its copy action is overridable in exactly the same way.
+      // The header is chrome — the language label among it — and the code block
+      // toggle is what keeps it out of a selection. A selection that covers the
+      // whole surface therefore copies the code alone.
       final recorder = _ClipboardRecorder()..install(tester);
-      final source = _longCode();
-      expect(source.length, greaterThan(2048));
       await tester.pumpWidget(
         await _harness(
-          MarkdownWithCodeHighlight(text: 'prose words here\n\n$source'),
+          const MarkdownWithCodeHighlight(text: '```dart\nvoid main() {}\n```'),
         ),
       );
       await tester.pumpAndSettle();
 
-      await _selectProseFirst(tester, recorder, 'prose words here');
-      await _dragFirstLine(tester, find.byType(SelectableHighlightView).first);
-      await _copyFromFocus(tester);
+      expect(find.text('dart'), findsOneWidget);
+
+      final area = find.byType(SanitizingSelectionArea);
+      final region = tester.state<SelectableRegionState>(
+        find
+            .descendant(of: area, matching: find.byType(SelectableRegion))
+            .first,
+      );
+      region.selectAll(SelectionChangedCause.keyboard);
+      await tester.pump();
+
+      // Copy from inside the area, which is where the override lives.
+      Actions.invoke(
+        tester.element(
+          find.descendant(of: area, matching: find.byType(SelectionArea)).first,
+        ),
+        CopySelectionTextIntent.copy,
+      );
+      await tester.pumpAndSettle();
 
       final copied = recorder.copiedText();
-      expect(copied, isNotNull);
-      expect(copied, contains('final value0 = "x";'));
-      expect(copied, isNot(contains('prose words here')));
+      debugPrint('CODE CHROME COPY: "$copied"');
+      expect(copied, 'void main() {}');
     });
 
     testWidgets('a table cell copies its inline code, not a placeholder', (
@@ -582,104 +505,35 @@ void main() {
         reason: 'the cells must be part of the selection, not a nested owner',
       );
     });
-    testWidgets('every nested owner the renderer creates claims the selection', (
-      tester,
-    ) async {
-      // The guards above name the owners this branch knows about. This one
-      // asks the tree, per kind of content, so a component that nests a
-      // selectable cannot be added without wiring the claim: an owner that does
-      // not claim leaves this area's override registered, and the copy then
-      // writes the area's stale text instead of the owner's.
-      final recorder = _ClipboardRecorder()..install(tester);
-      final corpora = <String, String>{
-        'short code': 'prose words here\n\n```dart\nvoid main() {}\n```',
-        'long code': 'prose words here\n\n${_longCode()}',
-      };
-      var exercised = 0;
-      for (final corpus in corpora.entries) {
-        await tester.pumpWidget(
-          await _harness(MarkdownWithCodeHighlight(text: corpus.value)),
-        );
-        await tester.pumpAndSettle();
-        final regions = find.byType(SelectableRegion).evaluate().length;
-        final owners = <String, Finder>{
-          // The first region is this area's own; the rest are nested owners.
-          for (var i = 1; i < regions; i++)
-            '${corpus.key} region $i': find.byType(SelectableRegion).at(i),
-          for (
-            var i = 0;
-            i < find.byType(SelectableText).evaluate().length;
-            i++
-          )
-            '${corpus.key} selectable $i': find.byType(SelectableText).at(i),
-        };
-        for (final entry in owners.entries) {
-          exercised++;
-          await _selectProseFirst(tester, recorder, 'prose words here');
-          await _dragInside(tester, entry.value);
-          await _copyFromFocus(tester);
-          final copied = recorder.copiedText();
-          expect(
-            copied,
-            isNotNull,
-            reason: '${entry.key} claimed the selection but nothing was copied',
-          );
-          expect(
-            copied,
-            isNotEmpty,
-            reason: '${entry.key} claimed the selection but copied nothing',
-          );
-          expect(
-            copied,
-            isNot(contains('prose words here')),
-            reason:
-                '${entry.key} left this area answering for its own selection',
-          );
-        }
-      }
-      // One short code view, one long code region. A corpus that stopped
-      // producing owners would make the loop vacuous, so the count is part of
-      // the guard.
-      expect(exercised, 2);
-    });
   });
 
   group('nested selection owners claim from source', () {
-    test('every nested owner in a markdown surface claims the selection', () {
-      // The guards above drive the owners this branch knows about; this one asks
-      // the renderer's own source, because the property is "every nested owner
-      // claims": an owner that appears without a claim leaves the enclosing
-      // area's override registered, and a copy inside it then writes the area's
-      // stale text. A diagram's code view is why this cannot be a widget loop —
-      // it exists only once its code tab is selected, and the preview beside it
-      // fetches a diagram over the network.
-      for (final file in const [
+    test('the renderer owns no selection, and a diagram still claims', () {
+      // ADR-0010's rule is one selection owner per surface: a table cell and a
+      // code body are paragraphs of it, so the renderer must nest no selectable
+      // at all. This is the source-level half of that rule, and asking for zero
+      // is what keeps the count below from passing on an empty set.
+      final renderer = File(
         'lib/shared/widgets/markdown_with_highlight.dart',
-        'lib/shared/widgets/plantuml_block.dart',
-      ]) {
-        final source = File(file).readAsStringSync();
-        final owners = RegExp(
-          r'SelectableText(\.rich)?\(|SelectionArea\(',
-        ).allMatches(source).length;
-        final claims = RegExp(
-          r'reportNestedSelectionClaimed\(',
-        ).allMatches(source).length;
-        expect(
-          claims,
-          owners,
-          reason:
-              '$file has $owners nested selection owners but $claims claims',
-        );
-      }
-      // A diagram keeps its own selection area whatever else changes, so its
-      // file must keep producing an owner for the equality above to mean
-      // anything there.
+      ).readAsStringSync();
       expect(
-        RegExp(r'SelectableText(\.rich)?\(|SelectionArea\(').allMatches(
-          File('lib/shared/widgets/plantuml_block.dart').readAsStringSync(),
-        ),
-        isNotEmpty,
+        _nestedOwners(renderer),
+        0,
+        reason: 'ADR-0010: no component of the renderer owns a selection',
       );
+
+      // A diagram's code view is outside that rule and still owns a selection,
+      // so it still has to report the claim: its selection never reaches the
+      // enclosing area's `onSelectionChanged`, and an area that does not stand
+      // down answers a copy inside it with its own stale text. It is why this
+      // cannot be a widget loop either — the view exists only once the code tab
+      // is selected, and the preview beside it fetches a diagram over the
+      // network.
+      final diagram = File(
+        'lib/shared/widgets/plantuml_block.dart',
+      ).readAsStringSync();
+      expect(_nestedOwners(diagram), greaterThan(0));
+      expect(_claims(diagram), _nestedOwners(diagram));
     });
   });
 }

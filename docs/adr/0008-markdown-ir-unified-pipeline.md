@@ -191,7 +191,8 @@ initial frame, three fast-path appends, no further parses.
   blank lines, loose lists, indent merging and reopening, math pairing, CR normalization, append identity,
   scan budgets) was green against the implementation it was written for. The walk-derived splitter then
   replaced that implementation, and **all 54 goldens passed unchanged**: no expectation needed a new
-  baseline, which is what makes the swap an equivalence rather than a rewrite with new tests.
+  baseline, so the swap was equivalent *on those 54 inputs* — a claim about the inputs, not about the
+  splitter. The review round below is what turned it into a claim about the splitter.
 
   A boundary is now a bare `\n\n+` run the walk leaves behind. A fence, a table, a closed `<details>` and
   a display formula claim their own element, so the runs inside them are never gaps; a `NewLines` node is
@@ -202,7 +203,8 @@ initial frame, three fast-path appends, no further parses.
   details depth veto a run inside an unfinished formula or `<details>` (both are unfinished *prose* to the
   walk), `_listMarker` is the last line-level rule (the list components claim one line each, so a loose
   list's items are separate elements), and an indented continuation still merges upward while an indented
-  fence or `<details>` does not.
+  fence or `<details>` does not — decided only from a complete line, because while that line is still
+  arriving it may yet become a fence (the review round below says why that precondition is load-bearing).
 
   Measuring the splitter, not reasoning about it, found two defects the goldens could not see, and
   `test/perf/split_cost_bench.dart` exists because of them. A run left in place — a list waiting for the
@@ -215,6 +217,62 @@ initial frame, three fast-path appends, no further parses.
   match into it) cut the punctuation append to 0.5 ms and a loose list from 87–164 ms to 28 µs. The
   inverse is recorded too: the first boundary after a long paragraph is one frame of 74–106 ms for a
   175 KB region.
+
+  **The review round: the block list is a function of the source.** A review of the landed phase ran the
+  deleted implementation beside the new one — a verbatim port of
+  `IncrementalMarkdownDocument`, fed the same append prefixes, over a random alphabet of every markdown
+  opener (48,000 prefixes) and a 40-source curated corpus (1,081 prefixes). The content was identical
+  everywhere: no character lost, doubled or reordered. But 2,573 of the random prefixes produced a
+  different block list, and in 77 of them the new splitter froze *fewer* blocks. The difference was not
+  in the source: feeding one text in a single `update` produced three blocks, feeding the same text in
+  two produced two. **The block list depended on how the reply had been chunked.**
+
+  The cause was the cursor, not the rules. `_decideBoundaries` asks up to four questions whose answer is
+  text that has not arrived yet — is the next line an item of the same list, does it continue the
+  paragraph above, does the claiming element end exactly where the run does because it is still growing
+  — and it then moved the run cursor past the run anyway, so a refusal taken while the deciding line was
+  still arriving could never be taken again. What the splitter decides is now stated as an invariant:
+  **the visible block list is a function of the source alone** — the same text produces the same blocks
+  however the stream delivered it — and a refusal whose proviso is unwritten text is *deferred*
+  (`_DeferredRun`, carrying the line-level state as of that run, because the lexer only moves forward)
+  instead of settled. Four rules follow from it:
+
+  * A refusal that rests on the line after the run waits for that line's newline: `2` becomes `2)`, and
+    `  ` becomes `` ``` ``, so only a complete line can be classified. A complete line that continues a
+    list is final, and the block then ends at whatever run arrives after the item.
+  * The claim that reaches exactly as far as the run with nothing after it is provisional only while the
+    fence it belongs to is still open (`_lexer.fenced`). A rule and a display formula close their pattern
+    with `\s*$` and are finished, so the run behind them commits at once with `swallowedBy` set — which
+    is what `swallowedBy` is for.
+  * The indentation rule kept the deleted implementation's intent but lost its preconditions
+    (`_scanCompletedLines` decided on complete lines for the same reason). The merge is decided only from
+    a complete line, never when that line opens a fence or a `<details>` — the walk reports an unclosed
+    `<details>` as prose, so the line-level lexer answers that case — and a tail that cannot be
+    classified yet is **folded into the block above for the returned list only**: the committed blocks
+    are untouched, so the tail can still turn out to claim a block of its own.
+  * A gap the committed block behind it skipped can gain a whitespace-bearing blank line from a later
+    append, and such a line is content to the renderers around it: the boundary is taken again, which is
+    the same refusal the whole-source parse makes. Newlines a skipped run gains later belong to that gap
+    too, so the tail never starts with them.
+
+  Two goldens moved with the invariant, and in both the *old* expectation was the wrong one: `A\n\n`
+  followed by `A\n\n    ` used to keep the committed `A` identical and drop the whitespace tail, a shape
+  no whole-source parse produces, and a run that grew after a list wait used to end the block before the
+  line that decides it had arrived. The permanent guard is
+  `test/shared/widgets/markdown_streaming_split_chunk_test.dart`: a corpus of every construct whose
+  boundary the splitter decides, fed one code unit at a time and compared field by field against a fresh
+  whole-source update at every prefix, plus explicit goldens for the three chunk shapes the review named.
+  The review's own probe came back with 45 boundary-only divergences from the deleted implementation
+  (down from 2,573, all `content = 0`) and, decisively, with its streamed and one-shot shapes **equal**.
+
+  The review's second finding was the IR's dead surface, and the answer is deletion: `MdNode.block`
+  (whose doc promised a separator rule `MdSelection.emit` refuses), `MdItem.contributesDisplay`, two
+  write-only link offsets, the unread `MdDocument.source` and `markdownEndsWithDisplayMath` — which had
+  lost its only production caller to this phase — are gone.
+  `test/utils/markdown_ir_surface_gate_test.dart` now asks the analyzer's question from the other side,
+  because `dart analyze` never reports an unused *public* member and `dependencies/` is outside the
+  analyzed roots: every field on a public IR class has to be named outside its declaration, and the list
+  is frozen, so a new field has to bring its reader with it.
 
   The fence fast path went with it. `StreamingCodeFenceParser` re-detected what the walk claims, and the
   walk claims an unclosed fence, so the block reaches the renderer as it stands; the parser, the fence

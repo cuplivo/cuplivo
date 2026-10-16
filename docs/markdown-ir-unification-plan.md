@@ -317,6 +317,40 @@ walk 每个 fixture 源（用 markdownComponentsFor(...) 的组件集 + DetailsH
 
 ## 6. 收尾（工程外）
 
+### 6.1 Review round（PR #1017 第一轮 review 的核验与修复，已完成）
+
+review 的两条发现**都成立**，核验时又确认了第三条，并把「等价」这句话收了回来。
+
+- **发现 1（块列表依赖分块方式）成立。** 用被删实现的逐字移植做差分（48,000 个随机追加前缀 + 1,081 个
+  curated 前缀）：内容处处相同（`content=0`，无字符丢失/重复/换序），但 **2,573 个前缀的块列表不同**，
+  其中 77 个前缀新实现冻结的块更少；决定性证据是**同一文本一次性 `update` 得 3 块、分两次 publish 得 2 块**。
+  机制不在判据而在游标：`_decideBoundaries` 的四个否决（列表下一项、列表续行、缩进续行、claim 恰好到 run）
+  问的都是**还没到的文本**，而 `_runCursor` 在否决前就推过了该 run，被拒的 run 再也不会被重判。
+- **发现 2（IR 死面）成立**：`MdNode.block`（文档承诺「决定选区两块之间插入的分隔符」，而
+  `MdSelection.emit` 明确说分隔符不合成）、`MdItem.contributesDisplay`、`_LinkElement.labelStart/endingStart`
+  只写不读、`markdownEndsWithDisplayMath` 只剩测试引用。原因：`dart analyze` 从不报**公开**成员未被使用，
+  且 `dependencies/` 不在分析根内 —— 所以「零问题」与死面可以同时成立。
+- **发现 3（review 标为 U3 未验证）：缩进并回丢了两个前置条件。** 被删实现在**完整行**上做决定
+  （`_scanCompletedLines`：`if (newline < 0) return;`，且并回排在 `_lexer.protected` 之后），新实现从
+  未完成的区域判定并 `_stableBlocks.removeLast()` + `_blockStart` 回退，不可撤销：逐字符到达的缩进
+  fence/`<details>` 会永久吞掉上一段（与 ADR 所述规则矛盾），`before\n\n  ` 一步就已分歧。
+- **修复（不变量先行）**：契约写成「**可见块列表只是源码的函数**」，判据是
+  `test/shared/widgets/markdown_streaming_split_chunk_test.dart`（40 条 curated 语料逐 code unit 追加 vs
+  一次性整源，逐字段比较 + 三条 repro 金标 + 缩进 fence/details 金标 + 孤立 `$` 金标）。四条规则：
+  ①判据未到齐的 run 只 deferred 不 settled（`_DeferredRun` 带上该 run 处的行级状态，因为 lexer 单向）；
+  ②「claim 恰好到 run 且无后续」只在 fence 仍开着（`_lexer.fenced`）时才是暂定的，规则/公式收尾于 `\s*$`，
+  其后的 run 当场提交并由 `swallowedBy` 抑制分隔符；③缩进并回只在完整行上决定、且该行开 fence/`<details>`
+  时永不并回，未可分类的 tail 只在**返回列表**里折叠（已提交块不动）；④被跳过的 gap 后来长出带空白的空行、
+  或把 run 撑长，都要重新取边界。
+- **随不变量重定基的两条金标**（两条旧期望本身与整源解析矛盾）：`A\n\n` + `A\n\n    ` 曾要求已提交的 `A`
+  保持不变并丢掉空白 tail；列表等待后 run 被撑长的那条，曾在决定它的那一行还没到时就结块。
+- **注入证明**（均字节还原并校 sha）：把 `MdNode.block` 注回 ⇒ 死面闸红；去掉 deferred 交接 ⇒ 分块守卫 11 条红；
+  去掉缩进并回的完整行前置 ⇒ 缩进 details 金标红。
+- **代价复核**：`split_cost_bench` 无回退（松散列表 35–64 µs / 0 walk、含空行 fence 440–576 µs / 0 walk、
+  边界追加仍是每个边界 1 次 walk）。
+- 复核后探针数字：与旧实现的差分降到 45（随机）/89（curated），全部 `boundaryOnly`、`content=0`，且
+  **探针自己的 streamed == one-shot 断言转为通过**；随后删除了探针文件，其语料并入上面的永久守卫。
+
 - **全量 `flutter test` 已完成**：8256 通过 / 8 失败，8 条全部命中 `.toolbridge/known-failures.json`
   台账（0 new）。`dart analyze --fatal-infos lib test integration_test` 零问题、`dart format` 零变更。
 - **`feat/direct-select-text-v4` 移植：未做，等用户定时机**（2026-10-15 决定）。已核实的形状：
@@ -336,6 +370,7 @@ walk 每个 fixture 源（用 markdownComponentsFor(...) 的组件集 + DetailsH
 ## 7. 下一步动作（按序）
 
 1. ~~Phase D（见 §5）~~ **已完成**（§5.3 的六个提交）。
-2. ~~全量 `flutter test`~~ **已完成**：8256 通过 / 8 失败（8 known / 0 new，见 §6）。
-3. `feat/direct-select-text-v4` 移植（§6 的两条路径与三件事），**等用户定时机**。
-4. 待用户决定：本线上是否窄修 #544（一行 + 一处测试重定基，见 §5.4）。
+2. ~~全量 `flutter test`~~ **已完成**（8 known / 0 new，见 §6）。
+3. ~~PR #1017 第一轮 review 的核验与修复~~ **已完成**（§6.1：不变量 + 分块守卫 + 死面删除 + 注入证明）。
+4. `feat/direct-select-text-v4` 移植（§6 的两条路径与三件事），**等用户定时机**。
+5. 待用户决定：本线上是否窄修 #544（一行 + 一处测试重定基，见 §5.4）。

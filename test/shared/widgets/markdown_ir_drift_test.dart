@@ -110,6 +110,14 @@ const List<_DriftFixture> _fixtures = [
   _DriftFixture('html anchor', '<a href="https://example.com">site</a>'),
   _DriftFixture('allowed html line break', 'line<br>break'),
   _DriftFixture('backslash-escaped punctuation', r'\*not emphasis\*'),
+  _DriftFixture(
+    // #544: every span closes on a backslash-preceded backtick, so a
+    // trailing-backslash chip has to re-emit its own delimiters when the copy
+    // covers it, exactly like any other span.
+    'windows path ending in a backslash inside code',
+    r'包）：`D:\ComfyUI\` 为环境层（含 `python_embedded`、'
+        r'`run_nvidia_gpu.bat`）',
+  ),
   _DriftFixture('radio button line', '(x) selected'),
   _DriftFixture('indented continuation line', '- item\n\n  continued'),
   _DriftFixture('dollar inline formula', r'value $x$ here'),

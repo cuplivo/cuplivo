@@ -96,6 +96,24 @@ List<_ResolvedTextSpan> _resolvedTextSpansFromRichText(WidgetTester tester) {
   return spans;
 }
 
+/// The text of every inline-code chip on screen, in document order.
+///
+/// A chip is a widget, not a run, so it contributes nothing to
+/// [_resolvedTextSpansFromRichText]; a span that wrongly swallows the prose
+/// around it shows up here as a chip whose text is longer than the source
+/// between its delimiters.
+List<String> _inlineChipTexts(WidgetTester tester) {
+  return tester
+      .widgetList<Text>(
+        find.descendant(
+          of: find.byKey(const ValueKey('inline-code-surface')),
+          matching: find.byType(Text),
+        ),
+      )
+      .map((widget) => widget.data ?? '')
+      .toList();
+}
+
 RenderParagraph _paragraphContaining(String text) {
   return find
       .byType(RichText)
@@ -3152,12 +3170,14 @@ A-->B
       final spans = _resolvedTextSpansFromRichText(tester);
       final plainText = spans.map((span) => span.text).join();
 
-      expect(
-        plainText,
-        contains(
-          r'*literal* and **strong** and `code` and [label](https://example.com)',
-        ),
-      );
+      // Backslashes escape delimiters outside code: \* and \[label\] render
+      // as literal punctuation.
+      expect(plainText, contains(r'*literal* and **strong** and '));
+      expect(plainText, contains(' and [label](https://example.com)'));
+      // Inside a code span there is no escape: the closer stays a closer even
+      // when preceded by a backslash (#544 rule), so `code\` is one chip whose
+      // content keeps the backslash.
+      expect(_inlineChipTexts(tester), [r'code\']);
       expect(
         spans.where(
           (span) =>
@@ -3174,6 +3194,77 @@ A-->B
         ),
         isEmpty,
       );
+    },
+  );
+
+  testWidgets(
+    'issue #544: a windows path ending in a backslash stays one chip',
+    (tester) async {
+      // Every span in this source closes on a backslash-preceded backtick. A
+      // code span has no escapes, so each one closes where it should and the
+      // prose between them is never pulled into a chip.
+      const source =
+          '包）：`D:\\ComfyUI\\` 为环境层（含 `python_embedded`、'
+          '`run_nvidia_gpu.bat`），模型路径：`D:\\ComfyUI\\ComfyUI\\models\\...`。';
+      await tester.pumpWidget(_markdownHarness(source));
+      await tester.pump();
+
+      expect(_inlineChipTexts(tester), [
+        r'D:\ComfyUI\',
+        'python_embedded',
+        'run_nvidia_gpu.bat',
+        r'D:\ComfyUI\ComfyUI\models\...',
+      ]);
+      expect(find.textContaining('为环境层（含', findRichText: true), findsWidgets);
+    },
+  );
+
+  testWidgets(
+    'issue #544: an indented powershell fence keeps its body and its chips',
+    (tester) async {
+      // The issue's second screenshot: a three-space-indented fence holding a
+      // trailing-backslash path, followed by two inline spans that also end in
+      // one.
+      const source = r'''1. **PowerShell / CMD 中的命令**  
+   当你给某个命令传入路径参数，但该命令期望的是**文件**路径，而你给的是**文件夹**路径时，系统会提示这个。  
+   例如：
+   ```powershell
+   Get-Content D:\ComfyUI\    # Get-Content 期望文件，但你给了目录
+   ```
+   或者有些工具会检查路径类型后输出 `"D:\ComfyUI\" is a dir`。
+
+2. **脚本 / 程序的参数校验**  
+   某个脚本或程序（比如 ComfyUI 相关的安装/启动脚本）在运行前检查 `D:\ComfyUI\` 路径，发现它确实是一个存在的目录，于是告诉你这个信息。''';
+      await tester.pumpWidget(_markdownHarness(source));
+      await tester.pump();
+
+      final code = tester.widget<SelectableHighlightView>(
+        find.byType(SelectableHighlightView),
+      );
+      expect(code.source, contains(r'Get-Content D:\ComfyUI\'));
+      // The fence ends on its own closer: the second item's prose is not inside
+      // the code body, and the closer's three-space indent adds no blank line.
+      expect(code.source, isNot(contains('脚本 / 程序的参数校验')));
+      expect(code.source, isNot(endsWith('\n')));
+      expect(_inlineChipTexts(tester), [
+        r'"D:\ComfyUI\" is a dir',
+        r'D:\ComfyUI\',
+      ]);
+    },
+  );
+
+  testWidgets(
+    'a chip keeps its dollars when the span before it ends in a backslash',
+    (tester) async {
+      // The preprocessor protects `$` inside code before the math passes run,
+      // so its mask and the walk's span have to be the same span. `$5` here is
+      // the span after a trailing-backslash one.
+      const source = r'path `D:\ComfyUI\` then `$5` here';
+      await tester.pumpWidget(_markdownHarness(source));
+      await tester.pump();
+
+      expect(_inlineChipTexts(tester), [r'D:\ComfyUI\', r'$5']);
+      expect(find.textContaining('___CODE_DOLLAR_MASK___'), findsNothing);
     },
   );
 

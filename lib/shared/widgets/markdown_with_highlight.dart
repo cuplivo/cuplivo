@@ -6217,9 +6217,15 @@ class EscapeAwareItalicMd extends ItalicMd {
   );
 }
 
+/// Inline code under the app's escape convention.
+///
+/// A backslash escapes the *opener* (`` \`code\` `` is a literal backtick,
+/// drawn by [BackslashEscapeMd]) but never the *closer*: a code span has no
+/// escapes, so `` `D:\ComfyUI\` `` is one span whose closer is the
+/// backslash-preceded backtick (#544).
 class EscapeAwareHighlightedTextMd extends HighlightedText {
   @override
-  RegExp get exp => RegExp(r"(?<!\\)`(?!`)(.+?)(?<![\\`])`(?!`)");
+  RegExp get exp => RegExp(r"(?<!\\)`(?!`)(.+?)(?<!`)`(?!`)");
 }
 
 /// Treat backslash-escaped punctuation as a literal character, so that

@@ -284,6 +284,16 @@ String _nestedDetailsHtml(int levels) {
   return out.toString();
 }
 
+/// How many markdown blocks the surface is rendering, one per visible block of
+/// the incremental document.
+int _markdownBlockCount(WidgetTester tester) => tester
+    .widgetList(
+      find.byWidgetPredicate(
+        (widget) => widget.runtimeType.toString() == '_CachedMarkdownBlock',
+      ),
+    )
+    .length;
+
 Widget _markdownHarness(
   String text, {
   double? width,
@@ -5114,6 +5124,32 @@ void main() {
         ),
         findsAtLeastNWidgets(2),
       );
+    },
+  );
+
+  testWidgets(
+    'a streamed reply renders the same blocks as the same text in one piece',
+    (tester) async {
+      // A closed display formula must commit when the chunk behind it lands. A
+      // block list that depended on the chunking would leave the finished
+      // formula inside the growing, unstable tail, which is the only path that
+      // gets the streaming stabilization pass — the pass that may rewrite a
+      // dollar the document has already finished.
+      const chunked = 'before\n\n\$\$\na \$ b\n\nc\n\$\$\n\n';
+      const full =
+          '$chunked'
+          'after';
+      final text = ValueNotifier<String>(chunked);
+      await tester.pumpWidget(_streamingMarkdownHarness(text));
+      await tester.pump();
+      text.value = full;
+      await tester.pump();
+      final streamed = _markdownBlockCount(tester);
+      expect(streamed, 3);
+
+      await tester.pumpWidget(_markdownHarness(full, streaming: true));
+      await tester.pump();
+      expect(_markdownBlockCount(tester), streamed);
     },
   );
 

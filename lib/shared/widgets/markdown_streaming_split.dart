@@ -54,6 +54,24 @@ final class _MdElement {
   final MdNodeKind kind;
 }
 
+/// A refused blank run whose proviso is text that has not arrived yet.
+///
+/// The line-level state is carried along because the lexer only moves forward:
+/// deciding a run again is legitimate, but reading a later line's fence or
+/// details depth for it is not, so the state as of the run has to travel with
+/// the run.
+final class _DeferredRun {
+  const _DeferredRun(
+    this.start, {
+    required this.detailsDepth,
+    required this.fenced,
+  });
+
+  final int start;
+  final int detailsDepth;
+  final bool fenced;
+}
+
 /// A run of two or more newlines: the separator between two candidate blocks.
 final class _BlankRun {
   const _BlankRun(this.start, this.end);
@@ -123,8 +141,18 @@ final class MarkdownStreamingSplit {
   /// arrive.
   int _lineStart = 0;
 
-  /// The first blank run not yet decided.
+  /// The first blank run whose decision is settled. A run refused because the
+  /// text that decides it has not arrived yet is behind this cursor on purpose
+  /// and re-decided from [_deferredRun] instead.
   int _runCursor = 0;
+
+  /// A run whose refusal is provisional: the text that decides it has not
+  /// arrived yet, so the next update has to decide it again.
+  _DeferredRun? _deferredRun;
+
+  /// Whether an indented tail the walk cannot classify yet is folded into the
+  /// block above it for the returned list only.
+  bool _tailFold = false;
 
   /// The start of the unfrozen region: everything before it is either a
   /// committed block together with the run that closed it, or such a run.
@@ -167,6 +195,7 @@ final class MarkdownStreamingSplit {
       _stableBlocks.clear();
       _lineStart = 0;
       _runCursor = 0;
+      _deferredRun = null;
       _blockStart = 0;
       _lexer.reset();
       _mathScanner.reset();
@@ -188,9 +217,14 @@ final class MarkdownStreamingSplit {
     _rawSource = source;
     _rawEndsWithCR =
         source.isNotEmpty && source.codeUnitAt(source.length - 1) == 0x0D;
-    if (!_lastUpdateAppended || debugAlwaysWalk || _regionHasCandidate()) {
+    _tailFold = false;
+    if (!_lastUpdateAppended ||
+        debugAlwaysWalk ||
+        _deferredRun != null ||
+        _regionHasCandidate()) {
       _decideBoundaries();
     }
+    _skipGrownRun();
     _blocks = List<MarkdownStreamBlock>.unmodifiable(_visibleBlocks());
     return _blocks;
   }
@@ -255,15 +289,40 @@ final class MarkdownStreamingSplit {
     // block-by-block render trims the leading whitespace off every fragment,
     // and the indentation is part of the syntax the renderer matches, so the
     // line has to reach the renderer inside the block above it.
-    if (_regionStartsIndented() && _reopenIndentedTail(elements())) {
+    if (_regionStartsIndented()) {
+      if (_reopenIndentedTail(elements())) {
+        walked = _walkRegion();
+      } else {
+        // The line is still arriving, or it opens a construct of its own. The
+        // fold is for the returned list only: the committed blocks stay as they
+        // are, so the tail can still turn out to be a fence or a `<details>`
+        // and keep a block of its own.
+        _tailFold =
+            _source.substring(_blockStart).trim().isNotEmpty &&
+            !_indentedTailIsOwnBlock(elements());
+      }
+    }
+    // A gap the committed block behind it skipped can gain a whitespace-bearing
+    // blank line from a later append. Such a line is content to the renderers
+    // around it, so the boundary the block was committed on has to be taken
+    // again with the whole gap in view.
+    if (_reopenWhitespaceGap()) {
       walked = _walkRegion();
     }
     var elementIndex = 0;
+    final deferred = _deferredRun;
+    _deferredRun = null;
+    var cursor = deferred?.start ?? _runCursor;
+    _DeferredRun? pending;
     while (true) {
-      final run = _nextRun(_runCursor);
-      if (run == null) break;
-      _runCursor = run.end;
-      if (run.start < _blockStart) continue;
+      final run = _nextRun(cursor);
+      if (run == null) {
+        break;
+      }
+      cursor = run.end;
+      if (run.start < _blockStart) {
+        continue;
+      }
       _feedLexerTo(run.start);
       if (run.start == _blockStart) {
         // The run follows an earlier one with nothing between them, so it is
@@ -271,25 +330,65 @@ final class MarkdownStreamingSplit {
         _blockStart = run.end;
         continue;
       }
+      final state = deferred != null && deferred.start == run.start
+          ? deferred
+          : _DeferredRun(
+              run.start,
+              detailsDepth: _lexer.detailsDepth,
+              fenced: _lexer.fenced,
+            );
       // An unfinished display formula or `<details>` is prose to the walk, and
       // the blank lines inside it belong to the construct the closer will
-      // complete.
-      if (_lexer.detailsDepth > 0 || mathScan.covers(run.start + 1)) continue;
+      // complete. Closing it keeps the run interior, so this refusal is final.
+      if (state.detailsDepth > 0 || mathScan.covers(run.start + 1)) {
+        continue;
+      }
       // A blank line that carries whitespace is content to the renderers around
       // it: a rule, a heading and a display-math block each swallow it into
       // their own match, and plain text lays it out as a line of its own. Rather
       // than model all of that, the whole gap stays inside one block, which
       // renders the way the document reads.
-      if (_gapCarriesWhitespace(run)) continue;
-      final contentAfter = _hasContentAfter(run.end);
-      if (!contentAfter) {
-        // Nothing but whitespace follows the run yet. A list waits for the line
-        // after it — the next item may still belong to it — while every other
-        // block commits here, which is what lets a finished paragraph survive
-        // the blank lines the stream appends behind it.
-        if (_blockIsList()) continue;
-      } else if (_blockIsList() && _listContinues(run)) {
+      if (_gapCarriesWhitespace(run)) {
+        // The whitespace-bearing line the refusal rests on may still grow
+        // content (`  ` becomes `  ``` `), which takes the whitespace out of
+        // the gap again. Only the source's unfinished last line can change that
+        // way, so the refusal waits while it is the one being read.
+        if (_gapRefusalIsProvisional()) {
+          pending = state;
+          break;
+        }
         continue;
+      }
+      final contentAfter = _hasContentAfter(run.end);
+      if (!contentAfter && _blockIsList()) {
+        // Nothing but whitespace follows the run yet, and the next item of a
+        // list may still belong to this block. The line that decides it has not
+        // arrived, so the run stays undecided rather than refused.
+        pending = state;
+        break;
+      }
+      if (contentAfter) {
+        // The line after the run is what decides a list continuation and an
+        // indentation, and it can still grow into a list marker (`2` becomes
+        // `2)`) or into a fence or `<details>` opener. A decision waits for its
+        // newline; only a complete line can be classified.
+        final lineEnd = _source.indexOf('\n', run.end);
+        final lineIncomplete = lineEnd < 0;
+        if (_blockIsList() && lineIncomplete) {
+          // The line can still turn into a marker (`2` becomes `2)`), so the
+          // run stays undecided until it is complete.
+          pending = state;
+          break;
+        }
+        if (_blockIsList() && _listContinues(run)) {
+          // A complete line that continues the list: the run is no boundary,
+          // and the block ends at whatever run arrives after the item.
+          continue;
+        }
+        if (lineIncomplete && _isWhitespace(_source.codeUnitAt(run.end))) {
+          pending = state;
+          break;
+        }
       }
       final list = elements();
       while (elementIndex < list.length &&
@@ -311,22 +410,42 @@ final class MarkdownStreamingSplit {
       final after = _firstElementFrom(list, elementIndex, run.end);
       // A run a claimed element reaches past is inside that element: it is one
       // block, and the renderer lays its own text out across the run.
-      if (covering != null && covering.end > run.end) continue;
+      if (covering != null && covering.end > run.end) {
+        continue;
+      }
       // A claim that reaches the end of the source exactly as the run does is
       // an element still growing around the run — an unclosed fence body is
-      // every line that has arrived, trailing blank lines included. Only
-      // content after the run can turn the claim's end into a boundary the
-      // renderer would lay a gap out for.
-      if (covering != null && covering.end == run.end && after == null) {
+      // every line that has arrived, trailing blank lines included. Only a
+      // fence that is still open can grow that way: a rule and a display
+      // formula close their pattern with `\s*$` and are finished, so the run
+      // after them is a boundary whose separator the widget suppresses.
+      if (covering != null &&
+          covering.end == run.end &&
+          after == null &&
+          state.fenced) {
         continue;
       }
       if (contentAfter &&
           run.end < _source.length &&
           _isWhitespace(_source.codeUnitAt(run.end)) &&
           !_indentExempt(after)) {
-        continue;
+        // An indented line belongs to the block above it unless it opens a
+        // construct of its own. The walk still reports an unclosed `<details>`
+        // as prose, so the line-level rule decides that case here — otherwise
+        // the boundary would be refused for a construct that turns out to claim
+        // its own block once its closer arrives.
+        final lineEnd = _source.indexOf('\n', run.end);
+        if (!(lineEnd >= 0 && _lineOpensFenceOrDetails(run.end, lineEnd))) {
+          continue;
+        }
       }
       _commit(run, absorbed: covering?.kind);
+    }
+    if (pending != null) {
+      _deferredRun = pending;
+      _runCursor = pending.start;
+    } else {
+      _runCursor = cursor;
     }
   }
 
@@ -361,12 +480,62 @@ final class MarkdownStreamingSplit {
     if (_stableBlocks.isEmpty || _blockStart >= _source.length) return false;
     final unit = _source.codeUnitAt(_blockStart);
     if (unit == 0x0A || unit == 0x0D || !_isWhitespace(unit)) return false;
-    if (elements.isEmpty || _indentExempt(elements.first)) return false;
+    // Only a complete line can be classified. While the indentation's line is
+    // still arriving it may yet open a fence or a `<details>`, and reopening
+    // the block above is permanent, so the decision waits for the newline and
+    // the tail is folded for the view in the meantime.
+    final lineEnd = _source.indexOf('\n', _blockStart);
+    if (lineEnd < 0) return false;
+    if (elements.isEmpty || _indentedTailIsOwnBlock(elements)) {
+      return false;
+    }
     // A tail of whitespace alone lays out nothing: it stays outside the block,
     // which is what keeps a completed block identical while the indentation of
     // the next line is still arriving.
     if (_source.substring(_blockStart).trim().isEmpty) return false;
     _blockStart = _stableBlocks.removeLast().start;
+    return true;
+  }
+
+  /// Whether the line from [lineStart] to [lineEnd] opens a construct that
+  /// claims its own indentation instead of joining the block above it.
+  ///
+  /// The walk answers this for a fence and for a closed `<details>`; an
+  /// unclosed `<details>` is still prose to it, so the line-level lexer — the
+  /// rule the renderer shares — answers here.
+  bool _lineOpensFenceOrDetails(int lineStart, int lineEnd) {
+    if (lineEnd <= lineStart) return false;
+    final lexer = MarkdownLineLexer()
+      ..consumePhysicalLine(_source.substring(lineStart, lineEnd));
+    return lexer.fenced || lexer.detailsDepth > 0;
+  }
+
+  /// Whether an indented tail keeps a block of its own instead of joining the
+  /// block above it.
+  bool _indentedTailIsOwnBlock(List<_MdElement> elements) {
+    if (_indentExempt(elements.isEmpty ? null : elements.first)) return true;
+    final lineEnd = _source.indexOf('\n', _blockStart);
+    return lineEnd >= 0 && _lineOpensFenceOrDetails(_blockStart, lineEnd);
+  }
+
+  /// Reopens the last committed block when the gap behind it gained a
+  /// whitespace-bearing blank line.
+  ///
+  /// Such a line is content to the renderers around it, so the whole gap has to
+  /// stay inside one block: the boundary the block was committed on was taken
+  /// before that line existed, and leaving it would make the block list depend
+  /// on how the reply was chunked.
+  bool _reopenWhitespaceGap() {
+    if (_stableBlocks.isEmpty || _blockStart >= _source.length) return false;
+    final last = _stableBlocks.last;
+    final runStart = last.start + last.text.length;
+    if (runStart >= _source.length || _source.codeUnitAt(runStart) != 0x0A) {
+      return false;
+    }
+    if (!_gapCarriesWhitespace(_BlankRun(runStart, runStart))) return false;
+    _stableBlocks.removeLast();
+    _blockStart = last.start;
+    _runCursor = runStart;
     return true;
   }
 
@@ -437,6 +606,20 @@ final class MarkdownStreamingSplit {
       i = end + 1;
     }
     return false;
+  }
+
+  /// Whether the whitespace-bearing blank line a gap refusal rests on is still
+  /// arriving.
+  ///
+  /// Only the source's unfinished last line can grow content and take the
+  /// whitespace out of the gap again; every earlier line is complete, so a
+  /// refusal that rests on one of those is final.
+  bool _gapRefusalIsProvisional() {
+    if (_source.isEmpty || _source.codeUnitAt(_source.length - 1) == 0x0A) {
+      return false;
+    }
+    final line = _source.substring(_source.lastIndexOf('\n') + 1);
+    return line.isNotEmpty && line.trim().isEmpty;
   }
 
   /// Whether anything but whitespace follows [position].
@@ -521,13 +704,41 @@ final class MarkdownStreamingSplit {
   /// Committed blocks plus the unfinished tail. A tail of only whitespace is
   /// dropped: `GptMarkdown` trims it, so keeping it would only rebuild a block
   /// that lays out the same.
+  ///
+  /// An indented tail the walk cannot classify yet is folded into the last
+  /// committed block for this list only — the scanner itself is left alone, so
+  /// the tail can still turn out to be an indented fence or `<details>` and keep
+  /// a block of its own.
   List<MarkdownStreamBlock> _visibleBlocks() {
     final tailText = _source.substring(_blockStart);
     if (tailText.trim().isEmpty) return List.of(_stableBlocks);
+    if (_tailFold && _stableBlocks.isNotEmpty) {
+      final last = _stableBlocks.last;
+      return [
+        ..._stableBlocks.sublist(0, _stableBlocks.length - 1),
+        MarkdownStreamBlock(
+          start: last.start,
+          text: _source.substring(last.start),
+          stable: false,
+        ),
+      ];
+    }
     return [
       ..._stableBlocks,
       MarkdownStreamBlock(start: _blockStart, text: tailText, stable: false),
     ];
+  }
+
+  /// A run the splitter already skipped can gain newlines from a later append.
+  ///
+  /// They belong to the gap the block before already skipped, so the tail must
+  /// not start with them: the same text has to produce the same tail whether
+  /// the newlines arrived with the run or after it.
+  void _skipGrownRun() {
+    while (_blockStart < _source.length &&
+        _source.codeUnitAt(_blockStart) == 0x0A) {
+      _blockStart++;
+    }
   }
 
   /// Whitespace as `\s` in a Dart pattern reads it, so an indent is judged the

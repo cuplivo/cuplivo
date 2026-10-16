@@ -429,20 +429,24 @@ void main() {
     expect(closed.last.text, 'Next');
   });
 
-  test('whitespace-only indent tail keeps the stable block identical', () {
+  test('whitespace-only indent tail keeps the gap in one block', () {
     final document = markdownStreamingSplit();
     final first = document.update('A\n\n').single;
     expect(first.stable, isTrue);
 
+    // The whitespace-bearing blank line is content to the renderers around it,
+    // so the whole gap stays in one block — the same block a whole-source parse
+    // of `A\n\n    ` produces. The committed `A` is therefore reopened: the
+    // block list may depend on the source, never on how it was chunked.
     final afterSpaces = document.update('A\n\n    ');
-    expect(identical(afterSpaces.single, first), isTrue);
-    expect(afterSpaces.single.stable, isTrue);
-    expect(afterSpaces.single.text, 'A');
+    expect(afterSpaces, hasLength(1));
+    expect(afterSpaces.single.stable, isFalse);
+    expect(afterSpaces.single.start, 0);
+    expect(afterSpaces.single.text, 'A\n\n    ');
 
     final afterHeading = document.update('A\n\n    # Heading #');
     expect(afterHeading, hasLength(1));
     expect(afterHeading.single.stable, isFalse);
-    expect(identical(afterHeading.single, first), isFalse);
     expect(afterHeading.single.text, 'A\n\n    # Heading #');
   });
 
@@ -700,11 +704,14 @@ void main() {
     expect(first, hasLength(1));
     expect(first.single.stable, isFalse);
 
-    final second = document.update('- a\n\n\n\nnext');
+    final grown = document.update('- a\n\n\n\nnext');
+    expect(grown, hasLength(1));
+
+    final second = document.update('- a\n\n\n\nnext\n');
     expect(second, hasLength(2));
     expect(second.first.text, '- a');
     expect(second.first.stable, isTrue);
-    expect(second.last.text, 'next');
+    expect(second.last.text, 'next\n');
   });
 
   test('an unfinished details holds its blank lines until it closes', () {

@@ -1,10 +1,23 @@
-import 'package:Cuplivo/shared/widgets/incremental_markdown_document.dart';
+import 'dart:math';
+
+import 'package:Cuplivo/shared/widgets/markdown_streaming_split.dart';
+import 'package:Cuplivo/shared/widgets/markdown_with_highlight.dart';
 import 'package:Cuplivo/shared/widgets/markdown_line_lexer.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+/// The block shapes a run produces, so two splitters can be compared without
+/// holding on to the same object identities.
+String _shape(List<MarkdownStreamBlock> blocks) => blocks
+    .map(
+      (block) =>
+          '${block.start}:${block.text}:${block.stable}:'
+          '${block.swallowedBy}',
+    )
+    .join('|');
+
 void main() {
   test('append-only updates retain completed block identities', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final initial = document.update('first paragraph\n\nsecond');
     final firstBlock = initial.first;
 
@@ -16,7 +29,7 @@ void main() {
 
   test('a line separator before a fence keeps blanks inside the fence', () {
     for (final mark in const ['\u2028', '\u2029']) {
-      final document = IncrementalMarkdownDocument();
+      final document = markdownStreamingSplit();
       final blocks = document.update(
         'before\n\nText$mark```dart\ncode\n\ninside\n```\n\nafter',
       );
@@ -30,7 +43,7 @@ void main() {
     'a line separator before a tilde fence keeps blanks inside the fence',
     () {
       for (final mark in const ['\u2028', '\u2029']) {
-        final document = IncrementalMarkdownDocument();
+        final document = markdownStreamingSplit();
         final blocks = document.update(
           'before\n\nText$mark~~~\ncode\n\ninside\n~~~\n\nafter',
         );
@@ -42,7 +55,7 @@ void main() {
 
   test('a line separator before details keeps blanks inside the details', () {
     for (final mark in const ['\u2028', '\u2029']) {
-      final document = IncrementalMarkdownDocument();
+      final document = markdownStreamingSplit();
       final blocks = document.update(
         'before\n\nText$mark<details>\n\nbody\n</details>\n\nafter',
       );
@@ -58,7 +71,7 @@ void main() {
       ('~~~~\na\n~~~\n\nb\n~~~~', 'a\n~~~\n\nb'),
       ('`````\na\n```\n\nb\n`````', 'a\n```\n\nb'),
     ]) {
-      final document = IncrementalMarkdownDocument();
+      final document = markdownStreamingSplit();
       final blocks = document.update('before\n\n${item.$1}\n\nafter');
       expect(blocks, hasLength(3), reason: item.$1);
       expect(blocks[1].text, contains(item.$2), reason: item.$1);
@@ -67,7 +80,7 @@ void main() {
   });
 
   test('a closer with an info string does not close the fence', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final blocks = document.update(
       'before\n\n```\na\n``` dart\n\nb\n```\n\nafter',
     );
@@ -77,7 +90,7 @@ void main() {
   });
 
   test('blank lines inside fences do not split source blocks', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final blocks = document.update('before\n\n```dart\na\n\nb\n```\n\nafter');
 
     expect(blocks, hasLength(3));
@@ -85,7 +98,7 @@ void main() {
   });
 
   test('blank lines inside display math do not split source blocks', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final blocks = document.update(
       'before\n\n\$\$\na + b\n\nc + d\n\$\$\n\nafter',
     );
@@ -98,7 +111,7 @@ void main() {
   test(
     'blank lines inside bracket display math do not split source blocks',
     () {
-      final document = IncrementalMarkdownDocument();
+      final document = markdownStreamingSplit();
       final blocks = document.update(
         'before\n\n\\[\na + b\n\nc + d\n\\]\n\nafter',
       );
@@ -109,7 +122,7 @@ void main() {
   );
 
   test('blank lines inside details html do not split source blocks', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final blocks = document.update(
       'before\n\n<details>\n<summary>s</summary>\n\nbody\n\n</details>\n\nafter',
     );
@@ -120,7 +133,7 @@ void main() {
   });
 
   test('blank lines inside a loose list do not split source blocks', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final blocks = document.update('- first\n\n- second\n\nnext paragraph\n');
 
     expect(blocks, hasLength(2));
@@ -129,7 +142,7 @@ void main() {
   });
 
   test('indented list continuation stays in the same source block', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final blocks = document.update('- item\n\n  still the item\n\nnext\n');
 
     expect(blocks, hasLength(2));
@@ -138,7 +151,7 @@ void main() {
   });
 
   test('single-line display math does not swallow the next paragraph', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final blocks = document.update('\$\$ a + b \$\$\n\nnext');
 
     expect(blocks, hasLength(2));
@@ -147,7 +160,7 @@ void main() {
   });
 
   test('mid-paragraph display math follows successful spans only', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final blocks = document.update('说明文字 \$\$\na + b\n\nc + d\n\$\$\n\nafter');
 
     expect(blocks.length, greaterThanOrEqualTo(2));
@@ -155,7 +168,7 @@ void main() {
   });
 
   test('mid-paragraph bracket display math follows successful spans only', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final blocks = document.update('说明文字 \\[\na + b\n\nc + d\n\\]\n\nafter');
 
     expect(blocks.length, greaterThanOrEqualTo(2));
@@ -163,7 +176,7 @@ void main() {
   });
 
   test('list-item display math follows successful spans only', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final blocks = document.update(
       '- see \$\$\na + b\n\nc + d\n\$\$\n\nafter\n',
     );
@@ -173,7 +186,7 @@ void main() {
   });
 
   test('inline code dollars do not start display math protection', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final blocks = document.update(
       'Use `\$\$` as currency.\n\nFirst paragraph.\n\nSecond paragraph.',
     );
@@ -186,7 +199,7 @@ void main() {
   test(
     'closed display math on a line can still open a later bracket block',
     () {
-      final document = IncrementalMarkdownDocument();
+      final document = markdownStreamingSplit();
       final blocks = document.update(
         'text \$\$ a \$\$ \\[\nb\n\nc\n\\]\n\nafter',
       );
@@ -197,7 +210,7 @@ void main() {
   );
 
   test('an unclosed math blank is not committed before the closer arrives', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final first = document.update('\$\$\na\n\n');
     expect(first, hasLength(1));
     expect(first.single.stable, isFalse);
@@ -222,7 +235,7 @@ void main() {
 
   test('fence indent is horizontal whitespace for the splitter', () {
     for (final indent in const [' ', '  ', '\t', ' \t']) {
-      final document = IncrementalMarkdownDocument();
+      final document = markdownStreamingSplit();
       final blocks = document.update(
         'before\n\n$indent```\ncode\n\ninside\n```\n\nafter',
       );
@@ -231,7 +244,7 @@ void main() {
       expect(blocks.last.text, 'after', reason: indent);
     }
     for (final indent in const ['\u00a0', '\u2003', '\u3000']) {
-      final document = IncrementalMarkdownDocument();
+      final document = markdownStreamingSplit();
       final blocks = document.update(
         'before\n\n$indent```\ncode\n\ninside\n```\n\nafter',
       );
@@ -247,7 +260,7 @@ void main() {
   });
 
   test('a tailed dollar closer does not split a later successful span', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final blocks = document.update('\$\$\n\$\$ tail\n\ninside\n\$\$\n\nafter');
     expect(blocks, hasLength(2));
     expect(blocks.first.text, contains('inside'));
@@ -255,14 +268,14 @@ void main() {
   });
 
   test('crossed nested openers stay one successful bracket span', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final blocks = document.update('\\[\n\$\$\n\\[\n\$\$\n\\]\n\nafter');
     expect(blocks, hasLength(2));
     expect(blocks.last.text, 'after');
   });
 
   test('inline code details tags do not freeze later paragraph splits', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final blocks = document.update(
       'Use `<details>` to create a collapsible section.\n\n'
       'First paragraph.\n\n'
@@ -275,7 +288,7 @@ void main() {
   });
 
   test('prose details mention does not freeze later paragraph splits', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final blocks = document.update(
       'Use <details> to create a collapsible section.\n\n'
       'First paragraph.\n\n'
@@ -286,7 +299,7 @@ void main() {
   });
 
   test('seven nested details keep inner blanks in one block', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final nested = [
       for (var i = 1; i <= 7; i++) '<details>\n<summary>L$i</summary>',
       'deep-body',
@@ -299,7 +312,7 @@ void main() {
   });
 
   test('a cross-line details opener does not protect later blanks', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final blocks = document.update(
       'before\n\n<details\nopen>\n<summary>s</summary>\n\nbody\n</details>\n\nafter',
     );
@@ -309,7 +322,7 @@ void main() {
   });
 
   test('mid-line nested details keep the outer block together', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final blocks = document.update(
       'before\n\n'
       '<details>\n'
@@ -331,7 +344,7 @@ void main() {
   test(
     'inline details in a details body do not leave the outer block open',
     () {
-      final document = IncrementalMarkdownDocument();
+      final document = markdownStreamingSplit();
       final blocks = document.update(
         '<details>\n<summary>s</summary>\n'
         'Use `<details>` here\n\n'
@@ -347,7 +360,7 @@ void main() {
   test(
     'inline details tags inside a details summary do not freeze later splits',
     () {
-      final document = IncrementalMarkdownDocument();
+      final document = markdownStreamingSplit();
       final blocks = document.update(
         '<details><summary>Use `<details>`</summary>\n\n'
         'body\n'
@@ -362,7 +375,7 @@ void main() {
   );
 
   test('1 MiB append stream scans each source code unit once', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     var source = '';
     final chunk = List<String>.filled(256, '0123456789abcdef').join();
     for (var index = 0; index < 256; index++) {
@@ -376,7 +389,7 @@ void main() {
   });
 
   test('extra blank lines do not replace a completed block', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final first = document.update('first paragraph\n\n');
     final firstBlock = first.single;
 
@@ -393,7 +406,7 @@ void main() {
   test('C# paragraphs do not collapse into one block', () {
     final paragraphs = [for (var i = 0; i < 20; i++) 'Language: C# sample $i'];
     for (final ending in const ['', '\n', '\n\n']) {
-      final document = IncrementalMarkdownDocument();
+      final document = markdownStreamingSplit();
       final blocks = document.update('${paragraphs.join('\n\n')}$ending');
       expect(blocks, hasLength(20), reason: 'ending ${ending.length} LFs');
       expect(_startsAreMonotonicAndUnique(blocks), isTrue);
@@ -401,7 +414,7 @@ void main() {
   });
 
   test('indented unfinished tail is returned with the previous block', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final withoutNewline = document.update('A\n\n    # Heading #');
     expect(withoutNewline, hasLength(1));
     expect(withoutNewline.single.text, 'A\n\n    # Heading #');
@@ -416,32 +429,36 @@ void main() {
     expect(closed.last.text, 'Next');
   });
 
-  test('whitespace-only indent tail keeps the stable block identical', () {
-    final document = IncrementalMarkdownDocument();
+  test('whitespace-only indent tail keeps the gap in one block', () {
+    final document = markdownStreamingSplit();
     final first = document.update('A\n\n').single;
     expect(first.stable, isTrue);
 
+    // The whitespace-bearing blank line is content to the renderers around it,
+    // so the whole gap stays in one block — the same block a whole-source parse
+    // of `A\n\n    ` produces. The committed `A` is therefore reopened: the
+    // block list may depend on the source, never on how it was chunked.
     final afterSpaces = document.update('A\n\n    ');
-    expect(identical(afterSpaces.single, first), isTrue);
-    expect(afterSpaces.single.stable, isTrue);
-    expect(afterSpaces.single.text, 'A');
+    expect(afterSpaces, hasLength(1));
+    expect(afterSpaces.single.stable, isFalse);
+    expect(afterSpaces.single.start, 0);
+    expect(afterSpaces.single.text, 'A\n\n    ');
 
     final afterHeading = document.update('A\n\n    # Heading #');
     expect(afterHeading, hasLength(1));
     expect(afterHeading.single.stable, isFalse);
-    expect(identical(afterHeading.single, first), isFalse);
     expect(afterHeading.single.text, 'A\n\n    # Heading #');
   });
 
   test('only the unfinished tail is marked unstable', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     final blocks = document.update('first\n\nsecond');
     expect(blocks.first.stable, isTrue);
     expect(blocks.last.stable, isFalse);
   });
 
   test('CR then LF across updates is one newline', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     document.update('A\r');
     final blocks = document.update('A\r\n\nB');
     expect(blocks, hasLength(2));
@@ -450,7 +467,7 @@ void main() {
   });
 
   test('a CR-free append reuses the caller source string', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     var source = 'Hello';
     document.update(source);
     expect(document.debugReusesCallerSource, isTrue);
@@ -462,14 +479,14 @@ void main() {
   });
 
   test('a CR forces a normalized copy of the source', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     document.update('A\r\nB');
     expect(document.debugReusesCallerSource, isFalse);
     expect(document.blocks.single.text, 'A\nB');
   });
 
   test('a CR in an earlier chunk does not rescan the whole source', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     var source = 'A\r';
     document.update(source);
     final afterCR = document.rescannedCodeUnits;
@@ -482,7 +499,7 @@ void main() {
 
   test('line-separator and paragraph-separator are not safe boundaries', () {
     for (final mark in const ['\u2028', '\u2029']) {
-      final document = IncrementalMarkdownDocument();
+      final document = markdownStreamingSplit();
       final blocks = document.update('A\n$mark\nB');
       expect(
         blocks,
@@ -499,7 +516,7 @@ void main() {
       ('A\r\rB', 'A'),
       ('A\n\nB', 'A'),
     ]) {
-      final document = IncrementalMarkdownDocument();
+      final document = markdownStreamingSplit();
       final blocks = document.update(pair.$1);
       expect(blocks, hasLength(2), reason: pair.$1);
       expect(blocks.first.text, pair.$2);
@@ -509,7 +526,7 @@ void main() {
 
   test('nbsp and next-line are content inside a blank run', () {
     for (final mark in const ['\u00a0', '\u0085', ' ', '\t']) {
-      final document = IncrementalMarkdownDocument();
+      final document = markdownStreamingSplit();
       final blocks = document.update('A\n$mark\nB');
       expect(blocks, hasLength(1), reason: 'mark ${mark.codeUnits}');
     }
@@ -518,7 +535,7 @@ void main() {
   test('ATX opening hashes do not span a blank line', () {
     for (final source in const ['#\n\nHeading #', '###\n\nHeading ###']) {
       for (final ending in const ['', '\n', '\n\n']) {
-        final document = IncrementalMarkdownDocument();
+        final document = markdownStreamingSplit();
         final blocks = document.update('$source$ending');
         expect(
           blocks.length,
@@ -532,7 +549,7 @@ void main() {
   test('seven or more hashes after a heading stay their own block', () {
     for (final hashes in const [1, 6, 7, 20]) {
       final closer = '#' * hashes;
-      final document = IncrementalMarkdownDocument();
+      final document = markdownStreamingSplit();
       final blocks = document.update('# Heading\n\n$closer\n\nNext');
       expect(blocks, hasLength(3), reason: '$hashes closing hashes');
       expect(blocks[1].text, closer);
@@ -541,7 +558,7 @@ void main() {
 
   test('same-line closing hashes do not merge the next paragraph', () {
     for (final hashes in const [1, 6, 7, 20]) {
-      final document = IncrementalMarkdownDocument();
+      final document = markdownStreamingSplit();
       final blocks = document.update('# Heading ${'#' * hashes}\n\nNext');
       expect(blocks, hasLength(2), reason: '$hashes closing hashes');
       expect(blocks.last.text, 'Next');
@@ -553,7 +570,7 @@ void main() {
     () {
       for (final indent in const ['', ' ', '   ', '    ', '\t']) {
         for (final ending in const ['', '\n', '\n\n']) {
-          final document = IncrementalMarkdownDocument();
+          final document = markdownStreamingSplit();
           final source = 'A\n\n$indent# Heading #$ending';
           final blocks = document.update(source);
           expect(_startsAreMonotonicAndUnique(blocks), isTrue, reason: source);
@@ -564,7 +581,7 @@ void main() {
   );
 
   test('ordinary paragraphs grow one stable block per paragraph', () {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     var source = 'paragraph 1\n\n';
     var blocks = document.update(source);
     expect(blocks, hasLength(1));
@@ -590,7 +607,7 @@ void main() {
       ('before\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n', 2),
     ];
     for (final item in cases) {
-      final document = IncrementalMarkdownDocument();
+      final document = markdownStreamingSplit();
       final blocks = document.update(item.$1);
       expect(blocks, hasLength(item.$2), reason: item.$1);
     }
@@ -613,7 +630,7 @@ void main() {
             '\ntext\n'
             r'$$b$$',
       ]) {
-        final document = IncrementalMarkdownDocument();
+        final document = markdownStreamingSplit();
         final blocks = document.update('$math\n\nNext');
         expect(blocks, hasLength(2), reason: math);
         expect(blocks.last.text, 'Next');
@@ -623,8 +640,8 @@ void main() {
 
   test('streaming prefixes of an indented tail stay one visible block', () {
     const full = 'A\n\n    # Heading #\n\nNext';
-    final document = IncrementalMarkdownDocument();
-    IncrementalMarkdownBlock? first;
+    final document = markdownStreamingSplit();
+    MarkdownStreamBlock? first;
     for (var end = 1; end <= full.length; end++) {
       final blocks = document.update(full.substring(0, end));
       expect(_startsAreMonotonicAndUnique(blocks), isTrue, reason: '[:$end]');
@@ -647,7 +664,7 @@ void main() {
     ).join('\n\n');
     expect(full.length, greaterThan(5000));
 
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     for (var end = 1; end <= full.length; end++) {
       final prefix = full.substring(0, end);
       final blocks = document.update(prefix);
@@ -657,6 +674,101 @@ void main() {
         prefix.replaceAll('\n', ''),
         reason: 'prefix ending at UTF-16 code unit $end',
       );
+    }
+  });
+
+  test('a rule and a display formula record the blank run they consumed', () {
+    // `---` and `$$` close their pattern with `\s*$`, so the match runs past
+    // the newline that ends the block: a whole-document render lays out no gap
+    // there, and the widget must not stand one in for it.
+    for (final source in const ['---\n\nnext', '\$\$ a + b \$\$\n\nnext']) {
+      final document = markdownStreamingSplit();
+      final blocks = document.update(source);
+      expect(blocks, hasLength(2), reason: source);
+      expect(blocks.first.swallowedBy, isNotNull, reason: source);
+      expect(blocks.last.text, 'next', reason: source);
+    }
+    // Every other block leaves the run behind, and the separator reproduces it.
+    final plain = markdownStreamingSplit().update('a\n\nb');
+    expect(plain, hasLength(2));
+    expect(plain.first.swallowedBy, isNull);
+  });
+
+  test('a blank run that grows after a list waits still ends the block', () {
+    // The first update leaves the run in place, because the next item may
+    // still belong to the list. The second grows that same run and then denies
+    // the list, so the block has to end where the run begins — not part-way
+    // into it, which would leave the block ending on the newlines it skips.
+    final document = markdownStreamingSplit();
+    final first = document.update('- a\n\n');
+    expect(first, hasLength(1));
+    expect(first.single.stable, isFalse);
+
+    final grown = document.update('- a\n\n\n\nnext');
+    expect(grown, hasLength(1));
+
+    final second = document.update('- a\n\n\n\nnext\n');
+    expect(second, hasLength(2));
+    expect(second.first.text, '- a');
+    expect(second.first.stable, isTrue);
+    expect(second.last.text, 'next\n');
+  });
+
+  test('an unfinished details holds its blank lines until it closes', () {
+    // A `<details>` without its closer is prose to the walk, so its blank runs
+    // are gaps and only the lexer's depth stops them from splitting.
+    final document = markdownStreamingSplit();
+    final open = document.update(
+      'before\n\n<details>\n<summary>s</summary>\n\nbody',
+    );
+    expect(open.first.text, 'before');
+    expect(open.last.text, contains('body'));
+    expect(open.last.text, contains('<summary>'));
+
+    final closed = document.update(
+      'before\n\n<details>\n<summary>s</summary>\n\nbody\n</details>\n\nafter',
+    );
+    expect(closed, hasLength(3));
+    expect(closed[1].text, contains('</details>'));
+    expect(closed.last.text, 'after');
+  });
+
+  test('an append that cannot change the structure is not walked', () {
+    final document = markdownStreamingSplit();
+    document.update('hello\n\nwor');
+    final walks = document.debugWalkedRegions;
+    // The region holds no run and does not open on whitespace, so nothing in
+    // it has a decision to change: punctuation included, because only a run
+    // can become a boundary. The tail still grows.
+    final blocks = document.update('hello\n\nworld *');
+    expect(document.debugWalkedRegions, walks);
+    expect(blocks.last.text, 'world *');
+
+    // A blank run is something to decide, so the walk runs again.
+    document.update('hello\n\nworld *\n\nnext');
+    expect(document.debugWalkedRegions, greaterThan(walks));
+  });
+
+  test('skipping a walk never changes a boundary', () {
+    // The reference splitter walks on every append, so it decides every
+    // boundary from a fresh walk; the guarded one may only skip work. Any
+    // character the guard judges unable to change the structure, and that
+    // could, shows up here as a different block shape.
+    final random = Random(20260218);
+    const alphabet = 'ab \n *_`~[]\$#->|<details>sum1.x\\';
+    for (var round = 0; round < 30; round++) {
+      final source = StringBuffer();
+      final guarded = markdownStreamingSplit();
+      final reference = markdownStreamingSplit()..debugAlwaysWalk = true;
+      for (var step = 0; step < 40; step++) {
+        source.write(alphabet[random.nextInt(alphabet.length)]);
+        final text = source.toString();
+        expect(
+          _shape(guarded.update(text)),
+          _shape(reference.update(text)),
+          reason: 'round $round step $step: $text',
+        );
+      }
     }
   });
 }
@@ -671,13 +783,13 @@ void _expectDocumentLinearScan(
   }
   final text = full.toString();
   debugResetMarkdownScanVisits();
-  IncrementalMarkdownDocument().update(text);
+  markdownStreamingSplit().update(text);
   expect(
     debugMarkdownScanVisits,
     lessThanOrEqualTo(text.length * debugMarkdownScanVisitBudgetFactor),
   );
 
-  final document = IncrementalMarkdownDocument();
+  final document = markdownStreamingSplit();
   var source = '';
   debugResetMarkdownScanVisits();
   for (var i = 0; i < chunks; i++) {
@@ -690,7 +802,7 @@ void _expectDocumentLinearScan(
   );
 }
 
-bool _startsAreMonotonicAndUnique(List<IncrementalMarkdownBlock> blocks) {
+bool _startsAreMonotonicAndUnique(List<MarkdownStreamBlock> blocks) {
   final seen = <int>{};
   var previous = -1;
   for (final block in blocks) {

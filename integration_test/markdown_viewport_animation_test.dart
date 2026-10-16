@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'dart:ui' as ui;
 
-import 'package:Cuplivo/shared/widgets/incremental_markdown_document.dart';
+import 'package:Cuplivo/shared/widgets/markdown_streaming_split.dart';
+import 'package:Cuplivo/shared/widgets/markdown_with_highlight.dart';
 import 'package:Cuplivo/shared/widgets/markdown_block_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -23,7 +24,7 @@ void main() {
       final scroll = ScrollController();
       final capture = GlobalKey();
       try {
-        final blocks = IncrementalMarkdownDocument().update(
+        final blocks = markdownStreamingSplit().update(
           List.generate(80, (i) => 'block $i').join('\n\n'),
         );
         final content = Column(
@@ -64,7 +65,7 @@ void main() {
                         child: nested
                             ? MarkdownBlockList(
                                 blocks: const [
-                                  IncrementalMarkdownBlock(
+                                  MarkdownStreamBlock(
                                     start: 0,
                                     text: '',
                                     stable: true,

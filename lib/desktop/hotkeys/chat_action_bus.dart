@@ -8,6 +8,7 @@ enum ChatAction {
   switchModel,
   enterGlobalSearch,
   exitGlobalSearch,
+  copySelectionMarkdown,
 }
 
 class ChatActionBus {

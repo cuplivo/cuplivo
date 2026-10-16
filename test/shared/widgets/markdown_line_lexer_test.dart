@@ -1,4 +1,3 @@
-import 'package:Cuplivo/shared/widgets/incremental_markdown_document.dart';
 import 'package:Cuplivo/shared/widgets/markdown_line_lexer.dart';
 import 'package:Cuplivo/shared/widgets/markdown_with_highlight.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,50 +12,52 @@ String _unmatchedBacktickRuns({int maxRun = 200}) {
 }
 
 void main() {
+  _registryTests();
+
   tearDown(debugDisableMarkdownScanVisits);
 
   test('unclosed inline code does not hide a later display-math closer', () {
     const content = '`unclosed\n\$\$ `x` \$\$';
-    expect(markdownEndsWithDisplayMath(content, content.length), isTrue);
+    expect(_endsWithDisplayMath(content), isTrue);
   });
 
   test(
     'a mid-line details mention does not hide a later display-math closer',
     () {
       const content = 'Use <details> here\n\$\$b\$\$';
-      expect(markdownEndsWithDisplayMath(content, content.length), isTrue);
+      expect(_endsWithDisplayMath(content), isTrue);
     },
   );
 
   test('a line-leading details block does hide math inside it', () {
     const content = '<details>\n\$\$b\$\$\n</details>';
-    expect(markdownEndsWithDisplayMath(content, content.length), isFalse);
+    expect(_endsWithDisplayMath(content), isFalse);
   });
 
   test('fence markers are recognized before inline backticks', () {
     const content = '```\n`\$\$\n```\n\$\$b\$\$';
-    expect(markdownEndsWithDisplayMath(content, content.length), isTrue);
+    expect(_endsWithDisplayMath(content), isTrue);
   });
 
   test('a line separator is a logical break for display math', () {
     const content = 'Text\u2028\$\$b\$\$';
-    expect(markdownEndsWithDisplayMath(content, content.length), isTrue);
+    expect(_endsWithDisplayMath(content), isTrue);
   });
 
   test('a paragraph separator is a logical break for display math', () {
     const content = 'Text\u2029\$\$b\$\$';
-    expect(markdownEndsWithDisplayMath(content, content.length), isTrue);
+    expect(_endsWithDisplayMath(content), isTrue);
   });
 
   test('a carriage return is a logical break for display math', () {
     const content = 'Text\r\$\$b\$\$';
-    expect(markdownEndsWithDisplayMath(content, content.length), isTrue);
+    expect(_endsWithDisplayMath(content), isTrue);
   });
 
   test('display-math walk visits stay linear on a long space line', () {
     final content = '${' ' * 4000}\n\$\$x\$\$';
     debugResetMarkdownScanVisits();
-    expect(markdownEndsWithDisplayMath(content, content.length), isTrue);
+    expect(_endsWithDisplayMath(content), isTrue);
     expect(
       debugMarkdownScanVisits,
       lessThanOrEqualTo(content.length * debugMarkdownScanVisitBudgetFactor),
@@ -66,7 +67,7 @@ void main() {
   test('display-math walk visits stay linear on unmatched backtick runs', () {
     final content = '${_unmatchedBacktickRuns()}\n\$\$x\$\$';
     debugResetMarkdownScanVisits();
-    expect(markdownEndsWithDisplayMath(content, content.length), isTrue);
+    expect(_endsWithDisplayMath(content), isTrue);
     expect(
       debugMarkdownScanVisits,
       lessThanOrEqualTo(content.length * debugMarkdownScanVisitBudgetFactor),
@@ -75,22 +76,22 @@ void main() {
 
   test('a longer fence is not closed by a shorter run of the same marker', () {
     const content = '````\n```\n\$\$b\$\$\n````';
-    expect(markdownEndsWithDisplayMath(content, content.length), isFalse);
+    expect(_endsWithDisplayMath(content), isFalse);
   });
 
   test('a longer fence still allows math after a matching closer', () {
     const content = '````\n```\n\$\$b\$\$\n````\n\$\$c\$\$';
-    expect(markdownEndsWithDisplayMath(content, content.length), isTrue);
+    expect(_endsWithDisplayMath(content), isTrue);
   });
 
   test('a tilde fence is not closed by backticks', () {
     const content = '~~~\n```\n\$\$b\$\$\n~~~';
-    expect(markdownEndsWithDisplayMath(content, content.length), isFalse);
+    expect(_endsWithDisplayMath(content), isFalse);
   });
 
   test('a backtick fence info string with a backtick does not open', () {
     const content = '```lang`sample\n\$\$b\$\$';
-    expect(markdownEndsWithDisplayMath(content, content.length), isTrue);
+    expect(_endsWithDisplayMath(content), isTrue);
     final lexer = MarkdownLineLexer();
     expect(lexer.consumeFence('```lang`sample'), isFalse);
     expect(lexer.fenced, isFalse);
@@ -111,7 +112,7 @@ void main() {
       expect(debugBacktickJumpSlotCount(spans), 3000);
       debugResetMarkdownScanVisits();
       final content = '$spans\n\$\$y\$\$';
-      expect(markdownEndsWithDisplayMath(content, content.length), isTrue);
+      expect(_endsWithDisplayMath(content), isTrue);
       expect(
         debugMarkdownScanVisits,
         lessThanOrEqualTo(content.length * debugMarkdownScanVisitBudgetFactor),
@@ -124,7 +125,7 @@ void main() {
     expect(debugBacktickJumpSlotCount(line), 1);
     debugResetMarkdownScanVisits();
     final content = '$line\n\$\$x\$\$';
-    expect(markdownEndsWithDisplayMath(content, content.length), isTrue);
+    expect(_endsWithDisplayMath(content), isTrue);
     expect(
       debugMarkdownScanVisits,
       lessThanOrEqualTo(content.length * debugMarkdownScanVisitBudgetFactor),
@@ -133,37 +134,37 @@ void main() {
 
   test('a successful dollar span discards an inner bracket opener', () {
     const content = '\$\$\n\\[\n\$\$\n\\]';
-    expect(markdownEndsWithDisplayMath(content, content.length), isFalse);
-    expect(_scanEnds(content), _rendererEnds(content));
+    expect(_endsWithDisplayMath(content), isFalse);
+    expect(_endsWithDisplayMath(content), _rendererEnds(content));
   });
 
   test('a successful bracket span discards an inner dollar opener', () {
     const content = '\\[\n\$\$\n\\]\n\$\$';
-    expect(markdownEndsWithDisplayMath(content, content.length), isFalse);
-    expect(_scanEnds(content), _rendererEnds(content));
+    expect(_endsWithDisplayMath(content), isFalse);
+    expect(_endsWithDisplayMath(content), _rendererEnds(content));
   });
 
   test('an unclosed bracket does not hide a later dollar span', () {
     const content = '\\[\n\$\$\nx\n\$\$';
-    expect(markdownEndsWithDisplayMath(content, content.length), isTrue);
-    expect(_scanEnds(content), _rendererEnds(content));
+    expect(_endsWithDisplayMath(content), isTrue);
+    expect(_endsWithDisplayMath(content), _rendererEnds(content));
   });
 
   test('an unclosed dollar does not hide a later bracket span', () {
     const content = '\$\$\n\\[\nx\n\\]';
-    expect(markdownEndsWithDisplayMath(content, content.length), isTrue);
-    expect(_scanEnds(content), _rendererEnds(content));
+    expect(_endsWithDisplayMath(content), isTrue);
+    expect(_endsWithDisplayMath(content), _rendererEnds(content));
   });
 
   test('a tailed closer does not end a later successful dollar span', () {
     const content = '\$\$\n\$\$ tail\n\ninside\n\$\$';
-    expect(markdownEndsWithDisplayMath(content, content.length), isTrue);
+    expect(_endsWithDisplayMath(content), isTrue);
     expect(_normalizedSpans(content), _rendererSpans(content));
   });
 
   test('crossed nested openers end on the outer bracket closer', () {
     const content = '\\[\n\$\$\n\\[\n\$\$\n\\]';
-    expect(markdownEndsWithDisplayMath(content, content.length), isTrue);
+    expect(_endsWithDisplayMath(content), isTrue);
     expect(_normalizedSpans(content), _rendererSpans(content));
   });
 
@@ -176,7 +177,7 @@ void main() {
   test('an earlier unclosed fence still hides later math', () {
     const content = '```\n\$\$\nx\n\$\$';
     expect(markdownScanDisplayMath(content).spans, isEmpty);
-    expect(markdownEndsWithDisplayMath(content, content.length), isFalse);
+    expect(_endsWithDisplayMath(content), isFalse);
   });
 
   test('an unclosed dollar opener does not occupy later details', () {
@@ -484,7 +485,7 @@ void main() {
   test('splitter visits stay linear on unmatched backtick runs', () {
     final source = 'before\n\n${_unmatchedBacktickRuns()}\n\nafter';
     debugResetMarkdownScanVisits();
-    final blocks = IncrementalMarkdownDocument().update(source);
+    final blocks = markdownStreamingSplit().update(source);
     expect(blocks, hasLength(3));
     expect(
       debugMarkdownScanVisits,
@@ -632,7 +633,69 @@ List<(int, int)> _rendererSpans(String text) {
   ];
 }
 
-bool _scanEnds(String text) => markdownEndsWithDisplayMath(text, text.length);
+/// Every token a rewritten text carries, in order.
+List<String> _tokens(String rewritten) => RegExp(
+  '\uE010[^\uE011]*\uE011',
+).allMatches(rewritten).map((match) => match.group(0)!).toList();
+
+void _registryTests() {
+  const block = '<details><summary>a</summary>body</details>';
+  const source = 'text\n\ntail\n\nmore';
+
+  test('a details key follows the block, not the way the text was split', () {
+    // One pass over a whole document.
+    final whole = MarkdownDetailsRegistry();
+    final wholeSource = 'text\n\n$block\n\ntail\n\n$block\n\nmore';
+    final wholeKeys = [
+      for (final token in _tokens(whole.rewrite(wholeSource)))
+        whole.expansionKeyFor(token),
+    ];
+
+    // The same document rewritten block by block, the way a surface does, with
+    // each block's offset in the document.
+    final perBlock = MarkdownDetailsRegistry();
+    final blockKeys = <String?>[];
+    var base = 0;
+    for (final text in <String>['text', block, 'tail', block, 'more']) {
+      for (final token in _tokens(perBlock.rewrite(text, base: base))) {
+        blockKeys.add(perBlock.expansionKeyFor(token));
+      }
+      base += text.length + 2; // the blank run between blocks
+    }
+
+    // Both sides name the same blocks, and identical text is still two blocks.
+    expect(wholeSource.length, base - 2, reason: source);
+    expect(blockKeys, wholeKeys);
+    expect(wholeKeys.toSet(), hasLength(2));
+  });
+
+  test('a block keeps its key while the text around it grows', () {
+    final registry = MarkdownDetailsRegistry();
+    final grown = 'text\n\n$block';
+    final grownMore = 'text\n\n$block\n\nmore';
+    final first = _tokens(registry.rewrite(grown)).single;
+    final second = _tokens(registry.rewrite(grownMore)).single;
+    expect(second, first);
+    expect(registry.expansionKeyFor(second), registry.expansionKeyFor(first));
+  });
+
+  test('the rewrite cache stays bounded while a tail grows', () {
+    final registry = MarkdownDetailsRegistry();
+    var text = '';
+    for (var i = 0; i < 80; i++) {
+      text = '${text}line $i\n\n$block';
+      registry.rewrite(text);
+    }
+    expect(registry.debugRewrittenCount, lessThanOrEqualTo(32));
+  });
+}
+
+/// Whether [text] ends with a successful display-math span, the shape
+/// `LatexBlockScrollableMd` matches.
+bool _endsWithDisplayMath(String text) {
+  final spans = markdownScanDisplayMath(text).spans;
+  return spans.isNotEmpty && spans.last.end == text.length;
+}
 
 bool _rendererEnds(String text) {
   final spans = _rendererSpans(text);

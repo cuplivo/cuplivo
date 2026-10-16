@@ -29,9 +29,12 @@ import '../../../utils/safe_resize_image.dart';
 import '../../../utils/utf16_safe_cut.dart';
 import '../../../utils/avatar_cache.dart';
 import '../../../utils/assistant_regex.dart';
+import 'package:gpt_markdown/gpt_markdown.dart'
+    show MdDocument, stripRendererInsertedCharacters;
 import '../../../core/models/assistant.dart';
 import '../../../core/providers/tts_provider.dart';
 import '../../../shared/widgets/markdown_with_highlight.dart';
+import '../../../shared/widgets/sanitizing_selection_area.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../shared/widgets/audio_clip_player.dart';
 import '../../../core/utils/multimodal_input_utils.dart';
@@ -53,6 +56,7 @@ import '../../home/services/ask_user_interaction_service.dart';
 import '../../home/services/local_tools_service.dart';
 import '../../home/services/tool_approval_service.dart';
 import '../utils/assistant_paragraph_splitter.dart';
+import '../utils/selection_markdown_memory.dart';
 import '../utils/thinking_tag_parser.dart';
 import 'timeline_projection.dart';
 import 'timeline_visibility.dart';
@@ -1132,6 +1136,37 @@ class ChatMessageWidget extends StatefulWidget {
 }
 
 class _ChatMessageWidgetState extends State<ChatMessageWidget> {
+  /// Current text selection inside each assistant bubble part, as the framework
+  /// reported it. Raw: the copy paths sanitize what they write, and the IR
+  /// mapping normalizes both sides itself.
+  ///
+  /// Keyed by the part's content key — the single-part surface uses `''` — so a
+  /// surface answers only for its own selection. One field per message let a
+  /// part's toolbar Copy write the other part's text when the reply was split
+  /// into paragraph bubbles (the setting is off by default).
+  final Map<String, String?> _selectedPlainTextByPart = {};
+
+  /// The details-expansion record each assistant bubble part renders with, so
+  /// the copy mapping is handed the same record the renderer reads
+  /// (ADR-0007 decision 7). Keyed by the part's content key — the single-part
+  /// surface uses `''` — so split parts keep their own state.
+  final Map<String, MarkdownDetailsExpansion> _detailsExpansions = {};
+
+  /// The identity of one assistant bubble part: its selection key and the owner
+  /// token 选区记忆 files its selection under.
+  String _partOwner(String contentKey) => contentKey.isEmpty
+      ? 'assistant_${widget.message.id}'
+      : 'assistant_${widget.message.id}_$contentKey';
+
+  /// [_selectedPlainTextByPart] for one part, without the characters the
+  /// renderer inserts into rendered text: what the platform Copy and Share
+  /// buttons write.
+  String? _sanitizedPlainTextOf(String contentKey) {
+    final selected = _selectedPlainTextByPart[contentKey];
+    if (selected == null) return null;
+    return stripRendererInsertedCharacters(selected);
+  }
+
   final DateFormat _dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
   final ScrollController _reasoningScroll = ScrollController();
   bool _tickActive = false;
@@ -1414,6 +1449,12 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
 
   @override
   void dispose() {
+    // A selection this bubble recorded must not outlive it: the hotkey would
+    // otherwise copy text the user cannot see any more — a reply scrolled out
+    // of the viewport, or one in a conversation that was switched away from.
+    for (final contentKey in _detailsExpansions.keys) {
+      SelectionMarkdownMemory.instance.clearIfOwner(_partOwner(contentKey));
+    }
     try {
       _userMenuOverlay?.remove();
     } catch (_) {}
@@ -2084,7 +2125,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     }
 
     if (isDesktop) {
-      content = SelectionArea(
+      content = SanitizingSelectionArea(
         key: ValueKey('user_${widget.message.id}'),
         child: content,
       );
@@ -2518,6 +2559,25 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
         defaultTargetPlatform == TargetPlatform.linux;
     final double baseAssistant = isDesktop ? 14.0 : 15.7;
 
+    // The copy mapping rebuilds the IR for this bubble's own source on every
+    // copy, with the same inputs the renderer used: the settings pick the
+    // component set, the streaming flag its rule set, and the details record
+    // decides what a collapsed block contributes (ADR-0007 decisions 3, 7).
+    final settings = context.read<SettingsProvider>();
+    final detailsExpansion = _detailsExpansions.putIfAbsent(
+      contentKey,
+      MarkdownDetailsExpansion.new,
+    );
+    // Every copy of this part's selection maps against the source the part
+    // rendered, with the records the renderer itself read (ADR-0007 decisions 3
+    // and 7); the walk is rebuilt per copy rather than kept per widget.
+    MdDocument documentForCopy() => MarkdownWithCodeHighlight.markdownDocument(
+      visualContent,
+      settings: settings,
+      streaming: widget.message.isStreaming,
+      detailsExpansion: detailsExpansion,
+    );
+
     Widget assistantContent;
     if (enableAssistantMarkdown) {
       assistantContent = MarkdownWithCodeHighlight(
@@ -2527,6 +2587,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
             _resolveCitationIndex(id, citationIndexLookup),
         baseStyle: TextStyle(fontSize: baseAssistant, height: 1.5),
         streaming: widget.message.isStreaming,
+        detailsExpansion: detailsExpansion,
         conversationId: widget.message.conversationId,
       );
     } else {
@@ -2554,12 +2615,63 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     );
 
     return RepaintBoundary(
-      child: SelectionArea(
-        key: ValueKey(
-          contentKey.isEmpty
-              ? 'assistant_${widget.message.id}'
-              : 'assistant_${widget.message.id}_$contentKey',
-        ),
+      child: SanitizingSelectionArea(
+        key: ValueKey(_partOwner(contentKey)),
+        onSelectionChanged: (selection) {
+          // Keep the raw selection: the copy paths sanitize what they write,
+          // and the IR mapping normalizes both sides itself.
+          final selected = selection?.plainText;
+          _selectedPlainTextByPart[contentKey] = selected;
+          if (selected == null || selected.trim().isEmpty) {
+            SelectionMarkdownMemory.instance.clearIfOwner(
+              _partOwner(contentKey),
+            );
+          } else {
+            SelectionMarkdownMemory.instance.capture(
+              owner: _partOwner(contentKey),
+              document: documentForCopy,
+              selectedText: selected,
+            );
+          }
+        },
+        contextMenuBuilder: (context, selectableRegionState) {
+          // One short item next to the platform Copy: it copies the
+          // underlying markdown source of *this* surface's selection (falling
+          // back to the sanitized plain text). Offered while streaming too —
+          // the match just falls back when the source has moved on.
+          return AdaptiveTextSelectionToolbar.buttonItems(
+            anchors: selectableRegionState.contextMenuAnchors,
+            buttonItems: SanitizingSelectionArea.patchedDefaultItems(
+              selectableRegionState,
+              sanitizedText: _sanitizedPlainTextOf(contentKey),
+              insertedAfterCopy: [
+                ContextMenuButtonItem(
+                  label: AppLocalizations.of(
+                    context,
+                  )!.chatMessageWidgetCopyAsMarkdown,
+                  onPressed: () {
+                    // This surface's own selection: a sibling bubble with a
+                    // live selection must not answer for this one. The hotkey
+                    // goes through the same mapping for the selection it
+                    // remembers.
+                    final selected = _selectedPlainTextByPart[contentKey];
+                    if (selected == null) return;
+                    final text = selectionMarkdownFrom(
+                      documentForCopy,
+                      selected,
+                    );
+                    if (text == null) return;
+                    ContextMenuController.removeAny();
+                    SanitizingSelectionArea.finishToolbarAction(
+                      selectableRegionState,
+                    );
+                    Clipboard.setData(ClipboardData(text: text));
+                  },
+                ),
+              ],
+            ),
+          );
+        },
         child: DefaultTextStyle.merge(
           style: TextStyle(fontSize: baseAssistant, height: 1.5),
           child: assistantContent,
@@ -3234,7 +3346,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                             Padding(
                               padding: const EdgeInsets.fromLTRB(8, 2, 8, 6),
                               child: RepaintBoundary(
-                                child: SelectionArea(
+                                child: SanitizingSelectionArea(
                                   key: ValueKey(
                                     'translation_${widget.message.id}',
                                   ),
@@ -5191,12 +5303,12 @@ class _ChainOfThoughtReasoningStepState
             // Bouncing physics already declines drags when content fits.
             // Keeping it stable also retains ScrollPosition on overflow.
             physics: const BouncingScrollPhysics(),
-            child: SelectionArea(child: reasoningContent(display)),
+            child: SanitizingSelectionArea(child: reasoningContent(display)),
           ),
         ),
       );
     } else if (state == _ReasoningStepState.expanded) {
-      content = SelectionArea(child: reasoningContent(display));
+      content = SanitizingSelectionArea(child: reasoningContent(display));
     }
 
     return _TimelineStepShell(
@@ -7235,7 +7347,7 @@ class _ReasoningSectionState extends State<_ReasoningSection> {
     }
 
     // Enable long-press text selection in reasoning body
-    body = SelectionArea(child: body);
+    body = SanitizingSelectionArea(child: body);
 
     return AnimatedSize(
       duration: const Duration(milliseconds: 300),

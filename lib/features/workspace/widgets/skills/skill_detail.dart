@@ -21,6 +21,7 @@ import 'package:Cuplivo/shared/widgets/action_sheet.dart';
 import 'package:Cuplivo/shared/widgets/ios_switch.dart';
 import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
 import 'package:Cuplivo/shared/widgets/markdown_with_highlight.dart';
+import 'package:Cuplivo/shared/widgets/sanitizing_selection_area.dart';
 import 'package:Cuplivo/shared/widgets/section_card.dart';
 import 'package:Cuplivo/shared/widgets/snackbar.dart';
 import 'package:Cuplivo/theme/app_font_weights.dart';
@@ -496,10 +497,14 @@ class _SkillDetailBodyState extends State<_SkillDetailBody> {
         else
           SectionCard(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-            child: MarkdownWithCodeHighlight(
-              text: body,
-              useBlockRendering: true,
-              baseStyle: const TextStyle(fontSize: 15, height: 1.5),
+            // Every markdown surface provides the selection owner its
+            // paragraphs — table cells included — join.
+            child: SanitizingSelectionArea(
+              child: MarkdownWithCodeHighlight(
+                text: body,
+                useBlockRendering: true,
+                baseStyle: const TextStyle(fontSize: 15, height: 1.5),
+              ),
             ),
           ),
       ],

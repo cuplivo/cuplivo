@@ -1,7 +1,8 @@
 import 'dart:ui' as ui;
 
 import 'package:Cuplivo/shared/widgets/export_capture_scope.dart';
-import 'package:Cuplivo/shared/widgets/incremental_markdown_document.dart';
+import 'package:Cuplivo/shared/widgets/markdown_streaming_split.dart';
+import 'package:Cuplivo/shared/widgets/markdown_with_highlight.dart';
 import 'package:Cuplivo/shared/widgets/markdown_block_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -14,7 +15,7 @@ void main() {
     final scroll = ScrollController();
     addTearDown(scroll.dispose);
     final painted = <int>[];
-    final blocks = IncrementalMarkdownDocument().update(
+    final blocks = markdownStreamingSplit().update(
       List.generate(20, (i) => 'block $i').join('\n\n'),
     );
     await tester.pumpWidget(
@@ -68,7 +69,7 @@ void main() {
         addTearDown(top.dispose);
         addTearDown(scroll.dispose);
         final painted = <int>[];
-        final blocks = IncrementalMarkdownDocument().update(
+        final blocks = markdownStreamingSplit().update(
           List.generate(80, (i) => 'block $i').join('\n\n'),
         );
         final content = Column(
@@ -118,7 +119,7 @@ void main() {
                         child: nested
                             ? MarkdownBlockList(
                                 blocks: const [
-                                  IncrementalMarkdownBlock(
+                                  MarkdownStreamBlock(
                                     start: 0,
                                     text: '',
                                     stable: true,
@@ -219,7 +220,7 @@ void main() {
         addTearDown(scroll.dispose);
         final capture = GlobalKey();
         final painted = <int>[];
-        final blocks = IncrementalMarkdownDocument().update(
+        final blocks = markdownStreamingSplit().update(
           List.generate(20, (i) => 'block $i').join('\n\n'),
         );
         final content = Column(
@@ -269,7 +270,7 @@ void main() {
                         child: scenario.nested
                             ? MarkdownBlockList(
                                 blocks: const [
-                                  IncrementalMarkdownBlock(
+                                  MarkdownStreamBlock(
                                     start: 0,
                                     text: '',
                                     stable: true,
@@ -342,7 +343,7 @@ void main() {
     tester,
   ) async {
     final capture = GlobalKey();
-    final document = IncrementalMarkdownDocument().update('one\n\ntwo');
+    final document = markdownStreamingSplit().update('one\n\ntwo');
     Widget build(int count) => MaterialApp(
       home: RepaintBoundary(
         key: capture,
@@ -392,7 +393,7 @@ void main() {
   ) async {
     final scroll = ScrollController();
     final painted = <int>[];
-    final blocks = IncrementalMarkdownDocument().update(
+    final blocks = markdownStreamingSplit().update(
       List.generate(128, (i) => 'block $i').join('\n\n'),
     );
     await tester.pumpWidget(
@@ -401,7 +402,7 @@ void main() {
           body: SingleChildScrollView(
             child: MarkdownBlockList(
               blocks: const [
-                IncrementalMarkdownBlock(start: 0, text: '', stable: true),
+                MarkdownStreamBlock(start: 0, text: '', stable: true),
               ],
               signature: 0,
               itemBuilder: (_, _) => SizedBox(
@@ -440,7 +441,7 @@ void main() {
   testWidgets('appends rebuild the tail and scrolls paint only nearby blocks', (
     tester,
   ) async {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     var source = List.generate(2048, (i) => 'block $i').join('\n\n');
     final blocks = ValueNotifier(document.update(source));
     final exporting = ValueNotifier(false);
@@ -464,28 +465,27 @@ void main() {
                   valueListenable: exporting,
                   builder: (_, export, _) => ExportCaptureScope(
                     enabled: export,
-                    child:
-                        ValueListenableBuilder<List<IncrementalMarkdownBlock>>(
-                          valueListenable: blocks,
-                          builder: (_, value, _) => MarkdownBlockList(
-                            blocks: value,
-                            signature: 0,
-                            itemBuilder: (_, i) {
-                              built.add(i);
-                              return _PaintProbe(
-                                index: i,
-                                painted: painted,
-                                child: SizedBox(
-                                  height: 24,
-                                  child: Semantics(
-                                    container: true,
-                                    child: Text(value[i].text),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
+                    child: ValueListenableBuilder<List<MarkdownStreamBlock>>(
+                      valueListenable: blocks,
+                      builder: (_, value, _) => MarkdownBlockList(
+                        blocks: value,
+                        signature: 0,
+                        itemBuilder: (_, i) {
+                          built.add(i);
+                          return _PaintProbe(
+                            index: i,
+                            painted: painted,
+                            child: SizedBox(
+                              height: 24,
+                              child: Semantics(
+                                container: true,
+                                child: Text(value[i].text),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -540,13 +540,13 @@ void main() {
   testWidgets('branch growth and tail replacement retain earlier state', (
     tester,
   ) async {
-    final document = IncrementalMarkdownDocument();
+    final document = markdownStreamingSplit();
     var source = List.generate(15, (i) => 'block $i').join('\n\n');
     final blocks = ValueNotifier(document.update(source));
     await tester.pumpWidget(
       MaterialApp(
         home: SingleChildScrollView(
-          child: ValueListenableBuilder<List<IncrementalMarkdownBlock>>(
+          child: ValueListenableBuilder<List<MarkdownStreamBlock>>(
             valueListenable: blocks,
             builder: (_, value, _) => MarkdownBlockList(
               blocks: value,

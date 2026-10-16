@@ -96,6 +96,24 @@ List<_ResolvedTextSpan> _resolvedTextSpansFromRichText(WidgetTester tester) {
   return spans;
 }
 
+/// The text of every inline-code chip on screen, in document order.
+///
+/// A chip is a widget, not a run, so it contributes nothing to
+/// [_resolvedTextSpansFromRichText]; a span that wrongly swallows the prose
+/// around it shows up here as a chip whose text is longer than the source
+/// between its delimiters.
+List<String> _inlineChipTexts(WidgetTester tester) {
+  return tester
+      .widgetList<Text>(
+        find.descendant(
+          of: find.byKey(const ValueKey('inline-code-surface')),
+          matching: find.byType(Text),
+        ),
+      )
+      .map((widget) => widget.data ?? '')
+      .toList();
+}
+
 RenderParagraph _paragraphContaining(String text) {
   return find
       .byType(RichText)
@@ -103,6 +121,42 @@ RenderParagraph _paragraphContaining(String text) {
       .map((element) => element.renderObject)
       .whereType<RenderParagraph>()
       .firstWhere((paragraph) => paragraph.text.toPlainText().contains(text));
+}
+
+/// The span a code block renders.
+///
+/// The view is a paragraph of the surface's selection owner now, so the widget
+/// that carries the code is a `Text`, not a `SelectableText`.
+TextSpan _codeSpan(WidgetTester tester, Finder view) {
+  final finder = find.descendant(of: view, matching: find.byType(Text)).first;
+  // The view always hands `Text.rich` a `TextSpan`: it builds one.
+  return tester.widget<Text>(finder).textSpan! as TextSpan;
+}
+
+/// The plain text of every code block under [view].
+String _codeText(WidgetTester tester, Finder view) => tester
+    .widgetList<Text>(find.descendant(of: view, matching: find.byType(Text)))
+    .map((widget) => widget.textSpan?.toPlainText() ?? widget.data ?? '')
+    .join('\n');
+
+/// The colour the first text run of [paragraph] ends up with.
+///
+/// `Text.rich` puts the ambient style on the root span and the caller's span
+/// underneath it, so reading the root alone answers a different question than
+/// "what colour is this text".
+Color? _inkOf(RenderParagraph paragraph) {
+  Color? walk(InlineSpan span, Color? inherited) {
+    final color = span.style?.color ?? inherited;
+    if (span is TextSpan && (span.text?.isNotEmpty ?? false)) return color;
+    Color? found;
+    span.visitChildren((child) {
+      found ??= walk(child, color);
+      return found == null;
+    });
+    return found;
+  }
+
+  return walk(paragraph.text, null);
 }
 
 const _transparentPngDataUrl =
@@ -284,6 +338,16 @@ String _nestedDetailsHtml(int levels) {
   return out.toString();
 }
 
+/// How many markdown blocks the surface is rendering, one per visible block of
+/// the incremental document.
+int _markdownBlockCount(WidgetTester tester) => tester
+    .widgetList(
+      find.byWidgetPredicate(
+        (widget) => widget.runtimeType.toString() == '_CachedMarkdownBlock',
+      ),
+    )
+    .length;
+
 Widget _markdownHarness(
   String text, {
   double? width,
@@ -333,6 +397,54 @@ Widget _markdownHarness(
 void _overrideMarkdownTablePlatform(TargetPlatform platform) {
   markdownTableTargetPlatformOverride = platform;
   addTearDown(() => markdownTableTargetPlatformOverride = null);
+}
+
+/// Records what reaches the clipboard.
+class _ClipboardText {
+  String? value;
+
+  void install(WidgetTester tester) {
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        final data = Map<String, dynamic>.from(call.arguments as Map);
+        value = data['text'] as String?;
+      }
+      return null;
+    });
+    addTearDown(() {
+      messenger.setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+  }
+}
+
+/// The Copy item of the innermost [SelectionArea] around [region], built the way
+/// the framework builds the toolbar for a selection — which is also the path a
+/// surface with no `SanitizingSelectionArea` copies through.
+ContextMenuButtonItem _toolbarCopyItem(
+  WidgetTester tester,
+  SelectableRegionState region,
+) {
+  final areaFinder = find.byType(SelectionArea).first;
+  final area = tester.widget<SelectionArea>(areaFinder);
+  final menu =
+      area.contextMenuBuilder!(tester.element(areaFinder), region)
+          as AdaptiveTextSelectionToolbar;
+  return menu.buttonItems!.singleWhere(
+    (item) => item.type == ContextMenuButtonType.copy,
+  );
+}
+
+/// Selects everything [region] reaches and copies it through the toolbar.
+Future<void> _copyAllThroughToolbar(
+  WidgetTester tester,
+  SelectableRegionState region,
+) async {
+  region.selectAll(SelectionChangedCause.keyboard);
+  await tester.pump();
+  _toolbarCopyItem(tester, region).onPressed!();
+  await tester.pump();
 }
 
 Widget _streamingMarkdownHarness(
@@ -423,6 +535,34 @@ void main() {
       'Replacement bold',
     );
     await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  // A fence body is code: the dollars and tags inside it must reach the code
+  // view verbatim, never the inline-math or html paths. This is what the
+  // preprocessor's code masking is for, so it is also what decides whether
+  // that masking is still load-bearing.
+  testWidgets('a closed fence body keeps its dollars and tags', (tester) async {
+    const source = '```text\nprice \$5 and <b>bold</b> and \$x\$\n```';
+    await tester.pumpWidget(_markdownHarness(source));
+    await tester.pumpAndSettle();
+    final code = tester.widget<SelectableHighlightView>(
+      find.byType(SelectableHighlightView),
+    );
+    expect(code.source, 'price \$5 and <b>bold</b> and \$x\$');
+    expect(_mathWidgets(tester), isEmpty);
+  });
+
+  testWidgets('an unclosed fence body keeps its dollars and tags', (
+    tester,
+  ) async {
+    const source = '```text\nprice \$5 and <b>bold</b>';
+    await tester.pumpWidget(_markdownHarness(source, streaming: true));
+    await tester.pumpAndSettle();
+    final code = tester.widget<SelectableHighlightView>(
+      find.byType(SelectableHighlightView),
+    );
+    expect(code.source, 'price \$5 and <b>bold</b>');
+    expect(_mathWidgets(tester), isEmpty);
   });
 
   testWidgets('root fence parsing preserves the renderer whitespace contract', (
@@ -1752,6 +1892,127 @@ ${rows.join('\n')}
     expect(find.textContaining('line9999'), findsNothing);
   });
 
+  group('a markdown surface that provides no selection owner', () {
+    // The case is a mobile user bubble: its markdown is rendered without a
+    // `SanitizingSelectionArea`, because a `SelectionArea` over the whole bubble
+    // would take the long-press that opens the message menu. A block whose text
+    // nothing above it can reach owns its own selection instead (ADR-0010) —
+    // without that, a fenced code block in a sent message is not selectable at
+    // all, which is what master did through the block's own `SelectableText`.
+    testWidgets('still lets its code block be selected and copied', (
+      tester,
+    ) async {
+      final clipboard = _ClipboardText()..install(tester);
+      await tester.pumpWidget(_markdownHarness('```dart\nvoid main() {}\n```'));
+      await tester.pumpAndSettle();
+
+      // The block owns the only region there is.
+      expect(find.byType(SelectableRegion), findsOneWidget);
+      await _copyAllThroughToolbar(
+        tester,
+        tester.state<SelectableRegionState>(find.byType(SelectableRegion)),
+      );
+
+      expect(clipboard.value, contains('void main() {}'));
+    });
+
+    testWidgets('leaves a compact table scrolling instead of selecting', (
+      tester,
+    ) async {
+      // The other half of the same decision. A compact table is horizontally
+      // scrollable, and a selection area over it would take the drag that
+      // scrolls it — the cost ADR-0010 records for the owned case, which must
+      // not be paid here, where no surface owner exists at all. Its cells were
+      // not selectable in this shape before this branch either (they sat in
+      // `SelectionContainer.disabled` on mobile), so nothing is lost.
+      _overrideMarkdownTablePlatform(TargetPlatform.iOS);
+      await tester.pumpWidget(
+        _markdownHarness(
+          '| A | B | C | D | E |\n| --- | --- | --- | --- | --- |\n| apple |',
+          width: 320,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final viewport = find.byKey(
+        const ValueKey('markdown-table-horizontal-scroll'),
+      );
+      final scroll = find.descendant(
+        of: viewport,
+        matching: find.byType(Scrollable),
+      );
+      final state = tester.state<ScrollableState>(scroll);
+      await tester.drag(viewport, const Offset(-100, 0));
+      await tester.pumpAndSettle();
+
+      expect(state.position.pixels, greaterThan(50));
+      // And the table still owns no region of its own.
+      expect(
+        find.descendant(of: viewport, matching: find.byType(SelectableRegion)),
+        findsNothing,
+      );
+    });
+
+    testWidgets('gives its lazy code view the only region it shows', (
+      tester,
+    ) async {
+      // Past the threshold the body is a chunk viewport, which only builds the
+      // chunks it shows: nothing above it can reach the whole text, so the block
+      // owns its own selection and reports the claim (ADR-0010). Before this,
+      // every built chunk owned a region of its own, so one drag could not cross
+      // the viewport and the surface copied a silently truncated body.
+      final clipboard = _ClipboardText()..install(tester);
+      final code = List<String>.generate(
+        1050,
+        (index) => 'line$index',
+      ).join('\n');
+      await tester.pumpWidget(
+        _markdownHarness('```text\n$code\n```', width: 500),
+      );
+      await tester.pumpAndSettle();
+
+      final view = find.byKey(const ValueKey('virtualized-code-view'));
+      expect(view, findsOneWidget);
+      expect(find.byType(SelectableRegion), findsOneWidget);
+      expect(
+        find.ancestor(of: view, matching: find.byType(SelectableRegion)),
+        findsOneWidget,
+        reason: 'one region owns the whole viewport',
+      );
+
+      await _copyAllThroughToolbar(
+        tester,
+        tester.state<SelectableRegionState>(find.byType(SelectableRegion)),
+      );
+
+      expect(clipboard.value, contains('line0'));
+    });
+
+    testWidgets('keeps its lazy code view scrolling', (tester) async {
+      // The block's own selection area must not take the drag that scrolls the
+      // viewport: it is a 420-pixel window onto the whole body, and losing the
+      // scroll would cost more than the selection it buys.
+      final code = List<String>.generate(
+        1050,
+        (index) => 'line$index',
+      ).join('\n');
+      await tester.pumpWidget(
+        _markdownHarness('```text\n$code\n```', width: 500),
+      );
+      await tester.pumpAndSettle();
+
+      final view = find.byKey(const ValueKey('virtualized-code-view'));
+      final scroll = find
+          .descendant(of: view, matching: find.byType(Scrollable))
+          .first;
+      final state = tester.state<ScrollableState>(scroll);
+      await tester.drag(view, const Offset(0, -200));
+      await tester.pumpAndSettle();
+
+      expect(state.position.pixels, greaterThan(50));
+    });
+  });
+
   testWidgets(
     'MarkdownWithCodeHighlight keeps an unfinished streaming table row in table layout',
     (tester) async {
@@ -2181,25 +2442,12 @@ const greet = (name) => {
             .widgetList<RichText>(find.byType(RichText))
             .map((widget) => widget.text.toPlainText())
             .join('\n');
-        final codeText = tester
-            .widgetList<SelectableText>(
-              find.descendant(
-                of: find.byType(SelectableHighlightView),
-                matching: find.byType(SelectableText),
-              ),
-            )
-            .map((widget) => widget.textSpan?.toPlainText() ?? widget.data)
-            .join('\n');
+        final codeText = _codeText(
+          tester,
+          find.byType(SelectableHighlightView),
+        );
         final blockquote = find.byKey(const ValueKey('markdown-blockquote'));
-        final blockquoteCodeText = tester
-            .widgetList<SelectableText>(
-              find.descendant(
-                of: blockquote,
-                matching: find.byType(SelectableText),
-              ),
-            )
-            .map((widget) => widget.textSpan?.toPlainText() ?? widget.data)
-            .join('\n');
+        final blockquoteCodeText = _codeText(tester, blockquote);
 
         expect(allText, isNot(contains('| 混合')), reason: frame);
         expect(allText, isNot(contains('| 测试类别')), reason: frame);
@@ -2237,15 +2485,7 @@ const greet = (name) => {
       );
       await tester.pump();
 
-      final codeText = tester
-          .widgetList<SelectableText>(
-            find.descendant(
-              of: find.byType(SelectableHighlightView),
-              matching: find.byType(SelectableText),
-            ),
-          )
-          .map((widget) => widget.textSpan?.toPlainText() ?? widget.data)
-          .join('\n');
+      final codeText = _codeText(tester, find.byType(SelectableHighlightView));
 
       expect(codeText, contains('> ```bash'));
       expect(codeText, contains('> ```'));
@@ -2266,15 +2506,7 @@ final value = "$foo$";
       );
       await tester.pump();
 
-      final codeText = tester
-          .widgetList<SelectableText>(
-            find.descendant(
-              of: find.byType(SelectableHighlightView),
-              matching: find.byType(SelectableText),
-            ),
-          )
-          .map((widget) => widget.textSpan?.toPlainText() ?? widget.data)
-          .join('\n');
+      final codeText = _codeText(tester, find.byType(SelectableHighlightView));
 
       expect(_findMathWidget(), findsNothing);
       expect(codeText, contains(r'final value = "$foo$";'));
@@ -3114,12 +3346,14 @@ A-->B
       final spans = _resolvedTextSpansFromRichText(tester);
       final plainText = spans.map((span) => span.text).join();
 
-      expect(
-        plainText,
-        contains(
-          r'*literal* and **strong** and `code` and [label](https://example.com)',
-        ),
-      );
+      // Backslashes escape delimiters outside code: \* and \[label\] render
+      // as literal punctuation.
+      expect(plainText, contains(r'*literal* and **strong** and '));
+      expect(plainText, contains(' and [label](https://example.com)'));
+      // Inside a code span there is no escape: the closer stays a closer even
+      // when preceded by a backslash (#544 rule), so `code\` is one chip whose
+      // content keeps the backslash.
+      expect(_inlineChipTexts(tester), [r'code\']);
       expect(
         spans.where(
           (span) =>
@@ -3136,6 +3370,77 @@ A-->B
         ),
         isEmpty,
       );
+    },
+  );
+
+  testWidgets(
+    'issue #544: a windows path ending in a backslash stays one chip',
+    (tester) async {
+      // Every span in this source closes on a backslash-preceded backtick. A
+      // code span has no escapes, so each one closes where it should and the
+      // prose between them is never pulled into a chip.
+      const source =
+          '包）：`D:\\ComfyUI\\` 为环境层（含 `python_embedded`、'
+          '`run_nvidia_gpu.bat`），模型路径：`D:\\ComfyUI\\ComfyUI\\models\\...`。';
+      await tester.pumpWidget(_markdownHarness(source));
+      await tester.pump();
+
+      expect(_inlineChipTexts(tester), [
+        r'D:\ComfyUI\',
+        'python_embedded',
+        'run_nvidia_gpu.bat',
+        r'D:\ComfyUI\ComfyUI\models\...',
+      ]);
+      expect(find.textContaining('为环境层（含', findRichText: true), findsWidgets);
+    },
+  );
+
+  testWidgets(
+    'issue #544: an indented powershell fence keeps its body and its chips',
+    (tester) async {
+      // The issue's second screenshot: a three-space-indented fence holding a
+      // trailing-backslash path, followed by two inline spans that also end in
+      // one.
+      const source = r'''1. **PowerShell / CMD 中的命令**  
+   当你给某个命令传入路径参数，但该命令期望的是**文件**路径，而你给的是**文件夹**路径时，系统会提示这个。  
+   例如：
+   ```powershell
+   Get-Content D:\ComfyUI\    # Get-Content 期望文件，但你给了目录
+   ```
+   或者有些工具会检查路径类型后输出 `"D:\ComfyUI\" is a dir`。
+
+2. **脚本 / 程序的参数校验**  
+   某个脚本或程序（比如 ComfyUI 相关的安装/启动脚本）在运行前检查 `D:\ComfyUI\` 路径，发现它确实是一个存在的目录，于是告诉你这个信息。''';
+      await tester.pumpWidget(_markdownHarness(source));
+      await tester.pump();
+
+      final code = tester.widget<SelectableHighlightView>(
+        find.byType(SelectableHighlightView),
+      );
+      expect(code.source, contains(r'Get-Content D:\ComfyUI\'));
+      // The fence ends on its own closer: the second item's prose is not inside
+      // the code body, and the closer's three-space indent adds no blank line.
+      expect(code.source, isNot(contains('脚本 / 程序的参数校验')));
+      expect(code.source, isNot(endsWith('\n')));
+      expect(_inlineChipTexts(tester), [
+        r'"D:\ComfyUI\" is a dir',
+        r'D:\ComfyUI\',
+      ]);
+    },
+  );
+
+  testWidgets(
+    'a chip keeps its dollars when the span before it ends in a backslash',
+    (tester) async {
+      // The preprocessor protects `$` inside code before the math passes run,
+      // so its mask and the walk's span have to be the same span. `$5` here is
+      // the span after a trailing-backslash one.
+      const source = r'path `D:\ComfyUI\` then `$5` here';
+      await tester.pumpWidget(_markdownHarness(source));
+      await tester.pump();
+
+      expect(_inlineChipTexts(tester), [r'D:\ComfyUI\', r'$5']);
+      expect(find.textContaining('___CODE_DOLLAR_MASK___'), findsNothing);
     },
   );
 
@@ -3497,8 +3802,7 @@ final price = "$12";
       ),
     );
 
-    final richText = tester.widget<SelectableText>(find.byType(SelectableText));
-    final root = richText.textSpan!;
+    final root = _codeSpan(tester, find.byType(SelectableHighlightView));
     final children = root.children ?? const <InlineSpan>[];
 
     expect(children, isNotEmpty);
@@ -3525,195 +3829,21 @@ final price = "$12";
       ),
     );
 
-    final before = tester
-        .widget<SelectableText>(find.byType(SelectableText))
-        .textSpan!
-        .children;
+    final before = _codeSpan(
+      tester,
+      find.byType(SelectableHighlightView),
+    ).children;
 
     rebuild(() {});
     await tester.pump();
 
-    final after = tester
-        .widget<SelectableText>(find.byType(SelectableText))
-        .textSpan!
-        .children;
+    final after = _codeSpan(
+      tester,
+      find.byType(SelectableHighlightView),
+    ).children;
 
     expect(identical(before, after), isTrue);
   });
-
-  testWidgets(
-    'SelectableHighlightView adds iOS native translation for non-empty selection',
-    (tester) async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-      addTearDown(() => debugDefaultTargetPlatformOverride = null);
-      const channel = MethodChannel('app.ios_translation');
-      final calls = <MethodCall>[];
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (call) async {
-            calls.add(call);
-            return call.method == 'isAvailable' ? true : null;
-          });
-      addTearDown(
-        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(channel, null),
-      );
-
-      await tester.pumpWidget(
-        const MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SelectableHighlightView(
-              'final value = 1;',
-              language: 'dart',
-              theme: {},
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-
-      final editableTextState = tester.state<EditableTextState>(
-        find.byType(EditableText),
-      );
-      final contextMenuBuilder = tester
-          .widget<SelectableText>(find.byType(SelectableText))
-          .contextMenuBuilder!;
-      final editableContext = tester.element(find.byType(EditableText));
-
-      final collapsedMenu =
-          contextMenuBuilder(editableContext, editableTextState)
-              as AdaptiveTextSelectionToolbar;
-      expect(
-        collapsedMenu.buttonItems,
-        isNot(
-          contains(
-            predicate<ContextMenuButtonItem>((item) {
-              return item.label == 'Translate';
-            }),
-          ),
-        ),
-      );
-
-      editableTextState.userUpdateTextEditingValue(
-        editableTextState.textEditingValue.copyWith(
-          selection: const TextSelection(baseOffset: 0, extentOffset: 5),
-        ),
-        SelectionChangedCause.longPress,
-      );
-      await tester.pump();
-
-      final selectionMenu =
-          contextMenuBuilder(editableContext, editableTextState)
-              as AdaptiveTextSelectionToolbar;
-      final translateItem = selectionMenu.buttonItems!.singleWhere(
-        (item) => item.label == 'Translate',
-      );
-      translateItem.onPressed!();
-      await tester.pump();
-
-      final presentCall = calls.singleWhere((call) => call.method == 'present');
-      final arguments = presentCall.arguments as Map<Object?, Object?>;
-      expect(arguments['text'], 'final');
-      expect(arguments['anchorX'], isA<double>());
-      expect(arguments['anchorY'], isA<double>());
-      debugDefaultTargetPlatformOverride = null;
-    },
-  );
-
-  testWidgets(
-    'SelectableHighlightView keeps stock menu when iOS translation is unavailable',
-    (tester) async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-      addTearDown(() => debugDefaultTargetPlatformOverride = null);
-      const channel = MethodChannel('app.ios_translation');
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (call) async => false);
-      addTearDown(
-        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(channel, null),
-      );
-
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: SelectableHighlightView(
-              'final value = 1;',
-              language: 'dart',
-              theme: {},
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-
-      final editableTextState = tester.state<EditableTextState>(
-        find.byType(EditableText),
-      );
-      editableTextState.userUpdateTextEditingValue(
-        editableTextState.textEditingValue.copyWith(
-          selection: const TextSelection(baseOffset: 0, extentOffset: 5),
-        ),
-        SelectionChangedCause.longPress,
-      );
-      await tester.pump();
-      final menu =
-          tester
-              .widget<SelectableText>(find.byType(SelectableText))
-              .contextMenuBuilder!(
-            tester.element(find.byType(EditableText)),
-            editableTextState,
-          );
-
-      expect(menu, isA<AdaptiveTextSelectionToolbar>());
-      expect(
-        (menu as AdaptiveTextSelectionToolbar).buttonItems,
-        isNot(
-          contains(
-            predicate<ContextMenuButtonItem>((item) {
-              return item.label == 'Translate';
-            }),
-          ),
-        ),
-      );
-      debugDefaultTargetPlatformOverride = null;
-    },
-  );
-
-  testWidgets(
-    'SelectableHighlightView does not query native translation off iOS',
-    (tester) async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.android;
-      addTearDown(() => debugDefaultTargetPlatformOverride = null);
-      const channel = MethodChannel('app.ios_translation');
-      final calls = <MethodCall>[];
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (call) async {
-            calls.add(call);
-            return true;
-          });
-      addTearDown(
-        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(channel, null),
-      );
-
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: SelectableHighlightView(
-              'final value = 1;',
-              language: 'dart',
-              theme: {},
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-
-      expect(calls, isEmpty);
-      debugDefaultTargetPlatformOverride = null;
-    },
-  );
 
   testWidgets(
     'SelectableHighlightView skips synchronous highlighting on demand',
@@ -3731,10 +3861,7 @@ final price = "$12";
         ),
       );
 
-      final richText = tester.widget<SelectableText>(
-        find.byType(SelectableText),
-      );
-      final root = richText.textSpan!;
+      final root = _codeSpan(tester, find.byType(SelectableHighlightView));
       final children = root.children ?? const <InlineSpan>[];
 
       expect(children, hasLength(1));
@@ -3753,13 +3880,7 @@ final value = 1;
       );
       await tester.pump();
 
-      final richText = tester.widget<SelectableText>(
-        find.descendant(
-          of: find.byType(SelectableHighlightView),
-          matching: find.byType(SelectableText),
-        ),
-      );
-      final root = richText.textSpan!;
+      final root = _codeSpan(tester, find.byType(SelectableHighlightView));
       final children = root.children ?? const <InlineSpan>[];
 
       expect(children.length, greaterThan(1));
@@ -4663,6 +4784,26 @@ press5
     }
   });
 
+  testWidgets('MarkdownWithCodeHighlight keeps the app weight for emphasis '
+      'nested in other emphasis', (tester) async {
+    // The emitter draws emphasis from the bold component the surface renders
+    // with, so a bold inside italic must take the same ink as a top-level one.
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    try {
+      await tester.pumpWidget(_markdownHarness('这是 *斜体 **粗体** 结束*'));
+      await tester.pump();
+
+      final spans = _resolvedTextSpansFromRichText(tester);
+      final strongSpan = spans.singleWhere((span) => span.text == '粗体');
+
+      expect(strongSpan.style.fontWeight, FontWeight.w500);
+      final italicSpan = spans.singleWhere((span) => span.text == '斜体 ');
+      expect(italicSpan.style.fontStyle, FontStyle.italic);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   testWidgets('MarkdownWithCodeHighlight keeps p tag spacing compact', (
     tester,
   ) async {
@@ -5007,12 +5148,7 @@ void main() {
       await tester.pump();
 
       Set<Color?> codeSpanColors() {
-        final richText = tester.widget<SelectableText>(
-          find.descendant(
-            of: find.byType(SelectableHighlightView),
-            matching: find.byType(SelectableText),
-          ),
-        );
+        final span = _codeSpan(tester, find.byType(SelectableHighlightView));
         final colors = <Color?>{};
         void walk(InlineSpan span) {
           if (span is! TextSpan) return;
@@ -5020,7 +5156,7 @@ void main() {
           span.children?.forEach(walk);
         }
 
-        walk(richText.textSpan!);
+        walk(span);
         return colors;
       }
 
@@ -5066,6 +5202,32 @@ void main() {
         ),
         findsAtLeastNWidgets(2),
       );
+    },
+  );
+
+  testWidgets(
+    'a streamed reply renders the same blocks as the same text in one piece',
+    (tester) async {
+      // A closed display formula must commit when the chunk behind it lands. A
+      // block list that depended on the chunking would leave the finished
+      // formula inside the growing, unstable tail, which is the only path that
+      // gets the streaming stabilization pass — the pass that may rewrite a
+      // dollar the document has already finished.
+      const chunked = 'before\n\n\$\$\na \$ b\n\nc\n\$\$\n\n';
+      const full =
+          '$chunked'
+          'after';
+      final text = ValueNotifier<String>(chunked);
+      await tester.pumpWidget(_streamingMarkdownHarness(text));
+      await tester.pump();
+      text.value = full;
+      await tester.pump();
+      final streamed = _markdownBlockCount(tester);
+      expect(streamed, 3);
+
+      await tester.pumpWidget(_markdownHarness(full, streaming: true));
+      await tester.pump();
+      expect(_markdownBlockCount(tester), streamed);
     },
   );
 
@@ -5194,21 +5356,15 @@ Fenced code body
       inheritedInk,
     );
     expect(tester.widget<Text>(find.text('code')).style?.color, inheritedInk);
+    expect(_inkOf(_paragraphContaining('Theme table header')), themeInk);
     expect(
-      _paragraphContaining('Theme table header').text.style?.color,
-      themeInk,
-    );
-    expect(
-      _paragraphContaining('Theme table body').text.style?.color,
+      _inkOf(_paragraphContaining('Theme table body')),
       themeInk.withValues(alpha: 0.90),
     );
-    final fencedCode = tester.widget<SelectableText>(
-      find.descendant(
-        of: find.byType(SelectableHighlightView),
-        matching: find.byType(SelectableText),
-      ),
+    expect(
+      _codeSpan(tester, find.byType(SelectableHighlightView)).style?.color,
+      themeInk,
     );
-    expect(fencedCode.textSpan?.style?.color, themeInk);
   });
 
   testWidgets(
@@ -5232,24 +5388,64 @@ Fenced code body
     },
   );
 
-  testWidgets(
-    'ATX enumeration rewrite does not cross a blank line into a list',
-    (tester) async {
+  testWidgets('an enumerated line after a heading stays a list item', (
+    tester,
+  ) async {
+    final pad = 'Body. ${'The rain kept falling on the quiet street. ' * 16}';
+    final text = '$pad\n\n#\n\n1. item';
+    for (final streaming in const [true, false]) {
+      await tester.pumpWidget(_markdownHarness(text, streaming: streaming));
+      await tester.pump();
+      final plain = tester
+          .widgetList<RichText>(find.byType(RichText))
+          .map((widget) => widget.text.toPlainText())
+          .join('\n');
+      expect(plain, contains('item'), reason: '$streaming');
+      expect(_spanFontSize(tester, 'item'), isNot(24), reason: '$streaming');
+    }
+  });
+
+  testWidgets('an enumerated heading is a heading, never a list', (
+    tester,
+  ) async {
+    // The shape this fixture pins: an LLM-authored numbered heading, with and
+    // without the space after the dot. A heading body is *inline* content, so it
+    // is walked with the inline components; the ordered-list component is not
+    // among them and cannot claim the body. That is what replaced the U+200C
+    // mask: while the body was walked with the global components, the list
+    // pattern ("digits, dot, space") did claim it, and the mask hid the claim
+    // by inserting an invisible character into the source itself. The scope test
+    // above pins that an enumerated line after a heading stays a real list item;
+    // this one pins the heading.
+    for (final source in const ['## 1.引言', '## 1. 引言']) {
       final pad = 'Body. ${'The rain kept falling on the quiet street. ' * 16}';
-      final text = '$pad\n\n#\n\n1. item';
       for (final streaming in const [true, false]) {
-        await tester.pumpWidget(_markdownHarness(text, streaming: streaming));
+        await tester.pumpWidget(
+          _markdownHarness('$pad\n\n$source\n\nNext', streaming: streaming),
+        );
         await tester.pump();
+        final reason = '$source (${streaming ? 'streaming' : 'finished'})';
+        // The list component renders its number as its own Text, and hosts the
+        // item body in a nested block widget (a WidgetSpan in the paragraph).
+        // A heading body must have neither: it is emitted inline.
+        expect(find.text('1.'), findsNothing, reason: reason);
+        expect(
+          _collectWidgetSpans(_paragraphContaining('引言').text),
+          isEmpty,
+          reason: reason,
+        );
+        // The heading component owns the body, at heading ink (h2 is 20).
+        expect(_spanFontSize(tester, '引言'), 20, reason: reason);
+        // ... and the source is no longer poisoned for this shape: the mask
+        // that used to insert an invisible U+200C after the dot is gone.
         final plain = tester
             .widgetList<RichText>(find.byType(RichText))
             .map((widget) => widget.text.toPlainText())
             .join('\n');
-        expect(plain, isNot(contains('\u200C')), reason: '$streaming');
-        expect(plain, contains('item'));
-        expect(_spanFontSize(tester, 'item'), isNot(24));
+        expect(plain, isNot(contains('\u200C')), reason: reason);
       }
-    },
-  );
+    }
+  });
 
   testWidgets('a completed pipe row is not turned into a streaming table', (
     tester,
@@ -5376,6 +5572,30 @@ Fenced code body
       expect(find.textContaining(literal, findRichText: true), findsWidgets);
     },
   );
+
+  testWidgets('two identical details blocks expand independently', (
+    tester,
+  ) async {
+    const block = '<details><summary>s</summary>\n\nhidden\n</details>';
+    await tester.pumpWidget(_markdownHarness('$block\n\n$block'));
+    await tester.pump();
+
+    expect(find.text('s'), findsNWidgets(2));
+    expect(find.textContaining('hidden', findRichText: true), findsNothing);
+
+    await tester.tap(find.text('s').first);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('hidden', findRichText: true), findsOneWidget);
+
+    // The second block is its own: opening the first left it collapsed.
+    await tester.tap(find.text('s').last);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('hidden', findRichText: true), findsNWidgets(2));
+
+    await tester.tap(find.text('s').first);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('hidden', findRichText: true), findsOneWidget);
+  });
 
   testWidgets('appending to the same tail keeps an expanded details open', (
     tester,

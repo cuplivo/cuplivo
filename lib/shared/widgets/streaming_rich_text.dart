@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import 'incremental_markdown_document.dart';
+import 'markdown_streaming_split.dart';
 import 'markdown_block_list.dart';
 
 /// Shapes long text in bounded windows, committing only complete visual lines.
@@ -210,7 +210,7 @@ class _StreamingRichTextState extends State<StreamingRichText> {
           _chunks.clear();
           _chunks.add(
             _TextChunk(
-              IncrementalMarkdownBlock(start: 0, text: '', stable: false),
+              MarkdownStreamBlock(start: 0, text: '', stable: false),
               0,
               constraints.minWidth > 0 ||
                       constraints.minHeight > 0 ||
@@ -286,7 +286,7 @@ class _StreamingRichTextState extends State<StreamingRichText> {
                 );
               }
               final content = _slice(start, end, style);
-              final block = IncrementalMarkdownBlock(
+              final block = MarkdownStreamBlock(
                 start: start,
                 text: '',
                 stable: lines != null,
@@ -447,7 +447,7 @@ class _FlattenedSpan {
 
 class _TextChunk {
   const _TextChunk(this.block, this.end, this.widget);
-  final IncrementalMarkdownBlock block;
+  final MarkdownStreamBlock block;
   final int end;
   final Widget widget;
 }

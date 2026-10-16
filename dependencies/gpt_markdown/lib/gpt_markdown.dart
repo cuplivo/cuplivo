@@ -14,8 +14,13 @@ import 'custom_widgets/code_field.dart';
 import 'custom_widgets/indent_widget.dart';
 import 'custom_widgets/link_button.dart';
 
+import 'markdown_ir.dart';
+
+export 'markdown_ir.dart';
+
 part 'theme.dart';
 part 'markdown_component.dart';
+part 'md_span_emitter.dart';
 part 'md_widget.dart';
 
 /// This widget create a full markdown widget as a column view.

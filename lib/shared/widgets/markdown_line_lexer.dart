@@ -1381,13 +1381,6 @@ MarkdownDisplayMathScan markdownScanDisplayMath(
   );
 }
 
-/// Whether [content] ends (at [end]) with a successful display-math span
-/// that [LatexBlockScrollableMd] would match.
-bool markdownEndsWithDisplayMath(String content, int end) {
-  final spans = markdownScanDisplayMath(content, end: end).spans;
-  return spans.isNotEmpty && spans.last.end == end;
-}
-
 bool _atDoubleDollar(String line, int i) {
   return i + 1 < line.length &&
       line.codeUnitAt(i) == 0x24 &&

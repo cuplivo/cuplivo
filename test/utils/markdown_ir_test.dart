@@ -21,7 +21,7 @@ MdDocument _boldThenText() {
       children: [MdNode.text(_r(source, 'Hello'))],
     ),
     MdNode.text(_r(source, ', world')),
-  ], source: source);
+  ]);
 }
 
 void main() {
@@ -36,7 +36,7 @@ void main() {
       final doc = MdDocument([
         // The renderer soft-breaks a long token with a zero-width space.
         MdNode.opaque(MdNodeKind.text, MdRange.all(source), 'foo\u200bbar'),
-      ], source: source);
+      ]);
       expect(doc.displayText, 'foobar');
       expect(doc.emitSelectionMarkdown('foobar'), 'foobar');
     });
@@ -71,7 +71,7 @@ void main() {
           children: [MdNode.text(_r(source, 'label'))],
         ),
         MdNode.text(_r(source, ' after')),
-      ], source: source);
+      ]);
       expect(doc.displayText, 'label after');
       expect(doc.emitSelectionMarkdown('label after'), '[label](url) after');
       // `label` is l-a-b-e-l, so `abel` is the longest partial label that is
@@ -91,7 +91,7 @@ void main() {
           children: [MdNode.text(_r(source, 'x = 1'))],
         ),
         MdNode.text(_r(source, ' here')),
-      ], source: source);
+      ]);
       expect(doc.displayText, 'use x = 1 here');
       expect(doc.emitSelectionMarkdown('x = 1'), '`x = 1`');
       expect(doc.emitSelectionMarkdown('= 1 here'), '`= 1` here');
@@ -104,11 +104,10 @@ void main() {
           kind: MdNodeKind.heading,
           range: _r(source, '## Title'),
           open: '## ',
-          block: true,
           children: [MdNode.text(_r(source, 'Title'))],
         ),
         MdNode.text(_r(source, '\nbody')),
-      ], source: source);
+      ]);
       expect(doc.displayText, 'Title\nbody');
       expect(doc.emitSelectionMarkdown('Title\nbody'), '## Title\nbody');
       expect(doc.emitSelectionMarkdown('itle\nbody'), '## itle\nbody');
@@ -121,14 +120,13 @@ void main() {
           kind: MdNodeKind.heading,
           range: MdRange.all(source),
           open: '## ',
-          block: true,
           children: [
             // The app enumerates headings on screen; the source has no number.
             const MdNode.decoration('1. '),
             MdNode.text(_r(source, 'Title')),
           ],
         ),
-      ], source: source);
+      ]);
       expect(doc.displayText, '1. Title');
       expect(doc.emitSelectionMarkdown('1. Title'), '## Title');
       expect(doc.emitSelectionMarkdown('1. Ti'), '## Ti');
@@ -142,7 +140,7 @@ void main() {
         MdNode.text(_r(source, 'before')),
         MdNode.gap(MdNodeKind.image, _r(source, '![alt](url)')),
         MdNode.text(_r(source, 'after')),
-      ], source: source);
+      ]);
       expect(doc.displayText, 'beforeafter');
       expect(
         doc.emitSelectionMarkdown('beforeafter'),
@@ -157,7 +155,7 @@ void main() {
         MdNode.text(_r(source, 'before')),
         MdNode.gap(MdNodeKind.group, _r(source, '---')),
         MdNode.text(_r(source, 'after')),
-      ], source: source);
+      ]);
       expect(doc.emitSelectionMarkdown('before'), 'before');
       expect(doc.emitSelectionMarkdown('after'), 'after');
     });
@@ -170,7 +168,7 @@ void main() {
         MdNode.text(_r(source, 'the ')),
         MdNode.opaque(MdNodeKind.math, _r(source, r'$x^2$'), 'x^2'),
         MdNode.text(_r(source, ' value')),
-      ], source: source);
+      ]);
       expect(doc.displayText, 'the x^2 value');
       expect(doc.emitSelectionMarkdown('x^2'), r'$x^2$');
       expect(doc.emitSelectionMarkdown('x'), r'$x^2$');
@@ -187,10 +185,9 @@ void main() {
           range: MdRange.all(source),
           open: '```dart\n',
           close: '\n```',
-          block: true,
           children: [MdNode.text(_r(source, 'final a = 1;'))],
         ),
-      ], source: source);
+      ]);
       expect(doc.displayText, 'final a = 1;');
       expect(
         doc.emitSelectionMarkdown('final a = 1;'),
@@ -206,7 +203,6 @@ void main() {
           kind: MdNodeKind.listItem,
           range: _r(source, '- first'),
           open: '- ',
-          block: true,
           children: [MdNode.text(_r(source, 'first'))],
         ),
         MdNode.text(_r(source, '\n')),
@@ -214,10 +210,9 @@ void main() {
           kind: MdNodeKind.listItem,
           range: _r(source, '- second'),
           open: '- ',
-          block: true,
           children: [MdNode.text(_r(source, 'second'))],
         ),
-      ], source: source);
+      ]);
       expect(doc.displayText, 'first\nsecond');
       expect(doc.emitSelectionMarkdown('first\nsecond'), '- first\n- second');
       expect(doc.emitSelectionMarkdown('irst\nsec'), '- irst\n- sec');
@@ -229,7 +224,7 @@ void main() {
         MdNode.text(_r(source, 'a')),
         MdNode.text(_r(source, '\n\n')),
         MdNode.text(_r(source, 'b')),
-      ], source: source);
+      ]);
       expect(doc.displayText, 'a\nb');
       expect(doc.emitSelectionMarkdown('a\nb'), 'a\n\nb');
     });

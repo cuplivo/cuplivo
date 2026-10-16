@@ -35,8 +35,6 @@ final class MdRange {
   /// The substring this range addresses.
   String get text => source.substring(start, end);
 
-  int get length => end - start;
-
   /// A range covering all of [text].
   static MdRange all(String text) => MdRange(text, 0, text.length);
 }
@@ -46,11 +44,8 @@ final class MdRange {
 /// The set is the vocabulary the renderer already matches: a kind is the
 /// component that claimed the text, never a syntax pattern guessed later.
 enum MdNodeKind {
-  document,
-
   /// A structural container with no markers of its own.
   group,
-  paragraph,
 
   /// Content text: display text is the source text.
   text,
@@ -64,7 +59,6 @@ enum MdNodeKind {
   italic,
   strike,
   underline,
-  highlight,
 
   /// Inline code.
   inlineCode,
@@ -93,7 +87,6 @@ final class MdNode {
     this.display,
     this.open = '',
     this.close = '',
-    this.block = false,
   });
 
   /// Content leaf: display text is the source text at [range].
@@ -130,12 +123,6 @@ final class MdNode {
 
   /// Marker re-emitted after the covered children.
   final String close;
-
-  /// Whether this node is a block, which decides the separator inserted
-  /// between two blocks a selection touches.
-  final bool block;
-
-  bool get isLeaf => children.isEmpty;
 }
 
 /// One entry of the ordered display space.
@@ -165,20 +152,14 @@ final class MdItem {
   /// resolved: covering it at all means covering it whole.
   bool get isOpaqueSource => sourceText != display;
 
-  bool get contributesDisplay => display.isNotEmpty;
-
   bool get contributesSource => sourceText.isNotEmpty;
 }
 
 /// A document: the blocks a walk produced, plus the tables derived from them.
 final class MdDocument {
-  MdDocument(this.blocks, {this.source = ''});
+  MdDocument(this.blocks);
 
   final List<MdNode> blocks;
-
-  /// The source the walk consumed (the rewritten source, when the renderer
-  /// rewrote one). Ranges carry their own source, so this is informational.
-  final String source;
 
   List<MdItem>? _items;
   _MdIndex? _index;
@@ -323,10 +304,6 @@ final class MdSelection {
   /// Normalized display offsets, inclusive.
   final int startOffset;
   final int endOffset;
-
-  MdItem get firstItem => document.items[_index.itemAt(startOffset)!];
-
-  MdItem get lastItem => document.items[_index.itemAt(endOffset)!];
 
   /// Re-emits the covered items as Markdown, completing the markers of every
   /// node the selection cut.

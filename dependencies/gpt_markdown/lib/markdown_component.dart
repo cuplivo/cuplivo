@@ -233,7 +233,7 @@ abstract class MarkdownComponent {
     required GptMarkdownConfig config,
   }) {
     final rewritten = config.preprocessBlocks?.call(text) ?? text;
-    return MdDocument(walkNodes(rewritten, config: config), source: rewritten);
+    return MdDocument(walkNodes(rewritten, config: config));
   }
 
   InlineSpan span(
@@ -615,7 +615,6 @@ class HTag extends BlockMd {
       kind: MdNodeKind.heading,
       range: ctx.rangeOf(text),
       open: '${m?.group(1) ?? '#'} ',
-      block: true,
       children: data == null ? const [] : ctx.walk(data),
     );
   }
@@ -692,7 +691,6 @@ class CheckBoxMd extends BlockMd {
       kind: MdNodeKind.listItem,
       range: ctx.rangeOf(text),
       open: '${checked ? '[x]' : '[ ]'} ',
-      block: true,
       children: item == null ? const [] : ctx.walk(item),
     );
   }
@@ -725,7 +723,6 @@ class RadioButtonMd extends BlockMd {
       kind: MdNodeKind.listItem,
       range: ctx.rangeOf(text),
       open: '(${m?.group(1) == 'x' ? 'x' : ' '}) ',
-      block: true,
       children: item == null ? const [] : ctx.walk(item),
     );
   }
@@ -856,7 +853,6 @@ class UnOrderedList extends BlockMd {
       kind: MdNodeKind.listItem,
       range: ctx.rangeOf(text),
       open: '- ',
-      block: true,
       children: item.isEmpty ? const [] : ctx.walk(item, includeGlobal: true),
     );
   }
@@ -903,7 +899,6 @@ class OrderedList extends BlockMd {
       kind: MdNodeKind.listItem,
       range: ctx.rangeOf(text),
       open: '$number. ',
-      block: true,
       children: [
         // The renderer draws the number as its own text, so a selection
         // includes it; the marker re-emitted above carries it as well.
@@ -1268,15 +1263,12 @@ class ATagMd extends InlineMd {
 final class _LinkElement {
   const _LinkElement({
     required this.label,
-    required this.labelStart,
     required this.url,
     required this.closingParen,
     required this.ending,
-    required this.endingStart,
   });
 
   final String label;
-  final int labelStart;
   final String url;
 
   /// Offset of the `)` that closes the target.
@@ -1284,7 +1276,6 @@ final class _LinkElement {
 
   /// Text after the link, which the component renders as its own content.
   final String ending;
-  final int endingStart;
 }
 
 /// Scans one link element.
@@ -1332,11 +1323,9 @@ _LinkElement? _parseLinkElement(String text) {
 
   return _LinkElement(
     label: label,
-    labelStart: start,
     url: text.substring(urlStart, urlEnd).trim(),
     closingParen: urlEnd,
     ending: text.substring(urlEnd + 1),
-    endingStart: urlEnd + 1,
   );
 }
 

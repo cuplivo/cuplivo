@@ -5744,7 +5744,6 @@ class AtxHeadingMd extends BlockMd {
       kind: MdNodeKind.heading,
       range: ctx.rangeOf(text),
       open: '${m?.group(1) ?? '#'} ',
-      block: true,
       // The body is parsed with the global components, as it is when rendered.
       children: raw.isEmpty ? const [] : ctx.walk(raw, includeGlobal: true),
     );
@@ -6019,7 +6018,6 @@ class ModernCheckBoxMd extends BlockMd {
       kind: MdNodeKind.listItem,
       range: ctx.rangeOf(text),
       open: '${checked ? '[x]' : '[ ]'} ',
-      block: true,
       children: item == null ? const [] : ctx.walk(item),
     );
   }
@@ -6097,7 +6095,6 @@ class ModernRadioMd extends BlockMd {
       kind: MdNodeKind.listItem,
       range: ctx.rangeOf(text),
       open: '(${m?.group(1) == 'x' ? 'x' : ' '}) ',
-      block: true,
       children: item == null ? const [] : ctx.walk(item),
     );
   }

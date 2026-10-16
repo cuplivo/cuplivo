@@ -5427,13 +5427,15 @@ Fenced code body
   testWidgets('an enumerated heading is a heading, never a list', (
     tester,
   ) async {
-    // The shape the ATX enumeration rewrite exists for: an LLM-authored
-    // numbered heading, with and without the space after the dot. A heading
-    // body is walked with the global components, and the ordered-list pattern
-    // needs only "digits, dot, space", so without the rewrite the list
-    // component claims the body and draws the number as its own text. The
-    // scope test above only pins that the rewrite does not reach a real list
-    // item; this one pins what the rewrite is there to protect.
+    // The shape this fixture pins: an LLM-authored numbered heading, with and
+    // without the space after the dot. A heading body is *inline* content, so it
+    // is walked with the inline components; the ordered-list component is not
+    // among them and cannot claim the body. That is what replaced the U+200C
+    // mask: while the body was walked with the global components, the list
+    // pattern ("digits, dot, space") did claim it, and the mask hid the claim
+    // by inserting an invisible character into the source itself. The scope test
+    // above pins that an enumerated line after a heading stays a real list item;
+    // this one pins the heading.
     for (final source in const ['## 1.引言', '## 1. 引言']) {
       final pad = 'Body. ${'The rain kept falling on the quiet street. ' * 16}';
       for (final streaming in const [true, false]) {

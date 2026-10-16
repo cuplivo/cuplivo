@@ -31,6 +31,7 @@ import 'export_capture_scope.dart';
 import 'mermaid_image_cache.dart';
 import 'diagram_exporter.dart';
 import 'plantuml_block.dart';
+import 'selection_ownership.dart';
 import 'package:path/path.dart' as p;
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/theme/app_font_weights.dart';
@@ -4220,7 +4221,17 @@ class _MarkdownTableCell extends StatelessWidget {
       child: Align(
         alignment: _alignmentFor(data.alignment),
         child: selectable
-            ? SelectableText.rich(textSpan, textAlign: data.alignment)
+            ? SelectableText.rich(
+                textSpan,
+                textAlign: data.alignment,
+                // A cell owns its selection (it is a nested EditableText), so
+                // the selection area above is told it lost this one.
+                onSelectionChanged: (selection, _) {
+                  if (!selection.isCollapsed) {
+                    reportNestedSelectionClaimed(context);
+                  }
+                },
+              )
             : RichText(
                 text: textSpan,
                 textAlign: data.alignment,
@@ -6761,8 +6772,12 @@ class _SelectableHighlightViewState extends State<SelectableHighlightView> {
     );
     return _selectable ??= widget.source.length > 2048
         ? SelectionArea(
-            onSelectionChanged: (selection) =>
-                _selectedCode = selection?.plainText ?? '',
+            onSelectionChanged: (selection) {
+              _selectedCode = selection?.plainText ?? '';
+              if (_selectedCode.isNotEmpty) {
+                reportNestedSelectionClaimed(context);
+              }
+            },
             contextMenuBuilder: _buildChunkSelectionContextMenu,
             // SelectableText reserves its 2px cursor plus RenderEditable's 1px
             // caret gap, even when read-only. Keep the same wrapping and width.
@@ -6774,6 +6789,11 @@ class _SelectableHighlightViewState extends State<SelectableHighlightView> {
         : SelectableText.rich(
             span,
             contextMenuBuilder: _buildSelectionContextMenu,
+            onSelectionChanged: (selection, _) {
+              if (!selection.isCollapsed) {
+                reportNestedSelectionClaimed(context);
+              }
+            },
           );
   }
 

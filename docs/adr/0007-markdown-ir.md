@@ -85,12 +85,14 @@ without a webview, which image export (slow, large) and plain markdown (poor on 
 - The copy action's menu item and hotkey (the branch's other work) map onto `MdDocument` instead of
   `subsequenceMatch`; `SelectionMarkdownMemory` keeps capturing `(source, selectedText)` by value.
 - Known limits, each a documented degrade rather than a silent wrong answer: a selection that repeats
-  inside one bubble resolves to the first occurrence (the offset-proximity upgrade is deferred, as the
-  branch's ADR recorded); a quote re-emits whole (its rendered text drops the `>` per line, so a partial
-  re-emission could not put the markers back); a code block and a table contribute no display text at
-  all, because each owns its selection — the code view's body and the table's cells are reached through
-  their own areas, never through the text around them (measured on all five platforms, which is what
-  turned the table's cell-level description into a gap: a selection spanning either one re-emits the
+  inside one bubble resolves to the first occurrence — the offset-proximity upgrade is deferred, as the
+  branch's ADR recorded, and the consequence is that the markdown can carry markup from that earlier
+  occurrence (a `## `, a code span, a link) that the user did not select, because the framework reports a
+  selection as text and nothing else; a quote re-emits whole (its rendered text drops the `>` per line, so
+  a partial re-emission could not put the markers back); a code block and a table contribute no display
+  text at all, because each owns its selection — the code view's body and the table's cells are reached
+  through their own areas, never through the text around them (measured on all five platforms, which is
+  what turned the table's cell-level description into a gap: a selection spanning either one re-emits the
   whole block through the gap path instead).
 - `MarkdownDetailsBlock` now carries the block's own source, because the walk consumes a placeholder
   token for it and the token must never reach the clipboard.

@@ -8,6 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:gpt_markdown/gpt_markdown.dart'
     show stripRendererInsertedCharacters;
 
+import 'selection_ownership.dart';
+
 /// A [SelectionArea] that sanitizes text before it reaches the clipboard.
 ///
 /// The markdown renderer inserts invisible characters into rendered text
@@ -31,9 +33,21 @@ import 'package:gpt_markdown/gpt_markdown.dart'
 /// The copy-intent override is registered only while this surface owns a
 /// selection. The markdown renderer nests selectables inside it — a code
 /// block's [SelectableText], a table cell, a nested [SelectionArea] for code
-/// past 2048 chars — and those own their selections outright. Leaving the
-/// intent to the framework while there is nothing of ours to sanitize is what
-/// keeps Ctrl+C inside a code block copying its text instead of nothing.
+/// past 2048 chars, a diagram's code view — and those own their selections
+/// outright. Two things follow, and both have to hold:
+///
+/// * The override covers the whole subtree and the framework's own copy
+///   actions forward to it, so while it is registered it wins inside those
+///   owners too. It therefore has to *retire* when one of them claims the
+///   selection, which is what [NestedSelectionClaimedNotification] reports;
+///   otherwise Ctrl+C inside a nested owner writes this area's stale text.
+/// * With it retired, the framework copies what the focused owner owns —
+///   un-sanitized, since that text is not readable from here.
+///
+/// The report is the whole of the signal: the region's own `onSelectionChanged`
+/// keeps reporting the selection it had, so a nested owner that stays silent
+/// leaves this area copying its stale text. A caller that nests a selectable of
+/// its own inside this widget owes [reportNestedSelectionClaimed] too.
 class SanitizingSelectionArea extends StatefulWidget {
   const SanitizingSelectionArea({
     super.key,
@@ -91,7 +105,7 @@ class SanitizingSelectionArea extends StatefulWidget {
   ) async {
     if (text.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: text));
-    _finishToolbarAction(state);
+    finishToolbarAction(state);
   }
 
   static Future<void> _shareText(
@@ -100,7 +114,7 @@ class SanitizingSelectionArea extends StatefulWidget {
   ) async {
     if (text.isEmpty) return;
     await SystemChannels.platform.invokeMethod<String>('Share.invoke', text);
-    _finishToolbarAction(state);
+    finishToolbarAction(state);
   }
 
   /// Mirrors the framework's per-platform post-action behavior for the
@@ -108,7 +122,12 @@ class SanitizingSelectionArea extends StatefulWidget {
   /// `SelectableRegionState.contextMenuButtonItems`). The accessibility
   /// selection-status update the framework performs alongside
   /// [SelectableRegionState.clearSelection] is not public and is skipped.
-  static void _finishToolbarAction(SelectableRegionState state) {
+  ///
+  /// Public because a surface that adds its own copy-like item — the
+  /// assistant bubble's `Markdown` item — should finish the same way the
+  /// platform's Copy does: keep the selection on iOS and desktop, clear it on
+  /// Android, rather than clearing it everywhere.
+  static void finishToolbarAction(SelectableRegionState state) {
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
       case TargetPlatform.fuchsia:
@@ -169,30 +188,45 @@ class _SanitizingSelectionAreaState extends State<SanitizingSelectionArea> {
     widget.onSelectionChanged?.call(selection);
   }
 
+  /// A nested owner claimed the selection, so this area no longer has one: drop
+  /// the cache (which retires the copy override) and tell the surface, so what
+  /// it remembers is not a selection the user cannot see any more.
+  void _handleNestedSelectionClaimed() {
+    if ((_lastSelectionText ?? '').isEmpty) return;
+    setState(() => _lastSelectionText = null);
+    widget.onSelectionChanged?.call(null);
+  }
+
   @override
   Widget build(BuildContext context) {
     // Registered only while this surface owns a selection. The override covers
-    // the whole subtree, and the renderer nests selectables inside it — a code
-    // block's SelectableText, a table cell, a nested SelectionArea for code
-    // past 2048 chars — whose selections never reach our own
-    // [SelectionArea.onSelectionChanged]. With the entry always present, Ctrl+C
-    // inside one of those reached this action with an empty cache and copied
-    // nothing at all; leaving the intent to the framework while we have nothing
-    // to sanitize is what keeps them working.
-    return Actions(
-      actions: <Type, Action<Intent>>{
-        if (_sanitizedSelection.isNotEmpty)
-          CopySelectionTextIntent: CallbackAction<CopySelectionTextIntent>(
-            onInvoke: (intent) {
-              unawaited(_copyToClipboard());
-              return null;
-            },
-          ),
+    // the whole subtree, and the framework's own copy actions forward to it, so
+    // a nested owner's selection would reach this action with our *stale* text
+    // — a code block's SelectableText, a table cell and a nested SelectionArea
+    // for code past 2048 chars all report their claim
+    // ([NestedSelectionClaimedNotification]) and retire it.
+    return NotificationListener<NestedSelectionClaimedNotification>(
+      onNotification: (notification) {
+        _handleNestedSelectionClaimed();
+        // Keep bubbling: an area nested inside another area is still the one
+        // that owns its subtree, and both may need to stand down.
+        return false;
       },
-      child: SelectionArea(
-        onSelectionChanged: _handleSelectionChanged,
-        contextMenuBuilder: widget.contextMenuBuilder ?? _defaultContextMenu,
-        child: widget.child,
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          if (_sanitizedSelection.isNotEmpty)
+            CopySelectionTextIntent: CallbackAction<CopySelectionTextIntent>(
+              onInvoke: (intent) {
+                unawaited(_copyToClipboard());
+                return null;
+              },
+            ),
+        },
+        child: SelectionArea(
+          onSelectionChanged: _handleSelectionChanged,
+          contextMenuBuilder: widget.contextMenuBuilder ?? _defaultContextMenu,
+          child: widget.child,
+        ),
       ),
     );
   }

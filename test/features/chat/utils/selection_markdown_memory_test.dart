@@ -11,6 +11,9 @@ MdDocument _document(String source) => MarkdownComponent.walkDocument(
   config: const GptMarkdownConfig(textDirection: TextDirection.ltr),
 );
 
+/// The surface a capture is filed under.
+const Object _owner = 'assistant_message-1';
+
 void main() {
   final memory = SelectionMarkdownMemory.instance;
 
@@ -23,6 +26,7 @@ void main() {
 
     test('returns the markdown the IR re-emits for the selection', () {
       memory.capture(
+        owner: _owner,
         document: () => _document('**bold** text'),
         selectedText: 'bold text',
       );
@@ -33,6 +37,7 @@ void main() {
 
     test('keeps the list marker a selection starts after', () {
       memory.capture(
+        owner: _owner,
         document: () => _document('- first item\n- second item'),
         selectedText: 'first item\nsecond item',
       );
@@ -41,6 +46,7 @@ void main() {
 
     test('completes the link a selection ends inside', () {
       memory.capture(
+        owner: _owner,
         document: () => _document('plain [a link](https://x.dev/p)'),
         selectedText: 'a link',
       );
@@ -51,6 +57,7 @@ void main() {
       // The rendered selection has no counterpart in the display space at all:
       // markdown copy must never be worse than a plain copy.
       memory.capture(
+        owner: _owner,
         document: () => _document('alpha beta'),
         selectedText: 'gamma',
       );
@@ -59,6 +66,7 @@ void main() {
 
     test('sanitizes the fallback', () {
       memory.capture(
+        owner: _owner,
         document: () => _document('alpha beta'),
         selectedText: 'gam\u200Bma',
       );
@@ -67,6 +75,7 @@ void main() {
 
     test('forgets the selection on clear', () {
       memory.capture(
+        owner: _owner,
         document: () => _document('**bold** text'),
         selectedText: 'bold text',
       );
@@ -75,13 +84,18 @@ void main() {
     });
 
     test('drops a whitespace-only selection', () {
-      memory.capture(document: () => _document('a b'), selectedText: '   ');
+      memory.capture(
+        owner: _owner,
+        document: () => _document('a b'),
+        selectedText: '   ',
+      );
       expect(memory.markdownForSelection(), isNull);
     });
 
     test('rebuilds the document per copy rather than caching one', () {
       var builds = 0;
       memory.capture(
+        owner: _owner,
         document: () {
           builds++;
           return _document('**bold** text');
@@ -91,6 +105,24 @@ void main() {
       expect(memory.markdownForSelection(), '**bold** text');
       expect(memory.markdownForSelection(), '**bold** text');
       expect(builds, 2);
+    });
+
+    test('a surface retires only its own selection', () {
+      // The hotkey acts on the last selection made, so a surface that goes away
+      // has to take its own recording with it — and only its own: another
+      // bubble's live selection must survive this one's dispose.
+      final other = Object();
+      memory.capture(
+        owner: other,
+        document: () => _document('**bold** text'),
+        selectedText: 'bold text',
+      );
+
+      memory.clearIfOwner(_owner);
+      expect(memory.markdownForSelection(), '**bold** text');
+
+      memory.clearIfOwner(other);
+      expect(memory.markdownForSelection(), isNull);
     });
   });
 }

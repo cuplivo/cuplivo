@@ -11,6 +11,7 @@ import '../../icons/lucide_adapter.dart';
 import '../../utils/plantuml_encoder.dart';
 import 'export_capture_scope.dart';
 import 'ios_tactile.dart';
+import 'selection_ownership.dart';
 import 'snackbar.dart';
 
 enum _PlantUMLTab { image, code }
@@ -229,6 +230,13 @@ class _PlantUMLBlockState extends State<PlantUMLBlock> {
                   fontSize: 13,
                   height: 1.5,
                 ),
+                // The diagram's code owns its selection, so a selection area
+                // above it has to be told it lost this one.
+                onSelectionChanged: (selection, _) {
+                  if (!selection.isCollapsed) {
+                    reportNestedSelectionClaimed(context);
+                  }
+                },
               ),
             ),
           ),

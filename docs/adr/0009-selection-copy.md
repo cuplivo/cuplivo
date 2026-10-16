@@ -29,6 +29,12 @@ clipboard, who owns a selection, and the shortcut. Three inputs come from measur
 - Review of the pre-IR branch: an ancestor copy-intent override registered for a whole bubble made Ctrl+C
   inside a code block copy **nothing** (short code, long code, table cell), because those own their
   selection area and never report to the bubble's region.
+- Review of this PR found the other half of that failure: retiring the override only when the region's own
+  cache is empty is not the same as retiring it when the region *no longer owns* the selection. Select
+  prose, then select inside a code block (short or long), a table cell or a diagram, then Ctrl+C: the
+  nested owner's selection never reaches the region, the cache still held the prose, and the override —
+  which the framework's own copy actions forward to (`Action.overridable`) — wrote the stale prose where
+  master, registering no override at all, copies the nested text.
 
 ## Decisions
 
@@ -41,17 +47,36 @@ clipboard, who owns a selection, and the shortcut. Three inputs come from measur
 3. **The surface hands the mapping the renderer's own inputs.** The bubble's source, the settings that
    pick the component set, the streaming flag, and the `MarkdownDetailsExpansion` record the renderer
    reads (ADR-0007 decisions 3 and 7), with the walk rebuilt per copy rather than cached per rendered
-   widget. Menu item and hotkey go through one mapping so they cannot drift apart.
+   widget. Menu item and hotkey go through one mapping so they cannot drift apart — but they read
+   *different* selections, and that is now the rule rather than an accident: **the item maps the
+   surface that built the menu**, while the hotkey maps the most recent assistant selection, because a
+   global shortcut has no surface to ask. With split-paragraph bubbles each part is its own surface and
+   keeps its own selection text, exactly as it already keeps its own expansion record.
 4. **Sanitize the clipboard by exactly what the renderer inserts, and only that.** U+200B goes; the
    broader invisible set stays in the IR's *matching* normalization, where a lossy answer only means a
    fallback. There is no U+200C rule: nothing inserts it, and a ZWNJ in copied text is orthography
    (Persian, Arabic, Urdu) that a clipboard must keep. This is the general fix for #738 at every markdown
    selection surface, not a feature-local one.
-5. **The copy-intent override is registered only while this surface owns a selection.** A code block and
-   a table cell own their selection area (ADR-0008 decision 6), so the bubble's override covers
-   selections it cannot read; standing down leaves those to the framework, which is what copied them
-   before. Measured cost, recorded rather than hidden: such a copy is un-sanitized, and the only surface
-   where that is observable is a table cell's soft-break ZWSPs, which leaked before this branch existed.
+5. **The copy-intent override covers this surface's selection, and retires the moment a nested owner
+   claims one.** The renderer still nests owners the framework copies itself — a code block (short:
+   `SelectableText`, long: a nested `SelectionArea`), a table cell, a diagram's code view. Their
+   selections never reach this region's `onSelectionChanged`, and the framework builds its own copy
+   actions with `Action.overridable`, so they *forward to* an ancestor override: while it is registered
+   it wins inside them too. The region is silent about that: the probe that measured this bug prints its
+   `onSelectionChanged` still reporting the prose after the nested drag, so the claim cannot be inferred
+   and has to come from the owner. Every owner the project builds reports it — the renderer's three (table
+   cell, short code, long code) and the diagram's one — and a test fails when the number of claims in
+   those files stops matching the number of owners in them. A caller that nests its own selectable inside
+   this area owes the same report; nothing else can stand the override down. Each nested owner therefore
+   reports the claim, the area drops its cache, and
+   the framework copies the nested owner's own text. Measured cost, recorded rather than hidden: that
+   copy is un-sanitized, and the only surface where it is observable is a table cell's soft-break ZWSPs,
+   which leaked before this branch existed. A claim retires the override but not the region's *own*
+   selection — this state holds no handle on the region's `SelectableRegionState`, and the selection is
+   still the user's — so re-selecting the **identical** text in that region reports no change (the
+   framework compares `plainText`), leaves the cache empty, and that copy is un-sanitized too. Selecting
+   different text reports a change and restores the override; so does any `Markdown` item press, which
+   reads the per-part selection text rather than the cache.
 6. **A desktop hotkey for the same action**, default `Ctrl+Shift+C` / `Cmd+Shift+C`, rebindable, in the
    existing in-app hotkey scope so it does not claim a system-wide key. It acts on the recorded assistant
    selection, which is what makes it a workaround for the framework dismissing a long backward selection
@@ -60,15 +85,26 @@ clipboard, who owns a selection, and the shortcut. Three inputs come from measur
 
 ## Consequences
 
-- The assistant selection menu reads **Copy | Markdown | Share | Select All**.
+- The assistant selection menu reads **Copy | Markdown | Share | Select All**. The `Markdown` item
+  finishes the way the platform's Copy does — the selection survives on iOS and desktop, Android clears
+  it — rather than clearing it everywhere.
 - Keyboard copy, toolbar Copy and Share from any markdown surface no longer carry renderer-inserted
-  characters.
+  characters. A nested owner's copy is the exception, by decision 5.
 - Carried-over limits, each a degrade rather than a silent wrong answer: a selection that repeats inside
-  one bubble maps to the first occurrence; markers that sit entirely outside the selection are dropped
-  (the span rule); table pipes ride along with the source range; a nested owner's copy is un-sanitized.
-- 选区记忆 is single-slot and assistant-only, so a selection made in another markdown surface (or a
-  right-click that clears the selection first) leaves the hotkey with nothing; the toast reports what was
-  actually copied.
+  one bubble maps to the **first** occurrence — so the emitted markdown can carry markup the user did not
+  select (`Setup` maps by the earlier `## Setup`, `npm ci` by the earlier code span, `docs` by the
+  earlier link). Nothing better is available to the mapping: the framework reports a selection as text
+  alone (`SelectedContent` carries `plainText` only), so it has no offset, let alone one it could prefer.
+  Markers that sit entirely outside the selection are dropped (the span rule); table pipes ride along with
+  the source range; a nested owner's copy is un-sanitized.
+- 选区记忆 is single-slot and assistant-only, and it is filed under the surface that recorded it: a
+  surface that goes away (a reply scrolled out of the viewport, a conversation switched away from) retires
+  its own recording, so the hotkey can never copy a selection the user cannot see. It holds the most
+  recent assistant selection whichever bubble made it — a global shortcut has no surface to ask — and a
+  selection made in another markdown surface (or a right-click that clears the selection first) leaves the
+  hotkey with nothing. The toast reports what was actually copied.
+- The `Markdown` item never consults 选区记忆: it maps the selection of the surface whose menu is open, so
+  two replies (or two split parts) holding live selections cannot answer for each other.
 - Reasoning text is sanitized but has no `Markdown` item: what it displays is not the source the mapping
   would run against.
 

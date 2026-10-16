@@ -30,7 +30,7 @@ import '../../../utils/utf16_safe_cut.dart';
 import '../../../utils/avatar_cache.dart';
 import '../../../utils/assistant_regex.dart';
 import 'package:gpt_markdown/gpt_markdown.dart'
-    show stripRendererInsertedCharacters;
+    show MdDocument, stripRendererInsertedCharacters;
 import '../../../core/models/assistant.dart';
 import '../../../core/providers/tts_provider.dart';
 import '../../../shared/widgets/markdown_with_highlight.dart';
@@ -1136,10 +1136,15 @@ class ChatMessageWidget extends StatefulWidget {
 }
 
 class _ChatMessageWidgetState extends State<ChatMessageWidget> {
-  /// Current text selection inside the assistant bubble, as the framework
+  /// Current text selection inside each assistant bubble part, as the framework
   /// reported it. Raw: the copy paths sanitize what they write, and the IR
   /// mapping normalizes both sides itself.
-  String? _selectedPlainText;
+  ///
+  /// Keyed by the part's content key — the single-part surface uses `''` — so a
+  /// surface answers only for its own selection. One field per message let a
+  /// part's toolbar Copy write the other part's text when the reply was split
+  /// into paragraph bubbles (the setting is off by default).
+  final Map<String, String?> _selectedPlainTextByPart = {};
 
   /// The details-expansion record each assistant bubble part renders with, so
   /// the copy mapping is handed the same record the renderer reads
@@ -1147,10 +1152,17 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
   /// surface uses `''` — so split parts keep their own state.
   final Map<String, MarkdownDetailsExpansion> _detailsExpansions = {};
 
-  /// [_selectedPlainText] without the characters the renderer inserts into
-  /// rendered text: what the platform Copy and Share buttons write.
-  String? get _sanitizedPlainText {
-    final selected = _selectedPlainText;
+  /// The identity of one assistant bubble part: its selection key and the owner
+  /// token 选区记忆 files its selection under.
+  String _partOwner(String contentKey) => contentKey.isEmpty
+      ? 'assistant_${widget.message.id}'
+      : 'assistant_${widget.message.id}_$contentKey';
+
+  /// [_selectedPlainTextByPart] for one part, without the characters the
+  /// renderer inserts into rendered text: what the platform Copy and Share
+  /// buttons write.
+  String? _sanitizedPlainTextOf(String contentKey) {
+    final selected = _selectedPlainTextByPart[contentKey];
     if (selected == null) return null;
     return stripRendererInsertedCharacters(selected);
   }
@@ -1437,6 +1449,12 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
 
   @override
   void dispose() {
+    // A selection this bubble recorded must not outlive it: the hotkey would
+    // otherwise copy text the user cannot see any more — a reply scrolled out
+    // of the viewport, or one in a conversation that was switched away from.
+    for (final contentKey in _detailsExpansions.keys) {
+      SelectionMarkdownMemory.instance.clearIfOwner(_partOwner(contentKey));
+    }
     try {
       _userMenuOverlay?.remove();
     } catch (_) {}
@@ -2550,6 +2568,15 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
       contentKey,
       MarkdownDetailsExpansion.new,
     );
+    // Every copy of this part's selection maps against the source the part
+    // rendered, with the records the renderer itself read (ADR-0007 decisions 3
+    // and 7); the walk is rebuilt per copy rather than kept per widget.
+    MdDocument documentForCopy() => MarkdownWithCodeHighlight.markdownDocument(
+      visualContent,
+      settings: settings,
+      streaming: widget.message.isStreaming,
+      detailsExpansion: detailsExpansion,
+    );
 
     Widget assistantContent;
     if (enableAssistantMarkdown) {
@@ -2589,58 +2616,55 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
 
     return RepaintBoundary(
       child: SanitizingSelectionArea(
-        key: ValueKey(
-          contentKey.isEmpty
-              ? 'assistant_${widget.message.id}'
-              : 'assistant_${widget.message.id}_$contentKey',
-        ),
+        key: ValueKey(_partOwner(contentKey)),
         onSelectionChanged: (selection) {
           // Keep the raw selection: the copy paths sanitize what they write,
           // and the IR mapping normalizes both sides itself.
           final selected = selection?.plainText;
-          _selectedPlainText = selected;
+          _selectedPlainTextByPart[contentKey] = selected;
           if (selected == null || selected.trim().isEmpty) {
-            SelectionMarkdownMemory.instance.clear();
+            SelectionMarkdownMemory.instance.clearIfOwner(
+              _partOwner(contentKey),
+            );
           } else {
             SelectionMarkdownMemory.instance.capture(
-              // Rebuilt per copy, from the source this bubble rendered and
-              // with the records the renderer itself read, so a copied
-              // selection maps onto what is on screen. The source is captured
-              // by value: streaming growth cannot shift a selection that has
-              // already happened.
-              document: () => MarkdownWithCodeHighlight.markdownDocument(
-                visualContent,
-                settings: settings,
-                streaming: widget.message.isStreaming,
-                detailsExpansion: detailsExpansion,
-              ),
+              owner: _partOwner(contentKey),
+              document: documentForCopy,
               selectedText: selected,
             );
           }
         },
         contextMenuBuilder: (context, selectableRegionState) {
           // One short item next to the platform Copy: it copies the
-          // underlying markdown source of the selection (falling back to
-          // the sanitized plain text). Offered while streaming too — the
-          // match just falls back when the source has moved on.
+          // underlying markdown source of *this* surface's selection (falling
+          // back to the sanitized plain text). Offered while streaming too —
+          // the match just falls back when the source has moved on.
           return AdaptiveTextSelectionToolbar.buttonItems(
             anchors: selectableRegionState.contextMenuAnchors,
             buttonItems: SanitizingSelectionArea.patchedDefaultItems(
               selectableRegionState,
-              sanitizedText: _sanitizedPlainText,
+              sanitizedText: _sanitizedPlainTextOf(contentKey),
               insertedAfterCopy: [
                 ContextMenuButtonItem(
                   label: AppLocalizations.of(
                     context,
                   )!.chatMessageWidgetCopyAsMarkdown,
                   onPressed: () {
-                    // The same mapping the hotkey uses, so the menu and the
-                    // shortcut cannot drift apart.
-                    final text = SelectionMarkdownMemory.instance
-                        .markdownForSelection();
+                    // This surface's own selection: a sibling bubble with a
+                    // live selection must not answer for this one. The hotkey
+                    // goes through the same mapping for the selection it
+                    // remembers.
+                    final selected = _selectedPlainTextByPart[contentKey];
+                    if (selected == null) return;
+                    final text = selectionMarkdownFrom(
+                      documentForCopy,
+                      selected,
+                    );
                     if (text == null) return;
                     ContextMenuController.removeAny();
-                    selectableRegionState.clearSelection();
+                    SanitizingSelectionArea.finishToolbarAction(
+                      selectableRegionState,
+                    );
                     Clipboard.setData(ClipboardData(text: text));
                   },
                 ),

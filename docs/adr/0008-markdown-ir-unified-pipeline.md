@@ -82,10 +82,11 @@ order and the size of each step, and this ADR fixes both so the work can land in
    so a boundary inside it cannot be committed, and a scanner answers that question alone.
 6. **State that changes the display space is an input to the document build; state inside a nested
    selection owner is that owner's business.** ADR-0007 decision 7 already handles the first case. The
-   second is closed by construction: a code block, a table, a formula and a diagram each own their
-   selection area, so a gap node is the whole of their participation in the outer display space. This is
-   why the unified mechanism for "stateful" markdown is one record plus gap nodes, not per-widget state
-   plumbing.
+   second is closed by construction for what remains: a formula and a diagram declare their text or
+   contribute nothing to the outer display space. **A code block and a table moved to the first case
+   (ADR-0010):** their text is part of the enclosing owner's display space, so a collapsed code block's
+   shown lines are an input to the document build like a details block's expansion — which is why the
+   mechanism for "stateful" markdown is one record plus gap nodes, not per-widget state plumbing.
 7. **A coverage registry keeps the drift guard non-vacuous.** The drift tests prove that copied text
    equals the IR's display space for the components they exercise. A test walks the fixtures with the
    walk's element callback, records which components matched, and fails when an active component matched

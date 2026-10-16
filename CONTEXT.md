@@ -661,13 +661,14 @@ contradicts one of them is a bug, not a preference.
 - **装饰文本 (decoration)**: display text the source does not contain (an ordered list's rendered number,
   an enumerated heading's number). It occupies display space so a selection matches, and emits nothing.
 - **空隙节点 (gap node)**: a node that occupies no display space but re-emits its source when a selection
-  spans across it — an image, a horizontal rule, a disabled display-math block, a fenced code body whose
-  selection lives in its own area. This is why selecting a whole reply can still copy its images.
+  spans across it — an image, a horizontal rule, a disabled display-math block, a diagram. This is why
+  selecting a whole reply can still copy its images.
 - **叶子表 (item table)**: the ordered `(display text, source, ancestors)` list a document flattens to.
   **显示空间 (display space)** is its concatenation, and it equals what a selection over the rendered
   widgets copies: `SelectableRegion` contributes one run per selectable, a `RichText` contributes the runs
   between its `WidgetSpan`s (the placeholders themselves are never copied), and a `SelectableAdapter`
-  contributes the text it declares.
+  contributes the text it declares. A table contributes its cells' text and a code block the code it shows,
+  because both are paragraphs of the surface's owner (ADR-0010).
 - **选区映射 (selection mapping)**: locating a copied selection in the display space by *text*, not by
   framework offsets. The offsets a selection reports live in a space where a `SelectableAdapter`
   contributes one unit while copying its whole declared text, so they are not the display space; text is
@@ -708,17 +709,22 @@ contradicts one of them is a bug, not a preference.
   must not be lossy: other invisible characters are content and survive, notably the ZWJ that joins emoji
   sequences and the ZWNJ that Persian, Arabic and Urdu write. Plain copy, keyboard copy and share from every
   markdown surface are sanitized, except where a 嵌套选区归属 copies through the framework.
+- **Selection ownership (选区归属)**: one owner per surface (ADR-0010). The surface's `SelectionArea` owns
+  the selection, and every selectable text under it — a paragraph, a table cell, a code block's body — is a
+  paragraph it can reach, so one drag crosses them and one toolbar serves them. A surface with no owner
+  provides one; nothing nests an owner inside another. The sanitizer's copy-intent override is registered
+  only while this surface owns a non-empty selection.
 - **Selection memory (选区记忆)**: the last assistant selection, filed under the surface that made it,
   together with the way to rebuild its 匹配源 — held so the `Copy Selection as Markdown` hotkey can act
   without a context menu. It is cleared when the selection is cleared or emptied, and a surface that goes
   away (a reply scrolled out of the viewport, a conversation switched) retires its own recording, so the
   hotkey cannot copy a selection nobody can see. The `Markdown` item never reads it: the item maps the
   surface whose menu is open.
-- **Nested selection owner (嵌套选区归属)**: a code block, a table cell and a diagram's code view own their
-  selection area, so their text is reached through that area and never through the text around them. Such an
-  owner **claims** the selection from the area above it, and the sanitizer's copy-intent override — which the
-  framework's own copy actions forward to — retires on that claim; the framework then copies the nested
-  owner's text, un-sanitized, which is only observable where a table cell carries a soft break.
+- **Nested selection owner (嵌套选区归属)**: what ADR-0010's rule leaves outside it — a diagram's code view,
+  which owns its selection area, so its text is reached through that area and never through the text around
+  it. Such an owner **claims** the selection from the area above it, and the sanitizer's copy-intent
+  override — which the framework's own copy actions forward to — retires on that claim; the framework then
+  copies the nested owner's text, un-sanitized.
 
 ### Relationships
 

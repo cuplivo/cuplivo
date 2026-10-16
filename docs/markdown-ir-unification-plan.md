@@ -304,12 +304,39 @@ walk 每个 fixture 源（用 markdownComponentsFor(...) 的组件集 + DetailsH
   token（正是 §5.4 要修的重复块情形），缓存键已含 base。
 - 与计划的三处差异已写进 ADR-0008 的 D 条目（列表/details 否决、`swallowsSeparator` 上移、偏移量键）。
 
-### 5.4 明确不做
+### 5.4 窄修 #544（已落地）与明确不做
 
-- **不修 #544**（`D:\ComfyUI\` 代码跨度被吞）：#561 已把它与 ADR-0042 的「唯一代码识别引擎」一起
-  合入**被归档的 3.x 线**（`cuplivo` 分支，Sep 13 归档），本基线按 ADR-0004 重写过、不含该引擎；
-  实测该 bug 在本线仍在。窄修只需一行（闭符 lookbehind 去掉 `\`）+ 一处测试重定基，但它属于「另一条线的
-  遗产」，等用户决定后再做。
+**#544 已落地（窄修，2026-10 按用户决定）。** `EscapeAwareHighlightedTextMd`
+（`lib/shared/widgets/markdown_with_highlight.dart`）的闭符 lookbehind 去掉 `\`：代码跨度内没有反斜杠转义，
+`` `D:\ComfyUI\` `` 在反斜杠前的反引号处收尾，后面那句不再被吞进 chip。开场符仍保留 `(?<!\\)` —— `` \` ``
+由 `BackslashEscapeMd` 画成字面反引号，是 app 的转义约定；IR 的节点形状（`inlineCode` + `open/close`）不变。
+
+一处生效三条通道：`markdownComponentsFor` 的那一份组件集同时喂渲染器、`markdownDocument`（IR/复制）与
+`markdownStreamingSplit`（ADR-0008 决定 1、5），所以渲染、复制映射与流式切分同时拿到新规则。
+
+证据：`test/shared/widgets/markdown_with_highlight_test.dart` 的
+`issue #544: a windows path ending in a backslash stays one chip`、
+`issue #544: an indented powershell fence keeps its body and its chips`（issue 两张截图）与
+`a chip keeps its dollars when the span before it ends in a backslash`（预处理器 `$` 掩码保护的跨度与 walk
+的跨度一致），加上重定基后的 `MarkdownWithCodeHighlight keeps escaped inline delimiters literal`；复制侧由
+`test/shared/widgets/markdown_ir_drift_test.dart` 的 `windows path ending in a backslash inside code` fixture
+钉住 —— 那条修前也是绿的（渲染与 IR 共用同一组件、会一起漂移），所以它是复制钉子而不是回归证据。
+
+红先绿后：未改生产代码时前四条测试全红。修前实测该源只渲染出 3 个 chip，内容依次是「`D:\ComfyUI\` 为环境层
+（含 」（把后文吞了进去）、「、」、「），模型路径：」，末段 `` `D:\ComfyUI\ComfyUI\models\...` `` 因为闭符被吞
+而失去配对、退化成字面反引号；改一行后四个 chip 与正文全部正确。
+
+**不移植**：#561/ADR-0042 的「唯一代码识别引擎」仍留在已归档的 3.x 线（`cuplivo` 分支，Sep 13 归档），本基线
+按 ADR-0004 重写过、不含该引擎。因此**多反引号跨度（CommonMark 加倍规则）与 chat API 的围栏放宽都不在本次
+范围**，只在此记账。
+
+- CommonMark 加倍规则（`` `` `x` `` `` 渲染成代码跨度）不做：它要同时对齐预处理 `$` 掩码与 lexer 的配对。
+  读码推出的后果（**尚未复现**）：掩码的 `` (`[^`\n]+`) `` 只在单反引号上与 walk 一致，`` ``x$y`` `` 的 `$`
+  会被掩码保护却落不到任何 chip 上，于是把 `___CODE_DOLLAR_MASK___` 渲染成正文。
+- inline-code 的 `(.+?)` 在合并正则（`_MarkdownPatterns.combined`，`dotAll: true`）里能跨行命中，而
+  anchored 分类用的是组件自身的 `dotAll: false`，跨行元素判不出组件、会整段被丢弃（`a `x\ny` b` 里
+  `` `x\ny` `` 消失）。窄修不动它；要修需评估流式/公式金标（`markdown_streaming_height_stability_test.dart`
+  的 `unclosed backtick then dollar` 等）。同为**读码推断，尚未复现**。
 - `<` 标签掩码半边的删除（无证据）。
 - 3b 节点消解（架构取舍，需单独立项）。
 
@@ -373,4 +400,5 @@ review 的两条发现**都成立**，核验时又确认了第三条，并把「
 2. ~~全量 `flutter test`~~ **已完成**（8 known / 0 new，见 §6）。
 3. ~~PR #1017 第一轮 review 的核验与修复~~ **已完成**（§6.1：不变量 + 分块守卫 + 死面删除 + 注入证明）。
 4. `feat/direct-select-text-v4` 移植（§6 的两条路径与三件事），**等用户定时机**。
-5. 待用户决定：本线上是否窄修 #544（一行 + 一处测试重定基，见 §5.4）。
+5. ~~待用户决定：本线上是否窄修 #544（一行 + 一处测试重定基，见 §5.4）~~ **已完成**（§5.4：一行 +
+   重定基一条 + 三条守卫测试 + 一条漂移 fixture）。

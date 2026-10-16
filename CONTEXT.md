@@ -673,3 +673,9 @@ contradicts one of them is a bug, not a preference.
   display spaces. A block with no record follows its own `open` attribute.
 - The copy action's **match source** is the bubble's own rendered source, so the split-paragraph option
   matches per bubble, and the walk is rebuilt per copy rather than cached per rendered widget.
+- **代码跨度 (code span)**: an `inlineCode` node whose delimiters the re-emitter puts back around the covered
+  body. Which text is a span is the surface component's rule (`EscapeAwareHighlightedTextMd`), and a backslash
+  escapes the *opener* only — `` \`code\` `` draws a literal backtick through `BackslashEscapeMd` — because a
+  code span has no escapes: `` `D:\ComfyUI\` `` is one span whose closer is the backslash-preceded backtick
+  (#544). One component rule reaches the renderer, the IR/copy mapping and the streaming splitter at once
+  (ADR-0008).

@@ -1,5 +1,14 @@
 # 更新日志
 
+## [Unreleased]
+
+### 修复
+
+- **iOS 端「Ta的来信」的无效通知**: `IosProactiveCareScheduler.rescheduleAll` 现在会撤销掉出待发集合的会话通知（已过期、已关闭或恢复导入后失效的会话），并向 Kelivo 的通知适配器传入裸会话 ID（由适配器在 `schedule` 与 `cancel` 两侧统一加上前缀），不再在重挂后残留旧到达通知 (#1007 by @Pheobe-Southwood)
+- **点通知进入应用后信件要等很久才出现**: 冷启动时 `resumed` 早于会话数据加载完成，补发只能看到空列表；现在 `initChat` 在数据就绪且重挂完成后会再次启动补发（不阻塞会话打开），信件落库后通过 `onLetterPersisted` 即时刷新当前会话窗口 (#1007 by @Pheobe-Southwood)
+- **Android 端已触发的来信要等到回前台才发出**: 进程存活但界面不在前台时，来信不再等到前台服务启动或下次回到前台才交给 Dart，而是直接投递（信件落库后照常发出自己的通知） (#1007 by @Pheobe-Southwood)
+- **iOS 到达通知被系统拒绝时记录日志**: 通知未授权或待发队列已满时输出日志，明确此时来信依赖前台执行器与补发 (#1007 by @Pheobe-Southwood)
+
 ## [4.3.0] - 2026-10-14
 
 ### 新增

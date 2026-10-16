@@ -428,6 +428,8 @@ void main() {
           (c) => c.method == 'schedule',
         );
         final args = schedule.arguments as Map;
+        // Kelivo's adapter prefixes `scheduled-task:` in both `schedule` and
+        // `cancel`, so callers pass the bare conversation id.
         expect(args['runId'], 'c1');
         expect(args['at'], dueAt.millisecondsSinceEpoch);
         expect(args['title'], 'Test');
@@ -475,7 +477,8 @@ void main() {
       await ProactiveCareAlarmService.cancelFor('c1');
 
       expect(scheduler.schedules.containsKey('c1'), isFalse);
-      expect(scheduledCalls.map((c) => c.method), contains('cancel'));
+      final cancel = scheduledCalls.singleWhere((c) => c.method == 'cancel');
+      expect(cancel.arguments, 'c1');
 
       scheduler.dispose();
     });

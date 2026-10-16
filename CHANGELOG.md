@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **A stale "Their Letter" notification on iOS**: `IosProactiveCareScheduler.rescheduleAll` now cancels arrival notifications for conversations that dropped out of the pending set (past-due, disabled, or replaced on restore) and passes the bare conversation id that Kelivo's notification adapter prefixes in both `schedule` and `cancel`, so stale arrival notifications no longer survive re-arming (#1007 by @Pheobe-Southwood)
+- **A letter taking minutes to show up after tapping its notification**: on a cold start `resumed` arrives before the conversation cache is loaded, so the overdue catch-up could only see an empty list; `initChat` now kicks off the catch-up again (`unawaited`) once the data is ready, and `onLetterPersisted` reloads the open window as soon as the letter is stored (#1007 by @Pheobe-Southwood)
+- **A fired letter on Android waiting for the app to come back to the front**: while the process is alive but the UI is not in front, the letter is handed straight to Dart instead of waiting for a foreground-service start or the next `MainActivity.onStart` (it still posts its own notification once stored) (#1007 by @Pheobe-Southwood)
+- **iOS logs when an arrival notification was refused**: a missing notification grant or a full pending queue is logged so it is explicit that the letter then depends on the in-app executor and the catch-up (#1007 by @Pheobe-Southwood)
+
 ## [4.3.0] - 2026-10-14
 
 ### Added

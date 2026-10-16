@@ -17,16 +17,24 @@ import io.flutter.plugin.common.MethodChannel
 internal enum class CareFirePlan { Direct, Service }
 
 /**
- * A letter only reaches Dart through a live channel: either the app is in
- * front (no foreground service needed, and no notification flash), or the run
- * goes through the same foreground-service contract as a scheduled task.
+ * A letter only reaches Dart through a live channel listener, and `ready` is
+ * exactly that fact: Dart installs its `fire` handler and answers `ready`
+ * before any alarm can be honoured. While it holds, the fire is handed straight
+ * to the channel.
  *
- * There is deliberately no third option. A fire held back while neither holds
- * has no listener for the channel, and drifting there used to drop the letter
- * (and, because the occurrence was already consumed, every later one too).
+ * The plan used to also require the *foreground Activity*, which parked a fire
+ * in the state this app spends most of its time in — process alive, screen off,
+ * another app in front. The fire then waited for a foreground service the
+ * platform may refuse to start from the background (Android 12+), or for the
+ * next `MainActivity.onStart`, which is how a 10:55 letter surfaced at 11:08.
+ * A Direct hand-off is not a silent one either: the letter is posted as its own
+ * notification once it is persisted, so a backgrounded user is still alerted.
+ *
+ * There is deliberately no third state; without a listener the run goes through
+ * the Service plan, which is the only path that can create one.
  */
-internal fun careFirePlan(ready: Boolean, foreground: Boolean): CareFirePlan =
-    if (ready && foreground) CareFirePlan.Direct else CareFirePlan.Service
+internal fun careFirePlan(ready: Boolean): CareFirePlan =
+    if (ready) CareFirePlan.Direct else CareFirePlan.Service
 
 /**
  * Native owner of the proactive-care ("Ta的来信") letter alarms.
@@ -67,6 +75,10 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
     }
 
     fun configure(messenger: BinaryMessenger) {
+        // A fresh channel has no Dart listener until it answers `ready` again,
+        // and any previous engine's hand-offs were lost with that engine.
+        ready = false
+        dispatched.clear()
         channel = MethodChannel(messenger, "app.proactive_care_alarms").also { bridge ->
             bridge.setMethodCallHandler { call, result ->
                 try {
@@ -187,14 +199,14 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
         }
         deadlines[id] = timeout
         main.postDelayed(timeout, LIMIT_MS)
-        val plan = careFirePlan(ready, app.backgroundRuntime.foreground)
+        val plan = careFirePlan(ready)
         Log.i(TAG, "fire $id due=$dueAt plan=$plan")
         try {
             when (plan) {
-                // The app owns the foreground: the engine is alive and the
-                // channel has a listener, so dispatch without the
-                // foreground-service dance (no notification flash).
-                CareFirePlan.Direct -> dispatchPending()
+                // The engine owns a live channel listener (`ready`): dispatch
+                // without the foreground-service dance, whatever the Activity's
+                // lifecycle state is.
+                CareFirePlan.Direct -> dispatchToChannel()
 
                 CareFirePlan.Service -> {
                     // The service posts its foreground notification before
@@ -215,6 +227,30 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
         }
     }
 
+    /**
+     * Hands every claimed-but-undelivered fire to the channel.
+     *
+     * `ready` is the only precondition here: it means the Dart handler is
+     * installed, and the `Direct` plan exists precisely for the case where the
+     * Activity is *not* in front. Callers that must wait for a foreground
+     * service to warm the engine use [dispatchPending] instead.
+     */
+    private fun dispatchToChannel() {
+        if (!ready) return
+        val bridge = channel ?: return
+        inFlight.toMap().forEach { (id, dueAt) ->
+            if (id in dispatched) return@forEach
+            Log.i(TAG, "dispatch: handing off $id due=$dueAt")
+            bridge.invokeMethod("fire", mapOf("conversationId" to id, "dueAt" to dueAt))
+            dispatched.add(id)
+        }
+        // Keep ids handed over in an earlier drain that are still awaiting the
+        // Dart `done` ack (`finish` retires an id once that ack arrives),
+        // instead of pruning `dispatched` to the current batch and re-firing
+        // in-flight letters on the next drain.
+        dispatched.retainAll(inFlight.keys)
+    }
+
     /** Sends every claimed-but-undelivered fire to the Dart side. */
     fun dispatchPending() {
         if (!ready) return
@@ -228,11 +264,7 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
             Log.i(TAG, "dispatchPending: holding ${inFlight.size} letter(s) for the foreground")
             return
         }
-        inFlight.toMap().forEach { (id, dueAt) ->
-            if (!dispatched.add(id)) return@forEach
-            Log.i(TAG, "dispatchPending: handing off $id due=$dueAt")
-            channel?.invokeMethod("fire", mapOf("conversationId" to id, "dueAt" to dueAt))
-        }
+        dispatchToChannel()
     }
 
     private fun finish(id: String) {

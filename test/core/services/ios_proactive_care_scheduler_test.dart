@@ -70,6 +70,9 @@ void main() {
         final call = calls.single;
         expect(call.method, 'schedule');
         final args = Map<String, Object?>.from(call.arguments as Map);
+        // The native adapter prefixes `scheduled-task:` in both `schedule` and
+        // `cancel`, so callers pass the bare conversation id via
+        // `notificationIdFor` without double-prefixing.
         expect(args['runId'], 'c1');
         expect(args['at'], targetTime.millisecondsSinceEpoch);
         expect(args['title'], 'Test');
@@ -138,10 +141,20 @@ void main() {
     });
 
     test(
-      'rescheduleAll replaces the schedules with the pending ones',
+      'rescheduleAll replaces the schedules with the pending ones and cancels dropped ones',
       () async {
         final scheduler = createScheduler(arrivalBody: 'A letter has arrived.');
         final targetTime = currentTime.add(const Duration(minutes: 5));
+
+        // Pre-populate a previously scheduled conversation ('c3') that is not
+        // in the new snapshot at all, plus an ineligible/past-due conversation
+        // ('c2') in the snapshot. Both must be cancelled when `rescheduleAll`
+        // replaces the schedule set.
+        await scheduler.sync(
+          conversation: conversation(id: 'c3', nextAt: targetTime),
+          assistant: assistant(),
+        );
+        calls.clear();
 
         await scheduler.rescheduleAll(
           conversations: [
@@ -155,11 +168,37 @@ void main() {
         );
 
         expect(scheduler.schedules.keys, ['c1']);
-        expect(calls, hasLength(1));
-        expect(calls.single.method, 'schedule');
+        final cancels = calls
+            .where((c) => c.method == 'cancel')
+            .map((c) => c.arguments)
+            .toSet();
+        expect(cancels, {'c2', 'c3'});
+        final schedules = calls.where((c) => c.method == 'schedule').toList();
+        expect(schedules, hasLength(1));
+        expect((schedules.single.arguments as Map)['runId'], 'c1');
 
         scheduler.dispose();
       },
     );
+
+    test('schedule and cancel address the same native identifier', () async {
+      final scheduler = createScheduler(arrivalBody: 'A letter has arrived.');
+      final targetTime = currentTime.add(const Duration(minutes: 10));
+
+      await scheduler.sync(
+        conversation: conversation(id: 'c1', nextAt: targetTime),
+        assistant: assistant(),
+      );
+      await scheduler.cancelFor('c1');
+
+      final registered = calls.singleWhere((c) => c.method == 'schedule');
+      final removed = calls.singleWhere((c) => c.method == 'cancel');
+      final runId = (registered.arguments as Map)['runId'];
+      expect(removed.arguments, runId);
+      expect(runId, IosProactiveCareScheduler.notificationIdFor('c1'));
+      expect(runId, 'c1');
+
+      scheduler.dispose();
+    });
   });
 }

@@ -1,38 +1,34 @@
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/shared/widgets/markdown_with_highlight.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('long code keeps cross-chunk copying and iOS translation', (
+  testWidgets('long code copies whole from the surface owner across chunks', (
     tester,
   ) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-    addTearDown(() => debugDefaultTargetPlatformOverride = null);
-    const translation = MethodChannel('app.ios_translation');
-    final calls = <MethodCall>[];
+    // Past the shaping threshold the code block renders as windowed chunks.
+    // That windowing is a layout cost decision, not a selection one: the chunks
+    // are paragraphs of the surface's owner, so the owner's selection reaches
+    // all of them and copies the code itself — never the U+FFFC an owner of its
+    // own would put in its place.
+    String? copied;
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-    messenger.setMockMethodCallHandler(translation, (call) async {
-      calls.add(call);
-      return call.method == 'isAvailable' ? true : null;
-    });
-    String? copied;
     messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
       if (call.method == 'Clipboard.setData') {
         copied = (call.arguments as Map)['text'] as String;
       }
       return null;
     });
-    addTearDown(() {
-      messenger.setMockMethodCallHandler(translation, null);
-      messenger.setMockMethodCallHandler(SystemChannels.platform, null);
-    });
+    addTearDown(
+      () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+    );
     final source = ValueNotifier(
       List.generate(200, (i) => 'final value$i = "中文 $i";').join('\n'),
     );
+    addTearDown(source.dispose);
     await tester.pumpWidget(
       MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -41,12 +37,16 @@ void main() {
           body: SingleChildScrollView(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: ValueListenableBuilder<String>(
-                valueListenable: source,
-                builder: (_, value, _) => SelectableHighlightView(
-                  value,
-                  language: 'dart',
-                  textStyle: const TextStyle(fontSize: 13, height: 1.5),
+              // The owner a surface provides; the code block is one of its
+              // paragraphs.
+              child: SelectionArea(
+                child: ValueListenableBuilder<String>(
+                  valueListenable: source,
+                  builder: (_, value, _) => SelectableHighlightView(
+                    value,
+                    language: 'dart',
+                    textStyle: const TextStyle(fontSize: 13, height: 1.5),
+                  ),
                 ),
               ),
             ),
@@ -54,8 +54,16 @@ void main() {
         ),
       ),
     );
+    expect(
+      source.value.length,
+      greaterThan(2048),
+      reason: 'the test is about the windowed path',
+    );
     for (var i = 0; i < 2; i++) {
       await tester.pumpAndSettle();
+      // The code block owns no selection of its own; the only region is the
+      // owner's.
+      expect(find.byType(SelectableRegion), findsOneWidget);
       final region = tester.state<SelectableRegionState>(
         find.byType(SelectableRegion),
       );
@@ -73,25 +81,10 @@ void main() {
           .onPressed!();
       await tester.pump();
       expect(copied, source.value);
-      // Copy can clear selection, so restore it before opening the menu again.
-      region.selectAll(SelectionChangedCause.keyboard);
-      await tester.pumpAndSettle();
-      final translationMenu =
-          area.contextMenuBuilder!(
-                tester.element(find.byType(SelectionArea)),
-                region,
-              )
-              as AdaptiveTextSelectionToolbar;
-      translationMenu.buttonItems!
-          .singleWhere((item) => item.label == 'Translate')
-          .onPressed!();
-      await tester.pump();
-      expect((calls.last.arguments as Map)['text'], source.value);
-      region.clearSelection();
+      // The next round proves a grown source still copies whole: streaming
+      // appends a chunk while the selection is made.
       source.value += '\nfinal appended = "more";';
     }
     await tester.pumpWidget(const SizedBox.shrink());
-    source.dispose();
-    debugDefaultTargetPlatformOverride = null;
   });
 }

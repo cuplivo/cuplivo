@@ -28,10 +28,12 @@ import 'package:gpt_markdown/gpt_markdown.dart'
 /// [SanitizingSelectionArea.patchedDefaultItems] so Copy/Share stay
 /// sanitized).
 ///
-/// The copy-intent override captures Ctrl+C for the whole subtree, so do
-/// not nest editable widgets ([TextField], [SelectableText],
-/// [EditableText]) inside [child] — their copy shortcut would be
-/// redirected to the sanitized selection copy.
+/// The copy-intent override is registered only while this surface owns a
+/// selection. The markdown renderer nests selectables inside it — a code
+/// block's [SelectableText], a table cell, a nested [SelectionArea] for code
+/// past 2048 chars — and those own their selections outright. Leaving the
+/// intent to the framework while there is nothing of ours to sanitize is what
+/// keeps Ctrl+C inside a code block copying its text instead of nothing.
 class SanitizingSelectionArea extends StatefulWidget {
   const SanitizingSelectionArea({
     super.key,
@@ -134,6 +136,8 @@ class _SanitizingSelectionAreaState extends State<SanitizingSelectionArea> {
     return stripRendererInsertedCharacters(raw);
   }
 
+  /// Writes the sanitized selection. The override that calls this is registered
+  /// only while there is one, so this never runs on an empty selection.
   Future<void> _copyToClipboard() async {
     final text = _sanitizedSelection;
     if (text.isEmpty) return;
@@ -154,20 +158,36 @@ class _SanitizingSelectionAreaState extends State<SanitizingSelectionArea> {
   }
 
   void _handleSelectionChanged(SelectedContent? selection) {
-    _lastSelectionText = selection?.plainText;
+    final text = selection?.plainText;
+    final hadSelection = _lastSelectionText?.isNotEmpty ?? false;
+    final hasSelection = text?.isNotEmpty ?? false;
+    _lastSelectionText = text;
+    // The copy override's registration follows the emptiness, and `Actions`
+    // reads its map from the current widget, so the flip needs a rebuild. It
+    // happens once per selection, not once per drag frame.
+    if (hadSelection != hasSelection) setState(() {});
     widget.onSelectionChanged?.call(selection);
   }
 
   @override
   Widget build(BuildContext context) {
+    // Registered only while this surface owns a selection. The override covers
+    // the whole subtree, and the renderer nests selectables inside it — a code
+    // block's SelectableText, a table cell, a nested SelectionArea for code
+    // past 2048 chars — whose selections never reach our own
+    // [SelectionArea.onSelectionChanged]. With the entry always present, Ctrl+C
+    // inside one of those reached this action with an empty cache and copied
+    // nothing at all; leaving the intent to the framework while we have nothing
+    // to sanitize is what keeps them working.
     return Actions(
       actions: <Type, Action<Intent>>{
-        CopySelectionTextIntent: CallbackAction<CopySelectionTextIntent>(
-          onInvoke: (intent) {
-            unawaited(_copyToClipboard());
-            return null;
-          },
-        ),
+        if (_sanitizedSelection.isNotEmpty)
+          CopySelectionTextIntent: CallbackAction<CopySelectionTextIntent>(
+            onInvoke: (intent) {
+              unawaited(_copyToClipboard());
+              return null;
+            },
+          ),
       },
       child: SelectionArea(
         onSelectionChanged: _handleSelectionChanged,

@@ -211,5 +211,73 @@ void main() {
       expect(recorder.sharedText(), 'before target after');
       debugDefaultTargetPlatformOverride = null;
     });
+
+    testWidgets('keyboard copy inside a nested code block copies its text', (
+      tester,
+    ) async {
+      // The markdown renderer nests a SelectableText (short code) or a nested
+      // SelectionArea (long code) inside this widget, so that selection belongs
+      // to the nested owner and never reaches ours. Without the fallback to the
+      // focused owner's selection, this copied nothing at all.
+      final recorder = _ClipboardRecorder()..install(tester);
+      const code = '```dart\nvoid main() { print("hi"); }\n```';
+      await tester.pumpWidget(
+        await _harness(MarkdownWithCodeHighlight(text: code)),
+      );
+      await tester.pumpAndSettle();
+
+      final rect = tester.getRect(find.byType(SelectableHighlightView).first);
+      final gesture = await tester.startGesture(
+        Offset(rect.left + 6, rect.top + 8),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pump(const Duration(milliseconds: 20));
+      await gesture.moveTo(Offset(rect.right - 6, rect.top + 8));
+      await tester.pump(const Duration(milliseconds: 20));
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // The framework dispatches the shortcut from the focused widget.
+      final focus = FocusManager.instance.primaryFocus!;
+      Actions.invoke(focus.context!, CopySelectionTextIntent.copy);
+      await tester.pumpAndSettle();
+
+      expect(recorder.copiedText(), 'void main() { print("hi"); }');
+    });
+
+    testWidgets('a nested selectable copies through the framework, not us', (
+      tester,
+    ) async {
+      // Recorded limitation, not a wish. While a *nested* selectable owns the
+      // selection we cannot read it — `SelectableRegionState` exposes no public
+      // selection getter, and an ancestor cannot reach an [EditableText]'s
+      // state — so the copy override stands down and the framework copies the
+      // text it owns, un-sanitized. A code block carries no renderer-inserted
+      // characters; what is left is a table cell's soft-break ZWSPs, which
+      // leaked before this branch existed too (ADR-0009).
+      final recorder = _ClipboardRecorder()..install(tester);
+      const display = 'before\u200Btarget after';
+      await tester.pumpWidget(
+        await _harness(const SelectableText.rich(TextSpan(text: display))),
+      );
+      await tester.pumpAndSettle();
+
+      final rect = tester.getRect(find.byType(SelectableText));
+      final gesture = await tester.startGesture(
+        Offset(rect.left + 2, rect.center.dy),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pump(const Duration(milliseconds: 20));
+      await gesture.moveTo(Offset(rect.right - 2, rect.center.dy));
+      await tester.pump(const Duration(milliseconds: 20));
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      final focus = FocusManager.instance.primaryFocus!;
+      Actions.invoke(focus.context!, CopySelectionTextIntent.copy);
+      await tester.pumpAndSettle();
+
+      expect(recorder.copiedText(), 'before\u200Btarget after');
+    });
   });
 }

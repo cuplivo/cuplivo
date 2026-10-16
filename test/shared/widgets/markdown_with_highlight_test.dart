@@ -123,6 +123,26 @@ RenderParagraph _paragraphContaining(String text) {
       .firstWhere((paragraph) => paragraph.text.toPlainText().contains(text));
 }
 
+/// The colour the first text run of [paragraph] ends up with.
+///
+/// `Text.rich` puts the ambient style on the root span and the caller's span
+/// underneath it, so reading the root alone answers a different question than
+/// "what colour is this text".
+Color? _inkOf(RenderParagraph paragraph) {
+  Color? walk(InlineSpan span, Color? inherited) {
+    final color = span.style?.color ?? inherited;
+    if (span is TextSpan && (span.text?.isNotEmpty ?? false)) return color;
+    Color? found;
+    span.visitChildren((child) {
+      found ??= walk(child, color);
+      return found == null;
+    });
+    return found;
+  }
+
+  return walk(paragraph.text, null);
+}
+
 const _transparentPngDataUrl =
     'data:image/png;base64,'
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwAD'
@@ -5369,12 +5389,9 @@ Fenced code body
       inheritedInk,
     );
     expect(tester.widget<Text>(find.text('code')).style?.color, inheritedInk);
+    expect(_inkOf(_paragraphContaining('Theme table header')), themeInk);
     expect(
-      _paragraphContaining('Theme table header').text.style?.color,
-      themeInk,
-    );
-    expect(
-      _paragraphContaining('Theme table body').text.style?.color,
+      _inkOf(_paragraphContaining('Theme table body')),
       themeInk.withValues(alpha: 0.90),
     );
     final fencedCode = tester.widget<SelectableText>(

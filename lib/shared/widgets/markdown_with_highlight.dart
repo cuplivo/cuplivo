@@ -3716,7 +3716,6 @@ class _MarkdownTableBlockState extends State<_MarkdownTableBlock> {
           context,
           borderColor: borderColor,
           headerBg: headerBg,
-          compact: useCompactTable,
           columnWidth: columnWidth,
           fixedColumns: shouldScrollHorizontally,
           rowCount: isExporting
@@ -3753,28 +3752,31 @@ class _MarkdownTableBlockState extends State<_MarkdownTableBlock> {
         }
 
         final l10n = AppLocalizations.of(context)!;
-        return SelectionContainer.disabled(
-          child: Container(
-            key: const ValueKey('markdown-table-block'),
-            width: double.infinity,
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            decoration: BoxDecoration(
-              color: Color.alphaBlend(
-                cs.primary.withValues(alpha: isDark ? 0.045 : 0.018),
-                cs.surface,
-              ).withValues(alpha: kBlockFillAlphaTable),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            foregroundDecoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: borderColor, width: 0.8),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _MarkdownTableToolbar(
+        return Container(
+          key: const ValueKey('markdown-table-block'),
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: Color.alphaBlend(
+              cs.primary.withValues(alpha: isDark ? 0.045 : 0.018),
+              cs.surface,
+            ).withValues(alpha: kBlockFillAlphaTable),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          foregroundDecoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: borderColor, width: 0.8),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // The toolbar and the row pager are chrome, not text: they stay
+              // out of the selection so a copied selection cannot pick up a
+              // button label. The body is a paragraph of the surface's owner.
+              SelectionContainer.disabled(
+                child: _MarkdownTableToolbar(
                   label: l10n.markdownTableLabel,
                   backgroundColor: headerBg,
                   copyLabel: l10n.shareProviderSheetCopyButton,
@@ -3790,17 +3792,18 @@ class _MarkdownTableBlockState extends State<_MarkdownTableBlock> {
                       ? _exportImage(context)
                       : _saveImageToGallery(context),
                 ),
-                GestureDetector(
-                  key: const ValueKey('markdown-table-body'),
-                  behavior: HitTestBehavior.opaque,
-                  child: _buildMobileTableViewport(
-                    scrollable: shouldScrollHorizontally,
-                    child: tableSurface,
-                  ),
+              ),
+              GestureDetector(
+                key: const ValueKey('markdown-table-body'),
+                behavior: HitTestBehavior.opaque,
+                child: _buildMobileTableViewport(
+                  scrollable: shouldScrollHorizontally,
+                  child: tableSurface,
                 ),
-                if (!isExporting) _buildRowPager(context),
-              ],
-            ),
+              ),
+              if (!isExporting)
+                SelectionContainer.disabled(child: _buildRowPager(context)),
+            ],
           ),
         );
       },
@@ -3811,7 +3814,6 @@ class _MarkdownTableBlockState extends State<_MarkdownTableBlock> {
     BuildContext context, {
     required Color borderColor,
     required Color headerBg,
-    required bool compact,
     required double columnWidth,
     required bool fixedColumns,
     required int rowCount,
@@ -3845,7 +3847,6 @@ class _MarkdownTableBlockState extends State<_MarkdownTableBlock> {
                   style: style,
                   config: config,
                   appFontFamily: appFontFamily,
-                  selectable: !compact,
                 ),
             ],
           ),
@@ -4185,7 +4186,6 @@ class _MarkdownTableCell extends StatelessWidget {
     required this.style,
     required this.config,
     required this.appFontFamily,
-    required this.selectable,
   });
 
   final _MarkdownTableCellData data;
@@ -4193,7 +4193,6 @@ class _MarkdownTableCell extends StatelessWidget {
   final TextStyle style;
   final GptMarkdownConfig config;
   final String? appFontFamily;
-  final bool selectable;
 
   @override
   Widget build(BuildContext context) {
@@ -4216,39 +4215,15 @@ class _MarkdownTableCell extends StatelessWidget {
     );
     final textSpan = TextSpan(style: baseStyle, children: spans);
 
-    // A cell is a paragraph of whatever selection owner is above it. Joining
-    // that owner keeps a widget-backed run in the cell — an inline code chip, a
-    // citation, an inline formula, a link — as *declared text* inside one
-    // selection. The cell's own `SelectableText` instead bakes every such run
-    // into a single U+FFFC in its edit value, so copying a cell put that
-    // placeholder character on the clipboard and the run had no interior
-    // position to select into. A surface with no owner above it (see
-    // `SelectionContainer.maybeOf`) leaves the cell to own its own selection,
-    // so no caller loses the ability to select.
-    final Widget content;
-    if (!selectable) {
-      content = RichText(
-        text: textSpan,
-        textAlign: data.alignment,
-        softWrap: true,
-        overflow: TextOverflow.visible,
-        textWidthBasis: TextWidthBasis.parent,
-      );
-    } else if (SelectionContainer.maybeOf(context) != null) {
-      content = Text.rich(textSpan, textAlign: data.alignment);
-    } else {
-      // A surface with no owner above still leaves the cell owning its own
-      // selection, so it reports the claim like any other nested owner.
-      content = SelectableText.rich(
-        textSpan,
-        textAlign: data.alignment,
-        onSelectionChanged: (selection, _) {
-          if (!selection.isCollapsed) {
-            reportNestedSelectionClaimed(context);
-          }
-        },
-      );
-    }
+    // A cell is a paragraph of the surface's selection owner — one owner per
+    // surface, never a cell's own. Joining it is what keeps a widget-backed run
+    // in the cell (an inline code chip, a citation, an inline formula, a link)
+    // as *declared text*: the cell's own `SelectableText` instead baked every
+    // such run into a single U+FFFC in its edit value, so copying a cell put
+    // that placeholder character on the clipboard and the run had no interior
+    // position to select into. Every markdown surface provides the owner; a
+    // table rendered without one is not selectable, like any other bare text.
+    final Widget content = Text.rich(textSpan, textAlign: data.alignment);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),

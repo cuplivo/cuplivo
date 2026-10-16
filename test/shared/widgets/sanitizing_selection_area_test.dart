@@ -508,32 +508,70 @@ void main() {
   });
 
   group('nested selection owners claim from source', () {
-    test('the renderer owns no selection, and a diagram still claims', () {
-      // ADR-0010's rule is one selection owner per surface: a table cell and a
-      // code body are paragraphs of it, so the renderer must nest no selectable
-      // at all. This is the source-level half of that rule, and asking for zero
-      // is what keeps the count below from passing on an empty set.
-      final renderer = File(
+    test('every owner a renderer file creates reports the claim', () {
+      // ADR-0010's rule is one selection owner per surface, and ADR-0009
+      // decision 5 is the other half of it: what a surface's owner cannot reach
+      // as text owns its own selection — a diagram's code view, or a block in a
+      // surface that provides no owner at all — and reporting the claim is what
+      // stands the enclosing area's copy override down. Counting owners against
+      // claims is what keeps a new one from being added without that report.
+      for (final file in const [
         'lib/shared/widgets/markdown_with_highlight.dart',
-      ).readAsStringSync();
-      expect(
-        _nestedOwners(renderer),
-        0,
-        reason: 'ADR-0010: no component of the renderer owns a selection',
-      );
-
-      // A diagram's code view is outside that rule and still owns a selection,
-      // so it still has to report the claim: its selection never reaches the
-      // enclosing area's `onSelectionChanged`, and an area that does not stand
-      // down answers a copy inside it with its own stale text. It is why this
-      // cannot be a widget loop either — the view exists only once the code tab
-      // is selected, and the preview beside it fetches a diagram over the
-      // network.
-      final diagram = File(
         'lib/shared/widgets/plantuml_block.dart',
-      ).readAsStringSync();
-      expect(_nestedOwners(diagram), greaterThan(0));
-      expect(_claims(diagram), _nestedOwners(diagram));
+      ]) {
+        final source = File(file).readAsStringSync();
+        expect(
+          _claims(source),
+          _nestedOwners(source),
+          reason:
+              '$file has ${_nestedOwners(source)} nested selection owners but '
+              '${_claims(source)} claims',
+        );
+      }
+
+      // A diagram's code view is why this is not simply "the renderer nests
+      // nothing": it is outside ADR-0010's one-owner rule, exists only once the
+      // code tab is selected, and its preview fetches a diagram over the
+      // network — so it is a source-level count rather than a widget loop. Its
+      // file must keep producing an owner for the comparison above to mean
+      // anything there.
+      expect(
+        _nestedOwners(
+          File('lib/shared/widgets/plantuml_block.dart').readAsStringSync(),
+        ),
+        greaterThan(0),
+      );
+    });
+
+    testWidgets('an ordinary code block and table nest no owner of their own', (
+      tester,
+    ) async {
+      // The property a source count cannot see: a code body and a table's cells
+      // are paragraphs of the surface's owner, so the only region in the tree is
+      // the owner's own. A fallback owner is for a surface that provides none,
+      // not for these.
+      markdownTableTargetPlatformOverride = TargetPlatform.windows;
+      addTearDown(() => markdownTableTargetPlatformOverride = null);
+      await tester.pumpWidget(
+        await _harness(
+          const MarkdownWithCodeHighlight(
+            text:
+                'prose words here\n\n```dart\nvoid main() {}\n```\n\n'
+                '| head | second |\n| --- | --- |\n| alpha | bravo |',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SelectableRegion), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(SanitizingSelectionArea),
+          matching: find.byType(SelectableRegion),
+        ),
+        findsOneWidget,
+        reason: 'the only region is the surface owner\'s own',
+      );
     });
   });
 }

@@ -47,6 +47,7 @@ import 'markdown_block_list.dart';
 import 'streaming_rich_text.dart';
 import 'markdown_line_lexer.dart';
 import 'markdown_source_scan.dart';
+import 'selection_ownership.dart';
 
 // Inline math is parsed on the UI thread. Bound the lookahead window so a long
 // line with many unmatched openers cannot trigger repeated whole-line scans.
@@ -6802,9 +6803,46 @@ class _SelectableHighlightViewState extends State<SelectableHighlightView> {
     // owns a selection: one drag crosses the block, and what the selection
     // reports is the code the block shows. Past the threshold the shaping is
     // windowed for cost, which is a layout choice, not a selection one.
-    return _view ??= widget.source.length > 2048
+    //
+    // A surface that provides no owner at all - a mobile user bubble, whose
+    // long-press belongs to the message menu - has nothing to register with, so
+    // the block owns its selection there instead (ADR-0010).
+    final content = widget.source.length > 2048
         ? StreamingRichText(text: Text.rich(span))
         : Text.rich(span);
+    return _view ??= _ownedWhenUnreached(context, content);
+  }
+}
+
+/// A block the enclosing selection owner cannot reach as text owns its own
+/// selection and reports the claim (ADR-0009 decision 5). A markdown surface
+/// normally provides the owner; this is the last resort for one that
+/// deliberately does not (ADR-0010).
+Widget _ownedWhenUnreached(BuildContext context, Widget child) =>
+    SelectionContainer.maybeOf(context) == null
+    ? _SelfOwnedSelection(child: child)
+    : child;
+
+/// The block's own [SelectionArea], which is what makes a block selectable when
+/// nothing above it can reach the block's text. Reporting the claim is what
+/// stands an outer area's copy override down: while it is registered the
+/// framework's own copy actions forward to it, so without the report it would
+/// answer a copy inside this block with its own stale text.
+class _SelfOwnedSelection extends StatelessWidget {
+  const _SelfOwnedSelection({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SelectionArea(
+      onSelectionChanged: (content) {
+        if ((content?.plainText ?? '').isNotEmpty) {
+          reportNestedSelectionClaimed(context);
+        }
+      },
+      child: child,
+    );
   }
 }
 

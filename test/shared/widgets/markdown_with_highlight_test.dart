@@ -399,6 +399,54 @@ void _overrideMarkdownTablePlatform(TargetPlatform platform) {
   addTearDown(() => markdownTableTargetPlatformOverride = null);
 }
 
+/// Records what reaches the clipboard.
+class _ClipboardText {
+  String? value;
+
+  void install(WidgetTester tester) {
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        final data = Map<String, dynamic>.from(call.arguments as Map);
+        value = data['text'] as String?;
+      }
+      return null;
+    });
+    addTearDown(() {
+      messenger.setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+  }
+}
+
+/// The Copy item of the innermost [SelectionArea] around [region], built the way
+/// the framework builds the toolbar for a selection — which is also the path a
+/// surface with no `SanitizingSelectionArea` copies through.
+ContextMenuButtonItem _toolbarCopyItem(
+  WidgetTester tester,
+  SelectableRegionState region,
+) {
+  final areaFinder = find.byType(SelectionArea).first;
+  final area = tester.widget<SelectionArea>(areaFinder);
+  final menu =
+      area.contextMenuBuilder!(tester.element(areaFinder), region)
+          as AdaptiveTextSelectionToolbar;
+  return menu.buttonItems!.singleWhere(
+    (item) => item.type == ContextMenuButtonType.copy,
+  );
+}
+
+/// Selects everything [region] reaches and copies it through the toolbar.
+Future<void> _copyAllThroughToolbar(
+  WidgetTester tester,
+  SelectableRegionState region,
+) async {
+  region.selectAll(SelectionChangedCause.keyboard);
+  await tester.pump();
+  _toolbarCopyItem(tester, region).onPressed!();
+  await tester.pump();
+}
+
 Widget _streamingMarkdownHarness(
   ValueListenable<String> text, {
   double? width,
@@ -1842,6 +1890,68 @@ ${rows.join('\n')}
       lessThan(10),
     );
     expect(find.textContaining('line9999'), findsNothing);
+  });
+
+  group('a markdown surface that provides no selection owner', () {
+    // The case is a mobile user bubble: its markdown is rendered without a
+    // `SanitizingSelectionArea`, because a `SelectionArea` over the whole bubble
+    // would take the long-press that opens the message menu. A block whose text
+    // nothing above it can reach owns its own selection instead (ADR-0010) —
+    // without that, a fenced code block in a sent message is not selectable at
+    // all, which is what master did through the block's own `SelectableText`.
+    testWidgets('still lets its code block be selected and copied', (
+      tester,
+    ) async {
+      final clipboard = _ClipboardText()..install(tester);
+      await tester.pumpWidget(_markdownHarness('```dart\nvoid main() {}\n```'));
+      await tester.pumpAndSettle();
+
+      // The block owns the only region there is.
+      expect(find.byType(SelectableRegion), findsOneWidget);
+      await _copyAllThroughToolbar(
+        tester,
+        tester.state<SelectableRegionState>(find.byType(SelectableRegion)),
+      );
+
+      expect(clipboard.value, contains('void main() {}'));
+    });
+
+    testWidgets('leaves a compact table scrolling instead of selecting', (
+      tester,
+    ) async {
+      // The other half of the same decision. A compact table is horizontally
+      // scrollable, and a selection area over it would take the drag that
+      // scrolls it — the cost ADR-0010 records for the owned case, which must
+      // not be paid here, where no surface owner exists at all. Its cells were
+      // not selectable in this shape before this branch either (they sat in
+      // `SelectionContainer.disabled` on mobile), so nothing is lost.
+      _overrideMarkdownTablePlatform(TargetPlatform.iOS);
+      await tester.pumpWidget(
+        _markdownHarness(
+          '| A | B | C | D | E |\n| --- | --- | --- | --- | --- |\n| apple |',
+          width: 320,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final viewport = find.byKey(
+        const ValueKey('markdown-table-horizontal-scroll'),
+      );
+      final scroll = find.descendant(
+        of: viewport,
+        matching: find.byType(Scrollable),
+      );
+      final state = tester.state<ScrollableState>(scroll);
+      await tester.drag(viewport, const Offset(-100, 0));
+      await tester.pumpAndSettle();
+
+      expect(state.position.pixels, greaterThan(50));
+      // And the table still owns no region of its own.
+      expect(
+        find.descendant(of: viewport, matching: find.byType(SelectableRegion)),
+        findsNothing,
+      );
+    });
   });
 
   testWidgets(

@@ -3,6 +3,7 @@ import "../../../support/business_test_harness.dart";
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/providers/tts_provider.dart';
+import 'package:Cuplivo/core/providers/user_provider.dart';
 import 'package:Cuplivo/features/chat/utils/selection_markdown_memory.dart';
 import 'package:Cuplivo/features/chat/widgets/chat_message_widget.dart';
 import 'package:Cuplivo/features/home/services/ask_user_interaction_service.dart';
@@ -35,6 +36,13 @@ ChatMessage _message(String id, String content, {bool streaming = false}) =>
       isStreaming: streaming,
     );
 
+ChatMessage _userMessage(String id, String content) => ChatMessage(
+  role: 'user',
+  content: content,
+  conversationId: 'conversation-selection-markdown',
+  id: id,
+);
+
 Future<void> _pumpMessages(
   WidgetTester tester,
   List<ChatMessage> messages, {
@@ -57,6 +65,9 @@ Future<void> _pumpMessages(
         ),
         ChangeNotifierProvider<ToolApprovalService>.value(
           value: ToolApprovalService(),
+        ),
+        ChangeNotifierProvider<UserProvider>(
+          create: (_) => UserProvider(preferences: harness.preferences),
         ),
         ChangeNotifierProvider<AskUserInteractionService>.value(
           value: AskUserInteractionService(),
@@ -356,5 +367,74 @@ void main() {
     expect(recorder.text, contains('```dart'));
     expect(recorder.text, contains('void main() {}'));
     expect(recorder.text, contains('after'));
+  });
+
+  testWidgets('a mobile user bubble selects its code block, not its prose', (
+    tester,
+  ) async {
+    // The user bubble provides no selection owner on mobile, on purpose: a
+    // SelectionArea over it would take the long-press that opens the message
+    // menu. What the surface cannot reach, the block owns itself — without that,
+    // a fenced block in a sent message is not selectable at all, which is what
+    // master's own `SelectableText` gave it.
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    await _pumpMessages(tester, [
+      _userMessage(
+        'user-1',
+        'prose words here\n\n```dart\nvoid main() {}\n```',
+      ),
+    ]);
+
+    expect(find.byType(SanitizingSelectionArea), findsNothing);
+    // Only the block owns a region: the renderer itself is outside it, which is
+    // what keeps the long-press over the prose for the message menu.
+    expect(find.byType(SelectableRegion), findsOneWidget);
+    expect(
+      find.ancestor(
+        of: find.byType(MarkdownWithCodeHighlight),
+        matching: find.byType(SelectableRegion),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(SelectableHighlightView),
+        matching: find.byType(SelectableRegion),
+      ),
+      findsOneWidget,
+    );
+
+    // Reset inside the body: the framework's invariant check runs before
+    // tear-downs.
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('a desktop user bubble is owned by its surface, as before', (
+    tester,
+  ) async {
+    // The contrast row for the mobile one: on desktop the bubble wraps its
+    // markdown in a SanitizingSelectionArea, so the block is a paragraph of that
+    // owner and nothing owns a selection of its own.
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    await _pumpMessages(tester, [
+      _userMessage(
+        'user-1',
+        'prose words here\n\n```dart\nvoid main() {}\n```',
+      ),
+    ]);
+
+    expect(find.byType(SanitizingSelectionArea), findsOneWidget);
+    expect(find.byType(SelectableRegion), findsOneWidget);
+    expect(
+      find.ancestor(
+        of: find.byType(MarkdownWithCodeHighlight),
+        matching: find.byType(SelectableRegion),
+      ),
+      findsOneWidget,
+    );
+
+    debugDefaultTargetPlatformOverride = null;
   });
 }

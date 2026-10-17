@@ -739,3 +739,110 @@ contradicts one of them is a bug, not a preference.
   markup (`## `, a code span, a link) from that earlier place: the framework reports a selection as text
   alone, so the mapping has nothing to prefer by.
 - Reasoning text is 净化复制 but has no Markdown 复制: what it displays is not a 匹配源.
+
+## PDF export (PDF 导出) — ADR-0011 待写
+
+- **Export block model (导出块模型)**: the plain-data shape a conversation takes for export — `ExportText` /
+  `ExportReasoning` / `ExportToolCall` / `ExportImage` / `ExportFile`, built once by `buildExportDocument` and
+  consumed by all three writers (MD, TXT, PDF). It is what lets the PDF layout run on a background isolate:
+  bytes and strings cross, never a widget or a provider. MD and TXT are byte-identical to what they were
+  before it existed.
+- **PDF emitter (PDF 发射器)**: `buildConversationPdf` — the one place the export block model becomes a
+  `pdf` document. Its load-bearing rule is that **every text leaf is a direct child of the page flow**: the
+  writer can only break a `Column` *between* children, and its page guard is an `assert`, so a block taller
+  than a page would hang a release build instead of throwing. Grouping is therefore drawn per block
+  (`_BlockSkin`), never nested, and anything unbreakable (a picture, a formula, a table row) is capped.
+- **Font role (字体角色)**: one of 正文 / 代码 / Emoji, each resolved on its own because the writer needs a
+  different face for each. A role's answer is a `PdfFontChoice` — auto, a named system face, a downloadable
+  family, or the built-in font — and its state is carried as a `PdfFontStatus`, so which face a document was
+  drawn with is something the export can name rather than something a reader has to guess.
+- **Export degrade (导出降级)**: what the layout fell back from and reported — a formula set as its TeX, a
+  diagram set as its code, a picture set as its reference. A degrade is not a failure: the same conversation
+  is still worth exporting, and `PdfExportResult` is how the result screen says what is missing instead of
+  leaving a reader to notice it.
+- **Source indentation (源码缩进)**: how a list's nesting is recovered. The IR has no list container — a list
+  component matches one line — so a nested item is a sibling node whose line is indented, and
+  `pdfIndentForSourceLine` is the one place that turns that line's leading whitespace into points.
+- **Source preparation (源码准备)**: the rewrite stage a surface runs *before* the walk —
+  `markdownPreprocessFences` (citation markers → `[citation](id)`, link titles dropped, a display formula
+  written inside a line given a block of its own, code protected from the math passes) and
+  `markdownSanitizeImageLinks` (a local path with a space turned into a URI the image pattern can match). The
+  walk alone is not the grammar: a consumer with no widget tree must run this stage too, or it reads raw
+  source — which is exactly how an export printed `[cite:id]`, a link's title and a formula as markdown. A
+  *short* `$$x^2$$` is deliberately left intact, because the renderer treats it as text.
+- **Page ink (页面墨色)**: the accent and quiet ink a page draws links, citations, task boxes and table tints
+  with, resolved by the caller from the app's **light** scheme and guarded against white — a dark theme's
+  primary is a pale tint that would vanish into paper. Diagrams follow the same rule, because a bitmap
+  carries its own background: a diagram drawn for a dark screen would arrive as a dark box on a white page.
+- **Citation capsule (引用胶囊)**: the numbered pill a citation is drawn as, on screen and on paper alike. The
+  number is the cited result's place among that message's own search results — not something the text holds —
+  so it travels as `ExportMessage.citationIndex`, and which links are citations at all is one function
+  (`markdownCitationRefForLink`) both surfaces call.
+- **Task marker (任务标记)**: `[x]`/`[ ]`/`(x)`/`( )` as an item's own marker. `pdfTaskMarkerOf` reads it and
+  the page draws a box, a tick or a radio instead; an item whose only child is such a marker *is* that item —
+  the box labels the line rather than nesting a level inside it.
+- **Page scale (页面尺度)**: `kPdfBodyFontSize / kMarkdownBodyFontSize` — the factor everything the screen
+  measured in its own logical pixels keeps on paper (an author's `WxH` picture size, a 20-point citation pill,
+  an 18-point task box). It exists because the page sets prose at 10.5pt where the surface sets 15.5.
+- **Speaker line (发话人行)**: the header above a message's blocks. `ExportMessage.speaker` says what the
+  message *is* (a name is a label, and a label is not a role); an assistant gets a disc, its name and its time
+  stacked, a reader gets the label the caller passed (`PdfExportRequest.userLabel`) and no time.
+- **Avatar disc (头像圆盘)**: the circle beside an assistant's name. The screen paints the model's own picture
+  there, which is a bitmap that varies per message; the page draws the structure — a tinted disc and the icon
+  glyph the app already ships as a font (`PdfExportRequest.iconFont` + `assistantIcon`) — because an export
+  that cannot fetch a picture must still show the slot rather than an empty column.
+- **User band (用户底纹)**: the tint a reader's own messages are set on, the accent over paper at 7%. It is
+  drawn *per block* rather than as one box, for the same reason a table has no outer frame: a decorated
+  container around content that can break across pages is what makes this writer loop. Adjacent fills therefore
+  touch and the band is continuous until the page breaks — which also means it is square-ended.
+- **Faux-bold stroke (伪粗体描边)**: the weight the page draws where the screen asked for bold. The theme maps
+  every weight onto the one face an export can embed, so `fontWeight: bold` alone changes nothing; instead an
+  emphasised span is filled *and stroked* (`PdfTextRenderingMode.fillAndStroke`), with the line width set per
+  text leaf by a `CustomPaint` wrapper — graphics state, so it must be restored before the next leaf and
+  re-applied to each page fragment, both of which `CustomPaint`'s own save/restore and spanning hooks give. The
+  width is **3% of the size** (0.315pt beside 10.5pt prose), and the figure is lower than a real bold face's stem
+  difference would suggest because a stroke widens *every* contour it follows — the inside of a counter as much
+  as the outside of a stem, and a CJK crossbar is thinner than a Latin one at the same size. At 4% a page of
+  Chinese closed its own counters.
+- **Table type size (表格字号)**: a table's header and its cells at 13.0 and 13.5 logical pixels of the screen
+  (8.806 and 9.145 points here), the header smaller and heavier for it. It is named because it is the one place
+  the writer's own default is reachable: a cell whose text crosses as a plain string is drawn with
+  `ThemeData.defaultTextStyle` — 12 points, larger than this page's prose and larger than its own header — so
+  every cell, header and body alike, is built as a widget that carries its own style.
+- **Formula raster scale (公式栅格尺度)**: the size a formula is *drawn* at before it is embedded. The screen
+  sets an inline formula at 1.2 of its prose and a display one at the prose size itself; the page captures at
+  those sizes and 5× pixels, and an inline picture taller than the prose line is shrunk into it, because the
+  writer advances the line *after* a span by its overhang and a paragraph of formulas would otherwise read as a
+  paragraph of gaps.
+
+Deliberate divergences from the screen (each measured, not a matter of taste — ADR-0011 candidates):
+
+- An unordered list keeps `-`: the writer's built-in face reaches only U+00FF, and `glyphMetrics` **throws**
+  for U+2022, so a bullet glyph is a crash risk on the one path that has no embedded face.
+- Inline code carries a fill but no padding or frame: a padded box would have to be an inline widget, and an
+  inline widget cannot break across lines — the screen's long-code wrapping depends on breaking.
+- A code block has no header bar (language, copy, save, preview): those are affordances, and a printed page
+  has nothing to click.
+- A table has no rounded outer frame: a decorated container around something that can run past a page is the
+  unbreakable box this writer loops on.
+- A reader's message is a full-width square-ended band, not a right-aligned rounded bubble: same reason as the
+  table's frame, and the rounding cannot survive being drawn block by block.
+- A reader's message carries no timestamp and is headed with the export's own label rather than the profile's
+  name: a page that leaves someone's disk should say who spoke, not who the reader is.
+- A bold run inside a *different* colour (a link's label) keeps its weight request and loses the stroke: one
+  text leaf has one stroke colour, and an ink outline around an accent-coloured link is worse than plain type.
+- Italic is not drawn: the writer embeds a single face and there is no honest way to slant it per span.
+- A display formula is set at the prose size rather than enlarged, and an inline one at 1.2 of it, clamped into
+  the prose line — both are the screen's own ratios read onto paper.
+- The paragraph gap is the page's own, not the screen's blank line — two empty lines of list height is a chat
+  convention, and a printed page that airy spends a fifth of its length on nothing. A blank line the *source*
+  wrote is folded into that gap too (31.6 → 16.9 points, the price of a paragraph break) rather than drawn as
+  one, which the renderer does do: a run of prose reaches the page as one text node with the blank line still
+  inside it, and drawing it literally costs two line pitches for one gap. A blank line *inside* an emphasised
+  run (`**a` / blank / `b**`) is still drawn, because splitting there would split the emphasis.
+- A link keeps its underline: the screen separates a link by colour alone, and paper has no hover.
+- A bare `[n]` citation chip stays a number rather than becoming a capsule.
+- The rest of the message chrome — the reasoning rail, tool cards, the sources card, the token footer — is
+  still out of scope: it is a layout decision about what a PDF *is* rather than a fidelity defect, and the
+  parts of it that carry content (thinking, tool calls, citations) are already written out by the block model.
+

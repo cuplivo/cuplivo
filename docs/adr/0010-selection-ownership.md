@@ -32,14 +32,14 @@ opts a subtree out. Nothing forces a second owner.
 
 1. **One selection owner per surface.** The assistant bubble's `SelectionArea` owns the selection for the
    whole message, and a markdown surface without one provides it (the skill body, the export sheet).
-   Everything selectable in that surface is a paragraph of that owner; no owner is nested inside another.
-   A diagram's code tab is the one place a markdown surface still nests one — it is a widget of its own
-   with a `SelectableText` — which is why the copy-intent override still stands down on a claim
-   (ADR-0009 decision 5).
-2. **A table cell and a code body are ordinary paragraphs.** A cell renders `Text.rich`; a code block's
-   body renders `Text.rich`, with windowed shaping past the length threshold, which is a layout cost
-   rather than a selection one; the lazy code view's chunks are paragraphs of the same owner. One drag
-   crosses cells, a block and the chunks of a long block.
+   Everything selectable in that surface is a paragraph of that owner; a block whose text the owner
+   cannot reach nests its own instead: a diagram's code tab — a widget of its own with a `SelectableText`
+   — and the lazy code viewport, which only builds the chunks it shows. Those report the claim, which is
+   why the copy-intent override still stands down on one (ADR-0009 decision 5).
+2. **A table cell and a code body are ordinary paragraphs — up to the lazy threshold.** A cell renders
+   `Text.rich`, and so does a code block's body; one drag crosses cells and a block. Past the threshold
+   the body is a chunk viewport that builds only the chunks it shows, so its text is not reachable from
+   the owner at all: the block owns its own selection, and its node is a gap, like a diagram's.
 3. **A widget-backed run declares what it contributes.** Text-like content is text: a run that must be a
    widget — a link, a citation chip, an inline formula, an image — declares the text it shows, which is
    what makes it copyable and partially selectable from the surrounding selection. Content with no text
@@ -58,8 +58,9 @@ opts a subtree out. Nothing forces a second owner.
 
 ## Consequences
 
-- One drag selects across prose, cells, code bodies and the chunks of a long block, and one toolbar
-  serves the surface.
+- One drag selects across prose, cells and code bodies, and one toolbar serves the surface; a body past
+  the lazy threshold is selected inside its viewport instead, and a selection spanning it re-emits the
+  whole fence, because its gap is what carries the fence back.
 - A copied cell carries the code it shows instead of U+FFFC, and a selection spanning a table or a code
   block maps to its source, re-emitting the table or the fence, because the display space declares what
   the selection reports.
@@ -76,7 +77,9 @@ opts a subtree out. Nothing forces a second owner.
   one starts a selection instead of doing nothing (a touch drag over it still does not scroll it —
   measured identical in the old and new structures); and a code block no longer offers a toolbar of its
   own, so copying part of a block goes through the surface's toolbar while the header's button copies the
-  whole block.
+  whole block. Past the lazy threshold that last point inverts: the viewport is a 420-pixel window, so the
+  surface owner copies no part of the body and the block's own toolbar comes back for it — and the seam is
+  the fence, not the visible lines, so a selection that spans the viewport re-emits the fence whole.
 
 ## Not in scope
 

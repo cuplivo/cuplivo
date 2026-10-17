@@ -41,7 +41,15 @@ final class _DriftFixture {
   final bool streaming;
 }
 
-const List<_DriftFixture> _fixtures = [
+/// A fence body past the lazy threshold: the block renders as a chunk viewport
+/// that only builds the chunks it shows, so no owner above it can reach the
+/// whole text (ADR-0010).
+final String _lazyFenceBody = List<String>.generate(
+  1050,
+  (index) => 'line$index',
+).join('\n');
+
+final List<_DriftFixture> _fixtures = [
   _DriftFixture(
     'emphasis, inline code and paragraphs',
     '**Bold**, and *italic* with `code`.\n\nSecond paragraph.',
@@ -80,6 +88,10 @@ const List<_DriftFixture> _fixtures = [
     'unclosed fence body holding dollars and tags',
     '```text\nprice \$5 and <b>bold</b>',
     streaming: true,
+  ),
+  _DriftFixture(
+    'fence body past the lazy threshold',
+    'intro\n\n```text\n$_lazyFenceBody\n```\n\noutro',
   ),
   _DriftFixture('link label', '[label](https://example.com) tail'),
   _DriftFixture(
@@ -215,8 +227,14 @@ Future<String> _copiedText(
     await tester.tap(find.text(expand).first);
     await tester.pumpAndSettle();
   }
+  // The surface owner's own region, not one a block carries for itself: a chunk
+  // viewport past the threshold owns a region of its own, and this check is
+  // about what the surface copies.
   final region = tester.state<SelectableRegionState>(
-    find.byType(SelectableRegion),
+    find.ancestor(
+      of: find.byType(MarkdownWithCodeHighlight),
+      matching: find.byType(SelectableRegion),
+    ),
   );
   region.selectAll(SelectionChangedCause.keyboard);
   await tester.pumpAndSettle();
@@ -288,6 +306,27 @@ void main() {
       );
     });
   }
+
+  testWidgets('a fence past the lazy threshold is a gap, not display text', (
+    tester,
+  ) async {
+    final source = 'intro\n\n```text\n$_lazyFenceBody\n```\n\noutro';
+    final document = MarkdownWithCodeHighlight.markdownDocument(
+      source,
+      settings: SettingsProvider(createBusinessTestPreferences()),
+      streaming: false,
+    );
+    // The viewport only builds the chunks it shows, so its body is not display
+    // text at all: the prose around it is what a selection over the block
+    // reports, and no line of the body can be mapped.
+    expect(document.displayText, isNot(contains('line1')));
+    expect(document.displayText, contains('intro'));
+    expect(document.displayText, contains('outro'));
+    expect(document.emitSelectionMarkdown('line1'), isNull);
+    // A selection that spans the block still re-emits it whole, backticks and
+    // all: the gap is what carries the fence back.
+    expect(document.emitSelectionMarkdown(document.displayText), source);
+  });
 
   testWidgets('details block collapsed again after being read', (tester) async {
     const source = '<details><summary>More</summary>hidden body</details>';

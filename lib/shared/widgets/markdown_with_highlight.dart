@@ -2921,14 +2921,19 @@ class _CollapsibleCodeBlockState extends State<_CollapsibleCodeBlock> {
     Widget buildCodeView(String visibleCode) {
       final bool isDesktop =
           Platform.isMacOS || Platform.isWindows || Platform.isLinux;
-      if (_exceedsLineThreshold(visibleCode, 1000)) {
-        return _VirtualizedCodeView(
-          code: visibleCode,
-          language: codeLanguage,
-          theme: codeTheme,
-          textStyle: codeTextStyle,
-          enableHighlight: highlightEnabled,
-          wrap: isDesktop || settings.mobileCodeBlockWrap,
+      if (_CollapsibleCodeBlockState.isLazyCodeBody(visibleCode)) {
+        // The viewport builds only the chunks it shows, so nothing above it can
+        // reach the block's text: it owns its own selection instead, and the
+        // walk declares it a gap (ADR-0010).
+        return _SelfOwnedSelection(
+          child: _VirtualizedCodeView(
+            code: visibleCode,
+            language: codeLanguage,
+            theme: codeTheme,
+            textStyle: codeTextStyle,
+            enableHighlight: highlightEnabled,
+            wrap: isDesktop || settings.mobileCodeBlockWrap,
+          ),
         );
       }
       final codeView = SelectableHighlightView(
@@ -3247,6 +3252,16 @@ class _CollapsibleCodeBlockState extends State<_CollapsibleCodeBlock> {
     if (expanded) return _trimTrailingNewlines(code);
     return collapsedCode(code, _collapsedVisibleLineCount(collapsedLines));
   }
+
+  /// The line count past which a body stops being one text and becomes the
+  /// chunk viewport, whose text nothing above it can reach (ADR-0010).
+  static const int lazyCodeViewLineThreshold = 1000;
+
+  /// Whether [code] renders as the lazy chunk viewport rather than as one text.
+  /// The renderer and the walk both decide with this, so the display space can
+  /// never declare a body the viewport does not show.
+  static bool isLazyCodeBody(String code) =>
+      _exceedsLineThreshold(code, lazyCodeViewLineThreshold);
 
   static bool _exceedsLineThreshold(String code, int threshold) {
     if (threshold < 1) return true;
@@ -5511,22 +5526,26 @@ class FencedCodeBlockMd extends BlockMd {
       // the whole fence rides along the way it always did.
       return MdNode.gap(MdNodeKind.codeBlock, ctx.rangeOf(text));
     }
+    final shown = _CollapsibleCodeBlockState.shownCode(
+      language: (m.group(3) ?? '').trim(),
+      code: _unmaskHtmlTagStartsInsideFencedCode(
+        m.group(4) ?? m.group(5) ?? '',
+      ),
+      autoCollapse: expansion.autoCollapse,
+      collapsedLines: expansion.collapsedLines,
+    );
+    if (_CollapsibleCodeBlockState.isLazyCodeBody(shown)) {
+      // Past the threshold the body is a chunk viewport that only builds the
+      // chunks it shows, so the surface's owner never reaches the whole text:
+      // the block owns its own selection, and the fence re-emits whole when a
+      // selection spans it (ADR-0010).
+      return MdNode.gap(MdNodeKind.codeBlock, ctx.rangeOf(text));
+    }
     // The body is a paragraph of the surface's selection owner, so a selection
     // over the block reports the code it shows: the display space declares
     // exactly that, and the fence still re-emits whole, because its backticks
     // live outside the body.
-    return MdNode.opaque(
-      MdNodeKind.codeBlock,
-      ctx.rangeOf(text),
-      _CollapsibleCodeBlockState.shownCode(
-        language: (m.group(3) ?? '').trim(),
-        code: _unmaskHtmlTagStartsInsideFencedCode(
-          m.group(4) ?? m.group(5) ?? '',
-        ),
-        autoCollapse: expansion.autoCollapse,
-        collapsedLines: expansion.collapsedLines,
-      ),
-    );
+    return MdNode.opaque(MdNodeKind.codeBlock, ctx.rangeOf(text), shown);
   }
 }
 
@@ -6816,18 +6835,19 @@ class _SelectableHighlightViewState extends State<SelectableHighlightView> {
 
 /// A block the enclosing selection owner cannot reach as text owns its own
 /// selection and reports the claim (ADR-0009 decision 5). A markdown surface
-/// normally provides the owner; this is the last resort for one that
-/// deliberately does not (ADR-0010).
+/// normally provides the owner; this is the fallback for one that deliberately
+/// does not (ADR-0010).
 Widget _ownedWhenUnreached(BuildContext context, Widget child) =>
     SelectionContainer.maybeOf(context) == null
     ? _SelfOwnedSelection(child: child)
     : child;
 
-/// The block's own [SelectionArea], which is what makes a block selectable when
-/// nothing above it can reach the block's text. Reporting the claim is what
-/// stands an outer area's copy override down: while it is registered the
-/// framework's own copy actions forward to it, so without the report it would
-/// answer a copy inside this block with its own stale text.
+/// A block's own [SelectionArea], which is what makes a block selectable when
+/// the enclosing owner cannot reach its text at all: a surface that provides no
+/// owner, and the lazy chunk viewport, which only builds the chunks it shows.
+/// Reporting the claim is what stands an outer area's copy override down: while
+/// it is registered the framework's own copy actions forward to it, so without
+/// the report it would answer a copy inside this block with its own stale text.
 class _SelfOwnedSelection extends StatelessWidget {
   const _SelfOwnedSelection({required this.child});
 

@@ -1952,6 +1952,65 @@ ${rows.join('\n')}
         findsNothing,
       );
     });
+
+    testWidgets('gives its lazy code view the only region it shows', (
+      tester,
+    ) async {
+      // Past the threshold the body is a chunk viewport, which only builds the
+      // chunks it shows: nothing above it can reach the whole text, so the block
+      // owns its own selection and reports the claim (ADR-0010). Before this,
+      // every built chunk owned a region of its own, so one drag could not cross
+      // the viewport and the surface copied a silently truncated body.
+      final clipboard = _ClipboardText()..install(tester);
+      final code = List<String>.generate(
+        1050,
+        (index) => 'line$index',
+      ).join('\n');
+      await tester.pumpWidget(
+        _markdownHarness('```text\n$code\n```', width: 500),
+      );
+      await tester.pumpAndSettle();
+
+      final view = find.byKey(const ValueKey('virtualized-code-view'));
+      expect(view, findsOneWidget);
+      expect(find.byType(SelectableRegion), findsOneWidget);
+      expect(
+        find.ancestor(of: view, matching: find.byType(SelectableRegion)),
+        findsOneWidget,
+        reason: 'one region owns the whole viewport',
+      );
+
+      await _copyAllThroughToolbar(
+        tester,
+        tester.state<SelectableRegionState>(find.byType(SelectableRegion)),
+      );
+
+      expect(clipboard.value, contains('line0'));
+    });
+
+    testWidgets('keeps its lazy code view scrolling', (tester) async {
+      // The block's own selection area must not take the drag that scrolls the
+      // viewport: it is a 420-pixel window onto the whole body, and losing the
+      // scroll would cost more than the selection it buys.
+      final code = List<String>.generate(
+        1050,
+        (index) => 'line$index',
+      ).join('\n');
+      await tester.pumpWidget(
+        _markdownHarness('```text\n$code\n```', width: 500),
+      );
+      await tester.pumpAndSettle();
+
+      final view = find.byKey(const ValueKey('virtualized-code-view'));
+      final scroll = find
+          .descendant(of: view, matching: find.byType(Scrollable))
+          .first;
+      final state = tester.state<ScrollableState>(scroll);
+      await tester.drag(view, const Offset(0, -200));
+      await tester.pumpAndSettle();
+
+      expect(state.position.pixels, greaterThan(50));
+    });
   });
 
   testWidgets(

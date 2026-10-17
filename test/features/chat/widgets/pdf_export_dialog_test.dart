@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:Cuplivo/core/models/chat_message.dart';
@@ -167,6 +168,85 @@ void main() {
     expect(find.text('Export complete'), findsNothing);
     // And the dialog it came from is gone rather than left behind the save.
     expect(find.text('Body font'), findsNothing);
+  });
+
+  testWidgets('starts the export only once the options have left the screen', (
+    tester,
+  ) async {
+    final gate = Completer<void>();
+    var surfaceStillUp = true;
+    await _open(
+      tester,
+      resolver: _FakeResolver(_faces()),
+      run:
+          (
+            context, {
+            required conversation,
+            required messages,
+            required options,
+            googleFonts,
+            resolver,
+          }) async {
+            // The moment the export starts is the moment a reader stops seeing the
+            // configuration: the overlay and the save dialog are raised from the
+            // page, and a dialog still sliding out behind them is what reads as one
+            // that never closed.
+            surfaceStillUp = find.text('Body font').evaluate().isNotEmpty;
+            await gate.future;
+            return _result();
+          },
+    );
+
+    await tester.tap(find.text('Export PDF').last);
+    await tester.pumpAndSettle();
+    await tester.pump();
+
+    // The export is under way — its runner is holding — and nothing of the dialog
+    // is on screen.
+    expect(surfaceStillUp, isFalse);
+    expect(find.text('Body font'), findsNothing);
+    expect(find.text('Export PDF'), findsNothing);
+
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('Export complete'), findsOneWidget);
+  });
+
+  testWidgets('reports an export that outlives the dialog it was asked from', (
+    tester,
+  ) async {
+    final gate = Completer<void>();
+    var mountedAfterwards = false;
+    await _open(
+      tester,
+      resolver: _FakeResolver(_faces()),
+      run:
+          (
+            context, {
+            required conversation,
+            required messages,
+            required options,
+            googleFonts,
+            resolver,
+          }) async {
+            // A real export takes seconds, and every surface it raises — the
+            // progress overlay, the save dialog, the result — is the page's. A run
+            // launched from the dialog's own context would find it disposed here,
+            // and the result would never be shown.
+            await gate.future;
+            mountedAfterwards = context.mounted;
+            return _result();
+          },
+    );
+
+    await tester.tap(find.text('Export PDF').last);
+    await tester.pumpAndSettle();
+    gate.complete();
+    await tester.pumpAndSettle();
+
+    expect(mountedAfterwards, isTrue);
+    expect(find.text('Export complete'), findsOneWidget);
+    expect(find.text('42 pages · 2.0 MB'), findsOneWidget);
   });
 
   testWidgets('an export with nothing to report says only the size', (

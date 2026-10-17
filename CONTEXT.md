@@ -831,10 +831,11 @@ contradicts one of them is a bug, not a preference.
 
 ## PDF export (PDF 导出) — ADR-0011 待写
 
-- **Export block model (导出块模型)**: the plain-data shape a conversation takes for export — `ExportTitle` /
-  `ExportText` / `ExportReasoning` / `ExportTool` — built once by `buildExportDocument` and consumed by all
-  three writers (MD, TXT, PDF). It is what lets the PDF layout run on a background isolate: bytes and strings
-  cross, never a widget or a provider. MD and TXT are byte-identical to what they were before it existed.
+- **Export block model (导出块模型)**: the plain-data shape a conversation takes for export — `ExportText` /
+  `ExportReasoning` / `ExportToolCall` / `ExportImage` / `ExportFile`, built once by `buildExportDocument` and
+  consumed by all three writers (MD, TXT, PDF). It is what lets the PDF layout run on a background isolate:
+  bytes and strings cross, never a widget or a provider. MD and TXT are byte-identical to what they were
+  before it existed.
 - **PDF emitter (PDF 发射器)**: `buildConversationPdf` — the one place the export block model becomes a
   `pdf` document. Its load-bearing rule is that **every text leaf is a direct child of the page flow**: the
   writer can only break a `Column` *between* children, and its page guard is an `assert`, so a block taller
@@ -851,3 +852,43 @@ contradicts one of them is a bug, not a preference.
 - **Source indentation (源码缩进)**: how a list's nesting is recovered. The IR has no list container — a list
   component matches one line — so a nested item is a sibling node whose line is indented, and
   `pdfIndentForSourceLine` is the one place that turns that line's leading whitespace into points.
+- **Source preparation (源码准备)**: the rewrite stage a surface runs *before* the walk —
+  `markdownPreprocessFences` (citation markers → `[citation](id)`, link titles dropped, a display formula
+  written inside a line given a block of its own, code protected from the math passes) and
+  `markdownSanitizeImageLinks` (a local path with a space turned into a URI the image pattern can match). The
+  walk alone is not the grammar: a consumer with no widget tree must run this stage too, or it reads raw
+  source — which is exactly how an export printed `[cite:id]`, a link's title and a formula as markdown. A
+  *short* `$$x^2$$` is deliberately left intact, because the renderer treats it as text.
+- **Page ink (页面墨色)**: the accent and quiet ink a page draws links, citations, task boxes and table tints
+  with, resolved by the caller from the app's **light** scheme and guarded against white — a dark theme's
+  primary is a pale tint that would vanish into paper. Diagrams follow the same rule, because a bitmap
+  carries its own background: a diagram drawn for a dark screen would arrive as a dark box on a white page.
+- **Citation capsule (引用胶囊)**: the numbered pill a citation is drawn as, on screen and on paper alike. The
+  number is the cited result's place among that message's own search results — not something the text holds —
+  so it travels as `ExportMessage.citationIndex`, and which links are citations at all is one function
+  (`markdownCitationRefForLink`) both surfaces call.
+- **Task marker (任务标记)**: `[x]`/`[ ]`/`(x)`/`( )` as an item's own marker. `pdfTaskMarkerOf` reads it and
+  the page draws a box, a tick or a radio instead; an item whose only child is such a marker *is* that item —
+  the box labels the line rather than nesting a level inside it.
+- **Page scale (页面尺度)**: `kPdfBodyFontSize / kMarkdownBodyFontSize` — the factor everything the screen
+  measured in its own logical pixels keeps on paper (an author's `WxH` picture size, a 20-point citation pill,
+  an 18-point task box). It exists because the page sets prose at 10.5pt where the surface sets 15.5.
+
+Deliberate divergences from the screen (each measured, not a matter of taste — ADR-0011 candidates):
+
+- An unordered list keeps `-`: the writer's built-in face reaches only U+00FF, and `glyphMetrics` **throws**
+  for U+2022, so a bullet glyph is a crash risk on the one path that has no embedded face.
+- Inline code carries a fill but no padding or frame: a padded box would have to be an inline widget, and an
+  inline widget cannot break across lines — the screen's long-code wrapping depends on breaking.
+- A code block has no header bar (language, copy, save, preview): those are affordances, and a printed page
+  has nothing to click.
+- A table has no rounded outer frame: a decorated container around something that can run past a page is the
+  unbreakable box this writer loops on.
+- The paragraph gap is the page's own, not the screen's blank line — two empty lines of list height is a chat
+  convention, and a printed page that airy spends a fifth of its length on nothing.
+- A link keeps its underline: the screen separates a link by colour alone, and paper has no hover.
+- A bare `[n]` citation chip stays a number rather than becoming a capsule.
+- Message chrome (bubble and alignment, identity, reasoning rail, tool cards, attachments, the sources card,
+  token footer) is out of scope: it is a排版 decision about what a PDF *is*, not a defect, and it would need
+  `ExportMessage` extended first.
+

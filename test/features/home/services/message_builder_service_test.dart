@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/message_quote.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/api/providers/claude/claude_container.dart';
@@ -1774,4 +1775,136 @@ void main() {
       },
     );
   });
+
+  group('MessageBuilderService reply citation', () {
+    Future<SettingsProvider> newSettings() async {
+      SharedPreferences.setMockInitialValues({});
+      final settings = SettingsProvider(createBusinessTestPreferences());
+      await settings.loaded;
+      return settings;
+    }
+
+    ChatMessage target({
+      String id = 'assistant-1',
+      String content = '## Setup\n\nrun npm ci',
+    }) => ChatMessage(
+      id: id,
+      role: 'assistant',
+      content: content,
+      conversationId: 'conversation-1',
+    );
+
+    ChatMessage reply({
+      required MessageQuote quote,
+      String id = 'user-1',
+      String content = 'what about that?',
+    }) => ChatMessage(
+      id: id,
+      role: 'user',
+      content: content,
+      conversationId: 'conversation-1',
+      quote: quote,
+    );
+
+    Future<List<Map<String, dynamic>>> rendered(
+      MessageBuilderService service,
+      SettingsProvider settings,
+      List<ChatMessage> source,
+      ChatMessage quotedMessage,
+    ) async {
+      final apiMessages = <Map<String, dynamic>>[
+        {
+          'role': 'user',
+          'content': quotedMessage.content,
+          MessageBuilderService.internalRevisionIdKey: quotedMessage.id,
+        },
+      ];
+      await service.processUserMessagesForApi(
+        apiMessages,
+        settings,
+        const Assistant(id: 'a1', name: 'test'),
+        sourceMessages: source,
+      );
+      return apiMessages;
+    }
+
+    MessageBuilderService service() => MessageBuilderService(
+      chatService: _FakeChatService(const {}),
+      contextProvider: _FakeBuildContext(),
+    );
+
+    test('a whole-message reply cites the target as raw markdown', () async {
+      final settings = await newSettings();
+      final quoted = target();
+      final user = reply(quote: MessageQuote(id: quoted.id));
+
+      final apiMessages = await rendered(service(), settings, [
+        quoted,
+        user,
+      ], user);
+
+      expect(
+        apiMessages.single['content'],
+        '<reply-to>## Setup\n\nrun npm ci</reply-to>\n\nwhat about that?',
+      );
+    });
+
+    test('a ranged reply cites its own snapshot', () async {
+      final settings = await newSettings();
+      final quoted = target();
+      final user = reply(
+        quote: MessageQuote(id: quoted.id, text: 'run `npm ci`'),
+      );
+
+      final apiMessages = await rendered(service(), settings, [
+        quoted,
+        user,
+      ], user);
+
+      expect(
+        apiMessages.single['content'],
+        '<reply-to>run `npm ci`</reply-to>\n\nwhat about that?',
+      );
+    });
+
+    test('an unresolvable target yields no prefix at all', () async {
+      final settings = await newSettings();
+      final user = reply(quote: const MessageQuote(id: 'deleted-message'));
+
+      final apiMessages = await rendered(service(), settings, [user], user);
+
+      expect(apiMessages.single['content'], 'what about that?');
+      expect(apiMessages.single['content'], isNot(contains(replyToTag)));
+    });
+
+    test('a target with no text of its own yields no prefix', () async {
+      final settings = await newSettings();
+      final quoted = target(id: 'assistant-empty', content: '');
+      final user = reply(quote: MessageQuote(id: quoted.id));
+
+      final apiMessages = await rendered(service(), settings, [
+        quoted,
+        user,
+      ], user);
+
+      expect(apiMessages.single['content'], isNot(contains(replyToTag)));
+    });
+
+    test('a plain message is untouched', () async {
+      final settings = await newSettings();
+      final user = ChatMessage(
+        id: 'user-1',
+        role: 'user',
+        content: 'plain question',
+        conversationId: 'conversation-1',
+      );
+
+      final apiMessages = await rendered(service(), settings, [user], user);
+
+      expect(apiMessages.single['content'], 'plain question');
+    });
+  });
 }
+
+/// The model-facing citation marker, spelled once so the tests read as prose.
+const String replyToTag = '<reply-to>';

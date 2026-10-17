@@ -1,4 +1,5 @@
 import 'composer_draft.dart' show DraftSubmission;
+import 'message_quote.dart';
 
 class DocumentAttachment {
   final String path; // absolute file path
@@ -19,12 +20,17 @@ class ChatInputData {
   final bool allowImagesApiRouting;
   final DraftSubmission? draftSubmission;
 
+  /// The pending reply citation, carried into the persisted user message as
+  /// `ChatMessage.quote`. Null = a plain send.
+  final MessageQuote? quote;
+
   const ChatInputData({
     required this.text,
     this.imagePaths = const [],
     this.documents = const [],
     this.allowImagesApiRouting = true,
     this.draftSubmission,
+    this.quote,
   });
 }
 

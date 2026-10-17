@@ -55,6 +55,16 @@ typedef OnSelectMessages =
     void Function(int messageIndex, List<ChatMessage> messages);
 typedef OnSpeakMessage = Future<void> Function(ChatMessage message);
 typedef OnSuggestionTap = void Function(String suggestion);
+
+/// Starts a whole-message reply to [message] (docs/adr/0011).
+typedef OnReplyMessage = void Function(ChatMessage message);
+
+/// Starts a ranged reply from [selected]'s markdown, in [message].
+typedef OnReplySelectionMessage =
+    void Function(ChatMessage message, String selectedMarkdown);
+
+/// Jumps to the message a reply cites.
+typedef OnQuoteTap = void Function(String messageId);
 typedef OnRecoveredAskUserAnswer =
     Future<void> Function(
       ChatMessage message,
@@ -134,6 +144,9 @@ class MessageListView extends StatefulWidget {
     this.onShareMessage,
     this.onSelectMessages,
     this.onSpeakMessage,
+    this.onReplyMessage,
+    this.onReplySelectionMessage,
+    this.onQuoteTap,
     this.suggestions = const <String>[],
     this.onSuggestionTap,
     this.onRecoveredAskUserAnswer,
@@ -227,6 +240,9 @@ class MessageListView extends StatefulWidget {
   final OnShareMessage? onShareMessage;
   final OnSelectMessages? onSelectMessages;
   final OnSpeakMessage? onSpeakMessage;
+  final OnReplyMessage? onReplyMessage;
+  final OnReplySelectionMessage? onReplySelectionMessage;
+  final OnQuoteTap? onQuoteTap;
   final List<String> suggestions;
 
   /// A compact action that scrolls after the last message, outside its content.
@@ -1664,6 +1680,12 @@ class _MessageListViewState extends State<MessageListView> {
 
   @override
   Widget build(BuildContext context) {
+    // Reply citations resolve against the window this frame renders: every
+    // message in it is a candidate target, and one outside it (an older page, a
+    // hidden version) resolves to null so the chip shows its stub.
+    _quoteTargetsForBuild = {
+      for (final message in widget.messages) message.id: message,
+    };
     // Items render at the system scale times the chat scale (see the MediaQuery
     // override in _buildMessageItem), so the estimate has to use both.
     _systemTextScale = MediaQuery.textScalerOf(context).scale(1);
@@ -2299,6 +2321,15 @@ class _MessageListViewState extends State<MessageListView> {
   }
 
   /// Build the actual ChatMessageWidget with all its properties.
+  /// The loaded window's messages by id, rebuilt once per frame in [build].
+  Map<String, ChatMessage> _quoteTargetsForBuild = const {};
+
+  /// The message a reply cites, when it is inside the loaded window.
+  ChatMessage? _quoteTargetFor(ChatMessage message) {
+    final id = message.quote?.id;
+    return id == null ? null : _quoteTargetsForBuild[id];
+  }
+
   Widget _buildChatMessageWidget(
     BuildContext context, {
     required ChatMessage message,
@@ -2323,8 +2354,19 @@ class _MessageListViewState extends State<MessageListView> {
     RetryStatus? retryStatus,
   }) {
     final currentIdx = availableVersions.indexOf(selectedVersion);
+    final quoteTarget = _quoteTargetFor(message);
     return ChatMessageWidget(
       message: message,
+      onReply: widget.onReplyMessage == null || message.isStreaming
+          ? null
+          : () => widget.onReplyMessage!(message),
+      onReplySelection: widget.onReplySelectionMessage == null
+          ? null
+          : (selected) => widget.onReplySelectionMessage!(message, selected),
+      quoteTarget: quoteTarget,
+      onQuoteTap: quoteTarget == null || widget.onQuoteTap == null
+          ? null
+          : () => widget.onQuoteTap!(quoteTarget.id),
       enableStreamingTextMotion: enableStreamingTextMotion,
       versionIndex: currentIdx < 0 ? selectedIdx : currentIdx,
       versionCount: total > 0 ? total : 1,
@@ -2418,6 +2460,8 @@ class _MessageListViewState extends State<MessageListView> {
           await widget.onDeleteAllVersions?.call(message, widget.byGroup);
         } else if (action == MessageMoreAction.edit) {
           widget.onEditMessage?.call(message);
+        } else if (action == MessageMoreAction.reply) {
+          widget.onReplyMessage?.call(message);
         } else if (action == MessageMoreAction.fork) {
           await widget.onForkConversation?.call(message);
         } else if (action == MessageMoreAction.share) {

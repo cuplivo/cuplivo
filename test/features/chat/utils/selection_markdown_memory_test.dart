@@ -27,6 +27,7 @@ void main() {
     test('returns the markdown the IR re-emits for the selection', () {
       memory.capture(
         owner: _owner,
+        messageId: 'message-1',
         document: () => _document('**bold** text'),
         selectedText: 'bold text',
       );
@@ -38,6 +39,7 @@ void main() {
     test('keeps the list marker a selection starts after', () {
       memory.capture(
         owner: _owner,
+        messageId: 'message-1',
         document: () => _document('- first item\n- second item'),
         selectedText: 'first item\nsecond item',
       );
@@ -47,6 +49,7 @@ void main() {
     test('completes the link a selection ends inside', () {
       memory.capture(
         owner: _owner,
+        messageId: 'message-1',
         document: () => _document('plain [a link](https://x.dev/p)'),
         selectedText: 'a link',
       );
@@ -58,6 +61,7 @@ void main() {
       // markdown copy must never be worse than a plain copy.
       memory.capture(
         owner: _owner,
+        messageId: 'message-1',
         document: () => _document('alpha beta'),
         selectedText: 'gamma',
       );
@@ -67,6 +71,7 @@ void main() {
     test('sanitizes the fallback', () {
       memory.capture(
         owner: _owner,
+        messageId: 'message-1',
         document: () => _document('alpha beta'),
         selectedText: 'gam\u200Bma',
       );
@@ -76,6 +81,7 @@ void main() {
     test('forgets the selection on clear', () {
       memory.capture(
         owner: _owner,
+        messageId: 'message-1',
         document: () => _document('**bold** text'),
         selectedText: 'bold text',
       );
@@ -86,6 +92,7 @@ void main() {
     test('drops a whitespace-only selection', () {
       memory.capture(
         owner: _owner,
+        messageId: 'message-1',
         document: () => _document('a b'),
         selectedText: '   ',
       );
@@ -96,6 +103,7 @@ void main() {
       var builds = 0;
       memory.capture(
         owner: _owner,
+        messageId: 'message-1',
         document: () {
           builds++;
           return _document('**bold** text');
@@ -114,6 +122,7 @@ void main() {
       final other = Object();
       memory.capture(
         owner: other,
+        messageId: 'message-2',
         document: () => _document('**bold** text'),
         selectedText: 'bold text',
       );
@@ -123,6 +132,44 @@ void main() {
 
       memory.clearIfOwner(other);
       expect(memory.markdownForSelection(), isNull);
+    });
+
+    test('a reply source carries the message the selection was made in', () {
+      memory.capture(
+        owner: _owner,
+        messageId: 'message-1',
+        document: () => _document('**bold** text'),
+        selectedText: 'bold text',
+      );
+      final source = memory.replySourceForSelection();
+      expect(source?.messageId, 'message-1');
+      expect(source?.markdown, '**bold** text');
+    });
+
+    test('a reply source agrees with what the copy path would write', () {
+      // One mapping for both hotkeys: a reply can never cite markdown the
+      // copy-as-Markdown path would not have produced.
+      memory.capture(
+        owner: _owner,
+        messageId: 'message-1',
+        document: () => _document('- one\n- two'),
+        selectedText: 'one\ntwo',
+      );
+      expect(
+        memory.replySourceForSelection()?.markdown,
+        memory.markdownForSelection(),
+      );
+    });
+
+    test('an empty recording leaves no reply source', () {
+      expect(memory.replySourceForSelection(), isNull);
+      memory.capture(
+        owner: _owner,
+        messageId: 'message-1',
+        document: () => _document('   '),
+        selectedText: '   ',
+      );
+      expect(memory.replySourceForSelection(), isNull);
     });
   });
 }

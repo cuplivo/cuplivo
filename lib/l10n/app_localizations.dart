@@ -2902,6 +2902,12 @@ abstract class AppLocalizations {
   /// **'Copy Selection as Markdown'**
   String get hotkeyCopySelectionMarkdown;
 
+  /// No description provided for @hotkeyReplySelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Reply to Selection'**
+  String get hotkeyReplySelection;
+
   /// No description provided for @hotkeysPressShortcut.
   ///
   /// In en, this message translates to:
@@ -4588,6 +4594,24 @@ abstract class AppLocalizations {
   /// **'Edit'**
   String get messageMoreSheetEdit;
 
+  /// No description provided for @messageMoreSheetReply.
+  ///
+  /// In en, this message translates to:
+  /// **'Reply'**
+  String get messageMoreSheetReply;
+
+  /// No description provided for @messageQuoteTargetMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Original message unavailable'**
+  String get messageQuoteTargetMissing;
+
+  /// No description provided for @messageQuotePreviewRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove reply'**
+  String get messageQuotePreviewRemove;
+
   /// No description provided for @messageMoreSheetShare.
   ///
   /// In en, this message translates to:
@@ -4665,6 +4689,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Markdown'**
   String get chatMessageWidgetCopyAsMarkdown;
+
+  /// No description provided for @chatMessageWidgetReplySelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Reply'**
+  String get chatMessageWidgetReplySelection;
 
   /// No description provided for @chatMessageWidgetResendTooltip.
   ///

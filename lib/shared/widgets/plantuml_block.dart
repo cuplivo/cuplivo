@@ -231,7 +231,7 @@ class _PlantUMLBlockState extends State<PlantUMLBlock> {
                   height: 1.5,
                 ),
                 // The diagram's code owns its selection, so a selection area
-                // above it has to be told it lost this one.
+                // above it has to be told it lost this one (ADR-0010).
                 onSelectionChanged: (selection, _) {
                   if (!selection.isCollapsed) {
                     reportNestedSelectionClaimed(context);

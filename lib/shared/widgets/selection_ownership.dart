@@ -3,11 +3,11 @@ import 'package:flutter/widgets.dart';
 /// Dispatched by a nested selection owner when its selection becomes non-empty,
 /// so the enclosing [SelectionArea] stands its own copy override down.
 ///
-/// A markdown surface nests selectables the framework copies itself — a
-/// diagram's `SelectableText`, and on this line a code block's and a table
-/// cell's too. Their selections never reach the enclosing area's
-/// `onSelectionChanged`, so the area cannot tell "I own the selection" from "I
-/// owned one a moment ago".
+/// A markdown surface nests selectables the framework copies itself: a diagram's
+/// code view, the lazy code viewport past the line threshold, and — in a surface
+/// that deliberately provides no area — a block whose text nothing above it can
+/// reach. Their selections never reach the enclosing area's `onSelectionChanged`,
+/// so the area cannot tell "I own the selection" from "I owned one a moment ago".
 ///
 /// That distinction is load-bearing, because the framework's own copy actions
 /// are `Action.overridable` (`selectable_region.dart`, `editable_text.dart`):

@@ -32,14 +32,19 @@ opts a subtree out. Nothing forces a second owner.
 
 1. **One selection owner per surface.** The assistant bubble's `SelectionArea` owns the selection for the
    whole message, and a markdown surface without one provides it (the skill body, the export sheet).
-   Everything selectable in that surface is a paragraph of that owner; a block whose text the owner
-   cannot reach nests its own instead: a diagram's code tab — a view of its own, `SelectableText` or the
-   code view — and the lazy code viewport, which only builds the chunks it shows. Those report the claim,
-   which is why the copy-intent override still stands down on one (ADR-0009 decision 5).
+   Everything selectable in that surface is a paragraph of that owner. Where there is no owner at all — the
+   mobile user bubble, whose long-press belongs to the message menu — a block whose text nothing above it
+   can reach owns its own selection instead: a code body there, and in any surface a diagram's code tab or
+   the lazy code viewport, because an owner cannot reach those either. A compact table is the one shape
+   left unselectable where no owner exists: a `SelectionArea` over it takes the horizontal drag that
+   scrolls it, and no shipped surface is both ownerless and wide enough to be non-compact. Every owner
+   added below the surface reports the claim, which is why the copy-intent override still stands down on
+   one (ADR-0009 decision 5).
 2. **A table cell and a code body are ordinary paragraphs — up to the lazy threshold.** A cell renders
    `Text.rich`, and so does a code block's body; one drag crosses cells and a block. Past the threshold
-   the body is a chunk viewport that builds only the chunks it shows, so its text is not reachable from
-   the owner at all: the block owns its own selection, and its node is a gap, like a diagram's.
+   (1000 lines) the body is a chunk viewport that builds only the chunks it shows, so its text is not
+   reachable from the owner at all: the block owns its own selection, and its node is a gap, like a
+   diagram's.
 3. **A widget-backed run declares what it contributes.** Text-like content is text: a run that must be a
    widget — a link, a citation chip, an inline formula, an image — declares the text it shows, which is
    what makes it copyable and partially selectable from the surrounding selection. Content with no text
@@ -79,11 +84,13 @@ opts a subtree out. Nothing forces a second owner.
   view's toolbar. The translate page's whole-message entry stays.
 - Costs, recorded rather than hidden: a compact (mobile) table is selectable now, so a long-press inside
   one starts a selection instead of doing nothing (a touch drag over it still does not scroll it —
-  measured identical in the old and new structures); and a code block no longer offers a toolbar of its
-  own, so copying part of a block goes through the surface's toolbar while the header's button copies the
-  whole block. Past the lazy threshold that last point inverts: the viewport is a 420-pixel window, so the
-  surface owner copies no part of the body and the block's own toolbar comes back for it — and the seam is
-  the fence, not the visible lines, so a selection that spans the viewport re-emits the fence whole.
+  measured identical in the old and new structures); in a surface with no owner, that table stays
+  unselectable for the same reason, so the drag there still scrolls it and its cells are copied by nothing
+  (they were not selectable in that shape before either); and a code block no longer offers a toolbar of
+  its own, so copying part of a block goes through the surface's toolbar while the header's button copies
+  the whole block. Past the lazy threshold that last point inverts: the viewport is a 420-pixel window, so
+  the surface owner copies no part of the body and the block's own toolbar comes back for it — and the seam
+  is the fence, not the visible lines, so a selection that spans the viewport re-emits the fence whole.
 
 ## Not in scope
 
@@ -92,6 +99,10 @@ opts a subtree out. Nothing forces a second owner.
   selection that spans it re-emits the whole table — a superset of what was on screen, not the truncated
   copy a lazy body used to give — and the drift check deliberately has no fixture for this shape, because
   its equality is about what the surface contributes.
-- Renaming `SelectableHighlightView`: the view no longer owns a selection and the name says it does. The
-  rename is mechanical and touches many test references, so it is kept out of this change.
+- Renaming `SelectableHighlightView`: the view no longer owns a selection, and where it stands in for a
+  block the block's owner is what wraps it. The rename is mechanical and touches many test references, so
+  it is kept out of this change.
+- The diagram bitmap on a device. The tests take that path through
+  `debugMermaidBitmapRenderOverride`, so what is pinned is the display space and the code view, not the
+  webview renderer's output on each platform.
 - The iOS `app.ios_translation` native handler, which now has no Dart caller.

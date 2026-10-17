@@ -31,10 +31,10 @@ import 'selection_ownership.dart';
 /// sanitized).
 ///
 /// The copy-intent override is registered only while this surface owns a
-/// selection. The markdown renderer nests selectables inside it — a code
-/// block's [SelectableText], a table cell, a nested [SelectionArea] for code
-/// past 2048 chars, a diagram's code view — and those own their selections
-/// outright. Two things follow, and both have to hold:
+/// selection. A code body and a table cell are paragraphs of this owner, but the
+/// markdown renderer still nests selectables where it cannot reach the text — a
+/// diagram's code view, a code viewport past the line threshold — and those own
+/// their selections outright. Two things follow, and both have to hold:
 ///
 /// * The override covers the whole subtree and the framework's own copy
 ///   actions forward to it, so while it is registered it wins inside those
@@ -42,7 +42,9 @@ import 'selection_ownership.dart';
 ///   selection, which is what [NestedSelectionClaimedNotification] reports;
 ///   otherwise Ctrl+C inside a nested owner writes this area's stale text.
 /// * With it retired, the framework copies what the focused owner owns —
-///   un-sanitized, since that text is not readable from here.
+///   un-sanitized, since that text is not readable from here. In the shapes this
+///   line nests that text is code or diagram source, which carries no
+///   renderer-inserted character to strip.
 ///
 /// The report is the whole of the signal: the region's own `onSelectionChanged`
 /// keeps reporting the selection it had, so a nested owner that stays silent
@@ -202,8 +204,7 @@ class _SanitizingSelectionAreaState extends State<SanitizingSelectionArea> {
     // Registered only while this surface owns a selection. The override covers
     // the whole subtree, and the framework's own copy actions forward to it, so
     // a nested owner's selection would reach this action with our *stale* text
-    // — a code block's SelectableText, a table cell and a nested SelectionArea
-    // for code past 2048 chars all report their claim
+    // — a diagram's code view and a lazy code viewport each report their claim
     // ([NestedSelectionClaimedNotification]) and retire it.
     return NotificationListener<NestedSelectionClaimedNotification>(
       onNotification: (notification) {

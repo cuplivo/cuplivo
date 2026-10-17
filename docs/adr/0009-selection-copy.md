@@ -58,20 +58,21 @@ clipboard, who owns a selection, and the shortcut. Three inputs come from measur
    (Persian, Arabic, Urdu) that a clipboard must keep. This is the general fix for #738 at every markdown
    selection surface, not a feature-local one.
 5. **The copy-intent override covers this surface's selection, and retires the moment a nested owner
-   claims one.** A diagram's code view is what still nests an owner the framework copies itself — ADR-0010
-   moved a code block's body and a table's cells onto this surface's own area. Its selection never reaches
-   this region's `onSelectionChanged`, and the framework builds its own copy actions with
-   `Action.overridable`, so they *forward to* an ancestor override: while it is registered it wins inside
-   them too. The region is silent about that: the probe that measured this bug prints its
+   claims one.** A diagram's code view and the lazy code viewport past the line threshold are what still
+   nest an owner the framework copies itself — ADR-0010 moved a code block's body and a table's cells onto
+   this surface's own area, and leaves an owner nested only where the area cannot reach the text. Such a
+   selection never reaches this region's `onSelectionChanged`, and the framework builds its own copy
+   actions with `Action.overridable`, so they *forward to* an ancestor override: while it is registered it
+   wins inside them too. The region is silent about that: the probe that measured this bug prints its
    `onSelectionChanged` still reporting the prose after the nested drag, so the claim cannot be inferred
    and has to come from the owner. Every owner the project builds reports it, and a source-level test fails
-   when the number of claims in those files stops matching the number of owners in them — which on
-   ADR-0010's line also asserts that the renderer nests none. A caller that nests its own selectable inside
-   this area owes the same report; nothing else can stand the override down. Each nested owner therefore
-   reports the claim, the area drops its cache, and the framework copies the nested owner's own text.
-   Measured cost, recorded rather than hidden: that copy is un-sanitized, and on this line it is a contract
-   rather than an observable leak — a diagram's code view is the diagram's own source, with no
-   renderer-inserted character to strip. A claim retires the override but not the region's *own* selection
+   when the number of claims in those files stops matching the number of owners in them — which is what
+   keeps a new owner from arriving without that report. A caller that nests its own selectable inside this
+   area owes the same report; nothing else can stand the override down. Each nested owner therefore reports
+   the claim, the area drops its cache, and the framework copies the nested owner's own text. Measured cost,
+   recorded rather than hidden: that copy is un-sanitized, and on this line it is a contract rather than an
+   observable leak — what those owners show is code or diagram source, with no renderer-inserted character
+   to strip. A claim retires the override but not the region's *own* selection
    — this state holds no handle on the region's `SelectableRegionState`, and the selection is still the
    user's — so re-selecting the **identical** text in that region reports no change (the framework compares
    `plainText`), leaves the cache empty, and that copy is un-sanitized too. Selecting different text reports
@@ -112,9 +113,10 @@ clipboard, who owns a selection, and the shortcut. Three inputs come from measur
 
 - Quote, reply-with-quote and speak-selection: v3 built all three on the same captured selection, and
   reply is schema-level on this line.
-- A `Markdown` item for a selection made *inside* a nested area: there are no nested areas any more
-  (ADR-0010), so a selection inside a table cell or a code body is the bubble's own selection and reaches
-  the same item.
+- A `Markdown` item for a selection made *inside* a nested area: a selection inside a table cell or a code
+  body is the bubble's own selection and reaches the same item, because ADR-0010 put those on the surface's
+  area; one made inside a diagram's code tab or a body past the lazy threshold belongs to that block
+  instead, and the block's own toolbar is what serves it.
 - Making the soft breaks disappear from copies altogether instead of being stripped: the softening
   itself is a renderer decision, and this record keeps the strip as the clipboard's narrow backstop. (The
   `SelectableAdapter` route it once named is no longer needed for correctness: a widget-backed inline run

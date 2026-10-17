@@ -13,6 +13,7 @@ class ChatSelectionExportBar extends StatelessWidget {
     super.key,
     required this.onExportMarkdown,
     required this.onExportTxt,
+    required this.onExportPdf,
     required this.onExportImage,
     required this.showThinkingTools,
     required this.showThinkingContent,
@@ -22,6 +23,7 @@ class ChatSelectionExportBar extends StatelessWidget {
 
   final VoidCallback onExportMarkdown;
   final VoidCallback onExportTxt;
+  final VoidCallback onExportPdf;
   final VoidCallback onExportImage;
 
   final bool showThinkingTools;
@@ -103,6 +105,16 @@ class ChatSelectionExportBar extends StatelessWidget {
                                 label: l10n.chatSelectionExportImage,
                                 color: cs.secondary,
                                 onTap: onExportImage,
+                                dense: compact,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _SelectionActionButton(
+                                icon: Lucide.FileType,
+                                label: l10n.chatSelectionExportPdf,
+                                color: cs.onSurfaceVariant,
+                                onTap: onExportPdf,
                                 dense: compact,
                               ),
                             ),

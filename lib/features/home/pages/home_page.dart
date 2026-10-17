@@ -1289,6 +1289,7 @@ class _HomePageState extends State<HomePage>
       key: _selectionActionBarKey,
       onExportMarkdown: _controller.exportSelectedAsMarkdown,
       onExportTxt: _controller.exportSelectedAsTxt,
+      onExportPdf: _controller.exportSelectedAsPdf,
       onExportImage: _controller.exportSelectedAsImage,
       showThinkingTools: _controller.showThinkingTools,
       showThinkingContent: _controller.showThinkingContent,

@@ -107,6 +107,66 @@ Map<String, int> pdfDrawingOperators(Uint8List bytes) =>
       },
     );
 
+/// How often each text rendering mode is set, by the mode it sets.
+///
+/// A bold run is *stroked* as well as filled — the writer's way of drawing weight
+/// for a face that has none — and `N Tr` is the operator that says so: mode 0 is
+/// fill and mode 2 is fill-and-stroke. What a page sets and how often is the only
+/// reading of "this run is bold and that one is not", because the face behind both
+/// is the same file.
+Map<int, int> pdfTextRenderingModes(Uint8List bytes) => RegExp(r'(\d+) Tr')
+    .allMatches(pdfStreams(bytes))
+    .fold(<int, int>{}, (map, match) {
+      final mode = int.parse(match.group(1)!);
+      map[mode] = (map[mode] ?? 0) + 1;
+      return map;
+    });
+
+/// The rectangles the writer fills, with the colour each is filled in.
+///
+/// A filled panel — a message's tint, a card — is a rectangle and a fill, and its
+/// *size* is what says whether the panels of two blocks touch: a block that stood
+/// apart would leave its fill the same height and the page's flow further down.
+List<({double width, double height, List<double> colour})> pdfFilledRects(
+  Uint8List bytes,
+) {
+  final tokens = RegExp(
+    r'(-?[\d.]+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+) re'
+    r'|(-?[\d.]+) (-?[\d.]+) (-?[\d.]+) rg'
+    r'|\b(?:m|l|c)\b|\bS\b|\bf\b',
+  ).allMatches(pdfStreams(bytes)).map((match) => match.group(0)!).toList();
+
+  final out = <({double width, double height, List<double> colour})>[];
+  ({double width, double height})? rect;
+  var colour = <double>[0, 0, 0];
+
+  for (final token in tokens) {
+    if (token.endsWith(' re')) {
+      final parts = token.split(' ');
+      rect = (width: double.parse(parts[2]), height: double.parse(parts[3]));
+      continue;
+    }
+    if (token.endsWith(' rg')) {
+      colour = token
+          .split(' ')
+          .take(3)
+          .map(double.parse)
+          .toList(growable: false);
+      continue;
+    }
+    if (token == 'f') {
+      if (rect != null) {
+        out.add((width: rect.width, height: rect.height, colour: colour));
+      }
+      rect = null;
+      continue;
+    }
+    // Any other path operator belongs to a shape that is not a rectangle.
+    rect = null;
+  }
+  return out;
+}
+
 /// The size each picture is placed at, in the order the pages place them.
 ///
 /// A picture is not a string: it is a transformation matrix — `<w> 0 0 <h> x y cm`

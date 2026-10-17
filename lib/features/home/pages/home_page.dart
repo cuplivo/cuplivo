@@ -61,6 +61,7 @@ import '../widgets/learning_prompt_sheet.dart';
 import '../widgets/scroll_nav_buttons.dart';
 import '../widgets/message_list_view.dart';
 import '../widgets/chat_input_section.dart';
+import '../widgets/compress_context_readout.dart';
 import '../widgets/conversation_system_prompt_button.dart';
 import '../widgets/chat_input_overlay_layout.dart';
 import '../widgets/chat_selection_app_bar.dart';
@@ -150,9 +151,15 @@ String _compressContextErrorMessage(AppLocalizations l10n, String error) {
 }
 
 class _CompressContextOptionsDialog extends StatefulWidget {
-  const _CompressContextOptionsDialog({required this.collapsedMessages});
+  const _CompressContextOptionsDialog({
+    required this.collapsedMessages,
+    required this.weights,
+  });
 
   final List<ChatMessage> collapsedMessages;
+
+  /// Per-message token weights, aligned with [collapsedMessages].
+  final CompressContextWeights weights;
 
   @override
   State<_CompressContextOptionsDialog> createState() =>
@@ -164,7 +171,6 @@ class _CompressContextOptionsDialogState
   CompressContextLimitMode _mode = CompressContextLimitMode.start;
   late final TextEditingController _maxCharsController;
   late final TextEditingController _keepCountController;
-  late final String _totalTextForEstimate;
   String? _error;
 
   int get _userMessageCount => countUserMessages(widget.collapsedMessages);
@@ -187,9 +193,6 @@ class _CompressContextOptionsDialogState
           (settings.compressKeepUserMessages ??
                   defaultKeepUserMessageCountFor(_userMessageCount))
               .toString(),
-    );
-    _totalTextForEstimate = buildConversationTextForCompression(
-      widget.collapsedMessages,
     );
   }
 
@@ -257,23 +260,29 @@ class _CompressContextOptionsDialogState
     ).pop(CompressContextOptions(mode: _mode, maxChars: maxChars));
   }
 
-  String _keepEstimateText(AppLocalizations l10n) {
-    final keptText = buildConversationTextForCompression(
-      selectKeepRecentMessages(widget.collapsedMessages, _keepCount ?? 0),
-    );
-    final summarizedChars = (_totalTextForEstimate.length - keptText.length)
-        .clamp(0, _totalTextForEstimate.length)
-        .toInt();
-    final est = estimateCompressionTokens(
-      totalText: _totalTextForEstimate,
-      keptText: keptText,
-    );
-    return l10n.compressContextEstimatePreview(
-      summarizedChars,
-      keptText.length,
-      est.minResultTokens,
-      est.maxResultTokens,
-      est.totalTokens,
+  /// What the keep count currently costs: rounds and tokens now, the reduction
+  /// over the arrow, then the kept tail plus its summary as a token band.
+  ///
+  /// Nothing is shown while the count is unusable; a count that covers every
+  /// round has its own message, because there is nothing to compress.
+  Widget _keepReadout(AppLocalizations l10n, ColorScheme cs) {
+    final keepCount = _keepCount;
+    if (keepCount == null || keepCount <= 0) return const SizedBox.shrink();
+    if (_keepCoversAll) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Text(
+          l10n.compressContextKeepAllMessages,
+          style: TextStyle(fontSize: 12, height: 1.35, color: cs.error),
+        ),
+      );
+    }
+    final start = keepRecentStartIndex(widget.collapsedMessages, keepCount);
+    if (start == null || start == 0) return const SizedBox.shrink();
+    return CompressContextReadout(
+      split: widget.weights.splitAt(start),
+      rounds: _userMessageCount,
+      keptRounds: keepCount,
     );
   }
 
@@ -378,18 +387,7 @@ class _CompressContextOptionsDialogState
                             },
                           ),
                           const SizedBox(height: 10),
-                          Text(
-                            _keepCoversAll
-                                ? l10n.compressContextKeepAllMessages
-                                : _keepEstimateText(l10n),
-                            style: TextStyle(
-                              fontSize: 12,
-                              height: 1.35,
-                              color: _keepCoversAll
-                                  ? cs.error
-                                  : cs.onSurface.withValues(alpha: 0.62),
-                            ),
-                          ),
+                          _keepReadout(l10n, cs),
                         ],
                         if (_error != null) ...[
                           const SizedBox(height: 6),
@@ -2059,11 +2057,17 @@ class _HomePageState extends State<HomePage>
         .allMessagesForCurrentConversationContext();
     final collapsed = _controller.collapseVersions(allMsgs);
     if (!mounted) return;
+    // Counted before the dialog opens: the readout must not tokenize on a
+    // keystroke, and the dialog then stays synchronous and testable.
+    final weights = await _controller.compressContextWeights(collapsed);
+    if (!mounted) return;
     final options = await showDialog<CompressContextOptions>(
       context: context,
       barrierDismissible: true,
-      builder: (_) =>
-          _CompressContextOptionsDialog(collapsedMessages: collapsed),
+      builder: (_) => _CompressContextOptionsDialog(
+        collapsedMessages: collapsed,
+        weights: weights,
+      ),
     );
     if (options == null || !mounted) return;
 

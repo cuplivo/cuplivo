@@ -3,8 +3,9 @@ import 'dart:typed_data';
 import 'package:Cuplivo/features/chat/utils/export_document.dart';
 import 'package:Cuplivo/features/chat/utils/markdown_pdf_emitter.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:image/image.dart' as image_lib;
 import 'package:syncfusion_flutter_pdf/pdf.dart' as syncfusion;
+
+import '../../../support/test_png.dart';
 
 /// What the writer does with content that is taller than a page.
 ///
@@ -95,7 +96,7 @@ void main() {
   test('a picture taller than the page is scaled onto it', () async {
     // A phone screenshot's shape: far taller than a page, far narrower than one.
     // The writer cannot break a picture, so this one has to be scaled down.
-    final tall = _png(width: 100, height: 4000);
+    final tall = pngForTest(width: 100, height: 4000);
 
     final exported = await _export(
       'before the picture\n\nafter the picture\n',
@@ -193,16 +194,4 @@ Future<_Exported> _export(
       readBack,
     ).extractText().replaceAll(RegExp(r'\s+'), ' ').trim(),
   );
-}
-
-/// A PNG of the given shape, so a test can hand the layout a tall picture
-/// without carrying one in the repository.
-Uint8List _png({required int width, required int height}) {
-  final image = image_lib.Image(width: width, height: height);
-  for (var y = 0; y < height; y++) {
-    for (var x = 0; x < width; x++) {
-      image.setPixelRgb(x, y, x % 256, y % 256, 128);
-    }
-  }
-  return Uint8List.fromList(image_lib.encodePng(image));
 }

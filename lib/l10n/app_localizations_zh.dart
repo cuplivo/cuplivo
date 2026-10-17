@@ -2599,6 +2599,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get messageExportSheetAssistant => '助手';
 
   @override
+  String get messageExportSheetUser => '用户';
+
+  @override
   String get messageExportSheetDefaultTitle => '新对话';
 
   @override
@@ -15826,6 +15829,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get messageExportSheetAssistant => '助手';
 
   @override
+  String get messageExportSheetUser => '用户';
+
+  @override
   String get messageExportSheetDefaultTitle => '新对话';
 
   @override
@@ -28977,6 +28983,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get messageExportSheetAssistant => '助理';
+
+  @override
+  String get messageExportSheetUser => '使用者';
 
   @override
   String get messageExportSheetDefaultTitle => '新對話';

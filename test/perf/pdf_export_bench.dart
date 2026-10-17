@@ -30,12 +30,14 @@ void main() {
         thinkingLabel: '思考过程',
         accent: kPdfPageAccent,
         muted: kPdfPageMuted,
+        userLabel: 'User',
         bodyFont: font,
         messages: <ExportMessage>[
           for (var index = 0; index < count; index++)
             ExportMessage(
               time: '2026-01-02 03:04:05',
               roleName: index.isEven ? '用户' : '助手',
+              speaker: ExportSpeaker.assistant,
               blocks: <ExportBlock>[
                 ExportText(_bodyFor(index)),
                 if (index.isEven) ExportReasoning('第 $index 条推理内容。'),

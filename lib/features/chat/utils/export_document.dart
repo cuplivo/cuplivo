@@ -62,18 +62,29 @@ final class ExportFile extends ExportBlock {
   final String mime;
 }
 
+/// Who a message came from, as a layout's own chrome needs to know it.
+///
+/// [ExportMessage.roleName] is what a reader is shown, which is a translated
+/// label or a profile name; this is what the message *is*. A format that draws a
+/// speaker header asks this rather than reading the name, because a name is a
+/// label and a label is not a role — the PDF prints a user's message without a
+/// timestamp and under a fixed label, and cannot decide that from `roleName`.
+enum ExportSpeaker { user, assistant }
+
 /// One message as the export writes it: who said it, when, what, and how its
 /// citations are numbered.
 final class ExportMessage {
   const ExportMessage({
     required this.time,
     required this.roleName,
+    required this.speaker,
     required this.blocks,
     this.citationIndex = const <String, String>{},
   });
 
   final String time;
   final String roleName;
+  final ExportSpeaker speaker;
   final List<ExportBlock> blocks;
 
   /// The number each citation id is shown as.
@@ -122,6 +133,9 @@ Future<ExportDocument> buildExportDocument({
       ExportMessage(
         time: formatTime(message.timestamp),
         roleName: roleNameOf(message),
+        speaker: message.role == 'user'
+            ? ExportSpeaker.user
+            : ExportSpeaker.assistant,
         citationIndex:
             citationIndexOf?.call(message) ?? const <String, String>{},
         blocks: await exportBlocksOf(

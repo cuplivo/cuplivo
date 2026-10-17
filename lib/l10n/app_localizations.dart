@@ -5002,6 +5002,12 @@ abstract class AppLocalizations {
   /// **'Assistant'**
   String get messageExportSheetAssistant;
 
+  /// No description provided for @messageExportSheetUser.
+  ///
+  /// In en, this message translates to:
+  /// **'User'**
+  String get messageExportSheetUser;
+
   /// No description provided for @messageExportSheetDefaultTitle.
   ///
   /// In en, this message translates to:

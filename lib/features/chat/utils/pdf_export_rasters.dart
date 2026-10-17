@@ -178,9 +178,15 @@ Future<PdfRaster?> _captureFormula(
   }
 }
 
-/// How many pixels per point a formula is captured at: the same 3× the app uses
-/// when it turns a table into a PNG.
-const double _formulaPixelRatio = 3;
+/// How many pixels per point a formula is captured at.
+///
+/// A captured formula is the one thing on the page that is not vector text, so
+/// it is the one thing that can look soft beside it: the layout draws a line of
+/// prose at [kPdfBodyFontSize], and a picture drawn at that size has to carry
+/// enough pixels to survive both a printer and a reader's zoom. 5× is 360 DPI —
+/// above the 300 a print expects — and a formula is small enough that the extra
+/// pixels cost nothing worth measuring.
+const double _formulaPixelRatio = 5;
 
 /// The ink of the page this raster is drawn for, which is the light page the
 /// layout always writes.
@@ -193,13 +199,18 @@ const Color _pageInk = Color(0xFF1F2328);
 /// it out of proportion with the line it sits in.
 Widget _formula(String source, {required bool display}) {
   final tex = normalizeMathTex(source);
-  final fontSize = display ? 22.0 : kPdfBodyFontSize;
+  // The screen sets an *inline* formula at 1.2 of its prose (`_inlineMathTextStyle`
+  // in the renderer) and a display one at the prose size itself, so the page does
+  // the same at its own scale: a formula drawn at the body size and printed beside
+  // a line of it would otherwise read as a footnote.
+  final fontSize = display
+      ? kPdfBodyFontSize
+      : kPdfBodyFontSize * _inlineFormulaScale;
   return Container(
     constraints: const BoxConstraints(maxWidth: 1600),
-    padding: EdgeInsets.all(display ? 6 : 2),
-    // Opaque on purpose: the page behind it is white, so the picture may as well
-    // be, and an opaque bitmap is the one every PDF reader draws the same way.
-    color: const Color(0xFFFFFFFF),
+    // Transparent on purpose: the page behind a formula may be paper or a
+    // message's own tint, and an opaque capture would print as a white box on the
+    // second. The writer carries the picture's alpha through as an `/SMask`.
     child: Math.tex(
       tex,
       mathStyle: display ? MathStyle.display : MathStyle.text,
@@ -207,11 +218,17 @@ Widget _formula(String source, {required bool display}) {
       textStyle: TextStyle(fontSize: fontSize, color: _pageInk),
       onErrorFallback: (error) => Text(
         tex,
-        style: TextStyle(fontSize: display ? 16 : 12, color: _pageInk),
+        style: TextStyle(fontSize: fontSize, color: _pageInk),
       ),
     ),
   );
 }
+
+/// How much larger than the prose an inline formula is drawn.
+///
+/// The renderer's own ratio, in one place: the capture draws the formula at this
+/// size and the layout embeds it at the size it was drawn.
+const double _inlineFormulaScale = 1.2;
 
 /// The pixel size of a PNG, read out of its own header.
 ///

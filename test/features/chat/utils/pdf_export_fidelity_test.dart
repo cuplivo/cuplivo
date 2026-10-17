@@ -87,10 +87,14 @@ void main() {
       final texts = _texts(drawn);
       expect(texts, isNot(contains('(x)')));
       expect(texts, contains('selected'));
-      // One curve and one stroke: a circle. Its dot is the fill.
-      final ops = pdfDrawingOperators((await _export('(x) a\n')).bytes);
-      expect(ops['S'], 1);
-      expect(ops['f'], 2);
+      // One curve and one stroke: a circle. Its dot is the fill, and the box it
+      // sits in is filled too. Counted against the same page without a marker,
+      // because the page draws a speaker's disc whether or not there is a task
+      // list under it.
+      final withRadio = pdfDrawingOperators((await _export('(x) a\n')).bytes);
+      final without = pdfDrawingOperators((await _export('a\n')).bytes);
+      expect((withRadio['S'] ?? 0) - (without['S'] ?? 0), 1);
+      expect((withRadio['f'] ?? 0) - (without['f'] ?? 0), 2);
     });
   });
 
@@ -271,11 +275,13 @@ Future<PdfExportResult> _export(
     thinkingLabel: 'Thinking',
     accent: kPdfPageAccent,
     muted: kPdfPageMuted,
+    userLabel: 'User',
     images: images,
     messages: <ExportMessage>[
       ExportMessage(
         time: '2026-01-02 03:04:05',
         roleName: 'Assistant',
+        speaker: ExportSpeaker.assistant,
         citationIndex: citationIndex,
         blocks: <ExportBlock>[ExportText(markdown)],
       ),

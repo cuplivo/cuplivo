@@ -4896,7 +4896,10 @@ class _DiagramBlockState extends State<_DiagramBlock> {
             controller: _vMermaidScrollController,
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: codeView,
+              // The surface owner cannot reach the diagram's text: the preview is
+              // a bitmap, and this view owns its own selection and reports the
+              // claim, like the PlantUML code tab (ADR-0010).
+              child: _SelfOwnedSelection(child: codeView),
             ),
           ),
         ),
@@ -5397,28 +5400,30 @@ class _MermaidLoadingViewState extends State<_MermaidLoadingView>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Center(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          RotationTransition(
-            turns: _controller,
-            child: Icon(
-              Lucide.Loader,
-              size: 24,
-              color: widget.colors.textSecondary,
+    return SelectionContainer.disabled(
+      child: Center(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RotationTransition(
+              turns: _controller,
+              child: Icon(
+                Lucide.Loader,
+                size: 24,
+                color: widget.colors.textSecondary,
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            l10n.mermaidGeneratingImage,
-            style: TextStyle(
-              fontSize: 14,
-              height: 1.3,
-              color: widget.colors.textSecondary,
+            const SizedBox(width: 8),
+            Text(
+              l10n.mermaidGeneratingImage,
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.3,
+                color: widget.colors.textSecondary,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -5432,22 +5437,24 @@ class _MermaidErrorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Lucide.ImageOff, size: 48, color: colors.textTertiary),
-          const SizedBox(height: 8),
-          Text(
-            l10n.mermaidGenerationFailedHint,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              height: 1.35,
-              color: colors.textTertiary,
+    return SelectionContainer.disabled(
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Lucide.ImageOff, size: 48, color: colors.textTertiary),
+            const SizedBox(height: 8),
+            Text(
+              l10n.mermaidGenerationFailedHint,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.35,
+                color: colors.textTertiary,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -5521,16 +5528,24 @@ class FencedCodeBlockMd extends BlockMd {
   MdNode node(MdNodeContext ctx, String text) {
     final expansion = codeExpansion;
     final m = exp.firstMatch(text);
+    final lang = m == null ? '' : (m.group(3) ?? '').trim();
+    final code = m == null
+        ? ''
+        : _unmaskHtmlTagStartsInsideFencedCode(m.group(4) ?? m.group(5) ?? '');
+    if (isDiagramFence(lang, code)) {
+      // A diagram shows a bitmap, or a code view that owns its own selection, so
+      // the surface's owner never reaches the diagram's text: the fence occupies
+      // no display space and re-emits whole when a selection spans it.
+      return MdNode.gap(MdNodeKind.codeBlock, ctx.rangeOf(text));
+    }
     if (expansion == null || m == null) {
       // A walk without the collapse facts cannot know what the block shows, so
       // the whole fence rides along the way it always did.
       return MdNode.gap(MdNodeKind.codeBlock, ctx.rangeOf(text));
     }
     final shown = _CollapsibleCodeBlockState.shownCode(
-      language: (m.group(3) ?? '').trim(),
-      code: _unmaskHtmlTagStartsInsideFencedCode(
-        m.group(4) ?? m.group(5) ?? '',
-      ),
+      language: lang,
+      code: code,
       autoCollapse: expansion.autoCollapse,
       collapsedLines: expansion.collapsedLines,
     );
@@ -5549,28 +5564,44 @@ class FencedCodeBlockMd extends BlockMd {
   }
 }
 
+/// A mermaid fence, or any fence whose body is an SVG document.
+bool isMermaidOrSvgFence(String language, String code) =>
+    language.toLowerCase() == 'mermaid' || isSvgCodeBlock(language, code);
+
+/// Whether a fence renders as a diagram block rather than as code: mermaid, an
+/// SVG document, or PlantUML.
+///
+/// A diagram's text is never reachable from the surface's selection owner — its
+/// preview is a bitmap and its code view owns its own selection — so it
+/// contributes no display space. The renderer routes on this predicate and the
+/// walk reads it, so the two cannot drift (ADR-0010).
+bool isDiagramFence(String language, String code) =>
+    isMermaidOrSvgFence(language, code) || language.toLowerCase() == 'plantuml';
+
 Widget _buildFencedContent(
   String lang,
   String code,
   bool isStreamingFence,
   bool closed,
 ) {
-  final langLower = lang.toLowerCase();
-  if (langLower == 'mermaid' || isSvgCodeBlock(lang, code)) {
+  // The routing gate and the walk's gate are one predicate, so a fence cannot
+  // render as a diagram while the display space declares its code.
+  if (!isDiagramFence(lang, code)) {
+    return _CollapsibleCodeBlock(
+      language: lang,
+      code: code,
+      streaming: isStreamingFence,
+      closed: closed,
+    );
+  }
+  if (isMermaidOrSvgFence(lang, code)) {
     return _DiagramBlock(
       code: code,
       streaming: isStreamingFence,
-      isSvg: langLower != 'mermaid',
+      isSvg: lang.toLowerCase() != 'mermaid',
     );
-  } else if (langLower == 'plantuml') {
-    return PlantUMLBlock(code: code);
   }
-  return _CollapsibleCodeBlock(
-    language: lang,
-    code: code,
-    streaming: isStreamingFence,
-    closed: closed,
-  );
+  return PlantUMLBlock(code: code);
 }
 
 /// Scrollable LaTeX block to prevent overflow when equations are very wide

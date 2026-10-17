@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/shared/widgets/markdown_block_list.dart';
 import 'package:Cuplivo/shared/widgets/markdown_line_lexer.dart';
 import 'package:Cuplivo/shared/widgets/markdown_with_highlight.dart';
+import 'package:Cuplivo/shared/widgets/mermaid_image_cache.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gpt_markdown/custom_widgets/markdown_config.dart';
@@ -49,6 +52,11 @@ final String _lazyFenceBody = List<String>.generate(
   (index) => 'line$index',
 ).join('\n');
 
+/// A 1x1 transparent PNG, what the diagram override hands back.
+const _transparentPngBase64 =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwAD'
+    'hgGAWjR9awAAAABJRU5ErkJggg==';
+
 final List<_DriftFixture> _fixtures = [
   _DriftFixture(
     'emphasis, inline code and paragraphs',
@@ -88,6 +96,15 @@ final List<_DriftFixture> _fixtures = [
     'unclosed fence body holding dollars and tags',
     '```text\nprice \$5 and <b>bold</b>',
     streaming: true,
+  ),
+  _DriftFixture(
+    'mermaid fence',
+    'before\n\n```mermaid\ngraph TD;\nA-->B;\n```\n\nafter',
+  ),
+  _DriftFixture(
+    'svg fence',
+    'before\n\n```svg\n<svg viewBox="0 0 20 20"><circle r="5" /></svg>\n```\n'
+        '\nafter',
   ),
   _DriftFixture(
     'fence body past the lazy threshold',
@@ -295,6 +312,20 @@ Future<void> _expectDisplaySpaceMatchesCopy(
 }
 
 void main() {
+  // A diagram's preview is a bitmap in the shipped app, and the override is how
+  // the tests take that path instead of the webview one: the block still shows
+  // its bitmap, so the equality below is about the display space and not about
+  // a renderer that never ran.
+  setUp(() {
+    MermaidImageCache.clear();
+    debugMermaidBitmapRenderOverride = (code, isDark, themeVars) async =>
+        MermaidBitmapRenderResult.success(base64Decode(_transparentPngBase64));
+  });
+  tearDown(() {
+    debugMermaidBitmapRenderOverride = null;
+    MermaidImageCache.clear();
+  });
+
   for (final fixture in _fixtures) {
     testWidgets(fixture.name, (tester) async {
       await _expectDisplaySpaceMatchesCopy(
@@ -326,6 +357,34 @@ void main() {
     // A selection that spans the block still re-emits it whole, backticks and
     // all: the gap is what carries the fence back.
     expect(document.emitSelectionMarkdown(document.displayText), source);
+  });
+
+  testWidgets('a diagram fence is a gap, not display text', (tester) async {
+    // The preview is a bitmap and the code view owns its own selection, so the
+    // surface's owner never reaches the diagram's text — whichever diagram the
+    // fence holds. No line of it is display text, and a selection that spans the
+    // block re-emits the fence whole.
+    for (final (language, body, line) in const [
+      ('mermaid', 'graph TD;\nA-->B;', 'A-->B'),
+      ('svg', '<svg viewBox="0 0 20 20"><circle r="5" /></svg>', 'circle'),
+      ('plantuml', '@startuml\nA -> B\n@enduml', 'A -> B'),
+    ]) {
+      final source = 'before\n\n```$language\n$body\n```\n\nafter';
+      final document = MarkdownWithCodeHighlight.markdownDocument(
+        source,
+        settings: SettingsProvider(createBusinessTestPreferences()),
+        streaming: false,
+      );
+      expect(document.displayText, isNot(contains(line)), reason: language);
+      expect(document.displayText, contains('before'), reason: language);
+      expect(document.displayText, contains('after'), reason: language);
+      expect(document.emitSelectionMarkdown(line), isNull, reason: language);
+      expect(
+        document.emitSelectionMarkdown(document.displayText),
+        source,
+        reason: language,
+      );
+    }
   });
 
   testWidgets('details block collapsed again after being read', (tester) async {

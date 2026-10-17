@@ -573,5 +573,68 @@ void main() {
         reason: 'the only region is the surface owner\'s own',
       );
     });
+
+    testWidgets('a diagram code tab owns a region of its own', (tester) async {
+      // The preview is a bitmap and the code tab is a view of its own, so the
+      // surface owner never reaches the diagram's text: the tab carries a region
+      // and reports the claim (ADR-0010). The source gate above pins the report;
+      // this is the shape it stands for.
+      final recorder = _ClipboardRecorder()..install(tester);
+      // A failed bitmap render takes the error path, which is also the path a
+      // test host has to take: it has no webview to render the diagram with. The
+      // tab tap from there is the path this row is about.
+      addTearDown(() => debugMermaidBitmapRenderOverride = null);
+      debugMermaidBitmapRenderOverride = (code, dark, vars) async =>
+          MermaidBitmapRenderResult.failed();
+      await tester.pumpWidget(
+        await _harness(
+          const MarkdownWithCodeHighlight(
+            text: '```mermaid\ngraph TD;\nA-->B;\n```',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(MarkdownWithCodeHighlight)),
+      )!;
+      await tester.tap(find.text(l10n.mermaidCodeTab));
+      await tester.pumpAndSettle();
+
+      final codeBody = find.byKey(const ValueKey('mermaid-code-body'));
+      expect(codeBody, findsOneWidget);
+      expect(
+        find.descendant(of: codeBody, matching: find.byType(SelectableRegion)),
+        findsOneWidget,
+        reason: 'the code view owns the region',
+      );
+      // Two regions above the text: the surface owner's, and the code view's own.
+      expect(
+        find.ancestor(
+          of: find.byType(SelectableHighlightView),
+          matching: find.byType(SelectableRegion),
+        ),
+        findsNWidgets(2),
+      );
+
+      // The claim is what makes a copy inside the tab copy the diagram's own
+      // source through the framework, instead of the surface's stale text.
+      final rect = tester.getRect(find.byType(SelectableHighlightView));
+      final gesture = await tester.startGesture(
+        Offset(rect.left + 2, rect.top + 4),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pump(const Duration(milliseconds: 20));
+      await gesture.moveTo(Offset(rect.right - 2, rect.bottom - 4));
+      await tester.pump(const Duration(milliseconds: 20));
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      final focus = FocusManager.instance.primaryFocus!;
+      Actions.invoke(focus.context!, CopySelectionTextIntent.copy);
+      await tester.pumpAndSettle();
+
+      expect(recorder.copiedText(), contains('A-->B'));
+    });
   });
 }

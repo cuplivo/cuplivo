@@ -33,9 +33,9 @@ opts a subtree out. Nothing forces a second owner.
 1. **One selection owner per surface.** The assistant bubble's `SelectionArea` owns the selection for the
    whole message, and a markdown surface without one provides it (the skill body, the export sheet).
    Everything selectable in that surface is a paragraph of that owner; a block whose text the owner
-   cannot reach nests its own instead: a diagram's code tab — a widget of its own with a `SelectableText`
-   — and the lazy code viewport, which only builds the chunks it shows. Those report the claim, which is
-   why the copy-intent override still stands down on one (ADR-0009 decision 5).
+   cannot reach nests its own instead: a diagram's code tab — a view of its own, `SelectableText` or the
+   code view — and the lazy code viewport, which only builds the chunks it shows. Those report the claim,
+   which is why the copy-intent override still stands down on one (ADR-0009 decision 5).
 2. **A table cell and a code body are ordinary paragraphs — up to the lazy threshold.** A cell renders
    `Text.rich`, and so does a code block's body; one drag crosses cells and a block. Past the threshold
    the body is a chunk viewport that builds only the chunks it shows, so its text is not reachable from
@@ -47,14 +47,17 @@ opts a subtree out. Nothing forces a second owner.
 4. **The display space must equal what the renderer contributes.** If a selection reports a table's cells
    and a code block's body, the IR declares them: the table node is `opaque` with its cells' text, and
    `FencedCodeBlockMd` declares the code the block shows. A node that declares no display text is a node
-   that contributes none — a gap is for what really shows nothing.
+   that contributes none — a gap is for what really shows nothing. A diagram's fence is that gap: its
+   preview is a bitmap and its code view owns its own selection, so the surface contributes no line of
+   the diagram's text, and one predicate decides both the routing and the walk.
 5. **Render state that changes what is shown is an input to the document build.** ADR-0007 decision 7
    made `<details>` expansion an input; a collapsed code block shows its first lines, and a selection
    over it reports only those, so the same holds there. `MarkdownCodeExpansion` carries the setting while
    the blocks themselves record their manual toggles, exactly as `MarkdownDetailsExpansion` does.
-6. **Chrome is not text.** A table's toolbar and row pager, and a code block's header, stay out of the
-   selection, so copying a whole surface yields its text and never a button label. A code block's header
-   already had this through its toggle; it is stated once here so it is not re-derived per widget.
+6. **Chrome is not text.** A table's toolbar and row pager, a code block's header, and a diagram's loading
+   and error hints stay out of the selection, so copying a whole surface yields its text and never a
+   button label or a status line. A code block's header already had this through its toggle; it is stated
+   once here so it is not re-derived per widget.
 
 ## Consequences
 
@@ -64,9 +67,10 @@ opts a subtree out. Nothing forces a second owner.
 - A copied cell carries the code it shows instead of U+FFFC, and a selection spanning a table or a code
   block maps to its source, re-emitting the table or the fence, because the display space declares what
   the selection reports.
-- The un-sanitized nested copy of ADR-0009 decision 5 loses its observable case: the renderer leaves no
-  nested owner, so every markdown copy but a diagram's code tab goes through the sanitizer, and that tab
-  shows the diagram's own source, which carries no renderer-inserted character to strip.
+- The un-sanitized nested copy of ADR-0009 decision 5 keeps a narrower case than it was written for: a
+  body past the lazy threshold and every diagram's code tab own their selections, so a copy inside one is
+  answered by the framework. Their text is code or diagram source, which carries no renderer-inserted
+  character to strip.
 - Supersedes "a fenced code body is selectable only inside its own area" (ADR-0007 consequences) and,
   for code blocks and tables, "each own their selection area, so a gap node is the whole of their
   participation" (ADR-0008 decision 6). Formulas and diagrams are unchanged: they declare their text or

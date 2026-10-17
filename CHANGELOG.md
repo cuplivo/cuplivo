@@ -4,11 +4,10 @@
 
 ### Fixed
 
-- **A stale "Their Letter" notification on iOS**: the arrival notification now uses the same identifier as Kelivo's notification adapter, so disabling proactive care, deleting a conversation or re-scheduling really does remove the old notification instead of leaving an「a letter has arrived」alert whose tap opens an empty chat (#1007 by @Pheobe-Southwood)
-- **A letter taking minutes to show up after tapping its notification**: on a cold start `resumed` arrives before the conversation cache is loaded, so the overdue catch-up could only see an empty list; it now runs again once the data is ready, and completes before the tapped conversation is opened (#1007 by @Pheobe-Southwood)
+- **A stale "Their Letter" notification on iOS**: `IosProactiveCareScheduler.rescheduleAll` now cancels arrival notifications for conversations that dropped out of the pending set (past-due, disabled, or replaced on restore) and passes the bare conversation id that Kelivo's notification adapter prefixes in both `schedule` and `cancel`, so stale arrival notifications no longer survive re-arming (#1007 by @Pheobe-Southwood)
+- **A letter taking minutes to show up after tapping its notification**: on a cold start `resumed` arrives before the conversation cache is loaded, so the overdue catch-up could only see an empty list; `initChat` now kicks off the catch-up again (`unawaited`) once the data is ready, and `onLetterPersisted` reloads the open window as soon as the letter is stored (#1007 by @Pheobe-Southwood)
 - **A fired letter on Android waiting for the app to come back to the front**: while the process is alive but the UI is not in front, the letter is handed straight to Dart instead of waiting for a foreground-service start or the next `MainActivity.onStart` (it still posts its own notification once stored) (#1007 by @Pheobe-Southwood)
-- **iOS no longer looks scheduled when the arrival notification was refused**: a missing notification grant or a full pending queue is logged and mirrored into a diagnostic flag, which makes it explicit that the letter then depends on the in-app executor and the catch-up (#1007 by @Pheobe-Southwood)
-- **The exact-alarm grant is readable before the first sync**: the state is queried at startup, so a schedule carried across a process restart is not described in terms the platform will not honour (#1007 by @Pheobe-Southwood)
+- **iOS logs when an arrival notification was refused**: a missing notification grant or a full pending queue is logged so it is explicit that the letter then depends on the in-app executor and the catch-up (#1007 by @Pheobe-Southwood)
 
 ## [4.3.0] - 2026-10-14
 

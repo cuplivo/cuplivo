@@ -115,11 +115,12 @@ removes pending requests, which is the right behaviour for `prepared: false` let
    `rescheduleAll` invocation the path contains no `await` — `_resolvesEveryScheduledOwner` and
    `pendingForReschedule` are synchronous — so no concurrent delivery can arm a newer occurrence
    inside the replace-all's window, and any `sync` that lands afterwards is ordered behind it on
-   the same MethodChannel. The re-arm itself
-   is **gated** on `_chatInitialized` (an unloaded snapshot must not clear alarms it cannot see),
-   while the catch-up is not: `runDueSchedules` finds no candidates while the conversation cache is
-   empty, so gating it would only drop the delivery a `resumed` in the window between
-   `ChatService.init()` and `_chatInitialized = true` used to perform.
+   the same MethodChannel. The re-arm itself is guarded inside
+   `HomeViewModel.reschedulePendingProactiveCare` (empty-store check) and
+   `ProactiveCareAlarmService._resolvesEveryScheduledOwner` (an unloaded snapshot must not clear
+   alarms it cannot see), while the catch-up is not: `runDueSchedules` finds no candidates while
+   the conversation cache is empty, and `initChat` kicks off `deliverDueProactiveCare` again once
+   the caches are loaded and the startup `rescheduleAll` has completed.
 7. **Silent failures are over.** Every early return on the trigger chain logs
    `[ProactiveCare] …` (`debugPrint` on the Dart side, tag `ProactiveCare` on the Kotlin side),
    and native dispatch failures also go through `BackgroundRuntime.recordError`, the same
@@ -150,29 +151,32 @@ removes pending requests, which is the right behaviour for `prepared: false` let
     notification's pending-request-only removal are Kelivo's own behaviour, so they are recorded
     here and left alone; a re-base must preserve them, not "fix" them. Android is *not* a cadence
     case: it has no in-app executor on either side, and a re-base must not reintroduce one.
-11. **The iOS arrival notification's identity belongs to Kelivo's adapter.** Care registers its
-    arrival notification through `app.scheduled_notifications`, and
-    `ScheduledTaskNotifications.schedule` stores every request in that channel as
-    `scheduled-task:<runId>` — `cancel` removes exactly that form, and `PreparedScheduledTasks.load`
-    cancels every pending identifier that is not one of its runs. The port passed a bare
-    conversation id, so `cancelFor` removed nothing: once a schedule moved, was disabled, or the
-    conversation was deleted, the old arrival notification stayed pending and a tap on it opened an
-    empty chat. `IosProactiveCareScheduler.notificationIdFor` is now the single builder of that
-    identifier and both `schedule` and `cancel` go through it, which keeps the adapter contract
-    without editing the shared Swift channel (conversation ids are not run UUIDs, so Kelivo's own
-    tasks never adopt a care notification).
+11. **The iOS arrival notification's identity and replace-all contract match Kelivo's adapter.**
+    Care registers its arrival notification through `app.scheduled_notifications`, and
+    `ScheduledTaskNotifications` prepends `scheduled-task:` in both `schedule` (`prefix + runId`)
+    and `cancel` (`prefix + id`). `IosProactiveCareScheduler.notificationIdFor` is the single
+    builder of that `runId` argument — passing the bare conversation id so `schedule` and `cancel`
+    both address `scheduled-task:<conversationId>` without double-prefixing. In addition,
+    `IosProactiveCareScheduler.rescheduleAll` is a replace-all like Android's
+    `ProactiveCareAlarms.replaceAll` (`(due.keys - wanted.keys).forEach(::cancel)`): it cancels
+    every conversation that had a schedule but is no longer pending — one this process scheduled,
+    or one still carrying a stored care time — so a dropped schedule (past due, switched off, owner
+    assistant gone) does not leave a stale pending arrival notification behind. A conversation that
+    vanished from the snapshot entirely is not in that set; it is swept by
+    `PreparedScheduledTasks.load` at the next start (which cancels every pending `scheduled-task:`
+    id that is not one of its runs) and care re-arms the survivors afterwards.
 12. **A cold start recovers once the stores are loaded, and the resume path is unconditional.**
     `resumed` fires before `ChatService.init()` on a notification-tap cold start, and back then
     `getAllConversations()` returns nothing, so the catch-up found no candidates; gating the whole
     recovery on `_chatInitialized` (`HomePageController.onAppLifecycleStateChanged`) dropped the one
     delivery that scenario needs, and nothing retried because the app was already in the
-    foreground. Recovery is now the same pair in both places — re-arm, then catch-up — called from
-    `resumed` unconditionally and once at the end of `initChat` after the caches are warm, drained
-    *before* the `finally` opens the tapped conversation so the letter is usually in the window by
-    the time it is read. The re-arm keeps its own guard inside the view model (an unloaded snapshot
-    must not clear alarms it cannot see); the catch-up stays idempotent through the atomic claim.
-    On iOS this is what turns "the notification announced a letter, the chat was empty" into "the
-    letter is written as soon as the app has the data to write it".
+    foreground. `_recoverProactiveCareOnResume` (re-arm, then catch-up) now runs from `resumed`
+    unconditionally, and `initChat` kicks off `deliverDueProactiveCare` (`unawaited`) right after
+    its awaited `ProactiveCareAlarmService.rescheduleAll` once the caches are warm — deliberately
+    not awaited so the `finally` block can open the tapped conversation immediately while
+    `onLetterPersisted` reloads the window as soon as the letter is stored. The re-arm keeps its
+    own guard inside the view model and service (an unloaded snapshot must not clear alarms it
+    cannot see); the catch-up stays idempotent through the atomic claim.
 13. **A live Dart listener is the only precondition for a direct Android hand-off.** `careFirePlan`
     took `(ready, foreground)` and chose `Direct` only when the Activity owned the foreground. That
     parked every fire in the state the app spends most of its life in — process alive, screen off,
@@ -182,26 +186,25 @@ removes pending requests, which is the right behaviour for `prepared: false` let
     `careFirePlan(ready)`; `Direct` hands off through `dispatchToChannel`, and `dispatchPending`
     keeps its foreground/service hold for the `Service` plan, whose whole purpose is that no
     listener exists yet. A direct hand-off is not silent either: the persisted letter posts its own
-    notification. `configure` resets `ready`, because a recreated engine has no listener until it
-    answers again.
-14. **`dispatched` records deliveries, not attempts.** The first version of decision 13 kept the
-    old `dispatched.add(id)` guard inside the hand-off loop, so a fire that arrived while Dart had
-    not attached yet marked its own id as dispatched *and then* returned without handing anything
-    over. The hold in `dispatchPending` then looked like a duplicate to the next drain — the letter
-    sat in `inFlight` until the 10-minute deadline released it, and the foreground drain
-    `MainActivity.onStart` performs could not recover it. `dispatchToChannel` now rebuilds the set
-    from the ids it actually invoked, so a hand-off that did not happen stays available to the next
-    drain. This one is *not* covered by a unit test: reproducing the hold inside Robolectric depends
-    on whether the foreground-service start completes, which the shadow runtime does not
-    consistently do, so the contract is documented here and verified by the `[ProactiveCare]`
-    `dispatch` log lines the release build emits. The plan decision it depends on is covered by
-    `ProactiveCareFirePlanTest`.
-15. **A refused arrival notification is reported.** `ScheduledTaskNotifications.schedule` returns
-    `false` when notifications are not authorized or the adapter's 60-request queue is full, and the
-    port ignored that result: care looked scheduled while nothing would ever fire.
-    `IosProactiveCareScheduler.lastScheduleAccepted` mirrors the answer and the refusal is logged
-    with the `[ProactiveCare]`-family tag, the same way the exact-alarm grant is reported on
-    Android.
+    notification. `configure` resets `ready` and clears `dispatched`, because a recreated engine has
+    no listener until it answers again and any previous engine's hand-offs were lost with it. Note
+    the deliberate trade-off: a `Direct` hand-off while backgrounded runs in the live process
+    without starting a foreground service, trading foreground-service process protection for
+    immediate delivery latency without triggering `BackgroundRuntime.beginScheduledRun`'s
+    collateral `stopAll`.
+14. **`dispatched` is a cross-drain delivery record bounded by `inFlight`.** `dispatchToChannel`
+    checks `val bridge = channel ?: return`, invokes `fire` for each `inFlight` id not yet in
+    `dispatched`, adds the id to `dispatched` after invoking, and prunes stale entries with
+    `dispatched.retainAll(inFlight.keys)` (while `finish(id)` removes the id once Dart acknowledges
+    via `done`). Keeping all still-`inFlight` ids in `dispatched` across drains prevents a second
+    conversation's fire or `MainActivity.onStart` from erasing an earlier in-flight letter's
+    delivery record and re-firing it before its model round trip finishes. Pinned by
+    `ProactiveCareAlarmsTest.laterDrainsDoNotReFireAnAlreadyDispatchedInFlightLetter` (run it
+    deliberately — see the verification note below) plus `ProactiveCareFirePlanTest`.
+15. **A refused arrival notification is logged.** `ScheduledTaskNotifications.schedule` returns
+    `false` when notifications are not authorized or the adapter's 60-request queue is full;
+    `IosProactiveCareScheduler` logs the refusal with the `[IosProactiveCare]` tag so a silent
+    refusal is visible in diagnostics.
 
 ## Consequences
 
@@ -243,16 +246,18 @@ removes pending requests, which is the right behaviour for `prepared: false` let
 - A future re-base must replay this contract as part of the care unit
   (`docs/rebase-runbook.md`); the deviations it fixes are exactly the kind of thing a mechanical
   port reintroduces.
-- Care's arrival notification now shares Kelivo's `scheduled-task:` namespace on iOS. The
-  consequence is a hard invariant to keep: the identifier a notification is registered under is the
-  identifier `cancel` must pass, and `ScheduledTaskNotifications` is the authority on that string.
-  `IosProactiveCareScheduler.notificationIdFor` is the only place it is built, and the test that
-  pins it fails before the notification could ever be orphaned again.
+- Care's arrival notification shares Kelivo's `scheduled-task:` namespace on iOS. Two invariants
+  must hold: (a) both `schedule` and `cancel` pass the bare conversation id through
+  `IosProactiveCareScheduler.notificationIdFor` (which `ScheduledTaskNotifications` prefixes on
+  both sides), and (b) `IosProactiveCareScheduler.rescheduleAll` cancels the conversations whose
+  schedules it drops, so they never stay pending. Both invariants are pinned by
+  `ios_proactive_care_scheduler_test.dart`.
 - Android now has two dispatch entries into the same channel: `dispatchToChannel` (a live listener,
   plan `Direct`) and `dispatchPending` (waits for the service or the foreground, plan `Service`).
-  They share `dispatched`, which records *hand-offs that happened*; a fire is therefore delivered at
-  most once, and one that could not be handed over stays queued for the next drain instead of being
-  silently retired.
+  They share `dispatched`, which records *hand-offs that happened* across drains and is pruned only
+  against `inFlight.keys` (plus `finish(id)` on Dart's `done` ack); a fire is therefore delivered
+  at most once, an in-flight letter is not re-fired by a subsequent drain, and a fire that could
+  not be handed over stays queued for the next drain.
 - Known and deliberately deferred: `BackgroundRuntime.beginScheduledRun` sets `blocked` when the
   foreground service cannot start and then calls `scheduledTasks.stopAll("foreground_service_start_failed")`,
   which aborts unrelated scheduled-task runs as collateral. Care's own recovery (the `MainActivity.onStart`
@@ -278,5 +283,6 @@ removes pending requests, which is the right behaviour for `prepared: false` let
   source set (`OAuthLifecycleTest`, plus one `HighRefreshRateControllerTest` initializer) as debt
   this document is only recording.
 - The Dart side of this contract is covered in `ios_proactive_care_scheduler_test.dart` (the
-  identifier invariant), `proactive_care_alarm_service_test.dart` (both platform branches), and the
-  pure fire-plan decision in `ProactiveCareFirePlanTest`.
+  identifier and `rescheduleAll` replace-all invariants), `proactive_care_alarm_service_test.dart`
+  (both platform branches), and the pure fire-plan decision and cross-drain delivery record in
+  `ProactiveCareFirePlanTest` and `ProactiveCareAlarmsTest`.

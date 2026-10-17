@@ -12,7 +12,6 @@ void main() {
 
   setUp(() {
     calls.clear();
-    IosProactiveCareScheduler.lastScheduleAccepted = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
           calls.add(call);
@@ -71,10 +70,10 @@ void main() {
         final call = calls.single;
         expect(call.method, 'schedule');
         final args = Map<String, Object?>.from(call.arguments as Map);
-        // The adapter stores requests as `scheduled-task:<runId>` and its
-        // `cancel` removes exactly that form, so a bare id here would register
-        // a notification nothing could ever cancel.
-        expect(args['runId'], 'scheduled-task:c1');
+        // The native adapter prefixes `scheduled-task:` in both `schedule` and
+        // `cancel`, so callers pass the bare conversation id via
+        // `notificationIdFor` without double-prefixing.
+        expect(args['runId'], 'c1');
         expect(args['at'], targetTime.millisecondsSinceEpoch);
         expect(args['title'], 'Test');
         expect(args['body'], 'A letter has arrived.');
@@ -128,7 +127,7 @@ void main() {
       );
       expect(scheduler.schedules.containsKey('c1'), isFalse);
       expect(calls.last.method, 'cancel');
-      expect(calls.last.arguments, 'scheduled-task:c1');
+      expect(calls.last.arguments, 'c1');
 
       await scheduler.sync(
         conversation: conversation(id: 'c2', nextAt: targetTime),
@@ -136,16 +135,26 @@ void main() {
       );
       expect(scheduler.schedules.containsKey('c2'), isFalse);
       expect(calls.last.method, 'cancel');
-      expect(calls.last.arguments, 'scheduled-task:c2');
+      expect(calls.last.arguments, 'c2');
 
       scheduler.dispose();
     });
 
     test(
-      'rescheduleAll replaces the schedules with the pending ones',
+      'rescheduleAll replaces the schedules with the pending ones and cancels dropped ones',
       () async {
         final scheduler = createScheduler(arrivalBody: 'A letter has arrived.');
         final targetTime = currentTime.add(const Duration(minutes: 5));
+
+        // Pre-populate a previously scheduled conversation ('c3') that is not
+        // in the new snapshot at all, plus an ineligible/past-due conversation
+        // ('c2') in the snapshot. Both must be cancelled when `rescheduleAll`
+        // replaces the schedule set.
+        await scheduler.sync(
+          conversation: conversation(id: 'c3', nextAt: targetTime),
+          assistant: assistant(),
+        );
+        calls.clear();
 
         await scheduler.rescheduleAll(
           conversations: [
@@ -159,8 +168,14 @@ void main() {
         );
 
         expect(scheduler.schedules.keys, ['c1']);
-        expect(calls, hasLength(1));
-        expect(calls.single.method, 'schedule');
+        final cancels = calls
+            .where((c) => c.method == 'cancel')
+            .map((c) => c.arguments)
+            .toSet();
+        expect(cancels, {'c2', 'c3'});
+        final schedules = calls.where((c) => c.method == 'schedule').toList();
+        expect(schedules, hasLength(1));
+        expect((schedules.single.arguments as Map)['runId'], 'c1');
 
         scheduler.dispose();
       },
@@ -179,42 +194,9 @@ void main() {
       final registered = calls.singleWhere((c) => c.method == 'schedule');
       final removed = calls.singleWhere((c) => c.method == 'cancel');
       final runId = (registered.arguments as Map)['runId'];
-      // The whole bug: removing a bare conversation id left the notification
-      // pending, so a stale "a letter has arrived" tap opened an empty chat.
       expect(removed.arguments, runId);
       expect(runId, IosProactiveCareScheduler.notificationIdFor('c1'));
-
-      scheduler.dispose();
-    });
-
-    test('a refused arrival notification is reported, not assumed', () async {
-      const refusing = MethodChannel(
-        'test.proactive_care_notifications_refused',
-      );
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(refusing, (call) async => false);
-      addTearDown(
-        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(refusing, null),
-      );
-      final scheduler = IosProactiveCareScheduler(
-        channel: refusing,
-        now: () => currentTime,
-        isIos: () => true,
-      );
-
-      await scheduler.sync(
-        conversation: conversation(
-          id: 'c1',
-          nextAt: currentTime.add(const Duration(minutes: 10)),
-        ),
-        assistant: assistant(),
-      );
-
-      // iOS refused (no notification grant, or the adapter's queue is full):
-      // the letter now depends on the in-app executor and the catch-up, and
-      // that has to be visible instead of looking scheduled.
-      expect(IosProactiveCareScheduler.lastScheduleAccepted, isFalse);
+      expect(runId, 'c1');
 
       scheduler.dispose();
     });

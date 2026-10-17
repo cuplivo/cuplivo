@@ -18,13 +18,13 @@ import 'proactive_care_conversation_policy.dart';
 /// [arrivalBodyResolver] is the localized line announcing it.
 ///
 /// **Notification identity is part of Kelivo's adapter contract.** The native
-/// side stores every request in this channel under the `scheduled-task:` prefix
-/// (`ScheduledTaskNotifications.schedule`) and its `cancel` handler removes that
-/// same prefixed identifier. Passing a bare conversation id here registers a
-/// notification nothing can ever cancel: disabling care, deleting a
-/// conversation or re-arming left the old arrival notification pending, and a
-/// tap on it opened an empty chat. [notificationIdFor] is the only place the
-/// identifier is built, and `sync`/`cancelFor` both go through it.
+/// side prefixes every request in this channel with `scheduled-task:` in both
+/// `ScheduledTaskNotifications.schedule` and `cancel`, so callers pass the
+/// bare identifier (here, the conversation id, via [notificationIdFor]) and
+/// `sync`/`cancelFor`/`rescheduleAll` all go through it. `rescheduleAll` is a
+/// replace-all like Android's: it cancels the arrival notifications of every
+/// conversation that had a schedule but is no longer pending (past due,
+/// switched off, owner gone), so none of them survives the re-arm.
 class IosProactiveCareScheduler {
   IosProactiveCareScheduler({
     MethodChannel? channel,
@@ -37,22 +37,12 @@ class IosProactiveCareScheduler {
 
   static const String defaultArrivalBody = 'A letter has arrived.';
 
-  /// The identifier every arrival notification is registered (and cancelled)
-  /// under: Kelivo's adapter stores requests as `scheduled-task:<runId>` and
-  /// only removes that form, so the care channel reuses its namespace. Care
-  /// conversation ids are not run UUIDs, which is what keeps
-  /// `PreparedScheduledTasks.load` from adopting them as orphaned run
-  /// notifications.
-  static String notificationIdFor(String conversationId) =>
-      'scheduled-task:$conversationId';
-
-  /// Whether the last `schedule` call was accepted by the system. `false` means
-  /// iOS refused it — notifications are not authorized, or the app already has
-  /// the 60 pending requests the adapter allows — and no arrival notification
-  /// will fire for that schedule. Diagnostic mirror; the readiness UI reads the
-  /// notification grant itself.
-  @visibleForTesting
-  static bool? lastScheduleAccepted;
+  /// The `runId` argument passed to Kelivo's `app.scheduled_notifications`
+  /// channel for both `schedule` and `cancel`. The native adapter itself
+  /// prepends `scheduled-task:` in both handlers, so passing the bare
+  /// conversation id keeps the registered and cancelled identifiers identical
+  /// (`scheduled-task:<conversationId>`) without double-prefixing.
+  static String notificationIdFor(String conversationId) => conversationId;
 
   static bool _platformIsIos() => !kIsWeb && Platform.isIOS;
 
@@ -123,7 +113,26 @@ class IosProactiveCareScheduler {
       assistants: assistants,
       now: _now(),
     );
+    final pendingIds = {for (final target in pending) target.conversation.id};
+    // Replace-all: a conversation that had an arrival notification and is no
+    // longer pending (past due, care switched off, owner assistant gone) must
+    // not keep it. Only conversations this process scheduled, or that still
+    // carry a stored care time, can have one — so an unrelated conversation
+    // never costs a channel round-trip. (A conversation that vanished from the
+    // snapshot entirely is swept by `PreparedScheduledTasks.load` at the next
+    // start: it cancels every pending `scheduled-task:` id that is not one of
+    // its runs, and care re-arms the surviving ones afterwards.)
+    final toCancel = <String>{
+      ..._schedules.keys.where((id) => !pendingIds.contains(id)),
+      for (final conversation in conversations)
+        if (conversation.proactiveCareNextMessageAt != null &&
+            !pendingIds.contains(conversation.id))
+          conversation.id,
+    };
     _schedules.clear();
+    for (final id in toCancel) {
+      await cancelFor(id);
+    }
     for (final target in pending) {
       _schedules[target.conversation.id] = target.expectedAt;
       await _scheduleNotification(
@@ -151,7 +160,6 @@ class IosProactiveCareScheduler {
             'payload': 'proactive-care:$conversationId',
           }) ??
           false;
-      lastScheduleAccepted = accepted;
       if (!accepted) {
         // Notification permission not granted, or the adapter's 60-request
         // queue is full: the arrival notification will never fire, and the
@@ -162,7 +170,6 @@ class IosProactiveCareScheduler {
         );
       }
     } catch (e) {
-      lastScheduleAccepted = false;
       debugPrint('[IosProactiveCare] schedule notification failed: $e');
     }
   }

@@ -1221,12 +1221,13 @@ class HomePageController extends ChangeNotifier {
         );
         // A notification-tap cold start resumed before this point and its
         // catch-up could only see an empty conversation cache. This is the
-        // first moment it can see a schedule, so run the same pair the resume
-        // path runs. Deliberately not awaited: the `finally` below has to stay
-        // free to open the tapped conversation, and the letter reloads the
-        // window itself the moment it is stored (`onLetterPersisted`), so
-        // waiting here would only freeze the very screen the user just opened.
-        unawaited(_recoverProactiveCareOnResume());
+        // first moment it can see a schedule, and the re-arm just ran above,
+        // so kick off the overdue catch-up here. Deliberately not awaited: the
+        // `finally` below has to stay free to open the tapped conversation, and
+        // the letter reloads the window itself the moment it is stored
+        // (`onLetterPersisted`), so waiting here would only freeze the very
+        // screen the user just opened.
+        unawaited(_viewModel.deliverDueProactiveCare());
       }
     } finally {
       _startupConversationPending = false;
@@ -3610,10 +3611,12 @@ class HomePageController extends ChangeNotifier {
   /// path contains no `await`, so no concurrent delivery can slip an arm in
   /// between (see ADR-0006).
   ///
-  /// Called from two places: the `resumed` transition, and the end of
-  /// [initChat] once the conversation cache is loaded, because a cold start
-  /// triggered by tapping the arrival notification resumes before that
-  /// load finishes — the earlier call's catch-up can only see an empty cache.
+  /// Called from `resumed` unconditionally; [initChat] runs the same
+  /// `rescheduleAll` → `deliverDueProactiveCare` sequence at the end of
+  /// startup once the conversation cache is loaded, because a cold start
+  /// triggered by tapping the arrival notification resumes before that load
+  /// finishes — the earlier `resumed` call's catch-up can only see an empty
+  /// cache.
   Future<void> _recoverProactiveCareOnResume() async {
     await _viewModel.reschedulePendingProactiveCare();
     await _viewModel.deliverDueProactiveCare();

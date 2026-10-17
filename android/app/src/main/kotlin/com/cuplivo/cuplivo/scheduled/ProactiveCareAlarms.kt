@@ -75,8 +75,10 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
     }
 
     fun configure(messenger: BinaryMessenger) {
-        // A fresh channel has no Dart listener until it answers `ready` again.
+        // A fresh channel has no Dart listener until it answers `ready` again,
+        // and any previous engine's hand-offs were lost with that engine.
         ready = false
+        dispatched.clear()
         channel = MethodChannel(messenger, "app.proactive_care_alarms").also { bridge ->
             bridge.setMethodCallHandler { call, result ->
                 try {
@@ -235,19 +237,18 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
      */
     private fun dispatchToChannel() {
         if (!ready) return
-        val handedOver = mutableSetOf<String>()
+        val bridge = channel ?: return
         inFlight.toMap().forEach { (id, dueAt) ->
-            if (!dispatched.add(id)) return@forEach
+            if (id in dispatched) return@forEach
             Log.i(TAG, "dispatch: handing off $id due=$dueAt")
-            channel?.invokeMethod("fire", mapOf("conversationId" to id, "dueAt" to dueAt))
-            handedOver.add(id)
+            bridge.invokeMethod("fire", mapOf("conversationId" to id, "dueAt" to dueAt))
+            dispatched.add(id)
         }
-        // `dispatched` is a delivery record, not an attempt record: when the
-        // channel is gone the hand-off did not happen, and keeping the entry
-        // would make the hold in [dispatchPending] permanent — the letter would
-        // never be offered to Dart again until the deadline released it. Drop
-        // the ids that could not be handed over so the next drain retries them.
-        dispatched.retainAll(handedOver)
+        // Keep ids handed over in an earlier drain that are still awaiting the
+        // Dart `done` ack (`finish` retires an id once that ack arrives),
+        // instead of pruning `dispatched` to the current batch and re-firing
+        // in-flight letters on the next drain.
+        dispatched.retainAll(inFlight.keys)
     }
 
     /** Sends every claimed-but-undelivered fire to the Dart side. */

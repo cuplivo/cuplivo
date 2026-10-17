@@ -208,4 +208,32 @@ class ProactiveCareAlarmsTest {
 
         assertEquals(mapOf("exactAlarms" to false), messenger.replies.last())
     }
+
+    /**
+     * `dispatched` is a cross-drain delivery record: a later drain (e.g. a
+     * second conversation's Direct fire or `MainActivity.onStart`) while the
+     * first letter is still awaiting Dart's `done` ack must not erase the first
+     * letter's record and re-fire it.
+     */
+    @Test fun laterDrainsDoNotReFireAnAlreadyDispatchedInFlightLetter() {
+        val messenger = ready()
+        app.backgroundRuntime.setForeground(true)
+        val dueAt = System.currentTimeMillis() + 60_000
+
+        sync(messenger, "c1", dueAt)
+        sync(messenger, "c2", dueAt)
+        alarms.fire("c1", dueAt)
+        assertEquals(1, messenger.fired().size)
+
+        // Second fire triggers another `dispatchToChannel` while `c1` is still
+        // in flight (no `done` yet), followed by a foreground `dispatchPending`
+        // drain: `c1` must stay recorded in `dispatched` and never be handed
+        // off a second time.
+        alarms.fire("c2", dueAt)
+        alarms.dispatchPending()
+        alarms.dispatchPending()
+
+        val firedIds = messenger.fired().map { (it.arguments as Map<*, *>)["conversationId"] }
+        assertEquals(listOf("c1", "c2"), firedIds)
+    }
 }

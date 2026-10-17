@@ -1514,6 +1514,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hotkeyCopySelectionMarkdown => 'Copy Selection as Markdown';
 
   @override
+  String get hotkeyReplySelection => 'Reply to Selection';
+
+  @override
   String get hotkeysPressShortcut => 'Press a shortcut';
 
   @override
@@ -2464,6 +2467,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageMoreSheetEdit => 'Edit';
 
   @override
+  String get messageMoreSheetReply => 'Reply';
+
+  @override
+  String get messageQuoteTargetMissing => 'Original message unavailable';
+
+  @override
+  String get messageQuotePreviewRemove => 'Remove reply';
+
+  @override
   String get messageMoreSheetShare => 'Share';
 
   @override
@@ -2509,6 +2521,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatMessageWidgetCopyAsMarkdown => 'Markdown';
+
+  @override
+  String get chatMessageWidgetReplySelection => 'Reply';
 
   @override
   String get chatMessageWidgetResendTooltip => 'Resend';

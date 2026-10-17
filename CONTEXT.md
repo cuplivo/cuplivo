@@ -751,11 +751,12 @@ contradicts one of them is a bug, not a preference.
   provides one; nothing nests an owner inside another. The sanitizer's copy-intent override is registered
   only while this surface owns a non-empty selection.
 - **Selection memory (选区记忆)**: the last assistant selection, filed under the surface that made it,
-  together with the way to rebuild its 匹配源 — held so the `Copy Selection as Markdown` hotkey can act
-  without a context menu. It is cleared when the selection is cleared or emptied, and a surface that goes
-  away (a reply scrolled out of the viewport, a conversation switched) retires its own recording, so the
-  hotkey cannot copy a selection nobody can see. The `Markdown` item never reads it: the item maps the
-  surface whose menu is open.
+  together with the message it was made in and the way to rebuild its 匹配源 — held so the
+  `Copy Selection as Markdown` and `Reply to Selection` hotkeys can act without a context menu. It is
+  cleared when the selection is cleared or emptied, and a surface that goes away (a reply scrolled out
+  of the viewport, a conversation switched) retires its own recording, so a hotkey cannot act on a
+  selection nobody can see. The `Markdown` item never reads it: the item maps the surface whose menu
+  is open.
 - **Nested selection owner (嵌套选区归属)**: what ADR-0010's rule leaves outside it — a diagram's code view,
   which owns its selection area, so its text is reached through that area and never through the text around
   it. Such an owner **claims** the selection from the area above it, and the sanitizer's copy-intent
@@ -775,3 +776,45 @@ contradicts one of them is a bug, not a preference.
   markup (`## `, a code span, a link) from that earlier place: the framework reports a selection as text
   alone, so the mapping has nothing to prefer by.
 - Reasoning text is 净化复制 but has no Markdown 复制: what it displays is not a 匹配源.
+
+## Message reply (消息回复) — ADR-0011
+
+- **Reply (回复)**: the user's own message answers a message it names — QQ-style. Never a thread, never
+  a tree, never a role change. Two forms: **整条引用** (the whole target message, resolved live from its
+  row id) and **范围引用** (a span the user selected, carried as its own text).
+- **Quote (引用)**: the citation a 回复 stores — `{id, text?}`. `text` is the quoted span as **raw
+  markdown**, exactly what the Markdown 复制 mapping re-emits for that selection; `text == null` means
+  整条引用. It is deliberately **offset-free**: v3 stored half-open ranges into the target's markdown and
+  re-located them with a subsequence matcher, and ADR-0007 decision 5 deleted that matcher, so a
+  citation here is a snapshot rather than a pointer into text that may have moved.
+- **`<reply-to>` citation (引文)**: the model-facing form of a Quote — a user body whose citation
+  resolves becomes `<reply-to>{markdown}</reply-to>` ahead of its own text. It is folded in **before**
+  the prompt is assembled, so it freezes into `message_prompt_rows` with the rest of the turn: what was
+  sent stays what is replayed, and the prompt cache keeps its prefix. An unresolvable target contributes
+  nothing at all — the stub a reader sees is UI language, never model language.
+- **Citation chip (引用栏)**: the one-line citation above a bubble's content, and the preview row the
+  composer shows while the reply is pending. Its text is the citation in the IR's *display space* — the
+  same walk the bubble itself rendered with. A 范围引用 is self-sufficient (it shows its own text even
+  after its target is gone; the target only feeds the tap that jumps to it), while an 整条引用 shows the
+  target it resolved or 桩文案 when it cannot.
+- **Quote target (引文目标)**: the message a Quote names. It is resolved from the request's own stream,
+  then the conversation cache, then the database, so a citation of a message outside the loaded window
+  still grounds in the request; for display it resolves against the window on screen alone, and
+  anything outside it renders the stub. A **copied conversation** (fork, duplicate) remaps its citations
+  onto the copy's own rows and drops the ones whose target the copy does not hold.
+- **Naming boundary**: 「引用」 in the UI means a search citation (「引用来源」, 「引用 (共 N 条)」), so the
+  menu item reads 「回复」 / "Reply" while the domain term — and every identifier in the code — is
+  **Quote**. The text-level 「引用粘贴」 (selection → `> …` into the composer) is a separate v3 feature
+  that was **not** carried over.
+
+### Relationships
+
+- A 回复 exists only on a user-originated message, and it is part of that message's content identity: a
+  new version of the row carries it, and a copy of the conversation remaps it.
+- A Quote needs no schema version: it rides `message_rows.extras_json` under `reply.quote`, beside the
+  `tokens.*` / `timing.*` side channel, so 整条引用 and 范围引用 arrive with the message row on LAN sync
+  and in a backup.
+- The whole-message entry is withheld while its target is still streaming (the citation would freeze a
+  reply that is still being written); the 范围引用 entry stays, because its text was captured by value.
+- A citation neither creates nor preserves a conversation: a 整条引用 whose target is gone shows the stub
+  and sends no 引文, and nothing else changes.

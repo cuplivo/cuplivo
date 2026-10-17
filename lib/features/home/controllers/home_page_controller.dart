@@ -14,6 +14,8 @@ import '../../../core/database/chat_database_repository.dart';
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/message_part.dart';
+import '../../../core/models/message_quote.dart';
+import '../../chat/utils/reply_citation_label.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/models/reasoning_request.dart';
 import '../../../core/models/workspace_binding.dart';
@@ -985,6 +987,20 @@ class HomePageController extends ChangeNotifier {
                 context,
               )!.chatMessageWidgetCopiedToClipboard,
               type: NotificationType.info,
+            );
+          }
+          break;
+        case ChatAction.replySelection:
+          // The same workaround for starting a reply: the toolbar item maps the
+          // surface that built the menu, and this maps the selection the memory
+          // recorded, so a lost selection does not lose the reply.
+          if (isDesktopPlatform) {
+            final source = SelectionMarkdownMemory.instance
+                .replySourceForSelection();
+            if (source == null) break;
+            startReplyToSelection(
+              messageId: source.messageId,
+              markdown: source.markdown,
             );
           }
           break;
@@ -3402,6 +3418,40 @@ class HomePageController extends ChangeNotifier {
 
   Future<void> jumpToPreviousQuestion() =>
       _jumpToAdjacentMessage(previous: true);
+
+  /// Starts a whole-message reply to [message] (docs/adr/0011): the citation
+  /// refers to the row, and the composer shows its first line.
+  void startReplyTo(ChatMessage message) {
+    if (!_context.mounted) return;
+    final settings = _context.read<SettingsProvider>();
+    final label = replyCitationLabel(
+      message.content,
+      settings: settings,
+      streaming: message.isStreaming,
+    );
+    _mediaController.setPendingQuote(
+      MessageQuote(id: message.id),
+      label: label,
+    );
+    _inputFocus.requestFocus();
+  }
+
+  /// Starts a ranged reply to the selection behind [markdown] — the text the
+  /// renderer's own mapping re-emitted, which the citation then keeps as its
+  /// snapshot.
+  void startReplyToSelection({
+    required String messageId,
+    required String markdown,
+  }) {
+    final text = markdown.trim();
+    if (text.isEmpty || !_context.mounted) return;
+    final settings = _context.read<SettingsProvider>();
+    _mediaController.setPendingQuote(
+      MessageQuote(id: messageId, text: text),
+      label: replyCitationLabel(text, settings: settings),
+    );
+    _inputFocus.requestFocus();
+  }
 
   Future<void> jumpToNextQuestion() => _jumpToAdjacentMessage(previous: false);
 

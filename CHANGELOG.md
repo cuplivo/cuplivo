@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Message replies**: a message's ⋯ menu (and a user bubble's long-press or right-click menu) can reply to it, and a selection inside an assistant reply can reply to just that span — the reply shows a one-line citation above the bubble, and the model receives it as a `<reply-to>` prefix frozen with the rest of the turn. Desktop binds `Ctrl/Cmd+Shift+R` to reply with the selection, because a right-click can take the selection away before the toolbar is reached. The citation rides the message row's extras, so it needs no schema change and travels with LAN sync and backups
+
 ### Fixed
 
 - **A stale "Their Letter" notification on iOS**: `IosProactiveCareScheduler.rescheduleAll` now cancels arrival notifications for conversations that dropped out of the pending set (past-due, disabled, or replaced on restore) and passes the bare conversation id that Kelivo's notification adapter prefixes in both `schedule` and `cancel`, so stale arrival notifications no longer survive re-arming (#1007 by @Pheobe-Southwood)

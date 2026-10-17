@@ -112,7 +112,10 @@ clipboard, who owns a selection, and the shortcut. Three inputs come from measur
 ## Not in scope
 
 - Quote, reply-with-quote and speak-selection: v3 built all three on the same captured selection, and
-  reply is schema-level on this line.
+  reply is schema-level on this line. **Amended by ADR-0011**: the reply's ranged item now sits beside
+  this one in the same toolbar, from the same mapping, and the citation it stores is a snapshot rather
+  than a range — so it needs no schema version and no relocation matcher. 引用粘贴 and
+  speak-selection stay out of scope.
 - A `Markdown` item for a selection made *inside* a nested area: a selection inside a table cell or a code
   body is the bubble's own selection and reaches the same item, because ADR-0010 put those on the surface's
   area; one made inside a diagram's code tab or a body past the lazy threshold belongs to that block

@@ -358,7 +358,17 @@ MdDocument _walkDocument(
   required bool enableMathRendering,
   required bool enableDollarLatex,
 }) => MarkdownWithCodeHighlight.markdownDocumentFor(
-  source,
+  // The walk is only half the grammar: what the components parse is the source
+  // the surface *prepared*, and this layout has no widget tree to prepare it
+  // with — the preparation is a closure over a settings provider there. Without
+  // it a `[cite:id]` marker stays literal text, a link that carries a title
+  // never matches its pattern at all, and display math written inside a line is
+  // prose: the export then disagrees with the screen about the same message.
+  markdownPreprocessFences(
+    markdownSanitizeImageLinks(source),
+    enableMath: enableMathRendering,
+    enableDollarLatex: enableDollarLatex,
+  ),
   enableMathRendering: enableMathRendering,
   enableDollarLatex: enableDollarLatex,
   streaming: false,
@@ -1570,19 +1580,15 @@ String _mathSource(MdNode node) {
 }
 
 /// The alt text and the target an image node's source holds.
+///
+/// The scan is the one the rendered image reads, so the two cannot disagree
+/// about the size an `alt` of `WxH` spells — and a size is not text, which is
+/// why an alt that parsed into a size is not written where the picture goes.
 ({String alt, String url}) _imageParts(String source) {
-  final trimmed = source.trim();
-  final open = trimmed.indexOf('](');
-  if (!trimmed.startsWith('![') || open < 0) {
-    return (alt: '', url: trimmed);
-  }
-  final alt = trimmed.substring(2, open);
-  final close = trimmed.lastIndexOf(')');
-  final url = close > open + 2 ? trimmed.substring(open + 2, close).trim() : '';
-  // The renderer reads a `WxH` alt as a size rather than as text, so a size is
-  // not what a reader should see in its place.
-  final isSize = RegExp(r'^\d+(x\d+)?$').hasMatch(alt.trim());
-  return (alt: isSize ? '' : alt.trim(), url: url);
+  final element = parseMarkdownImageElement(source);
+  if (element == null) return (alt: '', url: source.trim());
+  final sized = element.width != null || element.height != null;
+  return (alt: sized ? '' : element.alt.trim(), url: element.url);
 }
 
 /// The URL a link node re-emits after its label.

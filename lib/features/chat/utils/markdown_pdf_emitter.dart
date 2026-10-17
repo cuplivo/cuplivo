@@ -17,12 +17,23 @@ import 'export_document.dart';
 // a dark page is the wrong artefact for both; the block fills are the light ones
 // the chat draws with.
 const PdfColor _ink = PdfColor.fromInt(0xFF1F2328);
-const PdfColor _mutedInk = PdfColor.fromInt(0xFF59636E);
-const PdfColor _linkInk = PdfColor.fromInt(0xFF0969DA);
 const PdfColor _ruleInk = PdfColor.fromInt(0xFFD8DEE4);
 const PdfColor _blockFill = PdfColor.fromInt(0xFFF6F8FA);
 const PdfColor _quoteRuleInk = PdfColor.fromInt(0xFFC4CCD4);
 const PdfColor _quoteInk = PdfColor.fromInt(0xFF454F59);
+
+/// The accent a light page falls back to when its owner has no palette to give
+/// it: the fork's own indigo, dark enough to read as a link on white.
+///
+/// A caller that knows the app's light palette passes it as
+/// [PdfExportRequest.accent] instead — a PDF is still the app's document, and a
+/// link that is a different blue from every other link the app draws is a
+/// difference a reader notices.
+const PdfColor kPdfPageAccent = PdfColor.fromInt(0xFF4D5C92);
+
+/// The quiet ink a light page falls back to: timestamps, captions, page
+/// furniture, and the reference a picture stands in for.
+const PdfColor kPdfPageMuted = PdfColor.fromInt(0xFF59636E);
 
 const double _marginTop = 40;
 const double _marginBottom = 42;
@@ -138,6 +149,8 @@ class PdfExportRequest {
     required this.title,
     required this.messages,
     required this.thinkingLabel,
+    required this.accent,
+    required this.muted,
     this.subtitle,
     this.bodyFont,
     this.monoFont,
@@ -153,6 +166,18 @@ class PdfExportRequest {
   /// The line under the title, already formatted by the caller (it knows the
   /// locale and the message count).
   final String? subtitle;
+
+  /// The accent the page draws its links, citations and task boxes in.
+  ///
+  /// The page is always light, so this is a colour that reads on white — which
+  /// is why the caller resolves it from the app's *light* palette rather than
+  /// from the theme in force: a dark theme's primary is a pale tint that would
+  /// vanish into the paper.
+  final PdfColor accent;
+
+  /// The quiet ink for the page's second voice: timestamps, captions, the
+  /// reference a picture stands in for.
+  final PdfColor muted;
 
   final List<ExportMessage> messages;
 
@@ -268,7 +293,7 @@ Future<PdfExportResult> buildConversationPdf(PdfExportRequest request) async {
               child: pw.Text(
                 request.title,
                 maxLines: 1,
-                style: pw.TextStyle(fontSize: 8, color: _mutedInk),
+                style: pw.TextStyle(fontSize: 8, color: request.muted),
               ),
             ),
       footer: (context) => pw.Container(
@@ -276,7 +301,7 @@ Future<PdfExportResult> buildConversationPdf(PdfExportRequest request) async {
         margin: const pw.EdgeInsets.only(top: 10),
         child: pw.Text(
           '${context.pageNumber} / ${context.pagesCount}',
-          style: pw.TextStyle(fontSize: 8, color: _mutedInk),
+          style: pw.TextStyle(fontSize: 8, color: request.muted),
         ),
       ),
       build: (context) => layout.build(),
@@ -719,7 +744,7 @@ class _PdfLayout {
     fontFallback: _monoFallback,
   );
   pw.TextStyle get _captionStyle =>
-      pw.TextStyle(fontSize: 9, color: _mutedInk, font: body);
+      pw.TextStyle(fontSize: 9, color: request.muted, font: body);
   pw.TextStyle get _mathInlineStyle => pw.TextStyle(
     fontSize: 10,
     color: _quoteInk,
@@ -789,7 +814,7 @@ class _PdfLayout {
           padding: const pw.EdgeInsets.only(top: 2, bottom: 12),
           child: pw.Text(
             request.subtitle!,
-            style: pw.TextStyle(fontSize: 9, color: _mutedInk),
+            style: pw.TextStyle(fontSize: 9, color: request.muted),
           ),
         ),
     ];
@@ -823,7 +848,7 @@ class _PdfLayout {
         ),
         pw.Text(
           message.time,
-          style: pw.TextStyle(fontSize: 8, color: _mutedInk),
+          style: pw.TextStyle(fontSize: 8, color: request.muted),
         ),
       ],
     ),
@@ -1397,7 +1422,7 @@ class _PdfLayout {
         case MdNodeKind.link:
           final url = _linkUrl(node);
           final linkStyle = base.copyWith(
-            color: _linkInk,
+            color: request.accent,
             decoration: pw.TextDecoration.underline,
           );
           out.add(
@@ -1422,7 +1447,7 @@ class _PdfLayout {
           out.add(
             pw.TextSpan(
               text: parts.alt.isEmpty ? parts.url : parts.alt,
-              style: base.copyWith(color: _mutedInk),
+              style: base.copyWith(color: request.muted),
             ),
           );
         case MdNodeKind.decoration:

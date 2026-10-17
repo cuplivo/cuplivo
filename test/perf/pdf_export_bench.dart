@@ -28,6 +28,8 @@ void main() {
         title: '导出基准 $count',
         subtitle: '2026-01-02 03:04:05',
         thinkingLabel: '思考过程',
+        accent: kPdfPageAccent,
+        muted: kPdfPageMuted,
         bodyFont: font,
         messages: <ExportMessage>[
           for (var index = 0; index < count; index++)

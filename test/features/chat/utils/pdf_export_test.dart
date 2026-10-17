@@ -78,6 +78,8 @@ void main() {
         title: '导出回归',
         subtitle: '一条测试会话',
         thinkingLabel: '思考过程',
+        accent: kPdfPageAccent,
+        muted: kPdfPageMuted,
         bodyFont: cjkFont,
         messages: <ExportMessage>[
           ExportMessage(
@@ -153,6 +155,8 @@ void main() {
       final PdfExportRequest request = PdfExportRequest(
         title: 'isolate 导出',
         thinkingLabel: '思考过程',
+        accent: kPdfPageAccent,
+        muted: kPdfPageMuted,
         bodyFont: cjkFont,
         messages: const <ExportMessage>[
           ExportMessage(

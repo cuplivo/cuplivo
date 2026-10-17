@@ -873,6 +873,27 @@ contradicts one of them is a bug, not a preference.
 - **Page scale (页面尺度)**: `kPdfBodyFontSize / kMarkdownBodyFontSize` — the factor everything the screen
   measured in its own logical pixels keeps on paper (an author's `WxH` picture size, a 20-point citation pill,
   an 18-point task box). It exists because the page sets prose at 10.5pt where the surface sets 15.5.
+- **Speaker line (发话人行)**: the header above a message's blocks. `ExportMessage.speaker` says what the
+  message *is* (a name is a label, and a label is not a role); an assistant gets a disc, its name and its time
+  stacked, a reader gets the label the caller passed (`PdfExportRequest.userLabel`) and no time.
+- **Avatar disc (头像圆盘)**: the circle beside an assistant's name. The screen paints the model's own picture
+  there, which is a bitmap that varies per message; the page draws the structure — a tinted disc and the icon
+  glyph the app already ships as a font (`PdfExportRequest.iconFont` + `assistantIcon`) — because an export
+  that cannot fetch a picture must still show the slot rather than an empty column.
+- **User band (用户底纹)**: the tint a reader's own messages are set on, the accent over paper at 7%. It is
+  drawn *per block* rather than as one box, for the same reason a table has no outer frame: a decorated
+  container around content that can break across pages is what makes this writer loop. Adjacent fills therefore
+  touch and the band is continuous until the page breaks — which also means it is square-ended.
+- **Faux-bold stroke (伪粗体描边)**: the weight the page draws where the screen asked for bold. The theme maps
+  every weight onto the one face an export can embed, so `fontWeight: bold` alone changes nothing; instead an
+  emphasised span is filled *and stroked* (`PdfTextRenderingMode.fillAndStroke`), with the line width set per
+  text leaf by a `CustomPaint` wrapper — graphics state, so it must be restored before the next leaf and
+  re-applied to each page fragment, both of which `CustomPaint`'s own save/restore and spanning hooks give.
+- **Formula raster scale (公式栅格尺度)**: the size a formula is *drawn* at before it is embedded. The screen
+  sets an inline formula at 1.2 of its prose and a display one at the prose size itself; the page captures at
+  those sizes and 5× pixels, and an inline picture taller than the prose line is shrunk into it, because the
+  writer advances the line *after* a span by its overhang and a paragraph of formulas would otherwise read as a
+  paragraph of gaps.
 
 Deliberate divergences from the screen (each measured, not a matter of taste — ADR-0011 candidates):
 
@@ -884,11 +905,21 @@ Deliberate divergences from the screen (each measured, not a matter of taste —
   has nothing to click.
 - A table has no rounded outer frame: a decorated container around something that can run past a page is the
   unbreakable box this writer loops on.
+- A reader's message is a full-width square-ended band, not a right-aligned rounded bubble: same reason as the
+  table's frame, and the rounding cannot survive being drawn block by block.
+- A reader's message carries no timestamp and is headed with the export's own label rather than the profile's
+  name: a page that leaves someone's disk should say who spoke, not who the reader is.
+- A bold run inside a *different* colour (a link's label) keeps its weight request and loses the stroke: one
+  text leaf has one stroke colour, and an ink outline around an accent-coloured link is worse than plain type.
+- Italic is not drawn: the writer embeds a single face and there is no honest way to slant it per span.
+- A display formula is set at the prose size rather than enlarged, and an inline one at 1.2 of it, clamped into
+  the prose line — both are the screen's own ratios read onto paper.
 - The paragraph gap is the page's own, not the screen's blank line — two empty lines of list height is a chat
-  convention, and a printed page that airy spends a fifth of its length on nothing.
+  convention, and a printed page that airy spends a fifth of its length on nothing. A blank line the *source*
+  wrote is still drawn as one, because the renderer draws it too.
 - A link keeps its underline: the screen separates a link by colour alone, and paper has no hover.
 - A bare `[n]` citation chip stays a number rather than becoming a capsule.
-- Message chrome (bubble and alignment, identity, reasoning rail, tool cards, attachments, the sources card,
-  token footer) is out of scope: it is a排版 decision about what a PDF *is*, not a defect, and it would need
-  `ExportMessage` extended first.
+- The rest of the message chrome — the reasoning rail, tool cards, the sources card, the token footer — is
+  still out of scope: it is a layout decision about what a PDF *is* rather than a fidelity defect, and the
+  parts of it that carry content (thinking, tool calls, citations) are already written out by the block model.
 

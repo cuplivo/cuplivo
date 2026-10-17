@@ -96,20 +96,20 @@ class MobileBackgroundCoordinator extends ChangeNotifier
     WidgetsBinding.instance.addObserver(this);
     _channel.setMethodCallHandler(_handleNativeCall);
     await _enqueue(() async {
-      // Android hands over a bare conversation id from a notification tap (its
-      // scheme is not registered yet); iOS hands over the app-scoped link URL,
-      // which is what carries the optional message anchor. Each platform is
-      // drained in the form it speaks.
-      final linkForm = platform == TargetPlatform.iOS;
-      final pending = await _channel.invokeMethod<String>(
-        linkForm ? 'takePendingConversationLink' : 'takePendingConversation',
-      );
-      if (pending == null) return;
-      if (linkForm) {
-        _openConversationLink(pending);
-      } else {
-        NotificationService.openConversation(pending);
+      // Native Android notifications carry row keys directly; they may refer to
+      // imported ids that the bounded external URL grammar cannot carry.
+      if (platform == TargetPlatform.android) {
+        final id = await _channel.invokeMethod<String>(
+          'takePendingConversation',
+        );
+        if (id != null) NotificationService.openConversation(id);
       }
+      // Each native delivery path becomes ready when its own inbox is drained.
+      // Both platforms hand over external URLs whole, preserving message anchors.
+      final pending = await _channel.invokeMethod<String>(
+        'takePendingConversationLink',
+      );
+      if (pending != null) _openConversationLink(pending);
     });
   }
 

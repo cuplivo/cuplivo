@@ -60,6 +60,7 @@ class BackgroundRuntime(private val context: Context) {
         const val NOTIFICATION_PERMISSION_REQUEST = 4301
         const val CONVERSATION_EXTRA = "kelivo.background.conversation"
         private const val PENDING_CONVERSATION = "pending_conversation"
+        private const val PENDING_CONVERSATION_LINK = "pending_conversation_link"
     }
 
     private val prefs = context.getSharedPreferences("kelivo_background", Context.MODE_PRIVATE)
@@ -67,6 +68,7 @@ class BackgroundRuntime(private val context: Context) {
     private var channel: MethodChannel? = null
     private var activity = WeakReference<Activity>(null)
     private var dartReady = false
+    private var dartLinkReady = false
     private var revision = -1L
     private var serviceStarting = false
     private var blocked = false
@@ -118,6 +120,12 @@ class BackgroundRuntime(private val context: Context) {
                             val id = prefs.getString(PENDING_CONVERSATION, null)
                             prefs.edit().remove(PENDING_CONVERSATION).apply()
                             result.success(id)
+                        }
+                        "takePendingConversationLink" -> {
+                            dartLinkReady = true
+                            val link = prefs.getString(PENDING_CONVERSATION_LINK, null)
+                            prefs.edit().remove(PENDING_CONVERSATION_LINK).apply()
+                            result.success(link)
                         }
                         "requestPermission" -> {
                             requestPermission(call.arguments as? String ?: "")
@@ -244,8 +252,23 @@ class BackgroundRuntime(private val context: Context) {
     }
 
     fun receiveConversation(intent: Intent?) {
-        val id = intent?.getStringExtra(CONVERSATION_EXTRA)?.takeIf { it.isNotBlank() } ?: return
+        if (intent == null || intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
+        // Keep the URL whole, including encoded ids and the optional message
+        // anchor. ConversationLink in Dart owns validation for both platforms.
+        val uri = intent.data
+        if (intent.action == Intent.ACTION_VIEW && uri?.scheme == "cuplivo") {
+            intent.data = null // Consumed: activity recreation must not replay it.
+            intent.removeExtra(CONVERSATION_EXTRA)
+            prefs.edit().remove(PENDING_CONVERSATION).apply()
+            val link = uri.toString()
+            if (!dartLinkReady) prefs.edit().putString(PENDING_CONVERSATION_LINK, link).apply()
+            else channel?.invokeMethod("openConversationLink", link)
+            return
+        }
+        // Notification row keys are not constrained by the external URL grammar.
+        val id = intent.getStringExtra(CONVERSATION_EXTRA)?.takeIf { it.isNotBlank() } ?: return
         intent.removeExtra(CONVERSATION_EXTRA)
+        prefs.edit().remove(PENDING_CONVERSATION_LINK).apply()
         if (!dartReady) prefs.edit().putString(PENDING_CONVERSATION, id).apply()
         else channel?.invokeMethod("openConversation", id)
     }

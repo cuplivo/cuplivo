@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -66,6 +65,10 @@ Future<void> _openMoreSheet(
 }
 
 void main() {
+  final mobilePlatforms = TargetPlatformVariant({
+    TargetPlatform.android,
+    TargetPlatform.iOS,
+  });
   testWidgets('多版本消息菜单显示删除全部版本', (tester) async {
     await _openMoreSheet(tester, canDeleteAllVersions: true);
 
@@ -93,18 +96,17 @@ void main() {
     expect(find.text('Create Branch'), findsNothing);
   });
 
-  testWidgets('the copy entry is offered where the OS opens the scheme', (
+  testWidgets('mobile offers the copy entry for the registered scheme', (
     tester,
   ) async {
     await _openMoreSheet(tester, canDeleteAllVersions: false);
 
-    // No platform registers `cuplivo` yet except iOS, and a link a device
-    // cannot open is not offered there.
-    expect(find.text('Copy Link'), findsNothing);
-  });
+    expect(find.text('Copy Link'), findsOneWidget);
+  }, variant: mobilePlatforms);
 
-  testWidgets('iOS copies the link anchored on this message', (tester) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+  testWidgets('mobile copies the link anchored on this message', (
+    tester,
+  ) async {
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     String? clipboard;
@@ -131,30 +133,24 @@ void main() {
       expect(tester.takeException(), isNull);
     } finally {
       messenger.setMockMethodCallHandler(SystemChannels.platform, null);
-      debugDefaultTargetPlatformOverride = null;
     }
-  });
+  }, variant: mobilePlatforms);
 
-  testWidgets('iOS offers no link for an id the grammar cannot carry', (
+  testWidgets('mobile offers no link for an id the grammar cannot carry', (
     tester,
   ) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-    try {
-      await _openMoreSheet(
-        tester,
-        canDeleteAllVersions: false,
-        // Past the cap: the link would be dropped on the way back in.
-        messageId: 'x' * 201,
-      );
+    await _openMoreSheet(
+      tester,
+      canDeleteAllVersions: false,
+      // Past the cap: the link would be dropped on the way back in.
+      messageId: 'x' * 201,
+    );
 
-      // The sheet is open (its neighbour is there), so the absence below is the
-      // gate and not a sheet that never appeared.
-      expect(find.text('Select Messages'), findsOneWidget);
-      expect(find.text('Copy Link'), findsNothing);
-    } finally {
-      debugDefaultTargetPlatformOverride = null;
-    }
-  });
+    // The sheet is open (its neighbour is there), so the absence below is the
+    // gate and not a sheet that never appeared.
+    expect(find.text('Select Messages'), findsOneWidget);
+    expect(find.text('Copy Link'), findsNothing);
+  }, variant: mobilePlatforms);
 
   testWidgets('a settled message offers Reply', (tester) async {
     await _openMoreSheet(tester, canDeleteAllVersions: false);

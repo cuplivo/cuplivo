@@ -473,24 +473,44 @@ void main() {
     },
   );
 
-  test('a link buffered before Dart was ready opens its target', () async {
-    intercept = (call) async {
-      if (call.method == 'takePendingConversationLink') {
-        return 'cuplivo://conversation/conv-1?message=msg-2';
-      }
-      return null;
-    };
-    final ios = MobileBackgroundCoordinator(
-      channel: channel,
-      platform: TargetPlatform.iOS,
-      notificationSender: ({required conversationId, title, body}) async {},
-    );
-    addTearDown(ios.dispose);
-    await ios.configure(const MobileBackgroundSettings(), l10n);
+  test(
+    'Android notification row keys are not limited by the URL grammar',
+    () async {
+      final id = 'x' * 201;
+      intercept = (call) async =>
+          call.method == 'takePendingConversation' ? id : null;
+      final android = MobileBackgroundCoordinator(
+        channel: channel,
+        platform: TargetPlatform.android,
+        notificationSender: ({required conversationId, title, body}) async {},
+      );
+      addTearDown(android.dispose);
+      await android.configure(const MobileBackgroundSettings(), l10n);
 
-    expect(NotificationService.takePendingConversationId(), 'conv-1');
-    expect(NotificationService.takePendingMessageId('conv-1'), 'msg-2');
-  });
+      expect(NotificationService.takePendingConversationId(), id);
+    },
+  );
+
+  for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+    test('a buffered link opens its target on $platform', () async {
+      intercept = (call) async {
+        if (call.method == 'takePendingConversationLink') {
+          return 'cuplivo://conversation/conv-1?message=msg-2';
+        }
+        return null;
+      };
+      final mobile = MobileBackgroundCoordinator(
+        channel: channel,
+        platform: platform,
+        notificationSender: ({required conversationId, title, body}) async {},
+      );
+      addTearDown(mobile.dispose);
+      await mobile.configure(const MobileBackgroundSettings(), l10n);
+
+      expect(NotificationService.takePendingConversationId(), 'conv-1');
+      expect(NotificationService.takePendingMessageId('conv-1'), 'msg-2');
+    });
+  }
 
   test('a link delivered while Dart runs opens the same target', () async {
     await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

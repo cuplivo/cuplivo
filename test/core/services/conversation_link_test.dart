@@ -178,17 +178,15 @@ void main() {
     });
 
     test('the entry point is gated on the platform that registers it', () {
-      // iOS registers `cuplivo` in ios/Runner/Info.plist; the other platforms
-      // have no registration yet, so offering the copy action there would
-      // promise a link their own device cannot open.
-      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-      try {
-        expect(ConversationLink.osRegistered, isTrue);
-      } finally {
-        debugDefaultTargetPlatformOverride = null;
+      for (final platform in [TargetPlatform.iOS, TargetPlatform.android]) {
+        debugDefaultTargetPlatformOverride = platform;
+        try {
+          expect(ConversationLink.osRegistered, isTrue, reason: '$platform');
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
       }
       for (final platform in [
-        TargetPlatform.android,
         TargetPlatform.macOS,
         TargetPlatform.windows,
         TargetPlatform.linux,

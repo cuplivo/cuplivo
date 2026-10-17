@@ -96,7 +96,7 @@ class MainActivity : FlutterActivity() {
         (kelivo.engine.plugins.get(FlutterLocalNotificationsPlugin::class.java) as? FlutterLocalNotificationsPlugin)?.let {
             forwardCachedNotificationLaunch(reusedEngine, savedInstanceState, intent, it)
         }
-        kelivo.backgroundRuntime.receiveConversation(intent)
+        if (savedInstanceState == null) kelivo.backgroundRuntime.receiveConversation(intent)
         receivedShare = savedInstanceState?.getBoolean("kelivo.receivedShare") == true
         if (!receivedShare) receivedShare = incomingShareHandler?.receive(intent) == true
     }

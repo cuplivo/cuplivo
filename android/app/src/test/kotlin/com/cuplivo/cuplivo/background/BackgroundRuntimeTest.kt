@@ -5,11 +5,14 @@ import android.app.AppOpsManager
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Looper
 import android.os.PowerManager
 import android.view.View
 import android.widget.LinearLayout
 import com.cuplivo.cuplivo.KelivoApplication
+import com.cuplivo.cuplivo.MainActivity
 import com.cuplivo.cuplivo.DeviceLocalToolsHandler
 import org.json.JSONObject
 import com.cuplivo.cuplivo.workspace.WorkspacePlugin
@@ -259,6 +262,90 @@ class BackgroundRuntimeTest {
         runtime.receiveConversation(intent)
         runtime.receiveConversation(intent)
         assertEquals("warm", m.events.single { it.method == "openConversation" }.arguments)
+    }
+
+    @Test fun externalConversationLinkSurvivesColdStartupAndIsDrainedOnce() {
+        val (runtime, m) = setup()
+        val url = "cuplivo://conversation/my%20chat%2F%2B?message=msg%26%3F%23"
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        runtime.receiveConversation(intent)
+        runtime.receiveConversation(intent)
+        assertNull(intent.data)
+        assertTrue(m.events.none { it.method == "openConversationLink" })
+
+        // Pending delivery belongs to the application, not the Activity or engine.
+        val restarted = BackgroundRuntime(app)
+        restarted.configure(m)
+        var pending: Any? = null
+        m.call("takePendingConversationLink") { pending = it }
+        assertEquals(url, pending)
+        m.call("takePendingConversationLink") { pending = it }
+        assertNull(pending)
+    }
+
+    @Test fun warmLinksAreConsumedOnceButANewTapOfTheSameUrlStillOpens() {
+        val (runtime, m) = setup()
+        m.call("takePendingConversationLink")
+        val url = "cuplivo://conversation/chat-1?message=msg-2"
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            .putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "other")
+        runtime.receiveConversation(intent)
+        assertFalse(intent.hasExtra(BackgroundRuntime.CONVERSATION_EXTRA))
+        runtime.receiveConversation(intent)
+        assertEquals(listOf(url), m.events.filter { it.method == "openConversationLink" }.map { it.arguments })
+        runtime.receiveConversation(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        assertEquals(listOf(url, url), m.events.filter { it.method == "openConversationLink" }.map { it.arguments })
+    }
+
+    @Test fun unrelatedIntentsAndLaunchesFromHistoryDoNotOpenAConversation() {
+        val (runtime, m) = setup()
+        m.call("takePendingConversationLink")
+        for (url in listOf("content://files/chat", "file:///chat", "https://conversation/chat", "kelivo://conversation/chat")) {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            runtime.receiveConversation(intent)
+            assertEquals(url, intent.data.toString())
+        }
+        runtime.receiveConversation(Intent(Intent.ACTION_SEND, Uri.parse("cuplivo://conversation/chat")))
+        runtime.receiveConversation(Intent(Intent.ACTION_VIEW, Uri.parse("cuplivo://conversation/chat"))
+            .addFlags(Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY))
+        assertTrue(m.events.none { it.method == "openConversationLink" })
+    }
+
+    @Test fun nativeNotificationRowKeysAreNotLimitedByTheExternalUrlGrammar() {
+        val (runtime, m) = setup()
+        m.call("takePendingConversation")
+        val id = "my chat/a?b#c+d".repeat(20)
+        runtime.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, id))
+        assertEquals(id, m.events.single { it.method == "openConversation" }.arguments)
+    }
+
+    @Test fun theNewestPendingTapWinsAcrossNotificationsAndLinks() {
+        val (runtime, m) = setup()
+        val url = "cuplivo://conversation/linked?message=msg"
+        runtime.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "old"))
+        runtime.receiveConversation(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        var pending: Any? = null
+        m.call("takePendingConversation") { pending = it }
+        assertNull(pending)
+        // A notification can arrive while Dart is between draining the two inboxes.
+        runtime.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "new"))
+        m.call("takePendingConversationLink") { pending = it }
+        assertNull(pending)
+        assertEquals("new", m.events.single { it.method == "openConversation" }.arguments)
+    }
+
+    @Test fun manifestResolvesBrowsableCuplivoLinksToMainActivityWithoutFlutterRouting() {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("cuplivo://conversation/chat?message=msg"))
+            .addCategory(Intent.CATEGORY_BROWSABLE)
+            .setPackage(app.packageName)
+        val resolved = app.packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+        assertNotNull(resolved)
+        assertEquals(MainActivity::class.java.name, resolved!!.activityInfo.name)
+        val info = app.packageManager.getActivityInfo(
+            android.content.ComponentName(app, MainActivity::class.java), PackageManager.GET_META_DATA)
+        assertTrue(info.exported)
+        assertEquals(android.content.pm.ActivityInfo.LAUNCH_SINGLE_TASK, info.launchMode)
+        assertFalse(info.metaData.getBoolean("flutter_deeplinking_enabled", true))
     }
 
     @Test fun workspaceWorkCompletesAfterDetachAndAllowsANewActivityToBind() {

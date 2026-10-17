@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:pdf/pdf.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 import 'export_progress_overlay.dart';
@@ -38,6 +39,9 @@ import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/ios_switch.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_font_weights.dart';
+import '../../../theme/custom_theme.dart';
+import '../../../theme/palettes.dart';
+import '../../../theme/theme_factory.dart';
 import '../../home/widgets/model_icon.dart';
 import '../utils/export_document.dart';
 import '../utils/markdown_pdf_emitter.dart';
@@ -690,6 +694,44 @@ Future<void> exportChatMessagesMarkdown(
   }
 }
 
+/// The light scheme the exported page is drawn for.
+///
+/// A PDF is a light page whatever theme the app is in, and a dark theme's
+/// primary is a pale tint that would vanish into the paper — so when the app is
+/// dark the light scheme is derived the way `main.dart` derives the app's two
+/// themes (minus the dynamic scheme a phone contributes, which this has no way
+/// to reach).
+ColorScheme _pdfPageScheme(BuildContext context, SettingsProvider settings) {
+  final current = Theme.of(context).colorScheme;
+  if (current.brightness == Brightness.light) return current;
+  final custom = settings.selectedCustomTheme;
+  final palette =
+      settings.themePaletteId == ThemePalettes.customPaletteId && custom != null
+      ? buildCustomThemePalette(custom)
+      : ThemePalettes.byId(settings.themePaletteId);
+  return buildLightThemeForScheme(
+    palette.light,
+    pureBackground: settings.usePureBackground,
+    layeredSurfaces: settings.useLayeredSurfaces,
+  ).colorScheme;
+}
+
+/// The ink that scheme contributes to the page, guarded for paper.
+///
+/// A colour too pale to read on white, which a custom theme may choose, becomes
+/// the page's own default: an unreadable link is worse than a differently
+/// coloured one.
+({PdfColor accent, PdfColor muted}) _pdfPageInk(ColorScheme light) => (
+  accent: _readableOnPaper(light.primary, kPdfPageAccent),
+  muted: _readableOnPaper(light.onSurfaceVariant, kPdfPageMuted),
+);
+
+/// [colour] as an opaque page ink when it can be read on white, else [fallback].
+PdfColor _readableOnPaper(Color colour, PdfColor fallback) =>
+    colour.computeLuminance() > 0.6
+    ? fallback
+    : PdfColor.fromInt(colour.toARGB32() | 0xFF000000);
+
 /// Writes a PDF of [messages] where the user asks for it.
 ///
 /// The layout runs off the UI isolate — a hundred-message conversation is not a
@@ -715,6 +757,8 @@ Future<PdfExportResult?> exportChatMessagesPdf(
     l10n.messageExportSheetDateTimeWithSecondsPattern,
   );
   final choice = options ?? pdfExportSessionOptions;
+  final pageScheme = _pdfPageScheme(context, settings);
+  final pageInk = _pdfPageInk(pageScheme);
   PdfExportResult? result;
   try {
     await runWithExportingOverlay(context, () async {
@@ -766,7 +810,7 @@ Future<PdfExportResult?> exportChatMessagesPdf(
                 enableMathRendering: settings.enableMathRendering,
                 enableDollarLatex: settings.enableDollarLatex,
               ),
-      ]);
+      ], pagePalette: pageScheme);
 
       final layout = await compute(
         buildConversationPdf,
@@ -775,6 +819,8 @@ Future<PdfExportResult?> exportChatMessagesPdf(
           subtitle: timeFormatter.format(DateTime.now()),
           messages: document.messages,
           thinkingLabel: thinkingLabel,
+          accent: pageInk.accent,
+          muted: pageInk.muted,
           bodyFont: fonts.body,
           monoFont: fonts.mono,
           emojiFont: fonts.emoji,

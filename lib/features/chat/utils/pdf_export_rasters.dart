@@ -22,8 +22,9 @@ import 'markdown_pdf_emitter.dart';
 /// diagram as its code.
 Future<Map<String, PdfRaster>> rasterizePdfExportKeys(
   BuildContext context,
-  List<PdfRasterKey> keys,
-) async {
+  List<PdfRasterKey> keys, {
+  ColorScheme? pagePalette,
+}) async {
   final rasters = <String, PdfRaster>{};
   if (keys.isEmpty) return rasters;
 
@@ -34,7 +35,7 @@ Future<Map<String, PdfRaster>> rasterizePdfExportKeys(
         (code: key.source, isSvg: isSvgCodeBlock(key.language, key.source)),
   ];
   if (diagrams.isNotEmpty) {
-    await _addDiagramRasters(context, diagrams, rasters);
+    await _addDiagramRasters(context, diagrams, rasters, pagePalette);
   }
   if (!context.mounted) return rasters;
 
@@ -62,15 +63,20 @@ Future<Map<String, PdfRaster>> rasterizePdfExportKeys(
 /// renderer. PlantUML is deliberately not here: the offscreen renderer draws
 /// mermaid and SVG only, so a PlantUML fence keeps its code-text fallback
 /// instead of being drawn as mermaid.
+///
+/// [palette] is the light page's scheme: a diagram carries its own background,
+/// and the cache entry has to be the one drawn for *this* page rather than the
+/// one the app is showing.
 Future<void> _addDiagramRasters(
   BuildContext context,
   List<DiagramCode> diagrams,
   Map<String, PdfRaster> rasters,
+  ColorScheme? palette,
 ) async {
-  await preRenderDiagramCodesForExport(context, diagrams);
+  await preRenderDiagramCodesForExport(context, diagrams, palette: palette);
   if (!context.mounted) return;
-  final colorScheme = Theme.of(context).colorScheme;
-  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final colorScheme = palette ?? Theme.of(context).colorScheme;
+  final isDark = colorScheme.brightness == Brightness.dark;
   final themeVars = buildThemeVarsFromColorScheme(colorScheme);
   // The exporter's canvas draws at the device ratio times two, so the picture
   // holds that many times the diagram's own pixels.

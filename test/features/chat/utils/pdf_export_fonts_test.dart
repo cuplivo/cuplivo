@@ -135,6 +135,8 @@ Future<_Exported> _export(String markdown, {Uint8List? emojiFont}) async {
     PdfExportRequest(
       title: 'emoji probe',
       thinkingLabel: 'Thinking',
+      accent: kPdfPageAccent,
+      muted: kPdfPageMuted,
       emojiFont: emojiFont,
       messages: <ExportMessage>[
         ExportMessage(

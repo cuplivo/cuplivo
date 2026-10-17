@@ -172,6 +172,8 @@ Future<PdfExportResult> _bytes(String markdown) => buildConversationPdf(
   PdfExportRequest(
     title: 'nesting probe',
     thinkingLabel: 'Thinking',
+    accent: kPdfPageAccent,
+    muted: kPdfPageMuted,
     messages: <ExportMessage>[
       ExportMessage(
         time: '2026-01-02 03:04:05',

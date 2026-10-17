@@ -99,6 +99,8 @@ Future<_Exported> _export(
     PdfExportRequest(
       title: 'math probe',
       thinkingLabel: 'Thinking',
+      accent: kPdfPageAccent,
+      muted: kPdfPageMuted,
       messages: <ExportMessage>[
         ExportMessage(
           time: '2026-01-02 03:04:05',

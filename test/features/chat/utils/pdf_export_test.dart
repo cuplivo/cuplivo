@@ -80,11 +80,13 @@ void main() {
         thinkingLabel: '思考过程',
         accent: kPdfPageAccent,
         muted: kPdfPageMuted,
+        userLabel: 'User',
         bodyFont: cjkFont,
         messages: <ExportMessage>[
           ExportMessage(
             time: '2026-01-02 03:04:05',
             roleName: '助手',
+            speaker: ExportSpeaker.assistant,
             blocks: <ExportBlock>[
               const ExportText(_body),
               // Enough body to flow onto a second page, so the pagination the
@@ -157,11 +159,13 @@ void main() {
         thinkingLabel: '思考过程',
         accent: kPdfPageAccent,
         muted: kPdfPageMuted,
+        userLabel: 'User',
         bodyFont: cjkFont,
         messages: const <ExportMessage>[
           ExportMessage(
             time: '2026-01-02 03:04:05',
             roleName: '助手',
+            speaker: ExportSpeaker.assistant,
             blocks: <ExportBlock>[
               ExportText(_body),
               ExportReasoning('推理过程留在导出里'),

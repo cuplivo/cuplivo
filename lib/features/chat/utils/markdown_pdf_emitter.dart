@@ -109,6 +109,73 @@ const double _taskBoxSize = 18 * _pageScale;
 const double _taskTickSize = 14 * _pageScale;
 const double _taskDotSize = 10 * _pageScale;
 
+/// The speaker line above a message, at the screen's own proportions.
+///
+/// The renderer heads a message with a 32-point disc and a 13-point name over an
+/// 11-point timestamp, both in a lighter ink than the prose. The page draws the
+/// same structure at its own scale, and draws the disc *filled* rather than
+/// painted: the picture behind it is per message, and a page has no bitmap to
+/// fetch — see [PdfExportRequest.assistantIcon].
+const double _avatarSize = 32 * _pageScale;
+const double _avatarGlyphSize = 18 * _pageScale;
+const double _avatarGap = 8 * _pageScale;
+const double _speakerNameSize = 13 * _pageScale;
+const double _speakerTimeSize = 11 * _pageScale;
+
+/// How far the timestamp sits under the name it belongs to, in points.
+///
+/// The screen lets the two line boxes touch; on paper they read as one block, so
+/// the page gives the pair a little air.
+const double _speakerTimeGap = 2;
+
+/// How far a message's body sits under its speaker line, in points.
+const double _speakerBottom = 8 * _pageScale;
+
+/// The tint a reader's own messages are set on, and the disc's own fill.
+const double _speakerNameAlpha = 0.70;
+const double _speakerTimeAlpha = 0.50;
+const double _avatarFillAlpha = 0.10;
+const double _userBandAlpha = 0.07;
+
+/// How far a user band insets its text, and pads above and below it.
+const double _userBandInset = 10;
+const double _userBandPad = 4;
+
+/// The document header's own rhythm, and a message's.
+///
+/// The title and the line under it are two pieces of furniture a reader looks at
+/// once, so the first gap is the one place on the page that is allowed to be
+/// generous. Everything below it is prose, and prose is what the page is for.
+const double _titleGap = 6;
+const double _messageRuleHeight = 12;
+
+/// How far a block of prose sits from the block after it, in points.
+///
+/// The screen separates two blocks with a blank line — a chat convention rather
+/// than a typesetting one — and a printed page that airy spends a fifth of its
+/// length on nothing. This is the compromise the first export already made; it is
+/// a named figure now so a test can hold the rhythm down.
+const double _paragraphGap = 5;
+
+/// A heading's own margins, and how far a picture or a table stands apart.
+const double _headingTop = 4;
+const double _headingBottom = 2;
+const double _asideGap = 3;
+
+/// How far two items of one list sit apart, in points.
+const double _listItemGap = 2;
+
+/// How thick the stroke a *fake* bold is drawn with is, as a fraction of size.
+///
+/// The theme maps every weight onto the one face an export can embed, so
+/// `fontWeight: bold` on its own draws nothing different — a page of headings and
+/// `**emphasis**` then reads as a page of plain prose, which is the loudest
+/// difference between the PDF and the screen. What the writer *can* do is fill and
+/// stroke a glyph in one pass (`PdfTextRenderingMode.fillAndStroke`), and a stroke
+/// of 4% of the size is what a synthetic bold looks like: enough weight to read as
+/// emphasis, still thin enough to stay a stroke rather than a blot.
+const double _fauxBoldStroke = 0.04;
+
 /// What a raster stands in for, which is also how it has to be drawn.
 enum PdfRasterKind {
   /// A formula: TeX the writer cannot typeset, so it is drawn by the math
@@ -177,10 +244,13 @@ class PdfExportRequest {
     required this.thinkingLabel,
     required this.accent,
     required this.muted,
+    required this.userLabel,
     this.subtitle,
     this.bodyFont,
     this.monoFont,
     this.emojiFont,
+    this.iconFont,
+    this.assistantIcon,
     this.images = const <String, Uint8List>{},
     this.rasters = const <String, PdfRaster>{},
     this.enableMathRendering = true,
@@ -205,6 +275,14 @@ class PdfExportRequest {
   /// reference a picture stands in for.
   final PdfColor muted;
 
+  /// What a reader's own messages are headed with, from the surface's locale.
+  ///
+  /// A conversation's export says who spoke rather than who the profile is: the
+  /// name the app knows a person by is theirs, and an archive that leaves it on
+  /// someone else's disk is a different document. The label is handed in because
+  /// the layout has no locale of its own.
+  final String userLabel;
+
   final List<ExportMessage> messages;
 
   /// What a reasoning section is titled with, from the surface's locale.
@@ -219,6 +297,16 @@ class PdfExportRequest {
   /// writer looks for an emoji's bitmap on the fallback chain of the style that
   /// could not draw the rune, and never on the style's own font.
   final Uint8List? emojiFont;
+
+  /// The icon face a speaker's avatar disc is drawn with, and the glyph in it.
+  ///
+  /// The screen shows a model's icon or an assistant's own picture here, which is
+  /// a bitmap that varies per message; a page draws the *structure* instead — the
+  /// same disc the app falls back to — out of the icon font the app already
+  /// ships. The codepoint is a number rather than an `IconData` so that this
+  /// library stays free of the widget layer it runs without.
+  final Uint8List? iconFont;
+  final int? assistantIcon;
 
   /// Picture bytes by URI, for pictures the caller already holds.
   final Map<String, Uint8List> images;
@@ -279,7 +367,8 @@ Future<PdfExportResult> buildConversationPdf(PdfExportRequest request) async {
   final pw.Font? body = _font(request.bodyFont);
   final pw.Font? mono = _font(request.monoFont) ?? body;
   final pw.Font? emoji = _font(request.emojiFont);
-  final layout = _PdfLayout(request, body: body, mono: mono);
+  final pw.Font? icon = _font(request.iconFont);
+  final layout = _PdfLayout(request, body: body, mono: mono, icon: icon);
   await layout.prepare();
 
   final document = pw.Document(title: request.title, author: 'Cuplivo');
@@ -738,6 +827,19 @@ class _BlockSkin {
   }
 }
 
+/// The tallest an inline formula may be drawn at, in points.
+///
+/// A picture is one `WidgetSpan` to the writer, and the writer advances a line by
+/// the overhang a span has above the text's own ascent — so a formula taller than
+/// the line it sits in is what pushes the *next* line down. Measured on a probe
+/// document: a 24-point picture in a 10.5-point paragraph moved the following
+/// line 3.65 points down, and 8.2 points when the paragraph also carried a soft
+/// line break. A paragraph of formulas then reads as a paragraph of gaps, which
+/// is the one thing a page of prose must not do. The cap keeps a formula a little
+/// larger than the prose — enough for a nested fraction to stay legible — and
+/// shrinks only what would break the rhythm.
+const double _inlineMathHeightCap = kPdfBodyFontSize * 1.25;
+
 /// One table cell, held to the tallest a row may be.
 ///
 /// A `Table` breaks between rows and never inside one, and it hands every cell
@@ -783,11 +885,14 @@ class _CappedCell extends pw.SingleChildWidget {
 }
 
 class _PdfLayout {
-  _PdfLayout(this.request, {required this.body, required this.mono});
+  _PdfLayout(this.request, {required this.body, required this.mono, this.icon});
 
   final PdfExportRequest request;
   final pw.Font? body;
   final pw.Font? mono;
+
+  /// The face a speaker's avatar glyph is drawn from.
+  final pw.Font? icon;
 
   /// The walked bodies, one per markdown block, keyed by the block itself: a
   /// prepare pass resolves pictures from them and the layout then reuses them
@@ -820,7 +925,7 @@ class _PdfLayout {
   /// blocks with a blank line of its list height (two empty lines, about 24
   /// points at page scale), which is a chat convention rather than a typesetting
   /// one, and a printed page that airy wastes a fifth of its length.
-  static const _BlockSkin _plainSkin = _BlockSkin(bottom: 7);
+  static const _BlockSkin _plainSkin = _BlockSkin(bottom: _paragraphGap);
 
   /// A card: reasoning, or a tool call.
   static const _BlockSkin _cardSkin = _BlockSkin(
@@ -835,7 +940,10 @@ class _PdfLayout {
   );
 
   /// A picture, a diagram or a table: set a little apart from the prose.
-  static const _BlockSkin _asideSkin = _BlockSkin(top: 4, bottom: 4);
+  static const _BlockSkin _asideSkin = _BlockSkin(
+    top: _asideGap,
+    bottom: _asideGap,
+  );
 
   /// Prose at the leading the screen uses.
   ///
@@ -851,7 +959,7 @@ class _PdfLayout {
     lineSpacing: kPdfBodyFontSize * 0.5 - 1.6,
   );
   pw.TextStyle get _bodyBold =>
-      _bodyStyle.copyWith(fontWeight: pw.FontWeight.bold);
+      _fauxBoldStyle(_bodyStyle.copyWith(fontWeight: pw.FontWeight.bold));
   pw.TextStyle get _monoStyle => pw.TextStyle(
     fontSize: 9,
     color: _ink,
@@ -917,17 +1025,23 @@ class _PdfLayout {
 
   List<pw.Widget> build() {
     final widgets = <pw.Widget>[
-      pw.Text(
-        request.title,
-        style: pw.TextStyle(
-          fontSize: 19,
-          fontWeight: pw.FontWeight.bold,
-          color: _ink,
+      _fauxBold(
+        pw.Text(
+          request.title,
+          style: _fauxBoldStyle(
+            pw.TextStyle(
+              fontSize: 19,
+              fontWeight: pw.FontWeight.bold,
+              color: _ink,
+            ),
+          ),
         ),
+        size: 19,
+        ink: _ink,
       ),
       if (request.subtitle != null)
         pw.Padding(
-          padding: const pw.EdgeInsets.only(top: 2, bottom: 12),
+          padding: const pw.EdgeInsets.only(top: _titleGap, bottom: 12),
           child: pw.Text(
             request.subtitle!,
             style: pw.TextStyle(fontSize: 9, color: request.muted),
@@ -937,74 +1051,200 @@ class _PdfLayout {
     for (var index = 0; index < request.messages.length; index++) {
       final message = request.messages[index];
       _citations = message.citationIndex;
+      final band = message.speaker == ExportSpeaker.user ? _userBand : null;
       if (index > 0) {
-        widgets.add(pw.Divider(color: _ruleInk, height: 18, thickness: 0.6));
+        widgets.add(
+          pw.Divider(
+            color: _ruleInk,
+            height: _messageRuleHeight,
+            thickness: 0.6,
+          ),
+        );
       }
-      widgets.add(_messageHeader(message));
+      widgets.add(_speaker(message));
       for (final block in message.blocks) {
-        widgets.addAll(_block(block));
+        widgets.addAll(_block(block, band));
       }
     }
     return widgets;
   }
 
-  pw.Widget _messageHeader(ExportMessage message) => pw.Container(
-    margin: const pw.EdgeInsets.only(bottom: 5),
-    child: pw.Row(
-      crossAxisAlignment: pw.CrossAxisAlignment.end,
-      children: [
-        pw.Expanded(
-          child: pw.Text(
-            message.roleName,
-            style: pw.TextStyle(
-              fontSize: 11,
-              fontWeight: pw.FontWeight.bold,
-              color: _ink,
-            ),
-          ),
-        ),
-        pw.Text(
-          message.time,
-          style: pw.TextStyle(fontSize: 8, color: request.muted),
-        ),
-      ],
-    ),
+  /// The panel a reader's own messages are set on.
+  ///
+  /// The screen draws them in a bubble: a tinted, rounded box aligned to the right
+  /// edge. A page draws a full-width tint instead, and the reason is
+  /// [_BlockSkin]'s: a decorated container around content that can run past a page
+  /// is the unbreakable box this writer loops on, so the tint is per block and the
+  /// blocks carry no gap of their own — their fill touches, and the panel is
+  /// continuous until the page breaks or the message ends.
+  ///
+  /// It is therefore square-ended: rounding belongs to a box, and there is no box.
+  _BlockSkin get _userBand => _BlockSkin(
+    indent: _userBandInset,
+    trailing: _userBandInset,
+    padTop: _userBandPad,
+    padBottom: _userBandPad,
+    fill: _overWhite(request.accent, _userBandAlpha),
   );
 
-  List<pw.Widget> _block(ExportBlock block) {
+  List<pw.Widget> _block(ExportBlock block, _BlockSkin? band) {
     switch (block) {
       case ExportText(:final text):
-        return _blocksOf(_documentFor(block, text).blocks);
+        return _blocksOf(
+          _documentFor(block, text).blocks,
+          skin: band ?? _plainSkin,
+        );
       case ExportReasoning(:final text):
         // The card is drawn per block rather than around a column of them, so
         // its body stays paginatable (see [_BlockSkin]).
+        final card = _onBand(_cardSkin, band);
         return <pw.Widget>[
           _leaf(
             request.thinkingLabel,
-            _captionStyle.copyWith(fontWeight: pw.FontWeight.bold),
-            _cardSkin.copyWith(bottom: 0),
+            _fauxBoldStyle(
+              _captionStyle.copyWith(fontWeight: pw.FontWeight.bold),
+            ),
+            card.copyWith(bottom: 0),
           ),
           ..._blocksOf(
             _documentFor(block, text).blocks,
-            skin: _cardSkin.copyWith(padTop: 0),
+            skin: card.copyWith(padTop: 0),
           ),
         ];
       case ExportToolCall(:final name, :final content):
-        return <pw.Widget>[_toolCall(name, content)];
+        return <pw.Widget>[_toolCall(name, content, band)];
       case ExportImage(:final uri, :final bytes):
-        return _pictureBlock(uri, bytes);
+        return _pictureBlock(uri, bytes, skin: _onBand(_asideSkin, band));
       case ExportFile(:final name, :final mime):
         return <pw.Widget>[
-          _leaf('- $name ($mime)', _captionStyle, const _BlockSkin(bottom: 2)),
+          _leaf(
+            '- $name ($mime)',
+            _captionStyle,
+            _onBand(const _BlockSkin(bottom: 2), band),
+          ),
         ];
     }
+  }
+
+  /// [skin] as one block of [band]'s panel, or [skin] itself outside one.
+  ///
+  /// A block that brings its own fill — a code surface, a reasoning card — keeps
+  /// it; a block that brings none takes the band's. What is always taken from the
+  /// band is the *gap*: a filled block's spacing sits inside its fill, so a block
+  /// that stood apart would cut a white stripe across the panel.
+  _BlockSkin _onBand(_BlockSkin skin, _BlockSkin? band) {
+    if (band == null) return skin;
+    return skin.copyWith(
+      indent: skin.indent + band.indent,
+      trailing: skin.trailing + band.trailing,
+      top: 0,
+      padTop: band.padTop,
+      padBottom: band.padBottom,
+      fill: skin.fill ?? band.fill,
+    );
+  }
+
+  /// The speaker line above a message's blocks.
+  ///
+  /// The screen puts a 32-point disc beside a two-line stack — the name, then the
+  /// time under it — and draws both in an ink lighter than the prose, because the
+  /// header is furniture rather than something anyone said. The page does the
+  /// same, with two differences the page forces:
+  ///
+  /// * A reader's own messages carry no timestamp. The archive is a record of what
+  ///   was said, and the one message whose arrival time a reader already knows is
+  ///   the one they typed.
+  /// * A reader's own messages are headed with the label the surface handed in
+  ///   rather than with the profile's name — see [PdfExportRequest.userLabel].
+  pw.Widget _speaker(ExportMessage message) {
+    final isUser = message.speaker == ExportSpeaker.user;
+    final stack = pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: <pw.Widget>[
+        pw.Text(
+          isUser ? request.userLabel : message.roleName,
+          maxLines: 1,
+          // The writer has no ellipsis: a name too long for its line is cut
+          // rather than folded, which is what a header of one line means.
+          overflow: pw.TextOverflow.clip,
+          style: pw.TextStyle(
+            fontSize: _speakerNameSize,
+            color: _overWhite(_ink, _speakerNameAlpha),
+          ),
+        ),
+        if (!isUser && message.time.isNotEmpty)
+          pw.Padding(
+            padding: const pw.EdgeInsets.only(top: _speakerTimeGap),
+            child: pw.Text(
+              message.time,
+              maxLines: 1,
+              style: pw.TextStyle(
+                fontSize: _speakerTimeSize,
+                color: _overWhite(_ink, _speakerTimeAlpha),
+              ),
+            ),
+          ),
+      ],
+    );
+    // A user's message is answered by the band under it — see [_userBand] — so its
+    // header needs no mark of its own; an assistant's is the page's only other
+    // left edge, and the disc is what says so at a glance.
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: _speakerBottom),
+      child: isUser
+          // The label lines up with the text of the band under it, so the two
+          // read as one block rather than as a label beside a panel.
+          ? pw.Padding(
+              padding: const pw.EdgeInsets.only(left: _userBandInset),
+              child: stack,
+            )
+          : pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: <pw.Widget>[
+                _avatarDisc(),
+                pw.SizedBox(width: _avatarGap),
+                pw.Expanded(child: stack),
+              ],
+            ),
+    );
+  }
+
+  /// The disc beside an assistant's name, with the one glyph the page can draw.
+  ///
+  /// The screen fills it with the model's own icon or the assistant's picture,
+  /// which is a bitmap that would have to be captured per message; a page draws
+  /// the structure out of the icon face the app already ships instead. A caller
+  /// that could not hand one over gets the disc alone, which still reads as the
+  /// avatar slot rather than as a missing image.
+  pw.Widget _avatarDisc() {
+    final icon = this.icon;
+    final code = request.assistantIcon;
+    return pw.Container(
+      width: _avatarSize,
+      height: _avatarSize,
+      alignment: pw.Alignment.center,
+      decoration: pw.BoxDecoration(
+        color: _overWhite(request.accent, _avatarFillAlpha),
+        shape: pw.BoxShape.circle,
+      ),
+      child: icon == null || code == null
+          ? null
+          : pw.Text(
+              String.fromCharCode(code),
+              style: pw.TextStyle(
+                font: icon,
+                fontSize: _avatarGlyphSize,
+                color: request.accent,
+              ),
+            ),
+    );
   }
 
   /// A tool call: its name, then whatever it answered, in one monospace body.
   ///
   /// One leaf rather than a name and a body stacked in a column, because tool
   /// output is exactly the text that grows past a page.
-  pw.Widget _toolCall(String name, String content) {
+  pw.Widget _toolCall(String name, String content, _BlockSkin? band) {
     final label = name.isEmpty ? '[tool]' : '[$name]';
     final body = content.trim();
     return _richText(<pw.InlineSpan>[
@@ -1013,7 +1253,7 @@ class _PdfLayout {
         style: _monoStyle.copyWith(fontWeight: pw.FontWeight.bold),
       ),
       if (body.isNotEmpty) pw.TextSpan(text: '\n$body', style: _monoStyle),
-    ], _cardSkin);
+    ], _onBand(_cardSkin, band));
   }
 
   List<pw.Widget> _pictureBlock(
@@ -1226,20 +1466,66 @@ class _PdfLayout {
   }
 
   /// A text leaf: the smallest thing the writer can carry across a page.
+  ///
+  /// The leaf is wrapped in a `CustomPaint` that sets the stroke a fake bold
+  /// needs, rather than the stroke being set once for the page: the width is
+  /// graphics state, and every drawing widget between two leaves — a rule, a
+  /// table's grid — resets it. The wrapper sets the state for exactly its own text
+  /// and restores it afterwards: `CustomPaint` saves the state before its painter
+  /// runs and restores it once the child is painted, and it forwards the writer's
+  /// spanning hooks to the child, so a paragraph wrapped this way still breaks
+  /// across a page.
   pw.Widget _richText(
     List<pw.InlineSpan> children,
     _BlockSkin skin, {
     pw.TextStyle? style,
     pw.TextAlign? textAlign,
-  }) => skin.wrap(
-    pw.RichText(
-      textAlign: textAlign,
-      // Without this the writer refuses to break the text at all and throws
-      // once one paragraph is taller than a page (see [_BlockSkin]).
-      overflow: pw.TextOverflow.span,
-      text: pw.TextSpan(style: style, children: children),
-    ),
+  }) {
+    final size = style?.fontSize ?? kPdfBodyFontSize;
+    return skin.wrap(
+      _fauxBold(
+        pw.RichText(
+          textAlign: textAlign,
+          // Without this the writer refuses to break the text at all and throws
+          // once one paragraph is taller than a page (see [_BlockSkin]).
+          overflow: pw.TextOverflow.span,
+          text: pw.TextSpan(style: style, children: children),
+        ),
+        size: size,
+        ink: style?.color ?? _ink,
+      ),
+    );
+  }
+
+  /// Sets the stroke a fake bold is drawn with, for [child]'s own text alone.
+  pw.Widget _fauxBold(
+    pw.Widget child, {
+    required double size,
+    required PdfColor ink,
+  }) => pw.CustomPaint(
+    painter: (canvas, _) => canvas
+      ..setLineWidth(size * _fauxBoldStroke)
+      ..setStrokeColor(ink),
+    child: child,
   );
+
+  /// [style] as the writer draws emphasis in: the same face, stroked.
+  pw.TextStyle _fauxBoldStyle(pw.TextStyle style) =>
+      style.copyWith(renderingMode: PdfTextRenderingMode.fillAndStroke);
+
+  /// [base] as an emphasised span, stroked only where a stroke is honest.
+  ///
+  /// One text leaf carries one stroke colour, which is the leaf's own ink — so a
+  /// bold span in a *different* colour (a link's label) would come out with an ink
+  /// outline around it. Such a span keeps the weight request, which the theme
+  /// answers with the same face, and so prints as plain text: losing the fake on a
+  /// bold link is better than drawing it in the wrong ink.
+  pw.TextStyle _emphasisOn(pw.TextStyle base) {
+    final bold = base.copyWith(fontWeight: pw.FontWeight.bold);
+    final ink = base.color;
+    if (ink != null && ink != _ink && ink != _quoteInk) return bold;
+    return _fauxBoldStyle(bold);
+  }
 
   pw.Widget _leaf(String text, pw.TextStyle style, _BlockSkin skin) =>
       _richText(<pw.InlineSpan>[pw.TextSpan(text: text)], skin, style: style);
@@ -1264,11 +1550,13 @@ class _PdfLayout {
       2 || 3 => 1.3,
       _ => 1.35,
     };
-    final style = pw.TextStyle(
-      fontSize: size,
-      fontWeight: pw.FontWeight.bold,
-      color: _ink,
-      lineSpacing: size * (leading - 1.15),
+    final style = _fauxBoldStyle(
+      pw.TextStyle(
+        fontSize: size,
+        fontWeight: pw.FontWeight.bold,
+        color: _ink,
+        lineSpacing: size * (leading - 1.15),
+      ),
     );
     final children = node.children.isEmpty
         ? <pw.InlineSpan>[pw.TextSpan(text: node.range?.text ?? '')]
@@ -1277,7 +1565,11 @@ class _PdfLayout {
             style: style,
             availableWidth: skin.availableWidth,
           );
-    return _richText(children, skin.copyWith(top: 8, bottom: 3), style: style);
+    return _richText(
+      children,
+      skin.copyWith(top: _headingTop, bottom: _headingBottom),
+      style: style,
+    );
   }
 
   List<pw.Widget> _listItem(MdNode node, _BlockSkin skin) {
@@ -1324,7 +1616,7 @@ class _PdfLayout {
       if (opensWithText) {
         return _blocksOf(
           children,
-          skin: inner,
+          skin: inner.copyWith(bottom: _listItemGap),
           marker: _taskMarker(task),
           firstSkin: base,
           textStyle: ink,
@@ -1338,18 +1630,23 @@ class _PdfLayout {
           base.copyWith(bottom: 0),
           marker: _taskMarker(task),
         ),
-        ..._blocksOf(children, skin: inner),
+        ..._blocksOf(children, skin: inner.copyWith(bottom: _listItemGap)),
       ];
     }
     if (marker.isEmpty) {
-      return _blocksOf(children, skin: inner);
+      return _blocksOf(children, skin: inner.copyWith(bottom: _listItemGap));
     }
     if (opensWithText) {
-      return _blocksOf(children, skin: inner, marker: text, firstSkin: base);
+      return _blocksOf(
+        children,
+        skin: inner.copyWith(bottom: _listItemGap),
+        marker: text,
+        firstSkin: base,
+      );
     }
     return <pw.Widget>[
       _paragraph(const <MdNode>[], base.copyWith(bottom: 0), marker: text),
-      ..._blocksOf(children, skin: inner),
+      ..._blocksOf(children, skin: inner.copyWith(bottom: _listItemGap)),
     ];
   }
 
@@ -1633,12 +1930,14 @@ class _PdfLayout {
     final source = _mathSource(node);
     final raster = _mathRaster(source, display: true);
     if (raster != null) {
-      return skin.wrap(
-        pw.Container(
-          alignment: pw.Alignment.center,
-          child: _rasterImage(raster, skin.availableWidth),
-        ),
-      );
+      return skin
+          .copyWith(top: _asideGap, bottom: _paragraphGap)
+          .wrap(
+            pw.Container(
+              alignment: pw.Alignment.center,
+              child: _rasterImage(raster, skin.availableWidth),
+            ),
+          );
     }
     // No raster is a degrade rather than a hole: the formula's own source is
     // what a reader pastes somewhere that can draw it.
@@ -1678,7 +1977,7 @@ class _PdfLayout {
           out.addAll(
             _spans(
               node.children,
-              style: base.copyWith(fontWeight: pw.FontWeight.bold),
+              style: _emphasisOn(base),
               availableWidth: width,
             ),
           );
@@ -1832,9 +2131,10 @@ class _PdfLayout {
   ///
   /// The writer cannot typeset TeX, so the formula is a picture the caller drew
   /// beforehand. It is embedded at the size it was drawn — the rasterizer sets an
-  /// inline formula in [kPdfBodyFontSize], the size this page sets prose in — and
-  /// hung on the text's baseline, which is what keeps a paragraph with a formula
-  /// in it looking like one paragraph rather than like a paragraph with a gap.
+  /// inline formula at 1.2 of [kPdfBodyFontSize], the ratio the renderer uses —
+  /// and hung on the text's baseline, which is what keeps a paragraph with a
+  /// formula in it looking like one paragraph rather than like a paragraph with a
+  /// gap.
   ///
   /// A display formula that arrives here — inside a table cell, or any other body
   /// that was flattened into spans — is looked up as the display drawing it is:
@@ -1842,7 +2142,10 @@ class _PdfLayout {
   ///
   /// The height bound matters more here than anywhere else. A `WidgetSpan` is one
   /// widget to the writer and cannot be broken, so a formula taller than a page is
-  /// not a formula that pages badly — it is an export that never returns.
+  /// not a formula that pages badly — it is an export that never returns. Below
+  /// that figure sits a second, tighter one: a picture taller than the prose line
+  /// moves the line after it down by its overhang, so a tall formula is shrunk to
+  /// [_inlineMathHeightCap] rather than allowed to break the page's rhythm.
   pw.InlineSpan _inlineMath(MdNode node, double availableWidth) {
     final source = _mathSource(node);
     final raster = _mathRaster(source, display: _isDisplayMath(node));
@@ -1850,11 +2153,15 @@ class _PdfLayout {
       _degradedMath.add(source);
       return pw.TextSpan(text: source, style: _mathInlineStyle);
     }
-    final scale = pdfRasterScale(
+    var scale = pdfRasterScale(
       width: raster.width,
       height: raster.height,
       availableWidth: availableWidth,
     );
+    if (raster.height * scale > _inlineMathHeightCap) {
+      // Strictly smaller than [scale]: the branch is only taken when it is.
+      scale = _inlineMathHeightCap / raster.height;
+    }
     final height = raster.height * scale;
     return pw.WidgetSpan(
       child: pw.Image(

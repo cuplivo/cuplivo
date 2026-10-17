@@ -1233,6 +1233,7 @@
     }
   },
   "messageExportSheetAssistant": "Assistant",
+  "messageExportSheetUser": "User",
   "messageExportSheetDefaultTitle": "New Chat",
   "messageExportSheetExporting": "Exporting…",
   "messageExportSheetExportFailed": "Export failed: {error}",

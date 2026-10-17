@@ -137,11 +137,13 @@ Future<_Exported> _export(String markdown, {Uint8List? emojiFont}) async {
       thinkingLabel: 'Thinking',
       accent: kPdfPageAccent,
       muted: kPdfPageMuted,
+      userLabel: 'User',
       emojiFont: emojiFont,
       messages: <ExportMessage>[
         ExportMessage(
           time: '2026-01-02 03:04:05',
           roleName: 'Assistant',
+          speaker: ExportSpeaker.assistant,
           blocks: <ExportBlock>[ExportText(markdown)],
         ),
       ],

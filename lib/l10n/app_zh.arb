@@ -966,6 +966,7 @@
   "chatSelectionDeleteSelectedConfirm": "确定要删除已选择的{count}个版本吗？此操作不可撤销。",
   "chatSelectionDeleteSelectedAllVersionsConfirm": "确定要删除已选择{count}条消息的全部版本吗？此操作不可撤销。",
   "messageExportSheetAssistant": "助手",
+  "messageExportSheetUser": "用户",
   "messageExportSheetDefaultTitle": "新对话",
   "messageExportSheetExporting": "正在导出…",
   "messageExportSheetExportFailed": "导出失败: {error}",

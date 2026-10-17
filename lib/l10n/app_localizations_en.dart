@@ -2718,6 +2718,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageExportSheetAssistant => 'Assistant';
 
   @override
+  String get messageExportSheetUser => 'User';
+
+  @override
   String get messageExportSheetDefaultTitle => 'New Chat';
 
   @override

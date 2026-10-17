@@ -172,10 +172,12 @@ Future<_Exported> _export(
       thinkingLabel: 'Thinking',
       accent: kPdfPageAccent,
       muted: kPdfPageMuted,
+      userLabel: 'User',
       messages: <ExportMessage>[
         ExportMessage(
           time: '2026-01-02 03:04:05',
           roleName: 'Assistant',
+          speaker: ExportSpeaker.assistant,
           blocks: <ExportBlock>[ExportText(body), ...extraBlocks],
         ),
       ],

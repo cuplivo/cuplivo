@@ -55,6 +55,15 @@ const int _maxInlineMathBodyLength = 512;
 const String _codeDollarMask = '___CODE_DOLLAR_MASK___';
 const String _fencedHtmlTagStartMask = '\uE002';
 
+/// The size a markdown surface sets prose in unless its owner overrides it.
+///
+/// It is also the size an author's `WxH` image size is written against: the
+/// number in `![300x200](…)` is a width in logical pixels next to text this
+/// size, so a consumer that sets prose at some other size (the PDF page sets
+/// 10.5pt) has to scale the picture by the ratio or the picture stops looking
+/// like it belongs to the text beside it.
+const double kMarkdownBodyFontSize = 15.5;
+
 /// Translucent fills so chat wallpaper shows through markdown chrome.
 /// Inline chips and details are lightest; tables sit in the middle;
 /// fenced code stays a bit more solid.
@@ -483,7 +492,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
       _sourceScan.update(_renderText);
       _metadataSource = _renderText;
       if (_sourceScan.hasImageMarker) {
-        _sanitizedText = _sanitizeImageLinks(_renderText);
+        _sanitizedText = markdownSanitizeImageLinks(_renderText);
         _imageUrls = _extractImageUrls(_sanitizedText);
       } else {
         _sanitizedText = _renderText;
@@ -514,7 +523,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
         }
         _liveBlockSource = source;
         _liveBlockOptions = options;
-        return _liveBlockNormalized = _preprocessFences(
+        return _liveBlockNormalized = markdownPreprocessFences(
           source,
           enableMath: options.$1,
           enableDollarLatex: options.$2,
@@ -525,7 +534,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
           '${settings.enableMathRendering}:${settings.enableDollarLatex}:$streaming:$source';
       final cached = _normalizedBlockCache.get(cacheKey);
       if (cached != null) return cached;
-      final value = _preprocessFences(
+      final value = markdownPreprocessFences(
         source,
         enableMath: settings.enableMathRendering,
         enableDollarLatex: settings.enableDollarLatex,
@@ -570,7 +579,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
     final inkColor = _markdownInkColor(context);
     final baseTextStyle =
         (widget.baseStyle ?? Theme.of(context).textTheme.bodyMedium)?.copyWith(
-          fontSize: widget.baseStyle?.fontSize ?? 15.5,
+          fontSize: widget.baseStyle?.fontSize ?? kMarkdownBodyFontSize,
           height: widget.baseStyle?.height ?? 1.55,
           letterSpacing:
               widget.baseStyle?.letterSpacing ?? (_isZh(context) ? 0.0 : 0.05),
@@ -917,7 +926,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
         // Fenced code block styling via codeBuilder (with collapse/expand)
         codeBuilder: (ctx, name, code, closed) {
           final lang = name.trim();
-          final restoredCode = _unmaskHtmlTagStartsInsideFencedCode(code);
+          final restoredCode = unmaskFencedHtmlTagStarts(code);
           if (lang.toLowerCase() == 'mermaid' ||
               isSvgCodeBlock(lang, restoredCode)) {
             return _DiagramBlock(
@@ -1369,7 +1378,22 @@ String? _normalizeLanguage(String? lang) {
   }
 }
 
-String _preprocessFences(
+/// The rewrite stage the rendering surface runs before it walks a block.
+///
+/// It is the surface's *preparation*, not part of the grammar: it protects
+/// fenced and inline code from the LaTeX passes, normalizes `[cite:id]` and
+/// `[citation:…]` markers into `[citation](id)` links, drops link titles the
+/// link regex cannot carry, splits display math written inline into a block of
+/// its own, and folds `</p>` runs into one line break. What the components then
+/// parse is this text, so the walks a *consumer* runs — the selection copy, and
+/// the PDF exporter, which has no widget tree and therefore no `normalize`
+/// closure — have to run the same stage or they disagree with the screen about
+/// what the source says.
+///
+/// [markdownSanitizeImageLinks] belongs before this, the way the surface runs
+/// it: it turns a local image path that holds spaces into a URI the image
+/// pattern can match.
+String markdownPreprocessFences(
   String input, {
   required bool enableMath,
   required bool enableDollarLatex,
@@ -1576,7 +1600,14 @@ String _maskHtmlTagStartsInsideFencedCode(String input) {
   );
 }
 
-String _unmaskHtmlTagStartsInsideFencedCode(String input) {
+/// Puts back the `<` of a `<details>`/`<summary>` start inside a fenced block.
+///
+/// [markdownPreprocessFences] masks those starts so the details component cannot
+/// claim a line that only looks like the tag, and every consumer that shows a
+/// fence body has to undo it: the renderer's code builder does, and so must a
+/// consumer that prints the fence somewhere else, or the mask character — a
+/// private-use code point — reaches the output.
+String unmaskFencedHtmlTagStarts(String input) {
   return input.replaceAll(_fencedHtmlTagStartMask, '<');
 }
 
@@ -2750,7 +2781,14 @@ List<String> _citationIds(String md) {
   return ids;
 }
 
-String _sanitizeImageLinks(String input) {
+/// Turns a local image path that holds spaces into a URI the image pattern can
+/// match.
+///
+/// The image pattern carries `[^\s\n]*` for its target, so a path with a space
+/// in it does not match at all and the picture reaches the walk as literal text.
+/// A remote or `data:` target is left exactly as written, and a path without a
+/// space is left alone too, because the rewrite can only lose information.
+String markdownSanitizeImageLinks(String input) {
   if (!_imageStart.hasMatch(input)) return input;
   final re = RegExp(r'!\[([^\]]*)\]\(([^)]+)\)', multiLine: true);
   return input.replaceAllMapped(re, (m) {
@@ -5536,9 +5574,7 @@ class SoftHrLine extends BlockMd {
   if (match == null) return null;
   return (
     language: (match.group(3) ?? '').trim(),
-    code: _unmaskHtmlTagStartsInsideFencedCode(
-      match.group(4) ?? match.group(5) ?? '',
-    ),
+    code: unmaskFencedHtmlTagStarts(match.group(4) ?? match.group(5) ?? ''),
     closed: match.group(4) != null,
   );
 }
@@ -5584,7 +5620,7 @@ class FencedCodeBlockMd extends BlockMd {
     final lang = m == null ? '' : (m.group(3) ?? '').trim();
     final code = m == null
         ? ''
-        : _unmaskHtmlTagStartsInsideFencedCode(m.group(4) ?? m.group(5) ?? '');
+        : unmaskFencedHtmlTagStarts(m.group(4) ?? m.group(5) ?? '');
     if (isDiagramFence(lang, code)) {
       // A diagram shows a bitmap, or a code view that owns its own selection, so
       // the surface's owner never reaches the diagram's text: the fence occupies

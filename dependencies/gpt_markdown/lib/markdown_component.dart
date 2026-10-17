@@ -1342,12 +1342,22 @@ class ImageMd extends InlineMd {
 }
 
 /// The parts of an image element `![alt](url)`.
-final class _ImageElement {
-  const _ImageElement({
+///
+/// Public because a consumer that draws an image outside the widget tree — the
+/// PDF exporter embeds it as a picture — has to read the same element, and the
+/// size an `alt` of `WxH` spells is a rule this scan owns: a second copy would
+/// eventually disagree about what an image's size is.
+final class MarkdownImageElement {
+  const MarkdownImageElement({
+    required this.alt,
     required this.url,
     required this.width,
     required this.height,
   });
+
+  /// The text between the brackets, exactly as written — including a size, which
+  /// is why [width]/[height] are what tells the two apart.
+  final String alt;
 
   final String url;
   final double? width;
@@ -1358,7 +1368,7 @@ final class _ImageElement {
 ///
 /// The source is scanned rather than matched again, because an image target may
 /// contain balanced parentheses that a pattern would cut short.
-_ImageElement? _parseImageElement(String text) {
+MarkdownImageElement? parseMarkdownImageElement(String text) {
   final basicMatch = RegExp(r'\!\[([^\[\]]*)\]\(').firstMatch(text.trim());
   if (basicMatch == null) return null;
 
@@ -1388,7 +1398,8 @@ _ImageElement? _parseImageElement(String text) {
     width = double.tryParse(size?[1]?.toString().trim() ?? 'a');
     height = double.tryParse(size?[2]?.toString().trim() ?? 'a');
   }
-  return _ImageElement(
+  return MarkdownImageElement(
+    alt: altText,
     url: text.substring(urlStart, urlEnd).trim(),
     width: width,
     height: height,

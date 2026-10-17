@@ -215,7 +215,7 @@ final class MdSpanEmitter {
   /// nothing — which is what its node claims.
   InlineSpan _image(MdNode node) {
     final element = node.range?.text;
-    final parsed = element == null ? null : _parseImageElement(element);
+    final parsed = element == null ? null : parseMarkdownImageElement(element);
     if (parsed == null) return const TextSpan();
     final Widget image;
     final builder = config.imageBuilder;

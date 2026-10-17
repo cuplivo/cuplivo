@@ -815,7 +815,12 @@ class _PdfLayout {
   List<String> get undrawnImages => _undrawnImages.toList(growable: false);
 
   /// A paragraph, and the indentation a quote or a list adds around it.
-  static const _BlockSkin _plainSkin = _BlockSkin(bottom: 5);
+  ///
+  /// The gap under a paragraph is the page's own: the screen separates two
+  /// blocks with a blank line of its list height (two empty lines, about 24
+  /// points at page scale), which is a chat convention rather than a typesetting
+  /// one, and a printed page that airy wastes a fifth of its length.
+  static const _BlockSkin _plainSkin = _BlockSkin(bottom: 7);
 
   /// A card: reasoning, or a tool call.
   static const _BlockSkin _cardSkin = _BlockSkin(
@@ -832,8 +837,19 @@ class _PdfLayout {
   /// A picture, a diagram or a table: set a little apart from the prose.
   static const _BlockSkin _asideSkin = _BlockSkin(top: 4, bottom: 4);
 
-  pw.TextStyle get _bodyStyle =>
-      pw.TextStyle(fontSize: kPdfBodyFontSize, color: _ink, lineSpacing: 2.6);
+  /// Prose at the leading the screen uses.
+  ///
+  /// The writer adds [pw.TextStyle.lineSpacing] to the font's own line height,
+  /// so what is set here is the difference between that height and the leading
+  /// wanted: 10.5 points of built-in face measure 12.1 points tall (measured),
+  /// and the screen sets prose at 1.5 of its size, which is 15.75. A face with
+  /// taller metrics — a CJK face is one — adds its own height on top of this, so
+  /// the ratio is approximate rather than exact.
+  pw.TextStyle get _bodyStyle => pw.TextStyle(
+    fontSize: kPdfBodyFontSize,
+    color: _ink,
+    lineSpacing: kPdfBodyFontSize * 0.5 - 1.6,
+  );
   pw.TextStyle get _bodyBold =>
       _bodyStyle.copyWith(fontWeight: pw.FontWeight.bold);
   pw.TextStyle get _monoStyle => pw.TextStyle(
@@ -1230,17 +1246,29 @@ class _PdfLayout {
 
   pw.Widget _heading(MdNode node, _BlockSkin skin) {
     final level = node.open.trim().length.clamp(1, 6);
+    // The screen sets a heading at a ratio of its prose (24/20/18/16/15/14
+    // against 15.5), so the page takes the same ratios of its own size.
     final size = switch (level) {
-      1 => 16.0,
-      2 => 14.0,
-      3 => 12.5,
-      _ => 11.5,
+      1 => 16.3,
+      2 => 13.5,
+      3 => 12.2,
+      4 => 10.8,
+      5 => 10.2,
+      _ => 9.5,
+    };
+    // Its leading is tighter than prose — 1.25 for the first level, 1.35 for the
+    // last — and again only the difference is set, because the writer adds the
+    // font's own height.
+    final leading = switch (level) {
+      1 => 1.25,
+      2 || 3 => 1.3,
+      _ => 1.35,
     };
     final style = pw.TextStyle(
       fontSize: size,
       fontWeight: pw.FontWeight.bold,
       color: _ink,
-      lineSpacing: 2.6,
+      lineSpacing: size * (leading - 1.15),
     );
     final children = node.children.isEmpty
         ? <pw.InlineSpan>[pw.TextSpan(text: node.range?.text ?? '')]
@@ -1516,10 +1544,25 @@ class _PdfLayout {
         headers: table.hasHeader ? rows.first : null,
         data: table.hasHeader ? rows.sublist(1) : rows,
         border: pw.TableBorder.all(color: _ruleInk, width: 0.5),
-        headerDecoration: const pw.BoxDecoration(color: _blockFill),
+        // The screen tints a table with its own accent — 7% on the header row and
+        // 1.5% on the body — over the surface; the page has only paper, so the
+        // same tints are resolved over white. A table with no outer frame is not
+        // a compromise: a decorated container around a table that can run past a
+        // page is exactly the unbreakable box that makes this writer loop.
+        headerDecoration: pw.BoxDecoration(
+          color: _overWhite(request.accent, 0.07),
+        ),
+        rowDecoration: pw.BoxDecoration(
+          color: _overWhite(request.accent, 0.015),
+        ),
         headerAlignment: pw.Alignment.centerLeft,
         cellAlignment: pw.Alignment.centerLeft,
-        cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+        // The screen pads a cell 10 by 9 pixels beside 15.5-point prose; that is
+        // 6.8 by 6.1 points beside this page's 10.5-point prose.
+        cellPadding: const pw.EdgeInsets.symmetric(
+          horizontal: 6.8,
+          vertical: 6.1,
+        ),
         headerStyle: pw.TextStyle(
           fontSize: 9,
           fontWeight: pw.FontWeight.bold,
@@ -1555,10 +1598,21 @@ class _PdfLayout {
     if (parsed == null) return <pw.Widget>[pw.SizedBox()];
     final base = skin.copyWith(indent: skin.indent + _sourceIndentOf(node));
     final widgets = <pw.Widget>[
+      // The screen draws the summary as the card's own header row; on paper the
+      // same row is a filled band, which is what tells a reader the body under it
+      // belongs to it now that the chevron is gone.
       _leaf(
         markdownDetailsSummaryText(parsed.summary),
         _bodyBold,
-        base.copyWith(bottom: 2),
+        base.copyWith(
+          bottom: 3,
+          indent: base.indent + 4,
+          trailing: 4,
+          padTop: 3,
+          padBottom: 3,
+          fill: _blockFill,
+          radius: 4,
+        ),
       ),
     ];
     // An export is an archive: a block the reader had collapsed is written out

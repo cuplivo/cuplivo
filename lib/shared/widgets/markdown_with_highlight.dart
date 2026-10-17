@@ -740,63 +740,54 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
         linkBuilder: (ctx, span, url, style) {
           final label = span.toPlainText().trim();
           // Special handling: [citation](id) and legacy [citation](index:id)
-          if (label.toLowerCase() == 'citation') {
-            final citation = _parseCitationRef(url);
-            if (citation != null) {
-              final cs = Theme.of(ctx).colorScheme;
-              // Prefer the index resolved from this message's search results;
-              // fall back to the inline index for legacy `index:id` markers.
-              final resolved = widget.citationIndexResolver?.call(citation.id);
-              final String display;
-              if (resolved != null && resolved.isNotEmpty) {
-                display = resolved;
-              } else if (citation.indexText != citation.id) {
-                display = citation.indexText; // legacy index:id marker
-              } else if (int.tryParse(citation.indexText) != null) {
-                display = citation.indexText; // legacy pure-index shorthand
-              } else {
-                display = '?'; // id-only marker with no matching result
-              }
-              // gpt_markdown embeds this widget baseline-aligned. The capsule is
-              // taller than the text ascent, so without correction it hangs
-              // below the line. Translate it up (layout-neutral) so it looks
-              // vertically centered, and pad horizontally so adjacent capsules
-              // don't touch.
-              return _clickCursor(
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 1.5),
-                  child: Transform.translate(
-                    offset: const Offset(0, -2),
-                    child: GestureDetector(
-                      onTap: () {
-                        if (widget.onCitationTap != null &&
-                            citation.id.isNotEmpty) {
-                          widget.onCitationTap!(citation.id);
-                        } else {
-                          // Fallback: do nothing
-                        }
-                      },
-                      child: Container(
-                        constraints: const BoxConstraints(minWidth: 20),
-                        height: 20,
-                        padding: const EdgeInsets.symmetric(horizontal: 5),
-                        decoration: BoxDecoration(
-                          color: cs.primary.withValues(alpha: 0.20),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Center(
-                          widthFactor: 1.0,
-                          child: Text(
-                            display,
-                            style: TextStyle(fontSize: 12, height: 1.0),
-                          ),
+          final citation = markdownCitationRefForLink(label, url);
+          if (citation != null) {
+            final cs = Theme.of(ctx).colorScheme;
+            // Prefer the index resolved from this message's search results;
+            // fall back to the index the marker itself carried.
+            final display = markdownCitationLabel(
+              citation,
+              widget.citationIndexResolver,
+            );
+            // gpt_markdown embeds this widget baseline-aligned. The capsule is
+            // taller than the text ascent, so without correction it hangs
+            // below the line. Translate it up (layout-neutral) so it looks
+            // vertically centered, and pad horizontally so adjacent capsules
+            // don't touch.
+            return _clickCursor(
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                child: Transform.translate(
+                  offset: const Offset(0, -2),
+                  child: GestureDetector(
+                    onTap: () {
+                      if (widget.onCitationTap != null &&
+                          citation.id.isNotEmpty) {
+                        widget.onCitationTap!(citation.id);
+                      } else {
+                        // Fallback: do nothing
+                      }
+                    },
+                    child: Container(
+                      constraints: const BoxConstraints(minWidth: 20),
+                      height: 20,
+                      padding: const EdgeInsets.symmetric(horizontal: 5),
+                      decoration: BoxDecoration(
+                        color: cs.primary.withValues(alpha: 0.20),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Center(
+                        widthFactor: 1.0,
+                        child: Text(
+                          display,
+                          style: TextStyle(fontSize: 12, height: 1.0),
                         ),
                       ),
                     ),
                   ),
                 ),
-              );
-            }
+              ),
+            );
           }
           // Default link appearance
           final cs = Theme.of(ctx).colorScheme;
@@ -1640,22 +1631,22 @@ String _normalizeCiteMarkers(String input) {
   });
 }
 
-List<_CitationRef> _parseCitationRefList(String raw) {
-  final refs = <_CitationRef>[];
+List<MarkdownCitationRef> _parseCitationRefList(String raw) {
+  final refs = <MarkdownCitationRef>[];
   for (final rawPart in raw.split(',')) {
     var part = rawPart.trim();
-    if (part.isEmpty) return const <_CitationRef>[];
+    if (part.isEmpty) return const <MarkdownCitationRef>[];
     if (part.toLowerCase().startsWith('citation:')) {
       part = part.substring('citation:'.length).trim();
     }
-    final ref = _parseCitationRef(part);
-    if (ref == null) return const <_CitationRef>[];
+    final ref = markdownCitationRef(part);
+    if (ref == null) return const <MarkdownCitationRef>[];
     refs.add(ref);
   }
   return refs;
 }
 
-_CitationRef? _parseCitationRef(String raw) {
+MarkdownCitationRef? markdownCitationRef(String raw) {
   final trimmed = raw.trim();
   if (trimmed.isEmpty) return null;
 
@@ -1676,19 +1667,53 @@ _CitationRef? _parseCitationRef(String raw) {
   if (id.contains(')') || id.contains(']') || RegExp(r'\s').hasMatch(id)) {
     return null;
   }
-  return _CitationRef(indexText: indexText, id: id);
+  return MarkdownCitationRef(indexText: indexText, id: id);
 }
 
 bool _isCitationIndex(String value) =>
     RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(value);
 
-class _CitationRef {
-  const _CitationRef({required this.indexText, required this.id});
+/// One citation marker: what it shows before resolution, and what it points at.
+///
+/// Public because a consumer that draws its own capsule — the PDF exporter,
+/// which has no widget tree to hang the app's capsule in — has to read the same
+/// two fields the renderer's link builder reads.
+class MarkdownCitationRef {
+  const MarkdownCitationRef({required this.indexText, required this.id});
 
   final String indexText;
   final String id;
 
   String get markdownTarget => indexText == id ? indexText : '$indexText:$id';
+}
+
+/// The citation a link stands for, or null when the link is an ordinary one.
+///
+/// A citation is written `[citation](id)`, or the legacy `[citation](index:id)`;
+/// every `[cite:…]`/`[citation:…]` marker the preparation stage rewrites arrives
+/// here in that shape. Shared so the capsule the screen draws and the capsule a
+/// page draws cannot disagree about which links are citations.
+MarkdownCitationRef? markdownCitationRefForLink(String label, String url) {
+  if (label.trim().toLowerCase() != 'citation') return null;
+  return markdownCitationRef(url);
+}
+
+/// What a citation capsule shows.
+///
+/// [resolve] answers the index this message's search results give the id — the
+/// renderer passes the surface's own resolver. When it cannot answer, a marker
+/// that carried an index of its own shows that; a bare id with nothing to
+/// resolve it to shows `?`, which is a citation the reader can see is broken
+/// rather than a number that would be wrong.
+String markdownCitationLabel(
+  MarkdownCitationRef ref,
+  String? Function(String id)? resolve,
+) {
+  final resolved = resolve?.call(ref.id);
+  if (resolved != null && resolved.isNotEmpty) return resolved;
+  if (ref.indexText != ref.id) return ref.indexText;
+  if (int.tryParse(ref.indexText) != null) return ref.indexText;
+  return '?';
 }
 
 String _maskBlockquoteFenceMarkers(String input) {
@@ -2767,7 +2792,7 @@ List<String> _citationIds(String md) {
     r'\[citation\]\(([^)]+)\)',
     caseSensitive: false,
   ).allMatches(md)) {
-    final ref = _parseCitationRef(match.group(1) ?? '');
+    final ref = markdownCitationRef(match.group(1) ?? '');
     if (ref != null) addId(ref.id);
   }
   for (final match in RegExp(

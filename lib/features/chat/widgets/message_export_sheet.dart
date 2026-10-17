@@ -43,6 +43,7 @@ import '../../../theme/custom_theme.dart';
 import '../../../theme/palettes.dart';
 import '../../../theme/theme_factory.dart';
 import '../../home/widgets/model_icon.dart';
+import '../utils/citation_index.dart';
 import '../utils/export_document.dart';
 import '../utils/markdown_pdf_emitter.dart';
 import '../utils/pdf_export_fonts.dart';
@@ -776,6 +777,14 @@ Future<PdfExportResult?> exportChatMessagesPdf(
           msg: msg,
         ),
         formatTime: timeFormatter.format,
+        citationIndexOf: (msg) => citationIndexLookupOf(
+          searchCitationItemsOf(
+            _exportToolPartsForMessage(
+              context,
+              msg,
+            ).map((part) => (name: part.toolName, content: part.content)),
+          ),
+        ),
         includeThinking:
             choice.showThinkingAndToolCards && choice.expandThinkingContent,
         includeTools: choice.showThinkingAndToolCards,

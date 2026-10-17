@@ -133,6 +133,12 @@ final List<_DriftFixture> _fixtures = [
     // whether its cells split on the escaped pipe never reaches this mapping.
     '| cell \\| pipe | plain |\n| --- | --- |\n| x | y |',
   ),
+  _DriftFixture(
+    'table cell holding a details tag',
+    // The tag is not an inline component, so the cell renders it as literal
+    // text; the walk has to declare exactly that and nothing more.
+    '| <details><summary>s</summary>b</details> | y |\n| --- | --- |\n| x | z |',
+  ),
   _DriftFixture('strikethrough', '~~strike~~'),
   _DriftFixture('underline tag', '<u>under</u>'),
   _DriftFixture('citation chip', 'cite [1] here'),

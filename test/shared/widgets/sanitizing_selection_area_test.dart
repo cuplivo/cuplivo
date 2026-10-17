@@ -80,6 +80,27 @@ Future<String?> _copySelection(
   return recorder.copiedText();
 }
 
+/// Selects everything the surface owns and copies it through its override.
+Future<String?> _copyWholeSurface(
+  WidgetTester tester,
+  _ClipboardRecorder recorder,
+) async {
+  final area = find.byType(SanitizingSelectionArea);
+  final region = tester.state<SelectableRegionState>(
+    find.descendant(of: area, matching: find.byType(SelectableRegion)).first,
+  );
+  region.selectAll(SelectionChangedCause.keyboard);
+  await tester.pump();
+  Actions.invoke(
+    tester.element(
+      find.descendant(of: area, matching: find.byType(SelectionArea)).first,
+    ),
+    CopySelectionTextIntent.copy,
+  );
+  await tester.pumpAndSettle();
+  return recorder.copiedText();
+}
+
 class _ClipboardRecorder {
   final List<MethodCall> calls = <MethodCall>[];
 
@@ -113,6 +134,13 @@ class _ClipboardRecorder {
     return null;
   }
 }
+
+/// A table past the row page size, so its pager is rendered.
+final String _pagedTableSource = [
+  '| head | second |',
+  '| --- | --- |',
+  for (var index = 0; index < 45; index++) '| row$index | cell$index |',
+].join('\n');
 
 /// The nested selection owners a source file creates for itself: a
 /// `SelectableText` or a `SelectionArea` of its own.
@@ -386,6 +414,45 @@ void main() {
       debugPrint('CODE CHROME COPY: "$copied"');
       expect(copied, 'void main() {}');
     });
+
+    for (final desktop in [true, false]) {
+      testWidgets('a paged table keeps its pager out of the copy '
+          '(${desktop ? 'desktop' : 'compact'} layout)', (tester) async {
+        // The pager reveals rows, so its label is a button and not text of the
+        // document: a selection that spans the table must not copy it. The
+        // compact layout already wrapped it; the desktop one did not, and this
+        // pair pins the rule rather than one branch of it (ADR-0010 decision 6).
+        if (desktop) {
+          _forceDesktopTables();
+        } else {
+          markdownTableTargetPlatformOverride = TargetPlatform.android;
+          addTearDown(() => markdownTableTargetPlatformOverride = null);
+        }
+        final recorder = _ClipboardRecorder()..install(tester);
+        await tester.pumpWidget(
+          await _harness(MarkdownWithCodeHighlight(text: _pagedTableSource)),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey('markdown-table-row-pager')),
+          findsOneWidget,
+        );
+        final label = tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byKey(const ValueKey('markdown-table-show-more')),
+                matching: find.byType(Text),
+              ),
+            )
+            .data!;
+        expect(label, isNotEmpty);
+
+        final copied = await _copyWholeSurface(tester, recorder);
+        expect(copied, contains('row0'));
+        expect(copied, isNot(contains(label)));
+      });
+    }
 
     testWidgets('a table cell copies its inline code, not a placeholder', (
       tester,

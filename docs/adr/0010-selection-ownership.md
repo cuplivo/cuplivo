@@ -55,9 +55,9 @@ opts a subtree out. Nothing forces a second owner.
    over it reports only those, so the same holds there. `MarkdownCodeExpansion` carries the setting while
    the blocks themselves record their manual toggles, exactly as `MarkdownDetailsExpansion` does.
 6. **Chrome is not text.** A table's toolbar and row pager, a code block's header, and a diagram's loading
-   and error hints stay out of the selection, so copying a whole surface yields its text and never a
-   button label or a status line. A code block's header already had this through its toggle; it is stated
-   once here so it is not re-derived per widget.
+   and error hints stay out of the selection on either table layout, so copying a whole surface yields its
+   text and never a button label or a status line. A code block's header already had this through its
+   toggle; it is stated once here so it is not re-derived per widget.
 
 ## Consequences
 
@@ -87,6 +87,11 @@ opts a subtree out. Nothing forces a second owner.
 
 ## Not in scope
 
+- Row paging as an input to the walk. A table past the page size renders its first rows and a pager, while
+  its node declares every row. The rows held back are still part of the table a reader can reveal, so a
+  selection that spans it re-emits the whole table — a superset of what was on screen, not the truncated
+  copy a lazy body used to give — and the drift check deliberately has no fixture for this shape, because
+  its equality is about what the surface contributes.
 - Renaming `SelectableHighlightView`: the view no longer owns a selection and the name says it does. The
   rename is mechanical and touches many test references, so it is kept out of this change.
 - The iOS `app.ios_translation` native handler, which now has no Dart caller.

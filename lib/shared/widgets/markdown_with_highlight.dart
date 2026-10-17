@@ -3823,7 +3823,11 @@ class _MarkdownTableBlockState extends State<_MarkdownTableBlock> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 tableSurface,
-                if (!isExporting) _buildRowPager(context),
+                // The row pager is chrome, not text, on this layout too: a
+                // copy that spans the table must not pick up a button label
+                // (ADR-0010 decision 6).
+                if (!isExporting)
+                  SelectionContainer.disabled(child: _buildRowPager(context)),
               ],
             ),
           );

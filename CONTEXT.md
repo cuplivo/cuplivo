@@ -799,7 +799,16 @@ contradicts one of them is a bug, not a preference.
   every weight onto the one face an export can embed, so `fontWeight: bold` alone changes nothing; instead an
   emphasised span is filled *and stroked* (`PdfTextRenderingMode.fillAndStroke`), with the line width set per
   text leaf by a `CustomPaint` wrapper — graphics state, so it must be restored before the next leaf and
-  re-applied to each page fragment, both of which `CustomPaint`'s own save/restore and spanning hooks give.
+  re-applied to each page fragment, both of which `CustomPaint`'s own save/restore and spanning hooks give. The
+  width is **3% of the size** (0.315pt beside 10.5pt prose), and the figure is lower than a real bold face's stem
+  difference would suggest because a stroke widens *every* contour it follows — the inside of a counter as much
+  as the outside of a stem, and a CJK crossbar is thinner than a Latin one at the same size. At 4% a page of
+  Chinese closed its own counters.
+- **Table type size (表格字号)**: a table's header and its cells at 13.0 and 13.5 logical pixels of the screen
+  (8.806 and 9.145 points here), the header smaller and heavier for it. It is named because it is the one place
+  the writer's own default is reachable: a cell whose text crosses as a plain string is drawn with
+  `ThemeData.defaultTextStyle` — 12 points, larger than this page's prose and larger than its own header — so
+  every cell, header and body alike, is built as a widget that carries its own style.
 - **Formula raster scale (公式栅格尺度)**: the size a formula is *drawn* at before it is embedded. The screen
   sets an inline formula at 1.2 of its prose and a display one at the prose size itself; the page captures at
   those sizes and 5× pixels, and an inline picture taller than the prose line is shrunk into it, because the
@@ -827,7 +836,10 @@ Deliberate divergences from the screen (each measured, not a matter of taste —
   the prose line — both are the screen's own ratios read onto paper.
 - The paragraph gap is the page's own, not the screen's blank line — two empty lines of list height is a chat
   convention, and a printed page that airy spends a fifth of its length on nothing. A blank line the *source*
-  wrote is still drawn as one, because the renderer draws it too.
+  wrote is folded into that gap too (31.6 → 16.9 points, the price of a paragraph break) rather than drawn as
+  one, which the renderer does do: a run of prose reaches the page as one text node with the blank line still
+  inside it, and drawing it literally costs two line pitches for one gap. A blank line *inside* an emphasised
+  run (`**a` / blank / `b**`) is still drawn, because splitting there would split the emphasis.
 - A link keeps its underline: the screen separates a link by colour alone, and paper has no hover.
 - A bare `[n]` citation chip stays a number rather than becoming a capsule.
 - The rest of the message chrome — the reasoning rail, tool cards, the sources card, the token footer — is

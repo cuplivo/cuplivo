@@ -9,6 +9,7 @@ enum ChatAction {
   enterGlobalSearch,
   exitGlobalSearch,
   copySelectionMarkdown,
+  replySelection,
 }
 
 class ChatActionBus {

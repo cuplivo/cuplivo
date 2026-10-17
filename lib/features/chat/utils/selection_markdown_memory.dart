@@ -17,19 +17,20 @@ String? selectionMarkdownFrom(
       stripRendererInsertedCharacters(selectedText);
 }
 
-/// The most recent assistant text selection, kept so the desktop
-/// copy-selection-as-markdown hotkey can act on it without opening the context
-/// menu (a workaround for the framework-level instability where a right-click
-/// can clear a long backward selection).
+/// The most recent assistant text selection, kept so a desktop hotkey can act
+/// on it without opening the context menu (a workaround for the
+/// framework-level instability where a right-click can clear a long backward
+/// selection).
 ///
 /// Written by every assistant content selection area on each selection change;
-/// read by the hotkey handler. The toolbar item does **not** read it — it maps
-/// the selection of the surface that built the menu, so two replies with live
-/// selections cannot answer for each other.
+/// read by the hotkey handlers — copy-as-Markdown and reply-with-selection.
+/// The toolbar items do **not** read it: they map the selection of the surface
+/// that built the menu, so two replies with live selections cannot answer for
+/// each other.
 ///
 /// Selections made in other markdown surfaces (user message, translation,
-/// reasoning) do not record here — the hotkey is only about restoring the
-/// markdown source of an assistant reply.
+/// reasoning) do not record here — the hotkeys are only about an assistant
+/// reply's own markdown.
 class SelectionMarkdownMemory {
   SelectionMarkdownMemory._();
 
@@ -42,23 +43,28 @@ class SelectionMarkdownMemory {
   /// selection nobody can see. Compared by value: a surface builds its token.
   Object? _owner;
 
+  /// The message the recorded selection was made in: what a reply cites.
+  String? _messageId;
+
   /// Rebuilds the IR of the source the recording surface rendered, with the
   /// records the renderer itself read. The source is captured by value, so
   /// streaming growth cannot shift a selection that already happened.
   MdDocument Function()? _document;
   String? _selectedText;
 
-  /// Records a selection made by [owner]'s surface.
+  /// Records a selection made by [owner]'s surface in [messageId].
   ///
   /// [selectedText] is the selection exactly as the framework reported it: the
   /// display-space mapping normalizes both sides itself, and stripping is the
   /// clipboard's business.
   void capture({
     required Object owner,
+    required String messageId,
     required MdDocument Function() document,
     required String selectedText,
   }) {
     _owner = owner;
+    _messageId = messageId;
     _document = document;
     _selectedText = selectedText;
   }
@@ -66,6 +72,7 @@ class SelectionMarkdownMemory {
   /// Forgets the recorded selection (the selection was cleared or emptied).
   void clear() {
     _owner = null;
+    _messageId = null;
     _document = null;
     _selectedText = null;
   }
@@ -82,5 +89,19 @@ class SelectionMarkdownMemory {
     final selectedText = _selectedText;
     if (document == null || selectedText == null) return null;
     return selectionMarkdownFrom(document, selectedText);
+  }
+
+  /// What the desktop hotkey replies with for the recorded selection: the
+  /// markdown the mapping re-emits plus the message it came from, or `null`
+  /// when nothing is recorded.
+  ///
+  /// Same mapping as [markdownForSelection], so "copy as Markdown" and "reply
+  /// with this" can never disagree about what was selected.
+  ({String messageId, String markdown})? replySourceForSelection() {
+    final messageId = _messageId;
+    if (messageId == null) return null;
+    final markdown = markdownForSelection();
+    if (markdown == null || markdown.trim().isEmpty) return null;
+    return (messageId: messageId, markdown: markdown);
   }
 }

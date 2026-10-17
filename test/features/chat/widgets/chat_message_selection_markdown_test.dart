@@ -47,6 +47,8 @@ Future<void> _pumpMessages(
   WidgetTester tester,
   List<ChatMessage> messages, {
   bool splitParagraphs = false,
+  ValueChanged<String>? onReplySelection,
+  VoidCallback? onReply,
 }) async {
   final harness = await createBusinessTestHarness();
   addTearDown(harness.close);
@@ -80,7 +82,12 @@ Future<void> _pumpMessages(
           body: ListView(
             children: [
               for (final message in messages)
-                ChatMessageWidget(message: message, showModelIcon: false),
+                ChatMessageWidget(
+                  message: message,
+                  showModelIcon: false,
+                  onReplySelection: onReplySelection,
+                  onReply: onReply,
+                ),
             ],
           ),
         ),
@@ -101,10 +108,11 @@ Future<void> _pumpAssistant(
   WidgetTester tester, {
   bool streaming = false,
   String content = _content,
+  ValueChanged<String>? onReplySelection,
 }) async {
   await _pumpMessages(tester, [
     _message('assistant-1', content, streaming: streaming),
-  ]);
+  ], onReplySelection: onReplySelection);
 }
 
 /// The selection region the assistant surface at [bubble] owns.
@@ -436,5 +444,110 @@ void main() {
     );
 
     debugDefaultTargetPlatformOverride = null;
+  });
+
+  group('reply from the selection toolbar (docs/adr/0011)', () {
+    /// The toolbar item that starts a reply to this surface's selection.
+    Future<ContextMenuButtonItem> replyMenuItem(WidgetTester tester) async {
+      final areaFinder = _assistantArea();
+      final region = _regionOf(tester, 0);
+      final areaElement = tester.element(areaFinder);
+      final area = tester.widget<SelectionArea>(
+        find
+            .descendant(of: areaFinder, matching: find.byType(SelectionArea))
+            .first,
+      );
+      final menu =
+          area.contextMenuBuilder!(areaElement, region)
+              as AdaptiveTextSelectionToolbar;
+      final label = AppLocalizations.of(
+        areaElement,
+      )!.chatMessageWidgetReplySelection;
+      return menu.buttonItems!.firstWhere((item) => item.label == label);
+    }
+
+    testWidgets('carries this surface\'s selection as markdown', (
+      tester,
+    ) async {
+      String? replied;
+      await _pumpAssistant(tester, onReplySelection: (text) => replied = text);
+      await _selectAllIn(tester, 0);
+
+      final item = await replyMenuItem(tester);
+      item.onPressed!();
+      await tester.pump();
+
+      // The same mapping the Markdown item uses, so a citation can never be
+      // markdown the copy path would not produce.
+      expect(replied, '**bold** text');
+    });
+
+    testWidgets('is offered while the reply is still streaming', (
+      tester,
+    ) async {
+      // The selection is captured by value, so citing text the reader picked
+      // mid-stream is legitimate — unlike the whole-message entry, which
+      // freezes a reply that is still being written.
+      await _pumpAssistant(tester, streaming: true, onReplySelection: (_) {});
+      await _selectAllIn(tester, 0);
+
+      expect(await replyMenuItem(tester), isNotNull);
+    });
+
+    testWidgets('is absent where no handler can serve it', (tester) async {
+      await _pumpAssistant(tester);
+      await _selectAllIn(tester, 0);
+
+      final areaFinder = _assistantArea();
+      final region = _regionOf(tester, 0);
+      final areaElement = tester.element(areaFinder);
+      final area = tester.widget<SelectionArea>(
+        find
+            .descendant(of: areaFinder, matching: find.byType(SelectionArea))
+            .first,
+      );
+      final menu =
+          area.contextMenuBuilder!(areaElement, region)
+              as AdaptiveTextSelectionToolbar;
+      final label = AppLocalizations.of(
+        areaElement,
+      )!.chatMessageWidgetReplySelection;
+      expect(menu.buttonItems!.where((item) => item.label == label), isEmpty);
+    });
+  });
+
+  group('reply from a user bubble\'s own menu (docs/adr/0011)', () {
+    // The third entry surface: a user can reply to their own earlier message,
+    // and on mobile the bubble's long-press popup is the only menu there is.
+    testWidgets('the mobile long-press menu offers Reply', (tester) async {
+      var replies = 0;
+      await _pumpMessages(tester, [
+        _userMessage('user-1', 'my earlier question'),
+      ], onReply: () => replies++);
+
+      await tester.longPress(find.text('my earlier question'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Reply'), findsOneWidget);
+      await tester.tap(find.text('Reply'));
+      await tester.pumpAndSettle();
+      expect(replies, 1);
+    });
+
+    testWidgets('a user bubble with no handler offers no Reply', (
+      tester,
+    ) async {
+      await _pumpMessages(tester, [_userMessage('user-1', 'plain')]);
+
+      await tester.longPress(find.text('plain'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete This Version'), findsOneWidget);
+      expect(find.text('Reply'), findsNothing);
+    });
+    // The desktop right-click path builds the same item through
+    // `showDesktopContextMenuAt`, which a simulated secondary tap does not reach
+    // under the bubble's own selection surface in this harness: that surface is
+    // covered by the `message_more_sheet` menu test instead.
   });
 }

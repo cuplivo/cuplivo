@@ -770,6 +770,10 @@ class HomeViewModel extends ChangeNotifier {
       documents: List<DocumentAttachment>.of(input.documents),
       allowImagesApiRouting: input.allowImagesApiRouting,
       draftSubmission: input.draftSubmission,
+      // A queued send and a cancelled queued input both travel back through
+      // here; the citation is part of the input, not of the composer state
+      // that outlives it (docs/adr/0011).
+      quote: input.quote,
     );
   }
 

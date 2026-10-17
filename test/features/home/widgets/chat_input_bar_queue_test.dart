@@ -2,6 +2,7 @@ import "../../../support/business_test_harness.dart";
 import 'dart:async';
 import 'package:Cuplivo/core/models/chat_input_data.dart';
 import 'package:Cuplivo/core/models/composer_draft.dart';
+import 'package:Cuplivo/core/models/message_quote.dart';
 import 'package:Cuplivo/core/models/model_spec.dart';
 import 'package:Cuplivo/core/models/reasoning_request.dart';
 import 'package:Cuplivo/features/home/utils/model_display_helper.dart';
@@ -233,6 +234,35 @@ void main() {
     expect(mediaController.hasDraftMedia, isFalse);
     expect(stopCount, 0);
     expect(find.byKey(const ValueKey('stop')), findsOneWidget);
+  });
+
+  testWidgets('待发送的回复引用随提交的输入一起送出', (tester) async {
+    final controller = TextEditingController(text: 'reply text');
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+    addTearDown(controller.dispose);
+    addTearDown(focusNode.dispose);
+    ChatInputData? submitted;
+
+    await tester.pumpWidget(
+      buildHarness(
+        controller: controller,
+        focusNode: focusNode,
+        mediaController: mediaController,
+        onSend: (input) async {
+          submitted = input;
+          return ChatInputSubmissionResult.sent;
+        },
+      ),
+    );
+
+    const quote = MessageQuote(id: 'quoted-message', text: 'quoted span');
+    mediaController.setPendingQuote(quote, label: 'quoted span');
+    await tester.pumpAndSettle();
+    await tapSendButton(tester);
+
+    expect(submitted?.text, 'reply text');
+    expect(submitted?.quote, quote);
   });
 
   testWidgets('已有排队消息时非空的锁定输入框仍可停止输出', (tester) async {

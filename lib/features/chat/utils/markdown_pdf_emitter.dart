@@ -171,10 +171,26 @@ const double _listItemGap = 2;
 /// `fontWeight: bold` on its own draws nothing different — a page of headings and
 /// `**emphasis**` then reads as a page of plain prose, which is the loudest
 /// difference between the PDF and the screen. What the writer *can* do is fill and
-/// stroke a glyph in one pass (`PdfTextRenderingMode.fillAndStroke`), and a stroke
-/// of 4% of the size is what a synthetic bold looks like: enough weight to read as
-/// emphasis, still thin enough to stay a stroke rather than a blot.
-const double _fauxBoldStroke = 0.04;
+/// stroke a glyph in one pass (`PdfTextRenderingMode.fillAndStroke`); 3% of the
+/// size is what a synthetic bold looks like. It is measured against what it has to
+/// add up to: a stroke widens *every* contour it follows, the inside of a counter
+/// as much as the outside of a stem, and a CJK crossbar at this size is thinner
+/// than a Latin stem — so the fraction that reads as the screen's w600 is lower
+/// than the one a real bold face's stem difference would suggest. At 4% a page of
+/// Chinese came out heavy enough to close its own counters.
+const double _fauxBoldStroke = 0.03;
+
+/// The size a table's header and its cells are set in, in points.
+///
+/// The screen sets a header at 13 logical pixels and a cell at 13.5 — the header
+/// smaller, and heavier for it — beside 15.5-point prose, so the page takes the
+/// same ratios of its own size. The pair is also the only place in this layout
+/// where a writer default can be read: a table cell's text is drawn by a widget
+/// this layout builds, and the writer answers a cell's missing style with
+/// `ThemeData.defaultTextStyle` — 12 points, larger than this page's prose. Every
+/// cell therefore carries its own style (see [_PdfLayout._tableCell]).
+const double _tableHeaderSize = 13.0 * _pageScale;
+const double _tableCellSize = 13.5 * _pageScale;
 
 /// What a raster stands in for, which is also how it has to be drawn.
 enum PdfRasterKind {
@@ -645,6 +661,65 @@ bool _isBlankRun(List<MdNode> run) => run.every(_isBlankNode);
 
 bool _isBlankNode(MdNode node) =>
     (node.range?.text ?? node.display ?? '').trim().isEmpty;
+
+/// What a blank line in the source is: two line breaks with nothing but
+/// indentation between them, and any further blank lines that follow.
+final RegExp _sourceBlankLine = RegExp(r'\n[ \t]*(?:\n[ \t]*)+');
+
+/// [run] cut where the source wrote a blank line, so that the page separates the
+/// two halves with its own paragraph gap rather than by drawing an empty line.
+///
+/// The walk has no paragraph component to thank for this: a run of prose is the
+/// text *between* two elements the grammar claimed, and the component walk hands
+/// that whole chunk back as one text node — `aaa\n\nbbb` is a single node, and the
+/// writer draws its two line breaks as one line of nothing between two lines of
+/// text, which is twice the line pitch for a gap the page already has a figure
+/// for. Splitting here is the one place that knows the difference between a line
+/// break the source wrote *inside* a paragraph (which is the soft wrap the
+/// renderer keeps) and a blank line that ends one.
+///
+/// Only a text node splits, and each piece keeps its own range, so a citation, a
+/// link or a formula that sits between two halves stays in the half it followed.
+/// An empty piece is dropped; a run with no blank line in it comes back whole,
+/// which is the common case and one `hasMatch` away.
+List<List<MdNode>> _paragraphRuns(List<MdNode> run) {
+  final pieces = <List<MdNode>>[];
+  var current = <MdNode>[];
+
+  void push() {
+    if (current.isNotEmpty) pieces.add(current);
+    current = <MdNode>[];
+  }
+
+  for (final node in run) {
+    final range = node.range;
+    final text = range?.text ?? '';
+    if (node.kind != MdNodeKind.text || range == null) {
+      // Anything that is not plain text — a link, a formula, an emphasis run —
+      // is indivisible here: a blank line inside it would have to split the
+      // element itself, and half a link is not a link.
+      current.add(node);
+      continue;
+    }
+    var start = 0;
+    for (final match in _sourceBlankLine.allMatches(text)) {
+      final piece = MdNode.text(
+        MdRange(range.source, range.start + start, range.start + match.start),
+      );
+      if (!_isBlankNode(piece)) current.add(piece);
+      push();
+      start = match.end;
+    }
+    final tail = MdNode.text(
+      MdRange(range.source, range.start + start, range.end),
+    );
+    if (!_isBlankNode(tail)) current.add(tail);
+  }
+  push();
+  // A run that began with a blank line and never held anything else is a gap the
+  // caller has already decided to draw — an empty list would drop it entirely.
+  return pieces.isEmpty ? <List<MdNode>>[run] : pieces;
+}
 
 /// The factor a raster is drawn at so that it fits the room it has.
 ///
@@ -1385,9 +1460,23 @@ class _PdfLayout {
         }
         return;
       }
-      widgets.add(
-        _paragraph(run, blockSkin, marker: pendingMarker, style: textStyle),
-      );
+      // A source's blank line ends a paragraph rather than drawing an empty line:
+      // the run is cut there and the page's own paragraph gap separates the two
+      // halves, which is what makes a page of prose cost what prose costs.
+      final runs = _paragraphRuns(run);
+      for (var index = 0; index < runs.length; index++) {
+        final first = index == 0;
+        widgets.add(
+          _paragraph(
+            runs[index],
+            // The run that carries a marker keeps the skin its own line has; a
+            // paragraph the source's blank line opened is one of the body's.
+            first ? blockSkin : skinFor(runs[index].first),
+            marker: first ? pendingMarker : null,
+            style: textStyle,
+          ),
+        );
+      }
       pendingMarker = null;
     }
 
@@ -1838,8 +1927,22 @@ class _PdfLayout {
     ];
     return skin.wrap(
       pw.TableHelper.fromTextArray(
-        headers: table.hasHeader ? rows.first : null,
-        data: table.hasHeader ? rows.sublist(1) : rows,
+        // Every cell is a widget this layout builds, header and body alike, so the
+        // one thing the writer must not supply is their type: a cell whose text
+        // crosses as a plain string is drawn with `ThemeData.defaultTextStyle`,
+        // which is the writer's 12-point default — larger than this page's prose,
+        // and larger than its own header.
+        headers: table.hasHeader
+            ? <pw.Widget>[
+                for (final cell in rows.first) _tableCell(cell, header: true),
+              ]
+            : null,
+        data: <List<pw.Widget>>[
+          for (final row in table.hasHeader ? rows.sublist(1) : rows)
+            <pw.Widget>[
+              for (final cell in row) _tableCell(cell, header: false),
+            ],
+        ],
         border: pw.TableBorder.all(color: _ruleInk, width: 0.5),
         // The screen tints a table with its own accent — 7% on the header row and
         // 1.5% on the body — over the surface; the page has only paper, so the
@@ -1860,30 +1963,41 @@ class _PdfLayout {
           horizontal: 6.8,
           vertical: 6.1,
         ),
-        headerStyle: pw.TextStyle(
-          fontSize: 9,
-          fontWeight: pw.FontWeight.bold,
-          color: _ink,
-        ),
-        cellStyle: pw.TextStyle(fontSize: 9, color: _ink),
         cellAlignments: <int, pw.AlignmentGeometry>{
           for (var index = 0; index < table.columnCount; index++)
             index: _alignmentFor(table.alignments[index]),
         },
-        // A cell is its own markdown surface in the renderer too, so it is
-        // walked as one: the cell's inline code, links and emphasis survive.
-        // Unlike a paragraph it is clipped rather than paged — see [_CappedCell].
-        cellBuilder: (index, data, rowNum) {
-          final cell = data is String ? data : '';
-          if (cell.isEmpty) return pw.SizedBox();
-          return _CappedCell(
-            maxHeight: _maxUnbreakableHeight,
-            child: pw.RichText(
-              overflow: pw.TextOverflow.clip,
-              text: pw.TextSpan(children: _spans(_walk(cell).blocks)),
-            ),
-          );
-        },
+      ),
+    );
+  }
+
+  /// One table cell, drawn at the size the screen gives it.
+  ///
+  /// A cell is its own markdown surface in the renderer too, so it is walked as
+  /// one: the cell's inline code, links and emphasis survive — and the walk is
+  /// given the cell's style, so an emphasised run inside a cell is the size of the
+  /// plain text beside it rather than the body's. Unlike a paragraph the cell is
+  /// clipped rather than paged — see [_CappedCell] — and the stroke a fake bold
+  /// needs is set by the cell's own wrapper, because a run that inherited the
+  /// width from whatever drew last (usually the grid, at 0.5) would be stroked by
+  /// luck rather than by [_fauxBoldStroke].
+  pw.Widget _tableCell(String cell, {required bool header}) {
+    if (cell.isEmpty) return pw.SizedBox();
+    final style = header
+        ? _fauxBoldStyle(pw.TextStyle(fontSize: _tableHeaderSize, color: _ink))
+        : pw.TextStyle(fontSize: _tableCellSize, color: _ink);
+    return _CappedCell(
+      maxHeight: _maxUnbreakableHeight,
+      child: _fauxBold(
+        pw.RichText(
+          overflow: pw.TextOverflow.clip,
+          text: pw.TextSpan(
+            style: style,
+            children: _spans(_walk(cell).blocks, style: style),
+          ),
+        ),
+        size: style.fontSize!,
+        ink: _ink,
       ),
     );
   }

@@ -63,6 +63,11 @@ Future<void> showPdfExportDialog(
   final fonts = resolver ?? PdfFontResolver(googleFonts: catalogue);
   try {
     final form = _PdfExportForm(
+      // The surface the export belongs to. The dialog asks the question; the
+      // export — its overlay, its save dialog and its result — outlives the
+      // dialog, so it is started from the page rather than from a route that is
+      // about to be disposed (see [_PdfExportFormState._export]).
+      page: context,
       conversation: conversation,
       messages: messages,
       appFontPath: appFontPath,
@@ -130,6 +135,7 @@ Future<PdfExportResult?> _runExport(
 
 class _PdfExportForm extends StatefulWidget {
   const _PdfExportForm({
+    required this.page,
     required this.conversation,
     required this.messages,
     required this.resolver,
@@ -139,6 +145,10 @@ class _PdfExportForm extends StatefulWidget {
     this.codeFontPath,
     this.handle = false,
   });
+
+  /// The page this export belongs to, and the context its own surfaces — the
+  /// progress overlay and the result dialog — are raised from.
+  final BuildContext page;
 
   final Conversation conversation;
   final List<ChatMessage> messages;
@@ -150,6 +160,7 @@ class _PdfExportForm extends StatefulWidget {
   final bool handle;
 
   _PdfExportForm withHandle() => _PdfExportForm(
+    page: page,
     conversation: conversation,
     messages: messages,
     resolver: resolver,
@@ -230,20 +241,44 @@ class _PdfExportFormState extends State<_PdfExportForm> {
   }
 
   Future<void> _export() async {
-    // The configuration goes first, so the overlay and the save dialog are not
-    // stacked behind it.
-    final parent = context;
-    Navigator.of(context).maybePop();
-    final result = await widget.run(
-      parent,
-      conversation: widget.conversation,
-      messages: widget.messages,
-      options: _options,
-      googleFonts: widget.googleFonts,
-      resolver: widget.resolver,
+    // The configuration goes first, and it *finishes* going first: the overlay and
+    // the save dialog are what a reader should be looking at, and a dialog still
+    // sliding out behind them reads as one that never closed.
+    //
+    // Everything the export needs is read before the surface goes, because this
+    // state is disposed as soon as its route has finished leaving — and the export
+    // is launched from the page, so a conversation that takes seconds to lay out
+    // still reports what it produced.
+    final page = widget.page;
+    final run = widget.run;
+    final options = _options;
+    final conversation = widget.conversation;
+    final messages = widget.messages;
+    final googleFonts = widget.googleFonts;
+    final resolver = widget.resolver;
+    final route = ModalRoute.of(context);
+    // `showDialog` puts this route on the root navigator, and it is this
+    // configuration's own: `pop` closes it, `maybePop` would merely ask.
+    Navigator.of(context, rootNavigator: true).pop();
+    // Not "closing": gone. `TransitionRoute.completed` completes once the exit
+    // transition has run and the route's overlay entries are out of the tree,
+    // which is the moment the page is the only surface on screen again.
+    if (route != null) await route.completed;
+
+    // The page the dialog was asked from is not the route it asked on: closing
+    // this one does not close that, and a page that went away while the dialog was
+    // up has nothing left to export into.
+    if (!page.mounted) return;
+    final result = await run(
+      page,
+      conversation: conversation,
+      messages: messages,
+      options: options,
+      googleFonts: googleFonts,
+      resolver: resolver,
     );
-    if (result == null || !parent.mounted) return;
-    await showPdfExportResultDialog(parent, result);
+    if (result == null || !page.mounted) return;
+    await showPdfExportResultDialog(page, result);
   }
 
   @override

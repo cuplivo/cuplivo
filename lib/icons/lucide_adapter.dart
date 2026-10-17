@@ -71,6 +71,7 @@ class Lucide {
   static const IconData Wrench = lucide.LucideIcons.wrench;
   static const IconData Minus = lucide.LucideIcons.minus;
   static const IconData Type = lucide.LucideIcons.type;
+  static const IconData Smile = lucide.LucideIcons.smile;
   static const IconData ChevronRight = lucide.LucideIcons.chevronRight;
   static const IconData Copy = lucide.LucideIcons.copy;
   static const IconData RefreshCw = lucide.LucideIcons.refreshCw;

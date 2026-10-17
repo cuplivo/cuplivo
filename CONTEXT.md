@@ -828,3 +828,26 @@ contradicts one of them is a bug, not a preference.
   reply that is still being written); the 范围引用 entry stays, because its text was captured by value.
 - A citation neither creates nor preserves a conversation: a 整条引用 whose target is gone shows the stub
   and sends no 引文, and nothing else changes.
+
+## PDF export (PDF 导出) — ADR-0011 待写
+
+- **Export block model (导出块模型)**: the plain-data shape a conversation takes for export — `ExportTitle` /
+  `ExportText` / `ExportReasoning` / `ExportTool` — built once by `buildExportDocument` and consumed by all
+  three writers (MD, TXT, PDF). It is what lets the PDF layout run on a background isolate: bytes and strings
+  cross, never a widget or a provider. MD and TXT are byte-identical to what they were before it existed.
+- **PDF emitter (PDF 发射器)**: `buildConversationPdf` — the one place the export block model becomes a
+  `pdf` document. Its load-bearing rule is that **every text leaf is a direct child of the page flow**: the
+  writer can only break a `Column` *between* children, and its page guard is an `assert`, so a block taller
+  than a page would hang a release build instead of throwing. Grouping is therefore drawn per block
+  (`_BlockSkin`), never nested, and anything unbreakable (a picture, a formula, a table row) is capped.
+- **Font role (字体角色)**: one of 正文 / 代码 / Emoji, each resolved on its own because the writer needs a
+  different face for each. A role's answer is a `PdfFontChoice` — auto, a named system face, a downloadable
+  family, or the built-in font — and its state is carried as a `PdfFontStatus`, so which face a document was
+  drawn with is something the export can name rather than something a reader has to guess.
+- **Export degrade (导出降级)**: what the layout fell back from and reported — a formula set as its TeX, a
+  diagram set as its code, a picture set as its reference. A degrade is not a failure: the same conversation
+  is still worth exporting, and `PdfExportResult` is how the result screen says what is missing instead of
+  leaving a reader to notice it.
+- **Source indentation (源码缩进)**: how a list's nesting is recovered. The IR has no list container — a list
+  component matches one line — so a nested item is a sibling node whose line is indented, and
+  `pdfIndentForSourceLine` is the one place that turns that line's leading whitespace into points.

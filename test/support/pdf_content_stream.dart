@@ -122,6 +122,43 @@ Map<int, int> pdfTextRenderingModes(Uint8List bytes) => RegExp(r'(\d+) Tr')
       return map;
     });
 
+/// The size every text run is set in, in the order the pages set them.
+///
+/// A layout that draws a table cell or any other text through a widget of its own
+/// hands the writer no style for it, and the writer answers with
+/// `ThemeData.defaultTextStyle` — a size that appears nowhere in the layout's own
+/// constants. `Tf` is the only reading of what a run was *actually* set in, so a
+/// test that says "this cell is 9.15 points" has to come through here rather than
+/// through the style the code meant to pass.
+List<double> pdfFontSizes(Uint8List bytes) => RegExp(r'/\w+ ([\d.]+) Tf')
+    .allMatches(pdfStreams(bytes))
+    .map((match) => double.parse(match.group(1)!))
+    .toList();
+
+/// The line width in effect for each run that is *stroked*, in the order the page
+/// strokes them.
+///
+/// A stroked run's weight is graphics state, not a text property, so the operator
+/// that says "this run is bold" says nothing about how heavy it is: the width has
+/// to be read from the `w` that was in effect when the `N Tr` was set. This is what
+/// distinguishes a fake bold drawn at its own size from one that inherited whatever
+/// drew last — a table's grid, an avatar's disc.
+List<double> pdfBoldStrokeWidths(Uint8List bytes) {
+  final out = <double>[];
+  var width = 0.0;
+  for (final token in RegExp(
+    r'(-?[\d.]+) w\b|(\d+) Tr',
+  ).allMatches(pdfStreams(bytes))) {
+    final written = token.group(1);
+    if (written != null) {
+      width = double.parse(written);
+      continue;
+    }
+    if (int.parse(token.group(2)!) != 0) out.add(width);
+  }
+  return out;
+}
+
 /// The rectangles the writer fills, with the colour each is filled in.
 ///
 /// A filled panel — a message's tint, a card — is a rectangle and a fill, and its

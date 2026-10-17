@@ -115,10 +115,73 @@ void main() {
       // both is the same file, so this operator is all that tells them apart.
       expect(modes[0], isNotNull);
       expect(boldModes[2]! - modes[2]!, 1);
-      // The stroke is 4% of the run's size, which is what makes it read as weight
-      // rather than as an outline.
-      expect(_lineWidths(bold.bytes), contains(closeTo(0.42, 0.001)));
+      // The stroke is 3% of the run's size, which is what makes it read as weight
+      // rather than as an outline: a stroke widens every contour it follows, so the
+      // fraction that reads as the screen's semibold is well under the one a real
+      // bold face's stem difference would suggest.
+      expect(_lineWidths(bold.bytes), contains(closeTo(0.315, 0.001)));
     });
+  });
+
+  group('a table', () {
+    const header = '| Head | Other |\n| --- | --- |\n';
+    // The screen sets a header at 13 logical pixels and a cell at 13.5 beside
+    // 15.5-point prose, so the page takes the same ratios of its own size.
+    const headerSize = 13.0 * (10.5 / 15.5);
+    const cellSize = 13.5 * (10.5 / 15.5);
+
+    test('sets its cells at the screen\'s own sizes, not the writer\'s', () async {
+      final result = await _export(
+        blocks: <ExportBlock>[const ExportText('$header| cell | plain |\n')],
+      );
+      final sizes = pdfFontSizes(result.bytes);
+
+      expect(sizes, contains(closeTo(headerSize, 0.01)));
+      expect(sizes, contains(closeTo(cellSize, 0.01)));
+      // And nothing is set at the writer's own cell default: a cell whose text
+      // crosses as a plain string is drawn with `ThemeData.defaultTextStyle` — 12
+      // points, larger than this page's prose and larger than its own header.
+      expect(sizes, isNot(contains(closeTo(12.0, 0.01))));
+    });
+
+    test(
+      'gives an emphasised cell the cell\'s size and the cell\'s stroke',
+      () async {
+        final plain = await _export(
+          blocks: <ExportBlock>[
+            const ExportText('$header| cell | plain |\n'),
+          ],
+        );
+        final bold = await _export(
+          blocks: <ExportBlock>[
+            const ExportText('$header| **cell** | plain |\n'),
+          ],
+        );
+
+        // Emphasis inside a cell changes nothing about the type: it used to come out
+        // at the body's 10.5, a quarter smaller than the text beside it.
+        expect(
+          pdfFontSizes(bold.bytes).toSet(),
+          pdfFontSizes(plain.bytes).toSet(),
+        );
+        expect(
+          pdfTextRenderingModes(bold.bytes)[2]! -
+              pdfTextRenderingModes(plain.bytes)[2]!,
+          1,
+        );
+        // The stroke is the cell's own width, set by the cell's wrapper — not the
+        // 0.5 the table's grid leaves in the graphics state, and not the header's
+        // own width either.
+        expect(
+          pdfBoldStrokeWidths(bold.bytes),
+          contains(closeTo(cellSize * 0.03, 0.001)),
+        );
+        expect(
+          pdfBoldStrokeWidths(plain.bytes),
+          isNot(contains(closeTo(cellSize * 0.03, 0.001))),
+        );
+      },
+    );
   });
 
   group('the page\'s rhythm', () {
@@ -167,6 +230,22 @@ void main() {
         );
       },
     );
+
+    test('draws a blank line the source wrote as a paragraph gap', () async {
+      // One block, two paragraphs: the walk has no paragraph component, so a run
+      // of prose arrives as one text node with the blank line still inside it —
+      // and drawing that literally costs two line pitches for one gap.
+      final drawn = await _drawn(
+        blocks: <ExportBlock>[const ExportText('para one\n\npara two')],
+      );
+      final texts = _texts(drawn);
+      expect(texts, contains('one'));
+      expect(texts, contains('two'));
+      expect(
+        pdfWordY(drawn, 'one') - pdfWordY(drawn, 'two'),
+        closeTo(16.9, 0.5),
+      );
+    });
   });
 
   group('a formula in a line of prose', () {

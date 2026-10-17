@@ -11,6 +11,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../../../shared/widgets/markdown_with_highlight.dart';
 import '../../../shared/widgets/markdown_line_lexer.dart';
+import 'citation_index.dart';
 import 'export_document.dart';
 
 // The page is always light. A PDF is a thing that gets printed and archived, and
@@ -34,6 +35,17 @@ const PdfColor kPdfPageAccent = PdfColor.fromInt(0xFF4D5C92);
 /// The quiet ink a light page falls back to: timestamps, captions, page
 /// furniture, and the reference a picture stands in for.
 const PdfColor kPdfPageMuted = PdfColor.fromInt(0xFF59636E);
+
+/// [colour] laid over the page's white at [amount], the way the app's own
+/// `alphaBlend` lays a tint over its surface.
+///
+/// The page is opaque paper and this layout composites nothing, so a tint has to
+/// be resolved into a solid colour rather than carried as an alpha.
+PdfColor _overWhite(PdfColor colour, double amount) => PdfColor(
+  colour.red * amount + (1 - amount),
+  colour.green * amount + (1 - amount),
+  colour.blue * amount + (1 - amount),
+);
 
 const double _marginTop = 40;
 const double _marginBottom = 42;
@@ -82,6 +94,20 @@ const double _quoteInset = 10;
 /// embedded at the size it was drawn, so that both halves of the export agree
 /// on how tall a line of text is.
 const double kPdfBodyFontSize = 10.5;
+
+/// The factor a size the app measured in logical pixels keeps on the page.
+///
+/// The page sets prose at [kPdfBodyFontSize] where the markdown surface sets it
+/// at [kMarkdownBodyFontSize], so everything whose size was written next to that
+/// text — a citation capsule's pill, a task checkbox, an author's `WxH` image
+/// size — is scaled by the ratio rather than taken as points.
+const double _pageScale = kPdfBodyFontSize / kMarkdownBodyFontSize;
+
+/// A task checkbox, and what it holds: the app's 18-point box, 14-point tick and
+/// 10-point radio dot.
+const double _taskBoxSize = 18 * _pageScale;
+const double _taskTickSize = 14 * _pageScale;
+const double _taskDotSize = 10 * _pageScale;
 
 /// What a raster stands in for, which is also how it has to be drawn.
 enum PdfRasterKind {
@@ -477,6 +503,40 @@ double pdfIndentForSourceLine(String source, int offset) {
 bool _isBlankChar(int char) =>
     char == 0x20 || char == 0x09 || char == 0x0A || char == 0x0D;
 
+/// A task marker a list item carries: `[x]`/`[ ]` for a box, `(x)`/`( )` for a
+/// radio.
+///
+/// The renderer's two marker components claim those shapes and report them as a
+/// list item whose `open` is the marker itself, so this is the same rule read
+/// off the IR rather than off the source. Public because it is the whole of the
+/// decision — is this item a task, and is it done — and the tests pin it
+/// directly.
+PdfTaskMarker? pdfTaskMarkerOf(String marker) {
+  final trimmed = marker.trim();
+  for (final shape in _taskShapes) {
+    if (trimmed.length != 3) continue;
+    if (trimmed[0] != shape.$1 || trimmed[2] != shape.$2) continue;
+    final inner = trimmed[1];
+    if (inner != ' ' && inner != 'x' && inner != 'X') continue;
+    return PdfTaskMarker(checked: inner != ' ', radio: shape.$1 == '(');
+  }
+  return null;
+}
+
+/// The two marker shapes a task item may wear, as (open, close).
+const List<(String, String)> _taskShapes = <(String, String)>[
+  ('[', ']'),
+  ('(', ')'),
+];
+
+/// What a task marker says: which box to draw, and whether it is filled.
+class PdfTaskMarker {
+  const PdfTaskMarker({required this.checked, required this.radio});
+
+  final bool checked;
+  final bool radio;
+}
+
 bool _isLineBreakChar(int char) => char == 0x0A || char == 0x0D;
 
 /// The indentation [node]'s own line claims, which is its nesting.
@@ -517,6 +577,38 @@ double pdfRasterScale({
     scale = _maxUnbreakableHeight / height;
   }
   return scale;
+}
+
+/// The size a picture occupies on the page, from the size its author gave.
+///
+/// An author's `WxH` is written in the same logical pixels as the prose beside
+/// it, so it is converted to the page's prose scale — and then bounded, because
+/// a picture is one widget the writer cannot break: wider than the column it
+/// would run past the margin, and taller than the room a page has it would make
+/// the writer lay it out again for ever, which a release build hangs on rather
+/// than reports (see [_maxUnbreakableHeight]).
+({double? width, double? height, bool sized}) pdfImageSize({
+  required double? width,
+  required double? height,
+  required double availableWidth,
+}) {
+  if (width == null && height == null) {
+    return (width: null, height: null, sized: false);
+  }
+  final maxWidth = availableWidth > 0 ? availableWidth : _contentWidth;
+  var w = width == null ? null : width * _pageScale;
+  var h = height == null ? null : height * _pageScale;
+  if (w != null && w > maxWidth) {
+    final scale = maxWidth / w;
+    w = maxWidth;
+    h = h == null ? null : h * scale;
+  }
+  if (h != null && h > _maxUnbreakableHeight) {
+    final scale = _maxUnbreakableHeight / h;
+    h = _maxUnbreakableHeight;
+    w = w == null ? null : w * scale;
+  }
+  return (width: w, height: h, sized: true);
 }
 
 /// The indentation and the decoration one block wears.
@@ -703,6 +795,14 @@ class _PdfLayout {
   final Map<ExportBlock, MdDocument> _documents = <ExportBlock, MdDocument>{};
   final Map<String, Uint8List> _pictures = <String, Uint8List>{};
 
+  /// The message being laid out, and the number its citations show.
+  ///
+  /// A citation's number comes from the search results of the message it sits
+  /// in, and the layout reaches a span through four layers of nesting that have
+  /// no other use for it — so the message's own index is a cursor the message
+  /// loop moves, the way [_pictures] is filled before the layout runs.
+  Map<String, String> _citations = const <String, String>{};
+
   /// What the layout fell back from. Insertion-ordered sets, because the report
   /// names each kind once and the order a reader met them in is the useful one.
   final Set<String> _degradedMath = <String>{};
@@ -820,6 +920,7 @@ class _PdfLayout {
     ];
     for (var index = 0; index < request.messages.length; index++) {
       final message = request.messages[index];
+      _citations = message.citationIndex;
       if (index > 0) {
         widgets.add(pw.Divider(color: _ruleInk, height: 18, thickness: 0.6));
       }
@@ -903,6 +1004,7 @@ class _PdfLayout {
     String uri,
     Uint8List? bytes, {
     _BlockSkin skin = _asideSkin,
+    MarkdownImageElement? element,
   }) {
     final data = bytes ?? _pictures[uri];
     final provider = data == null ? null : _provider(data);
@@ -917,19 +1019,41 @@ class _PdfLayout {
       skin.wrap(
         pw.Container(
           alignment: pw.Alignment.centerLeft,
-          // A picture is one widget and cannot break across a page, so it is
-          // bounded by height as well as by width: a phone screenshot is
-          // taller than a page and would otherwise fail the whole export.
-          child: pw.ConstrainedBox(
-            constraints: pw.BoxConstraints(
-              maxWidth: double.infinity,
-              maxHeight: _maxUnbreakableHeight,
-            ),
-            child: pw.Image(provider, fit: pw.BoxFit.scaleDown),
-          ),
+          child: _pictureWidget(provider, element, skin.availableWidth),
         ),
       ),
     ];
+  }
+
+  /// A picture as the page draws it: the size its author gave, or its own
+  /// pixels scaled down to the room it has.
+  ///
+  /// An author's `WxH` is written next to the app's prose, so it is scaled to
+  /// the page's own prose before it is used — and both bounds are applied after
+  /// that, because a picture is one widget the writer cannot break: one taller
+  /// than a page would make it lay that picture out for ever.
+  pw.Widget _pictureWidget(
+    pw.ImageProvider provider,
+    MarkdownImageElement? element,
+    double availableWidth,
+  ) {
+    final size = pdfImageSize(
+      width: element?.width,
+      height: element?.height,
+      availableWidth: availableWidth,
+    );
+    return pw.ConstrainedBox(
+      constraints: pw.BoxConstraints(
+        maxWidth: availableWidth,
+        maxHeight: _maxUnbreakableHeight,
+      ),
+      child: pw.Image(
+        provider,
+        width: size.width,
+        height: size.height,
+        fit: size.sized ? pw.BoxFit.contain : pw.BoxFit.scaleDown,
+      ),
+    );
   }
 
   /// The blocks of one walked markdown body.
@@ -945,8 +1069,9 @@ class _PdfLayout {
   List<pw.Widget> _blocksOf(
     List<MdNode> nodes, {
     _BlockSkin skin = _plainSkin,
-    String? marker,
+    pw.InlineSpan? marker,
     _BlockSkin? firstSkin,
+    pw.TextStyle? textStyle,
   }) {
     final widgets = <pw.Widget>[];
     final inline = <MdNode>[];
@@ -983,7 +1108,12 @@ class _PdfLayout {
       if (pictures > 0 && pictures + blanks == run.length) {
         if (pendingMarker != null) {
           widgets.add(
-            _paragraph(const <MdNode>[], blockSkin, marker: pendingMarker),
+            _paragraph(
+              const <MdNode>[],
+              blockSkin,
+              marker: pendingMarker,
+              style: textStyle,
+            ),
           );
           pendingMarker = null;
         }
@@ -991,12 +1121,17 @@ class _PdfLayout {
         // model writes an illustration: it gets the picture, not its alt text.
         for (final node in run) {
           if (node.kind != MdNodeKind.image) continue;
-          final parts = _imageParts(node.range?.text ?? '');
-          widgets.addAll(_pictureBlock(parts.url, null, skin: blockSkin));
+          final element = parseMarkdownImageElement(node.range?.text ?? '');
+          if (element == null || element.url.isEmpty) continue;
+          widgets.addAll(
+            _pictureBlock(element.url, null, skin: blockSkin, element: element),
+          );
         }
         return;
       }
-      widgets.add(_paragraph(run, blockSkin, marker: pendingMarker));
+      widgets.add(
+        _paragraph(run, blockSkin, marker: pendingMarker, style: textStyle),
+      );
       pendingMarker = null;
     }
 
@@ -1055,13 +1190,23 @@ class _PdfLayout {
   }
 
   /// One paragraph: a run of inline nodes, optionally opening with a marker.
-  pw.Widget _paragraph(List<MdNode> run, _BlockSkin skin, {String? marker}) {
+  ///
+  /// The marker is a span rather than a string because a task item's marker is a
+  /// box: a list of things to do is a document, and `[x]` in the middle of one is
+  /// syntax. [style] is the paragraph's own ink, which a checked item darkens no
+  /// further than the renderer does.
+  pw.Widget _paragraph(
+    List<MdNode> run,
+    _BlockSkin skin, {
+    pw.InlineSpan? marker,
+    pw.TextStyle? style,
+  }) {
+    final ink = style ?? _bodyStyle;
     final children = <pw.InlineSpan>[
-      if (marker != null && marker.isNotEmpty)
-        pw.TextSpan(text: '$marker ', style: _bodyStyle),
-      ..._spans(run, availableWidth: skin.availableWidth),
+      if (marker != null) marker,
+      ..._spans(run, style: style, availableWidth: skin.availableWidth),
     ];
-    return _richText(children, skin, style: _bodyStyle);
+    return _richText(children, skin, style: ink);
   }
 
   /// A text leaf: the smallest thing the writer can carry across a page.
@@ -1108,7 +1253,6 @@ class _PdfLayout {
   }
 
   List<pw.Widget> _listItem(MdNode node, _BlockSkin skin) {
-    final marker = node.open.trim();
     // The marker rides in front of the item's first paragraph, in the same leaf.
     // A separate marker box would have to be a row, and a row cannot break
     // across a page; the price is that a wrapped item has no hanging indent. The
@@ -1116,23 +1260,121 @@ class _PdfLayout {
     // is one step further in.
     final base = skin.copyWith(indent: skin.indent + _sourceIndentOf(node));
     final inner = base.copyWith(indent: base.indent + _indentStep);
-    final children = node.children;
+
+    // `- [x] done` reaches the walk as an item whose only child is another item,
+    // the one carrying the box. The box labels the line rather than nesting a
+    // level inside it: unwrapping it here is what keeps the outer bullet from
+    // being drawn alone on a line of its own above the text.
+    var marker = node.open.trim();
+    var children = node.children;
+    if (pdfTaskMarkerOf(marker) == null) {
+      final nested = children.where((child) => !_isBlankNode(child)).toList();
+      final box = nested.length == 1 ? nested.single : null;
+      final boxMarker = box?.open.trim() ?? '';
+      if (box != null &&
+          pdfTaskMarkerOf(boxMarker) != null &&
+          box.children.isNotEmpty &&
+          _opensParagraph(box.children.first)) {
+        marker = boxMarker;
+        children = box.children;
+      }
+    }
+
+    final task = pdfTaskMarkerOf(marker);
     final opensWithText =
         children.isNotEmpty && _opensParagraph(children.first);
+    final text = pw.TextSpan(text: '$marker ', style: _bodyStyle);
+    if (task != null) {
+      // A checked item's text is struck through and lightened, the way the
+      // renderer draws it: the box says what was done and the text agrees.
+      final ink = task.checked && !task.radio
+          ? _bodyStyle.copyWith(
+              color: _overWhite(_ink, 0.75),
+              decoration: pw.TextDecoration.lineThrough,
+            )
+          : null;
+      if (opensWithText) {
+        return _blocksOf(
+          children,
+          skin: inner,
+          marker: _taskMarker(task),
+          firstSkin: base,
+          textStyle: ink,
+        );
+      }
+      // An item whose box leads a block cannot share that line, so the box is a
+      // line of its own, tight against what it labels.
+      return <pw.Widget>[
+        _paragraph(
+          const <MdNode>[],
+          base.copyWith(bottom: 0),
+          marker: _taskMarker(task),
+        ),
+        ..._blocksOf(children, skin: inner),
+      ];
+    }
     if (marker.isEmpty) {
       return _blocksOf(children, skin: inner);
     }
     if (opensWithText) {
-      return _blocksOf(children, skin: inner, marker: marker, firstSkin: base);
+      return _blocksOf(children, skin: inner, marker: text, firstSkin: base);
     }
-    // An item that opens with a block — a display formula, a fence, a table —
-    // cannot share its line, so the marker is a line of its own, tight against
-    // what it labels.
     return <pw.Widget>[
-      _paragraph(const <MdNode>[], base.copyWith(bottom: 0), marker: marker),
+      _paragraph(const <MdNode>[], base.copyWith(bottom: 0), marker: text),
       ..._blocksOf(children, skin: inner),
     ];
   }
+
+  /// The box a task item's marker is drawn as.
+  ///
+  /// A box, not the `[x]` the source spells: the renderer draws an 18-point
+  /// rounded box with a tick, and a page that prints the syntax instead shows a
+  /// reader the source rather than the document. The tick is a drawn path rather
+  /// than a `✓`, because the face the writer falls back to when no font resolved
+  /// reaches only U+00FF and would drop the glyph.
+  pw.InlineSpan _taskMarker(PdfTaskMarker task) => pw.WidgetSpan(
+    baseline: -3,
+    child: pw.Container(
+      width: _taskBoxSize,
+      height: _taskBoxSize,
+      margin: const pw.EdgeInsets.only(right: 5),
+      alignment: pw.Alignment.center,
+      decoration: pw.BoxDecoration(
+        shape: task.radio ? pw.BoxShape.circle : pw.BoxShape.rectangle,
+        borderRadius: task.radio
+            ? null
+            : pw.BorderRadius.all(pw.Radius.circular(_taskBoxSize * 0.28)),
+        color: task.checked ? _overWhite(request.accent, 0.12) : null,
+        border: pw.Border.all(
+          color: task.checked ? request.accent : _ruleInk,
+          width: 0.7,
+        ),
+      ),
+      child: !task.checked
+          ? null
+          : task.radio
+          ? pw.Container(
+              width: _taskDotSize,
+              height: _taskDotSize,
+              decoration: pw.BoxDecoration(
+                color: request.accent,
+                shape: pw.BoxShape.circle,
+              ),
+            )
+          : pw.CustomPaint(
+              size: PdfPoint(_taskTickSize, _taskTickSize),
+              painter: (canvas, size) {
+                canvas
+                  ..setStrokeColor(request.accent)
+                  ..setLineWidth(1.05)
+                  ..moveTo(size.x * 0.18, size.y * 0.52)
+                  ..lineTo(size.x * 0.42, size.y * 0.78)
+                  ..lineTo(size.x * 0.84, size.y * 0.24)
+                  ..strokePath();
+              },
+            ),
+    ),
+  );
 
   List<pw.Widget> _quote(MdNode node, _BlockSkin skin) {
     // A quote's own structure is not in the tree — its node declares the whole
@@ -1420,7 +1662,24 @@ class _PdfLayout {
             ),
           );
         case MdNodeKind.link:
+          // A link node that only carries text — an `<a href>` is one, because the
+          // renderer's anchor component reports it as an opaque leaf — has no
+          // children to draw, and a span with neither text nor children draws
+          // nothing at all: that is how an anchor's label used to disappear.
+          final label = _plainTextOf(node);
           final url = _linkUrl(node);
+          final citation = markdownCitationRefForLink(label, url);
+          if (citation != null) {
+            out.add(
+              _citationCapsule(
+                markdownCitationLabel(
+                  citation,
+                  (id) => resolveCitationIndex(id, _citations),
+                ),
+              ),
+            );
+            break;
+          }
           final linkStyle = base.copyWith(
             color: request.accent,
             decoration: pw.TextDecoration.underline,
@@ -1429,25 +1688,46 @@ class _PdfLayout {
             pw.TextSpan(
               style: linkStyle,
               annotation: url.isEmpty ? null : pw.AnnotationUrl(url),
-              children: _spans(
-                node.children,
-                style: linkStyle,
-                availableWidth: width,
-              ),
+              text: node.children.isEmpty ? label : null,
+              children: node.children.isEmpty
+                  ? null
+                  : _spans(
+                      node.children,
+                      style: linkStyle,
+                      availableWidth: width,
+                    ),
             ),
           );
         case MdNodeKind.math:
           out.add(_inlineMath(node, width));
         case MdNodeKind.image:
-          // A picture inside a line of prose is its reference rather than its
-          // pixels, and the export says so: the reader gets a document that does
-          // not claim to hold a picture it does not.
-          final parts = _imageParts(node.range?.text ?? '');
-          _undrawnImages.add(parts.url);
+          // A picture in a line of prose is still a picture: an inline widget is
+          // laid out under the line's own width and moved to a new line when it
+          // does not fit, which is how the renderer puts one in a sentence. Only
+          // a picture whose bytes this device cannot read is written out as its
+          // reference instead.
+          final element = parseMarkdownImageElement(node.range?.text ?? '');
+          final inlineBytes = element == null || element.url.isEmpty
+              ? null
+              : _pictures[element.url];
+          final inlineProvider = inlineBytes == null
+              ? null
+              : _provider(inlineBytes);
+          if (element == null || inlineProvider == null) {
+            final parts = _imageParts(node.range?.text ?? '');
+            _undrawnImages.add(parts.url);
+            out.add(
+              pw.TextSpan(
+                text: parts.alt.isEmpty ? parts.url : parts.alt,
+                style: base.copyWith(color: request.muted),
+              ),
+            );
+            break;
+          }
           out.add(
-            pw.TextSpan(
-              text: parts.alt.isEmpty ? parts.url : parts.alt,
-              style: base.copyWith(color: request.muted),
+            pw.WidgetSpan(
+              baseline: -4,
+              child: _pictureWidget(inlineProvider, element, width),
             ),
           );
         case MdNodeKind.decoration:
@@ -1472,6 +1752,27 @@ class _PdfLayout {
     }
     return out;
   }
+
+  /// The pill a citation is drawn as.
+  ///
+  /// The app draws a 20-point capsule in the accent's own tint and hangs it on
+  /// the line with a two-point lift, so the page does the same at page scale.
+  ///
+  /// The box carries no `alignment`: an aligned child in this writer fills the
+  /// line it sits in, which would draw a capsule as wide as the column and push
+  /// every following word onto a line of its own. Padding sizes it to its label
+  /// instead, which is what a pill is.
+  pw.InlineSpan _citationCapsule(String label) => pw.WidgetSpan(
+    baseline: -2.5,
+    child: pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 3.5, vertical: 2),
+      decoration: pw.BoxDecoration(
+        color: _overWhite(request.accent, 0.20),
+        borderRadius: pw.BorderRadius.all(pw.Radius.circular(6.6)),
+      ),
+      child: pw.Text(label, style: pw.TextStyle(fontSize: 8, color: _ink)),
+    ),
+  );
 
   /// A formula inside a line of prose.
   ///
@@ -1616,11 +1917,19 @@ String _mathSource(MdNode node) {
   return (alt: sized ? '' : element.alt.trim(), url: element.url);
 }
 
-/// The URL a link node re-emits after its label.
+/// The URL a link node points at.
+///
+/// A markdown link re-emits its target after the label. An HTML anchor is an
+/// opaque leaf whose source is the whole tag, so the target has to be read out
+/// of it — the tag the renderer's anchor component parsed.
 String _linkUrl(MdNode node) {
   final close = node.close;
   if (close.startsWith('](') && close.endsWith(')')) {
     return close.substring(2, close.length - 1).trim();
   }
-  return '';
+  final anchor = RegExp(
+    r'''href\s*=\s*(['"])(.*?)\1''',
+    caseSensitive: false,
+  ).firstMatch(node.range?.text ?? '');
+  return (anchor?.group(2) ?? '').trim();
 }

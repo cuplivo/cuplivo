@@ -62,17 +62,28 @@ final class ExportFile extends ExportBlock {
   final String mime;
 }
 
-/// One message as the export writes it: who said it, when, and what.
+/// One message as the export writes it: who said it, when, what, and how its
+/// citations are numbered.
 final class ExportMessage {
   const ExportMessage({
     required this.time,
     required this.roleName,
     required this.blocks,
+    this.citationIndex = const <String, String>{},
   });
 
   final String time;
   final String roleName;
   final List<ExportBlock> blocks;
+
+  /// The number each citation id is shown as.
+  ///
+  /// A marker the message wrote as `[citation](id)` names a search result by id,
+  /// and the number a reader sees is that result's place in this message's own
+  /// results — data a format cannot derive from the text, so the caller that
+  /// knows the message hands it in. A format that draws citations as text (the
+  /// Markdown and plain-text exports) leaves it empty.
+  final Map<String, String> citationIndex;
 }
 
 /// A whole conversation, ready for a format to lay out.
@@ -88,7 +99,9 @@ final class ExportDocument {
 /// [roleNameOf] and [formatTime] come from the caller because naming a speaker
 /// and formatting a date are the surface's business (they read the settings,
 /// the user profile and the locale); everything else about what a message
-/// contains is decided here.
+/// contains is decided here. [citationIndexOf] is the same kind of fact: which
+/// search result a citation id names is known to the surface that holds the
+/// message's tool events, and a format that draws numbered citations passes it.
 ///
 /// Pass [readImageBytes] to have attachment pictures resolved once during the
 /// build — the markdown and PDF exports do, because they embed the bytes —
@@ -100,6 +113,7 @@ Future<ExportDocument> buildExportDocument({
   required String Function(DateTime time) formatTime,
   required bool includeThinking,
   required bool includeTools,
+  Map<String, String> Function(ChatMessage message)? citationIndexOf,
   Future<Uint8List?> Function(String uri)? readImageBytes,
 }) async {
   final exported = <ExportMessage>[];
@@ -108,6 +122,8 @@ Future<ExportDocument> buildExportDocument({
       ExportMessage(
         time: formatTime(message.timestamp),
         roleName: roleNameOf(message),
+        citationIndex:
+            citationIndexOf?.call(message) ?? const <String, String>{},
         blocks: await exportBlocksOf(
           message,
           includeThinking: includeThinking,

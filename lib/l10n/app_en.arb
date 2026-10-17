@@ -1003,25 +1003,47 @@
   "compressContextModelLabel": "Model",
   "compressContextModelUnset": "Select a model",
   "compressContextKeepRecentMessages": "Keep N",
-  "compressContextKeepCountLabel": "Keep recent messages",
-  "compressContextKeepAllMessages": "Keeping that many covers all messages — nothing to compress",
-  "compressContextEstimatePreview": "Summarize {summarized} chars, keep {kept} chars verbatim → about {minTokens}–{maxTokens} tokens (original about {totalTokens} tokens)",
-  "@compressContextEstimatePreview": {
-    "description": "Keep-recent compression preview: summarized/kept char counts and the estimated result token band",
+  "compressContextKeepCountLabel": "Keep recent rounds",
+  "compressContextKeepAllMessages": "Keeping that many covers all rounds — nothing to compress",
+  "compressContextReadoutRounds": "{rounds, plural, =1{1 round} other{{rounds} rounds}}",
+  "@compressContextReadoutRounds": {
     "placeholders": {
-      "summarized": {
+      "rounds": {
         "type": "int"
-      },
-      "kept": {
+      }
+    }
+  },
+  "compressContextReadoutKeptRounds": "{rounds, plural, =1{1 round} other{{rounds} rounds}} + summary",
+  "@compressContextReadoutKeptRounds": {
+    "placeholders": {
+      "rounds": {
         "type": "int"
+      }
+    }
+  },
+  "compressContextReadoutTokens": "~{tokens} tokens",
+  "@compressContextReadoutTokens": {
+    "placeholders": {
+      "tokens": {
+        "type": "String"
+      }
+    }
+  },
+  "compressContextReadoutTokensBand": "~{min}–{max} tokens",
+  "@compressContextReadoutTokensBand": {
+    "placeholders": {
+      "min": {
+        "type": "String"
       },
-      "minTokens": {
-        "type": "int"
-      },
-      "maxTokens": {
-        "type": "int"
-      },
-      "totalTokens": {
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "compressContextReadoutReduction": "−{percent}%",
+  "@compressContextReadoutReduction": {
+    "placeholders": {
+      "percent": {
         "type": "int"
       }
     }

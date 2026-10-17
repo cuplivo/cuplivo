@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/utils/token_estimator.dart';
 import 'package:Cuplivo/features/home/controllers/home_view_model.dart';
 
 ChatMessage _message({
@@ -127,33 +128,45 @@ void main() {
     });
   });
 
-  group('buildConversationTextForCompression', () {
-    test('使用完整历史生成压缩文本', () {
-      final visibleWindow = [
-        _message(id: 'u80', role: 'user', content: 'visible user'),
-        _message(id: 'a81', role: 'assistant', content: 'visible assistant'),
-      ];
-      final completeHistory = [
-        _message(id: 'u0', role: 'user', content: 'earliest user'),
-        _message(id: 'a1', role: 'assistant', content: 'earliest assistant'),
-        ...visibleWindow,
-      ];
+  group('compressWeightTextForMessage', () {
+    test('无工具调用时等于消息正文', () {
+      final message = _message(id: 'a1', role: 'assistant', content: 'answer');
 
-      final text = buildConversationTextForCompression(completeHistory);
-
-      expect(text, contains('User: earliest user'));
-      expect(text, contains('Assistant: earliest assistant'));
-      expect(text, contains('User: visible user'));
-      expect(text, contains('Assistant: visible assistant'));
+      expect(
+        compressWeightTextForMessage(message, toolEvents: const []),
+        'answer',
+      );
     });
 
-    test('压缩文本会忽略空内容消息', () {
-      final text = buildConversationTextForCompression([
-        _message(id: 'u1', role: 'user', content: '  '),
-        _message(id: 'a1', role: 'assistant', content: 'answer'),
-      ]);
+    test('带上工具调用的名字、参数与结果', () {
+      final message = _message(id: 'a1', role: 'assistant', content: 'answer');
 
-      expect(text, 'Assistant: answer');
+      final text = compressWeightTextForMessage(
+        message,
+        toolEvents: const [
+          {
+            'name': 'read_file',
+            'arguments': {'path': 'lib/main.dart'},
+            'content': 'void main() {}',
+          },
+        ],
+      );
+
+      expect(text, startsWith('answer'));
+      expect(text, contains('[read_file]'));
+      expect(text, contains('{"path":"lib/main.dart"}'));
+      expect(text, contains('void main() {}'));
+    });
+
+    test('工具结果为空时只留名字', () {
+      final text = compressWeightTextForMessage(
+        _message(id: 'a1', role: 'assistant', content: ''),
+        toolEvents: const [
+          {'name': 'noop', 'content': '   '},
+        ],
+      );
+
+      expect(text.trim(), '[noop]');
     });
   });
 
@@ -308,56 +321,157 @@ void main() {
     });
   });
 
-  group('estimateCompressionTokens', () {
-    test('保留区按长度占比折算 token', () {
-      final est = estimateCompressionTokens(
-        totalText: 'a' * 1000,
-        keptText: 'b' * 250,
+  group('CompressContextWeights.splitAt', () {
+    test('按下标切分 token，保留段从下标起算', () {
+      final weights = CompressContextWeights(
+        tokens: const [100, 200, 300, 400],
       );
 
-      // tokenx: 1000 lowercase letters → ceil(1000/7) = 143
-      expect(est.totalTokens, 143);
-      expect(est.keptTokens, 36);
-      expect(est.minResultTokens, 47);
-      expect(est.maxResultTokens, 68);
+      final split = weights.splitAt(2);
+
+      expect(split.totalTokens, 1000);
+      expect(split.keptTokens, 700);
+      expect(split.summarizedTokens, 300);
     });
 
-    test('CJK 走 tokenx 汉字权重', () {
-      final est = estimateCompressionTokens(
-        totalText: '中' * 400,
-        keptText: '中' * 100,
+    test('下标为 0 / 越界的边界', () {
+      final weights = CompressContextWeights(tokens: const [10, 20]);
+
+      expect(weights.splitAt(0).keptTokens, 30);
+      expect(weights.splitAt(0).summarizedTokens, 0);
+      expect(weights.splitAt(9).keptTokens, 0);
+      expect(weights.splitAt(9).summarizedTokens, 30);
+    });
+
+    test('空列表得到全零', () {
+      final split = const CompressContextWeights(tokens: []).splitAt(0);
+
+      expect(split.totalTokens, 0);
+      expect(split.keptTokens, 0);
+      expect(split.summarizedTokens, 0);
+      expect(split.reductionPercent, 0);
+    });
+  });
+
+  group('CompressContextSplit', () {
+    test('结果区间 = 保留段 + 被总结段的 10%–30%', () {
+      const split = CompressContextSplit(
+        totalTokens: 1000,
+        keptTokens: 400,
+        summarizedTokens: 600,
       );
 
-      expect(est.totalTokens, 348);
-      expect(est.keptTokens, 87);
+      expect(split.minResultTokens, 460);
+      expect(split.maxResultTokens, 580);
+      expect(split.midResultTokens, 520);
+      expect(split.reductionPercent, 48);
     });
 
-    test('混合文本走 tokenx（整段命中 CJK 则按汉字计价）', () {
-      final est = estimateCompressionTokens(
-        totalText: '中' * 200 + 'a' * 400,
-        keptText: '',
+    test('无可压缩内容时降幅为 0', () {
+      const split = CompressContextSplit(
+        totalTokens: 500,
+        keptTokens: 500,
+        summarizedTokens: 0,
       );
 
-      expect(est.totalTokens, 522);
+      expect(split.reductionPercent, 0);
+    });
+  });
+
+  group('CompressContextWeights.fromCharsPerToken', () {
+    test('按保守比值回退', () {
+      final weights = CompressContextWeights.fromCharsPerToken(const [
+        16,
+        0,
+        7,
+      ]);
+
+      expect(weights.tokens, [10, 0, 5]);
     });
 
-    test('空文本返回全零', () {
-      final est = estimateCompressionTokens(totalText: '', keptText: '');
+    test('非法比值退回默认常量', () {
+      final weights = CompressContextWeights.fromCharsPerToken(const [
+        8,
+      ], charsPerToken: 0);
 
-      expect(est.totalTokens, 0);
-      expect(est.keptTokens, 0);
-      expect(est.minResultTokens, 0);
-      expect(est.maxResultTokens, 0);
+      expect(weights.tokens, [5]);
     });
+  });
 
-    test('区间上界不低于下界', () {
-      final est = estimateCompressionTokens(
-        totalText: 'a' * 5000,
-        keptText: 'b' * 100,
+  group('读数按 token 而不是字符', () {
+    test('中文头部 + 密集 ASCII 尾部：token 比例 ≠ 字符比例', () {
+      final head = _message(id: 'u1', role: 'user', content: '汉' * 115);
+      final tail = _message(id: 'a1', role: 'assistant', content: 'a' * 700);
+
+      // tokenx: 115 个汉字 ≈ 100 token，700 个小写字母 ≈ 100 token。
+      final weights = CompressContextWeights(
+        tokens: [estimateTokens(head.content), estimateTokens(tail.content)],
       );
+      final split = weights.splitAt(1);
+      final charKeptShare =
+          tail.content.length / (head.content.length + tail.content.length);
+      final tokenKeptShare = split.keptTokens / split.totalTokens;
 
-      expect(est.minResultTokens, lessThanOrEqualTo(est.maxResultTokens));
-      expect(est.keptTokens, lessThanOrEqualTo(est.totalTokens));
+      expect(tokenKeptShare, isNot(closeTo(charKeptShare, 0.1)));
+      expect(split.keptTokens, estimateTokens(tail.content));
+    });
+  });
+
+  group('keepRecentStartIndex', () {
+    test('从倒数第 N 条用户消息开始', () {
+      final messages = <ChatMessage>[
+        _message(id: 'u1', role: 'user', content: 'q1'),
+        _message(id: 'a1', role: 'assistant', content: 'a1'),
+        _message(id: 'u2', role: 'user', content: 'q2'),
+        _message(id: 'a2', role: 'assistant', content: 'a2'),
+        _message(id: 'u3', role: 'user', content: 'q3'),
+      ];
+
+      expect(keepRecentStartIndex(messages, 1), 4);
+      expect(keepRecentStartIndex(messages, 2), 2);
+      expect(keepRecentStartIndex(messages, 3), 0);
+    });
+
+    test('覆盖全部 / 无用户消息 / N ≤ 0', () {
+      final messages = <ChatMessage>[
+        _message(id: 'a0', role: 'assistant', content: 'leading'),
+        _message(id: 'u1', role: 'user', content: 'q1'),
+        _message(id: 'a1', role: 'assistant', content: 'a1'),
+      ];
+
+      expect(keepRecentStartIndex(messages, 5), 0);
+      expect(keepRecentStartIndex(messages, 0), isNull);
+      expect(keepRecentStartIndex(messages, -1), isNull);
+      expect(
+        keepRecentStartIndex([
+          _message(id: 'a1', role: 'assistant', content: 'a1'),
+        ], 1),
+        isNull,
+      );
+      expect(keepRecentStartIndex(const [], 1), isNull);
+    });
+
+    test('与 selectKeepRecentMessages 保持同一套边界', () {
+      final messages = <ChatMessage>[
+        _message(id: 'a0', role: 'assistant', content: 'leading'),
+        _message(id: 'u1', role: 'user', content: 'q1'),
+        _message(id: 'a1', role: 'assistant', content: 'a1'),
+        _message(id: 'u2', role: 'user', content: 'q2'),
+        _message(id: 'a2', role: 'assistant', content: 'a2'),
+      ];
+
+      for (final keep in [0, 1, 2, 3, 5]) {
+        final start = keepRecentStartIndex(messages, keep);
+        final kept = selectKeepRecentMessages(messages, keep);
+        expect(
+          kept.length,
+          start == null ? 0 : messages.length - start,
+          reason: 'keep=$keep',
+        );
+        if (start != null && start > 0) {
+          expect(kept.first.id, messages[start].id, reason: 'keep=$keep');
+        }
+      }
     });
   });
 
@@ -373,7 +487,12 @@ void main() {
         mode: CompressContextLimitMode.start,
         maxChars: 6000,
       );
-      final joined = buildConversationTextForCompression(messages);
+      // The joined reference the incremental window must agree with: roles plus
+      // bodies, blank-content messages dropped.
+      final joined = messages
+          .map(conversationLineForCompression)
+          .whereType<String>()
+          .join('\n\n');
 
       expect(
         buildBoundedConversationText(
@@ -396,7 +515,12 @@ void main() {
         mode: CompressContextLimitMode.recent,
         maxChars: 6000,
       );
-      final joined = buildConversationTextForCompression(messages);
+      // The joined reference the incremental window must agree with: roles plus
+      // bodies, blank-content messages dropped.
+      final joined = messages
+          .map(conversationLineForCompression)
+          .whereType<String>()
+          .join('\n\n');
 
       expect(
         buildBoundedConversationText(

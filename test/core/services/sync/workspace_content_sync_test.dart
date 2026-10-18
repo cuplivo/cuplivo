@@ -506,6 +506,14 @@ void main() {
         expect(outcome.filesMissing, 1);
         expect(outcome.filesLanded, 0);
         expect(
+          outcome.unlanded,
+          const {
+            'w1': {'a.txt': WorkspaceFileStamp(size: 5, mtimeMs: 1000)},
+          },
+          reason:
+              'a miss a push can repair is named, with the version to ask for',
+        );
+        expect(
           workspaceFile('w1', 'a.txt').existsSync(),
           isFalse,
           reason: 'a mislabelled transfer is discarded, not kept',
@@ -604,6 +612,140 @@ void main() {
         expect(outcome.ledger['w1']!['a.txt']!.mine, mine);
       },
     );
+  });
+
+  group('acceptPushed', () {
+    test(
+      'lands a requested version through the same gates as a fetch',
+      () async {
+        await putWorkspace('w1');
+        final staged = File('${root.path}/staged.bin');
+        await staged.writeAsString('hello', flush: true);
+        const advertised = WorkspaceFileStamp(size: 5, mtimeMs: 1700000000000);
+
+        final landed = await content.acceptPushed(
+          workspaceId: 'w1',
+          relPath: 'deep/a.txt',
+          staged: staged,
+          advertised: advertised,
+        );
+
+        expect(landed, isNotNull);
+        expect(landed!.size, 5);
+        final file = workspaceFile('w1', 'deep/a.txt');
+        expect(await file.readAsString(), 'hello');
+        expect(
+          file.statSync().modified.millisecondsSinceEpoch,
+          advertised.mtimeMs,
+          reason:
+              'a pushed file carries the peer\'s edit time, like a fetched one',
+        );
+      },
+    );
+
+    test('a workspace switched off mid-session refuses the push', () async {
+      await putWorkspace('w1');
+      await content.setEnabled('w1', false);
+      final staged = File('${root.path}/staged.bin');
+      await staged.writeAsString('aa', flush: true);
+
+      expect(
+        await content.acceptPushed(
+          workspaceId: 'w1',
+          relPath: 'a.txt',
+          staged: staged,
+          advertised: const WorkspaceFileStamp(size: 2, mtimeMs: 1000),
+        ),
+        isNull,
+        reason: 'the switch is re-read, not trusted from the push beat',
+      );
+      expect(workspaceFile('w1', 'a.txt').existsSync(), isFalse);
+    });
+
+    test('a path a push may not name is refused, as for a fetch', () async {
+      await putWorkspace('w1');
+      final staged = File('${root.path}/staged.bin');
+      await staged.writeAsString('evil', flush: true);
+
+      expect(
+        await content.acceptPushed(
+          workspaceId: 'w1',
+          relPath: '../escape.txt',
+          staged: staged,
+          advertised: const WorkspaceFileStamp(size: 4, mtimeMs: 1000),
+        ),
+        isNull,
+      );
+      expect(File('${root.path}/workspaces/escape.txt').existsSync(), isFalse);
+    });
+
+    test('a push whose bytes are not the advertised size is refused', () async {
+      await putWorkspace('w1');
+      final staged = File('${root.path}/staged.bin');
+      await staged.writeAsString('abc', flush: true);
+
+      expect(
+        await content.acceptPushed(
+          workspaceId: 'w1',
+          relPath: 'a.txt',
+          staged: staged,
+          advertised: const WorkspaceFileStamp(size: 5, mtimeMs: 1000),
+        ),
+        isNull,
+      );
+      expect(
+        workspaceFile('w1', 'a.txt').existsSync(),
+        isFalse,
+        reason: 'the same rule a truncated fetch gets',
+      );
+    });
+  });
+
+  group('ledgerWithPushed', () {
+    test('names the bytes that landed and the version asked for', () {
+      const asked = WorkspaceFileStamp(size: 2, mtimeMs: 1000);
+      const landed = WorkspaceFileStamp(size: 2, mtimeMs: 2000);
+
+      final ledger = content.ledgerWithPushed(const {}, const {
+        'w1': {'a.txt': SyncAgreedFile(landed, asked)},
+      });
+
+      expect(ledger['w1']!['a.txt']!.mine, landed);
+      expect(ledger['w1']!['a.txt']!.peer, asked);
+    });
+
+    test('keeps every entry it was given', () {
+      const prior = SyncAgreedFile(
+        WorkspaceFileStamp(size: 1, mtimeMs: 1),
+        WorkspaceFileStamp(size: 1, mtimeMs: 1),
+      );
+      const landed = WorkspaceFileStamp(size: 2, mtimeMs: 2000);
+      const asked = WorkspaceFileStamp(size: 2, mtimeMs: 1000);
+
+      final ledger = content.ledgerWithPushed(
+        const {
+          'w1': {'kept.txt': prior},
+        },
+        const {
+          'w1': {'a.txt': SyncAgreedFile(landed, asked)},
+        },
+      );
+
+      expect(ledger['w1']!.keys.toSet(), {'kept.txt', 'a.txt'});
+      expect(ledger['w1']!['kept.txt'], same(prior));
+    });
+
+    test('a session that pushed nothing returns the ledger it was given', () {
+      const prior = SyncAgreedFile(
+        WorkspaceFileStamp(size: 1, mtimeMs: 1),
+        WorkspaceFileStamp(size: 1, mtimeMs: 1),
+      );
+      final ledger = {
+        'w1': {'a.txt': prior},
+      };
+
+      expect(content.ledgerWithPushed(ledger, const {}), same(ledger));
+    });
   });
 
   test('deleteContent removes the workspace folder', () async {

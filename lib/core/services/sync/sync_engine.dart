@@ -275,6 +275,16 @@ class SyncEngine implements SyncServerHandler {
   /// first enumeration lands, which leaves candidate order untouched.
   List<LanAddress> localAddresses = const [];
 
+  /// The listener port this device advertises in its hello: [port], unless a
+  /// test says otherwise.
+  ///
+  /// The seam exists for one condition a two-peer test cannot otherwise produce:
+  /// both sides of a test pair are dialable at 127.0.0.1, so "the peer wants a
+  /// file it cannot fetch for itself" — the case the push fallback is for — has
+  /// no other way to be constructed.
+  @visibleForTesting
+  int? advertisedListenPort;
+
   late final SyncServer server = SyncServer(
     identity: identity,
     store: store,
@@ -858,7 +868,13 @@ class SyncEngine implements SyncServerHandler {
             // Advertised so the responder can pull its blobs back over this
             // device's listener (slice 3). `this.port` on purpose: the method's
             // own `port` parameter is the peer's endpoint, not ours.
-            listenPort: this.port,
+            listenPort: advertisedListenPort ?? this.port,
+            // ...and where that listener can be reached (slice 23). The address
+            // the responder sees this connection come from can be its own, so
+            // these are the addresses it falls back to when it has to dial back.
+            candidateHosts: [
+              for (final address in localAddresses) address.address,
+            ],
             clockUs: myClockUs,
             unappliedConversations: previous.unappliedConversations,
             unappliedBusiness: previous.unappliedBusiness,
@@ -1074,6 +1090,18 @@ class SyncEngine implements SyncServerHandler {
       peerDeferred = ack.deferred;
       peerBusinessDeferred = ack.businessDeferred;
       peerDeferredSkills = ack.deferredSkills;
+
+      // Files the responder could not fetch for itself (slice 23). It asked for
+      // them in the acknowledgement, and this connection is the direction the
+      // pair is known to have; pushing here — before the fetch beat — means the
+      // responder's own file walk, taken while it answers that beat, already
+      // sees them, so its reply describes what it holds rather than what it
+      // hoped to.
+      final pushed = await _pushRequestedWorkspaceFiles(
+        session: session,
+        peerDeviceId: peer.deviceId,
+        requests: ack.workspaceRequests,
+      );
 
       final requested = [
         for (final item in plan)
@@ -1338,6 +1366,8 @@ class SyncEngine implements SyncServerHandler {
           deferredSkills: deferredSkills.length,
           workspace: workspaceOutcome,
           workspaceFoldersKept: keptWorkspaceFolders,
+          workspacePushed: pushed.files,
+          workspacePushedBytes: pushed.bytes,
           clockSkewMs: clockSkewMs,
         ),
         peer: peer,
@@ -1506,6 +1536,7 @@ class SyncEngine implements SyncServerHandler {
       myManifest: myManifest,
       checkpoint: checkpoint,
       startedAt: now(),
+      myHosts: _myHosts,
       initiatorHost: remoteAddress,
       clockSkewMs: _clockSkewMs(myClockUs, initiatorHello.clockUs),
       peerReplaced: peerReplaced,
@@ -1589,11 +1620,7 @@ class SyncEngine implements SyncServerHandler {
     // reference and the workspace files the push advertised both have to come
     // back over the initiator's own listener, and a peer that cannot be dialed
     // back is one answer, not two failures to diagnose separately.
-    final reverse = await _openReverseConnection(
-      peerDeviceId: peerDeviceId,
-      host: session.initiatorHost,
-      port: session.initiatorHello.listenPort,
-    );
+    final reverse = await _openReverseConnection(peerDeviceId, session);
     // This batch's per-conversation outcomes, declared outside the connection's
     // lifetime: the acknowledgement below is built after it closes, and what
     // this beat reports must not depend on when a socket went away.
@@ -1675,6 +1702,22 @@ class SyncEngine implements SyncServerHandler {
                 destination: destination,
               ),
       );
+      // Whatever this beat could not land becomes the ask the initiator answers
+      // before its fetch beat (slice 23). Every pair named here was advertised
+      // in `batch`, so this set is exactly, and only, the writes this session
+      // may accept — see [handlePutWorkspaceFile].
+      session.workspaceRequests.addAll({
+        for (final workspace in session.workspaceOutcome!.unlanded.entries)
+          for (final file in workspace.value.entries)
+            WorkspaceContentSync.serveKey(
+              workspace.key,
+              file.key,
+            ): SyncWorkspaceFileRequest(
+              workspaceId: workspace.key,
+              relPath: file.key,
+              stamp: file.value,
+            ),
+      });
     } finally {
       reverse?.close();
     }
@@ -1697,33 +1740,102 @@ class SyncEngine implements SyncServerHandler {
       },
       businessDeferred: session.businessOutcome?.deferred ?? false,
       deferredSkills: deferredSkills,
+      // Files this side wanted and could not take: the initiator pushes them
+      // over the connection it already holds, which is the direction that is
+      // known to work.
+      workspaceRequests: session.workspaceRequests.values.toList(
+        growable: false,
+      ),
     );
   }
 
-  /// Opens the connection back to the initiator over its own listener — the
-  /// only route to a peer that dialed this device — or null when there is
-  /// nothing to dial (no address was advertised, or the peer is not paired
-  /// here any more).
+  /// Opens the connection back to the initiator over its own listener — the only
+  /// route to a peer that dialed this device — or null when none of the
+  /// addresses this pair knows answers.
   ///
-  /// One opener for the whole beat on purpose: the blobs the pushed rows
+  /// One connection for the whole beat on purpose: the blobs the pushed rows
   /// reference and the workspace files the push advertised are fetched in the
   /// same stretch of time, and opening two sockets to answer "is the peer
   /// dialable back?" would pay the same failure twice.
-  Future<SyncClientSession?> _openReverseConnection({
-    required String peerDeviceId,
-    required String? host,
-    required int? port,
-  }) async {
-    if (host == null || port == null) return null;
+  ///
+  /// Each candidate is *pinged* before it is used, because opening a session is
+  /// lazy — nothing connects until the first request — so a session object is
+  /// not evidence that the peer is there, and the old single-address version
+  /// could not tell "the peer is not reachable" from "the peer refused this
+  /// file" at all.
+  Future<SyncClientSession?> _openReverseConnection(
+    String peerDeviceId,
+    _ResponderSession session,
+  ) async {
+    final port = session.initiatorHello.listenPort;
+    if (port == null) return null;
     final peer = await store.findPeer(peerDeviceId);
     if (peer == null) return null;
-    try {
-      return client.openSession(peer, host: host, port: port);
-    } catch (error) {
-      debugPrint('sync: reverse connection failed: $error');
-      return null;
+    for (final (host, candidatePort) in _reverseDialCandidates(session, peer)) {
+      final opened = client.openSession(peer, host: host, port: candidatePort);
+      try {
+        await opened.ping();
+        return opened;
+      } catch (error) {
+        debugPrint('sync: dialling back $host:$candidatePort failed: $error');
+        opened.close();
+      }
     }
+    return null;
   }
+
+  /// The addresses this device may dial the initiator back on, in the order they
+  /// are tried and capped at [kMaxReverseDialCandidates].
+  ///
+  /// The address the caller connected from comes first: on an ordinary LAN it is
+  /// the best evidence there is, because it is where the peer demonstrably
+  /// reaches out from. It is *not* always the peer's own address — a NAT rewrite
+  /// can make it this device's own, which is what the fallbacks are for: the
+  /// addresses the peer advertised in its hello, then the ones this pair
+  /// remembers. A candidate that is this device's own listener is left in the
+  /// list rather than filtered: the ping that follows refuses it in
+  /// milliseconds (the certificate pin cannot match), and filtering needs a
+  /// port comparison that a same-machine peer at a different port would fail.
+  List<(String, int)> _reverseDialCandidates(
+    _ResponderSession session,
+    SyncPeerRecord peer,
+  ) {
+    final port = session.initiatorHello.listenPort;
+    if (port == null) return const [];
+    final candidates = <(String, int)>[];
+    final seen = <String>{};
+    void add(String? host) {
+      if (host == null || host.isEmpty) return;
+      if (candidates.length >= kMaxReverseDialCandidates) return;
+      final normalized = normalizeHost(host);
+      if (!seen.add(normalized)) return;
+      candidates.add((normalized, port));
+    }
+
+    add(session.initiatorHost);
+    for (final host in session.initiatorHello.candidateHosts) {
+      add(host);
+    }
+    for (final endpoint in peer.endpoints) {
+      add(endpoint.host);
+    }
+    return candidates;
+  }
+
+  /// This device's own addresses, in the canonical form every layer stores.
+  ///
+  /// Read from [localAddresses], which the provider keeps current, rather than
+  /// enumerated here: the engine has no business opening the network interface
+  /// list mid-session, and the provider already does it for the pairing screen.
+  ///
+  /// It is the fact that separates "the peer is here" from "a NAT rewrote the
+  /// peer's source to this device", and both an endpoint being remembered and a
+  /// dial being attempted need that answer. Loopback is deliberately *not* in this
+  /// set — the enumeration drops it, and it must: another instance of this app on
+  /// this machine is a legitimate peer at 127.0.0.1.
+  Set<String> get _myHosts => {
+    for (final address in localAddresses) normalizeHost(address.address),
+  };
 
   /// Everything a peer owes this device when it cannot be dialed back: every
   /// wanted blob stays pending (the rows still apply — a conversation is still
@@ -1901,17 +2013,21 @@ class SyncEngine implements SyncServerHandler {
         preferences: nextBusiness.preferences,
         pendingBlobs: session.blobPull.failed,
         skillHashes: skillHashes,
-        // What the push beat moved, and the ledger it produced. The fetch
-        // response above advertises this device's files but transfers them on
-        // the initiator's own request, so nothing in this beat advances the
-        // ledger: both sides' entries are advanced by the side that *fetched*.
+        // What this session's file plane demonstrably agreed, finalised here
+        // because this beat is the last place every transfer is known: the push
+        // beat's ledger, plus every file the initiator pushed after it could not
+        // be fetched (slice 23).
         //
-        // The push is the only producer, and this beat is refused without it
-        // (`push_required`), so the outcome is not optional: `?? const {}` here
-        // would erase everything both sides had agreed — the review's second
-        // finding — and an empty ledger reads as "never agreed", not as "nothing
-        // to say".
-        workspaceFiles: session.workspaceOutcome!.ledger,
+        // The rule is that the side which *lands* a file advances its entry —
+        // not the side that sends it, which cannot know whether its bytes
+        // arrived, and not the beat that ran before the file existed.
+        //
+        // The push is the only producer of the ledger's base, and this beat is
+        // refused without it (`push_required`), so the outcome is not optional:
+        // `?? const {}` here would erase everything both sides had agreed — the
+        // review's second finding — and an empty ledger reads as "never agreed",
+        // not as "nothing to say".
+        workspaceFiles: _finalWorkspaceLedger(session),
         // The responder answers the initiator with the same report on its next
         // hello: an apply it deferred here must not read as a deletion there.
         unappliedConversations: [
@@ -1937,6 +2053,11 @@ class SyncEngine implements SyncServerHandler {
       deferredSkills: session.deferredSkills.length,
       workspace: session.workspaceOutcome,
       workspaceFoldersKept: keptWorkspaceFolders,
+      workspacePushed: session.pushedFiles,
+      workspacePushedBytes: session.pushedBytes,
+      // The responder is the side that can record a miss and then watch a push
+      // repair it; the initiator's own misses are never repaired this way.
+      workspaceMissesRepaired: session.pushedFiles,
       clockSkewMs: session.clockSkewMs,
     );
     if (peer != null) {
@@ -1944,9 +2065,18 @@ class SyncEngine implements SyncServerHandler {
       // The session just ran over the caller's address, so that is where this
       // network reaches it: refresh the memory (and promote it), which is what
       // lets a peer that roamed keep syncing without a re-scan.
+      //
+      // Unless that address is one of this device's own: a NAT rewrites the
+      // source of the caller's connection to whoever forwards it, and the Android
+      // emulator's user-mode network rewrites it to the host — so what arrived
+      // here as "where the peer connected from" was this machine's own LAN
+      // address. Remembering it would put an address in the panel that dials this
+      // device itself, and promote it over addresses that might actually work.
       final learnedHost = session.initiatorHost;
       final learnedPort = session.initiatorHello.listenPort;
-      if (learnedHost != null && learnedPort != null) {
+      if (learnedHost != null &&
+          learnedPort != null &&
+          !session.myHosts.contains(normalizeHost(learnedHost))) {
         peer.noteEndpointSuccess(learnedHost, learnedPort);
       }
       peer.lastReport = report.toPeerReport();
@@ -1995,16 +2125,29 @@ class SyncEngine implements SyncServerHandler {
     // older (and richer) record of the pair.
     final existing = await store.findPeer(request.deviceId);
     _carryPairingFacts(peer, existing);
+    // A source address of this device is not where the peer is: a NAT — the
+    // Android emulator's user-mode network included — rewrites the caller's
+    // source to whoever forwards it. Read once, for the address and for the
+    // candidates below.
+    final myHosts = _myHosts;
     // The endpoint that demonstrably works: where the initiator connected from,
     // paired with the listener port it advertised. Null when the initiator had
     // no listener running; the address can be fixed by hand.
-    if (initiatorHost != null && request.listenPort != null) {
+    if (initiatorHost != null &&
+        request.listenPort != null &&
+        !myHosts.contains(normalizeHost(initiatorHost))) {
       peer.noteEndpointSuccess(initiatorHost, request.listenPort!);
     }
     // Its other addresses are hints only: they have not answered anything here.
+    // One that is this device's own is not a hint at all — the peer that
+    // advertised it was describing the network it reached this device through,
+    // and remembering it would only offer the panel an address that dials this
+    // device itself.
     if (request.listenPort != null) {
       peer.rememberEndpointCandidates([
-        for (final host in request.candidateHosts) (host, request.listenPort!),
+        for (final host in request.candidateHosts)
+          if (!myHosts.contains(normalizeHost(host)))
+            (host, request.listenPort!),
       ]);
     }
     // And the networks this pair already met, behind the fresh ones — the
@@ -2543,6 +2686,68 @@ class SyncEngine implements SyncServerHandler {
     return outcome;
   }
 
+  /// Pushes the workspace files the responder could not take for itself, over
+  /// the connection this round already holds (slice 23).
+  ///
+  /// The responder only ever asks for pairs it planned to fetch and could not
+  /// land — no reverse connection to this device, or a transfer that failed —
+  /// and each request names the version this device advertised in the push. A
+  /// file that is no longer that version is skipped here: [WorkspaceContentSync.serve]
+  /// re-stats it against the advertised stamp, and pushing bytes the receiver
+  /// would refuse only wastes the transfer. A failed push is owed, not fatal:
+  /// the file keeps its unadvanced ledger entry and is asked for again next
+  /// session.
+  ///
+  /// Sequential on purpose. The control beats are request/response on one
+  /// connection, and a workspace's misses are a handful of files; running them
+  /// concurrently would buy nothing and make the failure story per-file
+  /// unclear.
+  Future<({int files, int bytes})> _pushRequestedWorkspaceFiles({
+    required SyncClientSession session,
+    required String peerDeviceId,
+    required List<SyncWorkspaceFileRequest> requests,
+  }) async {
+    if (requests.isEmpty) return (files: 0, bytes: 0);
+    final content = dataPlane.workspaceContent;
+    if (content == null) return (files: 0, bytes: 0);
+    var files = 0;
+    var bytes = 0;
+    for (final request in requests) {
+      try {
+        final file = await content.serve(
+          peerDeviceId: peerDeviceId,
+          workspaceId: request.workspaceId,
+          relPath: request.relPath,
+        );
+        if (file == null) {
+          debugPrint(
+            'sync workspace: not pushing ${request.workspaceId}/'
+            '${request.relPath}: it is no longer the advertised version',
+          );
+          continue;
+        }
+        await session.pushWorkspaceFile(
+          workspaceId: request.workspaceId,
+          relPath: request.relPath,
+          source: file,
+          advertised: request.stamp,
+        );
+        files++;
+        bytes += request.stamp.size;
+        debugPrint(
+          'sync workspace: pushed ${request.workspaceId}/${request.relPath} '
+          '(${request.stamp.size} B) to the peer',
+        );
+      } catch (error) {
+        debugPrint(
+          'sync workspace: pushing ${request.workspaceId}/${request.relPath} '
+          'failed: $error',
+        );
+      }
+    }
+    return (files: files, bytes: bytes);
+  }
+
   /// Remembers what this device can serve for a manifest it just published.
   /// The server resolves a blob hash from here first (the common case), then
   /// falls back to the asset registry and a live skill hash scan — which is
@@ -2610,6 +2815,143 @@ class SyncEngine implements SyncServerHandler {
     );
   }
 
+  /// Receives one workspace file the initiator pushed because this device could
+  /// not fetch it (slice 23).
+  ///
+  /// Three refusals, in order, before a byte of the body is trusted:
+  ///
+  /// * the session must exist and have taken its push — a push without one has
+  ///   no request set, so it has nothing that could authorize a write;
+  /// * the pair must be in that session's request set, which is built from the
+  ///   table the initiator itself advertised: a crafted `(workspace, path)` has
+  ///   never been advertised and so can never be written;
+  /// * the declared size must be the size that was asked for, so a peer cannot
+  ///   substitute a different version of the file for the one it offered.
+  ///
+  /// What is left is the switch and the four landing gates, which the content
+  /// plane applies exactly as it does for a fetched file. The landed stamp goes
+  /// into the session, not the checkpoint: the ledger is written once, at the
+  /// fetch beat, after every file this session moved is known.
+  @override
+  Future<bool> handlePutWorkspaceFile(
+    String peerDeviceId,
+    String workspaceId,
+    String relPath, {
+    required int size,
+    required int mtimeMs,
+    required Stream<List<int>> body,
+  }) async {
+    final session = _sessions[peerDeviceId];
+    if (session == null || !session.pushSeen) {
+      await _discard(body, size);
+      return false;
+    }
+    final key = WorkspaceContentSync.serveKey(workspaceId, relPath);
+    final requested = session.workspaceRequests[key];
+    if (requested == null || requested.stamp.size != size) {
+      await _discard(body, size);
+      debugPrint(
+        'sync workspace: refusing a push for $workspaceId/$relPath: this '
+        'session did not ask for that version',
+      );
+      return false;
+    }
+    final content = dataPlane.workspaceContent;
+    if (content == null) {
+      await _discard(body, size);
+      return false;
+    }
+    File? staged;
+    var received = 0;
+    try {
+      staged = await store.newBlobTempFile();
+      final sink = staged.openWrite();
+      try {
+        await for (final chunk in body) {
+          received += chunk.length;
+          // The declared length is the contract; a body that exceeds it is a
+          // peer bug or a hostile one, and neither gets to fill this disk.
+          if (received > size) throw const _WorkspacePushTooLarge();
+          sink.add(chunk);
+        }
+        await sink.flush();
+      } finally {
+        await sink.close();
+      }
+      if (received != size) {
+        debugPrint(
+          'sync workspace: refusing a push for $workspaceId/$relPath: $received '
+          'bytes arrived, $size were asked for',
+        );
+        return false;
+      }
+      final landed = await content.acceptPushed(
+        workspaceId: workspaceId,
+        relPath: relPath,
+        staged: staged,
+        advertised: requested.stamp,
+      );
+      if (landed == null) return false;
+      session.pushedWorkspace.putIfAbsent(
+        workspaceId,
+        () => <String, SyncAgreedFile>{},
+      )[relPath] = SyncAgreedFile(
+        landed,
+        requested.stamp,
+      );
+      session.pushedFiles++;
+      session.pushedBytes += landed.size;
+      // Asked for and delivered: nothing may write that pair again this
+      // session, and the next one re-plans from the ledger this produced.
+      session.workspaceRequests.remove(key);
+      return true;
+    } catch (error) {
+      debugPrint(
+        'sync workspace: receiving the pushed $workspaceId/$relPath failed: '
+        '$error',
+      );
+      return false;
+    } finally {
+      try {
+        if (staged != null && await staged.exists()) await staged.delete();
+      } catch (_) {}
+    }
+  }
+
+  /// Reads and drops up to [limit] bytes of a request body this device is
+  /// refusing.
+  ///
+  /// A refusal answered while the peer is still writing leaves the socket
+  /// half-read until the route deadline — and a peer that pushed a workspace
+  /// file has spent the send either way, so the only thing left to choose is
+  /// whether the connection is left wedged. Nothing here is trusted: the read
+  /// stops at the declared length, and a body that dies mid-flight is the same
+  /// answer as one that was never read.
+  static Future<void> _discard(Stream<List<int>> body, int limit) async {
+    var seen = 0;
+    try {
+      await for (final chunk in body) {
+        seen += chunk.length;
+        if (seen >= limit) break;
+      }
+    } catch (_) {}
+  }
+
+  /// The file ledger this session ends with: everything the push beat agreed,
+  /// plus every file the initiator pushed afterwards.
+  ///
+  /// One place, at the fetch beat, because a pushed file arrives *after* the
+  /// beat that produced the ledger's base — two writers for one checkpoint is
+  /// exactly how an advance gets lost.
+  Map<String, Map<String, SyncAgreedFile>> _finalWorkspaceLedger(
+    _ResponderSession session,
+  ) {
+    final ledger = session.workspaceOutcome!.ledger;
+    final content = dataPlane.workspaceContent;
+    if (content == null || session.pushedWorkspace.isEmpty) return ledger;
+    return content.ledgerWithPushed(ledger, session.pushedWorkspace);
+  }
+
   SyncSessionReport _report({
     required int sent,
     required int received,
@@ -2624,6 +2966,9 @@ class SyncEngine implements SyncServerHandler {
     int deferredSkills = 0,
     WorkspaceContentOutcome? workspace,
     int workspaceFoldersKept = 0,
+    int workspacePushed = 0,
+    int workspacePushedBytes = 0,
+    int workspaceMissesRepaired = 0,
     int? clockSkewMs,
   }) {
     var upserted = 0;
@@ -2646,8 +2991,22 @@ class SyncEngine implements SyncServerHandler {
     final blobsMissing = blobPull?.failed.length ?? 0;
     final entityRowsLost = appliedBusiness?.entityRowsLost ?? 0;
     final preferencesLost = appliedBusiness?.preferencesLost ?? 0;
-    final workspaceFiles = workspace?.filesLanded ?? 0;
-    final workspaceBytes = workspace?.bytesLanded ?? 0;
+    // Everything the workspace plane moved, whichever side asked for it: a file
+    // this device pulled and one the peer pushed both arrived here, and the
+    // count is what the user sees on the card.
+    final workspaceFetched = workspace?.filesLanded ?? 0;
+    final workspaceFiles = workspaceFetched + workspacePushed;
+    final workspaceBytes = (workspace?.bytesLanded ?? 0) + workspacePushedBytes;
+    // A file the peer pushed is a miss that was repaired: the fetch failed when
+    // this device counted it, and the bytes arrived over the other direction.
+    // Reporting both would name the same file missing and present in one card,
+    // which is worse than either alone. What remains missing is what no
+    // direction moved — a deletion the filesystem refused, or a push that never
+    // arrived.
+    final workspaceMissing = max(
+      0,
+      (workspace?.filesMissing ?? 0) - workspaceMissesRepaired,
+    );
     final skewMinutes = clockSkewMs == null
         ? null
         : (clockSkewMs.abs() / 60000).round();
@@ -2661,14 +3020,16 @@ class SyncEngine implements SyncServerHandler {
       if (preferenceRows > 0) 'prefs $preferenceRows',
       if (blobsMoved > 0) 'blobs $blobsMoved ($blobBytes B)',
       if (skillsUpdated > 0) 'skills $skillsUpdated',
-      if (workspaceFiles > 0)
-        'workspace files $workspaceFiles ($workspaceBytes B)',
+      if (workspaceFetched > 0)
+        'workspace files $workspaceFetched (${workspace!.bytesLanded} B)',
+      if (workspacePushed > 0)
+        'workspace files pushed $workspacePushed ($workspacePushedBytes B)',
       if ((workspace?.filesRemoved ?? 0) > 0)
         'workspace files removed ${workspace!.filesRemoved}',
       if ((workspace?.filesReplaced ?? 0) > 0)
         'workspace files replaced ${workspace!.filesReplaced}',
       if ((workspace?.filesMissing ?? 0) > 0)
-        'workspace files missing ${workspace!.filesMissing}',
+        'workspace files missing $workspaceMissing',
       if ((workspace?.workspacesOmitted ?? 0) > 0)
         'workspaces omitted ${workspace!.workspacesOmitted}',
       if (skillConflicts > 0) '$skillConflicts skill conflicts',
@@ -2704,7 +3065,7 @@ class SyncEngine implements SyncServerHandler {
       workspaceBytes: workspaceBytes,
       workspaceFilesRemoved: workspace?.filesRemoved ?? 0,
       workspaceConflicts: workspace?.filesReplaced ?? 0,
-      workspaceFilesMissing: workspace?.filesMissing ?? 0,
+      workspaceFilesMissing: workspaceMissing,
       workspaceFoldersKept: workspaceFoldersKept,
       workspacesOmitted: workspace?.workspacesOmitted ?? 0,
       clockSkewMs: clockSkewMs,
@@ -2878,6 +3239,15 @@ class SyncEngine implements SyncServerHandler {
           !(session.beatsInFlight > 0 && session.lastBeatAt == null),
           'a beat in flight is a session the peer has touched',
         );
+        assert(
+          session.pushSeen || session.workspaceRequests.isEmpty,
+          'the upload requests are the push beat\'s product: a session that '
+          'has not taken it has nothing to ask for',
+        );
+        assert(
+          session.pushedWorkspace.isEmpty || session.pushSeen,
+          'a pushed file can only land on a session that has taken its push',
+        );
       }
       return true;
     }());
@@ -2919,6 +3289,7 @@ class _ResponderSession {
     required this.myManifest,
     required this.checkpoint,
     required this.startedAt,
+    required this.myHosts,
     this.initiatorHost,
     this.clockSkewMs,
     this.peerReplaced = false,
@@ -2939,6 +3310,14 @@ class _ResponderSession {
   /// The address the initiator connected from, as this listener saw it: with
   /// `initiatorHello.listenPort` it is the endpoint used to pull blobs back.
   final String? initiatorHost;
+
+  /// This device's own addresses, read once when the session was accepted.
+  ///
+  /// The one fact that tells a NAT-rewritten caller address from a real one: a
+  /// source address of *this* device is never where the peer is, and recording it
+  /// as an endpoint would hand the panel an address that can only ever dial this
+  /// device itself.
+  final Set<String> myHosts;
 
   /// Clock divergence against the initiator, when it exceeded the warn
   /// threshold — lands in this side's report at the fetch beat.
@@ -2993,6 +3372,25 @@ class _ResponderSession {
   /// including the ones that landed a moment ago, or the initiator would never
   /// learn its transfer arrived.
   WorkspaceContentOutcome? workspaceOutcome;
+
+  /// The workspace files this session asked the initiator to push, keyed by
+  /// `WorkspaceContentSync.serveKey`.
+  ///
+  /// Built by the push beat from the files it planned and could not land; it is
+  /// the write authorization for [handlePutWorkspaceFile] — a push for a pair
+  /// this map does not hold is refused, so the route can never write a file the
+  /// peer never advertised (slice 23). An entry is removed once its file lands.
+  final Map<String, SyncWorkspaceFileRequest> workspaceRequests = {};
+
+  /// Files the initiator pushed and this device landed, by workspace then path,
+  /// with both sides' stamps. Merged into the ledger at the fetch beat, which is
+  /// the one place this side writes it.
+  final Map<String, Map<String, SyncAgreedFile>> pushedWorkspace = {};
+
+  /// What those pushes moved, for the report — counted separately from the
+  /// fetch half so the log can tell the two directions apart.
+  int pushedFiles = 0;
+  int pushedBytes = 0;
 
   /// Skill records the push carried whose body could not be verified here.
   Set<String> deferredSkills = {};
@@ -3063,4 +3461,13 @@ class _InitiatorRound {
     session = null;
     open?.close();
   }
+}
+
+/// A pushed workspace body larger than the length its own request declared.
+///
+/// Its own type so the refusal is one `catch` away from every other failure of
+/// the route, and so [SyncEngine.handlePutWorkspaceFile] can stop reading the
+/// body rather than buffering what a buggy or hostile peer decided to send.
+class _WorkspacePushTooLarge implements Exception {
+  const _WorkspacePushTooLarge();
 }

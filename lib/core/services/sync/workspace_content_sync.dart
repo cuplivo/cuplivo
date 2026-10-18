@@ -76,6 +76,7 @@ class WorkspaceContentOutcome {
     this.filesRemoved = 0,
     this.filesReplaced = 0,
     this.filesMissing = 0,
+    this.unlanded = const {},
     this.workspacesOmitted = 0,
   });
 
@@ -95,6 +96,15 @@ class WorkspaceContentOutcome {
   /// Files this device wanted but could not apply — a fetch that failed, or a
   /// deletion the filesystem refused. Both stay owed and are retried.
   final int filesMissing;
+
+  /// The fetch-planned files behind [filesMissing], by workspace and path, with
+  /// the version the peer advertised for each.
+  ///
+  /// This is what the push acknowledgement asks the initiator to push instead
+  /// (slice 23). It is the *only* set of pairs this device will accept a write
+  /// for: a request can name nothing that was not advertised in the push that
+  /// produced it, and the bytes that arrive must match the stamp named here.
+  final Map<String, Map<String, WorkspaceFileStamp>> unlanded;
 
   /// Workspaces this device shared no content for, and why it could not: turned
   /// off, or over the caps.
@@ -249,7 +259,7 @@ class WorkspaceContentSync {
       final root = snapshot.root;
       if (root == null || !snapshot.shared) continue;
       for (final entry in snapshot.index.files.entries) {
-        served[_serveKey(snapshot.id, entry.key)] = _ServedWorkspaceFile(
+        served[serveKey(snapshot.id, entry.key)] = _ServedWorkspaceFile(
           file: File(p.joinAll([root.path, ...p.posix.split(entry.key)])),
           stamp: entry.value,
         );
@@ -272,7 +282,7 @@ class WorkspaceContentSync {
     required String workspaceId,
     required String relPath,
   }) async {
-    final served = _served[peerDeviceId]?[_serveKey(workspaceId, relPath)];
+    final served = _served[peerDeviceId]?[serveKey(workspaceId, relPath)];
     if (served == null) return null;
     try {
       final stat = await served.file.stat();
@@ -317,6 +327,7 @@ class WorkspaceContentSync {
     var filesRemoved = 0;
     var filesReplaced = 0;
     var filesMissing = 0;
+    final unlanded = <String, Map<String, WorkspaceFileStamp>>{};
 
     for (final snapshot in mine) {
       final peerTable = peerTables[snapshot.id];
@@ -349,6 +360,11 @@ class WorkspaceContentSync {
             );
             if (stamp == null) {
               filesMissing++;
+              // A fetch that did not happen is the one kind of miss a push can
+              // repair, so it is recorded with the version to ask for. A delete
+              // the filesystem refused is not: nothing the peer holds would fix
+              // it, so it stays a plain miss and is retried here next session.
+              (unlanded[snapshot.id] ??= {})[item.path] = advertised;
               continue;
             }
             landed[item.path] = stamp;
@@ -406,8 +422,82 @@ class WorkspaceContentSync {
       filesRemoved: filesRemoved,
       filesReplaced: filesReplaced,
       filesMissing: filesMissing,
+      unlanded: unlanded,
       workspacesOmitted: omitted,
     );
+  }
+
+  /// Lands one file the initiator pushed because this device could not fetch it
+  /// (slice 23), and returns the stamp it now holds — or null when the write may
+  /// not happen.
+  ///
+  /// The caller has already checked that this pair is one this session asked
+  /// for and that the size matches the request; what is left here is the switch
+  /// and the four landing gates, which are deliberately the *same* ones a pull
+  /// goes through ([land]): a file arriving by push is not a different kind of
+  /// file, and two landing paths would be two places for a containment rule to
+  /// drift.
+  ///
+  /// The switch is re-read here rather than trusted from the push beat: a
+  /// workspace the user turns off mid-session must stop being written to, the
+  /// same way it stops being served.
+  Future<WorkspaceFileStamp?> acceptPushed({
+    required String workspaceId,
+    required String relPath,
+    required File staged,
+    required WorkspaceFileStamp advertised,
+  }) async {
+    try {
+      if ((await disabledWorkspaceIds()).contains(workspaceId)) {
+        debugPrint(
+          'sync workspace: refusing a push for $workspaceId/$relPath: the '
+          'switch is off',
+        );
+        return null;
+      }
+      final root = await _resolveRootOrNull(workspaceId);
+      if (root == null) return null;
+      return await land(
+        root: root,
+        relPath: relPath,
+        staged: staged,
+        advertised: advertised,
+      );
+    } catch (error) {
+      debugPrint(
+        'sync workspace: landing the pushed $workspaceId/$relPath failed: '
+        '$error',
+      );
+      return null;
+    }
+  }
+
+  /// The ledger after files the initiator *pushed* landed here (slice 23).
+  ///
+  /// The lander advances an entry; the sender never does, because it cannot
+  /// know whether its bytes arrived — that is the rule
+  /// [advanceWorkspaceBaseline] states for a fetch, and a push is the same
+  /// event seen from the other side. Both stamps are exact: `mine` is the file
+  /// that just landed on this disk, `peer` is the version the initiator
+  /// advertised when it was asked for it.
+  ///
+  /// Called once, at the fetch beat, where this side finalises the checkpoint
+  /// the push beat started: a pushed file arrives *after* the push beat ran, so
+  /// merging here rather than there is what keeps one writer per ledger.
+  Map<String, Map<String, SyncAgreedFile>> ledgerWithPushed(
+    Map<String, Map<String, SyncAgreedFile>> ledger,
+    Map<String, Map<String, SyncAgreedFile>> pushed,
+  ) {
+    if (pushed.isEmpty) return ledger;
+    final next = <String, Map<String, SyncAgreedFile>>{
+      for (final entry in ledger.entries) entry.key: Map.of(entry.value),
+    };
+    for (final entry in pushed.entries) {
+      next
+          .putIfAbsent(entry.key, () => <String, SyncAgreedFile>{})
+          .addAll(entry.value);
+    }
+    return capWorkspaceLedger(next);
   }
 
   /// Deletes a managed workspace's files — what a workspace row deleted *by
@@ -482,15 +572,25 @@ class WorkspaceContentSync {
   }) async {
     final fetcher = fetch;
     final root = snapshot.root;
-    if (fetcher == null || root == null) return null;
+    if (fetcher == null) {
+      // No connection to the peer at all. Worth a line: without it, a session
+      // whose whole file direction was unreachable reads exactly like a peer
+      // that refused every file.
+      debugPrint(
+        'sync workspace ${snapshot.id}/$relPath: the peer could not be '
+        'dialled back, so nothing can be fetched from it',
+      );
+      return null;
+    }
+    if (root == null) return null;
     File? temp;
     try {
       temp = await store.newBlobTempFile();
       await fetcher(snapshot.id, relPath, temp);
-      return await _place(
+      return await land(
         root: root,
         relPath: relPath,
-        downloaded: temp,
+        staged: temp,
         advertised: advertised,
       );
     } catch (error) {
@@ -503,8 +603,9 @@ class WorkspaceContentSync {
     }
   }
 
-  /// Moves a fetched file into the workspace, or returns null when it may not
-  /// go there.
+  /// Moves a staged file into the workspace, or returns null when it may not go
+  /// there. The one landing path: a fetched file and a pushed one differ only
+  /// in which side asked for the transfer.
   ///
   /// Four gates, in order: the path must be a legal workspace-relative one, it
   /// must join to a target inside the root, the directory it lands in must
@@ -513,10 +614,10 @@ class WorkspaceContentSync {
   /// advertised one. The mtime is then set from the peer's, best effort: it is
   /// what the user sees in a file manager, and a filesystem that rounds it does
   /// not break convergence because the ledger remembers both sides' stamps.
-  Future<WorkspaceFileStamp?> _place({
+  Future<WorkspaceFileStamp?> land({
     required Directory root,
     required String relPath,
-    required File downloaded,
+    required File staged,
     required WorkspaceFileStamp advertised,
   }) async {
     final target = workspacePathWithin(root.path, relPath);
@@ -536,7 +637,7 @@ class WorkspaceContentSync {
       }
       await file.parent.create(recursive: true);
       if (await file.exists()) await file.delete();
-      final landed = await downloaded.rename(target);
+      final landed = await staged.rename(target);
       try {
         await landed.setLastModified(
           DateTime.fromMillisecondsSinceEpoch(advertised.mtimeMs),
@@ -645,7 +746,11 @@ class WorkspaceContentSync {
     } catch (_) {}
   }
 
-  static String _serveKey(String workspaceId, String relPath) =>
+  /// The identity of one `(workspace, path)` pair inside this class's served
+  /// table and inside the engine's per-session upload requests. One authority
+  /// because the two must agree exactly: a key that differed by a byte would
+  /// make a requested file unwritable.
+  static String serveKey(String workspaceId, String relPath) =>
       '$workspaceId\u0000$relPath';
 
   /// The workspace's display name from its row payload, falling back to the id

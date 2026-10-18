@@ -806,6 +806,19 @@ Future<List<String>> _workspaceIds(_Side side) async => [
     row.id,
 ];
 
+/// A loopback port nothing is listening on: bound once to learn a free number,
+/// then released.
+///
+/// What it makes constructible is the one topology a two-peer test cannot
+/// otherwise produce — a peer whose listener the other side cannot reach — and
+/// therefore the push fallback's whole reason to exist.
+Future<int> closedPort() async {
+  final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+  final port = socket.port;
+  await socket.close();
+  return port;
+}
+
 /// Forces a row's mutation clock, so a test can create the clock tie that the
 /// deviceId rule exists for.
 Future<void> _forceUpdatedAt(
@@ -5270,6 +5283,167 @@ void main() {
     expect(agreed, isNotNull);
     expect(agreed!.mine.size, 2, reason: 'the bytes B landed');
     expect(agreed.peer.size, 2, reason: 'the version A advertised');
+  });
+
+  test(
+    'a peer that cannot be dialled back has its file pushed to the responder',
+    () async {
+      final (a, b) = await pair();
+      await _putWorkspace(a, id: 'w1', kind: 'managed');
+      await a.putWorkspaceFile(
+        'w1',
+        'index.html',
+        '<p>hi</p>',
+        mtimeMs: 1000000,
+      );
+      // A advertises a listener nothing answers on. That is the whole shape of a
+      // NAT'd peer — an Android emulator is the everyday one: A reaches B, B
+      // cannot reach A, so the only direction a file can travel in is the one A
+      // opened. Before slice 23 the file simply never moved, while both reports
+      // called the session a success.
+      a.engine.advertisedListenPort = await closedPort();
+
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+
+      expect(report.success, isTrue, reason: report.summary);
+      expect(
+        await b.workspaceFileContent('w1', 'index.html'),
+        '<p>hi</p>',
+        reason: 'the side that holds the file is the side that can deliver it',
+      );
+      expect(
+        report.summary,
+        contains('workspace files pushed 1'),
+        reason: 'A is the side that pushed it',
+      );
+      expect(report.workspaceFiles, 1);
+      // B recorded a miss when its own fetch failed, and the push repaired it:
+      // one card cannot say the file arrived and that it is missing.
+      final responder = (await b.peer(a)).lastReport!;
+      expect(responder.workspaceFiles, 1);
+      expect(responder.workspaceFilesMissing, 0);
+
+      // The ledger advanced on the side that landed the file. This is the whole
+      // reason the fetch beat finalises it: an entry the lander did not write
+      // would ask for the same file again, for the life of the pairing.
+      final settled = await a.engine.syncWithPeer(await a.peer(b));
+      expect(settled.success, isTrue, reason: settled.summary);
+      expect(settled.workspaceFiles, 0);
+      expect(settled.summary, isNot(contains('workspace files pushed')));
+      expect((await b.peer(a)).lastReport?.workspaceFiles, 0);
+    },
+  );
+
+  test(
+    'a reachable pair fetches its files, and never has them pushed',
+    () async {
+      final (a, b) = await pair();
+      await _putWorkspace(a, id: 'w1', kind: 'managed');
+      await a.putWorkspaceFile('w1', 'a.txt', 'aa', mtimeMs: 1000000);
+
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+
+      expect(report.success, isTrue, reason: report.summary);
+      expect(await b.workspaceFileContent('w1', 'a.txt'), 'aa');
+      // B pulled it over the connection A opened. The push is a fallback, and a
+      // plain LAN pair must never start shipping every file a second time.
+      expect(report.summary, isNot(contains('workspace files pushed')));
+      final responder = (await b.peer(a)).lastReport!;
+      expect(responder.workspaceFiles, 1);
+      expect(responder.workspaceFilesMissing, 0);
+    },
+  );
+
+  test('a pushed file is written only for the version the session asked for', () async {
+    final (a, b) = await pair();
+    await _putWorkspace(b, id: 'w1', kind: 'managed');
+    const stamp = WorkspaceFileStamp(size: 2, mtimeMs: 1000000);
+
+    // A's hello carries no listener port at all, so B has nothing to dial back;
+    // the push it takes carries only A's file table. B therefore plans the file,
+    // cannot fetch it, and asks for it — the request set that authorizes the
+    // write, built from what A itself advertised.
+    expect(
+      await b.engine.handleHello(a.identity.deviceId, a.hello()),
+      isA<SyncHello>(),
+    );
+    final ack = await b.engine.handleApplySubtrees(
+      a.identity.deviceId,
+      const SyncDeltaBatch(
+        <SyncSubtreePayload>[],
+        workspaceFiles: {
+          'w1': {'a.txt': stamp},
+        },
+      ),
+    );
+    expect(ack.workspaceRequests, hasLength(1));
+    expect(ack.workspaceRequests.single.workspaceId, 'w1');
+    expect(ack.workspaceRequests.single.relPath, 'a.txt');
+    expect(ack.workspaceRequests.single.stamp, stamp);
+
+    Future<bool> push(String relPath, int size, String body) =>
+        b.engine.handlePutWorkspaceFile(
+          a.identity.deviceId,
+          'w1',
+          relPath,
+          size: size,
+          mtimeMs: 1000000,
+          body: Stream.value(utf8.encode(body)),
+        );
+
+    // A pair nobody asked for: refused, and nothing reaches the disk. This is the
+    // route's whole authorization story — the request set is built from the table
+    // the caller advertised, so a crafted path cannot be written.
+    expect(await push('other.txt', 2, 'zz'), isFalse);
+    expect(await b.workspaceFileContent('w1', 'other.txt'), isNull);
+    // A file that *was* asked for, as a different version than the one whose
+    // stamp was agreed: refused too, and still nothing on disk.
+    expect(await push('a.txt', 3, 'aaa'), isFalse);
+    expect(await b.workspaceFileContent('w1', 'a.txt'), isNull);
+
+    expect(await push('a.txt', 2, 'aa'), isTrue);
+    expect(await b.workspaceFileContent('w1', 'a.txt'), 'aa');
+    // Delivered once: the pair left the request set, so a replayed body is not a
+    // second write.
+    expect(await push('a.txt', 2, 'aa'), isFalse);
+
+    await b.engine.handleFetchSubtrees(
+      a.identity.deviceId,
+      const SyncFetchRequest(),
+    );
+    final ledger = (await b.store.loadCheckpoint(
+      a.identity.deviceId,
+    )).workspaceFiles;
+    expect(ledger['w1']?['a.txt']?.mine.size, 2, reason: 'the bytes B landed');
+    expect(
+      ledger['w1']?['a.txt']?.peer.size,
+      2,
+      reason: 'the version asked for',
+    );
+    final responder = (await b.peer(a)).lastReport!;
+    expect(responder.workspaceFiles, 1);
+    expect(responder.workspaceFilesMissing, 0);
+  });
+
+  test('a responder does not remember its own address as the peer', () async {
+    final (a, b) = await pair();
+    // B is told 127.0.0.1 is one of *its* addresses, which is exactly what a NAT
+    // rewrite makes true of the address a caller appears to connect from. The
+    // session must not turn that into an endpoint for A: dialling it reaches B
+    // itself, which is how the panel grew an address that could only fail.
+    b.engine.localAddresses = const [(name: 'loopback', address: '127.0.0.1')];
+    final record = await b.peer(a);
+    record.endpoints.clear();
+    await b.store.savePeer(record);
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+
+    expect(report.success, isTrue, reason: report.summary);
+    expect(
+      (await b.peer(a)).endpoints,
+      isEmpty,
+      reason: 'a source address of this device is never where the peer is',
+    );
   });
 
   test(

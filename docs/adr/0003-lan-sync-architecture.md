@@ -1104,14 +1104,17 @@ per-row and per-face instead of per-kind.
   the kind out" are *not* interchangeable, and only the former is available.
 - **Files travel on their own face, described by a table.** A per-pair, per-workspace map of
   `relative path → (size, mtimeMs)` rides **both** directions of the delta batch. Both directions
-  because each side pulls what it lacks: the responder pulls inside the push beat (so the initiator
-  must publish *before* pushing), and the initiator pulls after the fetch response (so the responder
+  because each side plans what it lacks: the responder plans inside the push beat (so the initiator
+  must publish *before* pushing), and the initiator plans after the fetch response (so the responder
   must re-walk its index, including the files it just landed, or the initiator can never learn the
-  transfer succeeded and re-sends forever).
+  transfer succeeded and re-sends forever). The transfers themselves are pulls — the side that wants a
+  file fetches it over the peer's own listener — until slice 23, which added the push fallback for a
+  peer that cannot be dialled back.
 - **Identity is metadata, and the ledger is two-sided.** A file is what its size and mtime say it is;
   no byte is read to plan a session. Each pair keeps the last revision **both** sides proved, as two
   stamps (`mine`, `peer`) inside that pair's checkpoint, and it advances only on agreement or on a
-  file this device just fetched and verified — never on a send. Two stamps rather than one tolerance
+  file this device just *landed* and verified — never on a send (slice 23 made "landed" the rule, since
+  a pushed file lands without anyone fetching it). Two stamps rather than one tolerance
   constant because a receiver cannot make the sender's filesystem agree with the mtime it wrote
   (coarse-granularity filesystems round it), and "agreed" has to stay an exact comparison.
 - **Absence is a deletion, and an edit beats it.** A ledger path the peer's table no longer lists is
@@ -1497,6 +1500,77 @@ status on an existing route).
   and are derived; and `AGENTS.md` now carries the rule this round's worst defect came from — a change
   to a shared predicate, TTL, cap or sweep names every caller of it and what changes for each, and a
   new call site for an existing rule gets the rule's state table, not its happy path.
+
+## Amendment (2026-10, slice 23): the file a peer cannot fetch is pushed to it
+
+The first two-device run of slice 18 — an Android emulator and the desktop app on the same machine —
+ended with a workspace holding one tiny HTML file, the desktop's card saying `1 个工作区文件未能应用`,
+and both sides calling the session a success. The emulator's own state named the cause:
+`peers/e4c81a….json` listed its three addresses as `2402:f000:9:4801:145c:543f:6fd:80c1`,
+`59.66.74.109` and `10.0.2.15` — the first two are *the desktop's own* WLAN IPv6 and IPv4 — the
+report read `success:true, workspaceFiles:0, workspaceFilesMissing:1`, the checkpoint for that peer
+had no `workspaceFiles` key at all, and the workspace's `files/` directory was there and empty. This
+slice is the fix, and it changes the wire (`kSyncProtocolVersion` 5 → 6).
+
+- **A peer can dial out and still not be dialled back.** Every file transfer in slices 18–22 was a
+  *pull* by the side that wanted the file, so a responder — always the side that did not start the
+  session — needed the initiator to be reachable at the address its connection arrived from. A NAT
+  rewrite makes that address the *forwarder's*: the Android emulator's user-mode network presents every
+  outbound connection as coming from the host, so the desktop's "where the peer connected from" was the
+  desktop's own LAN address and `_openReverseConnection` dialled **itself** (the certificate pin then
+  refused it, and the failure was swallowed). All three of the emulator's advertised addresses were
+  unusable from the desktop: two were the desktop's own, the third was the emulator's NAT address.
+  Nothing could move from the emulator to the desktop — not workspace files, not the blobs
+  `_unreachableBlobPull` marks pending — while the row half of the session worked perfectly, which is
+  why it read as success.
+- **Opening a session is not connecting.** `SyncClient.openSession` builds an `HttpClient` and a
+  session object and performs no I/O, so the old dial's `try`/`catch` could never observe a failure and
+  "no connection at all" was indistinguishable from "the peer refused this file": both counted as
+  `filesMissing`, and the first of the two was not even logged. The reverse dial now **pings** each
+  candidate before using it (that ping is also what makes a self-dial cheap: the pin refuses it in
+  milliseconds), and a `fetch == null` miss logs why.
+- **The push fallback (v6).** The initiator already holds a connection the pair has proved works, so
+  that is where a file the responder cannot fetch now travels. The responder's push acknowledgement
+  gained `workspaceRequests` — the pairs it planned and did not land, each with the version the
+  initiator advertised — and `/sync/wsfile` gained a `PUT` that receives one such file as its raw body
+  (the pair base64url in headers, a declared length, no content coding). The initiator pushes exactly
+  those files before its fetch beat, so the responder's own walk — taken while it answers that beat —
+  already sees them. A v5 peer would read the request list as "nothing owed" and had no reverse
+  connection to fetch over either, so the two sides would agree to disagree about a workspace's files
+  forever.
+- **The request set is the write authorization.** The responder accepts a push only for a pair this
+  session asked for — the set is built from the table the initiator itself advertised — and only for
+  the size that was asked for; an unrequested pair, a substituted version and a body longer than its
+  own declaration are all refused, and the pair leaves the set once it lands. Loopback and this
+  device's own addresses are still *tried* as candidates (another instance of this app on one machine
+  is a legitimate peer at 127.0.0.1, and the ping refuses a self-dial for free) but are never
+  *remembered*: the address a caller appears to connect from can be this device's own, and remembering
+  it is how the panel grew an endpoint that could only ever fail.
+- **The lander advances the entry — the fetcher was only ever the common case.** Slice 18 and slice 22
+  both said the side that *fetches* advances the ledger entry, because until now a fetch was the only
+  way a file could arrive. A pushed file arrives at the responder, after the beat that produced its
+  ledger, so the responder finalises the ledger once at the fetch beat: the push beat's ledger plus
+  every file the initiator pushed. The sender still never advances anything — it cannot know its bytes
+  arrived — and an entry the lander did not write asks for the same file for the life of the pairing.
+- **A miss a push repaired is not also reported as missing.** The responder counts a failed fetch as
+  `filesMissing` when it happens, and the push that repairs it arrives later; reporting both would put
+  "1 个工作区文件" and "1 个工作区文件未能应用" on one card. `_report` subtracts what the pushes
+  repaired, so what is left is what no direction moved.
+- **The hello now advertises where the initiator can be reached** (`candidateHosts`, beside
+  `listenPort`), which is what gives the reverse dial something to try after the observed address: the
+  pairing request has carried the same list since slice 9, and a session had no way to say it.
+- *Rejected: carrying the bytes in the fetch request.* The obvious one-message fix, and it makes every
+  `.dart_tool`-sized workspace a base64 blob inside a JSON control body. The `PUT` streams, which is
+  what the caps (2000 files / 200 MB) are sized for.
+- *Rejected: a relay, or requiring both peers to be dialable.* Nothing in the protocol needs a third
+  party to move a file that the peer holding it can already push.
+- *Rejected: keeping v5 compatibility ("no requests ⇒ old behaviour").* The old behaviour is exactly
+  the silent failure this slice exists to remove, and a half-spoken protocol is worse than an
+  honest refusal at hello.
+- *Known limits.* The blob plane still has only the reverse pull, so an undiallable peer's attachments
+  and skill bodies keep failing (the next slice, with the same shape). The push is sequential, and the
+  reverse dial now costs up to three connect budgets before it gives up and the fallback runs — paid
+  only in sessions that need the reverse direction at all.
 
 ## Considered options (rejected)
 

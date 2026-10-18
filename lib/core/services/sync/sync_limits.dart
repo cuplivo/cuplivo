@@ -50,3 +50,13 @@ const int kMaxPingsInFlight = kMaxPeerEndpoints + 2;
 /// chunked rather than fanned out, so this file stays the single authority on
 /// how much probing this device does at once.
 const int kSyncProbeConcurrency = kMaxPeerEndpoints;
+
+/// How many addresses a responder tries when it has to dial the initiator back
+/// to pull a file from it.
+///
+/// Three, not twelve: every candidate costs a connect budget before the next is
+/// tried, and this dial sits inside the peer's push beat, where the initiator is
+/// waiting. The observed address and the two most likely advertised ones cover
+/// the real cases (one address that works, one NAT'd memory, one other network);
+/// what a miss costs is a file that waits for the push fallback instead.
+const int kMaxReverseDialCandidates = 3;

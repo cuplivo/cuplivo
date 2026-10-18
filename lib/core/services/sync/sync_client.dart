@@ -525,6 +525,49 @@ class SyncClientSession {
     return received;
   }
 
+  /// Pushes one workspace file the peer asked for (slice 23).
+  ///
+  /// The pair travels base64url in headers and the bytes are the raw body with a
+  /// declared length, which is what the receiver checks the file against. No
+  /// content hash is involved for the same reason a fetched file has none: a
+  /// workspace file's identity is its size and mtime, and the mtime travels
+  /// beside the bytes so the receiver can stamp what it lands.
+  Future<void> pushWorkspaceFile({
+    required String workspaceId,
+    required String relPath,
+    required File source,
+    required WorkspaceFileStamp advertised,
+  }) async {
+    final request = await _client.putUrl(
+      Uri.parse('$_baseUrl${SyncServer.workspaceFilePath}'),
+    );
+    _authenticate(request);
+    request.headers.set(
+      SyncServer.workspaceIdHeader,
+      base64Url.encode(utf8.encode(workspaceId)),
+    );
+    request.headers.set(
+      SyncServer.workspaceRelPathHeader,
+      base64Url.encode(utf8.encode(relPath)),
+    );
+    request.headers.set(
+      SyncServer.workspaceMtimeHeader,
+      '${advertised.mtimeMs}',
+    );
+    request.headers.contentType = ContentType.binary;
+    request.headers.contentLength = advertised.size;
+    await request.addStream(source.openRead());
+    final response = await request.close().timeout(blobDeadline);
+    if (response.statusCode != HttpStatus.noContent) {
+      await response.drain<void>();
+      throw SyncClientException(
+        'workspace_push_refused',
+        statusCode: response.statusCode,
+      );
+    }
+    await response.drain<void>();
+  }
+
   void close() => _client.close(force: true);
 
   Future<HttpClientResponse> _post(

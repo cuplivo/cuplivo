@@ -194,16 +194,23 @@ contradicts one of them is a bug, not a preference.
   travels as an entity row under the ordinary row-level LWW rule; its *files* travel on a face of
   their own, described by a per-pair, per-workspace table of `relative path → (size, mtimeMs)`
   carried in **both** directions of the delta batch. A linked workspace travels as neither.
-- **Files are pulled, not pushed**: each side advertises its table and fetches what it lacks over
-  `POST /sync/wsfile` from the listener that holds the bytes. The table is the whole negotiation;
-  there is no manifest beat for workspace content.
+- **Files are pulled, and pushed only when a pull cannot happen (推回退)**: each side advertises its
+  table and fetches what it lacks over `POST /sync/wsfile` from the listener that holds the bytes. The
+  table is the whole negotiation; there is no manifest beat for workspace content. A peer that cannot
+  be *dialled back* — the shape every NAT makes, an Android emulator always — asks for the files it
+  planned and could not land in its push acknowledgement (`workspaceRequests`), and the initiator
+  pushes exactly those over the connection it already holds (`PUT /sync/wsfile`, the pair base64url in
+  headers, the raw file as the body). The request set is the **write authorization**: only a pair the
+  caller itself advertised, at the size that was asked for, is ever written.
 - **Identity is (size, mtime); there is no content hash**: a file is what its metadata says it is.
   The price is the mtime family's known limits (below); the gain is that a workspace's bytes are
   never read to decide whether they changed.
 - **Every pair keeps a two-sided ledger (账本)**: the last revision *both* sides proved, stored as
-  two stamps (mine, peer) inside that pair's checkpoint. It advances only on agreement or on a
-  file this device just fetched and verified — never on a send, because a sender cannot know what
-  arrived. A missing entry is always the conservative reading: send or fetch again, never delete.
+  two stamps (mine, peer) inside that pair's checkpoint. **The side that lands a file advances its
+  entry** — whether it fetched the file or the peer pushed it — and never the sender, because a sender
+  cannot know what arrived. On the responder that finalisation happens once, at the fetch beat, after
+  every push of the session has landed. A missing entry is always the conservative reading: send or
+  fetch again, never delete.
 - **Absence is a deletion, and an edit beats it**: a path the ledger holds that the peer's table no
   longer lists is deleted here, and the mirror image holds there — unless the other side's stamp is
   newer, in which case the file is fetched back. A session against a peer whose database was
@@ -456,13 +463,15 @@ contradicts one of them is a bug, not a preference.
   stored per device pair.
 
 - **Session protocol**: a bounded six-beat run over pinned-TLS HTTP (REST-style JSON bodies,
-  binary endpoints for blobs and for workspace files): hello (protocol version **5**, schema
-  version, the initiator's listener port, its clock reading, its data epoch, the
-  deletions it has not seen confirmed, checkpoint summaries, and what each side could not apply
-  last session) → negotiate (each side computes deltas) → delta exchange (conversation subtrees,
-  entity rows, preference keys, the asset manifest for what each side is sending, and each side's
-  workspace file tables; the push is acknowledged with what was deferred, including skill bodies
-  that did not land) → blob fetch (receiver pulls by contentHash, skipping hashes it already has;
+  binary endpoints for blobs and for workspace files): hello (protocol version **6**, schema
+  version, the initiator's listener port **and its own candidate addresses**, its clock reading, its
+  data epoch, the deletions it has not seen confirmed, checkpoint summaries, and what each side could
+  not apply last session) → negotiate (each side computes deltas) → delta exchange (conversation
+  subtrees, entity rows, preference keys, the asset manifest for what each side is sending, and each
+  side's workspace file tables; the push is acknowledged with what was deferred, including skill
+  bodies that did not land, **and with the workspace files this side planned and could not land**) →
+  the files that answer that request, pushed over the connection the initiator opened
+  (`PUT /sync/wsfile`) → blob fetch (receiver pulls by contentHash, skipping hashes it already has;
   the responder pulls back over the initiator's advertised listener, and the same reverse
   connection carries its workspace file pulls) → transactional apply + provider reload →
   checkpoint commit on both sides. The push and fetch beats always run, even with nothing to send:
@@ -604,6 +613,19 @@ contradicts one of them is a bug, not a preference.
   as "we never agreed about these files" (re-transfer) and turns a file deleted here into one the
   peer never had. A beat that belongs to no live session is refused too (`409
   sync_session_missing`), rather than surfacing as an internal 500.
+- **A peer that cannot be dialled back gets pushed to (回连不上就推给它)**: the reverse connection is
+  tried over the address the initiator's connection arrived from and then over the addresses its
+  hello advertised and the ones this pair remembers (`kMaxReverseDialCandidates`), and **each
+  candidate is pinged before it is used** — opening a session is lazy, so a session object is not
+  evidence that the peer is there, and a self-dial (the certificate pin refusing this device's own
+  listener) then costs milliseconds. When no candidate answers, the responder asks for the files it
+  could not land in its push acknowledgement and the initiator pushes them; a miss that a push
+  repaired is not also reported as missing.
+- **An address of this device is never remembered as the peer's (本机地址不入端点)**: a NAT rewrites
+  the source of a caller's connection to whoever forwards it — an Android emulator makes it the
+  host's own LAN address — so the "address the peer connected from" is checked against this device's
+  own addresses (and only that: loopback is *not* refused, because another instance of this app on
+  one machine is a legitimate peer at 127.0.0.1) before it is stored or promoted as an endpoint.
 - **An advertisement lives inside its session (广告不跨会话)**: the files this device tells a peer it
   can serve are a per-session promise: dropped when the initiator's round ends, when the peer is
   unpaired or revokes, when a workspace is switched off, and at the next hello (the responder's table

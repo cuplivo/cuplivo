@@ -38,7 +38,16 @@ import 'package:crypto/crypto.dart' as crypto;
 /// look like "the peer deleted every workspace", and a session against it would
 /// silently half-sync instead of refusing. The shape of the messages did not
 /// change, so nothing else has to.
-const int kSyncProtocolVersion = 5;
+///
+/// v6: the files a responder cannot pull (slice 23). The push acknowledgement
+/// gained `workspaceRequests` and `/sync/wsfile` gained a write verb, so a
+/// responder that cannot dial the initiator back asks for the files it planned
+/// and did not land, and the initiator pushes them over the connection it
+/// already holds. A v5 peer reads that request list as "nothing owed" and has
+/// no reverse connection to fetch over either, so a whole workspace's files
+/// would silently never move in that direction while both reports claimed
+/// success. Refused at hello like every other shape change.
+const int kSyncProtocolVersion = 6;
 
 /// Wall-clock divergence (milliseconds) beyond which a session report carries
 /// a clock-skew warning. Kerberos-style tolerance: below it, LWW comparisons
@@ -267,6 +276,53 @@ typedef SyncWorkspaceFileTable = Map<String, WorkspaceFileStamp>;
 /// Every workspace's file table in one direction, by workspace id.
 typedef SyncWorkspaceFileTables = Map<String, SyncWorkspaceFileTable>;
 
+/// One file a responder planned to fetch, could not land, and is asking the
+/// initiator to push instead (slice 23).
+///
+/// [stamp] is the version the *initiator* advertised in its push, so a request
+/// can only ever name a version this device has already been offered — the
+/// request set is the write authorization on the receiving side, and the bytes
+/// that arrive must match the stamp that was asked for.
+class SyncWorkspaceFileRequest {
+  final String workspaceId;
+  final String relPath;
+  final WorkspaceFileStamp stamp;
+
+  const SyncWorkspaceFileRequest({
+    required this.workspaceId,
+    required this.relPath,
+    required this.stamp,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'ws': workspaceId,
+    'path': relPath,
+    'stamp': stamp.toJson(),
+  };
+
+  /// Lenient, like every other peer-supplied shape: one malformed entry is
+  /// dropped rather than failing the session, and a dropped one only means a
+  /// file stays owed to the next session.
+  static SyncWorkspaceFileRequest? tryParse(Object? raw) {
+    if (raw is! Map) return null;
+    final workspaceId = raw['ws'];
+    final relPath = raw['path'];
+    final stamp = WorkspaceFileStamp.tryParse(raw['stamp']);
+    if (workspaceId is! String ||
+        workspaceId.isEmpty ||
+        relPath is! String ||
+        relPath.isEmpty ||
+        stamp == null) {
+      return null;
+    }
+    return SyncWorkspaceFileRequest(
+      workspaceId: workspaceId,
+      relPath: relPath,
+      stamp: stamp,
+    );
+  }
+}
+
 /// Hello request/response body. The initiator sends its manifest with hello;
 /// the responder answers with its own, so one round trip is enough to plan
 /// both directions.
@@ -282,6 +338,15 @@ class SyncHello {
   /// together with the request's remote address and the pairing it already
   /// holds, to pull blobs back from the initiator over its own listener.
   final int? listenPort;
+
+  /// This device's own addresses, beside [listenPort] (slice 23).
+  ///
+  /// The address the responder *sees* the caller connect from is not always the
+  /// caller's own — a NAT rewrite can make it the responder's own address — so
+  /// the responder needs somewhere else to try when it has to dial back. Empty
+  /// on a device that has not enumerated its addresses yet, which leaves the
+  /// observed address as the only candidate, exactly as before.
+  final List<String> candidateHosts;
 
   /// This device's wall clock when the hello was built, in µs since epoch —
   /// the same unit row clocks use, so the peer can flag divergence (slice 5).
@@ -327,6 +392,7 @@ class SyncHello {
     required this.platform,
     required this.manifest,
     this.listenPort,
+    this.candidateHosts = const [],
     this.clockUs,
     this.unappliedConversations = const [],
     this.unappliedBusiness = false,
@@ -342,6 +408,7 @@ class SyncHello {
     'platform': platform,
     'manifest': manifest.toJson(),
     if (listenPort != null) 'listenPort': listenPort,
+    if (candidateHosts.isNotEmpty) 'candidateHosts': candidateHosts,
     if (clockUs != null) 'clockUs': clockUs,
     if (unappliedConversations.isNotEmpty) 'unapplied': unappliedConversations,
     if (unappliedBusiness) 'unappliedBusiness': true,
@@ -359,6 +426,10 @@ class SyncHello {
       (json['manifest'] as Map).cast<String, dynamic>(),
     ),
     listenPort: (json['listenPort'] as num?)?.toInt(),
+    candidateHosts: [
+      for (final host in (json['candidateHosts'] as List? ?? const []))
+        if (host is String && host.isNotEmpty) host,
+    ],
     clockUs: (json['clockUs'] as num?)?.toInt(),
     unappliedConversations: [
       for (final id in (json['unapplied'] as List? ?? const [])) id.toString(),
@@ -892,11 +963,21 @@ class SyncApplyAck {
   /// nothing for it and the sender must not record it as peer-seen.
   final Set<String> deferredSkills;
 
+  /// Workspace files the responder planned to fetch and could not land —
+  /// because it could not dial the initiator back, or because the transfer
+  /// failed. The initiator pushes exactly these before the fetch beat, so the
+  /// file moves over the one direction that is known to work (slice 23).
+  ///
+  /// Empty on every session where the reverse direction works, which is what
+  /// keeps the ordinary LAN pair on the original path.
+  final List<SyncWorkspaceFileRequest> workspaceRequests;
+
   const SyncApplyAck({
     required this.applied,
     this.deferred = const {},
     this.businessDeferred = false,
     this.deferredSkills = const {},
+    this.workspaceRequests = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -905,6 +986,10 @@ class SyncApplyAck {
     if (businessDeferred) 'businessDeferred': true,
     if (deferredSkills.isNotEmpty)
       'deferredSkills': deferredSkills.toList(growable: false),
+    if (workspaceRequests.isNotEmpty)
+      'workspaceRequests': [
+        for (final request in workspaceRequests) request.toJson(),
+      ],
   };
 
   static SyncApplyAck fromJson(Map<String, dynamic> json) => SyncApplyAck(
@@ -917,7 +1002,20 @@ class SyncApplyAck {
       for (final id in (json['deferredSkills'] as List? ?? const []))
         id.toString(),
     },
+    workspaceRequests: _requestsFromJson(json['workspaceRequests']),
   );
+
+  /// One malformed entry is dropped, not a session: a request that cannot be
+  /// read is a file that stays owed and is asked for again next time.
+  static List<SyncWorkspaceFileRequest> _requestsFromJson(Object? raw) {
+    if (raw is! List) return const [];
+    final requests = <SyncWorkspaceFileRequest>[];
+    for (final entry in raw) {
+      final request = SyncWorkspaceFileRequest.tryParse(entry);
+      if (request != null) requests.add(request);
+    }
+    return requests;
+  }
 }
 
 /// What the initiator asks the responder to send back in the fetch beat:

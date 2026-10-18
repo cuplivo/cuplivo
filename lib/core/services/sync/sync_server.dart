@@ -61,6 +61,27 @@ abstract class SyncServerHandler {
     String relPath,
   );
 
+  /// Receives one workspace file this device asked the caller to push, as the
+  /// raw request body (slice 23).
+  ///
+  /// [size] is the body's declared length and [mtimeMs] the advertised
+  /// version's stamp. The handler accepts the pair only when this session asked
+  /// for exactly that version — the request set the push beat built is the
+  /// write authorization, and it can only name files the caller itself
+  /// advertised. Returns whether the file landed.
+  ///
+  /// A refusal reads the body out to [size] before answering instead of
+  /// closing on the peer mid-write: the peer has spent the send either way, and
+  /// what it gets back is a status it can log rather than a connection reset.
+  Future<bool> handlePutWorkspaceFile(
+    String peerDeviceId,
+    String workspaceId,
+    String relPath, {
+    required int size,
+    required int mtimeMs,
+    required Stream<List<int>> body,
+  });
+
   /// Pairing: validate the PIN, persist the peer, answer with our identity.
   /// Returns null when the PIN is wrong or pairing is not open.
   ///
@@ -477,6 +498,16 @@ class SyncServer {
   /// other.
   static const String workspaceFilePath = '/sync/wsfile';
 
+  /// The push direction of the same route (slice 23): the initiator streams the
+  /// bytes of one file this device asked for. The pair travels base64url in
+  /// headers — a workspace path holds spaces, `#`, `%` and non-ASCII, and base64
+  /// is the one form that needs no encoding decision on either side — and the
+  /// body is the raw file, so a large one streams through instead of being
+  /// buffered as JSON.
+  static const String workspaceIdHeader = 'x-sync-workspace';
+  static const String workspaceRelPathHeader = 'x-sync-path';
+  static const String workspaceMtimeHeader = 'x-sync-mtime';
+
   /// A well-formed blob hash: the sha256 hex digest the manifest publishes.
   static final RegExp _blobHashPattern = RegExp(r'^[0-9a-f]{64}$');
 
@@ -605,18 +636,27 @@ class SyncServer {
     await _streamFile(request, file, error: 'blob_unavailable');
   }
 
-  /// Streams one workspace file this device advertised to the caller. The pair
+  /// One workspace file, in either direction.
+  ///
+  /// `POST` streams back a file this device advertised to the caller. The pair
   /// is resolved by the handler against the table it walked and published; a
   /// pair it did not advertise — including one whose file changed since the
   /// walk — is answered 404, which the caller counts as an unapplied file and
   /// retries next session.
+  ///
+  /// `PUT` is the other direction: the initiator pushing a file this device
+  /// asked for, because it could not fetch it (slice 23).
   Future<void> _handleWorkspaceFile(
     HttpRequest request,
     String peerDeviceId,
   ) async {
+    if (request.method == 'PUT') {
+      await _receiveWorkspaceFile(request, peerDeviceId);
+      return;
+    }
     if (request.method != 'POST') {
       _safeRespond(request, HttpStatus.methodNotAllowed, {
-        'error': 'post_only',
+        'error': 'post_or_put',
       });
       return;
     }
@@ -640,6 +680,68 @@ class SyncServer {
       relPath,
     );
     await _streamFile(request, file, error: 'workspace_file_unavailable');
+  }
+
+  /// Receives one pushed workspace file. The metadata is in the headers and the
+  /// bytes are the body, so nothing is buffered and the declared length is what
+  /// the handler checks the file against.
+  Future<void> _receiveWorkspaceFile(
+    HttpRequest request,
+    String peerDeviceId,
+  ) async {
+    if (request.headers.value(HttpHeaders.contentEncodingHeader) != null) {
+      // The body is bytes, not a codec: a compressed one would have to be
+      // decompressed before its length means anything, and the length is the
+      // whole check.
+      _safeRespond(request, HttpStatus.badRequest, {'error': 'unencoded_only'});
+      return;
+    }
+    final workspaceId = _decodedHeader(request, workspaceIdHeader);
+    final relPath = _decodedHeader(request, workspaceRelPathHeader);
+    final mtimeMs = int.tryParse(
+      request.headers.value(workspaceMtimeHeader) ?? '',
+    );
+    final size = request.contentLength;
+    if (workspaceId == null ||
+        workspaceId.isEmpty ||
+        relPath == null ||
+        relPath.isEmpty ||
+        mtimeMs == null) {
+      _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_request'});
+      return;
+    }
+    if (size < 0) {
+      // A chunked push declares no length, and this route exists to check the
+      // bytes against a length that was agreed in advance.
+      _safeRespond(request, HttpStatus.lengthRequired, {
+        'error': 'length_required',
+      });
+      return;
+    }
+    final landed = await handler.handlePutWorkspaceFile(
+      peerDeviceId,
+      workspaceId,
+      relPath,
+      size: size,
+      mtimeMs: mtimeMs,
+      body: request,
+    );
+    await _respondNoContent(
+      request,
+      landed ? HttpStatus.noContent : HttpStatus.notFound,
+    );
+  }
+
+  /// One header's base64url-decoded UTF-8 value, or null when it is absent or
+  /// not that. Peer input, so it never throws.
+  static String? _decodedHeader(HttpRequest request, String name) {
+    final raw = request.headers.value(name);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      return utf8.decode(base64Url.decode(raw));
+    } catch (_) {
+      return null;
+    }
   }
 
   /// One file, streamed with its length. A refusal (null or a file that

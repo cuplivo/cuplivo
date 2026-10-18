@@ -8,7 +8,15 @@ import 'package:Cuplivo/l10n/app_localizations.dart';
 const _split = CompressContextSplit(
   totalTokens: 42300,
   keptTokens: 6100,
-  summarizedTokens: 36200,
+  summaryInputTokens: 36200,
+);
+
+/// Tool-heavy shape: the summarized span is mostly tool payload, so the band's
+/// base (the body-only summary input) is far smaller than `total − kept`.
+const _toolHeavySplit = CompressContextSplit(
+  totalTokens: 40000,
+  keptTokens: 9000,
+  summaryInputTokens: 3000,
 );
 
 Future<void> pumpReadout(
@@ -106,13 +114,28 @@ void main() {
     expect(find.text('3 rounds + summary'), findsOneWidget);
   });
 
+  testWidgets('the band follows the summary input, not total − kept', (
+    tester,
+  ) async {
+    await pumpReadout(
+      tester,
+      split: _toolHeavySplit,
+      brightness: Brightness.dark,
+      language: 'en',
+    );
+
+    expect(find.textContaining('−76%'), findsOneWidget);
+    expect(find.textContaining('9.3k'), findsOneWidget);
+    expect(find.textContaining('9.9k'), findsOneWidget);
+  });
+
   testWidgets('empty split renders nothing', (tester) async {
     await pumpReadout(
       tester,
       split: const CompressContextSplit(
         totalTokens: 0,
         keptTokens: 0,
-        summarizedTokens: 0,
+        summaryInputTokens: 0,
       ),
       brightness: Brightness.light,
       language: 'en',

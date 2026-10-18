@@ -153,13 +153,15 @@ String _compressContextErrorMessage(AppLocalizations l10n, String error) {
 class _CompressContextOptionsDialog extends StatefulWidget {
   const _CompressContextOptionsDialog({
     required this.collapsedMessages,
-    required this.weights,
+    required this.weightsFor,
   });
 
   final List<ChatMessage> collapsedMessages;
 
-  /// Per-message token weights, aligned with [collapsedMessages].
-  final CompressContextWeights weights;
+  /// Per-message token weights, requested the first time the dialog shows a
+  /// keep-N readout. Counting is linear in text volume and the default mode
+  /// never renders one, so it is not paid for on every open.
+  final Future<CompressContextWeights> Function() weightsFor;
 
   @override
   State<_CompressContextOptionsDialog> createState() =>
@@ -172,6 +174,7 @@ class _CompressContextOptionsDialogState
   late final TextEditingController _maxCharsController;
   late final TextEditingController _keepCountController;
   String? _error;
+  Future<CompressContextWeights>? _weightsFuture;
 
   int get _userMessageCount => countUserMessages(widget.collapsedMessages);
 
@@ -279,10 +282,22 @@ class _CompressContextOptionsDialogState
     }
     final start = keepRecentStartIndex(widget.collapsedMessages, keepCount);
     if (start == null || start == 0) return const SizedBox.shrink();
-    return CompressContextReadout(
-      split: widget.weights.splitAt(start),
-      rounds: _userMessageCount,
-      keptRounds: keepCount,
+    // Counted on the first keep-N render, never before the dialog opens: the
+    // estimate is linear in text volume (~0.1 s/MB) and no other mode shows a
+    // readout. The future is memoized, so changing N or leaving and returning
+    // to keep-N only re-sums integers.
+    final weights = _weightsFuture ??= widget.weightsFor();
+    return FutureBuilder<CompressContextWeights>(
+      future: weights,
+      builder: (context, snapshot) {
+        final loaded = snapshot.data;
+        if (loaded == null) return const SizedBox.shrink();
+        return CompressContextReadout(
+          split: loaded.splitAt(start),
+          rounds: _userMessageCount,
+          keptRounds: keepCount,
+        );
+      },
     );
   }
 
@@ -2057,16 +2072,15 @@ class _HomePageState extends State<HomePage>
         .allMessagesForCurrentConversationContext();
     final collapsed = _controller.collapseVersions(allMsgs);
     if (!mounted) return;
-    // Counted before the dialog opens: the readout must not tokenize on a
-    // keystroke, and the dialog then stays synchronous and testable.
-    final weights = await _controller.compressContextWeights(collapsed);
-    if (!mounted) return;
+    // The weights are handed over as a loader, not computed here: the dialog
+    // requests them when a keep-N readout is actually displayed, so opening the
+    // dialog in the default mode costs nothing.
     final options = await showDialog<CompressContextOptions>(
       context: context,
       barrierDismissible: true,
       builder: (_) => _CompressContextOptionsDialog(
         collapsedMessages: collapsed,
-        weights: weights,
+        weightsFor: () => _controller.compressContextWeights(collapsed),
       ),
     );
     if (options == null || !mounted) return;

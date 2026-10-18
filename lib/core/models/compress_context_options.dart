@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../../utils/mcp_structured_image.dart';
 import '../../utils/utf16_safe_cut.dart';
 import 'chat_message.dart';
+import 'message_part.dart';
 
 enum CompressContextLimitMode { start, recent, unlimited, keepRecent }
 
@@ -478,6 +479,11 @@ Future<String> _summarizeWithContextRetry(
 /// call and tool result. It is deliberately *not* the text a compression
 /// request carries — that stays body-only ([conversationLineForCompression]) —
 /// so counting tool payloads here never makes a request larger.
+///
+/// Images are counted separately ([compressWeightImageCountForMessage]): the
+/// model receives them as image parts, not as the markdown line a tool result
+/// carries, so that line is stripped here exactly like `ToolResultContent`
+/// strips it before sending.
 String compressWeightTextForMessage(
   ChatMessage message, {
   required List<Map<String, dynamic>> toolEvents,
@@ -498,8 +504,24 @@ String compressWeightTextForMessage(
         // An argument map that cannot be encoded is not worth failing an
         // estimate over; the result below is usually the heavier half anyway.
       }
+    } else if (arguments != null) {
+      // Streamed JSON that never finished parsing is persisted as a raw
+      // String (stream_chunk_handler.dart); dropping it would silently
+      // uncount this call's arguments.
+      final raw = arguments.toString();
+      if (raw.trim().isNotEmpty) {
+        buffer
+          ..write('\n')
+          ..write(raw);
+      }
     }
-    final result = toolResultContentForModel(event['content']?.toString());
+    var result = toolResultContentForModel(event['content']?.toString());
+    for (final uri in _toolResultImageUris(event)) {
+      result = result.replaceAll(
+        '![](${encodeMarkdownImageDestination(uri)})',
+        '',
+      );
+    }
     if (result.trim().isNotEmpty) {
       buffer
         ..write('\n')
@@ -509,41 +531,98 @@ String compressWeightTextForMessage(
   return buffer.toString();
 }
 
-/// Estimated token weight of every message a compression would touch, aligned
-/// with the compressed message list.
-class CompressContextWeights {
-  const CompressContextWeights({required this.tokens});
+/// Images the model receives from one message: its attached image parts plus
+/// the typed images of its tool results.
+///
+/// Only `metadata.mcpResult.imageUris` counts, because that is exactly what
+/// `ToolResultContent` turns into image input — also when a later request
+/// rebuilds the turn from history. The older envelope's `imageUris` and a
+/// result's markdown `![...](path)` line never become image parts, so they stay
+/// what they are: text the model reads.
+///
+/// Whether the target model accepts image input is not consulted: a model
+/// without vision receives a text marker instead, and charging the image anyway
+/// errs high rather than promising a saving that is not there.
+int compressWeightImageCountForMessage(
+  ChatMessage message, {
+  required List<Map<String, dynamic>> toolEvents,
+}) {
+  var count = 0;
+  for (final part in message.parts) {
+    if (part is ImagePart && !part.unavailable && part.uri.trim().isNotEmpty) {
+      count++;
+    }
+  }
+  for (final event in toolEvents) {
+    count += _toolResultImageUris(event).length;
+  }
+  return count;
+}
 
-  /// Fallback for text that could not be tokenized: one char count per
-  /// message, run through the conservative ratio.
-  factory CompressContextWeights.fromCharsPerToken(
+/// Typed image URIs of one tool event, in `ToolResultContent`'s reading.
+List<String> _toolResultImageUris(Map<String, dynamic> event) {
+  final metadata = event['metadata'];
+  if (metadata is! Map) return const <String>[];
+  return mcpResultImageUris(
+    readMcpResultMetadata(metadata.cast<String, dynamic>()),
+  );
+}
+
+/// Estimated token weights of every message a compression would touch,
+/// aligned with the compressed message list.
+///
+/// Two columns, because the two ends of a compression read different things:
+/// [modelTokens] is what the model sees for a message (body, tool payloads,
+/// images), [summaryInputTokens] is what the summarizer reads for it (its body
+/// line only). The kept region is described by the first, the summary by the
+/// second — see [CompressContextSplit.summaryInputTokens].
+class CompressContextWeights {
+  const CompressContextWeights({
+    required this.modelTokens,
+    required this.summaryInputTokens,
+  });
+
+  /// Conservative fallback for text that could not be tokenized: one token per
+  /// [CompressContextOptions.charsPerToken] characters.
+  static List<int> tokensFromChars(
     List<int> chars, {
     double charsPerToken = CompressContextOptions.charsPerToken,
   }) {
     final ratio = charsPerToken > 0
         ? charsPerToken
         : CompressContextOptions.charsPerToken;
-    return CompressContextWeights(
-      tokens: [for (final length in chars) (length / ratio).ceil()],
-    );
+    return [for (final length in chars) (length / ratio).ceil()];
   }
 
-  final List<int> tokens;
+  /// What the model sees, per message.
+  final List<int> modelTokens;
+
+  /// What the summarizer reads, per message — the base of the result band.
+  final List<int> summaryInputTokens;
 
   /// Split the weights at [keepStartIndex]: everything from there on stays
   /// verbatim, everything before it is summarized.
   CompressContextSplit splitAt(int keepStartIndex) {
-    final start = keepStartIndex.clamp(0, tokens.length);
+    assert(
+      summaryInputTokens.length == modelTokens.length,
+      'weight columns must be aligned with the same message list',
+    );
+    final start = keepStartIndex.clamp(0, modelTokens.length);
     var total = 0;
     var kept = 0;
-    for (var i = 0; i < tokens.length; i++) {
-      total += tokens[i];
-      if (i >= start) kept += tokens[i];
+    var summaryInput = 0;
+    for (var i = 0; i < modelTokens.length; i++) {
+      total += modelTokens[i];
+      if (i >= start) {
+        kept += modelTokens[i];
+      } else {
+        summaryInput += summaryInputTokens[i];
+      }
     }
     return CompressContextSplit(
       totalTokens: total,
       keptTokens: kept,
-      summarizedTokens: total - kept,
+      summaryInputTokens: summaryInput,
     );
   }
 }
@@ -553,7 +632,7 @@ class CompressContextSplit {
   const CompressContextSplit({
     required this.totalTokens,
     required this.keptTokens,
-    required this.summarizedTokens,
+    required this.summaryInputTokens,
   });
 
   /// Share of the summarized span assumed to survive as the summary. Both ends
@@ -562,14 +641,17 @@ class CompressContextSplit {
   static const double minSummaryFraction = 0.10;
   static const double maxSummaryFraction = 0.30;
 
-  /// Tokens of the whole compressed span.
+  /// Tokens of the whole compressed span, as the model sees it.
   final int totalTokens;
 
-  /// Tokens that stay verbatim.
+  /// Tokens that stay verbatim, as the model sees them.
   final int keptTokens;
 
-  /// Tokens handed to the summarizer.
-  final int summarizedTokens;
+  /// Tokens of the summarized span **as the summarizer reads it** — bodies
+  /// only. Deliberately not `totalTokens - keptTokens`: tool payloads are model
+  /// tokens that never enter a compression request, so applying the summary
+  /// fraction to the tool-inclusive mass understates the reduction.
+  final int summaryInputTokens;
 
   int get minResultTokens => _withSummary(minSummaryFraction);
   int get maxResultTokens => _withSummary(maxSummaryFraction);
@@ -580,10 +662,10 @@ class CompressContextSplit {
   /// Whole-percent reduction from [totalTokens] to [midResultTokens]; 0 when
   /// there is nothing to compress, or nothing to measure.
   int get reductionPercent {
-    if (totalTokens <= 0 || summarizedTokens <= 0) return 0;
+    if (totalTokens <= 0 || summaryInputTokens <= 0) return 0;
     return ((totalTokens - midResultTokens) / totalTokens * 100).round();
   }
 
   int _withSummary(double fraction) =>
-      keptTokens + (summarizedTokens * fraction).round();
+      keptTokens + (summaryInputTokens * fraction).round();
 }

@@ -1486,8 +1486,9 @@ class HomeViewModel extends ChangeNotifier {
   /// Per-message token weights for the compress dialog's readout.
   ///
   /// The dialog previews what a compression costs, so this counts what the
-  /// model sees — bodies plus tool calls and results — over the same message
-  /// list the compression itself will walk.
+  /// model sees — bodies plus tool calls, tool results and images — over the
+  /// same message list the compression itself will walk. It is called on demand
+  /// (the first time the dialog displays a keep-N readout), not on every open.
   Future<CompressContextWeights> compressContextWeights(
     List<ChatMessage> messages,
   ) {

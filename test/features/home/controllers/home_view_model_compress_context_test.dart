@@ -2,8 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
 import 'package:Cuplivo/core/utils/token_estimator.dart';
 import 'package:Cuplivo/features/home/controllers/home_view_model.dart';
+import 'package:Cuplivo/utils/mcp_structured_image.dart';
 
 ChatMessage _message({
   required String id,
@@ -168,6 +170,112 @@ void main() {
 
       expect(text.trim(), '[noop]');
     });
+
+    test('参数是未解析的字符串时照样计入', () {
+      final text = compressWeightTextForMessage(
+        _message(id: 'a1', role: 'assistant', content: ''),
+        toolEvents: const [
+          {'name': 'read_file', 'arguments': '{"path":"lib/main.dar'},
+        ],
+      );
+
+      expect(text, contains('{"path":"lib/main.dar'));
+    });
+
+    test('typed 图片的结果行按模型所见剥离，只留文本', () {
+      final text = compressWeightTextForMessage(
+        _message(id: 'a1', role: 'assistant', content: ''),
+        toolEvents: const [
+          {
+            'name': 'view_image',
+            'content': 'Image (1024 x 768).\n![](/images/x.png)',
+            'metadata': {
+              'mcpResult': {
+                'version': 1,
+                'imageUris': ['/images/x.png'],
+              },
+            },
+          },
+        ],
+      );
+
+      expect(text, contains('Image (1024 x 768).'));
+      expect(text, isNot(contains('![](')));
+    });
+  });
+
+  group('compressWeightImageCountForMessage', () {
+    test('附件图片计入，不可用与空 uri 不计', () {
+      final message = ChatMessage(
+        id: 'u1',
+        role: 'user',
+        parts: const [
+          ImagePart(uri: '/images/a.png'),
+          ImagePart(uri: '/images/b.png', unavailable: true),
+          ImagePart(uri: '   '),
+        ],
+        conversationId: 'conversation-1',
+      );
+
+      expect(
+        compressWeightImageCountForMessage(message, toolEvents: const []),
+        1,
+      );
+    });
+
+    test('只认 metadata.mcpResult 的 typed 图片', () {
+      final message = _message(id: 'a1', role: 'assistant', content: 'done');
+
+      expect(
+        compressWeightImageCountForMessage(
+          message,
+          toolEvents: const [
+            {
+              'name': 'view_image',
+              'content': 'Image (1024 x 768).\n![](/images/x.png)',
+              'metadata': {
+                'mcpResult': {
+                  'version': 1,
+                  'imageUris': ['/images/x.png', '/images/y.png'],
+                },
+              },
+            },
+          ],
+        ),
+        2,
+      );
+      // 同样的 markdown 行，但没有 typed metadata：路径只是文本。
+      expect(
+        compressWeightImageCountForMessage(
+          message,
+          toolEvents: const [
+            {
+              'name': 'mcp_search',
+              'content': 'found:\n![](https://example.test/a.png)',
+            },
+          ],
+        ),
+        0,
+      );
+    });
+
+    test('legacy envelope 的 imageUris 不会送到模型，不计图片', () {
+      final message = _message(id: 'a1', role: 'assistant', content: 'done');
+      final legacy = encodeLegacyMcpToolResultEnvelope(
+        text: 'ok',
+        imageUris: ['/images/y.png'],
+      );
+
+      expect(
+        compressWeightImageCountForMessage(
+          message,
+          toolEvents: [
+            {'name': 'mcp_tool', 'content': legacy},
+          ],
+        ),
+        0,
+      );
+    });
   });
 
   group('HomeViewModel.computeClearContextRemainingMessageCount', () {
@@ -322,43 +430,59 @@ void main() {
   });
 
   group('CompressContextWeights.splitAt', () {
-    test('按下标切分 token，保留段从下标起算', () {
+    test('模型口径切 token，摘要区间底数取正文列', () {
       final weights = CompressContextWeights(
-        tokens: const [100, 200, 300, 400],
+        modelTokens: const [100, 200, 300, 400],
+        summaryInputTokens: const [10, 20, 30, 40],
       );
 
       final split = weights.splitAt(2);
 
       expect(split.totalTokens, 1000);
       expect(split.keptTokens, 700);
-      expect(split.summarizedTokens, 300);
+      expect(split.summaryInputTokens, 30);
     });
 
     test('下标为 0 / 越界的边界', () {
-      final weights = CompressContextWeights(tokens: const [10, 20]);
+      final weights = CompressContextWeights(
+        modelTokens: const [10, 20],
+        summaryInputTokens: const [1, 2],
+      );
 
       expect(weights.splitAt(0).keptTokens, 30);
-      expect(weights.splitAt(0).summarizedTokens, 0);
+      expect(weights.splitAt(0).summaryInputTokens, 0);
       expect(weights.splitAt(9).keptTokens, 0);
-      expect(weights.splitAt(9).summarizedTokens, 30);
+      expect(weights.splitAt(9).summaryInputTokens, 3);
     });
 
     test('空列表得到全零', () {
-      final split = const CompressContextWeights(tokens: []).splitAt(0);
+      final split = const CompressContextWeights(
+        modelTokens: [],
+        summaryInputTokens: [],
+      ).splitAt(0);
 
       expect(split.totalTokens, 0);
       expect(split.keptTokens, 0);
-      expect(split.summarizedTokens, 0);
+      expect(split.summaryInputTokens, 0);
       expect(split.reductionPercent, 0);
+    });
+
+    test('两列长度不一致时断言失败', () {
+      final weights = CompressContextWeights(
+        modelTokens: const [10],
+        summaryInputTokens: const [1, 2],
+      );
+
+      expect(() => weights.splitAt(1), throwsA(isA<AssertionError>()));
     });
   });
 
   group('CompressContextSplit', () {
-    test('结果区间 = 保留段 + 被总结段的 10%–30%', () {
+    test('结果区间 = 保留段 + 被总结段正文 token 的 10%–30%', () {
       const split = CompressContextSplit(
         totalTokens: 1000,
         keptTokens: 400,
-        summarizedTokens: 600,
+        summaryInputTokens: 600,
       );
 
       expect(split.minResultTokens, 460);
@@ -367,34 +491,44 @@ void main() {
       expect(split.reductionPercent, 48);
     });
 
+    test('含工具的总量不做底数：区间只随正文列走', () {
+      const split = CompressContextSplit(
+        totalTokens: 1000,
+        keptTokens: 400,
+        summaryInputTokens: 100,
+      );
+
+      expect(split.minResultTokens, 410);
+      expect(split.maxResultTokens, 430);
+      expect(split.midResultTokens, 420);
+      expect(split.reductionPercent, 58);
+    });
+
     test('无可压缩内容时降幅为 0', () {
       const split = CompressContextSplit(
         totalTokens: 500,
         keptTokens: 500,
-        summarizedTokens: 0,
+        summaryInputTokens: 0,
       );
 
       expect(split.reductionPercent, 0);
     });
   });
 
-  group('CompressContextWeights.fromCharsPerToken', () {
+  group('CompressContextWeights.tokensFromChars', () {
     test('按保守比值回退', () {
-      final weights = CompressContextWeights.fromCharsPerToken(const [
-        16,
+      expect(CompressContextWeights.tokensFromChars(const [16, 0, 7]), [
+        10,
         0,
-        7,
+        5,
       ]);
-
-      expect(weights.tokens, [10, 0, 5]);
     });
 
     test('非法比值退回默认常量', () {
-      final weights = CompressContextWeights.fromCharsPerToken(const [
-        8,
-      ], charsPerToken: 0);
-
-      expect(weights.tokens, [5]);
+      expect(
+        CompressContextWeights.tokensFromChars(const [8], charsPerToken: 0),
+        [5],
+      );
     });
   });
 
@@ -405,7 +539,14 @@ void main() {
 
       // tokenx: 115 个汉字 ≈ 100 token，700 个小写字母 ≈ 100 token。
       final weights = CompressContextWeights(
-        tokens: [estimateTokens(head.content), estimateTokens(tail.content)],
+        modelTokens: [
+          estimateTokens(head.content),
+          estimateTokens(tail.content),
+        ],
+        summaryInputTokens: [
+          estimateTokens(conversationLineForCompression(head) ?? ''),
+          estimateTokens(conversationLineForCompression(tail) ?? ''),
+        ],
       );
       final split = weights.splitAt(1);
       final charKeptShare =

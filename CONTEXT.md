@@ -927,6 +927,37 @@ contradicts one of them is a bug, not a preference.
   those sizes and 5× pixels, and an inline picture taller than the prose line is shrunk into it, because the
   writer advances the line *after* a span by its overhang and a paragraph of formulas would otherwise read as a
   paragraph of gaps.
+- **Line filling (行填充)**: `_filled` — the pass that hands the writer the line breaks it does not compute.
+  The writer's tokenizer splits on whitespace alone (`text.dart`, `_buildLines`), and a Chinese sentence has
+  none: it arrives as **one word**, and a word that does not fit the room left on a line is moved to the next
+  one whole. So the line before it ended where that word began — the short line a review of a first export
+  found, always in the same place: after a Latin word and a space. The layout now measures the line itself, with
+  the writer's own metrics (`Font.getFont(context)`, asked of the running layout's context), and puts a break
+  opportunity exactly at each line's end. It is not a second line breaker: the writer still draws and breaks the
+  text, and every opportunity is where the writer would have broken if it could.
+- **Break opportunity (断点)**: the separator the pass above inserts — a space in a span of its own whose
+  `wordSpacing` is `0`. Zero is what makes it free and invisible: the writer advances a separator by
+  `stringMetrics(' ').advanceWidth * wordSpacing` and never draws one, so it costs no width and leaves no gap, a
+  page of Chinese still copies and searches as one unbroken run (a first attempt put one opportunity after every
+  *character*, which read back as `小 节 标 题`), and the line is still one string. The two rules a Chinese
+  typesetter applies are applied here, because the writer has neither: `。` never opens a line and `「` never
+  closes one, and a break never lands inside a Latin word. A run that does not fit the room left is cut inside
+  itself for the same reason — the writer's own `_splitWord` walks code units and knows none of those rules,
+  which is how a line came to open with `。`.
+- **Hanging indent (挂缩进)**: how a wrapped list item lines up under its text rather than under its marker.
+  The writer cannot draw it — its text starts every line at the paragraph's own left edge, and the widgets that
+  would give it the indent (`Row`, a `Table` row) are the unbreakable boxes this layout exists to avoid. So the
+  item's first line is cut out by the same measurement as **Line filling**, and the item reaches the page as
+  two leaves: the marker with the line it fits, and everything after it one step (`_indentStep`) in, keeping the
+  first leaf's bottom gap so the item's spacing is unchanged. A marker this layout cannot measure — a task box,
+  which is a widget — leaves the item exactly as it was.
+- **Font default (字面跟随设置)**: the faces the export dialog offers when it opens. The page is meant to look
+  like the app's screen, so the first dialog of a session seeds 正文 from the app font and 代码 from the code
+  font (`PdfFontResolver.preferred`, asked of the same candidate list the picker shows) rather than leaving both
+  at auto. It happens once per session and only over roles still on auto, so a user who chose something keeps
+  it. A settings family is what the app's picker called the font — for a font installed on this machine, the
+  file's own name with its type in brackets — so a family whose own file the writer cannot open (CFF `.otf`, as
+  this machine's Noto Sans SC Medium is) is answered with the same family's embeddable file instead of nothing.
 
 Deliberate divergences from the screen (each measured, not a matter of taste — ADR-0012 candidates):
 
@@ -952,10 +983,14 @@ Deliberate divergences from the screen (each measured, not a matter of taste —
   the prose line — both are the screen's own ratios read onto paper.
 - The paragraph gap is the page's own, not the screen's blank line — two empty lines of list height is a chat
   convention, and a printed page that airy spends a fifth of its length on nothing. A blank line the *source*
-  wrote is folded into that gap too (31.6 → 16.9 points, the price of a paragraph break) rather than drawn as
+  wrote is folded into that gap too (31.6 → 19.9 points, the price of a paragraph break) rather than drawn as
   one, which the renderer does do: a run of prose reaches the page as one text node with the blank line still
   inside it, and drawing it literally costs two line pitches for one gap. A blank line *inside* an emphasised
   run (`**a` / blank / `b**`) is still drawn, because splitting there would split the emphasis.
+- The page leads at **1.6 of its size** (16.8pt beside the screen's 1.5) and its paragraph gap is **8 points**.
+  A first review found the page cramped: at 1.5 and 5 points a paragraph break added barely a point over a line
+  pitch, so prose and lists read as one wall. A list is spaced by that same gap and by nothing of its own — its
+  items carry the body's skin — which is why "the list is too tight" was the paragraph gap, not the list.
 - A link keeps its underline: the screen separates a link by colour alone, and paper has no hover.
 - A bare `[n]` citation chip stays a number rather than becoming a capsule.
 - The rest of the message chrome — the reasoning rail, tool cards, the sources card, the token footer — is
@@ -977,4 +1012,11 @@ Confirmed limitations (evidence first, for ADR-0012):
   tables, while the writer also needs CBLC `indexFormat == 1` and CBDT `imageFormat == 17`. A face that fails
   those is drawn from its outlines in a single colour rather than dropped, so the note can overstate — never
   understate — what the page will do.
+- **A table cell is not line-filled.** A cell's width belongs to the table, and the layout builds the cell's
+  widgets before the table has a column to lay them out in; an opportunity placed for the page's own column
+  would be *later* than the cell's end, which would leave the cell's lines shorter than they were before. A cell
+  therefore still reaches the writer as one word per run, and a table of Chinese sets its cells the writer's way.
+- **A list item whose marker is a widget does not hang.** The first line is cut by measurement, and a task item's
+  marker is a `WidgetSpan` whose width is the laid-out child's — so those items keep the flush-left second line
+  the whole page had before. A text marker (`-`, `1.`) is measured and hangs.
 

@@ -826,25 +826,47 @@
   "compressContextModelLabel": "压缩模型",
   "compressContextModelUnset": "选择模型",
   "compressContextKeepRecentMessages": "保留N条",
-  "compressContextKeepCountLabel": "保留最近条数",
-  "compressContextKeepAllMessages": "保留条数覆盖全部消息，无内容可压缩",
-  "compressContextEstimatePreview": "总结 {summarized} 字符，原样保留 {kept} 字符 → 压缩后约 {minTokens}–{maxTokens} tokens（原文约 {totalTokens} tokens）",
-  "@compressContextEstimatePreview": {
-    "description": "Keep-recent compression preview: summarized/kept char counts and the estimated result token band",
+  "compressContextKeepCountLabel": "保留最近轮数",
+  "compressContextKeepAllMessages": "保留轮数覆盖全部消息，无内容可压缩",
+  "compressContextReadoutRounds": "共 {rounds} 轮",
+  "@compressContextReadoutRounds": {
     "placeholders": {
-      "summarized": {
+      "rounds": {
         "type": "int"
-      },
-      "kept": {
+      }
+    }
+  },
+  "compressContextReadoutKeptRounds": "{rounds} 轮 + 摘要",
+  "@compressContextReadoutKeptRounds": {
+    "placeholders": {
+      "rounds": {
         "type": "int"
+      }
+    }
+  },
+  "compressContextReadoutTokens": "~{tokens} token",
+  "@compressContextReadoutTokens": {
+    "placeholders": {
+      "tokens": {
+        "type": "String"
+      }
+    }
+  },
+  "compressContextReadoutTokensBand": "~{min}–{max} token",
+  "@compressContextReadoutTokensBand": {
+    "placeholders": {
+      "min": {
+        "type": "String"
       },
-      "minTokens": {
-        "type": "int"
-      },
-      "maxTokens": {
-        "type": "int"
-      },
-      "totalTokens": {
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "compressContextReadoutReduction": "−{percent}%",
+  "@compressContextReadoutReduction": {
+    "placeholders": {
+      "percent": {
         "type": "int"
       }
     }

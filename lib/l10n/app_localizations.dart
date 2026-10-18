@@ -4483,26 +4483,44 @@ abstract class AppLocalizations {
   /// No description provided for @compressContextKeepCountLabel.
   ///
   /// In en, this message translates to:
-  /// **'Keep recent messages'**
+  /// **'Keep recent rounds'**
   String get compressContextKeepCountLabel;
 
   /// No description provided for @compressContextKeepAllMessages.
   ///
   /// In en, this message translates to:
-  /// **'Keeping that many covers all messages — nothing to compress'**
+  /// **'Keeping that many covers all rounds — nothing to compress'**
   String get compressContextKeepAllMessages;
 
-  /// Keep-recent compression preview: summarized/kept char counts and the estimated result token band
+  /// No description provided for @compressContextReadoutRounds.
   ///
   /// In en, this message translates to:
-  /// **'Summarize {summarized} chars, keep {kept} chars verbatim → about {minTokens}–{maxTokens} tokens (original about {totalTokens} tokens)'**
-  String compressContextEstimatePreview(
-    int summarized,
-    int kept,
-    int minTokens,
-    int maxTokens,
-    int totalTokens,
-  );
+  /// **'{rounds, plural, =1{1 round} other{{rounds} rounds}}'**
+  String compressContextReadoutRounds(int rounds);
+
+  /// No description provided for @compressContextReadoutKeptRounds.
+  ///
+  /// In en, this message translates to:
+  /// **'{rounds, plural, =1{1 round} other{{rounds} rounds}} + summary'**
+  String compressContextReadoutKeptRounds(int rounds);
+
+  /// No description provided for @compressContextReadoutTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'~{tokens} tokens'**
+  String compressContextReadoutTokens(String tokens);
+
+  /// No description provided for @compressContextReadoutTokensBand.
+  ///
+  /// In en, this message translates to:
+  /// **'~{min}–{max} tokens'**
+  String compressContextReadoutTokensBand(String min, String max);
+
+  /// No description provided for @compressContextReadoutReduction.
+  ///
+  /// In en, this message translates to:
+  /// **'−{percent}%'**
+  String compressContextReadoutReduction(int percent);
 
   /// No description provided for @bottomToolsSheetLearningMode.
   ///

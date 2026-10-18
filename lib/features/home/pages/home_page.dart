@@ -63,6 +63,7 @@ import '../widgets/learning_prompt_sheet.dart';
 import '../widgets/scroll_nav_buttons.dart';
 import '../widgets/message_list_view.dart';
 import '../widgets/chat_input_section.dart';
+import '../widgets/compress_context_readout.dart';
 import '../widgets/conversation_system_prompt_button.dart';
 import '../widgets/chat_input_overlay_layout.dart';
 import '../widgets/chat_selection_app_bar.dart';
@@ -152,9 +153,17 @@ String _compressContextErrorMessage(AppLocalizations l10n, String error) {
 }
 
 class _CompressContextOptionsDialog extends StatefulWidget {
-  const _CompressContextOptionsDialog({required this.collapsedMessages});
+  const _CompressContextOptionsDialog({
+    required this.collapsedMessages,
+    required this.weightsFor,
+  });
 
   final List<ChatMessage> collapsedMessages;
+
+  /// Per-message token weights, requested the first time the dialog shows a
+  /// keep-N readout. Counting is linear in text volume and the default mode
+  /// never renders one, so it is not paid for on every open.
+  final Future<CompressContextWeights> Function() weightsFor;
 
   @override
   State<_CompressContextOptionsDialog> createState() =>
@@ -166,8 +175,8 @@ class _CompressContextOptionsDialogState
   CompressContextLimitMode _mode = CompressContextLimitMode.start;
   late final TextEditingController _maxCharsController;
   late final TextEditingController _keepCountController;
-  late final String _totalTextForEstimate;
   String? _error;
+  Future<CompressContextWeights>? _weightsFuture;
 
   int get _userMessageCount => countUserMessages(widget.collapsedMessages);
 
@@ -189,9 +198,6 @@ class _CompressContextOptionsDialogState
           (settings.compressKeepUserMessages ??
                   defaultKeepUserMessageCountFor(_userMessageCount))
               .toString(),
-    );
-    _totalTextForEstimate = buildConversationTextForCompression(
-      widget.collapsedMessages,
     );
   }
 
@@ -259,23 +265,41 @@ class _CompressContextOptionsDialogState
     ).pop(CompressContextOptions(mode: _mode, maxChars: maxChars));
   }
 
-  String _keepEstimateText(AppLocalizations l10n) {
-    final keptText = buildConversationTextForCompression(
-      selectKeepRecentMessages(widget.collapsedMessages, _keepCount ?? 0),
-    );
-    final summarizedChars = (_totalTextForEstimate.length - keptText.length)
-        .clamp(0, _totalTextForEstimate.length)
-        .toInt();
-    final est = estimateCompressionTokens(
-      totalText: _totalTextForEstimate,
-      keptText: keptText,
-    );
-    return l10n.compressContextEstimatePreview(
-      summarizedChars,
-      keptText.length,
-      est.minResultTokens,
-      est.maxResultTokens,
-      est.totalTokens,
+  /// What the keep count currently costs: rounds and tokens now, the reduction
+  /// over the arrow, then the kept tail plus its summary as a token band.
+  ///
+  /// Nothing is shown while the count is unusable; a count that covers every
+  /// round has its own message, because there is nothing to compress.
+  Widget _keepReadout(AppLocalizations l10n, ColorScheme cs) {
+    final keepCount = _keepCount;
+    if (keepCount == null || keepCount <= 0) return const SizedBox.shrink();
+    if (_keepCoversAll) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Text(
+          l10n.compressContextKeepAllMessages,
+          style: TextStyle(fontSize: 12, height: 1.35, color: cs.error),
+        ),
+      );
+    }
+    final start = keepRecentStartIndex(widget.collapsedMessages, keepCount);
+    if (start == null || start == 0) return const SizedBox.shrink();
+    // Counted on the first keep-N render, never before the dialog opens: the
+    // estimate is linear in text volume (~0.1 s/MB) and no other mode shows a
+    // readout. The future is memoized, so changing N or leaving and returning
+    // to keep-N only re-sums integers.
+    final weights = _weightsFuture ??= widget.weightsFor();
+    return FutureBuilder<CompressContextWeights>(
+      future: weights,
+      builder: (context, snapshot) {
+        final loaded = snapshot.data;
+        if (loaded == null) return const SizedBox.shrink();
+        return CompressContextReadout(
+          split: loaded.splitAt(start),
+          rounds: _userMessageCount,
+          keptRounds: keepCount,
+        );
+      },
     );
   }
 
@@ -380,18 +404,7 @@ class _CompressContextOptionsDialogState
                             },
                           ),
                           const SizedBox(height: 10),
-                          Text(
-                            _keepCoversAll
-                                ? l10n.compressContextKeepAllMessages
-                                : _keepEstimateText(l10n),
-                            style: TextStyle(
-                              fontSize: 12,
-                              height: 1.35,
-                              color: _keepCoversAll
-                                  ? cs.error
-                                  : cs.onSurface.withValues(alpha: 0.62),
-                            ),
-                          ),
+                          _keepReadout(l10n, cs),
                         ],
                         if (_error != null) ...[
                           const SizedBox(height: 6),
@@ -2066,11 +2079,16 @@ class _HomePageState extends State<HomePage>
         .allMessagesForCurrentConversationContext();
     final collapsed = _controller.collapseVersions(allMsgs);
     if (!mounted) return;
+    // The weights are handed over as a loader, not computed here: the dialog
+    // requests them when a keep-N readout is actually displayed, so opening the
+    // dialog in the default mode costs nothing.
     final options = await showDialog<CompressContextOptions>(
       context: context,
       barrierDismissible: true,
-      builder: (_) =>
-          _CompressContextOptionsDialog(collapsedMessages: collapsed),
+      builder: (_) => _CompressContextOptionsDialog(
+        collapsedMessages: collapsed,
+        weightsFor: () => _controller.compressContextWeights(collapsed),
+      ),
     );
     if (options == null || !mounted) return;
 

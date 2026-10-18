@@ -17,17 +17,18 @@ import '../../../utils/sandbox_path_resolver.dart';
 /// not have. Both would embed a font with no glyphs rather than fail, so the
 /// check is what keeps a "successful" export from being blanks.
 ///
+/// The version word also has to be `0x00010000` and not Apple's `'true'`, for a
+/// related reason: the writer decides a face is Unicode by that word alone
+/// (`ttf_parser.dart`: `unicode => bytes.getUint32(0) == 0x10000`) and writes
+/// every other face as Latin-1, so a `'true'` face is opened happily and then
+/// drops every rune outside U+00FF — silently, and while still reporting itself
+/// as a real face, which is the one thing this check exists to prevent.
+///
 /// Only the first bytes are read, so a caller may pass a file's head rather than
 /// the file: enumerating a font directory costs a header read per font.
 bool isPdfEmbeddableFont(Uint8List bytes) {
   if (bytes.length < 12) return false;
-  if (bytes[0] == 0 && bytes[1] == 1 && bytes[2] == 0 && bytes[3] == 0) {
-    return true;
-  }
-  return bytes[0] == 0x74 &&
-      bytes[1] == 0x72 &&
-      bytes[2] == 0x75 &&
-      bytes[3] == 0x65; // 'true'
+  return bytes[0] == 0 && bytes[1] == 1 && bytes[2] == 0 && bytes[3] == 0;
 }
 
 /// Whether [bytes] hold the colour bitmaps an emoji is drawn from.
@@ -241,6 +242,10 @@ class PdfFontResolver {
   /// on disk", which is what the dialog's first pass asks for.
   final GoogleFontsService? googleFonts;
 
+  /// The catalogue this resolver downloads through, carrying whether a download
+  /// has already failed for *this* resolver.
+  late final _Catalogue _catalogue = _Catalogue(googleFonts);
+
   final Map<PdfFontRole, List<PdfFontCandidate>> _candidates =
       <PdfFontRole, List<PdfFontCandidate>>{};
 
@@ -279,7 +284,7 @@ class PdfFontResolver {
     // A resolution that may not download is handed no catalogue at all, which is
     // what makes "already on disk" a property of this call rather than a flag
     // the deeper helpers have to remember to check.
-    final catalogue = allowDownload ? googleFonts : null;
+    final catalogue = allowDownload ? _catalogue : null;
     final bodyFace = await _resolveBody(
       appFontPath,
       choice: body,
@@ -289,7 +294,6 @@ class PdfFontResolver {
       codeFontPath,
       choice: mono,
       body: bodyFace,
-      catalogue: catalogue,
     );
     final emojiFace = await _resolveEmoji(choice: emoji, catalogue: catalogue);
     return PdfExportFonts(
@@ -365,17 +369,27 @@ class _Face {
       _Face(bytes, status.withFallback(reason));
 }
 
-/// Whether a download already failed in this run.
+/// The catalogue one resolver may download from, and whether a download has
+/// already failed for it.
 ///
 /// Each attempt costs three round trips' worth of timeout, and this runs before
-/// any visible progress, so a network that cannot reach the catalogue is asked
-/// once per launch rather than once per export.
-bool _downloadFailed = false;
+/// any visible progress, so a role that has failed is not asked again by the next
+/// role of the same resolution. It is deliberately *not* a library-level flag: a
+/// second dialog is a second resolver and gets a second chance, because the first
+/// failure can be a network that came back, or a catalogue that was closed by
+/// whoever owned it.
+class _Catalogue {
+  _Catalogue(this.service);
+
+  final GoogleFontsService? service;
+
+  bool failed = false;
+}
 
 Future<_Face> _resolveBody(
   String? appFontPath, {
   required PdfFontChoice choice,
-  required GoogleFontsService? catalogue,
+  required _Catalogue? catalogue,
 }) async {
   switch (choice) {
     case PdfFontBuiltIn():
@@ -387,7 +401,7 @@ Future<_Face> _resolveBody(
       final face = await _downloadFace(
         family: family,
         role: PdfFontRole.body,
-        googleFonts: catalogue,
+        catalogue: catalogue,
       );
       if (face != null) return face;
       // Nothing was asked of the network, so the row says what the check would
@@ -410,7 +424,7 @@ Future<_Face> _resolveBody(
 
 Future<_Face> _autoBody(
   String? appFontPath, {
-  required GoogleFontsService? catalogue,
+  required _Catalogue? catalogue,
 }) async {
   final picked = await _faceFromPath(appFontPath, PdfFontSource.picked);
   if (picked != null) return picked;
@@ -423,7 +437,7 @@ Future<_Face> _autoBody(
 
   final downloaded = await _downloadFace(
     role: PdfFontRole.body,
-    googleFonts: catalogue,
+    catalogue: catalogue,
   );
   if (downloaded != null) return downloaded;
 
@@ -434,7 +448,7 @@ Future<_Face> _autoBody(
 /// where the writer looks for an emoji's bitmap.
 Future<_Face> _resolveEmoji({
   required PdfFontChoice choice,
-  required GoogleFontsService? catalogue,
+  required _Catalogue? catalogue,
 }) async {
   switch (choice) {
     case PdfFontBuiltIn():
@@ -450,7 +464,7 @@ Future<_Face> _resolveEmoji({
       final face = await _downloadFace(
         family: family,
         role: PdfFontRole.emoji,
-        googleFonts: catalogue,
+        catalogue: catalogue,
       );
       if (face != null) return face;
       if (catalogue == null) {
@@ -469,7 +483,7 @@ Future<_Face> _resolveEmoji({
       : auto.withFallback(kPdfFontChosenUnusable);
 }
 
-Future<_Face> _autoEmoji({required GoogleFontsService? catalogue}) async {
+Future<_Face> _autoEmoji({required _Catalogue? catalogue}) async {
   final system = await _firstSystemFace(_emojiFontNameHints, PdfFontRole.emoji);
   if (system != null) return system;
 
@@ -478,7 +492,7 @@ Future<_Face> _autoEmoji({required GoogleFontsService? catalogue}) async {
 
   final downloaded = await _downloadFace(
     role: PdfFontRole.emoji,
-    googleFonts: catalogue,
+    catalogue: catalogue,
   );
   if (downloaded != null) return downloaded;
 
@@ -492,7 +506,6 @@ Future<_Face> _resolveMono(
   String? codeFontPath, {
   required PdfFontChoice choice,
   required _Face body,
-  required GoogleFontsService? catalogue,
 }) async {
   switch (choice) {
     case PdfFontBuiltIn():
@@ -697,16 +710,17 @@ Future<String> _cachedFaceFamily(File face) async {
 Future<_Face?> _downloadFace({
   required PdfFontRole role,
   String? family,
-  required GoogleFontsService? googleFonts,
+  required _Catalogue? catalogue,
 }) async {
-  if (googleFonts == null || _downloadFailed) return null;
+  final service = catalogue?.service;
+  if (service == null || catalogue!.failed) return null;
   try {
-    final entries = await googleFonts.loadCatalog();
+    final entries = await service.loadCatalog();
     final entry = family == null
         ? _pickEntry(entries, role)
         : _entryNamed(entries, family);
     if (entry == null) return null;
-    final downloaded = await googleFonts.download(entry);
+    final downloaded = await service.download(entry);
     try {
       final bytes = await downloaded.file.readAsBytes();
       if (!isPdfEmbeddableFont(bytes)) return null;
@@ -735,9 +749,9 @@ Future<_Face?> _downloadFace({
   } catch (_) {
     // Offline, rate-limited, or a family the catalogue no longer lists: the
     // system scan and the built-in font are the fallbacks. A failure is
-    // remembered for the run, so the next export does not wait behind the same
-    // three timeouts.
-    _downloadFailed = true;
+    // remembered for the rest of this resolver's resolution, so the other roles
+    // do not wait behind the same three timeouts.
+    catalogue.failed = true;
     return null;
   }
 }

@@ -49,6 +49,10 @@ Future<void> showPdfExportDialog(
   GoogleFontsService? googleFonts,
   PdfFontResolver? resolver,
   PdfExportRunner? run,
+  // The catalogue's own lifetime is what the dialog is responsible for, so a test
+  // that has to observe the close cannot pass one in: an injected service is the
+  // caller's and is deliberately left open.
+  @visibleForTesting GoogleFontsService Function()? createCatalogue,
 }) async {
   // The switch the user just set in the export menu seeds the export's own: that
   // menu is where they said it, this dialog is where they confirm it.
@@ -59,8 +63,11 @@ Future<void> showPdfExportDialog(
   // that what uses it is also what closes it, and a caller that brought its own
   // keeps it.
   final ownsCatalogue = googleFonts == null;
-  final catalogue = googleFonts ?? GoogleFontsService();
-  final fonts = resolver ?? PdfFontResolver(googleFonts: catalogue);
+  final catalogue = _CatalogueLease(
+    googleFonts ?? createCatalogue?.call() ?? GoogleFontsService(),
+    owned: ownsCatalogue,
+  );
+  final fonts = resolver ?? PdfFontResolver(googleFonts: catalogue.service);
   try {
     final form = _PdfExportForm(
       // The surface the export belongs to. The dialog asks the question; the
@@ -74,7 +81,7 @@ Future<void> showPdfExportDialog(
       codeFontPath: codeFontPath,
       resolver: fonts,
       run: run ?? _runExport,
-      googleFonts: catalogue,
+      catalogue: catalogue,
     );
 
     if (ResponsiveHelper.isDesktop(context)) {
@@ -113,7 +120,9 @@ Future<void> showPdfExportDialog(
       ),
     );
   } finally {
-    if (ownsCatalogue) catalogue.close();
+    // An export that started has claimed it and closes it when it is done; a
+    // dialog that is simply being dismissed owns the last reference.
+    catalogue.release();
   }
 }
 
@@ -133,6 +142,38 @@ Future<PdfExportResult?> _runExport(
   resolver: resolver,
 );
 
+/// The catalogue a dialog created, and whose job it is to close it.
+///
+/// The service has to outlive the dialog that opened it: the export runs from the
+/// page *after* this route has left the screen, so closing the catalogue when the
+/// route pops closes it before the first download. Instead the dialog releases it
+/// on the way out — unless an export has claimed it first, and then the export
+/// closes it when it is really finished with it.
+class _CatalogueLease {
+  _CatalogueLease(this.service, {required this.owned});
+
+  final GoogleFontsService service;
+
+  /// Whether this dialog created the service. A catalogue a caller brought is
+  /// the caller's to keep open and to close.
+  final bool owned;
+
+  bool _claimed = false;
+
+  /// An export is starting, and will close the catalogue itself.
+  void claim() => _claimed = true;
+
+  /// Closes it unless an export has taken it over.
+  void release() {
+    if (owned && !_claimed) service.close();
+  }
+
+  /// Closes it, once. Safe after [release] has already decided not to.
+  void close() {
+    if (owned) service.close();
+  }
+}
+
 class _PdfExportForm extends StatefulWidget {
   const _PdfExportForm({
     required this.page,
@@ -140,7 +181,7 @@ class _PdfExportForm extends StatefulWidget {
     required this.messages,
     required this.resolver,
     required this.run,
-    required this.googleFonts,
+    required this.catalogue,
     this.appFontPath,
     this.codeFontPath,
     this.handle = false,
@@ -154,7 +195,10 @@ class _PdfExportForm extends StatefulWidget {
   final List<ChatMessage> messages;
   final PdfFontResolver resolver;
   final PdfExportRunner run;
-  final GoogleFontsService? googleFonts;
+
+  /// The catalogue the export downloads from, and the rule for closing it.
+  final _CatalogueLease catalogue;
+
   final String? appFontPath;
   final String? codeFontPath;
   final bool handle;
@@ -165,7 +209,7 @@ class _PdfExportForm extends StatefulWidget {
     messages: messages,
     resolver: resolver,
     run: run,
-    googleFonts: googleFonts,
+    catalogue: catalogue,
     appFontPath: appFontPath,
     codeFontPath: codeFontPath,
     handle: true,
@@ -254,31 +298,40 @@ class _PdfExportFormState extends State<_PdfExportForm> {
     final options = _options;
     final conversation = widget.conversation;
     final messages = widget.messages;
-    final googleFonts = widget.googleFonts;
+    final catalogue = widget.catalogue;
     final resolver = widget.resolver;
-    final route = ModalRoute.of(context);
-    // `showDialog` puts this route on the root navigator, and it is this
-    // configuration's own: `pop` closes it, `maybePop` would merely ask.
-    Navigator.of(context, rootNavigator: true).pop();
-    // Not "closing": gone. `TransitionRoute.completed` completes once the exit
-    // transition has run and the route's overlay entries are out of the tree,
-    // which is the moment the page is the only surface on screen again.
-    if (route != null) await route.completed;
+    // Claimed before the pop: the pop is what runs the dialog's own `finally`, and
+    // closing the catalogue there is exactly what used to leave the export
+    // downloading from a closed service. From here the export is what keeps it
+    // alive, and it is closed below however this method leaves.
+    catalogue.claim();
+    try {
+      final route = ModalRoute.of(context);
+      // `showDialog` puts this route on the root navigator, and it is this
+      // configuration's own: `pop` closes it, `maybePop` would merely ask.
+      Navigator.of(context, rootNavigator: true).pop();
+      // Not "closing": gone. `TransitionRoute.completed` completes once the exit
+      // transition has run and the route's overlay entries are out of the tree,
+      // which is the moment the page is the only surface on screen again.
+      if (route != null) await route.completed;
 
-    // The page the dialog was asked from is not the route it asked on: closing
-    // this one does not close that, and a page that went away while the dialog was
-    // up has nothing left to export into.
-    if (!page.mounted) return;
-    final result = await run(
-      page,
-      conversation: conversation,
-      messages: messages,
-      options: options,
-      googleFonts: googleFonts,
-      resolver: resolver,
-    );
-    if (result == null || !page.mounted) return;
-    await showPdfExportResultDialog(page, result);
+      // The page the dialog was asked from is not the route it asked on: closing
+      // this one does not close that, and a page that went away while the dialog
+      // was up has nothing left to export into.
+      if (!page.mounted) return;
+      final result = await run(
+        page,
+        conversation: conversation,
+        messages: messages,
+        options: options,
+        googleFonts: catalogue.service,
+        resolver: resolver,
+      );
+      if (result == null || !page.mounted) return;
+      await showPdfExportResultDialog(page, result);
+    } finally {
+      catalogue.close();
+    }
   }
 
   @override

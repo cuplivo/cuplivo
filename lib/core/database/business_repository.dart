@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
+import '../../utils/app_directories.dart';
 import '../models/memory_entry.dart';
 import '../services/sync/sync_merge.dart';
 import '../services/sync/sync_models.dart';
@@ -560,20 +561,31 @@ WHERE id IN ($placeholders);
   // in through a crafted key.
   // ---------------------------------------------------------------------------
 
-  /// Whether one stored row is invisible to sync.
+  /// Whether one stored row is invisible to sync — in either direction.
   ///
-  /// Workspaces are the only kind with a *row-level* exclusion (see
-  /// [isLinkedWorkspace]). A linked workspace is a folder the user already had,
-  /// named by a path on this machine's filesystem: it is device-local by
-  /// definition, exactly as in a backup. A managed workspace is a directory
-  /// Cuplivo owns and copies, which is the thing sync is for. Both kinds share
-  /// one table and one wire name, so the rule cannot be per kind — it is per
-  /// row, and every path that offers, reads, accepts or deletes a row applies
-  /// it, so a linked folder is invisible in both directions.
-  static bool _syncSkipsRow(BusinessEntityKind kind, Object? payload) =>
+  /// Workspaces are the only kind with a *row-level* exclusion, for two reasons
+  /// that both come down to the folder behind the row:
+  ///
+  /// * A linked workspace ([isLinkedWorkspace]) is a folder the user already
+  ///   had, named by a path on *this* machine's filesystem: device-local by
+  ///   definition, exactly as in a backup. A managed workspace is a directory
+  ///   Cuplivo owns and copies, which is the thing sync is for.
+  /// * The row id is interpolated into `<appData>/workspaces/<id>/files`
+  ///   ([AppDirectories.workspaceFilesDir]) and it arrives from the wire. An id
+  ///   that is not a single safe path segment ([isSafeWorkspaceId]) would name
+  ///   a directory outside the managed tree.
+  ///
+  /// Both kinds share one table and one wire name, so the rule cannot be per
+  /// kind — it is per row, and every path that offers, reads, accepts or
+  /// deletes a row applies it, so such a row is invisible in both directions.
+  static bool _syncSkipsRow(
+    BusinessEntityKind kind,
+    String id,
+    Object? payload,
+  ) =>
       kind == BusinessEntityKind.workspace &&
-      payload is String &&
-      isLinkedWorkspace(payload);
+      (!isSafeWorkspaceId(id) ||
+          (payload is String && isLinkedWorkspace(payload)));
 
   /// Ids per `IN (...)` batch, well under SQLite's bound-variable limit.
   static const _syncIdBatch = 200;
@@ -613,10 +625,11 @@ WHERE id IN ($placeholders);
           .get();
       for (final row in rows) {
         final payload = row.read<String>('payload');
-        if (_syncSkipsRow(kind, payload)) continue;
+        final id = row.read<String>(kind.idColumn);
+        if (_syncSkipsRow(kind, id, payload)) continue;
         refs.add((
           kindWire: kind.wireName,
-          id: row.read<String>(kind.idColumn),
+          id: id,
           updatedAtUs: row.read<int>('updated_at'),
           digest: entityRowDigest(payload, row.read<int>('sort_order')),
         ));
@@ -661,11 +674,13 @@ WHERE id IN ($placeholders);
           '${kind.tableName}$extensionFilter;',
         )
         .get();
-    return {
-      for (final row in rows)
-        if (!_syncSkipsRow(kind, row.data['payload']))
-          row.read<String>(kind.idColumn),
-    };
+    final ids = <String>{};
+    for (final row in rows) {
+      final id = row.read<String>(kind.idColumn);
+      if (_syncSkipsRow(kind, id, row.data['payload'])) continue;
+      ids.add(id);
+    }
+    return ids;
   }
 
   /// The named entity rows, as raw column maps ready to travel. A row this
@@ -692,11 +707,11 @@ WHERE id IN ($placeholders);
             variables: [for (final id in batch) Variable<String>(id)],
           )
           .get();
-      rows.addAll([
-        for (final row in result)
-          if (!_syncSkipsRow(kind, row.data['payload']))
-            Map<String, dynamic>.from(row.data),
-      ]);
+      for (final row in result) {
+        final id = row.read<String>(kind.idColumn);
+        if (_syncSkipsRow(kind, id, row.data['payload'])) continue;
+        rows.add(Map<String, dynamic>.from(row.data));
+      }
     }
     return rows;
   }
@@ -755,13 +770,14 @@ WHERE id IN ($placeholders);
         if (kind == null) continue;
         final columns = currentSchemaColumns[kind.tableName]!;
         for (final row in entry.value) {
+          final id = row[kind.idColumn];
+          if (id is! String || id.isEmpty) continue;
           // A row this device would never offer is a row it never accepts
           // either. For a linked workspace that is not tidiness: the payload
           // names a folder on *this* machine's filesystem, and a peer must not
-          // be able to plant one here (nor overwrite one it guessed the id of).
-          if (_syncSkipsRow(kind, row['payload'])) continue;
-          final id = row[kind.idColumn];
-          if (id is! String || id.isEmpty) continue;
+          // be able to plant one here. The id is half of the same rule — it is
+          // what names the folder Cuplivo would create, index and delete.
+          if (_syncSkipsRow(kind, id, row['payload'])) continue;
           final incomingAt = (row['updated_at'] as num?)?.toInt();
           if (incomingAt == null) continue;
           // An extension kind travels under its own wire name; the row must
@@ -770,6 +786,13 @@ WHERE id IN ($placeholders);
           if (kind.extensionKind != null) row['kind'] = kind.extensionKind;
           final local = await _syncEntityRow(kind, id);
           if (local != null) {
+            // The same rule on the *local* half: a row this device does not
+            // offer is not one a peer may overwrite either. Only the local
+            // payload says whether the user's linked folder sits at this id,
+            // and the incoming payload never will — so without this check a
+            // peer that guessed (or learned) the id could replace the user's
+            // link with a managed workspace.
+            if (_syncSkipsRow(kind, id, local.payload)) continue;
             if (!incomingBusinessRowWins(
               localUpdatedAtUs: local.updatedAtUs,
               incomingUpdatedAtUs: incomingAt,
@@ -853,8 +876,11 @@ WHERE id IN ($placeholders);
     // nothing to remove. Only workspace rows can be local-only, so no other kind
     // pays for the lookup.
     if (kind == BusinessEntityKind.workspace) {
+      // An id that is not a path segment names no row here, and must not name a
+      // folder either ([isSafeWorkspaceId]).
+      if (!isSafeWorkspaceId(id)) return false;
       final local = await _syncEntityRow(kind, id);
-      if (local != null && _syncSkipsRow(kind, local.payload)) return false;
+      if (local != null && _syncSkipsRow(kind, id, local.payload)) return false;
     }
     final extensionFilter = kind.extensionKind == null
         ? ''

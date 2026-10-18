@@ -22818,6 +22818,12 @@ abstract class AppLocalizations {
   /// **'Online — the last sync connected'**
   String get lanSyncOnlineFromSession;
 
+  /// No description provided for @lanSyncOfflineFromSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline — the last sync could not connect'**
+  String get lanSyncOfflineFromSession;
+
   /// No description provided for @lanSyncPhaseConnectingTo.
   ///
   /// In en, this message translates to:

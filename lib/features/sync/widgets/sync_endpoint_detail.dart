@@ -94,6 +94,8 @@ class _EndpointDetailBody extends StatelessWidget {
     // The live probe outranks the persisted one: it is the same question asked
     // more recently. What it cannot do is answer for an address it never
     // reached — that is `answered == false`, and it is a verdict, not silence.
+    // A `noVerdict` (a 503 from a saturated listener) is neither: the address
+    // answered, it just declined to be judged.
     final bool? answered = live != null
         ? live.answered
         : (endpoint.lastProbedAt == null
@@ -109,7 +111,12 @@ class _EndpointDetailBody extends StatelessWidget {
     final rows = <Widget>[
       _DetailRow(
         label: l10n.lanSyncEndpointLatency,
-        value: _latencyText(l10n, answered: answered, latencyMs: latencyMs),
+        value: _latencyText(
+          l10n,
+          answered: answered,
+          latencyMs: latencyMs,
+          noVerdict: live?.noVerdict ?? false,
+        ),
         valueColor: answered == true
             ? (latencyMs != null && latencyMs <= kSyncFastLatencyMs
                   ? context.appColors.success
@@ -173,7 +180,12 @@ class _EndpointDetailBody extends StatelessWidget {
     AppLocalizations l10n, {
     required bool? answered,
     required int? latencyMs,
+    required bool noVerdict,
   }) {
+    // A 503 is the listener declining to be judged, not a silence: "Not
+    // reachable" is a verdict the answer did not carry, so the figure stays a
+    // dash.
+    if (noVerdict) return '—';
     if (answered == false) return l10n.lanSyncEndpointUnreachable;
     if (answered == null || latencyMs == null) return '—';
     return '$latencyMs ms';

@@ -1213,7 +1213,9 @@ was unpaired on the other side.
   from the other side), and the inbound session runs. Past the hello the round is live and a peer
   hello is refused as busy instead. The mirror case — both devices deciding to sync in the same
   moment — is covered by one retry five seconds after a busy refusal, so a collision cannot end with
-  neither session having run.
+  neither session having run. *(Corrected by slice 21: a crossing round reports `superseded`, not
+  `busy`, and the retry was armed on one caller only; the pair is now unblocked by the expiry of the
+  session a yield leaves behind.)*
 - **The dial beat names the address, and the rest of the card stops shouting.** The beat that can sit
   for seconds is the dial, so it names the address it is trying (and, since slice 20, never a rank).
   The header carries no IP at all — a peer is a device first — and the addresses are a grid of tiles,
@@ -1290,6 +1292,104 @@ is where an action belongs: a routine absence is a state, not an incident.
   longer hello budget to wake — is not tried at dial time unless nothing else was proved. The
   remedies are the ones already documented for drift (re-scan the QR, or edit the address on the
   card), and the next tick probes again.
+
+## Amendment (2026-10, slice 21): review hardening — the walk after the apply, an id that is a path, and one yield per crossing
+
+A review of slices 18–20 turned up nine defects and one unnumbered one. They are fixed where they
+were made, and every fix is guarded by a test that was shown red before it landed. Nothing here
+changes the wire: no message shape, no protocol bump.
+
+- **The initiator plans workspace content from a walk taken after its business apply.** Slice 18's
+  initiator walk has to run before the push — the responder fetches inside that beat — but the same
+  list was then reused for the *planning* half, after the apply. A workspace record that had just
+  arrived was absent from it, so the folder that record made this device's to populate waited a whole
+  session, while the other direction transferred immediately. The planning walk is now taken after
+  `applyBusiness`, exactly as the responder's is; the pre-push walk stays what it is for (publishing
+  what this device serves inside the push beat). Both roles therefore walk twice per session, which
+  the responder already did.
+- **A workspace id is one plain path segment.** The id is interpolated into
+  `<appData>/workspaces/<id>/files` (`AppDirectories.workspaceFilesDir`) and it arrives from the wire
+  and from a backup — and only a row's *payload* had ever been validated. A paired peer advertising a
+  workspace whose id was `..` got this device to walk a directory outside the managed tree, advertise
+  it back to that peer over `/sync/wsfile`, and delete it recursively when the peer dropped the row.
+  `isSafeWorkspaceId` — a single segment: no separator of either flavour, no NUL, no colon, no
+  trailing dot or space, no DOS device name, not `.`/`..` — now joins the row-level rule that already
+  excluded linked workspaces, so such a row is invisible in **both** directions: never announced,
+  never served by name, never accepted from a peer, never deleted through sync. The filesystem sink
+  refuses the id last, so any future caller inherits the guard.
+- **The linked-row rule reads the local half too.** The apply guard inspected only the *incoming*
+  payload, so a peer's `managed` row at the id of a local `linked` workspace replaced the user's link
+  — precisely the case the guard's own comment named. The local payload is checked now as well: a row
+  this device does not offer is not one a peer may overwrite either. The peer re-offers that row every
+  session, because nothing here ever announces it; that is one skipped row per session and no data
+  moved.
+- **A yielded session is provisional.** `handleHello` cancels this device's own unanswered round when
+  the peer's hello arrives, and answers with a session instead. In a crossing dial both sides do that,
+  so neither client is left to drive either session, and each side then refuses its own dials as busy.
+  That state was permanent: `_sessions` was swept only at the top of `handleHello`, which a pair that
+  refuses its own dials never calls, and the TTL there is two minutes of nothing happening. A session
+  created by a yield is now marked as such and records its first beat; one the peer has not pushed
+  into within **four seconds** is dropped, and the sweep runs before `syncWithPeer` refuses a round —
+  which is the call site whose absence made the wedge unbreakable. A crossing therefore costs one
+  attempt, not a listener restart.
+- **The busy retry belongs to every trigger.** It was armed inside `autoSyncRound` alone, so the ADR's
+  own "one retry five seconds after a busy refusal" was true only of an automatic round: a manual
+  press and the post-pairing kick got no retry at all. It is armed from `syncNow`, one per round and
+  without chaining, and the delay carries an offset derived from this device's id (FNV-1a over the
+  id, folded into `[0, 1200)` ms) so two devices that collided cannot retry in lockstep and collide
+  again.
+- **A `ping_busy` is not a verdict.** A 503 from a saturated listener was stored over the previous
+  good measurement: the tile dropped to `—`, the address detail said "not reachable", and the
+  persisted latency was cleared — the opposite of what the module's own contract says ("it must not
+  overwrite a working verdict"). A `noVerdict` result now keeps the previous entry for that endpoint,
+  is never written to the peer record, and renders as `—` rather than as a reachability verdict.
+- **The silent tail rotates.** Both probe shapes took the *first* `kSyncTailProbeCount` silent
+  addresses in endpoint order, so with more than four cold addresses the ones behind them were never
+  asked by any round — no measurement ever proved them, so the dial never tried them either, and the
+  single unproved guess a dial spends was always index 0. The cold tail is now ordered least recently
+  asked first (never-asked addresses lead, ties keep the memory's order, which is also the endpoint
+  order the guess reads), so `⌈12/4⌉` rounds cover the whole memory. The rotation falls out of the
+  answers already kept for endpoints a tick did not visit; no counter, no randomness.
+- **A root that cannot be resolved is reported, not dropped.** `snapshots()` documented that an
+  unreadable workspace is still reported — the panel has to be able to say "this one is not syncing"
+  — and then `continue`d past a `resolveRoot` failure, so the row vanished from the panel and from
+  every count. It now yields a snapshot with no root and an incomplete index, which is the same
+  refusal to share a partial tree an unreadable directory gets; the panel's existing "unreadable"
+  pill renders it and the report counts it as a workspace not syncing files.
+- **The online-dot label follows the dot.** The two session presence sources were collapsed into one
+  in slice 19, and the label was then chosen from the *source* alone: a grey dot whose last word came
+  from a failed session was labelled "Online — the last sync connected", in the tooltip and in the
+  semantics. The polarity now comes from the same flag that paints the dot, so the two cannot
+  disagree, and `lanSyncOfflineFromSession` is restored in all four locales.
+- **A measurement's age is its own.** The provider stamped a whole probe snapshot with the time it
+  was published, while it keeps the answers for endpoints a tick did not visit — so a figure from a
+  minute ago could pass the dial's fifteen-second freshness gate, take a place in the candidate
+  order, and bound that candidate's connect budget. The dial now filters per measurement
+  (`EndpointProbeResult.measuredAt`), and `PeerProbeSnapshot` — which existed only to carry the
+  mis-stamped publish time — is gone.
+- *Rejected: a device-id tie-break for a crossing dial* (only the higher id yields, so exactly one
+  session is stored). It is the smaller change and it converges in-session, but it needs to know
+  whether the peer is *also* mid-crossing, which is not locally observable — a hello is sent by every
+  dialer — so the less informed version makes the one-way case depend on the peer's next trigger
+  instead of on the arriving hello, and trades that guarantee for this one. The provisional-session
+  expiry closes the wedge without reordering the yield rule; a fully informed version would need a
+  hello-response flag, i.e. a wire change, for a case that now costs one attempt.
+- *Rejected: clearing a provisional session on an authenticated probe.* A probe lands during healthy
+  sessions too — the peer's own ten-second tick — and a session is not this device's to discard
+  because the peer can reach it. The expiry covers the abandoned case without that risk.
+- *Rejected: gating the second walk on the workspace id set.* Comparing the id set after the apply
+  (one query) and re-walking only when it changed would save a stat walk in the common case, at the
+  price of making correctness depend on a second signal agreeing with the first. The responder
+  already walks twice per session, and the walk is stat-only, capped and off the UI isolate.
+- *Rejected: dropping the local busy refusal when the held session has no beat yet.* It would let a
+  device that holds an untouched session dial instead of refusing, which breaks the one-session-per-
+  pair rule exactly when the peer's push is being built — the window in which a big library takes
+  seconds to assemble. The expiry is bounded and cannot corrupt a live session.
+- *Known limits.* A linked workspace's id, once known to a peer, is re-offered by that peer every
+  session and skipped here each time (one row, no data). A crossing dial still cannot complete a
+  session *in* the crossed round: the pair recovers on the next attempt, which a manual press or the
+  busy retry reaches within seconds. An address whose every probe answer is `ping_busy` reads as
+  unknown (`—`) rather than as either reachable or dead, which is what the answer says.
 
 ## Considered options (rejected)
 

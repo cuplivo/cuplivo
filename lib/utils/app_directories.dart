@@ -3,6 +3,48 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
+/// Whether one path segment may be joined onto the app data root.
+///
+/// Written against both filesystems at once, because a workspace id travels
+/// between platforms: a separator of either flavour, a NUL, an empty or dot
+/// segment, a drive/alternate-stream colon, a trailing dot or space (Windows
+/// silently strips both, so `evil. ` and `evil` are the same file there) and a
+/// DOS device name are all rejected.
+bool isSafePathSegment(String segment) {
+  if (segment.isEmpty || segment == '.' || segment == '..') return false;
+  if (segment.contains('/') || segment.contains('\\')) return false;
+  if (segment.contains('\u0000')) return false;
+  if (segment.contains(':')) return false;
+  if (segment.endsWith('.') || segment.endsWith(' ')) return false;
+  return !_isReservedWindowsName(segment);
+}
+
+/// Whether [id] may name a directory under `<appData>/workspaces`.
+///
+/// This device creates workspace ids as UUIDs, but an id also arrives from the
+/// wire (LAN sync) and from a backup. It is a single path segment or it is not
+/// a workspace id at all: `..` would name a directory *outside* the managed
+/// tree, which the file plane would then index, advertise to the peer and — on
+/// a delete — remove recursively.
+bool isSafeWorkspaceId(String id) => isSafePathSegment(id);
+
+/// The DOS device names Windows refuses (or resolves to a device) even with an
+/// extension attached. A peer that names one is asking this device to write
+/// somewhere that is not a file in the workspace.
+bool _isReservedWindowsName(String segment) {
+  final stem = segment.split('.').first.toLowerCase();
+  if (stem == 'con' || stem == 'prn' || stem == 'aux' || stem == 'nul') {
+    return true;
+  }
+  if (stem.length == 4 &&
+      (stem.startsWith('com') || stem.startsWith('lpt')) &&
+      stem[3].codeUnitAt(0) >= 0x31 &&
+      stem[3].codeUnitAt(0) <= 0x39) {
+    return true;
+  }
+  return false;
+}
+
 /// Platform-specific application data directory utilities.
 ///
 /// - Windows/macOS/Linux: use the Application Support (app data) directory
@@ -83,7 +125,18 @@ class AppDirectories {
   static const syncDirName = 'sync';
 
   /// Files root for a managed workspace: `<appData>/workspaces/<id>/files`.
-  static Future<Directory> workspaceFilesDir(String workspaceId) {
+  ///
+  /// Throws for an id that is not a single safe path segment. The id arrives
+  /// from the wire and from a backup, and this is the last place before it
+  /// becomes a filesystem path — see [isSafeWorkspaceId].
+  static Future<Directory> workspaceFilesDir(String workspaceId) async {
+    if (!isSafeWorkspaceId(workspaceId)) {
+      throw ArgumentError.value(
+        workspaceId,
+        'workspaceId',
+        'not a single safe path segment',
+      );
+    }
     return _ensurePath('workspaces/$workspaceId/files');
   }
 

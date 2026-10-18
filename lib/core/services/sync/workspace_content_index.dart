@@ -3,6 +3,7 @@ import 'dart:isolate';
 
 import 'package:path/path.dart' as p;
 
+import '../../../utils/app_directories.dart';
 import 'sync_models.dart';
 
 /// The content index of one managed workspace: every file that rides, as
@@ -230,29 +231,9 @@ bool isSafeWorkspaceRelativePath(String relPath) {
   if (p.posix.isAbsolute(relPath)) return false;
   final segments = relPath.split('/');
   for (final segment in segments) {
-    if (segment.isEmpty || segment == '.' || segment == '..') return false;
-    if (segment.contains(':')) return false;
-    if (segment.endsWith('.') || segment.endsWith(' ')) return false;
-    if (_isReservedWindowsName(segment)) return false;
+    if (!isSafePathSegment(segment)) return false;
   }
   return true;
-}
-
-/// The DOS device names Windows refuses (or resolves to a device) even with an
-/// extension attached. A peer that names one is asking this device to write
-/// somewhere that is not a file in the workspace.
-bool _isReservedWindowsName(String segment) {
-  final stem = segment.split('.').first.toLowerCase();
-  if (stem == 'con' || stem == 'prn' || stem == 'aux' || stem == 'nul') {
-    return true;
-  }
-  if (stem.length == 4 &&
-      (stem.startsWith('com') || stem.startsWith('lpt')) &&
-      stem[3].codeUnitAt(0) >= 0x31 &&
-      stem[3].codeUnitAt(0) <= 0x39) {
-    return true;
-  }
-  return false;
 }
 
 /// The absolute path [relPath] names inside [root], or null when the path is

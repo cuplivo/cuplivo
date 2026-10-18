@@ -80,8 +80,10 @@ enum PresenceSource {
   /// The card draws the gray dot, which is the honest default.
   unknown,
 
-  /// A session — this device's or the peer's — exchanged bytes with the peer
-  /// (a refusal counts: it is an answer).
+  /// A session — this device's or the peer's — was the last thing to speak to
+  /// the peer (a refusal counts, it is an answer). Whether that answer was
+  /// "here" or "silence" is [isPeerOnline], not this: a session that found
+  /// nothing is `session` beside a grey dot.
   session,
 
   /// No session evidence since the last probe; the last authenticated probe
@@ -790,6 +792,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   Future<SyncSessionReport?> syncNow(
     String deviceId, {
     bool automatic = false,
+    bool retryOfBusy = false,
   }) async {
     final engine = _engine;
     if (engine == null || busyDeviceIds.contains(deviceId)) return null;
@@ -807,6 +810,15 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       final report = await engine.syncWithPeer(peer);
       lastReport = report;
       _recordSessionVerdict(deviceId, report);
+      // One retry for the refusal that means "the peer was already syncing with
+      // this device", from *every* caller: the manual button and the
+      // post-pairing kick used to get none, so the five-second retry the ADR
+      // promises was only ever true of an automatic round. The retry does not
+      // arm another, which is what keeps a pair that keeps colliding from
+      // becoming a tight loop.
+      if (report.refusal == SyncRefusalReason.busy && !retryOfBusy) {
+        _scheduleBusyRetry(deviceId);
+      }
       // A session is the one moment the persisted endpoint figures are worth
       // writing: it is where a "last connected" stamp belongs, and the probe
       // counters ride along instead of costing one file write per tick.
@@ -950,10 +962,17 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     final probe = _endpointProbe ?? syncEndpointProbe(_engine!.client, peer);
     final results = await probePeerEndpoints(endpoints: targets, probe: probe);
     // Keep the answers for the endpoints this round did not visit: the tail's
-    // last figure is still the best thing known about it.
+    // last figure is still the best thing known about it. And keep the one a
+    // `ping_busy` would erase: a 503 says the listener was too loaded to judge,
+    // which is not a verdict about the address — storing it would drop a
+    // working figure from the tile, the detail and the peer record, and the
+    // module's own contract is that it must not overwrite a working verdict.
     _probeResults[peer.deviceId] = {
       ...previous,
-      for (final result in results) result.endpoint: result,
+      for (final result in results)
+        if (!(result.noVerdict &&
+            (previous[result.endpoint]?.answered ?? false)))
+          result.endpoint: result,
     };
     return results;
   }
@@ -985,11 +1004,10 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// Hands the engine the figures the dial should reuse instead of probing
   /// again, so a session started right after a tick spends no probe of its own.
   void _publishProbes(SyncEngine engine) {
-    final now = DateTime.now();
     engine.endpointProbes = {
       for (final entry in _probeResults.entries)
         if (entry.value.isNotEmpty)
-          entry.key: PeerProbeSnapshot(entry.value.values.toList(), now),
+          entry.key: entry.value.values.toList(growable: false),
     };
   }
 
@@ -1008,6 +1026,10 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     if (peer == null) return;
     var changed = false;
     for (final result in results.values) {
+      // A `ping_busy` is not a verdict: it is the listener saying "not now", so
+      // it must not be written as "this address did not answer" — that would
+      // clear a working latency with a null and move the "last measured" stamp.
+      if (result.noVerdict) continue;
       final endpoint = peer.endpointFor(result.host, result.port);
       if (endpoint == null) continue;
       endpoint.recordProbe(
@@ -1146,10 +1168,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         if (peer.primaryEndpoint == null) continue;
         if (busyDeviceIds.contains(peer.deviceId)) continue;
         try {
-          final report = await syncNow(peer.deviceId, automatic: true);
-          if (report?.refusal == SyncRefusalReason.busy) {
-            _scheduleBusyRetry(peer.deviceId);
-          }
+          await syncNow(peer.deviceId, automatic: true);
         } catch (_) {
           // A failed round already shows on the peer card; the round moves on.
         }
@@ -1169,15 +1188,41 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// pair that keeps colliding does not become a tight loop.
   static const busyRetryDelay = Duration(seconds: 5);
 
+  /// The delay before that retry, offset by *this* device's id.
+  ///
+  /// Two devices that collided must not retry in lockstep, or they collide
+  /// again and the pair never makes progress. The offset is derived from this
+  /// device's own id: both sides know both ids, so a *shared* function of the
+  /// pair would hand them the same answer and change nothing. Pure, so a test
+  /// can pin it.
+  static Duration busyRetryDelayFor(String myDeviceId) =>
+      busyRetryDelay + Duration(milliseconds: _retryOffsetMs(myDeviceId));
+
+  /// FNV-1a over the id, folded into `[0, 1200)` ms. Deliberately not
+  /// `String.hashCode`, whose value is only promised to be consistent within a
+  /// single run; this one is the same on both devices and across launches.
+  static int _retryOffsetMs(String deviceId) {
+    var hash = 0x811c9dc5;
+    for (final unit in deviceId.codeUnits) {
+      hash = ((hash ^ unit) * 0x01000193) & 0xffffffff;
+    }
+    return hash % 1200;
+  }
+
   final Map<String, Timer> _busyRetryTimers = {};
 
   void _scheduleBusyRetry(String deviceId) {
     if (_busyRetryTimers.containsKey(deviceId)) return;
-    _busyRetryTimers[deviceId] = Timer(busyRetryDelay, () {
-      _busyRetryTimers.remove(deviceId);
-      if (!started || busyDeviceIds.contains(deviceId)) return;
-      unawaited(syncNow(deviceId, automatic: true));
-    });
+    final engine = _engine;
+    if (engine == null) return;
+    _busyRetryTimers[deviceId] = Timer(
+      busyRetryDelayFor(engine.identity.deviceId),
+      () {
+        _busyRetryTimers.remove(deviceId);
+        if (!started || busyDeviceIds.contains(deviceId)) return;
+        unawaited(syncNow(deviceId, automatic: true, retryOfBusy: true));
+      },
+    );
   }
 
   void _cancelBusyRetries() {

@@ -594,7 +594,13 @@ class _PlatformBadge extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final colors = context.appColors;
     final label = switch (presence) {
-      PresenceSource.session => l10n.lanSyncOnlineFromSession,
+      // The *state* comes from the same flag that paints the dot, always: a
+      // session can answer ("the last sync connected") or find silence ("the
+      // last sync could not connect"), and a label chosen from the source alone
+      // is what once put "Online — the last sync connected" in the tooltip of a
+      // grey dot.
+      PresenceSource.session =>
+        online ? l10n.lanSyncOnlineFromSession : l10n.lanSyncOfflineFromSession,
       PresenceSource.probe || PresenceSource.unknown =>
         online ? l10n.lanSyncOnline : l10n.lanSyncOffline,
     };

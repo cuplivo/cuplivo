@@ -211,6 +211,17 @@ contradicts one of them is a bug, not a preference.
 - **A workspace is planned only when both sides advertised a table**: a missing table means "not
   shared" (switched off, over a cap, not this peer's), an empty table means "shared, and it has no
   files" — opposite statements for the deletion rule, so they are never collapsed into one.
+- **The files land after the row does (先落行，再落文件)**: each side walks its workspaces *after* its
+  own business apply, because a workspace record that just arrived is what makes its folder this
+  device's to populate — and the folder is therefore empty, which is exactly what tells the plan to
+  fetch everything the peer advertised. Planning from a walk taken before the apply would make every
+  workspace cross one session later than the record that announced it.
+- **A workspace id is a path segment (工作区 id 是路径段)**: the id is what `<appData>/workspaces/<id>`
+  is built from, and it arrives from the wire (a peer's row) and from a backup. It is one plain
+  segment or the row does not sync in **either** direction — never announced, never served by name,
+  never accepted from a peer, never deleted through sync — and the filesystem sink refuses it last.
+  Anything else would let a row this device never offered name a directory outside the managed tree
+  and have this device index, advertise and (on a peer-driven delete) remove it.
 - **Caps are hard gates and the switch cannot lift them (上限)**: a workspace over **2,000 files or
   200 MB** has **no content synced at all** — the whole block, never half a table — and the panel
   says so (`2,001+ 文件`, and its size is a lower bound). The ledger has a global 20,000-entry cap
@@ -223,7 +234,8 @@ contradicts one of them is a bug, not a preference.
   dependency or build directories, caches, editor directories or OS bookkeeping files — nor the
   sync plane's own `.sync-*` scratch names, so a transfer in flight is never mistaken for content.
 - **An index that could not be read is not shared at all (读不动就不同步)**: if any directory
-  cannot be listed or any file cannot be stat'ed, that workspace contributes nothing this round —
+  cannot be listed or any file cannot be stat'ed — or the root cannot even be resolved, an
+  unwritable app data directory — that workspace contributes nothing this round —
   no table, no deletions — and the panel shows `无法读取`. The reason is the deletion rule: a file
   missing from a table is indistinguishable from a deleted one, so one permission accident would
   otherwise delete the peer's copy. The price is that a workspace with a single unreadable file
@@ -426,7 +438,7 @@ contradicts one of them is a bug, not a preference.
 
 - **Session protocol**: a bounded six-beat run over pinned-TLS HTTP (REST-style JSON bodies,
   binary endpoints for blobs and for workspace files): hello (protocol version **5**, schema
-  version, capabilities, the initiator's listener port, its clock reading, its data epoch, the
+  version, the initiator's listener port, its clock reading, its data epoch, the
   deletions it has not seen confirmed, checkpoint summaries, and what each side could not apply
   last session) → negotiate (each side computes deltas) → delta exchange (conversation subtrees,
   entity rows, preference keys, the asset manifest for what each side is sending, and each side's
@@ -543,15 +555,23 @@ contradicts one of them is a bug, not a preference.
   the one-way-LAN case — so a hello *arriving* during its dial supersedes it: the round closes its
   socket, records nothing at all (not even a failure, because the pair's real outcome is arriving
   from the other side) and lets the inbound session run. Once the hello has been answered the round
-  is a live session, and a peer hello is refused as busy instead. A refusal as busy buys one retry
-  after five seconds, which is the other half of the same problem: two devices that both decided to
-  sync at the same moment must not end up with neither session having run.
+  is a live session, and a peer hello is refused as busy instead.
+- **A yielded session is provisional (让位来的会话是暂定的)**: the session a superseded round leaves
+  behind is a bet that the peer's own client is still there to drive it. In a crossing dial — both
+  devices deciding in the same moment — both sides make that bet, so neither client survives and
+  each side holds a session nobody will push into; without an expiry that pair stayed busy until the
+  listener restarted, because the only sweep lived at the top of the very handler a pair refusing
+  its own dials never reaches. A yielded session the peer has not pushed into within four seconds is
+  therefore dropped before this device refuses its own round as busy, which makes a crossing cost
+  one attempt instead of a restart. A refusal as busy buys one retry after five seconds from **every**
+  trigger (a manual press and a finished pairing included, not just the automatic round), delayed by
+  an offset derived from this device's id so two colliding devices cannot retry in lockstep.
 - **Every request is bounded**: a peer that stops answering costs one deadline, not the process.
   Client budgets are hello 60 s, push/fetch 20 min, blob 15 min of inactivity, pairing 60 s;
   server routes are bounded too (pair/hello 60 s, revoke 30 s, data routes 30 min), so a body that
   stops arriving cannot hold the serial request loop open and silence pairing and sync alike.
 - **Clock skew: accept and surface (接受+显性化)**: hello exchanges clock readings (protocol
-  v5); a divergence beyond five minutes raises a yellow-flag line in the sync report — on
+  v4); a divergence beyond five minutes raises a yellow-flag line in the sync report — on
   **both** devices, each computing it from the same pair of readings — but sync proceeds
   regardless. The threshold is a fixed health number, not a setting: below it LWW comparisons
   stay honest for any realistic edit rhythm; above it timestamps lie systematically and the fix
@@ -571,16 +591,23 @@ contradicts one of them is a bug, not a preference.
   something answered, and there are three kinds of answer — a remembered endpoint accepted the
   authenticated probe (a ten-second tick that asks the two best-answered addresses, and the silent
   tail only on a full round: start, resume, a panel opening, a finished session, a completed
-  pairing), a finished session got a reply (a refusal is an answer too), or a running session has
+  pairing — and that tail rotates, least recently asked first, so an address behind the head is
+  proved within a few rounds instead of never), a finished session got a reply (a refusal is an
+  answer too), or a running session has
   passed its dial and is exchanging bytes right now. A round merely *starting* proves nothing: the
   dot used to turn green on a session's way in, so every automatic round against a sleeping peer
   showed green for exactly the seconds its dial spent failing — trying is not reaching. One probe
   miss and one `ping_busy` are both forgiven: the first is a probe losing a race against a Wi-Fi
   that is waking up, the second is the listener saying "not now", and a dot that flickers gray
-  every ten seconds is worse than one a tick stale. The source is recorded, not just the verdict:
+  every ten seconds is worse than one a tick stale. That forgiveness is also not only about the dot:
+  a `ping_busy` is stored as no verdict at all, so it can neither replace a measured latency on the
+  address's tile and detail nor stamp a fresh "last measured" on the peer record. The source is
+  recorded, not just the verdict:
   an answered probe is fresh evidence about the *address* and becomes the stated source, a
   session's own verdict settles the dot when it ends, and the tooltip says which of the two is
-  being reported.
+  being reported. Which of the two verdicts the label carries follows the dot itself, not the source
+  alone: a session that found silence is a grey dot that says "could not connect", never a tooltip
+  claiming the last sync connected.
 - **The card shows the facts a user acts on**: "last synced" is how long ago, not a timestamp — the
   question on that line is recency, the exact time rides in the tooltip, and past a week the date
   returns, because at nine days old the date is the more useful fact. The addresses are a grid of

@@ -12201,6 +12201,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncOnlineFromSession => '在线——上次同步成功连上';
 
   @override
+  String get lanSyncOfflineFromSession => '离线——上次同步没能连上';
+
+  @override
   String lanSyncPhaseConnectingTo(Object address) {
     return '正在连接 $address…';
   }
@@ -25613,6 +25616,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get lanSyncOnlineFromSession => '在线——上次同步成功连上';
+
+  @override
+  String get lanSyncOfflineFromSession => '离线——上次同步没能连上';
 
   @override
   String lanSyncPhaseConnectingTo(Object address) {
@@ -39106,6 +39112,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get lanSyncOnlineFromSession => '線上——上次同步成功連上';
+
+  @override
+  String get lanSyncOfflineFromSession => '離線——上次同步沒能連上';
 
   @override
   String lanSyncPhaseConnectingTo(Object address) {

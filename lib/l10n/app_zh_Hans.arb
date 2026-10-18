@@ -4555,6 +4555,7 @@
   "lanSyncSyncNow": "立即同步",
   "lanSyncOnline": "在线",
   "lanSyncOnlineFromSession": "在线——上次同步成功连上",
+  "lanSyncOfflineFromSession": "离线——上次同步没能连上",
   "lanSyncPhaseConnectingTo": "正在连接 {address}…",
   "lanSyncOffline": "离线",
   "lanSyncUpToDate": "已是最新",

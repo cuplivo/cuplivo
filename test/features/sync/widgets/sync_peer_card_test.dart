@@ -56,6 +56,27 @@ class _BusyProvider extends SyncProvider {
       );
 }
 
+/// A peer whose last word came from a session that *failed*: the dot is grey,
+/// the subtitle says it cannot be reached right now, and the tooltip used to
+/// read "Online — the last sync connected" because the label was chosen from
+/// the *source* (a session) instead of the state.
+class _SessionSilentProvider extends SyncProvider {
+  _SessionSilentProvider({
+    required super.chatService,
+    required super.repository,
+    required super.businessRepository,
+    required super.businessPreferences,
+    required super.reloader,
+    required super.syncDirectory,
+  });
+
+  @override
+  bool isPeerOnline(String deviceId) => false;
+
+  @override
+  PresenceSource peerPresenceSource(String deviceId) => PresenceSource.session;
+}
+
 void main() {
   testWidgets('the dial beat leaves the peer name its line on a narrow card', (
     tester,
@@ -155,5 +176,81 @@ void main() {
             'name to nothing; the name is the only identifier the row has',
       );
     }
+  });
+
+  testWidgets('a grey dot never says the last sync connected', (tester) async {
+    late final Directory root;
+    late final ChatService chatService;
+    late final ChatDatabaseRepository repository;
+    late final SyncProvider provider;
+    late final AppLocalizations l10n;
+
+    await tester.runAsync(() async {
+      root = await Directory.systemTemp.createTemp('sync-peer-card-silent');
+      PathProviderPlatform.instance = _FakePathProviderPlatform(root.path);
+      final database = AppDatabase(NativeDatabase.memory());
+      repository = ChatDatabaseRepository(database);
+      final businessRepository = BusinessRepository(database);
+      final businessPreferences = BusinessPreferences(businessRepository);
+      chatService = ChatService(existingRepository: repository);
+      await repository.ensureReady();
+      await chatService.init();
+      await businessPreferences.load();
+      provider = _SessionSilentProvider(
+        chatService: chatService,
+        repository: repository,
+        businessRepository: businessRepository,
+        businessPreferences: businessPreferences,
+        reloader: BusinessStateReloader(businessPreferences),
+        syncDirectory: () async => root,
+      );
+      l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    });
+    addTearDown(() async {
+      provider.dispose();
+      await chatService.close();
+      await repository.close();
+      await root.delete(recursive: true);
+    });
+    final semantics = tester.ensureSemantics();
+
+    final peer = SyncPeerRecord(
+      deviceId: 'peer-1',
+      certPem: 'pem',
+      secret: 'secret',
+      name: 'Studio desktop',
+      platform: 'android',
+      endpoints: [SyncPeerEndpoint(host: '10.0.0.4', port: 9527)],
+    );
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<SyncProvider>.value(
+        value: provider,
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: SyncPeerCard(peer: peer)),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.byTooltip(l10n.lanSyncOfflineFromSession),
+      findsOneWidget,
+      reason:
+          'a session that found silence is "could not connect", not '
+          '"connected"',
+    );
+    expect(find.byTooltip(l10n.lanSyncOnlineFromSession), findsNothing);
+    expect(
+      find.bySemanticsLabel(l10n.lanSyncOfflineFromSession),
+      findsWidgets,
+      reason: 'the semantics carry the same statement the tooltip makes',
+    );
+
+    // Disposed inside the body: the framework checks for a live handle before
+    // teardowns run.
+    semantics.dispose();
   });
 }

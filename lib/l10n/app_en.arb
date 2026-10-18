@@ -5703,6 +5703,7 @@
   "lanSyncSyncNow": "Sync now",
   "lanSyncOnline": "Online",
   "lanSyncOnlineFromSession": "Online — the last sync connected",
+  "lanSyncOfflineFromSession": "Offline — the last sync could not connect",
   "lanSyncPhaseConnectingTo": "Connecting to {address}…",
   "lanSyncOffline": "Offline",
   "lanSyncUpToDate": "Up to date",

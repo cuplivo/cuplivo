@@ -211,6 +211,15 @@ EndpointProbeResult _silent(String host, int port, DateTime Function() clock) =>
 /// device has left. [full] probes the silent tail too, up to
 /// [kSyncTailProbeCount] of them, and is what every evidence-changing moment
 /// uses (start, resume, panel open, after a session, after pairing).
+///
+/// The silent tail is a *rotating* sample, least recently asked first — a
+/// never-asked address leads, and ties keep the memory's own order. A fixed
+/// first-four would mean an address past index 3 is never asked by any round,
+/// so no measurement ever proves it and the dial never tries it either: a
+/// laptop that has synced at home, at the office and on a hotspot keeps those
+/// addresses, and the one it is standing on moves to the back of the list as
+/// they are learned. The answers already kept for the endpoints a tick did not
+/// visit are what make the rotation fall out of the data instead of a counter.
 List<(String, int)> selectProbeTargets(
   List<SyncPeerEndpoint> endpoints,
   Map<(String, int), EndpointProbeResult> previous, {
@@ -230,10 +239,22 @@ List<(String, int)> selectProbeTargets(
         final right = previous[b.key]?.latency ?? const Duration(days: 1);
         return left.compareTo(right);
       });
-  final cold = [
-    for (final item in labelled)
-      if (!(previous[item.key]?.answered ?? false)) item,
-  ];
+  final cold =
+      [
+        for (final (index, item) in labelled.indexed)
+          if (!(previous[item.key]?.answered ?? false))
+            (key: item.key, at: previous[item.key]?.measuredAt, index: index),
+      ]..sort((a, b) {
+        final left = a.at;
+        final right = b.at;
+        if (left == null && right != null) return -1;
+        if (left != null && right == null) return 1;
+        if (left != null && right != null) {
+          final byAge = left.compareTo(right);
+          if (byAge != 0) return byAge;
+        }
+        return a.index.compareTo(b.index);
+      });
   if (!full) {
     if (warm.isNotEmpty) {
       return [for (final item in warm.take(kSyncWarmEndpointCount)) item.key];

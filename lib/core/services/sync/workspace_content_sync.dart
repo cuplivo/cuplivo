@@ -43,7 +43,13 @@ class WorkspaceContentSnapshot {
 
   final String id;
   final String name;
-  final Directory root;
+
+  /// Where this workspace's files live on this device, or null when even that
+  /// could not be resolved (an unwritable app data directory, a full disk).
+  /// Null is not "empty": the folder cannot be enumerated at all, which is why
+  /// [shared] is false — and the row is still reported, because the panel has
+  /// to be able to say "this one is not syncing".
+  final Directory? root;
 
   /// Whether this device is willing to sync files for it (the panel's switch).
   final bool enabled;
@@ -51,10 +57,12 @@ class WorkspaceContentSnapshot {
   final WorkspaceContentIndex index;
 
   /// Whether this workspace's files may be advertised at all. Every condition
-  /// is device-local and every one is a refusal to share: the user turned it
-  /// off, it is over the caps, or the walk could not read all of it (a table
-  /// missing a file would tell the peer to delete that file).
-  bool get shared => enabled && !index.truncated && !index.incomplete;
+  /// is device-local and every one is a refusal to share: the folder could not
+  /// be resolved or the walk could not read all of it (a table missing a file
+  /// would tell the peer to delete that file), the user turned it off, or it is
+  /// over the caps.
+  bool get shared =>
+      root != null && enabled && !index.truncated && !index.incomplete;
 }
 
 /// What one session's workspace content work did, from this device's own point
@@ -166,18 +174,23 @@ class WorkspaceContentSync {
       if (isLinkedWorkspace(payload)) continue;
       final id = row['id'];
       if (id is! String || id.isEmpty) continue;
-      final Directory root;
-      try {
-        root = await resolveRoot(id);
-      } catch (error) {
-        debugPrint('sync workspace $id: could not resolve its root: $error');
-        continue;
-      }
-      final index = await indexWorkspaceContent(
-        root.path,
-        maxFiles: maxFiles,
-        maxBytes: maxBytes,
-      );
+      // A root that cannot be resolved is reported, not dropped: the walk
+      // cannot enumerate it, so the index says it is incomplete — which is the
+      // same refusal to share a partial tree that an unreadable directory gets,
+      // and it is what lets the panel say "this one is not syncing" instead of
+      // omitting the row entirely.
+      final root = await _resolveRootOrNull(id);
+      final index = root == null
+          ? const WorkspaceContentIndex(
+              <String, WorkspaceFileStamp>{},
+              totalBytes: 0,
+              incomplete: true,
+            )
+          : await indexWorkspaceContent(
+              root.path,
+              maxFiles: maxFiles,
+              maxBytes: maxBytes,
+            );
       snapshots.add(
         WorkspaceContentSnapshot(
           id: id,
@@ -222,12 +235,11 @@ class WorkspaceContentSync {
   void publish(String peerDeviceId, List<WorkspaceContentSnapshot> snapshots) {
     final served = <String, _ServedWorkspaceFile>{};
     for (final snapshot in snapshots) {
-      if (!snapshot.shared) continue;
+      final root = snapshot.root;
+      if (root == null || !snapshot.shared) continue;
       for (final entry in snapshot.index.files.entries) {
         served[_serveKey(snapshot.id, entry.key)] = _ServedWorkspaceFile(
-          file: File(
-            p.joinAll([snapshot.root.path, ...p.posix.split(entry.key)]),
-          ),
+          file: File(p.joinAll([root.path, ...p.posix.split(entry.key)])),
           stamp: entry.value,
         );
       }
@@ -433,6 +445,17 @@ class WorkspaceContentSync {
 
   // ---- internals ----
 
+  /// This workspace's files root, or null when the resolver refused (an
+  /// unwritable app data directory, a full disk, an id the sink rejects).
+  Future<Directory?> _resolveRootOrNull(String id) async {
+    try {
+      return await resolveRoot(id);
+    } catch (error) {
+      debugPrint('sync workspace $id: could not resolve its root: $error');
+      return null;
+    }
+  }
+
   Future<WorkspaceFileStamp?> _fetchOne({
     required WorkspaceContentSnapshot snapshot,
     required String relPath,
@@ -440,13 +463,14 @@ class WorkspaceContentSync {
     required WorkspaceFileFetcher? fetch,
   }) async {
     final fetcher = fetch;
-    if (fetcher == null) return null;
+    final root = snapshot.root;
+    if (fetcher == null || root == null) return null;
     File? temp;
     try {
       temp = await store.newBlobTempFile();
       await fetcher(snapshot.id, relPath, temp);
       return await _place(
-        root: snapshot.root,
+        root: root,
         relPath: relPath,
         downloaded: temp,
         advertised: advertised,
@@ -524,7 +548,9 @@ class WorkspaceContentSync {
     WorkspaceContentSnapshot snapshot,
     String relPath,
   ) async {
-    final target = workspacePathWithin(snapshot.root.path, relPath);
+    final root = snapshot.root;
+    if (root == null) return false;
+    final target = workspacePathWithin(root.path, relPath);
     if (target == null) return false;
     try {
       final type = await FileSystemEntity.type(target, followLinks: false);
@@ -534,7 +560,7 @@ class WorkspaceContentSync {
       // take its contents with it.
       if (type != FileSystemEntityType.file) return false;
       await File(target).delete();
-      await _pruneEmptyParents(snapshot.root, File(target).parent);
+      await _pruneEmptyParents(root, File(target).parent);
       return true;
     } catch (error) {
       debugPrint('sync workspace: deleting "$relPath" failed: $error');

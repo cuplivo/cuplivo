@@ -358,6 +358,72 @@ void main() {
         isNull,
       );
     });
+    test('a workspace id that is a path is offered by nobody', () async {
+      // The id is what `AppDirectories.workspaceFilesDir` joins onto the app
+      // data root, so a row carrying one is invisible in *both* directions: it
+      // is not announced, not served by name, not deletable through sync, and
+      // not acceptable from the wire. The file path inside a workspace has had
+      // four gates since slice 18; this is the segment that precedes it.
+      await put('..', kind: 'managed');
+
+      expect(await repository.syncEntityIds('workspace'), isEmpty);
+      expect(
+        (await repository.syncEntityRefs()).where(
+          (ref) => ref.kindWire == 'workspace',
+        ),
+        isEmpty,
+        reason: 'an id nobody may name is not announced either',
+      );
+      expect(
+        await repository.syncReadEntityRows('workspace', {'..'}),
+        isEmpty,
+        reason: 'a fetch that names the traversal is served nothing',
+      );
+      expect(await repository.syncDeleteEntity('workspace', '..'), isFalse);
+
+      final applied = await repository.syncApplyBusinessRows(
+        entities: {
+          'workspace': [wireRow('..', 'managed')],
+        },
+        preferences: const [],
+        myDeviceId: 'me',
+        peerDeviceId: 'peer',
+      );
+      expect(applied.entityRowsWritten, 0);
+      expect(applied.changed, isFalse);
+    });
+
+    test('a peer cannot replace a linked folder with a managed row', () async {
+      await put('linked-1', kind: 'linked', hostPath: '/home/me/notes');
+
+      final applied = await repository.syncApplyBusinessRows(
+        entities: {
+          // A hostile (or merely buggy) peer that knows the id: a *managed*
+          // payload so the incoming-payload filter passes, and a clock far
+          // ahead so LWW sends it through. Only the local payload says the
+          // user's own folder lives at this id, so only the local half can
+          // refuse it.
+          'workspace': [
+            {...wireRow('linked-1', 'managed'), 'updated_at': 4102444800000000},
+          ],
+        },
+        preferences: const [],
+        myDeviceId: 'me',
+        peerDeviceId: 'peer',
+      );
+
+      expect(applied.entityRowsWritten, 0);
+      expect(applied.entityRowsLost, 0);
+      final after = await ExtensionEntityStore(
+        database,
+      ).get('workspace', 'linked-1');
+      expect(
+        after!.payload['kind'],
+        'linked',
+        reason: 'the user\'s link is not the peer\'s to replace',
+      );
+      expect(after.payload['hostPath'], '/home/me/notes');
+    });
   });
 
   test('the reload picks up writes that bypassed the view', () async {

@@ -283,6 +283,7 @@ class _Side {
     this.newerSchema = false,
     this.clockOffsetUs = 0,
     this.workspaceMaxFiles = kMaxWorkspaceFiles,
+    this.yieldedSessionTtl = SyncEngine.kYieldedSessionTtl,
   });
 
   final String label;
@@ -297,6 +298,11 @@ class _Side {
   /// one test that proves the over-cap path with three files instead of two
   /// thousand. (The byte cap is covered by the index's own test.)
   final int workspaceMaxFiles;
+
+  /// How long a session this side accepted by yielding its own dial waits for
+  /// the peer's first beat — the production default, shrunk by the crossing
+  /// test so it does not have to sit through the real window.
+  final Duration yieldedSessionTtl;
 
   late final Directory dir;
   late final AppDatabase database;
@@ -554,6 +560,7 @@ class _Side {
       dataPlane: dataPlane,
       onStateChanged: () => stateChanges++,
       onProgressChanged: () => progressChanges++,
+      yieldedSessionTtl: yieldedSessionTtl,
       clockUs: () => DateTime.now().microsecondsSinceEpoch + clockOffsetUs,
     );
     port = await engine.start(preferredPort: 0);
@@ -1583,6 +1590,106 @@ void main() {
     );
     expect(again, isA<SyncHello>());
   });
+
+  test('a crossing dial leaves no pair stuck on busy', () async {
+    // Both devices decide to sync in the same moment. Each one's hello lands
+    // while its own round is still unanswered, so each yields and answers —
+    // and since neither client is left running, each holds a session nobody
+    // will drive. That pair used to stay busy until the listener restarted:
+    // `_sessions` was only swept at the top of `handleHello`, which is a call
+    // a pair that refuses its own dials never makes.
+    const window = Duration(seconds: 2);
+    final a = _Side('a', yieldedSessionTtl: window);
+    final b = _Side('b', yieldedSessionTtl: window);
+    await a.start(root);
+    await b.start(root);
+    sides.addAll([a, b]);
+    await pairSides(a, b);
+
+    // One listener per direction that completes the handshake and never
+    // answers a hello: each round is in flight and provably unanswered when
+    // the other side's hello arrives.
+    final silentForA = await HttpServer.bindSecure(
+      InternetAddress.loopbackIPv4,
+      0,
+      b.identity.buildContext(),
+      requestClientCertificate: false,
+    );
+    final silentForB = await HttpServer.bindSecure(
+      InternetAddress.loopbackIPv4,
+      0,
+      a.identity.buildContext(),
+      requestClientCertificate: false,
+    );
+    try {
+      final pendingA = a.engine.syncWithPeer(
+        await a.peer(b),
+        host: '127.0.0.1',
+        port: silentForA.port,
+      );
+      final pendingB = b.engine.syncWithPeer(
+        await b.peer(a),
+        host: '127.0.0.1',
+        port: silentForB.port,
+      );
+
+      final helloAtA = SyncHello(
+        protocolVersion: kSyncProtocolVersion,
+        schemaVersion: b.dataPlane.schemaVersion,
+        deviceId: b.identity.deviceId,
+        deviceName: b.label,
+        platform: 'test',
+        manifest: await b.dataPlane.buildManifest(),
+        listenPort: b.port,
+      );
+      final helloAtB = SyncHello(
+        protocolVersion: kSyncProtocolVersion,
+        schemaVersion: a.dataPlane.schemaVersion,
+        deviceId: a.identity.deviceId,
+        deviceName: a.label,
+        platform: 'test',
+        manifest: await a.dataPlane.buildManifest(),
+        listenPort: a.port,
+      );
+      expect(
+        await a.engine.handleHello(b.identity.deviceId, helloAtA),
+        isA<SyncHello>(),
+      );
+      expect(
+        await b.engine.handleHello(a.identity.deviceId, helloAtB),
+        isA<SyncHello>(),
+      );
+
+      // Neither client survives the yield, so both rounds end superseded. The
+      // silent listeners are closed first: that settles the two pending
+      // requests now instead of leaving them to their own deadline, and it
+      // leaves the abandoned session as the *only* thing that can refuse the
+      // next round (a cancelled round leaves `_initiatorRounds` when it ends).
+      await silentForA.close(force: true);
+      await silentForB.close(force: true);
+      expect((await pendingA).refusal, SyncRefusalReason.superseded);
+      expect((await pendingB).refusal, SyncRefusalReason.superseded);
+      expect(
+        (await a.engine.syncWithPeer(await a.peer(b))).refusal,
+        SyncRefusalReason.busy,
+        reason: 'the session nobody drives is what refuses this round',
+      );
+      expect(
+        (await b.engine.syncWithPeer(await b.peer(a))).refusal,
+        SyncRefusalReason.busy,
+      );
+
+      // The window is all it takes: a yielded session the peer never came
+      // back to push into is dropped, so the pair's next attempt is a real
+      // session over the address pairing proved.
+      await Future<void>.delayed(window + const Duration(milliseconds: 500));
+      final recovered = await a.engine.syncWithPeer(await a.peer(b));
+      expect(recovered.success, isTrue, reason: recovered.summary);
+    } finally {
+      await silentForA.close(force: true);
+      await silentForB.close(force: true);
+    }
+  }, timeout: const Timeout(Duration(seconds: 90)));
 
   test('a replaced database makes the peer re-send, not delete', () async {
     // A restore (or an overwrite import) replaces the local history wholesale.
@@ -4621,6 +4728,33 @@ void main() {
     expect(third.workspaceFiles, 0, reason: 'the initiator fetched nothing');
   });
 
+  test('a workspace only the responder holds lands in the same session', () async {
+    final (a, b) = await pair();
+    // Created on the *responder*: the record reaches the initiator inside the
+    // fetch response, so the initiator's planning walk has to run after its own
+    // business apply. Planning from the pre-push walk — which cannot contain a
+    // workspace that did not exist when it ran — made this direction wait a
+    // whole session, while the other direction transferred immediately.
+    await _putWorkspace(b, id: 'w1', kind: 'managed');
+    await b.putWorkspaceFile('w1', 'src/a.dart', 'aaa', mtimeMs: 1000000);
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+
+    expect(report.success, isTrue, reason: report.summary);
+    expect(await _workspaceIds(a), ['w1']);
+    expect(
+      await a.workspaceFileContent('w1', 'src/a.dart'),
+      'aaa',
+      reason: 'the initiator fetched the folder the record just made its own',
+    );
+    expect(report.workspaceFiles, 1);
+
+    // And it settles: the next session moves nothing.
+    final settled = await a.engine.syncWithPeer(await a.peer(b));
+    expect(settled.success, isTrue, reason: settled.summary);
+    expect(settled.workspaceFiles, 0);
+  });
+
   test(
     'both devices edited one file: the newer version wins on both',
     () async {
@@ -5826,6 +5960,162 @@ void main() {
       PresenceSource.probe,
       reason: 'the fresh address evidence is what the dot reports now',
     );
+  });
+
+  test('a saturated listener does not erase a working measurement', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    sides.addAll([a, b]);
+
+    // The probe answers for the real address and is told "not now" (503,
+    // `ping_busy`) for a second remembered one — a listener that is too loaded
+    // to judge, which is not a verdict about that address.
+    const saturatedPort = 1;
+    var busyEverywhere = false;
+    final provider = await a.startProvider(
+      endpointProbe: (host, port) async {
+        if (busyEverywhere || port == saturatedPort) {
+          throw const SyncClientException('ping_busy');
+        }
+      },
+    );
+    final pin = b.engine.openPairing();
+    await provider.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
+
+    // Through the provider's own "an address was added" path: that is the
+    // evidence-changing moment a *full* round exists for — the ten-second tick
+    // alone would only ask the address that already answered.
+    await provider.addPeerEndpoint(
+      b.identity.deviceId,
+      '127.0.0.1',
+      saturatedPort,
+    );
+    await _waitUntil(
+      () async =>
+          provider.probeResultFor(
+            b.identity.deviceId,
+            '127.0.0.1',
+            saturatedPort,
+          ) !=
+          null,
+    );
+
+    final answered = provider.probeResultFor(
+      b.identity.deviceId,
+      '127.0.0.1',
+      b.port,
+    );
+    final saturated = provider.probeResultFor(
+      b.identity.deviceId,
+      '127.0.0.1',
+      saturatedPort,
+    );
+    expect(answered?.answered, isTrue);
+    expect(saturated?.noVerdict, isTrue);
+    expect(saturated?.answered, isFalse);
+
+    // A round that answers "not now" for the very address whose figure is known
+    // must leave that figure alone — and leave its *age* alone too, which is
+    // what makes a kept measurement honest rather than a stale one dressed as
+    // fresh.
+    busyEverywhere = true;
+    await provider.refreshPresence();
+    final after = provider.probeResultFor(
+      b.identity.deviceId,
+      '127.0.0.1',
+      b.port,
+    );
+    expect(
+      after?.answered,
+      isTrue,
+      reason: 'a 503 is not a verdict about the address',
+    );
+    expect(after?.measuredAt, answered?.measuredAt);
+    expect(after?.latency, answered?.latency);
+
+    // The busy answer is kept as "no opinion", so a later round cannot paint
+    // the address offline and the *persisted* figures must not move either:
+    // `recordProbe(answered: false, latency: null)` would clear a latency and
+    // stamp a fresh "last measured" for an address nothing was learned about.
+    await provider.syncNow(b.identity.deviceId);
+    final stored = provider.peers.firstWhere(
+      (candidate) => candidate.deviceId == b.identity.deviceId,
+    );
+    expect(
+      stored.endpointFor('127.0.0.1', saturatedPort)?.lastProbedAt,
+      isNull,
+      reason: 'a 503 is not a measurement, so it does not stamp one',
+    );
+    expect(
+      stored.endpointFor('127.0.0.1', b.port)?.lastLatencyMs,
+      isNotNull,
+      reason: 'the address that answered keeps its figure',
+    );
+  });
+
+  test('a measurement older than the freshness window is not reused', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root);
+    await b.start(root);
+    sides.addAll([a, b]);
+    await pairSides(a, b);
+
+    // Two remembered addresses, so the dial has an order to build — and a
+    // snapshot whose only figure was measured a minute ago. The provider keeps
+    // the answers for endpoints a tick did not visit, so a snapshot is not
+    // young just because it was published young, and that figure must not
+    // decide this dial (nor bound its connect budget).
+    final peer = await a.peer(b);
+    _onlyEndpoint(peer, '127.0.0.1', b.port);
+    peer.addEndpoint('127.0.0.1', 1);
+    await a.store.savePeer(peer);
+
+    var probed = 0;
+    a.engine.onProbes = (deviceId, results) => probed += results.length;
+    a.engine.endpointProbes = {
+      b.identity.deviceId: [
+        EndpointProbeResult(
+          host: '127.0.0.1',
+          port: b.port,
+          answered: true,
+          authenticated: true,
+          latency: const Duration(milliseconds: 1),
+          measuredAt: DateTime.now().subtract(const Duration(minutes: 1)),
+        ),
+      ],
+    };
+
+    final stale = await a.engine.syncWithPeer(await a.peer(b));
+    expect(stale.success, isTrue, reason: stale.summary);
+    expect(
+      probed,
+      greaterThan(0),
+      reason:
+          'a minute-old figure is not evidence about this network, so the '
+          'dial asks again instead of ordering by it',
+    );
+
+    // The same snapshot, measured just now, is spent rather than re-bought.
+    probed = 0;
+    a.engine.endpointProbes = {
+      b.identity.deviceId: [
+        EndpointProbeResult(
+          host: '127.0.0.1',
+          port: b.port,
+          answered: true,
+          authenticated: true,
+          latency: const Duration(milliseconds: 1),
+          measuredAt: DateTime.now(),
+        ),
+      ],
+    };
+    final fresh = await a.engine.syncWithPeer(await a.peer(b));
+    expect(fresh.success, isTrue, reason: fresh.summary);
+    expect(probed, 0, reason: 'a fresh measurement is not paid for twice');
   });
 
   test('a refusal is an answer: the peer is there', () async {

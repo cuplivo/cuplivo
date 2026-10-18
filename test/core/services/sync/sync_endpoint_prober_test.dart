@@ -323,6 +323,63 @@ void main() {
     test('a peer with no endpoint probes nothing', () {
       expect(selectProbeTargets(const [], const {}, full: true), isEmpty);
     });
+
+    EndpointProbeResult measured(
+      String host,
+      int port,
+      DateTime at, {
+      bool answered = false,
+      int? ms,
+    }) => EndpointProbeResult(
+      host: host,
+      port: port,
+      answered: answered,
+      authenticated: answered,
+      latency: ms == null ? null : Duration(milliseconds: ms),
+      measuredAt: at,
+    );
+
+    test('the tail is asked least recently first', () {
+      // Three addresses that answered nothing, measured at three different
+      // times: the oldest question is the one worth re-asking.
+      final previous = {
+        ('head', 1): measured('head', 1, DateTime(2026, 1, 3)),
+        ('second', 2): measured('second', 2, DateTime(2026, 1, 1)),
+        ('third', 3): measured('third', 3, DateTime(2026, 1, 2)),
+      };
+
+      expect(selectProbeTargets(endpoints, previous, full: true), [
+        ('tail-1', 4),
+        ('tail-2', 5),
+        ('tail-3', 6),
+        ('second', 2),
+      ], reason: 'never-asked addresses lead, then the least recently asked');
+    });
+
+    test('three rounds ask every remembered address', () {
+      // Twelve endpoints, none of them proved — the state after a peer moves to
+      // a network whose address sits behind the history. A fixed first-four
+      // would leave eight of them unasked by *any* round, so no measurement
+      // would ever prove them and the dial would never try them either.
+      final many = [for (var i = 0; i < 12; i++) _endpoint('h$i', 9000 + i)];
+      final everProbed = <(String, int)>{};
+      var previous = <(String, int), EndpointProbeResult>{};
+      for (var round = 0; round < 3; round++) {
+        final at = DateTime(2026, 1, 1).add(Duration(minutes: round));
+        for (final target in selectProbeTargets(many, previous, full: true)) {
+          everProbed.add(target);
+          previous[target] = measured(target.$1, target.$2, at);
+        }
+      }
+
+      expect(
+        everProbed.length,
+        12,
+        reason: 'a rotating tail covers the whole memory in three rounds',
+      );
+      expect(everProbed, contains(('h5', 9005)));
+      expect(everProbed, contains(('h11', 9011)));
+    });
   });
 
   group('dialTimeoutFor', () {

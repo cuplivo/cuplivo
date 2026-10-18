@@ -202,12 +202,19 @@ class SyncEngine implements SyncServerHandler {
     this.onProgressChanged,
     this.onResponderSession,
     this.onProbes,
+    this.yieldedSessionTtl = kYieldedSessionTtl,
     int Function()? clockUs,
   }) : clockUs = clockUs ?? (() => DateTime.now().microsecondsSinceEpoch);
 
   final SyncDeviceIdentity identity;
   final SyncStore store;
   final SyncDataPlane dataPlane;
+
+  /// How long a session accepted by yielding this device's own dial waits for
+  /// the peer's first beat before it is dropped (see [kYieldedSessionTtl]).
+  /// A parameter only so a test can shrink the window instead of sleeping
+  /// through the production one; production never passes it.
+  final Duration yieldedSessionTtl;
 
   /// The wall clock stamped into hellos, so tests can manufacture a skew. It
   /// feeds nothing else — row clocks keep coming from the write path.
@@ -264,10 +271,11 @@ class SyncEngine implements SyncServerHandler {
   /// instead of probing again: the address that answered in 4 ms is the one to
   /// dial, and its round trip is what bounds the connect timeout.
   ///
-  /// A snapshot older than [kSyncProbeFreshness] is ignored — it describes a
-  /// network this device may have already left — and the session probes once
-  /// itself before walking the candidates.
-  Map<String, PeerProbeSnapshot> endpointProbes = const {};
+  /// Each measurement carries its own timestamp, and one older than
+  /// [kSyncProbeFreshness] is ignored — it describes a network this device may
+  /// have already left. A snapshot is not re-stamped per publish: the figure's
+  /// age is the figure's, not the round's.
+  Map<String, List<EndpointProbeResult>> endpointProbes = const {};
 
   /// Called when this engine ran a probe round of its own (a session whose
   /// snapshot had gone stale). The consumer folds the results into the cards'
@@ -311,6 +319,20 @@ class SyncEngine implements SyncServerHandler {
 
   static const _pairingWindow = Duration(minutes: 5);
   static const _sessionTtl = Duration(minutes: 2);
+
+  /// How long a session this device accepted by **yielding** its own dial waits
+  /// for the peer's first beat before it is treated as abandoned.
+  ///
+  /// Yielding is a bet: an arriving hello proves the peer reaches this device,
+  /// so the round it superseded is dropped and this side answers instead. In a
+  /// crossing dial *both* sides make that bet, so neither client is left to
+  /// drive either session — each side then holds a session nobody will push to
+  /// and refuses its own dials as busy. A yielded session with no beat after
+  /// this window is therefore dropped rather than believed, and the pair's next
+  /// attempt gets through. The window is short on purpose: the peer that
+  /// yielded to us pushes within milliseconds of its hello, so a yielded
+  /// session that has never been touched is not a slow session.
+  static const kYieldedSessionTtl = Duration(seconds: 4);
 
   /// The port a sync listener prefers, so a firewall rule and a peer's stored
   /// endpoint stay stable across launches. A busy port falls back to an
@@ -558,6 +580,10 @@ class SyncEngine implements SyncServerHandler {
     String? host,
     int? port,
   }) async {
+    // Before the refusal below: an abandoned session held for this peer is what
+    // would refuse this round, so it has to be reconsidered first (see
+    // [_dropStaleSessions]).
+    _dropStaleSessions();
     if (_sessions.containsKey(peer.deviceId) ||
         _initiatorRounds.containsKey(peer.deviceId)) {
       return await _finish(
@@ -676,11 +702,14 @@ class SyncEngine implements SyncServerHandler {
   /// Orders [candidates] for the serial dial, from the freshest measurement
   /// available.
   ///
-  /// A snapshot the provider pushed recently is used as-is — that is the whole
-  /// point of probing on a timer, the session must not pay for it twice — and a
-  /// stale one is replaced by a probe round run here. Either way the order is
-  /// "answered, fastest first", and the same measurements set each candidate's
-  /// connect budget.
+  /// The provider's snapshot is used as-is — that is the whole point of probing
+  /// on a timer, the session must not pay for it twice — but each measurement is
+  /// judged on its own timestamp: the provider reuses the answers for endpoints
+  /// a tick did not visit, so a snapshot can hold one figure from four seconds
+  /// ago and another from a minute ago. Only the fresh ones count, and when none
+  /// is left this round probes for itself. Either way the order is "answered,
+  /// fastest first", and the same measurements set each candidate's connect
+  /// budget.
   Future<List<(String, int)>> _orderCandidates(
     SyncPeerRecord peer,
     List<(String, int)> candidates,
@@ -688,14 +717,16 @@ class SyncEngine implements SyncServerHandler {
   ) async {
     if (candidates.length <= 1) return candidates;
     final snapshot = endpointProbes[peer.deviceId];
-    final usable =
-        snapshot != null &&
-        DateTime.now().difference(snapshot.at) <= kSyncProbeFreshness;
-    if (usable) {
+    if (snapshot != null) {
+      final now = DateTime.now();
       round.probed = {
-        for (final result in snapshot.results) result.endpoint: result,
+        for (final result in snapshot)
+          if (now.difference(result.measuredAt) <= kSyncProbeFreshness)
+            result.endpoint: result,
       };
-      return orderCandidatesByProbe(candidates, round.probed, localAddresses);
+      if (round.probed.isNotEmpty) {
+        return orderCandidatesByProbe(candidates, round.probed, localAddresses);
+      }
     }
     final results = await probePeerEndpoints(
       endpoints: candidates,
@@ -1105,13 +1136,20 @@ class SyncEngine implements SyncServerHandler {
       // Workspace files (slice 18). The peer's table arrived with the fetch
       // response, and the responder published its own files before answering
       // it, so everything this device decides it needs is servable right now
-      // over the connection that is already open. This runs after the business
-      // apply on purpose: a workspace record that just arrived is what makes
-      // its folder this device's to populate.
+      // over the connection that is already open.
+      //
+      // The walk is taken *here*, after the business apply, and deliberately not
+      // reused from the pre-push one: a workspace record that just arrived is
+      // what makes its folder this device's to populate, and it is absent from a
+      // list walked before the apply — so the whole direction would wait a
+      // session for content the peer is advertising right now. The pre-push walk
+      // stays what it is for (what this device serves inside the push beat), and
+      // the responder walks twice per session in exactly the same way.
+      final planningSnapshots = await dataPlane.workspaceSnapshots();
       final workspaceOutcome = await dataPlane.applyWorkspaceContent(
         myDeviceId: identity.deviceId,
         peerDeviceId: peer.deviceId,
-        mine: myWorkspaceSnapshots,
+        mine: planningSnapshots,
         peerTables: incoming.workspaceFiles,
         ledger: previous.workspaceFiles,
         // A bulk-replaced peer's missing files prove nothing: they were
@@ -1265,7 +1303,7 @@ class SyncEngine implements SyncServerHandler {
     SyncHello initiatorHello, {
     String? remoteAddress,
   }) async {
-    _dropExpiredSessions();
+    _dropStaleSessions();
     // The authenticated identity is the only one this session may act as:
     // [peerDeviceId] is the device whose per-peer secret authenticated the
     // request, and a hello body naming some other paired device would
@@ -1314,8 +1352,12 @@ class SyncEngine implements SyncServerHandler {
     // both devices fail forever while the reachable direction sat idle (the
     // local dial times out, and every retry collides with the same refusal).
     // The arriving hello therefore wins over a round that is still dialing, and
-    // the local round is cancelled before this handler awaits anything.
+    // the local round is cancelled before this handler awaits anything. The
+    // session this builds is then a *yielded* one: it is a bet that the peer's
+    // own client is still there to drive it, which is why one that is never
+    // touched is dropped again (see [kYieldedSessionTtl]).
     final round = _initiatorRounds[initiatorHello.deviceId];
+    final yielded = round != null && !round.answered;
     if (round != null) {
       if (round.answered) {
         return const SyncHelloRefusal(
@@ -1378,6 +1420,7 @@ class SyncEngine implements SyncServerHandler {
       initiatorHost: remoteAddress,
       clockSkewMs: _clockSkewMs(myClockUs, initiatorHello.clockUs),
       peerReplaced: peerReplaced,
+      yielded: yielded,
     );
     _sessions[initiatorHello.deviceId] = session;
     return SyncHello(
@@ -1405,6 +1448,9 @@ class SyncEngine implements SyncServerHandler {
   ) async {
     final session = _sessions[peerDeviceId];
     if (session == null) throw StateError('sync_session_missing');
+    // The peer's client is alive and pushing: a session this device accepted by
+    // yielding its own dial is no longer a bet (see [kYieldedSessionTtl]).
+    session.lastBeatAt = DateTime.now();
     _rememberPublished(batch.assets);
 
     // Blob beat, responder side. The initiator pushed rows before the fetch
@@ -2623,11 +2669,22 @@ class SyncEngine implements SyncServerHandler {
     peer.lastReport = existing.lastReport;
   }
 
-  void _dropExpiredSessions() {
+  /// Drops the responder sessions that cannot be running any more: one older
+  /// than [_sessionTtl], and one this device accepted by yielding its own dial
+  /// which the peer never came back to drive ([kYieldedSessionTtl]).
+  ///
+  /// Called from the top of [handleHello] and, more importantly, from the top of
+  /// [syncWithPeer]: a session nobody drives is exactly what makes that call
+  /// refuse its own round as busy, so the sweep has to run *before* the refusal
+  /// or nothing this device does on its own would ever clear it.
+  void _dropStaleSessions() {
     final now = DateTime.now();
-    _sessions.removeWhere(
-      (_, session) => now.difference(session.startedAt) > _sessionTtl,
-    );
+    _sessions.removeWhere((_, session) {
+      if (now.difference(session.startedAt) > _sessionTtl) return true;
+      return session.yielded &&
+          session.lastBeatAt == null &&
+          now.difference(session.startedAt) > yieldedSessionTtl;
+    });
   }
 
   static String platformTag() {
@@ -2652,6 +2709,7 @@ class _ResponderSession {
     this.initiatorHost,
     this.clockSkewMs,
     this.peerReplaced = false,
+    this.yielded = false,
   });
 
   final SyncHello initiatorHello;
@@ -2677,6 +2735,15 @@ class _ResponderSession {
   /// database was bulk-replaced, so its absences may not justify a deletion
   /// here (see [SyncStore.readDataEpoch]).
   final bool peerReplaced;
+
+  /// This session exists because the arriving hello superseded this device's own
+  /// unanswered dial. Such a session is a bet on the peer's client still being
+  /// alive to drive it — see [SyncEngine.kYieldedSessionTtl].
+  final bool yielded;
+
+  /// When this session's first beat arrived, or null while the peer's client has
+  /// not touched it yet (the state [SyncEngine.kYieldedSessionTtl] bounds).
+  DateTime? lastBeatAt;
 
   final Map<String, SyncSubtreeApplyOutcome> outcomes = {};
 
@@ -2749,14 +2816,4 @@ class _InitiatorRound {
     session = null;
     open?.close();
   }
-}
-
-/// One peer's endpoint probes as last measured, with the time they landed: a
-/// snapshot is what the dial reuses instead of probing again, and its age is
-/// what says whether that reuse is still honest.
-class PeerProbeSnapshot {
-  const PeerProbeSnapshot(this.results, this.at);
-
-  final List<EndpointProbeResult> results;
-  final DateTime at;
 }

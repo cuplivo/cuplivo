@@ -179,6 +179,69 @@ void main() {
       expect(outcome.filesRemoved, 0);
       expect(workspaceFile('w1', 'a.txt').existsSync(), isTrue);
     });
+
+    test('a root that cannot be resolved is reported, not dropped', () async {
+      // The panel has to be able to say "this one is not syncing": a root that
+      // could not even be resolved (an unwritable app data directory, a full
+      // disk) still produces a row — one that shares nothing, and says so.
+      await putWorkspace('w1', name: 'Notes');
+      final broken = WorkspaceContentSync(
+        businessRepository: businessRepository,
+        store: SyncStore(Directory('${root.path}/sync')),
+        resolveRoot: (id) async => throw const FileSystemException('no room'),
+      );
+
+      final snapshot = (await broken.snapshots()).single;
+
+      expect(snapshot.id, 'w1');
+      expect(snapshot.name, 'Notes');
+      expect(snapshot.root, isNull);
+      expect(snapshot.index.incomplete, isTrue);
+      expect(snapshot.shared, isFalse);
+      expect(broken.tablesOf([snapshot]), isEmpty);
+
+      // Nothing is served for it either, and the report counts it as a
+      // workspace that is not syncing its files.
+      broken.publish('peer', [snapshot]);
+      expect(
+        await broken.serve(
+          peerDeviceId: 'peer',
+          workspaceId: 'w1',
+          relPath: 'a.txt',
+        ),
+        isNull,
+      );
+      final outcome = await broken.applyIncoming(
+        myDeviceId: 'me',
+        peerDeviceId: 'peer',
+        mine: [snapshot],
+        peerTables: const {},
+        ledger: const {},
+        allowDeletes: true,
+        fetch: null,
+      );
+      expect(outcome.workspacesOmitted, 1);
+    });
+
+    test('an id that is a path never reaches the resolver', () async {
+      // Defence in depth on top of the row filter: even a row written straight
+      // to the store (bypassing the wire's own guard) never gets a root
+      // resolved, because the id set the content plane asks for is already
+      // filtered.
+      await putWorkspace('..');
+      final asked = <String>[];
+      final guarded = WorkspaceContentSync(
+        businessRepository: businessRepository,
+        store: SyncStore(Directory('${root.path}/sync')),
+        resolveRoot: (id) async {
+          asked.add(id);
+          throw StateError('the resolver must not be asked for $id');
+        },
+      );
+
+      expect(await guarded.snapshots(), isEmpty);
+      expect(asked, isEmpty);
+    });
   });
 
   group('the switch', () {

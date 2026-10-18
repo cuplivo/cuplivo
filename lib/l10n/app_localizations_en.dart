@@ -12793,6 +12793,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lanSyncOnlineFromSession => 'Online — the last sync connected';
 
   @override
+  String get lanSyncOfflineFromSession =>
+      'Offline — the last sync could not connect';
+
+  @override
   String lanSyncPhaseConnectingTo(Object address) {
     return 'Connecting to $address…';
   }

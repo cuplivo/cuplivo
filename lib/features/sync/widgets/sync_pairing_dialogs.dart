@@ -227,36 +227,15 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
                 ),
               ),
               const SizedBox(height: 14),
-              Text(
-                l10n.lanSyncPairingEndpointHint,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: AppFontWeights.semibold,
-                  color: cs.onSurface.withValues(alpha: 0.85),
-                ),
+              // The addresses are a fallback for the device that cannot scan,
+              // and they are the longest, most repeated strings this app owns —
+              // so they wait behind a disclosure instead of filling the dialog.
+              // The QR is the journey; this is the manual entry behind it.
+              _AddressDisclosure(
+                endpoints: endpoints,
+                emptyHint: l10n.lanSyncPairingNoIpHint,
+                hint: l10n.lanSyncPairingEndpointHint,
               ),
-              const SizedBox(height: 4),
-              if (endpoints.isEmpty)
-                Text(
-                  l10n.lanSyncPairingNoIpHint,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: cs.onSurface.withValues(alpha: 0.6),
-                  ),
-                )
-              else
-                for (final endpoint in endpoints)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      endpoint,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: AppFontWeights.medium,
-                        color: cs.primary,
-                      ),
-                    ),
-                  ),
               const SizedBox(height: 14),
               // The first sync starts the moment this window is used: it moves
               // the whole history and needs both apps alive. Saying so here is
@@ -275,6 +254,116 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The "type this into the other device" addresses, closed by default.
+///
+/// Closed because the QR is the journey this dialog exists for and the
+/// addresses are its fallback: a dialog whose lower half is four long strings of
+/// digits teaches the user to stop reading it. Closed, not hidden — the header
+/// says what is behind it, and it is one tap.
+///
+/// Stateful, and not an [ExpansionTile]: the tile's own chrome (dividers, an
+/// arrow that animates a Material list) is a different design language from the
+/// rest of this app's dialogs.
+class _AddressDisclosure extends StatefulWidget {
+  const _AddressDisclosure({
+    required this.endpoints,
+    required this.emptyHint,
+    required this.hint,
+  });
+
+  final List<String> endpoints;
+  final String emptyHint;
+  final String hint;
+
+  @override
+  State<_AddressDisclosure> createState() => _AddressDisclosureState();
+}
+
+class _AddressDisclosureState extends State<_AddressDisclosure> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // A no-address device has nothing to disclose: the hint is the whole
+        // message, and a chevron over an empty list is a trap.
+        if (widget.endpoints.isEmpty) ...[
+          Text(
+            l10n.lanSyncShowAddresses,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: AppFontWeights.semibold,
+              color: cs.onSurface.withValues(alpha: 0.85),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            widget.emptyHint,
+            style: TextStyle(
+              fontSize: 12,
+              color: cs.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+        ] else ...[
+          InkWell(
+            onTap: () => setState(() => _open = !_open),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    l10n.lanSyncShowAddresses,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: AppFontWeights.semibold,
+                      color: cs.onSurface.withValues(alpha: 0.85),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    _open ? Lucide.ChevronUp : Lucide.ChevronDown,
+                    size: 15,
+                    color: cs.onSurface.withValues(alpha: 0.5),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_open) ...[
+            const SizedBox(height: 4),
+            Text(
+              widget.hint,
+              style: TextStyle(
+                fontSize: 12,
+                color: cs.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+            for (final endpoint in widget.endpoints)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  endpoint,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: AppFontWeights.medium,
+                    color: cs.primary,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+          ],
+        ],
+      ],
     );
   }
 }

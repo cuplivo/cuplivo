@@ -1,3 +1,4 @@
+import 'package:Cuplivo/core/providers/sync_provider.dart';
 import 'package:Cuplivo/core/services/sync/sync_engine.dart';
 import 'package:Cuplivo/core/services/sync/sync_models.dart';
 import 'package:Cuplivo/features/sync/sync_messages.dart';
@@ -112,6 +113,70 @@ void main() {
     );
   });
 
+  test('workspace files are counted, sized, and never silent', () {
+    final moved = syncReportMessage(
+      l10n,
+      const SyncSessionReport(
+        success: true,
+        summary: 'ignored',
+        workspaceFiles: 3,
+        workspaceBytes: 2048,
+      ),
+    );
+    expect(
+      moved,
+      contains(l10n.lanSyncReportWorkspaceFilesWithSize(3, '2.0 KB')),
+      reason: 'the chip says how many and how much',
+    );
+
+    // Everything the user has to be able to notice is named: an edit the peer
+    // replaced, a file that could not be applied, and a workspace that is not
+    // syncing at all.
+    final warned = syncReportMessage(
+      l10n,
+      const SyncSessionReport(
+        success: true,
+        summary: 'ignored',
+        workspaceFilesRemoved: 2,
+        workspaceConflicts: 1,
+        workspaceFilesMissing: 4,
+        workspacesOmitted: 1,
+      ),
+    );
+    for (final part in [
+      l10n.lanSyncReportWorkspaceRemoved(2),
+      l10n.lanSyncReportWorkspaceConflicts(1),
+      l10n.lanSyncReportWorkspaceMissing(4),
+      l10n.lanSyncReportWorkspacesOmitted(1),
+    ]) {
+      expect(warned, contains(part));
+    }
+
+    // A session that only moved workspace files is still an arrival: the files
+    // are on this device now, in a file manager the user can open.
+    expect(
+      syncBroughtDataHere(
+        const SyncSessionReport(
+          success: true,
+          summary: 'ignored',
+          workspaceFiles: 1,
+        ),
+      ),
+      isTrue,
+    );
+    expect(
+      syncBroughtDataHere(
+        const SyncSessionReport(
+          success: true,
+          summary: 'ignored',
+          workspaceFilesRemoved: 1,
+        ),
+      ),
+      isTrue,
+      reason: 'a deletion that landed here is news too',
+    );
+  });
+
   test('a peer with no address asks for one, not for a retry', () {
     const report = SyncSessionReport(
       success: false,
@@ -133,36 +198,25 @@ void main() {
     expect(persisted.failure, SyncFailureReason.noEndpoint);
   });
 
-  test('the dial beat names the address, and which candidate it is', () {
+  test('the dial beat names the address, and never a rank', () {
     // The dial is the one beat that can hang on an address that will never
-    // answer, so the label has to say which one and how many are left — an
-    // unqualified "connecting…" turns a diagnosable wait into a mystery.
+    // answer, so the label has to say which one — an unqualified "connecting…"
+    // turns a diagnosable wait into a mystery. Which *number* candidate it is is
+    // not part of that: the probe already ranked every address in parallel
+    // before the dial spent its answer, so a rank would describe an
+    // implementation detail the user cannot act on.
     expect(
       syncPhaseLabel(
         l10n,
         const SyncSessionProgress(
           SyncSessionPhase.connecting,
           address: '192.168.1.5:9527',
-          attempt: 2,
-          attempts: 3,
-        ),
-      ),
-      l10n.lanSyncPhaseConnectingAt('192.168.1.5:9527', 2, 3),
-    );
-    expect(
-      syncPhaseLabel(
-        l10n,
-        const SyncSessionProgress(
-          SyncSessionPhase.connecting,
-          address: '192.168.1.5:9527',
-          attempt: 1,
-          attempts: 1,
         ),
       ),
       l10n.lanSyncPhaseConnectingTo('192.168.1.5:9527'),
     );
-    // No address yet (the candidate ordering, or a session whose progress has
-    // not landed): the plain label, never the address form with empty parts.
+    // No address yet (the probe is still running, or a beat has not landed):
+    // the plain label, never the address form with empty parts.
     expect(
       syncPhaseLabel(
         l10n,
@@ -179,34 +233,94 @@ void main() {
     );
   });
 
+  test('a report row is drawn for anything but a routine absence', () {
+    // The card asks this before it renders its report area at all, so a false
+    // answer also means no empty gap above it. An unreachable peer is the state
+    // the subtitle already names — one fact, said once — while every outcome a
+    // user can act on keeps its row.
+    expect(syncReportHasRow(const SyncPeerReport(success: true)), isTrue);
+    expect(
+      syncReportHasRow(
+        const SyncPeerReport(
+          success: false,
+          refusal: SyncRefusalReason.notPaired,
+        ),
+      ),
+      isTrue,
+      reason: 'a refusal carries the re-pair gesture',
+    );
+    expect(
+      syncReportHasRow(
+        const SyncPeerReport(
+          success: false,
+          failure: SyncFailureReason.timeout,
+        ),
+      ),
+      isTrue,
+    );
+    expect(
+      syncReportHasRow(
+        const SyncPeerReport(
+          success: false,
+          failure: SyncFailureReason.unreachable,
+        ),
+      ),
+      isFalse,
+      reason: 'the subtitle already says the peer is away',
+    );
+    expect(
+      syncReportHasRow(
+        const SyncPeerReport(
+          success: false,
+          failure: SyncFailureReason.noEndpoint,
+        ),
+      ),
+      isTrue,
+      reason: 'a peer with no address needs one, and this row is where it asks',
+    );
+  });
+
   test('a recent session reads as how long ago, not as a timestamp', () {
     final now = DateTime(2026, 3, 4, 12);
     String ago(Duration elapsed) =>
         syncLastSyncedLabel(l10n, now.subtract(elapsed), now: now);
 
     expect(ago(const Duration(seconds: 20)), l10n.lanSyncJustSynced);
-    expect(
-      ago(const Duration(minutes: 3)),
-      l10n.lanSyncLastSyncedAt('3 min ago'),
-    );
-    expect(ago(const Duration(hours: 5)), l10n.lanSyncLastSyncedAt('5 h ago'));
-    expect(ago(const Duration(days: 3)), l10n.lanSyncLastSyncedAt('3 d ago'));
+    // A bare phrase: this label shares the card's subtitle with the platform
+    // ("Android · 3 min ago"), so "Last synced" would be said twice.
+    expect(ago(const Duration(minutes: 3)), l10n.lanSyncMinutesAgo(3));
+    expect(ago(const Duration(hours: 5)), l10n.lanSyncHoursAgo(5));
+    expect(ago(const Duration(days: 3)), l10n.lanSyncDaysAgo(3));
 
-    // Past a week the date is the more useful fact, and the line falls back to
-    // the stamp this label used to be.
+    // Past a week the date is the more useful fact.
     expect(
       ago(const Duration(days: 9)),
-      l10n.lanSyncLastSyncedAt(
-        DateFormat(
-          'yyyy-MM-dd HH:mm',
-        ).format(now.subtract(const Duration(days: 9))),
-      ),
+      DateFormat('yyyy-MM-dd').format(now.subtract(const Duration(days: 9))),
     );
 
     // A stamp in the future is a clock that disagreed, not a countdown: the card
     // is about the past and must not read "in 4 minutes".
     expect(ago(const Duration(minutes: -4)), l10n.lanSyncJustSynced);
     expect(syncLastSyncedLabel(l10n, null), l10n.lanSyncNeverSynced);
+  });
+
+  test('an endpoint detail row reads as a standalone phrase', () {
+    final now = DateTime(2026, 3, 4, 12);
+    String ago(Duration elapsed) =>
+        syncElapsedLabel(l10n, now.subtract(elapsed), now: now);
+
+    expect(ago(const Duration(seconds: 20)), l10n.lanSyncJustNow);
+    expect(ago(const Duration(minutes: 8)), l10n.lanSyncMinutesAgo(8));
+    expect(ago(const Duration(days: 3)), l10n.lanSyncDaysAgo(3));
+    // "12 d ago" is not more useful than the day it happened.
+    expect(
+      ago(const Duration(days: 12)),
+      DateFormat('yyyy-MM-dd').format(now.subtract(const Duration(days: 12))),
+    );
+    // The two "nothing ever happened" rows: a detail row cannot lean on a
+    // sentence around it, so the value itself has to say it.
+    expect(syncElapsedLabel(l10n, null), l10n.lanSyncNever);
+    expect(syncAddedAtLabel(l10n, now), DateFormat('yyyy-MM-dd').format(now));
   });
 
   test('a refusal is the message even beside a failure reason', () {

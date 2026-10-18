@@ -171,6 +171,12 @@ void _wireSyncReloaders(BuildContext ctx) {
     // entity row and a swapped-in directory changes what the service exposes,
     // so the rescan must run even when only a body moved.
     reloader.register(() => ctx.read<SkillsService>().rescan());
+    // Workspace records ride sync (managed ones only; a linked folder stays on
+    // the device that holds it). The list is cached and parsed, so without this
+    // the peer's workspaces would sit in SQLite unseen until the next launch.
+    reloader.register(
+      () => ctx.read<WorkspaceProvider>().reloadAfterExternalChange(),
+    );
   } catch (error) {
     debugPrint('Failed to wire sync reloaders: $error');
   }

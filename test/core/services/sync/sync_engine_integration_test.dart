@@ -7,6 +7,7 @@ import 'package:Cuplivo/core/database/business_data.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/database/business_repository.dart';
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/models/message_part.dart';
@@ -17,6 +18,7 @@ import 'package:Cuplivo/core/services/sync/blob_sync.dart';
 import 'package:Cuplivo/core/services/sync/business_state_reloader.dart';
 import 'package:Cuplivo/core/services/sync/sync_client.dart';
 import 'package:Cuplivo/core/services/sync/sync_data_plane.dart';
+import 'package:Cuplivo/core/services/sync/sync_endpoint_prober.dart';
 import 'package:Cuplivo/core/services/sync/sync_engine.dart';
 import 'package:Cuplivo/core/services/sync/sync_identity.dart';
 import 'package:Cuplivo/core/services/sync/sync_local_addresses.dart';
@@ -24,10 +26,13 @@ import 'package:Cuplivo/core/services/sync/sync_models.dart';
 import 'package:Cuplivo/core/services/sync/sync_pair_qr.dart';
 import 'package:Cuplivo/core/services/sync/sync_server.dart';
 import 'package:Cuplivo/core/services/sync/sync_store.dart';
+import 'package:Cuplivo/core/services/sync/workspace_content_index.dart';
+import 'package:Cuplivo/core/services/sync/workspace_content_sync.dart';
 import 'package:Cuplivo/features/home/controllers/chat_controller.dart';
 import 'package:Cuplivo/features/sync/widgets/sync_pairing_dialogs.dart';
 import 'package:Cuplivo/features/sync/widgets/sync_peer_card.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/custom_bottom_sheet.dart';
 import 'package:Cuplivo/shared/widgets/snackbar.dart';
 import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
@@ -71,6 +76,7 @@ class _NewerSchemaPlane extends SyncDataPlane {
     required super.businessRepository,
     super.businessPreferences,
     super.skillDirectories,
+    super.workspaceContent,
     super.blobPathResolver,
   });
 
@@ -90,6 +96,7 @@ class _MidPushWritePlane extends SyncDataPlane {
     required super.businessRepository,
     super.businessPreferences,
     super.skillDirectories,
+    super.workspaceContent,
     super.blobPathResolver,
     required this.writeInto,
   });
@@ -122,6 +129,7 @@ class _VanishingBlobPlane extends SyncDataPlane {
     required super.businessRepository,
     super.businessPreferences,
     super.skillDirectories,
+    super.workspaceContent,
     required super.blobPathResolver,
     required this.vanish,
   });
@@ -156,6 +164,7 @@ class _MidApplyWritePlane extends SyncDataPlane {
     required super.businessRepository,
     super.businessPreferences,
     super.skillDirectories,
+    super.workspaceContent,
     required super.blobPathResolver,
     required this.writeBeforeApply,
   });
@@ -193,6 +202,7 @@ class _CraftedBlobPlane extends SyncDataPlane {
     required super.businessRepository,
     super.businessPreferences,
     super.skillDirectories,
+    super.workspaceContent,
     required super.blobPathResolver,
     required this.crafted,
   });
@@ -220,6 +230,7 @@ class _CrossReferencingPlane extends SyncDataPlane {
     required super.businessRepository,
     super.businessPreferences,
     super.skillDirectories,
+    super.workspaceContent,
     required super.blobPathResolver,
     required this.craft,
   });
@@ -249,6 +260,7 @@ class _CountingCheckpointPlane extends SyncDataPlane {
     required super.businessRepository,
     super.businessPreferences,
     super.skillDirectories,
+    super.workspaceContent,
     required super.blobPathResolver,
   });
 
@@ -266,7 +278,12 @@ class _CountingCheckpointPlane extends SyncDataPlane {
 /// One device: its own sync directory, database, chat and business stores, and
 /// its own listener.
 class _Side {
-  _Side(this.label, {this.newerSchema = false, this.clockOffsetUs = 0});
+  _Side(
+    this.label, {
+    this.newerSchema = false,
+    this.clockOffsetUs = 0,
+    this.workspaceMaxFiles = kMaxWorkspaceFiles,
+  });
 
   final String label;
   final bool newerSchema;
@@ -275,6 +292,11 @@ class _Side {
   /// report is supposed to flag. Row clocks are untouched (they come from the
   /// write path), which is exactly the split the warning exists for.
   final int clockOffsetUs;
+
+  /// This side's workspace file cap — the production default, overridden by the
+  /// one test that proves the over-cap path with three files instead of two
+  /// thousand. (The byte cap is covered by the index's own test.)
+  final int workspaceMaxFiles;
 
   late final Directory dir;
   late final AppDatabase database;
@@ -285,6 +307,7 @@ class _Side {
   late final SyncDeviceIdentity identity;
   late final SyncStore store;
   late final SkillDirectorySync skillDirectories;
+  late final WorkspaceContentSync workspaceContent;
   late final SyncDataPlane dataPlane;
   late final SyncEngine engine;
   late final int port;
@@ -309,6 +332,49 @@ class _Side {
 
   /// The skills root the data plane hashes, zips and swaps in.
   Directory get skillsRoot => Directory('${dir.path}/skills');
+
+  /// This side's files root for one managed workspace. One test process hosts
+  /// both peers, so `AppDirectories`' single global root cannot serve both —
+  /// each side gets its own tree under its own sync directory.
+  Directory workspaceRoot(String workspaceId) =>
+      Directory('${dir.path}/workspaces/$workspaceId/files');
+
+  /// Puts one file in a managed workspace, the way the workspace tools do:
+  /// bytes on disk, under the workspace's own root.
+  Future<File> putWorkspaceFile(
+    String workspaceId,
+    String relPath,
+    String content, {
+    int? mtimeMs,
+  }) async {
+    final file = File(
+      '${workspaceRoot(workspaceId).path}/${relPath.replaceAll('/', Platform.pathSeparator)}',
+    );
+    await file.parent.create(recursive: true);
+    await file.writeAsString(content, flush: true);
+    if (mtimeMs != null) {
+      await file.setLastModified(DateTime.fromMillisecondsSinceEpoch(mtimeMs));
+    }
+    return file;
+  }
+
+  /// The content of one workspace file, or null when this side does not have it.
+  Future<String?> workspaceFileContent(
+    String workspaceId,
+    String relPath,
+  ) async {
+    final file = File(
+      '${workspaceRoot(workspaceId).path}/${relPath.replaceAll('/', Platform.pathSeparator)}',
+    );
+    return await file.exists() ? file.readAsString() : null;
+  }
+
+  Future<void> removeWorkspaceFile(String workspaceId, String relPath) async {
+    final file = File(
+      '${workspaceRoot(workspaceId).path}/${relPath.replaceAll('/', Platform.pathSeparator)}',
+    );
+    if (await file.exists()) await file.delete();
+  }
 
   /// Installs a skill body the way the skills service does: files on disk plus
   /// the extension entity row that owns them.
@@ -385,6 +451,18 @@ class _Side {
     identity = await SyncDeviceIdentity.loadOrCreate(dir, fallbackName: label);
     store = SyncStore(dir);
     skillDirectories = SkillDirectorySync(skillsRoot);
+    workspaceContent = WorkspaceContentSync(
+      businessRepository: businessRepository,
+      store: store,
+      // Each side owns its own tree: the production resolver would hand both
+      // peers in this process the same global directory.
+      resolveRoot: (workspaceId) async {
+        final root = workspaceRoot(workspaceId);
+        await root.create(recursive: true);
+        return root;
+      },
+      maxFiles: workspaceMaxFiles,
+    );
     dataPlane = newerSchema
         ? _NewerSchemaPlane(
             repository: repository,
@@ -392,6 +470,7 @@ class _Side {
             businessRepository: businessRepository,
             businessPreferences: businessPreferences,
             skillDirectories: skillDirectories,
+            workspaceContent: workspaceContent,
             blobPathResolver: resolveBlob,
           )
         : midPushWrite != null
@@ -401,6 +480,7 @@ class _Side {
             businessRepository: businessRepository,
             businessPreferences: businessPreferences,
             skillDirectories: skillDirectories,
+            workspaceContent: workspaceContent,
             blobPathResolver: resolveBlob,
             writeInto: midPushWrite,
           )
@@ -411,6 +491,7 @@ class _Side {
             businessRepository: businessRepository,
             businessPreferences: businessPreferences,
             skillDirectories: skillDirectories,
+            workspaceContent: workspaceContent,
             blobPathResolver: resolveBlob,
             vanish: vanishBlob,
           )
@@ -421,6 +502,7 @@ class _Side {
             businessRepository: businessRepository,
             businessPreferences: businessPreferences,
             skillDirectories: skillDirectories,
+            workspaceContent: workspaceContent,
             blobPathResolver: resolveBlob,
             writeBeforeApply: midApplyWrite,
           )
@@ -431,6 +513,7 @@ class _Side {
             businessRepository: businessRepository,
             businessPreferences: businessPreferences,
             skillDirectories: skillDirectories,
+            workspaceContent: workspaceContent,
             blobPathResolver: resolveBlob,
             crafted: craftedBlobs,
           )
@@ -441,6 +524,7 @@ class _Side {
             businessRepository: businessRepository,
             businessPreferences: businessPreferences,
             skillDirectories: skillDirectories,
+            workspaceContent: workspaceContent,
             blobPathResolver: resolveBlob,
             craft: craftedRows,
           )
@@ -451,6 +535,7 @@ class _Side {
             businessRepository: businessRepository,
             businessPreferences: businessPreferences,
             skillDirectories: skillDirectories,
+            workspaceContent: workspaceContent,
             blobPathResolver: resolveBlob,
           )
         : SyncDataPlane(
@@ -459,6 +544,7 @@ class _Side {
             businessRepository: businessRepository,
             businessPreferences: businessPreferences,
             skillDirectories: skillDirectories,
+            workspaceContent: workspaceContent,
             blobPathResolver: resolveBlob,
           );
     if (!withEngine) return;
@@ -476,12 +562,12 @@ class _Side {
   /// Drives this side through the real [SyncProvider] — the layer the QR
   /// pairing and the foreground round live in. [addressSource] stands in for
   /// the machine's interface enumeration, so a test can move this device to
-  /// another network without touching a real NIC, and [presenceProbe] stands in
-  /// for the online dot's bare TCP connect, so a peer can go on- and offline
+  /// another network without touching a real NIC, and [endpointProbe] stands in
+  /// for the online dot's authenticated probe, so a peer can go on- and offline
   /// without a socket.
   Future<SyncProvider> startProvider({
     Future<List<LanAddress>> Function()? addressSource,
-    Future<bool> Function(List<(String, int)> endpoints)? presenceProbe,
+    EndpointProbeFn? endpointProbe,
   }) async {
     final started = SyncProvider(
       chatService: chatService,
@@ -491,7 +577,7 @@ class _Side {
       reloader: BusinessStateReloader(businessPreferences),
       syncDirectory: () async => dir,
       addressSource: addressSource,
-      presenceProbe: presenceProbe,
+      endpointProbe: endpointProbe,
     );
     provider = started;
     await started.start();
@@ -545,6 +631,19 @@ class _Side {
   );
 }
 
+/// Test fixture: [peer] remembers exactly this one address afterwards.
+///
+/// The whole-set replacement these tests used to call is gone — the panel
+/// repairs one address at a time now — so a fixture that wants "a peer whose
+/// only remembered address is this one" says so with the per-endpoint API the
+/// detail sheet drives.
+void _onlyEndpoint(SyncPeerRecord peer, String host, int port) {
+  for (final endpoint in List.of(peer.endpoints)) {
+    peer.removeEndpoint(endpoint.host, endpoint.port);
+  }
+  peer.addEndpoint(host, port);
+}
+
 /// A [SyncProvider] whose pairing verdict is canned, so the pairing dialog's own
 /// behavior — what it announces, and whether it tells a new pairing from an
 /// update — is testable without a listener or a socket.
@@ -562,17 +661,32 @@ class _StubSyncProvider extends SyncProvider {
   /// What [pairWith] answers; set before the dialog submits.
   SyncPairOutcome outcome = const SyncPairOutcome.success();
 
-  /// The addresses a repair asked this provider to store, so a test can see the
-  /// form that reached it.
-  final repaired = <(String, int)>[];
+  /// The address repairs the detail sheet asked this provider to make, as
+  /// `(oldHost, oldPort, newHost, newPort)`, so a test can see both the form
+  /// that reached it and which tile it was aimed at.
+  final repaired = <(String, int, String, int)>[];
 
   @override
-  Future<void> updatePeerEndpoint(
+  Future<void> editPeerEndpoint(
+    String deviceId,
+    String host,
+    int port,
+    String newHost,
+    int newPort,
+  ) async {
+    repaired.add((host, port, newHost, newPort));
+  }
+
+  /// The addresses the detail sheet asked this provider to forget.
+  final deleted = <(String, int)>[];
+
+  @override
+  Future<void> removePeerEndpoint(
     String deviceId,
     String host,
     int port,
   ) async {
-    repaired.add((host, port));
+    deleted.add((host, port));
   }
 
   @override
@@ -582,6 +696,13 @@ class _StubSyncProvider extends SyncProvider {
     required String pin,
     String? expectedDeviceId,
   }) async => outcome;
+
+  /// Marks a peer online the way a probe round does, so a test can watch the
+  /// card's reachability note come and go.
+  void markOnline(String deviceId) {
+    onlineDeviceIds.add(deviceId);
+    notifyListeners();
+  }
 }
 
 /// A provider whose foreground round records the address list it ran on, so a
@@ -631,6 +752,36 @@ Future<Map<String, String>> _assistantsOf(_Side side) async => {
 Future<List<String>> _assistantOrder(_Side side) async => [
   for (final row in await side.businessRepository.readEntities(
     BusinessEntityKind.assistant,
+  ))
+    row.id,
+];
+
+/// Inserts a workspace row the way the workspace provider does. Written through
+/// the store rather than the sync apply path on purpose: the apply path is what
+/// refuses a linked row, so seeding through it could not build the world these
+/// tests need.
+Future<void> _putWorkspace(
+  _Side side, {
+  required String id,
+  required String kind,
+  String? hostPath,
+}) => ExtensionEntityStore(side.database).upsert('workspace', id, {
+  'id': id,
+  'name': id,
+  'kind': kind,
+  'hostPath': hostPath,
+  'shellNeedsApproval': false,
+  'defaultCwd': '',
+  'disabledTools': const <String>[],
+  'createdAt': '2026-01-01T00:00:00.000Z',
+  'updatedAt': '2026-01-01T00:00:00.000Z',
+  'lastUsedAt': null,
+});
+
+/// The workspace ids this side holds, in the order it renders them.
+Future<List<String>> _workspaceIds(_Side side) async => [
+  for (final row in await side.businessRepository.readEntities(
+    BusinessEntityKind.workspace,
   ))
     row.id,
 ];
@@ -920,7 +1071,7 @@ void main() {
     provider.dispose();
 
     final inbound = await b.peer(a);
-    inbound.replaceEndpoints('127.0.0.1', a.port);
+    _onlyEndpoint(inbound, '127.0.0.1', a.port);
     await b.store.savePeer(inbound);
     await _seedConversation(b, id: 'conv-late', contents: ['after teardown']);
     final report = await b.engine.syncWithPeer(inbound);
@@ -1220,6 +1371,96 @@ void main() {
     socket.destroy();
   });
 
+  test('/sync/ping authenticates and is idempotent', () async {
+    final (a, b) = await pair();
+    final peer = await a.peer(b);
+    final session = a.engine.client.openSession(
+      peer,
+      host: '127.0.0.1',
+      port: b.port,
+    );
+    addTearDown(session.close);
+
+    // Repeating it proves exactly one thing each time and writes nothing: the
+    // listener has no state for this route, which is what lets the panel call
+    // it every ten seconds.
+    await session.ping();
+    await session.ping();
+
+    // Without a secret the same request is refused, so a success can only mean
+    // reachable *and* paired.
+    final client = HttpClient()
+      ..badCertificateCallback = (cert, host, port) => true;
+    try {
+      final request = await client.postUrl(
+        Uri.parse('https://127.0.0.1:${b.port}${SyncServer.pingPath}'),
+      );
+      request.contentLength = 0;
+      final response = await request.close();
+      await response.drain<void>();
+      expect(response.statusCode, HttpStatus.unauthorized);
+    } finally {
+      client.close(force: true);
+    }
+  });
+
+  test('/sync/ping is answered beside a beat that is still running', () async {
+    // The request loop is serial, and a session's data beat can run for
+    // twenty minutes. A probe queued behind it would report the peer offline
+    // for the whole time — every tick, every peer — so the probe runs on its
+    // own lane.
+    final (a, b) = await pair();
+    final server = SyncServer(
+      identity: b.identity,
+      store: b.store,
+      handler: b.engine,
+      // Long enough that the held request cannot free the lane on its own.
+      deadlineFor: (_) => const Duration(minutes: 5),
+    );
+    final port = await server.start(address: '127.0.0.1', requestedPort: 0);
+    addTearDown(server.stop);
+    final peer = await a.peer(b);
+
+    // Hold the serial lane with a request whose body never finishes arriving.
+    final socket = await SecureSocket.connect(
+      '127.0.0.1',
+      port,
+      onBadCertificate: (_) => true,
+    );
+    socket.write(
+      'PUT /sync/subtrees HTTP/1.1\r\n'
+      'Host: 127.0.0.1\r\n'
+      '${SyncServer.deviceHeader}: ${a.identity.deviceId}\r\n'
+      '${SyncServer.tokenHeader}: ${peer.secret}\r\n'
+      'Content-Type: application/json\r\n'
+      'Content-Length: 900000\r\n'
+      '\r\n'
+      '{"x":',
+    );
+    await socket.flush();
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+
+    final session = a.engine.client.openSession(
+      peer,
+      host: '127.0.0.1',
+      port: port,
+    );
+    final watch = Stopwatch()..start();
+    try {
+      await session.ping().timeout(const Duration(seconds: 3));
+    } finally {
+      watch.stop();
+      session.close();
+      socket.destroy();
+    }
+
+    expect(
+      watch.elapsed,
+      lessThan(const Duration(seconds: 2)),
+      reason: 'a probe must not queue behind a running data beat',
+    );
+  });
+
   test('a request against a peer that stops answering times out', () async {
     // Trigger (a) of the review: a peer that completes the handshake and then
     // stalls must not leave the caller's await pending forever — the provider's
@@ -1289,9 +1530,12 @@ void main() {
       const SyncFetchRequest(),
     );
 
-    // (2) An initiator round in flight here: the peer's hello is refused. The
-    // target is a listener that speaks the peer's certificate and never
-    // answers, so the round is still waiting when the hello arrives.
+    // (2) An initiator round in flight here that has not heard the peer's hello
+    // yet: the peer's hello is *accepted* and the local round yields. The target
+    // is a listener that speaks the peer's certificate and never answers, so the
+    // round is still dialing when the hello arrives — exactly the one-way LAN
+    // case, where refusing would leave both devices failing forever while the
+    // reachable direction sat idle.
     final silent = await HttpServer.bindSecure(
       InternetAddress.loopbackIPv4,
       0,
@@ -1314,14 +1558,30 @@ void main() {
         manifest: await b.dataPlane.buildManifest(),
       ),
     );
-    expect(answer, isA<SyncHelloRefusal>());
-    expect((answer as SyncHelloRefusal).reason, SyncRefusalReason.busy);
+    expect(answer, isA<SyncHello>(), reason: 'the arriving hello wins');
+    // The yielded round reports that it was superseded, and records nothing:
+    // the answered session is the one that runs.
+    final yielded = await pending;
+    expect(yielded.success, isFalse);
+    expect(yielded.refusal, SyncRefusalReason.superseded);
+    expect((await a.peer(b)).lastReport, isNull);
 
-    // Dropping the listener ends A's round; the marker is released, so the
-    // next attempt is admitted rather than refused for good.
+    // Dropping the acceptor ends the session; a later hello from the same peer
+    // is admitted rather than refused for good (a live *answered* round is what
+    // the refusal is for, and this round was never one).
     await silent.close(force: true);
-    await pending;
-    await a.engine.syncWithPeer(aPeer, host: '127.0.0.1', port: b.port);
+    final again = await a.engine.handleHello(
+      b.identity.deviceId,
+      SyncHello(
+        protocolVersion: kSyncProtocolVersion,
+        schemaVersion: b.dataPlane.schemaVersion,
+        deviceId: b.identity.deviceId,
+        deviceName: b.label,
+        platform: 'test',
+        manifest: await b.dataPlane.buildManifest(),
+      ),
+    );
+    expect(again, isA<SyncHello>());
   });
 
   test('a replaced database makes the peer re-send, not delete', () async {
@@ -1553,6 +1813,16 @@ void main() {
     ); // the countdown tick rebuilds
 
     expect(encoded().endpoints, [('192.168.44.9', provider.port)]);
+    // The addresses wait behind the dialog's disclosure now, so nothing on
+    // screen names them until it is opened — and once it is, the list and the
+    // image agree. The dialog scrolls, so the header has to be brought into the
+    // viewport before it can be tapped.
+    expect(find.text('192.168.44.9:${provider.port}'), findsNothing);
+    final disclosure = find.text(l10n.lanSyncShowAddresses);
+    await tester.ensureVisible(disclosure);
+    await tester.pump();
+    await tester.tap(disclosure);
+    await tester.pump();
     expect(
       find.text('192.168.44.9:${provider.port}'),
       findsOneWidget,
@@ -1713,7 +1983,7 @@ void main() {
     await a.repository.close();
   });
 
-  testWidgets('a peer card says how long ago, and copies its address', (
+  testWidgets('a peer card says how long ago, and one tile per address', (
     tester,
   ) async {
     // Not added to `sides`, for the same reason as the pairing-dialog test
@@ -1760,25 +2030,64 @@ void main() {
       ),
     );
 
-    // A peer reached on two networks should not look like a peer with one
-    // address: the count is beside the address in use.
-    final subtitle = '${l10n.lanSyncPlatformAndroid} · 192.168.1.5:9527 (+1)';
-    expect(find.text(subtitle), findsOneWidget);
-
-    // How long ago, not a timestamp — the tooltip keeps the exact time.
+    // How long ago, not a timestamp — the tooltip keeps the exact time. The
+    // address is *not* on this line any more: it is a tile below.
+    final subtitle =
+        '${l10n.lanSyncPlatformAndroid} · ${l10n.lanSyncMinutesAgo(4)}';
     expect(
-      find.text(l10n.lanSyncLastSyncedAt('4 min ago')),
+      find.text('$subtitle · ${l10n.lanSyncTemporarilyUnreachable}'),
       findsOneWidget,
-      reason: 'the line answers "is this current?", not "when exactly?"',
+      reason:
+          'nothing has answered for this peer yet, and being away is said '
+          'in the weakest voice the card has',
     );
 
-    await tester.tap(find.text(subtitle));
+    // A peer an answer has reached loses the note; the platform and the
+    // freshness stay.
+    provider.markOnline('peer-1');
+    await tester.pump();
+    expect(find.text(subtitle), findsOneWidget);
+
+    expect(
+      find.text('192.168.1.5:9527'),
+      findsNothing,
+      reason: 'the header leaves the addresses to the tiles',
+    );
+
+    // Two addresses are two tiles, named by their bare host until the user
+    // names them.
+    expect(find.text('192.168.1.5'), findsOneWidget);
+    expect(find.text('fd00::5'), findsOneWidget);
+    // Nothing has probed them in this launch, so neither has a figure — and a
+    // persisted one would be a stale claim.
+    expect(find.text('—'), findsNWidgets(2));
+
+    // The name is the rename target.
+    await tester.tap(find.text('192.168.1.5'));
+    await tester.pumpAndSettle();
+    expect(find.text(l10n.lanSyncRenameEndpointTitle), findsWidgets);
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.pumpAndSettle();
+
+    // The latency is the detail target, and the detail is where the address is
+    // copied from.
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(
+          ValueKey('syncEndpointTile:${peer.endpoints.first.label}'),
+        ),
+        matching: find.text('—'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('192.168.1.5:9527'), findsOneWidget);
+    await tester.tap(find.text(l10n.lanSyncCopy));
     await tester.pumpAndSettle();
 
     expect(
       (copied.single.arguments as Map)['text'],
       '192.168.1.5:9527',
-      reason: 'the address in use is what a tap copies',
+      reason: 'the tile that was tapped is the address that is copied',
     );
     expect(
       AppSnackBarManager().activeToasts.any(
@@ -1833,22 +2142,200 @@ void main() {
       ),
     );
 
+    // The repair lives in the address's own detail now, one tile deep.
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(
+          ValueKey('syncEndpointTile:${peer.endpoints.single.label}'),
+        ),
+        matching: find.text('—'),
+      ),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.text(l10n.lanSyncEditAddress));
     await tester.pumpAndSettle();
-    // The bracketed literal is what the card itself shows and copies, so pasting
-    // the address back into the repair field is the journey this field exists
-    // for — and storage keeps the bare host, which is what the dial needs.
+    // The bracketed literal is what the detail shows and copies, so pasting the
+    // address back into the repair field is the journey this field exists for —
+    // and storage keeps the bare host, which is what the dial needs.
     await tester.enterText(find.byType(TextField).at(0), '[fd00::9]');
     await tester.enterText(find.byType(TextField).at(1), '9528');
     await tester.tap(find.widgetWithText(FilledButton, 'OK'));
     await tester.pumpAndSettle();
 
-    expect(provider.repaired.single, ('fd00::9', 9528));
+    expect(provider.repaired.single, ('fd00::5', 9527, 'fd00::9', 9528));
 
     provider.dispose();
     await a.chatService.close();
     await a.repository.close();
   });
+
+  testWidgets('deleting one address from its detail reaches the store', (
+    tester,
+  ) async {
+    // A started provider and a real store, because the point of this half is
+    // that the destructive action is a *persisted* one: an address that comes
+    // back after a restart is worse than one that was never deleted. The wiring
+    // from the tap to this call is the widget test below.
+    final a = _Side('a');
+    await tester.runAsync(() async {
+      await a.start(root, withEngine: false);
+      sides.add(a);
+      await a.store.savePeer(
+        SyncPeerRecord(
+          deviceId: 'peer-1',
+          certPem: 'pem',
+          secret: 'secret',
+          name: 'Studio desktop',
+          platform: 'android',
+          endpoints: [
+            SyncPeerEndpoint(host: '10.0.0.3', port: 9527),
+            SyncPeerEndpoint(host: '192.168.1.7', port: 9527),
+          ],
+        ),
+      );
+      final provider = await a.startProvider(
+        addressSource: () async => const [],
+      );
+      await provider.refreshPeers();
+
+      await provider.removePeerEndpoint('peer-1', '10.0.0.3', 9527);
+
+      expect(
+        provider.peers.single.endpoints.map((e) => e.host).toList(),
+        ['192.168.1.7'],
+        reason: 'the tile that was deleted is gone and the other is untouched',
+      );
+      final stored = await a.store.findPeer('peer-1');
+      expect(stored!.endpoints.map((e) => e.host).toList(), [
+        '192.168.1.7',
+      ], reason: 'a delete that does not survive a restart is not a delete');
+    });
+  });
+
+  testWidgets('the delete gesture in the detail is what asks for the delete', (
+    tester,
+  ) async {
+    final a = _Side('a');
+    late final _StubSyncProvider provider;
+    late final AppLocalizations l10n;
+    await tester.runAsync(() async {
+      await a.start(root, withEngine: false);
+      provider = _StubSyncProvider(a);
+      l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    });
+
+    final peer = SyncPeerRecord(
+      deviceId: 'peer-1',
+      certPem: 'pem',
+      secret: 'secret',
+      name: 'Studio desktop',
+      platform: 'android',
+      endpoints: [
+        SyncPeerEndpoint(host: '10.0.0.3', port: 9527),
+        SyncPeerEndpoint(host: '192.168.1.7', port: 9527),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<SyncProvider>.value(
+        value: provider,
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: SyncPeerCard(peer: peer)),
+        ),
+      ),
+    );
+
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(
+          ValueKey('syncEndpointTile:${peer.endpoints.first.label}'),
+        ),
+        matching: find.text('—'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(l10n.lanSyncDeleteEndpoint));
+    await tester.pumpAndSettle();
+
+    expect(provider.deleted.single, (
+      '10.0.0.3',
+      9527,
+    ), reason: 'the tile the detail was opened for is the one that goes');
+    // The sheet is about an address that just stopped existing.
+    expect(find.byType(CustomBottomSheet), findsNothing);
+
+    provider.dispose();
+    await a.chatService.close();
+    await a.repository.close();
+  });
+
+  testWidgets(
+    'the address detail is a sheet on a phone and a dialog on a desk',
+    (tester) async {
+      final a = _Side('a');
+      late final _StubSyncProvider provider;
+      late final AppLocalizations l10n;
+      await tester.runAsync(() async {
+        await a.start(root, withEngine: false);
+        provider = _StubSyncProvider(a);
+        l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      });
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final peer = SyncPeerRecord(
+        deviceId: 'peer-1',
+        certPem: 'pem',
+        secret: 'secret',
+        name: 'Studio desktop',
+        platform: 'macos',
+        endpoints: [SyncPeerEndpoint(host: '192.168.1.5', port: 9527)],
+      );
+      final tile = find.descendant(
+        of: find.byKey(
+          ValueKey('syncEndpointTile:${peer.endpoints.single.label}'),
+        ),
+        matching: find.text('—'),
+      );
+
+      Future<void> openAt(Size size) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 3.0;
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpWidget(
+          ChangeNotifierProvider<SyncProvider>.value(
+            value: provider,
+            child: MaterialApp(
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: Scaffold(body: SyncPeerCard(peer: peer)),
+            ),
+          ),
+        );
+        await tester.tap(tile);
+        await tester.pumpAndSettle();
+      }
+
+      // A phone: the app's sheet. A desk: a dialog — the app never puts a bottom
+      // sheet on a desktop, where the drag/expand gesture means nothing.
+      await openAt(const Size(390 * 3, 844 * 3));
+      expect(find.byType(CustomBottomSheet), findsOneWidget);
+      expect(find.byType(AlertDialog), findsNothing);
+
+      await openAt(const Size(1440 * 3, 900 * 3));
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(find.byType(CustomBottomSheet), findsNothing);
+      // The same body either way, rows and the two repairs included.
+      expect(find.text(l10n.lanSyncEndpointLatency), findsOneWidget);
+      expect(find.text(l10n.lanSyncDeleteEndpoint), findsOneWidget);
+
+      provider.dispose();
+      await a.chatService.close();
+      await a.repository.close();
+    },
+  );
 
   testWidgets('a peer card renders its outcome as chips, not one joined line', (
     tester,
@@ -2123,7 +2610,7 @@ void main() {
     // Pretend the peer moved: A's remembered endpoint is stale.
     final drifted = await a.peer(b);
     final staleSecret = drifted.secret;
-    drifted.replaceEndpoints('10.255.255.1', 1);
+    _onlyEndpoint(drifted, '10.255.255.1', 1);
     await a.store.savePeer(drifted);
 
     final pin = b.engine.openPairing();
@@ -2181,11 +2668,11 @@ void main() {
     // the other stands in for the network they left.
     final leftBehindOnA = await _unusedPort();
     final movedA = await a.peer(b);
-    movedA.replaceEndpoints('127.0.0.1', leftBehindOnA);
+    _onlyEndpoint(movedA, '127.0.0.1', leftBehindOnA);
     await a.store.savePeer(movedA);
     final leftBehindOnB = await _unusedPort();
     final movedB = await b.peer(a);
-    movedB.replaceEndpoints('127.0.0.1', leftBehindOnB);
+    _onlyEndpoint(movedB, '127.0.0.1', leftBehindOnB);
     await b.store.savePeer(movedB);
 
     // The repair gesture: pair again at the address that works now.
@@ -2396,7 +2883,7 @@ void main() {
     // The peer moved: the remembered head is an address this device has left,
     // and the one it is actually reachable at sits behind it in the set.
     final drifted = await a.peer(b);
-    drifted.replaceEndpoints('127.0.0.1', await _unusedPort());
+    _onlyEndpoint(drifted, '127.0.0.1', await _unusedPort());
     drifted.rememberEndpointCandidates([('127.0.0.1', b.port)]);
     await a.store.savePeer(drifted);
     expect(drifted.endpoints.length, 2);
@@ -2429,7 +2916,7 @@ void main() {
       // The dial order is forced to meet the stranger first without depending on
       // the prober's ordering: this device stands on 127.0.0.1, so the address
       // sharing that subnet is dialed before the peer's ::1 one.
-      drifted.replaceEndpoints('::1', b.port);
+      _onlyEndpoint(drifted, '::1', b.port);
       drifted.rememberEndpointCandidates([('127.0.0.1', c.port)]);
       await a.store.savePeer(drifted);
       a.engine.localAddresses = [(name: 'en0', address: '127.0.0.1')];
@@ -2470,7 +2957,7 @@ void main() {
     // the addresses stay as hints, because the peer may sit behind one of them
     // again after the next DHCP lease.
     final drifted = await a.peer(b);
-    drifted.replaceEndpoints('127.0.0.1', c.port);
+    _onlyEndpoint(drifted, '127.0.0.1', c.port);
     drifted.rememberEndpointCandidates([('127.0.0.1', d.port)]);
     await a.store.savePeer(drifted);
 
@@ -2710,7 +3197,7 @@ void main() {
       // the loopback this test dials on, so the inbound session is about the
       // announcement, not about address discovery.
       final inbound = await b.peer(a);
-      inbound.replaceEndpoints('127.0.0.1', a.port);
+      _onlyEndpoint(inbound, '127.0.0.1', a.port);
       await b.store.savePeer(inbound);
 
       // Nothing new on either side: the peer runs its session, this device
@@ -2783,7 +3270,7 @@ void main() {
     // arriving *here* — the peer's round landing a new assistant — is an
     // arrival, and must survive the gate tightening.
     final inbound = await b.peer(a);
-    inbound.replaceEndpoints('127.0.0.1', a.port);
+    _onlyEndpoint(inbound, '127.0.0.1', a.port);
     await b.store.savePeer(inbound);
     await _setAssistants(b, [(id: 'assistant-b', name: 'From the phone')]);
     final received = await b.engine.syncWithPeer(inbound);
@@ -2841,13 +3328,11 @@ void main() {
       await b.start(root);
       sides.addAll([a, b]);
 
-      final probed = <List<(String, int)>>[];
-      var reachable = false;
+      final probed = <(String, int)>[];
+      // The peer is up, so the probe answers — the ordinary state a busy peer
+      // is in: someone is mid-session while the address keeps working.
       final provider = await a.startProvider(
-        presenceProbe: (endpoints) async {
-          probed.add(endpoints);
-          return reachable;
-        },
+        endpointProbe: (host, port) async => probed.add((host, port)),
       );
 
       final pin = b.engine.openPairing();
@@ -2855,21 +3340,20 @@ void main() {
       await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
 
       await provider.refreshPresence();
-      expect(probed.last, [
-        ('127.0.0.1', b.port),
-      ], reason: 'the dot is about the addresses the card shows and dials');
+      expect(probed.last, (
+        '127.0.0.1',
+        b.port,
+      ), reason: 'the dot is about the addresses the card shows and dials');
 
       // A peer mid-session is not probed again: the session files its own
       // verdict when it lands, so the probe has nothing to add while it runs.
-      reachable = false;
       provider.busyDeviceIds.add(b.identity.deviceId);
       final probesBefore = probed.length;
       await provider.refreshPresence();
       expect(probed.length, probesBefore, reason: 'nothing left to probe');
 
-      // The dot stays green here — but because the pairing session answered
-      // seconds ago and its verdict is fresh, not because a round is running.
-      // The busy flag itself is not evidence; the test below proves that.
+      // The dot stays green — the busy flag itself is not evidence, but the
+      // pairing session answered seconds ago, which is.
       expect(provider.isPeerOnline(b.identity.deviceId), isTrue);
     },
   );
@@ -2879,11 +3363,11 @@ void main() {
     await a.start(root, withEngine: false);
     sides.add(a);
 
-    final probed = <List<(String, int)>>[];
+    final probed = <(String, int)>[];
     final provider = await a.startProvider(
-      presenceProbe: (endpoints) async {
-        probed.add(endpoints);
-        return false;
+      endpointProbe: (host, port) async {
+        probed.add((host, port));
+        throw const SocketException('probe refused');
       },
     );
 
@@ -2920,7 +3404,10 @@ void main() {
       await a.start(root, withEngine: false);
       sides.add(a);
 
-      final provider = await a.startProvider(presenceProbe: (_) async => false);
+      final provider = await a.startProvider(
+        endpointProbe: (host, port) async =>
+            throw const SocketException('probe refused'),
+      );
       // A loopback port nothing listens on, so the dial fails fast instead of
       // spending its whole budget — the assertion that matters runs before it.
       final deadPort = await _unusedPort();
@@ -3978,6 +4465,409 @@ void main() {
     expect(second.preferenceRows, 0);
   });
 
+  test(
+    'a workspace record reaches the peer and a linked folder never leaves',
+    () async {
+      final (a, b) = await pair();
+      await _putWorkspace(a, id: 'managed-1', kind: 'managed');
+      await _putWorkspace(
+        a,
+        id: 'linked-1',
+        kind: 'linked',
+        hostPath: '/home/me/notes',
+      );
+
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+      expect(report.success, isTrue, reason: report.summary);
+      expect(report.entityRows, 1);
+
+      // Managed travels with its ordering; the linked folder's row is not merely
+      // un-sent — the peer never learns the id exists.
+      expect(await _workspaceIds(b), ['managed-1']);
+      expect(
+        (await a.businessRepository.readEntities(
+          BusinessEntityKind.workspace,
+        )).map((row) => row.id),
+        ['managed-1', 'linked-1'],
+        reason: 'the sending device keeps its own folder',
+      );
+
+      // Nothing left to move, and in particular no id churn around the linked
+      // row: a manifest that announced it would make the peer ask for, or delete,
+      // a folder this device never offered.
+      final second = await a.engine.syncWithPeer(await a.peer(b));
+      expect(second.success, isTrue, reason: second.summary);
+      expect(second.entityRows, 0);
+      expect(await _workspaceIds(b), ['managed-1']);
+    },
+  );
+
+  test('a linked folder is untouched by every session, on both sides', () async {
+    final (a, b) = await pair();
+    await _putWorkspace(a, id: 'a-managed', kind: 'managed');
+    await _putWorkspace(
+      b,
+      id: 'b-linked',
+      kind: 'linked',
+      hostPath: '/home/b/notes',
+    );
+
+    // Both directions, so neither side's silence can be mistaken for a delete.
+    await a.engine.syncWithPeer(await a.peer(b));
+    final back = await b.engine.syncWithPeer(await b.peer(a));
+    expect(back.success, isTrue, reason: back.summary);
+
+    expect(await _workspaceIds(a), contains('a-managed'));
+    expect(await _workspaceIds(b), containsAll(['a-managed', 'b-linked']));
+    expect(
+      await _workspaceIds(a),
+      isNot(contains('b-linked')),
+      reason:
+          'the other device\'s linked folder is not this device\'s business',
+    );
+  });
+
+  test(
+    'a managed workspace deleted on one device disappears on the peer',
+    () async {
+      final (a, b) = await pair();
+      await _putWorkspace(a, id: 'managed-1', kind: 'managed');
+      await _putWorkspace(
+        a,
+        id: 'linked-1',
+        kind: 'linked',
+        hostPath: '/home/me/notes',
+      );
+      await a.engine.syncWithPeer(await a.peer(b));
+      expect(await _workspaceIds(b), ['managed-1']);
+
+      await ExtensionEntityStore(a.database).delete('workspace', 'managed-1');
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+      expect(report.success, isTrue, reason: report.summary);
+
+      expect(await _workspaceIds(b), isEmpty);
+      expect(await _workspaceIds(a), [
+        'linked-1',
+      ], reason: 'the device that deleted keeps the folder sync never carried');
+    },
+  );
+
+  test('a workspace renamed on one device follows on the peer', () async {
+    final (a, b) = await pair();
+    await _putWorkspace(a, id: 'managed-1', kind: 'managed');
+    await a.engine.syncWithPeer(await a.peer(b));
+
+    // b renames it through the store, the way the workspace provider does.
+    final store = ExtensionEntityStore(b.database);
+    final payload = (await store.get('workspace', 'managed-1'))!.payload;
+    payload['name'] = 'Renamed on B';
+    await store.upsert('workspace', 'managed-1', payload, sortOrder: 0);
+
+    final report = await b.engine.syncWithPeer(await b.peer(a));
+    expect(report.success, isTrue, reason: report.summary);
+
+    final onA = (await a.businessRepository.readEntities(
+      BusinessEntityKind.workspace,
+    )).single;
+    expect(jsonDecode(onA.payload)['name'], 'Renamed on B');
+  });
+
+  // ---- workspace content (slice 18) ----
+
+  test('a workspace folder follows its record, and only what changed', () async {
+    final (a, b) = await pair();
+    await _putWorkspace(a, id: 'w1', kind: 'managed');
+    await a.putWorkspaceFile('w1', 'src/a.dart', 'aaa', mtimeMs: 1000000);
+    await a.putWorkspaceFile('w1', 'notes/todo.md', '# todo', mtimeMs: 1000000);
+    // Neither of these rides: one is a VCS store, the other a dependency tree.
+    await a.putWorkspaceFile('w1', '.git/config', 'repo', mtimeMs: 1000000);
+    await a.putWorkspaceFile(
+      'w1',
+      'node_modules/pkg/index.js',
+      'x',
+      mtimeMs: 1000000,
+    );
+
+    final first = await a.engine.syncWithPeer(await a.peer(b));
+    expect(first.success, isTrue, reason: first.summary);
+    expect(await b.workspaceFileContent('w1', 'src/a.dart'), 'aaa');
+    expect(await b.workspaceFileContent('w1', 'notes/todo.md'), '# todo');
+    expect(await b.workspaceFileContent('w1', '.git/config'), isNull);
+    expect(
+      await b.workspaceFileContent('w1', 'node_modules/pkg/index.js'),
+      isNull,
+    );
+    // The *receiver* is the side that fetches, so the files it landed are on
+    // its own report, not on the initiator's.
+    expect((await b.peer(a)).lastReport?.workspaceFiles, 2);
+    expect(first.workspaceFiles, 0, reason: 'the initiator fetched nothing');
+
+    // Nothing changed, so nothing moves: this is the ledger's whole job.
+    final second = await a.engine.syncWithPeer(await a.peer(b));
+    expect(second.success, isTrue, reason: second.summary);
+    expect(second.workspaceFiles, 0);
+    expect((await b.peer(a)).lastReport?.workspaceFiles, 0);
+
+    // One edit carries one file — and B drives this round, so the fetch runs
+    // the other way: the responder's push beat is not the only direction that
+    // has to work.
+    await b.putWorkspaceFile('w1', 'src/a.dart', 'aaaa', mtimeMs: 2000000);
+    final third = await b.engine.syncWithPeer(await b.peer(a));
+    expect(third.success, isTrue, reason: third.summary);
+    expect(await a.workspaceFileContent('w1', 'src/a.dart'), 'aaaa');
+    // The side that *fetches* is the one that counts, and here that is the
+    // responder: its push-beat pull is what moved these bytes.
+    expect((await a.peer(b)).lastReport?.workspaceFiles, 1);
+    expect(third.workspaceFiles, 0, reason: 'the initiator fetched nothing');
+  });
+
+  test(
+    'both devices edited one file: the newer version wins on both',
+    () async {
+      final (a, b) = await pair();
+      await _putWorkspace(a, id: 'w1', kind: 'managed');
+      await a.putWorkspaceFile('w1', 'shared.txt', 'base', mtimeMs: 1000000);
+      await a.engine.syncWithPeer(await a.peer(b));
+      expect(await b.workspaceFileContent('w1', 'shared.txt'), 'base');
+
+      await a.putWorkspaceFile('w1', 'shared.txt', 'from a', mtimeMs: 2000000);
+      await b.putWorkspaceFile(
+        'w1',
+        'shared.txt',
+        'from b!!',
+        mtimeMs: 3000000,
+      );
+
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+      expect(report.success, isTrue, reason: report.summary);
+      expect(await a.workspaceFileContent('w1', 'shared.txt'), 'from b!!');
+      expect(await b.workspaceFileContent('w1', 'shared.txt'), 'from b!!');
+      expect(report.workspaceFiles, 1);
+      expect(
+        report.workspaceConflicts,
+        1,
+        reason: 'the local edit that lost is named, never silent',
+      );
+
+      // And it settles: the session after a conflict moves nothing, on either
+      // side. The winner's ledger entry was never advanced, so this is what
+      // proves the plan reads two identical stamps as agreement.
+      final settled = await a.engine.syncWithPeer(await a.peer(b));
+      expect(settled.success, isTrue, reason: settled.summary);
+      expect(settled.workspaceFiles, 0);
+      expect(settled.workspaceConflicts, 0);
+      expect((await b.peer(a)).lastReport?.workspaceFiles, 0);
+    },
+  );
+
+  test(
+    'a file deleted on one device goes on the other, unless edited',
+    () async {
+      final (a, b) = await pair();
+      await _putWorkspace(a, id: 'w1', kind: 'managed');
+      await a.putWorkspaceFile('w1', 'gone.txt', 'x', mtimeMs: 1000000);
+      await a.putWorkspaceFile('w1', 'kept.txt', 'y', mtimeMs: 1000000);
+      await a.engine.syncWithPeer(await a.peer(b));
+      expect(await b.workspaceFileContent('w1', 'gone.txt'), 'x');
+
+      // One is deleted and the other edited *after* the peer last saw it: the
+      // deletion stands, the edit beats the deletion.
+      await a.removeWorkspaceFile('w1', 'gone.txt');
+      await b.putWorkspaceFile(
+        'w1',
+        'kept.txt',
+        'edited on b',
+        mtimeMs: 2000000,
+      );
+
+      final report = await b.engine.syncWithPeer(await b.peer(a));
+      expect(report.success, isTrue, reason: report.summary);
+      expect(await b.workspaceFileContent('w1', 'gone.txt'), isNull);
+      expect(report.workspaceFilesRemoved, 1);
+      expect(await a.workspaceFileContent('w1', 'kept.txt'), 'edited on b');
+      expect(await a.workspaceFileContent('w1', 'gone.txt'), isNull);
+
+      // Both directions settle afterwards.
+      final settled = await a.engine.syncWithPeer(await a.peer(b));
+      expect(settled.workspaceFiles, 0);
+      expect(settled.workspaceFilesRemoved, 0);
+    },
+  );
+
+  test('a file deleted here and edited there comes back', () async {
+    final (a, b) = await pair();
+    await _putWorkspace(a, id: 'w1', kind: 'managed');
+    await a.putWorkspaceFile('w1', 'shared.txt', 'base', mtimeMs: 1000000);
+    await a.engine.syncWithPeer(await a.peer(b));
+
+    await a.removeWorkspaceFile('w1', 'shared.txt');
+    await b.putWorkspaceFile(
+      'w1',
+      'shared.txt',
+      'still here',
+      mtimeMs: 2000000,
+    );
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    expect(
+      await a.workspaceFileContent('w1', 'shared.txt'),
+      'still here',
+      reason: 'an edit beats a deletion, so the file is fetched back',
+    );
+    expect(await b.workspaceFileContent('w1', 'shared.txt'), 'still here');
+  });
+
+  test(
+    'a workspace over the caps keeps its record and moves no files',
+    () async {
+      final a = _Side('a', workspaceMaxFiles: 2);
+      final b = _Side('b', workspaceMaxFiles: 2);
+      await a.start(root);
+      await b.start(root);
+      sides.addAll([a, b]);
+      await pairSides(a, b);
+
+      await _putWorkspace(a, id: 'w1', kind: 'managed');
+      await a.putWorkspaceFile('w1', 'a.txt', 'a', mtimeMs: 1000000);
+      await a.putWorkspaceFile('w1', 'b.txt', 'b', mtimeMs: 1000000);
+      await a.putWorkspaceFile('w1', 'c.txt', 'c', mtimeMs: 1000000);
+
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+      expect(report.success, isTrue, reason: report.summary);
+
+      expect(await _workspaceIds(b), [
+        'w1',
+      ], reason: 'the record is not the content: it always travels');
+      for (final name in ['a.txt', 'b.txt', 'c.txt']) {
+        expect(await b.workspaceFileContent('w1', name), isNull, reason: name);
+      }
+      expect(
+        report.workspacesOmitted,
+        1,
+        reason:
+            'the side that could not share its folder says so on its report',
+      );
+    },
+  );
+
+  test('the switch stops the files, never the record', () async {
+    final (a, b) = await pair();
+    await _putWorkspace(a, id: 'w1', kind: 'managed');
+    await a.putWorkspaceFile('w1', 'a.txt', 'aa', mtimeMs: 1000000);
+    await a.workspaceContent.setEnabled('w1', false);
+
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(await _workspaceIds(b), ['w1']);
+    expect(
+      await b.workspaceFileContent('w1', 'a.txt'),
+      isNull,
+      reason: 'this device is not sharing the folder',
+    );
+
+    // And the device that turned it off deletes nothing either: the peer's
+    // silence about a workspace it was never offered is not a deletion.
+    await a.workspaceContent.setEnabled('w1', true);
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    expect(await a.workspaceFileContent('w1', 'a.txt'), 'aa');
+    expect(await b.workspaceFileContent('w1', 'a.txt'), 'aa');
+  });
+
+  test('a peer that is not sharing a workspace changes nothing here', () async {
+    final (a, b) = await pair();
+    await _putWorkspace(a, id: 'w1', kind: 'managed');
+    await a.putWorkspaceFile('w1', 'a.txt', 'aa', mtimeMs: 1000000);
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(await b.workspaceFileContent('w1', 'a.txt'), 'aa');
+
+    // B stops sharing it. A must not read that as "B deleted every file".
+    await b.workspaceContent.setEnabled('w1', false);
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    expect(report.workspaceFilesRemoved, 0);
+    expect(await a.workspaceFileContent('w1', 'a.txt'), 'aa');
+    expect(
+      await b.workspaceFileContent('w1', 'a.txt'),
+      'aa',
+      reason: 'turning the switch off stops transfers, it does not wipe',
+    );
+  });
+
+  test('a linked folder\'s files never move', () async {
+    final (a, b) = await pair();
+    final host = Directory('${a.dir.path}/host-notes');
+    await host.create(recursive: true);
+    await File('${host.path}/note.md').writeAsString('mine', flush: true);
+    await _putWorkspace(a, id: 'linked-1', kind: 'linked', hostPath: host.path);
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+
+    expect(await _workspaceIds(a), ['linked-1']);
+    expect(await _workspaceIds(b), isEmpty);
+    expect(
+      Directory(b.workspaceRoot('linked-1').path).existsSync(),
+      isFalse,
+      reason: 'the peer never learns the folder exists',
+    );
+  });
+
+  test(
+    'the managed workspace deleted by sync takes its folder with it',
+    () async {
+      final (a, b) = await pair();
+      await _putWorkspace(a, id: 'w1', kind: 'managed');
+      await a.putWorkspaceFile('w1', 'a.txt', 'aa', mtimeMs: 1000000);
+      await a.engine.syncWithPeer(await a.peer(b));
+      expect(await b.workspaceFileContent('w1', 'a.txt'), 'aa');
+
+      await ExtensionEntityStore(a.database).delete('workspace', 'w1');
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+      expect(report.success, isTrue, reason: report.summary);
+
+      expect(await _workspaceIds(b), isEmpty);
+      expect(
+        Directory(b.workspaceRoot('w1').path).existsSync(),
+        isFalse,
+        reason: 'a row-less folder is invisible in the app and visible on disk',
+      );
+    },
+  );
+
+  test(
+    'the panel switch persists the choice and re-counts the folder',
+    () async {
+      final a = _Side('a');
+      await a.start(root, withEngine: false);
+      final provider = await a.startProvider(
+        addressSource: () async => const [],
+      );
+      sides.add(a);
+
+      await _putWorkspace(a, id: 'w1', kind: 'managed');
+      // The provider's plane resolves roots through `AppDirectories`, which the
+      // two-device harness cannot use (it would hand both peers one directory) —
+      // so this test writes where *production* puts a workspace's files.
+      final file = File('${root.path}/workspaces/w1/files/a.txt');
+      await file.parent.create(recursive: true);
+      await file.writeAsString('aa', flush: true);
+      await provider.refreshWorkspaceContent();
+
+      final summaries = provider.workspaceSummaries!;
+      expect(summaries.single.id, 'w1');
+      expect(summaries.single.enabled, isTrue, reason: 'on by default');
+      expect(summaries.single.fileCount, 1);
+      expect(summaries.single.totalBytes, 2);
+
+      await provider.setWorkspaceContentEnabled('w1', false);
+      expect(provider.workspaceSummaries!.single.enabled, isFalse);
+      expect(await SyncStore(a.dir).readWorkspaceContentDisabled(), {
+        'w1',
+      }, reason: 'the choice is what the next session reads');
+    },
+  );
+
   test('an entity deleted on one device disappears on the peer', () async {
     final (a, b) = await pair();
     await _setAssistants(a, [
@@ -4730,12 +5620,12 @@ void main() {
     await a.start(root, withEngine: false);
     sides.add(a);
 
-    final probed = <List<(String, int)>>[];
+    final probed = <(String, int)>[];
     var reachable = true;
     final provider = await a.startProvider(
-      presenceProbe: (endpoints) async {
-        probed.add(endpoints);
-        return reachable;
+      endpointProbe: (host, port) async {
+        probed.add((host, port));
+        if (!reachable) throw const SocketException('probe refused');
       },
     );
     // A peer with no session history, so the probe is the only evidence: a fresh
@@ -4753,9 +5643,10 @@ void main() {
     await provider.refreshPeers();
 
     await provider.refreshPresence();
-    expect(probed.last, [
-      ('10.0.0.9', 9527),
-    ], reason: 'the dot is about the addresses the card shows and dials');
+    expect(probed.last, (
+      '10.0.0.9',
+      9527,
+    ), reason: 'the dot is about the addresses the card shows and dials');
     expect(provider.isPeerOnline('peer-device'), isTrue);
     expect(provider.peerPresenceSource('peer-device'), PresenceSource.probe);
 
@@ -4796,9 +5687,9 @@ void main() {
       if (!presenceGate.isCompleted) presenceGate.complete();
     });
     final provider = await a.startProvider(
-      presenceProbe: (_) async {
+      endpointProbe: (host, port) async {
         await presenceGate.future;
-        return false;
+        throw const SocketException('probe refused');
       },
     );
 
@@ -4842,7 +5733,10 @@ void main() {
 
       // The probe never finds anything, so any green below can only come from
       // the beat.
-      final provider = await a.startProvider(presenceProbe: (_) async => false);
+      final provider = await a.startProvider(
+        endpointProbe: (host, port) async =>
+            throw const SocketException('probe refused'),
+      );
       final engine = provider.engine!;
       provider.busyDeviceIds.add('peer-live');
 
@@ -4853,8 +5747,6 @@ void main() {
       engine.initiatorProgress['peer-live'] = const SyncSessionProgress(
         SyncSessionPhase.connecting,
         address: '10.0.0.9:9527',
-        attempt: 1,
-        attempts: 1,
       );
       engine.onProgressChanged!();
       expect(
@@ -4870,26 +5762,34 @@ void main() {
       );
       engine.onProgressChanged!();
       expect(provider.isPeerOnline('peer-live'), isTrue);
-      expect(provider.peerPresenceSource('peer-live'), PresenceSource.probe);
+      expect(provider.peerPresenceSource('peer-live'), PresenceSource.session);
     },
   );
 
-  test('a session that cannot talk outranks a probe that can', () async {
+  test('a failed session clears the dot, an answering probe restores it', () async {
     final a = _Side('a');
     final b = _Side('b');
     await a.start(root, withEngine: false);
     await b.start(root);
     sides.addAll([a, b]);
 
-    // The probe always answers, which is exactly the trap: an address can
-    // accept a TCP connection and never complete the handshake a session needs.
-    final provider = await a.startProvider(presenceProbe: (_) async => true);
+    // The probe's verdict is what the address really does. It used to be a bare
+    // TCP connect, which could answer while every session failed; now it is an
+    // authenticated request, so the two can only disagree while the peer is
+    // changing state between them.
+    var reachable = true;
+    final provider = await a.startProvider(
+      endpointProbe: (host, port) async {
+        if (!reachable) throw const SocketException('probe refused');
+      },
+    );
     final pin = b.engine.openPairing();
     await provider.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
     await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
     expect(provider.isPeerOnline(b.identity.deviceId), isTrue);
 
-    // The peer goes away; the probe keeps saying "something answers here".
+    // The peer goes away, and the address goes with it.
+    reachable = false;
     await b.engine.stop();
     final report = await provider.syncNow(b.identity.deviceId);
     expect(report?.success, isFalse);
@@ -4902,18 +5802,29 @@ void main() {
     );
     expect(
       provider.peerPresenceSource(b.identity.deviceId),
-      PresenceSource.sessionSilent,
+      PresenceSource.session,
       reason:
           'and the card can say the answer came from a session, not a probe',
     );
 
-    // The probe runs right after the session and would re-green the dot on its
-    // own — the session's verdict has to hold it down for its TTL.
+    // The probe runs right after the session and agrees: the dot stays gray.
     await provider.refreshPresence();
     expect(
       provider.isPeerOnline(b.identity.deviceId),
       isFalse,
-      reason: 'the probe is the weaker evidence here',
+      reason: 'the address does not answer either',
+    );
+
+    // ...and when the address answers again, the authenticated probe is enough:
+    // success means reachable *and* the pairing secret is still good, which is
+    // the pair of facts a session would need.
+    reachable = true;
+    await provider.refreshPresence();
+    expect(provider.isPeerOnline(b.identity.deviceId), isTrue);
+    expect(
+      provider.peerPresenceSource(b.identity.deviceId),
+      PresenceSource.probe,
+      reason: 'the fresh address evidence is what the dot reports now',
     );
   });
 
@@ -4926,7 +5837,10 @@ void main() {
 
     // The probe never finds anything, so every green here has to come from the
     // session itself.
-    final provider = await a.startProvider(presenceProbe: (_) async => false);
+    final provider = await a.startProvider(
+      endpointProbe: (host, port) async =>
+          throw const SocketException('probe refused'),
+    );
     final pin = b.engine.openPairing();
     await provider.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
     await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
@@ -4947,7 +5861,7 @@ void main() {
     );
     expect(
       provider.peerPresenceSource(b.identity.deviceId),
-      PresenceSource.sessionAnswered,
+      PresenceSource.session,
     );
   });
 
@@ -4960,7 +5874,10 @@ void main() {
 
     // The probe never finds anything, so every green below has to come from a
     // session — the strongest evidence there is.
-    final provider = await a.startProvider(presenceProbe: (_) async => false);
+    final provider = await a.startProvider(
+      endpointProbe: (host, port) async =>
+          throw const SocketException('probe refused'),
+    );
     final pin = b.engine.openPairing();
     await provider.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
     await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
@@ -4969,7 +5886,7 @@ void main() {
     // starts cannot talk, which is the gray the dot has to show. The peer's own
     // record of this device is untouched, so it can still dial in.
     final parked = await a.peer(b);
-    parked.replaceEndpoints('127.0.0.1', await _unusedPort());
+    _onlyEndpoint(parked, '127.0.0.1', await _unusedPort());
     await a.store.savePeer(parked);
     await provider.refreshPeers();
 
@@ -4977,7 +5894,7 @@ void main() {
     expect(silent?.failure, SyncFailureReason.unreachable);
     expect(
       provider.peerPresenceSource(b.identity.deviceId),
-      PresenceSource.sessionSilent,
+      PresenceSource.session,
       reason: 'the round this device started reached nothing',
     );
 
@@ -4986,22 +5903,24 @@ void main() {
     // can come from. Without one the dot stays gray right after a session that
     // demonstrably got an answer.
     final inbound = await b.peer(a);
-    inbound.replaceEndpoints('127.0.0.1', a.port);
+    _onlyEndpoint(inbound, '127.0.0.1', a.port);
     await b.store.savePeer(inbound);
     final received = await b.engine.syncWithPeer(inbound);
     expect(received.success, isTrue, reason: received.summary);
 
     expect(
       provider.peerPresenceSource(b.identity.deviceId),
-      PresenceSource.sessionAnswered,
+      PresenceSource.session,
     );
     expect(provider.isPeerOnline(b.identity.deviceId), isTrue);
   });
 
-  test('a dial names the address and its rank', () async {
+  test('a dial names the address it dials, and never a rank', () async {
     // The beat that can hang is the dial, so the label has to say *which*
-    // address is hanging — otherwise a stuck candidate is indistinguishable
-    // from a stuck comparison.
+    // address is hanging — otherwise a stuck address is indistinguishable from
+    // a stuck comparison. It never says which *number* candidate it is: the
+    // probe ranked every address in parallel, and the dial only spends that
+    // answer.
     final (a, b) = await pair();
     final seen = <SyncSessionProgress>[];
     late final SyncEngine engine;
@@ -5026,8 +5945,6 @@ void main() {
       contains('127.0.0.1:${b.port}'),
       reason: 'the card shows the address being dialed',
     );
-    expect(dials.first.attempt, 1);
-    expect(dials.first.attempts, 1, reason: 'one remembered address, one try');
 
     // "Comparing data" may only appear once the peer actually answered: the
     // hello round trip is where a silent address spends its whole budget.
@@ -5036,6 +5953,78 @@ void main() {
       order.indexOf(SyncSessionPhase.exchanging),
       greaterThan(order.lastIndexOf(SyncSessionPhase.connecting)),
       reason: 'the dial beat must come first, or the label lies about the wait',
+    );
+  });
+
+  test('a probe that proved nothing buys one dial, not a walk', () async {
+    // The probe asks every remembered address at once, and the dial spends that
+    // answer: an address the probe found silent is not dialed. The old
+    // behaviour walked the whole set one address at a time — which spent a
+    // connect budget per address and is what put "the second of three" on the
+    // card. Two refused addresses make the difference countable: this run takes
+    // one dial and used to take two.
+    final a = _Side('a');
+    await a.start(root);
+    sides.add(a);
+
+    // A second engine on the same side, purely to read the beats: the side's own
+    // engine reports progress through counters, not content.
+    final seen = <SyncSessionProgress>[];
+    late final SyncEngine engine;
+    engine = SyncEngine(
+      identity: a.identity,
+      store: a.store,
+      dataPlane: a.dataPlane,
+      onStateChanged: () {
+        final progress = engine.initiatorProgress['peer-dead'];
+        if (progress != null) seen.add(progress);
+      },
+    );
+
+    // A closed loopback port refuses instantly, so both addresses are silent
+    // without a timeout, and the one guess the dial is allowed fails just as
+    // fast. Distinct by construction: the count below only means anything if the
+    // two addresses really are two.
+    final headPort = await _unusedPort();
+    var tailPort = await _unusedPort();
+    while (tailPort == headPort) {
+      tailPort = await _unusedPort();
+    }
+    final peer = SyncPeerRecord(
+      deviceId: 'peer-dead',
+      certPem: 'pem',
+      secret: 'secret',
+      name: 'Studio desktop',
+      platform: 'android',
+      endpoints: [
+        SyncPeerEndpoint(host: '127.0.0.1', port: headPort),
+        SyncPeerEndpoint(host: '127.0.0.1', port: tailPort),
+      ],
+    );
+    await a.store.savePeer(peer);
+
+    final report = await engine.syncWithPeer(peer);
+    expect(report.failure, SyncFailureReason.unreachable);
+
+    // One dial emits its beat more than once — every state notification while
+    // that beat is live re-reads it — so the run is counted by *changes* of
+    // address, not by emissions.
+    final dials = <String>[];
+    for (final progress in seen) {
+      final address = progress.phase == SyncSessionPhase.connecting
+          ? progress.address
+          : null;
+      if (address == null) continue;
+      if (dials.isNotEmpty && dials.last == address) continue;
+      dials.add(address);
+    }
+    expect(
+      dials,
+      ['127.0.0.1:$headPort'],
+      reason:
+          'the probe proved nothing, so one guess is spent — on the head of the '
+          'set — and walking the rest would re-ask, serially, what the probe '
+          'just asked in parallel',
     );
   });
 
@@ -5126,7 +6115,7 @@ void main() {
     // The peer moved: A's remembered address is stale, which is exactly when a
     // re-pair happens.
     final drifted = await a.peer(b);
-    drifted.replaceEndpoints('10.255.255.1', 1);
+    _onlyEndpoint(drifted, '10.255.255.1', 1);
     await a.store.savePeer(drifted);
 
     final pin = b.engine.openPairing();

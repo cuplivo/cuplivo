@@ -30,7 +30,15 @@ import 'package:crypto/crypto.dart' as crypto;
 /// the report warns), but a v3 peer would silently never warn, so it is
 /// refused rather than half-spoken to. This revision also adds the
 /// `/sync/revoke` route (unpair propagation).
-const int kSyncProtocolVersion = 4;
+///
+/// v5: workspace records. The `workspace` entity kind is no longer excluded
+/// wholesale — managed workspaces ride the ordinary business sections, and only
+/// *linked* folders stay behind, filtered per row. A v4 peer ignores a kind it
+/// does not sync, so it would never answer for those rows: its manifest would
+/// look like "the peer deleted every workspace", and a session against it would
+/// silently half-sync instead of refusing. The shape of the messages did not
+/// change, so nothing else has to.
+const int kSyncProtocolVersion = 5;
 
 /// Wall-clock divergence (milliseconds) beyond which a session report carries
 /// a clock-skew warning. Kerberos-style tolerance: below it, LWW comparisons
@@ -170,6 +178,95 @@ String digestFromDigestInput(String lines) {
 /// The digest input for an empty conversation (no message rows).
 final String emptyConversationDigest = digestFromSortedLines('');
 
+/// One file's version identity inside a workspace: its size and its mtime in
+/// milliseconds. Sync compares this pair and nothing else — planning never
+/// reads a byte of a workspace file (ADR-0003 slice 18), which is what lets a
+/// gigabyte workspace be planned in the time it takes to `stat` its files.
+class WorkspaceFileStamp {
+  final int size;
+  final int mtimeMs;
+
+  const WorkspaceFileStamp({required this.size, required this.mtimeMs});
+
+  /// `[size, mtimeMs]` — an array rather than an object: a workspace table is
+  /// thousands of these and the field names would be most of the bytes.
+  List<int> toJson() => [size, mtimeMs];
+
+  /// Lenient: a malformed entry is dropped by the caller rather than failing
+  /// the whole session (a peer's table is data, not a contract).
+  static WorkspaceFileStamp? tryParse(Object? raw) {
+    if (raw is! List || raw.length < 2) return null;
+    final size = raw[0];
+    final mtime = raw[1];
+    if (size is! num || mtime is! num) return null;
+    return WorkspaceFileStamp(size: size.toInt(), mtimeMs: mtime.toInt());
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is WorkspaceFileStamp &&
+      other.size == size &&
+      other.mtimeMs == mtimeMs;
+
+  @override
+  int get hashCode => Object.hash(size, mtimeMs);
+
+  @override
+  String toString() => '${size}B@${mtimeMs}ms';
+}
+
+/// What this device and one peer last demonstrably agreed a file's version is,
+/// from each side's own point of view.
+///
+/// Two stamps rather than one because the two devices' mtimes for the same
+/// bytes need not be identical — a filesystem with coarse mtime granularity
+/// rounds whatever the receiver sets, and the receiver cannot make the
+/// sender's filesystem agree. Storing both keeps "we already agree" an exact
+/// test instead of a tolerance, and an entry that is *absent* is always read
+/// conservatively (the file is offered or fetched again, never deleted).
+class SyncAgreedFile {
+  final WorkspaceFileStamp mine;
+  final WorkspaceFileStamp peer;
+
+  const SyncAgreedFile(this.mine, this.peer);
+
+  List<int> toJson() => [mine.size, mine.mtimeMs, peer.size, peer.mtimeMs];
+
+  static SyncAgreedFile? tryParse(Object? raw) {
+    if (raw is! List || raw.length < 4) return null;
+    final values = <int>[];
+    for (final value in raw.take(4)) {
+      if (value is! num) return null;
+      values.add(value.toInt());
+    }
+    return SyncAgreedFile(
+      WorkspaceFileStamp(size: values[0], mtimeMs: values[1]),
+      WorkspaceFileStamp(size: values[2], mtimeMs: values[3]),
+    );
+  }
+}
+
+/// Cap on the file entries one peer's table may hold — both the ledger in the
+/// checkpoint and the table a session advertises.
+///
+/// The ledger is the "both sides agreed on this" record; an entry it does not
+/// hold only ever makes the plan conservative (offer or fetch again, never
+/// delete), so what the cap costs past this bound is a re-transfer, not data.
+const int kMaxWorkspaceLedgerEntries = 20000;
+
+/// One workspace's file table on the wire: relative path → version stamp.
+///
+/// A workspace *absent* from a batch's table map is one this device does not
+/// share content for (turned off, over the caps, linked, or unknown here); a
+/// workspace present with an empty table is one this device shares and holds
+/// no files for. The two mean opposite things to the deletion rule — absence
+/// is "no opinion", emptiness is "nothing" — so the distinction is part of the
+/// shape rather than a convention.
+typedef SyncWorkspaceFileTable = Map<String, WorkspaceFileStamp>;
+
+/// Every workspace's file table in one direction, by workspace id.
+typedef SyncWorkspaceFileTables = Map<String, SyncWorkspaceFileTable>;
+
 /// Hello request/response body. The initiator sends its manifest with hello;
 /// the responder answers with its own, so one round trip is enough to plan
 /// both directions.
@@ -297,7 +394,16 @@ enum SyncRefusalReason {
   /// A session for this pair is already running on the answering side, in
   /// either role: one session per pair at a time. The refused round is retried
   /// by the next trigger — a launch, a resume, or the manual button.
-  busy('busy');
+  busy('busy'),
+
+  /// This round yielded to the peer's own session with this device, and that
+  /// session is the one that runs. Not a failure of the peer and not a
+  /// refusal *by* it: the round is recorded nowhere, because the pair's real
+  /// outcome arrives from the answered side. A round that had not heard the
+  /// peer's hello yet when the peer's hello arrived is the one that yields —
+  /// on a LAN that only works one way, refusing it instead left both devices
+  /// failing forever while the reachable direction sat idle.
+  superseded('superseded');
 
   final String wire;
   const SyncRefusalReason(this.wire);
@@ -308,6 +414,7 @@ enum SyncRefusalReason {
     'not_paired' => notPaired,
     'identity_mismatch' => identityMismatch,
     'busy' => busy,
+    'superseded' => superseded,
     _ => null,
   };
 }
@@ -389,6 +496,27 @@ class SyncPeerReport {
   final int skillConflicts;
   final int blobsMissing;
 
+  /// Workspace content in either direction (slice 18): files this device
+  /// landed, the bytes they carried, files it deleted because the peer deleted
+  /// them, its own edits the peer's version replaced, and files it wanted but
+  /// could not fetch (they stay owed and are retried next session).
+  ///
+  /// Only what this device did with its own hands, exactly like
+  /// [blobsMoved]: a workspace file is *pulled* by the receiver, so the sender
+  /// has nothing to count and inventing a "sent" figure for it would be a
+  /// claim it cannot make.
+  final int workspaceFiles;
+  final int workspaceBytes;
+  final int workspaceFilesRemoved;
+  final int workspaceConflicts;
+  final int workspaceFilesMissing;
+
+  /// Workspaces this device shared no content for this session: turned off, or
+  /// over the file/byte caps. Counted because silence about a workspace the
+  /// user believes is syncing is the one failure mode this face must never
+  /// have.
+  final int workspacesOmitted;
+
   /// Business rows whose local version was replaced by the peer's newer row
   /// (slice 5): entities and synced preferences counted separately. "One
   /// number per face" — which row lost lives in the logs, not on the card.
@@ -421,6 +549,12 @@ class SyncPeerReport {
     this.skillsUpdated = 0,
     this.skillConflicts = 0,
     this.blobsMissing = 0,
+    this.workspaceFiles = 0,
+    this.workspaceBytes = 0,
+    this.workspaceFilesRemoved = 0,
+    this.workspaceConflicts = 0,
+    this.workspaceFilesMissing = 0,
+    this.workspacesOmitted = 0,
     this.entityRowsLost = 0,
     this.preferencesLost = 0,
     this.clockSkewMs,
@@ -443,6 +577,12 @@ class SyncPeerReport {
     'skillsUpdated': skillsUpdated,
     'skillConflicts': skillConflicts,
     'blobsMissing': blobsMissing,
+    'workspaceFiles': workspaceFiles,
+    'workspaceBytes': workspaceBytes,
+    'workspaceFilesRemoved': workspaceFilesRemoved,
+    'workspaceConflicts': workspaceConflicts,
+    'workspaceFilesMissing': workspaceFilesMissing,
+    'workspacesOmitted': workspacesOmitted,
     'entityRowsLost': entityRowsLost,
     'preferencesLost': preferencesLost,
     if (clockSkewMs != null) 'clockSkewMs': clockSkewMs,
@@ -465,6 +605,14 @@ class SyncPeerReport {
     skillsUpdated: (json['skillsUpdated'] as num?)?.toInt() ?? 0,
     skillConflicts: (json['skillConflicts'] as num?)?.toInt() ?? 0,
     blobsMissing: (json['blobsMissing'] as num?)?.toInt() ?? 0,
+    workspaceFiles: (json['workspaceFiles'] as num?)?.toInt() ?? 0,
+    workspaceBytes: (json['workspaceBytes'] as num?)?.toInt() ?? 0,
+    workspaceFilesRemoved:
+        (json['workspaceFilesRemoved'] as num?)?.toInt() ?? 0,
+    workspaceConflicts: (json['workspaceConflicts'] as num?)?.toInt() ?? 0,
+    workspaceFilesMissing:
+        (json['workspaceFilesMissing'] as num?)?.toInt() ?? 0,
+    workspacesOmitted: (json['workspacesOmitted'] as num?)?.toInt() ?? 0,
     entityRowsLost: (json['entityRowsLost'] as num?)?.toInt() ?? 0,
     preferencesLost: (json['preferencesLost'] as num?)?.toInt() ?? 0,
     clockSkewMs: (json['clockSkewMs'] as num?)?.toInt(),
@@ -634,11 +782,18 @@ class SyncDeltaBatch {
   final List<SyncBlobEntry> assets;
   final Map<String, String> skillHashes;
 
+  /// Every workspace this device shares content for, with its file table
+  /// (slice 18). Sent on both beats — the push and the fetch response — because
+  /// each direction's receiver is the one that pulls, and a session that
+  /// skipped one of them would leave that direction's files unplanned.
+  final SyncWorkspaceFileTables workspaceFiles;
+
   const SyncDeltaBatch(
     this.subtrees, {
     this.business = const SyncBusinessPayload(),
     this.assets = const [],
     this.skillHashes = const {},
+    this.workspaceFiles = const {},
   });
 
   Map<String, dynamic> toJson() => {
@@ -646,6 +801,12 @@ class SyncDeltaBatch {
     'business': business.toJson(),
     'assets': [for (final entry in assets) entry.toJson()],
     'skillHashes': skillHashes,
+    'workspaceFiles': {
+      for (final entry in workspaceFiles.entries)
+        entry.key: {
+          for (final file in entry.value.entries) file.key: file.value.toJson(),
+        },
+    },
   };
 
   static SyncDeltaBatch fromJson(Map<String, dynamic> json) => SyncDeltaBatch(
@@ -667,7 +828,33 @@ class SyncDeltaBatch {
         for (final entry in (json['skillHashes'] as Map).entries)
           entry.key.toString(): entry.value.toString(),
     },
+    workspaceFiles: _fileTablesFromJson(json['workspaceFiles']),
   );
+
+  /// Reads a batch's workspace tables. A table whose entries all fail to parse
+  /// stays present and empty rather than disappearing: "the peer shares this
+  /// workspace and has nothing that rides" and "the peer does not share it" are
+  /// opposite statements to the deletion rule, and a dropped key would turn the
+  /// first into the second.
+  static SyncWorkspaceFileTables _fileTablesFromJson(Object? raw) {
+    if (raw is! Map) return const {};
+    final tables = <String, SyncWorkspaceFileTable>{};
+    for (final entry in raw.entries) {
+      final workspaceId = entry.key.toString();
+      if (workspaceId.isEmpty) continue;
+      final table = <String, WorkspaceFileStamp>{};
+      if (entry.value is Map) {
+        for (final file in (entry.value as Map).entries) {
+          final path = file.key.toString();
+          final stamp = WorkspaceFileStamp.tryParse(file.value);
+          if (path.isEmpty || stamp == null) continue;
+          table[path] = stamp;
+        }
+      }
+      tables[workspaceId] = table;
+    }
+    return tables;
+  }
 
   String encodeJson() => jsonEncode(toJson());
 
@@ -787,6 +974,21 @@ class SyncCheckpoint {
   /// on it — the baseline for content-conflict detection (slice 3).
   final Map<String, String> skillHashes;
 
+  /// Per workspace, the file versions both sides last demonstrably held, keyed
+  /// by relative path (slice 18). This is the ledger the workspace content
+  /// plan reads: it is what tells "the peer deleted this file" from "the peer
+  /// never had it", and what keeps a conflict from being re-decided every
+  /// session.
+  ///
+  /// It lives inside the checkpoint rather than in a file of its own because
+  /// it is per-peer state advanced by the same session, saved at the same
+  /// moment, and covered by the same "one atomic write per session" rule —
+  /// two files could only disagree with each other. A checkpoint an entry
+  /// cannot be recovered from is resettable exactly like every other entry
+  /// here: absent means "nothing was ever agreed", which the plan reads
+  /// conservatively.
+  final Map<String, Map<String, SyncAgreedFile>> workspaceFiles;
+
   /// What this device still owes itself: conversations and the business face
   /// whose *apply* it deferred (a generation writing there, or a restore
   /// holding the write fence). Advertised in the next hello so the peer knows
@@ -808,6 +1010,7 @@ class SyncCheckpoint {
     this.preferences = const {},
     this.pendingBlobs = const {},
     this.skillHashes = const {},
+    this.workspaceFiles = const {},
     this.unappliedConversations = const [],
     this.unappliedBusiness = false,
     this.peerEpoch = 0,
@@ -829,6 +1032,15 @@ class SyncCheckpoint {
       (target, entry) => MapEntry(target, entry.toJson()),
     ),
     'skillHashes': skillHashes,
+    if (workspaceFiles.isNotEmpty)
+      'workspaceFiles': {
+        for (final workspace in workspaceFiles.entries)
+          if (workspace.value.isNotEmpty)
+            workspace.key: {
+              for (final file in workspace.value.entries)
+                file.key: file.value.toJson(),
+            },
+      },
     if (unappliedConversations.isNotEmpty) 'unapplied': unappliedConversations,
     if (unappliedBusiness) 'unappliedBusiness': true,
     if (peerEpoch != 0) 'peerEpoch': peerEpoch,
@@ -878,6 +1090,18 @@ class SyncCheckpoint {
         for (final entry
             in (json['skillHashes'] as Map).cast<String, dynamic>().entries)
           entry.key.toString(): entry.value.toString(),
+    },
+    workspaceFiles: {
+      if (json['workspaceFiles'] is Map)
+        for (final workspace
+            in (json['workspaceFiles'] as Map).cast<String, dynamic>().entries)
+          if (workspace.value is Map)
+            workspace.key.toString(): {
+              for (final file in (workspace.value as Map).entries)
+                if (SyncAgreedFile.tryParse(file.value)
+                    case final SyncAgreedFile agreed)
+                  file.key.toString(): agreed,
+            },
     },
     unappliedConversations: [
       for (final id in (json['unapplied'] as List? ?? const [])) id.toString(),

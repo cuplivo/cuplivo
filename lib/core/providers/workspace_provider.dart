@@ -46,6 +46,14 @@ class WorkspaceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Re-reads the workspace list after LAN sync wrote rows outside this provider
+  /// (ADR-0003 decision 8: apply → one state reload).
+  ///
+  /// The list is cached and parsed, so an applied workspace row is otherwise
+  /// invisible — this device would hold the peer's workspace in SQLite and never
+  /// show it — until the next launch. Wired in `_wireSyncReloaders`.
+  Future<void> reloadAfterExternalChange() => _load();
+
   Future<Workspace> create({
     required String name,
     WorkspaceKind kind = WorkspaceKind.managed,

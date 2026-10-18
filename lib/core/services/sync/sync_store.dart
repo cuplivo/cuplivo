@@ -12,7 +12,9 @@ import 'sync_models.dart';
 ///
 /// - `identity.json`          — owned by [SyncDeviceIdentity]
 /// - `peers/<deviceId>.json`  — pinned certificate + display info + endpoint
-/// - `checkpoints/<deviceId>.json.gz` — per-peer checkpoint
+/// - `checkpoints/<deviceId>.json.gz` — per-peer checkpoint, including the
+///   workspace file ledger the content plan reads (slice 18)
+/// - `workspaces.json`        — which workspaces this device syncs files for
 /// - `epoch.json`             — this device's data epoch (see [readDataEpoch])
 class SyncStore {
   SyncStore(this.root);
@@ -231,13 +233,64 @@ class SyncStore {
 
   File get _epochFile =>
       File('${root.path}${Platform.pathSeparator}epoch.json');
+
+  // ---- workspace content toggles ----
+
+  /// The workspaces this device does **not** sync files for (ADR-0003 slice
+  /// 18), by id.
+  ///
+  /// Stored as the disabled set rather than as a full map of choices so that
+  /// "on" is the absence of an entry: a workspace the user just created syncs
+  /// without anything having to write a preference for it, which is the
+  /// default the feature promises. Device-local by definition — it says what
+  /// *this* machine is willing to upload, so it rides neither the sync wire nor
+  /// a backup.
+  ///
+  /// A file this device cannot read is read as "nothing disabled": the switch
+  /// is a convenience, and refusing to sync anything because a preferences file
+  /// was truncated would be the worse failure.
+  Future<Set<String>> readWorkspaceContentDisabled() async {
+    final file = _workspaceSettingsFile;
+    if (!await file.exists()) return const {};
+    try {
+      final json = jsonDecode(await file.readAsString());
+      if (json is! Map) return const {};
+      final raw = json['disabled'];
+      if (raw is! List) return const {};
+      return {
+        for (final id in raw)
+          if (id is String && id.isNotEmpty) id,
+      };
+    } catch (error) {
+      debugPrint('sync store: unreadable workspace settings: $error');
+      return const {};
+    }
+  }
+
+  Future<void> writeWorkspaceContentDisabled(Set<String> workspaceIds) async {
+    await root.create(recursive: true);
+    final ids = workspaceIds.where((id) => id.isNotEmpty).toList()..sort();
+    await _writeAtomic(
+      _workspaceSettingsFile,
+      utf8.encode(jsonEncode({'disabled': ids})),
+    );
+  }
+
+  File get _workspaceSettingsFile =>
+      File('${root.path}${Platform.pathSeparator}workspaces.json');
 }
 
 /// How many endpoints a peer record remembers. Bounded because the set is
 /// learned (the pairing QR's candidates plus the address every session is seen
-/// at) and a stale address only costs one failed connect before the next
-/// candidate is tried, so a long memory buys little and the tail grows forever.
-const kMaxPeerEndpoints = 6;
+/// at), and a stale address only costs one failed connect before the next
+/// candidate is tried.
+///
+/// Twelve, not six, because the set is a memory of *(device, network)* pairs:
+/// an office, a home and a phone hotspot, each of which can hold a couple of
+/// interfaces. The periodic probe is tiered, so a longer memory costs no extra
+/// steady-state traffic — the tick follows the addresses that answered, and the
+/// tail is only walked when they all go silent.
+const kMaxPeerEndpoints = 12;
 
 /// One remembered address of a paired device.
 ///
@@ -246,38 +299,113 @@ const kMaxPeerEndpoints = 6;
 /// and on a phone hotspot. Only the certificate fingerprint identifies a peer —
 /// an address is a hint that every connection re-verifies against the pin, so
 /// remembering several of them can never pair or sync with the wrong device.
+///
+/// The record carries what a user needs to decide whether an address is still
+/// worth keeping: how many sessions it has carried, when it last did, and what
+/// its last probe measured. Those are management-view facts — the card itself
+/// shows only the latency, because that is the one number that answers "which
+/// of these is the fast one right now".
 class SyncPeerEndpoint {
-  final String host;
-  final int port;
+  /// Mutable because an address is a hint, not an identity: the management view
+  /// repairs a tile in place ("the peer moved, this is where it is now"), and
+  /// the repaired tile keeps the session count and probe history that belong to
+  /// the (device, network) pair rather than to the string.
+  String host;
+  int port;
 
-  /// When a session last succeeded over this endpoint. Orders the set and is
-  /// what the peer card's address line shows.
+  /// The name this device's user typed over the address, or null when the
+  /// address itself is its name. Per endpoint, not per peer: the same laptop is
+  /// "家中网络" at home and "公司网络" at the office, and those are two tiles.
+  String? customName;
+
+  /// When a session last ran over this endpoint. Orders the set and is what
+  /// the peer card's "last connected" line shows. A refusal from the peer
+  /// counts: it proves this address reaches it on this network.
   DateTime? lastSuccessAt;
+
+  /// When this address was first learned (a pairing candidate or a proven
+  /// session).
+  DateTime? addedAt;
+
+  /// How many sessions have run over this endpoint, refusals included. Probes
+  /// never count: a probe is this device asking a cheap question, and a number
+  /// that grows by the tick would say nothing about whether the address works
+  /// for syncing.
+  int successCount;
+
+  /// What the last authenticated probe of this address measured, and when. Null
+  /// latency means nothing answered (or nothing has probed it yet).
+  int? lastLatencyMs;
+  DateTime? lastProbedAt;
 
   SyncPeerEndpoint({
     required this.host,
     required this.port,
+    this.customName,
     this.lastSuccessAt,
+    this.addedAt,
+    this.successCount = 0,
+    this.lastLatencyMs,
+    this.lastProbedAt,
   });
 
   /// How a human types it: `192.168.1.7:9527`, or `[fd00::1]:9527` for an IPv6
   /// literal — whose port would otherwise be one more colon in a row.
   String get label => formatHostPort(host, port);
 
+  /// What this endpoint's tile and detail header show: the name the user typed,
+  /// or the bare host. The `host:port` form is [label] — the address, which the
+  /// detail sheet shows underneath the name and is what a person copies.
+  String get displayName => customName ?? host;
+
+  /// A session ran over this endpoint: it is promoted, stamped, counted.
+  void recordSession({DateTime? at}) {
+    successCount++;
+    lastSuccessAt = at ?? DateTime.now();
+    addedAt ??= lastSuccessAt;
+  }
+
+  /// A probe answered (or went silent) at [at]. Latency is kept only for an
+  /// answer: a silent address has no round trip to remember.
+  void recordProbe({required bool answered, Duration? latency, DateTime? at}) {
+    lastProbedAt = at ?? DateTime.now();
+    lastLatencyMs = answered ? latency?.inMilliseconds : null;
+    addedAt ??= lastProbedAt;
+  }
+
   Map<String, dynamic> toJson() => {
     'host': host,
     'port': port,
+    if (customName != null) 'customName': customName,
     'lastSuccessAtMs': lastSuccessAt?.millisecondsSinceEpoch,
+    'addedAtMs': addedAt?.millisecondsSinceEpoch,
+    'successCount': successCount,
+    'lastLatencyMs': lastLatencyMs,
+    'lastProbedAtMs': lastProbedAt?.millisecondsSinceEpoch,
   };
 
   static SyncPeerEndpoint fromJson(Map<String, dynamic> json) {
     final atMs = json['lastSuccessAtMs'] as num?;
+    final addedMs = json['addedAtMs'] as num?;
+    final probedMs = json['lastProbedAtMs'] as num?;
+    final name = (json['customName'] as String?)?.trim();
     return SyncPeerEndpoint(
       host: json['host'] as String,
       port: (json['port'] as num).toInt(),
+      // A blank name is no name: clearing a tile's name must leave the address
+      // showing, not a tile with an empty top line.
+      customName: name == null || name.isEmpty ? null : name,
       lastSuccessAt: atMs == null
           ? null
           : DateTime.fromMillisecondsSinceEpoch(atMs.toInt()),
+      addedAt: addedMs == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(addedMs.toInt()),
+      successCount: (json['successCount'] as num?)?.toInt() ?? 0,
+      lastLatencyMs: (json['lastLatencyMs'] as num?)?.toInt(),
+      lastProbedAt: probedMs == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(probedMs.toInt()),
     );
   }
 }
@@ -341,22 +469,97 @@ class SyncPeerRecord {
       endpoints.isEmpty ? null : endpoints.first;
 
   /// Records a connection that succeeded over `host:port`: the endpoint is
-  /// promoted to the front and its timestamp refreshed. A session that ran at
+  /// promoted to the front and its stats refreshed. A session that ran at
   /// all — including one the peer refused — proves this address reaches the
   /// peer on this network, which is exactly what the order should track.
+  ///
+  /// The existing endpoint object is *moved*, not rebuilt: its session count
+  /// and its probe history belong to the address, not to this visit.
   void noteEndpointSuccess(String host, int port, {DateTime? at}) {
+    final existing = endpointFor(host, port);
     endpoints.removeWhere(
       (endpoint) => endpoint.host == host && endpoint.port == port,
     );
-    endpoints.insert(
-      0,
+    final endpoint =
+        existing ??
+        SyncPeerEndpoint(host: host, port: port, addedAt: at ?? DateTime.now());
+    endpoint.recordSession(at: at);
+    endpoints.insert(0, endpoint);
+    _trimEndpoints();
+  }
+
+  /// The remembered endpoint for `host:port`, or null.
+  SyncPeerEndpoint? endpointFor(String host, int port) {
+    for (final endpoint in endpoints) {
+      if (endpoint.host == host && endpoint.port == port) return endpoint;
+    }
+    return null;
+  }
+
+  /// Forgets one endpoint — the management view's "delete this address". The
+  /// last one may go too: a peer with no address is a state the panel already
+  /// speaks (`no_endpoint` asks for one), and refusing the delete would trap
+  /// an address the user knows is wrong.
+  bool removeEndpoint(String host, int port) {
+    final before = endpoints.length;
+    endpoints.removeWhere(
+      (endpoint) => endpoint.host == host && endpoint.port == port,
+    );
+    return endpoints.length != before;
+  }
+
+  /// Remembers one address the user typed, at the end of the set: the order is
+  /// the dial order, and a typed address has proved nothing yet — it is tried
+  /// once the addresses that have carried sessions are done. An address already
+  /// remembered is not added twice.
+  bool addEndpoint(String host, int port, {DateTime? at}) {
+    final trimmed = host.trim();
+    if (trimmed.isEmpty || port <= 0) return false;
+    if (endpointFor(trimmed, port) != null) return false;
+    endpoints.add(
       SyncPeerEndpoint(
-        host: host,
+        host: trimmed,
         port: port,
-        lastSuccessAt: at ?? DateTime.now(),
+        addedAt: at ?? DateTime.now(),
       ),
     );
     _trimEndpoints();
+    return true;
+  }
+
+  /// Names one address ("家中网络"), or clears the name when [name] is blank and
+  /// the address itself becomes its name again.
+  bool renameEndpoint(String host, int port, String? name) {
+    final endpoint = endpointFor(host, port);
+    if (endpoint == null) return false;
+    final trimmed = name?.trim() ?? '';
+    endpoint.customName = trimmed.isEmpty ? null : trimmed;
+    return true;
+  }
+
+  /// Repairs one address in place, keeping its name, session count and probe
+  /// history: the peer moved, the tile did not stop being the same
+  /// (device, network) pair. This is what the manual repair does now — the
+  /// whole-set replacement it used to be threw away the history of every other
+  /// network the pair had met, which is exactly the memory a peer that moves
+  /// back and forth needs.
+  ///
+  /// An edit that lands on an address another tile already holds absorbs that
+  /// tile: one address is one tile, or the same host would be dialed twice per
+  /// session.
+  bool editEndpoint(String host, int port, String newHost, int newPort) {
+    final trimmed = newHost.trim();
+    if (trimmed.isEmpty || newPort <= 0) return false;
+    final endpoint = endpointFor(host, port);
+    if (endpoint == null) return false;
+    if (endpoint.host == trimmed && endpoint.port == newPort) return false;
+    final duplicate = endpointFor(trimmed, newPort);
+    if (duplicate != null && !identical(duplicate, endpoint)) {
+      endpoints.remove(duplicate);
+    }
+    endpoint.host = trimmed;
+    endpoint.port = newPort;
+    return true;
   }
 
   /// Keeps candidates hinted by pairing (the QR's other endpoints, or the
@@ -365,11 +568,8 @@ class SyncPeerRecord {
   /// the ones ahead of them fail.
   void rememberEndpointCandidates(Iterable<(String, int)> candidates) {
     for (final (host, port) in candidates) {
-      if (host.isEmpty || port <= 0) continue;
-      if (endpoints.any((e) => e.host == host && e.port == port)) continue;
-      endpoints.add(SyncPeerEndpoint(host: host, port: port));
+      addEndpoint(host, port);
     }
-    _trimEndpoints();
   }
 
   /// Keeps the endpoints a *previous* record held, behind everything this
@@ -382,21 +582,10 @@ class SyncPeerRecord {
   void rememberEndpointHistory(Iterable<SyncPeerEndpoint> previous) {
     for (final endpoint in previous) {
       if (endpoint.host.isEmpty || endpoint.port <= 0) continue;
-      if (endpoints.any(
-        (e) => e.host == endpoint.host && e.port == endpoint.port,
-      )) {
-        continue;
-      }
+      if (endpointFor(endpoint.host, endpoint.port) != null) continue;
       endpoints.add(endpoint);
     }
     _trimEndpoints();
-  }
-
-  /// Manual repair: the entered address replaces the whole set. The automatic
-  /// memory is what failed (or the user would not be typing), so keeping the
-  /// rest would keep the failure.
-  void replaceEndpoints(String host, int port) {
-    endpoints = [SyncPeerEndpoint(host: host, port: port)];
   }
 
   void _trimEndpoints() {

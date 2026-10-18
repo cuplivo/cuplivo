@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 typedef BusinessEntityRowIds = Map<String, List<String>>;
 
 typedef BusinessSettingsExport = ({
@@ -62,6 +64,25 @@ enum BusinessEntityKind {
   String get wireName => extensionKind ?? tableName;
 
   String get idColumn => this == provider ? 'provider_key' : 'id';
+}
+
+/// Whether one workspace payload describes a *linked* folder — a directory the
+/// user already had, which Cuplivo merely points at — rather than a managed
+/// workspace, whose directory Cuplivo owns and can copy.
+///
+/// The distinction is the whole of workspace portability: a linked workspace is
+/// a place on *one* machine's filesystem, so its row can neither travel in a
+/// backup nor ride LAN sync. Both rules read this predicate so the two can never
+/// drift into disagreeing about what "linked" means; a payload that cannot be
+/// read is treated as ordinary (a corrupt row is not a reason to leak one).
+bool isLinkedWorkspace(String payload) {
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(payload);
+  } on FormatException {
+    return false;
+  }
+  return decoded is Map && decoded['kind'] == 'linked';
 }
 
 final class BusinessEntityValue {

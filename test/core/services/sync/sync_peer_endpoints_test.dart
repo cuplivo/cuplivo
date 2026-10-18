@@ -49,13 +49,117 @@ void main() {
       expect(peer.primaryEndpoint?.host, '10.0.0.${kMaxPeerEndpoints + 2}');
     });
 
-    test('manual repair replaces the whole set', () {
+    test('manual repair moves one address and leaves the rest alone', () {
       final peer = record();
       peer.noteEndpointSuccess('10.0.0.3', 9527);
       peer.rememberEndpointCandidates([('192.168.1.7', 9527)]);
-      peer.replaceEndpoints('172.20.10.1', 9527);
-      expect(peer.endpoints.length, 1);
-      expect(peer.primaryEndpoint?.label, '172.20.10.1:9527');
+
+      expect(peer.editEndpoint('10.0.0.3', 9527, '172.20.10.1', 9527), isTrue);
+
+      // The other network is not collateral damage: it is the memory of where
+      // this pair has already met, and a repair of one address says nothing
+      // about it.
+      expect(peer.endpoints.map((e) => e.label).toList(), [
+        '172.20.10.1:9527',
+        '192.168.1.7:9527',
+      ]);
+      expect(
+        peer.endpoints.first.successCount,
+        1,
+        reason:
+            'the tile kept its history — it is the same (device, network) '
+            'pair at a new address',
+      );
+      expect(peer.endpointFor('10.0.0.3', 9527), isNull);
+    });
+
+    test('an edit onto a remembered address leaves one tile for it', () {
+      final peer = record();
+      peer.rememberEndpointCandidates([
+        ('10.0.0.3', 9527),
+        ('192.168.1.7', 9527),
+      ]);
+      peer.noteEndpointSuccess('10.0.0.3', 9527);
+
+      expect(peer.editEndpoint('10.0.0.3', 9527, '192.168.1.7', 9527), isTrue);
+
+      expect(peer.endpoints, hasLength(1));
+      expect(peer.primaryEndpoint?.label, '192.168.1.7:9527');
+      expect(
+        peer.endpoints.single.successCount,
+        1,
+        reason: 'the tile the user edited is the one that survives',
+      );
+    });
+
+    test('a typed address joins the end of the set, and never twice', () {
+      final peer = record();
+      peer.noteEndpointSuccess('192.168.1.7', 9527);
+
+      expect(peer.addEndpoint('10.0.0.3', 9527), isTrue);
+      expect(peer.endpoints.map((e) => e.host).toList(), [
+        '192.168.1.7',
+        '10.0.0.3',
+      ], reason: 'a typed address has proved nothing, so it dials last');
+      expect(peer.endpoints.last.addedAt, isNotNull);
+
+      expect(peer.addEndpoint('10.0.0.3', 9527), isFalse);
+      expect(peer.addEndpoint('  ', 9527), isFalse);
+      expect(peer.addEndpoint('10.0.0.9', 0), isFalse);
+      expect(peer.endpoints, hasLength(2));
+    });
+
+    test('naming one address leaves the others unnamed', () {
+      final peer = record();
+      peer.rememberEndpointCandidates([
+        ('10.0.0.3', 9527),
+        ('192.168.1.7', 9527),
+      ]);
+
+      expect(peer.renameEndpoint('10.0.0.3', 9527, '  家中网络  '), isTrue);
+      expect(peer.endpoints.first.customName, '家中网络');
+      expect(peer.endpoints.first.displayName, '家中网络');
+      expect(peer.endpoints.last.displayName, '192.168.1.7');
+
+      // A blank answer puts the address back on the tile rather than showing an
+      // empty name.
+      peer.renameEndpoint('10.0.0.3', 9527, '  ');
+      expect(peer.endpoints.first.customName, isNull);
+      expect(peer.endpoints.first.displayName, '10.0.0.3');
+
+      expect(peer.renameEndpoint('1.2.3.4', 1, 'x'), isFalse);
+    });
+
+    test('an endpoint name and its counters round-trip', () {
+      final peer = record();
+      peer.addEndpoint('10.0.0.3', 9527);
+      peer.renameEndpoint('10.0.0.3', 9527, '公司网络');
+      peer.endpoints.single
+        ..recordSession()
+        ..recordProbe(
+          answered: true,
+          latency: const Duration(milliseconds: 12),
+        );
+
+      final restored = SyncPeerRecord.fromJson(peer.toJson());
+      expect(restored.endpoints.single.customName, '公司网络');
+      expect(restored.endpoints.single.displayName, '公司网络');
+      expect(restored.endpoints.single.successCount, 1);
+      expect(restored.endpoints.single.lastLatencyMs, 12);
+    });
+
+    test('a blank stored name reads as no name', () {
+      final restored = SyncPeerRecord.fromJson({
+        'deviceId': 'd' * 64,
+        'certPem': 'pem',
+        'secret': 'secret',
+        'name': 'peer',
+        'endpoints': [
+          {'host': '10.0.0.3', 'port': 9527, 'customName': '   '},
+        ],
+      });
+      expect(restored.endpoints.single.customName, isNull);
+      expect(restored.endpoints.single.displayName, '10.0.0.3');
     });
 
     test('a re-pair keeps the networks it left behind the fresh ones', () {

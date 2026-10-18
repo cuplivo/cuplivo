@@ -1,10 +1,13 @@
+import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/providers/sync_provider.dart';
 import '../../core/services/sync/sync_engine.dart';
 import '../../core/services/sync/sync_models.dart';
 import '../../core/services/sync/sync_pair_qr.dart';
+import '../../icons/lucide_adapter.dart';
 import '../../l10n/app_localizations.dart';
+import '../../shared/utils/format_bytes.dart';
 
 /// Localized text for the LAN sync surface. Pure mapping — no widget state,
 /// so both the mobile page and the desktop pane render identical wording.
@@ -23,6 +26,19 @@ String syncPlatformLabel(AppLocalizations l10n, String platform) {
       return l10n.lanSyncPlatformLinux;
     default:
       return l10n.lanSyncPlatformUnknown;
+  }
+}
+
+/// The icon a device of [platform] is drawn with — the same shape on both sides
+/// of the panel, so this device's row and a peer's card agree about what an
+/// Android phone looks like.
+IconData syncPlatformIcon(String platform) {
+  switch (platform) {
+    case 'android':
+    case 'ios':
+      return Lucide.Smartphone;
+    default:
+      return Lucide.Monitor;
   }
 }
 
@@ -94,6 +110,11 @@ String syncRefusalMessage(AppLocalizations l10n, SyncRefusalReason reason) {
       return l10n.lanSyncRefusedIdentityMismatch;
     case SyncRefusalReason.busy:
       return l10n.lanSyncRefusedBusy;
+    case SyncRefusalReason.superseded:
+      // Nothing to repair and nothing to retry: the peer's own session with
+      // this device took the round, and that session reports for the pair. The
+      // line exists because the refusal is a value the card can be handed.
+      return l10n.lanSyncSupersededByPeer;
   }
 }
 
@@ -120,20 +141,18 @@ String syncFailureMessage(AppLocalizations l10n, SyncFailureReason? reason) {
 /// The label for one beat of a running session: what the card says instead of
 /// a bare spinner while a first sync moves a whole history.
 ///
-/// The dial beat names the address (and the candidate's rank), because that is
-/// the one beat that can sit for seconds on an address that will never answer —
-/// an unqualified "connecting…" turns a diagnosable wait into a mystery.
+/// The dial beat names the address, because that is the one beat that can sit
+/// for seconds on an address that will never answer — an unqualified
+/// "connecting…" turns a diagnosable wait into a mystery. It never names a rank
+/// among candidates: the probe ranked them all at once and the dial only walks
+/// the addresses the probe reached, so "the second of three" would describe an
+/// implementation detail the user cannot act on.
 String syncPhaseLabel(AppLocalizations l10n, SyncSessionProgress progress) {
   switch (progress.phase) {
     case SyncSessionPhase.connecting:
       final address = progress.address;
-      if (address == null) return l10n.lanSyncPhaseConnecting;
-      return progress.attempts > 1
-          ? l10n.lanSyncPhaseConnectingAt(
-              address,
-              progress.attempt,
-              progress.attempts,
-            )
+      return address == null
+          ? l10n.lanSyncPhaseConnecting
           : l10n.lanSyncPhaseConnectingTo(address);
     case SyncSessionPhase.exchanging:
       return l10n.lanSyncPhaseExchanging;
@@ -149,6 +168,19 @@ String syncPhaseLabel(AppLocalizations l10n, SyncSessionProgress progress) {
       return l10n.lanSyncPhaseApplying;
   }
 }
+
+/// Whether the card's report area has anything to draw for [report]: a success
+/// (its counter chips), a refusal (with the repair gesture that comes with it),
+/// or a failure that is not the routine absence.
+///
+/// A peer that did not answer is the common case on a LAN — asleep, off the
+/// Wi-Fi — and the card's subtitle already says so. A report row repeating it
+/// would make a routine state look like an incident, and would be the third
+/// place the same fact is written.
+bool syncReportHasRow(SyncPeerReport report) =>
+    report.success ||
+    report.refusal != null ||
+    report.failure != SyncFailureReason.unreachable;
 
 /// One-line summary of a session, for the snackbar that covers the desktop pane
 /// when a card has scrolled out of view. The card itself renders the structured
@@ -174,6 +206,12 @@ String syncReportMessage(AppLocalizations l10n, SyncSessionReport report) {
     blobsMissing: report.blobsMissing,
     entityRowsLost: report.entityRowsLost,
     preferencesLost: report.preferencesLost,
+    workspaceFiles: report.workspaceFiles,
+    workspaceBytes: report.workspaceBytes,
+    workspaceFilesRemoved: report.workspaceFilesRemoved,
+    workspaceConflicts: report.workspaceConflicts,
+    workspaceFilesMissing: report.workspaceFilesMissing,
+    workspacesOmitted: report.workspacesOmitted,
     clockSkewMs: report.clockSkewMs,
   );
 }
@@ -194,6 +232,12 @@ String _syncCountsMessage(
   int blobsMissing = 0,
   int entityRowsLost = 0,
   int preferencesLost = 0,
+  int workspaceFiles = 0,
+  int workspaceBytes = 0,
+  int workspaceFilesRemoved = 0,
+  int workspaceConflicts = 0,
+  int workspaceFilesMissing = 0,
+  int workspacesOmitted = 0,
   int? clockSkewMs,
 }) {
   final parts = <String>[
@@ -207,12 +251,27 @@ String _syncCountsMessage(
     if (preferenceRows > 0) l10n.lanSyncReportPreferences(preferenceRows),
     if (blobsMoved > 0) l10n.lanSyncReportBlobs(blobsMoved),
     if (skillsUpdated > 0) l10n.lanSyncReportSkills(skillsUpdated),
+    if (workspaceFiles > 0)
+      workspaceBytes > 0
+          ? l10n.lanSyncReportWorkspaceFilesWithSize(
+              workspaceFiles,
+              formatBytes(workspaceBytes),
+            )
+          : l10n.lanSyncReportWorkspaceFiles(workspaceFiles),
     // "Nothing silent": both the discarded local edit and the blob that never
     // arrived are named in the summary rather than left to a log.
     if (skillConflicts > 0) l10n.lanSyncReportSkillConflicts(skillConflicts),
     if (entityRowsLost + preferencesLost > 0)
       l10n.lanSyncReportRowsLost(entityRowsLost + preferencesLost),
     if (blobsMissing > 0) l10n.lanSyncReportBlobsMissing(blobsMissing),
+    if (workspaceFilesRemoved > 0)
+      l10n.lanSyncReportWorkspaceRemoved(workspaceFilesRemoved),
+    if (workspaceConflicts > 0)
+      l10n.lanSyncReportWorkspaceConflicts(workspaceConflicts),
+    if (workspaceFilesMissing > 0)
+      l10n.lanSyncReportWorkspaceMissing(workspaceFilesMissing),
+    if (workspacesOmitted > 0)
+      l10n.lanSyncReportWorkspacesOmitted(workspacesOmitted),
     if (deferred > 0) l10n.lanSyncReportDeferred(deferred),
     if (clockSkewMs != null)
       l10n.lanSyncReportClockSkew((clockSkewMs.abs() / 60000).round()),
@@ -220,12 +279,16 @@ String _syncCountsMessage(
   return parts.join(' · ');
 }
 
-/// "Last synced …" for a peer card.
+/// The freshness phrase a peer card's subtitle carries: how long ago this device
+/// last had a session with the peer — "2 min ago", "Just synced", "Never
+/// synced".
 ///
-/// How long ago, not a timestamp: the question this line answers is "is this
-/// current?", and a date makes the reader do the subtraction. Past a week the
-/// absolute stamp is what it shows — "12 days ago" is not more useful than the
-/// day it happened — and the exact time stays one hover away either way.
+/// A bare phrase and not a sentence, because it shares the line with the
+/// device's platform ("Android · 2 min ago") and "Last synced" is the same word
+/// on every card. How long ago, not a timestamp: the question the line answers
+/// is "is this current?", and a date makes the reader do the subtraction. Past a
+/// week the absolute day is what it shows — "12 d ago" is not more useful than
+/// the day it happened — and the exact time stays one hover away either way.
 String syncLastSyncedLabel(
   AppLocalizations l10n,
   DateTime? at, {
@@ -239,14 +302,17 @@ String syncLastSyncedLabel(
   if (elapsed.isNegative || elapsed.inMinutes < 1) {
     return l10n.lanSyncJustSynced;
   }
-  if (elapsed.inDays >= 7) return syncAbsoluteLastSyncedLabel(l10n, at);
-  return l10n.lanSyncLastSyncedAt(_relativeSyncTime(l10n, elapsed));
+  if (elapsed.inDays >= 7) return _syncAbsoluteStamp(at);
+  return _relativeSyncTime(l10n, elapsed);
 }
 
-/// The same line as a plain stamp, for the tooltip and for anything older than a
-/// week.
-String syncAbsoluteLastSyncedLabel(AppLocalizations l10n, DateTime at) => l10n
-    .lanSyncLastSyncedAt(DateFormat('yyyy-MM-dd HH:mm').format(at.toLocal()));
+/// The same freshness as a plain stamp, for the card's tooltip.
+String syncAbsoluteLastSyncedLabel(AppLocalizations l10n, DateTime at) =>
+    l10n.lanSyncLastSyncedAt(_syncAbsoluteStamp(at, withTime: true));
+
+String _syncAbsoluteStamp(DateTime at, {bool withTime = false}) => DateFormat(
+  withTime ? 'yyyy-MM-dd HH:mm' : 'yyyy-MM-dd',
+).format(at.toLocal());
 
 /// The elapsed time in the largest unit that still says something: minutes,
 /// then hours, then days.
@@ -259,3 +325,25 @@ String _relativeSyncTime(AppLocalizations l10n, Duration elapsed) {
   if (elapsed.inDays < 1) return l10n.lanSyncHoursAgo(elapsed.inHours);
   return l10n.lanSyncDaysAgo(elapsed.inDays);
 }
+
+/// A bare elapsed-time phrase for an endpoint detail row — "8 min ago", "3 d
+/// ago", or "never" when [at] is null. What it does *not* carry is the
+/// sentence around it: these rows are label/value pairs, so the value has to
+/// stand alone.
+String syncElapsedLabel(AppLocalizations l10n, DateTime? at, {DateTime? now}) {
+  if (at == null) return l10n.lanSyncNever;
+  final elapsed = (now ?? DateTime.now()).difference(at.toLocal());
+  // A stamp in the future — a peer whose clock ran ahead — reads as "just now"
+  // rather than as a countdown on a row about the past.
+  if (elapsed.isNegative || elapsed.inMinutes < 1) {
+    return l10n.lanSyncJustNow;
+  }
+  if (elapsed.inDays >= 7) return _syncAbsoluteStamp(at);
+  return _relativeSyncTime(l10n, elapsed);
+}
+
+/// The absolute date an endpoint was added, for the detail's "added" row: which
+/// day it joined is the question ("was this the address the office gave me in
+/// March?"), and the minute it joined never is.
+String syncAddedAtLabel(AppLocalizations l10n, DateTime at) =>
+    DateFormat('yyyy-MM-dd').format(at.toLocal());

@@ -1,0 +1,628 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
+
+import '../../database/business_data.dart';
+import '../../database/business_repository.dart';
+import '../../models/workspace.dart';
+import 'sync_merge.dart';
+import 'sync_models.dart';
+import 'sync_store.dart';
+import 'workspace_content_index.dart';
+
+/// Where one managed workspace's files live on *this* device.
+///
+/// Injected rather than read from `AppDirectories` so a two-device test can
+/// host both peers in one process — the same seam `BlobPathResolver` and
+/// `SkillDirectorySync`'s root already provide — and so this class never has to
+/// know how the app lays its data directory out.
+typedef WorkspaceRootResolver = Future<Directory> Function(String workspaceId);
+
+/// Fetches one file from the peer into [destination]. Returns the bytes
+/// written. Null (or a throw) means "nothing landed"; the caller keeps the
+/// ledger entry and retries next session.
+typedef WorkspaceFileFetcher =
+    Future<int> Function(String workspaceId, String relPath, File destination);
+
+/// One managed workspace as this device holds it, with its content index.
+///
+/// Built by [WorkspaceContentSync.snapshots] and reused for everything one
+/// session does with workspace content — advertising, planning, serving — so a
+/// session walks each workspace once (per side) instead of once per question.
+class WorkspaceContentSnapshot {
+  const WorkspaceContentSnapshot({
+    required this.id,
+    required this.name,
+    required this.root,
+    required this.enabled,
+    required this.index,
+  });
+
+  final String id;
+  final String name;
+  final Directory root;
+
+  /// Whether this device is willing to sync files for it (the panel's switch).
+  final bool enabled;
+
+  final WorkspaceContentIndex index;
+
+  /// Whether this workspace's files may be advertised at all. Every condition
+  /// is device-local and every one is a refusal to share: the user turned it
+  /// off, it is over the caps, or the walk could not read all of it (a table
+  /// missing a file would tell the peer to delete that file).
+  bool get shared => enabled && !index.truncated && !index.incomplete;
+}
+
+/// What one session's workspace content work did, from this device's own point
+/// of view: what it fetched, what it deleted, what it lost and what it could
+/// not apply.
+class WorkspaceContentOutcome {
+  const WorkspaceContentOutcome({
+    this.ledger = const {},
+    this.filesLanded = 0,
+    this.bytesLanded = 0,
+    this.filesRemoved = 0,
+    this.filesReplaced = 0,
+    this.filesMissing = 0,
+    this.workspacesOmitted = 0,
+  });
+
+  /// The per-peer ledger for the next checkpoint (see
+  /// [SyncCheckpoint.workspaceFiles]).
+  final Map<String, Map<String, SyncAgreedFile>> ledger;
+
+  final int filesLanded;
+  final int bytesLanded;
+
+  /// Local files deleted because the peer deleted them.
+  final int filesRemoved;
+
+  /// Local files whose own edit the peer's newer version replaced.
+  final int filesReplaced;
+
+  /// Files this device wanted but could not apply — a fetch that failed, or a
+  /// deletion the filesystem refused. Both stay owed and are retried.
+  final int filesMissing;
+
+  /// Workspaces this device shared no content for, and why it could not: turned
+  /// off, or over the caps.
+  final int workspacesOmitted;
+}
+
+/// The workspace *content* plane for LAN sync (ADR-0003 slice 18).
+///
+/// The row side of a workspace is an ordinary business row; this is the folder
+/// behind it, moved file by file. Three properties shape everything here:
+///
+/// * **Planning is stat-only.** A workspace's content is described by
+///   path → (size, mtime) and nothing else; no byte is read to decide what
+///   changed, and no hash is computed. The walk aborts the moment the caps are
+///   passed, so a workspace that will not be transferred is never walked far.
+/// * **Only *both* sides' sharing is enough.** A workspace one side did not
+///   advertise is not planned at all — not pulled, not deleted. That is what
+///   keeps "turned off here" and "over the caps there" from reading as "the
+///   other device deleted these files".
+/// * **A ledger entry only ever advances on demonstrated agreement.** An entry
+///   that is missing is conservative in both directions, which is why the
+///   send side never advances one: it cannot know whether the peer's fetch
+///   landed, and claiming it did would turn the peer's next silence into a
+///   deletion.
+class WorkspaceContentSync {
+  WorkspaceContentSync({
+    required this.businessRepository,
+    required this.store,
+    required this.resolveRoot,
+    this.maxFiles = kMaxWorkspaceFiles,
+    this.maxBytes = kMaxWorkspaceBytes,
+  });
+
+  final BusinessRepository businessRepository;
+  final SyncStore store;
+  final WorkspaceRootResolver resolveRoot;
+
+  /// The per-workspace caps, as parameters only so a test can prove the abort
+  /// without creating two thousand files. Production never passes them.
+  final int maxFiles;
+  final int maxBytes;
+
+  /// The wire name of the workspace entity kind — the single authority lives on
+  /// `BusinessEntityKind`.
+  static String get workspaceWire => BusinessEntityKind.workspace.wireName;
+
+  /// What this device served, per peer and per file, for the table it last
+  /// published to that peer. The route resolves a request through this map and
+  /// nowhere else: a request never supplies a path that has not been walked and
+  /// advertised first.
+  final Map<String, Map<String, _ServedWorkspaceFile>> _served = {};
+
+  // ---- this device's own content ----
+
+  /// Every managed workspace this device holds, indexed.
+  ///
+  /// Linked workspaces are excluded by the same predicate the backup and the
+  /// row face use ([isLinkedWorkspace]) — their folder is a fact about *this*
+  /// machine, so it can neither travel nor be advertised.
+  ///
+  /// The index is built off the calling isolate (see
+  /// [indexWorkspaceContent]), and a workspace whose directory cannot be read
+  /// is still reported: the panel has to be able to say "this one is not
+  /// syncing" rather than silently omit a row.
+  Future<List<WorkspaceContentSnapshot>> snapshots() async {
+    final disabled = await store.readWorkspaceContentDisabled();
+    final ids = await businessRepository.syncEntityIds(workspaceWire);
+    if (ids.isEmpty) return const [];
+    final rows = await businessRepository.syncReadEntityRows(
+      workspaceWire,
+      ids,
+    );
+    final snapshots = <WorkspaceContentSnapshot>[];
+    for (final row in rows) {
+      final payload = row['payload'];
+      if (payload is! String) continue;
+      if (isLinkedWorkspace(payload)) continue;
+      final id = row['id'];
+      if (id is! String || id.isEmpty) continue;
+      final Directory root;
+      try {
+        root = await resolveRoot(id);
+      } catch (error) {
+        debugPrint('sync workspace $id: could not resolve its root: $error');
+        continue;
+      }
+      final index = await indexWorkspaceContent(
+        root.path,
+        maxFiles: maxFiles,
+        maxBytes: maxBytes,
+      );
+      snapshots.add(
+        WorkspaceContentSnapshot(
+          id: id,
+          name: _nameOf(payload, fallback: id),
+          root: root,
+          enabled: !disabled.contains(id),
+          index: index,
+        ),
+      );
+    }
+    return snapshots;
+  }
+
+  /// The file tables this device advertises to a peer: one entry per workspace
+  /// it shares, and no entry for the ones it does not.
+  ///
+  /// The total is bounded ([kMaxWorkspaceLedgerEntries]) by dropping whole
+  /// workspaces, deterministically by id. A dropped workspace is advertised as
+  /// "not shared", which the peer reads as "no opinion" — the same treatment an
+  /// over-cap workspace gets, and for the same reason.
+  SyncWorkspaceFileTables tablesOf(List<WorkspaceContentSnapshot> snapshots) {
+    final shareable = [
+      for (final snapshot in snapshots)
+        if (snapshot.shared) snapshot,
+    ]..sort((a, b) => a.id.compareTo(b.id));
+    final tables = <String, SyncWorkspaceFileTable>{};
+    var entries = 0;
+    for (final snapshot in shareable) {
+      if (entries + snapshot.index.files.length > kMaxWorkspaceLedgerEntries) {
+        continue;
+      }
+      entries += snapshot.index.files.length;
+      tables[snapshot.id] = snapshot.index.files;
+    }
+    return tables;
+  }
+
+  /// Publishes [snapshots] as the set this device will serve to
+  /// [peerDeviceId] until the next publish. Called before the beat in which
+  /// that peer may fetch, so a file the peer decides it needs is always one
+  /// this device just advertised.
+  void publish(String peerDeviceId, List<WorkspaceContentSnapshot> snapshots) {
+    final served = <String, _ServedWorkspaceFile>{};
+    for (final snapshot in snapshots) {
+      if (!snapshot.shared) continue;
+      for (final entry in snapshot.index.files.entries) {
+        served[_serveKey(snapshot.id, entry.key)] = _ServedWorkspaceFile(
+          file: File(
+            p.joinAll([snapshot.root.path, ...p.posix.split(entry.key)]),
+          ),
+          stamp: entry.value,
+        );
+      }
+    }
+    _served[peerDeviceId] = served;
+  }
+
+  /// The file behind one advertised `(workspace, path)`, or null when this
+  /// device never advertised it — or advertised a version the file no longer
+  /// is.
+  ///
+  /// The stamp check is the whole integrity story of this route: the bytes a
+  /// peer receives are the bytes whose size and mtime it was told, or they are
+  /// nothing. A file edited between the walk and the fetch is therefore a miss
+  /// rather than a mislabelled transfer (the peer retries next session, when
+  /// the new stamp has been advertised).
+  Future<File?> serve({
+    required String peerDeviceId,
+    required String workspaceId,
+    required String relPath,
+  }) async {
+    final served = _served[peerDeviceId]?[_serveKey(workspaceId, relPath)];
+    if (served == null) return null;
+    try {
+      final stat = await served.file.stat();
+      if (stat.type != FileSystemEntityType.file) return null;
+      if (stat.size != served.stamp.size) return null;
+      if (stat.modified.millisecondsSinceEpoch != served.stamp.mtimeMs) {
+        return null;
+      }
+      return served.file;
+    } catch (error) {
+      debugPrint(
+        'sync workspace: serving $workspaceId/$relPath failed: $error',
+      );
+      return null;
+    }
+  }
+
+  // ---- one session's transfers ----
+
+  /// Plans and applies this device's half of the workspace content exchange.
+  ///
+  /// [mine] must be this device's snapshots as they stand for the session, and
+  /// [peerTables] the tables the peer advertised. A workspace either side did
+  /// not share produces no work at all.
+  ///
+  /// [allowDeletes] is false when the peer's database was bulk-replaced since
+  /// the last session (a restore): its absences then prove nothing, so a file
+  /// that is missing there is re-offered rather than deleted here — the file
+  /// face of the same rule the row plan already applies.
+  Future<WorkspaceContentOutcome> applyIncoming({
+    required String myDeviceId,
+    required String peerDeviceId,
+    required List<WorkspaceContentSnapshot> mine,
+    required SyncWorkspaceFileTables peerTables,
+    required Map<String, Map<String, SyncAgreedFile>> ledger,
+    required bool allowDeletes,
+    WorkspaceFileFetcher? fetch,
+  }) async {
+    final processed = <String, Map<String, SyncAgreedFile>>{};
+    var filesLanded = 0;
+    var bytesLanded = 0;
+    var filesRemoved = 0;
+    var filesReplaced = 0;
+    var filesMissing = 0;
+
+    for (final snapshot in mine) {
+      final peerTable = peerTables[snapshot.id];
+      // Not both sides sharing it: nothing here is this device's business.
+      // There is deliberately no "the peer shares it, so I must too" branch —
+      // a workspace this device is not sharing is one whose files must not
+      // move in either direction.
+      if (peerTable == null || !snapshot.shared) continue;
+      final baseline = ledger[snapshot.id] ?? const <String, SyncAgreedFile>{};
+      final plan = planWorkspaceContent(
+        mine: snapshot.index.files,
+        peers: peerTable,
+        baseline: baseline,
+        myDeviceId: myDeviceId,
+        peerDeviceId: peerDeviceId,
+      );
+      final landed = <String, WorkspaceFileStamp>{};
+      final deleted = <String>{};
+      for (final item in plan) {
+        switch (item.action) {
+          case WorkspaceFileAction.peerSends:
+          case WorkspaceFileAction.peerWins:
+            final advertised = peerTable[item.path];
+            if (advertised == null) continue;
+            final stamp = await _fetchOne(
+              snapshot: snapshot,
+              relPath: item.path,
+              advertised: advertised,
+              fetch: fetch,
+            );
+            if (stamp == null) {
+              filesMissing++;
+              continue;
+            }
+            landed[item.path] = stamp;
+            filesLanded++;
+            bytesLanded += stamp.size;
+            if (item.action == WorkspaceFileAction.peerWins) filesReplaced++;
+          case WorkspaceFileAction.iDelete:
+            if (!allowDeletes) continue;
+            if (await _deleteOne(snapshot, item.path)) {
+              deleted.add(item.path);
+              filesRemoved++;
+            } else {
+              filesMissing++;
+            }
+          case WorkspaceFileAction.none:
+          case WorkspaceFileAction.iSend:
+          case WorkspaceFileAction.iWin:
+          case WorkspaceFileAction.peerDeletes:
+          case WorkspaceFileAction.bothDeleted:
+            break;
+        }
+      }
+      processed[snapshot.id] = advanceWorkspaceBaseline(
+        mine: snapshot.index.files,
+        peers: peerTable,
+        baseline: baseline,
+        plan: plan,
+        landed: landed,
+        deleted: deleted,
+      );
+    }
+
+    // Entries are kept only for workspaces that still exist on one of the two
+    // sides this session. Neither side sharing a workspace and this device no
+    // longer holding its row means it is gone: keeping its file entries would
+    // grow the checkpoint for the life of the pairing with nothing to describe.
+    final live = <String>{
+      for (final snapshot in mine) snapshot.id,
+      ...peerTables.keys,
+    };
+    final next = <String, Map<String, SyncAgreedFile>>{};
+    for (final id in live) {
+      final current = processed[id] ?? ledger[id];
+      if (current != null && current.isNotEmpty) next[id] = current;
+    }
+
+    var omitted = 0;
+    for (final snapshot in mine) {
+      if (!snapshot.shared) omitted++;
+    }
+    return WorkspaceContentOutcome(
+      ledger: capWorkspaceLedger(next),
+      filesLanded: filesLanded,
+      bytesLanded: bytesLanded,
+      filesRemoved: filesRemoved,
+      filesReplaced: filesReplaced,
+      filesMissing: filesMissing,
+      workspacesOmitted: omitted,
+    );
+  }
+
+  /// Deletes a managed workspace's files — what a workspace row deleted *by
+  /// sync* owes the disk. The row is what the UI shows, so leaving the folder
+  /// behind would make a deletion invisible in the app and very visible in a
+  /// file manager.
+  Future<void> deleteContent(String workspaceId) async {
+    try {
+      final root = await resolveRoot(workspaceId);
+      if (await root.exists()) await root.delete(recursive: true);
+      // The workspace's own directory holds nothing but that files root.
+      final parent = root.parent;
+      if (await parent.exists() && await parent.list().isEmpty) {
+        await parent.delete();
+      }
+    } catch (error) {
+      debugPrint(
+        'sync workspace $workspaceId: deleting its files failed: $error',
+      );
+    }
+  }
+
+  // ---- the panel's switch ----
+
+  Future<Set<String>> disabledWorkspaceIds() =>
+      store.readWorkspaceContentDisabled();
+
+  /// Turns content sync for one workspace on or off. Returns whether the stored
+  /// choice changed. The workspace *row* is untouched by this either way: the
+  /// record always travels, because a row this device stops publishing would be
+  /// read by the peer as a deletion (see `planRowSync`'s `peerDeletes`).
+  Future<bool> setEnabled(String workspaceId, bool enabled) async {
+    if (workspaceId.isEmpty) return false;
+    final disabled = {...await store.readWorkspaceContentDisabled()};
+    final wasDisabled = disabled.contains(workspaceId);
+    if (enabled) {
+      if (!wasDisabled) return false;
+      disabled.remove(workspaceId);
+    } else {
+      if (wasDisabled) return false;
+      disabled.add(workspaceId);
+    }
+    await store.writeWorkspaceContentDisabled(disabled);
+    return true;
+  }
+
+  // ---- internals ----
+
+  Future<WorkspaceFileStamp?> _fetchOne({
+    required WorkspaceContentSnapshot snapshot,
+    required String relPath,
+    required WorkspaceFileStamp advertised,
+    required WorkspaceFileFetcher? fetch,
+  }) async {
+    final fetcher = fetch;
+    if (fetcher == null) return null;
+    File? temp;
+    try {
+      temp = await store.newBlobTempFile();
+      await fetcher(snapshot.id, relPath, temp);
+      return await _place(
+        root: snapshot.root,
+        relPath: relPath,
+        downloaded: temp,
+        advertised: advertised,
+      );
+    } catch (error) {
+      debugPrint('sync workspace file ${snapshot.id}/$relPath failed: $error');
+      return null;
+    } finally {
+      try {
+        if (temp != null && await temp.exists()) await temp.delete();
+      } catch (_) {}
+    }
+  }
+
+  /// Moves a fetched file into the workspace, or returns null when it may not
+  /// go there.
+  ///
+  /// Four gates, in order: the path must be a legal workspace-relative one, it
+  /// must join to a target inside the root, the directory it lands in must
+  /// *really* be inside the root (a symlinked directory in the tree would
+  /// otherwise redirect the write out of it), and the landed size must be the
+  /// advertised one. The mtime is then set from the peer's, best effort: it is
+  /// what the user sees in a file manager, and a filesystem that rounds it does
+  /// not break convergence because the ledger remembers both sides' stamps.
+  Future<WorkspaceFileStamp?> _place({
+    required Directory root,
+    required String relPath,
+    required File downloaded,
+    required WorkspaceFileStamp advertised,
+  }) async {
+    final target = workspacePathWithin(root.path, relPath);
+    if (target == null) {
+      debugPrint('sync workspace: refusing an unsafe path "$relPath"');
+      return null;
+    }
+    final file = File(target);
+    try {
+      // Containment is verified *before* anything is created: `create` follows
+      // a symlinked ancestor, so creating first and checking afterwards would
+      // already have made the directory on the far side of the link.
+      final existing = await _nearestExisting(file.parent);
+      if (!await _isReallyInside(root, existing)) {
+        debugPrint('sync workspace: refusing "$relPath": it leaves the root');
+        return null;
+      }
+      await file.parent.create(recursive: true);
+      if (await file.exists()) await file.delete();
+      final landed = await downloaded.rename(target);
+      try {
+        await landed.setLastModified(
+          DateTime.fromMillisecondsSinceEpoch(advertised.mtimeMs),
+        );
+      } catch (error) {
+        debugPrint('sync workspace: could not stamp "$relPath": $error');
+      }
+      final stat = await landed.stat();
+      if (stat.size != advertised.size) {
+        // The bytes are not the version that was advertised: a file edited
+        // while it streamed. Nothing here can tell which byte is which, so the
+        // transfer is refused and the next session re-fetches it.
+        await _deleteQuietly(landed);
+        return null;
+      }
+      return WorkspaceFileStamp(
+        size: stat.size,
+        mtimeMs: stat.modified.millisecondsSinceEpoch,
+      );
+    } catch (error) {
+      debugPrint('sync workspace: landing "$relPath" failed: $error');
+      return null;
+    }
+  }
+
+  Future<bool> _deleteOne(
+    WorkspaceContentSnapshot snapshot,
+    String relPath,
+  ) async {
+    final target = workspacePathWithin(snapshot.root.path, relPath);
+    if (target == null) return false;
+    try {
+      final type = await FileSystemEntity.type(target, followLinks: false);
+      if (type == FileSystemEntityType.notFound) return true;
+      // A directory where the peer had a file is not this device's to remove:
+      // it may be a real folder the user made since, and deleting it would
+      // take its contents with it.
+      if (type != FileSystemEntityType.file) return false;
+      await File(target).delete();
+      await _pruneEmptyParents(snapshot.root, File(target).parent);
+      return true;
+    } catch (error) {
+      debugPrint('sync workspace: deleting "$relPath" failed: $error');
+      return false;
+    }
+  }
+
+  /// Removes the directories a deletion emptied, up to (but never including)
+  /// the workspace root. Best effort: an empty directory left behind is
+  /// cosmetic, and failing the delete over it would be worse.
+  Future<void> _pruneEmptyParents(Directory root, Directory from) async {
+    final rootPath = p.canonicalize(root.path);
+    var current = from;
+    while (p.canonicalize(current.path) != rootPath) {
+      try {
+        if (!p.isWithin(rootPath, p.canonicalize(current.path))) return;
+        if (!await current.exists()) break;
+        final children = await current.list(followLinks: false).toList();
+        if (children.isNotEmpty) return;
+        await current.delete();
+      } catch (_) {
+        return;
+      }
+      final parent = current.parent;
+      if (p.equals(parent.path, current.path)) return;
+      current = parent;
+    }
+  }
+
+  /// The deepest ancestor of [directory] that exists right now. Containment is
+  /// checked against this one, because the directories below it do not exist
+  /// yet and a not-yet-existing path cannot follow a symlink.
+  Future<Directory> _nearestExisting(Directory directory) async {
+    var current = directory;
+    while (!await current.exists()) {
+      final parent = current.parent;
+      if (p.equals(parent.path, current.path)) break;
+      current = parent;
+    }
+    return current;
+  }
+
+  /// Whether [directory] resolves to a place inside [root], symlinks and all.
+  /// Fails closed: a containment this device cannot verify is a write it does
+  /// not make (the file counts as unapplied and is retried).
+  Future<bool> _isReallyInside(Directory root, Directory directory) async {
+    try {
+      final realRoot = await root.resolveSymbolicLinks();
+      final realDirectory = await directory.resolveSymbolicLinks();
+      return p.equals(
+            p.canonicalize(realRoot),
+            p.canonicalize(realDirectory),
+          ) ||
+          p.isWithin(p.canonicalize(realRoot), p.canonicalize(realDirectory));
+    } catch (error) {
+      debugPrint('sync workspace: cannot verify containment: $error');
+      return false;
+    }
+  }
+
+  static Future<void> _deleteQuietly(File file) async {
+    try {
+      if (await file.exists()) await file.delete();
+    } catch (_) {}
+  }
+
+  static String _serveKey(String workspaceId, String relPath) =>
+      '$workspaceId\u0000$relPath';
+
+  /// The workspace's display name from its row payload, falling back to the id
+  /// when the payload cannot be read: a half-written row must not blank the
+  /// panel's row for it.
+  static String _nameOf(String payload, {required String fallback}) {
+    try {
+      final workspace = Workspace.fromJson(
+        jsonDecode(payload) as Map<String, dynamic>,
+      );
+      return workspace.name.isEmpty ? fallback : workspace.name;
+    } catch (_) {
+      return fallback;
+    }
+  }
+}
+
+/// One file this device advertised to one peer, with the stamp it advertised.
+class _ServedWorkspaceFile {
+  const _ServedWorkspaceFile({required this.file, required this.stamp});
+
+  final File file;
+  final WorkspaceFileStamp stamp;
+}

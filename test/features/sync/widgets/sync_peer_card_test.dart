@@ -53,8 +53,6 @@ class _BusyProvider extends SyncProvider {
       const SyncSessionProgress(
         SyncSessionPhase.connecting,
         address: '183.173.213.34:9527',
-        attempt: 2,
-        attempts: 3,
       );
 }
 
@@ -111,10 +109,11 @@ void main() {
       platform: 'android',
       endpoints: [SyncPeerEndpoint(host: '183.173.213.34', port: 9527)],
     );
-    // The widest beat the card can be handed: an address *and* a candidate rank,
-    // which `syncPhaseLabel` picks whenever the peer remembers more than one
-    // address and the first one did not answer.
-    final label = l10n.lanSyncPhaseConnectingAt('183.173.213.34:9527', 2, 3);
+    // The widest beat the card can be handed: a full address beside a long
+    // device name. It used to be widest with a candidate rank appended, which
+    // the label no longer carries — the probe ranks the addresses, the dial
+    // only names the one it is trying.
+    final label = l10n.lanSyncPhaseConnectingTo('183.173.213.34:9527');
 
     // 328dp is a small phone's card (a 360dp screen minus the page's 16dp a
     // side), 412dp is a large one. The surface width is the only knob that

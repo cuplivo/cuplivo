@@ -56,15 +56,14 @@ class SyncReportBreakdown extends StatelessWidget {
     }
     if (!report.success) {
       // A peer that did not answer is the common case on a LAN — asleep, on
-      // another network — so it is a soft note, not a failure. The manual sync
-      // press still gets the actionable "rescan or edit the address" line in
-      // its snackbar.
+      // another network — and this card draws nothing for it: the subtitle
+      // already carries the state, and a row repeating it would dress a routine
+      // absence up as an incident. The manual press still gets the actionable
+      // "rescan or edit the address" line in its snackbar. The card asks
+      // `syncReportHasRow` before this area is rendered at all, so an empty
+      // result here also means no stray gap above it.
       if (report.failure == SyncFailureReason.unreachable) {
-        return _OutcomeBanner(
-          icon: Lucide.CloudOff,
-          text: l10n.lanSyncReportPeerOffline,
-          color: context.appColors.warning,
-        );
+        return const SizedBox.shrink();
       }
       return _OutcomeBanner(
         icon: Lucide.TriangleAlert,
@@ -96,13 +95,21 @@ class _SuccessBreakdown extends StatelessWidget {
         report.entityRows > 0 ||
         report.preferenceRows > 0 ||
         report.blobsMoved > 0 ||
-        report.skillsUpdated > 0;
+        report.skillsUpdated > 0 ||
+        report.workspaceFiles > 0 ||
+        // A deletion that arrived here is movement too: the file is gone from
+        // this device, and the chip has to say so rather than claim currency.
+        report.workspaceFilesRemoved > 0;
 
     // A withheld item is not "up to date": the blob that never arrived and the
     // conversation this device deferred are data this card does not hold, and
     // the sentence rows below name them. The chip must not claim currency over
-    // those rows, so it appears only when nothing moved *and* nothing is owed.
-    final withheld = report.deferred > 0 || report.blobsMissing > 0;
+    // those rows, so it appears only when nothing moved *and* nothing is owed —
+    // a workspace file that could not be fetched is owed by the same rule.
+    final withheld =
+        report.deferred > 0 ||
+        report.blobsMissing > 0 ||
+        report.workspaceFilesMissing > 0;
 
     final chips = <Widget>[
       if (!movedAnything && !withheld)
@@ -167,6 +174,23 @@ class _SuccessBreakdown extends StatelessWidget {
             icon: Lucide.Wrench,
             text: l10n.lanSyncReportSkills(report.skillsUpdated),
           ),
+        if (report.workspaceFiles > 0)
+          _ReportChip(
+            icon: Lucide.Folder,
+            text: report.workspaceBytes > 0
+                ? l10n.lanSyncReportWorkspaceFilesWithSize(
+                    report.workspaceFiles,
+                    formatBytes(report.workspaceBytes),
+                  )
+                : l10n.lanSyncReportWorkspaceFiles(report.workspaceFiles),
+          ),
+        if (report.workspaceFilesRemoved > 0)
+          _ReportChip(
+            icon: Lucide.Minus,
+            text: l10n.lanSyncReportWorkspaceRemoved(
+              report.workspaceFilesRemoved,
+            ),
+          ),
       ],
     ];
 
@@ -190,6 +214,21 @@ class _SuccessBreakdown extends StatelessWidget {
         (
           Lucide.FileQuestion,
           l10n.lanSyncReportBlobsMissing(report.blobsMissing),
+        ),
+      if (report.workspaceConflicts > 0)
+        (
+          Lucide.TriangleAlert,
+          l10n.lanSyncReportWorkspaceConflicts(report.workspaceConflicts),
+        ),
+      if (report.workspaceFilesMissing > 0)
+        (
+          Lucide.FileQuestion,
+          l10n.lanSyncReportWorkspaceMissing(report.workspaceFilesMissing),
+        ),
+      if (report.workspacesOmitted > 0)
+        (
+          Lucide.Folder,
+          l10n.lanSyncReportWorkspacesOmitted(report.workspacesOmitted),
         ),
       if (report.deferred > 0)
         (Lucide.Hourglass, l10n.lanSyncReportDeferred(report.deferred)),

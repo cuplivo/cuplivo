@@ -46,6 +46,20 @@ abstract class SyncServerHandler {
   /// a file the handler names — a request never supplies a path.
   Future<File?> handleFetchBlob(String peerDeviceId, String contentHash);
 
+  /// The local file backing one `(workspace, path)` this device advertised in
+  /// its file table for that peer, or null when it did not advertise it — or
+  /// advertised a version the file is no longer.
+  ///
+  /// Same rule as [handleFetchBlob]: the request names something, it never
+  /// supplies a path. The handler resolves the pair through the set it walked
+  /// and published itself, so a crafted path cannot reach a file outside the
+  /// workspace (slice 18).
+  Future<File?> handleFetchWorkspaceFile(
+    String peerDeviceId,
+    String workspaceId,
+    String relPath,
+  );
+
   /// Pairing: validate the PIN, persist the peer, answer with our identity.
   /// Returns null when the PIN is wrong or pairing is not open.
   ///
@@ -268,29 +282,103 @@ class SyncServer {
   }
 
   Future<void> _serve(HttpServer server) async {
-    // The request loop is serial, so one handler that never returns stops
-    // every later request — pairing included — for the life of the process.
-    // Each route therefore runs under a deadline: a stalled peer (Wi-Fi gone,
-    // process killed) or a body that stops arriving mid-request is answered
-    // and abandoned instead of holding the loop.
+    // The data routes still run one at a time — they share session state and a
+    // checkpoint file — but the *loop* must not block waiting for one: a data
+    // beat can run for twenty minutes, and a request the loop never reads is a
+    // request the liveness probe cannot answer. The serial lane is therefore a
+    // chained future, and the probe is dispatched straight from the loop.
+    var serial = Future<void>.value();
     await for (final request in server) {
-      try {
-        await _route(request).timeout(_deadlineFor(request.uri.path));
-      } on TimeoutException {
-        _safeRespond(request, HttpStatus.gatewayTimeout, {'error': 'timeout'});
-      } on _RequestBodyTooLarge {
-        _safeRespond(request, HttpStatus.requestEntityTooLarge, {
-          'error': 'body_too_large',
-        });
-      } catch (error, stack) {
-        _safeRespond(request, HttpStatus.internalServerError, {
-          'error': '$error',
-        });
-        // ignore: avoid_print
-        print('sync server: $error\n$stack');
+      if (request.uri.path == pingPath) {
+        // Idempotent, no session state, bounded concurrency: safe beside the
+        // lane. A probe queued behind a running session would report the peer
+        // offline for the whole session, every tick, for every peer.
+        unawaited(_servePing(request));
+        continue;
       }
+      serial = serial.then((_) => _serveSerial(request));
+    }
+    await serial;
+  }
+
+  /// One request on the serial lane, bounded by its route deadline.
+  ///
+  /// Each route runs under a deadline: a stalled peer (Wi-Fi gone, process
+  /// killed) or a body that stops arriving mid-request is answered and
+  /// abandoned instead of holding the lane. This method never throws — the
+  /// lane is a future chain, and one uncaught error would break every request
+  /// queued behind it.
+  Future<void> _serveSerial(HttpRequest request) async {
+    try {
+      await _route(request).timeout(_deadlineFor(request.uri.path));
+    } on TimeoutException {
+      _safeRespond(request, HttpStatus.gatewayTimeout, {'error': 'timeout'});
+    } on _RequestBodyTooLarge {
+      _safeRespond(request, HttpStatus.requestEntityTooLarge, {
+        'error': 'body_too_large',
+      });
+    } catch (error, stack) {
+      _safeRespond(request, HttpStatus.internalServerError, {
+        'error': '$error',
+      });
+      // ignore: avoid_print
+      print('sync server: $error\n$stack');
     }
   }
+
+  /// Answers one liveness probe beside the serial request lane.
+  ///
+  /// Idempotent by construction: no body, no session lookup, no write. The
+  /// answer is the point — an authenticated status line proves both halves a
+  /// sync needs (the address answers *and* this device's secret is still good),
+  /// which a bare TCP connect cannot say. The caller measures the latency
+  /// itself, so the response carries nothing.
+  Future<void> _servePing(HttpRequest request) async {
+    if (_pingsInFlight >= maxConcurrentPings) {
+      _safeRespond(request, HttpStatus.serviceUnavailable, {
+        'error': 'ping_busy',
+      });
+      return;
+    }
+    _pingsInFlight++;
+    try {
+      if (request.method != 'POST') {
+        _safeRespond(request, HttpStatus.methodNotAllowed, {
+          'error': 'post_only',
+        });
+        return;
+      }
+      if (_authenticatedPeer(request) == null) {
+        _safeRespond(request, HttpStatus.unauthorized, {
+          'error': SyncRefusalReason.notPaired.wire,
+        });
+        return;
+      }
+      // Drained and ignored: an empty body is the contract, and a caller that
+      // sent one must not be left with a half-read request.
+      await request.drain<void>().timeout(_pingDeadline);
+      await _respondNoContent(request, HttpStatus.noContent);
+    } catch (_) {
+      // A probe's caller is the one that classifies a failed answer; there is
+      // nothing to salvage on this side.
+      try {
+        await request.response.close();
+      } catch (_) {}
+    } finally {
+      _pingsInFlight--;
+    }
+  }
+
+  /// Probes in flight. Bounded so a peer (or a bug) cannot open thousands of
+  /// connections: the probe path answers 503 past the cap, which the caller
+  /// reads as "not now" instead of queueing it behind the session it is
+  /// supposed to outlive.
+  int _pingsInFlight = 0;
+  static const int maxConcurrentPings = 8;
+
+  /// Path of the liveness probe. Authenticated like every other `/sync/*`
+  /// route, so a success is reachability *and* pairing, in one round trip.
+  static const String pingPath = '/sync/ping';
 
   /// A route's total budget. These are backstops against a peer that stops
   /// answering, not performance targets: the data routes are sized for a large
@@ -300,6 +388,11 @@ class SyncServer {
   static const _revokeDeadline = Duration(seconds: 30);
   static const _dataDeadline = Duration(minutes: 30);
 
+  /// A probe that has not answered in seconds is not slow, it is gone; it runs
+  /// on its own fast lane, so this deadline only bounds how long one of them
+  /// may hold a connection slot.
+  static const Duration _pingDeadline = Duration(seconds: 5);
+
   Duration _deadlineFor(String path) =>
       _deadlineForOverride?.call(path) ?? _defaultDeadlineFor(path);
 
@@ -307,6 +400,7 @@ class SyncServer {
     '/pair' => _pairDeadline,
     '/sync/hello' => _helloDeadline,
     '/sync/revoke' => _revokeDeadline,
+    pingPath => _pingDeadline,
     _ => _dataDeadline,
   };
 
@@ -336,6 +430,9 @@ class SyncServer {
       case '/sync/revoke':
         await _handleRevoke(request, peerDeviceId);
         break;
+      case workspaceFilePath:
+        await _handleWorkspaceFile(request, peerDeviceId);
+        break;
       default:
         if (request.uri.path.startsWith(blobPathPrefix)) {
           await _handleBlob(request, peerDeviceId);
@@ -359,6 +456,14 @@ class SyncServer {
 
   /// Path prefix of the blob route: `/sync/blob/<sha256>`.
   static const blobPathPrefix = '/sync/blob/';
+
+  /// The workspace file route: one advertised `(workspace, relative path)` per
+  /// request, streamed back as bytes. A POST rather than a GET because the
+  /// request has a body (the pair) and a path that must not be squeezed into a
+  /// URL: workspace paths hold spaces, `#`, `%` and non-ASCII, and every one of
+  /// them would be an encoding question on one side and a decoding bug on the
+  /// other.
+  static const String workspaceFilePath = '/sync/wsfile';
 
   /// A well-formed blob hash: the sha256 hex digest the manifest publishes.
   static final RegExp _blobHashPattern = RegExp(r'^[0-9a-f]{64}$');
@@ -485,8 +590,56 @@ class SyncServer {
       return;
     }
     final file = await handler.handleFetchBlob(peerDeviceId, hash);
+    await _streamFile(request, file, error: 'blob_unavailable');
+  }
+
+  /// Streams one workspace file this device advertised to the caller. The pair
+  /// is resolved by the handler against the table it walked and published; a
+  /// pair it did not advertise — including one whose file changed since the
+  /// walk — is answered 404, which the caller counts as an unapplied file and
+  /// retries next session.
+  Future<void> _handleWorkspaceFile(
+    HttpRequest request,
+    String peerDeviceId,
+  ) async {
+    if (request.method != 'POST') {
+      _safeRespond(request, HttpStatus.methodNotAllowed, {
+        'error': 'post_only',
+      });
+      return;
+    }
+    final body = await _readJson(request, maxBytes: _workspaceFileMaxBodyBytes);
+    if (body == null) {
+      _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_json'});
+      return;
+    }
+    final workspaceId = body['ws'];
+    final relPath = body['path'];
+    if (workspaceId is! String ||
+        workspaceId.isEmpty ||
+        relPath is! String ||
+        relPath.isEmpty) {
+      _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_request'});
+      return;
+    }
+    final file = await handler.handleFetchWorkspaceFile(
+      peerDeviceId,
+      workspaceId,
+      relPath,
+    );
+    await _streamFile(request, file, error: 'workspace_file_unavailable');
+  }
+
+  /// One file, streamed with its length. A refusal (null or a file that
+  /// vanished) is a 404 with [error] as its code; a peer that hangs up
+  /// mid-stream is not an error this side can act on.
+  Future<void> _streamFile(
+    HttpRequest request,
+    File? file, {
+    required String error,
+  }) async {
     if (file == null || !await file.exists()) {
-      _safeRespond(request, HttpStatus.notFound, {'error': 'blob_unavailable'});
+      _safeRespond(request, HttpStatus.notFound, {'error': error});
       return;
     }
     try {
@@ -562,6 +715,10 @@ class SyncServer {
   /// as blobs, not in the body), so this sits far above any real batch.
   static const int _syncMaxBodyBytes = 256 * 1024 * 1024;
 
+  /// Cap on a workspace file request body: one workspace id and one relative
+  /// path. A path can be long, but nothing legitimate here is a kilobyte.
+  static const int _workspaceFileMaxBodyBytes = 64 * 1024;
+
   /// Reads and decodes one JSON object body. Null means the body was not a
   /// decodable JSON object (the caller answers 400). A body whose wire or
   /// decompressed size exceeds [maxBytes] throws [_RequestBodyTooLarge]
@@ -606,6 +763,20 @@ class SyncServer {
     Map<String, dynamic> body,
   ) {
     _safeRespond(request, status, body);
+  }
+
+  /// A status line and nothing else. 204 forbids a body, and the probe's whole
+  /// answer is the status: the caller measures the round trip itself.
+  Future<void> _respondNoContent(HttpRequest request, int status) async {
+    try {
+      request.response.statusCode = status;
+      request.response.headers.removeAll(HttpHeaders.contentEncodingHeader);
+      request.response.headers.contentType = null;
+      request.response.headers.contentLength = 0;
+      await request.response.close();
+    } catch (_) {
+      // The peer hung up first; nothing to salvage.
+    }
   }
 
   void _safeRespond(

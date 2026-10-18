@@ -69,10 +69,10 @@ void main() {
     expect(synced, isNot(contains('some_future_key_v1')));
   });
 
-  test('skills and workspaces are entities but not part of this slice', () {
-    // Both are entities to the router; the sync face adds its own exclusion
-    // until skills travel with their directory blob (slice 3) and workspaces
-    // stay device-local forever.
+  test('skills and workspaces are entities to the router', () {
+    // Both reach the business store through the entity router; whether their
+    // rows travel is decided later and per row — a linked workspace stays on
+    // the device that holds the folder (`isLinkedWorkspace`).
     for (final kind in [
       BusinessEntityKind.skill,
       BusinessEntityKind.workspace,

@@ -288,6 +288,262 @@ List<SkillContentPlan> planSkillContentSync({
 String businessContentDigest(String content) =>
     crypto.sha256.convert(utf8.encode(content)).toString();
 
+// ---- workspace file content (slice 18) ----
+
+/// What this device should do about one file inside one workspace.
+///
+/// The same shape as [SyncConvAction] because it is the same decision table:
+/// "does the other side have this, and did either side change it since we last
+/// agreed" is answered identically for a row and for a file. What differs is
+/// the clock (a row's `updated_at` against a file's size+mtime) and the fact
+/// that a file's bytes move over their own route rather than inside the batch.
+enum WorkspaceFileAction {
+  /// Both sides hold the same version, or neither ever had it.
+  none,
+
+  /// This device's version is the one to spread: the peer fetches it.
+  iSend,
+
+  /// The peer's version is the one to adopt: this device fetches it.
+  peerSends,
+
+  /// Both sides changed it since they last agreed, and the deterministic rule
+  /// keeps this device's version; the peer fetches it and its own edit is
+  /// replaced there.
+  iWin,
+
+  /// Both sides changed it and the deterministic rule keeps the peer's
+  /// version: this device fetches it and its own edit is *replaced here* —
+  /// counted, never silent.
+  peerWins,
+
+  /// The peer deleted it and this device is unchanged: delete locally.
+  iDelete,
+
+  /// This device deleted it and the peer is unchanged: the peer deletes. This
+  /// side does nothing; the peer reaches the same verdict from the tables it
+  /// holds.
+  peerDeletes,
+
+  /// Neither side has it any more; the ledger entry goes away.
+  bothDeleted,
+}
+
+class WorkspaceFilePlan {
+  final String path;
+  final WorkspaceFileAction action;
+
+  const WorkspaceFilePlan(this.path, this.action);
+}
+
+/// Whether the peer's version of a file wins the deterministic conflict rule.
+///
+/// A file's only clock is its mtime, and an exact tie — two writes inside the
+/// same millisecond — falls to the higher deviceId. That is [planRowSync]'s
+/// rule and [incomingBusinessRowWins]'s implementation: both devices reach the
+/// same verdict without negotiating, which is what makes the loser's transfer
+/// implied rather than something one side has to ask for.
+bool peerWorkspaceFileWins({
+  required WorkspaceFileStamp mine,
+  required WorkspaceFileStamp peers,
+  required String myDeviceId,
+  required String peerDeviceId,
+}) => incomingBusinessRowWins(
+  localUpdatedAtUs: mine.mtimeMs,
+  incomingUpdatedAtUs: peers.mtimeMs,
+  myDeviceId: myDeviceId,
+  peerDeviceId: peerDeviceId,
+);
+
+/// Plans one workspace's files from three views: this device's index, the
+/// peer's advertised table, and the ledger of what the two last demonstrably
+/// agreed.
+///
+/// [peers] must be the peer's table *for a workspace it shares*; a workspace
+/// the peer did not advertise is never planned at all (see
+/// [SyncWorkspaceFileTables]). An empty [peers] therefore means "the peer
+/// shares this workspace and has no files that ride" — the one reading under
+/// which a local file may be deleted, and the reason the two cases are kept
+/// apart by the caller.
+///
+/// A path absent from [baseline] is conservative in both directions: the file
+/// is offered or fetched, never deleted. That is what makes a lost ledger (a
+/// dropped entry, a reset checkpoint, a cap) cost a re-transfer rather than
+/// data.
+///
+/// Two identical stamps are agreement *before* anything else is consulted, and
+/// that ordering is load-bearing rather than an optimisation: the side that
+/// wins a conflict never advances its own ledger entry (it cannot know whether
+/// the peer's fetch landed), so the session after a conflict starts from a
+/// stale baseline on both sides. What heals it is exactly this check — once the
+/// bytes have moved, both sides hold the same version and stop looking at the
+/// ledger at all.
+List<WorkspaceFilePlan> planWorkspaceContent({
+  required Map<String, WorkspaceFileStamp> mine,
+  required Map<String, WorkspaceFileStamp> peers,
+  required Map<String, SyncAgreedFile> baseline,
+  required String myDeviceId,
+  required String peerDeviceId,
+}) {
+  final paths = <String>{...mine.keys, ...peers.keys, ...baseline.keys};
+  final plans = <WorkspaceFilePlan>[];
+  for (final path in paths) {
+    final local = mine[path];
+    final remote = peers[path];
+    final agreed = baseline[path];
+    plans.add(
+      WorkspaceFilePlan(
+        path,
+        _planWorkspaceFile(
+          mine: local,
+          peers: remote,
+          agreed: agreed,
+          myDeviceId: myDeviceId,
+          peerDeviceId: peerDeviceId,
+        ),
+      ),
+    );
+  }
+  return plans;
+}
+
+WorkspaceFileAction _planWorkspaceFile({
+  required WorkspaceFileStamp? mine,
+  required WorkspaceFileStamp? peers,
+  required SyncAgreedFile? agreed,
+  required String myDeviceId,
+  required String peerDeviceId,
+}) {
+  if (mine == null && peers == null) {
+    return agreed == null
+        ? WorkspaceFileAction.none
+        : WorkspaceFileAction.bothDeleted;
+  }
+  if (mine == null) {
+    // Deleted here (or never had it).
+    if (agreed == null) return WorkspaceFileAction.peerSends;
+    // Unchanged on the peer since both sides agreed: this device's deletion
+    // stands. Otherwise the peer's edit beats this device's deletion.
+    return peers == agreed.peer
+        ? WorkspaceFileAction.peerDeletes
+        : WorkspaceFileAction.peerSends;
+  }
+  if (peers == null) {
+    if (agreed == null) return WorkspaceFileAction.iSend;
+    return mine == agreed.mine
+        ? WorkspaceFileAction.iDelete
+        : WorkspaceFileAction.iSend;
+  }
+  if (mine == peers) return WorkspaceFileAction.none;
+  if (agreed != null) {
+    // Both sides' own stamps are compared against the ledger, not against each
+    // other: a receiver that had to round its mtime still agreed on a *pair*
+    // of stamps, and re-deciding that pair as a conflict every session is
+    // exactly what storing both halves prevents.
+    if (mine == agreed.mine && peers == agreed.peer) {
+      return WorkspaceFileAction.none;
+    }
+    if (mine == agreed.mine) return WorkspaceFileAction.peerSends;
+    if (peers == agreed.peer) return WorkspaceFileAction.iSend;
+  }
+  // Both sides changed it (or neither has a baseline): the deterministic rule
+  // decides, and the loser's side counts what it lost.
+  return peerWorkspaceFileWins(
+        mine: mine,
+        peers: peers,
+        myDeviceId: myDeviceId,
+        peerDeviceId: peerDeviceId,
+      )
+      ? WorkspaceFileAction.peerWins
+      : WorkspaceFileAction.iWin;
+}
+
+/// The ledger one workspace needs after a session, given what actually
+/// happened to each file.
+///
+/// An entry is written only for a state both sides *demonstrably* reached:
+/// a file both sides hold identically, or one this device just fetched (the
+/// served bytes were verified against the advertised stamp, so the peer's
+/// version is confirmed by construction). Everything else keeps its previous
+/// entry, which is what makes sending self-healing — the sender does not know
+/// whether the peer's fetch landed, so it keeps the old baseline and re-offers
+/// the file next session; the peer's own table then proves receipt and the
+/// entry advances. An entry that advanced on a *send* would instead tell the
+/// next session that a transfer nobody confirmed had happened.
+Map<String, SyncAgreedFile> advanceWorkspaceBaseline({
+  required Map<String, WorkspaceFileStamp> mine,
+  required Map<String, WorkspaceFileStamp> peers,
+  required Map<String, SyncAgreedFile> baseline,
+  required Iterable<WorkspaceFilePlan> plan,
+  required Map<String, WorkspaceFileStamp> landed,
+  required Set<String> deleted,
+}) {
+  final next = <String, SyncAgreedFile>{};
+  for (final item in plan) {
+    final prior = baseline[item.path];
+    switch (item.action) {
+      case WorkspaceFileAction.none:
+        final local = mine[item.path];
+        final remote = peers[item.path];
+        if (local != null && remote != null) {
+          next[item.path] = SyncAgreedFile(local, remote);
+        }
+      case WorkspaceFileAction.peerSends:
+      case WorkspaceFileAction.peerWins:
+        final fetched = landed[item.path];
+        final remote = peers[item.path];
+        if (fetched != null && remote != null) {
+          next[item.path] = SyncAgreedFile(fetched, remote);
+        } else if (prior != null) {
+          next[item.path] = prior;
+        }
+      case WorkspaceFileAction.iDelete:
+        // The file is gone here and the peer's table no longer has it: the
+        // entry has nothing left to describe. A delete that failed keeps it,
+        // so the next session retries.
+        if (deleted.contains(item.path)) continue;
+        if (prior != null) next[item.path] = prior;
+      case WorkspaceFileAction.bothDeleted:
+        continue;
+      case WorkspaceFileAction.iSend:
+      case WorkspaceFileAction.iWin:
+      case WorkspaceFileAction.peerDeletes:
+        if (prior != null) next[item.path] = prior;
+    }
+  }
+  return next;
+}
+
+/// Bounds the per-peer ledger, whole workspaces at a time.
+///
+/// Over the cap the workspaces that sort last lose their ledger entries
+/// entirely rather than being truncated file by file: a half-remembered
+/// workspace would present some of its files as "never agreed" (re-transfer,
+/// safe) and others as agreed, and the two readings would be indistinguishable
+/// in the checkpoint. An absent entry is only ever conservative, so what the
+/// cap costs is a re-transfer, never a deletion.
+Map<String, Map<String, SyncAgreedFile>> capWorkspaceLedger(
+  Map<String, Map<String, SyncAgreedFile>> ledger, {
+  int maxEntries = kMaxWorkspaceLedgerEntries,
+}) {
+  var total = 0;
+  for (final table in ledger.values) {
+    total += table.length;
+  }
+  if (total <= maxEntries) return ledger;
+  final ids = ledger.keys.toList()..sort();
+  final kept = <String, Map<String, SyncAgreedFile>>{};
+  var keptEntries = 0;
+  for (final id in ids) {
+    final table = ledger[id]!;
+    if (table.isEmpty) continue;
+    if (keptEntries + table.length > maxEntries) continue;
+    keptEntries += table.length;
+    kept[id] = table;
+  }
+  return kept;
+}
+
 /// Content hash of one entity row: its payload plus the list position it
 /// occupies. The position is its own column and a reorder leaves the payload
 /// untouched, so a payload-only digest made the reorder invisible — the plan

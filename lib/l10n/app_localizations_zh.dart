@@ -11990,9 +11990,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncThisDevice => '本设备';
 
   @override
-  String get lanSyncDeviceIdLabel => '设备 ID';
-
-  @override
   String get lanSyncListenerStarting => '正在启动监听…';
 
   @override
@@ -12007,11 +12004,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncPairSectionTitle => '配对设备';
 
   @override
-  String get lanSyncPairFirstSyncNote =>
-      '配对成功后会自动开始首次同步，可能耗时较长。请保持电脑端应用运行，手机端保持在本应用前台。';
+  String get lanSyncPairIntro => '在局域网中的两台设备，一台扫描另一台展示的二维码配对。';
 
   @override
-  String get lanSyncPairIntro => '在一台设备上显示二维码，用另一台扫描；没有摄像头时输入配对码。两台设备需在同一网络。';
+  String get lanSyncPairFirstSyncNote =>
+      '配对成功后会自动开始首次同步，可能耗时较长。请保持电脑端应用运行，手机端保持在本应用前台。';
 
   @override
   String get lanSyncShowCode => '显示配对二维码';
@@ -12109,6 +12106,45 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncPairedDevices => '已配对设备';
 
   @override
+  String get lanSyncWorkspaces => '工作区';
+
+  @override
+  String get lanSyncWorkspaceTip =>
+      '不同步 .git 与依赖/构建目录以节省时间。超过 2,000 文件或 200 MB 的工作区不同步内容。工作区记录始终同步，开关只控制文件。';
+
+  @override
+  String lanSyncWorkspaceSyncing(Object count) {
+    return '$count 个在同步内容';
+  }
+
+  @override
+  String get lanSyncWorkspaceStatusSyncing => '同步中';
+
+  @override
+  String get lanSyncWorkspaceStatusTooLarge => '过大';
+
+  @override
+  String get lanSyncWorkspaceStatusUnreadable => '无法读取';
+
+  @override
+  String get lanSyncWorkspaceStatusOff => '已关闭';
+
+  @override
+  String lanSyncWorkspaceFiles(Object count) {
+    return '$count 个文件';
+  }
+
+  @override
+  String lanSyncWorkspaceFilesAtLeast(Object count) {
+    return '$count+ 个文件';
+  }
+
+  @override
+  String lanSyncWorkspaceSizeAtLeast(Object size) {
+    return '$size+';
+  }
+
+  @override
   String get lanSyncNoDevices => '还没有已配对的设备。配对后即可开始同步。';
 
   @override
@@ -12165,16 +12201,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncOnlineFromSession => '在线——上次同步成功连上';
 
   @override
-  String get lanSyncOfflineFromSession => '离线——上次同步没能连上';
-
-  @override
   String lanSyncPhaseConnectingTo(Object address) {
     return '正在连接 $address…';
-  }
-
-  @override
-  String lanSyncPhaseConnectingAt(Object address, Object index, Object total) {
-    return '正在连接 $address…（$index/$total）';
   }
 
   @override
@@ -12299,6 +12327,36 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportWorkspaceFiles(Object count) {
+    return '$count 个工作区文件';
+  }
+
+  @override
+  String lanSyncReportWorkspaceFilesWithSize(Object count, Object size) {
+    return '$count 个工作区文件 · $size';
+  }
+
+  @override
+  String lanSyncReportWorkspaceRemoved(Object count) {
+    return '-$count 个工作区文件';
+  }
+
+  @override
+  String lanSyncReportWorkspaceConflicts(Object count) {
+    return '$count 处工作区文件修改被覆盖';
+  }
+
+  @override
+  String lanSyncReportWorkspaceMissing(Object count) {
+    return '$count 个工作区文件未能应用';
+  }
+
+  @override
+  String lanSyncReportWorkspacesOmitted(Object count) {
+    return '$count 个工作区未同步文件';
+  }
+
+  @override
   String lanSyncReportRowsLost(Object n) {
     return '$n 条本地记录被对端更新的版本覆盖';
   }
@@ -12307,10 +12365,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String lanSyncReportClockSkew(Object n) {
     return '两台设备的时钟相差约 $n 分钟，请校准设备时钟后重新同步';
   }
-
-  @override
-  String get lanSyncReportPeerOffline =>
-      '暂时连不上——对方可能已休眠或换了网络；两台设备回到同一网络后会自动同步。';
 
   @override
   String get lanSyncReportUnreachable =>
@@ -12360,15 +12414,82 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncFirewallFixed => '入站访问已允许。';
 
   @override
-  String get lanSyncKnownLimits => '目前：工作区仍只留在创建它的设备上；PIN 配对请仅在可信网络中使用。';
-
-  @override
   String lanSyncArrivalToast(Object name) {
     return '已与 $name 同步';
   }
 
   @override
   String get lanSyncArrivalDetails => '详情';
+
+  @override
+  String get lanSyncNever => '从未';
+
+  @override
+  String get lanSyncTemporarilyUnreachable => '暂时连不上';
+
+  @override
+  String get lanSyncListening => '监听中';
+
+  @override
+  String get lanSyncCopy => '复制';
+
+  @override
+  String get lanSyncMoreActions => '更多操作';
+
+  @override
+  String get lanSyncEndpointTip =>
+      '每个地址一块：点名称可重命名，点延迟看详情（最近测量、成功次数、添加时间），在详情里可以编辑地址或删除它。';
+
+  @override
+  String get lanSyncJustNow => '刚刚';
+
+  @override
+  String get lanSyncShowAddresses => '地址';
+
+  @override
+  String get lanSyncPairTrustTip =>
+      '配对码只在信任的网络上使用：输码配对能挡住被动窃听，挡不住中间人；二维码把对方证书指纹带过来，所以更稳妥。';
+
+  @override
+  String get lanSyncNoAddress => '还没有记住这个设备的地址。';
+
+  @override
+  String get lanSyncAddAddress => '添加地址';
+
+  @override
+  String get lanSyncRenameEndpointTitle => '地址名称';
+
+  @override
+  String get lanSyncRenameEndpointHint => '例如：家中网络';
+
+  @override
+  String get lanSyncEndpointLatency => '延迟';
+
+  @override
+  String get lanSyncEndpointLastMeasured => '最近测量';
+
+  @override
+  String get lanSyncEndpointLastReached => '最近连通';
+
+  @override
+  String get lanSyncEndpointSuccessCount => '成功连接';
+
+  @override
+  String get lanSyncEndpointAddedAt => '添加于';
+
+  @override
+  String lanSyncEndpointSuccessTimes(Object n) {
+    return '$n 次';
+  }
+
+  @override
+  String get lanSyncDeleteEndpoint => '删除此地址';
+
+  @override
+  String get lanSyncEndpointUnreachable => '连不上';
+
+  @override
+  String get lanSyncSupersededByPeer => '这次同步由另一台设备发起。';
 
   @override
   String get assistantEditProactiveCareEnableTitle => '主动关怀';
@@ -25283,9 +25404,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get lanSyncThisDevice => '本设备';
 
   @override
-  String get lanSyncDeviceIdLabel => '设备 ID';
-
-  @override
   String get lanSyncListenerStarting => '正在启动监听…';
 
   @override
@@ -25300,11 +25418,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get lanSyncPairSectionTitle => '配对设备';
 
   @override
-  String get lanSyncPairFirstSyncNote =>
-      '配对成功后会自动开始首次同步，可能耗时较长。请保持电脑端应用运行，手机端保持在本应用前台。';
+  String get lanSyncPairIntro => '在局域网中的两台设备，一台扫描另一台展示的二维码配对。';
 
   @override
-  String get lanSyncPairIntro => '在一台设备上显示二维码，用另一台扫描；没有摄像头时输入配对码。两台设备需在同一网络。';
+  String get lanSyncPairFirstSyncNote =>
+      '配对成功后会自动开始首次同步，可能耗时较长。请保持电脑端应用运行，手机端保持在本应用前台。';
 
   @override
   String get lanSyncShowCode => '显示配对二维码';
@@ -25402,6 +25520,45 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get lanSyncPairedDevices => '已配对设备';
 
   @override
+  String get lanSyncWorkspaces => '工作区';
+
+  @override
+  String get lanSyncWorkspaceTip =>
+      '不同步 .git 与依赖/构建目录以节省时间。超过 2,000 文件或 200 MB 的工作区不同步内容。工作区记录始终同步，开关只控制文件。';
+
+  @override
+  String lanSyncWorkspaceSyncing(Object count) {
+    return '$count 个在同步内容';
+  }
+
+  @override
+  String get lanSyncWorkspaceStatusSyncing => '同步中';
+
+  @override
+  String get lanSyncWorkspaceStatusTooLarge => '过大';
+
+  @override
+  String get lanSyncWorkspaceStatusUnreadable => '无法读取';
+
+  @override
+  String get lanSyncWorkspaceStatusOff => '已关闭';
+
+  @override
+  String lanSyncWorkspaceFiles(Object count) {
+    return '$count 个文件';
+  }
+
+  @override
+  String lanSyncWorkspaceFilesAtLeast(Object count) {
+    return '$count+ 个文件';
+  }
+
+  @override
+  String lanSyncWorkspaceSizeAtLeast(Object size) {
+    return '$size+';
+  }
+
+  @override
   String get lanSyncNoDevices => '还没有已配对的设备。配对后即可开始同步。';
 
   @override
@@ -25458,16 +25615,8 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get lanSyncOnlineFromSession => '在线——上次同步成功连上';
 
   @override
-  String get lanSyncOfflineFromSession => '离线——上次同步没能连上';
-
-  @override
   String lanSyncPhaseConnectingTo(Object address) {
     return '正在连接 $address…';
-  }
-
-  @override
-  String lanSyncPhaseConnectingAt(Object address, Object index, Object total) {
-    return '正在连接 $address…（$index/$total）';
   }
 
   @override
@@ -25592,6 +25741,36 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
+  String lanSyncReportWorkspaceFiles(Object count) {
+    return '$count 个工作区文件';
+  }
+
+  @override
+  String lanSyncReportWorkspaceFilesWithSize(Object count, Object size) {
+    return '$count 个工作区文件 · $size';
+  }
+
+  @override
+  String lanSyncReportWorkspaceRemoved(Object count) {
+    return '-$count 个工作区文件';
+  }
+
+  @override
+  String lanSyncReportWorkspaceConflicts(Object count) {
+    return '$count 处工作区文件修改被覆盖';
+  }
+
+  @override
+  String lanSyncReportWorkspaceMissing(Object count) {
+    return '$count 个工作区文件未能应用';
+  }
+
+  @override
+  String lanSyncReportWorkspacesOmitted(Object count) {
+    return '$count 个工作区未同步文件';
+  }
+
+  @override
   String lanSyncReportRowsLost(Object n) {
     return '$n 条本地记录被对端更新的版本覆盖';
   }
@@ -25600,10 +25779,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String lanSyncReportClockSkew(Object n) {
     return '两台设备的时钟相差约 $n 分钟，请校准设备时钟后重新同步';
   }
-
-  @override
-  String get lanSyncReportPeerOffline =>
-      '暂时连不上——对方可能已休眠或换了网络；两台设备回到同一网络后会自动同步。';
 
   @override
   String get lanSyncReportUnreachable =>
@@ -25653,15 +25828,82 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get lanSyncFirewallFixed => '入站访问已允许。';
 
   @override
-  String get lanSyncKnownLimits => '目前：工作区仍只留在创建它的设备上；PIN 配对请仅在可信网络中使用。';
-
-  @override
   String lanSyncArrivalToast(Object name) {
     return '已与 $name 同步';
   }
 
   @override
   String get lanSyncArrivalDetails => '详情';
+
+  @override
+  String get lanSyncNever => '从未';
+
+  @override
+  String get lanSyncTemporarilyUnreachable => '暂时连不上';
+
+  @override
+  String get lanSyncListening => '监听中';
+
+  @override
+  String get lanSyncCopy => '复制';
+
+  @override
+  String get lanSyncMoreActions => '更多操作';
+
+  @override
+  String get lanSyncEndpointTip =>
+      '每个地址一块：点名称可重命名，点延迟看详情（最近测量、成功次数、添加时间），在详情里可以编辑地址或删除它。';
+
+  @override
+  String get lanSyncJustNow => '刚刚';
+
+  @override
+  String get lanSyncShowAddresses => '地址';
+
+  @override
+  String get lanSyncPairTrustTip =>
+      '配对码只在信任的网络上使用：输码配对能挡住被动窃听，挡不住中间人；二维码把对方证书指纹带过来，所以更稳妥。';
+
+  @override
+  String get lanSyncNoAddress => '还没有记住这个设备的地址。';
+
+  @override
+  String get lanSyncAddAddress => '添加地址';
+
+  @override
+  String get lanSyncRenameEndpointTitle => '地址名称';
+
+  @override
+  String get lanSyncRenameEndpointHint => '例如：家中网络';
+
+  @override
+  String get lanSyncEndpointLatency => '延迟';
+
+  @override
+  String get lanSyncEndpointLastMeasured => '最近测量';
+
+  @override
+  String get lanSyncEndpointLastReached => '最近连通';
+
+  @override
+  String get lanSyncEndpointSuccessCount => '成功连接';
+
+  @override
+  String get lanSyncEndpointAddedAt => '添加于';
+
+  @override
+  String lanSyncEndpointSuccessTimes(Object n) {
+    return '$n 次';
+  }
+
+  @override
+  String get lanSyncDeleteEndpoint => '删除此地址';
+
+  @override
+  String get lanSyncEndpointUnreachable => '连不上';
+
+  @override
+  String get lanSyncSupersededByPeer => '这次同步由另一台设备发起。';
 
   @override
   String get assistantEditProactiveCareEnableTitle => '主动关怀';
@@ -38655,9 +38897,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get lanSyncThisDevice => '本裝置';
 
   @override
-  String get lanSyncDeviceIdLabel => '裝置 ID';
-
-  @override
   String get lanSyncListenerStarting => '正在啟動監聽…';
 
   @override
@@ -38672,11 +38911,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get lanSyncPairSectionTitle => '配對裝置';
 
   @override
-  String get lanSyncPairFirstSyncNote =>
-      '配對成功後會自動開始首次同步，可能耗時較長。請保持電腦端應用程式執行，手機端保持在這個應用程式前台。';
+  String get lanSyncPairIntro => '在區域網路中的兩台裝置，一台掃描另一台顯示的二維碼配對。';
 
   @override
-  String get lanSyncPairIntro => '在一台裝置上顯示二維碼，用另一台掃描；沒有相機時輸入配對碼。兩台裝置需在同一網路。';
+  String get lanSyncPairFirstSyncNote =>
+      '配對成功後會自動開始首次同步，可能耗時較長。請保持電腦端應用程式執行，手機端保持在這個應用程式前台。';
 
   @override
   String get lanSyncShowCode => '顯示配對二維碼';
@@ -38774,6 +39013,45 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get lanSyncPairedDevices => '已配對裝置';
 
   @override
+  String get lanSyncWorkspaces => '工作區';
+
+  @override
+  String get lanSyncWorkspaceTip =>
+      '不同步 .git 與相依/建置目錄以節省時間。超過 2,000 個檔案或 200 MB 的工作區不同步內容。工作區記錄始終同步，開關只控制檔案。';
+
+  @override
+  String lanSyncWorkspaceSyncing(Object count) {
+    return '$count 個正在同步內容';
+  }
+
+  @override
+  String get lanSyncWorkspaceStatusSyncing => '同步中';
+
+  @override
+  String get lanSyncWorkspaceStatusTooLarge => '過大';
+
+  @override
+  String get lanSyncWorkspaceStatusUnreadable => '無法讀取';
+
+  @override
+  String get lanSyncWorkspaceStatusOff => '已關閉';
+
+  @override
+  String lanSyncWorkspaceFiles(Object count) {
+    return '$count 個檔案';
+  }
+
+  @override
+  String lanSyncWorkspaceFilesAtLeast(Object count) {
+    return '$count+ 個檔案';
+  }
+
+  @override
+  String lanSyncWorkspaceSizeAtLeast(Object size) {
+    return '$size+';
+  }
+
+  @override
   String get lanSyncNoDevices => '還沒有已配對的裝置。配對後即可開始同步。';
 
   @override
@@ -38830,16 +39108,8 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get lanSyncOnlineFromSession => '線上——上次同步成功連上';
 
   @override
-  String get lanSyncOfflineFromSession => '離線——上次同步沒能連上';
-
-  @override
   String lanSyncPhaseConnectingTo(Object address) {
     return '正在連線 $address…';
-  }
-
-  @override
-  String lanSyncPhaseConnectingAt(Object address, Object index, Object total) {
-    return '正在連線 $address…（$index/$total）';
   }
 
   @override
@@ -38964,6 +39234,36 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String lanSyncReportWorkspaceFiles(Object count) {
+    return '$count 個工作區檔案';
+  }
+
+  @override
+  String lanSyncReportWorkspaceFilesWithSize(Object count, Object size) {
+    return '$count 個工作區檔案 · $size';
+  }
+
+  @override
+  String lanSyncReportWorkspaceRemoved(Object count) {
+    return '-$count 個工作區檔案';
+  }
+
+  @override
+  String lanSyncReportWorkspaceConflicts(Object count) {
+    return '$count 處工作區檔案修改被覆蓋';
+  }
+
+  @override
+  String lanSyncReportWorkspaceMissing(Object count) {
+    return '$count 個工作區檔案未能套用';
+  }
+
+  @override
+  String lanSyncReportWorkspacesOmitted(Object count) {
+    return '$count 個工作區未同步檔案';
+  }
+
+  @override
   String lanSyncReportRowsLost(Object n) {
     return '$n 條本地記錄被對端更新的版本覆蓋';
   }
@@ -38972,10 +39272,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String lanSyncReportClockSkew(Object n) {
     return '兩台設備的時鐘相差約 $n 分鐘，請校準設備時鐘後重新同步';
   }
-
-  @override
-  String get lanSyncReportPeerOffline =>
-      '暫時連不上——對方可能已休眠或換了網路；兩台裝置回到同一網路後會自動同步。';
 
   @override
   String get lanSyncReportUnreachable =>
@@ -39025,15 +39321,82 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get lanSyncFirewallFixed => '入站存取已允許。';
 
   @override
-  String get lanSyncKnownLimits => '目前：工作區仍只留在建立它的裝置上；PIN 配對請僅在可信網路中使用。';
-
-  @override
   String lanSyncArrivalToast(Object name) {
     return '已與 $name 同步';
   }
 
   @override
   String get lanSyncArrivalDetails => '詳情';
+
+  @override
+  String get lanSyncNever => '從未';
+
+  @override
+  String get lanSyncTemporarilyUnreachable => '暫時連不上';
+
+  @override
+  String get lanSyncListening => '監聽中';
+
+  @override
+  String get lanSyncCopy => '複製';
+
+  @override
+  String get lanSyncMoreActions => '更多操作';
+
+  @override
+  String get lanSyncEndpointTip =>
+      '每個位址一塊：點名稱可重新命名，點延遲看詳情（最近測量、成功次數、新增時間），在詳情裡可以修改位址或刪除它。';
+
+  @override
+  String get lanSyncJustNow => '剛剛';
+
+  @override
+  String get lanSyncShowAddresses => '位址';
+
+  @override
+  String get lanSyncPairTrustTip =>
+      '配對碼只在信任的網路上使用：輸入配對碼能擋住被動竊聽，擋不住中間人；二維碼把對方憑證指紋帶過來，所以更穩妥。';
+
+  @override
+  String get lanSyncNoAddress => '還沒有記住這個裝置的位址。';
+
+  @override
+  String get lanSyncAddAddress => '新增位址';
+
+  @override
+  String get lanSyncRenameEndpointTitle => '位址名稱';
+
+  @override
+  String get lanSyncRenameEndpointHint => '例如：家中網路';
+
+  @override
+  String get lanSyncEndpointLatency => '延遲';
+
+  @override
+  String get lanSyncEndpointLastMeasured => '最近測量';
+
+  @override
+  String get lanSyncEndpointLastReached => '最近連通';
+
+  @override
+  String get lanSyncEndpointSuccessCount => '成功連線';
+
+  @override
+  String get lanSyncEndpointAddedAt => '新增於';
+
+  @override
+  String lanSyncEndpointSuccessTimes(Object n) {
+    return '$n 次';
+  }
+
+  @override
+  String get lanSyncDeleteEndpoint => '刪除此位址';
+
+  @override
+  String get lanSyncEndpointUnreachable => '連不上';
+
+  @override
+  String get lanSyncSupersededByPeer => '這次同步由另一台裝置發起。';
 
   @override
   String get assistantEditProactiveCareEnableTitle => '主動關懷';

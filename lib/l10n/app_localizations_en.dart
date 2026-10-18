@@ -12568,9 +12568,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lanSyncThisDevice => 'This device';
 
   @override
-  String get lanSyncDeviceIdLabel => 'Device ID';
-
-  @override
   String get lanSyncListenerStarting => 'Starting listener…';
 
   @override
@@ -12585,12 +12582,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lanSyncPairSectionTitle => 'Pair a device';
 
   @override
-  String get lanSyncPairFirstSyncNote =>
-      'After pairing, the first sync starts automatically and can take a while. Keep the desktop app running and this app in the foreground on mobile.';
+  String get lanSyncPairIntro =>
+      'Two devices on the same LAN: one shows the QR code, the other scans it.';
 
   @override
-  String get lanSyncPairIntro =>
-      'Show the QR on one device and scan it with the other. Without a camera, type the code instead. Both devices must be on the same network.';
+  String get lanSyncPairFirstSyncNote =>
+      'After pairing, the first sync starts automatically and can take a while. Keep the desktop app running and this app in the foreground on mobile.';
 
   @override
   String get lanSyncShowCode => 'Show pairing QR';
@@ -12700,6 +12697,45 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lanSyncPairedDevices => 'Paired devices';
 
   @override
+  String get lanSyncWorkspaces => 'Workspaces';
+
+  @override
+  String get lanSyncWorkspaceTip =>
+      'Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files or 200 MB don\'t sync their files. A workspace\'s record always syncs — the switch governs only its files.';
+
+  @override
+  String lanSyncWorkspaceSyncing(Object count) {
+    return '$count syncing files';
+  }
+
+  @override
+  String get lanSyncWorkspaceStatusSyncing => 'Syncing';
+
+  @override
+  String get lanSyncWorkspaceStatusTooLarge => 'Too large';
+
+  @override
+  String get lanSyncWorkspaceStatusUnreadable => 'Unreadable';
+
+  @override
+  String get lanSyncWorkspaceStatusOff => 'Off';
+
+  @override
+  String lanSyncWorkspaceFiles(Object count) {
+    return '$count files';
+  }
+
+  @override
+  String lanSyncWorkspaceFilesAtLeast(Object count) {
+    return '$count+ files';
+  }
+
+  @override
+  String lanSyncWorkspaceSizeAtLeast(Object size) {
+    return '$size+';
+  }
+
+  @override
   String get lanSyncNoDevices =>
       'No paired devices yet. Pair one to start syncing.';
 
@@ -12757,17 +12793,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lanSyncOnlineFromSession => 'Online — the last sync connected';
 
   @override
-  String get lanSyncOfflineFromSession =>
-      'Offline — the last sync could not connect';
-
-  @override
   String lanSyncPhaseConnectingTo(Object address) {
     return 'Connecting to $address…';
-  }
-
-  @override
-  String lanSyncPhaseConnectingAt(Object address, Object index, Object total) {
-    return 'Connecting to $address… ($index/$total)';
   }
 
   @override
@@ -12893,6 +12920,36 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportWorkspaceFiles(Object count) {
+    return '$count workspace files';
+  }
+
+  @override
+  String lanSyncReportWorkspaceFilesWithSize(Object count, Object size) {
+    return '$count workspace files · $size';
+  }
+
+  @override
+  String lanSyncReportWorkspaceRemoved(Object count) {
+    return '-$count workspace files';
+  }
+
+  @override
+  String lanSyncReportWorkspaceConflicts(Object count) {
+    return '$count workspace file edits replaced';
+  }
+
+  @override
+  String lanSyncReportWorkspaceMissing(Object count) {
+    return '$count workspace files could not be applied';
+  }
+
+  @override
+  String lanSyncReportWorkspacesOmitted(Object count) {
+    return '$count workspaces not syncing files';
+  }
+
+  @override
   String lanSyncReportRowsLost(Object n) {
     return '$n local rows replaced by newer versions on the peer';
   }
@@ -12901,10 +12958,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String lanSyncReportClockSkew(Object n) {
     return 'Clocks differ by ~$n min — fix the device clock, then sync again';
   }
-
-  @override
-  String get lanSyncReportPeerOffline =>
-      'Not reachable right now — it may be asleep or on another network. Syncing resumes when both devices are back on the same one.';
 
   @override
   String get lanSyncReportUnreachable =>
@@ -12960,16 +13013,83 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lanSyncFirewallFixed => 'Inbound access allowed.';
 
   @override
-  String get lanSyncKnownLimits =>
-      'For now: workspaces stay on the device that created them, and PIN pairing should only be used on networks you trust.';
-
-  @override
   String lanSyncArrivalToast(Object name) {
     return 'Synced with $name';
   }
 
   @override
   String get lanSyncArrivalDetails => 'Details';
+
+  @override
+  String get lanSyncNever => 'Never';
+
+  @override
+  String get lanSyncTemporarilyUnreachable => 'Can\'t reach right now';
+
+  @override
+  String get lanSyncListening => 'Listening';
+
+  @override
+  String get lanSyncCopy => 'Copy';
+
+  @override
+  String get lanSyncMoreActions => 'More actions';
+
+  @override
+  String get lanSyncEndpointTip =>
+      'One tile per address: tap the name to rename it, tap the latency for details — when it was last measured, how many syncs it has carried, when it was added. Edit or delete the address there.';
+
+  @override
+  String get lanSyncJustNow => 'Just now';
+
+  @override
+  String get lanSyncShowAddresses => 'Addresses';
+
+  @override
+  String get lanSyncPairTrustTip =>
+      'Use a code only on a network you trust: it stops a passive eavesdropper, not a machine in the middle. The QR carries the other device\'s certificate fingerprint, which is why it is the safer half.';
+
+  @override
+  String get lanSyncNoAddress => 'No address is remembered for this device.';
+
+  @override
+  String get lanSyncAddAddress => 'Add address';
+
+  @override
+  String get lanSyncRenameEndpointTitle => 'Address name';
+
+  @override
+  String get lanSyncRenameEndpointHint => 'e.g. Home network';
+
+  @override
+  String get lanSyncEndpointLatency => 'Latency';
+
+  @override
+  String get lanSyncEndpointLastMeasured => 'Last measured';
+
+  @override
+  String get lanSyncEndpointLastReached => 'Last connected';
+
+  @override
+  String get lanSyncEndpointSuccessCount => 'Syncs';
+
+  @override
+  String get lanSyncEndpointAddedAt => 'Added';
+
+  @override
+  String lanSyncEndpointSuccessTimes(Object n) {
+    return '$n times';
+  }
+
+  @override
+  String get lanSyncDeleteEndpoint => 'Delete this address';
+
+  @override
+  String get lanSyncEndpointUnreachable => 'Not reachable';
+
+  @override
+  String get lanSyncSupersededByPeer =>
+      'The other device is running this sync.';
 
   @override
   String get assistantEditProactiveCareEnableTitle => 'Proactive Care';

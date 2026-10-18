@@ -6,15 +6,17 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import 'blob_sync.dart';
-import 'sync_candidate_prober.dart';
 import 'sync_client.dart';
 import 'sync_data_plane.dart';
+import 'sync_endpoint_prober.dart';
 import 'sync_identity.dart';
 import 'sync_local_addresses.dart';
 import 'sync_merge.dart';
 import 'sync_models.dart';
+import 'sync_pairing_prober.dart';
 import 'sync_server.dart';
 import 'sync_store.dart';
+import 'workspace_content_sync.dart';
 
 /// One beat of an initiator session, for the card's progress line.
 enum SyncSessionPhase {
@@ -45,8 +47,6 @@ class SyncSessionProgress {
     this.done = 0,
     this.total = 0,
     this.address,
-    this.attempt = 0,
-    this.attempts = 0,
   });
 
   final SyncSessionPhase phase;
@@ -57,16 +57,13 @@ class SyncSessionProgress {
   final int total;
 
   /// The endpoint this beat is working on, `host:port`. Only
-  /// [SyncSessionPhase.connecting] names one: a candidate that never answers is
+  /// [SyncSessionPhase.connecting] names one: an address that never answers is
   /// the one case where "which address?" is the whole story, and without it the
   /// card showed an opaque spinner while the dial, the handshake and a hello in
-  /// flight (up to the hello deadline) all looked like "comparing data".
+  /// flight (up to the hello deadline) all looked like "comparing data". Never
+  /// a rank among candidates: the probe already ranked them at once, and how
+  /// many addresses the dial has left is not something a user can act on.
   final String? address;
-
-  /// Which candidate of [attempts] is being dialed, 1-based. Both zero when the
-  /// phase is not a dial.
-  final int attempt;
-  final int attempts;
 }
 
 /// Outcome of one session, for the peer card and the sync report.
@@ -113,6 +110,18 @@ class SyncSessionReport {
   final int entityRowsLost;
   final int preferencesLost;
 
+  /// Workspace content in either direction (slice 18), counted the same way the
+  /// blob face is: what this device itself landed, deleted, lost and could not
+  /// apply — plus how many workspaces it shared no content for (turned off, or
+  /// over the caps), because silence about those is the one thing this face
+  /// must never do.
+  final int workspaceFiles;
+  final int workspaceBytes;
+  final int workspaceFilesRemoved;
+  final int workspaceConflicts;
+  final int workspaceFilesMissing;
+  final int workspacesOmitted;
+
   /// Signed clock divergence observed at hello, in milliseconds — present
   /// only beyond [kClockSkewWarnMs]. The session succeeded anyway.
   final int? clockSkewMs;
@@ -139,6 +148,12 @@ class SyncSessionReport {
     this.blobsMissing = 0,
     this.entityRowsLost = 0,
     this.preferencesLost = 0,
+    this.workspaceFiles = 0,
+    this.workspaceBytes = 0,
+    this.workspaceFilesRemoved = 0,
+    this.workspaceConflicts = 0,
+    this.workspaceFilesMissing = 0,
+    this.workspacesOmitted = 0,
     this.clockSkewMs,
   });
 
@@ -160,6 +175,12 @@ class SyncSessionReport {
     blobsMissing: blobsMissing,
     entityRowsLost: entityRowsLost,
     preferencesLost: preferencesLost,
+    workspaceFiles: workspaceFiles,
+    workspaceBytes: workspaceBytes,
+    workspaceFilesRemoved: workspaceFilesRemoved,
+    workspaceConflicts: workspaceConflicts,
+    workspaceFilesMissing: workspaceFilesMissing,
+    workspacesOmitted: workspacesOmitted,
     clockSkewMs: clockSkewMs,
     refusal: refusal,
     failure: success || refusal != null ? null : failure,
@@ -180,6 +201,7 @@ class SyncEngine implements SyncServerHandler {
     required this.onStateChanged,
     this.onProgressChanged,
     this.onResponderSession,
+    this.onProbes,
     int Function()? clockUs,
   }) : clockUs = clockUs ?? (() => DateTime.now().microsecondsSinceEpoch);
 
@@ -230,7 +252,27 @@ class SyncEngine implements SyncServerHandler {
   /// Peers this device is currently initiating *to*. Together with [_sessions]
   /// it is the single-flight lock for a pair: both roles write the same
   /// checkpoint file, so they must never run at once (see [syncWithPeer]).
-  final Set<String> _initiatorRounds = {};
+  ///
+  /// A round is cancellable only until it hears the peer's hello: at that point
+  /// it is a live session and the pair's real outcome is already forming. Before
+  /// that it has proved nothing, which is why an arriving hello defeats it
+  /// ([_InitiatorRound]).
+  final Map<String, _InitiatorRound> _initiatorRounds = {};
+
+  /// The probes this device has for each peer's endpoints, pushed by the
+  /// provider so the dial can spend the measurement it already paid for
+  /// instead of probing again: the address that answered in 4 ms is the one to
+  /// dial, and its round trip is what bounds the connect timeout.
+  ///
+  /// A snapshot older than [kSyncProbeFreshness] is ignored — it describes a
+  /// network this device may have already left — and the session probes once
+  /// itself before walking the candidates.
+  Map<String, PeerProbeSnapshot> endpointProbes = const {};
+
+  /// Called when this engine ran a probe round of its own (a session whose
+  /// snapshot had gone stale). The consumer folds the results into the cards'
+  /// latency figures and its own snapshot.
+  void Function(String deviceId, List<EndpointProbeResult> results)? onProbes;
 
   /// Live progress of this device's initiator sessions, by peer id — the
   /// provider surfaces it on the peer cards. Entries live exactly as long as
@@ -245,16 +287,12 @@ class SyncEngine implements SyncServerHandler {
     int done = 0,
     int total = 0,
     String? address,
-    int attempt = 0,
-    int attempts = 0,
   }) {
     initiatorProgress[deviceId] = SyncSessionProgress(
       phase,
       done: done,
       total: total,
       address: address,
-      attempt: attempt,
-      attempts: attempts,
     );
     (onProgressChanged ?? onStateChanged)();
   }
@@ -383,9 +421,11 @@ class SyncEngine implements SyncServerHandler {
 
   /// Pairs with a peer by trying [endpoints] in order until one answers.
   ///
-  /// The candidates are probed in parallel first (see [orderCandidates]), so a
-  /// black-holed address costs one shared probe instead of a full dial budget
-  /// per candidate.
+  /// The candidates are probed in parallel first (see [orderPairingCandidates]),
+  /// so a black-holed address costs one shared probe instead of a full dial
+  /// budget per candidate. This is the one walk that keeps the *bare TCP* probe:
+  /// pairing is where no secret exists yet, so there is nothing to authenticate
+  /// with until the PIN (or the scanned fingerprint) has been spent.
   ///
   /// What a failing candidate means decides whether the next one is tried:
   ///
@@ -412,7 +452,7 @@ class SyncEngine implements SyncServerHandler {
     String? expectedDeviceId,
     List<String> advertisedAddresses = const [],
   }) async {
-    final candidates = await orderCandidates(
+    final candidates = await orderPairingCandidates(
       endpoints,
       localAddresses: localAddresses,
     );
@@ -498,21 +538,28 @@ class SyncEngine implements SyncServerHandler {
   /// isolate makes that the whole lock — and a peer initiating at the same
   /// moment is refused instead of interleaved.
   ///
-  /// The remembered endpoints are probed in parallel and then run in order, and
-  /// the first one that answers runs the session: an address is a hint from a
-  /// network this device may have left — the same laptop sits at a different
-  /// address at home, at work and on a phone hotspot — and the certificate pin
-  /// re-verifies whoever answers. The probe is what keeps a set of stale
-  /// addresses from costing one dial budget each. Only "could not be reached at
-  /// all" falls through to the next candidate; a refusal from the peer is that
-  /// peer's verdict, and its other addresses would only repeat it.
+  /// The remembered endpoints are probed in parallel and the dial spends that
+  /// proof: the addresses the probe reached — best measured first — are dialed
+  /// in order until one answers, and an address it did not reach is not dialed
+  /// at all. The probe already asked every address at once, so re-asking them
+  /// one at a time would spend the same parallel answer twice, and pay a full
+  /// connect budget for each repetition. An address is a hint from a network
+  /// this device may have left — the same laptop sits at a different address at
+  /// home, at work and on a phone hotspot — and the certificate pin re-verifies
+  /// whoever answers.
+  ///
+  /// A probe that proved nothing still buys one dial — the best-remembered
+  /// address — because a single measurement is not a verdict on the network.
+  /// Only "could not be reached at all" falls through to the next proven
+  /// candidate; a refusal from the peer is that peer's verdict, and its other
+  /// addresses would only repeat it.
   Future<SyncSessionReport> syncWithPeer(
     SyncPeerRecord peer, {
     String? host,
     int? port,
   }) async {
     if (_sessions.containsKey(peer.deviceId) ||
-        !_initiatorRounds.add(peer.deviceId)) {
+        _initiatorRounds.containsKey(peer.deviceId)) {
       return await _finish(
         const SyncSessionReport(
           success: false,
@@ -522,8 +569,14 @@ class SyncEngine implements SyncServerHandler {
         peer: peer,
       );
     }
+    final round = _InitiatorRound();
+    // Taken before the first await: Dart's single isolate makes the insertion
+    // the whole lock, so a hello arriving during the dial either finds this
+    // round or finds nothing.
+    _initiatorRounds[peer.deviceId] = round;
     try {
       _setProgress(peer.deviceId, SyncSessionPhase.connecting);
+      if (round.cancelled) return _superseded(peer);
       // An explicit endpoint (a repair attempt) is the only candidate; the
       // remembered set is the default, best first.
       final candidates = (host != null && port != null)
@@ -546,28 +599,43 @@ class SyncEngine implements SyncServerHandler {
           peer: peer,
         );
       }
-      final ordered = await orderCandidates(
-        candidates,
-        localAddresses: localAddresses,
-      );
-      for (var i = 0; i < ordered.length; i++) {
-        final (candidateHost, candidatePort) = ordered[i];
+      final ordered = await _orderCandidates(peer, candidates, round);
+      if (round.cancelled) return _superseded(peer);
+      // One address is the probe's own degenerate case: there is nothing to
+      // choose between, so the dial is the probe and no measurement is needed
+      // to justify it.
+      final dialable = ordered.length == 1
+          ? ordered
+          : dialableCandidates(ordered, round.probed);
+      // The probe is the dial's parallel pre-step, and the dial spends it: only
+      // an address it proved (or was too loaded to judge) is worth a session.
+      // Proving nothing is the one case that still gets a single guess — the
+      // best-remembered address — because one measurement is not a verdict on
+      // the network, and walking every other address one at a time is what made
+      // a probe that had already run in parallel look serial.
+      final attempts = dialable.isNotEmpty
+          ? dialable
+          : ordered.take(1).toList();
+      for (final (candidateHost, candidatePort) in attempts) {
+        if (round.cancelled) return _superseded(peer);
         // The dial, the handshake and the hello in flight are one opaque beat
         // from the outside, and it is the one that can hang: naming the address
-        // — and which candidate of how many — is what turns "it is stuck" into
-        // "it is stuck on *this* address".
+        // is what turns "it is stuck" into "it is stuck on *this* address".
         _setProgress(
           peer.deviceId,
           SyncSessionPhase.connecting,
           address: formatHostPort(candidateHost, candidatePort),
-          attempt: i + 1,
-          attempts: ordered.length,
         );
         final report = await _syncWithPeerAt(
           peer,
           host: candidateHost,
           port: candidatePort,
+          round: round,
+          connectTimeout: dialTimeoutFor(
+            round.probed[(candidateHost, candidatePort)],
+          ),
         );
+        if (round.cancelled) return _superseded(peer);
         if (report != null) return report;
       }
       // Nothing answered: the peer is off, or it moved to a network this device
@@ -581,10 +649,61 @@ class SyncEngine implements SyncServerHandler {
         peer: peer,
       );
     } finally {
-      _initiatorRounds.remove(peer.deviceId);
+      if (identical(_initiatorRounds[peer.deviceId], round)) {
+        _initiatorRounds.remove(peer.deviceId);
+      }
       initiatorProgress.remove(peer.deviceId);
       onStateChanged();
     }
+  }
+
+  /// The report of a round that yielded to the peer's own session. It is not a
+  /// failure and not a refusal by the peer, so it is recorded nowhere: the
+  /// pair's real outcome arrives from the answered side, and a "busy" line on
+  /// the card for a session that is about to succeed would be a lie.
+  SyncSessionReport _superseded(SyncPeerRecord peer) {
+    debugPrint(
+      'sync: ${peer.deviceId} superseded by the peer\'s own session with us',
+    );
+    onStateChanged();
+    return const SyncSessionReport(
+      success: false,
+      summary: 'superseded',
+      refusal: SyncRefusalReason.superseded,
+    );
+  }
+
+  /// Orders [candidates] for the serial dial, from the freshest measurement
+  /// available.
+  ///
+  /// A snapshot the provider pushed recently is used as-is — that is the whole
+  /// point of probing on a timer, the session must not pay for it twice — and a
+  /// stale one is replaced by a probe round run here. Either way the order is
+  /// "answered, fastest first", and the same measurements set each candidate's
+  /// connect budget.
+  Future<List<(String, int)>> _orderCandidates(
+    SyncPeerRecord peer,
+    List<(String, int)> candidates,
+    _InitiatorRound round,
+  ) async {
+    if (candidates.length <= 1) return candidates;
+    final snapshot = endpointProbes[peer.deviceId];
+    final usable =
+        snapshot != null &&
+        DateTime.now().difference(snapshot.at) <= kSyncProbeFreshness;
+    if (usable) {
+      round.probed = {
+        for (final result in snapshot.results) result.endpoint: result,
+      };
+      return orderCandidatesByProbe(candidates, round.probed, localAddresses);
+    }
+    final results = await probePeerEndpoints(
+      endpoints: candidates,
+      probe: syncEndpointProbe(client, peer),
+    );
+    round.probed = {for (final result in results) result.endpoint: result};
+    onProbes?.call(peer.deviceId, results);
+    return orderCandidatesByProbe(candidates, round.probed, localAddresses);
   }
 
   /// Runs the session body against one fixed endpoint. Returns the report, or
@@ -600,17 +719,31 @@ class SyncEngine implements SyncServerHandler {
     SyncPeerRecord peer, {
     required String host,
     required int port,
+    required _InitiatorRound round,
+    Duration? connectTimeout,
   }) async {
     onStateChanged();
-    final session = client.openSession(peer, host: host, port: port);
+    if (round.cancelled) return null;
+    final session = client.openSession(
+      peer,
+      host: host,
+      port: port,
+      connectTimeout: connectTimeout,
+    );
+    // Published on the round so a hello arriving while this one is in flight
+    // can break it: a round that yields must not keep a socket, a request or a
+    // checkpoint write alive behind the session that superseded it.
+    round.session = session;
     try {
       final myManifest = await dataPlane.buildManifest();
+      if (round.cancelled) return null;
       final myClockUs = clockUs();
       // Read before the hello: the checkpoint carries what this device owes
       // itself from last session (applies it had to defer), and the peer needs
       // that in the hello to tell "never delivered" from "deleted here".
       final previous = await store.loadCheckpoint(peer.deviceId);
       final myEpoch = await store.readDataEpoch();
+      if (round.cancelled) return null;
       final SyncHelloOutcome hello;
       try {
         hello = await session.hello(
@@ -657,6 +790,12 @@ class SyncEngine implements SyncServerHandler {
         debugPrint('sync: ${peer.deviceId} timed out at $host:$port: $error');
         return null;
       }
+      // The peer answered *this* round, so it is a live session: from here on a
+      // hello from the peer is refused as busy instead of superseding us. The
+      // flag is set synchronously when the await resumes, so a hello handled
+      // after this point cannot race it.
+      round.answered = true;
+      if (round.cancelled) return null;
       if (hello.refusal != null) {
         return await _finish(
           SyncSessionReport(
@@ -807,6 +946,14 @@ class SyncEngine implements SyncServerHandler {
         business: outgoingBusiness,
       );
       _rememberPublished(outgoingAssets);
+      // Workspace content (slice 18). The walk and the publish happen here,
+      // just before the push, because the responder fetches whatever it decides
+      // it needs *inside* that beat: a file this device has not advertised and
+      // published by then cannot be served, and the responder would have to
+      // wait a whole session for it.
+      final myWorkspaceSnapshots = await dataPlane.workspaceSnapshots();
+      final myWorkspaceTables = dataPlane.workspaceTables(myWorkspaceSnapshots);
+      dataPlane.publishWorkspaceContent(peer.deviceId, myWorkspaceSnapshots);
       // Only the skill bodies this push actually carries advertise a hash.
       final sentSkillIds =
           outgoingEntityIds[SyncDataPlane.skillWire] ?? const <String>{};
@@ -820,6 +967,7 @@ class SyncEngine implements SyncServerHandler {
             for (final id in sentSkillIds)
               if (mySkillHashes[id] != null) id: mySkillHashes[id]!,
           },
+          workspaceFiles: myWorkspaceTables,
         ),
       );
       peerDeferred = ack.deferred;
@@ -954,6 +1102,30 @@ class SyncEngine implements SyncServerHandler {
       // exposes even when the record row itself did not move.
       if (pulled.landedSkillIds.isNotEmpty) await dataPlane.reloadBusiness();
 
+      // Workspace files (slice 18). The peer's table arrived with the fetch
+      // response, and the responder published its own files before answering
+      // it, so everything this device decides it needs is servable right now
+      // over the connection that is already open. This runs after the business
+      // apply on purpose: a workspace record that just arrived is what makes
+      // its folder this device's to populate.
+      final workspaceOutcome = await dataPlane.applyWorkspaceContent(
+        myDeviceId: identity.deviceId,
+        peerDeviceId: peer.deviceId,
+        mine: myWorkspaceSnapshots,
+        peerTables: incoming.workspaceFiles,
+        ledger: previous.workspaceFiles,
+        // A bulk-replaced peer's missing files prove nothing: they were
+        // dropped, not deleted, so they are re-offered rather than removed
+        // here.
+        allowDeletes: !peerReplaced,
+        fetch: (workspaceId, relPath, destination) =>
+            session.fetchWorkspaceFile(
+              workspaceId: workspaceId,
+              relPath: relPath,
+              destination: destination,
+            ),
+      );
+
       final deleted = <String>{};
       final failedDeletes = <String>{};
       for (final item in plan) {
@@ -1023,6 +1195,10 @@ class SyncEngine implements SyncServerHandler {
           preferences: nextBusiness.preferences,
           pendingBlobs: pulled.failed,
           skillHashes: nextSkillHashes,
+          // What both sides now demonstrably hold of every workspace's files.
+          // The content plan reads it next session, and it is the only thing
+          // that lets a missing file be read as a deletion.
+          workspaceFiles: workspaceOutcome.ledger,
           // What this device could not apply is owed to the peer as a report
           // on the next hello: it is the only way the peer can tell "never
           // delivered" from "deleted on the other device".
@@ -1047,6 +1223,7 @@ class SyncEngine implements SyncServerHandler {
           blobPull: pulled,
           skillConflicts: adoptions.conflicts.length,
           deferredSkills: deferredSkills.length,
+          workspace: workspaceOutcome,
           clockSkewMs: clockSkewMs,
         ),
         peer: peer,
@@ -1054,6 +1231,11 @@ class SyncEngine implements SyncServerHandler {
         port: port,
       );
     } catch (error, stack) {
+      // A round that yielded does not report: the socket it had is being torn
+      // down under it, so every exception from here on is the consequence of
+      // that decision, not evidence about the peer. Persisting one would put a
+      // failure on the card for a session that is about to succeed elsewhere.
+      if (round.cancelled) return null;
       // The machine summary stays for the logs; the card and the persisted
       // record get the classified reason instead, so no exception text (with
       // the peer's address) is ever rendered.
@@ -1070,6 +1252,7 @@ class SyncEngine implements SyncServerHandler {
       );
     } finally {
       session.close();
+      if (identical(round.session, session)) round.session = null;
       onStateChanged();
     }
   }
@@ -1124,12 +1307,23 @@ class SyncEngine implements SyncServerHandler {
     }
     // This device is initiating to the caller right now. Answering would give
     // the pair two sessions, each advancing the same checkpoint file from the
-    // copy it read, so the later write would discard the other's advance.
-    if (_initiatorRounds.contains(initiatorHello.deviceId)) {
-      return const SyncHelloRefusal(
-        SyncRefusalReason.busy,
-        'This device is already syncing with you.',
-      );
+    // copy it read, so the later write would discard the other's advance — but
+    // only once the local round is a *session*. A round that has not heard the
+    // peer's hello has proved nothing, while this hello just proved the peer
+    // reaches this device: on a LAN that only works one way, refusing it made
+    // both devices fail forever while the reachable direction sat idle (the
+    // local dial times out, and every retry collides with the same refusal).
+    // The arriving hello therefore wins over a round that is still dialing, and
+    // the local round is cancelled before this handler awaits anything.
+    final round = _initiatorRounds[initiatorHello.deviceId];
+    if (round != null) {
+      if (round.answered) {
+        return const SyncHelloRefusal(
+          SyncRefusalReason.busy,
+          'This device is already syncing with you.',
+        );
+      }
+      round.cancel();
     }
 
     final myManifest = await dataPlane.buildManifest();
@@ -1235,62 +1429,98 @@ class SyncEngine implements SyncServerHandler {
       for (final pending in session.checkpoint.pendingBlobs.values)
         pending.target: pending,
     };
-    session.blobPull = await _pullBlobsFrom(
+    // One reverse connection for the whole beat: the blobs the pushed rows
+    // reference and the workspace files the push advertised both have to come
+    // back over the initiator's own listener, and a peer that cannot be dialed
+    // back is one answer, not two failures to diagnose separately.
+    final reverse = await _openReverseConnection(
       peerDeviceId: peerDeviceId,
       host: session.initiatorHost,
       port: session.initiatorHello.listenPort,
-      wanted: wanted.values.toList(),
     );
-    session.deferredSkills = {
-      ...adoptions.deferred,
-      for (final id in adoptions.wantedSkillIds)
-        if (!session.blobPull.landedSkillIds.contains(id)) id,
-    };
-    session.skillConflicts = adoptions.conflicts;
+    // This batch's per-conversation outcomes, declared outside the connection's
+    // lifetime: the acknowledgement below is built after it closes, and what
+    // this beat reports must not depend on when a socket went away.
+    var outcomes = const <String, SyncSubtreeApplyOutcome>{};
+    try {
+      session.blobPull = reverse == null
+          ? _unreachableBlobPull(wanted.values.toList())
+          : await _pullBlobs(wanted.values.toList(), reverse);
+      session.deferredSkills = {
+        ...adoptions.deferred,
+        for (final id in adoptions.wantedSkillIds)
+          if (!session.blobPull.landedSkillIds.contains(id)) id,
+      };
+      session.skillConflicts = adoptions.conflicts;
 
-    final outcomes = await dataPlane.applySubtrees(
-      batch.subtrees,
-      myDeviceId: identity.deviceId,
-      peerDeviceId: peerDeviceId,
-      checkpointRowsByConversation: _rowsOf(
-        session.checkpoint,
-        // A replaced caller's absences prove nothing about this device's rows.
-        session.peerReplaced
-            ? const <String>{}
-            : {
-                for (final subtree in batch.subtrees)
-                  subtree.conversation['id'] as String,
-              },
-        // Same protection as on the initiator's side: a conversation the
-        // caller said it could not apply proves nothing about the caller's
-        // rows.
-        unconfirmed: session.initiatorHello.unappliedConversations.toSet(),
-      ),
-    );
-    session.outcomes.addAll(outcomes);
-    // Same rule as the initiator's side: the advertisement (not the pull
-    // outcome) owns the reference set, scoped to revisions this apply wrote.
-    await dataPlane.registerLandedAssets(
-      subtrees: batch.subtrees,
-      outcomes: outcomes,
-      advertisedByUri: {for (final entry in batch.assets) entry.key: entry},
-    );
-    // Business rows arrive in the same push; the responder's own plan already
-    // decided what it needs from the initiator, so this is purely an apply.
-    // One push per session, so the payload is kept as-is for the checkpoint
-    // and the report.
-    final applicable = dataPlane.withoutSkillRows(
-      batch.business,
-      session.deferredSkills,
-    );
-    session.receivedBusiness = applicable;
-    session.businessOutcome = await dataPlane.applyBusiness(
-      applicable,
-      myDeviceId: identity.deviceId,
-      peerDeviceId: peerDeviceId,
-    );
-    if (session.blobPull.landedSkillIds.isNotEmpty) {
-      await dataPlane.reloadBusiness();
+      outcomes = await dataPlane.applySubtrees(
+        batch.subtrees,
+        myDeviceId: identity.deviceId,
+        peerDeviceId: peerDeviceId,
+        checkpointRowsByConversation: _rowsOf(
+          session.checkpoint,
+          // A replaced caller's absences prove nothing about this device's rows.
+          session.peerReplaced
+              ? const <String>{}
+              : {
+                  for (final subtree in batch.subtrees)
+                    subtree.conversation['id'] as String,
+                },
+          // Same protection as on the initiator's side: a conversation the
+          // caller said it could not apply proves nothing about the caller's
+          // rows.
+          unconfirmed: session.initiatorHello.unappliedConversations.toSet(),
+        ),
+      );
+      session.outcomes.addAll(outcomes);
+      // Same rule as the initiator's side: the advertisement (not the pull
+      // outcome) owns the reference set, scoped to revisions this apply wrote.
+      await dataPlane.registerLandedAssets(
+        subtrees: batch.subtrees,
+        outcomes: outcomes,
+        advertisedByUri: {for (final entry in batch.assets) entry.key: entry},
+      );
+      // Business rows arrive in the same push; the responder's own plan already
+      // decided what it needs from the initiator, so this is purely an apply.
+      // One push per session, so the payload is kept as-is for the checkpoint
+      // and the report.
+      final applicable = dataPlane.withoutSkillRows(
+        batch.business,
+        session.deferredSkills,
+      );
+      session.receivedBusiness = applicable;
+      session.businessOutcome = await dataPlane.applyBusiness(
+        applicable,
+        myDeviceId: identity.deviceId,
+        peerDeviceId: peerDeviceId,
+      );
+      if (session.blobPull.landedSkillIds.isNotEmpty) {
+        await dataPlane.reloadBusiness();
+      }
+
+      // Workspace files (slice 18), this side of the push beat. The walk runs
+      // after the business apply because a workspace record that just arrived
+      // is what makes its folder this device's to populate — and its index is
+      // then empty, which is exactly what tells the plan to fetch everything
+      // the caller advertised.
+      final myWorkspaceSnapshots = await dataPlane.workspaceSnapshots();
+      session.workspaceOutcome = await dataPlane.applyWorkspaceContent(
+        myDeviceId: identity.deviceId,
+        peerDeviceId: peerDeviceId,
+        mine: myWorkspaceSnapshots,
+        peerTables: batch.workspaceFiles,
+        ledger: session.checkpoint.workspaceFiles,
+        allowDeletes: !session.peerReplaced,
+        fetch: reverse == null
+            ? null
+            : (workspaceId, relPath, destination) => reverse.fetchWorkspaceFile(
+                workspaceId: workspaceId,
+                relPath: relPath,
+                destination: destination,
+              ),
+      );
+    } finally {
+      reverse?.close();
     }
     // The acknowledgement the initiator's checkpoint advance needs: which
     // conversations were accepted but not applied, whether the business
@@ -1314,38 +1544,41 @@ class SyncEngine implements SyncServerHandler {
     );
   }
 
-  /// Pulls blobs from the initiator over its own listener, using the pairing
-  /// this device already holds (pinned certificate + per-peer secret). Returns
-  /// an all-failed outcome when no endpoint is known — the session continues
-  /// and the entries stay pending.
-  Future<_BlobPullOutcome> _pullBlobsFrom({
+  /// Opens the connection back to the initiator over its own listener — the
+  /// only route to a peer that dialed this device — or null when there is
+  /// nothing to dial (no address was advertised, or the peer is not paired
+  /// here any more).
+  ///
+  /// One opener for the whole beat on purpose: the blobs the pushed rows
+  /// reference and the workspace files the push advertised are fetched in the
+  /// same stretch of time, and opening two sockets to answer "is the peer
+  /// dialable back?" would pay the same failure twice.
+  Future<SyncClientSession?> _openReverseConnection({
     required String peerDeviceId,
     required String? host,
     required int? port,
-    required List<SyncBlobEntry> wanted,
   }) async {
-    if (wanted.isEmpty) return _BlobPullOutcome();
+    if (host == null || port == null) return null;
     final peer = await store.findPeer(peerDeviceId);
-    if (peer == null || host == null || port == null) {
-      final outcome = _BlobPullOutcome();
-      for (final entry in wanted) {
-        outcome.failed[entry.target] = entry;
-      }
-      return outcome;
-    }
-    final reverse = client.openSession(peer, host: host, port: port);
+    if (peer == null) return null;
     try {
-      return await _pullBlobs(wanted, reverse);
+      return client.openSession(peer, host: host, port: port);
     } catch (error) {
-      debugPrint('sync: reverse blob pull failed: $error');
-      final outcome = _BlobPullOutcome();
-      for (final entry in wanted) {
-        outcome.failed[entry.target] = entry;
-      }
-      return outcome;
-    } finally {
-      reverse.close();
+      debugPrint('sync: reverse connection failed: $error');
+      return null;
     }
+  }
+
+  /// Everything a peer owes this device when it cannot be dialed back: every
+  /// wanted blob stays pending (the rows still apply — a conversation is still
+  /// a conversation without its picture), and no workspace file can move,
+  /// which the content plan records by keeping every ledger entry.
+  _BlobPullOutcome _unreachableBlobPull(List<SyncBlobEntry> wanted) {
+    final outcome = _BlobPullOutcome();
+    for (final entry in wanted) {
+      outcome.failed[entry.target] = entry;
+    }
+    return outcome;
   }
 
   @override
@@ -1463,6 +1696,13 @@ class SyncEngine implements SyncServerHandler {
         if (row['id'] is String) row['id'] as String,
     };
     final mySkillHashes = await dataPlane.skillDirHashes();
+    // Workspace content, this side of the fetch beat (slice 18). The walk is
+    // fresh here — after the push beat's own transfers landed — because this
+    // table is what tells the initiator what this device now holds: a stale one
+    // would leave its ledger permanently behind, and it would re-offer the same
+    // files every session.
+    final myWorkspaceSnapshots = await dataPlane.workspaceSnapshots();
+    dataPlane.publishWorkspaceContent(peerDeviceId, myWorkspaceSnapshots);
     final responseBatch = SyncDeltaBatch(
       outgoing,
       business: businessRead.payload,
@@ -1471,6 +1711,7 @@ class SyncEngine implements SyncServerHandler {
         for (final id in sentSkillIds)
           if (mySkillHashes[id] != null) id: mySkillHashes[id]!,
       },
+      workspaceFiles: dataPlane.workspaceTables(myWorkspaceSnapshots),
     );
     await store.saveCheckpoint(
       peerDeviceId,
@@ -1480,6 +1721,11 @@ class SyncEngine implements SyncServerHandler {
         preferences: nextBusiness.preferences,
         pendingBlobs: session.blobPull.failed,
         skillHashes: skillHashes,
+        // What the push beat moved, and the ledger it produced. The fetch
+        // response above advertises this device's files but transfers them on
+        // the initiator's own request, so nothing in this beat advances the
+        // ledger: both sides' entries are advanced by the side that *fetched*.
+        workspaceFiles: session.workspaceOutcome?.ledger ?? const {},
         // The responder answers the initiator with the same report on its next
         // hello: an apply it deferred here must not read as a deletion there.
         unappliedConversations: [
@@ -1503,6 +1749,7 @@ class SyncEngine implements SyncServerHandler {
       blobPull: session.blobPull,
       skillConflicts: session.skillConflicts.length,
       deferredSkills: session.deferredSkills.length,
+      workspace: session.workspaceOutcome,
       clockSkewMs: session.clockSkewMs,
     );
     if (peer != null) {
@@ -2158,6 +2405,24 @@ class SyncEngine implements SyncServerHandler {
     }
   }
 
+  @override
+  Future<File?> handleFetchWorkspaceFile(
+    String peerDeviceId,
+    String workspaceId,
+    String relPath,
+  ) async {
+    final content = dataPlane.workspaceContent;
+    // No content support in this build (conversation-only tests): the route
+    // answers 404 and the caller counts an unapplied file, which is exactly
+    // what "this device cannot serve it" means.
+    if (content == null) return null;
+    return content.serve(
+      peerDeviceId: peerDeviceId,
+      workspaceId: workspaceId,
+      relPath: relPath,
+    );
+  }
+
   SyncSessionReport _report({
     required int sent,
     required int received,
@@ -2170,6 +2435,7 @@ class SyncEngine implements SyncServerHandler {
     _BlobPullOutcome? blobPull,
     int skillConflicts = 0,
     int deferredSkills = 0,
+    WorkspaceContentOutcome? workspace,
     int? clockSkewMs,
   }) {
     var upserted = 0;
@@ -2192,6 +2458,8 @@ class SyncEngine implements SyncServerHandler {
     final blobsMissing = blobPull?.failed.length ?? 0;
     final entityRowsLost = appliedBusiness?.entityRowsLost ?? 0;
     final preferencesLost = appliedBusiness?.preferencesLost ?? 0;
+    final workspaceFiles = workspace?.filesLanded ?? 0;
+    final workspaceBytes = workspace?.bytesLanded ?? 0;
     final skewMinutes = clockSkewMs == null
         ? null
         : (clockSkewMs.abs() / 60000).round();
@@ -2205,6 +2473,16 @@ class SyncEngine implements SyncServerHandler {
       if (preferenceRows > 0) 'prefs $preferenceRows',
       if (blobsMoved > 0) 'blobs $blobsMoved ($blobBytes B)',
       if (skillsUpdated > 0) 'skills $skillsUpdated',
+      if (workspaceFiles > 0)
+        'workspace files $workspaceFiles ($workspaceBytes B)',
+      if ((workspace?.filesRemoved ?? 0) > 0)
+        'workspace files removed ${workspace!.filesRemoved}',
+      if ((workspace?.filesReplaced ?? 0) > 0)
+        'workspace files replaced ${workspace!.filesReplaced}',
+      if ((workspace?.filesMissing ?? 0) > 0)
+        'workspace files missing ${workspace!.filesMissing}',
+      if ((workspace?.workspacesOmitted ?? 0) > 0)
+        'workspaces omitted ${workspace!.workspacesOmitted}',
       if (skillConflicts > 0) '$skillConflicts skill conflicts',
       if (blobsMissing > 0) '$blobsMissing blobs missing',
       if (deferredSkills > 0) 'deferred $deferredSkills skills',
@@ -2234,6 +2512,12 @@ class SyncEngine implements SyncServerHandler {
       blobsMissing: blobsMissing,
       entityRowsLost: entityRowsLost,
       preferencesLost: preferencesLost,
+      workspaceFiles: workspaceFiles,
+      workspaceBytes: workspaceBytes,
+      workspaceFilesRemoved: workspace?.filesRemoved ?? 0,
+      workspaceConflicts: workspace?.filesReplaced ?? 0,
+      workspaceFilesMissing: workspace?.filesMissing ?? 0,
+      workspacesOmitted: workspace?.workspacesOmitted ?? 0,
       clockSkewMs: clockSkewMs,
     );
   }
@@ -2274,6 +2558,10 @@ class SyncEngine implements SyncServerHandler {
     String? host,
     int? port,
   }) async {
+    // A superseded round records nothing: it is not the peer's verdict, it did
+    // not run, and the session that did run reports for the pair. Writing it
+    // would leave the card claiming a failed attempt over a live one.
+    if (report.refusal == SyncRefusalReason.superseded) return report;
     lastReport = report;
     if (peer != null) {
       if (report.success) peer.lastSyncedAt = DateTime.now();
@@ -2401,6 +2689,13 @@ class _ResponderSession {
   /// Blobs this responder pulled from the initiator in this session.
   _BlobPullOutcome blobPull = _BlobPullOutcome();
 
+  /// Workspace content this responder moved in this session, and the file
+  /// ledger that came out of it. Its snapshot is re-walked at the fetch beat:
+  /// the response table has to describe the files this side holds *now*,
+  /// including the ones that landed a moment ago, or the initiator would never
+  /// learn its transfer arrived.
+  WorkspaceContentOutcome? workspaceOutcome;
+
   /// Skill records the push carried whose body could not be verified here.
   Set<String> deferredSkills = {};
 
@@ -2425,4 +2720,43 @@ class _SkillAdoptionPlan {
   final Set<String> wantedSkillIds = {};
   final Set<String> deferred = {};
   final Set<String> conflicts = {};
+}
+
+/// One initiator round, and the two facts that decide whether an arriving hello
+/// may supersede it.
+///
+/// [answered] turns true the moment the peer's hello response lands: from then
+/// on this round is a live session and the pair must not get a second one, so a
+/// hello from the peer is refused as busy. Before that the round has proved
+/// nothing — it may be stuck on an address that never answers, which is exactly
+/// the one-way LAN case — so the peer's hello, which *has* proved the peer
+/// reaches this device, takes over.
+class _InitiatorRound {
+  bool answered = false;
+  bool cancelled = false;
+
+  /// The session's client, published so [cancel] can break an await that is
+  /// waiting on a peer that may never answer. Null between candidates.
+  SyncClientSession? session;
+
+  /// The probe measurements the dial order was built from, kept so each
+  /// candidate's connect budget can come from the round trip it just measured.
+  Map<(String, int), EndpointProbeResult> probed = const {};
+
+  void cancel() {
+    cancelled = true;
+    final open = session;
+    session = null;
+    open?.close();
+  }
+}
+
+/// One peer's endpoint probes as last measured, with the time they landed: a
+/// snapshot is what the dial reuses instead of probing again, and its age is
+/// what says whether that reuse is still honest.
+class PeerProbeSnapshot {
+  const PeerProbeSnapshot(this.results, this.at);
+
+  final List<EndpointProbeResult> results;
+  final DateTime at;
 }

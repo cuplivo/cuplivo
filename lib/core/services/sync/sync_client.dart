@@ -36,6 +36,11 @@ const Duration kSyncHelloDeadline = Duration(seconds: 60);
 const Duration kSyncDataDeadline = Duration(minutes: 20);
 const Duration kSyncBlobDeadline = Duration(minutes: 15);
 
+/// Budget for one liveness probe: a request the peer answers with a bare
+/// status line. A LAN host answers in milliseconds, so anything past this is
+/// gone rather than slow.
+const Duration kSyncPingDeadline = Duration(seconds: 5);
+
 /// Budget for the pairing round: one control request against a device the user
 /// is standing in front of, so the provider's `unreachable` wording stays
 /// reachable instead of an `await` that never settles.
@@ -163,21 +168,24 @@ class SyncClient {
     Duration helloDeadline = kSyncHelloDeadline,
     Duration dataDeadline = kSyncDataDeadline,
     Duration blobDeadline = kSyncBlobDeadline,
+    Duration pingDeadline = kSyncPingDeadline,
+    Duration? connectTimeout,
   }) {
     return SyncClientSession(
-      _httpForPeer(peer),
+      _httpForPeer(peer, connectTimeout: connectTimeout),
       'https://${uriHost(host)}:$port',
       deviceId: identity.deviceId,
       token: peer.secret,
       helloDeadline: helloDeadline,
       dataDeadline: dataDeadline,
       blobDeadline: blobDeadline,
+      pingDeadline: pingDeadline,
     );
   }
 
-  HttpClient _httpForPeer(SyncPeerRecord peer) {
+  HttpClient _httpForPeer(SyncPeerRecord peer, {Duration? connectTimeout}) {
     final client = SyncClient.directClient(identity.buildContext())
-      ..connectionTimeout = kSyncDialConnectTimeout
+      ..connectionTimeout = connectTimeout ?? kSyncDialConnectTimeout
       // Pinning the listener's certificate is the whole server-side
       // authentication: nothing else can answer as this peer.
       ..badCertificateCallback = (cert, _, _) =>
@@ -285,6 +293,7 @@ class SyncClientSession {
     this.helloDeadline = kSyncHelloDeadline,
     this.dataDeadline = kSyncDataDeadline,
     this.blobDeadline = kSyncBlobDeadline,
+    this.pingDeadline = kSyncPingDeadline,
   }) : // Public names omit the private-field prefix (ChatService convention).
        // ignore: prefer_initializing_formals
        _deviceId = deviceId,
@@ -304,6 +313,52 @@ class SyncClientSession {
 
   /// Budget for one blob: a file up to the import cap, or a skill's zip.
   final Duration blobDeadline;
+
+  /// Budget for one liveness probe.
+  final Duration pingDeadline;
+
+  /// One authenticated liveness probe: a request answered with a bare 204.
+  ///
+  /// The value is the *answer*, not the body: success means the address
+  /// answered **and** the peer still recognises this device's pairing secret,
+  /// which is the pair of facts a sync will need. Idempotent — the listener
+  /// writes nothing — so the caller may repeat it as often as it likes, and
+  /// the caller measures the elapsed time itself.
+  ///
+  /// A 503 (`ping_busy`) is not a verdict: the listener is saturated, so the
+  /// answer says nothing about the peer. It is reported as its own code so the
+  /// caller keeps whatever it already knew instead of painting the peer
+  /// offline.
+  Future<void> ping() async {
+    final request = await _client.postUrl(
+      Uri.parse('$_baseUrl${SyncServer.pingPath}'),
+    );
+    _authenticate(request);
+    request.contentLength = 0;
+    final response = await request.close().timeout(pingDeadline);
+    await response.drain<void>().timeout(pingDeadline);
+    switch (response.statusCode) {
+      case HttpStatus.noContent:
+        return;
+      case HttpStatus.serviceUnavailable:
+        throw SyncClientException(
+          'ping_busy',
+          statusCode: HttpStatus.serviceUnavailable,
+        );
+      case HttpStatus.unauthorized:
+        // This device's pairing is gone over there; the peer answered, which
+        // is still an answer.
+        throw SyncClientException(
+          'not_paired',
+          statusCode: HttpStatus.unauthorized,
+        );
+      default:
+        throw SyncClientException(
+          'ping_failed',
+          statusCode: response.statusCode,
+        );
+    }
+  }
 
   Future<SyncHelloOutcome> hello(SyncHello mine) async {
     final response = await _post(
@@ -424,6 +479,50 @@ class SyncClientSession {
     try {
       if (await file.exists()) await file.delete();
     } catch (_) {}
+  }
+
+  /// Streams one workspace file into [destination] (slice 18).
+  ///
+  /// [workspaceId] and [relPath] name a file the peer advertised in its table
+  /// for this session; anything else is refused there. There is no content hash
+  /// to verify against — a workspace file's identity is its size and mtime, and
+  /// the caller checks the size after landing (a truncated body throws here,
+  /// because the response carries its length).
+  Future<int> fetchWorkspaceFile({
+    required String workspaceId,
+    required String relPath,
+    required File destination,
+  }) async {
+    final request = await _client.postUrl(
+      Uri.parse('$_baseUrl${SyncServer.workspaceFilePath}'),
+    );
+    _authenticate(request);
+    SyncClient._writeJson(request, {'ws': workspaceId, 'path': relPath});
+    final response = await request.close().timeout(blobDeadline);
+    if (response.statusCode != HttpStatus.ok) {
+      await response.drain<void>();
+      throw SyncClientException(
+        'workspace_file_unavailable',
+        statusCode: response.statusCode,
+      );
+    }
+    var received = 0;
+    final sink = destination.openWrite();
+    try {
+      // Inactivity, not total size, is what a transfer must not wait out
+      // forever: a stalled stream is a peer that went away mid-file.
+      await for (final chunk in response.timeout(blobDeadline)) {
+        received += chunk.length;
+        sink.add(chunk);
+      }
+      await sink.flush();
+      await sink.close();
+    } catch (_) {
+      await sink.close();
+      await _deleteQuietly(destination);
+      rethrow;
+    }
+    return received;
   }
 
   void close() => _client.close(force: true);

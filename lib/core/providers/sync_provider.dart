@@ -13,9 +13,9 @@ import '../services/app_exit_flush.dart';
 import '../services/chat/chat_service.dart';
 import '../services/skills/skill_directory_sync.dart';
 import '../services/sync/business_state_reloader.dart';
-import '../services/sync/sync_candidate_prober.dart';
 import '../services/sync/sync_client.dart';
 import '../services/sync/sync_data_plane.dart';
+import '../services/sync/sync_endpoint_prober.dart';
 import '../services/sync/sync_engine.dart';
 import '../services/sync/sync_identity.dart';
 import '../services/sync/sync_local_addresses.dart';
@@ -23,6 +23,7 @@ import '../services/sync/sync_models.dart';
 import '../services/sync/sync_pair_qr.dart';
 import '../services/sync/sync_store.dart';
 import '../services/sync/windows_firewall.dart';
+import '../services/sync/workspace_content_sync.dart';
 
 /// Outcome of a pairing attempt, with a stable error code the UI maps to a
 /// localized message (`invalid_pin`, `unreachable`, `no_certificate`,
@@ -64,18 +65,14 @@ class SyncPairQrOutcome {
 /// is never throttled.
 const autoSyncInterval = Duration(seconds: 60);
 
-/// How often the online dots re-probe while the app is visible. A bare TCP
-/// connect per endpoint — the same probe a dial already pays — so half the
-/// sync cadence costs almost nothing and keeps the dots honest.
-const presenceRefreshInterval = Duration(seconds: 30);
-
-/// How long a session's verdict about reaching a peer outranks the probe.
+/// How often the online dots re-probe while the app is visible.
 ///
-/// Long enough to survive the probe cycle that immediately follows a failed
-/// session (the probe would otherwise re-green an address that accepts a
-/// connection but cannot complete a session), short enough that a peer which
-/// really came back is not held gray by a verdict from minutes ago.
-const sessionVerdictTtl = Duration(minutes: 1);
+/// An authenticated probe is one request the peer answers with a bare status
+/// line, and the figures it produces — a per-endpoint latency — are worth being
+/// fresh: ten seconds is a pace a person can watch. The steady-state cost stays
+/// at the head endpoints; the silent tail is only walked on a full round (see
+/// `selectProbeTargets`).
+const presenceRefreshInterval = Duration(seconds: 10);
 
 /// Where a peer's current online/offline answer came from.
 enum PresenceSource {
@@ -83,15 +80,12 @@ enum PresenceSource {
   /// The card draws the gray dot, which is the honest default.
   unknown,
 
-  /// A recent session exchanged bytes with the peer (or was refused by it —
-  /// a refusal *is* an answer).
-  sessionAnswered,
+  /// A session — this device's or the peer's — exchanged bytes with the peer
+  /// (a refusal counts: it is an answer).
+  session,
 
-  /// A recent session found no address that would talk.
-  sessionSilent,
-
-  /// No fresh session verdict; the last probe reached one of the remembered
-  /// addresses.
+  /// No session evidence since the last probe; the last authenticated probe
+  /// reached one of the remembered endpoints.
   probe,
 }
 
@@ -104,6 +98,61 @@ class SyncArrival {
 
   final String peerName;
   final SyncSessionReport report;
+}
+
+/// One managed workspace as the panel's workspace section shows it.
+///
+/// Assembled here rather than in the widget because two very different costs
+/// meet in this row: the workspace list is a database read, and the file count
+/// is a stat walk of a folder that may hold thousands of files. The provider
+/// does the walk once per refresh, off the UI isolate, and the panel renders
+/// whatever landed.
+class SyncWorkspaceSummary {
+  const SyncWorkspaceSummary({
+    required this.id,
+    required this.name,
+    required this.fileCount,
+    required this.totalBytes,
+    required this.truncated,
+    required this.enabled,
+    this.unreadable = false,
+  });
+
+  final String id;
+  final String name;
+
+  /// How many files ride, or — when [truncated] — how many the walk had seen
+  /// when it passed the cap. A lower bound either way, which is why the panel
+  /// writes it with a plus.
+  final int fileCount;
+  final int totalBytes;
+
+  /// Over the file or byte cap: this workspace's content is not synced at all,
+  /// and its figures are lower bounds.
+  final bool truncated;
+
+  /// Part of the folder could not be read, so this device is not sharing it
+  /// this session: a table missing those files would tell the peer to delete
+  /// them (see `WorkspaceContentIndex.incomplete`).
+  final bool unreadable;
+
+  /// The device-local switch. Off means this device neither uploads nor
+  /// downloads this workspace's files; its record still syncs, because a row
+  /// this device stopped publishing would be read by the peer as a deletion.
+  final bool enabled;
+
+  /// Whether the section counts this workspace as one that is syncing content.
+  bool get syncing => enabled && !truncated && !unreadable;
+
+  SyncWorkspaceSummary copyWith({bool? enabled}) => SyncWorkspaceSummary(
+    id: id,
+    name: name,
+    fileCount: fileCount,
+    totalBytes: totalBytes,
+    truncated: truncated,
+    unreadable: unreadable,
+    enabled: enabled ?? this.enabled,
+  );
 }
 
 /// Whether a session changed what this device shows: anything that arrived
@@ -123,7 +172,11 @@ bool syncBroughtDataHere(SyncSessionReport report) {
       report.entityRowsReceived > 0 ||
       report.preferenceRowsReceived > 0 ||
       report.blobsMoved > 0 ||
-      report.skillsUpdated > 0;
+      report.skillsUpdated > 0 ||
+      // Workspace files are data this device now shows in a file manager, and a
+      // file the peer deleted is the same news in reverse.
+      report.workspaceFiles > 0 ||
+      report.workspaceFilesRemoved > 0;
 }
 
 /// The auto-round cadence decision, pure so tests can cover it: run when
@@ -150,7 +203,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     required BusinessStateReloader reloader,
     required Future<Directory> Function() syncDirectory,
     Future<List<LanAddress>> Function()? addressSource,
-    Future<bool> Function(List<(String, int)> endpoints)? presenceProbe,
+    EndpointProbeFn? endpointProbe,
   }) : // Public injection names intentionally omit the private-field prefix
        // (same convention as ChatService's own dependencies).
        // ignore: prefer_initializing_formals
@@ -168,7 +221,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
        // ignore: prefer_initializing_formals
        _addressSource = addressSource,
        // ignore: prefer_initializing_formals
-       _presenceProbe = presenceProbe;
+       _endpointProbe = endpointProbe;
 
   final ChatService _chatService;
   final ChatDatabaseRepository _repository;
@@ -183,12 +236,17 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   final Future<List<LanAddress>> Function()? _addressSource;
 
   /// Where [refreshPresence] probes endpoints from. Null means the real
-  /// [anyEndpointReachable]; a test injects a verdict so a peer can go on- and
-  /// offline without a socket.
-  final Future<bool> Function(List<(String, int)> endpoints)? _presenceProbe;
+  /// authenticated probe against the peer's listener; a test injects per-endpoint
+  /// verdicts so a peer can go on- and offline without a socket.
+  final EndpointProbeFn? _endpointProbe;
 
   SyncEngine? _engine;
   SyncStore? _store;
+
+  /// The workspace content plane, once the engine owns one: the panel's rows
+  /// come from here (the index walk and the device-local switch), and the
+  /// engine reads the same plane during a session.
+  WorkspaceContentSync? _workspaceContent;
   Future<void>? _startFuture;
   bool _stopRequested = false;
   bool _disposed = false;
@@ -219,29 +277,37 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   final Set<String> busyDeviceIds = {};
   SyncSessionReport? lastReport;
 
-  /// Peers the current evidence says are online: a probe that reached a
-  /// remembered endpoint, a session verdict that got an answer, or a running
-  /// session past its dial. Absent means offline-or-not-yet-checked; the card
-  /// renders both as a gray dot until evidence lands. Never fed by an attempt
-  /// alone — a dial in flight proves nothing.
+  /// Peers the current evidence says are online: an authenticated probe that
+  /// reached a remembered endpoint, or a session in flight past its dial.
+  /// Absent means offline-or-not-yet-checked; the card renders both as a gray
+  /// dot until evidence lands. Never fed by an attempt alone — a dial in flight
+  /// proves nothing.
   final Set<String> onlineDeviceIds = {};
 
   /// Peers whose probe failed most recently. A single miss does not clear the
-  /// dot: a plain connect can lose a race against a Wi-Fi that is waking up, a
-  /// peer that is busy answering, or a probe that fired while the network was
-  /// moving — and a green dot that flickers gray every half minute is worse
-  /// than one that is half a minute stale. Two misses in a row mean it.
+  /// dot: a probe can lose a race against a Wi-Fi that is waking up, or fire
+  /// while the network is moving — and a green dot that flickers gray every ten
+  /// seconds is worse than one that is a tick stale. Two misses in a row mean
+  /// it.
   final Set<String> _probeMisses = {};
 
-  /// What the last *session* with a peer proved about reaching it, and when.
-  ///
-  /// A session is the strongest evidence available: it either exchanged bytes
-  /// with the peer (it answered) or found no address that would talk. That is a
-  /// stronger claim than the probe's bare TCP connect — an address behind a NAT
-  /// port-forward can accept a connection and never complete TLS — so it wins
-  /// over the probe for [sessionVerdictTtl], which keeps the moment of the
-  /// verdict from outliving the peer's actual state.
-  final Map<String, ({bool answered, DateTime at})> _sessionVerdicts = {};
+  /// The last authenticated probe answer per endpoint, per peer. This is what
+  /// the cards draw their latency from, and what the dial orders candidates by
+  /// when it is fresh (the engine reads the same figures through
+  /// [SyncEngine.endpointProbes]).
+  final Map<String, Map<(String, int), EndpointProbeResult>> _probeResults = {};
+
+  /// Peers a session has answered for. The dot prefers "a session talked to
+  /// it" over "a probe answered", because that is the stronger statement — and
+  /// the panel's tooltip says which one it is reporting.
+  final Set<String> _sessionEvidence = {};
+
+  /// The next tick walks every endpoint instead of the head ones. Set by every
+  /// moment that changes what this device knows — start, resume, a panel
+  /// opening, a finished session, a completed pairing — so a peer that moved to
+  /// an address the warm set never proved is found at once, not after the tail
+  /// is tried for some other reason.
+  bool _fullProbePending = true;
 
   Timer? _presenceTimer;
   bool _presenceRunning = false;
@@ -263,8 +329,25 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// mount: the desktop pane stays mounted in the home page's `IndexedStack`
   /// after the user leaves the settings tab. The counter (not a bool) is what
   /// keeps an odd dispose order from silencing a live panel.
+  /// The panel's workspace rows, or null before this device has read them.
+  ///
+  /// Null and empty mean different things: null is "nothing has been walked
+  /// yet" (the section stays out of the panel rather than showing a row it
+  /// cannot fill), while an empty list is "this device has no managed
+  /// workspaces" — the same fact, once known.
+  List<SyncWorkspaceSummary>? workspaceSummaries;
+
+  bool _workspaceRefreshRunning = false;
+
   void panelOpened() {
     _panelViewers++;
+    // The user is looking at the cards: this is the moment to show every
+    // endpoint's figure, including the tail's, rather than the head's only.
+    _fullProbePending = true;
+    unawaited(refreshPresence());
+    // And the moment to count the workspaces: the walk is a stat scan whose
+    // result is only ever read by this panel.
+    unawaited(refreshWorkspaceContent());
   }
 
   void panelClosed() {
@@ -278,28 +361,24 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       _engine?.initiatorProgress[deviceId];
 
   /// Whether the card should draw the green dot.
-  ///
-  /// A fresh session verdict outranks the probe — see [_sessionVerdicts].
-  bool isPeerOnline(String deviceId) => switch (peerPresenceSource(deviceId)) {
-    PresenceSource.sessionAnswered || PresenceSource.probe => true,
-    PresenceSource.sessionSilent || PresenceSource.unknown => false,
-  };
+  bool isPeerOnline(String deviceId) => onlineDeviceIds.contains(deviceId);
 
   /// What the dot's answer is based on, so the card can say *why* — a gray dot
-  /// from a session that could not talk is a different statement from a gray
-  /// dot the probe could not confirm.
+  /// beside nothing at all is a different statement from a gray dot the last
+  /// session could not talk through.
   PresenceSource peerPresenceSource(String deviceId) {
-    final verdict = _sessionVerdicts[deviceId];
-    if (verdict != null &&
-        DateTime.now().difference(verdict.at) < sessionVerdictTtl) {
-      return verdict.answered
-          ? PresenceSource.sessionAnswered
-          : PresenceSource.sessionSilent;
-    }
+    if (_sessionEvidence.contains(deviceId)) return PresenceSource.session;
     return onlineDeviceIds.contains(deviceId)
         ? PresenceSource.probe
         : PresenceSource.unknown;
   }
+
+  /// The last probe answer for one endpoint, or null when nothing probed it in
+  /// this launch. The card's latency chip reads this; the peer record's
+  /// persisted figure is the fallback for a panel opened before the first
+  /// round lands.
+  EndpointProbeResult? probeResultFor(String deviceId, String host, int port) =>
+      _probeResults[deviceId]?[(host, port)];
 
   /// Windows only: the inbound rule could not be added without elevation, so
   /// the panel offers the one-click UAC button.
@@ -357,6 +436,11 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       );
       if (_stopRequested) return;
       final store = SyncStore(directory);
+      final workspaceContent = WorkspaceContentSync(
+        businessRepository: _businessRepository,
+        store: store,
+        resolveRoot: AppDirectories.workspaceFilesDir,
+      );
       final engine = SyncEngine(
         identity: identity,
         store: store,
@@ -371,6 +455,9 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
           skillDirectories: SkillDirectorySync(
             await AppDirectories.getSkillsDirectory(),
           ),
+          // Managed workspace folders ride as files (slice 18); the root
+          // resolver is the same one the workspace provider hands the tools.
+          workspaceContent: workspaceContent,
         ),
         onStateChanged: _onEngineStateChanged,
         // A beat can mark a peer online (see [_onEngineProgressChanged]); a
@@ -381,9 +468,14 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         // started, so its arrival reaches the user only if the engine hands
         // it over (see [_onEngineResponderSession]).
         onResponderSession: _onEngineResponderSession,
+        // A session whose probe snapshot had gone stale ran its own round; the
+        // figures belong on the cards like any tick's, and become the snapshot
+        // the next session reuses.
+        onProbes: _onEngineProbes,
       );
       _store = store;
       _engine = engine;
+      _workspaceContent = workspaceContent;
       final boundPort = await engine.start();
       port = boundPort;
       started = true;
@@ -411,6 +503,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> stop() async {
     _stopRequested = true;
     _stopPresenceTimer();
+    _cancelBusyRetries();
     final engine = _engine;
     if (engine == null) return;
     final boundPort = port;
@@ -552,7 +645,14 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// retried by the next trigger, so fire-and-forget loses nothing.
   void _kickInitialSync(SyncPeerRecord peer) {
     if (peer.endpoints.isEmpty) return;
-    unawaited(syncNow(peer.deviceId));
+    // A pairing is one of the moments the endpoint set changed: the QR's
+    // candidates and the address just proved are new, so the next probe round
+    // should cover all of them.
+    _reprobe();
+    // Fire-and-forget, and it reports its own failures on the card. An
+    // exception escaping here would surface as an unhandled async error
+    // attributed to whatever ran next.
+    unawaited(syncNow(peer.deviceId).catchError((Object _) => null));
   }
 
   static SyncPairOutcome _mapPairError(SyncClientException error) {
@@ -591,7 +691,72 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     await refreshPeers();
   }
 
-  Future<void> updatePeerEndpoint(
+  /// Names one remembered address of [deviceId] ("家中网络"), or clears the name
+  /// with a blank one. Per address and not per peer: the same laptop is a
+  /// different place on every network the pair has met, and those are the tiles
+  /// the user is naming.
+  Future<void> renamePeerEndpoint(
+    String deviceId,
+    String host,
+    int port,
+    String? name,
+  ) async {
+    final store = _store;
+    final peer = peers.where((p) => p.deviceId == deviceId).firstOrNull;
+    if (store == null || peer == null) return;
+    if (!peer.renameEndpoint(host, port, name)) return;
+    await store.savePeer(peer);
+    await refreshPeers();
+  }
+
+  /// Repairs one remembered address in place. The address is what failed, so it
+  /// is the only thing replaced: the tile keeps its name, its session count and
+  /// its probe history, and the other addresses are left alone — they are the
+  /// memory of the networks the pair has already met.
+  Future<void> editPeerEndpoint(
+    String deviceId,
+    String host,
+    int port,
+    String newHost,
+    int newPort,
+  ) async {
+    final store = _store;
+    final peer = peers.where((p) => p.deviceId == deviceId).firstOrNull;
+    if (store == null || peer == null) return;
+    if (!peer.editEndpoint(host, port, newHost.trim(), newPort)) return;
+    await store.savePeer(peer);
+    // The measurement belonged to the address that was just replaced, so it goes
+    // with it: the tile shows no latency until the new address answers.
+    _probeResults[deviceId]?.remove((host, port));
+    await refreshPeers();
+    _reprobe();
+  }
+
+  /// Remembers an address the user typed for a peer that has none — the
+  /// state a pairing without an address leaves, and the repair the `no_endpoint`
+  /// line asks for.
+  Future<void> addPeerEndpoint(String deviceId, String host, int port) async {
+    final store = _store;
+    final peer = peers.where((p) => p.deviceId == deviceId).firstOrNull;
+    if (store == null || peer == null) return;
+    if (!peer.addEndpoint(host, port)) return;
+    await store.savePeer(peer);
+    await refreshPeers();
+    _reprobe();
+  }
+
+  /// The endpoint set changed: the next probe round walks all of it, including
+  /// the address that just joined, and runs now rather than at the next tick.
+  void _reprobe() {
+    _fullProbePending = true;
+    unawaited(refreshPresence());
+  }
+
+  /// Forgets one remembered address of [deviceId] — the management view's
+  /// per-endpoint delete. The last one may go too: a peer with no address is a
+  /// state the panel already names (`no_endpoint` asks for one), and refusing
+  /// would trap an address the user knows is wrong.
+  Future<void> removePeerEndpoint(
     String deviceId,
     String host,
     int port,
@@ -599,11 +764,12 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     final store = _store;
     final peer = peers.where((p) => p.deviceId == deviceId).firstOrNull;
     if (store == null || peer == null) return;
-    // Manual repair replaces the whole set: the automatic memory is what failed
-    // (or the user would not be typing), so keeping the rest keeps the problem.
-    peer.replaceEndpoints(host.trim(), port);
+    if (!peer.removeEndpoint(host, port)) return;
     await store.savePeer(peer);
+    _probeResults[deviceId]?.remove((host, port));
     await refreshPeers();
+    _publishProbesIfStarted();
+    _notify();
   }
 
   Future<void> unpair(String deviceId) async {
@@ -641,6 +807,10 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       final report = await engine.syncWithPeer(peer);
       lastReport = report;
       _recordSessionVerdict(deviceId, report);
+      // A session is the one moment the persisted endpoint figures are worth
+      // writing: it is where a "last connected" stamp belongs, and the probe
+      // counters ride along instead of costing one file write per tick.
+      await _persistProbeStats(deviceId);
       if (automatic &&
           report.success &&
           _panelViewers == 0 &&
@@ -650,23 +820,37 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       return report;
     } finally {
       busyDeviceIds.remove(deviceId);
+      // The set may have moved under the session (a new address promoted), so
+      // the next tick is a full one: the tail is where a peer that just moved
+      // will be.
+      _fullProbePending = true;
       await refreshPeers();
       unawaited(refreshPresence());
+      // A session is the one thing that changes a workspace's file count
+      // without the file manager being involved.
+      unawaited(refreshWorkspaceContent());
     }
   }
 
   /// Files what a finished session proved about reaching [deviceId].
   ///
-  /// The session outranks the probe, because it demanded what a sync actually
-  /// needs — a TLS handshake pinned to the peer's certificate and a session —
-  /// where the probe only asked whether something accepts a connection. An
-  /// address that answers TCP but never completes the handshake is exactly the
-  /// case this exists for: the probe kept calling it online while every session
-  /// failed.
+  /// A session is the strongest thing that can happen to a peer: it either
+  /// exchanged bytes (an answer, refusals included) or found nothing that would
+  /// talk. The probe now authenticates too, so the two agree much more often —
+  /// but a session also proves the *data plane* works, and it is the evidence a
+  /// device that started nothing has ([_onEngineResponderSession]).
   ///
   /// `noEndpoint` records nothing: nothing was dialed, so the probe is still the
   /// only evidence there is.
   void _recordSessionVerdict(String deviceId, SyncSessionReport report) {
+    switch (report.refusal) {
+      case SyncRefusalReason.superseded:
+        // Not an attempt at all: the peer's own session superseded this round,
+        // and that session files its own evidence when it ends.
+        return;
+      case _:
+        break;
+    }
     final bool answered;
     switch (report.failure) {
       case SyncFailureReason.unreachable:
@@ -680,30 +864,18 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       case SyncFailureReason.peerError:
       case SyncFailureReason.internal:
       case null:
-        // Success, a refusal, or a failure that needed an answer to happen: the
-        // peer is there. `internal` is the catch-all and covers a failure that
-        // never left this device — a manifest build against a broken database, a
-        // certificate context that will not open — so a local fault can file
-        // "answered" for up to `sessionVerdictTtl`. It is not worth a distinct
-        // signal: a 401 refusal is `internal` too, and only one of the two is an
-        // answer, so the reason alone cannot grade this.
         answered = true;
     }
-    _filePresenceVerdict(deviceId, answered: answered);
+    _fileSessionVerdict(deviceId, answered: answered);
   }
 
   /// Files one session's verdict about reaching [deviceId] and republishes the
-  /// dots.
-  ///
-  /// [answered] defaults to the strongest verdict, which is the one the
-  /// responder files outright: the peer reached this device and authenticated,
-  /// so the dial-side reasons cannot grade that session — `unreachable`
-  /// describes failing to reach *out*, which is not what happened here. (The
-  /// report the responder builds carries no failure today; filing the verdict
-  /// instead of grading it keeps that from turning into a silent wrong answer
-  /// if it ever does.)
-  void _filePresenceVerdict(String deviceId, {bool answered = true}) {
-    _sessionVerdicts[deviceId] = (answered: answered, at: DateTime.now());
+  /// dots. A session that got an answer marks the peer online; one that found
+  /// silence clears the dot. Either way the *source* is recorded: the card says
+  /// the last word came from a session, which is a different statement from a
+  /// probe's answer even when both agree.
+  void _fileSessionVerdict(String deviceId, {bool answered = true}) {
+    _sessionEvidence.add(deviceId);
     if (answered) {
       onlineDeviceIds.add(deviceId);
       _probeMisses.remove(deviceId);
@@ -713,20 +885,29 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     _notify();
   }
 
-  // ---- presence (the online dots) ----
+  // ---- presence (the online dots and the per-endpoint latency) ----
 
-  /// Probes every paired peer's remembered endpoints in parallel and republishes
-  /// the online set. A peer mid-session is neither probed nor assumed: the
-  /// session files its own verdict when it lands, and until one side answers,
-  /// "a round is running" is not evidence the peer is there — the beat past the
-  /// dial ([_onEngineProgressChanged]) is what marks a live session's peer
-  /// online, the moment it actually exchanges bytes. A single failed probe is
-  /// remembered rather than acted on (see [_probeMisses]).
+  /// Probes the endpoints of every paired peer and republishes the online set
+  /// and the latency figures.
+  ///
+  /// Each endpoint gets its own answer (see [probePeerEndpoints]) instead of one
+  /// boolean per peer: the card shows which address is fast, which is silent and
+  /// what each one costs, so collapsing them would throw away the only thing
+  /// that lets a user decide which addresses to keep.
+  ///
+  /// Which endpoints a tick probes is tiered ([selectProbeTargets]): the
+  /// addresses that answered last round, and the silent tail only when they all
+  /// go quiet or a [full][_fullProbePending] round is due. A peer mid-session is
+  /// neither probed nor assumed: its session files the verdict, and until one
+  /// side answers, "a round is running" is not evidence the peer is there.
   Future<void> refreshPresence() async {
     if (!started || _presenceRunning) return;
+    final engine = _engine;
+    if (engine == null) return;
     _presenceRunning = true;
+    final full = _fullProbePending;
+    _fullProbePending = false;
     try {
-      final probe = _presenceProbe ?? anyEndpointReachable;
       // Every peer with an endpoint is *known* (its dot must not survive
       // unpairing or a replaced endpoint set); only the non-busy ones are
       // probed — a busy peer keeps the evidence it already has until its
@@ -738,32 +919,105 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         known.add(peer.deviceId);
         if (!busyDeviceIds.contains(peer.deviceId)) targets.add(peer);
       }
-      final answers = await Future.wait([
-        for (final peer in targets)
-          probe([
-            for (final endpoint in peer.endpoints)
-              (endpoint.host, endpoint.port),
-          ]),
+      final rounds = await Future.wait([
+        for (final peer in targets) _probePeer(peer, full),
       ]);
       for (var i = 0; i < targets.length; i++) {
-        final deviceId = targets[i].deviceId;
-        if (answers[i]) {
-          onlineDeviceIds.add(deviceId);
-          _probeMisses.remove(deviceId);
-        } else if (!_probeMisses.add(deviceId)) {
-          // The second miss in a row: the peer is not answering.
-          onlineDeviceIds.remove(deviceId);
-        }
+        _fileProbeRound(targets[i].deviceId, rounds[i]);
       }
       // A peer whose record changed since the last round (unpaired, or its
       // endpoints replaced) must not keep a dot from the previous set.
       onlineDeviceIds.removeWhere((id) => !known.contains(id));
       _probeMisses.removeWhere((id) => !known.contains(id));
-      _sessionVerdicts.removeWhere((id, _) => !known.contains(id));
+      _sessionEvidence.removeWhere((id) => !known.contains(id));
+      _probeResults.removeWhere((id, _) => !known.contains(id));
+      _publishProbes(engine);
       _notify();
     } finally {
       _presenceRunning = false;
     }
+  }
+
+  /// Probes one peer's chosen endpoints and folds the answers into its record of
+  /// measurements.
+  Future<List<EndpointProbeResult>> _probePeer(
+    SyncPeerRecord peer,
+    bool full,
+  ) async {
+    final previous = _probeResults[peer.deviceId] ?? const {};
+    final targets = selectProbeTargets(peer.endpoints, previous, full: full);
+    if (targets.isEmpty) return const [];
+    final probe = _endpointProbe ?? syncEndpointProbe(_engine!.client, peer);
+    final results = await probePeerEndpoints(endpoints: targets, probe: probe);
+    // Keep the answers for the endpoints this round did not visit: the tail's
+    // last figure is still the best thing known about it.
+    _probeResults[peer.deviceId] = {
+      ...previous,
+      for (final result in results) result.endpoint: result,
+    };
+    return results;
+  }
+
+  /// Files one probe round's answers for [deviceId] and republishes the dot.
+  void _fileProbeRound(String deviceId, List<EndpointProbeResult> results) {
+    if (results.isEmpty) return;
+    final anyAnswered = results.any((result) => result.answered);
+    if (anyAnswered) {
+      onlineDeviceIds.add(deviceId);
+      _probeMisses.remove(deviceId);
+      // An answered probe is fresh evidence of the *address*, not of a session,
+      // so it replaces the session as the dot's stated source rather than being
+      // outranked by it: the tooltip answers "what did we last see?".
+      _sessionEvidence.remove(deviceId);
+      return;
+    }
+    if (results.every((result) => result.noVerdict)) {
+      // The listener said "not now" — that is about its load, not about the
+      // peer, so nothing here may darken the dot.
+      return;
+    }
+    if (!_probeMisses.add(deviceId)) {
+      // The second miss in a row: the peer is not answering.
+      onlineDeviceIds.remove(deviceId);
+    }
+  }
+
+  /// Hands the engine the figures the dial should reuse instead of probing
+  /// again, so a session started right after a tick spends no probe of its own.
+  void _publishProbes(SyncEngine engine) {
+    final now = DateTime.now();
+    engine.endpointProbes = {
+      for (final entry in _probeResults.entries)
+        if (entry.value.isNotEmpty)
+          entry.key: PeerProbeSnapshot(entry.value.values.toList(), now),
+    };
+  }
+
+  void _publishProbesIfStarted() {
+    final engine = _engine;
+    if (engine != null) _publishProbes(engine);
+  }
+
+  /// Writes the measured latency of each endpoint onto its peer record, so the
+  /// management view can show "last measured" across launches.
+  Future<void> _persistProbeStats(String deviceId) async {
+    final store = _store;
+    final results = _probeResults[deviceId];
+    if (store == null || results == null) return;
+    final peer = peers.where((p) => p.deviceId == deviceId).firstOrNull;
+    if (peer == null) return;
+    var changed = false;
+    for (final result in results.values) {
+      final endpoint = peer.endpointFor(result.host, result.port);
+      if (endpoint == null) continue;
+      endpoint.recordProbe(
+        answered: result.answered,
+        latency: result.latency,
+        at: result.measuredAt,
+      );
+      changed = true;
+    }
+    if (changed) await store.savePeer(peer);
   }
 
   void _startPresenceTimer() {
@@ -778,6 +1032,67 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     _presenceTimer = null;
   }
 
+  // ---- workspace content (slice 18) ----
+
+  /// Re-reads every managed workspace and re-counts its files, off the UI
+  /// isolate.
+  ///
+  /// Called when the panel opens and after every session — the two moments the
+  /// figures can have changed — rather than on a timer: a workspace folder
+  /// holds as many files as the user's project does, and re-walking it on a
+  /// tick would spend real IO to redraw a number nobody is looking at.
+  Future<void> refreshWorkspaceContent() async {
+    final content = _workspaceContent;
+    if (content == null || _workspaceRefreshRunning) return;
+    _workspaceRefreshRunning = true;
+    try {
+      final snapshots = await content.snapshots();
+      workspaceSummaries = [
+        for (final snapshot in snapshots)
+          SyncWorkspaceSummary(
+            id: snapshot.id,
+            name: snapshot.name,
+            fileCount: snapshot.index.files.length,
+            totalBytes: snapshot.index.totalBytes,
+            truncated: snapshot.index.truncated,
+            unreadable: snapshot.index.incomplete,
+            enabled: snapshot.enabled,
+          ),
+      ];
+      _notify();
+    } catch (error) {
+      // A workspace whose folder cannot be read must not take the panel down
+      // with it: the rows simply keep the figures they had.
+      debugPrint('sync: reading workspace content failed: $error');
+    } finally {
+      _workspaceRefreshRunning = false;
+    }
+  }
+
+  /// Turns content sync for one workspace on or off (device-local).
+  ///
+  /// The workspace's *record* is not affected in either direction: it always
+  /// travels, because a row this device stopped publishing would be read by the
+  /// peer as a deletion of its own workspace (`planRowSync`'s `peerDeletes`).
+  /// The switch governs the folder only.
+  Future<void> setWorkspaceContentEnabled(String id, bool enabled) async {
+    final content = _workspaceContent;
+    if (content == null) return;
+    // The switch is reflected immediately and persisted in the background: the
+    // row is what the user just acted on, and the walk below is what pays for
+    // the fresh figures.
+    final current = workspaceSummaries;
+    if (current != null) {
+      workspaceSummaries = [
+        for (final summary in current)
+          summary.id == id ? summary.copyWith(enabled: enabled) : summary,
+      ];
+      _notify();
+    }
+    await content.setEnabled(id, enabled);
+    await refreshWorkspaceContent();
+  }
+
   // ---- automatic rounds (foreground) ----
 
   DateTime? _lastAutoSyncAt;
@@ -788,6 +1103,10 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     // Desktop fires `resumed` on every window focus gain too; the global
     // throttle in [shouldAutoSyncNow] is what keeps that cheap.
     if (state == AppLifecycleState.resumed) {
+      // Picking the device up is the pickup journey: this network may not be
+      // the one the last round measured, so the first round after a resume
+      // walks every endpoint rather than the head ones.
+      _fullProbePending = true;
       _startPresenceTimer();
       unawaited(_refreshAddressesThenRound());
     } else if (state == AppLifecycleState.paused ||
@@ -827,7 +1146,10 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         if (peer.primaryEndpoint == null) continue;
         if (busyDeviceIds.contains(peer.deviceId)) continue;
         try {
-          await syncNow(peer.deviceId, automatic: true);
+          final report = await syncNow(peer.deviceId, automatic: true);
+          if (report?.refusal == SyncRefusalReason.busy) {
+            _scheduleBusyRetry(peer.deviceId);
+          }
         } catch (_) {
           // A failed round already shows on the peer card; the round moves on.
         }
@@ -835,6 +1157,34 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     } finally {
       _autoRoundRunning = false;
     }
+  }
+
+  /// How long a `busy` refusal waits for its one retry.
+  ///
+  /// A busy refusal means the peer's own session with this device was already
+  /// running — the common case on a LAN where both devices were picked up at
+  /// the same moment. The next automatic trigger is a minute away, so waiting
+  /// for it left the user looking at "another session is in progress" long
+  /// after the session ended; one short retry covers it, and only one, so a
+  /// pair that keeps colliding does not become a tight loop.
+  static const busyRetryDelay = Duration(seconds: 5);
+
+  final Map<String, Timer> _busyRetryTimers = {};
+
+  void _scheduleBusyRetry(String deviceId) {
+    if (_busyRetryTimers.containsKey(deviceId)) return;
+    _busyRetryTimers[deviceId] = Timer(busyRetryDelay, () {
+      _busyRetryTimers.remove(deviceId);
+      if (!started || busyDeviceIds.contains(deviceId)) return;
+      unawaited(syncNow(deviceId, automatic: true));
+    });
+  }
+
+  void _cancelBusyRetries() {
+    for (final timer in _busyRetryTimers.values) {
+      timer.cancel();
+    }
+    _busyRetryTimers.clear();
   }
 
   // ---- firewall (Windows) ----
@@ -888,6 +1238,19 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     unawaited(refreshPeers());
   }
 
+  /// A probe round the engine ran itself, because the snapshot it held was too
+  /// old to order a dial by. Folding it in keeps the card's figures current and
+  /// gives the next session the measurement to reuse.
+  void _onEngineProbes(String deviceId, List<EndpointProbeResult> results) {
+    if (results.isEmpty) return;
+    _probeResults[deviceId] = {
+      ...?_probeResults[deviceId],
+      for (final result in results) result.endpoint: result,
+    };
+    _fileProbeRound(deviceId, results);
+    _publishProbesIfStarted();
+  }
+
   /// A beat inside a running initiator session.
   ///
   /// Any beat past the dial means the peer answered — `exchanging` is published
@@ -902,6 +1265,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       for (final entry in progress.entries) {
         if (entry.value.phase == SyncSessionPhase.connecting) continue;
         onlineDeviceIds.add(entry.key);
+        _sessionEvidence.add(entry.key);
         _probeMisses.remove(entry.key);
       }
     }
@@ -935,7 +1299,11 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     SyncPeerRecord peer,
     SyncSessionReport report,
   ) {
-    _filePresenceVerdict(peer.deviceId);
+    _fileSessionVerdict(peer.deviceId);
+    _fullProbePending = true;
+    // A session this device answered moved files too, and nobody else will
+    // re-count them.
+    unawaited(refreshWorkspaceContent());
     if (_panelViewers > 0 || !syncBroughtDataHere(report)) return;
     _announce(SyncArrival(peer.displayName, report));
   }
@@ -944,6 +1312,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   void dispose() {
     _disposed = true;
     _stopPresenceTimer();
+    _cancelBusyRetries();
     _arrivals.close();
     WidgetsBinding.instance.removeObserver(this);
     AppExitFlush.unregister(stop);

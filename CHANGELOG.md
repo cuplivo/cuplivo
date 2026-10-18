@@ -5,6 +5,16 @@
 ### Added
 
 - **Message replies**: a message's ⋯ menu (and a user bubble's long-press or right-click menu) can reply to it, and a selection inside an assistant reply can reply to just that span — the reply shows a one-line citation above the bubble, and the model receives it as a `<reply-to>` prefix frozen with the rest of the turn. Desktop binds `Ctrl/Cmd+Shift+R` to reply with the selection, because a right-click can take the selection away before the toolbar is reached. The citation rides the message row's extras, so it needs no schema change and travels with LAN sync and backups (#1027 by @cup113)
+- **Workspace sync**: a workspace's record now follows your paired devices, and a managed workspace's files do too. Every pair keeps a file table (path + size + modified time), the files are pulled from the device that holds them, and each workspace can be switched off in the LAN Sync panel. Linked workspaces never travel, and a workspace over 2,000 files or 200 MB keeps its record but syncs no content
+- **Per-address endpoints**: a paired device can remember up to twelve addresses, each with its own name, latency and history. Tapping an address's latency opens its details — last measured, last reached, sessions carried, when it was added — and that is also where it is renamed, edited or deleted
+- **A one-way LAN can now be picked up from the other side**: an initiator round that has not been answered yet yields to a hello arriving from the peer, so a pair on a network where only one direction connects still syncs
+
+### Changed
+
+- **LAN sync protocol v5**: both devices must be updated — a mismatched pair pauses syncing until they are
+- **The online dot and the connect beat are more honest**: the probe behind the dot is now an authenticated request (reachable *and* still paired), and the dial only tries the addresses that probe reached. A sleeping peer costs one connect attempt instead of one per remembered address, and the "connecting… (2/3)" candidate counter is gone
+- **"Not reachable right now" no longer draws a row on the card**: the subtitle already says the peer is away, so the sentence row is gone; a manual sync still answers with the actionable line
+- **The LAN Sync panel is rebuilt**: this device with no IP on it, a workspace section with per-workspace state and switches, and one card per peer carrying an address grid instead of a single address line
 
 ## [4.3.0] - 2026-10-14
 

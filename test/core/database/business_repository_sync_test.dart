@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:Cuplivo/core/database/app_database.dart';
 import 'package:Cuplivo/core/database/business_data.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -242,6 +245,119 @@ void main() {
     );
     expect(outcome.entityRowsWritten, 0);
     expect(outcome.changed, isFalse);
+  });
+
+  group('workspace rows are filtered one by one', () {
+    Future<void> put(String id, {required String kind, String? hostPath}) =>
+        ExtensionEntityStore(database).upsert('workspace', id, {
+          'id': id,
+          'name': id,
+          'kind': kind,
+          'hostPath': hostPath,
+          'shellNeedsApproval': false,
+          'defaultCwd': '',
+          'disabledTools': const <String>[],
+          'createdAt': '2026-01-01T00:00:00.000Z',
+          'updatedAt': '2026-01-01T00:00:00.000Z',
+          'lastUsedAt': null,
+        });
+
+    Map<String, Object?> wireRow(String id, String kind) => {
+      'id': id,
+      'kind': 'workspace',
+      'sort_order': 0,
+      'owner_id': null,
+      'payload': jsonEncode({
+        'id': id,
+        'name': id,
+        'kind': kind,
+        'hostPath': kind == 'linked' ? '/home/me/notes' : null,
+      }),
+      'updated_at': 9000,
+    };
+
+    test('the predicate reads a payload and tolerates a broken one', () {
+      expect(isLinkedWorkspace('{"kind":"linked"}'), isTrue);
+      expect(isLinkedWorkspace('{"kind":"managed"}'), isFalse);
+      expect(isLinkedWorkspace('not json at all'), isFalse);
+      expect(isLinkedWorkspace('[1,2]'), isFalse);
+    });
+
+    test('a managed workspace is offered, a linked folder is not', () async {
+      await put('managed-1', kind: 'managed');
+      await put('linked-1', kind: 'linked', hostPath: '/home/me/notes');
+
+      expect(
+        (await repository.syncEntityRefs())
+            .where((ref) => ref.kindWire == 'workspace')
+            .map((ref) => ref.id),
+        ['managed-1'],
+      );
+      // The id set is what the delete plan diffs against and the read is what
+      // answers a fetch: both must agree with the manifest, or a linked folder
+      // could still be asked for by name.
+      expect(await repository.syncEntityIds('workspace'), {'managed-1'});
+      expect(
+        await repository.syncReadEntityRows('workspace', {'linked-1'}),
+        isEmpty,
+      );
+      expect(
+        (await repository.syncReadEntityRows('workspace', {
+          'managed-1',
+        })).single['id'],
+        'managed-1',
+      );
+    });
+
+    test('a peer can neither plant nor delete a linked folder', () async {
+      final planted = await repository.syncApplyBusinessRows(
+        entities: {
+          'workspace': [wireRow('planted', 'linked')],
+        },
+        preferences: const [],
+        myDeviceId: 'me',
+        peerDeviceId: 'peer',
+      );
+      expect(planted.entityRowsWritten, 0);
+      expect(planted.changed, isFalse);
+      expect(
+        await ExtensionEntityStore(database).get('workspace', 'planted'),
+        isNull,
+        reason: 'the row names a path on this device that the peer chose',
+      );
+
+      // The same batch with a managed row lands: the filter is per row, not a
+      // blanket refusal of the kind.
+      final accepted = await repository.syncApplyBusinessRows(
+        entities: {
+          'workspace': [wireRow('from-peer', 'managed')],
+        },
+        preferences: const [],
+        myDeviceId: 'me',
+        peerDeviceId: 'peer',
+      );
+      expect(accepted.entityRowsWritten, 1);
+
+      await put('local-linked', kind: 'linked', hostPath: '/home/me/notes');
+      expect(
+        await repository.syncDeleteEntity('workspace', 'local-linked'),
+        isFalse,
+      );
+      expect(
+        await ExtensionEntityStore(database).get('workspace', 'local-linked'),
+        isNotNull,
+        reason: 'nothing about that row was ever announced',
+      );
+      // A managed row is deleted like any other row.
+      expect(
+        await repository.syncDeleteEntity('workspace', 'from-peer'),
+        isTrue,
+      );
+      expect(
+        await ExtensionEntityStore(database).get('workspace', 'from-peer'),
+        isNull,
+      );
+    });
   });
 
   test('the reload picks up writes that bypassed the view', () async {

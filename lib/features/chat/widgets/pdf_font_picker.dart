@@ -131,7 +131,18 @@ class _PdfFontPickerPageState extends State<_PdfFontPickerPage> {
           color: cs.outlineVariant.withValues(alpha: 0.12),
         ),
         Flexible(
-          child: candidates == null
+          // The failure is checked first: a list that threw never assigns
+          // [_candidates], so the "still loading" test would spin for ever and
+          // the error state would be unreachable.
+          child: _failed
+              ? Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    l10n.pdfExportFontListFailed,
+                    style: TextStyle(color: cs.error, fontSize: 13),
+                  ),
+                )
+              : candidates == null
               ? const Padding(
                   padding: EdgeInsets.symmetric(vertical: 48),
                   child: Center(
@@ -140,14 +151,6 @@ class _PdfFontPickerPageState extends State<_PdfFontPickerPage> {
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                  ),
-                )
-              : _failed
-              ? Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    l10n.pdfExportFontListFailed,
-                    style: TextStyle(color: cs.error, fontSize: 13),
                   ),
                 )
               : ListView(

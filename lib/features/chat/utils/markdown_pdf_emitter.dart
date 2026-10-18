@@ -458,17 +458,33 @@ Future<PdfExportResult> buildConversationPdf(PdfExportRequest request) async {
 /// isolate: the caller asks this first, draws what it names, and hands the
 /// bitmaps back. It is the same walk the layout runs, so the two cannot
 /// disagree about what a key means.
+///
+/// "The same walk" includes the bodies the layout re-walks itself. A quote, a
+/// table and a `<details>` are *opaque* nodes in the IR — the node addresses the
+/// whole block and holds no children — so the layout reads their markdown out of
+/// the node and walks it again ([_quoteBody], the cells [markdownTableData]
+/// returns, [_detailsParts]). This walk has to re-enter exactly those bodies, by
+/// the same extraction, or the layout looks up a drawing nobody was told to make
+/// and prints the TeX or the diagram source instead.
 List<PdfRasterKey> pdfRasterKeysIn(
   String markdown, {
   required bool enableMathRendering,
   required bool enableDollarLatex,
 }) {
-  final document = _walkDocument(
-    markdown,
-    enableMathRendering: enableMathRendering,
-    enableDollarLatex: enableDollarLatex,
-  );
   final keys = <PdfRasterKey>[];
+
+  /// The keys of a body the layout walks as its own document.
+  void visitSource(String source, void Function(MdNode) visit) {
+    if (source.trim().isEmpty) return;
+    for (final block in _walkDocument(
+      source,
+      enableMathRendering: enableMathRendering,
+      enableDollarLatex: enableDollarLatex,
+    ).blocks) {
+      visit(block);
+    }
+  }
+
   void visit(MdNode node) {
     switch (node.kind) {
       case MdNodeKind.math:
@@ -495,6 +511,20 @@ List<PdfRasterKey> pdfRasterKeysIn(
             ),
           );
         }
+      case MdNodeKind.quote:
+        visitSource(_quoteBody(node), visit);
+      case MdNodeKind.details:
+        final parts = _detailsParts(node);
+        if (parts != null) visitSource(parts.body, visit);
+      case MdNodeKind.table:
+        final table = markdownTableData(node.range?.text ?? '');
+        for (final row in table.rows) {
+          for (final cell in row) {
+            // The same unmasking [_table] does before it walks a cell, so the
+            // TeX in a cell is the TeX this walk names.
+            visitSource(unmaskCodeSpanDollars(cell), visit);
+          }
+        }
       default:
         break;
     }
@@ -503,10 +533,36 @@ List<PdfRasterKey> pdfRasterKeysIn(
     }
   }
 
+  final document = _walkDocument(
+    markdown,
+    enableMathRendering: enableMathRendering,
+    enableDollarLatex: enableDollarLatex,
+  );
   for (final block in document.blocks) {
     visit(block);
   }
   return keys;
+}
+
+/// The markdown a quote's node addresses, with its `>` markers removed and its
+/// fence markers put back.
+///
+/// One definition for both walks: the key walk and [_quote] have to extract the
+/// same source, or the two disagree about what the quote holds.
+String _quoteBody(MdNode node) =>
+    unmaskBlockquoteFenceMarkers(markdownQuoteText(node.range?.text ?? ''));
+
+/// The `<summary>` and the body a `<details>` node declares, or null when the
+/// node is not one.
+///
+/// One definition for both walks, so the key walk names exactly the body the
+/// layout draws.
+({String summary, String body})? _detailsParts(MdNode node) {
+  final parsed = markdownParseDetails(
+    unmaskBlockquoteFenceMarkers(node.range?.text ?? ''),
+  );
+  if (parsed == null) return null;
+  return (summary: parsed.summary, body: parsed.body.trim());
 }
 
 MdDocument _walkDocument(
@@ -879,6 +935,14 @@ class _BlockSkin {
     // A decorated block keeps its spacing *inside* the fill: a gap between two
     // filled blocks would stripe the panel they are meant to form, and it would
     // break a quote's left rule into dashes.
+    //
+    // The rule wins over the rounding, and that is not a preference: a quote's
+    // rule is a *non-uniform* border, and the writer refuses a radius beside one
+    // (`box_border.dart` asserts `borderRadius == null`). A code surface, a
+    // degraded formula or a details band inside a quote all bring a radius of
+    // their own, so without this the export throws in debug — and, since the
+    // assert is compiled out of release builds, silently drops the rounding
+    // there. Dropping it here is the same page with one answer for both.
     return pw.Container(
       width: double.infinity,
       margin: pw.EdgeInsets.only(top: top),
@@ -893,7 +957,7 @@ class _BlockSkin {
         border: rule == null
             ? null
             : pw.Border(left: pw.BorderSide(color: rule!, width: 2)),
-        borderRadius: radius == 0
+        borderRadius: rule != null || radius == 0
             ? null
             : pw.BorderRadius.all(pw.Radius.circular(radius)),
       ),
@@ -1795,9 +1859,7 @@ class _PdfLayout {
     // block — so the body is walked again, with the `>` markers the renderer
     // strips put back out of the way. The walk is the same one, so the two
     // cannot disagree about what the quote holds.
-    final body = unmaskBlockquoteFenceMarkers(
-      markdownQuoteText(node.range?.text ?? ''),
-    );
+    final body = _quoteBody(node);
     final base = skin.copyWith(
       indent: skin.indent + _sourceIndentOf(node),
       top: 4,
@@ -2003,17 +2065,15 @@ class _PdfLayout {
   }
 
   List<pw.Widget> _details(MdNode node, _BlockSkin skin) {
-    final parsed = markdownParseDetails(
-      unmaskBlockquoteFenceMarkers(node.range?.text ?? ''),
-    );
-    if (parsed == null) return <pw.Widget>[pw.SizedBox()];
+    final parts = _detailsParts(node);
+    if (parts == null) return <pw.Widget>[pw.SizedBox()];
     final base = skin.copyWith(indent: skin.indent + _sourceIndentOf(node));
     final widgets = <pw.Widget>[
       // The screen draws the summary as the card's own header row; on paper the
       // same row is a filled band, which is what tells a reader the body under it
       // belongs to it now that the chevron is gone.
       _leaf(
-        markdownDetailsSummaryText(parsed.summary),
+        markdownDetailsSummaryText(parts.summary),
         _bodyBold,
         base.copyWith(
           bottom: 3,
@@ -2028,7 +2088,7 @@ class _PdfLayout {
     ];
     // An export is an archive: a block the reader had collapsed is written out
     // with its body, because the alternative is losing it.
-    final body = parsed.body.trim();
+    final body = parts.body;
     if (body.isNotEmpty) {
       widgets.addAll(
         _blocksOf(

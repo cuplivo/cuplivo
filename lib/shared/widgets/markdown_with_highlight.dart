@@ -55,6 +55,15 @@ const int _maxInlineMathBodyLength = 512;
 const String _codeDollarMask = '___CODE_DOLLAR_MASK___';
 const String _fencedHtmlTagStartMask = '\uE002';
 
+/// The size a markdown surface sets prose in unless its owner overrides it.
+///
+/// It is also the size an author's `WxH` image size is written against: the
+/// number in `![300x200](…)` is a width in logical pixels next to text this
+/// size, so a consumer that sets prose at some other size (the PDF page sets
+/// 10.5pt) has to scale the picture by the ratio or the picture stops looking
+/// like it belongs to the text beside it.
+const double kMarkdownBodyFontSize = 15.5;
+
 /// Translucent fills so chat wallpaper shows through markdown chrome.
 /// Inline chips and details are lightest; tables sit in the middle;
 /// fenced code stays a bit more solid.
@@ -317,14 +326,6 @@ class MarkdownWithCodeHighlight extends StatefulWidget {
     required bool streaming,
     MarkdownDetailsExpansion? detailsExpansion,
   }) {
-    final set = markdownComponentsFor(
-      enableMathRendering: settings.enableMathRendering,
-      enableDollarLatex: settings.enableDollarLatex,
-      streaming: streaming,
-    );
-    final registry = MarkdownDetailsRegistry(
-      enableMath: settings.enableMathRendering,
-    );
     // What a code block shows is an input to the walk, exactly like the details
     // expansion above: a collapsed block reports only its first lines, so the
     // display space declares those rather than the whole fence.
@@ -332,6 +333,38 @@ class MarkdownWithCodeHighlight extends StatefulWidget {
       autoCollapse: settings.autoCollapseCodeBlock,
       collapsedLines: settings.autoCollapseCodeBlockLines,
     );
+    return markdownDocumentFor(
+      source,
+      enableMathRendering: settings.enableMathRendering,
+      enableDollarLatex: settings.enableDollarLatex,
+      streaming: streaming,
+      codeExpansion: codeExpansion,
+      detailsExpansion: detailsExpansion,
+    );
+  }
+
+  /// The same walk, decided by flags rather than by a settings object.
+  ///
+  /// A consumer with no provider in scope declares the surface's grammar
+  /// through the flags: the PDF exporter walks a conversation off the UI
+  /// isolate, where there is no `SettingsProvider` to read. Such a consumer
+  /// passes no `codeExpansion` — it reads the whole fence out of each node's
+  /// source range, because an export is an archive rather than a picture of the
+  /// screen — and that is exactly what a null means to the code component.
+  static MdDocument markdownDocumentFor(
+    String source, {
+    required bool enableMathRendering,
+    required bool enableDollarLatex,
+    required bool streaming,
+    MarkdownCodeExpansion? codeExpansion,
+    MarkdownDetailsExpansion? detailsExpansion,
+  }) {
+    final set = markdownComponentsFor(
+      enableMathRendering: enableMathRendering,
+      enableDollarLatex: enableDollarLatex,
+      streaming: streaming,
+    );
+    final registry = MarkdownDetailsRegistry(enableMath: enableMathRendering);
     return MarkdownComponent.walkDocument(
       source,
       config: GptMarkdownConfig(
@@ -459,7 +492,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
       _sourceScan.update(_renderText);
       _metadataSource = _renderText;
       if (_sourceScan.hasImageMarker) {
-        _sanitizedText = _sanitizeImageLinks(_renderText);
+        _sanitizedText = markdownSanitizeImageLinks(_renderText);
         _imageUrls = _extractImageUrls(_sanitizedText);
       } else {
         _sanitizedText = _renderText;
@@ -490,7 +523,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
         }
         _liveBlockSource = source;
         _liveBlockOptions = options;
-        return _liveBlockNormalized = _preprocessFences(
+        return _liveBlockNormalized = markdownPreprocessFences(
           source,
           enableMath: options.$1,
           enableDollarLatex: options.$2,
@@ -501,7 +534,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
           '${settings.enableMathRendering}:${settings.enableDollarLatex}:$streaming:$source';
       final cached = _normalizedBlockCache.get(cacheKey);
       if (cached != null) return cached;
-      final value = _preprocessFences(
+      final value = markdownPreprocessFences(
         source,
         enableMath: settings.enableMathRendering,
         enableDollarLatex: settings.enableDollarLatex,
@@ -546,7 +579,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
     final inkColor = _markdownInkColor(context);
     final baseTextStyle =
         (widget.baseStyle ?? Theme.of(context).textTheme.bodyMedium)?.copyWith(
-          fontSize: widget.baseStyle?.fontSize ?? 15.5,
+          fontSize: widget.baseStyle?.fontSize ?? kMarkdownBodyFontSize,
           height: widget.baseStyle?.height ?? 1.55,
           letterSpacing:
               widget.baseStyle?.letterSpacing ?? (_isZh(context) ? 0.0 : 0.05),
@@ -707,63 +740,54 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
         linkBuilder: (ctx, span, url, style) {
           final label = span.toPlainText().trim();
           // Special handling: [citation](id) and legacy [citation](index:id)
-          if (label.toLowerCase() == 'citation') {
-            final citation = _parseCitationRef(url);
-            if (citation != null) {
-              final cs = Theme.of(ctx).colorScheme;
-              // Prefer the index resolved from this message's search results;
-              // fall back to the inline index for legacy `index:id` markers.
-              final resolved = widget.citationIndexResolver?.call(citation.id);
-              final String display;
-              if (resolved != null && resolved.isNotEmpty) {
-                display = resolved;
-              } else if (citation.indexText != citation.id) {
-                display = citation.indexText; // legacy index:id marker
-              } else if (int.tryParse(citation.indexText) != null) {
-                display = citation.indexText; // legacy pure-index shorthand
-              } else {
-                display = '?'; // id-only marker with no matching result
-              }
-              // gpt_markdown embeds this widget baseline-aligned. The capsule is
-              // taller than the text ascent, so without correction it hangs
-              // below the line. Translate it up (layout-neutral) so it looks
-              // vertically centered, and pad horizontally so adjacent capsules
-              // don't touch.
-              return _clickCursor(
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 1.5),
-                  child: Transform.translate(
-                    offset: const Offset(0, -2),
-                    child: GestureDetector(
-                      onTap: () {
-                        if (widget.onCitationTap != null &&
-                            citation.id.isNotEmpty) {
-                          widget.onCitationTap!(citation.id);
-                        } else {
-                          // Fallback: do nothing
-                        }
-                      },
-                      child: Container(
-                        constraints: const BoxConstraints(minWidth: 20),
-                        height: 20,
-                        padding: const EdgeInsets.symmetric(horizontal: 5),
-                        decoration: BoxDecoration(
-                          color: cs.primary.withValues(alpha: 0.20),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Center(
-                          widthFactor: 1.0,
-                          child: Text(
-                            display,
-                            style: TextStyle(fontSize: 12, height: 1.0),
-                          ),
+          final citation = markdownCitationRefForLink(label, url);
+          if (citation != null) {
+            final cs = Theme.of(ctx).colorScheme;
+            // Prefer the index resolved from this message's search results;
+            // fall back to the index the marker itself carried.
+            final display = markdownCitationLabel(
+              citation,
+              widget.citationIndexResolver,
+            );
+            // gpt_markdown embeds this widget baseline-aligned. The capsule is
+            // taller than the text ascent, so without correction it hangs
+            // below the line. Translate it up (layout-neutral) so it looks
+            // vertically centered, and pad horizontally so adjacent capsules
+            // don't touch.
+            return _clickCursor(
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                child: Transform.translate(
+                  offset: const Offset(0, -2),
+                  child: GestureDetector(
+                    onTap: () {
+                      if (widget.onCitationTap != null &&
+                          citation.id.isNotEmpty) {
+                        widget.onCitationTap!(citation.id);
+                      } else {
+                        // Fallback: do nothing
+                      }
+                    },
+                    child: Container(
+                      constraints: const BoxConstraints(minWidth: 20),
+                      height: 20,
+                      padding: const EdgeInsets.symmetric(horizontal: 5),
+                      decoration: BoxDecoration(
+                        color: cs.primary.withValues(alpha: 0.20),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Center(
+                        widthFactor: 1.0,
+                        child: Text(
+                          display,
+                          style: TextStyle(fontSize: 12, height: 1.0),
                         ),
                       ),
                     ),
                   ),
                 ),
-              );
-            }
+              ),
+            );
           }
           // Default link appearance
           final cs = Theme.of(ctx).colorScheme;
@@ -893,7 +917,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
         // Fenced code block styling via codeBuilder (with collapse/expand)
         codeBuilder: (ctx, name, code, closed) {
           final lang = name.trim();
-          final restoredCode = _unmaskHtmlTagStartsInsideFencedCode(code);
+          final restoredCode = unmaskFencedHtmlTagStarts(code);
           if (lang.toLowerCase() == 'mermaid' ||
               isSvgCodeBlock(lang, restoredCode)) {
             return _DiagramBlock(
@@ -1345,7 +1369,22 @@ String? _normalizeLanguage(String? lang) {
   }
 }
 
-String _preprocessFences(
+/// The rewrite stage the rendering surface runs before it walks a block.
+///
+/// It is the surface's *preparation*, not part of the grammar: it protects
+/// fenced and inline code from the LaTeX passes, normalizes `[cite:id]` and
+/// `[citation:…]` markers into `[citation](id)` links, drops link titles the
+/// link regex cannot carry, splits display math written inline into a block of
+/// its own, and folds `</p>` runs into one line break. What the components then
+/// parse is this text, so the walks a *consumer* runs — the selection copy, and
+/// the PDF exporter, which has no widget tree and therefore no `normalize`
+/// closure — have to run the same stage or they disagree with the screen about
+/// what the source says.
+///
+/// [markdownSanitizeImageLinks] belongs before this, the way the surface runs
+/// it: it turns a local image path that holds spaces into a URI the image
+/// pattern can match.
+String markdownPreprocessFences(
   String input, {
   required bool enableMath,
   required bool enableDollarLatex,
@@ -1552,7 +1591,14 @@ String _maskHtmlTagStartsInsideFencedCode(String input) {
   );
 }
 
-String _unmaskHtmlTagStartsInsideFencedCode(String input) {
+/// Puts back the `<` of a `<details>`/`<summary>` start inside a fenced block.
+///
+/// [markdownPreprocessFences] masks those starts so the details component cannot
+/// claim a line that only looks like the tag, and every consumer that shows a
+/// fence body has to undo it: the renderer's code builder does, and so must a
+/// consumer that prints the fence somewhere else, or the mask character — a
+/// private-use code point — reaches the output.
+String unmaskFencedHtmlTagStarts(String input) {
   return input.replaceAll(_fencedHtmlTagStartMask, '<');
 }
 
@@ -1585,22 +1631,22 @@ String _normalizeCiteMarkers(String input) {
   });
 }
 
-List<_CitationRef> _parseCitationRefList(String raw) {
-  final refs = <_CitationRef>[];
+List<MarkdownCitationRef> _parseCitationRefList(String raw) {
+  final refs = <MarkdownCitationRef>[];
   for (final rawPart in raw.split(',')) {
     var part = rawPart.trim();
-    if (part.isEmpty) return const <_CitationRef>[];
+    if (part.isEmpty) return const <MarkdownCitationRef>[];
     if (part.toLowerCase().startsWith('citation:')) {
       part = part.substring('citation:'.length).trim();
     }
-    final ref = _parseCitationRef(part);
-    if (ref == null) return const <_CitationRef>[];
+    final ref = markdownCitationRef(part);
+    if (ref == null) return const <MarkdownCitationRef>[];
     refs.add(ref);
   }
   return refs;
 }
 
-_CitationRef? _parseCitationRef(String raw) {
+MarkdownCitationRef? markdownCitationRef(String raw) {
   final trimmed = raw.trim();
   if (trimmed.isEmpty) return null;
 
@@ -1621,19 +1667,53 @@ _CitationRef? _parseCitationRef(String raw) {
   if (id.contains(')') || id.contains(']') || RegExp(r'\s').hasMatch(id)) {
     return null;
   }
-  return _CitationRef(indexText: indexText, id: id);
+  return MarkdownCitationRef(indexText: indexText, id: id);
 }
 
 bool _isCitationIndex(String value) =>
     RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(value);
 
-class _CitationRef {
-  const _CitationRef({required this.indexText, required this.id});
+/// One citation marker: what it shows before resolution, and what it points at.
+///
+/// Public because a consumer that draws its own capsule — the PDF exporter,
+/// which has no widget tree to hang the app's capsule in — has to read the same
+/// two fields the renderer's link builder reads.
+class MarkdownCitationRef {
+  const MarkdownCitationRef({required this.indexText, required this.id});
 
   final String indexText;
   final String id;
 
   String get markdownTarget => indexText == id ? indexText : '$indexText:$id';
+}
+
+/// The citation a link stands for, or null when the link is an ordinary one.
+///
+/// A citation is written `[citation](id)`, or the legacy `[citation](index:id)`;
+/// every `[cite:…]`/`[citation:…]` marker the preparation stage rewrites arrives
+/// here in that shape. Shared so the capsule the screen draws and the capsule a
+/// page draws cannot disagree about which links are citations.
+MarkdownCitationRef? markdownCitationRefForLink(String label, String url) {
+  if (label.trim().toLowerCase() != 'citation') return null;
+  return markdownCitationRef(url);
+}
+
+/// What a citation capsule shows.
+///
+/// [resolve] answers the index this message's search results give the id — the
+/// renderer passes the surface's own resolver. When it cannot answer, a marker
+/// that carried an index of its own shows that; a bare id with nothing to
+/// resolve it to shows `?`, which is a citation the reader can see is broken
+/// rather than a number that would be wrong.
+String markdownCitationLabel(
+  MarkdownCitationRef ref,
+  String? Function(String id)? resolve,
+) {
+  final resolved = resolve?.call(ref.id);
+  if (resolved != null && resolved.isNotEmpty) return resolved;
+  if (ref.indexText != ref.id) return ref.indexText;
+  if (int.tryParse(ref.indexText) != null) return ref.indexText;
+  return '?';
 }
 
 String _maskBlockquoteFenceMarkers(String input) {
@@ -1688,7 +1768,7 @@ String _maskBlockquoteFenceMarkers(String input) {
   return lines.join('\n');
 }
 
-String _unmaskBlockquoteFenceMarkers(String input) {
+String unmaskBlockquoteFenceMarkers(String input) {
   return input.replaceAll('\uE000', '`').replaceAll('\uE001', '~');
 }
 
@@ -1933,7 +2013,7 @@ bool _isValidStreamingDollarMathBody(String body) {
 // Safe math renderer that falls back to plain text when parsing fails.
 Widget _renderMath(String tex, {TextStyle? style, bool displayMode = false}) {
   final resolved = style ?? TextStyle();
-  final normalizedTex = _normalizeMathTex(tex);
+  final normalizedTex = normalizeMathTex(tex);
   try {
     return Math.tex(
       normalizedTex,
@@ -2318,7 +2398,11 @@ bool _isCjkCodeUnit(int codeUnit) {
       (codeUnit >= 0xF900 && codeUnit <= 0xFAFF);
 }
 
-String _normalizeMathTex(String tex) {
+/// The TeX a formula is drawn from, after the package's own workaround.
+///
+/// Shared by the rendered formula and the rasterizer, so the picture a PDF
+/// embeds is the formula the screen shows rather than a second parse of it.
+String normalizeMathTex(String tex) {
   final escapedSpecials = _escapeInlineMathSpecials(tex);
   final normalizedBraces = _escapeLikelyLiteralMathBraces(escapedSpecials);
   return normalizedBraces.replaceAllMapped(RegExp(r'\\\|([\s\S]*?)\\\|'), (
@@ -2708,7 +2792,7 @@ List<String> _citationIds(String md) {
     r'\[citation\]\(([^)]+)\)',
     caseSensitive: false,
   ).allMatches(md)) {
-    final ref = _parseCitationRef(match.group(1) ?? '');
+    final ref = markdownCitationRef(match.group(1) ?? '');
     if (ref != null) addId(ref.id);
   }
   for (final match in RegExp(
@@ -2722,7 +2806,14 @@ List<String> _citationIds(String md) {
   return ids;
 }
 
-String _sanitizeImageLinks(String input) {
+/// Turns a local image path that holds spaces into a URI the image pattern can
+/// match.
+///
+/// The image pattern carries `[^\s\n]*` for its target, so a path with a space
+/// in it does not match at all and the picture reaches the walk as literal text.
+/// A remote or `data:` target is left exactly as written, and a path without a
+/// space is left alone too, because the rewrite can only lose information.
+String markdownSanitizeImageLinks(String input) {
   if (!_imageStart.hasMatch(input)) return input;
   final re = RegExp(r'!\[([^\]]*)\]\(([^)]+)\)', multiLine: true);
   return input.replaceAllMapped(re, (m) {
@@ -4287,7 +4378,7 @@ class _MarkdownTableCell extends StatelessWidget {
       fontFamily: appFontFamily ?? style.fontFamily,
     );
     final innerCfg = config.copyWith(style: baseStyle);
-    final cellText = data.text.trim().replaceAll(_codeDollarMask, r'$');
+    final cellText = unmaskCodeSpanDollars(data.text);
     final displayText = _softBreakTableCellText(cellText);
     final spans = MarkdownComponent.generate(
       context,
@@ -5494,6 +5585,25 @@ class SoftHrLine extends BlockMd {
 }
 
 // Robust fenced code block that takes precedence over other blocks
+/// The language, body and closed state of a fenced block, or null when the
+/// source is not a fence.
+///
+/// Shared by the rendered fence and the PDF emitter, so both read one fence the
+/// same way. The body comes back with the preprocessor's HTML-tag mask
+/// restored: that mask belongs to the walk, and a consumer that skipped it
+/// would print it into the code.
+({String language, String code, bool closed})? markdownFenceSource(
+  String source,
+) {
+  final match = FencedCodeBlockMd(streaming: false).exp.firstMatch(source);
+  if (match == null) return null;
+  return (
+    language: (match.group(3) ?? '').trim(),
+    code: unmaskFencedHtmlTagStarts(match.group(4) ?? match.group(5) ?? ''),
+    closed: match.group(4) != null,
+  );
+}
+
 class FencedCodeBlockMd extends BlockMd {
   FencedCodeBlockMd({required this.streaming, this.codeExpansion});
 
@@ -5517,15 +5627,15 @@ class FencedCodeBlockMd extends BlockMd {
 
   @override
   Widget build(BuildContext context, String text, GptMarkdownConfig config) {
-    final m = exp.firstMatch(text);
-    if (m == null) return const SizedBox.shrink();
-    final lang = (m.group(3) ?? '').trim();
-    final code = _unmaskHtmlTagStartsInsideFencedCode(
-      m.group(4) ?? m.group(5) ?? '',
+    final fence = markdownFenceSource(text);
+    if (fence == null) return const SizedBox.shrink();
+    final isStreamingFence = streaming && !fence.closed;
+    return _buildFencedContent(
+      fence.language,
+      fence.code,
+      isStreamingFence,
+      fence.closed,
     );
-    final closed = m.group(4) != null;
-    final isStreamingFence = streaming && !closed;
-    return _buildFencedContent(lang, code, isStreamingFence, closed);
   }
 
   @override
@@ -5535,7 +5645,7 @@ class FencedCodeBlockMd extends BlockMd {
     final lang = m == null ? '' : (m.group(3) ?? '').trim();
     final code = m == null
         ? ''
-        : _unmaskHtmlTagStartsInsideFencedCode(m.group(4) ?? m.group(5) ?? '');
+        : unmaskFencedHtmlTagStarts(m.group(4) ?? m.group(5) ?? '');
     if (isDiagramFence(lang, code)) {
       // A diagram shows a bitmap, or a code view that owns its own selection, so
       // the surface's owner never reaches the diagram's text: the fence occupies
@@ -5901,7 +6011,7 @@ class ModernBlockQuote extends InlineMd {
     final match = exp.firstMatch(text);
     // The body is the shared quote rule, so what is rendered and what the IR
     // reports cannot disagree about the `>` markers.
-    final data = _unmaskBlockquoteFenceMarkers(
+    final data = unmaskBlockquoteFenceMarkers(
       markdownQuoteText(match?[0] ?? ''),
     );
     final theme = Theme.of(context);
@@ -5968,9 +6078,7 @@ class ModernBlockQuote extends InlineMd {
   @override
   MdNode node(MdNodeContext ctx, String text) {
     final m = exp.firstMatch(text);
-    final data = _unmaskBlockquoteFenceMarkers(
-      markdownQuoteText(m?[0] ?? text),
-    );
+    final data = unmaskBlockquoteFenceMarkers(markdownQuoteText(m?[0] ?? text));
     // A quote re-emits whole: its rendered text drops the `>` markers per
     // line, so a partial re-emission could not put them back.
     return MdNode.opaque(
@@ -6237,6 +6345,101 @@ class ModernRadioMd extends BlockMd {
   }
 }
 
+/// The rows, column alignments and header flag of one markdown table.
+///
+/// The rendered table, the IR node and the PDF emitter all read a table through
+/// this: the pipe splitting and the alignment row used to be derived twice in
+/// this file — once in [EscapeAwareTableMd.build] and once in its `node` — and a
+/// consumer that derived them again would be the third copy.
+class MarkdownTableData {
+  const MarkdownTableData({
+    required this.rows,
+    required this.alignments,
+    required this.hasHeader,
+  });
+
+  /// The body rows, in source order. The divider row is the header separator
+  /// rather than a row of cells, so it is not here; every row is padded to
+  /// [columnCount] so a ragged row can be indexed by column.
+  final List<List<String>> rows;
+
+  /// One entry per column, in source order.
+  final List<TextAlign> alignments;
+
+  /// Whether the source carried a divider row, which is what makes the first
+  /// row a header row.
+  final bool hasHeader;
+
+  int get columnCount => alignments.length;
+
+  bool get isEmpty => rows.isEmpty || columnCount == 0;
+}
+
+/// Splits [text] into the table it renders: rows on newlines, cells on the
+/// unescaped pipes between them, and the divider row read for its per-column
+/// alignment before being dropped from [MarkdownTableData.rows].
+MarkdownTableData markdownTableData(String text) {
+  final lines = text
+      .trim()
+      .split('\n')
+      .where((line) => line.trim().isNotEmpty)
+      .toList();
+
+  // Two source lines or more means the second one is the divider: the colons
+  // that state each column's alignment live there, which is why it is not a row
+  // of cells.
+  final hasHeader = lines.length >= 2;
+  final alignments = <TextAlign>[];
+  if (hasHeader) {
+    for (final cell in _splitMarkdownTableLine(lines[1].trim())) {
+      final separator = cell.trim();
+      final hasLeftColon = separator.startsWith(':');
+      final hasRightColon = separator.endsWith(':');
+      if (hasLeftColon && hasRightColon) {
+        alignments.add(TextAlign.center);
+      } else if (hasRightColon) {
+        alignments.add(TextAlign.right);
+      } else {
+        alignments.add(TextAlign.left);
+      }
+    }
+  }
+
+  final rows = <List<String>>[];
+  for (var index = 0; index < lines.length; index++) {
+    if (hasHeader && index == 1) continue;
+    rows.add(_splitMarkdownTableLine(lines[index].trim()));
+  }
+
+  var columnCount = alignments.length;
+  for (final row in rows) {
+    if (row.length > columnCount) columnCount = row.length;
+  }
+  for (final row in rows) {
+    while (row.length < columnCount) {
+      row.add('');
+    }
+  }
+  while (alignments.length < columnCount) {
+    alignments.add(TextAlign.left);
+  }
+
+  return MarkdownTableData(
+    rows: rows,
+    alignments: alignments,
+    hasHeader: hasHeader,
+  );
+}
+
+/// Text with the preprocessor's code-span mask restored to the `$` it stood in
+/// for, so a `$` inside a code span is not read as the start of a formula.
+///
+/// Shared by the table cell renderer, its IR node and any consumer that walks a
+/// cell or an inline code body — the mask belongs to the walk, and a consumer
+/// that skipped it would print it.
+String unmaskCodeSpanDollars(String text) =>
+    text.trim().replaceAll(_codeDollarMask, r'$');
+
 class EscapeAwareTableMd extends TableMd {
   @override
   Widget build(
@@ -6244,67 +6447,34 @@ class EscapeAwareTableMd extends TableMd {
     String text,
     final GptMarkdownConfig config,
   ) {
-    final value = text
-        .trim()
-        .split('\n')
-        .where((line) => line.trim().isNotEmpty)
-        .map<Map<int, String>>(
-          (line) => _splitMarkdownTableLine(line.trim()).asMap(),
-        )
-        .toList();
-
-    if (value.isEmpty) return Text('', style: config.style);
-
-    final hasHeader = value.length >= 2;
-    final columnAlignments = <TextAlign>[];
-
-    if (hasHeader) {
-      final separatorRow = value[1];
-      for (var index = 0; index < separatorRow.length; index++) {
-        final separator = (separatorRow[index] ?? '').trim();
-        final hasLeftColon = separator.startsWith(':');
-        final hasRightColon = separator.endsWith(':');
-
-        if (hasLeftColon && hasRightColon) {
-          columnAlignments.add(TextAlign.center);
-        } else if (hasRightColon) {
-          columnAlignments.add(TextAlign.right);
-        } else {
-          columnAlignments.add(TextAlign.left);
-        }
-      }
-    }
-
-    var maxCol = 0;
-    for (final row in value) {
-      if (maxCol < row.length) maxCol = row.length;
-    }
-    if (maxCol == 0) return Text('', style: config.style);
-
-    while (columnAlignments.length < maxCol) {
-      columnAlignments.add(TextAlign.left);
-    }
+    final table = markdownTableData(text);
+    if (table.isEmpty) return Text('', style: config.style);
 
     final tableBuilder = config.tableBuilder;
     if (tableBuilder == null) {
       return super.build(context, text, config);
     }
 
-    final customTable = List<CustomTableRow?>.generate(value.length, (
-      rowIndex,
-    ) {
-      if (hasHeader && rowIndex == 1) return null;
-      final row = value[rowIndex];
-      if (row.isEmpty) return null;
-
-      final fields = List<CustomTableField>.generate(maxCol, (fieldIndex) {
-        return CustomTableField(
-          data: row[fieldIndex] ?? '',
-          alignment: columnAlignments[fieldIndex],
-        );
-      });
-      return CustomTableRow(isHeader: rowIndex == 0, fields: fields);
-    }).nonNulls.toList();
+    final customTable = <CustomTableRow>[
+      for (var rowIndex = 0; rowIndex < table.rows.length; rowIndex++)
+        CustomTableRow(
+          // The first row draws as the header row even when no divider row
+          // follows it, which is what this table did before the split moved
+          // into [markdownTableData].
+          isHeader: rowIndex == 0,
+          fields: [
+            for (
+              var fieldIndex = 0;
+              fieldIndex < table.columnCount;
+              fieldIndex++
+            )
+              CustomTableField(
+                data: table.rows[rowIndex][fieldIndex],
+                alignment: table.alignments[fieldIndex],
+              ),
+          ],
+        ),
+    ];
 
     return tableBuilder(
       context,
@@ -6322,23 +6492,13 @@ class EscapeAwareTableMd extends TableMd {
     // back to its source at all (it silently fell back to plain text). The
     // table still re-emits whole: its pipes live between the cells, so no
     // single cell's source can stand in for the table.
-    final lines = text
-        .trim()
-        .split('\n')
-        .where((line) => line.trim().isNotEmpty)
-        .toList();
-    final hasHeader = lines.length >= 2;
+    final table = markdownTableData(text);
     final display = StringBuffer();
-    for (var index = 0; index < lines.length; index++) {
-      // The divider row is the table's header separator, not a row of cells.
-      if (hasHeader && index == 1) continue;
-      for (final cell in _splitMarkdownTableLine(lines[index].trim())) {
+    for (final row in table.rows) {
+      for (final cell in row) {
         display.write(
           mdDisplayOf(
-            ctx.walk(
-              cell.trim().replaceAll(_codeDollarMask, r'$'),
-              includeGlobal: true,
-            ),
+            ctx.walk(unmaskCodeSpanDollars(cell), includeGlobal: true),
           ),
         );
       }
@@ -6425,6 +6585,18 @@ class BackslashEscapeMd extends InlineMd {
   String _escapedOf(String text) => exp.firstMatch(text)?.group(1) ?? text;
 }
 
+/// The text a `<details>` summary shows.
+///
+/// A summary's markup is not rendered, so what a reader sees is the source with
+/// its tags gone. Shared by the rendered block and the PDF emitter, which draws
+/// a summary without going through the HTML renderer at all.
+String markdownDetailsSummaryText(String input) {
+  return input
+      .replaceAll(RegExp(r"<br\s*/?>", caseSensitive: false), '\n')
+      .replaceAll(RegExp(r"<[^>]+>"), '')
+      .trim();
+}
+
 class DetailsHtmlMd extends BlockMd {
   DetailsHtmlMd([this.registry, this.expansion]);
 
@@ -6454,7 +6626,7 @@ class DetailsHtmlMd extends BlockMd {
 
     final body = parsed.body.trim();
     return _DetailsHtmlBlock(
-      summary: _plainHtmlText(parsed.summary).trim(),
+      summary: markdownDetailsSummaryText(parsed.summary),
       body: _rewriteBody(body, parsed, text),
       initiallyExpanded: parsed.initiallyExpanded,
       config: config,
@@ -6483,13 +6655,6 @@ class DetailsHtmlMd extends BlockMd {
     return registry.rewrite(body, base: (offset ?? 0) + parsed.bodyOffset);
   }
 
-  static String _plainHtmlText(String input) {
-    return input
-        .replaceAll(RegExp(r"<br\s*/?>", caseSensitive: false), '\n')
-        .replaceAll(RegExp(r"<[^>]+>"), '')
-        .trim();
-  }
-
   @override
   MdNode node(MdNodeContext ctx, String text) {
     final parsed = registry?.lookup(text) ?? markdownParseDetails(text);
@@ -6505,7 +6670,7 @@ class DetailsHtmlMd extends BlockMd {
     return MdNode.opaque(
       MdNodeKind.details,
       MdRange(parsed.source, 0, parsed.source.length),
-      '${_plainHtmlText(parsed.summary).trim()}'
+      '${markdownDetailsSummaryText(parsed.summary)}'
       '${open && body.isNotEmpty ? mdDisplayOf(ctx.walk(_rewriteBody(body, parsed, text), includeGlobal: true)) : ''}',
     );
   }
@@ -6807,7 +6972,7 @@ class _SelectableHighlightViewState extends State<SelectableHighlightView> {
     if (!widget.enableHighlight) {
       return <TextSpan>[TextSpan(text: widget.source)];
     }
-    final cacheKey = '${widget.language ?? ''} ${widget.source}';
+    final cacheKey = '${widget.language ?? ''}\u0000${widget.source}';
     final cached = _highlightNodeCache.get(cacheKey);
     if (cached != null) return _convertNodes(cached);
     try {

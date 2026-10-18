@@ -44,6 +44,7 @@ void main() {
       ChatSelectionExportBar(
         onExportMarkdown: () {},
         onExportTxt: () {},
+        onExportPdf: () {},
         onExportImage: () {},
         showThinkingTools: false,
         showThinkingContent: false,
@@ -54,6 +55,7 @@ void main() {
 
     expect(find.text('TXT'), findsOneWidget);
     expect(find.text('MD'), findsOneWidget);
+    expect(find.text('PDF'), findsOneWidget);
     expect(find.text('Image'), findsOneWidget);
     expect(find.text('Delete Selected'), findsNothing);
     expect(find.text('Delete This Version'), findsNothing);

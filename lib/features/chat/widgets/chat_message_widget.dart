@@ -55,6 +55,7 @@ import '../../../utils/platform_utils.dart';
 import '../../home/services/ask_user_interaction_service.dart';
 import '../../home/services/local_tools_service.dart';
 import '../../home/services/tool_approval_service.dart';
+import '../utils/citation_index.dart';
 import '../utils/assistant_paragraph_splitter.dart';
 import '../utils/selection_markdown_memory.dart';
 import '../utils/thinking_tag_parser.dart';
@@ -2641,7 +2642,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
         text: visualContent,
         onCitationTap: (id) => _handleCitationTap(id),
         citationIndexResolver: (id) =>
-            _resolveCitationIndex(id, citationIndexLookup),
+            resolveCitationIndex(id, citationIndexLookup),
         baseStyle: TextStyle(fontSize: baseAssistant, height: 1.5),
         streaming: widget.message.isStreaming,
         detailsExpansion: detailsExpansion,
@@ -3073,7 +3074,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     final bool isTranslating =
         translationText == l10n.chatMessageWidgetTranslating;
     final searchItems = _allSearchItems();
-    final citationIndexLookup = _buildCitationIndexLookup(searchItems);
+    final citationIndexLookup = citationIndexLookupOf(searchItems);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final effectiveReasoningSegments = _effectiveReasoningSegments(
       extractedThinking,
@@ -3452,7 +3453,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                                               onCitationTap: (id) =>
                                                   _handleCitationTap(id),
                                               citationIndexResolver: (id) =>
-                                                  _resolveCitationIndex(
+                                                  resolveCitationIndex(
                                                     id,
                                                     citationIndexLookup,
                                                   ),
@@ -3763,36 +3764,6 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     );
   }
 
-  // Build once per message so each citation marker only performs a map lookup.
-  // Insert IDs first so an exact ID match wins over a legacy numeric index.
-  Map<String, String> _buildCitationIndexLookup(
-    List<Map<String, dynamic>> items,
-  ) {
-    final lookup = <String, String>{};
-    for (final item in items) {
-      final id = item['id']?.toString() ?? '';
-      final index = item['index']?.toString() ?? '';
-      if (id.isNotEmpty && index.isNotEmpty) lookup[id] ??= index;
-    }
-    for (final item in items) {
-      final index = item['index']?.toString() ?? '';
-      if (index.isNotEmpty) lookup[index] ??= index;
-    }
-    return lookup;
-  }
-
-  String? _resolveCitationIndex(
-    String id,
-    Map<String, String> citationIndexLookup,
-  ) {
-    final key = id.trim();
-    if (key.isEmpty) return null;
-    final direct = citationIndexLookup[key];
-    if (direct != null) return direct;
-    final asIndex = int.tryParse(key);
-    return asIndex == null ? null : citationIndexLookup[asIndex.toString()];
-  }
-
   // Try resolve citation id -> url from the latest search_web tool results of this assistant message
   void _handleCitationTap(String id) async {
     final l10n = AppLocalizations.of(context)!;
@@ -3863,45 +3834,17 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     }
   }
 
-  // Extract items from all search_web or builtin_search tool results for this assistant message.
-  // We scan from end to start so "latest" items win when there are duplicates.
+  // The items are scanned from end to start so "latest" wins on duplicates,
+  // and the scan is memoized on the parts list identity: the timeline asks for
+  // them on every rebuild of a streaming reply.
   List<Map<String, dynamic>> _allSearchItems() {
     final parts = widget.toolParts ?? const <ToolUIPart>[];
     if (identical(parts, _searchItemsParts) && _searchItemsCache != null) {
       return _searchItemsCache!;
     }
-    if (parts.isEmpty) {
-      _searchItemsParts = parts;
-      _searchItemsCache = const <Map<String, dynamic>>[];
-      return _searchItemsCache!;
-    }
-
-    final out = <Map<String, dynamic>>[];
-    final seen = <String>{};
-
-    for (int i = parts.length - 1; i >= 0; i--) {
-      final p = parts[i];
-      if ((p.toolName != 'search_web' && p.toolName != 'builtin_search') ||
-          (p.content?.isNotEmpty ?? false) == false) {
-        continue;
-      }
-      try {
-        final obj = jsonDecode(p.content!) as Map<String, dynamic>;
-        final arr = obj['items'] as List? ?? const <dynamic>[];
-        for (final it in arr) {
-          if (it is! Map) continue;
-          final m = it.cast<String, dynamic>();
-          final key = (m['id'] ?? m['url'] ?? '')
-              .toString(); // builtin_search no id
-          if (key.isNotEmpty) {
-            if (!seen.add(key)) continue;
-          }
-          out.add(m);
-        }
-      } catch (_) {
-        // ignore broken tool payload
-      }
-    }
+    final out = searchCitationItemsOf(
+      parts.map((part) => (name: part.toolName, content: part.content)),
+    );
     _searchItemsParts = parts;
     _searchItemsCache = out;
     return out;

@@ -88,6 +88,61 @@ void main() {
     expect(pdfRasterLookupKey(plantuml), plantuml.source);
   });
 
+  test('a formula inside a quote, a table cell or a details body is a key', () {
+    List<PdfRasterKey> keysOf(String markdown) => pdfRasterKeysIn(
+      markdown,
+      enableMathRendering: true,
+      enableDollarLatex: true,
+    );
+
+    // A quote, a table and a `<details>` are opaque leaves in the IR: the node
+    // declares the whole block and holds no children. The layout walks each
+    // body again, so the key walk has to re-enter the same bodies — a key the
+    // layout asks for and this walk never named is a formula the caller was
+    // never told to draw, and it prints as its own TeX.
+    final quoted = keysOf('> quoted prose\n>\n> \$\$x^2\$\$\n');
+    expect(quoted, hasLength(1));
+    expect(quoted.single.kind, PdfRasterKind.math);
+    expect(quoted.single.source, 'x^2');
+    expect(quoted.single.display, isTrue);
+
+    // A cell is its own markdown surface, and `$…$` in a line is inline math.
+    final cell = keysOf('| a | b |\n| --- | --- |\n| \$x^2\$ | c |\n');
+    expect(cell, hasLength(1));
+    expect(cell.single.kind, PdfRasterKind.math);
+    expect(cell.single.source, 'x^2');
+    expect(cell.single.display, isFalse);
+
+    final details = keysOf(
+      '<details>\n<summary>s</summary>\n\n\$\$x^2\$\$\n\n</details>\n',
+    );
+    expect(details, hasLength(1));
+    expect(details.single.source, 'x^2');
+    expect(details.single.display, isTrue);
+  });
+
+  test('a diagram fence inside a quote or a details body is a key', () {
+    final quoted = pdfRasterKeysIn(
+      '> ```mermaid\n> graph TD;\n> ```\n',
+      enableMathRendering: true,
+      enableDollarLatex: true,
+    );
+    expect(quoted, hasLength(1));
+    expect(quoted.single.kind, PdfRasterKind.diagram);
+    expect(quoted.single.language, 'mermaid');
+    expect(quoted.single.source.contains('graph TD'), isTrue);
+
+    final details = pdfRasterKeysIn(
+      '<details>\n<summary>s</summary>\n\n```mermaid\ngraph TD;\n```\n\n'
+      '</details>\n',
+      enableMathRendering: true,
+      enableDollarLatex: true,
+    );
+    expect(details, hasLength(1));
+    expect(details.single.kind, PdfRasterKind.diagram);
+    expect(details.single.source.contains('graph TD'), isTrue);
+  });
+
   test(
     'math rendering off names no math key, because the walk claims none',
     () {

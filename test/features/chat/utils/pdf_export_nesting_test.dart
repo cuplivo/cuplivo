@@ -174,9 +174,47 @@ void main() {
     );
     expect(result.degradedMath, ['a']);
   });
+
+  test(
+    'a block that rounds its own corner inside a quote still exports',
+    () async {
+      // A quote's left rule is a *non-uniform* border, and the writer refuses a
+      // radius beside one (`box_border.dart`: `borderRadius == null`). Three
+      // things bring a radius into the quote's skin — a code surface, a degraded
+      // display formula, and a details band — so each of them used to throw
+      // instead of exporting. (The assert is compiled out of release builds,
+      // where the writer draws the box and ignores the radius; this pins what
+      // the debug build — and every test — does.)
+      final code = await _bytes(
+        '> prose\n>\n> ```dart\n> final x = 1;\n> ```\n',
+      );
+      expect(code.pages, greaterThanOrEqualTo(1));
+
+      final formula = await _bytes('> prose\n>\n> \$\$x^2\$\$\n');
+      expect(formula.degradedMath, contains('x^2'));
+      expect(formula.pages, greaterThanOrEqualTo(1));
+
+      final details = await _bytes(
+        '> <details>\n> <summary>s</summary>\n>\n> body\n> </details>\n',
+      );
+      expect(details.pages, greaterThanOrEqualTo(1));
+    },
+  );
+
+  test('a quote inside a reasoning card still exports', () async {
+    // The card skin carries a radius of its own, and the quote inherits it: the
+    // same collision reached from the other side.
+    final result = await _blocks(
+      const ExportReasoning('> quoted\n>\n> ```dart\n> final x = 1;\n> ```\n'),
+    );
+    expect(result.pages, greaterThanOrEqualTo(1));
+  });
 }
 
-Future<PdfExportResult> _bytes(String markdown) => buildConversationPdf(
+Future<PdfExportResult> _bytes(String markdown) =>
+    _blocks(ExportText(markdown));
+
+Future<PdfExportResult> _blocks(ExportBlock block) => buildConversationPdf(
   PdfExportRequest(
     title: 'nesting probe',
     thinkingLabel: 'Thinking',
@@ -188,7 +226,7 @@ Future<PdfExportResult> _bytes(String markdown) => buildConversationPdf(
         time: '2026-01-02 03:04:05',
         roleName: 'Assistant',
         speaker: ExportSpeaker.assistant,
-        blocks: <ExportBlock>[ExportText(markdown)],
+        blocks: <ExportBlock>[block],
       ),
     ],
   ),

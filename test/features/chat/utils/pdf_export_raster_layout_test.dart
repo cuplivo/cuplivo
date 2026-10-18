@@ -53,6 +53,38 @@ void main() {
     expect(exported.text, contains('x^2'));
   });
 
+  test('a formula nested in a quote, a cell or a details body is drawn', () async {
+    // The layout re-walks those bodies, so the key it asks for is the key this
+    // walk has to name. Before the walk re-entered them the caller was handed no
+    // key for the nested TeX, laid out no picture for it, and the page printed
+    // the formula's own source instead of the drawing the screen shows.
+    const quoted = '> quoted prose\n>\n> \$\$x^2\$\$\n';
+    final inQuote = await _export(quoted, rasters: _rastersFor(quoted));
+    expect(_imagesIn(inQuote.bytes), greaterThan(0));
+    expect(inQuote.text, contains('quoted prose'));
+    expect(inQuote.text, isNot(contains('x^2')));
+
+    const cell = '| a | b |\n| --- | --- |\n| \$x^2\$ | c |\n';
+    final inCell = await _export(cell, rasters: _rastersFor(cell));
+    expect(_imagesIn(inCell.bytes), greaterThan(0));
+    expect(inCell.text, isNot(contains('x^2')));
+
+    const details =
+        '<details>\n<summary>s</summary>\n\n\$\$x^2\$\$\n\n</details>\n';
+    final inDetails = await _export(details, rasters: _rastersFor(details));
+    expect(_imagesIn(inDetails.bytes), greaterThan(0));
+    expect(inDetails.text, isNot(contains('x^2')));
+  });
+
+  test('a diagram fence inside a quote is drawn as its picture', () async {
+    const markdown = '> ```mermaid\n> graph TD;\n>   A-->B;\n> ```\n';
+    final exported = await _export(markdown, rasters: _rastersFor(markdown));
+
+    expect(_imagesIn(exported.bytes), greaterThan(0));
+    // The picture stands in for the fence's code, so the code is not printed.
+    expect(exported.text, isNot(contains('A-->B')));
+  });
+
   test('a diagram fence is a picture, and its code is gone', () async {
     const markdown = '```mermaid\ngraph TD;\n  A-->B;\n```\n';
     final exported = await _export(markdown, rasters: _rastersFor(markdown));

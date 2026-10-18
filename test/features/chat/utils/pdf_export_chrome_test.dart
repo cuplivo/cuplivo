@@ -148,9 +148,7 @@ void main() {
       'gives an emphasised cell the cell\'s size and the cell\'s stroke',
       () async {
         final plain = await _export(
-          blocks: <ExportBlock>[
-            const ExportText('$header| cell | plain |\n'),
-          ],
+          blocks: <ExportBlock>[const ExportText('$header| cell | plain |\n')],
         );
         final bold = await _export(
           blocks: <ExportBlock>[

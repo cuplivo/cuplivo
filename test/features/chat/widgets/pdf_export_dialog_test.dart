@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/services/fonts/google_fonts_service.dart';
 import 'package:Cuplivo/features/chat/utils/markdown_pdf_emitter.dart';
 import 'package:Cuplivo/features/chat/utils/pdf_export_fonts.dart';
 import 'package:Cuplivo/features/chat/utils/pdf_export_options.dart';
@@ -277,6 +278,74 @@ void main() {
     expect(find.textContaining('not fully exported'), findsNothing);
   });
 
+  testWidgets('the catalogue outlives the export that downloads from it', (
+    tester,
+  ) async {
+    final catalogue = _SpyCatalogue();
+    final gate = Completer<void>();
+    final closedWhenRunStarted = <bool>[];
+    GoogleFontsService? handedOver;
+
+    await _open(
+      tester,
+      resolver: _FakeResolver(_faces()),
+      createCatalogue: () => catalogue,
+      run:
+          (
+            context, {
+            required conversation,
+            required messages,
+            required options,
+            googleFonts,
+            resolver,
+          }) async {
+            closedWhenRunStarted.add(catalogue.closed);
+            handedOver = googleFonts;
+            await gate.future;
+            return _result();
+          },
+    );
+
+    await tester.tap(find.text('Export PDF').last);
+    await tester.pumpAndSettle();
+
+    // The export runs from the page, after this route is gone — so the service it
+    // downloads from has to still be open when it starts. The dialog's own
+    // `finally` used to close it as soon as the route popped, which is before
+    // `run` is called: every download then failed, and the failure was permanent.
+    expect(closedWhenRunStarted, <bool>[false]);
+    expect(identical(handedOver, catalogue), isTrue);
+    expect(catalogue.closed, isFalse);
+
+    gate.complete();
+    await tester.pumpAndSettle();
+    // The export's own surfaces — the result dialog among them — are part of the
+    // export, so the catalogue is held until they are done with too.
+    expect(catalogue.closed, isFalse);
+
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    expect(catalogue.closed, isTrue);
+  });
+
+  testWidgets('a dialog dismissed without exporting closes its own catalogue', (
+    tester,
+  ) async {
+    final catalogue = _SpyCatalogue();
+    await _open(
+      tester,
+      resolver: _FakeResolver(_faces()),
+      createCatalogue: () => catalogue,
+    );
+    expect(catalogue.closed, isFalse);
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    // Nothing claimed it, so the dialog is the one still responsible for it.
+    expect(catalogue.closed, isTrue);
+  });
+
   testWidgets('the picker offers what the resolver can honour', (tester) async {
     final resolver = _FakeResolver(_faces(), offered: _candidates());
     PdfFontChoice? picked;
@@ -316,6 +385,40 @@ void main() {
     await tester.tap(find.text('simhei.ttf'));
     await tester.pumpAndSettle();
     expect(picked, isA<PdfFontSystemFace>());
+  });
+
+  testWidgets('a font list that cannot be read says so instead of spinning', (
+    tester,
+  ) async {
+    final resolver = _FakeResolver(
+      _faces(),
+      candidatesError: StateError('no font directory'),
+    );
+    _tallSurface(tester);
+    await tester.pumpWidget(
+      _app(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showPdfFontPicker(
+                context,
+                role: PdfFontRole.body,
+                current: const PdfFontAuto(),
+                resolver: resolver,
+              ),
+              child: const Text('pick'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('pick'));
+    await tester.pumpAndSettle();
+
+    // The failure state has to be reachable: it used to sit behind a check for
+    // "still loading", so a load that threw spun for ever.
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('Could not read the font list'), findsOneWidget);
   });
 }
 
@@ -364,6 +467,7 @@ Future<void> _open(
   required PdfFontResolver resolver,
   PdfExportRunner? run,
   bool thinking = false,
+  GoogleFontsService Function()? createCatalogue,
 }) async {
   _tallSurface(tester);
   await tester.pumpWidget(
@@ -379,6 +483,7 @@ Future<void> _open(
               expandThinkingContent: false,
               resolver: resolver,
               run: run,
+              createCatalogue: createCatalogue,
             ),
             child: const Text('open'),
           ),
@@ -390,13 +495,30 @@ Future<void> _open(
   await tester.pumpAndSettle();
 }
 
+/// A catalogue that records the one thing the dialog is responsible for: when it
+/// is closed relative to the export that downloads from it.
+class _SpyCatalogue extends GoogleFontsService {
+  bool closed = false;
+
+  @override
+  void close() {
+    closed = true;
+  }
+}
+
 /// A resolver that answers from a table and counts what it was asked to do.
 class _FakeResolver extends PdfFontResolver {
-  _FakeResolver(this.status, {List<PdfFontCandidate>? offered})
-    : offered = offered ?? const <PdfFontCandidate>[];
+  _FakeResolver(
+    this.status, {
+    List<PdfFontCandidate>? offered,
+    this.candidatesError,
+  }) : offered = offered ?? const <PdfFontCandidate>[];
 
   final Map<PdfFontRole, PdfFontStatus> status;
   final List<PdfFontCandidate> offered;
+
+  /// What [candidates] throws, when the list itself is what is under test.
+  final Object? candidatesError;
 
   /// How many times a resolution ran, and how many of those were allowed to
   /// reach the network. The second number is the whole point of the peek pass.
@@ -432,7 +554,10 @@ class _FakeResolver extends PdfFontResolver {
   }
 
   @override
-  Future<List<PdfFontCandidate>> candidates(PdfFontRole role) async => offered;
+  Future<List<PdfFontCandidate>> candidates(PdfFontRole role) async {
+    if (candidatesError != null) throw candidatesError!;
+    return offered;
+  }
 }
 
 /// A shell with the providers the settings-style rows read: [IosCardPress]

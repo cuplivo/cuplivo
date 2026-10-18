@@ -40,6 +40,39 @@ void main() {
     );
   });
 
+  test('only a Unicode-flavoured face is embedded as a Unicode one', () {
+    expect(isPdfEmbeddableFont(_syntheticFont(<String>['glyf'])), isTrue);
+
+    // The writer decides Unicode by the version word alone (`ttf_parser.dart`:
+    // `unicode => bytes.getUint32(0) == 0x10000`), so an Apple-flavoured `'true'`
+    // face is opened and then written as Latin-1: every rune outside U+00FF is
+    // replaced by a placeholder box, inside an assert, with no error. Accepting
+    // one here is what made the export claim a face it could not draw with.
+    expect(isPdfEmbeddableFont(_flavouredFont('true')), isFalse);
+
+    // The rejections that were always there, for the same reason: the writer has
+    // no collection support and reads `glyf`, which a CFF face does not have.
+    expect(isPdfEmbeddableFont(_flavouredFont('ttcf')), isFalse);
+    expect(isPdfEmbeddableFont(_flavouredFont('OTTO')), isFalse);
+    expect(isPdfEmbeddableFont(Uint8List.fromList(<int>[0, 1, 0])), isFalse);
+  });
+
+  test('a download that fails is this resolver\'s, not the process\'s', () async {
+    final catalogue = _FailingGoogleFonts();
+    // The face is named outright so the resolution reaches the catalogue first:
+    // an auto body would find this machine's own CJK face and never ask.
+    const choice = PdfFontDownload('Noto Sans SC');
+
+    await PdfFontResolver(googleFonts: catalogue).resolve(body: choice);
+    expect(catalogue.calls, 1);
+
+    // A second dialog is a second resolver and a second chance. While the failure
+    // was a library-level flag, the first failure was the last download this
+    // process would ever attempt — even with a brand-new, open catalogue.
+    await PdfFontResolver(googleFonts: catalogue).resolve(body: choice);
+    expect(catalogue.calls, 2);
+  });
+
   test('the emoji face is resolved from disk, before any download', () async {
     // A service that fails the test if the export goes looking for a download:
     // the system scan and the cache are supposed to answer first, and on a
@@ -169,6 +202,24 @@ Future<_Exported> _export(String markdown, {Uint8List? emojiFont}) async {
 /// `/TrueType`, which is why the check is on the file and not the subtype.)
 int _embeddedFontsIn(Uint8List bytes) =>
     RegExp(r'/FontFile2').allMatches(String.fromCharCodes(bytes)).length;
+
+/// A catalogue whose every download fails, counting how often it was asked.
+class _FailingGoogleFonts extends GoogleFontsService {
+  int calls = 0;
+
+  @override
+  Future<List<GoogleFontEntry>> loadCatalog({bool refresh = false}) async {
+    calls++;
+    throw StateError('offline');
+  }
+}
+
+/// A single-face header that declares [tag] as its sfnt version.
+///
+/// Twelve bytes is all [isPdfEmbeddableFont] reads, and the version word is what
+/// decides whether the writer treats the face as Unicode.
+Uint8List _flavouredFont(String tag) =>
+    Uint8List.fromList(<int>[...tag.codeUnits, 0, 0, 0, 0, 0, 0, 0, 0]);
 
 /// A single-face TrueType header whose table directory names [tags], which is
 /// all the colour-bitmap check reads.

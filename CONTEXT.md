@@ -829,7 +829,7 @@ contradicts one of them is a bug, not a preference.
 - A citation neither creates nor preserves a conversation: a 整条引用 whose target is gone shows the stub
   and sends no 引文, and nothing else changes.
 
-## PDF export (PDF 导出) — ADR-0012 待写
+## PDF export (PDF 导出) — ADR-0013 待写
 
 - **Export block model (导出块模型)**: the plain-data shape a conversation takes for export — `ExportText` /
   `ExportReasoning` / `ExportToolCall` / `ExportImage` / `ExportFile`, built once by `buildExportDocument` and
@@ -959,7 +959,7 @@ contradicts one of them is a bug, not a preference.
   file's own name with its type in brackets — so a family whose own file the writer cannot open (CFF `.otf`, as
   this machine's Noto Sans SC Medium is) is answered with the same family's embeddable file instead of nothing.
 
-Deliberate divergences from the screen (each measured, not a matter of taste — ADR-0012 candidates):
+Deliberate divergences from the screen (each measured, not a matter of taste — ADR-0013 candidates):
 
 - An unordered list keeps `-`: the writer's built-in face reaches only U+00FF, and `glyphMetrics` **throws**
   for U+2022, so a bullet glyph is a crash risk on the one path that has no embedded face.
@@ -997,7 +997,7 @@ Deliberate divergences from the screen (each measured, not a matter of taste —
   still out of scope: it is a layout decision about what a PDF *is* rather than a fidelity defect, and the
   parts of it that carry content (thinking, tool calls, citations) are already written out by the block model.
 
-Confirmed limitations (evidence first, for ADR-0012):
+Confirmed limitations (evidence first, for ADR-0013):
 
 - **A face with no CJK blanks CJK, whatever its flavour.** The review asked whether the silent loss is specific
   to a `'true'` face; it is not. The writer asks a face whether it can draw a rune through its character map

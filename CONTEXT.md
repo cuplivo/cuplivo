@@ -102,7 +102,9 @@ contradicts one of them is a bug, not a preference.
 - **Blob**: a content-addressed transfer unit on the sync wire — the bytes of one file whose
   canonical URI appears in a travelling row, or of one skill directory as a zip. A blob's
   identity is its hash (`/sync/blob/<sha256>`): the receiver pulls what it lacks and skips what
-  it already has. Blobs follow URIs: whatever a travelling row references is offered, without
+  it already has, and a receiver that *cannot* pull asks the holder to push the same bytes over
+  the connection it already has (推回退, the blob plane's half of the workspace rule below).
+  Blobs follow URIs: whatever a travelling row references is offered, without
   enumerating payload kinds.
 - **Asset manifest**: the blob list a side publishes alongside the rows it sends (kind, target,
   content hash, size). It travels in the same batch as the rows, in both directions, so each
@@ -150,7 +152,8 @@ contradicts one of them is a bug, not a preference.
   registered against the revisions the apply **actually wrote**, keyed off the advertisement rather
   than off what landed — so a rejected revision's parts cannot unlink the winner's own attachment,
   and a blob whose fetch failed is already referenced when its retry lands; a blob that
-  does not arrive goes pending and is retried once per session, reported meanwhile. A blob
+  does not arrive goes pending and is retried once per session, reported meanwhile — and a blob the
+  holder pushes over the working direction counts as landed here, not as pending. A blob
   failure defers a skill record but not a conversation.
 - **Device-local** (never rides sync): `localOnly`, `discarded` and `unknownPreference`
   dispositions, all `display_*` keys (fonts reference local file paths), `global_proxy_*`,
@@ -463,15 +466,17 @@ contradicts one of them is a bug, not a preference.
   stored per device pair.
 
 - **Session protocol**: a bounded six-beat run over pinned-TLS HTTP (REST-style JSON bodies,
-  binary endpoints for blobs and for workspace files): hello (protocol version **6**, schema
+  binary endpoints for blobs and for workspace files): hello (protocol version **7**, schema
   version, the initiator's listener port **and its own candidate addresses**, its clock reading, its
   data epoch, the deletions it has not seen confirmed, checkpoint summaries, and what each side could
   not apply last session) → negotiate (each side computes deltas) → delta exchange (conversation
   subtrees, entity rows, preference keys, the asset manifest for what each side is sending, and each
   side's workspace file tables; the push is acknowledged with what was deferred, including skill
-  bodies that did not land, **and with the workspace files this side planned and could not land**) →
-  the files that answer that request, pushed over the connection the initiator opened
-  (`PUT /sync/wsfile`) → blob fetch (receiver pulls by contentHash, skipping hashes it already has;
+  bodies that did not land, **with the workspace files this side planned and could not land, and with
+  the blobs it planned and could not land**) →
+  the files and blobs that answer that request, pushed over the connection the initiator opened
+  (`PUT /sync/wsfile`, `PUT /sync/blob/<hash>`) → blob fetch (receiver pulls by contentHash, skipping
+  hashes it already has;
   the responder pulls back over the initiator's advertised listener, and the same reverse
   connection carries its workspace file pulls) → transactional apply + provider reload →
   checkpoint commit on both sides. The push and fetch beats always run, even with nothing to send:
@@ -620,7 +625,16 @@ contradicts one of them is a bug, not a preference.
   evidence that the peer is there, and a self-dial (the certificate pin refusing this device's own
   listener) then costs milliseconds. When no candidate answers, the responder asks for the files it
   could not land in its push acknowledgement and the initiator pushes them; a miss that a push
-  repaired is not also reported as missing.
+  repaired is not also reported as missing. **The blob plane rides the same fallback** — the
+  acknowledgement also names the blobs it planned and could not land, and the initiator pushes the
+  ones it still backs at that hash (`PUT /sync/blob/<hash>`, kind and key in headers). The receiver
+  verifies either way (a file by sha256, a skill directory by re-hashing the extracted tree), so the
+  push adds no new kind of trust. A pushed **skill body** is paired with its record in the same
+  session: the record was stripped from the business apply while the body was missing, and a
+  row-less directory is adopted by the skills rescan as a fresh record stamped *now*, which would
+  beat the peer's own record on the next merge. A session whose skill body was pushed therefore
+  applies that one record late; the acknowledgement was already sent, so the peer keeps a one-session
+  stale baseline and re-offers the record, which converges with no transfer.
 - **An address of this device is never remembered as the peer's (本机地址不入端点)**: a NAT rewrites
   the source of a caller's connection to whoever forwards it — an Android emulator makes it the
   host's own LAN address — so the "address the peer connected from" is checked against this device's
@@ -697,7 +711,9 @@ contradicts one of them is a bug, not a preference.
   counted per face), skill-content losers, and workspace files the peer's newer copy replaced — plus
   blobs that arrived, bytes moved, skills whose body converged, workspace files that landed or were
   deleted, workspaces whose content was withheld, and warnings (clock skew, version refusal, files
-  that never arrived). Counters, not per-row names: which row lost lives in the log. Adopting a row
+  that never arrived). A blob or file the peer pushed counts as arrived *here* and never as withheld,
+  and the pushing side's own summary names what it sent on the peer's behalf. Counters, not per-row
+  names: which row lost lives in the log. Adopting a row
   that carries the same content (the peer echoing this device's own row back) is not a loss. The one
   thing the report deliberately does **not** draw is the routine absence — "not reachable right now"
   is a state the card's subtitle already names, and a row repeating it would dress a sleeping peer up

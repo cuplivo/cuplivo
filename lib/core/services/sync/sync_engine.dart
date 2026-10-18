@@ -1103,6 +1103,18 @@ class SyncEngine implements SyncServerHandler {
         requests: ack.workspaceRequests,
       );
 
+      // The blobs the responder could not fetch for itself (slice 24), for the
+      // same reason and in the same place: a message's image, an avatar or a
+      // skill body reaches a peer that cannot be dialled back only because the
+      // side that holds it sends it, and sending it before the fetch beat means
+      // the responder's own walk — taken while it answers that beat — already
+      // describes what it holds.
+      final pushedBlobs = await _pushRequestedBlobs(
+        session: session,
+        peerDeviceId: peer.deviceId,
+        requests: ack.blobRequests,
+      );
+
       final requested = [
         for (final item in plan)
           if (item.action == SyncConvAction.peerSends ||
@@ -1368,6 +1380,8 @@ class SyncEngine implements SyncServerHandler {
           workspaceFoldersKept: keptWorkspaceFolders,
           workspacePushed: pushed.files,
           workspacePushedBytes: pushed.bytes,
+          blobsPushed: pushedBlobs.blobs,
+          blobBytesPushed: pushedBlobs.bytes,
           clockSkewMs: clockSkewMs,
         ),
         peer: peer,
@@ -1671,6 +1685,10 @@ class SyncEngine implements SyncServerHandler {
         batch.business,
         session.deferredSkills,
       );
+      // Kept un-stripped beside it: a skill body the initiator pushes after the
+      // acknowledgement arrives with its record already filtered out here, and
+      // the push has to be able to put it back (slice 24).
+      session.pushedBusiness = batch.business;
       session.receivedBusiness = applicable;
       session.businessOutcome = await dataPlane.applyBusiness(
         applicable,
@@ -1732,6 +1750,14 @@ class SyncEngine implements SyncServerHandler {
             session.deferredSkills.contains(row['id'] as String))
           row['id'] as String,
     };
+    // Everything this beat planned and could not land becomes the ask the
+    // initiator answers over the connection it already holds (slice 24). The
+    // set is built from the manifest the initiator itself sent — or asked for in
+    // an earlier session and still owes — so it is exactly, and only, the blobs
+    // this session may accept. See [handlePutBlob].
+    session.blobRequests.addAll({
+      for (final entry in session.blobPull.failed.values) entry.target: entry,
+    });
     return SyncApplyAck(
       applied: outcomes.length,
       deferred: {
@@ -1746,6 +1772,9 @@ class SyncEngine implements SyncServerHandler {
       workspaceRequests: session.workspaceRequests.values.toList(
         growable: false,
       ),
+      // The same for blobs, which is what carries a message's images to the
+      // side that cannot be dialled back.
+      blobRequests: session.blobRequests.values.toList(growable: false),
     );
   }
 
@@ -2645,31 +2674,14 @@ class SyncEngine implements SyncServerHandler {
       File? temp;
       try {
         temp = await store.newBlobTempFile();
-        final bytes = await session.fetchBlob(entry, temp);
-        if (entry.kind == SyncBlobEntry.kindSkillDir) {
-          final applied = await dataPlane.applySkillBlob(
-            skillId: entry.key,
-            dirHash: entry.contentHash,
-            zip: temp,
-          );
-          if (applied) {
-            outcome.landedSkillIds.add(entry.key);
-            outcome.bytes += bytes;
-          } else {
-            outcome.failed[entry.target] = entry;
-          }
+        // The client hashes a file blob into this temp file as it streams, so
+        // what `_landStagedBlob` places is bytes this device already verified.
+        await session.fetchBlob(entry, temp);
+        final landed = await _landStagedBlob(entry, temp);
+        if (landed == null) {
+          outcome.failed[entry.target] = entry;
         } else {
-          final landed = await placeFileBlob(
-            entry,
-            temp,
-            resolve: dataPlane.blobPathResolver,
-          );
-          if (landed == null) {
-            outcome.failed[entry.target] = entry;
-          } else {
-            outcome.landedByUri[entry.key] = entry.withSize(landed);
-            outcome.bytes += landed;
-          }
+          _recordLanded(entry, landed, outcome);
         }
       } catch (error) {
         debugPrint('sync blob ${entry.contentHash} failed: $error');
@@ -2684,6 +2696,41 @@ class SyncEngine implements SyncServerHandler {
     }
     onProgress?.call(wanted.length, wanted.length);
     return outcome;
+  }
+
+  /// Puts one staged blob where its entry says it belongs, returning the bytes
+  /// that landed or null when nothing was installed.
+  ///
+  /// The one place the two blob kinds' *placement* lives, shared by the fetch
+  /// beat and the push route (slice 24): a file is a managed-root check plus an
+  /// atomic rename, a skill directory is extracted and re-hashed before it is
+  /// swapped in. A pushed blob and a pulled one must pass the same gates.
+  Future<int?> _landStagedBlob(SyncBlobEntry entry, File staged) async {
+    if (entry.kind == SyncBlobEntry.kindSkillDir) {
+      final applied = await dataPlane.applySkillBlob(
+        skillId: entry.key,
+        dirHash: entry.contentHash,
+        zip: staged,
+      );
+      return applied ? await staged.length() : null;
+    }
+    return placeFileBlob(entry, staged, resolve: dataPlane.blobPathResolver);
+  }
+
+  /// Books one landed blob into [outcome]: the one place the two kinds'
+  /// bookkeeping is written, so a pull and a push cannot count differently.
+  void _recordLanded(
+    SyncBlobEntry entry,
+    int landed,
+    _BlobPullOutcome outcome,
+  ) {
+    if (entry.kind == SyncBlobEntry.kindSkillDir) {
+      outcome.landedSkillIds.add(entry.key);
+    } else {
+      outcome.landedByUri[entry.key] = entry.withSize(landed);
+    }
+    outcome.bytes += landed;
+    outcome.failed.remove(entry.target);
   }
 
   /// Pushes the workspace files the responder could not take for itself, over
@@ -2746,6 +2793,68 @@ class SyncEngine implements SyncServerHandler {
       }
     }
     return (files: files, bytes: bytes);
+  }
+
+  /// Pushes the blobs the responder could not take for itself, over the
+  /// connection this round already holds (slice 24).
+  ///
+  /// The same shape as [_pushRequestedWorkspaceFiles], and for the same reason:
+  /// the peer that cannot be dialled back is the peer whose pictures never
+  /// arrive, so the side that holds them has to send them. The responder asks
+  /// only for blobs its own plan named, and a blob this device no longer backs
+  /// at the requested hash is skipped here — the receiver would refuse those
+  /// bytes anyway, and the entry stays owed rather than half-true.
+  ///
+  /// Sequential on purpose: these are control-beat requests on one connection,
+  /// and pushing several large attachments at once would buy nothing while
+  /// making a stalled transfer's cause unclear.
+  Future<({int blobs, int bytes})> _pushRequestedBlobs({
+    required SyncClientSession session,
+    required String peerDeviceId,
+    required List<SyncBlobEntry> requests,
+  }) async {
+    if (requests.isEmpty) return (blobs: 0, bytes: 0);
+    var blobs = 0;
+    var bytes = 0;
+    for (final entry in requests) {
+      try {
+        final file = await _blobToPush(peerDeviceId, entry);
+        if (file == null) {
+          debugPrint(
+            'sync blob: not pushing ${entry.key}: this device no longer backs '
+            '${entry.contentHash}',
+          );
+          continue;
+        }
+        final size = await file.length();
+        await session.pushBlob(entry: entry, source: file, size: size);
+        blobs++;
+        bytes += size;
+        debugPrint('sync blob: pushed ${entry.key} ($size B) to the peer');
+      } catch (error) {
+        debugPrint('sync blob: pushing ${entry.key} failed: $error');
+      }
+    }
+    return (blobs: blobs, bytes: bytes);
+  }
+
+  /// The local file behind one blob this device is about to push, or null when
+  /// it can no longer back that hash.
+  ///
+  /// Resolution goes through [handleFetchBlob] — the same authority a `GET`
+  /// consults, so the push serves exactly what a fetch would have — and a file
+  /// blob is hashed again on top of it: a published mapping is a memory of what
+  /// the file *was* at manifest time, and the receiver's digest check would
+  /// throw the transfer away. The hasher memoises by (path, length, mtime), so
+  /// an unchanged file costs a stat.
+  Future<File?> _blobToPush(String peerDeviceId, SyncBlobEntry entry) async {
+    final file = await handleFetchBlob(peerDeviceId, entry.contentHash);
+    if (file == null) return null;
+    if (entry.kind == SyncBlobEntry.kindFile) {
+      final hash = await dataPlane.fileHasher.hashOf(file);
+      if (hash != entry.contentHash) return null;
+    }
+    return file;
   }
 
   /// Remembers what this device can serve for a manifest it just published.
@@ -2871,7 +2980,7 @@ class SyncEngine implements SyncServerHandler {
           received += chunk.length;
           // The declared length is the contract; a body that exceeds it is a
           // peer bug or a hostile one, and neither gets to fill this disk.
-          if (received > size) throw const _WorkspacePushTooLarge();
+          if (received > size) throw const _PushTooLarge();
           sink.add(chunk);
         }
         await sink.flush();
@@ -2937,6 +3046,176 @@ class SyncEngine implements SyncServerHandler {
     } catch (_) {}
   }
 
+  /// Receives one blob the initiator pushed because this device could not fetch
+  /// it (slice 24) — the blob plane's half of [handlePutWorkspaceFile].
+  ///
+  /// Three refusals before a byte is trusted, exactly as for a file:
+  ///
+  /// * the session must exist and have taken its push — no push beat, no request
+  ///   set, and therefore nothing that could authorize a write;
+  /// * the `(kind, key)` must be an entry this session asked for, and the
+  ///   route's hash must be that entry's hash — a crafted target has never been
+  ///   advertised and can never be written (the placement allowlist then keeps
+  ///   even an advertised URI inside the managed roots);
+  /// * a file blob's declared length must be the size that was asked for, so a
+  ///   peer cannot substitute a different version for the one it offered.
+  ///
+  /// The bytes are then checked by the *receiver*, which is where both
+  /// directions put that authority: a file is hashed and compared, a skill's zip
+  /// is extracted and its directory re-hashed. A skill body that lands is paired
+  /// with its record before this returns — the record was stripped from the
+  /// business apply while the body was missing, and a body that sits on disk
+  /// without one is adopted by the skills rescan as a fresh default record.
+  @override
+  Future<bool> handlePutBlob(
+    String peerDeviceId,
+    String contentHash, {
+    required String kind,
+    required String key,
+    required int size,
+    required Stream<List<int>> body,
+  }) async {
+    final session = _sessions[peerDeviceId];
+    if (session == null || !session.pushSeen) {
+      await _discard(body, size);
+      return false;
+    }
+    final requested = session.blobRequests[SyncBlobEntry.targetOf(kind, key)];
+    if (requested == null ||
+        requested.contentHash != contentHash ||
+        requested.kind != kind ||
+        requested.key != key ||
+        (kind == SyncBlobEntry.kindFile && requested.byteSize != size)) {
+      await _discard(body, size);
+      debugPrint(
+        'sync blob: refusing a push for $kind "$key": this session did not ask '
+        'for that version',
+      );
+      return false;
+    }
+    File? staged;
+    var received = 0;
+    try {
+      staged = await store.newBlobTempFile();
+      final sink = staged.openWrite();
+      try {
+        await for (final chunk in body) {
+          received += chunk.length;
+          // A chunked body is refused at the route, so this is the peer lying
+          // about its own declaration; a skill's zip has no agreed length, so
+          // for it this is a self-consistency check rather than a contract.
+          if (received > size) throw const _PushTooLarge();
+          sink.add(chunk);
+        }
+        await sink.flush();
+      } finally {
+        await sink.close();
+      }
+      if (received != size) {
+        debugPrint(
+          'sync blob: refusing a push for "$key": $received bytes arrived, '
+          '$size were declared',
+        );
+        return false;
+      }
+      if (kind == SyncBlobEntry.kindFile) {
+        final digest = await dataPlane.fileHasher.hashOf(staged);
+        if (digest != contentHash) {
+          // The peer's file changed since the manifest it published. Nothing is
+          // placed, and the entry is asked for again from whoever has it.
+          debugPrint(
+            'sync blob: refusing a push for "$key": the bytes hash to $digest, '
+            'not $contentHash',
+          );
+          return false;
+        }
+      }
+      final landed = await _landStagedBlob(requested, staged);
+      if (landed == null) {
+        debugPrint('sync blob: the pushed $kind "$key" did not verify');
+        return false;
+      }
+      // Landed: it counts as this side's, it is no longer owed, and it may not
+      // be written again this session.
+      _recordLanded(requested, landed, session.blobPull);
+      session.pushedBlobs++;
+      session.pushedBlobBytes += landed;
+      session.blobRequests.remove(requested.target);
+      if (kind == SyncBlobEntry.kindSkillDir) {
+        await _pairPushedSkill(peerDeviceId, session, key);
+      }
+      return true;
+    } catch (error) {
+      debugPrint('sync blob: receiving the pushed $kind "$key" failed: $error');
+      return false;
+    } finally {
+      try {
+        if (staged != null && await staged.exists()) await staged.delete();
+      } catch (_) {}
+    }
+  }
+
+  /// Deploys the record of a skill whose body just arrived by push.
+  ///
+  /// The push beat strips the record of every skill whose body it could not
+  /// verify, and a pushed body lands *after* that apply — so without this the
+  /// session would end with a directory and no row. That is not a harmless
+  /// intermediate state: `SkillsService`'s rescan adopts a row-less directory as
+  /// a fresh record stamped *now*, which then beats the peer's record in the
+  /// next merge and silently replaces the user's skill settings with defaults.
+  ///
+  /// Only this skill's rows travel through [SyncDataPlane.applyBusiness] — the
+  /// rest of the push was applied beats ago — and the row joins
+  /// [receivedBusiness], which is what the fetch beat's checkpoint advance reads.
+  /// So this is also what makes the skill usable in *this* session rather than
+  /// the next one.
+  Future<void> _pairPushedSkill(
+    String peerDeviceId,
+    _ResponderSession session,
+    String skillId,
+  ) async {
+    final rows = [
+      for (final row
+          in session.pushedBusiness.entities[SyncDataPlane.skillWire] ??
+              const <Map<String, dynamic>>[])
+        if (row['id'] == skillId) row,
+    ];
+    if (rows.isEmpty) {
+      // The body arrived without its record in the push: the next session's
+      // plan brings it, and the rescan window is documented in the ADR.
+      return;
+    }
+    final outcome = await dataPlane.applyBusiness(
+      SyncBusinessPayload(entities: {SyncDataPlane.skillWire: rows}),
+      myDeviceId: identity.deviceId,
+      peerDeviceId: peerDeviceId,
+    );
+    if (outcome.deferred) {
+      // A restore holds the write fence: the record is not ours to write yet,
+      // and claiming it in the checkpoint would read as "the peer has it".
+      debugPrint(
+        'sync blob: the record of the pushed skill $skillId was deferred',
+      );
+      return;
+    }
+    final entities = {
+      for (final entry in session.receivedBusiness.entities.entries)
+        entry.key: List<Map<String, dynamic>>.of(entry.value),
+    };
+    entities[SyncDataPlane.skillWire] = [
+      ...?entities[SyncDataPlane.skillWire],
+      ...rows,
+    ];
+    session.receivedBusiness = SyncBusinessPayload(
+      entities: entities,
+      preferences: session.receivedBusiness.preferences,
+    );
+    // The body is here and its record is applied, so the content plan's verdict
+    // for this skill is settled: keeping it deferred would keep the skill
+    // baseline (and the record) one session behind for no reason.
+    session.deferredSkills.remove(skillId);
+  }
+
   /// The file ledger this session ends with: everything the push beat agreed,
   /// plus every file the initiator pushed afterwards.
   ///
@@ -2969,6 +3248,8 @@ class SyncEngine implements SyncServerHandler {
     int workspacePushed = 0,
     int workspacePushedBytes = 0,
     int workspaceMissesRepaired = 0,
+    int blobsPushed = 0,
+    int blobBytesPushed = 0,
     int? clockSkewMs,
   }) {
     var upserted = 0;
@@ -3019,6 +3300,7 @@ class SyncEngine implements SyncServerHandler {
       if (entityRows > 0) 'entities $entityRows',
       if (preferenceRows > 0) 'prefs $preferenceRows',
       if (blobsMoved > 0) 'blobs $blobsMoved ($blobBytes B)',
+      if (blobsPushed > 0) 'blobs pushed $blobsPushed ($blobBytesPushed B)',
       if (skillsUpdated > 0) 'skills $skillsUpdated',
       if (workspaceFetched > 0)
         'workspace files $workspaceFetched (${workspace!.bytesLanded} B)',
@@ -3245,8 +3527,17 @@ class SyncEngine implements SyncServerHandler {
           'has not taken it has nothing to ask for',
         );
         assert(
+          session.pushSeen || session.blobRequests.isEmpty,
+          'the blob requests are the push beat\'s product too: a session that '
+          'has not taken it has nothing to ask for',
+        );
+        assert(
           session.pushedWorkspace.isEmpty || session.pushSeen,
           'a pushed file can only land on a session that has taken its push',
+        );
+        assert(
+          session.pushedBlobs == 0 || session.pushSeen,
+          'a pushed blob can only land on a session that has taken its push',
         );
       }
       return true;
@@ -3360,11 +3651,35 @@ class _ResponderSession {
   /// Business rows the initiator pushed in this session's one PUT.
   SyncBusinessPayload receivedBusiness = const SyncBusinessPayload();
 
+  /// The same push, exactly as it arrived — including the skill rows
+  /// [receivedBusiness] had stripped because their body had not landed.
+  ///
+  /// A body pushed *after* the business apply is one of those, so this is where
+  /// the late apply finds the record that belongs to it (slice 24).
+  SyncBusinessPayload pushedBusiness = const SyncBusinessPayload();
+
   /// Result of applying them, for the checkpoint and the report.
   SyncBusinessApplyOutcome? businessOutcome;
 
-  /// Blobs this responder pulled from the initiator in this session.
+  /// Blobs this responder pulled from the initiator in this session — and, for
+  /// the ones it could not pull, the same object the pushes land into, so the
+  /// report counts a blob exactly once whichever direction delivered it.
   _BlobPullOutcome blobPull = _BlobPullOutcome();
+
+  /// The blobs this session asked the initiator to push, keyed by
+  /// `SyncBlobEntry.target`.
+  ///
+  /// Built by the push beat from the blobs it planned and could not land; it is
+  /// the write authorization for [handlePutBlob] — a push for an entry this map
+  /// does not hold is refused, so the route can never write content the peer
+  /// never advertised (slice 24). An entry is removed once its blob lands.
+  final Map<String, SyncBlobEntry> blobRequests = {};
+
+  /// Blobs the initiator pushed and this device landed, for the report —
+  /// counted separately from the fetch half so the log can tell the directions
+  /// apart. [blobPull] carries the same landings for the card.
+  int pushedBlobs = 0;
+  int pushedBlobBytes = 0;
 
   /// Workspace content this responder moved in this session, and the file
   /// ledger that came out of it. Its snapshot is re-walked at the fetch beat:
@@ -3463,11 +3778,11 @@ class _InitiatorRound {
   }
 }
 
-/// A pushed workspace body larger than the length its own request declared.
+/// A pushed body larger than the length its own request declared.
 ///
 /// Its own type so the refusal is one `catch` away from every other failure of
-/// the route, and so [SyncEngine.handlePutWorkspaceFile] can stop reading the
-/// body rather than buffering what a buggy or hostile peer decided to send.
-class _WorkspacePushTooLarge implements Exception {
-  const _WorkspacePushTooLarge();
+/// the route, and so the two push handlers can stop reading the body rather
+/// than buffering what a buggy or hostile peer decided to send.
+class _PushTooLarge implements Exception {
+  const _PushTooLarge();
 }

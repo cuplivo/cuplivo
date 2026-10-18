@@ -1567,10 +1567,82 @@ slice is the fix, and it changes the wire (`kSyncProtocolVersion` 5 → 6).
 - *Rejected: keeping v5 compatibility ("no requests ⇒ old behaviour").* The old behaviour is exactly
   the silent failure this slice exists to remove, and a half-spoken protocol is worse than an
   honest refusal at hello.
-- *Known limits.* The blob plane still has only the reverse pull, so an undiallable peer's attachments
-  and skill bodies keep failing (the next slice, with the same shape). The push is sequential, and the
+- *Known limits.* The blob plane still had only the reverse pull when this slice landed, so an
+  undiallable peer's attachments and skill bodies kept failing — closed by slice 24, with the same
+  shape and the skill-body coupling that shape brings. The push is sequential, and the
   reverse dial now costs up to three connect budgets before it gives up and the fallback runs — paid
   only in sessions that need the reverse direction at all.
+
+## Amendment (2026-10, slice 24): the blob a peer cannot fetch is pushed to it
+
+Slice 23 closed with its own limit written down: "the blob plane still has only the reverse pull, so an
+undiallable peer's attachments and skill bodies keep failing (the next slice, with the same shape)".
+The report that named the symptom is issue #1018, whose second half reads *"还会忽略消息中的图片，导致跨设备
+对话没法接续"*. Same cause one plane over: the rows of a conversation arrive, the picture they reference
+never does, and both sides call the session a success. This slice is the fix, and it changes the wire
+(`kSyncProtocolVersion` 6 → 7).
+
+- **The one face slice 23 left behind.** A blob was fetched only by the side that wanted it, so a
+  responder needed the initiator to be reachable at the address its connection arrived from — the same
+  NAT rewrite that made a workspace's HTML file unmovable made every image unmovable too.
+  `_unreachableBlobPull` marked the whole wanted set `failed`, the checkpoint carried it as
+  `pendingBlobs`, and the retry had exactly the same requirement next session, so for a NAT'd pair the
+  images never arrived at all. Images do live under the managed roots (`upload`, `images`), and the
+  manifest does find them (`kelivoFileUrisInRows`): this was never a discovery problem.
+- **The push fallback (v7).** The initiator already holds a connection the pair has proved works, so
+  that is where a blob the responder cannot fetch now travels. `SyncApplyAck` gained `blobRequests` —
+  the entries the responder planned and did not land, each with the hash the initiator advertised —
+  and `/sync/blob/<sha256>` gained a `PUT` that receives one of them: the entry's `kind` and its key
+  (base64url) in headers, the raw bytes as the body with a declared length. The initiator pushes them
+  after the workspace files and before its fetch beat, so the responder's own walk — taken while it
+  answers that beat — already describes what it holds.
+- **The request set is the write authorization, and the version is the request.** A push is accepted
+  only for a `(kind, key)` this session asked for, and only when the route's hash *is* that entry's
+  hash: a crafted target has never been advertised and can never be written, and the placement
+  allowlist still keeps even an advertised URI inside the managed roots. A file blob's declared length
+  must equal the size that was asked for, so a peer cannot substitute a different version for the one
+  it offered; a skill's zip has no length that could be agreed in advance (it is packed on demand),
+  so its guard is `applySkillBlob`'s own 200 MB cap and the transfer deadline. An entry leaves the set
+  once it lands, which is what makes a replayed body a refusal rather than a second write.
+- **The receiver verifies — in both directions now.** A file blob is hashed as it is placed and
+  compared with the requested digest; a skill body is extracted and its directory re-hashed before the
+  swap. That is exactly the authority the pull path already had on the *client* side, moved to the
+  side that writes bytes; the push route adds no new kind of trust, and a blob that fails either check
+  is simply still owed.
+- **The initiator serves only what it still backs.** Resolution goes through `handleFetchBlob` — the
+  same authority the `GET` route consults, including its fallbacks for a blob pending from an earlier
+  session — and a file blob is re-hashed on top of it (the hasher memoises by path, length and mtime,
+  so an unchanged file costs a stat). A file edited since its manifest is skipped with a log instead
+  of being pushed into a refusal, and the responder keeps it owed.
+- **A pushed skill body is paired with its record in the same session.** The push beat strips the
+  record of every skill whose body it could not verify, and a pushed body lands *after* that apply, so
+  the session would otherwise end with a directory and no row. That is not a harmless intermediate
+  state: `SkillsService`'s rescan adopts a row-less directory as a fresh record stamped *now*, which
+  then wins the next LWW merge and silently replaces the peer's skill settings with defaults. So the
+  write path applies that skill's rows from the same push and folds them into the payload the fetch
+  beat's checkpoint advance reads. The acknowledgement was already sent when this happens, so the
+  initiator keeps one stale skill-content baseline and re-offers the record next session; that session
+  finds the hashes equal, transfers nothing and converges.
+- **A list that is peer input has a bound.** `kMaxBlobRequestsPerSession` (2048) caps the ask. Every
+  entry costs the initiator more than a lookup — a hash it did not publish this session falls through
+  to the asset registry and to a full scan of the local skill directories — and the list is *truncated,
+  not refused*: what falls off stays in the responder's pending set and is asked for again. The
+  workspace request list needs no such bound, because a pair is a lookup in the table the peer itself
+  advertised and that table is already capped by its own walk.
+- *Rejected: carrying the blob bytes in the acknowledgement or the fetch request.* The one-message
+  fix, and it puts an `.dart_tool`-sized attachment inside a JSON control body; the `PUT` streams.
+- *Rejected: deferring the whole business apply to the fetch beat*, so a pushed body is present before
+  the record is written. It reorders an apply whose write fence, arrival gate and reporting are
+  load-bearing, to save applying one row late.
+- *Rejected: doing this for file blobs only.* The skill plane has the same shape and the same failure,
+  and the coupling above is the actual work of including it.
+- *Known limits.* A session killed between a pushed skill body landing and its record being applied
+  leaves a row-less directory for the next rescan to adopt — a window of milliseconds, and the only
+  state in which the rescan's default record can still win. A NAT'd first sync asks for at most
+  `kMaxBlobRequestsPerSession` blobs, so a large library converges over more than one session. A blob
+  has no byte cap beyond the skill zip's 200 MB: the pull path never had one either, and the bound on
+  both is the transfer deadline. And the reverse dial still costs up to three connect budgets before
+  the fallback runs, paid only in sessions that need the reverse direction at all.
 
 ## Considered options (rejected)
 

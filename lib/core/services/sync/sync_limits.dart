@@ -51,6 +51,20 @@ const int kMaxPingsInFlight = kMaxPeerEndpoints + 2;
 /// how much probing this device does at once.
 const int kSyncProbeConcurrency = kMaxPeerEndpoints;
 
+/// How many blobs one push acknowledgement may ask the initiator to push
+/// (slice 24).
+///
+/// The list is peer input, and every entry costs the initiator more than a map
+/// lookup: a hash it did not publish this session falls through to the asset
+/// registry (a query) and to a full scan of the local skill directories. The
+/// *workspace* request list needs no such bound — a pair is a lookup in the
+/// table the peer itself advertised, which its own walk already caps.
+///
+/// A list past this is **truncated, not refused**: the entries that fall off
+/// stay in the receiver's pending set and are asked for again next session, so
+/// the failure mode is a slower convergence rather than a lost blob.
+const int kMaxBlobRequestsPerSession = 2048;
+
 /// How many addresses a responder tries when it has to dial the initiator back
 /// to pull a file from it.
 ///

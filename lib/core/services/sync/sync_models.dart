@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart' as crypto;
 
+import 'sync_limits.dart';
+
 /// Wire vocabulary for LAN sync slice 1 (ADR-0003).
 ///
 /// Everything on the wire is JSON built from plain maps. Conversation subtrees
@@ -47,7 +49,14 @@ import 'package:crypto/crypto.dart' as crypto;
 /// no reverse connection to fetch over either, so a whole workspace's files
 /// would silently never move in that direction while both reports claimed
 /// success. Refused at hello like every other shape change.
-const int kSyncProtocolVersion = 6;
+///
+/// v7: the blobs a responder cannot pull (slice 24). The same acknowledgement
+/// gained `blobRequests` and the blob route gained a write verb, so the
+/// attachment, avatar, font and skill-body plane gets the fallback slice 23
+/// gave the workspace plane. A v6 peer would read the blob list as "nothing
+/// owed" and had no reverse connection to fetch over either, so an undiallable
+/// peer's images would keep failing while both reports claimed success.
+const int kSyncProtocolVersion = 7;
 
 /// Wall-clock divergence (milliseconds) beyond which a session report carries
 /// a clock-skew warning. Kerberos-style tolerance: below it, LWW comparisons
@@ -784,6 +793,15 @@ class SyncBusinessPayload {
       );
 }
 
+/// A well-formed blob hash: the sha256 hex digest a manifest publishes and a
+/// blob route names.
+final RegExp _blobHashPattern = RegExp(r'^[0-9a-f]{64}$');
+
+/// Whether [value] is a blob hash — one spelling for the wire parser and the
+/// server's route check, so "a hash" cannot mean two things on the two sides of
+/// a request.
+bool isBlobHash(String value) => _blobHashPattern.hasMatch(value);
+
 /// One blob the sender can serve, discovered from the payloads it is sending:
 /// every `kelivo-file` URI that appears in a travelling row (message part,
 /// entity payload, preference value) becomes a file entry; a skill whose
@@ -795,6 +813,11 @@ class SyncBusinessPayload {
 class SyncBlobEntry {
   static const String kindFile = 'file';
   static const String kindSkillDir = 'skill-dir';
+
+  /// The two kinds the wire accepts, and the only values a parsed entry may
+  /// carry: everything downstream branches on [kind], so an unknown one is a
+  /// dropped entry rather than a third behaviour nobody wrote.
+  static const Set<String> kinds = {kindFile, kindSkillDir};
 
   final String kind;
   final String key;
@@ -810,7 +833,34 @@ class SyncBlobEntry {
 
   /// Stable identity of what this entry wants, independent of content: used
   /// to key pending-blob retries (a new hash for the same target supersedes).
-  String get target => '$kind\u0000$key';
+  String get target => targetOf(kind, key);
+
+  /// The same identity from its two halves, for a caller that has them without
+  /// an entry to hand (the push route reads them off the request headers).
+  static String targetOf(String kind, String key) => '$kind\u0000$key';
+
+  /// Lenient parse of one entry off the wire, or null when it is not one. The
+  /// entries arrive from a peer (a manifest, a checkpoint that travelled, an
+  /// acknowledgement), and a malformed one is a blob that stays owed — never a
+  /// session that throws.
+  static SyncBlobEntry? tryParse(Object? raw) {
+    if (raw is! Map) return null;
+    final kind = raw['k'];
+    final key = raw['t'];
+    final hash = raw['h'];
+    final size = raw['s'];
+    if (kind is! String || !kinds.contains(kind)) return null;
+    if (key is! String || key.isEmpty) return null;
+    if (hash is! String || !isBlobHash(hash)) return null;
+    final bytes = size is num ? size.toInt() : 0;
+    if (bytes < 0) return null;
+    return SyncBlobEntry(
+      kind: kind,
+      key: key,
+      contentHash: hash,
+      byteSize: bytes,
+    );
+  }
 
   /// The same entry with the byte size actually landed (the manifest may not
   /// know it — a skill zip is produced on demand).
@@ -972,12 +1022,23 @@ class SyncApplyAck {
   /// keeps the ordinary LAN pair on the original path.
   final List<SyncWorkspaceFileRequest> workspaceRequests;
 
+  /// Blobs the responder planned to fetch and could not land, for the same
+  /// reason and with the same shape as [workspaceRequests] (slice 24).
+  ///
+  /// Each entry is one the *initiator itself* advertised in this session's
+  /// manifest (or asked for in an earlier one), so the list is not a wish: it
+  /// is exactly the set of writes the responder's own plan can justify. The
+  /// initiator pushes the ones it can still serve at that hash, before its
+  /// fetch beat.
+  final List<SyncBlobEntry> blobRequests;
+
   const SyncApplyAck({
     required this.applied,
     this.deferred = const {},
     this.businessDeferred = false,
     this.deferredSkills = const {},
     this.workspaceRequests = const [],
+    this.blobRequests = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -990,6 +1051,8 @@ class SyncApplyAck {
       'workspaceRequests': [
         for (final request in workspaceRequests) request.toJson(),
       ],
+    if (blobRequests.isNotEmpty)
+      'blobRequests': [for (final entry in blobRequests) entry.toJson()],
   };
 
   static SyncApplyAck fromJson(Map<String, dynamic> json) => SyncApplyAck(
@@ -1003,6 +1066,7 @@ class SyncApplyAck {
         id.toString(),
     },
     workspaceRequests: _requestsFromJson(json['workspaceRequests']),
+    blobRequests: _blobRequestsFromJson(json['blobRequests']),
   );
 
   /// One malformed entry is dropped, not a session: a request that cannot be
@@ -1012,6 +1076,21 @@ class SyncApplyAck {
     final requests = <SyncWorkspaceFileRequest>[];
     for (final entry in raw) {
       final request = SyncWorkspaceFileRequest.tryParse(entry);
+      if (request != null) requests.add(request);
+    }
+    return requests;
+  }
+
+  /// The same rule for blobs, plus the one bound the blob list needs: past
+  /// [kMaxBlobRequestsPerSession] each further entry would cost the initiator a
+  /// registry query and a skill-directory scan, so the list is cut there. The
+  /// cut entries stay in the receiver's pending set and are asked for again.
+  static List<SyncBlobEntry> _blobRequestsFromJson(Object? raw) {
+    if (raw is! List) return const [];
+    final requests = <SyncBlobEntry>[];
+    for (final entry in raw) {
+      if (requests.length >= kMaxBlobRequestsPerSession) break;
+      final request = SyncBlobEntry.tryParse(entry);
       if (request != null) requests.add(request);
     }
     return requests;

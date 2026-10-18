@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:Cuplivo/core/services/sync/sync_limits.dart';
 import 'package:Cuplivo/core/services/sync/sync_merge.dart';
 import 'package:Cuplivo/core/services/sync/sync_models.dart';
 
@@ -949,23 +950,81 @@ void main() {
     });
 
     test('an apply acknowledgement round-trips what it deferred', () {
+      final entry = SyncBlobEntry(
+        kind: SyncBlobEntry.kindSkillDir,
+        key: 'skill-1',
+        contentHash: 'a' * 64,
+      );
       final ack = SyncApplyAck(
         applied: 2,
         deferred: const {'conv-2'},
         businessDeferred: true,
         deferredSkills: const {'skill-1'},
+        blobRequests: [entry],
       );
       final decoded = SyncApplyAck.fromJson(ack.toJson());
       expect(decoded.applied, 2);
       expect(decoded.deferred, {'conv-2'});
       expect(decoded.businessDeferred, isTrue);
       expect(decoded.deferredSkills, {'skill-1'});
+      expect(decoded.blobRequests, [entry]);
       // Nothing deferred: the fields are absent, and both mean "confirmed".
       final empty = SyncApplyAck.fromJson(const {'applied': 0});
       expect(empty.deferred, isEmpty);
       expect(empty.businessDeferred, isFalse);
       expect(empty.deferredSkills, isEmpty);
+      expect(empty.blobRequests, isEmpty);
+      expect(
+        SyncApplyAck(applied: 0).toJson().containsKey('blobRequests'),
+        isFalse,
+        reason: 'an empty ask is not a field',
+      );
     });
+
+    test(
+      'a blob request list is peer input: bad entries drop, long ones cut',
+      () {
+        Map<String, dynamic> entry(String hash, {String kind = 'file'}) => {
+          'k': kind,
+          't': 'kelivo-file:///images/$hash.png',
+          'h': hash,
+          's': 4,
+        };
+        final good = 'b' * 64;
+        final decoded = SyncApplyAck.fromJson({
+          'applied': 0,
+          'blobRequests': [
+            entry(good),
+            // Then, in order: a bare string, an unknown kind, an empty key, a
+            // hash that is not a sha256, and a negative size. Each is one blob
+            // that stays owed rather than a session that throws.
+            'not-a-map',
+            entry(good, kind: 'skill-dir-x'),
+            {'k': 'file', 't': '', 'h': good, 's': 4},
+            entry('c' * 63),
+            {
+              'k': 'file',
+              't': 'kelivo-file:///images/x.png',
+              'h': good,
+              's': -1,
+            },
+          ],
+        });
+        expect(decoded.blobRequests, hasLength(1));
+        expect(decoded.blobRequests.single.contentHash, good);
+
+        // Past the session's bound the list is cut, not refused: what falls off
+        // is asked for again next session.
+        final long = SyncApplyAck.fromJson({
+          'applied': 0,
+          'blobRequests': [
+            for (var i = 0; i < kMaxBlobRequestsPerSession + 10; i++)
+              entry(i.toRadixString(16).padLeft(64, '0')),
+          ],
+        });
+        expect(long.blobRequests, hasLength(kMaxBlobRequestsPerSession));
+      },
+    );
 
     test('a hello round-trips its announced deletions and their digests', () {
       // A deleted conversation is announced by name and by the digest both

@@ -568,6 +568,41 @@ class SyncClientSession {
     await response.drain<void>();
   }
 
+  /// Pushes one blob the peer asked for (slice 24).
+  ///
+  /// The hash is the route's subject and the entry's kind and key travel in
+  /// headers, so the receiver matches the push to the exact entry it asked
+  /// about. [size] is declared as the body's length, which is what a file blob
+  /// is checked against; the bytes are the file's own, streamed rather than
+  /// buffered.
+  Future<void> pushBlob({
+    required SyncBlobEntry entry,
+    required File source,
+    required int size,
+  }) async {
+    final request = await _client.putUrl(
+      Uri.parse('$_baseUrl${SyncServer.blobPathPrefix}${entry.contentHash}'),
+    );
+    _authenticate(request);
+    request.headers.set(SyncServer.blobKindHeader, entry.kind);
+    request.headers.set(
+      SyncServer.blobKeyHeader,
+      base64Url.encode(utf8.encode(entry.key)),
+    );
+    request.headers.contentType = ContentType.binary;
+    request.headers.contentLength = size;
+    await request.addStream(source.openRead());
+    final response = await request.close().timeout(blobDeadline);
+    if (response.statusCode != HttpStatus.noContent) {
+      await response.drain<void>();
+      throw SyncClientException(
+        'blob_push_refused',
+        statusCode: response.statusCode,
+      );
+    }
+    await response.drain<void>();
+  }
+
   void close() => _client.close(force: true);
 
   Future<HttpClientResponse> _post(

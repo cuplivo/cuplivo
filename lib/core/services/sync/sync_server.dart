@@ -82,6 +82,26 @@ abstract class SyncServerHandler {
     required Stream<List<int>> body,
   });
 
+  /// Receives one blob this device asked the caller to push, as the raw request
+  /// body (slice 24).
+  ///
+  /// [contentHash] is the route's own hash — the one this device asked for —
+  /// and [kind] plus [key] name the entry it asked about, so the handler can
+  /// find that exact request and refuse anything else. [size] is the body's
+  /// declared length, which is what a file blob is checked against; a skill's
+  /// zip has no length agreed in advance.
+  ///
+  /// Same rule as [handlePutWorkspaceFile]: the request set the push beat built
+  /// is the write authorization. Returns whether the blob landed.
+  Future<bool> handlePutBlob(
+    String peerDeviceId,
+    String contentHash, {
+    required String kind,
+    required String key,
+    required int size,
+    required Stream<List<int>> body,
+  });
+
   /// Pairing: validate the PIN, persist the peer, answer with our identity.
   /// Returns null when the PIN is wrong or pairing is not open.
   ///
@@ -508,8 +528,15 @@ class SyncServer {
   static const String workspaceRelPathHeader = 'x-sync-path';
   static const String workspaceMtimeHeader = 'x-sync-mtime';
 
-  /// A well-formed blob hash: the sha256 hex digest the manifest publishes.
-  static final RegExp _blobHashPattern = RegExp(r'^[0-9a-f]{64}$');
+  /// The push direction of the blob route (slice 24). The hash travels in the
+  /// path — it is the request's whole subject — and the entry's kind and key
+  /// travel beside it, because the receiver has to find *the entry it asked
+  /// about* rather than guess which target a hash belongs to when the same
+  /// content sits under two names. The key is base64url for the same reason a
+  /// workspace path is: it is a URI, and a header has no place to put an
+  /// encoding question.
+  static const String blobKindHeader = 'x-sync-blob-kind';
+  static const String blobKeyHeader = 'x-sync-blob-key';
 
   static bool _constantTimeEquals(String a, String b) {
     final left = utf8.encode(a);
@@ -616,24 +643,80 @@ class SyncServer {
     _respondJson(request, HttpStatus.ok, (result as SyncHello).toJson());
   }
 
-  /// Streams one blob. The hash names the content; the handler decides which
-  /// local file (if any) backs it, and a peer-supplied file entry is only ever
+  /// One blob, in either direction.
+  ///
+  /// `GET` streams the content this device published for the hash. `PUT` is the
+  /// other direction (slice 24): the initiator pushing a blob this device asked
+  /// for because it could not fetch it. The handler resolves which local file
+  /// (if any) backs a served hash, and a peer-supplied file entry is only ever
   /// remembered for a managed blob root, so a request can never read an
   /// arbitrary path off this device.
   Future<void> _handleBlob(HttpRequest request, String peerDeviceId) async {
+    if (request.method == 'PUT') {
+      await _receiveBlob(request, peerDeviceId);
+      return;
+    }
     if (request.method != 'GET') {
-      _safeRespond(request, HttpStatus.methodNotAllowed, {'error': 'get_only'});
+      _safeRespond(request, HttpStatus.methodNotAllowed, {
+        'error': 'get_or_put',
+      });
       return;
     }
     final hash = Uri.decodeComponent(
       request.uri.path.substring(blobPathPrefix.length),
     );
-    if (!_blobHashPattern.hasMatch(hash)) {
+    if (!isBlobHash(hash)) {
       _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_hash'});
       return;
     }
     final file = await handler.handleFetchBlob(peerDeviceId, hash);
     await _streamFile(request, file, error: 'blob_unavailable');
+  }
+
+  /// Receives one pushed blob. The hash is the route's subject, the entry's
+  /// kind and key are in headers, and the body is the raw bytes with a declared
+  /// length — nothing is buffered as JSON, so an attachment streams through.
+  Future<void> _receiveBlob(HttpRequest request, String peerDeviceId) async {
+    if (request.headers.value(HttpHeaders.contentEncodingHeader) != null) {
+      // The bytes are the content the hash names; a coded body would have to be
+      // decoded before its length or its digest meant anything.
+      _safeRespond(request, HttpStatus.badRequest, {'error': 'unencoded_only'});
+      return;
+    }
+    final hash = Uri.decodeComponent(
+      request.uri.path.substring(blobPathPrefix.length),
+    );
+    final kind = request.headers.value(blobKindHeader);
+    final key = _decodedHeader(request, blobKeyHeader);
+    final size = request.contentLength;
+    if (!isBlobHash(hash) ||
+        kind == null ||
+        !SyncBlobEntry.kinds.contains(kind) ||
+        key == null ||
+        key.isEmpty) {
+      _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_request'});
+      return;
+    }
+    if (size < 0) {
+      // A chunked push declares no length, and the length is part of what the
+      // receiver checks a file blob against.
+      _safeRespond(request, HttpStatus.lengthRequired, {
+        'error': 'length_required',
+      });
+      return;
+    }
+    final landed = await handler.handlePutBlob(
+      peerDeviceId,
+      hash,
+      kind: kind,
+      key: key,
+      size: size,
+      body: request,
+    );
+    await _respondNoContent(
+      request,
+      landed ? HttpStatus.noContent : HttpStatus.notFound,
+    );
   }
 
   /// One workspace file, in either direction.

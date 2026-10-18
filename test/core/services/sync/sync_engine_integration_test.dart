@@ -4441,22 +4441,68 @@ void main() {
     },
   );
 
-  test('a skill body the peer never received is not a deleted skill', () async {
-    // Sending is not receipt, on the compound unit: a skill is a record plus
-    // its directory, and the receiver strips the record when the body cannot be
-    // fetched. The acknowledgement must say so, or the sender records the push
-    // as delivered and the next session deletes its own skill.
+  test('a skill body the peer could not fetch is pushed, record and all', () async {
+    // The compound unit, on the push path: a skill is a record plus its
+    // directory, and the receiver strips the record while the body is missing.
+    // The body arrives *after* that apply — the acknowledgement is what asks for
+    // it — so the push has to put the record back in the same session. Leaving
+    // it out is not a harmless lag: the skills rescan adopts a row-less
+    // directory as a fresh record stamped now, which would beat the peer's own
+    // record on the next merge and silently replace its settings.
     final (a, b) = await pair();
     await a.putSkill('demo', {'SKILL.md': '# demo'});
     expect(await a.hasSkillRow('demo'), isTrue);
     final aPeer = await a.peer(b);
 
     // The responder cannot reach the initiator's listener — the state the ADR
-    // documents for a Windows host whose firewall rule needed elevation. Every
-    // wanted blob fails, so the body is deferred and its record is deliberately
-    // not applied.
+    // documents for a Windows host whose firewall rule needed elevation. The
+    // body can only travel the other way.
     await a.engine.stop();
     final first = await a.engine.syncWithPeer(aPeer);
+    expect(first.success, isTrue, reason: first.summary);
+    expect(
+      await b.skillBody('demo'),
+      '# demo',
+      reason: 'the body was pushed over the connection A holds',
+    );
+    expect(
+      await b.hasSkillRow('demo'),
+      isTrue,
+      reason: 'a body without its record is a directory the rescan would adopt',
+    );
+
+    // Converged: nothing left for the next session to move, and A's own skill is
+    // intact — the peer's silence about a skill is never a deletion.
+    final second = await a.engine.syncWithPeer(aPeer);
+    expect(second.success, isTrue, reason: second.summary);
+    expect(await a.hasSkillRow('demo'), isTrue);
+    expect(await a.skillBody('demo'), '# demo');
+    expect(await b.skillBody('demo'), '# demo');
+  });
+
+  test('a skill body no side can deliver is not a deleted skill', () async {
+    // The other half of the compound unit, kept honest by making the body
+    // genuinely unservable: A's directory changes *after* the manifest is built,
+    // so neither B's fetch nor A's push can back the advertised hash. The record
+    // must then stay undeployed rather than be installed broken — and the next
+    // session must re-send it, because a skill the peer never received is not a
+    // deletion of the sender's own skill.
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(
+      root,
+      vanishBlob: () async {
+        final dir = Directory('${a.dir.path}/skills/demo');
+        if (await dir.exists()) await dir.delete(recursive: true);
+      },
+    );
+    await b.start(root);
+    sides.addAll([a, b]);
+    final pin = b.engine.openPairing();
+    await a.engine.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await a.putSkill('demo', {'SKILL.md': '# demo'});
+
+    final first = await a.engine.syncWithPeer(await a.peer(b));
     expect(first.success, isTrue, reason: first.summary);
     expect(
       await b.hasSkillRow('demo'),
@@ -4464,17 +4510,12 @@ void main() {
       reason: 'the record is stripped while the body is missing',
     );
 
-    // The next session must re-send: the peer's silence about a skill it never
-    // received is not a deletion of the sender's own skill.
-    await a.engine.syncWithPeer(aPeer);
-    expect(await a.hasSkillRow('demo'), isTrue);
-    expect(await a.skillBody('demo'), '# demo');
-
-    // With the listener reachable again the body lands and converges.
-    await a.engine.start(preferredPort: 0);
-    await a.engine.syncWithPeer(aPeer);
-    expect(await b.hasSkillRow('demo'), isTrue);
-    expect(await b.skillBody('demo'), '# demo');
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(
+      await a.hasSkillRow('demo'),
+      isTrue,
+      reason: 'the peer never received it, so it is not a deletion here',
+    );
   });
 
   test('a deferred push never deletes the sender\'s own new message', () async {
@@ -5446,6 +5487,137 @@ void main() {
     );
   });
 
+  // ---- slice 24: the blob a peer cannot fetch is pushed to it ----
+
+  test(
+    'a peer that cannot be dialled back has its image pushed to the responder',
+    () async {
+      final (a, b) = await pair();
+      await _writeBlob(a, 'images/shot.png', 'the whole picture');
+      await _seedConversationWithImage(
+        a,
+        id: 'conv-img',
+        uri: 'kelivo-file:///images/shot.png',
+      );
+      // The topology that made the workspace case necessary, and the one a real
+      // emulator always has: A can reach B, B cannot reach A, so the only
+      // direction an attachment can travel in is the one A opened. Before slice
+      // 24 the rows arrived and the picture never did, while both reports said
+      // the session succeeded.
+      a.engine.advertisedListenPort = await closedPort();
+
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+
+      expect(report.success, isTrue, reason: report.summary);
+      final landed = File('${b.dir.path}/images/shot.png');
+      expect(
+        await landed.exists(),
+        isTrue,
+        reason: 'the side that holds the blob is the side that can deliver it',
+      );
+      expect(await landed.readAsString(), 'the whole picture');
+      expect(
+        report.summary,
+        contains('blobs pushed 1'),
+        reason: 'A is the side that pushed it',
+      );
+      // B counted the blob as moved, not as missing: the push repaired the miss
+      // its own failed fetch had recorded, and one card may not claim both.
+      final responder = (await b.peer(a)).lastReport!;
+      expect(responder.blobsMoved, 1);
+      expect(responder.blobsMissing, 0);
+
+      // Settled: nothing left to move in either direction.
+      final settled = await a.engine.syncWithPeer(await a.peer(b));
+      expect(settled.success, isTrue, reason: settled.summary);
+      expect(settled.blobsMoved, 0);
+      expect(settled.summary, isNot(contains('blobs pushed')));
+      expect((await b.peer(a)).lastReport?.blobsMoved, 0);
+    },
+  );
+
+  test(
+    'a pushed blob is written only for the hash the session asked for',
+    () async {
+      final (a, b) = await pair();
+      await _writeBlob(a, 'images/one.png', 'one!');
+      final file = File('${a.dir.path}/images/one.png');
+      final entry = SyncBlobEntry(
+        kind: SyncBlobEntry.kindFile,
+        key: 'kelivo-file:///images/one.png',
+        contentHash: await BlobFileHasher().hashOf(file) ?? '',
+        byteSize: 4,
+      );
+
+      // A's hello carries no listener port, so B has nothing to dial back: it
+      // plans the blob from the manifest A advertised, cannot fetch it, and asks
+      // for it — the request set that authorizes the write.
+      expect(
+        await b.engine.handleHello(a.identity.deviceId, a.hello()),
+        isA<SyncHello>(),
+      );
+      final ack = await b.engine.handleApplySubtrees(
+        a.identity.deviceId,
+        SyncDeltaBatch(const <SyncSubtreePayload>[], assets: [entry]),
+      );
+      expect(ack.blobRequests, hasLength(1));
+      expect(ack.blobRequests.single.contentHash, entry.contentHash);
+      expect(ack.blobRequests.single.key, entry.key);
+
+      final target = File('${b.dir.path}/images/one.png');
+      Future<bool> push({
+        String? hash,
+        String key = 'kelivo-file:///images/one.png',
+        int size = 4,
+        String body = 'one!',
+      }) => b.engine.handlePutBlob(
+        a.identity.deviceId,
+        hash ?? entry.contentHash,
+        kind: SyncBlobEntry.kindFile,
+        key: key,
+        size: size,
+        body: Stream.value(utf8.encode(body)),
+      );
+
+      // A target nobody asked for: refused, and nothing reaches the disk. The
+      // request set is built from what A itself advertised, so a crafted key can
+      // never be written.
+      expect(await push(key: 'kelivo-file:///images/other.png'), isFalse);
+      expect(await target.exists(), isFalse);
+      // The entry that *was* asked for, under a hash that is not its own: the
+      // route's hash is part of the request, not a hint.
+      expect(await push(hash: 'a' * 64), isFalse);
+      expect(await target.exists(), isFalse);
+      // The right entry as a different version than the one agreed: refused.
+      expect(await push(size: 5, body: 'one!!'), isFalse);
+      expect(await target.exists(), isFalse);
+      // The right entry, wrong bytes: the receiving side's digest check is what
+      // makes the hash the content, not a label.
+      expect(await push(body: 'two!'), isFalse);
+      expect(await target.exists(), isFalse);
+
+      expect(await push(), isTrue);
+      expect(await target.readAsString(), 'one!');
+      // Delivered once: the entry left the request set, so a replayed body is not
+      // a second write.
+      expect(await push(), isFalse);
+
+      await b.engine.handleFetchSubtrees(
+        a.identity.deviceId,
+        const SyncFetchRequest(),
+      );
+      final checkpoint = await b.store.loadCheckpoint(a.identity.deviceId);
+      expect(
+        checkpoint.pendingBlobs,
+        isEmpty,
+        reason: 'a blob that landed is not owed',
+      );
+      final responder = (await b.peer(a)).lastReport!;
+      expect(responder.blobsMoved, 1);
+      expect(responder.blobsMissing, 0);
+    },
+  );
+
   test(
     'the panel switch persists the choice and re-counts the folder',
     () async {
@@ -5809,7 +5981,10 @@ void main() {
 
     final report = await a.engine.syncWithPeer(await a.peer(b));
     expect(report.success, isTrue, reason: report.summary);
-    // The file moved during the responder's reverse pull.
+    // The file moved during the responder's reverse pull — and the push is a
+    // fallback, so a pair whose reverse direction works must never ship every
+    // attachment a second time.
+    expect(report.summary, isNot(contains('blobs pushed')));
     final responderReport = (await b.peer(a)).lastReport;
     expect(responderReport?.blobsMoved, 1);
     expect(responderReport?.blobsMissing, 0);

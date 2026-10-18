@@ -9,13 +9,13 @@ import '../../../l10n/app_localizations.dart';
 import '../utils/reply_citation_label.dart';
 
 /// The one-line reply citation that sits above a message's content,
-/// QQ-style (docs/adr/0011).
+/// QQ-style (docs/adr/0012).
 ///
 /// A ranged citation carries its own markdown, so it shows that text whatever
 /// happened to its target — the target only feeds the tap that jumps to it. A
 /// whole-message citation has no text of its own: it shows [target]'s rendered
 /// text. [target] is the revision the cited message's **slot** shows now
-/// (`docs/adr/0011`), so a version switch or a regeneration does not turn the
+/// (`docs/adr/0012`), so a version switch or a regeneration does not turn the
 /// chip into a stub, and the jump still lands. The localized stub is for the
 /// case that means it — no target resolved at all (deleted, or outside the
 /// loaded window); a target that resolved but renders to nothing shows the
@@ -91,7 +91,7 @@ class _QuoteCitationState extends State<QuoteCitation> {
     // answer that is only a tool call — still exists and is still tappable: the
     // "original message unavailable" stub would misdescribe it. Such a citation
     // falls back to the item's own label, which is exactly what the composer's
-    // preview row shows for it (docs/adr/0011). The stub stays for the one case
+    // preview row shows for it (docs/adr/0012). The stub stays for the one case
     // that means it: a whole-message citation whose target cannot be resolved at
     // all.
     final shown = label == null
@@ -105,7 +105,7 @@ class _QuoteCitationState extends State<QuoteCitation> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         // The citation belongs to the right-aligned user turn it sits above, so
-        // it leans right whatever box a caller hands it (docs/adr/0011).
+        // it leans right whatever box a caller hands it (docs/adr/0012).
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           Icon(Lucide.Reply, size: 13, color: muted),

@@ -1,5 +1,5 @@
 /// A citation attached to a user-originated message: the message reply
-/// (docs/adr/0011-message-reply-quote.md).
+/// (docs/adr/0012-message-reply-quote.md).
 ///
 /// The shape is deliberately offset-free. [id] names the quoted message, and
 /// [text] carries the quoted span as raw markdown when the reply was made from

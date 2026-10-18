@@ -1041,7 +1041,7 @@ class ChatMessageWidget extends StatefulWidget {
   final VoidCallback? onEdit; // user: edit
   final VoidCallback? onDelete; // user: delete
 
-  /// Starts a whole-message reply to this message (docs/adr/0011). Offered from
+  /// Starts a whole-message reply to this message (docs/adr/0012). Offered from
   /// the message menus while the message is not streaming.
   final VoidCallback? onReply;
 
@@ -1925,7 +1925,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                     // A max width, never a fixed one: the citation hugs its own
                     // text and the end-aligned column lands it on the bubble's
                     // right edge, instead of stranding it at the far left of a
-                    // box as wide as the widest bubble (docs/adr/0011).
+                    // box as wide as the widest bubble (docs/adr/0012).
                     ConstrainedBox(
                       constraints: BoxConstraints(maxWidth: maxBubbleWidth),
                       child: QuoteCitation(

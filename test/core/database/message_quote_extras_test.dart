@@ -6,7 +6,7 @@ import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/models/message_quote.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// A reply citation rides `message_rows.extras_json` (docs/adr/0011): it has to
+/// A reply citation rides `message_rows.extras_json` (docs/adr/0012): it has to
 /// survive every write path that touches the row, and a copied conversation has
 /// to point its citations at the copy's own rows.
 void main() {
@@ -186,7 +186,7 @@ void main() {
     () async {
       // The span travels with the citation, so the copy can still show it and
       // still send it: dropping it would delete user-authored content that no
-      // other rule deletes (docs/adr/0011).
+      // other rule deletes (docs/adr/0012).
       await repository.appendLinearMessageToConversation(
         conversation: conversation(),
         message: message(

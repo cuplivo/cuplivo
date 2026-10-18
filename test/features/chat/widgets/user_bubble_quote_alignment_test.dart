@@ -13,7 +13,7 @@ import 'package:Cuplivo/l10n/app_localizations.dart';
 import '../../../support/business_test_harness.dart';
 
 /// The citation a sent reply shows above its user bubble ends at the bubble's
-/// own right edge (docs/adr/0011).
+/// own right edge (docs/adr/0012).
 ///
 /// A user turn is right-aligned, so a citation box stretched to the bubble's
 /// width would strand its icon and text on the far left of a narrow bubble —

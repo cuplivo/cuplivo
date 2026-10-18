@@ -3419,7 +3419,7 @@ class HomePageController extends ChangeNotifier {
   Future<void> jumpToPreviousQuestion() =>
       _jumpToAdjacentMessage(previous: true);
 
-  /// Starts a whole-message reply to [message] (docs/adr/0011): the citation
+  /// Starts a whole-message reply to [message] (docs/adr/0012): the citation
   /// refers to the row, and the composer shows its first line.
   void startReplyTo(ChatMessage message) {
     if (!_context.mounted) return;

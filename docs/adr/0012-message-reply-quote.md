@@ -1,4 +1,4 @@
-# ADR-0011: Message reply — a Quote citation and the `<reply-to>` context injection
+# ADR-0012: Message reply — a Quote citation and the `<reply-to>` context injection
 
 **Status:** Accepted (2026-10)
 **Deciders:** cuplivo

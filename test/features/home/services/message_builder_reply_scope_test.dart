@@ -26,7 +26,7 @@ class _FakeBuildContext implements BuildContext {
 /// source list, then the repository).
 class _FakeChatService extends ChatService {}
 
-/// The reply citation's resolution rules (docs/adr/0011).
+/// The reply citation's resolution rules (docs/adr/0012).
 ///
 /// A citation names a message by row id, and a row id is only meaningful inside
 /// its own conversation: the backup *merge* import remaps message ids while

@@ -3,7 +3,7 @@ import '../../../shared/widgets/markdown_with_highlight.dart';
 import '../../../utils/utf16_safe_cut.dart';
 
 /// The one-line label a reply citation shows — in the composer's preview row and
-/// above a bubble's content (docs/adr/0011).
+/// above a bubble's content (docs/adr/0012).
 ///
 /// The label is the citation's text in the renderer's **display space**: the
 /// same walk and the same records the reply's own bubble renders with, so a

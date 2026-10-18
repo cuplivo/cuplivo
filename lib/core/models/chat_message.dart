@@ -121,7 +121,7 @@ class ChatMessage extends HiveObject {
   /// Latest API request only; the scalar token fields contain the whole turn.
   final TokenUsage? finishUsage;
 
-  /// Citation of the message this one replies to (docs/adr/0011), or null when
+  /// Citation of the message this one replies to (docs/adr/0012), or null when
   /// this message is not a reply.
   ///
   /// Only a user-originated message carries one, it is set when the message is

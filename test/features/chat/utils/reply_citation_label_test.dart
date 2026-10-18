@@ -28,7 +28,7 @@ bool _hasLoneSurrogate(String value) {
   return false;
 }
 
-/// The one-line presentation of a reply citation (docs/adr/0011): the
+/// The one-line presentation of a reply citation (docs/adr/0012): the
 /// renderer's display space, never the raw markdown the model receives.
 void main() {
   Future<SettingsProvider> newSettings() async {

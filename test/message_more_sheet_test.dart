@@ -164,7 +164,7 @@ void main() {
 
   testWidgets('a streaming message offers no Reply', (tester) async {
     // The whole-message citation would freeze a reply that is still being
-    // written, so the entry is withheld (docs/adr/0011).
+    // written, so the entry is withheld (docs/adr/0012).
     await _openMoreSheet(
       tester,
       canDeleteAllVersions: false,

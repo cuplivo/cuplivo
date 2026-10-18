@@ -1623,7 +1623,7 @@ void main() {
       expect(result, ChatInputSubmissionResult.queued);
       // The queued input is a copy of what was submitted — the copy that drops
       // the citation loses it for the turn that eventually runs, and the
-      // cancelled copy loses it in the composer (docs/adr/0011).
+      // cancelled copy loses it in the composer (docs/adr/0012).
       expect(controller.currentQueuedInput?.input.quote, quote);
       expect(controller.currentQueuedInput?.input.text, 'reply text');
       // The preview line travels with it: a whole-message citation has no text

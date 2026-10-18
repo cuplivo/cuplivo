@@ -1380,7 +1380,7 @@ class MessageBuilderService {
       // The reply citation is folded into the body *before* the prompt is
       // assembled, so it freezes with the memory prefix and template into
       // message_prompt_rows: what was sent stays what is replayed
-      // (docs/adr/0011), and the prompt cache keeps its prefix.
+      // (docs/adr/0012), and the prompt cache keeps its prefix.
       final citedBody = await _withReplyCitation(
         processedBody,
         message: chatMessage,
@@ -1582,7 +1582,7 @@ class MessageBuilderService {
 
   /// [body] with this message's reply citation in front of it, or [body]
   /// unchanged when the message carries no reply or its target cannot be
-  /// grounded (docs/adr/0011).
+  /// grounded (docs/adr/0012).
   ///
   /// The citation reaches the model as raw markdown: the span the reply stored,
   /// or the target's own content for a whole-message reply. The one-line chip a
@@ -1603,7 +1603,7 @@ class MessageBuilderService {
       quote,
       // A citation is resolved inside the conversation that carries it. The
       // database fallback cannot tell one conversation's row from another's,
-      // so it is only reached with an owner to scope it (docs/adr/0011).
+      // so it is only reached with an owner to scope it (docs/adr/0012).
       conversationId: message?.conversationId ?? conversation?.id,
       conversation: conversation,
       sourceMessages: sourceMessages,

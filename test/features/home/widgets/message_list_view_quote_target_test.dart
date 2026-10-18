@@ -19,7 +19,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
 
 /// How a reply citation's chip resolves once the quoted message's group selects
-/// another revision (docs/adr/0011).
+/// another revision (docs/adr/0012).
 ///
 /// The citation names the revision it was made against; a version switch moves
 /// which revision the group shows, so that id is no longer a row on screen. The

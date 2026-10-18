@@ -10,7 +10,7 @@ import 'package:Cuplivo/features/home/controllers/chat_controller.dart';
 import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 
 /// The window a reply citation's chip resolves against once the quoted message's
-/// group selects another revision (docs/adr/0011).
+/// group selects another revision (docs/adr/0012).
 ///
 /// `MessageListView` resolves a citation by **message slot**, and it learns the
 /// ids that slot has held from `ChatController.groupedMessages`, which carries

@@ -335,7 +335,7 @@ class ChatInputBarController {
       allowImagesApiRouting: draft.allowImagesApiRouting,
       // The detached fallback still speaks for a composer that holds a pending
       // reply: every rebuild of the submitted input carries the citation and the
-      // preview line it was made under (docs/adr/0011).
+      // preview line it was made under (docs/adr/0012).
       quote: draft.quote,
       quoteLabel: draft.quoteLabel,
     );
@@ -630,7 +630,7 @@ class _ChatInputBarState extends State<ChatInputBar>
   final List<DocumentAttachment> _docs =
       <DocumentAttachment>[]; // files to upload
 
-  /// Pending reply citation (docs/adr/0011). Part of the draft state: it is
+  /// Pending reply citation (docs/adr/0012). Part of the draft state: it is
   /// cleared on sent/queued, kept on rejected, and rides the composer draft.
   MessageQuote? _quoteDraft;
 
@@ -1057,7 +1057,7 @@ class _ChatInputBarState extends State<ChatInputBar>
         ..addAll(input.documents);
       _quoteDraft = input.quote;
       // The label rides the input so a queued send that is cancelled puts the
-      // quoted line back, not just the citation (docs/adr/0011).
+      // quoted line back, not just the citation (docs/adr/0012).
       _quoteLabel = input.quoteLabel;
       _pruneImageSizes();
     });
@@ -3885,7 +3885,7 @@ class _ChatInputBarState extends State<ChatInputBar>
   }
 
   /// Pending-reply preview row: the citation the next send will carry, with the
-  /// one tap that drops it (docs/adr/0011).
+  /// one tap that drops it (docs/adr/0012).
   ///
   /// Presentation only — the send reads `_quoteDraft`, and the model-facing
   /// citation is derived from that, never from this label.

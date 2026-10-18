@@ -56,7 +56,7 @@ typedef OnSelectMessages =
 typedef OnSpeakMessage = Future<void> Function(ChatMessage message);
 typedef OnSuggestionTap = void Function(String suggestion);
 
-/// Starts a whole-message reply to [message] (docs/adr/0011).
+/// Starts a whole-message reply to [message] (docs/adr/0012).
 typedef OnReplyMessage = void Function(ChatMessage message);
 
 /// Starts a ranged reply from [selected]'s markdown, in [message].
@@ -2323,7 +2323,7 @@ class _MessageListViewState extends State<MessageListView> {
   Map<String, ChatMessage> _quoteTargetsForBuild = const {};
 
   /// Every id a reply citation in the window may name, mapped to the row that
-  /// answers it (docs/adr/0011).
+  /// answers it (docs/adr/0012).
   ///
   /// A citation names a **message slot**, not the exact revision it was made
   /// against: the window holds one revision per group

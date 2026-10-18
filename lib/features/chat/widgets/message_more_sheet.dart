@@ -115,7 +115,7 @@ Future<MessageMoreAction?> showMessageMoreSheet(
           },
         ),
       // A reply cites the whole target, so it is withheld while the target is
-      // still streaming (docs/adr/0011).
+      // still streaming (docs/adr/0012).
       if (!message.isStreaming)
         DesktopContextMenuItem(
           icon: Lucide.Reply,

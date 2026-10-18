@@ -2781,7 +2781,7 @@ void main() {
       );
       // The prepared input is what the send path carries: rebuilding it without
       // the citation loses both the bubble's chip and the model's <reply-to>
-      // (docs/adr/0011).
+      // (docs/adr/0012).
       expect(prepared.quote, quote);
       expect(prepared.text, 'reply text');
 

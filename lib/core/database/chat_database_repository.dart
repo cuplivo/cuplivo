@@ -2365,7 +2365,7 @@ class ChatDatabaseRepository {
   ///
   /// [getMessage] is a primary-key lookup with no conversation filter, so a row
   /// id that outlived its conversation — a merge-mode backup import remaps
-  /// message ids but copies `extras_json` verbatim (see docs/adr/0011) — would
+  /// message ids but copies `extras_json` verbatim (see docs/adr/0012) — would
   /// resolve to whichever conversation on this device still holds it. Anything
   /// that resolves a stored reference into content for one conversation uses
   /// this instead.
@@ -4945,7 +4945,7 @@ class ChatDatabaseRepository {
         groupId: groupId,
         version: nextVersion,
         // The citation is part of the user message's content identity, so a new
-        // version carries it (docs/adr/0011).
+        // version carries it (docs/adr/0012).
         quote: original.quote,
       );
       final currentConversation = await _conversationFromRow(

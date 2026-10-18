@@ -3,7 +3,7 @@ import 'package:Cuplivo/core/models/composer_draft.dart';
 import 'package:Cuplivo/core/models/message_quote.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// The reply citation's persistence and copy shapes (docs/adr/0011).
+/// The reply citation's persistence and copy shapes (docs/adr/0012).
 void main() {
   group('MessageQuote', () {
     test('round-trips a whole-message citation without a text key', () {

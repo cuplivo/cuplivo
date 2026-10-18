@@ -777,7 +777,7 @@ contradicts one of them is a bug, not a preference.
   alone, so the mapping has nothing to prefer by.
 - Reasoning text is 净化复制 but has no Markdown 复制: what it displays is not a 匹配源.
 
-## Message reply (消息回复) — ADR-0011
+## Message reply (消息回复) — ADR-0012
 
 - **Reply (回复)**: the user's own message answers a message it names — QQ-style. Never a thread, never
   a tree, never a role change. Two forms: **整条引用** (the whole target message, resolved live from its

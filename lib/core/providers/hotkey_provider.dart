@@ -109,7 +109,7 @@ class HotkeyProvider extends ChangeNotifier {
       defaultMac: 'cmd+shift+c',
       enabledByDefault: true,
     ),
-    // Reply with the selected assistant text (docs/adr/0011). Same Shift family
+    // Reply with the selected assistant text (docs/adr/0012). Same Shift family
     // as the copy above, and free of any other default here; the action is a
     // workaround for the framework dropping a long selection on right-click,
     // exactly like `copy_selection_markdown`.

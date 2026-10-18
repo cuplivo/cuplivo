@@ -26,7 +26,7 @@ class _CountingSettings extends SettingsProvider {
   }
 }
 
-/// The citation chip's cost model (docs/adr/0011).
+/// The citation chip's cost model (docs/adr/0012).
 ///
 /// Deriving the one-line label walks the whole quoted message through the
 /// Markdown IR — milliseconds on a long answer — while a bubble is rebuilt on

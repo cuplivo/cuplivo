@@ -446,7 +446,7 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
-  group('reply from the selection toolbar (docs/adr/0011)', () {
+  group('reply from the selection toolbar (docs/adr/0012)', () {
     /// The toolbar item that starts a reply to this surface's selection.
     Future<ContextMenuButtonItem> replyMenuItem(WidgetTester tester) async {
       final areaFinder = _assistantArea();
@@ -516,7 +516,7 @@ void main() {
     });
   });
 
-  group('reply from a user bubble\'s own menu (docs/adr/0011)', () {
+  group('reply from a user bubble\'s own menu (docs/adr/0012)', () {
     // The third entry surface: a user can reply to their own earlier message,
     // and on mobile the bubble's long-press popup is the only menu there is.
     testWidgets('the mobile long-press menu offers Reply', (tester) async {

@@ -264,7 +264,7 @@ void main() {
     expect(submitted?.text, 'reply text');
     expect(submitted?.quote, quote);
     // The preview line rides the payload too: a queued send that is cancelled
-    // has no target left to re-derive it from (docs/adr/0011).
+    // has no target left to re-derive it from (docs/adr/0012).
     expect(submitted?.quoteLabel, 'quoted span');
   });
 

@@ -841,10 +841,28 @@ contradicts one of them is a bug, not a preference.
   writer can only break a `Column` *between* children, and its page guard is an `assert`, so a block taller
   than a page would hang a release build instead of throwing. Grouping is therefore drawn per block
   (`_BlockSkin`), never nested, and anything unbreakable (a picture, a formula, a table row) is capped.
+- **Ruled skin (带竖线皮肤)**: a `_BlockSkin` that carries a rule — only a quote sets one. A rule is a
+  *non-uniform* border, and the writer refuses a radius beside one (`box_border.dart` asserts
+  `borderRadius == null`), so a ruled skin drops its own rounding. That is what lets a code surface, a degraded
+  display formula or a `<details>` band inside a quote export at all: each of them brings a radius of its own,
+  and without the rule winning, the export threw in debug and silently dropped the rounding in release.
 - **Font role (字体角色)**: one of 正文 / 代码 / Emoji, each resolved on its own because the writer needs a
   different face for each. A role's answer is a `PdfFontChoice` — auto, a named system face, a downloadable
   family, or the built-in font — and its state is carried as a `PdfFontStatus`, so which face a document was
   drawn with is something the export can name rather than something a reader has to guess.
+- **Font catalogue lease (字体目录租约)**: who closes the download catalogue (`GoogleFontsService`), and when.
+  The dialog creates it, so the dialog is responsible for it — but not for as long as its *route* lives: the
+  export runs from the page after that route has left the screen, so closing the catalogue on pop closed it
+  before the first download, and every download then failed. The dialog therefore hands out a lease: an export
+  claims it before it pops and closes it once the export's own surfaces are done with it, and a dialog dismissed
+  without exporting closes it itself. A catalogue a caller passed in is the caller's, and is never closed here.
+- **Embeddable face (可嵌入字体)**: the one predicate the whole font story is filtered through,
+  `isPdfEmbeddableFont`. It accepts a single TrueType face and nothing else: a `ttcf` collection (every CJK font
+  iOS and Android ship, and Microsoft YaHei) parses to no glyphs at all, and `OTTO`/CFF has no `glyf` table for
+  the writer's loader to read. It also rejects Apple's `'true'` version word although the writer opens such a
+  face happily, because the writer decides Unicode by that word alone (`unicode => getUint32(0) == 0x10000`) and
+  writes every other face as Latin-1 — a `'true'` face therefore drops every rune outside U+00FF *silently*,
+  while still reporting itself as a real picked face, which is the one outcome the check exists to prevent.
 - **Export degrade (导出降级)**: what the layout fell back from and reported — a formula set as its TeX, a
   diagram set as its code, a picture set as its reference. A degrade is not a failure: the same conversation
   is still worth exporting, and `PdfExportResult` is how the result screen says what is missing instead of
@@ -859,6 +877,12 @@ contradicts one of them is a bug, not a preference.
   walk alone is not the grammar: a consumer with no widget tree must run this stage too, or it reads raw
   source — which is exactly how an export printed `[cite:id]`, a link's title and a formula as markdown. A
   *short* `$$x^2$$` is deliberately left intact, because the renderer treats it as text.
+- **Nested raster key (嵌套栅格键)**: the walk that names the formulas and diagrams the caller has to draw
+  (`pdfRasterKeysIn`) re-enters the bodies the layout re-walks. A quote, a table and a `<details>` are *opaque*
+  nodes in the IR — the node addresses the whole block and holds no children — so all three are extracted by one
+  definition used twice (`_quoteBody`, `_detailsParts`, and the cells `markdownTableData` returns) and the key
+  walk recurses through them. Without that the layout asks for a drawing the caller was never told to make, and a
+  formula in a quote, in a table cell or in a details body prints as its own TeX or its diagram source.
 - **Page ink (页面墨色)**: the accent and quiet ink a page draws links, citations, task boxes and table tints
   with, resolved by the caller from the app's **light** scheme and guarded against white — a dark theme's
   primary is a pale tint that would vanish into paper. Diagrams follow the same rule, because a bitmap
@@ -914,6 +938,9 @@ Deliberate divergences from the screen (each measured, not a matter of taste —
   has nothing to click.
 - A table has no rounded outer frame: a decorated container around something that can run past a page is the
   unbreakable box this writer loops on.
+- A code surface, a degraded display formula or a `<details>` band inside a quote is square-cornered: the quote's
+  rule wins over the block's own rounding, because the writer refuses a radius beside a non-uniform border — and
+  the alternative is a nested container around content that can break.
 - A reader's message is a full-width square-ended band, not a right-aligned rounded bubble: same reason as the
   table's frame, and the rounding cannot survive being drawn block by block.
 - A reader's message carries no timestamp and is headed with the export's own label rather than the profile's
@@ -934,4 +961,20 @@ Deliberate divergences from the screen (each measured, not a matter of taste —
 - The rest of the message chrome — the reasoning rail, tool cards, the sources card, the token footer — is
   still out of scope: it is a layout decision about what a PDF *is* rather than a fidelity defect, and the
   parts of it that carry content (thinking, tool calls, citations) are already written out by the block model.
+
+Confirmed limitations (evidence first, for ADR-0011):
+
+- **A face with no CJK blanks CJK, whatever its flavour.** The review asked whether the silent loss is specific
+  to a `'true'` face; it is not. The writer asks a face whether it can draw a rune through its character map
+  (`PdfTtfFont.isRuneSupported` → `charToGlyphIndexMap`), and `_preProcessSpans` — the only text path — turns
+  every rune no font in the chain supports into a placeholder box. The export's chain is the body face plus
+  `[mono, emoji]`, and `_autoBody` prefers a picked `appFontLocalPath` before it ever looks for a CJK face, so
+  importing a Latin-only UI font — or a Latin-only *code* font, for CJK inside a code block — exports CJK as
+  boxes while the screen draws it through Flutter's own fallback. The fix is a fourth face: a CJK fallback
+  appended to the theme's `fontFallback`. It changes what every export embeds and what the dialog's "CJK may
+  print blank" warning means, so it is deliberately not part of this round.
+- **The "Colour" note on an emoji face is an upper bound.** `pdfFontHasColourBitmaps` tests for the `CBDT`/`CBLC`
+  tables, while the writer also needs CBLC `indexFormat == 1` and CBDT `imageFormat == 17`. A face that fails
+  those is drawn from its outlines in a single colour rather than dropped, so the note can overstate — never
+  understate — what the page will do.
 

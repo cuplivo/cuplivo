@@ -347,6 +347,79 @@ class PdfFontResolver {
     _candidates[role] = out;
     return out;
   }
+
+  /// The choice the app's own font settings name, or null when this resolver
+  /// cannot honour it.
+  ///
+  /// The settings hold what the app's picker called a family, and the export
+  /// embeds *files*, so the family is matched against the candidates this resolver
+  /// would offer anyway — the same list the picker shows, which is what keeps a
+  /// default from naming a face [resolve] would refuse.
+  ///
+  /// The match is the file's own name first. A family often ships more than one
+  /// file, though, and only some of them are faces the writer can open: Noto Sans
+  /// SC arrives here as `Noto Sans SC Medium (TrueType).otf`, which is CFF and
+  /// which the writer would embed empty, beside `NotoSansSC-VF.ttf`, which is
+  /// TrueType and which it can draw. So a family match falls back to the same
+  /// family's first usable file.
+  Future<PdfFontChoice?> preferred(PdfFontRole role, {String? family}) async {
+    final name = family?.trim() ?? '';
+    if (name.isEmpty) return null;
+    final candidates = await this.candidates(role);
+
+    final wanted = _normaliseName(name);
+    for (final candidate in candidates) {
+      final detail = candidate.detail;
+      if (detail == null) continue;
+      if (_normaliseName(p.basenameWithoutExtension(detail)) == wanted) {
+        return candidate.choice;
+      }
+    }
+    for (final candidate in candidates) {
+      final choice = candidate.choice;
+      if (choice is PdfFontDownload &&
+          _normaliseName(choice.family) == wanted) {
+        return choice;
+      }
+    }
+    final stem = _familyStem(name);
+    if (stem.isEmpty) return null;
+    for (final candidate in candidates) {
+      final detail = candidate.detail;
+      if (detail == null) continue;
+      if (_normaliseName(p.basenameWithoutExtension(detail)).startsWith(stem)) {
+        return candidate.choice;
+      }
+    }
+    return null;
+  }
+}
+
+/// [name] as something to compare: lower case, without what only spells how a
+/// font is packaged.
+String _normaliseName(String name) =>
+    name.toLowerCase().replaceAll(RegExp('[^a-z0-9]'), '');
+
+/// The family part of a picker's name: without its style and without the type in
+/// brackets, both of which a picker adds to the file's own name.
+///
+/// `Noto Sans SC Medium (TrueType)` is the family `Noto Sans SC` in one style, and
+/// matching on the whole string would find nothing at all: the file is called
+/// `NotoSansSC-VF.ttf`.
+String _familyStem(String name) {
+  final withoutType = name.replaceFirst(
+    RegExp(r'\s*\((?:true|open)type\)\s*$', caseSensitive: false),
+    '',
+  );
+  final withoutStyle = withoutType.replaceFirst(
+    RegExp(
+      r'\s+(?:regular|medium|semibold|semi light|light|thin|black|heavy|book'
+      r'|bold|italic|oblique)$',
+      caseSensitive: false,
+    ),
+    '',
+  );
+  return _normaliseName(withoutStyle);
 }
 
 /// The families the export is willing to download for [role], best first.

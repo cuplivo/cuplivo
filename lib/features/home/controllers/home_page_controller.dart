@@ -2788,6 +2788,8 @@ class HomePageController extends ChangeNotifier {
       expandThinkingContent: showThinkingContent,
       appFontPath: settings.appFontLocalPath,
       codeFontPath: settings.codeFontLocalPath,
+      appFontFamily: settings.appFontFamily,
+      codeFontFamily: settings.codeFontFamily,
     );
   }
 

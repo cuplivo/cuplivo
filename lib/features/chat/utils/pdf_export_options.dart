@@ -16,6 +16,15 @@ class PdfExportOptions {
   bool showThinkingAndToolCards;
   bool expandThinkingContent;
 
+  /// Whether the app's own font settings have been offered as this session's
+  /// defaults yet.
+  ///
+  /// The faces below are seeded from those settings the first time the dialog is
+  /// opened, and a user who chose something else keeps it: the export is asked for
+  /// once and answers with what it read on screen, and asking again must not undo
+  /// the answer.
+  bool seededFromSettings = false;
+
   PdfFontChoice body = const PdfFontAuto();
   PdfFontChoice mono = const PdfFontAuto();
   PdfFontChoice emoji = const PdfFontAuto();

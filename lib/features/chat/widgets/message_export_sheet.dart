@@ -2240,6 +2240,8 @@ class _BatchExportDialogState extends State<_BatchExportDialog> {
       expandThinkingContent: _expandThinkingContent,
       appFontPath: settings.appFontLocalPath,
       codeFontPath: settings.codeFontLocalPath,
+      appFontFamily: settings.appFontFamily,
+      codeFontFamily: settings.codeFontFamily,
     );
   }
 
@@ -2514,6 +2516,8 @@ class _BatchExportSheetState extends State<_BatchExportSheet> {
       expandThinkingContent: _expandThinkingContent,
       appFontPath: settings.appFontLocalPath,
       codeFontPath: settings.codeFontLocalPath,
+      appFontFamily: settings.appFontFamily,
+      codeFontFamily: settings.codeFontFamily,
     );
   }
 

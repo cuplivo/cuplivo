@@ -346,6 +346,89 @@ void main() {
     expect(catalogue.closed, isTrue);
   });
 
+  testWidgets('opens with the faces the app itself is drawn with', (
+    tester,
+  ) async {
+    // The page is meant to look like the screen, so the first dialog of a session
+    // offers the screen's own faces rather than whatever the resolver would reach
+    // for — and matching the family is the resolver's job, which is why this only
+    // supplies what it can honour.
+    final resolver = _FakeResolver(
+      _faces(),
+      offered: <PdfFontCandidate>[
+        const PdfFontCandidate(
+          choice: PdfFontSystemFace('/fonts/NotoSansSC-VF.ttf'),
+          label: 'NotoSansSC-VF.ttf',
+          detail: '/fonts/NotoSansSC-VF.ttf',
+        ),
+      ],
+    );
+    await _open(
+      tester,
+      resolver: resolver,
+      appFontFamily: 'Noto Sans SC Medium (TrueType)',
+    );
+
+    expect(
+      pdfExportSessionOptions.body,
+      isA<PdfFontSystemFace>().having(
+        (face) => face.path,
+        'path',
+        '/fonts/NotoSansSC-VF.ttf',
+      ),
+    );
+  });
+
+  testWidgets('a face the user chose is not seeded over', (tester) async {
+    const chosen = PdfFontSystemFace('/fonts/chosen.ttf');
+    pdfExportSessionOptions.body = chosen;
+    await _open(
+      tester,
+      resolver: _FakeResolver(
+        _faces(),
+        offered: <PdfFontCandidate>[
+          const PdfFontCandidate(
+            choice: PdfFontSystemFace('/fonts/NotoSansSC-VF.ttf'),
+            detail: '/fonts/NotoSansSC-VF.ttf',
+          ),
+        ],
+      ),
+      appFontFamily: 'Noto Sans SC Medium (TrueType)',
+    );
+    expect(pdfExportSessionOptions.body, same(chosen));
+
+    // And a session that has already been offered them keeps what it has: picking
+    // automatic is a choice too.
+    pdfExportSessionOptions.body = const PdfFontAuto();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    await _open(
+      tester,
+      resolver: _FakeResolver(
+        _faces(),
+        offered: <PdfFontCandidate>[
+          const PdfFontCandidate(
+            choice: PdfFontSystemFace('/fonts/NotoSansSC-VF.ttf'),
+            detail: '/fonts/NotoSansSC-VF.ttf',
+          ),
+        ],
+      ),
+      appFontFamily: 'Noto Sans SC Medium (TrueType)',
+    );
+    expect(pdfExportSessionOptions.body, isA<PdfFontAuto>());
+  });
+
+  testWidgets('a family this resolver cannot honour leaves the role alone', (
+    tester,
+  ) async {
+    await _open(
+      tester,
+      resolver: _FakeResolver(_faces(), offered: const <PdfFontCandidate>[]),
+      appFontFamily: 'Gone',
+    );
+    expect(pdfExportSessionOptions.body, isA<PdfFontAuto>());
+  });
+
   testWidgets('the picker offers what the resolver can honour', (tester) async {
     final resolver = _FakeResolver(_faces(), offered: _candidates());
     PdfFontChoice? picked;
@@ -467,6 +550,8 @@ Future<void> _open(
   required PdfFontResolver resolver,
   PdfExportRunner? run,
   bool thinking = false,
+  String? appFontFamily,
+  String? codeFontFamily,
   GoogleFontsService Function()? createCatalogue,
 }) async {
   _tallSurface(tester);
@@ -483,6 +568,8 @@ Future<void> _open(
               expandThinkingContent: false,
               resolver: resolver,
               run: run,
+              appFontFamily: appFontFamily,
+              codeFontFamily: codeFontFamily,
               createCatalogue: createCatalogue,
             ),
             child: const Text('open'),

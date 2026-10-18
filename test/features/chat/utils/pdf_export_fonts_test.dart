@@ -57,6 +57,59 @@ void main() {
     expect(isPdfEmbeddableFont(Uint8List.fromList(<int>[0, 1, 0])), isFalse);
   });
 
+  test(
+    'the app\'s own font is offered when this resolver can honour it',
+    () async {
+      // The file this machine's app draws with is `Noto Sans SC Medium
+      // (TrueType).otf`, which is CFF and therefore not a candidate at all — the
+      // writer embeds it empty — so what is matched is the family, and what the
+      // export gets is that family's TrueType file.
+      final body = _Offering(<PdfFontCandidate>[
+        const PdfFontCandidate(
+          choice: PdfFontSystemFace('/fonts/NotoSansSC-VF.ttf'),
+          label: 'NotoSansSC-VF.ttf',
+          detail: '/fonts/NotoSansSC-VF.ttf',
+        ),
+        const PdfFontCandidate(choice: PdfFontAuto()),
+      ]);
+      expect(
+        await body.preferred(
+          PdfFontRole.body,
+          family: 'Noto Sans SC Medium (TrueType)',
+        ),
+        isA<PdfFontSystemFace>().having(
+          (face) => face.path,
+          'path',
+          '/fonts/NotoSansSC-VF.ttf',
+        ),
+      );
+
+      // A family whose own file the writer can open is matched by name.
+      final mono = _Offering(<PdfFontCandidate>[
+        const PdfFontCandidate(
+          choice: PdfFontSystemFace('/fonts/SFMonoSC-Regular.ttf'),
+          detail: '/fonts/SFMonoSC-Regular.ttf',
+        ),
+      ]);
+      expect(
+        await mono.preferred(PdfFontRole.mono, family: 'SFMonoSC-Regular'),
+        isA<PdfFontSystemFace>(),
+      );
+    },
+  );
+
+  test('a family this resolver cannot honour is left to auto', () async {
+    final resolver = _Offering(<PdfFontCandidate>[
+      const PdfFontCandidate(
+        choice: PdfFontSystemFace('/fonts/Consola.ttf'),
+        detail: '/fonts/Consola.ttf',
+      ),
+    ]);
+    expect(await resolver.preferred(PdfFontRole.mono, family: 'Gone'), isNull);
+    expect(await resolver.preferred(PdfFontRole.mono, family: '   '), isNull);
+    expect(await resolver.preferred(PdfFontRole.mono), isNull);
+  });
+
   test('a download that fails is this resolver\'s, not the process\'s', () async {
     final catalogue = _FailingGoogleFonts();
     // The face is named outright so the resolution reaches the catalogue first:
@@ -212,6 +265,16 @@ class _FailingGoogleFonts extends GoogleFontsService {
     calls++;
     throw StateError('offline');
   }
+}
+
+/// A resolver whose candidates are a fixed list, which is all [preferred] reads.
+class _Offering extends PdfFontResolver {
+  _Offering(this.offered);
+
+  final List<PdfFontCandidate> offered;
+
+  @override
+  Future<List<PdfFontCandidate>> candidates(PdfFontRole role) async => offered;
 }
 
 /// A single-face header that declares [tag] as its sfnt version.

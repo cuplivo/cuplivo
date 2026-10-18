@@ -46,6 +46,8 @@ Future<void> showPdfExportDialog(
   required bool expandThinkingContent,
   String? appFontPath,
   String? codeFontPath,
+  String? appFontFamily,
+  String? codeFontFamily,
   GoogleFontsService? googleFonts,
   PdfFontResolver? resolver,
   PdfExportRunner? run,
@@ -79,6 +81,8 @@ Future<void> showPdfExportDialog(
       messages: messages,
       appFontPath: appFontPath,
       codeFontPath: codeFontPath,
+      appFontFamily: appFontFamily,
+      codeFontFamily: codeFontFamily,
       resolver: fonts,
       run: run ?? _runExport,
       catalogue: catalogue,
@@ -184,6 +188,8 @@ class _PdfExportForm extends StatefulWidget {
     required this.catalogue,
     this.appFontPath,
     this.codeFontPath,
+    this.appFontFamily,
+    this.codeFontFamily,
     this.handle = false,
   });
 
@@ -201,6 +207,13 @@ class _PdfExportForm extends StatefulWidget {
 
   final String? appFontPath;
   final String? codeFontPath;
+
+  /// What the app draws with, by the name its own font picker gave. Used once,
+  /// the first time a dialog is opened, to seed the faces — see
+  /// [PdfExportOptions.seededFromSettings].
+  final String? appFontFamily;
+  final String? codeFontFamily;
+
   final bool handle;
 
   _PdfExportForm withHandle() => _PdfExportForm(
@@ -212,6 +225,8 @@ class _PdfExportForm extends StatefulWidget {
     catalogue: catalogue,
     appFontPath: appFontPath,
     codeFontPath: codeFontPath,
+    appFontFamily: appFontFamily,
+    codeFontFamily: codeFontFamily,
     handle: true,
   );
 
@@ -232,6 +247,37 @@ class _PdfExportFormState extends State<_PdfExportForm> {
     super.initState();
     // Opened with what is already on disk: resolving must not start a download
     // behind a dialog that has not been asked for one yet.
+    unawaited(_resolve(allowDownload: false));
+    unawaited(_seedFromSettings());
+  }
+
+  /// Offers the app's own faces the first time a dialog is opened in a session.
+  ///
+  /// The page is meant to look like the app's screen, so the export starts with
+  /// the faces that screen was drawn with rather than with whatever the resolver
+  /// would reach for on its own. A user who picks another face keeps it: this
+  /// fills the roles that are still [PdfFontAuto], and only once.
+  Future<void> _seedFromSettings() async {
+    final options = _options;
+    if (options.seededFromSettings) return;
+    final body = await widget.resolver.preferred(
+      PdfFontRole.body,
+      family: widget.appFontFamily,
+    );
+    final mono = await widget.resolver.preferred(
+      PdfFontRole.mono,
+      family: widget.codeFontFamily,
+    );
+    options.seededFromSettings = true;
+    if (!mounted) return;
+    if ((body == null || options.body is! PdfFontAuto) &&
+        (mono == null || options.mono is! PdfFontAuto)) {
+      return;
+    }
+    setState(() {
+      if (body != null && options.body is PdfFontAuto) options.body = body;
+      if (mono != null && options.mono is PdfFontAuto) options.mono = mono;
+    });
     unawaited(_resolve(allowDownload: false));
   }
 

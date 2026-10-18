@@ -14,8 +14,12 @@ import '../utils/reply_citation_label.dart';
 /// A ranged citation carries its own markdown, so it shows that text whatever
 /// happened to its target — the target only feeds the tap that jumps to it. A
 /// whole-message citation has no text of its own: it shows [target]'s rendered
-/// text, or the localized stub once the target cannot be resolved (deleted, or
-/// outside the loaded window).
+/// text. [target] is the revision the cited message's **slot** shows now
+/// (`docs/adr/0011`), so a version switch or a regeneration does not turn the
+/// chip into a stub, and the jump still lands. The localized stub is for the
+/// case that means it — no target resolved at all (deleted, or outside the
+/// loaded window); a target that resolved but renders to nothing shows the
+/// item's own label instead, because the message is right there.
 class QuoteCitation extends StatefulWidget {
   const QuoteCitation({
     super.key,
@@ -79,12 +83,20 @@ class _QuoteCitationState extends State<QuoteCitation> {
     final cs = Theme.of(context).colorScheme;
     final own = widget.quote.text;
     final resolved = widget.target;
-    final label =
-        _labelFor(
-          own ?? resolved?.content,
-          streaming: own == null && (resolved?.isStreaming ?? false),
-        ) ??
-        l10n.messageQuoteTargetMissing;
+    final label = _labelFor(
+      own ?? resolved?.content,
+      streaming: own == null && (resolved?.isStreaming ?? false),
+    );
+    // A target that resolved but renders to nothing — an image-only message, an
+    // answer that is only a tool call — still exists and is still tappable: the
+    // "original message unavailable" stub would misdescribe it. Such a citation
+    // falls back to the item's own label, which is exactly what the composer's
+    // preview row shows for it (docs/adr/0011). The stub stays for the one case
+    // that means it: a whole-message citation whose target cannot be resolved at
+    // all.
+    final shown = label == null
+        ? l10n.messageQuoteTargetMissing
+        : (label.isEmpty ? l10n.messageMoreSheetReply : label);
 
     final muted = cs.onSurface.withValues(alpha: 0.55);
     return GestureDetector(
@@ -100,7 +112,7 @@ class _QuoteCitationState extends State<QuoteCitation> {
           const SizedBox(width: 4),
           Flexible(
             child: Text(
-              label,
+              shown,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.end,

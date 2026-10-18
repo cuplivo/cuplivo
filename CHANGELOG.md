@@ -4,7 +4,7 @@
 
 ### Added
 
-- **Message replies**: a message's ⋯ menu (and a user bubble's long-press or right-click menu) can reply to it, and a selection inside an assistant reply can reply to just that span — the reply shows a one-line citation above the bubble, and the model receives it as a `<reply-to>` prefix frozen with the rest of the turn. Desktop binds `Ctrl/Cmd+Shift+R` to reply with the selection, because a right-click can take the selection away before the toolbar is reached. The citation rides the message row's extras, so it needs no schema change and travels with LAN sync and backups
+- **Message replies**: a message's ⋯ menu (and a user bubble's long-press or right-click menu) can reply to it, and a selection inside an assistant reply can reply to just that span — the reply shows a one-line citation above the bubble, and the model receives it as a `<reply-to>` prefix frozen with the rest of the turn. Desktop binds `Ctrl/Cmd+Shift+R` to reply with the selection, because a right-click can take the selection away before the toolbar is reached. The citation rides the message row's extras, so it needs no schema change and travels with LAN sync and backups (#1027 by @cup113)
 
 ### Fixed
 

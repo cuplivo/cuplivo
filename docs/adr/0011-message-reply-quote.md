@@ -78,7 +78,15 @@ Three inputs come from measurement rather than from v3's prose:
    long quoted answer to draw one line of 120 code units is work the reader never sees and the frame
    budget does. A ranged citation therefore always shows its own text, even after its
    target is deleted (the target only feeds the tap that jumps to it); a whole-message citation shows
-   the target it resolved, or a localized stub when it cannot. The composer preview row shows the same
+   the target it resolved, or a localized stub when it cannot. That target is resolved against the
+   quoted message's **slot**, not the exact revision the citation names: the timeline holds one
+   revision per group, and a version switch, a regeneration or an edit-and-resend moves which one the
+   slot shows, so the revision on screen answers for every id the slot has held. The chip shows the
+   message **as it is now** — the rule an edited target already followed — instead of claiming a
+   message that is still there is unavailable. A target that resolved but renders to nothing (an
+   image-only message, an answer that is only a tool call) falls back to the item's own 「回复」/Reply
+   label, the same fallback the composer's preview row already applies, because a stub would assert an
+   absence that is not one. The composer preview row shows the same
    text with the one tap that drops the citation. The chip hugs its own content, capped at the width
    the bubble itself may reach, so a reply's citation ends on the same right edge as the bubble it
    answers instead of hanging at the far left of a box as wide as the widest bubble.
@@ -91,9 +99,20 @@ Three inputs come from measurement rather than from v3's prose:
 
 ## Consequences
 
-- A copy of a conversation (fork, duplicate) remaps the citations it carries onto the copy's own rows,
-  and **drops** a citation whose target is not part of the copy: a pointer that names a row the copy
-  does not hold is worse than no pointer.
+- A copy of a conversation (fork, duplicate) remaps the citations it carries onto the copy's own rows.
+  A citation whose target is not part of the copy is **dropped only when it is a whole-message one** —
+  a pointer that names a row the copy does not hold is worse than no pointer, and the pointer is all
+  that form has. A **ranged** citation carries its own text, so the copy keeps it exactly as it
+  stands, which is the state a deleted target already leaves it in: the chip shows the span, the tap
+  has nowhere to go, and the turn still sends it. Its id survives unmapped rather than being cleared,
+  because a citation is named by one and message ids are UUIDs — no row of the copy can be mistaken
+  for the target, and every resolution path is scoped to its own conversation.
+- The chip resolves a whole-message citation against the message **slot**, so display and the wire can
+  name different revisions of one group once a version switch moves the selection: the chip follows
+  what the reader sees, while the turn keeps the revision it cited, frozen into
+  `message_prompt_rows` at send time. That is not new — an edited target already reads live while an
+  earlier turn keeps what it sent — and re-resolving the citation at send time instead would silently
+  rewrite a quoted turn, which is exactly what decision 3 forbids.
 - A **merge-mode backup import** remaps message ids but copies `extras_json` verbatim, because the
   conversation fingerprint hashes that payload and a repeated merge dedupes on the fingerprint. A
   whole-message citation inside an imported conversation therefore still names its pre-remap id, and

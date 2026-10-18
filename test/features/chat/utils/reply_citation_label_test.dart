@@ -145,6 +145,29 @@ void main() {
       expect(find.text('Original message unavailable'), findsOneWidget);
     });
 
+    testWidgets('a resolved target with no text is no stub', (tester) async {
+      // An image-only message, or an answer that is only a tool call: the target
+      // resolved and is still tappable, so "Original message unavailable" would
+      // assert an absence that is not one. The item's own label is what the
+      // composer's preview row shows for the very same citation.
+      var jumps = 0;
+      await pumpCitation(
+        tester,
+        QuoteCitation(
+          quote: const MessageQuote(id: 'message-0'),
+          target: target(content: ''),
+          onTap: () => jumps++,
+        ),
+      );
+
+      expect(find.text('Original message unavailable'), findsNothing);
+      expect(find.text('Reply'), findsOneWidget);
+
+      await tester.tap(find.byType(QuoteCitation));
+      await tester.pump();
+      expect(jumps, 1);
+    });
+
     testWidgets('tapping jumps only where a target resolved', (tester) async {
       var jumps = 0;
       await pumpCitation(

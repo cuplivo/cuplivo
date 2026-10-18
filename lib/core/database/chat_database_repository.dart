@@ -7925,8 +7925,10 @@ class ChatDatabaseRepository {
   /// [extras] with a reply citation's target id rewritten for a copied
   /// conversation, whose message rows receive new ids.
   ///
-  /// A citation whose target is not part of the copy is dropped: keeping the
-  /// original id would leave the copy pointing at a row it does not hold.
+  /// A whole-message citation whose target is not part of the copy is dropped:
+  /// keeping the original id would leave the copy pointing at a row it does not
+  /// hold, and the pointer is all it has. A ranged citation carries its own text
+  /// and travels unchanged (`MessageQuote.remapped`).
   String _remapCopiedMessageExtras(
     String extras,
     Map<String, String> messageIdMap,

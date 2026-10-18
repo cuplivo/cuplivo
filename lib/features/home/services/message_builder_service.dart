@@ -1667,6 +1667,11 @@ class MessageBuilderService {
 
   /// The reply citation stored on [revisionId]'s row, for the paths where the
   /// request never resolved a [ChatMessage] for it.
+  ///
+  /// [revisionId] is the row **being sent**, not a citation target, so this read
+  /// is not scoped to a conversation: a primary key names one row everywhere, and
+  /// there is no second conversation it could be confused with. The target of the
+  /// citation it returns is what gets scoped ([_replyToCitation]).
   Future<MessageQuote?> _storedQuote(String revisionId) async {
     if (revisionId.isEmpty) return null;
     final stored = await _repo?.getMessage(revisionId);

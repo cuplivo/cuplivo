@@ -1680,12 +1680,10 @@ class _MessageListViewState extends State<MessageListView> {
 
   @override
   Widget build(BuildContext context) {
-    // Reply citations resolve against the window this frame renders: every
-    // message in it is a candidate target, and one outside it (an older page, a
-    // hidden version) resolves to null so the chip shows its stub.
-    _quoteTargetsForBuild = {
-      for (final message in widget.messages) message.id: message,
-    };
+    _quoteTargetsForBuild = _quoteTargets(
+      messages: widget.messages,
+      byGroup: widget.byGroup,
+    );
     // Items render at the system scale times the chat scale (see the MediaQuery
     // override in _buildMessageItem), so the estimate has to use both.
     _systemTextScale = MediaQuery.textScalerOf(context).scale(1);
@@ -2320,16 +2318,53 @@ class _MessageListViewState extends State<MessageListView> {
     );
   }
 
-  /// Build the actual ChatMessageWidget with all its properties.
-  /// The loaded window's messages by id, rebuilt once per frame in [build].
+  /// The id a reply citation names inside the loaded window, mapped to the row
+  /// that answers it. Rebuilt once per frame in [build].
   Map<String, ChatMessage> _quoteTargetsForBuild = const {};
 
-  /// The message a reply cites, when it is inside the loaded window.
+  /// Every id a reply citation in the window may name, mapped to the row that
+  /// answers it (docs/adr/0011).
+  ///
+  /// A citation names a **message slot**, not the exact revision it was made
+  /// against: the window holds one revision per group
+  /// (`ChatController.collapsedMessages`), so a version switch, a regeneration
+  /// or an edit-and-resend swaps which revision the slot shows. [byGroup]
+  /// carries that group's version headers, whose ids are the revisions the slot
+  /// has held, so the revision it shows now answers for all of them — which is
+  /// the same rule as an edited target, where the chip shows the message as it
+  /// is now while the frozen turn keeps what it sent.
+  ///
+  /// A cited row the conversation no longer holds, or one outside the loaded
+  /// window, is in neither list and still resolves to null: the chip shows its
+  /// stub and there is no jump to offer.
+  static Map<String, ChatMessage> _quoteTargets({
+    required List<ChatMessage> messages,
+    required Map<String, List<ChatMessage>> byGroup,
+  }) {
+    final shownByGroup = <String, ChatMessage>{
+      for (final message in messages) (message.groupId ?? message.id): message,
+    };
+    final targets = <String, ChatMessage>{
+      for (final message in messages) message.id: message,
+    };
+    for (final entry in byGroup.entries) {
+      final shown = shownByGroup[entry.key];
+      if (shown == null) continue;
+      // A version header carries no body, so it must never answer for itself.
+      for (final revision in entry.value) {
+        targets[revision.id] = shown;
+      }
+    }
+    return targets;
+  }
+
+  /// The message a reply cites, when the window can resolve it.
   ChatMessage? _quoteTargetFor(ChatMessage message) {
     final id = message.quote?.id;
     return id == null ? null : _quoteTargetsForBuild[id];
   }
 
+  /// Build the actual ChatMessageWidget with all its properties.
   Widget _buildChatMessageWidget(
     BuildContext context, {
     required ChatMessage message,

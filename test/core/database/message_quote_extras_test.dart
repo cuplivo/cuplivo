@@ -180,4 +180,45 @@ void main() {
       isNot(contains('reply.quote')),
     );
   });
+
+  test(
+    'a duplicate keeps a ranged citation whose target it does not hold',
+    () async {
+      // The span travels with the citation, so the copy can still show it and
+      // still send it: dropping it would delete user-authored content that no
+      // other rule deletes (docs/adr/0011).
+      await repository.appendLinearMessageToConversation(
+        conversation: conversation(),
+        message: message(
+          id: 'message-1',
+          content: 'reply into the void',
+          quote: const MessageQuote(
+            id: 'not-in-this-conversation',
+            text: 'the quoted span',
+          ),
+        ),
+      );
+
+      final duplicate = await repository.duplicateConversation(
+        'conversation-1',
+      );
+      final slots = (await repository.loadLinearMessageWindow(
+        conversationId: duplicate!.id,
+        fromStart: true,
+      )).slots;
+
+      final copied = await repository.getMessage(slots.single.revisionId);
+      expect(
+        copied?.quote,
+        const MessageQuote(
+          id: 'not-in-this-conversation',
+          text: 'the quoted span',
+        ),
+      );
+      expect(
+        await rawExtras(slots.single.revisionId, conversationId: duplicate.id),
+        contains('reply.quote'),
+      );
+    },
+  );
 }

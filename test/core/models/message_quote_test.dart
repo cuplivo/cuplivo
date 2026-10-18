@@ -46,17 +46,31 @@ void main() {
       expect(MessageQuote.decodeFromExtras(const {}), isNull);
     });
 
-    test(
-      'a copy remaps its target, and drops it when the target is absent',
-      () {
-        const quote = MessageQuote(id: 'old-1', text: 'quoted');
-        expect(
-          quote.remapped({'old-1': 'new-1', 'old-2': 'new-2'}),
-          const MessageQuote(id: 'new-1', text: 'quoted'),
-        );
-        expect(quote.remapped({'old-2': 'new-2'}), isNull);
-      },
-    );
+    test('a copy remaps the target a citation names', () {
+      const quote = MessageQuote(id: 'old-1', text: 'quoted');
+      expect(
+        quote.remapped({'old-1': 'new-1', 'old-2': 'new-2'}),
+        const MessageQuote(id: 'new-1', text: 'quoted'),
+      );
+    });
+
+    test('a copy keeps a ranged citation whose target it does not hold', () {
+      // The span *is* the citation: dropping it would delete user-authored
+      // content that no other rule deletes, and the copy can still show and
+      // still send it — the state a deleted target already leaves it in.
+      const quote = MessageQuote(id: 'old-1', text: 'quoted');
+      expect(
+        quote.remapped({'old-2': 'new-2'}),
+        const MessageQuote(id: 'old-1', text: 'quoted'),
+      );
+    });
+
+    test('a copy drops a whole-message citation it cannot point at', () {
+      // That form is nothing but the pointer: with no row to name, the copy has
+      // nothing left to show.
+      const quote = MessageQuote(id: 'old-1');
+      expect(quote.remapped({'old-2': 'new-2'}), isNull);
+    });
   });
 
   group('ChatMessage.quote', () {

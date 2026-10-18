@@ -54,15 +54,22 @@ final class MessageQuote {
     extras[extrasKey] = toJson();
   }
 
-  /// This citation with its target replaced through [idMap], or `null` when the
-  /// quoted message is not part of the copied set.
+  /// This citation with its target replaced through [idMap].
   ///
-  /// A copy of a conversation (fork, duplicate) mints new row ids: a citation
-  /// that keeps the original id would point at a row the copy does not hold.
+  /// A copy of a conversation (fork, duplicate) mints new row ids, so a citation
+  /// that kept the original id would point at a row outside the copy.
+  ///
+  /// A whole-message citation is nothing but that pointer, so the copy drops it
+  /// (`null`). A ranged citation carries its own text and consequently survives
+  /// its target's absence — the same state as a citation whose target was
+  /// deleted, where the chip shows the span and the tap has nowhere to go. [id]
+  /// stays because a citation is named by one and because message ids are
+  /// UUIDs: no row of the copy can be mistaken for the target, and every
+  /// resolution path is scoped to the conversation it runs in.
   MessageQuote? remapped(Map<String, String> idMap) {
     final next = idMap[id];
-    if (next == null) return null;
-    return MessageQuote(id: next, text: text);
+    if (next != null) return MessageQuote(id: next, text: text);
+    return text == null ? null : this;
   }
 
   @override

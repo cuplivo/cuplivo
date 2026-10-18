@@ -25,6 +25,7 @@ enum StorageUsageCategoryKey {
   restoreTraces,
   displacedDatabases,
   localSnapshots,
+  recycleBin,
   assistantData,
   cache,
   logs,
@@ -285,6 +286,9 @@ abstract final class StorageUsageService {
           case LocalSnapshotPaths.directoryName:
             byCat[StorageUsageCategoryKey.localSnapshots]!.add(bytes);
             break;
+          case AppDirectories.recycleDirName:
+            byCat[StorageUsageCategoryKey.recycleBin]!.add(bytes);
+            break;
           case 'upload':
           case 'images':
             final name = parts.last;
@@ -410,6 +414,10 @@ abstract final class StorageUsageService {
     // surviving version of the user's data — inviting a one-tap sweep of it is
     // the opposite of why it was kept. It stays clearable from its own row,
     // where the confirmation says what it is.
+    //
+    // The recycle bin is absent for the same reason: every entry in it is
+    // something the user already lost once, and it is emptied from its own
+    // screen, where each entry says what it is.
     final clearable = StorageUsageStats(
       fileCount:
           byCat[StorageUsageCategoryKey.cache]!.fileCount +
@@ -496,6 +504,22 @@ abstract final class StorageUsageService {
             ),
           ],
         ),
+      // Always present, even when empty: this row is how the bin is reached, and
+      // a recovery feature that appears only once something has been lost is
+      // exactly the feature nobody finds.
+      StorageUsageCategory(
+        key: StorageUsageCategoryKey.recycleBin,
+        stats: byCat[StorageUsageCategoryKey.recycleBin]!.toStats(),
+        subcategories: [
+          if (byCat[StorageUsageCategoryKey.recycleBin]!.fileCount > 0)
+            StorageUsageSubcategory(
+              id: 'recycle_bin',
+              stats: byCat[StorageUsageCategoryKey.recycleBin]!.toStats(),
+              path: p.join(root.path, AppDirectories.recycleDirName),
+              isDirectory: true,
+            ),
+        ],
+      ),
       StorageUsageCategory(
         key: StorageUsageCategoryKey.assistantData,
         stats: byCat[StorageUsageCategoryKey.assistantData]!.toStats(),
@@ -1103,6 +1127,7 @@ const List<StorageUsageCategoryKey> _categoryOrder = <StorageUsageCategoryKey>[
   StorageUsageCategoryKey.restoreTraces,
   StorageUsageCategoryKey.displacedDatabases,
   StorageUsageCategoryKey.localSnapshots,
+  StorageUsageCategoryKey.recycleBin,
   StorageUsageCategoryKey.assistantData,
   StorageUsageCategoryKey.cache,
   StorageUsageCategoryKey.logs,
@@ -1130,6 +1155,7 @@ bool _isAlwaysVisibleCategory(StorageUsageCategoryKey key) {
     case StorageUsageCategoryKey.images:
     case StorageUsageCategoryKey.files:
     case StorageUsageCategoryKey.chatData:
+    case StorageUsageCategoryKey.recycleBin:
     case StorageUsageCategoryKey.assistantData:
     case StorageUsageCategoryKey.cache:
     case StorageUsageCategoryKey.logs:

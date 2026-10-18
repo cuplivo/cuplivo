@@ -10844,6 +10844,116 @@ class AppLocalizationsEn extends AppLocalizations {
   String get storageSpaceManageSkills => 'Manage skills';
 
   @override
+  String get recycleBinTitle => 'Recycle Bin';
+
+  @override
+  String get recycleBinManage => 'Manage recycle bin';
+
+  @override
+  String get recycleBinStorageHint =>
+      'Deleted conversations and assistants, and the settings a sync merge replaced, wait here. The bin stays on this device: it is not synced and it is not part of a backup.';
+
+  @override
+  String get recycleBinEntriesLabel => 'items';
+
+  @override
+  String get recycleBinRetentionNote =>
+      'Entries are kept for 90 days, or until the bin passes its size limit.';
+
+  @override
+  String get recycleBinEmptyTitle => 'Nothing in the bin';
+
+  @override
+  String get recycleBinEmptyBody =>
+      'Conversations and assistants you delete, and settings a sync merge replaced, are kept here so you can bring them back.';
+
+  @override
+  String get recycleBinUntitled => 'Untitled';
+
+  @override
+  String get recycleBinKindConversation => 'Conversation';
+
+  @override
+  String get recycleBinKindAssistant => 'Assistant';
+
+  @override
+  String get recycleBinKindProvider => 'Provider';
+
+  @override
+  String get recycleBinKindWorldBook => 'World book';
+
+  @override
+  String get recycleBinKindMemory => 'Memory';
+
+  @override
+  String get recycleBinKindPreference => 'Setting';
+
+  @override
+  String get recycleBinKindWorkspaceFile => 'Workspace file';
+
+  @override
+  String get recycleBinKindConfig => 'Configuration';
+
+  @override
+  String get recycleBinOriginLocal => 'Deleted here';
+
+  @override
+  String get recycleBinOriginRemote => 'Deleted by sync';
+
+  @override
+  String get recycleBinReasonOverwritten => 'Replaced by sync';
+
+  @override
+  String get recycleBinRestore => 'Restore';
+
+  @override
+  String get recycleBinDeleteForever => 'Delete permanently';
+
+  @override
+  String get recycleBinDeleteForeverBody =>
+      'This entry will be deleted for good and can no longer be recovered.';
+
+  @override
+  String get recycleBinClearAll => 'Empty the bin';
+
+  @override
+  String get recycleBinClearAllBody =>
+      'Every entry in the bin will be deleted for good and can no longer be recovered.';
+
+  @override
+  String get recycleBinRestored => 'Restored';
+
+  @override
+  String get recycleBinRestoreSkipped =>
+      'That conversation is back already, so nothing was changed';
+
+  @override
+  String get recycleBinRestoreUnreadable =>
+      'The staged copy is damaged and cannot be restored';
+
+  @override
+  String get recycleBinRestoreUnsupported =>
+      'This build cannot restore that entry';
+
+  @override
+  String get recycleBinRestoreFailed => 'Could not restore that entry';
+
+  @override
+  String get recycleBinFilterAll => 'All';
+
+  @override
+  String get recycleBinFilterConversation => 'Conversations';
+
+  @override
+  String get recycleBinFilterRows => 'Assistants & settings';
+
+  @override
+  String get recycleBinFilterFiles => 'Files';
+
+  @override
+  String get recycleBinCancel => 'Cancel';
+
+  @override
   String get storageSessionFilesCleanOrphans =>
       'Clean orphaned conversation files';
 
@@ -13003,7 +13113,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String lanSyncReportRowsLost(Object n) {
-    return '$n local rows replaced by newer versions on the peer';
+    return '$n local rows replaced by newer versions on the peer (recoverable in the recycle bin)';
   }
 
   @override

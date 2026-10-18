@@ -19,6 +19,7 @@ import '../../../theme/app_font_weights.dart';
 import '../../../utils/platform_utils.dart';
 import '../../backup/pages/local_snapshots_page.dart';
 import '../../chat/pages/image_viewer_page.dart';
+import '../../recycle/pages/recycle_bin_page.dart';
 import '../../workspace/pages/environment_page.dart';
 import '../../workspace/pages/skills_page.dart';
 import '../../workspace/pages/workspaces_page.dart';
@@ -108,6 +109,7 @@ class _StorageSpacePageState extends State<StorageSpacePage> {
       StorageUsageCategoryKey.restoreTraces,
       StorageUsageCategoryKey.displacedDatabases,
       StorageUsageCategoryKey.localSnapshots,
+      StorageUsageCategoryKey.recycleBin,
       StorageUsageCategoryKey.assistantData,
       StorageUsageCategoryKey.cache,
       StorageUsageCategoryKey.logs,
@@ -136,6 +138,8 @@ class _StorageSpacePageState extends State<StorageSpacePage> {
         return Lucide.Database;
       case StorageUsageCategoryKey.localSnapshots:
         return Lucide.Shield;
+      case StorageUsageCategoryKey.recycleBin:
+        return Lucide.Trash2;
       case StorageUsageCategoryKey.assistantData:
         return Lucide.Bot;
       case StorageUsageCategoryKey.cache:
@@ -171,6 +175,8 @@ class _StorageSpacePageState extends State<StorageSpacePage> {
         return l10n.storageSpaceCategoryDisplacedDatabases;
       case StorageUsageCategoryKey.localSnapshots:
         return l10n.localSnapshotSectionTitle;
+      case StorageUsageCategoryKey.recycleBin:
+        return l10n.recycleBinTitle;
       case StorageUsageCategoryKey.assistantData:
         return l10n.storageSpaceCategoryAssistantData;
       case StorageUsageCategoryKey.cache:
@@ -1673,6 +1679,7 @@ class _CategoryDetail extends StatelessWidget {
       StorageUsageCategoryKey.other => l10n.storageSpaceOtherHint,
       StorageUsageCategoryKey.workspaceFiles =>
         l10n.storageSpaceCategoryWorkspaceFilesHint,
+      StorageUsageCategoryKey.recycleBin => l10n.recycleBinStorageHint,
       StorageUsageCategoryKey.sandboxEnvironment =>
         l10n.storageSpaceCategorySandboxEnvironmentHint,
       StorageUsageCategoryKey.skills => l10n.storageSpaceCategorySkillsHint,
@@ -1771,6 +1778,15 @@ class _CategoryDetail extends StatelessWidget {
         onTap: () => Navigator.of(context).push<void>(
           MaterialPageRoute(builder: (_) => const LocalSnapshotsPage()),
         ),
+      );
+    } else if (category.key == StorageUsageCategoryKey.recycleBin) {
+      // Managed rather than cleared: every entry is something the user already
+      // lost once, and each one says what it is before it goes back.
+      actions = IosTileButton(
+        label: l10n.recycleBinManage,
+        icon: Lucide.ChevronRight,
+        enabled: !clearing,
+        onTap: () => openManager(const RecycleBinPage()),
       );
     } else if (category.key == StorageUsageCategoryKey.workspaceFiles) {
       actions = IosTileButton(

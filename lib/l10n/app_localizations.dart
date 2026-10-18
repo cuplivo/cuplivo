@@ -19449,6 +19449,210 @@ abstract class AppLocalizations {
   /// **'Manage skills'**
   String get storageSpaceManageSkills;
 
+  /// No description provided for @recycleBinTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recycle Bin'**
+  String get recycleBinTitle;
+
+  /// No description provided for @recycleBinManage.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage recycle bin'**
+  String get recycleBinManage;
+
+  /// No description provided for @recycleBinStorageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted conversations and assistants, and the settings a sync merge replaced, wait here. The bin stays on this device: it is not synced and it is not part of a backup.'**
+  String get recycleBinStorageHint;
+
+  /// No description provided for @recycleBinEntriesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'items'**
+  String get recycleBinEntriesLabel;
+
+  /// No description provided for @recycleBinRetentionNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Entries are kept for 90 days, or until the bin passes its size limit.'**
+  String get recycleBinRetentionNote;
+
+  /// No description provided for @recycleBinEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing in the bin'**
+  String get recycleBinEmptyTitle;
+
+  /// No description provided for @recycleBinEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversations and assistants you delete, and settings a sync merge replaced, are kept here so you can bring them back.'**
+  String get recycleBinEmptyBody;
+
+  /// No description provided for @recycleBinUntitled.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled'**
+  String get recycleBinUntitled;
+
+  /// No description provided for @recycleBinKindConversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation'**
+  String get recycleBinKindConversation;
+
+  /// No description provided for @recycleBinKindAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant'**
+  String get recycleBinKindAssistant;
+
+  /// No description provided for @recycleBinKindProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider'**
+  String get recycleBinKindProvider;
+
+  /// No description provided for @recycleBinKindWorldBook.
+  ///
+  /// In en, this message translates to:
+  /// **'World book'**
+  String get recycleBinKindWorldBook;
+
+  /// No description provided for @recycleBinKindMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory'**
+  String get recycleBinKindMemory;
+
+  /// No description provided for @recycleBinKindPreference.
+  ///
+  /// In en, this message translates to:
+  /// **'Setting'**
+  String get recycleBinKindPreference;
+
+  /// No description provided for @recycleBinKindWorkspaceFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace file'**
+  String get recycleBinKindWorkspaceFile;
+
+  /// No description provided for @recycleBinKindConfig.
+  ///
+  /// In en, this message translates to:
+  /// **'Configuration'**
+  String get recycleBinKindConfig;
+
+  /// No description provided for @recycleBinOriginLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted here'**
+  String get recycleBinOriginLocal;
+
+  /// No description provided for @recycleBinOriginRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted by sync'**
+  String get recycleBinOriginRemote;
+
+  /// No description provided for @recycleBinReasonOverwritten.
+  ///
+  /// In en, this message translates to:
+  /// **'Replaced by sync'**
+  String get recycleBinReasonOverwritten;
+
+  /// No description provided for @recycleBinRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get recycleBinRestore;
+
+  /// No description provided for @recycleBinDeleteForever.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete permanently'**
+  String get recycleBinDeleteForever;
+
+  /// No description provided for @recycleBinDeleteForeverBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This entry will be deleted for good and can no longer be recovered.'**
+  String get recycleBinDeleteForeverBody;
+
+  /// No description provided for @recycleBinClearAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty the bin'**
+  String get recycleBinClearAll;
+
+  /// No description provided for @recycleBinClearAllBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Every entry in the bin will be deleted for good and can no longer be recovered.'**
+  String get recycleBinClearAllBody;
+
+  /// No description provided for @recycleBinRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored'**
+  String get recycleBinRestored;
+
+  /// No description provided for @recycleBinRestoreSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'That conversation is back already, so nothing was changed'**
+  String get recycleBinRestoreSkipped;
+
+  /// No description provided for @recycleBinRestoreUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'The staged copy is damaged and cannot be restored'**
+  String get recycleBinRestoreUnreadable;
+
+  /// No description provided for @recycleBinRestoreUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This build cannot restore that entry'**
+  String get recycleBinRestoreUnsupported;
+
+  /// No description provided for @recycleBinRestoreFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not restore that entry'**
+  String get recycleBinRestoreFailed;
+
+  /// No description provided for @recycleBinFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get recycleBinFilterAll;
+
+  /// No description provided for @recycleBinFilterConversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversations'**
+  String get recycleBinFilterConversation;
+
+  /// No description provided for @recycleBinFilterRows.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistants & settings'**
+  String get recycleBinFilterRows;
+
+  /// No description provided for @recycleBinFilterFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Files'**
+  String get recycleBinFilterFiles;
+
+  /// No description provided for @recycleBinCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get recycleBinCancel;
+
   /// No description provided for @storageSessionFilesCleanOrphans.
   ///
   /// In en, this message translates to:
@@ -23133,7 +23337,7 @@ abstract class AppLocalizations {
   /// No description provided for @lanSyncReportRowsLost.
   ///
   /// In en, this message translates to:
-  /// **'{n} local rows replaced by newer versions on the peer'**
+  /// **'{n} local rows replaced by newer versions on the peer (recoverable in the recycle bin)'**
   String lanSyncReportRowsLost(Object n);
 
   /// No description provided for @lanSyncReportClockSkew.

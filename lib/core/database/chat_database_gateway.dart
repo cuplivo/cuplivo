@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import '../services/recycle/recycle_service.dart';
 import 'app_database.dart';
 import 'business_repository.dart';
 import 'chat_database_observer.dart';
@@ -11,6 +12,7 @@ final class ChatDatabaseLease {
     this.repository,
     this.businessRepository,
     this.extensionEntityStore,
+    this.recycleService,
     this._gateway,
   );
 
@@ -19,6 +21,11 @@ final class ChatDatabaseLease {
   ChatDatabaseRepository get chatRepository => repository;
   final BusinessRepository businessRepository;
   final ExtensionEntityStore extensionEntityStore;
+
+  /// The device-local recycle bin (ADR-0013), when the opener supplied one. One
+  /// instance per open database, shared by both repositories so a staged entry
+  /// and a restore agree on the same store.
+  final RecycleService? recycleService;
   final ChatDatabaseGateway _gateway;
   bool _released = false;
 
@@ -33,6 +40,7 @@ typedef _DatabaseRepositories = ({
   ChatDatabaseRepository chat,
   BusinessRepository business,
   ExtensionEntityStore extensionEntities,
+  RecycleService? recycle,
 });
 
 final class ChatDatabaseGateway {
@@ -40,6 +48,16 @@ final class ChatDatabaseGateway {
     : _observer = observer ?? ChatDatabaseObserver.instance;
 
   static final ChatDatabaseGateway instance = ChatDatabaseGateway();
+
+  /// Builds the recycle bin for a database this gateway opens, or null (the
+  /// default) to open without one.
+  ///
+  /// Supplying it is deliberately the opener's decision rather than the
+  /// gateway's: the gateway is what test harnesses acquire too, and a bin that
+  /// writes files *after* the operation that fed it returns must not be handed
+  /// to every harness that happens to delete a conversation. `main` supplies it
+  /// once at startup; the bin's own tests construct the service directly.
+  RecycleService Function(AppDatabase database)? recycleFactory;
 
   _DatabaseRepositories? _repositories;
   Future<_DatabaseRepositories>? _opening;
@@ -80,6 +98,7 @@ final class ChatDatabaseGateway {
       repositories.chat,
       repositories.business,
       repositories.extensionEntities,
+      repositories.recycle,
       this,
     );
   }
@@ -87,18 +106,21 @@ final class ChatDatabaseGateway {
   Future<_DatabaseRepositories> _open(File databaseFile) async {
     return _observer.measure(ChatDatabaseOperation.gatewayOpen, () async {
       final database = AppDatabase.open(file: databaseFile);
+      final recycle = recycleFactory?.call(database);
       final chatRepository = ChatDatabaseRepository(
         database,
         databaseFile: databaseFile,
         observer: _observer,
+        recycle: recycle,
       );
       try {
         await chatRepository.ensureReady();
         await chatRepository.validateConnectionContract();
         return (
           chat: chatRepository,
-          business: BusinessRepository(database),
+          business: BusinessRepository(database, recycle: recycle),
           extensionEntities: ExtensionEntityStore(database),
+          recycle: recycle,
         );
       } catch (_) {
         await chatRepository.close();

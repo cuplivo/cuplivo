@@ -80,6 +80,7 @@ import 'core/providers/sync_provider.dart';
 import 'core/services/sync/business_state_reloader.dart';
 import 'features/home/services/context_usage_service.dart';
 import 'core/services/model_catalog/model_catalog_service.dart';
+import 'core/services/recycle/recycle_service.dart';
 import 'core/services/app_exit_flush.dart';
 import 'core/services/backup/restore_archive_pruner.dart';
 import 'core/services/backup/restore_business_lease.dart';
@@ -326,6 +327,10 @@ Future<void> main() async {
       // logging.Logger.root.onRecord.listen((rec) { ... });
       // Cache current Documents directory to fix sandboxed absolute paths on iOS
       await SandboxPathResolver.init();
+      // The recycle bin is the app's to attach, not the gateway's (ADR-0013):
+      // the gateway is what test harnesses acquire too, and a bin that writes
+      // files after a delete returns has no business in every harness.
+      ChatDatabaseGateway.instance.recycleFactory = RecycleService.new;
       ChatDatabaseLease? processDatabaseLease;
       BusinessPreferences? businessPreferences;
       var recoveryAttempted = false;
@@ -783,6 +788,8 @@ class MyApp extends StatelessWidget {
           value: databaseLease.businessRepository,
         ),
         Provider<BusinessPreferences>.value(value: businessPreferences),
+        if (databaseLease.recycleService case final recycle?)
+          Provider<RecycleService>.value(value: recycle),
         Provider<BusinessStateReloader>(
           create: (_) => BusinessStateReloader(businessPreferences),
         ),

@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 
 import '../../utils/app_directories.dart';
 import '../models/memory_entry.dart';
+import '../services/recycle/recycle_service.dart';
 import '../services/sync/sync_merge.dart';
 import '../services/sync/sync_models.dart';
 import 'app_database.dart';
@@ -12,11 +13,15 @@ import 'business_settings_router.dart';
 import 'schema_columns.dart';
 
 final class BusinessRepository {
-  BusinessRepository(this._database);
+  BusinessRepository(this._database, {this.recycle});
 
   static const migrationReceiptKey = 'business_migration_complete_v1';
 
   final AppDatabase _database;
+
+  /// The device-local recycle bin, when this repository was opened by the
+  /// gateway. Null in tests and one-shot opens, where nothing stages.
+  final RecycleService? recycle;
 
   /// Used by cross-domain coordinators to fail closed unless both
   /// repositories are backed by the exact same Drift database instance.
@@ -454,12 +459,27 @@ WHERE id IN ($placeholders);
   static String normalizeMemoryContent(String content) =>
       MemoryEntry.normalizeContent(content);
 
-  Future<void> _deleteEntity(BusinessEntityKind kind, String id) =>
-      _database.customStatement(
-        'DELETE FROM ${kind.tableName} WHERE ${kind.idColumn} = ?'
-        '${kind.extensionKind == null ? '' : ' AND kind = ?'};',
-        <Object?>[id, if (kind.extensionKind != null) kind.extensionKind],
-      );
+  /// Deletes one entity row — a user-managed row that is going away, whether
+  /// the user removed it or a peer no longer has it.
+  ///
+  /// The row is staged into the recycle bin first, so a mistaken deletion of an
+  /// assistant, a provider or a memory entry stays undoable. Bulk replacement
+  /// ([_replaceEntities], [clearAll]) deliberately does not come through here:
+  /// replacing the whole local state is not a deletion of any one row, which is
+  /// the same line the conversation tombstones draw.
+  Future<void> _deleteEntity(
+    BusinessEntityKind kind,
+    String id, {
+    RecycleOrigin origin = RecycleOrigin.local,
+    RecycleReason reason = RecycleReason.deleted,
+  }) async {
+    await recycle?.stageEntityRow(kind, id, origin: origin, reason: reason);
+    await _database.customStatement(
+      'DELETE FROM ${kind.tableName} WHERE ${kind.idColumn} = ?'
+      '${kind.extensionKind == null ? '' : ' AND kind = ?'};',
+      <Object?>[id, if (kind.extensionKind != null) kind.extensionKind],
+    );
+  }
 
   Future<void> _replacePreferences(Map<String, Object> preferences) async {
     await _database.customStatement('DELETE FROM preference_rows;');
@@ -819,6 +839,15 @@ WHERE id IN ($placeholders);
             // was replaced" for an identical row would be false.
             if (!_sameEntityContent(local.payload, row['payload'])) {
               entityRowsLost++;
+              // This is the only point where a losing local edit still exists:
+              // the upsert below replaces it. Staging here is what makes an
+              // overwritten edit as recoverable as a deleted one.
+              await recycle?.stageEntityRow(
+                kind,
+                id,
+                origin: RecycleOrigin.remote,
+                reason: RecycleReason.overwritten,
+              );
             }
           }
           await _upsertSyncRow(
@@ -850,7 +879,16 @@ WHERE id IN ($placeholders);
           )) {
             continue;
           }
-          if (local.value != value) preferencesLost++;
+          if (local.value != value) {
+            preferencesLost++;
+            // Same as the entity loss above: the local value is still here and
+            // is about to be replaced.
+            await recycle?.stagePreferenceRow(
+              key,
+              origin: RecycleOrigin.remote,
+              reason: RecycleReason.overwritten,
+            );
+          }
         }
         await _upsertSyncRow(
           'preference_rows',
@@ -877,6 +915,13 @@ WHERE id IN ($placeholders);
   /// remove, which is the honest answer rather than a failure. A row that is
   /// simply already gone still reports true: the caller asked for its absence
   /// and has it.
+  ///
+  /// The row is staged first: a peer's removal is not protected by any clock, so
+  /// a local edit made since the last session is deleted outright, and this is
+  /// the only moment it can still be preserved. Staging comes *after* the guards
+  /// below, not before them: a row this device never offers is one there is
+  /// nothing to remove of, and preserving a copy of it would invent a bin entry
+  /// for a deletion that never happened.
   Future<bool> syncDeleteEntity(String kindWire, String id) async {
     final kind = syncKindForWire(kindWire);
     if (kind == null || id.isEmpty) return false;
@@ -893,6 +938,12 @@ WHERE id IN ($placeholders);
       final local = await _syncEntityRow(kind, id);
       if (local != null && _syncSkipsRow(kind, id, local.payload)) return false;
     }
+    await recycle?.stageEntityRow(
+      kind,
+      id,
+      origin: RecycleOrigin.remote,
+      reason: RecycleReason.deleted,
+    );
     final extensionFilter = kind.extensionKind == null
         ? ''
         : " AND kind = '${kind.extensionKind}'";
@@ -904,13 +955,19 @@ WHERE id IN ($placeholders);
     return true;
   }
 
-  /// Deletes one synced preference the peer no longer has.
+  /// Deletes one synced preference the peer no longer has. Staged for the same
+  /// reason as [syncDeleteEntity].
   Future<bool> syncDeletePreference(String key) async {
     if (key.isEmpty) return false;
     if (BusinessKeyRegistry.classify(key) !=
         BusinessKeyDisposition.syncedPreference) {
       return false;
     }
+    await recycle?.stagePreferenceRow(
+      key,
+      origin: RecycleOrigin.remote,
+      reason: RecycleReason.deleted,
+    );
     await _database.customStatement(
       'DELETE FROM preference_rows WHERE key = ?;',
       <Object?>[key],

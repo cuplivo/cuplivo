@@ -1941,8 +1941,9 @@ class _PdfLayout {
         }
         final text = (span as pw.TextSpan).text!;
         if (end.at > 0) head.add(_piece(span, text.substring(0, end.at)));
-        if (end.at < text.length)
+        if (end.at < text.length) {
           tail.add(_piece(span, text.substring(end.at)));
+        }
       }
       out.addAll(head);
       // A newline is already a break; anything else gets the opportunity, which

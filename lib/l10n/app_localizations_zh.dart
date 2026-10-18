@@ -2306,20 +2306,34 @@ class AppLocalizationsZh extends AppLocalizations {
   String get compressContextKeepRecentMessages => '保留N条';
 
   @override
-  String get compressContextKeepCountLabel => '保留最近条数';
+  String get compressContextKeepCountLabel => '保留最近轮数';
 
   @override
-  String get compressContextKeepAllMessages => '保留条数覆盖全部消息，无内容可压缩';
+  String get compressContextKeepAllMessages => '保留轮数覆盖全部消息，无内容可压缩';
 
   @override
-  String compressContextEstimatePreview(
-    int summarized,
-    int kept,
-    int minTokens,
-    int maxTokens,
-    int totalTokens,
-  ) {
-    return '总结 $summarized 字符，原样保留 $kept 字符 → 压缩后约 $minTokens–$maxTokens tokens（原文约 $totalTokens tokens）';
+  String compressContextReadoutRounds(int rounds) {
+    return '共 $rounds 轮';
+  }
+
+  @override
+  String compressContextReadoutKeptRounds(int rounds) {
+    return '$rounds 轮 + 摘要';
+  }
+
+  @override
+  String compressContextReadoutTokens(String tokens) {
+    return '~$tokens token';
+  }
+
+  @override
+  String compressContextReadoutTokensBand(String min, String max) {
+    return '~$min–$max token';
+  }
+
+  @override
+  String compressContextReadoutReduction(int percent) {
+    return '−$percent%';
   }
 
   @override
@@ -15418,20 +15432,34 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get compressContextKeepRecentMessages => '保留N条';
 
   @override
-  String get compressContextKeepCountLabel => '保留最近条数';
+  String get compressContextKeepCountLabel => '保留最近轮数';
 
   @override
-  String get compressContextKeepAllMessages => '保留条数覆盖全部消息，无内容可压缩';
+  String get compressContextKeepAllMessages => '保留轮数覆盖全部消息，无内容可压缩';
 
   @override
-  String compressContextEstimatePreview(
-    int summarized,
-    int kept,
-    int minTokens,
-    int maxTokens,
-    int totalTokens,
-  ) {
-    return '总结 $summarized 字符，原样保留 $kept 字符 → 压缩后约 $minTokens–$maxTokens tokens（原文约 $totalTokens tokens）';
+  String compressContextReadoutRounds(int rounds) {
+    return '共 $rounds 轮';
+  }
+
+  @override
+  String compressContextReadoutKeptRounds(int rounds) {
+    return '$rounds 轮 + 摘要';
+  }
+
+  @override
+  String compressContextReadoutTokens(String tokens) {
+    return '~$tokens token';
+  }
+
+  @override
+  String compressContextReadoutTokensBand(String min, String max) {
+    return '~$min–$max token';
+  }
+
+  @override
+  String compressContextReadoutReduction(int percent) {
+    return '−$percent%';
   }
 
   @override
@@ -28456,20 +28484,34 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get compressContextKeepRecentMessages => '保留N條';
 
   @override
-  String get compressContextKeepCountLabel => '保留最近條數';
+  String get compressContextKeepCountLabel => '保留最近輪數';
 
   @override
-  String get compressContextKeepAllMessages => '保留條數涵蓋全部訊息，無內容可壓縮';
+  String get compressContextKeepAllMessages => '保留輪數涵蓋全部訊息，無內容可壓縮';
 
   @override
-  String compressContextEstimatePreview(
-    int summarized,
-    int kept,
-    int minTokens,
-    int maxTokens,
-    int totalTokens,
-  ) {
-    return '總結 $summarized 字元，原樣保留 $kept 字元 → 壓縮後約 $minTokens–$maxTokens tokens（原文約 $totalTokens tokens）';
+  String compressContextReadoutRounds(int rounds) {
+    return '共 $rounds 輪';
+  }
+
+  @override
+  String compressContextReadoutKeptRounds(int rounds) {
+    return '$rounds 輪 + 摘要';
+  }
+
+  @override
+  String compressContextReadoutTokens(String tokens) {
+    return '~$tokens token';
+  }
+
+  @override
+  String compressContextReadoutTokensBand(String min, String max) {
+    return '~$min–$max token';
+  }
+
+  @override
+  String compressContextReadoutReduction(int percent) {
+    return '−$percent%';
   }
 
   @override

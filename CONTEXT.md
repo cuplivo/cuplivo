@@ -535,6 +535,42 @@ contradicts one of them is a bug, not a preference.
 - **Cuplivo Discord**: `https://discord.gg/kaTf8CXG4`.
 - Upstream Kelivo's community channels are not listed in the app.
 
+## Context compression (上下文压缩) — ADR-0011
+
+- **Round (轮)**: one user message with non-empty content — the unit both the keep count and the
+  dialog's round total count. An assistant reply is never a round of its own, and the kept region
+  always begins on a round, so a reply is never separated from the request that produced it.
+- **Keep-N (保留N轮)**: summarize every round before the last N, keep the last N rounds (and
+  everything after them) verbatim, and fork the conversation as `summary + kept`. The other three
+  modes (start / recent / unlimited) send a character window to the summarizer and keep no region
+  at all — what falls outside that window is dropped, not summarized.
+- **Compression readout (压缩读数)**: what one compression costs before and after, in tokens —
+  rounds above tokens on each side, with the reduction over the arrow between them (the shape the
+  image editor already uses, ADR-0002 节省). The percentage is the **midpoint** of the result band,
+  while the band itself stays on the right-hand side: the summary's own length is the quantity that
+  is genuinely unknown, so it is the one that keeps its range. It is counted once, the first time the
+  keep-N readout is displayed — the default mode shows no readout, and counting is linear in text
+  volume.
+- **Estimate basis (估算口径)**: the readout counts what the model would see for a message — body,
+  tool call names and arguments, tool results, and images — because tool payloads are usually the
+  larger half of a working conversation. Images are charged the unknown-size placeholder
+  (`kUnknownImageTokens`), the same charge the context-usage buckets apply: every attached image part
+  plus every typed `metadata.mcpResult` image of a tool result. A model without image input receives
+  a text marker instead and is still charged, so the error is always toward over-counting. It does
+  **not** count reasoning. It is also **not** the text a compression request carries: requests stay
+  body-only (`conversationLineForCompression`), so the estimate can be honest about the conversation
+  without making a request larger.
+- **The split is a token sum, never a character ratio**: character share equals token share only
+  when both spans carry the same content mix, and the keep-N cut is exactly where they differ —
+  prose against a tool-heavy turn. Measured on the ported estimator, 115 Chinese characters and 700
+  ASCII letters both cost ≈100 tokens, so a character-based split would report that kept tail as an
+  order of magnitude larger than it is.
+- **Result band (压缩后区间)**: the summary is assumed to survive at 10%–30% **of the text the
+  summarizer reads** — the body-only tokens of the summarized span, never the tool-inclusive total
+  that the two visible numbers describe. Both ends are shown; the reduction percentage is derived
+  from the band's midpoint. The band is an assumption, not a measurement, and no number in the dialog
+  is more precise than that.
+
 ## Image Compression (图片压缩) — ADR-0002
 
 - **Compression mode (压缩模式)**: one mutually exclusive stance for how attached images are handled,

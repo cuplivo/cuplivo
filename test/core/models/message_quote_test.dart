@@ -136,7 +136,7 @@ void main() {
       expect(restored.quoteLabel, isNull);
     });
 
-    test('copyWith keeps the citation, withoutQuote drops it', () {
+    test('copyWith keeps the citation', () {
       const draft = ComposerDraftInput(
         text: 'a',
         quote: MessageQuote(id: 'message-0'),
@@ -144,10 +144,6 @@ void main() {
       );
       expect(draft.copyWith(text: 'ab').quote, draft.quote);
       expect(draft.copyWith(text: 'ab').quoteLabel, 'label');
-      final cleared = draft.withoutQuote();
-      expect(cleared.quote, isNull);
-      expect(cleared.quoteLabel, isNull);
-      expect(cleared.text, 'a');
     });
 
     test('a pending citation alone is not sendable content', () {

@@ -63,19 +63,6 @@ class ComposerDraftInput {
     quoteLabel: quoteLabel ?? this.quoteLabel,
   );
 
-  /// This value without its pending reply citation.
-  ///
-  /// `copyWith` cannot clear the citation (a `null` argument means "keep"), so
-  /// dropping one goes through here.
-  ComposerDraftInput withoutQuote() => ComposerDraftInput(
-    text: text,
-    selectionBase: selectionBase,
-    selectionExtent: selectionExtent,
-    images: images,
-    documents: documents,
-    allowImagesApiRouting: allowImagesApiRouting,
-  );
-
   ChatInputData toInput({DraftSubmission? submission}) => ChatInputData(
     text: text,
     imagePaths: images.map((image) => image.path).toList(),
@@ -83,6 +70,7 @@ class ComposerDraftInput {
     allowImagesApiRouting: allowImagesApiRouting,
     draftSubmission: submission,
     quote: quote,
+    quoteLabel: quoteLabel,
   );
 
   factory ComposerDraftInput.fromInput(ChatInputData input) =>
@@ -92,6 +80,7 @@ class ComposerDraftInput {
         documents: List.of(input.documents),
         allowImagesApiRouting: input.allowImagesApiRouting,
         quote: input.quote,
+        quoteLabel: input.quoteLabel,
       );
 
   Map<String, dynamic> toJson() => {

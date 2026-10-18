@@ -11,6 +11,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../support/business_test_harness.dart';
 
+/// Whether [value] carries a surrogate half with no partner — what a raw
+/// `substring` cut can leave behind and what the chip would render as a
+/// replacement glyph.
+bool _hasLoneSurrogate(String value) {
+  for (var i = 0; i < value.length; i++) {
+    final unit = value.codeUnitAt(i);
+    if (unit >= 0xD800 && unit <= 0xDBFF) {
+      final next = i + 1 < value.length ? value.codeUnitAt(i + 1) : 0;
+      if (next < 0xDC00 || next > 0xDFFF) return true;
+      i++;
+    } else if (unit >= 0xDC00 && unit <= 0xDFFF) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /// The one-line presentation of a reply citation (docs/adr/0011): the
 /// renderer's display space, never the raw markdown the model receives.
 void main() {
@@ -63,6 +80,26 @@ void main() {
       final label = replyCitationLabel(long, settings: settings);
       expect(label.length, replyCitationLabelBudget + 1);
       expect(label.endsWith('…'), isTrue);
+    });
+
+    test('the clip never tears a surrogate pair at the budget', () async {
+      final settings = await newSettings();
+      // 119 code units, then an astral character whose high surrogate lands
+      // exactly on index 119 — the last unit the budget keeps. A raw substring
+      // cut leaves that half of the pair behind.
+      final source = '${'a' * 119}😀 tail';
+      final rawCut = source.substring(0, replyCitationLabelBudget);
+      expect(
+        _hasLoneSurrogate(rawCut),
+        isTrue,
+        reason: 'the guard would be vacuous without this shape',
+      );
+
+      final label = replyCitationLabel(source, settings: settings);
+
+      expect(label.endsWith('…'), isTrue);
+      expect(_hasLoneSurrogate(label), isFalse);
+      expect(label.length, replyCitationLabelBudget);
     });
   });
 

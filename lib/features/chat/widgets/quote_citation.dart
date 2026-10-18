@@ -16,7 +16,7 @@ import '../utils/reply_citation_label.dart';
 /// whole-message citation has no text of its own: it shows [target]'s rendered
 /// text, or the localized stub once the target cannot be resolved (deleted, or
 /// outside the loaded window).
-class QuoteCitation extends StatelessWidget {
+class QuoteCitation extends StatefulWidget {
   const QuoteCitation({
     super.key,
     required this.quote,
@@ -33,28 +33,62 @@ class QuoteCitation extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
+  State<QuoteCitation> createState() => _QuoteCitationState();
+}
+
+class _QuoteCitationState extends State<QuoteCitation> {
+  /// The inputs the cached [_label] was derived from.
+  Object? _labelKey;
+  String? _label;
+
+  /// The citation's text in display space, derived at most once per input.
+  ///
+  /// `replyCitationLabel` walks the whole citation through the Markdown IR, and
+  /// a bubble is rebuilt on every stream publish; deriving this in `build`
+  /// re-walks a long quoted message ~20 times a second to produce one line of
+  /// 120 code units. The key holds everything that walk reads — the source, the
+  /// streaming flag, and the four settings `markdownDocument` consults — so a
+  /// settled citation is derived once per widget instance and a settings change
+  /// still invalidates it. Comparing the key is O(1) while the source string is
+  /// the same instance, which is what a rebuild hands back.
+  String? _labelFor(String? source, {required bool streaming}) {
+    if (source == null) return null;
+    final settings = context.read<SettingsProvider>();
+    final key = (
+      source,
+      streaming,
+      settings.enableMathRendering,
+      settings.enableDollarLatex,
+      settings.autoCollapseCodeBlock,
+      settings.autoCollapseCodeBlockLines,
+    );
+    if (key != _labelKey) {
+      _labelKey = key;
+      _label = replyCitationLabel(
+        source,
+        settings: settings,
+        streaming: streaming,
+      );
+    }
+    return _label;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
-    final settings = context.read<SettingsProvider>();
-    final own = quote.text;
-    final resolved = target;
-    final String label;
-    if (own != null) {
-      label = replyCitationLabel(own, settings: settings);
-    } else if (resolved != null) {
-      label = replyCitationLabel(
-        resolved.content,
-        settings: settings,
-        streaming: resolved.isStreaming,
-      );
-    } else {
-      label = l10n.messageQuoteTargetMissing;
-    }
+    final own = widget.quote.text;
+    final resolved = widget.target;
+    final label =
+        _labelFor(
+          own ?? resolved?.content,
+          streaming: own == null && (resolved?.isStreaming ?? false),
+        ) ??
+        l10n.messageQuoteTargetMissing;
 
     final muted = cs.onSurface.withValues(alpha: 0.55);
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       behavior: HitTestBehavior.opaque,
       child: Row(
         mainAxisSize: MainAxisSize.min,

@@ -53,7 +53,12 @@ Three inputs come from measurement rather than from v3's prose:
    template: a later edit of the target cannot silently rewrite what an earlier turn sent, and the
    prompt cache keeps its prefix. The target resolves from the request's own stream, then the
    conversation cache, then the database — a citation of a message that has scrolled out of the
-   window still grounds. An unresolvable target injects **nothing**; the UI stub is UI language.
+   window still grounds. That last step is **scoped to the conversation the citation is sent in**: a
+   row id means something only inside its own conversation, and the primary-key lookup that ignores
+   this is how a stale id reaches a different message (see Consequences). With no conversation to
+   scope it to, the step is skipped rather than widened — a citation that grounds outside its own
+   conversation is worse than one that does not ground. An unresolvable target injects **nothing**;
+   the UI stub is UI language.
 4. **The cited text is raw markdown, uncapped.** ADR-0046's own reasoning holds — the model reads
    markdown best — and no display-derived string ever reaches the wire.
 5. **Two entry forms, three surfaces each.** A whole-message reply from the message menus (the
@@ -67,7 +72,11 @@ Three inputs come from measurement rather than from v3's prose:
    happens. The memory now files the selection's **message id** alongside its document and text.
 7. **A ranged citation is self-sufficient; a whole-message citation is not.** The chip above a bubble
    renders the citation's text in the IR's *display space* — the same walk, and the same records, the
-   bubble itself rendered with. A ranged citation therefore always shows its own text, even after its
+   bubble itself rendered with. That walk is paid once per citation rather than once per build: the
+   chip holds the derived line and re-derives it only when the quoted source, its streaming state, or
+   a setting the walk reads changes. The timeline rebuilds on every stream publish, so re-walking a
+   long quoted answer to draw one line of 120 code units is work the reader never sees and the frame
+   budget does. A ranged citation therefore always shows its own text, even after its
    target is deleted (the target only feeds the tap that jumps to it); a whole-message citation shows
    the target it resolved, or a localized stub when it cannot. The composer preview row shows the same
    text with the one tap that drops the citation. The chip hugs its own content, capped at the width
@@ -85,12 +94,21 @@ Three inputs come from measurement rather than from v3's prose:
 - A copy of a conversation (fork, duplicate) remaps the citations it carries onto the copy's own rows,
   and **drops** a citation whose target is not part of the copy: a pointer that names a row the copy
   does not hold is worse than no pointer.
+- A **merge-mode backup import** remaps message ids but copies `extras_json` verbatim, because the
+  conversation fingerprint hashes that payload and a repeated merge dedupes on the fingerprint. A
+  whole-message citation inside an imported conversation therefore still names its pre-remap id, and
+  resolves to nothing there — the chip shows the stub, the turn injects no `<reply-to>`. That is the
+  same outcome as a citation whose target the copy does not hold, and it is why the resolution step
+  above is scoped rather than trusted. Remapping on import was rejected: it would change the imported
+  payload's fingerprint and make every repeated merge of the same backup import a second copy.
 - A citation is part of the message's content identity: a new version of the row carries it, and
   `copyWith` never clears it.
 - A citation rides `ChatInputData` from the composer into the row, so **every** rebuild of a
   submitted input carries it — the composer-draft submission, the queued-send copy, the detached
   composer snapshot. One rebuild that forgets it loses the chip *and* the injection at once, on the
-  path that looks like it works.
+  path that looks like it works. The citation's one-line **label** rides the same payload for the
+  restore paths, because a whole-message citation's text lives on a target the restored composer no
+  longer holds.
 - Nothing consults the citation for context accounting beyond the ordinary user turn: the injected
   prefix is part of the frozen user body, so it counts as chat history like the rest of it.
 - Losses against v3, recorded rather than hidden: the chip shows the selected span alone, without

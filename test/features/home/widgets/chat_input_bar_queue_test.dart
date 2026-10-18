@@ -263,6 +263,40 @@ void main() {
 
     expect(submitted?.text, 'reply text');
     expect(submitted?.quote, quote);
+    // The preview line rides the payload too: a queued send that is cancelled
+    // has no target left to re-derive it from (docs/adr/0011).
+    expect(submitted?.quoteLabel, 'quoted span');
+  });
+
+  testWidgets('恢复一个待发输入时预览行显示它带回的引用', (tester) async {
+    // A whole-message citation carries no text of its own, so the restored
+    // composer can only show the line the input brought back.
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+    addTearDown(controller.dispose);
+    addTearDown(focusNode.dispose);
+
+    await tester.pumpWidget(
+      buildHarness(
+        controller: controller,
+        focusNode: focusNode,
+        mediaController: mediaController,
+        onSend: (_) async => ChatInputSubmissionResult.sent,
+      ),
+    );
+
+    mediaController.restoreInput(
+      const ChatInputData(
+        text: 'reply text',
+        quote: MessageQuote(id: 'quoted-message'),
+        quoteLabel: 'the quoted line',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('the quoted line'), findsOneWidget);
+    expect(find.text('Reply'), findsNothing);
   });
 
   testWidgets('已有排队消息时非空的锁定输入框仍可停止输出', (tester) async {

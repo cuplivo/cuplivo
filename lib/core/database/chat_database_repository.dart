@@ -2360,6 +2360,30 @@ class ChatDatabaseRepository {
     return row == null ? null : _messageFromRowWithParts(row);
   }
 
+  /// [messageId] as a row of [conversationId], or null when that id belongs to
+  /// another conversation or to none.
+  ///
+  /// [getMessage] is a primary-key lookup with no conversation filter, so a row
+  /// id that outlived its conversation — a merge-mode backup import remaps
+  /// message ids but copies `extras_json` verbatim (see docs/adr/0011) — would
+  /// resolve to whichever conversation on this device still holds it. Anything
+  /// that resolves a stored reference into content for one conversation uses
+  /// this instead.
+  Future<ChatMessage?> getMessageInConversation(
+    String conversationId,
+    String messageId,
+  ) async {
+    if (conversationId.isEmpty || messageId.isEmpty) return null;
+    final row =
+        await (_db.select(_db.messageRows)..where(
+              (t) =>
+                  t.id.equals(messageId) &
+                  t.conversationId.equals(conversationId),
+            ))
+            .getSingleOrNull();
+    return row == null ? null : _messageFromRowWithParts(row);
+  }
+
   Future<List<ChatMessage>> getMessagesRange(
     String conversationId, {
     required int start,

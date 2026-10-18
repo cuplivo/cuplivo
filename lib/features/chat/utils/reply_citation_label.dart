@@ -1,5 +1,6 @@
 import '../../../core/providers/settings_provider.dart';
 import '../../../shared/widgets/markdown_with_highlight.dart';
+import '../../../utils/utf16_safe_cut.dart';
 
 /// The one-line label a reply citation shows — in the composer's preview row and
 /// above a bubble's content (docs/adr/0011).
@@ -25,7 +26,9 @@ String replyCitationLabel(
   );
   final flat = document.displayText.replaceAll(RegExp(r'\s+'), ' ').trim();
   if (flat.length <= replyCitationLabelBudget) return flat;
-  return '${flat.substring(0, replyCitationLabelBudget)}…';
+  // A plain `substring` can split a surrogate pair and leave a lone surrogate
+  // behind; the budget is a code-unit count like every other cut in the repo.
+  return '${truncateHeadUtf16Safe(flat, replyCitationLabelBudget)}…';
 }
 
 /// How much of the citation a one-line label keeps, in code units. The stored

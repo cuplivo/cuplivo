@@ -1601,6 +1601,10 @@ class MessageBuilderService {
     if (quote == null) return body;
     final citation = await _replyToCitation(
       quote,
+      // A citation is resolved inside the conversation that carries it. The
+      // database fallback cannot tell one conversation's row from another's,
+      // so it is only reached with an owner to scope it (docs/adr/0011).
+      conversationId: message?.conversationId ?? conversation?.id,
       conversation: conversation,
       sourceMessages: sourceMessages,
     );
@@ -1616,6 +1620,7 @@ class MessageBuilderService {
   /// message is gone" stub is UI language, never model language.
   Future<String?> _replyToCitation(
     MessageQuote quote, {
+    required String? conversationId,
     required Conversation? conversation,
     required List<ChatMessage>? sourceMessages,
   }) async {
@@ -1623,6 +1628,7 @@ class MessageBuilderService {
     if (stored != null && stored.trim().isNotEmpty) return stored;
     final target = await _quoteTarget(
       quote.id,
+      conversationId: conversationId,
       conversation: conversation,
       sourceMessages: sourceMessages,
     );
@@ -1634,8 +1640,13 @@ class MessageBuilderService {
   /// The quoted message: the request's own stream first, then the conversation
   /// cache, and finally the database — a citation of a message that has scrolled
   /// out of the loaded window still has to ground.
+  ///
+  /// The database step is scoped to [conversationId]; it is skipped when there is
+  /// no conversation to scope it to, because a citation that grounds outside its
+  /// own conversation is worse than a citation that does not ground at all.
   Future<ChatMessage?> _quoteTarget(
     String id, {
+    required String? conversationId,
     required Conversation? conversation,
     required List<ChatMessage>? sourceMessages,
   }) async {
@@ -1650,7 +1661,8 @@ class MessageBuilderService {
         if (candidate.id == id) return candidate;
       }
     }
-    return _repo?.getMessage(id);
+    if (conversationId == null) return null;
+    return _repo?.getMessageInConversation(conversationId, id);
   }
 
   /// The reply citation stored on [revisionId]'s row, for the paths where the

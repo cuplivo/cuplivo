@@ -773,8 +773,10 @@ class HomeViewModel extends ChangeNotifier {
       draftSubmission: input.draftSubmission,
       // A queued send and a cancelled queued input both travel back through
       // here; the citation is part of the input, not of the composer state
-      // that outlives it (docs/adr/0011).
+      // that outlives it, and its label restores the composer's preview line
+      // (docs/adr/0011).
       quote: input.quote,
+      quoteLabel: input.quoteLabel,
     );
   }
 

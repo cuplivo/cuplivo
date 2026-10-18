@@ -1614,7 +1614,11 @@ void main() {
       controller.chatController.setConversationLoading(convo.id, true);
       const quote = MessageQuote(id: 'quoted-message', text: 'quoted span');
       final result = await controller.sendMessage(
-        const ChatInputData(text: 'reply text', quote: quote),
+        const ChatInputData(
+          text: 'reply text',
+          quote: quote,
+          quoteLabel: 'quoted span',
+        ),
       );
       expect(result, ChatInputSubmissionResult.queued);
       // The queued input is a copy of what was submitted — the copy that drops
@@ -1622,6 +1626,10 @@ void main() {
       // cancelled copy loses it in the composer (docs/adr/0011).
       expect(controller.currentQueuedInput?.input.quote, quote);
       expect(controller.currentQueuedInput?.input.text, 'reply text');
+      // The preview line travels with it: a whole-message citation has no text
+      // of its own, so a restore that drops the label shows the menu wording
+      // instead of the line the composer was displaying.
+      expect(controller.currentQueuedInput?.input.quoteLabel, 'quoted span');
 
       controller.cancelQueuedMessage();
       expect(controller.currentQueuedInput, isNull);

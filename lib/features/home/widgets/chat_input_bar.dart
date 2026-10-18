@@ -154,18 +154,6 @@ class ChatInputBarController {
     }
   }
 
-  /// Drops the pending reply citation.
-  void clearPendingQuote() {
-    if (_state != null && _currentTarget) {
-      _root._state!._setPendingQuote(null);
-    } else {
-      _mutate((input) => input.withoutQuote());
-    }
-  }
-
-  /// The pending reply citation in the bar, or null.
-  MessageQuote? get pendingQuote => _state?._quoteDraft ?? _pendingDraft?.quote;
-
   Future<Directory> uploadDirectory() =>
       _root.draftStore != null && (_owner ?? _root.draftOwnerId) != null
       ? _root.draftStore!.directoryFor((_owner ?? _root.draftOwnerId)!)
@@ -346,9 +334,10 @@ class ChatInputBarController {
       documents: draft.documents,
       allowImagesApiRouting: draft.allowImagesApiRouting,
       // The detached fallback still speaks for a composer that holds a pending
-      // reply: every rebuild of the submitted input carries the citation
-      // (docs/adr/0011).
+      // reply: every rebuild of the submitted input carries the citation and the
+      // preview line it was made under (docs/adr/0011).
       quote: draft.quote,
+      quoteLabel: draft.quoteLabel,
     );
   }
 
@@ -1067,9 +1056,9 @@ class _ChatInputBarState extends State<ChatInputBar>
         ..clear()
         ..addAll(input.documents);
       _quoteDraft = input.quote;
-      // A ChatInputData carries the citation but not the draft-only label; the
-      // preview row derives one from the citation's own text.
-      _quoteLabel = null;
+      // The label rides the input so a queued send that is cancelled puts the
+      // quoted line back, not just the citation (docs/adr/0011).
+      _quoteLabel = input.quoteLabel;
       _pruneImageSizes();
     });
   }
@@ -1078,11 +1067,10 @@ class _ChatInputBarState extends State<ChatInputBar>
   void _setPendingQuote(MessageQuote? quote, {String? label}) {
     setState(() {
       _quoteDraft = quote;
-      if (quote == null) {
-        _quoteLabel = null;
-      } else if (label != null) {
-        _quoteLabel = label;
-      }
+      // Assigned together with the citation: a label describes the citation it
+      // was derived from, so one without a label must not inherit the previous
+      // citation's line.
+      _quoteLabel = quote == null ? null : label;
     });
   }
 
@@ -1098,6 +1086,7 @@ class _ChatInputBarState extends State<ChatInputBar>
       documents: List<DocumentAttachment>.of(_docs),
       allowImagesApiRouting: _allowImagesApiRouting,
       quote: _quoteDraft,
+      quoteLabel: _quoteLabel,
     );
   }
 
@@ -2199,6 +2188,7 @@ class _ChatInputBarState extends State<ChatInputBar>
               allowImagesApiRouting: submittedDraft.allowImagesApiRouting,
               draftSubmission: draftSubmission,
               quote: submittedQuote,
+              quoteLabel: submittedQuoteLabel,
             ),
           ) ??
           ChatInputSubmissionResult.rejected;

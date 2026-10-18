@@ -794,14 +794,19 @@ contradicts one of them is a bug, not a preference.
   nothing at all — the stub a reader sees is UI language, never model language.
 - **Citation chip (引用栏)**: the one-line citation above a bubble's content, and the preview row the
   composer shows while the reply is pending. Its text is the citation in the IR's *display space* — the
-  same walk the bubble itself rendered with. A 范围引用 is self-sufficient (it shows its own text even
+  same walk the bubble itself rendered with, derived once per citation rather than once per build (the
+  timeline rebuilds on every stream publish). A 范围引用 is self-sufficient (it shows its own text even
   after its target is gone; the target only feeds the tap that jumps to it), while an 整条引用 shows the
   target it resolved or 桩文案 when it cannot.
 - **Quote target (引文目标)**: the message a Quote names. It is resolved from the request's own stream,
-  then the conversation cache, then the database, so a citation of a message outside the loaded window
-  still grounds in the request; for display it resolves against the window on screen alone, and
-  anything outside it renders the stub. A **copied conversation** (fork, duplicate) remaps its citations
-  onto the copy's own rows and drops the ones whose target the copy does not hold.
+  then the conversation cache, then the database — that last step scoped to the conversation the
+  citation is sent in, because a row id means something only inside its own conversation; with no
+  conversation to scope it to, the step is skipped. For display it resolves against the window on screen
+  alone, and anything outside it renders the stub. A **copied conversation** (fork, duplicate) remaps
+  its citations onto the copy's own rows and drops the ones whose target the copy does not hold. A
+  **merge-mode import** keeps `extras_json` verbatim (the conversation fingerprint hashes it, and a
+  repeated merge dedupes on it), so an 整条引用 it carries resolves to nothing — same outcome as a
+  dropped one, and never a row of another conversation.
 - **Naming boundary**: 「引用」 in the UI means a search citation (「引用来源」, 「引用 (共 N 条)」), so the
   menu item reads 「回复」 / "Reply" while the domain term — and every identifier in the code — is
   **Quote**. The text-level 「引用粘贴」 (selection → `> …` into the composer) is a separate v3 feature

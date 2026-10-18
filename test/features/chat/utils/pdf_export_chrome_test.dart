@@ -205,7 +205,7 @@ void main() {
         );
         expect(
           pdfWordY(heading, 'Head') - pdfWordY(heading, 'body'),
-          closeTo(30.6, 0.6),
+          closeTo(31.7, 0.6),
         );
 
         final list = await _drawn(
@@ -213,7 +213,7 @@ void main() {
         );
         expect(
           pdfWordY(list, 'one') - pdfWordY(list, 'two'),
-          closeTo(17.1, 0.5),
+          closeTo(20.1, 0.5),
         );
 
         final paragraphs = await _drawn(
@@ -224,7 +224,7 @@ void main() {
         );
         expect(
           pdfWordY(paragraphs, 'one') - pdfWordY(paragraphs, 'two'),
-          closeTo(16.9, 0.5),
+          closeTo(20.1, 0.5),
         );
       },
     );
@@ -241,8 +241,33 @@ void main() {
       expect(texts, contains('two'));
       expect(
         pdfWordY(drawn, 'one') - pdfWordY(drawn, 'two'),
-        closeTo(16.9, 0.5),
+        closeTo(20.1, 0.5),
       );
+    });
+
+    test('separates two paragraphs by more than a line break', () async {
+      // The review of a first page found the block rhythm cramped: a paragraph
+      // break was five points over a 15.8-point line pitch, which reads as one
+      // more line rather than as a new paragraph. What is pinned here is the
+      // difference rather than the figure: a break has to stand out from the
+      // page's own leading, or a page of prose is a wall.
+      final wrapped = List<String>.generate(
+        60,
+        (index) => 'word${index % 7}',
+      ).join(' ');
+      final lines = await _bodyLines(wrapped);
+      expect(lines.length, greaterThan(2));
+      final pitch = lines.first - lines[1];
+
+      final paragraphs = await _drawn(
+        blocks: <ExportBlock>[
+          const ExportText('para one'),
+          const ExportText('para two'),
+        ],
+      );
+      final block = pdfWordY(paragraphs, 'one') - pdfWordY(paragraphs, 'two');
+      expect(block, greaterThan(pitch + 2));
+      expect(pitch, closeTo(16.8, 0.4));
     });
   });
 
@@ -286,7 +311,7 @@ void main() {
       // And the paragraph keeps its own rhythm: no line is pushed further than a
       // point and a half below the pitch the same paragraph has without a formula.
       final pitch = plain.first - plain[1];
-      expect(pitch, closeTo(15.8, 0.5));
+      expect(pitch, closeTo(16.8, 0.5));
       expect(formulaLines.length, greaterThanOrEqualTo(plain.length - 1));
       for (var index = 0; index + 1 < formulaLines.length; index++) {
         expect(

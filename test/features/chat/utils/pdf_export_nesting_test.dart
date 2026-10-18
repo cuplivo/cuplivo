@@ -107,6 +107,42 @@ void main() {
     },
   );
 
+  test('a wrapped item hangs under its text, not under its marker', () async {
+    // The marker rides the item's first line, and every line after it belongs one
+    // step in — the hanging indent the writer has no way to draw itself, which is
+    // why the emitter cuts the first line out and sets the rest at the item's own
+    // indent. A review of the first export found the second line level with the
+    // marker, which is what this holds down.
+    final drawn = await _drawnText(
+      '- alpha bravo charlie delta echo foxtrot golf hotel india juliett '
+      'kilo lima mike november oscar papa quebec romeo sierra tango uniform '
+      'victor whiskey xray yankee zulu\n',
+    );
+    final marker = drawn.firstWhere((word) => word.text == '-');
+    final label = pdfWordY(drawn, 'Assistant');
+    final lines = <double>{
+      for (final word in drawn)
+        // Above the footer, below the speaker line: the body, and nothing else.
+        if (word.y > 100 && word.y < label - 1) word.y,
+    }.toList()..sort((a, b) => b.compareTo(a));
+    // The lines of the item are the ones under its marker's own line.
+    final below = lines.where((y) => y < marker.y - 0.5).toList();
+    expect(below, isNotEmpty, reason: 'the item did not wrap');
+
+    final wrapped =
+        drawn.where((word) => (word.y - below.first).abs() < 2.5).toList()
+          ..sort((a, b) => a.x.compareTo(b.x));
+    expect(
+      wrapped.first.x - marker.x,
+      closeTo(14, 0.01),
+      reason:
+          'marker at ${marker.x}; the line under it starts with '
+          '"${wrapped.first.text}" at ${wrapped.first.x}',
+    );
+    // And the marker's own line still starts at the marker.
+    expect(leftmostOnPdfLine(marker.y, drawn), '-');
+  });
+
   test('a list inside a quote is indented by both', () async {
     final quoted = await _drawnText('> - alpha\n>   - bravo\n');
     final plain = await _drawnText('- alpha\n  - bravo\n');

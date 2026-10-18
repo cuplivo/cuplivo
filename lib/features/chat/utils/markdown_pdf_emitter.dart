@@ -153,9 +153,16 @@ const double _messageRuleHeight = 12;
 ///
 /// The screen separates two blocks with a blank line — a chat convention rather
 /// than a typesetting one — and a printed page that airy spends a fifth of its
-/// length on nothing. This is the compromise the first export already made; it is
-/// a named figure now so a test can hold the rhythm down.
-const double _paragraphGap = 5;
+/// length on nothing. This is the compromise the first export already made, and a
+/// first review of a page found it too tight: at 5 points a paragraph break read as
+/// nothing more than a line break, because the writer adds its leading *between*
+/// lines and a paragraph's box is only the face's own height. At 8 it is half a
+/// line at the page's own leading, which is what a printed paragraph break is.
+///
+/// A list is not spaced differently on purpose: its items carry this gap too (see
+/// [_listItem]'s first run, which wears the body's own skin), so a list stands off
+/// its surroundings exactly as one paragraph stands off another.
+const double _paragraphGap = 8;
 
 /// A heading's own margins, and how far a picture or a table stands apart.
 const double _headingTop = 4;
@@ -435,7 +442,24 @@ Future<PdfExportResult> buildConversationPdf(PdfExportRequest request) async {
           style: pw.TextStyle(fontSize: 8, color: request.muted),
         ),
       ),
-      build: (context) => layout.build(),
+      build: (context) => layout.build((text, style) {
+        // The writer's own metrics, asked of the face the style resolves to in the
+        // context the layout is running in — the same call, on the same face, that
+        // its own line wrapping makes. A style with no font of its own is drawn in
+        // the theme's, which is the body face when the export embedded one and the
+        // writer's built-in Helvetica when it did not.
+        final face = style?.font ?? body ?? pw.Font.helvetica();
+        final size = style?.fontSize ?? kPdfBodyFontSize;
+        final pdf = face.getFont(context);
+        for (final rune in text.runes) {
+          if (!pdf.isRuneSupported(rune)) return null;
+        }
+        final spacing = style?.letterSpacing ?? 0;
+        return pdf
+                .stringMetrics(text, letterSpacing: spacing / size)
+                .advanceWidth *
+            size;
+      }),
     ),
   );
   final bytes = await document.save();
@@ -966,8 +990,16 @@ class _BlockSkin {
   }
 }
 
-/// The tallest an inline formula may be drawn at, in points.
+/// What one string's advance is in one style, in points — the writer's own
+/// measurement, or null when the layout cannot make it.
 ///
+/// The one caller is the hanging indent of a list item (see [_Layout._hangCut]),
+/// which has to cut a line where the writer would have cut it: a replica of the
+/// writer's measurement is the only thing that can agree with it, so the layout
+/// asks the writer rather than guessing at glyph widths.
+typedef PdfAdvanceMeasure = double? Function(String text, pw.TextStyle? style);
+
+/// The tallest an inline formula may be drawn at, in points.///
 /// A picture is one `WidgetSpan` to the writer, and the writer advances a line by
 /// the overhang a span has above the text's own ascent — so a formula taller than
 /// the line it sits in is what pushes the *next* line down. Measured on a probe
@@ -1084,18 +1116,23 @@ class _PdfLayout {
     bottom: _asideGap,
   );
 
-  /// Prose at the leading the screen uses.
+  /// Prose at the leading this page reads at.
   ///
   /// The writer adds [pw.TextStyle.lineSpacing] to the font's own line height,
   /// so what is set here is the difference between that height and the leading
-  /// wanted: 10.5 points of built-in face measure 12.1 points tall (measured),
-  /// and the screen sets prose at 1.5 of its size, which is 15.75. A face with
-  /// taller metrics — a CJK face is one — adds its own height on top of this, so
-  /// the ratio is approximate rather than exact.
+  /// wanted: 10.5 points of built-in face measure 12.1 points tall (measured), so
+  /// 1.6 of the size is 16.8 and the difference is 4.7. A face with taller metrics
+  /// — a CJK face is one — adds its own height on top of this, so the ratio is
+  /// approximate rather than exact.
+  ///
+  /// It is a tenth of the size looser than the screen's 1.5, and that is a review
+  /// finding rather than a preference: a page is read at arm's length, where the
+  /// screen's leading reads as a wall of characters — the first export of a long
+  /// Chinese conversation did.
   pw.TextStyle get _bodyStyle => pw.TextStyle(
     fontSize: kPdfBodyFontSize,
     color: _ink,
-    lineSpacing: kPdfBodyFontSize * 0.5 - 1.6,
+    lineSpacing: kPdfBodyFontSize * 0.6 - 1.6,
   );
   pw.TextStyle get _bodyBold =>
       _fauxBoldStyle(_bodyStyle.copyWith(fontWeight: pw.FontWeight.bold));
@@ -1162,7 +1199,16 @@ class _PdfLayout {
     }
   }
 
-  List<pw.Widget> build() {
+  /// How wide a string is in the style it will be drawn in, or null when this
+  /// layout cannot say — see [PdfAdvanceMeasure].
+  ///
+  /// The hanging indent of a list item is the one measurement this layout makes
+  /// itself, and it has to be the writer's own or the cut would land somewhere the
+  /// writer never breaks.
+  PdfAdvanceMeasure? _measure;
+
+  List<pw.Widget> build(PdfAdvanceMeasure measure) {
+    _measure = measure;
     final widgets = <pw.Widget>[
       _fauxBold(
         pw.Text(
@@ -1530,15 +1576,27 @@ class _PdfLayout {
       final runs = _paragraphRuns(run);
       for (var index = 0; index < runs.length; index++) {
         final first = index == 0;
+        // The run that carries a marker keeps the skin its own line has; a
+        // paragraph the source's blank line opened is one of the body's.
+        final skin = first ? blockSkin : skinFor(runs[index].first);
+        final marker = first ? pendingMarker : null;
+        // A marked run hangs: its first line is cut out and the rest goes one step
+        // in, which is the one indentation the writer cannot draw itself.
+        final hung = marker == null
+            ? null
+            : _hangItem(
+                runs[index],
+                marker,
+                skin,
+                skinFor(runs[index].first),
+                textStyle,
+              );
+        if (hung != null) {
+          widgets.addAll(hung);
+          continue;
+        }
         widgets.add(
-          _paragraph(
-            runs[index],
-            // The run that carries a marker keeps the skin its own line has; a
-            // paragraph the source's blank line opened is one of the body's.
-            first ? blockSkin : skinFor(runs[index].first),
-            marker: first ? pendingMarker : null,
-            style: textStyle,
-          ),
+          _paragraph(runs[index], skin, marker: marker, style: textStyle),
         );
       }
       pendingMarker = null;
@@ -1611,11 +1669,372 @@ class _PdfLayout {
     pw.TextStyle? style,
   }) {
     final ink = style ?? _bodyStyle;
+    final markWidth = marker == null ? 0.0 : _spanWidth(marker);
+    final body = _spans(run, style: style, availableWidth: skin.availableWidth);
     final children = <pw.InlineSpan>[
       if (marker != null) marker,
-      ..._spans(run, style: style, availableWidth: skin.availableWidth),
+      // A marker this layout cannot measure — a task item's box — leaves the run
+      // as it was: the first line's room is the one thing the fill has to know.
+      if (markWidth == null)
+        ...body
+      else
+        ..._filled(body, width: skin.availableWidth, used: markWidth),
     ];
     return _richText(children, skin, style: ink);
+  }
+
+  /// One span's advance, in points, or null when this layout cannot say.
+  double? _spanWidth(pw.InlineSpan span) {
+    if (span is! pw.TextSpan) return null;
+    final text = span.text;
+    final measure = _measure;
+    if (text == null || text.isEmpty || measure == null) return null;
+    return measure(text, span.style);
+  }
+
+  /// The width of one separator in [style], which is what the writer multiplies
+  /// by [pw.TextStyle.wordSpacing] — zero for the break opportunities this layout
+  /// adds, one for the source's own spaces.
+  double? _spaceWidth(pw.TextStyle? style) =>
+      _spanWidth(pw.TextSpan(text: ' ', style: style));
+
+  /// [span]'s text replaced, with the styling and the annotation it carried.
+  pw.InlineSpan _piece(pw.TextSpan span, String text) => pw.TextSpan(
+    text: text,
+    style: span.style,
+    baseline: span.baseline,
+    annotation: span.annotation,
+  );
+
+  /// Where the writer would end a line that already holds [used] points, or null
+  /// when everything left fits.
+  ///
+  /// This is a copy of the writer's own greedy line filling (`text.dart`,
+  /// `_buildLines`): words are atomic, whitespace advances by the face's space
+  /// multiplied by the span's word spacing, and a newline ends the line whatever
+  /// the room is. And it is a copy on purpose — a break opportunity offered
+  /// anywhere the writer would not have broken buys nothing — which is why this
+  /// layout asks for the writer's own metrics rather than guessing at widths.
+  ///
+  /// `at` is where the next line begins: an index into the span at `span`, after a
+  /// newline when the line ended because the source wrote one.
+  ({int span, int at})? _lineEnd(
+    List<pw.InlineSpan> spans, {
+    required double used,
+    required double width,
+  }) {
+    var x = used;
+    for (var index = 0; index < spans.length; index++) {
+      final span = spans[index];
+      if (span is! pw.TextSpan || span.text == null || span.children != null) {
+        // A widget — a formula, a picture, a pill, a task box — is as wide as its
+        // child laid out, which this layout does not build here. Either the line
+        // is full and ends before it, or the widget ends the line and what follows
+        // starts a fresh one: both are breaks the writer could take, and neither
+        // pretends to know the width.
+        return x >= width ? (span: index, at: 0) : (span: index + 1, at: 0);
+      }
+      final text = span.text!;
+      final style = span.style;
+      final space = _spaceWidth(style);
+      if (space == null) return null;
+      final factor = style?.wordSpacing ?? 1;
+      final spacing = style?.letterSpacing ?? 0;
+      var at = 0;
+      while (at < text.length) {
+        final start = at;
+        if (text.codeUnitAt(at) == 0x0a) {
+          // The newline itself is the cut: a leaf that began with it would print
+          // an empty line before the text it belongs to.
+          return (span: index, at: start + 1);
+        }
+        final isSpace = _isSpaceRune(text.codeUnitAt(at));
+        while (at < text.length) {
+          final next = text.codeUnitAt(at);
+          if (next == 0x0a || _isSpaceRune(next) != isSpace) break;
+          at++;
+        }
+        if (isSpace) {
+          x += space * factor + spacing;
+          continue;
+        }
+        final word = _spanWidth(_piece(span, text.substring(start, at)));
+        if (word == null) return null;
+        if (x + word > width) {
+          final room = width - x;
+          final fits = room > 0
+              ? _fittingPrefix(span, text.substring(start, at), room)
+              : '';
+          // Room is left on the line, so the word may be filled into it — this is
+          // the one thing the writer will not do with a Chinese run, and without
+          // it the room is wasted and the run starts a line of its own. The cut is
+          // moved off a word's middle by [_legalCut] like any other.
+          if (fits.isNotEmpty) {
+            return _legalCut(spans, index, start + fits.length);
+          }
+          // A word that moves whole ends the line where it begins.
+          if (x > 0) return _legalCut(spans, index, start);
+          // Nothing on the line and nothing fits: the writer would split this word
+          // itself, and this layout leaves it to do so.
+          return null;
+        }
+        x += word + space * factor + spacing;
+      }
+    }
+    return null;
+  }
+
+  /// [spans] as leaves: a span that carries children — a link's own span — is
+  /// replaced by its children, each of which the writer would have merged with the
+  /// parent's style and annotation anyway.
+  ///
+  /// The cut below measures and slices leaves, so a span holding children is
+  /// flattened rather than guessed at: a link is not a widget.
+  List<pw.InlineSpan> _flatten(List<pw.InlineSpan> spans) {
+    final out = <pw.InlineSpan>[];
+    for (final span in spans) {
+      if (span is! pw.TextSpan || span.children == null) {
+        out.add(span);
+        continue;
+      }
+      for (final child in _flatten(span.children!)) {
+        final style = child.style;
+        final merged = span.style == null
+            ? style
+            : (style == null ? span.style : span.style!.merge(style));
+        final annotation = child.annotation ?? span.annotation;
+        out.add(
+          child is pw.TextSpan
+              ? pw.TextSpan(
+                  text: child.text,
+                  style: merged,
+                  baseline: child.baseline,
+                  annotation: annotation,
+                )
+              : child.copyWith(style: merged, annotation: annotation),
+        );
+      }
+    }
+    return out;
+  }
+
+  /// The longest prefix of [text] that fits [width] on its own, or `''` when even
+  /// one rune is too wide for it.
+  ///
+  /// A copy of the writer's own `_splitWord`, which walks code units — this one
+  /// counts runes, so it cannot cut a surrogate pair in half.
+  String _fittingPrefix(pw.TextSpan span, String text, double width) {
+    final runes = text.runes.toList();
+    var low = 0;
+    var high = runes.length;
+    while (low + 1 < high) {
+      final middle = (low + high) ~/ 2;
+      final piece = String.fromCharCodes(runes.take(middle));
+      final size = _spanWidth(_piece(span, piece));
+      if (size == null || size > width) {
+        high = middle;
+      } else {
+        low = middle;
+      }
+    }
+    return String.fromCharCodes(runes.take(low));
+  }
+
+  /// [span]/[at] moved back off a line start or a line end this page's own
+  /// typography forbids: `。` never opens a line, `「` never closes one, and a break
+  /// never lands inside a Latin word.
+  ({int span, int at}) _legalCut(List<pw.InlineSpan> spans, int span, int at) {
+    var s = span;
+    var i = at;
+    while (true) {
+      final opens = _unitAt(spans, s, i);
+      final closes = _unitAt(spans, s, i - 1) ?? _lastUnitBefore(spans, s);
+      final forbidden =
+          (opens != null && _noBreakBefore.contains(opens)) ||
+          (closes != null && _noBreakAfter.contains(closes)) ||
+          (opens != null &&
+              closes != null &&
+              _isWordRune(opens) &&
+              _isWordRune(closes));
+      if (!forbidden) return (span: s, at: i);
+      final back = _stepBack(spans, s, i);
+      if (back == null) return (span: s, at: i);
+      s = back.span;
+      i = back.at;
+    }
+  }
+
+  /// The code unit at [at] of [span], or null when that is not a text span.
+  int? _unitAt(List<pw.InlineSpan> spans, int span, int at) {
+    if (span < 0 || span >= spans.length) return null;
+    final text = spans[span] is pw.TextSpan
+        ? (spans[span] as pw.TextSpan).text
+        : null;
+    if (text == null || at < 0 || at >= text.length) return null;
+    return text.codeUnitAt(at);
+  }
+
+  /// The last code unit of the text before [span], skipping what is not text.
+  int? _lastUnitBefore(List<pw.InlineSpan> spans, int span) {
+    for (var index = span - 1; index >= 0; index--) {
+      final text = spans[index] is pw.TextSpan
+          ? (spans[index] as pw.TextSpan).text
+          : null;
+      if (text == null || text.isEmpty) continue;
+      return text.codeUnitAt(text.length - 1);
+    }
+    return null;
+  }
+
+  /// One rune earlier than [span]/[at], or null when there is no text before it.
+  ({int span, int at})? _stepBack(List<pw.InlineSpan> spans, int span, int at) {
+    if (at > 0) return (span: span, at: at - 1);
+    for (var index = span - 1; index >= 0; index--) {
+      final text = spans[index] is pw.TextSpan
+          ? (spans[index] as pw.TextSpan).text
+          : null;
+      if (text == null || text.isEmpty) continue;
+      return (span: index, at: text.length - 1);
+    }
+    return null;
+  }
+
+  /// [spans] with a break opportunity at every line end the writer would take.
+  ///
+  /// The writer breaks a line only at whitespace, and a Chinese sentence has none:
+  /// it arrives as one word, and a word that does not fit the room left on a line
+  /// is moved to the next one **whole** — so the line before it ends where that
+  /// word began. That is the short line a review of the first export found, and it
+  /// was always in the same place: after a Latin word and a space.
+  ///
+  /// The opportunity is inserted at the line's end, and nowhere else, so the line
+  /// the writer then fills is still drawn as one string: a page of Chinese copies
+  /// and searches as the Chinese it is.
+  List<pw.InlineSpan> _filled(
+    List<pw.InlineSpan> spans, {
+    required double width,
+    double used = 0,
+  }) {
+    final out = <pw.InlineSpan>[];
+    var rest = _flatten(spans);
+    var held = used;
+    while (rest.isNotEmpty) {
+      final end = _lineEnd(rest, used: held, width: width);
+      // Everything left fits, or this layout cannot say where the line would end:
+      // either way what is left is handed to the writer as it is.
+      if (end == null ||
+          end.span >= rest.length ||
+          (end.span == 0 && end.at == 0)) {
+        break;
+      }
+      final head = <pw.InlineSpan>[];
+      final tail = <pw.InlineSpan>[];
+      for (var index = 0; index < rest.length; index++) {
+        final span = rest[index];
+        if (index < end.span) {
+          head.add(span);
+          continue;
+        }
+        if (index > end.span) {
+          tail.add(span);
+          continue;
+        }
+        final text = (span as pw.TextSpan).text!;
+        if (end.at > 0) head.add(_piece(span, text.substring(0, end.at)));
+        if (end.at < text.length)
+          tail.add(_piece(span, text.substring(end.at)));
+      }
+      out.addAll(head);
+      // A newline is already a break; anything else gets the opportunity, which
+      // costs nothing and draws nothing (see [_breakOpportunity]).
+      if (_unitAt(rest, end.span, end.at - 1) != 0x0a) {
+        out.add(_breakOpportunity);
+      }
+      rest = tail;
+      held = 0;
+    }
+    out.addAll(rest);
+    return out;
+  }
+
+  /// The first line of a list item, and the rest of it, or null when this layout
+  /// cannot cut it.
+  ///
+  /// A list item's continuation lines belong one step in from its marker. The
+  /// writer cannot do that: its text starts every line at the paragraph's own left
+  /// edge, and the widgets that would give it the indent — a `Row`, a `Table` row
+  /// — are the unbreakable boxes this whole layout is built to avoid, since a row
+  /// taller than a page is what makes the writer loop. So the item's first line is
+  /// cut out here, by the writer's own metrics, and reaches the page as two leaves.
+  ({List<pw.InlineSpan> head, List<pw.InlineSpan> tail})? _firstLine(
+    List<pw.InlineSpan> spans, {
+    required pw.InlineSpan marker,
+    required double width,
+  }) {
+    final markerWidth = _spanWidth(marker);
+    if (markerWidth == null) return null;
+    final flat = _flatten(spans);
+    final end = _lineEnd(flat, used: markerWidth, width: width);
+    // A cut at the very start would leave the marker alone on its line, which is
+    // not what the writer does with a word too wide for the room it has: it splits
+    // that word instead, and so will this page if the item is left as it is.
+    if (end == null || (end.span == 0 && end.at == 0)) return null;
+
+    final head = <pw.InlineSpan>[];
+    final tail = <pw.InlineSpan>[];
+    for (var index = 0; index < spans.length; index++) {
+      final span = spans[index];
+      if (index < end.span) {
+        head.add(span);
+        continue;
+      }
+      if (index > end.span) {
+        tail.add(span);
+        continue;
+      }
+      final text = (span as pw.TextSpan).text!;
+      if (end.at > 0) head.add(_piece(span, text.substring(0, end.at)));
+      if (end.at < text.length) tail.add(_piece(span, text.substring(end.at)));
+    }
+    if (head.isEmpty || tail.isEmpty) return null;
+    return (head: head, tail: tail);
+  }
+
+  /// One list item's opening run, as two leaves when its first line can be cut out
+  /// of it — see [_firstLine].
+  ///
+  /// The marker's line is the item's own; everything after it is one step in, so a
+  /// wrapped item hangs under its text rather than under its marker. The second
+  /// leaf keeps the first one's bottom gap, because what the item ends with is
+  /// what it ended with before, one line further down.
+  List<pw.Widget>? _hangItem(
+    List<MdNode> run,
+    pw.InlineSpan marker,
+    _BlockSkin head,
+    _BlockSkin body,
+    pw.TextStyle? style,
+  ) {
+    final spans = _spans(
+      run,
+      style: style,
+      availableWidth: head.availableWidth,
+    );
+    final cut = _firstLine(spans, marker: marker, width: head.availableWidth);
+    if (cut == null) return null;
+    final ink = style ?? _bodyStyle;
+    return <pw.Widget>[
+      // No gap under the marker's line: the paragraph continues on the next one.
+      _richText(
+        <pw.InlineSpan>[marker, ...cut.head],
+        head.copyWith(bottom: 0),
+        style: ink,
+      ),
+      _richText(
+        _filled(cut.tail, width: body.availableWidth),
+        body.copyWith(bottom: head.bottom),
+        style: ink,
+      ),
+    ];
   }
 
   /// A text leaf: the smallest thing the writer can carry across a page.
@@ -1681,7 +2100,13 @@ class _PdfLayout {
   }
 
   pw.Widget _leaf(String text, pw.TextStyle style, _BlockSkin skin) =>
-      _richText(<pw.InlineSpan>[pw.TextSpan(text: text)], skin, style: style);
+      _richText(
+        _filled(<pw.InlineSpan>[
+          pw.TextSpan(text: text, style: style),
+        ], width: skin.availableWidth),
+        skin,
+        style: style,
+      );
 
   pw.Widget _heading(MdNode node, _BlockSkin skin) {
     final level = node.open.trim().length.clamp(1, 6);
@@ -1711,13 +2136,16 @@ class _PdfLayout {
         lineSpacing: size * (leading - 1.15),
       ),
     );
-    final children = node.children.isEmpty
-        ? <pw.InlineSpan>[pw.TextSpan(text: node.range?.text ?? '')]
-        : _spans(
-            node.children,
-            style: style,
-            availableWidth: skin.availableWidth,
-          );
+    final children = _filled(
+      node.children.isEmpty
+          ? <pw.InlineSpan>[pw.TextSpan(text: node.range?.text ?? '')]
+          : _spans(
+              node.children,
+              style: style,
+              availableWidth: skin.availableWidth,
+            ),
+      width: skin.availableWidth,
+    );
     return _richText(
       children,
       skin.copyWith(top: _headingTop, bottom: _headingBottom),
@@ -1877,10 +2305,14 @@ class _PdfLayout {
       unmaskBlockquoteFenceMarkers(node.range?.text ?? ''),
     );
     if (fence == null) {
+      final surface = _codeSurface(skin);
       return <pw.Widget>[
-        _richText(<pw.InlineSpan>[
-          pw.TextSpan(text: node.range?.text ?? '', style: _monoStyle),
-        ], _codeSurface(skin)),
+        _richText(
+          _filled(<pw.InlineSpan>[
+            pw.TextSpan(text: node.range?.text ?? '', style: _monoStyle),
+          ], width: surface.availableWidth),
+          surface,
+        ),
       ];
     }
     if (isDiagramFence(fence.language, fence.code)) {
@@ -2055,6 +2487,10 @@ class _PdfLayout {
           overflow: pw.TextOverflow.clip,
           text: pw.TextSpan(
             style: style,
+            // No fill here: a cell's width belongs to the table, and this layout
+            // does not know it until the table lays the column out. A break
+            // opportunity placed for the page's own column would be *later* than
+            // the cell's end, which leaves the cell's lines shorter than they were.
             children: _spans(_walk(cell).blocks, style: style),
           ),
         ),
@@ -2468,3 +2904,61 @@ String _linkUrl(MdNode node) {
   ).firstMatch(node.range?.text ?? '');
   return (anchor?.group(2) ?? '').trim();
 }
+
+/// Whether [rune] is one a Latin word is spelled with.
+///
+/// A break belongs between words, never inside one: the writer moves a word whole
+/// and so does this layout, which is why a cut that lands between two of these is
+/// moved back to the start of the word.
+bool _isWordRune(int rune) =>
+    (rune >= 0x30 && rune <= 0x39) || // 0-9
+    (rune >= 0x41 && rune <= 0x5a) || // A-Z
+    (rune >= 0x61 && rune <= 0x7a); // a-z
+
+/// Whether [rune] is a space the writer's tokenizer splits on.
+bool _isSpaceRune(int rune) =>
+    rune == 0x20 ||
+    rune == 0x09 ||
+    rune == 0xa0 ||
+    rune == 0x3000 ||
+    rune == 0x1680 ||
+    rune == 0x202f ||
+    rune == 0x205f ||
+    (rune >= 0x2000 && rune <= 0x200a);
+
+/// The runes a line may not begin with: closing punctuation and the like.
+///
+/// The rule every Chinese typesetter applies and the writer has none of: it breaks
+/// wherever a token ends, so without this a line opens with `。` or `」`.
+const Set<int> _noBreakBefore = <int>{
+  0x3001, 0x3002, // 、。
+  0x3005, 0x3009, 0x300b, 0x300d, 0x300f, 0x3011, 0x3015, // 々〉》」』】〕
+  0xff01,
+  0xff05,
+  0xff09,
+  0xff0c,
+  0xff0e,
+  0xff1a,
+  0xff1b,
+  0xff1e,
+  0xff1f, // ！％），．：；～？
+  0x2019, 0x201d, 0x2025, 0x2026, 0x00b7, // ’”‥…·
+};
+
+/// The runes a line may not end with: opening punctuation.
+const Set<int> _noBreakAfter = <int>{
+  0x3008, 0x300a, 0x300c, 0x300e, 0x3010, 0x3014, // 〈《「『【〔
+  0xff08, 0x2018, 0x201c, // （‘“
+};
+
+/// A break opportunity the writer may take for nothing.
+///
+/// A space in a span of its own whose word spacing is zero: the writer advances a
+/// separator by `stringMetrics(' ').advanceWidth * wordSpacing` and never draws
+/// one, so this costs no width, draws nothing, and leaves the text layer alone —
+/// the glyphs on either side of it stay adjacent, and a reader copying the page
+/// gets one unbroken run. It is the whole mechanism behind [_Layout._filled].
+const pw.InlineSpan _breakOpportunity = pw.TextSpan(
+  text: ' ',
+  style: pw.TextStyle(wordSpacing: 0),
+);

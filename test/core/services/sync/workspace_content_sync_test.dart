@@ -270,6 +270,85 @@ void main() {
         expect((await content.snapshots()).single.enabled, isTrue);
       },
     );
+
+    test('two switches landing at once both survive', () async {
+      // The set is one file holding every workspace's choice, so a read-edit-write
+      // per caller is a lost update by construction: in a single isolate both
+      // reads complete before either write, and the second writer's set is the
+      // first one *minus* the other's id. Flipping two workspaces off in the same
+      // turn — or a switch and a session's own read — must therefore go through
+      // one serialized mutation, not two overlapping ones.
+      await putWorkspace('w1');
+      await putWorkspace('w2');
+
+      await Future.wait([
+        content.setEnabled('w1', false),
+        content.setEnabled('w2', false),
+      ]);
+
+      expect(await content.disabledWorkspaceIds(), {
+        'w1',
+        'w2',
+      }, reason: 'neither switch may erase the other');
+    });
+
+    test(
+      'a switch flipped off drops what was advertised for the peer',
+      () async {
+        // The advertisement is a session's promise, so the one caller that can
+        // invalidate it mid-session is the switch itself.
+        await putWorkspace('w1');
+        await putFile('w1', 'a.txt', 'x');
+        content.publish('peer-1', await content.snapshots());
+        expect(
+          await content.serve(
+            peerDeviceId: 'peer-1',
+            workspaceId: 'w1',
+            relPath: 'a.txt',
+          ),
+          isNotNull,
+          reason: 'advertised while the switch was on',
+        );
+
+        await content.setEnabled('w1', false);
+
+        expect(
+          await content.serve(
+            peerDeviceId: 'peer-1',
+            workspaceId: 'w1',
+            relPath: 'a.txt',
+          ),
+          isNull,
+          reason: 'a promise the user just revoked is not still servable',
+        );
+      },
+    );
+
+    test('a session that ended serves nothing afterwards', () async {
+      await putWorkspace('w1');
+      await putFile('w1', 'a.txt', 'x');
+      content.publish('peer-1', await content.snapshots());
+      content.clearServed('peer-1');
+
+      expect(
+        await content.serve(
+          peerDeviceId: 'peer-1',
+          workspaceId: 'w1',
+          relPath: 'a.txt',
+        ),
+        isNull,
+        reason: 'the table belonged to the session that published it',
+      );
+      expect(
+        await content.serve(
+          peerDeviceId: 'peer-2',
+          workspaceId: 'w1',
+          relPath: 'a.txt',
+        ),
+        isNull,
+        reason: 'and clearing one peer says nothing about another',
+      );
+    });
   });
 
   group('publish and serve', () {

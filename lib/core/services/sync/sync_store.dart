@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import 'sync_limits.dart';
 import 'sync_local_addresses.dart';
 import 'sync_models.dart';
 
@@ -267,7 +268,35 @@ class SyncStore {
     }
   }
 
-  Future<void> writeWorkspaceContentDisabled(Set<String> workspaceIds) async {
+  Future<void> writeWorkspaceContentDisabled(Set<String> workspaceIds) =>
+      _serializeWorkspaceSettings(
+        () => _writeWorkspaceDisabledNow(workspaceIds),
+      );
+
+  /// Reads, edits and writes the disabled set as one indivisible step, and
+  /// reports whether [mutate] changed anything.
+  ///
+  /// The *only* way a caller may change one workspace's choice. The set lives in
+  /// a single file whose value is the whole answer, so a read-modify-write that
+  /// two callers perform concurrently loses one of them: in a single isolate
+  /// both reads complete before either write, and the last writer's set is
+  /// simply missing the other's id — a switch that flips back on its own the
+  /// next time the file is read, with nothing in the logs to say why.
+  ///
+  /// [mutate] returns whether it changed the set; false means nothing is
+  /// written and the file is left exactly as it was.
+  Future<bool> mutateWorkspaceContentDisabled(
+    bool Function(Set<String> current) mutate,
+  ) => _serializeWorkspaceSettings(() async {
+    final current = {...await readWorkspaceContentDisabled()};
+    if (!mutate(current)) return false;
+    await _writeWorkspaceDisabledNow(current);
+    return true;
+  });
+
+  /// The write itself, without the queue: only the serialized callers above may
+  /// use it, or the serialization they exist for is re-entered.
+  Future<void> _writeWorkspaceDisabledNow(Set<String> workspaceIds) async {
     await root.create(recursive: true);
     final ids = workspaceIds.where((id) => id.isNotEmpty).toList()..sort();
     await _writeAtomic(
@@ -276,21 +305,46 @@ class SyncStore {
     );
   }
 
+  /// Chains [action] behind every earlier workspace-settings write.
+  ///
+  /// The tail of the chain swallows errors so one failed write cannot wedge
+  /// every later toggle; the caller still sees its own failure through the
+  /// future this returns.
+  Future<T> _serializeWorkspaceSettings<T>(Future<T> Function() action) {
+    final result = _workspaceSettingsQueue.then((_) => action());
+    _workspaceSettingsQueue = result.then((_) {}, onError: (Object _) {});
+    return result;
+  }
+
+  Future<void> _workspaceSettingsQueue = Future<void>.value();
+
   File get _workspaceSettingsFile =>
       File('${root.path}${Platform.pathSeparator}workspaces.json');
 }
 
-/// How many endpoints a peer record remembers. Bounded because the set is
-/// learned (the pairing QR's candidates plus the address every session is seen
-/// at), and a stale address only costs one failed connect before the next
-/// candidate is tried.
+/// What [SyncPeerRecord.addEndpoint] did, instead of a bool that reads the same
+/// whether the address was remembered, already there, or refused.
 ///
-/// Twelve, not six, because the set is a memory of *(device, network)* pairs:
-/// an office, a home and a phone hotspot, each of which can hold a couple of
-/// interfaces. The periodic probe is tiered, so a longer memory costs no extra
-/// steady-state traffic — the tick follows the addresses that answered, and the
-/// tail is only walked when they all go silent.
-const kMaxPeerEndpoints = 12;
+/// The distinction is the whole point: this cap is the one bound a *user* can
+/// walk into (typing addresses one at a time), and a bare `false` made "the set
+/// is full and nothing happened" indistinguishable from "that address is
+/// already remembered" — a silent success for a write that dropped the user's
+/// address on the floor.
+enum SyncEndpointAdd {
+  /// The address is now in the set.
+  added,
+
+  /// The set already held it (a no-op, and not a failure).
+  duplicate,
+
+  /// The host was blank or the port was not a port.
+  invalid,
+
+  /// The set is at [kMaxPeerEndpoints] and the address is not in it. Nothing was
+  /// evicted: a user-typed address never displaces one this pair has actually
+  /// synced over, and the caller has to say so rather than report success.
+  full,
+}
 
 /// One remembered address of a paired device.
 ///
@@ -474,8 +528,14 @@ class SyncPeerRecord {
   /// peer on this network, which is exactly what the order should track.
   ///
   /// The existing endpoint object is *moved*, not rebuilt: its session count
-  /// and its probe history belong to the address, not to this visit.
-  void noteEndpointSuccess(String host, int port, {DateTime? at}) {
+  /// and its probe history belong to the address, not to this visit. Returns
+  /// the endpoints this promotion pushed out of the set, so a caller can say
+  /// which memory was spent rather than discovering it afterwards.
+  List<SyncPeerEndpoint> noteEndpointSuccess(
+    String host,
+    int port, {
+    DateTime? at,
+  }) {
     final existing = endpointFor(host, port);
     endpoints.removeWhere(
       (endpoint) => endpoint.host == host && endpoint.port == port,
@@ -485,7 +545,7 @@ class SyncPeerRecord {
         SyncPeerEndpoint(host: host, port: port, addedAt: at ?? DateTime.now());
     endpoint.recordSession(at: at);
     endpoints.insert(0, endpoint);
-    _trimEndpoints();
+    return _trimEndpoints();
   }
 
   /// The remembered endpoint for `host:port`, or null.
@@ -511,11 +571,14 @@ class SyncPeerRecord {
   /// Remembers one address the user typed, at the end of the set: the order is
   /// the dial order, and a typed address has proved nothing yet — it is tried
   /// once the addresses that have carried sessions are done. An address already
-  /// remembered is not added twice.
-  bool addEndpoint(String host, int port, {DateTime? at}) {
+  /// remembered is not added twice, and an address that arrives at a full set is
+  /// refused rather than admitted by evicting a proven one (see
+  /// [SyncEndpointAdd]).
+  SyncEndpointAdd addEndpoint(String host, int port, {DateTime? at}) {
     final trimmed = host.trim();
-    if (trimmed.isEmpty || port <= 0) return false;
-    if (endpointFor(trimmed, port) != null) return false;
+    if (trimmed.isEmpty || port <= 0) return SyncEndpointAdd.invalid;
+    if (endpointFor(trimmed, port) != null) return SyncEndpointAdd.duplicate;
+    if (endpoints.length >= kMaxPeerEndpoints) return SyncEndpointAdd.full;
     endpoints.add(
       SyncPeerEndpoint(
         host: trimmed,
@@ -523,8 +586,7 @@ class SyncPeerRecord {
         addedAt: at ?? DateTime.now(),
       ),
     );
-    _trimEndpoints();
-    return true;
+    return SyncEndpointAdd.added;
   }
 
   /// Names one address ("家中网络"), or clears the name when [name] is blank and
@@ -566,10 +628,22 @@ class SyncPeerRecord {
   /// addresses an initiator advertised) without claiming any of them works:
   /// they land after the proven endpoint, unstamped, and are tried only once
   /// the ones ahead of them fail.
-  void rememberEndpointCandidates(Iterable<(String, int)> candidates) {
+  ///
+  /// Returns the candidates the set could not take because it was full. They are
+  /// *not* remembered (an address that was never tried does not displace one
+  /// that was), and pairing has to report that rather than let an advertised
+  /// address vanish: the peer's own idea of where it is reachable is the thing
+  /// this device acts on when the proven address goes stale.
+  List<(String, int)> rememberEndpointCandidates(
+    Iterable<(String, int)> candidates,
+  ) {
+    final dropped = <(String, int)>[];
     for (final (host, port) in candidates) {
-      addEndpoint(host, port);
+      if (addEndpoint(host, port) == SyncEndpointAdd.full) {
+        dropped.add((host, port));
+      }
     }
+    return dropped;
   }
 
   /// Keeps the endpoints a *previous* record held, behind everything this
@@ -579,19 +653,28 @@ class SyncPeerRecord {
   /// not forget the networks the pair has already met. The pairing address is
   /// the new head, the QR's current candidates come next, and this is the memory
   /// behind both: tried only once the fresher ones fail.
-  void rememberEndpointHistory(Iterable<SyncPeerEndpoint> previous) {
+  ///
+  /// Returns the endpoints the cap pushed out, so a re-pair says which network
+  /// it had to forget instead of dropping it silently.
+  List<SyncPeerEndpoint> rememberEndpointHistory(
+    Iterable<SyncPeerEndpoint> previous,
+  ) {
     for (final endpoint in previous) {
       if (endpoint.host.isEmpty || endpoint.port <= 0) continue;
       if (endpointFor(endpoint.host, endpoint.port) != null) continue;
       endpoints.add(endpoint);
     }
-    _trimEndpoints();
+    return _trimEndpoints();
   }
 
-  void _trimEndpoints() {
-    if (endpoints.length > kMaxPeerEndpoints) {
-      endpoints.removeRange(kMaxPeerEndpoints, endpoints.length);
-    }
+  /// Trims the set back to [kMaxPeerEndpoints] and returns what it removed, the
+  /// tail first: the *order* is what decides which memory to spend, so the
+  /// caller is told which address that was rather than having to recompute it.
+  List<SyncPeerEndpoint> _trimEndpoints() {
+    if (endpoints.length <= kMaxPeerEndpoints) return const [];
+    final dropped = endpoints.sublist(kMaxPeerEndpoints);
+    endpoints.removeRange(kMaxPeerEndpoints, endpoints.length);
+    return dropped;
   }
 
   Map<String, dynamic> toJson() => {

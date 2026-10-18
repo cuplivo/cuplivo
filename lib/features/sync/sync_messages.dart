@@ -211,6 +211,7 @@ String syncReportMessage(AppLocalizations l10n, SyncSessionReport report) {
     workspaceFilesRemoved: report.workspaceFilesRemoved,
     workspaceConflicts: report.workspaceConflicts,
     workspaceFilesMissing: report.workspaceFilesMissing,
+    workspaceFoldersKept: report.workspaceFoldersKept,
     workspacesOmitted: report.workspacesOmitted,
     clockSkewMs: report.clockSkewMs,
   );
@@ -237,6 +238,7 @@ String _syncCountsMessage(
   int workspaceFilesRemoved = 0,
   int workspaceConflicts = 0,
   int workspaceFilesMissing = 0,
+  int workspaceFoldersKept = 0,
   int workspacesOmitted = 0,
   int? clockSkewMs,
 }) {
@@ -272,6 +274,10 @@ String _syncCountsMessage(
       l10n.lanSyncReportWorkspaceMissing(workspaceFilesMissing),
     if (workspacesOmitted > 0)
       l10n.lanSyncReportWorkspacesOmitted(workspacesOmitted),
+    // The switch's one visible consequence after a peer-driven deletion: the row
+    // is gone here too, and the folder stayed.
+    if (workspaceFoldersKept > 0)
+      l10n.lanSyncReportWorkspacesKept(workspaceFoldersKept),
     if (deferred > 0) l10n.lanSyncReportDeferred(deferred),
     if (clockSkewMs != null)
       l10n.lanSyncReportClockSkew((clockSkewMs.abs() / 60000).round()),

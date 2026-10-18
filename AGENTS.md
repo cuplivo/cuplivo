@@ -90,6 +90,30 @@ flutter test test/perf/timeline_scroll_bench.dart
 - Lean on the dependencies already in the project before writing your own implementation or adding packages. Do not assume a library lacks a capability without checking its documentation and types.
 - Make architectural decisions for the long term. Do not accept a stopgap that only works for now and is meant to be replaced later.
 
+## Blast radius (blast radius)
+
+A shared rule — a predicate, a TTL, a cap, a sweep, a fold, a default — is changed by *every* call
+site it has, not by the one being edited. The LAN sync review of slices 18–21 found the same defect
+twice: a fix added a second caller to a rule whose body assumed the first one's state (a sweep keyed
+on age-since-hello swept a live session; a "not a verdict" guard existed on one of the two probe
+paths). Before editing one:
+
+- **List every caller and say what changes for each.** Unchanged callers are named as unchanged — in
+  the commit message or the PR description, not only in your head. A grep for the symbol is the
+  minimum; a rule reachable from two flows needs both flows read.
+- **A new call site gets the rule's state table, not its happy path.** Enumerate the states the rule
+  can be asked about (for a session: never answered a round, dialing, answered, yielded and unbeaten,
+  idle, a beat in flight) and write the test per cell — or assert the invariant where the state is
+  built, so an unenumerated state fails loudly instead of silently.
+- **Give the rule one choke point.** If the same decision is implemented twice, the second
+  implementation is the bug: extract it before adding a third caller.
+- **A limit that another limit depends on is derived, not restated.** Numbers that must agree
+  (a fan-out and the cap that answers it) live in one file, one computed from the other, with a test
+  asserting the relationship.
+- **Prove the guard.** A new assertion, refusal or default is shown to fail when the violation it
+  guards is injected, then reverted byte-exact (see the global protocol: back up *before* injecting).
+  Where the shape allows, make the proof permanent: assert that the broken state is itself broken.
+
 ## Local dependencies
 
 Several packages live under `dependencies/` and are referenced by path in `pubspec.yaml` (e.g. `markstream`, `mcp_client`, `flutter_tts`, `flutter_math_fork`, `downsize`). The analyzer excludes `dependencies/flutter_math_fork/**` and `dependencies/flutter_tts/**`.

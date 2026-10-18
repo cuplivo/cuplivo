@@ -10,6 +10,7 @@ import 'sync_client.dart';
 import 'sync_data_plane.dart';
 import 'sync_endpoint_prober.dart';
 import 'sync_identity.dart';
+import 'sync_limits.dart';
 import 'sync_local_addresses.dart';
 import 'sync_merge.dart';
 import 'sync_models.dart';
@@ -122,6 +123,13 @@ class SyncSessionReport {
   final int workspaceFilesMissing;
   final int workspacesOmitted;
 
+  /// Managed workspace *folders* this device kept on disk after the peer deleted
+  /// their row, because the user had switched content sync off for them (slice
+  /// 22). The row is gone either way; this is the count of folders the switch
+  /// protected, and it exists so that protection is a fact on the report rather
+  /// than something the user has to discover in a file manager.
+  final int workspaceFoldersKept;
+
   /// Signed clock divergence observed at hello, in milliseconds — present
   /// only beyond [kClockSkewWarnMs]. The session succeeded anyway.
   final int? clockSkewMs;
@@ -153,6 +161,7 @@ class SyncSessionReport {
     this.workspaceFilesRemoved = 0,
     this.workspaceConflicts = 0,
     this.workspaceFilesMissing = 0,
+    this.workspaceFoldersKept = 0,
     this.workspacesOmitted = 0,
     this.clockSkewMs,
   });
@@ -180,6 +189,7 @@ class SyncSessionReport {
     workspaceFilesRemoved: workspaceFilesRemoved,
     workspaceConflicts: workspaceConflicts,
     workspaceFilesMissing: workspaceFilesMissing,
+    workspaceFoldersKept: workspaceFoldersKept,
     workspacesOmitted: workspacesOmitted,
     clockSkewMs: clockSkewMs,
     refusal: refusal,
@@ -202,19 +212,38 @@ class SyncEngine implements SyncServerHandler {
     this.onProgressChanged,
     this.onResponderSession,
     this.onProbes,
+    this.sessionIdleTtl = kSessionIdleTtl,
     this.yieldedSessionTtl = kYieldedSessionTtl,
     int Function()? clockUs,
-  }) : clockUs = clockUs ?? (() => DateTime.now().microsecondsSinceEpoch);
+    DateTime Function()? now,
+  }) : clockUs = clockUs ?? (() => DateTime.now().microsecondsSinceEpoch),
+       now = now ?? DateTime.now;
 
   final SyncDeviceIdentity identity;
   final SyncStore store;
   final SyncDataPlane dataPlane;
+
+  /// How long an accepted session may go *untouched* before it is swept.
+  ///
+  /// Idle time, not age: the clock starts at the peer's last beat (or at the
+  /// hello, for a session that has never been beaten), which is what
+  /// [_dropIdleSessions] measures. A parameter only so a test can shrink the
+  /// window instead of sleeping through the production one.
+  final Duration sessionIdleTtl;
 
   /// How long a session accepted by yielding this device's own dial waits for
   /// the peer's first beat before it is dropped (see [kYieldedSessionTtl]).
   /// A parameter only so a test can shrink the window instead of sleeping
   /// through the production one; production never passes it.
   final Duration yieldedSessionTtl;
+
+  /// This engine's wall clock. Read for every session timestamp — the hello
+  /// stamp, a session's start, each beat — so a test can drive the clocks a
+  /// session sweep is defined by without waiting for real minutes to pass.
+  ///
+  /// The checkpoint's own row clocks do not come from here: those are written by
+  /// the database on the write path.
+  final DateTime Function() now;
 
   /// The wall clock stamped into hellos, so tests can manufacture a skew. It
   /// feeds nothing else — row clocks keep coming from the write path.
@@ -318,7 +347,20 @@ class SyncEngine implements SyncServerHandler {
   SyncSessionReport? lastReport;
 
   static const _pairingWindow = Duration(minutes: 5);
-  static const _sessionTtl = Duration(minutes: 2);
+
+  /// How long an accepted session may go untouched before it is swept. Two
+  /// minutes is far longer than any healthy beat, and short enough that a
+  /// session abandoned by a peer that vanished does not hold the pair's single
+  /// session slot for the rest of the launch.
+  ///
+  /// It is a *liveness* bound on an idle session, never on a session that is
+  /// working: a beat in flight is activity, however long it runs (a first sync
+  /// of a large library is one push beat lasting minutes), and the sweep reads
+  /// the session's own state to know that ([_ResponderSession.beatsInFlight]).
+  /// Measuring age from the hello instead — which this rule used to do — kills
+  /// the very session that is transferring, and the peer's next beat then fails
+  /// against a session the sweep removed underneath it.
+  static const kSessionIdleTtl = Duration(minutes: 2);
 
   /// How long a session this device accepted by **yielding** its own dial waits
   /// for the peer's first beat before it is treated as abandoned.
@@ -341,6 +383,22 @@ class SyncEngine implements SyncServerHandler {
 
   /// The port this device's sync listener is bound to, or null when stopped.
   int? get port => server.port;
+
+  /// Whether this device currently holds an accepted session for [deviceId].
+  ///
+  /// The state the sweep rules are about, exposed so a test can assert on the
+  /// session itself. A refusal is not a substitute: `busy` is produced by a held
+  /// session *and* by a peer that is mid-session of its own, so a test that reads
+  /// only the refusal cannot tell "the sweep kept my session" from "the peer
+  /// refused me".
+  @visibleForTesting
+  bool hasResponderSession(String deviceId) => _sessions.containsKey(deviceId);
+
+  /// How many beats are in flight on [deviceId]'s session here, or 0 when there
+  /// is no session.
+  @visibleForTesting
+  int beatsInFlightFor(String deviceId) =>
+      _sessions[deviceId]?.beatsInFlight ?? 0;
 
   bool get isPairingOpen =>
       _pairingPin != null &&
@@ -427,11 +485,19 @@ class SyncEngine implements SyncServerHandler {
     final existing = await store.findPeer(answer.deviceId);
     _carryPairingFacts(peer, existing);
     peer.noteEndpointSuccess(host, port);
-    peer.rememberEndpointCandidates(knownCandidates);
+    _reportDroppedEndpoints(
+      answer.deviceId,
+      peer.rememberEndpointCandidates(knownCandidates),
+    );
     // And behind both, the networks the pair has already met: re-pairing is the
     // drift-repair journey, so forgetting them here is what made alternating
     // home and office cost a re-scan every time.
-    if (existing != null) peer.rememberEndpointHistory(existing.endpoints);
+    if (existing != null) {
+      _reportDroppedEndpoints(
+        answer.deviceId,
+        peer.rememberEndpointHistory(existing.endpoints),
+      );
+    }
     await store.savePeer(peer);
     // This listener must accept the peer too: pairing may have been initiated
     // from this side, in which case the answer (not a request) carried the
@@ -535,6 +601,9 @@ class SyncEngine implements SyncServerHandler {
     }
     await store.deletePeer(deviceId);
     server.forgetPeer(deviceId);
+    // The pairing is gone, so the files this device advertised for it are not
+    // promised to anyone any more.
+    dataPlane.clearWorkspacePublication(deviceId);
     onStateChanged();
   }
 
@@ -545,6 +614,7 @@ class SyncEngine implements SyncServerHandler {
   @override
   Future<void> handleRevoke(String peerDeviceId) async {
     _sessions.remove(peerDeviceId);
+    dataPlane.clearWorkspacePublication(peerDeviceId);
     await store.deletePeer(peerDeviceId);
     server.forgetPeer(peerDeviceId);
     onStateChanged();
@@ -582,8 +652,8 @@ class SyncEngine implements SyncServerHandler {
   }) async {
     // Before the refusal below: an abandoned session held for this peer is what
     // would refuse this round, so it has to be reconsidered first (see
-    // [_dropStaleSessions]).
-    _dropStaleSessions();
+    // [_sweepSessions]).
+    _sweepSessions();
     if (_sessions.containsKey(peer.deviceId) ||
         _initiatorRounds.containsKey(peer.deviceId)) {
       return await _finish(
@@ -1176,12 +1246,17 @@ class SyncEngine implements SyncServerHandler {
       final deletedBusiness = <String>{};
       final failedBusinessDeletes = <String>{};
       final deletedSkillIds = <String>{};
+      var keptWorkspaceFolders = 0;
       for (final item in businessPlan) {
         if (item.action != SyncConvAction.iDelete) continue;
         final key = syncBusinessKey(item.kindWire, item.id);
-        final ok = await dataPlane.deleteBusinessRow(item.kindWire, item.id);
-        (ok ? deletedBusiness : failedBusinessDeletes).add(key);
-        if (ok && item.kindWire == SyncDataPlane.skillWire) {
+        final outcome = await dataPlane.deleteBusinessRow(
+          item.kindWire,
+          item.id,
+        );
+        (outcome.removed ? deletedBusiness : failedBusinessDeletes).add(key);
+        if (outcome.folderKept) keptWorkspaceFolders++;
+        if (outcome.removed && item.kindWire == SyncDataPlane.skillWire) {
           deletedSkillIds.add(item.id);
         }
       }
@@ -1262,6 +1337,7 @@ class SyncEngine implements SyncServerHandler {
           skillConflicts: adoptions.conflicts.length,
           deferredSkills: deferredSkills.length,
           workspace: workspaceOutcome,
+          workspaceFoldersKept: keptWorkspaceFolders,
           clockSkewMs: clockSkewMs,
         ),
         peer: peer,
@@ -1291,6 +1367,12 @@ class SyncEngine implements SyncServerHandler {
     } finally {
       session.close();
       if (identical(round.session, session)) round.session = null;
+      // The round is over, so the files it advertised for the peer are no longer
+      // promised to anyone: the peer's own reverse pulls inside this round are
+      // done by now (they run inside the push beat, before this device's fetch
+      // beat), and a table that outlived the round would answer a later request
+      // from a walk taken before the user switched the workspace off.
+      dataPlane.clearWorkspacePublication(peer.deviceId);
       onStateChanged();
     }
   }
@@ -1303,7 +1385,14 @@ class SyncEngine implements SyncServerHandler {
     SyncHello initiatorHello, {
     String? remoteAddress,
   }) async {
-    _dropStaleSessions();
+    _sweepSessions();
+    // A new session replaces the previous session's advertisement: it was
+    // published *inside* that session and is not this one's promise. Cleared at
+    // the hello rather than at the beat that published it, because the initiator
+    // pulls the files this device advertised *after* the fetch response — a table
+    // dropped when that response was written would 404 the very pull it exists
+    // for.
+    dataPlane.clearWorkspacePublication(peerDeviceId);
     // The authenticated identity is the only one this session may act as:
     // [peerDeviceId] is the device whose per-peer secret authenticated the
     // request, and a hello body naming some other paired device would
@@ -1416,13 +1505,14 @@ class SyncEngine implements SyncServerHandler {
       ),
       myManifest: myManifest,
       checkpoint: checkpoint,
-      startedAt: DateTime.now(),
+      startedAt: now(),
       initiatorHost: remoteAddress,
       clockSkewMs: _clockSkewMs(myClockUs, initiatorHello.clockUs),
       peerReplaced: peerReplaced,
       yielded: yielded,
     );
     _sessions[initiatorHello.deviceId] = session;
+    _assertSessionInvariants();
     return SyncHello(
       protocolVersion: kSyncProtocolVersion,
       schemaVersion: dataPlane.schemaVersion,
@@ -1447,10 +1537,30 @@ class SyncEngine implements SyncServerHandler {
     SyncDeltaBatch batch,
   ) async {
     final session = _sessions[peerDeviceId];
-    if (session == null) throw StateError('sync_session_missing');
+    if (session == null) throw const SyncRequestRefusal.sessionMissing();
     // The peer's client is alive and pushing: a session this device accepted by
-    // yielding its own dial is no longer a bet (see [kYieldedSessionTtl]).
-    session.lastBeatAt = DateTime.now();
+    // yielding its own dial is no longer a bet (see [kYieldedSessionTtl]), and a
+    // beat in flight means the idle sweep must leave this session alone however
+    // long it runs.
+    _beginBeat(session);
+    try {
+      return await _applyPushedBatch(peerDeviceId, session, batch);
+    } finally {
+      _endBeat(session);
+      _assertSessionInvariants();
+    }
+  }
+
+  Future<SyncApplyAck> _applyPushedBatch(
+    String peerDeviceId,
+    _ResponderSession session,
+    SyncDeltaBatch batch,
+  ) async {
+    // The fetch beat answers the same peer on the same session, and it reads the
+    // ledger this beat produces. Marked before any await, so a fetch that
+    // arrives while the push is still running is refused rather than answered
+    // from a half-written session.
+    session.pushSeen = true;
     _rememberPublished(batch.assets);
 
     // Blob beat, responder side. The initiator pushed rows before the fetch
@@ -1633,7 +1743,29 @@ class SyncEngine implements SyncServerHandler {
     SyncFetchRequest request,
   ) async {
     final session = _sessions[peerDeviceId];
-    if (session == null) throw StateError('sync_session_missing');
+    if (session == null) throw const SyncRequestRefusal.sessionMissing();
+    // The fetch beat is the second half of one push: the initiator pushes, then
+    // asks for what it lacks. A fetch that arrives first is not a session, and
+    // answering it would persist a checkpoint built on nothing — the responder's
+    // workspace ledger is produced by the push, so this beat would write an empty
+    // one, and the next session would read "we never agreed about these files"
+    // and re-transfer, or read a file that was deleted here as one the peer never
+    // had.
+    if (!session.pushSeen) throw const SyncRequestRefusal.pushRequired();
+    _beginBeat(session);
+    try {
+      return await _serveFetchSubtrees(peerDeviceId, session, request);
+    } finally {
+      _endBeat(session);
+      _assertSessionInvariants();
+    }
+  }
+
+  Future<SyncDeltaBatch> _serveFetchSubtrees(
+    String peerDeviceId,
+    _ResponderSession session,
+    SyncFetchRequest request,
+  ) async {
     final outgoing = <SyncSubtreePayload>[];
     final skipped = <String>{};
     for (final id in request.conversationIds) {
@@ -1673,12 +1805,14 @@ class SyncEngine implements SyncServerHandler {
     final deletedBusiness = <String>{};
     final failedBusinessDeletes = <String>{};
     final deletedSkillIds = <String>{};
+    var keptWorkspaceFolders = 0;
     for (final item in session.businessPlan) {
       if (item.action != SyncConvAction.iDelete) continue;
       final key = syncBusinessKey(item.kindWire, item.id);
-      final ok = await dataPlane.deleteBusinessRow(item.kindWire, item.id);
-      (ok ? deletedBusiness : failedBusinessDeletes).add(key);
-      if (ok && item.kindWire == SyncDataPlane.skillWire) {
+      final outcome = await dataPlane.deleteBusinessRow(item.kindWire, item.id);
+      (outcome.removed ? deletedBusiness : failedBusinessDeletes).add(key);
+      if (outcome.folderKept) keptWorkspaceFolders++;
+      if (outcome.removed && item.kindWire == SyncDataPlane.skillWire) {
         deletedSkillIds.add(item.id);
       }
     }
@@ -1771,7 +1905,13 @@ class SyncEngine implements SyncServerHandler {
         // response above advertises this device's files but transfers them on
         // the initiator's own request, so nothing in this beat advances the
         // ledger: both sides' entries are advanced by the side that *fetched*.
-        workspaceFiles: session.workspaceOutcome?.ledger ?? const {},
+        //
+        // The push is the only producer, and this beat is refused without it
+        // (`push_required`), so the outcome is not optional: `?? const {}` here
+        // would erase everything both sides had agreed — the review's second
+        // finding — and an empty ledger reads as "never agreed", not as "nothing
+        // to say".
+        workspaceFiles: session.workspaceOutcome!.ledger,
         // The responder answers the initiator with the same report on its next
         // hello: an apply it deferred here must not read as a deletion there.
         unappliedConversations: [
@@ -1796,6 +1936,7 @@ class SyncEngine implements SyncServerHandler {
       skillConflicts: session.skillConflicts.length,
       deferredSkills: session.deferredSkills.length,
       workspace: session.workspaceOutcome,
+      workspaceFoldersKept: keptWorkspaceFolders,
       clockSkewMs: session.clockSkewMs,
     );
     if (peer != null) {
@@ -2482,6 +2623,7 @@ class SyncEngine implements SyncServerHandler {
     int skillConflicts = 0,
     int deferredSkills = 0,
     WorkspaceContentOutcome? workspace,
+    int workspaceFoldersKept = 0,
     int? clockSkewMs,
   }) {
     var upserted = 0;
@@ -2563,6 +2705,7 @@ class SyncEngine implements SyncServerHandler {
       workspaceFilesRemoved: workspace?.filesRemoved ?? 0,
       workspaceConflicts: workspace?.filesReplaced ?? 0,
       workspaceFilesMissing: workspace?.filesMissing ?? 0,
+      workspaceFoldersKept: workspaceFoldersKept,
       workspacesOmitted: workspace?.workspacesOmitted ?? 0,
       clockSkewMs: clockSkewMs,
     );
@@ -2669,22 +2812,92 @@ class SyncEngine implements SyncServerHandler {
     peer.lastReport = existing.lastReport;
   }
 
-  /// Drops the responder sessions that cannot be running any more: one older
-  /// than [_sessionTtl], and one this device accepted by yielding its own dial
-  /// which the peer never came back to drive ([kYieldedSessionTtl]).
+  /// Drops the responder sessions that cannot be running any more.
   ///
-  /// Called from the top of [handleHello] and, more importantly, from the top of
+  /// Two rules, two states, and they must not be confused with each other:
+  ///
+  /// * [_dropIdleSessions] — nothing has happened on this session for
+  ///   [kSessionIdleTtl]. The clock starts at the peer's last beat, so a session
+  ///   that is *working* (a beat in flight, however long) is never a candidate.
+  /// * [_dropAbandonedYieldedSessions] — a session this device accepted by
+  ///   yielding its own dial which the peer never came back to drive, after the
+  ///   short [yieldedSessionTtl].
+  ///
+  /// Both used to be one `removeWhere` keyed on `startedAt`, which is why a
+  /// twenty-minute first sync was swept out from under its own beat. Called from
+  /// the top of [handleHello] and, more importantly, from the top of
   /// [syncWithPeer]: a session nobody drives is exactly what makes that call
   /// refuse its own round as busy, so the sweep has to run *before* the refusal
   /// or nothing this device does on its own would ever clear it.
-  void _dropStaleSessions() {
-    final now = DateTime.now();
+  void _sweepSessions() {
+    _dropIdleSessions();
+    _dropAbandonedYieldedSessions();
+    _assertSessionInvariants();
+  }
+
+  void _dropIdleSessions() {
+    final now = this.now();
     _sessions.removeWhere((_, session) {
-      if (now.difference(session.startedAt) > _sessionTtl) return true;
+      if (session.beatsInFlight > 0) return false;
+      final since = session.lastBeatAt ?? session.startedAt;
+      return now.difference(since) > sessionIdleTtl;
+    });
+  }
+
+  void _dropAbandonedYieldedSessions() {
+    final now = this.now();
+    _sessions.removeWhere((_, session) {
+      if (session.beatsInFlight > 0) return false;
       return session.yielded &&
           session.lastBeatAt == null &&
           now.difference(session.startedAt) > yieldedSessionTtl;
     });
+  }
+
+  /// Debug-only: the facts every session in [_sessions] has to satisfy,
+  /// whichever path put it there.
+  ///
+  /// This is the cheap half of the state table the round-2 review asked for: the
+  /// sweep's rules are only correct if a session can never be in a state nobody
+  /// enumerated (no beat, a beat in flight, yielded, answered), and an assertion
+  /// at the transitions catches the caller that invents a fifth state — in
+  /// debug, at the moment it happens, instead of as a wedged pair in the field.
+  void _assertSessionInvariants() {
+    assert(() {
+      for (final entry in _sessions.entries) {
+        final session = entry.value;
+        assert(
+          session.initiatorHello.deviceId == entry.key,
+          'a session is keyed by the device its hello named',
+        );
+        assert(
+          session.beatsInFlight >= 0,
+          'a beat cannot end more times than it began',
+        );
+        assert(
+          !(session.beatsInFlight > 0 && session.lastBeatAt == null),
+          'a beat in flight is a session the peer has touched',
+        );
+      }
+      return true;
+    }());
+  }
+
+  /// Opens one beat on [peerDeviceId]'s session: the session is alive, and a
+  /// sweep must not touch it while the beat runs.
+  ///
+  /// The stamp is written on both ends of the beat, so "idle" means "nothing has
+  /// happened for the idle window", not "nothing has *started*" — a beat that
+  /// began two minutes ago and finished now is recent activity.
+  void _beginBeat(_ResponderSession session) {
+    session.beatsInFlight++;
+    session.lastBeatAt = now();
+  }
+
+  void _endBeat(_ResponderSession session) {
+    session.beatsInFlight--;
+    session.lastBeatAt = now();
+    _assertSessionInvariants();
   }
 
   static String platformTag() {
@@ -2741,9 +2954,27 @@ class _ResponderSession {
   /// alive to drive it — see [SyncEngine.kYieldedSessionTtl].
   final bool yielded;
 
-  /// When this session's first beat arrived, or null while the peer's client has
-  /// not touched it yet (the state [SyncEngine.kYieldedSessionTtl] bounds).
+  /// When this session's first beat arrived *or ended*, or null while the peer's
+  /// client has not touched it yet (the state [SyncEngine.kYieldedSessionTtl]
+  /// bounds). The idle sweep measures from here, so it is written at both ends of
+  /// a beat: a beat that was in flight for minutes is recent activity when it
+  /// finishes.
   DateTime? lastBeatAt;
+
+  /// How many beats are running on this session right now.
+  ///
+  /// The one thing the idle sweep must not confuse with idleness. A first sync of
+  /// a large library is a single push beat that runs for minutes with no other
+  /// traffic, and sweeping it out from under itself is what made the peer's next
+  /// beat fail with `sync_session_missing` (the round-2 review's first finding).
+  int beatsInFlight = 0;
+
+  /// Whether this session has taken the push beat it is built around.
+  ///
+  /// Every session is one push followed by one fetch; the fetch is answered only
+  /// after the push, because the workspace ledger (and the whole checkpoint this
+  /// side writes at the fetch beat) is produced by the push.
+  bool pushSeen = false;
 
   final Map<String, SyncSubtreeApplyOutcome> outcomes = {};
 
@@ -2768,6 +2999,22 @@ class _ResponderSession {
 
   /// Local skill edits the deterministic content rule discarded.
   Set<String> skillConflicts = {};
+}
+
+/// Logs the endpoints a pairing had to drop because the peer's record is at the
+/// cap ([kMaxPeerEndpoints]).
+///
+/// An advertised address is the peer's own answer to "where am I reachable", and
+/// the memory of addresses is what lets a pair survive moving between networks —
+/// so dropping one is a fact worth a line, not a silent trim. A debug line rather
+/// than a report field: this happens only when a QR carries more candidates than
+/// a record can hold, which no shipped path produces.
+void _reportDroppedEndpoints(String deviceId, List<Object> dropped) {
+  if (dropped.isEmpty) return;
+  debugPrint(
+    'sync: $deviceId advertised ${dropped.length} address(es) beyond the '
+    '$kMaxPeerEndpoints remembered (${dropped.join(', ')})',
+  );
 }
 
 /// Outcome of pulling one session's blobs: what landed, what must be retried,

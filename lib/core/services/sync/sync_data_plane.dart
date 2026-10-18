@@ -321,27 +321,52 @@ class SyncDataPlane {
   /// reasons — a directory-less workspace looks empty in the app, and a
   /// row-less folder is invisible there while sitting on the disk.
   ///
+  /// **Except when the user has switched content sync off for that workspace.**
+  /// The switch promises that this device's files are its own, and a peer-driven
+  /// deletion is exactly the case that promise has to cover: the row goes (it is
+  /// gone on the peer, and a row that stayed would be re-advertised and come
+  /// back), the folder stays, and the outcome says so ([folderKept]) so the
+  /// session report can name it. Deleting it would make "off" mean "protected
+  /// only from transfers, and removed when the peer tidies up", which is not
+  /// what the switch says anywhere it is explained.
+  ///
   /// The delete rides the same serialized write queue as applies and local
   /// entity edits (ADR-0003): a provider's whole-list read-modify-write must
   /// not interleave with a sync deletion either, or it re-inserts the row the
   /// checkpoint entry already dropped.
-  Future<bool> deleteBusinessRow(String kindWire, String id) async {
-    Future<bool> delete() async {
+  Future<BusinessRowDeleteOutcome> deleteBusinessRow(
+    String kindWire,
+    String id,
+  ) async {
+    Future<BusinessRowDeleteOutcome> delete() async {
       if (kindWire == kSyncPreferenceWire) {
-        return businessRepository.syncDeletePreference(id);
+        return BusinessRowDeleteOutcome(
+          removed: await businessRepository.syncDeletePreference(id),
+        );
       }
       // Read before the delete: the row is what says whether the folder is
       // Cuplivo's to remove (a linked workspace's is the user's own).
-      final managedWorkspace =
+      final managesFolder =
           kindWire == WorkspaceContentSync.workspaceWire &&
           await _isManagedWorkspace(id);
       final removed = await businessRepository.syncDeleteEntity(kindWire, id);
-      if (removed && kindWire == skillWire) {
+      if (!removed) return const BusinessRowDeleteOutcome(removed: false);
+      if (kindWire == skillWire) {
         await skillDirectories?.deleteDirectory(id);
-      } else if (removed && managedWorkspace) {
-        await workspaceContent?.deleteContent(id);
+      } else if (managesFolder) {
+        final content = workspaceContent;
+        final off =
+            content != null &&
+            (await content.disabledWorkspaceIds()).contains(id);
+        if (off) {
+          return const BusinessRowDeleteOutcome(
+            removed: true,
+            folderKept: true,
+          );
+        }
+        await content?.deleteContent(id);
       }
-      return removed;
+      return const BusinessRowDeleteOutcome(removed: true);
     }
 
     final preferences = businessPreferences;
@@ -428,6 +453,11 @@ class SyncDataPlane {
     String peerDeviceId,
     List<WorkspaceContentSnapshot> snapshots,
   ) => workspaceContent?.publish(peerDeviceId, snapshots);
+
+  /// Drops the table this device advertised to [peerDeviceId]: the session that
+  /// published it is over, so nothing it promised may still be served.
+  void clearWorkspacePublication(String peerDeviceId) =>
+      workspaceContent?.clearServed(peerDeviceId);
 
   /// Plans and applies this device's half of one session's workspace file
   /// exchange: what to fetch from the peer, what to delete here because the
@@ -687,4 +717,25 @@ class SyncDataPlane {
   /// Drops the served-zip cache (reproducible from the live skill bodies).
   Future<void> clearSkillBlobCache() =>
       skillDirectories?.clearBlobCache() ?? Future<void>.value();
+}
+
+/// What one peer-driven business-row deletion did.
+///
+/// Three facts, not a bool, because two of them are independent: the *row* is
+/// what the checkpoint advance and the manifest care about, and the *folder* is
+/// what the user's switch cares about. A deletion that removed the row and left
+/// the folder is a success on one face and a deliberate no-op on the other, and
+/// the session report is the only place that can say so.
+class BusinessRowDeleteOutcome {
+  const BusinessRowDeleteOutcome({
+    required this.removed,
+    this.folderKept = false,
+  });
+
+  /// The row is gone locally (so the checkpoint may advance past it).
+  final bool removed;
+
+  /// The row was a managed workspace's, the user had content sync switched off
+  /// for it, and its folder was therefore left on disk.
+  final bool folderKept;
 }

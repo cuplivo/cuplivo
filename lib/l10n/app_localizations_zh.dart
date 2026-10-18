@@ -12110,7 +12110,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get lanSyncWorkspaceTip =>
-      '不同步 .git 与依赖/构建目录以节省时间。超过 2,000 文件或 200 MB 的工作区不同步内容。工作区记录始终同步，开关只控制文件。';
+      '不同步 .git 与依赖/构建目录以节省时间。超过 2,000 文件或 200 MB 的工作区不同步内容。工作区记录始终同步，开关只控制文件：关闭后该文件夹不会被发送，也不会被同步删除。';
 
   @override
   String lanSyncWorkspaceSyncing(Object count) {
@@ -12360,6 +12360,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportWorkspacesKept(Object count) {
+    return '已保留 $count 个工作区文件夹（开关已关闭）';
+  }
+
+  @override
   String lanSyncReportRowsLost(Object n) {
     return '$n 条本地记录被对端更新的版本覆盖';
   }
@@ -12458,6 +12463,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get lanSyncAddAddress => '添加地址';
+
+  @override
+  String lanSyncAddressLimit(Object count) {
+    return '本机已记住该设备的 $count 个地址，请先删除一个再添加。';
+  }
 
   @override
   String get lanSyncRenameEndpointTitle => '地址名称';
@@ -25527,7 +25537,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get lanSyncWorkspaceTip =>
-      '不同步 .git 与依赖/构建目录以节省时间。超过 2,000 文件或 200 MB 的工作区不同步内容。工作区记录始终同步，开关只控制文件。';
+      '不同步 .git 与依赖/构建目录以节省时间。超过 2,000 文件或 200 MB 的工作区不同步内容。工作区记录始终同步，开关只控制文件：关闭后该文件夹不会被发送，也不会被同步删除。';
 
   @override
   String lanSyncWorkspaceSyncing(Object count) {
@@ -25777,6 +25787,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
+  String lanSyncReportWorkspacesKept(Object count) {
+    return '已保留 $count 个工作区文件夹（开关已关闭）';
+  }
+
+  @override
   String lanSyncReportRowsLost(Object n) {
     return '$n 条本地记录被对端更新的版本覆盖';
   }
@@ -25875,6 +25890,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get lanSyncAddAddress => '添加地址';
+
+  @override
+  String lanSyncAddressLimit(Object count) {
+    return '本机已记住该设备的 $count 个地址，请先删除一个再添加。';
+  }
 
   @override
   String get lanSyncRenameEndpointTitle => '地址名称';
@@ -39023,7 +39043,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get lanSyncWorkspaceTip =>
-      '不同步 .git 與相依/建置目錄以節省時間。超過 2,000 個檔案或 200 MB 的工作區不同步內容。工作區記錄始終同步，開關只控制檔案。';
+      '不同步 .git 與相依/建置目錄以節省時間。超過 2,000 個檔案或 200 MB 的工作區不同步內容。工作區記錄始終同步，開關只控制檔案：關閉後該資料夾不會被傳送，也不會被同步刪除。';
 
   @override
   String lanSyncWorkspaceSyncing(Object count) {
@@ -39273,6 +39293,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String lanSyncReportWorkspacesKept(Object count) {
+    return '已保留 $count 個工作區資料夾（開關已關閉）';
+  }
+
+  @override
   String lanSyncReportRowsLost(Object n) {
     return '$n 條本地記錄被對端更新的版本覆蓋';
   }
@@ -39371,6 +39396,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get lanSyncAddAddress => '新增位址';
+
+  @override
+  String lanSyncAddressLimit(Object count) {
+    return '本機已記住該裝置的 $count 個位址，請先刪除一個再新增。';
+  }
 
   @override
   String get lanSyncRenameEndpointTitle => '位址名稱';

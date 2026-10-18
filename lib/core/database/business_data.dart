@@ -74,7 +74,10 @@ enum BusinessEntityKind {
 /// a place on *one* machine's filesystem, so its row can neither travel in a
 /// backup nor ride LAN sync. Both rules read this predicate so the two can never
 /// drift into disagreeing about what "linked" means; a payload that cannot be
-/// read is treated as ordinary (a corrupt row is not a reason to leak one).
+/// read is treated as ordinary, so a corrupt row is carried as a managed
+/// workspace instead of being silently hidden — nothing here ever reads the
+/// linked path itself, and the content plane only ever resolves managed folders
+/// under Cuplivo's own `<appData>/workspaces/<id>/files`.
 bool isLinkedWorkspace(String payload) {
   final Object? decoded;
   try {

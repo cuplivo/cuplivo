@@ -332,4 +332,110 @@ void main() {
       expect(capped['w1']!.length, 2);
     });
   });
+
+  group('the ledger the two sides keep', () {
+    // Promoted from the review probe that opened the second round (`probe_review_1030_test.dart`),
+    // which refuted the hypothesis "a rounded mtime makes the pair re-transfer
+    // forever" and pinned the real dependency instead: only the *puller* can
+    // record what the pair agreed, and losing its record re-opens the transfer.
+    test('the puller closes the loop, and losing its record re-opens it', () {
+      const sent = WorkspaceFileStamp(size: 4096, mtimeMs: 1700000000000);
+      const olderOnB = WorkspaceFileStamp(size: 100, mtimeMs: 1699999000000);
+      // What B's filesystem makes of the mtime A advertised — a coarse-granularity
+      // volume rounds it down, so the bytes are A's and the stamp is not.
+      const asLandedOnB = WorkspaceFileStamp(
+        size: 4096,
+        mtimeMs: 1699999998000,
+      );
+
+      // Session 1: B holds an older copy, A's version wins, B fetches it.
+      final aPlan1 = plan(
+        mine: const {'f': sent},
+        peers: const {'f': olderOnB},
+        baseline: const {},
+      );
+      expect(actionOf(aPlan1, 'f'), WorkspaceFileAction.iWin);
+
+      // B records the pair it actually reached...
+      final bLedger1 = advanceWorkspaceBaseline(
+        mine: const {'f': olderOnB},
+        peers: const {'f': sent},
+        baseline: const {},
+        plan: const [WorkspaceFilePlan('f', WorkspaceFileAction.peerWins)],
+        landed: const {'f': asLandedOnB},
+        deleted: const {},
+      );
+      expect(bLedger1['f']!.mine, asLandedOnB);
+      expect(bLedger1['f']!.peer, sent);
+
+      // ...while A, the sender, records nothing at all: it cannot know the fetch
+      // landed. The pair of stamps exists on B's side only — and that is enough,
+      // because B is the side that pulls.
+      final aLedger1 = advanceWorkspaceBaseline(
+        mine: const {'f': sent},
+        peers: const {'f': olderOnB},
+        baseline: const {},
+        plan: aPlan1,
+        landed: const {},
+        deleted: const {},
+      );
+      expect(aLedger1, isEmpty);
+
+      // Session 2: A's own plan still says "mine wins" (it never saw the
+      // agreement), but B — whose ledger holds the exact pair — plans `none`, and
+      // B is the one that would have to fetch. No bytes move, so the rounded
+      // stamp costs nothing.
+      expect(
+        actionOf(
+          plan(
+            mine: const {'f': sent},
+            peers: const {'f': asLandedOnB},
+            baseline: aLedger1,
+          ),
+          'f',
+        ),
+        WorkspaceFileAction.iWin,
+      );
+      expect(
+        actionOf(
+          plan(
+            mine: const {'f': asLandedOnB},
+            peers: const {'f': sent},
+            baseline: bLedger1,
+          ),
+          'f',
+        ),
+        WorkspaceFileAction.none,
+        reason: 'the puller remembers the pair, so nothing is re-fetched',
+      );
+
+      // What losing B's ledger would cost: the same unchanged file is fetched
+      // again, and a file B alone still holds is re-offered instead of deleted.
+      expect(
+        actionOf(
+          plan(
+            mine: const {'f': asLandedOnB},
+            peers: const {'f': sent},
+            baseline: const {},
+          ),
+          'f',
+        ),
+        WorkspaceFileAction.peerWins,
+        reason: 'an absent entry is not an agreement: the file travels again',
+      );
+      expect(
+        actionOf(
+          plan(
+            mine: const {'f': asLandedOnB},
+            peers: const {},
+            baseline: const {},
+          ),
+          'f',
+        ),
+        WorkspaceFileAction.iSend,
+        reason:
+            "the peer's deletion reads as \"never had it\": the file returns",
+      );
+    });
+  });
 }

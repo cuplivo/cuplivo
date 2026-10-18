@@ -1327,7 +1327,8 @@ changes the wire: no message shape, no protocol bump.
   the peer's hello arrives, and answers with a session instead. In a crossing dial both sides do that,
   so neither client is left to drive either session, and each side then refuses its own dials as busy.
   That state was permanent: `_sessions` was swept only at the top of `handleHello`, which a pair that
-  refuses its own dials never calls, and the TTL there is two minutes of nothing happening. A session
+  refuses its own dials never calls, and the TTL there measured **from the hello**, so it could not
+  tell a working session from an abandoned one (slice 22 splits it). A session
   created by a yield is now marked as such and records its first beat; one the peer has not pushed
   into within **four seconds** is dropped, and the sweep runs before `syncWithPeer` refuses a round —
   which is the call site whose absence made the wedge unbreakable. A crossing therefore costs one
@@ -1343,6 +1344,8 @@ changes the wire: no message shape, no protocol bump.
   persisted latency was cleared — the opposite of what the module's own contract says ("it must not
   overwrite a working verdict"). A `noVerdict` result now keeps the previous entry for that endpoint,
   is never written to the peer record, and renders as `—` rather than as a reachability verdict.
+  *(On the **tick** path only: the session's own fallback round kept overwriting it, which slice 22
+  fixes at one shared choke point — the rule had two implementations and therefore one.)*
 - **The silent tail rotates.** Both probe shapes took the *first* `kSyncTailProbeCount` silent
   addresses in endpoint order, so with more than four cold addresses the ones behind them were never
   asked by any round — no measurement ever proved them, so the dial never tried them either, and the
@@ -1390,6 +1393,110 @@ changes the wire: no message shape, no protocol bump.
   session *in* the crossed round: the pair recovers on the next attempt, which a manual press or the
   busy retry reaches within seconds. An address whose every probe answer is `ping_busy` reads as
   unknown (`—`) rather than as either reachable or dead, which is what the answer says.
+
+## Amendment (2026-10, slice 22): review hardening — a sweep that means "idle", one fold per rule, and limits that know about each other
+
+A second review of slices 18–21 turned up four defects, three of them in code slice 21 had just
+written, plus four below-threshold items. They are fixed where they were made, every fix is guarded by
+a test that was shown red first, and the two sentences slice 21 got wrong are corrected above. No
+wire change: no message shape, no protocol bump (`kSyncProtocolVersion` stays 5; the new `409` is a
+status on an existing route).
+
+- **The sweep means "idle", not "old".** Slice 21 replaced one rule with one rule: any session older
+  than two minutes since its **hello** was dropped. A first sync of a large library is a single push
+  beat that runs for minutes, so the sweep deleted the session that was transferring, and the peer's
+  next beat — and the fetch beat that closes the session — failed against a session that no longer
+  existed (`sync_session_missing`, surfaced as a 500). It is now three states, named for their jobs:
+  `_dropIdleSessions` measures from the peer's last beat (`lastBeatAt ?? startedAt`), and skips any
+  session with a beat in flight (`beatsInFlight`, raised in `_beginBeat` and lowered in `_endBeat` in
+  `finally`, with the stamp written at *both* ends so a beat that ran for minutes is recent activity
+  when it finishes); `_dropAbandonedYieldedSessions` keeps slice 21's four-second rule for a yielded
+  session never beaten. `SyncEngine` gained a `now` clock, so the regression — a session beaten at
+  2:29 that must survive a sweep at 2:30 — is a test that runs in milliseconds instead of the 2m18s
+  probe that found it.
+- **A fetch beat requires the push it belongs to, and the ledger is never defaulted.** Every session
+  is one push then one fetch, and the responder's workspace ledger — the record of what both sides now
+  hold — is produced by the push. The fetch beat was answered regardless, and its checkpoint write
+  defaulted that ledger (`session.workspaceOutcome?.ledger ?? const {}`), so a beat that arrived
+  without its push persisted an **empty** ledger: the next session reads "we never agreed about these
+  files" and re-transfers, and reads a file deleted here as one the peer never had. `handleFetchSubtrees`
+  now refuses with `409 push_required` (`SyncRequestRefusal`, which the server maps to a status instead
+  of the 500 every handler exception used to become — `sync_session_missing` is a 409 too), and the
+  checkpoint carries `session.workspaceOutcome!.ledger`: the push is the only producer, so the outcome
+  is not optional and cannot silently become emptiness.
+- **The address cap is a refusal, and the affordance is reachable.** `SyncPeerRecord.addEndpoint`
+  appended, trimmed the set back to twelve and returned `true` — so a user's thirteenth address was
+  reported as saved and silently discarded, and the card offered "add address" only in the empty-set
+  state, which is the one state where a *second* network cannot be added. `addEndpoint` now returns
+  `SyncEndpointAdd` (`added` / `duplicate` / `invalid` / `full`) and **refuses at the cap instead of
+  evicting** a proven address; pairing's automatic learning still keeps the freshest twelve but returns
+  what it dropped, which the engine logs; the provider returns the outcome and the card says the limit
+  out loud in a snackbar. The card shows the add button whenever the set is below the cap, which is
+  also where the layout has a free cell.
+- **One probe fold, one budget, and limits that are derived from each other.** "A 503 is not a verdict"
+  had two call sites and one implementation: the tick kept a working figure, the session's own fallback
+  round overwrote it. Both now go through `_storeProbeResults`. The fan-out and the listener's
+  concurrency cap were also chosen in isolation — twelve remembered endpoints against eight answered
+  probes — so a peer's full address memory could 503 *its own* listener, and every answer came back
+  "no verdict", disabling the measurement the round existed for. `sync_limits.dart` now owns both: the
+  listener's cap is **derived** from the endpoint cap (`kMaxPingsInFlight = kMaxPeerEndpoints + 2`), the
+  probe budget is `kSyncProbeConcurrency = kMaxPeerEndpoints`, and `probePeerEndpoints` chunks rather
+  than fans out past its budget, so the relationship cannot drift again by editing one number.
+- **The per-workspace switch protects the folder from a peer-driven deletion.** `deleteBusinessRow`
+  removed a managed workspace's folder whenever the peer deleted the row, switch or no switch — so
+  "off" meant "protected from transfers, removed when the peer tidies up". With the switch off the row
+  still goes (it is gone on the peer, and a row that stayed would be re-advertised), the folder stays,
+  and the session report counts it (`workspaceFoldersKept`, one line in all four locales), because a
+  folder that is invisible in the app and present on disk has to be explained somewhere. The switch
+  keeps working in the other direction too: a switched-off workspace is neither sent nor served, and
+  flipping it off drops the current advertisement.
+- **An advertisement lives inside its session.** `_served` was only ever replaced by the next publish,
+  so a file this device advertised in one session stayed servable to that peer until the next one —
+  including after the user switched the workspace off. It is now dropped when the initiator's round
+  ends, when the peer is unpaired or revokes, and when a workspace is switched off. It is **not**
+  dropped when the responder's fetch response is written: the initiator pulls the files it was told
+  about *after* that response, and the first version of this fix did exactly that, 404-ing every
+  workspace transfer in the suite (`workspace_file_unavailable`). The next hello therefore drops the
+  previous session's table — the responder's one lasts exactly as long as the pulls it invited.
+- **The device-local switch is mutated, not read-modify-written.** `workspaces.json` holds every
+  workspace's choice in one file, and `setEnabled` read the set, edited it and wrote it back. Two
+  callers in one turn — two switches, or a switch and a session's own read — both complete their read
+  before either write, so the second write erases the first id: a switch that flips back on the next
+  read, with nothing in the logs. `SyncStore.mutateWorkspaceContentDisabled` chains read-edit-write as
+  one serialized step (with a queue that survives a failed write), and `setEnabled` is its only caller.
+- **A stalled probe answers 408, not 200.** The ping lane's `catch` closed a response that had never
+  been given a status, which HTTP sends as `200 OK`: a probe whose body stalled for five seconds
+  reported "the peer answered in 5 s", the one thing a liveness probe must never invent. It answers
+  `408` now.
+- *Rejected: a device-id tie-break for the crossing.* Reconsidered now that the crossing case has a
+  retry: a stable tie-break would still have to read a fact both sides read identically, and the pair's
+  problem is not "who speaks first" (arrival order decides that, correctly, and is what gives a
+  one-way LAN its in-session convergence) but two triggers that keep landing in the same instant. The
+  fix is a per-attempt random salt on the retry (`kSyncRetrySaltMs`), which decorrelates the *attempt*
+  rather than the device; `superseded` now arms that retry at all, which it previously did not — the
+  crossing pair waited for the next automatic trigger a minute later. Device ids stay where they
+  belong: deciding values both sides must compute identically (the LWW tie).
+- *Rejected: raising the listener's probe cap alone.* It would hide the contradiction instead of
+  relating the two numbers, and a second paired peer's tick can still saturate a listener legitimately
+  — which is why the fold must tolerate `noVerdict` on every path. The cap moved because it is derived,
+  not because a bigger number is a fix.
+- *Rejected: dropping the served table when the fetch response is written.* It is the obvious place and
+  it breaks the initiator's pull (above). The table's honest lifetime is "until the next hello, the
+  switch going off, or the pair going away".
+- *Known limits.* A folder the switch protected is orphaned: its row is gone, so nothing in the app
+  points at it until a workspace with that id is created or a backup restores one; the report line is
+  the only trace. Between sessions the responder's advertisement still serves a **paired** peer a file
+  that was walked in the previous session and has not changed since — the stamp check is what makes it
+  the same bytes, and unpaired peers are refused at the route. The sweep still cannot tell a beat that
+  is *hung* from one that is slow: a session whose beat never returns is never swept, which is the
+  deliberate trade (the alternative is killing working transfers) and is bounded by the route
+  deadlines in `sync_server.dart`.
+- *Mechanisms, not just fixes.* The sweep is guarded by a state table rather than one example
+  (`_assertSessionInvariants` at every `_sessions` transition under `assert`, plus the injected clock);
+  the probe rule and the workspace ledger each have exactly one choke point; the limits live together
+  and are derived; and `AGENTS.md` now carries the rule this round's worst defect came from — a change
+  to a shared predicate, TTL, cap or sweep names every caller of it and what changes for each, and a
+  new call site for an existing rule gets the rule's state table, not its happy path.
 
 ## Considered options (rejected)
 

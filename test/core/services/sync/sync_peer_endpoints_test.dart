@@ -1,3 +1,4 @@
+import 'package:Cuplivo/core/services/sync/sync_limits.dart';
 import 'package:Cuplivo/core/services/sync/sync_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -96,17 +97,62 @@ void main() {
       final peer = record();
       peer.noteEndpointSuccess('192.168.1.7', 9527);
 
-      expect(peer.addEndpoint('10.0.0.3', 9527), isTrue);
+      expect(peer.addEndpoint('10.0.0.3', 9527), SyncEndpointAdd.added);
       expect(peer.endpoints.map((e) => e.host).toList(), [
         '192.168.1.7',
         '10.0.0.3',
       ], reason: 'a typed address has proved nothing, so it dials last');
       expect(peer.endpoints.last.addedAt, isNotNull);
 
-      expect(peer.addEndpoint('10.0.0.3', 9527), isFalse);
-      expect(peer.addEndpoint('  ', 9527), isFalse);
-      expect(peer.addEndpoint('10.0.0.9', 0), isFalse);
+      // Three ways to add nothing, and the caller can tell them apart: this is
+      // the difference between "already remembered", "that is not an address"
+      // and "the set is full" — a bool made all three read as failure and made
+      // the third one report success.
+      expect(peer.addEndpoint('10.0.0.3', 9527), SyncEndpointAdd.duplicate);
+      expect(peer.addEndpoint('  ', 9527), SyncEndpointAdd.invalid);
+      expect(peer.addEndpoint('10.0.0.9', 0), SyncEndpointAdd.invalid);
       expect(peer.endpoints, hasLength(2));
+    });
+
+    test(
+      'a full set refuses a new address instead of evicting a known one',
+      () {
+        final peer = record();
+        for (var i = 0; i < kMaxPeerEndpoints; i++) {
+          peer.noteEndpointSuccess('10.0.0.$i', 9527);
+        }
+        expect(peer.endpoints, hasLength(kMaxPeerEndpoints));
+
+        expect(
+          peer.addEndpoint('192.168.1.7', 9527),
+          SyncEndpointAdd.full,
+          reason: 'the cap is a refusal the caller can see, not a silent trim',
+        );
+        expect(peer.endpoints, hasLength(kMaxPeerEndpoints));
+        expect(
+          peer.endpointFor('192.168.1.7', 9527),
+          isNull,
+          reason: 'a typed address never displaces one a session ran over',
+        );
+        expect(
+          peer.endpointFor('10.0.0.0', 9527),
+          isNotNull,
+          reason: 'and nothing at the tail was dropped to make room',
+        );
+      },
+    );
+
+    test('pairing reports the candidates the cap could not take', () {
+      final peer = record();
+      for (var i = 0; i < kMaxPeerEndpoints; i++) {
+        peer.noteEndpointSuccess('10.0.0.$i', 9527);
+      }
+      final dropped = peer.rememberEndpointCandidates([
+        ('192.168.1.7', 9527),
+        ('192.168.1.8', 9527),
+      ]);
+      expect(dropped, [('192.168.1.7', 9527), ('192.168.1.8', 9527)]);
+      expect(peer.endpoints, hasLength(kMaxPeerEndpoints));
     });
 
     test('naming one address leaves the others unnamed', () {

@@ -12701,7 +12701,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lanSyncWorkspaceTip =>
-      'Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files or 200 MB don\'t sync their files. A workspace\'s record always syncs — the switch governs only its files.';
+      'Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files or 200 MB don\'t sync their files. A workspace\'s record always syncs — the switch governs only its files: a folder with the switch off is never sent, and a sync never removes it.';
 
   @override
   String lanSyncWorkspaceSyncing(Object count) {
@@ -12954,6 +12954,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportWorkspacesKept(Object count) {
+    return '$count workspace folders kept (switch off)';
+  }
+
+  @override
   String lanSyncReportRowsLost(Object n) {
     return '$n local rows replaced by newer versions on the peer';
   }
@@ -13058,6 +13063,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lanSyncAddAddress => 'Add address';
+
+  @override
+  String lanSyncAddressLimit(Object count) {
+    return 'This device already remembers $count addresses for that device. Remove one before adding another.';
+  }
 
   @override
   String get lanSyncRenameEndpointTitle => 'Address name';

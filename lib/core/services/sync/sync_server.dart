@@ -6,6 +6,7 @@ import 'package:basic_utils/basic_utils.dart';
 import 'package:crypto/crypto.dart' as crypto;
 
 import 'sync_identity.dart';
+import 'sync_limits.dart';
 import 'sync_local_addresses.dart';
 import 'sync_models.dart';
 import 'sync_store.dart';
@@ -317,6 +318,12 @@ class SyncServer {
       _safeRespond(request, HttpStatus.requestEntityTooLarge, {
         'error': 'body_too_large',
       });
+    } on SyncRequestRefusal catch (refusal) {
+      // A request the handler refused before touching any state, with the status
+      // that says *why*: a beat that belongs to no live session is a 409 the
+      // caller can act on, where the 500 every other failure produced named an
+      // exception the peer has no use for.
+      _safeRespond(request, refusal.statusCode, {'error': refusal.error});
     } catch (error, stack) {
       _safeRespond(request, HttpStatus.internalServerError, {
         'error': '$error',
@@ -334,7 +341,7 @@ class SyncServer {
   /// which a bare TCP connect cannot say. The caller measures the latency
   /// itself, so the response carries nothing.
   Future<void> _servePing(HttpRequest request) async {
-    if (_pingsInFlight >= maxConcurrentPings) {
+    if (_pingsInFlight >= kMaxPingsInFlight) {
       _safeRespond(request, HttpStatus.serviceUnavailable, {
         'error': 'ping_busy',
       });
@@ -360,9 +367,13 @@ class SyncServer {
       await _respondNoContent(request, HttpStatus.noContent);
     } catch (_) {
       // A probe's caller is the one that classifies a failed answer; there is
-      // nothing to salvage on this side.
+      // nothing to salvage on this side. What must *not* happen is closing a
+      // response that was never given a status: HTTP then sends 200 OK, and the
+      // caller reads a stalled body as "the peer answered in 5 s", which is the
+      // one thing a liveness probe must never invent. The deadline is named
+      // instead, so the caller sees a slow address as a slow address.
       try {
-        await request.response.close();
+        await _respondNoContent(request, HttpStatus.requestTimeout);
       } catch (_) {}
     } finally {
       _pingsInFlight--;
@@ -372,9 +383,10 @@ class SyncServer {
   /// Probes in flight. Bounded so a peer (or a bug) cannot open thousands of
   /// connections: the probe path answers 503 past the cap, which the caller
   /// reads as "not now" instead of queueing it behind the session it is
-  /// supposed to outlive.
+  /// supposed to outlive. The ceiling itself lives in `sync_limits.dart`,
+  /// derived from the endpoint cap — see the note there on why the two bounds
+  /// have to move together.
   int _pingsInFlight = 0;
-  static const int maxConcurrentPings = 8;
 
   /// Path of the liveness probe. Authenticated like every other `/sync/*`
   /// route, so a success is reachability *and* pairing, in one round trip.
@@ -802,4 +814,39 @@ class SyncServer {
 /// a 400.
 class _RequestBodyTooLarge implements Exception {
   const _RequestBodyTooLarge();
+}
+
+/// A request the handler refuses *before* touching any session state, carrying
+/// the status the peer should read it as.
+///
+/// [SyncServerHandler] returns payloads, not status lines, so a beat that
+/// belongs to no session could previously only be reported by throwing a
+/// `StateError` — which the server answered as a 500 and the peer classified as
+/// an internal error, naming neither the session nor the fix. A refusal the peer
+/// can act on has to name itself.
+class SyncRequestRefusal implements Exception {
+  const SyncRequestRefusal(this.statusCode, this.error);
+
+  /// A fetch beat that arrived before the push it belongs to.
+  ///
+  /// The responder's workspace ledger is what the push beat produced, so
+  /// answering the fetch without it would advance the checkpoint with an *empty*
+  /// ledger — which the content plan reads as "we never agreed about these
+  /// files" and re-transfers, and which reads a file this device deleted as a
+  /// file the peer never had.
+  const SyncRequestRefusal.pushRequired()
+    : statusCode = HttpStatus.conflict,
+      error = 'push_required';
+
+  /// The beat belongs to no live session for this peer: it was never accepted
+  /// here, or it has already ended (see the engine's session sweeps).
+  const SyncRequestRefusal.sessionMissing()
+    : statusCode = HttpStatus.conflict,
+      error = 'sync_session_missing';
+
+  final int statusCode;
+  final String error;
+
+  @override
+  String toString() => 'SyncRequestRefusal($statusCode): $error';
 }

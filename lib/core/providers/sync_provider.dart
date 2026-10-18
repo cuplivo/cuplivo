@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -734,17 +735,28 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     _reprobe();
   }
 
-  /// Remembers an address the user typed for a peer that has none — the
-  /// state a pairing without an address leaves, and the repair the `no_endpoint`
-  /// line asks for.
-  Future<void> addPeerEndpoint(String deviceId, String host, int port) async {
+  /// Remembers an address the user typed for a peer — the repair a peer with
+  /// none asks for, and the second network a peer that has already synced once
+  /// is about to be met on.
+  ///
+  /// Returns what happened instead of nothing: at the endpoint cap the address
+  /// is *refused* rather than admitted by evicting one this pair has actually
+  /// synced over, and the caller has to be able to tell the user that. A silent
+  /// `void` here is what made "the set is full" indistinguishable from "saved".
+  Future<SyncEndpointAdd> addPeerEndpoint(
+    String deviceId,
+    String host,
+    int port,
+  ) async {
     final store = _store;
     final peer = peers.where((p) => p.deviceId == deviceId).firstOrNull;
-    if (store == null || peer == null) return;
-    if (!peer.addEndpoint(host, port)) return;
+    if (store == null || peer == null) return SyncEndpointAdd.invalid;
+    final outcome = peer.addEndpoint(host, port);
+    if (outcome != SyncEndpointAdd.added) return outcome;
     await store.savePeer(peer);
     await refreshPeers();
     _reprobe();
+    return outcome;
   }
 
   /// The endpoint set changed: the next probe round walks all of it, including
@@ -792,7 +804,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   Future<SyncSessionReport?> syncNow(
     String deviceId, {
     bool automatic = false,
-    bool retryOfBusy = false,
+    bool retryAttempt = false,
   }) async {
     final engine = _engine;
     if (engine == null || busyDeviceIds.contains(deviceId)) return null;
@@ -810,14 +822,32 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       final report = await engine.syncWithPeer(peer);
       lastReport = report;
       _recordSessionVerdict(deviceId, report);
-      // One retry for the refusal that means "the peer was already syncing with
-      // this device", from *every* caller: the manual button and the
-      // post-pairing kick used to get none, so the five-second retry the ADR
-      // promises was only ever true of an automatic round. The retry does not
-      // arm another, which is what keeps a pair that keeps colliding from
-      // becoming a tight loop.
-      if (report.refusal == SyncRefusalReason.busy && !retryOfBusy) {
-        _scheduleBusyRetry(deviceId);
+      // One retry for the two refusals that mean "this pair tried at the same
+      // moment" — from *every* caller: the manual button and the post-pairing
+      // kick used to get none, so the five-second retry the ADR promises was only
+      // ever true of an automatic round. Neither arms another, which is what
+      // keeps a pair that keeps colliding from becoming a tight loop.
+      //
+      // `superseded` is the crossing case: each side's hello landed while its own
+      // dial was unanswered, so each yielded and answered, and neither client is
+      // left to drive either session — the pair then refuses its own dials until
+      // the yielded sessions expire. Nothing here retries *sooner* than that
+      // (the base delay is longer than the yielded window); the retry exists so
+      // the pair recovers by itself instead of waiting for the next automatic
+      // trigger a minute later, and it is salted per attempt so two devices whose
+      // rounds keep landing in the same instant drift apart instead of crossing
+      // again by construction.
+      switch (report.refusal) {
+        case SyncRefusalReason.busy:
+        case SyncRefusalReason.superseded:
+          if (!retryAttempt) {
+            _scheduleBusyRetry(
+              deviceId,
+              decorrelate: report.refusal == SyncRefusalReason.superseded,
+            );
+          }
+        case _:
+          break;
       }
       // A session is the one moment the persisted endpoint figures are worth
       // writing: it is where a "last connected" stamp belongs, and the probe
@@ -961,20 +991,33 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     if (targets.isEmpty) return const [];
     final probe = _endpointProbe ?? syncEndpointProbe(_engine!.client, peer);
     final results = await probePeerEndpoints(endpoints: targets, probe: probe);
-    // Keep the answers for the endpoints this round did not visit: the tail's
-    // last figure is still the best thing known about it. And keep the one a
-    // `ping_busy` would erase: a 503 says the listener was too loaded to judge,
-    // which is not a verdict about the address — storing it would drop a
-    // working figure from the tile, the detail and the peer record, and the
-    // module's own contract is that it must not overwrite a working verdict.
-    _probeResults[peer.deviceId] = {
+    _storeProbeResults(peer.deviceId, results);
+    return results;
+  }
+
+  /// Folds one round's answers into this device's record of measurements.
+  ///
+  /// **The one place a probe result is stored**, whichever path ran the round:
+  /// the periodic tick, a session's own fallback round, and whatever comes next.
+  /// The rule it enforces is the probe module's own contract — a `noVerdict` (a
+  /// 503 from a saturated listener) says nothing about the address, so it must
+  /// never replace a working figure — and it used to live on one of the two
+  /// paths only, which meant a session's round could erase the measurement the
+  /// tick had just taken. A rule with two implementations has one implementation.
+  ///
+  /// Answers for the endpoints this round did not visit are kept: the tail's last
+  /// figure is still the best thing known about it, and that is also what makes
+  /// the tick's rotation fall out of the data instead of a counter.
+  void _storeProbeResults(String deviceId, List<EndpointProbeResult> results) {
+    if (results.isEmpty) return;
+    final previous = _probeResults[deviceId] ?? const {};
+    _probeResults[deviceId] = {
       ...previous,
       for (final result in results)
         if (!(result.noVerdict &&
             (previous[result.endpoint]?.answered ?? false)))
           result.endpoint: result,
     };
-    return results;
   }
 
   /// Files one probe round's answers for [deviceId] and republishes the dot.
@@ -1178,7 +1221,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  /// How long a `busy` refusal waits for its one retry.
+  /// How long a `busy` (or `superseded`) refusal waits for its one retry.
   ///
   /// A busy refusal means the peer's own session with this device was already
   /// running — the common case on a LAN where both devices were picked up at
@@ -1186,17 +1229,37 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// for it left the user looking at "another session is in progress" long
   /// after the session ended; one short retry covers it, and only one, so a
   /// pair that keeps colliding does not become a tight loop.
+  ///
+  /// Longer than [SyncEngine.kYieldedSessionTtl] on purpose: the crossing case
+  /// the retry exists for refuses this device's dial only while the session it
+  /// yielded to is still held, so retrying before that window closes would earn
+  /// the same `busy` and spend the pair's one retry on nothing.
   static const busyRetryDelay = Duration(seconds: 5);
 
-  /// The delay before that retry, offset by *this* device's id.
+  /// The extra, per-attempt delay's ceiling for a `superseded` retry.
+  ///
+  /// The device-id offset below is fixed for a device, so two devices whose
+  /// rounds keep landing in the same instant would keep retrying in the same
+  /// instant too — the phase-locked collision, where neither symmetry-breaking
+  /// rule that reads *stable* facts (ids, topology) can help, because both sides
+  /// read the same facts. A fresh random salt per attempt is what actually
+  /// decorrelates them. It is deliberately not larger: this is a retry that has
+  /// to feel immediate, not a backoff schedule.
+  static const kSyncRetrySaltMs = 1200;
+
+  final Random _retryJitter = Random();
+
+  /// The delay before that retry, offset by *this* device's id and by an optional
+  /// per-attempt salt (see [kSyncRetrySaltMs]).
   ///
   /// Two devices that collided must not retry in lockstep, or they collide
   /// again and the pair never makes progress. The offset is derived from this
   /// device's own id: both sides know both ids, so a *shared* function of the
-  /// pair would hand them the same answer and change nothing. Pure, so a test
-  /// can pin it.
-  static Duration busyRetryDelayFor(String myDeviceId) =>
-      busyRetryDelay + Duration(milliseconds: _retryOffsetMs(myDeviceId));
+  /// pair would hand them the same answer and change nothing. Pure apart from
+  /// [saltMs], which the caller draws, so a test can pin it.
+  static Duration busyRetryDelayFor(String myDeviceId, {int saltMs = 0}) =>
+      busyRetryDelay +
+      Duration(milliseconds: _retryOffsetMs(myDeviceId) + saltMs);
 
   /// FNV-1a over the id, folded into `[0, 1200)` ms. Deliberately not
   /// `String.hashCode`, whose value is only promised to be consistent within a
@@ -1211,16 +1274,27 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   final Map<String, Timer> _busyRetryTimers = {};
 
-  void _scheduleBusyRetry(String deviceId) {
+  /// Whether a one-shot retry is currently pending for [deviceId] — the only
+  /// observable the "one retry, and only one" rule has.
+  @visibleForTesting
+  bool hasPendingRetry(String deviceId) =>
+      _busyRetryTimers.containsKey(deviceId);
+
+  /// Arms that one retry. [decorrelate] adds this attempt's random salt, which
+  /// only the crossing case needs: a device-id offset already separates two
+  /// devices, but it is the same offset every time, so a pair whose rounds keep
+  /// landing together would keep landing together.
+  void _scheduleBusyRetry(String deviceId, {bool decorrelate = false}) {
     if (_busyRetryTimers.containsKey(deviceId)) return;
     final engine = _engine;
     if (engine == null) return;
+    final saltMs = decorrelate ? _retryJitter.nextInt(kSyncRetrySaltMs) : 0;
     _busyRetryTimers[deviceId] = Timer(
-      busyRetryDelayFor(engine.identity.deviceId),
+      busyRetryDelayFor(engine.identity.deviceId, saltMs: saltMs),
       () {
         _busyRetryTimers.remove(deviceId);
         if (!started || busyDeviceIds.contains(deviceId)) return;
-        unawaited(syncNow(deviceId, automatic: true, retryOfBusy: true));
+        unawaited(syncNow(deviceId, automatic: true, retryAttempt: true));
       },
     );
   }
@@ -1285,13 +1359,12 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   /// A probe round the engine ran itself, because the snapshot it held was too
   /// old to order a dial by. Folding it in keeps the card's figures current and
-  /// gives the next session the measurement to reuse.
+  /// gives the next session the measurement to reuse — through the same
+  /// [_storeProbeResults] the tick uses, so a `ping_busy` on this path cannot
+  /// erase a working figure either.
   void _onEngineProbes(String deviceId, List<EndpointProbeResult> results) {
     if (results.isEmpty) return;
-    _probeResults[deviceId] = {
-      ...?_probeResults[deviceId],
-      for (final result in results) result.endpoint: result,
-    };
+    _storeProbeResults(deviceId, results);
     _fileProbeRound(deviceId, results);
     _publishProbesIfStarted();
   }

@@ -229,7 +229,19 @@ contradicts one of them is a bug, not a preference.
   deleting. The per-workspace switch is **device-local** (`sync/workspaces.json` records the
   *disabled* set, so a new workspace is on by default) and controls **files only**: the record
   keeps travelling either way, because removing a workspace from the manifest is what deletes the
-  peer's copy.
+  peer's copy. The switch is also **written as one serialized mutation** (read-edit-write, never two
+  overlapping read-modify-writes of the same file), and it is what protects the folder from a
+  peer-driven deletion — see below.
+- **A peer's deletion takes the record, and an off switch keeps the folder (关掉开关就保住文件夹)**:
+  a managed workspace row removed *by sync* takes its directory with it (a workspace the app no
+  longer lists must not keep occupying disk) — **unless the user switched content sync off for that
+  workspace**, in which case the row still goes (it is gone on the peer, and a row that stayed would
+  be re-advertised) and the folder stays: "off" means this device's files are its own, and a
+  peer-driven deletion is exactly the case that promise has to cover. The session report counts what
+  the switch protected, because a folder that is invisible in the app and present on disk has to be
+  explained somewhere. A folder this kept is orphaned until a workspace with that id exists again.
+  The user's *own* delete (the workspace UI) removes the files regardless: that is an explicit
+  local action, not a sync-driven one.
 - **Pruned, because nobody wants `.git` over Wi-Fi (剪枝)**: the index never walks VCS metadata,
   dependency or build directories, caches, editor directories or OS bookkeeping files — nor the
   sync plane's own `.sync-*` scratch names, so a transfer in flight is never mistaken for content.
@@ -241,7 +253,9 @@ contradicts one of them is a bug, not a preference.
   otherwise delete the peer's copy. The price is that a workspace with a single unreadable file
   syncs no content at all until it can be read.
 - **Deleting the record deletes the folder**: a managed workspace row removed by sync takes its
-  directory with it — a workspace the app no longer lists must not keep occupying disk.
+  directory with it — a workspace the app no longer lists must not keep occupying disk. The one
+  exception is the per-workspace switch: a workspace the user turned off keeps its folder when the
+  peer deletes the row (see the caps bullet above).
 - **Why not the alternatives**: content hashing would read every byte of every file to answer a
   question mtime answers; directory-level LWW would move a whole tree for one edited file; "seed
   only the first time" leaves the two copies to drift with no way back; and mixing a content digest
@@ -291,7 +305,12 @@ contradicts one of them is a bug, not a preference.
 - **Pairing, then a learned endpoint set**: the QR image (endpoints + fingerprint +
   PIN) is the recommended path; the PIN dialog is the fallback for a device without a scanner
   (desktop — the phone scans the computer's QR in the primary journey). Both leave a durable peer
-  record, and sync dials the endpoints that record remembers, best first.
+  record, and sync dials the endpoints that record remembers, best first. The set is capped at
+  `kMaxPeerEndpoints` (12): a user-typed address at the cap is **refused and said out loud** (it
+  never evicts an address this pair has actually synced over), the card offers the add gesture
+  whenever there is room — not only when the set is empty, which was the one state where a second
+  network could not be added at all — while automatic learning (pairing candidates, remembered
+  history) keeps the freshest twelve and reports what it dropped instead of discarding it silently.
 - **An address belongs to the (device, network) pair** (端点集): the same laptop is reachable at
   an office address, a home address and a phone hotspot, so a peer record holds up to **twelve**
   endpoints instead of one. An endpoint is a thing the user manages, not a line of text: it carries
@@ -563,9 +582,33 @@ contradicts one of them is a bug, not a preference.
   listener restarted, because the only sweep lived at the top of the very handler a pair refusing
   its own dials never reaches. A yielded session the peer has not pushed into within four seconds is
   therefore dropped before this device refuses its own round as busy, which makes a crossing cost
-  one attempt instead of a restart. A refusal as busy buys one retry after five seconds from **every**
-  trigger (a manual press and a finished pairing included, not just the automatic round), delayed by
-  an offset derived from this device's id so two colliding devices cannot retry in lockstep.
+  one attempt instead of a restart. A refusal as busy **or as superseded** buys one retry after five
+  seconds from **every** trigger (a manual press and a finished pairing included, not just the
+  automatic round), delayed by an offset derived from this device's id so two colliding devices
+  cannot retry in lockstep — plus a fresh random salt per attempt on the superseded path, because a
+  fixed offset is the same offset every time and a pair whose triggers keep landing in the same
+  instant would keep crossing. Two limits belong together here: the listener answers at most
+  `kMaxPingsInFlight` probes at once and one probe round asks at most `kSyncProbeConcurrency`
+  addresses, derived from the endpoint cap in `sync_limits.dart` so a peer's full address memory can
+  never saturate its own listener (which would answer `ping_busy`, i.e. "no verdict", for every
+  address the round was run to measure).
+- **A session is idle, not old (会话看空闲，不看年龄)**: the held session is dropped when nothing has
+  happened on it for two minutes, measured from the peer's last beat — a beat **in flight counts as
+  activity** however long it runs, because a first sync of a large library is one push beat lasting
+  minutes and killing it makes the peer's own next beat fail against a session the sweep deleted.
+  The other rule is the four-second one above (a yielded session never beaten). Both run before
+  `syncWithPeer` refuses a round, since a session nobody drives is what does the refusing.
+- **One push, then one fetch (先推后取)**: the fetch beat is the second half of a session and is
+  refused (`409 push_required`) without the push it belongs to — the responder's workspace ledger is
+  produced by that push, so answering anyway would persist an empty ledger, which reads next session
+  as "we never agreed about these files" (re-transfer) and turns a file deleted here into one the
+  peer never had. A beat that belongs to no live session is refused too (`409
+  sync_session_missing`), rather than surfacing as an internal 500.
+- **An advertisement lives inside its session (广告不跨会话)**: the files this device tells a peer it
+  can serve are a per-session promise: dropped when the initiator's round ends, when the peer is
+  unpaired or revokes, when a workspace is switched off, and at the next hello (the responder's table
+  has to outlive the fetch response, because the initiator pulls *after* it — the files are served
+  from that table by stamp-checked path).
 - **Every request is bounded**: a peer that stops answering costs one deadline, not the process.
   Client budgets are hello 60 s, push/fetch 20 min, blob 15 min of inactivity, pairing 60 s;
   server routes are bounded too (pair/hello 60 s, revoke 30 s, data routes 30 min), so a body that
@@ -600,7 +643,9 @@ contradicts one of them is a bug, not a preference.
   miss and one `ping_busy` are both forgiven: the first is a probe losing a race against a Wi-Fi
   that is waking up, the second is the listener saying "not now", and a dot that flickers gray
   every ten seconds is worse than one a tick stale. That forgiveness is also not only about the dot:
-  a `ping_busy` is stored as no verdict at all, so it can neither replace a measured latency on the
+  a `ping_busy` is stored as no verdict at all — on **every** path that stores a probe answer (the
+  tick and the round a session runs for itself share one choke point; the rule used to live on one
+  of them) — so it can neither replace a measured latency on the
   address's tile and detail nor stamp a fresh "last measured" on the peer record. The source is
   recorded, not just the verdict:
   an answered probe is fresh evidence about the *address* and becomes the stated source, a

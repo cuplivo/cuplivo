@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:Cuplivo/core/services/sync/sync_client.dart';
 import 'package:Cuplivo/core/services/sync/sync_endpoint_prober.dart';
+import 'package:Cuplivo/core/services/sync/sync_limits.dart';
 import 'package:Cuplivo/core/services/sync/sync_local_addresses.dart';
 import 'package:Cuplivo/core/services/sync/sync_models.dart';
 import 'package:Cuplivo/core/services/sync/sync_store.dart';
@@ -95,6 +96,72 @@ void main() {
       expect(
         await probePeerEndpoints(endpoints: const [], probe: (h, p) async {}),
         isEmpty,
+      );
+    });
+
+    test('the fan-out never exceeds the concurrency budget', () async {
+      // The budget is the listener's own probe cap (see `sync_limits.dart`): a
+      // round that asks more questions at once than any listener answers gets
+      // `ping_busy` back for the extra, and a `ping_busy` is a *no verdict*, so
+      // an unbounded fan-out quietly turns a full address set into "unknown".
+      final endpoints = [for (var i = 0; i < 8; i++) ('h$i', 9000 + i)];
+      final started = <(String, int)>[];
+      var inFlight = 0;
+      var peak = 0;
+
+      final results = await probePeerEndpoints(
+        endpoints: endpoints,
+        maxConcurrent: 3,
+        probe: (host, port) async {
+          inFlight++;
+          if (inFlight > peak) peak = inFlight;
+          started.add((host, port));
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+          inFlight--;
+        },
+      );
+
+      expect(results, hasLength(endpoints.length));
+      expect(
+        results.map((r) => r.endpoint),
+        unorderedEquals(endpoints),
+        reason: 'every endpoint is probed exactly once, choked or not',
+      );
+      expect(
+        started,
+        unorderedEquals(endpoints),
+        reason: 'the budget postpones a probe, it never drops one',
+      );
+      expect(
+        peak,
+        lessThanOrEqualTo(3),
+        reason: 'the whole set in flight is what the budget exists to stop',
+      );
+      expect(
+        peak,
+        3,
+        reason: 'and the chunk is actually full: a serial walk would peak at 1',
+      );
+    });
+
+    test('the default budget is the listener cap, not a second guess', () {
+      // The relationship the two limits have to satisfy, asserted rather than
+      // left to a comment: one peer's whole address memory must fit inside what
+      // its listener will answer at once.
+      expect(
+        kSyncProbeConcurrency,
+        lessThanOrEqualTo(kMaxPingsInFlight),
+        reason: 'a device must never saturate its own listener with one round',
+      );
+      expect(
+        kSyncProbeConcurrency,
+        kMaxPeerEndpoints,
+        reason: 'the whole set is one wave: the wait stays the slowest probe',
+      );
+      expect(
+        kMaxPingsInFlight,
+        greaterThanOrEqualTo(kMaxPeerEndpoints),
+        reason: 'the listener answers at least one peer\'s full fan-out',
       );
     });
   });

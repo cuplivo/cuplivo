@@ -21,6 +21,7 @@ import 'package:Cuplivo/core/services/sync/sync_data_plane.dart';
 import 'package:Cuplivo/core/services/sync/sync_endpoint_prober.dart';
 import 'package:Cuplivo/core/services/sync/sync_engine.dart';
 import 'package:Cuplivo/core/services/sync/sync_identity.dart';
+import 'package:Cuplivo/core/services/sync/sync_limits.dart';
 import 'package:Cuplivo/core/services/sync/sync_local_addresses.dart';
 import 'package:Cuplivo/core/services/sync/sync_models.dart';
 import 'package:Cuplivo/core/services/sync/sync_pair_qr.dart';
@@ -284,6 +285,7 @@ class _Side {
     this.clockOffsetUs = 0,
     this.workspaceMaxFiles = kMaxWorkspaceFiles,
     this.yieldedSessionTtl = SyncEngine.kYieldedSessionTtl,
+    this.now,
   });
 
   final String label;
@@ -303,6 +305,15 @@ class _Side {
   /// the peer's first beat — the production default, shrunk by the crossing
   /// test so it does not have to sit through the real window.
   final Duration yieldedSessionTtl;
+
+  /// How long a session this side has accepted may go untouched before its
+  /// sweep drops it. The production default everywhere: the tests that drive a
+  /// session's clock move *time*, which is what the rule is defined by.
+  final Duration sessionIdleTtl = SyncEngine.kSessionIdleTtl;
+
+  /// This side's wall clock, when a test needs to move time instead of waiting
+  /// for it. Null means the production `DateTime.now`.
+  final DateTime Function()? now;
 
   late final Directory dir;
   late final AppDatabase database;
@@ -561,6 +572,8 @@ class _Side {
       onStateChanged: () => stateChanges++,
       onProgressChanged: () => progressChanges++,
       yieldedSessionTtl: yieldedSessionTtl,
+      sessionIdleTtl: sessionIdleTtl,
+      now: now,
       clockUs: () => DateTime.now().microsecondsSinceEpoch + clockOffsetUs,
     );
     port = await engine.start(preferredPort: 0);
@@ -1531,7 +1544,13 @@ void main() {
     final refused = await b.engine.syncWithPeer(bPeer);
     expect(refused.success, isFalse);
     expect(refused.refusal, SyncRefusalReason.busy);
-    // The live session survived: its fetch beat still finds it.
+    // The live session survived: its push beat still finds it — and the push is
+    // what every session opens with, so the fetch beat below is the second half
+    // of a session rather than a beat out of nowhere.
+    await b.engine.handleApplySubtrees(
+      a.identity.deviceId,
+      const SyncDeltaBatch([]),
+    );
     await b.engine.handleFetchSubtrees(
       a.identity.deviceId,
       const SyncFetchRequest(),
@@ -1690,6 +1709,151 @@ void main() {
       await silentForB.close(force: true);
     }
   }, timeout: const Timeout(Duration(seconds: 90)));
+
+  test('a session that has just been beaten survives a sweep', () async {
+    // The round-2 review's first finding. The sweep keyed on age-since-hello, so
+    // a session that was *working* was removed by whatever ran next — the peer's
+    // own trigger, or this device's own foreground round — and the peer's next
+    // beat then failed against a session the sweep had deleted underneath it.
+    var clock = DateTime(2026, 1, 1, 12);
+    final a = _Side('a', now: () => clock);
+    final b = _Side('b');
+    await a.start(root);
+    await b.start(root);
+    sides.addAll([a, b]);
+    await pairSides(a, b);
+
+    expect(
+      await a.engine.handleHello(b.identity.deviceId, b.hello()),
+      isA<SyncHello>(),
+      reason: 'this device answers B, so it holds a live session for it',
+    );
+    expect(a.engine.hasResponderSession(b.identity.deviceId), isTrue);
+
+    // Beat at 2:29, sweep at 2:30: the session is older than the idle window and
+    // has been idle for one second. The peer is pointed at a dead address first,
+    // so a round that was *not* refused would come back `unreachable` instead of
+    // running a real session.
+    clock = clock.add(const Duration(minutes: 2, seconds: 29));
+    await a.engine.handleApplySubtrees(
+      b.identity.deviceId,
+      const SyncDeltaBatch([]),
+    );
+    clock = clock.add(const Duration(seconds: 1));
+    final peer = await a.peer(b);
+    _onlyEndpoint(peer, '127.0.0.1', 1);
+    await a.store.savePeer(peer);
+
+    // A local trigger — exactly what `SyncProvider.syncNow` does on a resume, a
+    // panel round, or a busy retry.
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(
+      a.engine.hasResponderSession(b.identity.deviceId),
+      isTrue,
+      reason: 'one second of idleness is not an abandoned session',
+    );
+    expect(
+      report.refusal,
+      SyncRefusalReason.busy,
+      reason: 'the live session is what refuses this device own round',
+    );
+
+    // And the session is still drivable: the peer's own next beat runs.
+    final batch = await a.engine.handleFetchSubtrees(
+      b.identity.deviceId,
+      const SyncFetchRequest(),
+    );
+    expect(batch.subtrees, isEmpty);
+  });
+
+  test(
+    'a session idle past the window is dropped and the round proceeds',
+    () async {
+      // The other half of the same rule, and the property the old sweep did have:
+      // a session nobody has touched is a session nobody will drive, and it must
+      // not hold the pair's single slot for the rest of the launch.
+      var clock = DateTime(2026, 1, 1, 12);
+      final a = _Side('a', now: () => clock);
+      final b = _Side('b');
+      await a.start(root);
+      await b.start(root);
+      sides.addAll([a, b]);
+      await pairSides(a, b);
+
+      expect(
+        await a.engine.handleHello(b.identity.deviceId, b.hello()),
+        isA<SyncHello>(),
+      );
+      final peer = await a.peer(b);
+      _onlyEndpoint(peer, '127.0.0.1', 1);
+      await a.store.savePeer(peer);
+
+      clock = clock.add(const Duration(minutes: 3));
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+
+      expect(
+        a.engine.hasResponderSession(b.identity.deviceId),
+        isFalse,
+        reason: 'three untouched minutes is an abandoned session',
+      );
+      expect(
+        report.refusal,
+        isNot(SyncRefusalReason.busy),
+        reason: 'the sweep runs before the refusal, or nothing clears it',
+      );
+      expect(report.failure, SyncFailureReason.unreachable);
+    },
+  );
+
+  test('a beat in flight is not swept, however long it runs', () async {
+    // The state the old single rule could not express: a first sync of a large
+    // library is one push beat that runs for minutes with no other traffic.
+    var clock = DateTime(2026, 1, 1, 12);
+    final gate = Completer<void>();
+    final insideBeat = Completer<void>();
+    final a = _Side('a');
+    final b = _Side('b', now: () => clock);
+    await a.start(root);
+    await b.start(
+      root,
+      midApplyWrite: (conversationId) {
+        if (!insideBeat.isCompleted) insideBeat.complete();
+        return gate.future;
+      },
+    );
+    sides.addAll([a, b]);
+    await pairSides(a, b);
+    await _seedConversation(a, id: 'conv-inflight', contents: ['big']);
+
+    final pending = a.engine.syncWithPeer(await a.peer(b));
+    await insideBeat.future;
+    expect(
+      b.engine.beatsInFlightFor(a.identity.deviceId),
+      1,
+      reason: 'B is inside the push beat this test is about',
+    );
+
+    // The push has now been running for longer than the whole idle window.
+    clock = clock.add(const Duration(minutes: 3));
+    final peer = await b.peer(a);
+    _onlyEndpoint(peer, '127.0.0.1', 1);
+    await b.store.savePeer(peer);
+    final round = await b.engine.syncWithPeer(peer);
+
+    expect(
+      b.engine.hasResponderSession(a.identity.deviceId),
+      isTrue,
+      reason: 'a beat in flight is activity, not idleness',
+    );
+    expect(round.refusal, SyncRefusalReason.busy);
+
+    // And the session survives to the end of its own work: the fetch beat that
+    // closes it is still served, so the push completes.
+    gate.complete();
+    final report = await pending;
+    expect(report.success, isTrue, reason: report.summary);
+    expect(b.engine.hasResponderSession(a.identity.deviceId), isFalse);
+  });
 
   test('a replaced database makes the peer re-send, not delete', () async {
     // A restore (or an overwrite import) replaces the local history wholesale.
@@ -4229,6 +4393,10 @@ void main() {
         ),
       );
       expect(hello.hello, isNotNull, reason: 'the peer answered the hello');
+      // The push beat first: every session is one push then one fetch, and the
+      // responder refuses a fetch that belongs to no push (`push_required`)
+      // rather than answering it from a ledger that was never produced.
+      await session.pushDelta(const SyncDeltaBatch([]));
       final batch = await session.fetchSubtrees(
         const SyncFetchRequest(conversationIds: ['c1']),
       );
@@ -4969,6 +5137,141 @@ void main() {
     },
   );
 
+  test('the switch keeps the folder a peer-driven deletion would take', () async {
+    // What "off" promises, at the one moment the promise is expensive: the peer
+    // deletes the workspace, so the row here goes with it — and the folder, which
+    // is this device's own, stays. Deleting it would make the switch mean
+    // "protected from transfers, removed when the peer tidies up".
+    final (a, b) = await pair();
+    await _putWorkspace(a, id: 'w1', kind: 'managed');
+    await a.putWorkspaceFile('w1', 'a.txt', 'aa', mtimeMs: 1000000);
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(await b.workspaceFileContent('w1', 'a.txt'), 'aa');
+    await b.workspaceContent.setEnabled('w1', false);
+
+    await ExtensionEntityStore(a.database).delete('workspace', 'w1');
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+
+    expect(
+      await _workspaceIds(b),
+      isEmpty,
+      reason: 'the row still follows the peer: the switch governs files only',
+    );
+    expect(
+      await b.workspaceFileContent('w1', 'a.txt'),
+      'aa',
+      reason: 'the switch protected the folder from the deletion',
+    );
+    expect(
+      (await b.peer(a)).lastReport?.workspaceFoldersKept,
+      1,
+      reason: 'and the session says so, so the protection is never silent',
+    );
+    expect(
+      report.workspaceFoldersKept,
+      0,
+      reason: 'this device deleted nothing, so it kept nothing',
+    );
+  });
+
+  test('an advertisement does not outlive the session that made it', () async {
+    final (a, b) = await pair();
+    await _putWorkspace(a, id: 'w1', kind: 'managed');
+    await a.putWorkspaceFile('w1', 'a.txt', 'aa', mtimeMs: 1000000);
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    expect(await b.workspaceFileContent('w1', 'a.txt'), 'aa');
+
+    // The initiator's table was published for the responder's reverse pulls
+    // *inside* that round; with the round over it promises nothing.
+    expect(
+      await a.workspaceContent.serve(
+        peerDeviceId: b.identity.deviceId,
+        workspaceId: 'w1',
+        relPath: 'a.txt',
+      ),
+      isNull,
+      reason: 'the round that advertised this file is over',
+    );
+
+    // The responder's table was published at the fetch beat, because the
+    // initiator pulls the files it was told about *after* that response: it has
+    // to outlive the beat, and it is dropped at the next hello instead — a table
+    // cleared when the response was written would 404 the pull it exists for.
+    expect(
+      await b.workspaceContent.serve(
+        peerDeviceId: a.identity.deviceId,
+        workspaceId: 'w1',
+        relPath: 'a.txt',
+      ),
+      isNotNull,
+      reason: 'the responder serves the pulls its own response invited',
+    );
+    expect(
+      await b.engine.handleHello(a.identity.deviceId, a.hello()),
+      isA<SyncHello>(),
+    );
+    expect(
+      await b.workspaceContent.serve(
+        peerDeviceId: a.identity.deviceId,
+        workspaceId: 'w1',
+        relPath: 'a.txt',
+      ),
+      isNull,
+      reason: 'a new session does not inherit the old advertisement',
+    );
+  });
+
+  test('a fetch beat without a push is refused and writes nothing', () async {
+    final (a, b) = await pair();
+    // B answers A's hello and then asks for its fetch beat without ever pushing:
+    // the shape a mismatched or broken peer produces, and the one that used to be
+    // answered from a session whose workspace ledger did not exist yet.
+    expect(
+      await a.engine.handleHello(b.identity.deviceId, b.hello()),
+      isA<SyncHello>(),
+    );
+
+    await expectLater(
+      a.engine.handleFetchSubtrees(
+        b.identity.deviceId,
+        const SyncFetchRequest(),
+      ),
+      throwsA(isA<SyncRequestRefusal>()),
+    );
+    expect(
+      File(
+        '${a.dir.path}/sync/checkpoints/${b.identity.deviceId}.json.gz',
+      ).existsSync(),
+      isFalse,
+      reason: 'a refused beat writes no checkpoint at all',
+    );
+  });
+
+  test('the fetch beat persists the ledger the push produced', () async {
+    final (a, b) = await pair();
+    await _putWorkspace(a, id: 'w1', kind: 'managed');
+    await a.putWorkspaceFile('w1', 'a.txt', 'aa', mtimeMs: 1000000);
+
+    // A pushes and B — the side that pulls — records what both now hold. Losing
+    // that record is not cosmetic: an empty ledger reads as "we never agreed",
+    // so the next session re-transfers the file, and a file this device deleted
+    // reads as one the peer never had.
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+
+    final ledger = (await b.store.loadCheckpoint(
+      a.identity.deviceId,
+    )).workspaceFiles;
+    expect(ledger.keys, ['w1']);
+    final agreed = ledger['w1']!['a.txt'];
+    expect(agreed, isNotNull);
+    expect(agreed!.mine.size, 2, reason: 'the bytes B landed');
+    expect(agreed.peer.size, 2, reason: 'the version A advertised');
+  });
+
   test(
     'the panel switch persists the choice and re-counts the folder',
     () async {
@@ -5050,7 +5353,12 @@ void main() {
       'user_name',
     );
 
-    expect(removed, isTrue);
+    expect(removed.removed, isTrue);
+    expect(
+      removed.folderKept,
+      isFalse,
+      reason: 'a preference has no folder behind it',
+    );
     expect(
       await a.businessRepository.syncReadPreferenceRows({'user_name'}),
       isEmpty,
@@ -6054,6 +6362,195 @@ void main() {
       isNotNull,
       reason: 'the address that answered keeps its figure',
     );
+  });
+
+  test('a session own probe round cannot erase a working figure', () async {
+    // The review's fourth finding: "a 503 is not a verdict" had two call sites —
+    // the tick and the round a session runs for itself — and the rule lived on
+    // one of them. The other overwrote the latency *and* its age, so a peer with
+    // enough addresses to make the probe matter would show "unjudged" for every
+    // address it had just answered from.
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    sides.addAll([a, b]);
+
+    final provider = await a.startProvider(
+      endpointProbe: (host, port) async {},
+    );
+    final pin = b.engine.openPairing();
+    await provider.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
+    await provider.refreshPresence();
+    final before = provider.probeResultFor(
+      b.identity.deviceId,
+      '127.0.0.1',
+      b.port,
+    );
+    expect(before?.answered, isTrue);
+
+    // The engine's own round, as the provider sees it: the consumer the engine
+    // was handed is invoked with a 503 for the address that just answered. That
+    // is the same call the session's fallback round makes (the network half of it
+    // is `syncEndpointProbe`'s, and is not what this rule is about).
+    final engine = provider.engine!;
+    engine.onProbes!(b.identity.deviceId, [
+      EndpointProbeResult(
+        host: '127.0.0.1',
+        port: b.port,
+        answered: false,
+        authenticated: false,
+        measuredAt: DateTime.now(),
+        errorCode: 'ping_busy',
+        noVerdict: true,
+      ),
+    ]);
+
+    final after = provider.probeResultFor(
+      b.identity.deviceId,
+      '127.0.0.1',
+      b.port,
+    );
+    expect(
+      after?.answered,
+      isTrue,
+      reason: 'a saturated listener is not a verdict on either path',
+    );
+    expect(
+      after?.measuredAt,
+      before?.measuredAt,
+      reason: 'and it does not re-stamp a figure nothing was learned about',
+    );
+
+    // The other direction, so the guard cannot pass by never storing anything: a
+    // silent answer *is* a verdict and does replace the figure.
+    engine.onProbes!(b.identity.deviceId, [
+      EndpointProbeResult(
+        host: '127.0.0.1',
+        port: b.port,
+        answered: false,
+        authenticated: false,
+        measuredAt: DateTime.now(),
+      ),
+    ]);
+    expect(
+      provider
+          .probeResultFor(b.identity.deviceId, '127.0.0.1', b.port)
+          ?.answered,
+      isFalse,
+      reason: 'silence about an address is evidence about it',
+    );
+  });
+
+  test('a peer at the address cap refuses one more, and says so', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    sides.addAll([a, b]);
+
+    final provider = await a.startProvider(
+      endpointProbe: (host, port) async =>
+          throw const SocketException('probe refused'),
+    );
+    final pin = b.engine.openPairing();
+    await provider.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
+
+    // Fill the set through the provider's own add path — the one the card's
+    // add-address affordance drives. One address (the pairing one) is there
+    // already.
+    for (var i = 1; i < kMaxPeerEndpoints; i++) {
+      expect(
+        await provider.addPeerEndpoint(b.identity.deviceId, '10.0.0.$i', 9527),
+        SyncEndpointAdd.added,
+      );
+    }
+    expect(
+      provider.peers.single.endpoints,
+      hasLength(kMaxPeerEndpoints),
+      reason: 'the set is exactly full, not silently trimmed below it',
+    );
+
+    expect(
+      await provider.addPeerEndpoint(b.identity.deviceId, '10.0.0.99', 9527),
+      SyncEndpointAdd.full,
+      reason: 'the cap is a refusal the caller can see, not a silent trim',
+    );
+    expect(
+      provider.peers.single.endpointFor('10.0.0.99', 9527),
+      isNull,
+      reason: 'the thirteenth address is not remembered',
+    );
+    expect(
+      (await SyncStore(a.dir).readPeer(b.identity.deviceId))!.endpoints,
+      hasLength(kMaxPeerEndpoints),
+      reason: 'and nothing over the cap reached the file either',
+    );
+    expect(
+      provider.peers.single.endpointFor('127.0.0.1', b.port),
+      isNotNull,
+      reason: 'a refused add does not displace the address that works',
+    );
+  });
+
+  test('a crossing arms one retry instead of waiting for the next round', () async {
+    // The pair whose rounds land in the same instant: each side yields to the
+    // other's hello, so neither client drives either session and both rounds end
+    // `superseded`. Nothing used to arm a retry for that, so the pair sat on a
+    // refused dial until the next automatic trigger a minute later — and if the
+    // two triggers kept landing together, forever.
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    sides.addAll([a, b]);
+    final provider = await a.startProvider(
+      addressSource: () async => const [],
+      endpointProbe: (host, port) async {},
+    );
+    final pin = b.engine.openPairing();
+    await provider.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
+
+    // A listener that completes the handshake and never answers a hello: A's
+    // round is in flight and provably unanswered.
+    final silent = await HttpServer.bindSecure(
+      InternetAddress.loopbackIPv4,
+      0,
+      b.identity.buildContext(),
+      requestClientCertificate: false,
+    );
+    try {
+      final drifted = await a.peer(b);
+      _onlyEndpoint(drifted, '127.0.0.1', silent.port);
+      await a.store.savePeer(drifted);
+      await provider.refreshPeers();
+
+      final pending = provider.syncNow(b.identity.deviceId);
+      final engine = provider.engine!;
+      await _waitUntil(
+        () async => engine.initiatorProgress.containsKey(b.identity.deviceId),
+      );
+
+      // B's hello lands while that dial is unanswered: A yields and answers.
+      expect(
+        await engine.handleHello(b.identity.deviceId, b.hello()),
+        isA<SyncHello>(),
+      );
+      await silent.close(force: true);
+      final report = await pending;
+      expect(report?.refusal, SyncRefusalReason.superseded);
+
+      expect(
+        provider.hasPendingRetry(b.identity.deviceId),
+        isTrue,
+        reason: 'the pair recovers by itself, not a minute later',
+      );
+    } finally {
+      await silent.close(force: true);
+    }
   });
 
   test('a measurement older than the freshness window is not reused', () async {

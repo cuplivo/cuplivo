@@ -6,6 +6,7 @@ import 'dart:math' as math;
 import '../../../core/providers/sync_provider.dart';
 import '../../../core/services/sync/sync_endpoint_prober.dart';
 import '../../../core/services/sync/sync_engine.dart';
+import '../../../core/services/sync/sync_limits.dart';
 import '../../../core/services/sync/sync_store.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
@@ -114,12 +115,24 @@ class SyncPeerCard extends StatelessWidget {
           const SizedBox(height: 10),
           if (peer.endpoints.isEmpty)
             _NoAddress(peer: peer, provider: provider)
-          else
+          else ...[
             _EndpointGrid(
               peer: peer,
               provider: provider,
               activeLabel: activeLabel,
             ),
+            // The card must not hide the repair behind a state the user is no
+            // longer in: it used to offer "add address" only while the set was
+            // *empty*, so a peer remembered at one address could never be given
+            // the second network it is about to be met on — the one case the
+            // feature exists for. Shown until the cap, where there is genuinely
+            // no room (and the add refuses rather than evicting a working
+            // address).
+            if (peer.endpoints.length < kMaxPeerEndpoints) ...[
+              const SizedBox(height: 8),
+              _AddAddressButton(peer: peer, provider: provider),
+            ],
+          ],
           // The first session after pairing moves the whole history at once and
           // needs both apps alive — the one moment the card owes a warning.
           if (busy && peer.lastSyncedAt == null) ...[
@@ -439,20 +452,56 @@ class _NoAddress extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        OutlinedButton.icon(
-          onPressed: () => _addAddress(context),
-          style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
-          icon: Icon(Lucide.Plus, size: 15),
-          label: Text(l10n.lanSyncAddAddress),
-        ),
+        _AddAddressButton(peer: peer, provider: provider),
       ],
+    );
+  }
+}
+
+/// The "add address" gesture, in both states: a peer with no address at all, and
+/// a peer whose remembered set is not full.
+///
+/// One widget for both, because it is one journey — type where the other device
+/// is, and this record remembers it — and the two states differ only in the
+/// sentence above it.
+class _AddAddressButton extends StatelessWidget {
+  const _AddAddressButton({required this.peer, required this.provider});
+
+  final SyncPeerRecord peer;
+  final SyncProvider provider;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return OutlinedButton.icon(
+      key: const ValueKey('syncPeerCardAddAddress'),
+      onPressed: () => _addAddress(context),
+      style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+      icon: Icon(Lucide.Plus, size: 15),
+      label: Text(l10n.lanSyncAddAddress),
     );
   }
 
   Future<void> _addAddress(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
     final saved = await showSyncEndpointAddressDialog(context: context);
     if (saved == null) return;
-    await provider.addPeerEndpoint(peer.deviceId, saved.host, saved.port);
+    final outcome = await provider.addPeerEndpoint(
+      peer.deviceId,
+      saved.host,
+      saved.port,
+    );
+    if (!context.mounted) return;
+    // A refusal has to be said out loud: the address the user just typed was not
+    // remembered, and the alternative to a line here is a save that quietly did
+    // nothing — which is what this used to be.
+    if (outcome == SyncEndpointAdd.full) {
+      showAppSnackBar(
+        context,
+        message: l10n.lanSyncAddressLimit(kMaxPeerEndpoints),
+        type: NotificationType.warning,
+      );
+    }
   }
 }
 

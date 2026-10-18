@@ -230,6 +230,15 @@ class _SuccessBreakdown extends StatelessWidget {
           Lucide.Folder,
           l10n.lanSyncReportWorkspacesOmitted(report.workspacesOmitted),
         ),
+      // A folder the switch protected from a peer-driven deletion is a fact the
+      // user has to be told: the workspace is gone from the app, and its files
+      // are not — which looks like a bug from the file manager and is a promise
+      // from here.
+      if (report.workspaceFoldersKept > 0)
+        (
+          Lucide.Folder,
+          l10n.lanSyncReportWorkspacesKept(report.workspaceFoldersKept),
+        ),
       if (report.deferred > 0)
         (Lucide.Hourglass, l10n.lanSyncReportDeferred(report.deferred)),
       if (report.clockSkewMs != null)

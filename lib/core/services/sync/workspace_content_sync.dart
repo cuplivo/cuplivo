@@ -228,6 +228,17 @@ class WorkspaceContentSync {
     return tables;
   }
 
+  /// Forgets what this device advertised to [peerDeviceId].
+  ///
+  /// Called when the session that published the table ends, and when the peer is
+  /// unpaired. The table is a *session's* promise — "inside this session, these
+  /// files are what I said I hold" — and a promise outliving the session that
+  /// made it is what let a file be served to a later request on the strength of
+  /// a walk taken before the user switched the workspace off.
+  void clearServed(String peerDeviceId) {
+    _served.remove(peerDeviceId);
+  }
+
   /// Publishes [snapshots] as the set this device will serve to
   /// [peerDeviceId] until the next publish. Called before the beat in which
   /// that peer may fetch, so a file the peer decides it needs is always one
@@ -428,19 +439,26 @@ class WorkspaceContentSync {
   /// choice changed. The workspace *row* is untouched by this either way: the
   /// record always travels, because a row this device stops publishing would be
   /// read by the peer as a deletion (see `planRowSync`'s `peerDeletes`).
+  ///
+  /// The change goes through the store's serialized mutation rather than a read
+  /// and a write here: the set is one file holding every workspace's choice, so
+  /// two toggles landing at once — the panel's switch and a session's own read
+  /// of the same file — must not be able to lose one of them. Turning one
+  /// workspace off also drops the table this device advertised for the peer that
+  /// just synced it: a switch flipped mid-session must not leave the old
+  /// advertisement servable.
   Future<bool> setEnabled(String workspaceId, bool enabled) async {
     if (workspaceId.isEmpty) return false;
-    final disabled = {...await store.readWorkspaceContentDisabled()};
-    final wasDisabled = disabled.contains(workspaceId);
-    if (enabled) {
-      if (!wasDisabled) return false;
-      disabled.remove(workspaceId);
-    } else {
-      if (wasDisabled) return false;
-      disabled.add(workspaceId);
+    final changed = await store.mutateWorkspaceContentDisabled((disabled) {
+      if (enabled) return disabled.remove(workspaceId);
+      return disabled.add(workspaceId);
+    });
+    if (changed && !enabled) {
+      // The advertisement is per session, and this is the one caller that can
+      // invalidate it while a session is still open.
+      _served.clear();
     }
-    await store.writeWorkspaceContentDisabled(disabled);
-    return true;
+    return changed;
   }
 
   // ---- internals ----

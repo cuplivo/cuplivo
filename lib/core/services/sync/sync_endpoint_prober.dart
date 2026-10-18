@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'sync_client.dart';
+import 'sync_limits.dart';
 import 'sync_local_addresses.dart';
 import 'sync_models.dart';
 import 'sync_store.dart';
@@ -102,12 +103,21 @@ EndpointProbeFn syncEndpointProbe(
   };
 }
 
-/// Probes every endpoint of one peer at once and reports each one separately.
+/// Probes every endpoint of one peer, at most [maxConcurrent] at a time, and
+/// reports each one separately.
 ///
-/// The wait is the slowest probe, not their sum, and each endpoint keeps its
-/// own answer: collapsing N endpoints into one boolean is what made the panel
-/// able to show only "one of these works", with no latency and no way to tell a
-/// dead address from a slow one.
+/// The wait is the slowest probe of each wave, not their sum, and each endpoint
+/// keeps its own answer: collapsing N endpoints into one boolean is what made
+/// the panel able to show only "one of these works", with no latency and no way
+/// to tell a dead address from a slow one.
+///
+/// [maxConcurrent] is the listener's own cap, not a performance knob (see
+/// `sync_limits.dart`): a device that asks more questions at once than its peer
+/// answers gets `ping_busy` back, which is a *no verdict* — so an unbounded
+/// fan-out over a full address set disables exactly the measurement the round
+/// was run for, and reports every address as unjudged. The default is therefore
+/// the shared budget, and the set is chunked rather than fanned out when a
+/// caller has more to ask than that.
 ///
 /// A probe classifies the address *and* the pairing, because it is an
 /// authenticated request: whatever answers is pinned to the peer's certificate
@@ -117,12 +127,26 @@ Future<List<EndpointProbeResult>> probePeerEndpoints({
   required List<(String, int)> endpoints,
   required EndpointProbeFn probe,
   DateTime Function()? now,
+  int maxConcurrent = kSyncProbeConcurrency,
 }) async {
   if (endpoints.isEmpty) return const [];
+  assert(maxConcurrent > 0, 'a probe round asks at least one endpoint');
   final clock = now ?? DateTime.now;
-  return Future.wait([
-    for (final (host, port) in endpoints) _probeOne(probe, host, port, clock),
-  ]);
+  final results = <EndpointProbeResult>[];
+  for (var start = 0; start < endpoints.length; start += maxConcurrent) {
+    final wave = endpoints.sublist(
+      start,
+      start + maxConcurrent > endpoints.length
+          ? endpoints.length
+          : start + maxConcurrent,
+    );
+    results.addAll(
+      await Future.wait([
+        for (final (host, port) in wave) _probeOne(probe, host, port, clock),
+      ]),
+    );
+  }
+  return results;
 }
 
 Future<EndpointProbeResult> _probeOne(

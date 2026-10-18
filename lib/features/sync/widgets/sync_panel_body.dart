@@ -330,10 +330,12 @@ Widget _divider() => const Divider(height: 1, thickness: 0.5, indent: 12);
 /// One workspace: its name, what it holds, its state, and the switch that
 /// decides whether its files sync at all.
 ///
-/// The switch governs the *folder* only. The workspace's record always travels
-/// — a row this device stopped publishing would be read by the peer as a
-/// deletion of its own workspace — so "off" here means "my files stay mine",
-/// never "this workspace disappears".
+/// The switch governs the *folder* only, in both directions. The workspace's
+/// record always travels — a row this device stopped publishing would be read by
+/// the peer as a deletion of its own workspace — so "off" here means "my files
+/// stay mine": they are never sent, and a peer-driven deletion of the workspace
+/// takes the row here without taking the folder (the session report says how
+/// many folders that protected).
 class _WorkspaceRow extends StatelessWidget {
   const _WorkspaceRow({required this.summary, required this.onChanged});
 

@@ -511,6 +511,13 @@ class SyncPeerReport {
   final int workspaceConflicts;
   final int workspaceFilesMissing;
 
+  /// Workspace *folders* this device deliberately did not remove after the peer
+  /// deleted the workspace's row, because the user had switched content sync off
+  /// for it. Counted so the protection is visible rather than inferred: the row
+  /// really is gone, and the folder really is still on disk, and the only place
+  /// that can say so is this report.
+  final int workspaceFoldersKept;
+
   /// Workspaces this device shared no content for this session: turned off, or
   /// over the file/byte caps. Counted because silence about a workspace the
   /// user believes is syncing is the one failure mode this face must never
@@ -554,6 +561,7 @@ class SyncPeerReport {
     this.workspaceFilesRemoved = 0,
     this.workspaceConflicts = 0,
     this.workspaceFilesMissing = 0,
+    this.workspaceFoldersKept = 0,
     this.workspacesOmitted = 0,
     this.entityRowsLost = 0,
     this.preferencesLost = 0,
@@ -582,6 +590,7 @@ class SyncPeerReport {
     'workspaceFilesRemoved': workspaceFilesRemoved,
     'workspaceConflicts': workspaceConflicts,
     'workspaceFilesMissing': workspaceFilesMissing,
+    'workspaceFoldersKept': workspaceFoldersKept,
     'workspacesOmitted': workspacesOmitted,
     'entityRowsLost': entityRowsLost,
     'preferencesLost': preferencesLost,
@@ -612,6 +621,7 @@ class SyncPeerReport {
     workspaceConflicts: (json['workspaceConflicts'] as num?)?.toInt() ?? 0,
     workspaceFilesMissing:
         (json['workspaceFilesMissing'] as num?)?.toInt() ?? 0,
+    workspaceFoldersKept: (json['workspaceFoldersKept'] as num?)?.toInt() ?? 0,
     workspacesOmitted: (json['workspacesOmitted'] as num?)?.toInt() ?? 0,
     entityRowsLost: (json['entityRowsLost'] as num?)?.toInt() ?? 0,
     preferencesLost: (json['preferencesLost'] as num?)?.toInt() ?? 0,

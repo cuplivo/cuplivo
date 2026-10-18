@@ -22671,7 +22671,7 @@ abstract class AppLocalizations {
   /// No description provided for @lanSyncWorkspaceTip.
   ///
   /// In en, this message translates to:
-  /// **'Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files or 200 MB don\'t sync their files. A workspace\'s record always syncs — the switch governs only its files.'**
+  /// **'Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files or 200 MB don\'t sync their files. A workspace\'s record always syncs — the switch governs only its files: a folder with the switch off is never sent, and a sync never removes it.'**
   String get lanSyncWorkspaceTip;
 
   /// No description provided for @lanSyncWorkspaceSyncing.
@@ -23046,6 +23046,12 @@ abstract class AppLocalizations {
   /// **'{count} workspaces not syncing files'**
   String lanSyncReportWorkspacesOmitted(Object count);
 
+  /// No description provided for @lanSyncReportWorkspacesKept.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} workspace folders kept (switch off)'**
+  String lanSyncReportWorkspacesKept(Object count);
+
   /// No description provided for @lanSyncReportRowsLost.
   ///
   /// In en, this message translates to:
@@ -23219,6 +23225,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add address'**
   String get lanSyncAddAddress;
+
+  /// No description provided for @lanSyncAddressLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'This device already remembers {count} addresses for that device. Remove one before adding another.'**
+  String lanSyncAddressLimit(Object count);
 
   /// No description provided for @lanSyncRenameEndpointTitle.
   ///

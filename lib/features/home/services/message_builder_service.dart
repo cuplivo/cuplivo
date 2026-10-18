@@ -11,6 +11,7 @@ import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/message_part.dart';
+import '../../../core/models/message_quote.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/models/world_book.dart';
 import '../../../core/models/conversation_prompt_settings.dart';
@@ -1376,10 +1377,22 @@ class MessageBuilderService {
         sourceMessages: sourceMessages,
       );
 
+      // The reply citation is folded into the body *before* the prompt is
+      // assembled, so it freezes with the memory prefix and template into
+      // message_prompt_rows: what was sent stays what is replayed
+      // (docs/adr/0012), and the prompt cache keeps its prefix.
+      final citedBody = await _withReplyCitation(
+        processedBody,
+        message: chatMessage,
+        revisionId: revisionId,
+        conversation: conversation,
+        sourceMessages: sourceMessages,
+      );
+
       if (conversation != null && chatMessage != null) {
         apiMessages[i]['content'] = await resolvePromptContent(
           message: chatMessage,
-          processedUserBody: processedBody,
+          processedUserBody: citedBody,
           assistant: assistant,
           conversation: conversation,
           settings: settings,
@@ -1399,7 +1412,7 @@ class MessageBuilderService {
         var content = PromptTransformer.applyMessageTemplate(
           templ,
           role: 'user',
-          message: processedBody,
+          message: citedBody,
           now: now,
         );
         if (assistant?.appendCurrentTimeToUserMessage == true) {
@@ -1565,6 +1578,104 @@ class MessageBuilderService {
       if (candidate.id == revisionId) return candidate;
     }
     return null;
+  }
+
+  /// [body] with this message's reply citation in front of it, or [body]
+  /// unchanged when the message carries no reply or its target cannot be
+  /// grounded (docs/adr/0012).
+  ///
+  /// The citation reaches the model as raw markdown: the span the reply stored,
+  /// or the target's own content for a whole-message reply. The one-line chip a
+  /// reader sees is the renderer's display space of that same text; the model
+  /// never receives a display-derived string.
+  Future<String> _withReplyCitation(
+    String body, {
+    required ChatMessage? message,
+    required String revisionId,
+    required Conversation? conversation,
+    required List<ChatMessage>? sourceMessages,
+  }) async {
+    final quote = message != null
+        ? message.quote
+        : await _storedQuote(revisionId);
+    if (quote == null) return body;
+    final citation = await _replyToCitation(
+      quote,
+      // A citation is resolved inside the conversation that carries it. The
+      // database fallback cannot tell one conversation's row from another's,
+      // so it is only reached with an owner to scope it (docs/adr/0012).
+      conversationId: message?.conversationId ?? conversation?.id,
+      conversation: conversation,
+      sourceMessages: sourceMessages,
+    );
+    if (citation == null || citation.trim().isEmpty) return body;
+    final block = '<reply-to>${citation.trim()}</reply-to>';
+    return body.trim().isEmpty ? block : '$block\n\n$body';
+  }
+
+  /// The citation text for [quote]: the reply's own span when it carries one,
+  /// else the live whole-message target.
+  ///
+  /// An unresolvable target yields no citation at all: the UI's "the original
+  /// message is gone" stub is UI language, never model language.
+  Future<String?> _replyToCitation(
+    MessageQuote quote, {
+    required String? conversationId,
+    required Conversation? conversation,
+    required List<ChatMessage>? sourceMessages,
+  }) async {
+    final stored = quote.text;
+    if (stored != null && stored.trim().isNotEmpty) return stored;
+    final target = await _quoteTarget(
+      quote.id,
+      conversationId: conversationId,
+      conversation: conversation,
+      sourceMessages: sourceMessages,
+    );
+    final content = target?.content;
+    if (content == null || content.trim().isEmpty) return null;
+    return content;
+  }
+
+  /// The quoted message: the request's own stream first, then the conversation
+  /// cache, and finally the database — a citation of a message that has scrolled
+  /// out of the loaded window still has to ground.
+  ///
+  /// The database step is scoped to [conversationId]; it is skipped when there is
+  /// no conversation to scope it to, because a citation that grounds outside its
+  /// own conversation is worse than a citation that does not ground at all.
+  Future<ChatMessage?> _quoteTarget(
+    String id, {
+    required String? conversationId,
+    required Conversation? conversation,
+    required List<ChatMessage>? sourceMessages,
+  }) async {
+    if (id.isEmpty) return null;
+    if (sourceMessages != null) {
+      for (final candidate in sourceMessages) {
+        if (candidate.id == id) return candidate;
+      }
+    }
+    if (conversation != null) {
+      for (final candidate in chatService.getMessages(conversation.id)) {
+        if (candidate.id == id) return candidate;
+      }
+    }
+    if (conversationId == null) return null;
+    return _repo?.getMessageInConversation(conversationId, id);
+  }
+
+  /// The reply citation stored on [revisionId]'s row, for the paths where the
+  /// request never resolved a [ChatMessage] for it.
+  ///
+  /// [revisionId] is the row **being sent**, not a citation target, so this read
+  /// is not scoped to a conversation: a primary key names one row everywhere, and
+  /// there is no second conversation it could be confused with. The target of the
+  /// citation it returns is what gets scoped ([_replyToCitation]).
+  Future<MessageQuote?> _storedQuote(String revisionId) async {
+    if (revisionId.isEmpty) return null;
+    final stored = await _repo?.getMessage(revisionId);
+    return stored?.quote;
   }
 
   /// §8.3 immutability contract: return frozen payload or assemble + freeze.

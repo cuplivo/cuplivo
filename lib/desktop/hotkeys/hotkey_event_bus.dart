@@ -11,6 +11,7 @@ enum HotkeyAction {
   toggleLeftPanelTopics,
   focusInput,
   copySelectionMarkdown,
+  replySelection,
 }
 
 class HotkeyEventBus {

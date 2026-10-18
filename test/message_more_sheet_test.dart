@@ -11,12 +11,13 @@ import 'package:Cuplivo/l10n/app_localizations.dart';
 
 import 'support/business_test_harness.dart';
 
-ChatMessage _message({String id = 'message-1'}) {
+ChatMessage _message({String id = 'message-1', bool isStreaming = false}) {
   return ChatMessage(
     id: id,
     role: 'assistant',
     content: 'hello',
     conversationId: 'conversation-1',
+    isStreaming: isStreaming,
   );
 }
 
@@ -25,6 +26,7 @@ Future<void> _openMoreSheet(
   required bool canDeleteAllVersions,
   bool canCreateBranch = true,
   String messageId = 'message-1',
+  bool isStreaming = false,
 }) async {
   await tester.pumpWidget(
     // The sheet's tiles are IosCardPress, which reads the haptics preference.
@@ -45,7 +47,7 @@ Future<void> _openMoreSheet(
                 onPressed: () {
                   showMessageMoreSheet(
                     context,
-                    _message(id: messageId),
+                    _message(id: messageId, isStreaming: isStreaming),
                     canDeleteAllVersions: canDeleteAllVersions,
                     canCreateBranch: canCreateBranch,
                   );
@@ -152,5 +154,24 @@ void main() {
     } finally {
       debugDefaultTargetPlatformOverride = null;
     }
+  });
+
+  testWidgets('a settled message offers Reply', (tester) async {
+    await _openMoreSheet(tester, canDeleteAllVersions: false);
+
+    expect(find.text('Reply'), findsOneWidget);
+  });
+
+  testWidgets('a streaming message offers no Reply', (tester) async {
+    // The whole-message citation would freeze a reply that is still being
+    // written, so the entry is withheld (docs/adr/0012).
+    await _openMoreSheet(
+      tester,
+      canDeleteAllVersions: false,
+      isStreaming: true,
+    );
+
+    expect(find.text('Select Messages'), findsOneWidget);
+    expect(find.text('Reply'), findsNothing);
   });
 }

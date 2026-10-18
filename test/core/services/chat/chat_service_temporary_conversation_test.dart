@@ -1,6 +1,7 @@
 import 'package:Cuplivo/core/models/composer_draft.dart';
 import 'package:Cuplivo/core/models/chat_input_data.dart';
 import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/message_quote.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/models/token_usage.dart';
@@ -2759,6 +2760,63 @@ void main() {
       );
     },
   );
+
+  test(
+    'a reply citation survives the composer submission into the message row',
+    () async {
+      final service = createService();
+      await service.init();
+      final conversation = await service.createDraftConversation();
+      final drafts = service.composerDrafts!;
+      await drafts.load(conversation.id);
+      const quote = MessageQuote(id: 'quoted-message', text: '**quoted** span');
+      const input = ComposerDraftInput(
+        text: 'reply text',
+        quote: quote,
+        quoteLabel: 'quoted span',
+      );
+      final ref = await drafts.beginSubmission(conversation.id, input);
+      final prepared = await drafts.prepareSubmissionInput(
+        input.toInput(submission: ref),
+      );
+      // The prepared input is what the send path carries: rebuilding it without
+      // the citation loses both the bubble's chip and the model's <reply-to>
+      // (docs/adr/0012).
+      expect(prepared.quote, quote);
+      expect(prepared.text, 'reply text');
+
+      await service.beginSendGeneration(
+        conversationId: conversation.id,
+        userParts: [TextPart('reply text')],
+        modelId: 'model',
+        providerId: 'provider',
+        draftSubmission: ref,
+        quote: prepared.quote,
+      );
+      await drafts.finishSubmission(ref);
+      final sent = (await service.loadMessages(
+        conversation.id,
+      )).singleWhere((message) => message.role == 'user');
+      expect(sent.quote, quote);
+    },
+  );
+
+  test('a whole-message citation stays text-less through submission', () async {
+    final service = createService();
+    await service.init();
+    final conversation = await service.createDraftConversation();
+    final drafts = service.composerDrafts!;
+    await drafts.load(conversation.id);
+    const quote = MessageQuote(id: 'quoted-message');
+    const input = ComposerDraftInput(text: 'reply text', quote: quote);
+    final ref = await drafts.beginSubmission(conversation.id, input);
+    final prepared = await drafts.prepareSubmissionInput(
+      input.toInput(submission: ref),
+    );
+    expect(prepared.quote, quote);
+    expect(prepared.quote!.hasText, isFalse);
+    expect(prepared.quote!.text, isNull);
+  });
 
   test(
     'deleting an owner prevents a prepared submission from recreating it',

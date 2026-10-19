@@ -60,8 +60,8 @@ contradicts one of them is a bug, not a preference.
   link never creates a conversation. An id is an opaque row key — the grammar carries whatever a
   stored conversation or message has, percent-encoded, and `ConversationLink.supportsId` is the one
   rule the writer and the parser share, so no copied link is ever one the parser would refuse. Only
-  a platform that registers `cuplivo` offers the copy action (`ConversationLink.osRegistered`; iOS
-  today).
+  a platform that registers `cuplivo` offers the copy action (`ConversationLink.osRegistered`;
+  Android and iOS today).
 - **Side-by-side installs**: the applicationId differs from both Kelivo and Cuplivo 3.x, so
   installs coexist and never overwrite each other. Data migration is therefore *not* implemented;
   restoring a backup is the supported path between them.

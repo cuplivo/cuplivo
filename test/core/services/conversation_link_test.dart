@@ -214,12 +214,39 @@ void main() {
     );
   });
 
-  test('the Android manifest declares the scheme the links are written with', () {
+  test('the Android manifest resolves cuplivo links from a browsable filter', () {
     // The Kotlin suite resolves a cuplivo:// BROWSABLE intent against the merged
     // manifest, but CI runs only flutter test, so the declaration is pinned here.
+    // Scoping to the filter is the point: a scheme that merely appears somewhere
+    // in the file resolves nothing, and dropping a category or moving <data>
+    // into another filter silently breaks the tap without changing the scheme.
     final manifest = File(
       'android/app/src/main/AndroidManifest.xml',
     ).readAsStringSync();
-    expect(manifest, contains('android:scheme="${ConversationLink.scheme}"'));
+    final data = manifest.indexOf(
+      '<data android:scheme="${ConversationLink.scheme}"',
+    );
+    expect(data, isNonNegative, reason: 'no cuplivo <data> declaration');
+    final start = manifest.lastIndexOf('<intent-filter', data);
+    final end = manifest.indexOf('</intent-filter>', data);
+    expect(start, isNonNegative);
+    expect(end, greaterThan(start));
+
+    final filter = manifest.substring(start, end);
+    expect(filter, contains('android.intent.action.VIEW'));
+    expect(filter, contains('android.intent.category.DEFAULT'));
+    expect(filter, contains('android.intent.category.BROWSABLE'));
+
+    // Deep links stay on app.mobile_background, not Flutter's router: without
+    // this the URL would become the initial route (deeplinking defaults to on).
+    final meta = manifest.indexOf('android:name="flutter_deeplinking_enabled"');
+    expect(meta, isNonNegative);
+    expect(
+      manifest.substring(
+        manifest.lastIndexOf('<meta-data', meta),
+        manifest.indexOf('>', meta),
+      ),
+      contains('android:value="false"'),
+    );
   });
 }

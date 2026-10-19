@@ -26,11 +26,11 @@ class ConversationLink {
   final String? messageId;
 
   /// True where the OS has this scheme registered, i.e. where a link this app
-  /// copies actually opens this app when the user taps it. Enabling another
-  /// platform means registering the scheme *and* adding it here:
-  /// Android `AndroidManifest.xml`, macOS `Runner/Info.plist`, the Windows
-  /// installer's registry entry, Linux's `.desktop` MimeType. iOS registers
-  /// `cuplivo` in `ios/Runner/Info.plist`.
+  /// copies actually opens this app when the user taps it. Android registers
+  /// `cuplivo` in `AndroidManifest.xml` and iOS in `ios/Runner/Info.plist`;
+  /// enabling another platform means registering the scheme *and* adding it
+  /// here (macOS `Runner/Info.plist`, the Windows installer's registry entry,
+  /// Linux's `.desktop` MimeType).
   static bool get osRegistered =>
       defaultTargetPlatform == TargetPlatform.iOS ||
       defaultTargetPlatform == TargetPlatform.android;

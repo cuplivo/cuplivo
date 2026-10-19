@@ -113,6 +113,63 @@ void main() {
       expect(tables!['message_rows']!.single['id'], 'c1-m1');
     });
 
+    test('a group rides the envelope, and its absence stays null', () async {
+      final group = RecycleGroup(id: 'g1', label: '代码审查员');
+      final grouped = await store.stageRows(
+        type: RecycleEntryType.conversation,
+        origin: RecycleOrigin.local,
+        reason: RecycleReason.deleted,
+        key: 'c1',
+        title: 'Chat c1',
+        group: group,
+        tables: {
+          'conversation_rows': [
+            {'id': 'c1', 'title': 'Chat c1'},
+          ],
+        },
+      );
+      final plain = await stageEntity('a1');
+
+      final listed = await store.list();
+      final readBack = listed.firstWhere((entry) => entry.id == grouped!.id);
+      expect(readBack.group, isNotNull);
+      expect(readBack.group!.id, 'g1');
+      expect(readBack.group!.label, '代码审查员');
+      expect(listed.firstWhere((entry) => entry.id == plain!.id).group, isNull);
+    });
+
+    test('a group label that is too long is cut, like a title', () async {
+      final long = 'x' * 400;
+      await store.stageRows(
+        type: RecycleEntryType.conversation,
+        origin: RecycleOrigin.local,
+        reason: RecycleReason.deleted,
+        key: 'c1',
+        title: 'Chat',
+        group: RecycleGroup(id: 'g1', label: long),
+        tables: {
+          'conversation_rows': [
+            {'id': 'c1'},
+          ],
+        },
+      );
+
+      final listed = (await store.list()).single;
+      expect(listed.group!.label, hasLength(200));
+    });
+
+    test('a body that is gone reads as null, not as empty tables', () async {
+      final entry = await stageConversation('c1');
+      final body = File(p.join(root.path, entry!.id, 'body.json'));
+      expect(await body.exists(), isTrue);
+
+      await body.delete();
+
+      expect(await store.readTables(entry), isNull);
+      // A moved file is the other body shape, and a row entry has none.
+      expect(await store.bodyFile(entry), isNull);
+    });
+
     test('listing collapses entries that staged the same identity', () async {
       final first = await stageEntity('a1', title: 'First');
       await Future<void>.delayed(const Duration(milliseconds: 2));
@@ -254,6 +311,30 @@ void main() {
 
       expect(entry, isNull);
       expect(await store.list(), isEmpty);
+    });
+
+    test('concurrent writes are never reaped by each other\'s sweep', () async {
+      // The shape an assistant's cascade produces: several detached writes, each
+      // of which runs eviction when it lands, so one write's sweep scans while
+      // its siblings are still filling their `.tmp-` directories. A sweep that
+      // treats those as crash leftovers silently loses entries the bin was asked
+      // to keep — so this stages a batch, sweeps in the middle of it, and
+      // demands every entry in the batch.
+      for (var round = 0; round < 6; round++) {
+        final keys = [for (var i = 0; i < 4; i++) 'r$round-$i'];
+        await Future.wait<void>([
+          for (final key in keys) stageEntity(key),
+          store.evict(),
+        ]);
+
+        final listed = (await store.list()).map((entry) => entry.key).toSet();
+        expect(
+          keys.where(listed.contains),
+          keys,
+          reason: 'round $round lost a write that was in flight',
+        );
+        await store.clear();
+      }
     });
   });
 }

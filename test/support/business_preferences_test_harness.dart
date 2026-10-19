@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:Cuplivo/core/database/app_database.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/core/services/recycle/recycle_service.dart';
 import 'package:drift/native.dart';
 
 final class BusinessPreferencesTestHarness {
@@ -23,11 +24,25 @@ final class BusinessPreferencesTestHarness {
     );
   }
 
-  Future<BusinessPreferencesTestSession> open() async {
+  /// Opens one session over the harness's database file.
+  ///
+  /// [recycle] is opt-in, exactly as the gateway's `recycleFactory` is: the
+  /// default session stages nothing, and only a test about the bin passes a
+  /// service — which also owns the bin directory it writes to.
+  Future<BusinessPreferencesTestSession> open({
+    RecycleService Function(AppDatabase database)? recycle,
+  }) async {
     final database = AppDatabase(NativeDatabase(file));
-    final preferences = BusinessPreferences(BusinessRepository(database));
+    final bin = recycle?.call(database);
+    final preferences = BusinessPreferences(
+      BusinessRepository(database, recycle: bin),
+    );
     await preferences.load();
-    final session = BusinessPreferencesTestSession._(database, preferences);
+    final session = BusinessPreferencesTestSession._(
+      database,
+      preferences,
+      bin,
+    );
     _sessions.add(session);
     return session;
   }
@@ -41,10 +56,19 @@ final class BusinessPreferencesTestHarness {
 }
 
 final class BusinessPreferencesTestSession {
-  BusinessPreferencesTestSession._(this.database, this.preferences);
+  BusinessPreferencesTestSession._(
+    this.database,
+    this.preferences,
+    this.recycle,
+  );
 
   final AppDatabase database;
   final BusinessPreferences preferences;
+
+  /// The bin this session's repository stages into, when [open] was given one.
+  /// A test that asserts what the bin holds settles it first: the write is
+  /// detached from the operation that fed it.
+  final RecycleService? recycle;
   bool _closed = false;
 
   Future<void> close() async {

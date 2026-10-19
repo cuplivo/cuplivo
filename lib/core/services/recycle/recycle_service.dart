@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
@@ -76,6 +77,7 @@ final class RecycleService {
   Future<void> stageConversationDeletion(
     String conversationId, {
     required RecycleOrigin origin,
+    RecycleGroup? group,
   }) async {
     if (conversationId.isEmpty) return;
     try {
@@ -91,6 +93,7 @@ final class RecycleService {
           key: conversationId,
           title: title is String ? title : '',
           tables: tables,
+          group: group,
         ),
       );
     } catch (error) {
@@ -107,6 +110,7 @@ final class RecycleService {
     String id, {
     required RecycleOrigin origin,
     required RecycleReason reason,
+    RecycleGroup? group,
   }) async {
     if (id.isEmpty) return;
     try {
@@ -125,6 +129,7 @@ final class RecycleService {
           tables: {
             kind.tableName: [row],
           },
+          group: group,
         ),
       );
     } catch (error) {
@@ -137,6 +142,7 @@ final class RecycleService {
     String key, {
     required RecycleOrigin origin,
     required RecycleReason reason,
+    RecycleGroup? group,
   }) async {
     if (key.isEmpty) return;
     try {
@@ -157,6 +163,7 @@ final class RecycleService {
           tables: {
             'preference_rows': [Map<String, Object?>.from(row.data)],
           },
+          group: group,
         ),
       );
     } catch (error) {
@@ -255,6 +262,15 @@ final class RecycleService {
 
   /// Empties the bin.
   Future<void> clear() => _store.clear();
+
+  /// What one entry holds, for the detail view: the staged tables, or null when
+  /// the body is unreadable (or is a moved file, which [bodyFile] serves).
+  Future<Map<String, List<Map<String, Object?>>>?> readTables(
+    RecycleEntry entry,
+  ) => _store.readTables(entry);
+
+  /// The moved file of a workspace-file entry, or null when it is gone.
+  Future<File?> bodyFile(RecycleEntry entry) => _store.bodyFile(entry);
 
   /// Brings one entry back, and retires every entry that staged the same
   /// identity so a recovered row cannot also be recovered twice.

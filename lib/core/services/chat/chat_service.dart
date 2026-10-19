@@ -32,6 +32,7 @@ import '../../models/message_quote.dart';
 import '../../models/conversation.dart';
 import '../../models/workspace_binding.dart';
 import '../proactive_care_alarm_service.dart';
+import '../recycle/recycle_service.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import '../../../utils/app_directories.dart';
 
@@ -1991,11 +1992,12 @@ class ChatService extends ChangeNotifier {
   Future<bool> _deletePersistedConversation(
     String id, {
     bool bump = true,
+    RecycleGroup? group,
   }) async {
     final conversation = _conversationsCache[id];
     if (conversation == null) return false;
 
-    await _repo.deleteConversation(id);
+    await _repo.deleteConversation(id, group: group);
     _conversationsCache.remove(id);
     // Stop any deferred/in-flight order backfill before clearing caches so a
     // late getMessageIds cannot resurrect order/count for a deleted id.
@@ -2030,7 +2032,18 @@ class ChatService extends ChangeNotifier {
     return true;
   }
 
-  Future<void> deleteConversationsForAssistant(String assistantId) async {
+  /// Deletes every conversation an assistant owns, as part of deleting that
+  /// assistant.
+  ///
+  /// [group] is stamped on each staged conversation so the bin can show them as
+  /// what they are: the conversations one deletion took with it. The assistant's
+  /// own row is staged by the entity path, which a group cannot reach (it rides
+  /// the generic list persistence, not a delete call), so the group holds the
+  /// conversations and the list puts the assistant's entry right above them.
+  Future<void> deleteConversationsForAssistant(
+    String assistantId, {
+    RecycleGroup? group,
+  }) async {
     if (!_initialized) await init();
 
     final targetId = assistantId.trim();
@@ -2058,7 +2071,11 @@ class ChatService extends ChangeNotifier {
     }
     for (final conversationId in persistedConversationIds) {
       deleted =
-          await _deletePersistedConversation(conversationId, bump: false) ||
+          await _deletePersistedConversation(
+            conversationId,
+            bump: false,
+            group: group,
+          ) ||
           deleted;
     }
 

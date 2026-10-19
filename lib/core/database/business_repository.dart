@@ -472,8 +472,15 @@ WHERE id IN ($placeholders);
     String id, {
     RecycleOrigin origin = RecycleOrigin.local,
     RecycleReason reason = RecycleReason.deleted,
+    RecycleGroup? group,
   }) async {
-    await recycle?.stageEntityRow(kind, id, origin: origin, reason: reason);
+    await recycle?.stageEntityRow(
+      kind,
+      id,
+      origin: origin,
+      reason: reason,
+      group: group,
+    );
     await _database.customStatement(
       'DELETE FROM ${kind.tableName} WHERE ${kind.idColumn} = ?'
       '${kind.extensionKind == null ? '' : ' AND kind = ?'};',

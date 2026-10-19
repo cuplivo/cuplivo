@@ -103,6 +103,35 @@ enum RecycleReason {
   }
 }
 
+/// One deletion event, when a single act removed several rows.
+///
+/// Deleting an assistant removes its conversations too, and each of those is
+/// staged under its own key: an entry's body is one key's data and restoring it
+/// goes through the one per-key path (`skippedExisting`, asset filtering, the
+/// tombstone, retiring the key's older entries). The group is how the list can
+/// still say they went together, and it is a fact about *the deletion* rather
+/// than a claim over another entry's data — which is why an entry restored on
+/// its own needs no bookkeeping here.
+///
+/// Only a local cascade stamps it. A peer's equivalent arrives as independent
+/// plan items with nothing on the wire saying they were one act.
+class RecycleGroup {
+  const RecycleGroup({required this.id, required this.label});
+
+  final String id;
+
+  /// What the user did, in their words: the assistant's name.
+  final String label;
+
+  static RecycleGroup? fromJson(Object? decoded) {
+    if (decoded is! Map) return null;
+    final id = decoded['id'];
+    final label = decoded['label'];
+    if (id is! String || id.isEmpty || label is! String) return null;
+    return RecycleGroup(id: id, label: label);
+  }
+}
+
 /// One staged item, as `entry.json` records it.
 ///
 /// The snapshot's tables are deliberately absent: the bin list reads this
@@ -122,6 +151,7 @@ class RecycleEntry {
     this.workspaceId,
     this.relPath,
     this.mtimeMs,
+    this.group,
   });
 
   /// The entry directory's name, which is also its age sort key.
@@ -147,6 +177,10 @@ class RecycleEntry {
   final String? workspaceId;
   final String? relPath;
   final int? mtimeMs;
+
+  /// The deletion event this entry belongs to, when it was not the only row the
+  /// act removed.
+  final RecycleGroup? group;
 
   static RecycleEntry? fromJson(Object? decoded, {required String id}) {
     if (decoded is! Map) return null;
@@ -187,6 +221,7 @@ class RecycleEntry {
           ? decoded['relPath'] as String
           : null,
       mtimeMs: decoded['mtimeMs'] is int ? decoded['mtimeMs'] as int : null,
+      group: RecycleGroup.fromJson(decoded['group']),
     );
   }
 }
@@ -247,6 +282,15 @@ class RecycleStore {
 
   final Future<Directory> Function() _directory;
 
+  /// Staging directory names this process is still writing.
+  ///
+  /// A `.tmp-` directory found by a sweep is normally a crash leftover, but the
+  /// writes are detached and a cascade launches several at once, so one write's
+  /// eviction runs while its siblings are still filling their directories. Those
+  /// are not leftovers and must survive the sweep; a directory left by a
+  /// *previous* process is not in this set, so it is still reclaimed.
+  final Set<String> _stagingNames = <String>{};
+
   /// Stages a row-shaped snapshot: a conversation subtree, one business entity
   /// row, or one synced preference row.
   ///
@@ -260,6 +304,7 @@ class RecycleStore {
     required String title,
     required Map<String, List<Map<String, Object?>>> tables,
     String? kindWire,
+    RecycleGroup? group,
   }) async {
     if (type == RecycleEntryType.workspaceFile || key.isEmpty) return null;
     final deletedAt = DateTime.now().toUtc();
@@ -285,6 +330,7 @@ class RecycleStore {
           deletedAt: deletedAt,
           sizeBytes: 0,
           tables: bodyKind == RecycleBodyKind.inline ? tables : null,
+          group: group,
         ),
       );
       sizeBytes =
@@ -304,6 +350,7 @@ class RecycleStore {
           deletedAt: deletedAt,
           sizeBytes: sizeBytes,
           tables: bodyKind == RecycleBodyKind.inline ? tables : null,
+          group: group,
         ),
       );
       entryJson = encoded;
@@ -332,6 +379,7 @@ class RecycleStore {
       kindWire: kindWire,
       deletedAt: deletedAt,
       sizeBytes: sizeBytes,
+      group: group,
     );
   }
 
@@ -349,6 +397,7 @@ class RecycleStore {
     required RecycleOrigin origin,
     required RecycleReason reason,
     String? title,
+    RecycleGroup? group,
   }) async {
     if (workspaceId.isEmpty || relPath.isEmpty) return null;
     final FileStat stat;
@@ -382,6 +431,7 @@ class RecycleStore {
           workspaceId: workspaceId,
           relPath: relPath,
           mtimeMs: mtimeMs,
+          group: group,
         ),
       );
       sizeBytes = _byteLength(encoded) + stat.size;
@@ -401,6 +451,7 @@ class RecycleStore {
           workspaceId: workspaceId,
           relPath: relPath,
           mtimeMs: mtimeMs,
+          group: group,
         ),
       );
       entryJson = encoded;
@@ -430,6 +481,7 @@ class RecycleStore {
       workspaceId: workspaceId,
       relPath: relPath,
       mtimeMs: mtimeMs,
+      group: group,
     );
   }
 
@@ -587,6 +639,7 @@ class RecycleStore {
     String? workspaceId,
     String? relPath,
     int? mtimeMs,
+    RecycleGroup? group,
   }) => <String, Object?>{
     'v': 1,
     'type': type.wire,
@@ -603,6 +656,13 @@ class RecycleStore {
     if (workspaceId != null) 'workspaceId': workspaceId,
     if (relPath != null) 'relPath': relPath,
     if (mtimeMs != null) 'mtimeMs': mtimeMs,
+    if (group != null)
+      'group': <String, Object?>{
+        'id': group.id,
+        'label': group.label.length > _titleMaxLength
+            ? group.label.substring(0, _titleMaxLength)
+            : group.label,
+      },
     if (tables != null) 'tables': tables,
   };
 
@@ -620,6 +680,7 @@ class RecycleStore {
     String? workspaceId,
     String? relPath,
     int? mtimeMs,
+    RecycleGroup? group,
   }) => RecycleEntry(
     id: id,
     type: type,
@@ -634,6 +695,7 @@ class RecycleStore {
     workspaceId: workspaceId,
     relPath: relPath,
     mtimeMs: mtimeMs,
+    group: group,
   );
 
   /// Writes one entry directory atomically: the whole entry is built under a
@@ -647,6 +709,13 @@ class RecycleStore {
   }) async {
     final root = await _directory();
     final staging = Directory(p.join(root.path, '$_stagingPrefix$id'));
+    // Registered before the directory exists and cleared once it is renamed, so
+    // a sweep running in between cannot mistake this write for a crash leftover.
+    // Staging is concurrent by design — an assistant's cascade launches one
+    // write per conversation and each write runs its own eviction — so without
+    // this a sweep would reap the sibling writes in flight and lose entries the
+    // bin was asked to keep.
+    _stagingNames.add('$_stagingPrefix$id');
     try {
       await root.create(recursive: true);
       await staging.create();
@@ -667,6 +736,8 @@ class RecycleStore {
       debugPrint('recycle: staging $id failed: $error');
       await _deleteQuietly(staging);
       return false;
+    } finally {
+      _stagingNames.remove('$_stagingPrefix$id');
     }
   }
 
@@ -713,6 +784,9 @@ class RecycleStore {
       if (entity is! Directory) continue;
       final name = p.basename(entity.path);
       if (name.startsWith(_stagingPrefix)) {
+        // A write in this process still owns it: not an orphan, and not yet an
+        // entry either.
+        if (_stagingNames.contains(name)) continue;
         orphans.add(name);
         continue;
       }
@@ -751,6 +825,11 @@ class RecycleStore {
   static Future<void> _deleteQuietly(FileSystemEntity entity) async {
     try {
       if (await entity.exists()) await entity.delete(recursive: true);
+    } on PathNotFoundException {
+      // Gone between the check and the delete: this is a sweep (an orphan, a
+      // staging directory) racing the write that renamed it away, and "already
+      // gone" is the end state the call wanted. Reporting it as a failure would
+      // send someone hunting a non-bug.
     } catch (error) {
       debugPrint('recycle: deleting ${entity.path} failed: $error');
     }

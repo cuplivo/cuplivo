@@ -6630,7 +6630,8 @@ class ChatDatabaseRepository {
   /// [RecycleStore.defaultRetention].
   /// Every deletion this device performs funnels through here — its own UI, an
   /// assistant's cascade, and a peer's deletion via [syncApplyPeerDeletion] —
-  /// which is why [origin] is the only thing the caller decides.
+  /// which is why [origin] (and, for a cascade, [group]) is the only thing the
+  /// caller decides.
   ///
   /// Bulk resets (overwrite restore, importer wipes) go through
   /// [clearAllData], which clears tombstones instead of writing them:
@@ -6640,11 +6641,16 @@ class ChatDatabaseRepository {
   Future<void> deleteConversation(
     String id, {
     RecycleOrigin origin = RecycleOrigin.local,
+    RecycleGroup? group,
   }) async {
     await composerDrafts.delete(
       id,
       deleteConversation: () async {
-        await recycle?.stageConversationDeletion(id, origin: origin);
+        await recycle?.stageConversationDeletion(
+          id,
+          origin: origin,
+          group: group,
+        );
         final deleted = await (_db.delete(
           _db.conversationRows,
         )..where((t) => t.id.equals(id))).go();

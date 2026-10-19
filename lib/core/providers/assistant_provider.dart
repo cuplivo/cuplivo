@@ -10,6 +10,7 @@ import '../models/assistant.dart';
 import '../models/assistant_regex.dart';
 import '../models/preset_message.dart';
 import '../services/chat/chat_service.dart';
+import '../services/recycle/recycle_service.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/avatar_cache.dart';
 import '../../utils/app_directories.dart';
@@ -556,7 +557,17 @@ class AssistantProvider extends ChangeNotifier {
     // Do not allow deleting the last remaining assistant
     if (_assistants.length <= 1) return false;
 
-    await chatService?.deleteConversationsForAssistant(id);
+    // One deletion event: the assistant goes and so do its conversations. The
+    // conversations carry this group, which is what lets the bin show them as
+    // the one act they were instead of N unrelated "deleted" rows. The
+    // assistant's own row cannot carry it — its row is removed by the generic
+    // list persistence rather than by a delete call — so the group names the
+    // assistant for the entries that can.
+    final group = RecycleGroup(
+      id: const Uuid().v4().substring(0, 8),
+      label: _assistants[idx].name,
+    );
+    await chatService?.deleteConversationsForAssistant(id, group: group);
 
     final removingCurrent = _assistants[idx].id == _currentAssistantId;
     _assistants.removeAt(idx);

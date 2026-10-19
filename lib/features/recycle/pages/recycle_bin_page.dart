@@ -3,9 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/database/startup_failure_report.dart' show formatBytes;
-import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/recycle/recycle_service.dart';
-import '../../../core/services/sync/business_state_reloader.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_settings_rows.dart';
@@ -14,6 +12,8 @@ import '../../../shared/widgets/section_card.dart';
 import '../../../shared/widgets/segmented_tabs.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
+import '../recycle_actions.dart';
+import 'recycle_entry_detail_page.dart';
 
 /// The device-local recycle bin, as a list.
 ///
@@ -22,7 +22,18 @@ import '../../../theme/app_font_weights.dart';
 /// every restore goes through [RecycleService], so the clock and the path rules
 /// stay in one implementation. Nothing here is shared state — the bin is this
 /// device's alone, which is why the page has no sync affordance at all.
-enum _BinFilter { all, conversations, rows, files }
+enum _BinFilter { all, conversations, assistants, settings, files }
+
+/// One group header, emitted where a deletion event's entries begin.
+class _BinGroup {
+  const _BinGroup(this.group, this.count);
+
+  final RecycleGroup group;
+
+  /// How many of this group's entries the current filter still shows, so the
+  /// header shrinks as its entries are restored.
+  final int count;
+}
 
 class RecycleBinPage extends StatefulWidget {
   const RecycleBinPage({super.key});
@@ -40,6 +51,7 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
   bool _loading = true;
   _BinFilter _filter = _BinFilter.all;
   final Set<String> _busy = <String>{};
+  bool _groupBusy = false;
 
   @override
   void initState() {
@@ -80,133 +92,81 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
   Future<void> _restore(RecycleEntry entry) async {
     final service = _service;
     if (service == null || _busy.contains(entry.id)) return;
-    final l10n = AppLocalizations.of(context)!;
     setState(() => _busy.add(entry.id));
-    RecycleRestoreOutcome outcome;
     try {
-      outcome = await service.restore(entry);
+      await restoreRecycleEntry(context, service: service, entry: entry);
     } finally {
       if (mounted) setState(() => _busy.remove(entry.id));
     }
-    if (!mounted) return;
-    if (outcome == RecycleRestoreOutcome.restored) {
-      await _refreshAfterRestore(entry);
-      if (!mounted) return;
-    }
-    showAppSnackBar(
-      context,
-      message: _outcomeMessage(outcome, l10n),
-      type: outcome == RecycleRestoreOutcome.restored
-          ? NotificationType.success
-          : NotificationType.warning,
-    );
     await _load();
   }
 
-  /// Makes the restored rows visible without a restart: chat state for a
-  /// conversation, the business view for a row or a preference. Both seams
-  /// already exist for the sync apply, which has the same problem.
-  Future<void> _refreshAfterRestore(RecycleEntry entry) async {
+  /// Restores every entry of one deletion event, one at a time so each keeps its
+  /// own refusal (`skippedExisting`, a damaged copy) instead of a batch that can
+  /// only report "some of it worked".
+  Future<void> _restoreGroup(RecycleGroup group) async {
+    final service = _service;
+    if (service == null || _groupBusy) return;
+    final entries = _entries
+        .where((entry) => entry.group?.id == group.id)
+        .toList(growable: false);
+    if (entries.isEmpty) return;
+    setState(() => _groupBusy = true);
+    var restored = 0;
+    var skipped = 0;
     try {
-      switch (entry.type) {
-        case RecycleEntryType.conversation:
-          final chat = _maybe<ChatService>();
-          if (chat == null) return;
-          await chat.reloadAfterExternalChange(
-            touchedConversations: <String>{entry.key},
-          );
-        case RecycleEntryType.businessEntity:
-        case RecycleEntryType.preference:
-          final reloader = _maybe<BusinessStateReloader>();
-          if (reloader == null) return;
-          await reloader.reloadAll();
-        case RecycleEntryType.workspaceFile:
-          break;
+      for (final entry in entries) {
+        final outcome = await restoreRecycleEntry(
+          context,
+          service: service,
+          entry: entry,
+        );
+        if (outcome == RecycleRestoreOutcome.restored) {
+          restored++;
+        } else {
+          skipped++;
+        }
       }
-    } catch (error) {
-      // A provider that cannot reload must not make a completed restore look
-      // like a failure; the rows are back and the next load picks them up.
-      debugPrint('recycle: refreshing after a restore failed: $error');
+    } finally {
+      if (mounted) setState(() => _groupBusy = false);
     }
-  }
-
-  /// The provider of [T], or null when this page is shown outside the tree that
-  /// supplies it — a missing refresh seam is not an error worth reporting.
-  T? _maybe<T extends Object>() {
-    try {
-      return context.read<T>();
-    } catch (_) {
-      return null;
-    }
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
+    // One report for the act, not one toast per entry: the rows are already the
+    // proof of what came back.
+    showAppSnackBar(
+      context,
+      message: skipped == 0
+          ? l10n.recycleBinRestored
+          : l10n.recycleBinGroupRestored(restored, skipped),
+      type: skipped == 0 ? NotificationType.success : NotificationType.warning,
+    );
+    await _load();
   }
 
   Future<void> _purge(RecycleEntry entry) async {
     final service = _service;
     if (service == null || _busy.contains(entry.id)) return;
-    final l10n = AppLocalizations.of(context)!;
-    final confirmed = await _confirm(
-      title: l10n.recycleBinDeleteForever,
-      body: l10n.recycleBinDeleteForeverBody,
-      confirmLabel: l10n.recycleBinDeleteForever,
-      cancelLabel: l10n.recycleBinCancel,
-    );
-    if (!confirmed || !mounted) return;
-    await service.purge(entry);
+    if (!await purgeRecycleEntry(context, service: service, entry: entry)) {
+      return;
+    }
     await _load();
   }
 
   Future<void> _clearAll() async {
     final service = _service;
     if (service == null || _busy.isNotEmpty) return;
-    final l10n = AppLocalizations.of(context)!;
-    final confirmed = await _confirm(
-      title: l10n.recycleBinClearAll,
-      body: l10n.recycleBinClearAllBody,
-      confirmLabel: l10n.recycleBinClearAll,
-      cancelLabel: l10n.recycleBinCancel,
-    );
-    if (!confirmed || !mounted) return;
-    await service.clear();
+    if (!await clearRecycleBin(context, service: service)) return;
     await _load();
   }
 
-  Future<bool> _confirm({
-    required String title,
-    required String body,
-    required String confirmLabel,
-    required String cancelLabel,
-  }) async {
-    final cs = Theme.of(context).colorScheme;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: Text(body),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(cancelLabel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(confirmLabel, style: TextStyle(color: cs.error)),
-          ),
-        ],
-      ),
+  Future<void> _openDetail(RecycleEntry entry) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => RecycleEntryDetailPage(entry: entry)),
     );
-    return confirmed ?? false;
+    // The detail page can restore or purge the entry it shows.
+    if (mounted) await _load();
   }
-
-  String _outcomeMessage(
-    RecycleRestoreOutcome outcome,
-    AppLocalizations l10n,
-  ) => switch (outcome) {
-    RecycleRestoreOutcome.restored => l10n.recycleBinRestored,
-    RecycleRestoreOutcome.skippedExisting => l10n.recycleBinRestoreSkipped,
-    RecycleRestoreOutcome.unreadable => l10n.recycleBinRestoreUnreadable,
-    RecycleRestoreOutcome.unsupported => l10n.recycleBinRestoreUnsupported,
-    RecycleRestoreOutcome.failed => l10n.recycleBinRestoreFailed,
-  };
 
   List<RecycleEntry> get _visibleEntries => switch (_filter) {
     _BinFilter.all => _entries,
@@ -214,10 +174,17 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
       for (final entry in _entries)
         if (entry.type == RecycleEntryType.conversation) entry,
     ],
-    _BinFilter.rows => [
+    _BinFilter.assistants => [
       for (final entry in _entries)
-        if (entry.type == RecycleEntryType.businessEntity ||
-            entry.type == RecycleEntryType.preference)
+        if (entry.type == RecycleEntryType.businessEntity &&
+            entry.kindWire == 'assistant_rows')
+          entry,
+    ],
+    _BinFilter.settings => [
+      for (final entry in _entries)
+        if (entry.type == RecycleEntryType.preference ||
+            (entry.type == RecycleEntryType.businessEntity &&
+                entry.kindWire != 'assistant_rows'))
           entry,
     ],
     _BinFilter.files => [
@@ -226,16 +193,32 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
     ],
   };
 
-  /// Entries with a day header in front of the first entry of each day.
+  /// Entries with a day header in front of the first entry of each day, and one
+  /// group header in front of the first entry of each deletion event.
   List<Object> get _rows {
+    final visible = _visibleEntries;
+    final counts = <String, int>{};
+    for (final entry in visible) {
+      final group = entry.group;
+      if (group != null) counts[group.id] = (counts[group.id] ?? 0) + 1;
+    }
     final rows = <Object>[];
     DateTime? day;
-    for (final entry in _visibleEntries) {
+    String? openGroup;
+    for (final entry in visible) {
       final local = entry.deletedAt.toLocal();
       final start = DateTime(local.year, local.month, local.day);
       if (day != start) {
         day = start;
         rows.add(start);
+        openGroup = null;
+      }
+      final group = entry.group;
+      if (group == null) {
+        openGroup = null;
+      } else if (group.id != openGroup) {
+        openGroup = group.id;
+        rows.add(_BinGroup(group, counts[group.id] ?? 1));
       }
       rows.add(entry);
     }
@@ -293,6 +276,17 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
         ),
         title: Text(l10n.recycleBinTitle),
         actions: [
+          // The retention and cap rules live behind this button, not in the
+          // footer: the footer scrolls away, this does not.
+          IosIconButton(
+            icon: Lucide.BadgeInfo,
+            size: 18,
+            minSize: 44,
+            color: cs.onSurface.withValues(alpha: 0.55),
+            tooltip: l10n.recycleBinInfoTitle,
+            semanticLabel: l10n.recycleBinInfoTitle,
+            onTap: () => showRecycleBinInfoDialog(context),
+          ),
           if (_entries.isNotEmpty)
             IosIconButton(
               icon: Lucide.Trash2,
@@ -310,23 +304,36 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
           ? const Center(child: CircularProgressIndicator())
           : _entries.isEmpty
           ? _empty(l10n)
-          : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              itemCount: rows.length + 1,
-              itemBuilder: (context, index) {
-                if (index == 0) return _filterHeader(l10n);
-                final row = rows[index - 1];
-                if (row is DateTime) {
-                  return IosSectionHeader(text: _dayFormat.format(row));
-                }
-                return _entryCard(row as RecycleEntry, l10n);
-              },
-            ),
+          : _list(rows, l10n),
+    );
+  }
+
+  /// The list, centred and capped the way the storage page it is opened from
+  /// is: at a desktop window width an uncapped row puts its two actions a
+  /// metre away from the text they act on.
+  Widget _list(List<Object> rows, AppLocalizations l10n) {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1200),
+        child: ListView.builder(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          itemCount: rows.length + 1,
+          itemBuilder: (context, index) {
+            if (index == 0) return _filterHeader(l10n);
+            final row = rows[index - 1];
+            if (row is DateTime) {
+              return IosSectionHeader(text: _dayFormat.format(row));
+            }
+            if (row is _BinGroup) return _groupHeader(row, l10n);
+            return _entryCard(row as RecycleEntry, l10n);
+          },
+        ),
+      ),
     );
   }
 
   Widget _filterHeader(AppLocalizations l10n) {
-    if (_entries.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -336,7 +343,8 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
             tabs: [
               SegmentedTab(label: l10n.recycleBinFilterAll),
               SegmentedTab(label: l10n.recycleBinFilterConversation),
-              SegmentedTab(label: l10n.recycleBinFilterRows),
+              SegmentedTab(label: l10n.recycleBinFilterAssistants),
+              SegmentedTab(label: l10n.recycleBinFilterSettings),
               SegmentedTab(label: l10n.recycleBinFilterFiles),
             ],
             index: _filter.index,
@@ -348,9 +356,45 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
         IosSectionFooter(
           text:
               '${_entries.length} ${l10n.recycleBinEntriesLabel} · '
-              '${formatBytes(_bytes)}\n${l10n.recycleBinRetentionNote}',
+              '${formatBytes(_bytes)}',
         ),
       ],
+    );
+  }
+
+  Widget _groupHeader(_BinGroup row, AppLocalizations l10n) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 14, 4, 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              l10n.recycleBinGroupHeader(row.count, row.group.label),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12.5,
+                height: 1.3,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: _groupBusy ? null : () => _restoreGroup(row.group),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              minimumSize: const Size(0, 32),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              l10n.recycleBinRestoreGroup,
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -372,6 +416,7 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
                 '${_timeFormat.format(entry.deletedAt.toLocal())} · '
                 '${formatBytes(entry.sizeBytes)}',
             haptics: false,
+            onTap: busy ? null : () => _openDetail(entry),
             trailing: busy
                 ? const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),

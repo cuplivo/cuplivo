@@ -102,6 +102,30 @@ void main() {
     return file;
   }
 
+  /// Makes [file] impossible to delete until the returned callback runs.
+  ///
+  /// Portable on purpose, so the tests that need a *failing* deletion can run on
+  /// every platform instead of being skipped on Windows: POSIX cannot unlink
+  /// inside a read-only directory, and Windows cannot delete a file that is open
+  /// without share-delete. Either way the deletion must fail, which is the
+  /// condition these tests are about.
+  Future<Future<void> Function()> makeUndeletable(
+    File file, {
+    required Directory parentToLock,
+  }) async {
+    if (!Platform.isWindows) {
+      final result = await Process.run('chmod', ['0555', parentToLock.path]);
+      if (result.exitCode != 0) {
+        throw StateError('chmod 0555 failed: ${result.stderr}');
+      }
+      return () async {
+        await Process.run('chmod', ['-R', '0755', parentToLock.path]);
+      };
+    }
+    final handle = file.openSync(mode: FileMode.read);
+    return () async => handle.closeSync();
+  }
+
   Future<bool> fileExists(WidgetTester tester, File file) async {
     final result = await tester.runAsync(() => file.exists());
     return result ?? false;
@@ -362,9 +386,11 @@ void main() {
     );
 
     final uploadDir = Directory('${appSupportDir.path}/upload');
-    final existingPaths = await tester.runAsync(
-      () => uploadDir.list().map((entry) => entry.path).toSet(),
-    );
+    final existingPaths =
+        await tester.runAsync(
+          () => uploadDir.list().map((entry) => entry.path).toSet(),
+        ) ??
+        <String>{};
 
     final disposeGate = Completer<void>();
     fakePathProvider.appDataGate = disposeGate;
@@ -375,18 +401,61 @@ void main() {
     expect(mediaController.hasUnreadyImages, isTrue);
 
     await tester.pumpWidget(const SizedBox.shrink());
-    await tester.runAsync(() async {
-      disposeGate.complete();
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    });
+    await tester.runAsync(() async => disposeGate.complete());
     expect(
       fakePathProvider.completedAppDataRequests,
       greaterThan(completedRequestsBeforeDispose),
     );
-    final remainingPaths = await tester.runAsync(
-      () => uploadDir.list().map((entry) => entry.path).toSet(),
+    // The third paste writes its file and then releases it if the composer is
+    // gone, both from a future. Wait for that write to settle instead of for a
+    // fixed 100 ms: the delay could expire in the gap between the write and its
+    // cleanup, or before the write had even landed, and either way left the
+    // extra file behind - see docs/flaky-tests.md.
+    for (
+      var i = 0;
+      i < 250 && !mediaController.debugTextPasteWriteSettled;
+      i++
+    ) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(
+      mediaController.debugTextPasteWriteSettled,
+      isTrue,
+      reason: 'the superseded long paste must settle at all',
     );
-    expect(remainingPaths, existingPaths);
+    // Then wait for the *invariant*, not for one instant after the flag: the
+    // flag says every paste finished writing, while the directory is the thing
+    // this test is about, and on CI the two are not ordered tightly enough to
+    // read the directory once (a red run there reported the settled flag with the
+    // third `pasted_*.txt` still listed). Polling cannot hide the leak the test
+    // exists for - a paste that never releases its file still fails, and it
+    // fails below with the file named.
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+    var remainingPaths = existingPaths;
+    while (true) {
+      remainingPaths =
+          await tester.runAsync(
+            () => uploadDir.list().map((entry) => entry.path).toSet(),
+          ) ??
+          remainingPaths;
+      if (remainingPaths.length == existingPaths.length &&
+          remainingPaths.containsAll(existingPaths)) {
+        break;
+      }
+      if (DateTime.now().isAfter(deadline)) break;
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(
+      remainingPaths,
+      existingPaths,
+      reason: 'a superseded long paste must release its file',
+    );
 
     controller.dispose();
     focusNode.dispose();
@@ -1095,11 +1164,12 @@ void main() {
       );
 
       late File source;
+      Future<void> Function()? unlock;
       await tester.runAsync(() async {
-        final readOnlyDir = Directory('${userDir.path}/readonly');
-        await readOnlyDir.create(recursive: true);
-        source = await writeUserImage('locked_temp.png', parent: readOnlyDir);
-        await Process.run('chmod', ['0555', readOnlyDir.path]);
+        final lockedDir = Directory('${userDir.path}/readonly');
+        await lockedDir.create(recursive: true);
+        source = await writeUserImage('locked_temp.png', parent: lockedDir);
+        unlock = await makeUndeletable(source, parentToLock: lockedDir);
 
         mediaController.enqueueImages(
           [source.path],
@@ -1107,16 +1177,42 @@ void main() {
           deleteSourcesAfterProcessing: true,
         );
       });
-      addTearDown(() async {
-        await Process.run('chmod', ['-R', '0755', userDir.path]);
-      });
+      addTearDown(() async => unlock?.call());
       expect(
         await pumpUntil(tester, () => !mediaController.hasUnreadyImages),
         isTrue,
       );
 
+      // An app-owned source is released when the image leaves the composer, so
+      // that is the moment a failing deletion has to be diagnosable. Await the
+      // delete itself: polling for the log line races it, and under load the
+      // poll used to expire while debugPrint was still patched, so the failure
+      // reached the real console instead of the captured list.
+      const deleteFailureMarker = '[ChatInputBar] Failed to delete';
+      bool loggedDeletionFailure() =>
+          logs.any((line) => line.contains(deleteFailureMarker));
+      mediaController.clearImages();
+      // The release runs from a future, so wait for it to finish while the frame
+      // advances. Polling the log alone raced it: under load the poll expired
+      // while debugPrint was still patched, so the failure reached the real
+      // console instead of the captured list (see docs/flaky-tests.md).
+      for (
+        var i = 0;
+        i < 250 && mediaController.debugHasPendingArtifactDeletes;
+        i++
+      ) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump(const Duration(milliseconds: 20));
+      }
       expect(
-        logs.any((line) => line.contains('[ChatInputBar] Failed to delete')),
+        mediaController.debugHasPendingArtifactDeletes,
+        isFalse,
+        reason: 'the released source must finish being deleted',
+      );
+      expect(
+        loggedDeletionFailure(),
         isTrue,
         reason: 'deletion failure must be diagnosable via logs',
       );
@@ -1127,7 +1223,7 @@ void main() {
 
     controller.dispose();
     focusNode.dispose();
-  }, skip: !(Platform.isMacOS || Platform.isLinux));
+  });
 
   testWidgets('压缩失败会记录日志且保留用户源文件', (tester) async {
     final logs = <String>[];

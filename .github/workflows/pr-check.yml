@@ -6,6 +6,12 @@ env:
 on:
   pull_request:
     branches: [master]
+  # A re-base rewrites master (docs/adr/0004-follow-upstream-rebase.md), so the
+  # baseline a PR is judged against is itself a fresh tree. Without this trigger
+  # nothing ever runs on that rewrite: the first PR after it becomes the first
+  # run against the new baseline, and a red baseline is blamed on that PR.
+  push:
+    branches: [master]
 
 jobs:
   checks:
@@ -42,6 +48,11 @@ jobs:
           else
             BASE_SHA="${{ github.event.before }}"
             HEAD_SHA="${{ github.sha }}"
+            # A push that creates the branch reports an all-zero "before"; fall
+            # back to the pushed commit's parent so the diff stays meaningful.
+            if [ -z "$(printf '%s' "$BASE_SHA" | tr -d '0')" ]; then
+              BASE_SHA="$(git rev-parse --verify -q "$HEAD_SHA^" || printf '%s' "$HEAD_SHA")"
+            fi
           fi
 
           files="$(git diff --diff-filter=ACMR --name-only "$BASE_SHA" "$HEAD_SHA" -- | grep -E '^(lib|test|integration_test|dependencies/markstream/(lib|test))/.*\.dart$' || true)"

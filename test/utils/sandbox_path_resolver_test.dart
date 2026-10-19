@@ -364,7 +364,7 @@ void main() {
       SandboxPathResolver.debugSetDirs(docsDir: temp.path);
 
       const oldMac =
-          '/Users/alice/Library/Application Support/com.cuplivo.cuplivo/images/a.png';
+          '/Users/alice/Library/Application Support/com.psyche.kelivo/images/a.png';
       expect(
         SandboxPathResolver.tryRemapRestoredManagedAbsolute(oldMac),
         'kelivo-file:///images/a.png',
@@ -372,7 +372,7 @@ void main() {
       // Missing relative must not remap.
       expect(
         SandboxPathResolver.tryRemapRestoredManagedAbsolute(
-          '/Users/alice/Library/Application Support/com.cuplivo.cuplivo/images/missing.png',
+          '/Users/alice/Library/Application Support/com.psyche.kelivo/images/missing.png',
         ),
         isNull,
       );

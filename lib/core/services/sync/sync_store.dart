@@ -115,12 +115,57 @@ class SyncStore {
     return null;
   }
 
+  /// Writes one peer record whole — the record's *origin*: a pairing answer is
+  /// where a record begins, and it replaces whatever was there.
+  ///
+  /// Every other writer merges through [mutatePeer] instead, so the fields it
+  /// did not mean to touch are not overwritten from a copy it read earlier.
   Future<void> savePeer(SyncPeerRecord peer) async {
     await _peersDir.create(recursive: true);
     final file = File(
       '${_peersDir.path}${Platform.pathSeparator}${peer.deviceId}.json',
     );
     await _writeAtomic(file, utf8.encode(jsonEncode(peer.toJson())));
+  }
+
+  /// One pending mutation per peer, so two writers cannot read the same record
+  /// and then both write it.
+  final Map<String, Future<void>> _peerWrites = {};
+
+  /// Serialized read-modify-write of one peer record, and the **only** merge
+  /// path: a whole-record write from a copy read earlier is how a session's own
+  /// outcome was lost.
+  ///
+  /// The record is read *inside* the section, so a mutation applies to what is on
+  /// disk now. A session holds its peer object for its whole length, while every
+  /// mid-session state change makes the provider re-read the list from disk — so
+  /// the post-session probe write used to save a *pre-session* snapshot of the
+  /// record over the `lastSyncedAt`/`lastReport`/promoted endpoint the session
+  /// had just written, and the card came back saying "Never synced".
+  ///
+  /// [mutate] returns whether anything changed; nothing is written when it
+  /// returns false, so a no-op does not rewrite the file nor the "last measured"
+  /// stamps it did not touch. It runs synchronously, so the section never spans
+  /// an await and two mutations cannot interleave inside it.
+  ///
+  /// Returns the record as written, or null when this device holds none for
+  /// [deviceId] — an absent record is not created here (see [savePeer]).
+  Future<SyncPeerRecord?> mutatePeer(
+    String deviceId,
+    bool Function(SyncPeerRecord peer) mutate,
+  ) {
+    final previous = _peerWrites[deviceId] ?? Future<void>.value();
+    final write = previous.then((_) async {
+      final peer = await readPeer(deviceId);
+      if (peer == null) return null;
+      if (!mutate(peer)) return peer;
+      await savePeer(peer);
+      return peer;
+    });
+    // The chain has to survive a failed write: one throw must not cancel every
+    // later mutation of that peer.
+    _peerWrites[deviceId] = write.then((_) {}, onError: (_) {});
+    return write;
   }
 
   /// Writes through a temporary file in the same directory, so a concurrent

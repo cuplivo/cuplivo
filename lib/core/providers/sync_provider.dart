@@ -686,11 +686,16 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// name rather than blanking the card.
   Future<void> renamePeer(String deviceId, String name) async {
     final store = _store;
-    final peer = peers.where((p) => p.deviceId == deviceId).firstOrNull;
-    if (store == null || peer == null) return;
     final trimmed = name.trim();
-    if (trimmed.isNotEmpty) peer.customName = trimmed;
-    await store.savePeer(peer);
+    if (store == null) return;
+    // Merged into the record on disk, not written onto the copy this list holds:
+    // a session may have written its own outcome to that record since, and a
+    // whole-record write from an older copy would erase it (see `mutatePeer`).
+    await store.mutatePeer(deviceId, (peer) {
+      if (trimmed.isEmpty) return false;
+      peer.customName = trimmed;
+      return true;
+    });
     await refreshPeers();
   }
 
@@ -705,10 +710,13 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     String? name,
   ) async {
     final store = _store;
-    final peer = peers.where((p) => p.deviceId == deviceId).firstOrNull;
-    if (store == null || peer == null) return;
-    if (!peer.renameEndpoint(host, port, name)) return;
-    await store.savePeer(peer);
+    if (store == null) return;
+    var renamed = false;
+    await store.mutatePeer(deviceId, (peer) {
+      renamed = peer.renameEndpoint(host, port, name);
+      return renamed;
+    });
+    if (!renamed) return;
     await refreshPeers();
   }
 
@@ -724,10 +732,13 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     int newPort,
   ) async {
     final store = _store;
-    final peer = peers.where((p) => p.deviceId == deviceId).firstOrNull;
-    if (store == null || peer == null) return;
-    if (!peer.editEndpoint(host, port, newHost.trim(), newPort)) return;
-    await store.savePeer(peer);
+    if (store == null) return;
+    var edited = false;
+    await store.mutatePeer(deviceId, (peer) {
+      edited = peer.editEndpoint(host, port, newHost.trim(), newPort);
+      return edited;
+    });
+    if (!edited) return;
     // The measurement belonged to the address that was just replaced, so it goes
     // with it: the tile shows no latency until the new address answers.
     _probeResults[deviceId]?.remove((host, port));
@@ -749,11 +760,13 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     int port,
   ) async {
     final store = _store;
-    final peer = peers.where((p) => p.deviceId == deviceId).firstOrNull;
-    if (store == null || peer == null) return SyncEndpointAdd.invalid;
-    final outcome = peer.addEndpoint(host, port);
+    if (store == null) return SyncEndpointAdd.invalid;
+    var outcome = SyncEndpointAdd.invalid;
+    await store.mutatePeer(deviceId, (peer) {
+      outcome = peer.addEndpoint(host, port);
+      return outcome == SyncEndpointAdd.added;
+    });
     if (outcome != SyncEndpointAdd.added) return outcome;
-    await store.savePeer(peer);
     await refreshPeers();
     _reprobe();
     return outcome;
@@ -776,10 +789,13 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     int port,
   ) async {
     final store = _store;
-    final peer = peers.where((p) => p.deviceId == deviceId).firstOrNull;
-    if (store == null || peer == null) return;
-    if (!peer.removeEndpoint(host, port)) return;
-    await store.savePeer(peer);
+    if (store == null) return;
+    var removed = false;
+    await store.mutatePeer(deviceId, (peer) {
+      removed = peer.removeEndpoint(host, port);
+      return removed;
+    });
+    if (!removed) return;
     _probeResults[deviceId]?.remove((host, port));
     await refreshPeers();
     _publishProbesIfStarted();
@@ -1061,28 +1077,32 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Writes the measured latency of each endpoint onto its peer record, so the
   /// management view can show "last measured" across launches.
+  ///
+  /// The figures merge into the record as it is on disk — not into the copy this
+  /// provider listed before the session, which is how a session that had just
+  /// succeeded came back with its own outcome erased.
   Future<void> _persistProbeStats(String deviceId) async {
     final store = _store;
     final results = _probeResults[deviceId];
     if (store == null || results == null) return;
-    final peer = peers.where((p) => p.deviceId == deviceId).firstOrNull;
-    if (peer == null) return;
-    var changed = false;
-    for (final result in results.values) {
-      // A `ping_busy` is not a verdict: it is the listener saying "not now", so
-      // it must not be written as "this address did not answer" — that would
-      // clear a working latency with a null and move the "last measured" stamp.
-      if (result.noVerdict) continue;
-      final endpoint = peer.endpointFor(result.host, result.port);
-      if (endpoint == null) continue;
-      endpoint.recordProbe(
-        answered: result.answered,
-        latency: result.latency,
-        at: result.measuredAt,
-      );
-      changed = true;
-    }
-    if (changed) await store.savePeer(peer);
+    await store.mutatePeer(deviceId, (peer) {
+      var changed = false;
+      for (final result in results.values) {
+        // A `ping_busy` is not a verdict: it is the listener saying "not now", so
+        // it must not be written as "this address did not answer" — that would
+        // clear a working latency with a null and move the "last measured" stamp.
+        if (result.noVerdict) continue;
+        final endpoint = peer.endpointFor(result.host, result.port);
+        if (endpoint == null) continue;
+        endpoint.recordProbe(
+          answered: result.answered,
+          latency: result.latency,
+          at: result.measuredAt,
+        );
+        changed = true;
+      }
+      return changed;
+    });
   }
 
   void _startPresenceTimer() {

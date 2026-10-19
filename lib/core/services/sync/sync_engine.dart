@@ -2067,7 +2067,6 @@ class SyncEngine implements SyncServerHandler {
         peerEpoch: session.initiatorHello.epoch,
       ),
     );
-    final peer = await store.findPeer(peerDeviceId);
     final report = _report(
       sent: outgoing.length,
       received: session.outcomes.length,
@@ -2089,8 +2088,11 @@ class SyncEngine implements SyncServerHandler {
       workspaceMissesRepaired: session.pushedFiles,
       clockSkewMs: session.clockSkewMs,
     );
-    if (peer != null) {
-      peer.lastSyncedAt = DateTime.now();
+    // Merged into the record as it stands now, not written onto the copy read
+    // before this beat ran: the panel may have renamed the peer while the push
+    // was in flight, and a whole-record write would drop it.
+    final peer = await store.mutatePeer(peerDeviceId, (current) {
+      current.lastSyncedAt = DateTime.now();
       // The session just ran over the caller's address, so that is where this
       // network reaches it: refresh the memory (and promote it), which is what
       // lets a peer that roamed keep syncing without a re-scan.
@@ -2106,11 +2108,11 @@ class SyncEngine implements SyncServerHandler {
       if (learnedHost != null &&
           learnedPort != null &&
           !session.myHosts.contains(normalizeHost(learnedHost))) {
-        peer.noteEndpointSuccess(learnedHost, learnedPort);
+        current.noteEndpointSuccess(learnedHost, learnedPort);
       }
-      peer.lastReport = report.toPeerReport();
-      await store.savePeer(peer);
-    }
+      current.lastReport = report.toPeerReport();
+      return true;
+    });
     _sessions.remove(peerDeviceId);
     onStateChanged();
     if (peer != null) {
@@ -3396,10 +3398,19 @@ class SyncEngine implements SyncServerHandler {
     if (report.refusal == SyncRefusalReason.superseded) return report;
     lastReport = report;
     if (peer != null) {
-      if (report.success) peer.lastSyncedAt = DateTime.now();
-      peer.lastReport = report.toPeerReport();
-      if (host != null && port != null) peer.noteEndpointSuccess(host, port);
-      await store.savePeer(peer);
+      // Merged into the record as it stands now, not written onto the instance
+      // this session has held since before it started: the session's own beats
+      // make the provider re-read the list from disk, so a copy that old is a
+      // copy without whatever the user changed meanwhile — and writing it whole
+      // is how a rename made during a session used to be lost.
+      await store.mutatePeer(peer.deviceId, (current) {
+        if (report.success) current.lastSyncedAt = DateTime.now();
+        current.lastReport = report.toPeerReport();
+        if (host != null && port != null) {
+          current.noteEndpointSuccess(host, port);
+        }
+        return true;
+      });
     }
     onStateChanged();
     return report;

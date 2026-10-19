@@ -590,10 +590,13 @@ class SyncPeerReport {
   /// them, its own edits the peer's version replaced, and files it wanted but
   /// could not fetch (they stay owed and are retried next session).
   ///
-  /// Only what this device did with its own hands, exactly like
-  /// [blobsMoved]: a workspace file is *pulled* by the receiver, so the sender
-  /// has nothing to count and inventing a "sent" figure for it would be a
-  /// claim it cannot make.
+  /// A file this device *pushed* counts here too (slice 23): what the figure
+  /// answers is "what did this session move for me", and the side that pushed a
+  /// file is the side that watched it arrive — the asset-cache rule is what
+  /// decides which side that is, not which direction the bytes travelled. What
+  /// is *not* counted is a file the peer moved on its own account: that lands in
+  /// the peer's report, and inventing a "sent" figure this device cannot see
+  /// would be a claim it cannot make.
   final int workspaceFiles;
   final int workspaceBytes;
   final int workspaceFilesRemoved;

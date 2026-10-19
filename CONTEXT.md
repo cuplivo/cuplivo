@@ -153,7 +153,12 @@ contradicts one of them is a bug, not a preference.
   than off what landed — so a rejected revision's parts cannot unlink the winner's own attachment,
   and a blob whose fetch failed is already referenced when its retry lands; a blob that
   does not arrive goes pending and is retried once per session, reported meanwhile — and a blob the
-  holder pushes over the working direction counts as landed here, not as pending. A blob
+  holder pushes over the working direction counts as landed here, not as pending. A **retry is
+  superseded by a fresh advertisement, never preferred to it** (same target, new hash: the picture was
+  re-referenced or the skill body edited), because asking for the stale hash forever is a stall neither
+  report names; and a push is accepted only for a `(kind, key)` this session asked for, **at that
+  entry's hash** — the route's hash is the request, not a hint, so another valid-looking file's bytes
+  cannot be booked under a legitimate entry. A blob
   failure defers a skill record but not a conversation.
 - **Device-local** (never rides sync): `localOnly`, `discarded` and `unknownPreference`
   dispositions, all `display_*` keys (fonts reference local file paths), `global_proxy_*`,
@@ -218,6 +223,12 @@ contradicts one of them is a bug, not a preference.
   longer lists is deleted here, and the mirror image holds there — unless the other side's stamp is
   newer, in which case the file is fetched back. A session against a peer whose database was
   bulk-replaced (a different data epoch) sends `allowDeletes: false`, exactly as the row faces do.
+- **A landing verifies before it destroys (先校验，后落盘)**: the staged bytes are checked against the
+  advertised size *before* the destination is touched. The file already at that path is, at that
+  moment, the only copy this device has, so a refusal that had deleted it first left the path empty —
+  a file the device never lost, gone until the next session fetched it back. The post-rename stat
+  stays as the belt for a writer that lands in between, and a rejected landing leaves the old version
+  exactly where it was.
 - **A workspace is planned only when both sides advertised a table**: a missing table means "not
   shared" (switched off, over a cap, not this peer's), an empty table means "shared, and it has no
   files" — opposite statements for the deletion rule, so they are never collapsed into one.
@@ -232,11 +243,24 @@ contradicts one of them is a bug, not a preference.
   never accepted from a peer, never deleted through sync — and the filesystem sink refuses it last.
   Anything else would let a row this device never offered name a directory outside the managed tree
   and have this device index, advertise and (on a peer-driven delete) remove it.
+  **The row carries that id twice and the halves must agree (一个 id 写两遍，两遍必须一致)**: the
+  table's `id` column decides what the row *is*, and the payload's own `id` is what the app lists,
+  renames and deletes by. Only the column was once checked, so a row whose column said `w-1` and whose
+  payload said `..` was listed as an ordinary workspace — and deleting it with “also delete files”
+  removed the app data root itself. `workspacePayloadNamesId` is that rule, read by the same
+  row-level filter as the id check, so a row whose halves disagree is not listed either (the panel
+  refuses it on load, which is also what stops an update minting a second row under an id of the
+  peer's choosing). One unreadable payload costs its own workspace, never the whole list.
 - **Caps are hard gates and the switch cannot lift them (上限)**: a workspace over **2,000 files or
   200 MB** has **no content synced at all** — the whole block, never half a table — and the panel
   says so (`2,001+ 文件`, and its size is a lower bound). The ledger has a global 20,000-entry cap
-  and drops whole workspaces over it; those fall back to conservative re-sending, never to
-  deleting. The per-workspace switch is **device-local** (`sync/workspaces.json` records the
+  (ten workspaces at the per-workspace cap — the two numbers are one relationship, asserted in
+  `sync_limits_test.dart`) and drops whole workspaces over it; those fall back to conservative
+  re-sending, never to deleting. **A workspace the advertised-table cap drops is *named*, not
+  silent**: the peer reads its absence as “no opinion” and plans nothing, so it transfers nothing and
+  no failure ever mentions it — the one shares-nothing reason the user did not choose, and the field
+  exists precisely so that silence is impossible. The per-workspace switch is **device-local**
+  (`sync/workspaces.json` records the
   *disabled* set, so a new workspace is on by default) and controls **files only**: the record
   keeps travelling either way, because removing a workspace from the manifest is what deletes the
   peer's copy. The switch is also **written as one serialized mutation** (read-edit-write, never two
@@ -342,8 +366,12 @@ contradicts one of them is a bug, not a preference.
   sum. The dial spends that answer instead of repeating it: only the addresses the probe reached are
   dialed, best measured round trip first and under a connect budget derived from that same
   measurement, and an address the probe found silent is not dialed at all. A probe that reached
-  nothing still buys exactly one dial — the best-remembered address — because a single measurement
-  is not a verdict on a network. The beat names the address being dialed and never a rank among
+  nothing still buys exactly one dial — and it goes to the first remembered address that has **ever**
+  answered, not merely to the memory's head: freshness decides the *order*, but an old answer is still
+  the best thing known about an address, and the head may be one that has never replied while the one
+  that worked last time sits behind it. (Only that one guess: this is the state in which the probe has
+  already asked every address, and a session may not become a second serial probe.) The beat names the
+  address being dialed and never a rank among
   candidates: the ranking already happened, and it happened in parallel. Within the proved group,
   the candidates sharing an IPv4 /24 with an address this device holds come first when two answers
   tie, because the remembered order is a history of networks rather than a statement about the one
@@ -479,7 +507,12 @@ contradicts one of them is a bug, not a preference.
   hashes it already has;
   the responder pulls back over the initiator's advertised listener, and the same reverse
   connection carries its workspace file pulls) → transactional apply + provider reload →
-  checkpoint commit on both sides. The push and fetch beats always run, even with nothing to send:
+  checkpoint commit on both sides. **One push and one fetch per session**, enforced from both sides: a
+  fetch that has not seen its push is refused (`push_required`), and a second push on a session that
+  already took one is refused too (`push_already_taken`) — the push beat writes the state the fetch
+  beat and the report are built from, while the counters a landing books into keep accumulating, so
+  answering a replay would replace the outcome and still count its bytes twice. The push and fetch
+  beats always run, even with nothing to send:
   they are also where the responder performs its own blob pull, including the retries its
   checkpoint still owes. Checkpoints also carry what is still owed (pending blobs), the
   skill-content baseline, the workspace file ledger and the peer's data epoch.
@@ -511,6 +544,17 @@ contradicts one of them is a bug, not a preference.
   in-memory snapshot, so a stale provider cannot clobber synced rows; the remaining native
   SharedPreferences keys (log toggle, font scale, Linux title bar) are all device-local
   and outside the sync face anyway. Restart remains only a crash-recovery fallback.
+- **The stored state has one merge path per record (一条写入路径)**: the rule above is about *rows*,
+  and the same failure lived in the sync plane's own files. A peer record has two owners writing it at
+  once — the panel (a rename, an endpoint edit, the measured latency) and a session (`lastSyncedAt`,
+  `lastReport`, the endpoint it promoted) — and each wrote the whole record from a copy read earlier,
+  so the last writer won. The visible half was the worst: a successful session came back saying
+  “never synced”, because the engine holds the peer object for the session's whole length while the
+  provider re-reads the list from disk on the session's first state change, and the post-session probe
+  write then saved a pre-session snapshot over the outcome. `SyncStore.mutatePeer` reads and writes
+  inside one per-peer section, and every merge goes through it; a whole-record write is only the
+  record's *origin* (a pairing answer). The same shape was fixed in the workspace settings file
+  earlier (the serialized switch write above).
 - **Apply yields to generation**: applying changes to a conversation is deferred while a
   generation is actively writing to it.
 - **An open conversation is rebuilt, not left behind**: the apply names the conversations it
@@ -605,7 +649,11 @@ contradicts one of them is a bug, not a preference.
   `kMaxPingsInFlight` probes at once and one probe round asks at most `kSyncProbeConcurrency`
   addresses, derived from the endpoint cap in `sync_limits.dart` so a peer's full address memory can
   never saturate its own listener (which would answer `ping_busy`, i.e. "no verdict", for every
-  address the round was run to measure).
+  address the round was run to measure). **A cap per round is not a cap per device**, and there is
+  more than one round — the tick runs one per peer concurrently and a session adds its own — so the
+  probes take slots from one device-wide pool shared by both paths and every peer. That is what makes
+  the derivation above a fact about the device rather than about a call: nothing bounds the number of
+  paired peers, so no constant could cover `P × kSyncProbeConcurrency`.
 - **A session is idle, not old (会话看空闲，不看年龄)**: the held session is dropped when nothing has
   happened on it for two minutes, measured from the peer's last beat — a beat **in flight counts as
   activity** however long it runs, because a first sync of a large library is one push beat lasting
@@ -678,7 +726,12 @@ contradicts one of them is a bug, not a preference.
   showed green for exactly the seconds its dial spent failing — trying is not reaching. One probe
   miss and one `ping_busy` are both forgiven: the first is a probe losing a race against a Wi-Fi
   that is waking up, the second is the listener saying "not now", and a dot that flickers gray
-  every ten seconds is worse than one a tick stale. That forgiveness is also not only about the dot:
+  every ten seconds is worse than one a tick stale. **One `ping_busy` anywhere in a round forgives
+  that round**, not only a round made of nothing else: the 503 arrives over the *pinned* handshake, so
+  the device at that address proved it is this peer and then declined to be judged — stronger presence
+  evidence than the silence of a remembered address beside it — and requiring every answer to be
+  no-verdict let one silent memory turn a live peer's full round into a miss, two of which darkened
+  the dot. That forgiveness is also not only about the dot:
   a `ping_busy` is stored as no verdict at all — on **every** path that stores a probe answer (the
   tick and the round a session runs for itself share one choke point; the rule used to live on one
   of them) — so it can neither replace a measured latency on the
@@ -712,7 +765,13 @@ contradicts one of them is a bug, not a preference.
   blobs that arrived, bytes moved, skills whose body converged, workspace files that landed or were
   deleted, workspaces whose content was withheld, and warnings (clock skew, version refusal, files
   that never arrived). A blob or file the peer pushed counts as arrived *here* and never as withheld,
-  and the pushing side's own summary names what it sent on the peer's behalf. Counters, not per-row
+  and the pushing side's own summary names what it sent on the peer's behalf — **including a
+  replacement the push performed**: a `peerWins` conflict the fetch could not land and the fallback
+  carried is still a local edit that was replaced, so it is counted like the fetched one, and the
+  summary never prints “missing 0” beside “pushed 1” for the same file. **A workspace the
+  advertised-table cap dropped is counted with the other withheld ones** — it is the only
+  shares-nothing reason the user did not choose, and the peer reads it as “not shared” with no
+  transfer and no failure to name it. Counters, not per-row
   names: which row lost lives in the log. Adopting a row
   that carries the same content (the peer echoing this device's own row back) is not a loss. The one
   thing the report deliberately does **not** draw is the routine absence — "not reachable right now"

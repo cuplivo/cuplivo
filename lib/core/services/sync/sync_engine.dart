@@ -3017,13 +3017,16 @@ class SyncEngine implements SyncServerHandler {
   /// plane applies exactly as it does for a fetched file. The landed stamp goes
   /// into the session, not the checkpoint: the ledger is written once, at the
   /// fetch beat, after every file this session moved is known.
+  ///
+  /// The edit time is not a parameter: it travels in the request set's stamp,
+  /// which is the version this device asked for, and that is the only stamp the
+  /// landing may put on the file.
   @override
   Future<bool> handlePutWorkspaceFile(
     String peerDeviceId,
     String workspaceId,
     String relPath, {
     required int size,
-    required int mtimeMs,
     required Stream<List<int>> body,
   }) async {
     final session = _sessions[peerDeviceId];

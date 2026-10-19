@@ -313,11 +313,6 @@ class SyncStore {
     }
   }
 
-  Future<void> writeWorkspaceContentDisabled(Set<String> workspaceIds) =>
-      _serializeWorkspaceSettings(
-        () => _writeWorkspaceDisabledNow(workspaceIds),
-      );
-
   /// Reads, edits and writes the disabled set as one indivisible step, and
   /// reports whether [mutate] changed anything.
   ///

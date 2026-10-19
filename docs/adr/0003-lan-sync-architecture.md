@@ -1644,6 +1644,118 @@ never does, and both sides call the session a success. This slice is the fix, an
   both is the transfer deadline. And the reverse dial still costs up to three connect budgets before
   the fallback runs, paid only in sessions that need the reverse direction at all.
 
+## Amendment (2026-10, slice 25): the round-3 review — nine findings, one choke point each
+
+An adversarial read of this branch (five traces over the long chains, plus probes that reproduced the
+two worst findings end to end) produced nine findings. All nine were real, and each is fixed at the
+rule it belongs to rather than at the symptom. Nothing here changes the wire: v7 stands, and the
+version gate is what makes that safe (see the last bullet).
+
+- **A workspace row's identity is written twice, and only one half was checked (Sev 5).** The `id`
+  column decides what the row *is*; the payload's own `id` is what `Workspace.fromJson` reads, and
+  therefore what the panel lists, what an update writes and what a delete removes. Only the column
+  was validated, so a paired peer — or an imported backup — could push a row whose column is a safe
+  `w-1` and whose payload names `..`: the panel showed an ordinary managed workspace called “Notes”,
+  and deleting it with the default “also delete files” built `<appData>/workspaces/..` and removed the
+  app data root — conversations, skills, sync state — recursively. `workspacePayloadNamesId` is now
+  the one rule (the payload names exactly the row's id, and that id is a safe path segment), read by
+  `_syncSkipsRow` — the choke point all six sync call sites already share — so a row whose halves
+  disagree is invisible in both directions. The provider refuses such a row on load as well (so no
+  unsafe id can reach the panel and no update can mint a second row under an id of the peer's
+  choosing), one unreadable payload now costs its own workspace rather than the whole list, and the
+  delete sink refuses a non-segment id on its own account. That last guard is unreachable today — the
+  load filter already stops the row — and is kept deliberately: it is the last place before the id
+  becomes a path.
+- **One serialized merge path for a peer record.** The record has two owners writing it at once (the
+  panel: a rename, an endpoint edit, the measured latency; a session: `lastSyncedAt`, `lastReport`,
+  the endpoint it promoted), and every one of them wrote the *whole* record from a copy it had read
+  earlier. The visible half was the worst: a successful session came back saying “Never synced”,
+  because `syncNow` hands the engine a peer object, the engine holds it for the session and writes the
+  outcome into it, while the session's own first state change makes the provider re-read `peers` from
+  disk — so the post-session probe write saved a *pre-session* snapshot over the outcome. Every
+  provider-driven session hit it, the manual button and each automatic round alike. `SyncStore.mutatePeer`
+  is now read-modify-write **inside** a per-peer section; eight whole-record writers became merges, and
+  `savePeer` remains only as the record's *origin* (a pairing answer is where a record begins).
+- **The blob-retry fold was implemented twice, with two different bodies.** The initiator folded
+  retries with `putIfAbsent` (“a superseded target is replaced by the fresh entry”); the responder's map
+  literal listed the retry set *last*, so the stale entry won the target key. A blob's target is
+  `(kind, key)`, so re-referencing an attachment keeps the target and changes the hash: the responder
+  asked, session after session, for the hash it had pending, the initiator skipped it as “no longer
+  backs”, and the picture never arrived while neither report named anything — the exact class slice 24
+  exists to fix. One `_foldBlobWanted(fresh, pending)` now serves both halves.
+- **The push beat had no “already taken” guard** while the fetch beat refused its half of the same
+  one-push-one-fetch rule. A replayed `/sync/subtrees` replaced the session's whole outcome — the state
+  the fetch beat and the report are built from — while the counters a landing books into kept
+  accumulating, over-reducing the report's misses and losing the first beat's landings.
+  `SyncRequestRefusal.pushAlreadyTaken()` (409) refuses it before the beat begins; the fetch beat still
+  belongs to the first push.
+- **The route-hash comparison was correct and its proof was wrong.** Slice 24 recorded it as an early
+  refusal with “no final-state proof — the digest check refuses the same bytes later”. It does not: the
+  digest is compared against the *route's* hash, so without this comparison a body hashing to some
+  other valid hash is written at the requested key and booked under the legitimate hash. The test now
+  sends exactly that, so the guard has a final-state proof instead of a note.
+- **A report that cannot say a file both arrived and is missing.** Three ways the workspace face could
+  tell the user something untrue: a conflict repaired by a *push* was never counted (`peerWins`
+  promises the discarded edit is counted, and the fetch half counted it while the fallback half did
+  not); a repaired miss was printed as missing (the summary part was gated on the raw miss count and
+  printed the reduced one, so the one card the fallback exists for read “workspace files pushed 1 (6 B)
+  · workspace files missing 0”); and a workspace dropped by the advertised-table cap was counted
+  nowhere, because the omission count only ever saw the snapshot's own `shared` flag. The request set
+  now carries which of its entries were `peerWins` (the plan knows the action, the request does not, and
+  the landing is where the edit is lost), the summary gates on what is left after the repair, and
+  `tablesOf` reports how many shared workspaces it dropped so both roles can name it.
+- **The fan-out budget was per call, and there is more than one call.** The tick fans out one full
+  round *per peer, concurrently*, and a session runs its own round when its snapshot is stale: two of
+  those stacked `2 × kSyncProbeConcurrency` probes on one listener whose own cap is
+  `kMaxPingsInFlight = kMaxPeerEndpoints + 2`, and the overflow answers `ping_busy` — correctly read as
+  “no verdict”, so the device disabled the measurement the fan-out was grown to support. One
+  device-wide pool (`_ProbePool`, sized `kSyncProbeConcurrency`) now hands out every probe of every
+  round, from either path, for every peer. A bigger constant could not have fixed it: nothing bounds the
+  number of paired peers, so no constant covers `P × 12`.
+- **A mixed round darkened the dot for a peer that had just answered.** A `ping_busy` arrives over the
+  *pinned* handshake, so the device at that address proved it is this peer and then declined to be
+  judged — stronger presence evidence than the silence of a remembered address beside it. The rule
+  suppressed the miss only when the whole round was no-verdict, so one silent memory turned a live
+  peer's full round into a miss, and two of those cleared the dot: `every` → `any`.
+- **A refused landing took the local copy with it.** `land` deleted the destination before checking the
+  staged bytes, so a refusal left the path empty — the version that was there was, at that moment, the
+  only copy this device had, and the next session re-fetched a file that was never lost. The size is
+  verified before the destination is touched; the post-rename stat stays as the belt for a writer that
+  lands in between. Reachability was, and remains, narrow (the sender re-stats and refuses a changed
+  file), which is why it was recorded as a lead rather than a finding — but the repair is a reorder.
+- **The one guess a round that proved nothing spends went to the memory's head.** The freshness rule
+  keeps a minute-old figure from *ordering* the dial, but the address that figure names is not a bad
+  bet. The unfiltered snapshot is now kept beside the filtered one on the round, and the single guess
+  prefers the first candidate that has ever answered, falling back to the head. Order is preserved
+  inside each half, so topology still breaks the tie, and a *fresh* answered address is in `dialable`,
+  so this never overrides fresh evidence.
+- *Rejected: a bigger `kMaxPingsInFlight`.* It cannot be derived for an unbounded peer count, and the
+  property the file claims is about the *device*, not about one round.
+- *Rejected: probing again when the snapshot is partly stale.* It adds probe traffic inside a
+  user-visible session, breaks the “one wave” property, and voids the meaning of the freshness test.
+  The one guess covers the case for one connect budget instead.
+- *Rejected: carrying the `peerWins` action on the wire.* The initiator does not care whether its push
+  replaces the peer's edit; the flag is the receiving side's own bookkeeping, so it stays off the wire.
+- *Rejected: capability negotiation instead of the strict version gate* — the gate is exactly what
+  removes the need for version-shaped guards, and it is why the leniency left in the parsers is
+  input-hardening rather than compatibility (see the next bullet).
+- **No compat guards, and the leniency that remains is not one.** There is exactly one version check in
+  the sync code — the hello gate, exact equality — and no code path anywhere branches on a version.
+  The lenient parses (`tryParse` dropping a bad blob entry, the request list truncated at
+  `kMaxBlobRequestsPerSession`, defaults for absent batch fields) guard against a peer that is
+  *dishonest or broken*, which the gate cannot rule out: it proves the peer is v7, not that it is
+  correct, and a proxy, a truncated body or a corrupt row produce the same shapes with no version skew
+  at all.
+- *Known limits.* The delete sink's segment check and the second-push refusal are both
+  unreachable-by-construction today (Occ 1: no shipped client double-pushes, and the load filter
+  already stops a bad id) — kept because each is the last word at its own boundary, and named here so
+  nobody counts them as proven by a test they do not have. A workspace whose file entries exceed the
+  advertised-table cap still syncs nothing for that session; it is now *named* on the card rather than
+  silent, and raising the cap remains a product decision. And the probe pool serialises two peers'
+  rounds instead of stacking them, so a tick over many peers takes longer in wall-clock than it did —
+  bounded by `kSyncProbeConcurrency` per wave, and the alternative was a listener refusing its own
+  device's questions.
+
 ## Considered options (rejected)
 
 - **Whole-database / backup-zip exchange** — not version-portable; a newer schema on an

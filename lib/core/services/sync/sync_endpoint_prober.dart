@@ -77,8 +77,14 @@ const int kSyncTailProbeCount = 4;
 /// there — a refusal counts), [authenticated] is "…and it accepted this
 /// device's pairing secret" (this address can carry a session). A recycled
 /// lease answers without authenticating; a peer that was reset elsewhere
-/// authenticates nowhere. The online dot reads the first, the dial reads the
-/// second.
+/// authenticates nowhere.
+///
+/// The dot and the dial read [answered] — it is what "this address reaches the
+/// peer" means — and the *pairing* half reaches them through [refusal]: a 401
+/// answers (so the address is live) and carries [SyncRefusalReason.notPaired],
+/// which is the fact a repair acts on. [authenticated] is the same information
+/// in the form its own tests read it in, so a probe's classification stays
+/// assertable without reconstructing it from `answered` and `refusal`.
 class EndpointProbeResult {
   const EndpointProbeResult({
     required this.host,

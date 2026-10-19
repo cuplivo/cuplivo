@@ -78,7 +78,6 @@ abstract class SyncServerHandler {
     String workspaceId,
     String relPath, {
     required int size,
-    required int mtimeMs,
     required Stream<List<int>> body,
   });
 
@@ -526,7 +525,6 @@ class SyncServer {
   /// buffered as JSON.
   static const String workspaceIdHeader = 'x-sync-workspace';
   static const String workspaceRelPathHeader = 'x-sync-path';
-  static const String workspaceMtimeHeader = 'x-sync-mtime';
 
   /// The push direction of the blob route (slice 24). The hash travels in the
   /// path — it is the request's whole subject — and the entry's kind and key
@@ -781,15 +779,11 @@ class SyncServer {
     }
     final workspaceId = _decodedHeader(request, workspaceIdHeader);
     final relPath = _decodedHeader(request, workspaceRelPathHeader);
-    final mtimeMs = int.tryParse(
-      request.headers.value(workspaceMtimeHeader) ?? '',
-    );
     final size = request.contentLength;
     if (workspaceId == null ||
         workspaceId.isEmpty ||
         relPath == null ||
-        relPath.isEmpty ||
-        mtimeMs == null) {
+        relPath.isEmpty) {
       _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_request'});
       return;
     }
@@ -806,7 +800,6 @@ class SyncServer {
       workspaceId,
       relPath,
       size: size,
-      mtimeMs: mtimeMs,
       body: request,
     );
     await _respondNoContent(

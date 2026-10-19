@@ -203,12 +203,15 @@ class SyncClient {
   /// and many desktop users run) swallows every dial towards a peer whose
   /// address its `NO_PROXY` does not list — and that list is usually private
   /// ranges only, while a peer is remembered at whatever address its network
-  /// handed out: a NAT'd public address, or an IPv6 one. The failure mode is
-  /// nastier than a plain outage: the *probe* that decides the online dot is a
-  /// bare `Socket.connect` and bypasses the proxy, so the card showed a green
-  /// dot next to sessions that could never connect. Sync is a LAN protocol by
-  /// construction; there is no situation in which a proxy can reach a peer this
-  /// device cannot.
+  /// handed out: a NAT'd public address, or an IPv6 one. Sync is a LAN protocol
+  /// by construction; there is no situation in which a proxy can reach a peer
+  /// this device cannot.
+  ///
+  /// The probe is not a second exception to this rule any more: it goes through
+  /// this same client (see `syncEndpointProbe`), so a proxied dial and a proxied
+  /// probe agree instead of one of them reporting a peer the other can never
+  /// reach. The *pairing* walk is the remaining bare-TCP one, by necessity —
+  /// there is no secret to authenticate with until the PIN has been spent.
   static HttpClient directClient(SecurityContext context) =>
       HttpClient(context: context)..findProxy = (_) => 'DIRECT';
 
@@ -549,10 +552,6 @@ class SyncClientSession {
     request.headers.set(
       SyncServer.workspaceRelPathHeader,
       base64Url.encode(utf8.encode(relPath)),
-    );
-    request.headers.set(
-      SyncServer.workspaceMtimeHeader,
-      '${advertised.mtimeMs}',
     );
     request.headers.contentType = ContentType.binary;
     request.headers.contentLength = advertised.size;

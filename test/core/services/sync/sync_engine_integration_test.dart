@@ -5443,7 +5443,6 @@ void main() {
           'w1',
           relPath,
           size: size,
-          mtimeMs: 1000000,
           body: Stream.value(utf8.encode(body)),
         );
 

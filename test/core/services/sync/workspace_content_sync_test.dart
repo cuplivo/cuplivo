@@ -709,6 +709,32 @@ void main() {
       expect(File('${root.path}/workspaces/escape.txt').existsSync(), isFalse);
     });
 
+    test('a refused landing does not take the copy already there', () async {
+      // The size is verified *before* the destination is touched: the file at
+      // this path is, at that moment, the only copy this device has of it, so a
+      // refusal that had already deleted it left the path empty — a file the
+      // device never lost, gone until the next session re-fetched it.
+      await putWorkspace('w1');
+      await putFile('w1', 'a.txt', 'mine');
+      final staged = File('${root.path}/staged.bin');
+      await staged.writeAsString('other!', flush: true);
+
+      expect(
+        await content.acceptPushed(
+          workspaceId: 'w1',
+          relPath: 'a.txt',
+          staged: staged,
+          advertised: const WorkspaceFileStamp(size: 2, mtimeMs: 1000),
+        ),
+        isNull,
+      );
+      expect(
+        workspaceFile('w1', 'a.txt').readAsStringSync(),
+        'mine',
+        reason: 'the refused transfer does not take the local copy with it',
+      );
+    });
+
     test('a push whose bytes are not the advertised size is refused', () async {
       await putWorkspace('w1');
       final staged = File('${root.path}/staged.bin');

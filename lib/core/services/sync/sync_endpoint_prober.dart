@@ -7,6 +7,55 @@ import 'sync_local_addresses.dart';
 import 'sync_models.dart';
 import 'sync_store.dart';
 
+/// The one device-wide probe budget, shared by every round: the periodic tick
+/// over all peers, and a session's own fallback round.
+///
+/// Chunking one *call* ([maxConcurrent]) bounds one round, and there is more
+/// than one: the tick fans out a full round per peer concurrently, so a second
+/// peer's round stacked on the first and this device could ask a listener more
+/// questions at once than that listener answers — its own `ping_busy`, which is
+/// read as "no verdict", for the very addresses the fan-out was grown to
+/// support. The pool is what makes [kSyncProbeConcurrency] a fact about the
+/// device rather than about one call, and it is why the limits file can derive
+/// the listener's cap from it.
+final _ProbePool _probePool = _ProbePool();
+
+class _ProbePool {
+  int _inUse = 0;
+  final List<Completer<void>> _waiting = [];
+
+  Future<void> acquire() {
+    if (_inUse < kSyncProbeConcurrency) {
+      _inUse++;
+      return Future<void>.value();
+    }
+    final waiter = Completer<void>();
+    _waiting.add(waiter);
+    return waiter.future;
+  }
+
+  void release() {
+    if (_waiting.isNotEmpty) {
+      // Hand the slot straight to the next waiter: the count never dips, so
+      // there is no instant in which a queued probe and a new one both see it
+      // free.
+      _waiting.removeAt(0).complete();
+      return;
+    }
+    _inUse--;
+  }
+}
+
+/// Runs one probe under the device-wide budget.
+Future<T> _budgeted<T>(Future<T> Function() probe) async {
+  await _probePool.acquire();
+  try {
+    return await probe();
+  } finally {
+    _probePool.release();
+  }
+}
+
 /// How long a probe answer stays usable as the dial's pre-step. A round that
 /// landed just now is what the next session orders its candidates by; an older
 /// one describes a network this device may have already left, so the session
@@ -117,7 +166,8 @@ EndpointProbeFn syncEndpointProbe(
 /// fan-out over a full address set disables exactly the measurement the round
 /// was run for, and reports every address as unjudged. The default is therefore
 /// the shared budget, and the set is chunked rather than fanned out when a
-/// caller has more to ask than that.
+/// caller has more to ask than that. Since the budget is the *device's* ([_probePool]),
+/// a caller that passes a larger [maxConcurrent] still cannot exceed it.
 ///
 /// A probe classifies the address *and* the pairing, because it is an
 /// authenticated request: whatever answers is pinned to the peer's certificate
@@ -142,7 +192,8 @@ Future<List<EndpointProbeResult>> probePeerEndpoints({
     );
     results.addAll(
       await Future.wait([
-        for (final (host, port) in wave) _probeOne(probe, host, port, clock),
+        for (final (host, port) in wave)
+          _budgeted(() => _probeOne(probe, host, port, clock)),
       ]),
     );
   }

@@ -144,6 +144,49 @@ void main() {
       );
     });
 
+    test('two rounds at once share one device-wide budget', () async {
+      // The budget has two callers — the periodic tick, which fans out one round
+      // per peer *concurrently*, and a session's own fallback round — so a cap on
+      // one call bounded nothing: two peers' rounds stacked twice the budget on a
+      // listener whose own cap is `kMaxPingsInFlight`, and the overflow answers
+      // `ping_busy`, a no-verdict for the addresses the fan-out was grown to
+      // support. The pool is the device's budget, not the call's.
+      var inFlight = 0;
+      var peak = 0;
+      Future<void> counted(String host, int port) async {
+        inFlight++;
+        if (inFlight > peak) peak = inFlight;
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+        inFlight--;
+      }
+
+      await Future.wait([
+        probePeerEndpoints(
+          endpoints: [
+            for (var i = 0; i < kSyncProbeConcurrency; i++) ('a$i', 9100 + i),
+          ],
+          probe: counted,
+        ),
+        probePeerEndpoints(
+          endpoints: [
+            for (var i = 0; i < kSyncProbeConcurrency; i++) ('b$i', 9200 + i),
+          ],
+          probe: counted,
+        ),
+      ]);
+
+      expect(
+        peak,
+        lessThanOrEqualTo(kSyncProbeConcurrency),
+        reason: 'the device never asks more at once than its listener answers',
+      );
+      expect(
+        peak,
+        greaterThan(1),
+        reason: 'and it is still parallel: a serial pool is slower, not safer',
+      );
+    });
+
     test('the default budget is the listener cap, not a second guess', () {
       // The relationship the two limits have to satisfy, asserted rather than
       // left to a comment: one peer's whole address memory must fit inside what
@@ -160,8 +203,10 @@ void main() {
       );
       expect(
         kMaxPingsInFlight,
-        greaterThanOrEqualTo(kMaxPeerEndpoints),
-        reason: 'the listener answers at least one peer\'s full fan-out',
+        greaterThanOrEqualTo(kSyncProbeConcurrency),
+        reason:
+            'the device never has more than one budget in flight, so its '
+            'listener answers a full fan-out with room to spare',
       );
     });
   });

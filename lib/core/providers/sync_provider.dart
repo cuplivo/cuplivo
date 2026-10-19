@@ -1049,9 +1049,15 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       _sessionEvidence.remove(deviceId);
       return;
     }
-    if (results.every((result) => result.noVerdict)) {
-      // The listener said "not now" — that is about its load, not about the
-      // peer, so nothing here may darken the dot.
+    if (results.any((result) => result.noVerdict)) {
+      // A listener said "not now" — that is about its load, not about the peer,
+      // so nothing here may darken the dot. `any`, not `every`: a `ping_busy`
+      // arrived over the *pinned* handshake, so the device at that address
+      // proved it is this peer and then declined to be judged — stronger
+      // presence evidence than the silence of a remembered address beside it.
+      // Requiring the whole round to be no-verdict meant one silent memory
+      // turned a live peer's round into a miss, and two of those darkened the
+      // dot for a peer that had just answered.
       return;
     }
     if (!_probeMisses.add(deviceId)) {

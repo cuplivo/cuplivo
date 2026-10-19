@@ -672,6 +672,22 @@ class WorkspaceContentSync {
         return null;
       }
       await file.parent.create(recursive: true);
+      // Verified *before* the destination is touched. The version already at this
+      // path is, at this moment, the only copy this device has of the file — a
+      // refusal that had already deleted it left the path empty, and the next
+      // session re-fetches a file this device never lost. What the rename would
+      // publish is the staged file, so that is what is checked.
+      final stagedLength = await staged.length();
+      if (stagedLength != advertised.size) {
+        // The bytes are not the version that was advertised: a file edited while
+        // it streamed. Nothing here can tell which byte is which, so the transfer
+        // is refused and the next session re-fetches it.
+        debugPrint(
+          'sync workspace: refusing to land "$relPath": $stagedLength bytes '
+          'staged, ${advertised.size} advertised',
+        );
+        return null;
+      }
       if (await file.exists()) await file.delete();
       final landed = await staged.rename(target);
       try {
@@ -683,9 +699,9 @@ class WorkspaceContentSync {
       }
       final stat = await landed.stat();
       if (stat.size != advertised.size) {
-        // The bytes are not the version that was advertised: a file edited
-        // while it streamed. Nothing here can tell which byte is which, so the
-        // transfer is refused and the next session re-fetches it.
+        // Belt to the check above: something wrote this path between the rename
+        // and the stat. The bytes that landed are not the version asked for, so
+        // they are removed rather than left as a half-advertised file.
         await _deleteQuietly(landed);
         return null;
       }

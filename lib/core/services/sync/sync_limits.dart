@@ -31,24 +31,27 @@ const int kMaxPeerEndpoints = 12;
 /// route refuses with 503 `ping_busy`, which the caller reads as "not now"
 /// rather than as a verdict about the address.
 ///
-/// Derived from the endpoint cap, with headroom for a second peer's round: a
-/// device that fans out over its whole address memory must never saturate its
-/// *own* listener, or its own probe round comes back with nothing but "no
-/// verdict" — and the ceiling's job (bounding the connections one peer can open)
-/// is still done, at a number that is a fact about this protocol rather than an
-/// unrelated eight.
+/// Derived from the endpoint cap with headroom, and the headroom is *spare*
+/// rather than reserved: the probing side never has more than
+/// [kSyncProbeConcurrency] in flight, because one device-wide pool hands out
+/// every probe of every round ([kSyncProbeConcurrency], and the pool in
+/// `sync_endpoint_prober.dart`). The two used to be unequal in practice — the
+/// cap was per *round*, and a tick runs one round per peer concurrently plus
+/// whatever round a session starts — so this number was a wish about a fan-out
+/// that could stack on itself.
 const int kMaxPingsInFlight = kMaxPeerEndpoints + 2;
 
-/// How many endpoints one probe round asks at once — the fan-out budget, shared
+/// How many endpoints this device probes at once — the fan-out budget, shared
 /// by both probe paths (the periodic tick and a session whose snapshot went
-/// stale).
+/// stale) **and by every peer**, through the one device-wide pool.
 ///
 /// Equal to the endpoint cap so a peer's whole address memory is one wave: the
-/// round's wait is then the slowest answer, not the sum of the chunks, which is
-/// the property the parallel probe exists for. It is a *budget*, not a wish: a
-/// set larger than this (a future cap, a caller that passed a bigger one) is
-/// chunked rather than fanned out, so this file stays the single authority on
-/// how much probing this device does at once.
+/// round's wait is then the slowest answer, not the sum of the chunks, which
+/// is the property the parallel probe exists for. It is a *budget*, not a
+/// wish: a set larger than this (a future cap, a caller that passed a bigger
+/// one, two peers' rounds at once) is chunked or queued rather than fanned out,
+/// so this file stays the single authority on how much probing this device does
+/// at once — and the pool is what makes that true of the device.
 const int kSyncProbeConcurrency = kMaxPeerEndpoints;
 
 /// How many blobs one push acknowledgement may ask the initiator to push

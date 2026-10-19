@@ -721,7 +721,7 @@ class SyncEngine implements SyncServerHandler {
       // a probe that had already run in parallel look serial.
       final attempts = dialable.isNotEmpty
           ? dialable
-          : ordered.take(1).toList();
+          : _oneGuess(ordered, round.lastKnown);
       for (final (candidateHost, candidatePort) in attempts) {
         if (round.cancelled) return _superseded(peer);
         // The dial, the handshake and the hello in flight are one opaque beat
@@ -804,6 +804,12 @@ class SyncEngine implements SyncServerHandler {
           if (now.difference(result.measuredAt) <= kSyncProbeFreshness)
             result.endpoint: result,
       };
+      // Kept whole, freshness aside: only the fallback below reads it, and there
+      // a stale answer is the best thing known about an address nothing could
+      // prove this round.
+      round.lastKnown = {
+        for (final result in snapshot) result.endpoint: result,
+      };
       if (round.probed.isNotEmpty) {
         return orderCandidatesByProbe(candidates, round.probed, localAddresses);
       }
@@ -813,8 +819,33 @@ class SyncEngine implements SyncServerHandler {
       probe: syncEndpointProbe(client, peer),
     );
     round.probed = {for (final result in results) result.endpoint: result};
+    round.lastKnown = round.probed;
     onProbes?.call(peer.deviceId, results);
     return orderCandidatesByProbe(candidates, round.probed, localAddresses);
+  }
+
+  /// The one address a round that proved nothing still dials.
+  ///
+  /// The raw head of the order is the memory's first address, which may be one
+  /// that has *never* answered while the address that worked last time sits
+  /// behind it: the freshness rule ([kSyncProbeFreshness]) keeps an old figure
+  /// from ordering the dial, but it does not make the address that figure names
+  /// a bad bet — and the address that answered last is exactly what the round is
+  /// trying to reach again. Candidates whose last answer was silence are only
+  /// reached when *none* ever answered, and the order is preserved inside each
+  /// half, so topology still breaks the tie among the last-known-answered.
+  ///
+  /// One guess, never two: this is the state in which the probe has already
+  /// asked every address, and the session may not turn into a second serial
+  /// probe.
+  static List<(String, int)> _oneGuess(
+    List<(String, int)> ordered,
+    Map<(String, int), EndpointProbeResult> lastKnown,
+  ) {
+    for (final candidate in ordered) {
+      if (lastKnown[candidate]?.answered ?? false) return [candidate];
+    }
+    return ordered.take(1).toList();
   }
 
   /// Runs the session body against one fixed endpoint. Returns the report, or
@@ -3855,6 +3886,11 @@ class _InitiatorRound {
   /// The probe measurements the dial order was built from, kept so each
   /// candidate's connect budget can come from the round trip it just measured.
   Map<(String, int), EndpointProbeResult> probed = const {};
+
+  /// The same measurements *without* the freshness filter, so the one guess a
+  /// round that proved nothing still spends can prefer an address that answered
+  /// at some point over one that never has (see [_oneGuess]).
+  Map<(String, int), EndpointProbeResult> lastKnown = const {};
 
   void cancel() {
     cancelled = true;

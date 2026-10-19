@@ -6813,13 +6813,103 @@ void main() {
     // ...and when the address answers again, the authenticated probe is enough:
     // success means reachable *and* the pairing secret is still good, which is
     // the pair of facts a session would need.
+    //
+    // Waited for as a *state*, not as one call: the session's tail started a
+    // presence round of its own (`unawaited`), and a call raised while a round is
+    // in flight is coalesced rather than queued (see `refreshPresence`) — so the
+    // round that reports the answer may be the one already running.
     reachable = true;
-    await provider.refreshPresence();
+    await _waitUntil(() async {
+      await provider.refreshPresence();
+      return provider.isPeerOnline(b.identity.deviceId);
+    });
     expect(provider.isPeerOnline(b.identity.deviceId), isTrue);
     expect(
       provider.peerPresenceSource(b.identity.deviceId),
       PresenceSource.probe,
       reason: 'the fresh address evidence is what the dot reports now',
+    );
+  });
+
+  test('a mixed round does not darken the dot for a peer that answered', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    sides.addAll([a, b]);
+
+    // The real address answers at first, so the dot is green on real evidence.
+    // Then it goes to "not now" — a 503, which arrives over the *pinned*
+    // handshake, so the device at that address proved it is this peer and then
+    // declined to be judged — while a second remembered address stays silent.
+    // That round is a *mix*, and requiring the whole round to be no-verdict made
+    // it a miss: two of them darkened the dot for a peer that had just answered.
+    const silentPort = 1;
+    var busy = false;
+    final provider = await a.startProvider(
+      endpointProbe: (host, port) async {
+        if (port == silentPort) throw const SocketException('silent');
+        if (busy) throw const SyncClientException('ping_busy');
+      },
+    );
+    final pin = b.engine.openPairing();
+    await provider.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
+    await provider.addPeerEndpoint(
+      b.identity.deviceId,
+      '127.0.0.1',
+      silentPort,
+    );
+    await _waitUntil(
+      () async =>
+          provider.probeResultFor(
+            b.identity.deviceId,
+            '127.0.0.1',
+            silentPort,
+          ) !=
+          null,
+    );
+
+    await provider.refreshPresence();
+    expect(
+      provider.isPeerOnline(b.identity.deviceId),
+      isTrue,
+      reason:
+          'the address that answers is the dot, before the listener saturates',
+    );
+
+    busy = true;
+    // Two *full* rounds, through the one path that runs them: a full round walks
+    // the silent tail as well as the warm address, so it is the only shape in
+    // which "not now" and silence share one round. (A plain tick asks just the
+    // warm address, which is a round made of nothing but no-verdicts and so is
+    // suppressed by either rule.)
+    for (final probePort in [2, 3]) {
+      await provider.addPeerEndpoint(
+        b.identity.deviceId,
+        '127.0.0.1',
+        probePort,
+      );
+      await _waitUntil(
+        () async =>
+            provider.probeResultFor(
+              b.identity.deviceId,
+              '127.0.0.1',
+              probePort,
+            ) !=
+            null,
+      );
+    }
+    expect(
+      provider.isPeerOnline(b.identity.deviceId),
+      isTrue,
+      reason:
+          'a "not now" over the pinned handshake is presence, and it outranks '
+          'the silence of a memory beside it',
+    );
+    expect(
+      provider.peerPresenceSource(b.identity.deviceId),
+      PresenceSource.probe,
     );
   });
 
@@ -7105,6 +7195,64 @@ void main() {
       await silent.close(force: true);
     }
   });
+
+  test(
+    'a probe that proved nothing guesses the address that answered last',
+    () async {
+      // The freshness rule keeps a minute-old measurement from *ordering* the
+      // dial, but the address it names is not a bad bet — and when the probe
+      // proved nothing, the raw head of the order is the memory's first address,
+      // which may be one that has never answered while the address that worked
+      // last time sits behind it. The single guess is the round's only chance to
+      // reach the peer before the next trigger, so it goes to the one with an
+      // answer on record.
+      final a = _Side('a');
+      final b = _Side('b');
+      await a.start(root);
+      await b.start(root);
+      sides.addAll([a, b]);
+      await pairSides(a, b);
+
+      final decoy = await closedPort();
+      final peer = await a.peer(b);
+      // Memory order puts the never-answered address first.
+      _onlyEndpoint(peer, '127.0.0.1', decoy);
+      peer.addEndpoint('127.0.0.1', b.port);
+      await a.store.savePeer(peer);
+
+      a.engine.endpointProbes = {
+        b.identity.deviceId: [
+          // Fresh silence for the decoy: enough to order the dial, so the round
+          // does not probe for itself and the fallback is what decides.
+          EndpointProbeResult(
+            host: '127.0.0.1',
+            port: decoy,
+            answered: false,
+            authenticated: false,
+            measuredAt: DateTime.now(),
+          ),
+          // The address that works, measured a minute ago: no longer fresh
+          // enough to order by, still the best thing known about it.
+          EndpointProbeResult(
+            host: '127.0.0.1',
+            port: b.port,
+            answered: true,
+            authenticated: true,
+            latency: const Duration(milliseconds: 1),
+            measuredAt: DateTime.now().subtract(const Duration(minutes: 1)),
+          ),
+        ],
+      };
+
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+
+      expect(
+        report.success,
+        isTrue,
+        reason: 'the guess is the address with an answer, not the memory head',
+      );
+    },
+  );
 
   test('a measurement older than the freshness window is not reused', () async {
     final a = _Side('a');

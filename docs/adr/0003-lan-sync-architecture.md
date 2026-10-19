@@ -1756,6 +1756,69 @@ version gate is what makes that safe (see the last bullet).
   bounded by `kSyncProbeConcurrency` per wave, and the alternative was a listener refusing its own
   device's questions.
 
+## Amendment (2026-10, slice 26): the addendum review — five findings, and two boundaries named
+
+A second adversarial pass over the same branch (two delegated traces plus a source read) produced five
+more findings after slice 25. All five were real and are fixed here, again at the rule each belongs
+to; the wire does not change (v7 stands). The same pass confirmed two *acceptance boundaries* rather
+than defects, recorded at the end.
+
+- **A re-pair dropped the name and history of every address it re-advertised (Sev 3/Occ 4).** Pairing
+  lands the address it came in on and every advertised candidate *before* it merges the previous
+  record's endpoints, and `rememberEndpointHistory` skipped a collision
+  (`if (endpointFor(host, port) != null) continue;`). The skipped addresses are the ones that matter:
+  the address the pair is on today is usually a network it has synced over before, so a re-scan at
+  home erased the home tile's name, session count and probe measurement, while an address from a
+  network the pair had *left* kept them. The merge now folds the old tile's facts into the fresh copy
+  — the name, the earlier first-learned, the later session and probe stamps with the measurement that
+  belongs to them, and the session count *added* (the old count precedes the re-pair; the fresh one is
+  this pairing) — while the fresh copy keeps its position, because that position is the dial order the
+  call exists to build.
+- **The push window was not a beat, so a long upload was swept (Sev 3/Occ 3).** The idle sweep keeps a
+  session with a beat in flight and drops one whose last beat is older than `kSessionIdleTtl` (two
+  minutes). Hello, push and fetch were beats; the file and blob bodies between the push ack and the
+  fetch were not — the put routes neither opened a beat nor stamped `lastBeatAt`. A first sync whose
+  upload phase outlasted the window was therefore swept by this device's own next round (the sweep runs
+  *before* `syncWithPeer`'s busy refusal), after which every remaining put found no session and the
+  fetch beat threw `sessionMissing`. Each put is a beat now: the body streams with `beatsInFlight > 0`,
+  so no sweep can take the session mid-transfer, and both ends of the beat refresh the stamp, so a
+  continuous upload stays fresh while a genuinely silent one still expires.
+- **A limit another limit depends on was restated, and its named proof did not exist (Sev 2/Occ 3).**
+  `kMaxWorkspaceLedgerEntries` (20,000) exists because it is ten workspaces at `kMaxWorkspaceFiles`
+  (2,000); the doc said so in prose and named `sync_limits_test.dart` as the proof, and no such file
+  existed. Both caps now live in `sync_limits.dart` and the ledger cap is *computed*
+  (`10 * kMaxWorkspaceFiles`), so raising the file cap raises it; the named test exists and asserts the
+  relationships rather than the numbers (ledger over file cap, listener headroom over the endpoint cap,
+  probe budget equal to it, reverse-dial budget within it). Values are unchanged.
+- **A port the store refuses was silently discarded (Sev 2/Occ 2).** The address form popped on
+  anything `int.tryParse` accepted, while the store refuses `port <= 0` (`SyncEndpointAdd.invalid`),
+  and the field has no input formatter — so `0`, `-1` or `70000` from a desktop keyboard closed the
+  sheet and then wrote nothing: `addPeerEndpoint` returned `invalid`, `mutatePeer` saw `false`, and the
+  only l10n mapping of the enum is `full`. On the edit path the sheet simply showed the old address
+  again, so the repair silently did not happen. The form checks 1..65535 and stays open, which makes
+  that silent state unreachable from the UI; `duplicate` remains the documented no-op, and the store's
+  guard remains the wire-level one.
+- **A doc block was two documents fused into one (Sev 1/Occ 2).** `panelOpened`'s doc and
+  `workspaceSummaries`' doc sat in one block with no blank line between them, so the field carried the
+  method's doc and the method carried none. Split.
+
+Boundaries this pass confirmed and did **not** change — recorded so the claim "every workspace face
+applies the rule" is not read as stronger than it is:
+
+- **The versioned-backup merge is the one workspace writer outside the choke points.** It copies
+  `kind IN ('workspace', 'skill', 'composerPublishedFile')` rows verbatim from an attached backup with
+  none of the three predicates (the id check, the linked-row exclusion, the payload-names-id
+  agreement). It is reached only after `sanitizeDatabase` → `BackupPortability.portable` dropped linked
+  rows and stripped `hostPath`, and every downstream face filters a half-disagreeing row, so no path
+  from it to a filesystem write was found. It is an acceptance boundary, not a defect with a symptom.
+- **A non-workspace kind may still reference a linked workspace id.** A synced `mcpServer` row's
+  `workspaceId` is resolved by `WorkspaceProvider.byId` — which applies the payload/id agreement but
+  not `isLinkedWorkspace` — and turned into a read-write mount. Assistant `defaultWorkspaceId` and
+  conversation extras are the same shape (scrubbed for backups, not on the wire). This is pre-existing
+  on `master` (mcp rows sync there too) and outside this branch's diff; the peer must first *learn* the
+  UUID, and conversation extras do carry ids and do sync. It needs a product decision — whether a peer
+  may bind an MCP server to this device's linked external folder — rather than a silent fix here.
+
 ## Considered options (rejected)
 
 - **Whole-database / backup-zip exchange** — not version-portable; a newer schema on an

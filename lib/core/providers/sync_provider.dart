@@ -328,10 +328,6 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// which say everything a toast would; arrivals are not announced.
   int _panelViewers = 0;
 
-  /// Called by the panel body when it becomes visible and hidden again — not on
-  /// mount: the desktop pane stays mounted in the home page's `IndexedStack`
-  /// after the user leaves the settings tab. The counter (not a bool) is what
-  /// keeps an odd dispose order from silencing a live panel.
   /// The panel's workspace rows, or null before this device has read them.
   ///
   /// Null and empty mean different things: null is "nothing has been walked
@@ -342,6 +338,10 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   bool _workspaceRefreshRunning = false;
 
+  /// Called by the panel body when it becomes visible and hidden again — not on
+  /// mount: the desktop pane stays mounted in the home page's `IndexedStack`
+  /// after the user leaves the settings tab. The counter (not a bool) is what
+  /// keeps an odd dispose order from silencing a live panel.
   void panelOpened() {
     _panelViewers++;
     // The user is looking at the cards: this is the moment to show every

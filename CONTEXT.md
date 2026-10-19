@@ -254,8 +254,9 @@ contradicts one of them is a bug, not a preference.
 - **Caps are hard gates and the switch cannot lift them (上限)**: a workspace over **2,000 files or
   200 MB** has **no content synced at all** — the whole block, never half a table — and the panel
   says so (`2,001+ 文件`, and its size is a lower bound). The ledger has a global 20,000-entry cap
-  (ten workspaces at the per-workspace cap — the two numbers are one relationship, asserted in
-  `sync_limits_test.dart`) and drops whole workspaces over it; those fall back to conservative
+  *derived from* the per-workspace cap (`10 × 2,000`, both in `sync_limits.dart`, the relationship
+  asserted in `sync_limits_test.dart`) and drops whole workspaces over it; those fall back to
+  conservative
   re-sending, never to deleting. **A workspace the advertised-table cap drops is *named*, not
   silent**: the peer reads its absence as “no opinion” and plans nothing, so it transfers nothing and
   no failure ever mentions it — the one shares-nothing reason the user did not choose, and the field
@@ -354,11 +355,18 @@ contradicts one of them is a bug, not a preference.
   keeps the rest behind it as hints, so roaming back to a known network heals itself in one round.
   A re-pair carries the old set over behind the address it just proved (and the candidates the QR
   advertised): the repair gesture for a moved peer must not forget the networks the pair has
-  already met, or alternating two places costs a re-scan every time. Only the certificate
+  already met, or alternating two places costs a re-scan every time. An address the new pairing
+  *mentions again* keeps what the old tile had — the name, when it was first learned, the sessions it
+  carried and the probe measurement — because that is the common case (re-pairing at home proves the
+  home address again), and one address is one tile: the fresh copy holds the dial position, the old
+  copy contributes the facts, and the counts add up rather than one replacing the other. Only the
+  certificate
   fingerprint identifies a peer — every connection re-verifies it — so remembering several
   addresses can never reach the wrong device. Manual repair is **per address** — add, edit or
-  delete one, and adding is offered only when the set is empty: the automatic memory is what
-  failed, so the user fixes the entry that failed instead of retyping the whole set.
+  delete one, with the add gesture offered whenever there is room — because the automatic memory is
+  what failed: the user fixes the entry that failed instead of retyping the whole set. A typed
+  address must be a real one first: the form refuses a port outside 1–65535 by staying open, so it
+  cannot close on an address the store would refuse (`SyncEndpointAdd.invalid`) with nothing said.
 - **Candidates are probed in parallel, and the dial spends that proof** (候选探测): a peer with
   several remembered addresses costs one *authenticated* probe per address, all at once — a pinned
   TLS connection plus a `POST /sync/ping` answered with a 204, so an answer proves both that
@@ -503,7 +511,9 @@ contradicts one of them is a bug, not a preference.
   bodies that did not land, **with the workspace files this side planned and could not land, and with
   the blobs it planned and could not land**) →
   the files and blobs that answer that request, pushed over the connection the initiator opened
-  (`PUT /sync/wsfile`, `PUT /sync/blob/<hash>`) → blob fetch (receiver pulls by contentHash, skipping
+  (`PUT /sync/wsfile`, `PUT /sync/blob/<hash>`; **each put is a beat**, because the upload phase
+  between the push ack and the fetch is work on a live session and must not be swept as idle) →
+  blob fetch (receiver pulls by contentHash, skipping
   hashes it already has;
   the responder pulls back over the initiator's advertised listener, and the same reverse
   connection carries its workspace file pulls) → transactional apply + provider reload →

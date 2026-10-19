@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../../utils/app_directories.dart';
+
 typedef BusinessEntityRowIds = Map<String, List<String>>;
 
 typedef BusinessSettingsExport = ({
@@ -86,6 +88,39 @@ bool isLinkedWorkspace(String payload) {
     return false;
   }
   return decoded is Map && decoded['kind'] == 'linked';
+}
+
+/// One payload as a decoded JSON object, or null when it is not one.
+///
+/// The decode every rule that reads a payload shares, so "this payload is not
+/// an object" is one answer instead of one per caller.
+Map<String, dynamic>? decodePayloadObject(String payload) {
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(payload);
+  } on FormatException {
+    return null;
+  }
+  if (decoded is! Map) return null;
+  return decoded.map((key, value) => MapEntry(key.toString(), value));
+}
+
+/// Whether one decoded workspace payload names exactly [rowId] as its own id —
+/// and that id may name a directory under `<appData>/workspaces`.
+///
+/// A workspace carries its identity twice: the table's `id` column decides what
+/// the row *is*, while the payload's own `id` is what the app reads
+/// (`Workspace.fromJson`) and therefore what names
+/// `<appData>/workspaces/<id>/files` and what a delete removes. When the two
+/// disagree, the payload's is the one nothing else validated: the provider
+/// lists the workspace under it, an update mints a second row under it, and a
+/// delete with files builds `<appData>/workspaces/..` for `..` — which is the
+/// app data root itself. A row whose halves disagree is malformed, and every
+/// face that offers, serves, applies, lists or deletes a workspace reads this
+/// one rule.
+bool workspacePayloadNamesId(Map<String, dynamic> payload, String rowId) {
+  final id = payload['id'];
+  return id is String && id == rowId && isSafeWorkspaceId(id);
 }
 
 final class BusinessEntityValue {

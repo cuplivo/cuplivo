@@ -563,8 +563,8 @@ WHERE id IN ($placeholders);
 
   /// Whether one stored row is invisible to sync — in either direction.
   ///
-  /// Workspaces are the only kind with a *row-level* exclusion, for two reasons
-  /// that both come down to the folder behind the row:
+  /// Workspaces are the only kind with a *row-level* exclusion, for three
+  /// reasons that all come down to the folder behind the row:
   ///
   /// * A linked workspace ([isLinkedWorkspace]) is a folder the user already
   ///   had, named by a path on *this* machine's filesystem: device-local by
@@ -574,18 +574,29 @@ WHERE id IN ($placeholders);
   ///   ([AppDirectories.workspaceFilesDir]) and it arrives from the wire. An id
   ///   that is not a single safe path segment ([isSafeWorkspaceId]) would name
   ///   a directory outside the managed tree.
+  /// * The payload names the workspace *again*, and that second id is the one
+  ///   the app lists, updates and deletes by ([workspacePayloadNamesId]): a row
+  ///   whose halves disagree is malformed rather than a workspace, and a delete
+  ///   of it would remove the app data root itself.
   ///
-  /// Both kinds share one table and one wire name, so the rule cannot be per
+  /// All kinds share one table and one wire name, so the rule cannot be per
   /// kind — it is per row, and every path that offers, reads, accepts or
   /// deletes a row applies it, so such a row is invisible in both directions.
   static bool _syncSkipsRow(
     BusinessEntityKind kind,
     String id,
     Object? payload,
-  ) =>
-      kind == BusinessEntityKind.workspace &&
-      (!isSafeWorkspaceId(id) ||
-          (payload is String && isLinkedWorkspace(payload)));
+  ) {
+    if (kind != BusinessEntityKind.workspace) return false;
+    if (!isSafeWorkspaceId(id)) return true;
+    // A workspace payload is a JSON object or the row is not one either: every
+    // reader below decodes it and would otherwise be reading a shape the store
+    // cannot even hand back.
+    if (payload is! String) return true;
+    final decoded = decodePayloadObject(payload);
+    if (decoded == null) return true;
+    return isLinkedWorkspace(payload) || !workspacePayloadNamesId(decoded, id);
+  }
 
   /// Ids per `IN (...)` batch, well under SQLite's bound-variable limit.
   static const _syncIdBatch = 200;

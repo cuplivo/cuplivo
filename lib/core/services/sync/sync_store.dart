@@ -694,6 +694,16 @@ class SyncPeerRecord {
   /// the new head, the QR's current candidates come next, and this is the memory
   /// behind both: tried only once the fresher ones fail.
   ///
+  /// An address this pairing already landed is the *common* case, not the edge
+  /// one: the pairing address is wherever the pair is right now, which is
+  /// usually a network it has synced over before — re-scanning the QR at home
+  /// proves the home address again. Skipping it there is what dropped the name
+  /// and the sessions of exactly the tile that had the most of both. So the
+  /// fresh copy keeps its position (the dial order is this call's contract) and
+  /// the old copy contributes its facts to it: the name, the earlier first-seen
+  /// stamp, the probe measurement, and its sessions, which are *added* to this
+  /// pairing's rather than replacing them. One address stays one tile.
+  ///
   /// Returns the endpoints the cap pushed out, so a re-pair says which network
   /// it had to forget instead of dropping it silently.
   List<SyncPeerEndpoint> rememberEndpointHistory(
@@ -701,10 +711,49 @@ class SyncPeerRecord {
   ) {
     for (final endpoint in previous) {
       if (endpoint.host.isEmpty || endpoint.port <= 0) continue;
-      if (endpointFor(endpoint.host, endpoint.port) != null) continue;
-      endpoints.add(endpoint);
+      final fresh = endpointFor(endpoint.host, endpoint.port);
+      if (fresh == null) {
+        endpoints.add(endpoint);
+        continue;
+      }
+      _mergeEndpointHistory(fresh, endpoint);
     }
     return _trimEndpoints();
+  }
+
+  /// Folds the facts [previous] holds onto the [fresh] copy this pairing
+  /// created for the same address.
+  ///
+  /// Counters are events, so they add up (the old count precedes the re-pair;
+  /// the fresh one is what the pairing itself did). Everything else is a
+  /// *stamp*, and the one that answers its question is kept: the name if the
+  /// fresh copy has none, the earlier "first learned", the later session, the
+  /// later probe with the measurement that belongs to it.
+  static void _mergeEndpointHistory(
+    SyncPeerEndpoint fresh,
+    SyncPeerEndpoint previous,
+  ) {
+    fresh.customName ??= previous.customName;
+    fresh.successCount += previous.successCount;
+    final oldSuccess = previous.lastSuccessAt;
+    final freshSuccess = fresh.lastSuccessAt;
+    if (oldSuccess != null &&
+        (freshSuccess == null || oldSuccess.isAfter(freshSuccess))) {
+      fresh.lastSuccessAt = oldSuccess;
+    }
+    final oldProbe = previous.lastProbedAt;
+    final freshProbe = fresh.lastProbedAt;
+    if (oldProbe != null &&
+        (freshProbe == null || oldProbe.isAfter(freshProbe))) {
+      fresh.lastProbedAt = oldProbe;
+      fresh.lastLatencyMs = previous.lastLatencyMs;
+    }
+    final oldAdded = previous.addedAt;
+    final freshAdded = fresh.addedAt;
+    if (oldAdded != null &&
+        (freshAdded == null || oldAdded.isBefore(freshAdded))) {
+      fresh.addedAt = oldAdded;
+    }
   }
 
   /// Trims the set back to [kMaxPeerEndpoints] and returns what it removed, the

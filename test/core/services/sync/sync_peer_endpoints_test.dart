@@ -266,6 +266,86 @@ void main() {
       );
     });
 
+    test('a re-pair keeps the name and history of the address it proves', () {
+      // The tile the user named at home, with the sessions and the measurement
+      // that belong to that (device, network) pair.
+      final previous = record();
+      previous.noteEndpointSuccess('192.168.1.7', 9527);
+      final oldTile = previous.endpoints.single
+        ..customName = '家中网络'
+        ..successCount = 41
+        ..addedAt = DateTime(2025, 6, 1)
+        ..recordProbe(
+          answered: true,
+          latency: const Duration(milliseconds: 12),
+          at: DateTime(2026, 1, 1),
+        );
+
+      // Re-pairing on that same network proves the address the old tile holds:
+      // the fresh copy is created first, the history merge arrives second, and
+      // the merge must not discard the tile it collides with.
+      final peer = record();
+      peer.noteEndpointSuccess('192.168.1.7', 9527);
+      peer.rememberEndpointHistory(previous.endpoints);
+
+      expect(peer.endpoints, hasLength(1), reason: 'one address is one tile');
+      final tile = peer.endpoints.single;
+      expect(tile.displayName, '家中网络', reason: 'the name outlives a re-pair');
+      expect(
+        tile.successCount,
+        42,
+        reason: 'the pairing session counts on top of the history it found',
+      );
+      expect(tile.lastLatencyMs, 12, reason: 'the measurement is still true');
+      expect(
+        tile.addedAt,
+        oldTile.addedAt,
+        reason: 'a tile is not "first learned" when it is re-paired',
+      );
+    });
+
+    test('a re-pair keeps the history of every address it advertises', () {
+      // The office address that carried sessions, and the home address known
+      // only as a candidate the old pairing advertised.
+      final previous = record();
+      previous.noteEndpointSuccess('10.0.0.3', 9527);
+      previous.rememberEndpointCandidates([('192.168.1.9', 9527)]);
+      previous.endpoints[1]
+        ..customName = '家中网络'
+        ..successCount = 7
+        ..recordProbe(
+          answered: true,
+          latency: const Duration(milliseconds: 9),
+          at: DateTime(2026, 2, 1),
+        );
+
+      // The new pairing proves the home address and advertises both networks.
+      final peer = record();
+      peer.noteEndpointSuccess('192.168.1.7', 9527);
+      peer.rememberEndpointCandidates([
+        ('10.0.0.3', 9527),
+        ('192.168.1.9', 9527),
+      ]);
+      peer.rememberEndpointHistory(previous.endpoints);
+
+      expect(peer.endpoints.map((e) => e.host).toList(), [
+        '192.168.1.7',
+        '10.0.0.3',
+        '192.168.1.9',
+      ]);
+      final office = peer.endpointFor('10.0.0.3', 9527)!;
+      expect(
+        office.successCount,
+        1,
+        reason: 'an advertised address that already carried a session keeps it',
+      );
+      expect(office.lastSuccessAt, isNotNull);
+      final home = peer.endpointFor('192.168.1.9', 9527)!;
+      expect(home.displayName, '家中网络');
+      expect(home.successCount, 7);
+      expect(home.lastLatencyMs, 9);
+    });
+
     test('round-trips through JSON', () {
       final peer = record();
       peer.noteEndpointSuccess('192.168.1.7', 9527);

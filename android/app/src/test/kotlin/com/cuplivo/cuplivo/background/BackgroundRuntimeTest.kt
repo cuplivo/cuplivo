@@ -252,15 +252,15 @@ class BackgroundRuntimeTest {
 
     @Test fun nativeConversationTapIsBufferedUntilDartIsReadyAndThenDeliveredOnce() {
         val (runtime, m) = setup()
-        runtime.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "cold"), restoring = false)
+        runtime.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "cold"), origin = BackgroundRuntime.Origin.NEW_INTENT)
         var pending: Any? = null
         m.call("takePendingConversation") { pending = it }
         assertEquals("cold", pending)
         m.call("takePendingConversation") { pending = it }
         assertNull(pending)
         val intent = Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "warm")
-        runtime.receiveConversation(intent, restoring = false)
-        runtime.receiveConversation(intent, restoring = false)
+        runtime.receiveConversation(intent, origin = BackgroundRuntime.Origin.NEW_INTENT)
+        runtime.receiveConversation(intent, origin = BackgroundRuntime.Origin.NEW_INTENT)
         assertEquals("warm", m.events.single { it.method == "openConversation" }.arguments)
     }
 
@@ -268,8 +268,8 @@ class BackgroundRuntimeTest {
         val (runtime, m) = setup()
         val url = "cuplivo://conversation/my%20chat%2F%2B?message=msg%26%3F%23"
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-        runtime.receiveConversation(intent, restoring = false)
-        runtime.receiveConversation(intent, restoring = false)
+        runtime.receiveConversation(intent, origin = BackgroundRuntime.Origin.TASK_LAUNCH)
+        runtime.receiveConversation(intent, origin = BackgroundRuntime.Origin.TASK_LAUNCH)
         assertNull(intent.data)
         assertTrue(m.events.none { it.method == "openConversationLink" })
 
@@ -287,7 +287,7 @@ class BackgroundRuntimeTest {
         val (runtime, m) = setup()
         m.call("takePendingConversationLink")
         val url = "cuplivo://conversation/chat-1?message=msg-2"
-        runtime.receiveConversation(Intent(Intent.ACTION_VIEW, Uri.parse(url)), restoring = false)
+        runtime.receiveConversation(Intent(Intent.ACTION_VIEW, Uri.parse(url)), origin = BackgroundRuntime.Origin.TASK_LAUNCH)
         assertEquals(listOf(url), m.events.filter { it.method == "openConversationLink" }.map { it.arguments })
 
         // A killed process leaves the task record and AMS's own copy of its launch
@@ -296,28 +296,28 @@ class BackgroundRuntimeTest {
         val restarted = BackgroundRuntime(app)
         restarted.configure(m)
         m.call("takePendingConversationLink")
-        restarted.receiveConversation(Intent(Intent.ACTION_VIEW, Uri.parse(url)), restoring = true)
+        restarted.receiveConversation(Intent(Intent.ACTION_VIEW, Uri.parse(url)), origin = BackgroundRuntime.Origin.RECORD_RESTORE)
         assertEquals(listOf(url), m.events.filter { it.method == "openConversationLink" }.map { it.arguments })
 
         // A different link on that same restored Activity is a fresh tap, not a replay.
         val other = "cuplivo://conversation/chat-2"
-        restarted.receiveConversation(Intent(Intent.ACTION_VIEW, Uri.parse(other)), restoring = true)
+        restarted.receiveConversation(Intent(Intent.ACTION_VIEW, Uri.parse(other)), origin = BackgroundRuntime.Origin.RECORD_RESTORE)
         assertEquals(listOf(url, other), m.events.filter { it.method == "openConversationLink" }.map { it.arguments })
     }
 
     @Test fun restoredTaskDoesNotReplayTheNotificationTapItAlreadyConsumed() {
         val (runtime, m) = setup()
         m.call("takePendingConversation")
-        runtime.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "chat-1"), restoring = false)
+        runtime.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "chat-1"), origin = BackgroundRuntime.Origin.TASK_LAUNCH)
         assertEquals(listOf("chat-1"), m.events.filter { it.method == "openConversation" }.map { it.arguments })
 
         val restarted = BackgroundRuntime(app)
         restarted.configure(m)
         m.call("takePendingConversation")
-        restarted.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "chat-1"), restoring = true)
+        restarted.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "chat-1"), origin = BackgroundRuntime.Origin.RECORD_RESTORE)
         assertEquals(listOf("chat-1"), m.events.filter { it.method == "openConversation" }.map { it.arguments })
 
-        restarted.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "chat-2"), restoring = true)
+        restarted.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "chat-2"), origin = BackgroundRuntime.Origin.RECORD_RESTORE)
         assertEquals(listOf("chat-1", "chat-2"), m.events.filter { it.method == "openConversation" }.map { it.arguments })
     }
 
@@ -326,8 +326,43 @@ class BackgroundRuntimeTest {
         // reaches a destroyed record, so suppression keys on the payload alone.
         val (runtime, m) = setup()
         m.call("takePendingConversation")
-        runtime.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "other"), restoring = true)
+        runtime.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "other"), origin = BackgroundRuntime.Origin.RECORD_RESTORE)
         assertEquals("other", m.events.single { it.method == "openConversation" }.arguments)
+    }
+
+    @Test fun aWarmTapBetweenLaunchAndKillDoesNotDisarmTheReplayGuard() {
+        val (runtime, m) = setup()
+        m.call("takePendingConversationLink")
+        val url = "cuplivo://conversation/chat-1"
+        runtime.receiveConversation(Intent(Intent.ACTION_VIEW, Uri.parse(url)), origin = BackgroundRuntime.Origin.TASK_LAUNCH)
+        // A notification tap for another conversation before the kill is a fresh
+        // delivery, so it must not become the payload a restore is compared against.
+        runtime.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "chat-A"), origin = BackgroundRuntime.Origin.NEW_INTENT)
+        assertEquals(listOf(url), m.events.filter { it.method == "openConversationLink" }.map { it.arguments })
+
+        // The reclaimed task's replay still has to stay suppressed.
+        val restarted = BackgroundRuntime(app)
+        restarted.configure(m)
+        m.call("takePendingConversationLink")
+        restarted.receiveConversation(Intent(Intent.ACTION_VIEW, Uri.parse(url)), origin = BackgroundRuntime.Origin.RECORD_RESTORE)
+        assertEquals(listOf(url), m.events.filter { it.method == "openConversationLink" }.map { it.arguments })
+    }
+
+    @Test fun aFreshRepeatOfTheLastWarmTapIsDeliveredWhenTheRecordWasDestroyed() {
+        val (runtime, m) = setup()
+        m.call("takePendingConversation")
+        val url = "cuplivo://conversation/chat-1"
+        runtime.receiveConversation(Intent(Intent.ACTION_VIEW, Uri.parse(url)), origin = BackgroundRuntime.Origin.TASK_LAUNCH)
+        runtime.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "chat-A"), origin = BackgroundRuntime.Origin.NEW_INTENT)
+
+        // Tapping that notification again on a destroyed record is a new tap: only the
+        // payload the task was launched with gets replayed, not the last delivery.
+        val restarted = BackgroundRuntime(app)
+        restarted.configure(m)
+        m.call("takePendingConversation")
+        restarted.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "chat-A"), origin = BackgroundRuntime.Origin.RECORD_RESTORE)
+        assertEquals(listOf("chat-A", "chat-A"),
+            m.events.filter { it.method == "openConversation" }.map { it.arguments })
     }
 
     @Test fun warmLinksAreConsumedOnceButANewTapOfTheSameUrlStillOpens() {
@@ -336,11 +371,11 @@ class BackgroundRuntimeTest {
         val url = "cuplivo://conversation/chat-1?message=msg-2"
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
             .putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "other")
-        runtime.receiveConversation(intent, restoring = false)
+        runtime.receiveConversation(intent, origin = BackgroundRuntime.Origin.NEW_INTENT)
         assertFalse(intent.hasExtra(BackgroundRuntime.CONVERSATION_EXTRA))
-        runtime.receiveConversation(intent, restoring = false)
+        runtime.receiveConversation(intent, origin = BackgroundRuntime.Origin.NEW_INTENT)
         assertEquals(listOf(url), m.events.filter { it.method == "openConversationLink" }.map { it.arguments })
-        runtime.receiveConversation(Intent(Intent.ACTION_VIEW, Uri.parse(url)), restoring = false)
+        runtime.receiveConversation(Intent(Intent.ACTION_VIEW, Uri.parse(url)), origin = BackgroundRuntime.Origin.NEW_INTENT)
         assertEquals(listOf(url, url), m.events.filter { it.method == "openConversationLink" }.map { it.arguments })
     }
 
@@ -349,14 +384,14 @@ class BackgroundRuntimeTest {
         m.call("takePendingConversationLink")
         for (url in listOf("content://files/chat", "file:///chat", "https://conversation/chat", "kelivo://conversation/chat")) {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-            runtime.receiveConversation(intent, restoring = false)
+            runtime.receiveConversation(intent, origin = BackgroundRuntime.Origin.NEW_INTENT)
             assertEquals(url, intent.data.toString())
         }
-        runtime.receiveConversation(Intent(Intent.ACTION_SEND, Uri.parse("cuplivo://conversation/chat")), restoring = false)
+        runtime.receiveConversation(Intent(Intent.ACTION_SEND, Uri.parse("cuplivo://conversation/chat")), origin = BackgroundRuntime.Origin.NEW_INTENT)
         runtime.receiveConversation(
             Intent(Intent.ACTION_VIEW, Uri.parse("cuplivo://conversation/chat"))
                 .addFlags(Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY),
-            restoring = false,
+            origin = BackgroundRuntime.Origin.NEW_INTENT,
         )
         assertTrue(m.events.none { it.method == "openConversationLink" })
     }
@@ -365,20 +400,20 @@ class BackgroundRuntimeTest {
         val (runtime, m) = setup()
         m.call("takePendingConversation")
         val id = "my chat/a?b#c+d".repeat(20)
-        runtime.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, id), restoring = false)
+        runtime.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, id), origin = BackgroundRuntime.Origin.NEW_INTENT)
         assertEquals(id, m.events.single { it.method == "openConversation" }.arguments)
     }
 
     @Test fun theNewestPendingTapWinsAcrossNotificationsAndLinks() {
         val (runtime, m) = setup()
         val url = "cuplivo://conversation/linked?message=msg"
-        runtime.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "old"), restoring = false)
-        runtime.receiveConversation(Intent(Intent.ACTION_VIEW, Uri.parse(url)), restoring = false)
+        runtime.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "old"), origin = BackgroundRuntime.Origin.NEW_INTENT)
+        runtime.receiveConversation(Intent(Intent.ACTION_VIEW, Uri.parse(url)), origin = BackgroundRuntime.Origin.NEW_INTENT)
         var pending: Any? = null
         m.call("takePendingConversation") { pending = it }
         assertNull(pending)
         // A notification can arrive while Dart is between draining the two inboxes.
-        runtime.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "new"), restoring = false)
+        runtime.receiveConversation(Intent().putExtra(BackgroundRuntime.CONVERSATION_EXTRA, "new"), origin = BackgroundRuntime.Origin.NEW_INTENT)
         m.call("takePendingConversationLink") { pending = it }
         assertNull(pending)
         assertEquals("new", m.events.single { it.method == "openConversation" }.arguments)

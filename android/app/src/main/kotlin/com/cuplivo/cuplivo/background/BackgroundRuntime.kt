@@ -64,6 +64,9 @@ class BackgroundRuntime(private val context: Context) {
         private const val CONSUMED_LAUNCH = "consumed_launch_payload"
     }
 
+    /** Which lifecycle path delivered a conversation intent; decides replay suppression. */
+    enum class Origin { TASK_LAUNCH, RECORD_RESTORE, NEW_INTENT }
+
     private val prefs = context.getSharedPreferences("kelivo_background", Context.MODE_PRIVATE)
     private val main = Handler(Looper.getMainLooper())
     private var channel: MethodChannel? = null
@@ -253,14 +256,22 @@ class BackgroundRuntime(private val context: Context) {
     }
 
     /**
-     * [restoring] is `savedInstanceState != null`: the Activity is coming back from
-     * saved state, which can redeliver this task's stored launch intent. Android
-     * restores a destroyed record and starts a fresh delivery into one the same
-     * way, so the payload is what separates them -- a restore replays the payload
-     * this task already consumed, and AMS keeps its own copy of the intent, so
-     * clearing `intent.data` below cannot survive it.
+     * [origin] is the lifecycle path that delivered the intent, and together with the
+     * payload it decides replay suppression:
+     *
+     * - [Origin.TASK_LAUNCH]: record the payload as the one this task launched with.
+     * - [Origin.RECORD_RESTORE]: `onCreate(savedInstanceState != null)`, where AMS
+     *   re-delivers the intent it kept for this task, so an equal payload is a replay.
+     *   Clearing `intent.data` below only edits this process's copy of it.
+     * - [Origin.NEW_INTENT]: a live delivery, always a new tap.
+     *
+     * Only a restore is suppressed, and only against the launch payload, so a warm tap
+     * before the kill cannot mask the replay. A restore is indistinguishable from a
+     * fresh tap of that same launch payload into a destroyed record -- the intents are
+     * identical -- so such a tap is dropped. A process killed while resumed saves no
+     * instance state either, so it reads as a launch and replays (pre-existing).
      */
-    fun receiveConversation(intent: Intent?, restoring: Boolean) {
+    fun receiveConversation(intent: Intent?, origin: Origin) {
         if (intent == null || intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
         // Keep the URL whole, including encoded ids and the optional message
         // anchor. ConversationLink in Dart owns validation for both platforms.
@@ -269,9 +280,8 @@ class BackgroundRuntime(private val context: Context) {
         // Notification row keys are not constrained by the external URL grammar.
         val id = if (link == null) intent.getStringExtra(CONVERSATION_EXTRA)?.takeIf { it.isNotBlank() } else null
         val payload = link ?: id ?: return
-        // Suppress only a repeat of the payload this task already handed over.
-        if (restoring && payload == prefs.getString(CONSUMED_LAUNCH, null)) return
-        prefs.edit().putString(CONSUMED_LAUNCH, payload).apply()
+        if (origin == Origin.RECORD_RESTORE && payload == prefs.getString(CONSUMED_LAUNCH, null)) return
+        if (origin == Origin.TASK_LAUNCH) prefs.edit().putString(CONSUMED_LAUNCH, payload).apply()
 
         if (link != null) {
             intent.data = null // Consumed for this process only: AMS keeps its own copy.

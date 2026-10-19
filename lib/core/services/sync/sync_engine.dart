@@ -1168,15 +1168,10 @@ class SyncEngine implements SyncServerHandler {
         peerDeviceId: peer.deviceId,
       );
       final neededAssets = await dataPlane.neededFileBlobs(incoming.assets);
-      final wanted = <String, SyncBlobEntry>{
-        for (final entry in neededAssets) entry.target: entry,
-        for (final adoption in adoptions.wanted) adoption.target: adoption,
-        // Retries from earlier sessions: a superseded target is replaced by
-        // the fresh entry above, an already-satisfied one is re-checked below.
-      };
-      for (final pending in previous.pendingBlobs.values) {
-        wanted.putIfAbsent(pending.target, () => pending);
-      }
+      final wanted = _foldBlobWanted([
+        ...neededAssets,
+        ...adoptions.wanted,
+      ], previous.pendingBlobs.values);
       final pulled = await _pullBlobs(
         wanted.values.toList(),
         session,
@@ -1583,6 +1578,14 @@ class SyncEngine implements SyncServerHandler {
   ) async {
     final session = _sessions[peerDeviceId];
     if (session == null) throw const SyncRequestRefusal.sessionMissing();
+    // One push, one fetch — the half of the rule the fetch beat enforces from
+    // the other side (see [SyncRequestRefusal.pushRequired]). This beat writes
+    // the session's whole outcome (`workspaceOutcome`, `blobPull`,
+    // `receivedBusiness`, its apply) and the fetch beat reads it, while the
+    // counters a later landing books into keep accumulating: a replayed push
+    // would replace the outcome the report is built from and still count its
+    // bytes a second time.
+    if (session.pushSeen) throw const SyncRequestRefusal.pushAlreadyTaken();
     // The peer's client is alive and pushing: a session this device accepted by
     // yielding its own dial is no longer a bet (see [kYieldedSessionTtl]), and a
     // beat in flight means the idle sweep must leave this session alone however
@@ -1624,12 +1627,10 @@ class SyncEngine implements SyncServerHandler {
       peerDeviceId: peerDeviceId,
     );
     final neededAssets = await dataPlane.neededFileBlobs(batch.assets);
-    final wanted = <String, SyncBlobEntry>{
-      for (final entry in neededAssets) entry.target: entry,
-      for (final adoption in adoptions.wanted) adoption.target: adoption,
-      for (final pending in session.checkpoint.pendingBlobs.values)
-        pending.target: pending,
-    };
+    final wanted = _foldBlobWanted([
+      ...neededAssets,
+      ...adoptions.wanted,
+    ], session.checkpoint.pendingBlobs.values);
     // One reverse connection for the whole beat: the blobs the pushed rows
     // reference and the workspace files the push advertised both have to come
     // back over the initiator's own listener, and a peer that cannot be dialed
@@ -2653,6 +2654,31 @@ class SyncEngine implements SyncServerHandler {
       out.wantedSkillIds.add(item.skillId);
     }
     return out;
+  }
+
+  /// The blob set one session will try to land: what this side's plan wants
+  /// ([fresh]), plus what earlier sessions still owe ([pending]) — and a fresh
+  /// entry always wins.
+  ///
+  /// A blob's target is `(kind, key)`, so re-referencing an attachment or
+  /// editing a skill body keeps the target and changes the hash. The retry set
+  /// is keyed by target too and holds the hash that was *pending* — exactly the
+  /// hash a fresh advertisement supersedes. Folding it in last would make this
+  /// side ask, session after session, for a hash the peer no longer backs, while
+  /// the peer skips it as "no longer backed": a permanent stall for that file,
+  /// reported by neither side. The initiator and the responder fold one set, so
+  /// they fold it the same way — the second implementation is the bug.
+  static Map<String, SyncBlobEntry> _foldBlobWanted(
+    Iterable<SyncBlobEntry> fresh,
+    Iterable<SyncBlobEntry> pending,
+  ) {
+    final wanted = <String, SyncBlobEntry>{
+      for (final entry in fresh) entry.target: entry,
+    };
+    for (final entry in pending) {
+      wanted.putIfAbsent(entry.target, () => entry);
+    }
+    return wanted;
   }
 
   /// Pulls and applies every wanted blob over [session], returning what landed

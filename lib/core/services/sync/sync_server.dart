@@ -1029,6 +1029,21 @@ class SyncRequestRefusal implements Exception {
     : statusCode = HttpStatus.conflict,
       error = 'sync_session_missing';
 
+  /// A second push beat on a session that already took one.
+  ///
+  /// Every session is *one* push followed by one fetch, and the fetch beat
+  /// enforces its half of that ([pushRequired]); this is the other half. The
+  /// push beat writes the session's outcome — the workspace ledger, the blob
+  /// retry set, the business payload and its apply — while the counters a later
+  /// push landing books into keep accumulating, so answering a replay would
+  /// replace the outcome the report is built from and still count the bytes
+  /// twice. A client that retries a request it never got an answer for cannot be
+  /// told apart from a replay here, and a re-sent push re-runs every apply; the
+  /// honest answer is that the session already has its push.
+  const SyncRequestRefusal.pushAlreadyTaken()
+    : statusCode = HttpStatus.conflict,
+      error = 'push_already_taken';
+
   final int statusCode;
   final String error;
 

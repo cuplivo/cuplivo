@@ -5536,87 +5536,180 @@ void main() {
     },
   );
 
-  test(
-    'a pushed blob is written only for the hash the session asked for',
-    () async {
-      final (a, b) = await pair();
-      await _writeBlob(a, 'images/one.png', 'one!');
-      final file = File('${a.dir.path}/images/one.png');
-      final entry = SyncBlobEntry(
-        kind: SyncBlobEntry.kindFile,
-        key: 'kelivo-file:///images/one.png',
-        contentHash: await BlobFileHasher().hashOf(file) ?? '',
-        byteSize: 4,
-      );
+  test('a pushed blob is written only for the hash the session asked for', () async {
+    final (a, b) = await pair();
+    await _writeBlob(a, 'images/one.png', 'one!');
+    final file = File('${a.dir.path}/images/one.png');
+    final entry = SyncBlobEntry(
+      kind: SyncBlobEntry.kindFile,
+      key: 'kelivo-file:///images/one.png',
+      contentHash: await BlobFileHasher().hashOf(file) ?? '',
+      byteSize: 4,
+    );
 
-      // A's hello carries no listener port, so B has nothing to dial back: it
-      // plans the blob from the manifest A advertised, cannot fetch it, and asks
-      // for it — the request set that authorizes the write.
-      expect(
-        await b.engine.handleHello(a.identity.deviceId, a.hello()),
-        isA<SyncHello>(),
-      );
-      final ack = await b.engine.handleApplySubtrees(
-        a.identity.deviceId,
-        SyncDeltaBatch(const <SyncSubtreePayload>[], assets: [entry]),
-      );
-      expect(ack.blobRequests, hasLength(1));
-      expect(ack.blobRequests.single.contentHash, entry.contentHash);
-      expect(ack.blobRequests.single.key, entry.key);
+    // A's hello carries no listener port, so B has nothing to dial back: it
+    // plans the blob from the manifest A advertised, cannot fetch it, and asks
+    // for it — the request set that authorizes the write.
+    expect(
+      await b.engine.handleHello(a.identity.deviceId, a.hello()),
+      isA<SyncHello>(),
+    );
+    final ack = await b.engine.handleApplySubtrees(
+      a.identity.deviceId,
+      SyncDeltaBatch(const <SyncSubtreePayload>[], assets: [entry]),
+    );
+    expect(ack.blobRequests, hasLength(1));
+    expect(ack.blobRequests.single.contentHash, entry.contentHash);
+    expect(ack.blobRequests.single.key, entry.key);
 
-      final target = File('${b.dir.path}/images/one.png');
-      Future<bool> push({
-        String? hash,
-        String key = 'kelivo-file:///images/one.png',
-        int size = 4,
-        String body = 'one!',
-      }) => b.engine.handlePutBlob(
-        a.identity.deviceId,
-        hash ?? entry.contentHash,
-        kind: SyncBlobEntry.kindFile,
-        key: key,
-        size: size,
-        body: Stream.value(utf8.encode(body)),
-      );
+    final target = File('${b.dir.path}/images/one.png');
+    Future<bool> push({
+      String? hash,
+      String key = 'kelivo-file:///images/one.png',
+      int size = 4,
+      String body = 'one!',
+    }) => b.engine.handlePutBlob(
+      a.identity.deviceId,
+      hash ?? entry.contentHash,
+      kind: SyncBlobEntry.kindFile,
+      key: key,
+      size: size,
+      body: Stream.value(utf8.encode(body)),
+    );
 
-      // A target nobody asked for: refused, and nothing reaches the disk. The
-      // request set is built from what A itself advertised, so a crafted key can
-      // never be written.
-      expect(await push(key: 'kelivo-file:///images/other.png'), isFalse);
-      expect(await target.exists(), isFalse);
-      // The entry that *was* asked for, under a hash that is not its own: the
-      // route's hash is part of the request, not a hint.
-      expect(await push(hash: 'a' * 64), isFalse);
-      expect(await target.exists(), isFalse);
-      // The right entry as a different version than the one agreed: refused.
-      expect(await push(size: 5, body: 'one!!'), isFalse);
-      expect(await target.exists(), isFalse);
-      // The right entry, wrong bytes: the receiving side's digest check is what
-      // makes the hash the content, not a label.
-      expect(await push(body: 'two!'), isFalse);
-      expect(await target.exists(), isFalse);
+    // A target nobody asked for: refused, and nothing reaches the disk. The
+    // request set is built from what A itself advertised, so a crafted key can
+    // never be written.
+    expect(await push(key: 'kelivo-file:///images/other.png'), isFalse);
+    expect(await target.exists(), isFalse);
+    // The entry that *was* asked for, under a hash that is not its own: the
+    // route's hash is part of the request, not a hint.
+    expect(await push(hash: 'a' * 64), isFalse);
+    expect(await target.exists(), isFalse);
+    // The right entry as a different version than the one agreed: refused.
+    expect(await push(size: 5, body: 'one!!'), isFalse);
+    expect(await target.exists(), isFalse);
+    // The right entry, wrong bytes: the receiving side's digest check is what
+    // makes the hash the content, not a label.
+    expect(await push(body: 'two!'), isFalse);
+    expect(await target.exists(), isFalse);
+    // The right target under a *different valid* hash: the bytes match the hash
+    // the route names, so the digest check below accepts them — the route's hash
+    // being the requested entry's own is what refuses this, which is why that
+    // comparison is load-bearing rather than an early exit the digest duplicates.
+    final decoy = File('${a.dir.path}/images/decoy.png');
+    await decoy.writeAsString('two!', flush: true);
+    final decoyHash = await BlobFileHasher().hashOf(decoy);
+    expect(decoyHash, isNotNull);
+    expect(await push(hash: decoyHash!, body: 'two!'), isFalse);
+    expect(await target.exists(), isFalse);
 
-      expect(await push(), isTrue);
-      expect(await target.readAsString(), 'one!');
-      // Delivered once: the entry left the request set, so a replayed body is not
-      // a second write.
-      expect(await push(), isFalse);
+    expect(await push(), isTrue);
+    expect(await target.readAsString(), 'one!');
+    // Delivered once: the entry left the request set, so a replayed body is not
+    // a second write.
+    expect(await push(), isFalse);
 
-      await b.engine.handleFetchSubtrees(
-        a.identity.deviceId,
-        const SyncFetchRequest(),
-      );
-      final checkpoint = await b.store.loadCheckpoint(a.identity.deviceId);
-      expect(
-        checkpoint.pendingBlobs,
-        isEmpty,
-        reason: 'a blob that landed is not owed',
-      );
-      final responder = (await b.peer(a)).lastReport!;
-      expect(responder.blobsMoved, 1);
-      expect(responder.blobsMissing, 0);
-    },
-  );
+    await b.engine.handleFetchSubtrees(
+      a.identity.deviceId,
+      const SyncFetchRequest(),
+    );
+    final checkpoint = await b.store.loadCheckpoint(a.identity.deviceId);
+    expect(
+      checkpoint.pendingBlobs,
+      isEmpty,
+      reason: 'a blob that landed is not owed',
+    );
+    final responder = (await b.peer(a)).lastReport!;
+    expect(responder.blobsMoved, 1);
+    expect(responder.blobsMissing, 0);
+  });
+
+  test('a retry the peer has moved past is replaced by the fresh entry', () async {
+    // A blob's target is (kind, key), so re-referencing an attachment keeps the
+    // target and changes the hash. This device's retry set holds the hash that
+    // was *pending*, which is exactly the hash a fresh advertisement
+    // supersedes: folding the retry in over it makes this device ask, session
+    // after session, for a hash the peer no longer backs — the peer skips it as
+    // "no longer backed", neither side reports anything, and that picture never
+    // arrives. The initiator and the responder fold one set, so they fold it
+    // the same way.
+    final (a, b) = await pair();
+    await _writeBlob(a, 'images/one.png', 'new!');
+    const uri = 'kelivo-file:///images/one.png';
+
+    // B owes the *old* version of that same target.
+    final stale = SyncBlobEntry(
+      kind: SyncBlobEntry.kindFile,
+      key: uri,
+      contentHash: 'e' * 64,
+      byteSize: 4,
+    );
+    final checkpoint = await b.store.loadCheckpoint(a.identity.deviceId);
+    await b.store.saveCheckpoint(
+      a.identity.deviceId,
+      SyncCheckpoint(
+        checkpoint.conversations,
+        entities: checkpoint.entities,
+        preferences: checkpoint.preferences,
+        pendingBlobs: {stale.target: stale},
+        skillHashes: checkpoint.skillHashes,
+      ),
+    );
+
+    await _seedConversationWithImage(a, id: 'conv-img', uri: uri);
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+
+    expect(report.success, isTrue, reason: report.summary);
+    expect(
+      await File('${b.dir.path}/images/one.png').readAsString(),
+      'new!',
+      reason: 'the fresh advertisement must supersede the stale retry',
+    );
+    final after = await b.store.loadCheckpoint(a.identity.deviceId);
+    expect(
+      after.pendingBlobs,
+      isEmpty,
+      reason: 'the superseded retry is settled, not owed forever',
+    );
+  });
+
+  test('a session takes one push beat, not two', () async {
+    // Every session is one push followed by one fetch. The fetch beat already
+    // refuses its half of that (`push_required`); the push beat writes the whole
+    // outcome the fetch then reads, while the counters a landing books into keep
+    // accumulating — so a replay would replace the outcome the report is built
+    // from and still count the bytes twice.
+    final (a, b) = await pair();
+    expect(
+      await b.engine.handleHello(a.identity.deviceId, a.hello()),
+      isA<SyncHello>(),
+    );
+    const batch = SyncDeltaBatch(<SyncSubtreePayload>[]);
+
+    final first = await b.engine.handleApplySubtrees(
+      a.identity.deviceId,
+      batch,
+    );
+    expect(first.workspaceRequests, isEmpty);
+
+    await expectLater(
+      b.engine.handleApplySubtrees(a.identity.deviceId, batch),
+      throwsA(
+        isA<SyncRequestRefusal>().having(
+          (refusal) => refusal.error,
+          'error',
+          'push_already_taken',
+        ),
+      ),
+    );
+    // The fetch beat still belongs to the session the first push opened: a
+    // refused replay does not end it.
+    await b.engine.handleFetchSubtrees(
+      a.identity.deviceId,
+      const SyncFetchRequest(),
+    );
+  });
 
   test(
     'the panel switch persists the choice and re-counts the folder',

@@ -270,6 +270,15 @@ class SyncAgreedFile {
 /// The ledger is the "both sides agreed on this" record; an entry it does not
 /// hold only ever makes the plan conservative (offer or fetch again, never
 /// delete), so what the cap costs past this bound is a re-transfer, not data.
+///
+/// The *table* is not conservative in the same way, and this number is what
+/// decides both: a shared workspace that does not fit is dropped from the
+/// advertisement entirely, and the peer reads its absence as "no opinion" — it
+/// plans nothing, nothing transfers, and no report fields name it. That is why
+/// the drop is counted where the tables are built (`tablesOf`) and why the bound
+/// is ten workspaces at the per-workspace cap (`kMaxWorkspaceFiles` 2000, see
+/// `workspace_content_index.dart`) rather than an unrelated round number: the
+/// two have to agree, and `sync_limits_test.dart` asserts that they do.
 const int kMaxWorkspaceLedgerEntries = 20000;
 
 /// One workspace's file table on the wire: relative path → version stamp.

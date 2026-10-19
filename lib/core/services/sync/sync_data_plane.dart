@@ -440,11 +440,16 @@ class SyncDataPlane {
   Future<List<WorkspaceContentSnapshot>> workspaceSnapshots() async =>
       await workspaceContent?.snapshots() ?? const [];
 
-  /// The file tables to advertise for [snapshots]: one entry per workspace this
-  /// device shares, none for the rest.
-  SyncWorkspaceFileTables workspaceTables(
+  /// The file tables to advertise for [snapshots] — one entry per workspace this
+  /// device shares, none for the rest — and how many shared workspaces the
+  /// session's table cap dropped. The count is what the report needs: a dropped
+  /// workspace is advertised as "not shared", so the peer silently plans nothing
+  /// for it.
+  ({SyncWorkspaceFileTables tables, int droppedWorkspaces}) workspaceTables(
     List<WorkspaceContentSnapshot> snapshots,
-  ) => workspaceContent?.tablesOf(snapshots) ?? const {};
+  ) =>
+      workspaceContent?.tablesOf(snapshots) ??
+      (tables: const {}, droppedWorkspaces: 0);
 
   /// Publishes [snapshots] as the files this device will serve [peerDeviceId]
   /// until the next publish — called before the beat in which that peer may

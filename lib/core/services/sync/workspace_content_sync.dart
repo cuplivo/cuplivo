@@ -77,6 +77,7 @@ class WorkspaceContentOutcome {
     this.filesReplaced = 0,
     this.filesMissing = 0,
     this.unlanded = const {},
+    this.replacedUnlanded = const {},
     this.workspacesOmitted = 0,
   });
 
@@ -106,8 +107,21 @@ class WorkspaceContentOutcome {
   /// produced it, and the bytes that arrive must match the stamp named here.
   final Map<String, Map<String, WorkspaceFileStamp>> unlanded;
 
+  /// The serve keys inside [unlanded] whose plan action was
+  /// [WorkspaceFileAction.peerWins] — a local edit this session means to
+  /// replace, and could not.
+  ///
+  /// It has to travel with the request rather than be re-derived when the bytes
+  /// arrive: the push landing is where the replacement actually happens, and
+  /// `peerWins` promises the user it is "counted, never silent". Without this,
+  /// the one case the fallback exists for — the conflict that had to travel the
+  /// other way — would be the one the card did not mention.
+  final Set<String> replacedUnlanded;
+
   /// Workspaces this device shared no content for, and why it could not: turned
-  /// off, or over the caps.
+  /// off, over the caps, or dropped by the advertised-table cap at the moment
+  /// the tables were built (that last one is counted by the caller, which is
+  /// where the drop happens).
   final int workspacesOmitted;
 }
 
@@ -136,6 +150,7 @@ class WorkspaceContentSync {
     required this.resolveRoot,
     this.maxFiles = kMaxWorkspaceFiles,
     this.maxBytes = kMaxWorkspaceBytes,
+    this.maxLedgerEntries = kMaxWorkspaceLedgerEntries,
   });
 
   final BusinessRepository businessRepository;
@@ -146,6 +161,11 @@ class WorkspaceContentSync {
   /// without creating two thousand files. Production never passes them.
   final int maxFiles;
   final int maxBytes;
+
+  /// The advertised-table and ledger cap, a parameter for the same reason: the
+  /// drop only happens past twenty thousand file entries, and what a test has to
+  /// prove is that a dropped workspace is *named* rather than silently unsynced.
+  final int maxLedgerEntries;
 
   /// The wire name of the workspace entity kind — the single authority lives on
   /// `BusinessEntityKind`.
@@ -214,28 +234,36 @@ class WorkspaceContentSync {
     return snapshots;
   }
 
-  /// The file tables this device advertises to a peer: one entry per workspace
-  /// it shares, and no entry for the ones it does not.
+  /// The file tables this device advertises to a peer, and how many shared
+  /// workspaces the session cap dropped.
   ///
   /// The total is bounded ([kMaxWorkspaceLedgerEntries]) by dropping whole
   /// workspaces, deterministically by id. A dropped workspace is advertised as
   /// "not shared", which the peer reads as "no opinion" — the same treatment an
-  /// over-cap workspace gets, and for the same reason.
-  SyncWorkspaceFileTables tablesOf(List<WorkspaceContentSnapshot> snapshots) {
+  /// over-cap workspace gets, and for the same reason. The count comes back with
+  /// the tables because that is the only place the drop is known: a shared
+  /// workspace this session advertises nothing for is a workspace the user
+  /// believes is syncing and that no card would otherwise mention (see
+  /// `SyncPeerReport.workspacesOmitted`).
+  ({SyncWorkspaceFileTables tables, int droppedWorkspaces}) tablesOf(
+    List<WorkspaceContentSnapshot> snapshots,
+  ) {
     final shareable = [
       for (final snapshot in snapshots)
         if (snapshot.shared) snapshot,
     ]..sort((a, b) => a.id.compareTo(b.id));
     final tables = <String, SyncWorkspaceFileTable>{};
     var entries = 0;
+    var dropped = 0;
     for (final snapshot in shareable) {
-      if (entries + snapshot.index.files.length > kMaxWorkspaceLedgerEntries) {
+      if (entries + snapshot.index.files.length > maxLedgerEntries) {
+        dropped++;
         continue;
       }
       entries += snapshot.index.files.length;
       tables[snapshot.id] = snapshot.index.files;
     }
-    return tables;
+    return (tables: tables, droppedWorkspaces: dropped);
   }
 
   /// Forgets what this device advertised to [peerDeviceId].
@@ -328,6 +356,7 @@ class WorkspaceContentSync {
     var filesReplaced = 0;
     var filesMissing = 0;
     final unlanded = <String, Map<String, WorkspaceFileStamp>>{};
+    final replacedUnlanded = <String>{};
 
     for (final snapshot in mine) {
       final peerTable = peerTables[snapshot.id];
@@ -365,6 +394,12 @@ class WorkspaceContentSync {
               // the filesystem refused is not: nothing the peer holds would fix
               // it, so it stays a plain miss and is retried here next session.
               (unlanded[snapshot.id] ??= {})[item.path] = advertised;
+              // The replacement `peerWins` promises to count has not happened
+              // yet — it happens if and when the push lands, and this is the
+              // only place that knows the action was `peerWins`.
+              if (item.action == WorkspaceFileAction.peerWins) {
+                replacedUnlanded.add(serveKey(snapshot.id, item.path));
+              }
               continue;
             }
             landed[item.path] = stamp;
@@ -416,13 +451,14 @@ class WorkspaceContentSync {
       if (!snapshot.shared) omitted++;
     }
     return WorkspaceContentOutcome(
-      ledger: capWorkspaceLedger(next),
+      ledger: capWorkspaceLedger(next, maxEntries: maxLedgerEntries),
       filesLanded: filesLanded,
       bytesLanded: bytesLanded,
       filesRemoved: filesRemoved,
       filesReplaced: filesReplaced,
       filesMissing: filesMissing,
       unlanded: unlanded,
+      replacedUnlanded: replacedUnlanded,
       workspacesOmitted: omitted,
     );
   }
@@ -497,7 +533,7 @@ class WorkspaceContentSync {
           .putIfAbsent(entry.key, () => <String, SyncAgreedFile>{})
           .addAll(entry.value);
     }
-    return capWorkspaceLedger(next);
+    return capWorkspaceLedger(next, maxEntries: maxLedgerEntries);
   }
 
   /// Deletes a managed workspace's files — what a workspace row deleted *by

@@ -135,7 +135,37 @@ void main() {
         isFalse,
         reason: 'over the cap means nothing rides, switch or not',
       );
-      expect(strict.tablesOf([snapshot]), isEmpty);
+      expect(strict.tablesOf([snapshot]).tables, isEmpty);
+    });
+
+    test('a workspace the table cap drops comes back as a count', () async {
+      // Past the cap a shared workspace is dropped from the advertisement, and
+      // the peer reads its absence as "no opinion": it plans nothing, nothing
+      // transfers, and no transfer failure names it. The drop is deterministic
+      // by id, so without this count that workspace would never sync again and
+      // the user would never be told why.
+      await putWorkspace('w1');
+      await putWorkspace('w2');
+      await putFile('w1', 'a.txt', 'a');
+      await putFile('w2', 'b.txt', 'b');
+      final capped = WorkspaceContentSync(
+        businessRepository: businessRepository,
+        store: SyncStore(Directory('${root.path}/sync')),
+        resolveRoot: content.resolveRoot,
+        maxLedgerEntries: 1,
+      );
+
+      final advertised = capped.tablesOf(await capped.snapshots());
+
+      expect(advertised.tables.keys, [
+        'w1',
+      ], reason: 'sorted by id, the first one fits');
+      expect(
+        advertised.droppedWorkspaces,
+        1,
+        reason:
+            'what the peer will read as "not shared" is named to the report',
+      );
     });
 
     test('an index that could not be read is not shared at all', () async {
@@ -154,7 +184,7 @@ void main() {
 
       expect(partial.shared, isFalse);
       expect(
-        content.tablesOf([partial]),
+        content.tablesOf([partial]).tables,
         isEmpty,
         reason:
             'a table missing a file would tell the peer to delete that file',
@@ -198,7 +228,7 @@ void main() {
       expect(snapshot.root, isNull);
       expect(snapshot.index.incomplete, isTrue);
       expect(snapshot.shared, isFalse);
-      expect(broken.tablesOf([snapshot]), isEmpty);
+      expect(broken.tablesOf([snapshot]).tables, isEmpty);
 
       // Nothing is served for it either, and the report counts it as a
       // workspace that is not syncing its files.

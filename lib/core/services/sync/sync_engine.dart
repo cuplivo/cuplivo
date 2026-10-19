@@ -1069,7 +1069,7 @@ class SyncEngine implements SyncServerHandler {
       // published by then cannot be served, and the responder would have to
       // wait a whole session for it.
       final myWorkspaceSnapshots = await dataPlane.workspaceSnapshots();
-      final myWorkspaceTables = dataPlane.workspaceTables(myWorkspaceSnapshots);
+      final advertised = dataPlane.workspaceTables(myWorkspaceSnapshots);
       dataPlane.publishWorkspaceContent(peer.deviceId, myWorkspaceSnapshots);
       // Only the skill bodies this push actually carries advertise a hash.
       final sentSkillIds =
@@ -1084,7 +1084,7 @@ class SyncEngine implements SyncServerHandler {
             for (final id in sentSkillIds)
               if (mySkillHashes[id] != null) id: mySkillHashes[id]!,
           },
-          workspaceFiles: myWorkspaceTables,
+          workspaceFiles: advertised.tables,
         ),
       );
       peerDeferred = ack.deferred;
@@ -1375,6 +1375,11 @@ class SyncEngine implements SyncServerHandler {
           workspaceFoldersKept: keptWorkspaceFolders,
           workspacePushed: pushed.files,
           workspacePushedBytes: pushed.bytes,
+          // The tables this device advertised are the ones it could have dropped
+          // a shared workspace from: the peer then reads that workspace as "not
+          // shared" and plans nothing, so this is where the silence has to be
+          // counted.
+          workspacesDroppedByCap: advertised.droppedWorkspaces,
           blobsPushed: pushedBlobs.blobs,
           blobBytesPushed: pushedBlobs.bytes,
           clockSkewMs: clockSkewMs,
@@ -1737,6 +1742,13 @@ class SyncEngine implements SyncServerHandler {
               stamp: file.value,
             ),
       });
+      // Which of those requests, if they land, will *replace a local edit*
+      // (`peerWins`). Only the plan knows — the request carries the version, not
+      // the action — and the landing is the moment the edit is actually lost, so
+      // the set is kept until then and the report counts what landed.
+      session.workspaceReplacements.addAll(
+        session.workspaceOutcome!.replacedUnlanded,
+      );
     } finally {
       reverse?.close();
     }
@@ -2025,6 +2037,7 @@ class SyncEngine implements SyncServerHandler {
     // files every session.
     final myWorkspaceSnapshots = await dataPlane.workspaceSnapshots();
     dataPlane.publishWorkspaceContent(peerDeviceId, myWorkspaceSnapshots);
+    final advertised = dataPlane.workspaceTables(myWorkspaceSnapshots);
     final responseBatch = SyncDeltaBatch(
       outgoing,
       business: businessRead.payload,
@@ -2033,7 +2046,7 @@ class SyncEngine implements SyncServerHandler {
         for (final id in sentSkillIds)
           if (mySkillHashes[id] != null) id: mySkillHashes[id]!,
       },
-      workspaceFiles: dataPlane.workspaceTables(myWorkspaceSnapshots),
+      workspaceFiles: advertised.tables,
     );
     await store.saveCheckpoint(
       peerDeviceId,
@@ -2087,6 +2100,10 @@ class SyncEngine implements SyncServerHandler {
       // The responder is the side that can record a miss and then watch a push
       // repair it; the initiator's own misses are never repaired this way.
       workspaceMissesRepaired: session.pushedFiles,
+      // The `peerWins` replacements this beat's pushes actually performed: the
+      // fetch's own counter never saw them arrive.
+      workspaceReplacements: session.pushedReplacements,
+      workspacesDroppedByCap: advertised.droppedWorkspaces,
       clockSkewMs: session.clockSkewMs,
     );
     // Merged into the record as it stands now, not written onto the copy read
@@ -3038,6 +3055,12 @@ class SyncEngine implements SyncServerHandler {
       );
       session.pushedFiles++;
       session.pushedBytes += landed.size;
+      // A push that lands a `peerWins` is the replacement the fetch could not
+      // perform, and the card has to say so: `peerWins` promises "counted, never
+      // silent", and this is the one arrival the fetch's own counter never sees.
+      if (session.workspaceReplacements.remove(key)) {
+        session.pushedReplacements++;
+      }
       // Asked for and delivered: nothing may write that pair again this
       // session, and the next one re-plans from the ledger this produced.
       session.workspaceRequests.remove(key);
@@ -3276,6 +3299,8 @@ class SyncEngine implements SyncServerHandler {
     int workspacePushed = 0,
     int workspacePushedBytes = 0,
     int workspaceMissesRepaired = 0,
+    int workspaceReplacements = 0,
+    int workspacesDroppedByCap = 0,
     int blobsPushed = 0,
     int blobBytesPushed = 0,
     int? clockSkewMs,
@@ -3316,6 +3341,18 @@ class SyncEngine implements SyncServerHandler {
       0,
       (workspace?.filesMissing ?? 0) - workspaceMissesRepaired,
     );
+    // A local edit replaced by the peer's version, however the bytes arrived: the
+    // fetch counts what it lands, and the push counts a `peerWins` the fetch
+    // could not land and this device asked for instead.
+    final workspaceReplaced =
+        (workspace?.filesReplaced ?? 0) + workspaceReplacements;
+    // "Shared no content for this session", both reasons in one number: the
+    // switch/caps the plan recorded, plus the shared workspaces the advertised
+    // tables had to drop to stay inside their own cap. The second is the reason
+    // nobody could see — the peer reads a dropped workspace as "not shared" and
+    // plans nothing — which is exactly the silence this count exists against.
+    final workspacesOmitted =
+        (workspace?.workspacesOmitted ?? 0) + workspacesDroppedByCap;
     final skewMinutes = clockSkewMs == null
         ? null
         : (clockSkewMs.abs() / 60000).round();
@@ -3336,12 +3373,12 @@ class SyncEngine implements SyncServerHandler {
         'workspace files pushed $workspacePushed ($workspacePushedBytes B)',
       if ((workspace?.filesRemoved ?? 0) > 0)
         'workspace files removed ${workspace!.filesRemoved}',
-      if ((workspace?.filesReplaced ?? 0) > 0)
-        'workspace files replaced ${workspace!.filesReplaced}',
-      if ((workspace?.filesMissing ?? 0) > 0)
-        'workspace files missing $workspaceMissing',
-      if ((workspace?.workspacesOmitted ?? 0) > 0)
-        'workspaces omitted ${workspace!.workspacesOmitted}',
+      if (workspaceReplaced > 0) 'workspace files replaced $workspaceReplaced',
+      // Gated on what is left after the repair, not on the raw miss count: a miss
+      // a push repaired is not a miss, and "workspace files missing 0" is what
+      // the raw gate printed for the one case the fallback exists for.
+      if (workspaceMissing > 0) 'workspace files missing $workspaceMissing',
+      if (workspacesOmitted > 0) 'workspaces omitted $workspacesOmitted',
       if (skillConflicts > 0) '$skillConflicts skill conflicts',
       if (blobsMissing > 0) '$blobsMissing blobs missing',
       if (deferredSkills > 0) 'deferred $deferredSkills skills',
@@ -3374,10 +3411,10 @@ class SyncEngine implements SyncServerHandler {
       workspaceFiles: workspaceFiles,
       workspaceBytes: workspaceBytes,
       workspaceFilesRemoved: workspace?.filesRemoved ?? 0,
-      workspaceConflicts: workspace?.filesReplaced ?? 0,
+      workspaceConflicts: workspaceReplaced,
       workspaceFilesMissing: workspaceMissing,
       workspaceFoldersKept: workspaceFoldersKept,
-      workspacesOmitted: workspace?.workspacesOmitted ?? 0,
+      workspacesOmitted: workspacesOmitted,
       clockSkewMs: clockSkewMs,
     );
   }
@@ -3734,6 +3771,14 @@ class _ResponderSession {
   /// peer never advertised (slice 23). An entry is removed once its file lands.
   final Map<String, SyncWorkspaceFileRequest> workspaceRequests = {};
 
+  /// The serve keys among [workspaceRequests] whose plan action was `peerWins`:
+  /// if one of those lands, a local edit was replaced by the peer's version.
+  ///
+  /// Kept beside the request set rather than inside it: the request's job is the
+  /// write authorization, and the owner of the *action* is the plan
+  /// ([WorkspaceContentOutcome.replacedUnlanded]).
+  final Set<String> workspaceReplacements = {};
+
   /// Files the initiator pushed and this device landed, by workspace then path,
   /// with both sides' stamps. Merged into the ledger at the fetch beat, which is
   /// the one place this side writes it.
@@ -3743,6 +3788,10 @@ class _ResponderSession {
   /// fetch half so the log can tell the two directions apart.
   int pushedFiles = 0;
   int pushedBytes = 0;
+
+  /// How many of [pushedFiles] landed in place of a local edit, for the report's
+  /// "edits replaced" row.
+  int pushedReplacements = 0;
 
   /// Skill records the push carried whose body could not be verified here.
   Set<String> deferredSkills = {};

@@ -284,6 +284,7 @@ class _Side {
     this.newerSchema = false,
     this.clockOffsetUs = 0,
     this.workspaceMaxFiles = kMaxWorkspaceFiles,
+    this.workspaceMaxLedgerEntries = kMaxWorkspaceLedgerEntries,
     this.yieldedSessionTtl = SyncEngine.kYieldedSessionTtl,
     this.now,
   });
@@ -300,6 +301,11 @@ class _Side {
   /// one test that proves the over-cap path with three files instead of two
   /// thousand. (The byte cap is covered by the index's own test.)
   final int workspaceMaxFiles;
+
+  /// This side's advertised-table cap — the production default, overridden by
+  /// the test that proves a *dropped* workspace is counted rather than silently
+  /// unsynced, which otherwise needs twenty thousand file entries.
+  final int workspaceMaxLedgerEntries;
 
   /// How long a session this side accepted by yielding its own dial waits for
   /// the peer's first beat — the production default, shrunk by the crossing
@@ -445,6 +451,10 @@ class _Side {
   /// engine — the provider owns the listener then (QR flow, foreground round).
   SyncProvider? provider;
 
+  /// The report of the last session this side *answered*, as the responder's
+  /// card would render it.
+  SyncSessionReport? responderReport;
+
   Future<void> start(
     Directory root, {
     bool withEngine = true,
@@ -479,6 +489,7 @@ class _Side {
         return root;
       },
       maxFiles: workspaceMaxFiles,
+      maxLedgerEntries: workspaceMaxLedgerEntries,
     );
     dataPlane = newerSchema
         ? _NewerSchemaPlane(
@@ -571,6 +582,10 @@ class _Side {
       dataPlane: dataPlane,
       onStateChanged: () => stateChanges++,
       onProgressChanged: () => progressChanges++,
+      // The responder's counterpart to the report `syncWithPeer` returns: what
+      // *this* device moved while answering the peer's session. Kept so a test
+      // can read the card the answering side would show, summary included.
+      onResponderSession: (peer, report) => responderReport = report,
       yieldedSessionTtl: yieldedSessionTtl,
       sessionIdleTtl: sessionIdleTtl,
       now: now,
@@ -5710,6 +5725,102 @@ void main() {
       const SyncFetchRequest(),
     );
   });
+
+  test(
+    'a conflict repaired by a push is counted, and not called missing',
+    () async {
+      // Both sides edited one file and the peer's version wins here, but this
+      // device cannot dial the peer back: the bytes that replace the local edit
+      // arrive over the push fallback. That is the one arrival the fetch's own
+      // counter never sees, and `peerWins` promises it is "counted, never
+      // silent" — while the miss the failed fetch recorded must not be reported
+      // beside it, which is what the raw-count gate used to print as
+      // "workspace files missing 0".
+      final (a, b) = await pair();
+      await _putWorkspace(a, id: 'w1', kind: 'managed');
+      await a.putWorkspaceFile('w1', 'shared.txt', 'base', mtimeMs: 1000000);
+      await a.engine.syncWithPeer(await a.peer(b));
+      expect(await b.workspaceFileContent('w1', 'shared.txt'), 'base');
+
+      // A's version is the newer one, so B's own edit is the one replaced — and
+      // B is the side that has to fetch it.
+      await a.putWorkspaceFile('w1', 'shared.txt', 'from a', mtimeMs: 3000000);
+      await b.putWorkspaceFile(
+        'w1',
+        'shared.txt',
+        'from b!!',
+        mtimeMs: 2000000,
+      );
+      a.engine.advertisedListenPort = await closedPort();
+
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+
+      expect(report.success, isTrue, reason: report.summary);
+      expect(
+        await b.workspaceFileContent('w1', 'shared.txt'),
+        'from a',
+        reason: 'the push is what carried the winning version here',
+      );
+      expect(report.summary, contains('workspace files pushed 1'));
+      final responder = b.responderReport!;
+      expect(responder.workspaceFiles, 1);
+      expect(
+        responder.workspaceConflicts,
+        1,
+        reason: 'the local edit the push replaced is named, never silent',
+      );
+      expect(responder.workspaceFilesMissing, 0);
+      expect(
+        responder.summary,
+        isNot(contains('workspace files missing')),
+        reason: 'a miss the push repaired is not a miss',
+      );
+      expect(responder.summary, contains('workspace files replaced 1'));
+      // The peer record's counters agree with the report the card renders.
+      expect((await b.peer(a)).lastReport?.workspaceConflicts, 1);
+    },
+  );
+
+  test(
+    'a workspace dropped by the advertised-table cap is named, not silent',
+    () async {
+      // Past the table cap a shared workspace is dropped from the advertisement
+      // and the peer reads its absence as "no opinion": nothing transfers, and
+      // no card used to say so. The drop is deterministic (by id), so without a
+      // count that workspace would never sync again and the user would never be
+      // told. The cap is a parameter so this needs two files, not twenty
+      // thousand.
+      final a = _Side('a', workspaceMaxLedgerEntries: 1);
+      final b = _Side('b');
+      await a.start(root);
+      await b.start(root);
+      sides.addAll([a, b]);
+      await pairSides(a, b);
+
+      await _putWorkspace(a, id: 'w1', kind: 'managed');
+      await _putWorkspace(a, id: 'w2', kind: 'managed');
+      await a.putWorkspaceFile('w1', 'one.txt', '1', mtimeMs: 1000000);
+      await a.putWorkspaceFile('w2', 'two.txt', '2', mtimeMs: 1000000);
+
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+
+      expect(report.success, isTrue, reason: report.summary);
+      // The records are not the content: both workspaces arrive on the peer, so
+      // what the cap cost is the *folders* — and the user's switch was never the
+      // reason, which is why the count has to name the cap separately.
+      expect(await _workspaceIds(b), ['w1', 'w2']);
+      // `w1` sorted first and fits; `w2` was dropped from the table the peer
+      // read, so the peer planned nothing for it and its file never moved.
+      expect(await b.workspaceFileContent('w1', 'one.txt'), '1');
+      expect(await b.workspaceFileContent('w2', 'two.txt'), isNull);
+      expect(
+        report.workspacesOmitted,
+        1,
+        reason: 'the dropped workspace is counted, not silently unsynced',
+      );
+      expect(report.summary, contains('workspaces omitted 1'));
+    },
+  );
 
   test(
     'the panel switch persists the choice and re-counts the folder',

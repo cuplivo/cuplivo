@@ -504,8 +504,12 @@ class _EndpointAddressDialogState extends State<_EndpointAddressDialog> {
     final host = normalizeHost(_host.text);
     final port = int.tryParse(_port.text.trim());
     // An unusable pair keeps the form open rather than closing it on a change
-    // nobody asked for.
-    if (host.isEmpty || port == null) return;
+    // nobody asked for — and "unusable" includes a number that parses but is not
+    // a port (`0`, `-1`, `70000`: the field has no input formatter, so a desktop
+    // keyboard types them). The store refuses those as
+    // [SyncEndpointAdd.invalid], so a form that popped on one would close the
+    // sheet and drop the address with nothing said anywhere.
+    if (host.isEmpty || port == null || port < 1 || port > 65535) return;
     Navigator.of(context).pop((host: host, port: port));
   }
 

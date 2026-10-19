@@ -55,6 +55,14 @@ void main() {
       peer.noteEndpointSuccess('10.0.0.3', 9527);
       peer.rememberEndpointCandidates([('192.168.1.7', 9527)]);
 
+      expect(
+        peer.editEndpoint('10.0.0.3', 9527, '172.20.10.1', 0),
+        isFalse,
+        reason: 'the edit path refuses the port the add path refuses',
+      );
+      expect(peer.editEndpoint('10.0.0.3', 9527, '172.20.10.1', -5), isFalse);
+      expect(peer.primaryEndpoint?.host, '10.0.0.3');
+
       expect(peer.editEndpoint('10.0.0.3', 9527, '172.20.10.1', 9527), isTrue);
 
       // The other network is not collateral damage: it is the memory of where
@@ -111,6 +119,11 @@ void main() {
       expect(peer.addEndpoint('10.0.0.3', 9527), SyncEndpointAdd.duplicate);
       expect(peer.addEndpoint('  ', 9527), SyncEndpointAdd.invalid);
       expect(peer.addEndpoint('10.0.0.9', 0), SyncEndpointAdd.invalid);
+      expect(
+        peer.addEndpoint('10.0.0.9', -1),
+        SyncEndpointAdd.invalid,
+        reason: 'a negative port is not a port either',
+      );
       expect(peer.endpoints, hasLength(2));
     });
 

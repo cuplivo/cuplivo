@@ -19464,7 +19464,7 @@ abstract class AppLocalizations {
   /// No description provided for @recycleBinStorageHint.
   ///
   /// In en, this message translates to:
-  /// **'Deleted conversations and assistants, and the settings a sync merge replaced, wait here. The bin stays on this device: it is not synced and it is not part of a backup.'**
+  /// **'Kept on this device only — never synced, never in a backup.'**
   String get recycleBinStorageHint;
 
   /// No description provided for @recycleBinEntriesLabel.
@@ -19472,12 +19472,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'items'**
   String get recycleBinEntriesLabel;
-
-  /// No description provided for @recycleBinRetentionNote.
-  ///
-  /// In en, this message translates to:
-  /// **'Entries are kept for 90 days, or until the bin passes its size limit.'**
-  String get recycleBinRetentionNote;
 
   /// No description provided for @recycleBinEmptyTitle.
   ///
@@ -19635,11 +19629,17 @@ abstract class AppLocalizations {
   /// **'Conversations'**
   String get recycleBinFilterConversation;
 
-  /// No description provided for @recycleBinFilterRows.
+  /// No description provided for @recycleBinFilterAssistants.
   ///
   /// In en, this message translates to:
-  /// **'Assistants & settings'**
-  String get recycleBinFilterRows;
+  /// **'Assistants'**
+  String get recycleBinFilterAssistants;
+
+  /// No description provided for @recycleBinFilterSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get recycleBinFilterSettings;
 
   /// No description provided for @recycleBinFilterFiles.
   ///
@@ -19652,6 +19652,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancel'**
   String get recycleBinCancel;
+
+  /// No description provided for @recycleBinInfoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'About the recycle bin'**
+  String get recycleBinInfoTitle;
+
+  /// No description provided for @recycleBinInfoBody.
+  ///
+  /// In en, this message translates to:
+  /// **'What you delete here — a conversation, an assistant, a provider, a memory, a setting — is kept on this device so it can be brought back.\n\nThe bin never syncs and never goes into a backup. Entries are kept for 90 days, or until the bin passes 256 MB or 1000 entries; past either limit the oldest go first.\n\nBringing something back writes it as of now, so it is not immediately replaced by whatever won last time.'**
+  String get recycleBinInfoBody;
+
+  /// No description provided for @recycleBinInfoClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get recycleBinInfoClose;
+
+  /// No description provided for @recycleBinGroupHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} conversations deleted together with “{name}”'**
+  String recycleBinGroupHeader(Object count, Object name);
+
+  /// No description provided for @recycleBinRestoreGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore all'**
+  String get recycleBinRestoreGroup;
+
+  /// No description provided for @recycleBinGroupRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored {restored}, {skipped} already back'**
+  String recycleBinGroupRestored(Object restored, Object skipped);
+
+  /// No description provided for @recycleBinOpenDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'View details'**
+  String get recycleBinOpenDetail;
+
+  /// No description provided for @recycleBinDetailKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Identity'**
+  String get recycleBinDetailKey;
+
+  /// No description provided for @recycleBinDetailOrigin.
+  ///
+  /// In en, this message translates to:
+  /// **'Origin'**
+  String get recycleBinDetailOrigin;
+
+  /// No description provided for @recycleBinDetailWhen.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted'**
+  String get recycleBinDetailWhen;
+
+  /// No description provided for @recycleBinDetailSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get recycleBinDetailSize;
+
+  /// No description provided for @recycleBinDetailModified.
+  ///
+  /// In en, this message translates to:
+  /// **'File modified'**
+  String get recycleBinDetailModified;
+
+  /// No description provided for @recycleBinDetailContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Contents'**
+  String get recycleBinDetailContent;
+
+  /// No description provided for @recycleBinDetailRows.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} rows'**
+  String recycleBinDetailRows(Object count);
+
+  /// No description provided for @recycleBinDetailTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'Too large — showing the first {shown}'**
+  String recycleBinDetailTruncated(Object shown);
+
+  /// No description provided for @recycleBinDetailBinary.
+  ///
+  /// In en, this message translates to:
+  /// **'Binary file — no preview'**
+  String get recycleBinDetailBinary;
+
+  /// No description provided for @recycleBinDetailUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'The staged copy is damaged; its contents cannot be read'**
+  String get recycleBinDetailUnreadable;
+
+  /// No description provided for @recycleBinDetailCopyJson.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy JSON'**
+  String get recycleBinDetailCopyJson;
+
+  /// No description provided for @recycleBinDetailCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get recycleBinDetailCopied;
+
+  /// No description provided for @recycleBinDetailAssistantGone.
+  ///
+  /// In en, this message translates to:
+  /// **'This conversation belonged to “{name}”, which is no longer on this device. After restoring it you will need to choose an assistant for it.'**
+  String recycleBinDetailAssistantGone(Object name);
 
   /// No description provided for @storageSessionFilesCleanOrphans.
   ///

@@ -4,6 +4,7 @@ import 'dart:isolate';
 import 'package:path/path.dart' as p;
 
 import '../../../utils/app_directories.dart';
+import 'sync_limits.dart';
 import 'sync_models.dart';
 
 /// The content index of one managed workspace: every file that rides, as
@@ -51,15 +52,6 @@ class WorkspaceContentIndex {
 
   bool get isEmpty => files.isEmpty;
 }
-
-/// Cap on the files one workspace may carry into a sync (ADR-0003 slice 18):
-/// 2,000 files. A workspace past it is not transferred at all, and the panel
-/// says so.
-const int kMaxWorkspaceFiles = 2000;
-
-/// Cap on the bytes one workspace may carry into a sync: 200 MB. Same rule as
-/// the file cap — past it, nothing rides.
-const int kMaxWorkspaceBytes = 200 * 1024 * 1024;
 
 /// Directory names that never ride: version-control stores (their history is
 /// the interesting part and it is not a file tree), dependency and build

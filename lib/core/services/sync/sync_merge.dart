@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart' as crypto;
 
+import 'sync_limits.dart';
 import 'sync_models.dart';
 
 /// Pure, side-effect-free sync planning and merge rules (ADR-0003).

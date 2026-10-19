@@ -77,3 +77,32 @@ const int kMaxBlobRequestsPerSession = 2048;
 /// the real cases (one address that works, one NAT'd memory, one other network);
 /// what a miss costs is a file that waits for the push fallback instead.
 const int kMaxReverseDialCandidates = 3;
+
+// ---- workspace content ----
+
+/// How many files one managed workspace may carry into a sync (ADR-0003 slice
+/// 18): 2,000 files. A workspace past it is not transferred at all, and the
+/// panel says so.
+const int kMaxWorkspaceFiles = 2000;
+
+/// How many bytes one managed workspace may carry into a sync: 200 MB. Same
+/// rule as the file cap — past it, nothing rides.
+const int kMaxWorkspaceBytes = 200 * 1024 * 1024;
+
+/// How many file entries one peer's table may hold — both the ledger in the
+/// checkpoint and the table a session advertises.
+///
+/// The ledger is the "both sides agreed on this" record; an entry it does not
+/// hold only ever makes the plan conservative (offer or fetch again, never
+/// delete), so what the cap costs past this bound is a re-transfer, not data.
+///
+/// The *table* is not conservative in the same way, and this number decides
+/// both: a shared workspace that does not fit is dropped from the advertisement
+/// entirely, and the peer reads its absence as "no opinion" — it plans nothing,
+/// nothing transfers, and no report field names it. That is why the drop is
+/// counted where the tables are built (`tablesOf`) and why the bound is
+/// *computed* from the per-workspace cap rather than written as a round number:
+/// the two have to agree, so raising [kMaxWorkspaceFiles] has to raise this, and
+/// ten workspaces' worth is the largest table the drop rule is expected to
+/// represent.
+const int kMaxWorkspaceLedgerEntries = 10 * kMaxWorkspaceFiles;

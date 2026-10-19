@@ -16,9 +16,13 @@ local content that the user never asked to destroy:
 - **modified-modified.** A row that changed on both sides keeps the newer clock. The losing side's content is
   read, counted in the session report (`entityRowsLost` / `preferencesLost`), and then overwritten. The
   report tells the user an edit was replaced and offers nothing to do about it.
-- **modified-deleted.** Deletion propagates by plan diff against the per-peer checkpoint, not by clock: a row
-  the peer no longer has is deleted here *whether or not this device edited it since the last session*.
-  Nothing about the local edit protects it.
+- **deleted here, untouched.** Deletion propagates by plan diff against the per-peer checkpoint, not by
+  clock: the row the peer no longer has is deleted here — and `planRowSync` reaches that verdict only for a
+  row this device has not touched since the checkpoint (`mineDigest == checkpointDigest` → `iDelete`, its
+  lines 124-128). A business row edited here is re-sent instead (`iSend`), so an edit beats the deletion and
+  there is no lost local content to preserve. The one exception is a conversation whose *row* changed while
+  its messages did not: the conversation digest covers the message rows, so a rename, a pin or a version
+  selection made here since the last session is deleted along with the conversation.
 
 A third path arrives with #1030 (workspace carriage): a workspace file whose peer stamp wins is fetched and
 landed over the local file, and a file the peer deleted is removed here. Both are ordinary convergence
@@ -59,8 +63,9 @@ deleted, and would put "your deleted conversation" into a peer's storage.
    delete a single round trip it does not notice. The *write* is detached: the operation hands the captured
    rows to the bin and returns, because the bin is a net held under the operation and the operation must
    not wait for its own net. `BusinessRepository._deleteEntity` captures the row a user just removed;
-   `syncDeleteEntity` / `syncDeletePreference` capture the row a peer's plan is about to delete (the
-   modified-deleted case); the two loss points in `syncApplyBusinessRows` capture the local row a peer's
+   `syncDeleteEntity` / `syncDeletePreference` capture the row a peer's plan is about to delete — the only
+   shape a peer's deletion takes, since an edit made here re-sends instead; the two loss points in
+   `syncApplyBusinessRows` capture the local row a peer's
    newer version is about to replace (modified-modified), and **only when the content actually differed** —
    a bothSend echo coming back at a tied clock is not a lost edit, which is the same line the loss counters
    already draw. Bulk replacement (`_clearEntities`, `_replaceEntities`, `clearAllData`, restore) stages
@@ -100,6 +105,28 @@ deleted, and would put "your deleted conversation" into a peer's storage.
    screen, where each entry says what it is. The category is always shown, even when empty — a recovery
    feature that appears only after something has been lost is the feature nobody finds.
 
+8. **One deletion event is one group, and an entry still owns exactly one key.** Deleting an assistant
+   removes its conversations too, and leaving that fact out of the bin makes the list read as N unrelated
+   deletions. The alternative — folding the conversations into the assistant's entry — was rejected: an
+   entry's body is one key's data, restore reasons per key (`skippedExisting`, asset filtering, the
+   tombstone, retiring that key's older entries), a conversation can also be deleted individually, and the
+   caps count entries, so one large assistant entry would evict the bin around it. Instead the envelope
+   gains an optional `group: {id, label}`, and every conversation a cascade stages carries the same one;
+   the list draws one header, names the assistant from the label, and offers a restore that loops the
+   existing per-entry path. The assistant's own row cannot carry it — it is removed by the generic list
+   persistence, not by a delete call — so it stays an ungrouped entry next to the group.
+   Only a local cascade stamps a group: a peer's equivalent arrives as independent plan items, with
+   nothing on the wire saying they were one act.
+
+9. **An entry can be opened, because "restore" is a decision the user cannot make from a title.** The
+   detail view reads the staged copy — the same bytes a restore would write, never a reconstruction — and
+   shows the JSON it stores: the envelope's facts (identity, origin, clock, size), each staged table with
+   its row count, and the messages' rows, which are the part a reader recognises. A body over the preview
+   budget is cut on a character boundary and says so; a moved file is shown as text when it decodes as
+   UTF-8 and as its size when it does not; an unreadable body says it is damaged instead of showing an
+   empty page. A conversation whose assistant no longer exists warns before the restore, because the
+   conversation would come back bound to an owner this device does not have.
+
 ## Consequences
 
 - The capture is transactional and the write is not, so the bin is *eventually* consistent with the
@@ -118,11 +145,11 @@ deleted, and would put "your deleted conversation" into a peer's storage.
 - A local `removePreference` (an explicit key removal) is likewise not staged; only the comparison's losers
   and the rows a user removes through their own lists are.
 - Deleting an assistant stages the assistant row and, separately, each of its conversations (the cascade
-  goes through the same delete funnel). Restoring the assistant does not restore its conversations; they
-  are their own entries, and the entry records no back-reference to the assistant.
-- A restore re-enters the sync manifest with a fresh clock, so peers that had received the deletion learn
-  about the recovery on the next session and get the row back. That is what "recover" means here; the bin
-  itself never travels.
+  goes through the same delete funnel). Restoring the assistant does not itself restore its conversations:
+  they are their own entries. What joins them is the group (decision 8).
+- Restoring a *peer's* deletion undoes it on the peer too: this device re-enters its manifest with a fresh
+  clock, so the deletion the peer made is re-learned as an edit and the row comes back everywhere. That is
+  what "recover" means here; the bin itself never travels.
 - A full restore (overwrite) replaces the database while the bin stays on disk. Its entries then describe
   ids that may not exist in the restored state; restoring one is an upsert, so the outcome is a new row
   rather than a corrupted one.
@@ -134,6 +161,11 @@ deleted, and would put "your deleted conversation" into a peer's storage.
 ## Not in scope
 
 - Syncing the bin, in any form. It is device-local by decision, not by omission.
-- A per-entry preview or diff before restoring; an entry shows what it is, and restore is the action.
 - Compressing row snapshots. The envelope's `v` field leaves room for it.
+- Staging a **draft** conversation. A draft is composer state, not rows: a conversation with only a draft
+  has no `conversation_rows` row to restore into, so its capture would be an empty subtree. It is deleted
+  with its assistant and its text is gone.
+- Inferring a group on the receiving side. A peer's cascade reaches this device as independent deletions,
+  and the only way to join them would be to read the conversations' `assistant_id` from rows that are about
+  to be deleted (and that may already have been reassigned). The group stays a local deletion's fact.
 - Message-level, per-version or attachment-only recovery.

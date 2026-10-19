@@ -213,4 +213,13 @@ void main() {
       contains('<string>${ConversationLink.scheme}</string>'),
     );
   });
+
+  test('the Android manifest declares the scheme the links are written with', () {
+    // The Kotlin suite resolves a cuplivo:// BROWSABLE intent against the merged
+    // manifest, but CI runs only flutter test, so the declaration is pinned here.
+    final manifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
+    expect(manifest, contains('android:scheme="${ConversationLink.scheme}"'));
+  });
 }

@@ -61,6 +61,7 @@ class BackgroundRuntime(private val context: Context) {
         const val CONVERSATION_EXTRA = "kelivo.background.conversation"
         private const val PENDING_CONVERSATION = "pending_conversation"
         private const val PENDING_CONVERSATION_LINK = "pending_conversation_link"
+        private const val CONSUMED_LAUNCH = "consumed_launch_payload"
     }
 
     private val prefs = context.getSharedPreferences("kelivo_background", Context.MODE_PRIVATE)
@@ -251,26 +252,39 @@ class BackgroundRuntime(private val context: Context) {
         if (!shouldRunService()) stopTasks()
     }
 
-    fun receiveConversation(intent: Intent?) {
+    /**
+     * [restoring] is `savedInstanceState != null`: the Activity is coming back from
+     * saved state, which can redeliver this task's stored launch intent. Android
+     * restores a destroyed record and starts a fresh delivery into one the same
+     * way, so the payload is what separates them -- a restore replays the payload
+     * this task already consumed, and AMS keeps its own copy of the intent, so
+     * clearing `intent.data` below cannot survive it.
+     */
+    fun receiveConversation(intent: Intent?, restoring: Boolean) {
         if (intent == null || intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
         // Keep the URL whole, including encoded ids and the optional message
         // anchor. ConversationLink in Dart owns validation for both platforms.
         val uri = intent.data
-        if (intent.action == Intent.ACTION_VIEW && uri?.scheme == "cuplivo") {
-            intent.data = null // Consumed: activity recreation must not replay it.
+        val link = if (intent.action == Intent.ACTION_VIEW && uri?.scheme == "cuplivo") uri.toString() else null
+        // Notification row keys are not constrained by the external URL grammar.
+        val id = if (link == null) intent.getStringExtra(CONVERSATION_EXTRA)?.takeIf { it.isNotBlank() } else null
+        val payload = link ?: id ?: return
+        // Suppress only a repeat of the payload this task already handed over.
+        if (restoring && payload == prefs.getString(CONSUMED_LAUNCH, null)) return
+        prefs.edit().putString(CONSUMED_LAUNCH, payload).apply()
+
+        if (link != null) {
+            intent.data = null // Consumed for this process only: AMS keeps its own copy.
             intent.removeExtra(CONVERSATION_EXTRA)
             prefs.edit().remove(PENDING_CONVERSATION).apply()
-            val link = uri.toString()
             if (!dartLinkReady) prefs.edit().putString(PENDING_CONVERSATION_LINK, link).apply()
             else channel?.invokeMethod("openConversationLink", link)
             return
         }
-        // Notification row keys are not constrained by the external URL grammar.
-        val id = intent.getStringExtra(CONVERSATION_EXTRA)?.takeIf { it.isNotBlank() } ?: return
         intent.removeExtra(CONVERSATION_EXTRA)
         prefs.edit().remove(PENDING_CONVERSATION_LINK).apply()
-        if (!dartReady) prefs.edit().putString(PENDING_CONVERSATION, id).apply()
-        else channel?.invokeMethod("openConversation", id)
+        if (!dartReady) prefs.edit().putString(PENDING_CONVERSATION, payload).apply()
+        else channel?.invokeMethod("openConversation", payload)
     }
 
     fun openConversation(id: String) {

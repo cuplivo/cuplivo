@@ -96,7 +96,7 @@ class MainActivity : FlutterActivity() {
         (kelivo.engine.plugins.get(FlutterLocalNotificationsPlugin::class.java) as? FlutterLocalNotificationsPlugin)?.let {
             forwardCachedNotificationLaunch(reusedEngine, savedInstanceState, intent, it)
         }
-        kelivo.backgroundRuntime.receiveConversation(intent)
+        kelivo.backgroundRuntime.receiveConversation(intent, restoring = savedInstanceState != null)
         receivedShare = savedInstanceState?.getBoolean("kelivo.receivedShare") == true
         if (!receivedShare) receivedShare = incomingShareHandler?.receive(intent) == true
     }
@@ -164,7 +164,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        kelivo.backgroundRuntime.receiveConversation(intent)
+        kelivo.backgroundRuntime.receiveConversation(intent, restoring = false)
         setIntent(intent)
         receivedShare = incomingShareHandler?.receive(intent) == true
         val text = takeProcessText(intent) ?: return

@@ -296,6 +296,45 @@ class ChatInputBarController {
   }
 
   void clearImages() => _state?._clearImages();
+
+  /// Owned-file deletions this controller has started but not yet finished.
+  ///
+  /// Releasing a draft's copies is fire-and-forget by design - no UI waits on it
+  /// - but the work still has to be observable, because "is this draft's disk
+  /// state settled yet" is a real question and because a test that sleeps
+  /// instead of waiting flakes under load. The set lives on the controller
+  /// rather than on the State: a release can start while the widget is being
+  /// disposed, when [_state] is already gone.
+  final Set<Future<void>> _pendingArtifactDeletes = <Future<void>>{};
+
+  void _trackArtifactDelete(Future<void> work) {
+    _pendingArtifactDeletes.add(work);
+    unawaited(work.whenComplete(() => _pendingArtifactDeletes.remove(work)));
+  }
+
+  /// Whether an owned-artifact deletion is still in flight.
+  ///
+  /// Test-only. It flips back to false only after the deletion has finished, so
+  /// a test that polls it to false has seen every side effect of the release,
+  /// including the log line a failing deletion emits.
+  @visibleForTesting
+  bool get debugHasPendingArtifactDeletes => _pendingArtifactDeletes.isNotEmpty;
+
+  /// Whether every long paste this controller started has finished writing, and
+  /// released its file if the draft no longer wanted it.
+  ///
+  /// The write tail already serialises pastes; this mirrors its state so a test
+  /// can observe it after the widget that started the paste is gone.
+  bool _textPasteWriteSettled = true;
+
+  void _trackTextPasteWrite(Future<void> write) {
+    _textPasteWriteSettled = false;
+    unawaited(write.whenComplete(() => _textPasteWriteSettled = true));
+  }
+
+  @visibleForTesting
+  bool get debugTextPasteWriteSettled => _textPasteWriteSettled;
+
   void addFiles(List<DocumentAttachment> docs) {
     if (_currentTarget) {
       _root._state?._addFiles(docs);
@@ -943,7 +982,7 @@ class _ChatInputBarState extends State<ChatInputBar>
   /// draft owned. Safe when there is nothing to release, or when it is gone.
   void _releaseRetainedSource(int id) {
     final path = _retainedImageSources.remove(id);
-    if (path != null) unawaited(_deleteTemporaryImageSource(path));
+    if (path != null) _dropArtifactFile(path);
   }
 
   /// Drops the copies this draft created for [images]. Only the paths where
@@ -992,7 +1031,7 @@ class _ChatInputBarState extends State<ChatInputBar>
     for (final task in discardedQueuedTasks) {
       if (task.deleteSourceAfterProcessing &&
           widget.mediaController?.draftStore == null) {
-        unawaited(_deleteTemporaryImageSource(task.sourcePath));
+        _dropArtifactFile(task.sourcePath);
       }
     }
   }
@@ -2664,6 +2703,19 @@ class _ChatInputBarState extends State<ChatInputBar>
     }
   }
 
+  /// Starts the deletion of an owned copy, registering it with the controller
+  /// when one is attached so the cleanup stays observable (see
+  /// [ChatInputBarController.debugHasPendingArtifactDeletes]).
+  void _dropArtifactFile(String path) {
+    final work = _deleteTemporaryImageSource(path);
+    final controller = widget.mediaController;
+    if (controller == null) {
+      unawaited(work);
+      return;
+    }
+    controller._trackArtifactDelete(work);
+  }
+
   Future<void> _deleteTemporaryImageSource(String path) async {
     try {
       await File(path).delete();
@@ -2946,6 +2998,7 @@ class _ChatInputBarState extends State<ChatInputBar>
     final previousWrite = _textPasteWriteTail;
     final writeDone = Completer<void>();
     _textPasteWriteTail = writeDone.future;
+    (target ?? widget.mediaController)?._trackTextPasteWrite(writeDone.future);
 
     try {
       await previousWrite;

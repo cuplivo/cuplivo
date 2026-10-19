@@ -78,7 +78,7 @@ class SandboxPathResolver {
     if (raw0 == path && path.toLowerCase().startsWith('file:')) return path;
     if (_isUncPath(raw0)) return path;
     // Only Windows drive paths normalize `\`; POSIX backslash filenames stay.
-    final String raw = _normalizeSeparatorsForMatch(raw0);
+    final String raw = normalizeForMatch(raw0);
     if (_isUncPath(raw)) return path;
 
     final docs = _docsDir;
@@ -426,8 +426,15 @@ class SandboxPathResolver {
   static bool _looksLikeWindowsDrivePath(String path) =>
       RegExp(r'^[A-Za-z]:[\\/]').hasMatch(path);
 
-  /// Convert `\` → `/` only for Windows drive paths. POSIX keeps `\`.
-  static String _normalizeSeparatorsForMatch(String path) {
+  /// Canonical form for *comparing* two spellings of one local path.
+  ///
+  /// Converts `\` → `/` for Windows drive paths only; POSIX input is returned
+  /// unchanged, because a backslash is a legal POSIX filename character.
+  ///
+  /// Windows accepts `C:\a\b` and `C:\a/b` as the same file, so a raw
+  /// separator difference must not make two references look distinct — callers
+  /// that dedupe references (rather than open files) key their sets with this.
+  static String normalizeForMatch(String path) {
     if (_looksLikeWindowsDrivePath(path)) {
       return path.replaceAll('\\', '/');
     }

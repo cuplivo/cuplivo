@@ -1004,10 +1004,16 @@ final class RestoreBundleStaging {
         detail: 'candidate-revalidate',
       ),
     );
-    ctx.throwIfCancelled();
+    // The hang is deliberately *before* the first cancel check. It is how a test
+    // holds this isolate provably alive: the native sleep ignores signals, so
+    // nothing can cut it short, whereas with the check first a cancel that
+    // crosses the port quickly lets the isolate exit before the host's abandon
+    // timer fires - which is what made the "isolate has not exited" assertions in
+    // restore_bundle_staging_test.dart flake under load. Keep the order.
     if (args.hangSeconds > 0) {
       debugNativeSleepIgnoringKill(args.hangSeconds);
     }
+    ctx.throwIfCancelled();
     if (args.stallMs > 0) {
       final until = DateTime.now().add(Duration(milliseconds: args.stallMs));
       while (DateTime.now().isBefore(until)) {
@@ -1055,10 +1061,13 @@ final class RestoreBundleStaging {
         detail: 'candidate-db',
       ),
     );
-    ctx.throwIfCancelled();
+    // Same load-bearing order as the revalidation entry above: the hang keeps the
+    // isolate alive past the host's abandon timer, so it must precede the first
+    // cancel check.
     if (args.hangSeconds > 0) {
       debugNativeSleepIgnoringKill(args.hangSeconds);
     }
+    ctx.throwIfCancelled();
     if (args.stallMs > 0) {
       final until = DateTime.now().add(Duration(milliseconds: args.stallMs));
       while (DateTime.now().isBefore(until)) {

@@ -3030,7 +3030,40 @@ class SyncEngine implements SyncServerHandler {
     required Stream<List<int>> body,
   }) async {
     final session = _sessions[peerDeviceId];
-    if (session == null || !session.pushSeen) {
+    if (session == null) {
+      await _discard(body, size);
+      return false;
+    }
+    // A pushed file is peer work on the session, so it is a beat: the idle sweep
+    // must not decide this session is gone while the upload is still arriving.
+    // Without this, an upload phase longer than [kSessionIdleTtl] was swept out
+    // by this device's own next round — every remaining put then found no
+    // session, and the fetch beat that follows failed with `sessionMissing` —
+    // which is the long first sync the sweeps exist to protect, killed from the
+    // other end.
+    _beginBeat(session);
+    try {
+      return await _receivePutWorkspaceFile(
+        session,
+        workspaceId,
+        relPath,
+        size: size,
+        body: body,
+      );
+    } finally {
+      _endBeat(session);
+    }
+  }
+
+  /// [handlePutWorkspaceFile]'s body, run inside that put's beat.
+  Future<bool> _receivePutWorkspaceFile(
+    _ResponderSession session,
+    String workspaceId,
+    String relPath, {
+    required int size,
+    required Stream<List<int>> body,
+  }) async {
+    if (!session.pushSeen) {
       await _discard(body, size);
       return false;
     }
@@ -3161,7 +3194,40 @@ class SyncEngine implements SyncServerHandler {
     required Stream<List<int>> body,
   }) async {
     final session = _sessions[peerDeviceId];
-    if (session == null || !session.pushSeen) {
+    if (session == null) {
+      await _discard(body, size);
+      return false;
+    }
+    // The blob plane's put is a beat for the same reason the file plane's is:
+    // a body that takes longer than [kSessionIdleTtl] to arrive is the session
+    // being worked on, not the session being abandoned.
+    _beginBeat(session);
+    try {
+      return await _receivePutBlob(
+        peerDeviceId,
+        session,
+        contentHash,
+        kind: kind,
+        key: key,
+        size: size,
+        body: body,
+      );
+    } finally {
+      _endBeat(session);
+    }
+  }
+
+  /// [handlePutBlob]'s body, run inside that put's beat.
+  Future<bool> _receivePutBlob(
+    String peerDeviceId,
+    _ResponderSession session,
+    String contentHash, {
+    required String kind,
+    required String key,
+    required int size,
+    required Stream<List<int>> body,
+  }) async {
+    if (!session.pushSeen) {
       await _discard(body, size);
       return false;
     }
@@ -3570,6 +3636,10 @@ class SyncEngine implements SyncServerHandler {
   /// * [_dropIdleSessions] — nothing has happened on this session for
   ///   [kSessionIdleTtl]. The clock starts at the peer's last beat, so a session
   ///   that is *working* (a beat in flight, however long) is never a candidate.
+  ///   A beat is the hello that opened the session, its push, its fetch — and
+  ///   every file or blob body the initiator is still uploading: the put routes
+  ///   run inside a beat for exactly this reason, because a first sync's upload
+  ///   phase can outlast the window with nothing else to show for it.
   /// * [_dropAbandonedYieldedSessions] — a session this device accepted by
   ///   yielding its own dial which the peer never came back to drive, after the
   ///   short [yieldedSessionTtl].

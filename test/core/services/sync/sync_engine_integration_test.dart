@@ -5480,6 +5480,88 @@ void main() {
     expect(responder.workspaceFilesMissing, 0);
   });
 
+  test('a put in flight is a beat: an idle sweep cannot kill the session', () async {
+    var clock = DateTime(2026, 1, 1, 12);
+    final a = _Side('a');
+    final b = _Side('b', now: () => clock);
+    await a.start(root);
+    await b.start(root);
+    sides.addAll([a, b]);
+    await pairSides(a, b);
+
+    await _putWorkspace(b, id: 'w1', kind: 'managed');
+    const stamp = WorkspaceFileStamp(size: 2, mtimeMs: 1000000);
+
+    // B plans two files it cannot fetch — A's hello advertises no listener port
+    // — so the push beat asks for both. That request set authorizes the writes
+    // the upload phase is about to spend.
+    expect(
+      await b.engine.handleHello(a.identity.deviceId, a.hello()),
+      isA<SyncHello>(),
+    );
+    final ack = await b.engine.handleApplySubtrees(
+      a.identity.deviceId,
+      const SyncDeltaBatch(
+        <SyncSubtreePayload>[],
+        workspaceFiles: {
+          'w1': {'a.txt': stamp, 'b.txt': stamp},
+        },
+      ),
+    );
+    expect(ack.workspaceRequests, hasLength(2));
+
+    // The first file's body is still arriving when more than the idle window
+    // passes and this device runs one of its own rounds. A put that is merely
+    // traffic is invisible to that sweep: it dropped the session mid-upload,
+    // the second file had no session to land on, and the fetch beat that
+    // finalises the ledger failed with `sessionMissing`.
+    final body = StreamController<List<int>>();
+    final firstPut = b.engine.handlePutWorkspaceFile(
+      a.identity.deviceId,
+      'w1',
+      'a.txt',
+      size: 2,
+      body: body.stream,
+    );
+    clock = clock.add(const Duration(minutes: 3));
+    // The cheapest way one of this device's rounds touches the sweeper: a hello
+    // from a device it is not paired with is refused, but only after the sweep
+    // at its top.
+    expect(
+      await b.engine.handleHello('f' * 64, a.hello()),
+      isA<SyncHelloRefusal>(),
+      reason: 'only here to run the sweep, not to open a session',
+    );
+
+    body.add(utf8.encode('aa'));
+    await body.close();
+    expect(await firstPut, isTrue, reason: 'the body was never refused');
+
+    // Same session, so the second file still has its authorization and the
+    // fetch beat can finalise the ledger.
+    expect(
+      await b.engine.handlePutWorkspaceFile(
+        a.identity.deviceId,
+        'w1',
+        'b.txt',
+        size: 2,
+        body: Stream.value(utf8.encode('bb')),
+      ),
+      isTrue,
+      reason: 'the sweep may not take the request set out of a live upload',
+    );
+    await expectLater(
+      b.engine.handleFetchSubtrees(
+        a.identity.deviceId,
+        const SyncFetchRequest(),
+      ),
+      completes,
+      reason: 'the session the upload ran inside is still there to finalise',
+    );
+    expect(await b.workspaceFileContent('w1', 'a.txt'), 'aa');
+    expect(await b.workspaceFileContent('w1', 'b.txt'), 'bb');
+  });
+
   test('a responder does not remember its own address as the peer', () async {
     final (a, b) = await pair();
     // B is told 127.0.0.1 is one of *its* addresses, which is exactly what a NAT

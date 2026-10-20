@@ -1,4 +1,4 @@
-# ADR-0013: Recycle bin — undo a deletion and a losing last-write-wins comparison, with no schema change
+# ADR-0014: Recycle bin — undo a deletion and a losing last-write-wins comparison, with no schema change
 
 **Status:** Accepted (2026-xx)
 **Deciders:** cuplivo
@@ -24,9 +24,9 @@ local content that the user never asked to destroy:
   its messages did not: the conversation digest covers the message rows, so a rename, a pin or a version
   selection made here since the last session is deleted along with the conversation.
 
-A third path arrives with #1030 (workspace carriage): a workspace file whose peer stamp wins is fetched and
+A third path arrived with #1030 (workspace carriage): a workspace file whose peer stamp wins is fetched and
 landed over the local file, and a file the peer deleted is removed here. Both are ordinary convergence
-behaviour, and both silently discard the local bytes.
+behaviour, and both used to discard the local bytes without keeping them anywhere.
 
 So there are three questions to answer at once: where the recovery copy lives, what it costs, and how to keep
 it out of shared state. The last one is the constraint that shapes everything else: **the bin must not ride
@@ -127,6 +127,22 @@ deleted, and would put "your deleted conversation" into a peer's storage.
    empty page. A conversation whose assistant no longer exists warns before the restore, because the
    conversation would come back bound to an owner this device does not have.
 
+10. **A workspace file is staged by moving it, at the one landing path and behind the four gates.**
+    `WorkspaceContentSync` has one landing path (`land`) and one deletion (`_deleteOne`), and both stage,
+    under `RecycleOrigin.remote`. Staging *moves* the file, which is what makes it fit: the move keeps the
+    bytes and the mtime, and it frees the path, so the rename that follows needs no delete at all. It is
+    awaited rather than detached, unlike every row path above, because that move has to finish before the
+    session records the path as landed or as deleted. A staging that failed falls back to the plain delete:
+    an unpreserved file is bad, a merge that cannot land is worse, and this is the path the peer waits on.
+    The hook sits *after* the four gates and the size check, because a landing that is refused must not
+    leave a copy in the bin of a file nothing replaced. A restore goes back through the same gates — the
+    same `workspacePathWithin`, `nearestExistingAncestor` and `isReallyInsideWorkspace`, since a restored
+    path arrives from the wire just as a fetched one does — is refused when the workspace itself is gone
+    (`workspaceGone`: a folder no row describes is an orphan the next round removes, so putting the file
+    back would lose it again, more quietly), is skipped when the file is there again, and is stamped
+    `now()`: decision 5 applies to a file unchanged. No group: each overwrite and each deletion is its own
+    event, and nothing on the wire ties them together.
+
 ## Consequences
 
 - The capture is transactional and the write is not, so the bin is *eventually* consistent with the
@@ -153,10 +169,11 @@ deleted, and would put "your deleted conversation" into a peer's storage.
 - A full restore (overwrite) replaces the database while the bin stays on disk. Its entries then describe
   ids that may not exist in the restored state; restoring one is an upsert, so the outcome is a new row
   rather than a corrupted one.
-- The workspace-file side of this — staging the local file a peer's version replaces, and landing a staged
-  file back through the four path gates — is designed here but implemented with #1030, because the code it
-  hooks does not exist before that lands. The store already carries the entry shape (`stageFile`,
-  `bodyFile`) and `RecycleService.restore` reports `unsupported` for those entries until it does.
+- The workspace-file side rides the same entry shape the rows do: the store's `stageFile` and `bodyFile`,
+  and a `RecycleService.restore` that writes the bytes back through the four landing gates. A workspace
+  file's entry therefore behaves like the rest of the bin — same caps, same 90 days, same detail view and
+  same device-locality — with one difference a reader should expect: its body is the file itself, so the
+  preview shows text only when the bytes decode as UTF-8.
 
 ## Not in scope
 
@@ -169,3 +186,7 @@ deleted, and would put "your deleted conversation" into a peer's storage.
   and the only way to join them would be to read the conversations' `assistant_id` from rows that are about
   to be deleted (and that may already have been reassigned). The group stays a local deletion's fact.
 - Message-level, per-version or attachment-only recovery.
+- Staging the files of a **workspace that is deleted** (`WorkspaceContentSync.deleteContent`). That is one
+  act about a workspace, not N deletions of files: staging it would fill the caps with a single action and
+  evict everything else in the bin, and the workspace's own row is staged through the ordinary entity path
+  so the deletion itself is still recoverable. What is lost with the folder is the files in it.

@@ -72,13 +72,21 @@ Map<String, String> buildThemeVarsFromColorScheme(ColorScheme cs) {
   };
 }
 
+/// Renders [codes] into the bitmap cache the export reads back.
+///
+/// [palette] draws the diagrams for a surface other than this one — the PDF page
+/// is always light, so an export started from a dark theme asks for the light
+/// scheme rather than for what the app currently shows. A dark diagram pasted
+/// onto a white page is the failure this prevents: the bitmap carries its own
+/// background, and mermaid draws that background from the scheme it is given.
 Future<void> preRenderDiagramCodesForExport(
   BuildContext context,
-  List<DiagramCode> codes,
-) async {
+  List<DiagramCode> codes, {
+  ColorScheme? palette,
+}) async {
   if (codes.isEmpty) return;
-  final cs = Theme.of(context).colorScheme;
-  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final cs = palette ?? Theme.of(context).colorScheme;
+  final isDark = cs.brightness == Brightness.dark;
   final themeVars = buildThemeVarsFromColorScheme(cs);
 
   String cacheKey(DiagramCode diagram) => diagramImageCacheKey(

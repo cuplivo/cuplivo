@@ -1761,6 +1761,15 @@ class SettingsProvider extends ChangeNotifier {
   String? get appFontLocalAlias => _appFontLocalAlias;
   String? get codeFontLocalAlias => _codeFontLocalAlias;
 
+  /// The local font file the user picked, or null when the chosen font is a
+  /// system family.
+  ///
+  /// A family name is not something every renderer can use: the PDF export
+  /// embeds a font's bytes, so it needs this path (or a downloaded one) rather
+  /// than the alias Flutter registers.
+  String? get appFontLocalPath => _appFontLocalPath;
+  String? get codeFontLocalPath => _codeFontLocalPath;
+
   // Use alias if a local font is set and successfully registered
   String? get _effectiveAppFontAlias =>
       (_appFontLocalAlias?.isNotEmpty == true) ? _appFontLocalAlias : null;

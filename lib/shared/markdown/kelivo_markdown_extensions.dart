@@ -13,9 +13,20 @@ import 'highlight_adapter.dart';
 import 'link_image_handlers.dart';
 import 'markdown_actions.dart';
 
+/// The syntaxes the parser needs to read Cuplivo's markdown.
+///
+/// Exported on their own because a consumer with no widget tree — the PDF export
+/// parses inside a background isolate — still has to read the same grammar the
+/// message does: a `[cite:id]` marker and a local picture path are syntax, not
+/// rendering.
+const kelivoInlineSyntaxes = <InlineSyntax>[
+  CitationSyntax(),
+  LocalImagePathSyntax(),
+];
+
 // Stable registration identity preserves the parser and completed prefix trees.
 final kelivoMarkdownExtensions = MarkstreamExtensions(
-  inlineSyntaxes: const [CitationSyntax(), LocalImagePathSyntax()],
+  inlineSyntaxes: kelivoInlineSyntaxes,
   namedInlineBuilders: {'kelivo-citation': buildCitation},
   codeBlockBuilders: {
     'mermaid': _diagram,
@@ -111,9 +122,38 @@ Widget _plantUml(
   );
 }
 
-ParserOptions markdownParserOptions(SettingsProvider settings) =>
-    switch ((settings.enableMathRendering, settings.enableDollarLatex)) {
-      (true, true) => const ParserOptions(),
-      (true, false) => const ParserOptions(dollarInlineMath: false),
-      (false, _) => const ParserOptions(inlineMath: false, mathBlocks: false),
+/// The title each kind of callout is drawn with, by the name the grammar gives it.
+///
+/// One map for both readings of a callout — the card the message draws and the
+/// band the PDF page draws — because the kind of a callout is content: a reader
+/// who sees `> [!WARNING]` set as plain prose cannot tell it from a remark.
+Map<String, String> markdownAlertLabels(AppLocalizations l10n) =>
+    <String, String>{
+      'note': l10n.markdownNoteLabel,
+      'tip': l10n.markdownTipLabel,
+      'important': l10n.markdownImportantLabel,
+      'warning': l10n.markdownWarningLabel,
+      'caution': l10n.markdownCautionLabel,
+      'danger': l10n.markdownDangerLabel,
     };
+
+ParserOptions markdownParserOptions(SettingsProvider settings) =>
+    markdownParserOptionsFor(
+      enableMathRendering: settings.enableMathRendering,
+      enableDollarLatex: settings.enableDollarLatex,
+    );
+
+/// What the two settings mean to the grammar.
+///
+/// A consumer that has no settings provider — the export runs in an isolate and
+/// carries the two answers as booleans — still has to parse the same grammar the
+/// screen does, so the translation lives here once rather than being restated at
+/// the second call site.
+ParserOptions markdownParserOptionsFor({
+  required bool enableMathRendering,
+  required bool enableDollarLatex,
+}) => switch ((enableMathRendering, enableDollarLatex)) {
+  (true, true) => const ParserOptions(),
+  (true, false) => const ParserOptions(dollarInlineMath: false),
+  (false, _) => const ParserOptions(inlineMath: false, mathBlocks: false),
+};

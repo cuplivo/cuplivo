@@ -2686,6 +2686,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatSelectionExportImage => 'Image';
 
   @override
+  String get chatSelectionExportPdf => 'PDF';
+
+  @override
   String get chatSelectionThinkingTools => 'Thinking tools';
 
   @override
@@ -2710,6 +2713,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get messageExportSheetAssistant => 'Assistant';
+
+  @override
+  String get messageExportSheetUser => 'User';
 
   @override
   String get messageExportSheetDefaultTitle => 'New Chat';
@@ -2827,6 +2833,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Render selected messages to a PNG image';
 
   @override
+  String get messageExportSheetPdf => 'PDF';
+
+  @override
+  String get messageExportSheetBatchPdfSubtitle =>
+      'Export selected messages as a PDF document';
+
+  @override
   String get messageExportSheetShowThinkingAndToolCards =>
       'Show Deep Thinking and tool cards';
 
@@ -2839,6 +2852,114 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get messageExportSheetDateTimeWithSecondsPattern =>
       'yyyy-MM-dd HH:mm:ss';
+
+  @override
+  String get pdfExportDialogTitle => 'Export PDF';
+
+  @override
+  String get pdfExportDialogCancel => 'Cancel';
+
+  @override
+  String get pdfExportDialogExport => 'Export PDF';
+
+  @override
+  String get pdfExportDialogSectionContent => 'Content';
+
+  @override
+  String get pdfExportDialogSectionFonts => 'Fonts';
+
+  @override
+  String get pdfExportFontRoleBody => 'Body font';
+
+  @override
+  String get pdfExportFontRoleMono => 'Code font';
+
+  @override
+  String get pdfExportFontRoleEmoji => 'Emoji font';
+
+  @override
+  String get pdfExportFontCheck => 'Check fonts';
+
+  @override
+  String get pdfExportFontChecking => 'Checking…';
+
+  @override
+  String get pdfExportFontMissing =>
+      'No embeddable CJK font was found; CJK text may print blank.';
+
+  @override
+  String get pdfExportFontUnusable =>
+      'The chosen font could not be used; another was substituted.';
+
+  @override
+  String get pdfExportFontBuiltIn => 'Built-in font';
+
+  @override
+  String get pdfExportFontNone => 'Not embedded';
+
+  @override
+  String get pdfExportFontNeedsDownload => 'Needs download';
+
+  @override
+  String get pdfExportFontAuto => 'Automatic';
+
+  @override
+  String get pdfExportFontGroupSystem => 'System fonts';
+
+  @override
+  String get pdfExportFontGroupDownload => 'Download';
+
+  @override
+  String get pdfExportFontGroupOther => 'Other';
+
+  @override
+  String get pdfExportFontNoteCjk => 'Includes CJK';
+
+  @override
+  String get pdfExportFontNoteColour => 'Colour';
+
+  @override
+  String get pdfExportFontNoteMonochrome => 'Monochrome';
+
+  @override
+  String get pdfExportFontBuiltInNote => 'Embeds no font; CJK prints blank';
+
+  @override
+  String get pdfExportFontDownloadNote => 'Includes CJK, about 10 MB';
+
+  @override
+  String get pdfExportFontListFailed => 'Could not read the font list';
+
+  @override
+  String get pdfExportResultTitle => 'Export complete';
+
+  @override
+  String pdfExportResultSummary(Object pages, Object size) {
+    return '$pages pages · $size';
+  }
+
+  @override
+  String pdfExportResultDegraded(Object count) {
+    return '$count item(s) not fully exported';
+  }
+
+  @override
+  String pdfExportResultDegradedMath(Object count) {
+    return '$count formula(s) shown as plain text';
+  }
+
+  @override
+  String pdfExportResultDegradedDiagram(Object count) {
+    return '$count diagram(s) shown as code';
+  }
+
+  @override
+  String pdfExportResultDegradedImage(Object count) {
+    return '$count image(s) could not be read and are shown as their reference';
+  }
+
+  @override
+  String get pdfExportResultDone => 'Done';
 
   @override
   String get exportDisclaimerAiGenerated =>

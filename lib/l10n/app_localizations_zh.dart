@@ -2597,6 +2597,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatSelectionExportImage => '图片';
 
   @override
+  String get chatSelectionExportPdf => 'PDF';
+
+  @override
   String get chatSelectionThinkingTools => '思考工具';
 
   @override
@@ -2620,6 +2623,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get messageExportSheetAssistant => '助手';
+
+  @override
+  String get messageExportSheetUser => '用户';
 
   @override
   String get messageExportSheetDefaultTitle => '新对话';
@@ -2724,6 +2730,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get messageExportSheetBatchExportImageSubtitle => '将选中的消息渲染为 PNG 图片';
 
   @override
+  String get messageExportSheetPdf => 'PDF';
+
+  @override
+  String get messageExportSheetBatchPdfSubtitle => '将选中的消息导出为 PDF 文档';
+
+  @override
   String get messageExportSheetShowThinkingAndToolCards => '显示思考卡片和工具卡片';
 
   @override
@@ -2735,6 +2747,112 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get messageExportSheetDateTimeWithSecondsPattern =>
       'yyyy年M月d日 HH:mm:ss';
+
+  @override
+  String get pdfExportDialogTitle => '导出 PDF';
+
+  @override
+  String get pdfExportDialogCancel => '取消';
+
+  @override
+  String get pdfExportDialogExport => '导出 PDF';
+
+  @override
+  String get pdfExportDialogSectionContent => '内容';
+
+  @override
+  String get pdfExportDialogSectionFonts => '字体';
+
+  @override
+  String get pdfExportFontRoleBody => '正文字体';
+
+  @override
+  String get pdfExportFontRoleMono => '代码字体';
+
+  @override
+  String get pdfExportFontRoleEmoji => 'Emoji 字体';
+
+  @override
+  String get pdfExportFontCheck => '检查字体';
+
+  @override
+  String get pdfExportFontChecking => '正在检查…';
+
+  @override
+  String get pdfExportFontMissing => '未找到可嵌入的中文字体，中文可能显示为空白。';
+
+  @override
+  String get pdfExportFontUnusable => '所选字体不可用，已改用其它字体。';
+
+  @override
+  String get pdfExportFontBuiltIn => '内置字体';
+
+  @override
+  String get pdfExportFontNone => '未嵌入';
+
+  @override
+  String get pdfExportFontNeedsDownload => '需下载';
+
+  @override
+  String get pdfExportFontAuto => '自动';
+
+  @override
+  String get pdfExportFontGroupSystem => '系统字体';
+
+  @override
+  String get pdfExportFontGroupDownload => '下载';
+
+  @override
+  String get pdfExportFontGroupOther => '其他';
+
+  @override
+  String get pdfExportFontNoteCjk => '含中文';
+
+  @override
+  String get pdfExportFontNoteColour => '彩色';
+
+  @override
+  String get pdfExportFontNoteMonochrome => '单色';
+
+  @override
+  String get pdfExportFontBuiltInNote => '不嵌入字体，中文显示为空白';
+
+  @override
+  String get pdfExportFontDownloadNote => '含中文，约 10 MB';
+
+  @override
+  String get pdfExportFontListFailed => '无法读取字体列表';
+
+  @override
+  String get pdfExportResultTitle => '导出完成';
+
+  @override
+  String pdfExportResultSummary(Object pages, Object size) {
+    return '$pages 页 · $size';
+  }
+
+  @override
+  String pdfExportResultDegraded(Object count) {
+    return '$count 项未能完整导出';
+  }
+
+  @override
+  String pdfExportResultDegradedMath(Object count) {
+    return '$count 个公式已按原文本显示';
+  }
+
+  @override
+  String pdfExportResultDegradedDiagram(Object count) {
+    return '$count 个图表已按代码显示';
+  }
+
+  @override
+  String pdfExportResultDegradedImage(Object count) {
+    return '$count 张图片未能读取，已显示图片地址';
+  }
+
+  @override
+  String get pdfExportResultDone => '完成';
 
   @override
   String get exportDisclaimerAiGenerated => '内容由 AI 生成，请仔细甄别';
@@ -15980,6 +16098,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get chatSelectionExportImage => '图片';
 
   @override
+  String get chatSelectionExportPdf => 'PDF';
+
+  @override
   String get chatSelectionThinkingTools => '思考工具';
 
   @override
@@ -16003,6 +16124,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get messageExportSheetAssistant => '助手';
+
+  @override
+  String get messageExportSheetUser => '用户';
 
   @override
   String get messageExportSheetDefaultTitle => '新对话';
@@ -16107,6 +16231,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get messageExportSheetBatchExportImageSubtitle => '将选中的消息渲染为 PNG 图片';
 
   @override
+  String get messageExportSheetPdf => 'PDF';
+
+  @override
+  String get messageExportSheetBatchPdfSubtitle => '将选中的消息导出为 PDF 文档';
+
+  @override
   String get messageExportSheetShowThinkingAndToolCards => '显示思考卡片和工具卡片';
 
   @override
@@ -16118,6 +16248,112 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String get messageExportSheetDateTimeWithSecondsPattern =>
       'yyyy年M月d日 HH:mm:ss';
+
+  @override
+  String get pdfExportDialogTitle => '导出 PDF';
+
+  @override
+  String get pdfExportDialogCancel => '取消';
+
+  @override
+  String get pdfExportDialogExport => '导出 PDF';
+
+  @override
+  String get pdfExportDialogSectionContent => '内容';
+
+  @override
+  String get pdfExportDialogSectionFonts => '字体';
+
+  @override
+  String get pdfExportFontRoleBody => '正文字体';
+
+  @override
+  String get pdfExportFontRoleMono => '代码字体';
+
+  @override
+  String get pdfExportFontRoleEmoji => 'Emoji 字体';
+
+  @override
+  String get pdfExportFontCheck => '检查字体';
+
+  @override
+  String get pdfExportFontChecking => '正在检查…';
+
+  @override
+  String get pdfExportFontMissing => '未找到可嵌入的中文字体，中文可能显示为空白。';
+
+  @override
+  String get pdfExportFontUnusable => '所选字体不可用，已改用其它字体。';
+
+  @override
+  String get pdfExportFontBuiltIn => '内置字体';
+
+  @override
+  String get pdfExportFontNone => '未嵌入';
+
+  @override
+  String get pdfExportFontNeedsDownload => '需下载';
+
+  @override
+  String get pdfExportFontAuto => '自动';
+
+  @override
+  String get pdfExportFontGroupSystem => '系统字体';
+
+  @override
+  String get pdfExportFontGroupDownload => '下载';
+
+  @override
+  String get pdfExportFontGroupOther => '其他';
+
+  @override
+  String get pdfExportFontNoteCjk => '含中文';
+
+  @override
+  String get pdfExportFontNoteColour => '彩色';
+
+  @override
+  String get pdfExportFontNoteMonochrome => '单色';
+
+  @override
+  String get pdfExportFontBuiltInNote => '不嵌入字体，中文显示为空白';
+
+  @override
+  String get pdfExportFontDownloadNote => '含中文，约 10 MB';
+
+  @override
+  String get pdfExportFontListFailed => '无法读取字体列表';
+
+  @override
+  String get pdfExportResultTitle => '导出完成';
+
+  @override
+  String pdfExportResultSummary(Object pages, Object size) {
+    return '$pages 页 · $size';
+  }
+
+  @override
+  String pdfExportResultDegraded(Object count) {
+    return '$count 项未能完整导出';
+  }
+
+  @override
+  String pdfExportResultDegradedMath(Object count) {
+    return '$count 个公式已按原文本显示';
+  }
+
+  @override
+  String pdfExportResultDegradedDiagram(Object count) {
+    return '$count 个图表已按代码显示';
+  }
+
+  @override
+  String pdfExportResultDegradedImage(Object count) {
+    return '$count 张图片未能读取，已显示图片地址';
+  }
+
+  @override
+  String get pdfExportResultDone => '完成';
 
   @override
   String get exportDisclaimerAiGenerated => '内容由 AI 生成，请仔细甄别';
@@ -29289,6 +29525,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get chatSelectionExportImage => '圖片';
 
   @override
+  String get chatSelectionExportPdf => 'PDF';
+
+  @override
   String get chatSelectionThinkingTools => '思考工具';
 
   @override
@@ -29312,6 +29551,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get messageExportSheetAssistant => '助理';
+
+  @override
+  String get messageExportSheetUser => '使用者';
 
   @override
   String get messageExportSheetDefaultTitle => '新對話';
@@ -29416,6 +29658,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get messageExportSheetBatchExportImageSubtitle => '將選中的訊息渲染為 PNG 圖片';
 
   @override
+  String get messageExportSheetPdf => 'PDF';
+
+  @override
+  String get messageExportSheetBatchPdfSubtitle => '將選取的訊息匯出為 PDF 文件';
+
+  @override
   String get messageExportSheetShowThinkingAndToolCards => '顯示深度思考卡片與工具卡片';
 
   @override
@@ -29427,6 +29675,112 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get messageExportSheetDateTimeWithSecondsPattern =>
       'yyyy年M月d日 HH:mm:ss';
+
+  @override
+  String get pdfExportDialogTitle => '匯出 PDF';
+
+  @override
+  String get pdfExportDialogCancel => '取消';
+
+  @override
+  String get pdfExportDialogExport => '匯出 PDF';
+
+  @override
+  String get pdfExportDialogSectionContent => '內容';
+
+  @override
+  String get pdfExportDialogSectionFonts => '字型';
+
+  @override
+  String get pdfExportFontRoleBody => '正文字型';
+
+  @override
+  String get pdfExportFontRoleMono => '程式碼字型';
+
+  @override
+  String get pdfExportFontRoleEmoji => 'Emoji 字型';
+
+  @override
+  String get pdfExportFontCheck => '檢查字型';
+
+  @override
+  String get pdfExportFontChecking => '正在檢查…';
+
+  @override
+  String get pdfExportFontMissing => '找不到可嵌入的中文字型，中文可能顯示為空白。';
+
+  @override
+  String get pdfExportFontUnusable => '所選字型無法使用，已改用其他字型。';
+
+  @override
+  String get pdfExportFontBuiltIn => '內建字型';
+
+  @override
+  String get pdfExportFontNone => '未嵌入';
+
+  @override
+  String get pdfExportFontNeedsDownload => '需下載';
+
+  @override
+  String get pdfExportFontAuto => '自動';
+
+  @override
+  String get pdfExportFontGroupSystem => '系統字型';
+
+  @override
+  String get pdfExportFontGroupDownload => '下載';
+
+  @override
+  String get pdfExportFontGroupOther => '其他';
+
+  @override
+  String get pdfExportFontNoteCjk => '含中文';
+
+  @override
+  String get pdfExportFontNoteColour => '彩色';
+
+  @override
+  String get pdfExportFontNoteMonochrome => '單色';
+
+  @override
+  String get pdfExportFontBuiltInNote => '不嵌入字型，中文顯示為空白';
+
+  @override
+  String get pdfExportFontDownloadNote => '含中文，約 10 MB';
+
+  @override
+  String get pdfExportFontListFailed => '無法讀取字型列表';
+
+  @override
+  String get pdfExportResultTitle => '匯出完成';
+
+  @override
+  String pdfExportResultSummary(Object pages, Object size) {
+    return '$pages 頁 · $size';
+  }
+
+  @override
+  String pdfExportResultDegraded(Object count) {
+    return '$count 項未能完整匯出';
+  }
+
+  @override
+  String pdfExportResultDegradedMath(Object count) {
+    return '$count 個公式已按原始文字顯示';
+  }
+
+  @override
+  String pdfExportResultDegradedDiagram(Object count) {
+    return '$count 個圖表已按程式碼顯示';
+  }
+
+  @override
+  String pdfExportResultDegradedImage(Object count) {
+    return '$count 張圖片無法讀取，已顯示圖片位址';
+  }
+
+  @override
+  String get pdfExportResultDone => '完成';
 
   @override
   String get exportDisclaimerAiGenerated => '內容由 AI 生成，請仔細甄別';

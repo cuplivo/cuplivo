@@ -4996,6 +4996,12 @@ abstract class AppLocalizations {
   /// **'Image'**
   String get chatSelectionExportImage;
 
+  /// No description provided for @chatSelectionExportPdf.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF'**
+  String get chatSelectionExportPdf;
+
   /// No description provided for @chatSelectionThinkingTools.
   ///
   /// In en, this message translates to:
@@ -5037,6 +5043,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Assistant'**
   String get messageExportSheetAssistant;
+
+  /// No description provided for @messageExportSheetUser.
+  ///
+  /// In en, this message translates to:
+  /// **'User'**
+  String get messageExportSheetUser;
 
   /// No description provided for @messageExportSheetDefaultTitle.
   ///
@@ -5224,6 +5236,18 @@ abstract class AppLocalizations {
   /// **'Render selected messages to a PNG image'**
   String get messageExportSheetBatchExportImageSubtitle;
 
+  /// No description provided for @messageExportSheetPdf.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF'**
+  String get messageExportSheetPdf;
+
+  /// No description provided for @messageExportSheetBatchPdfSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export selected messages as a PDF document'**
+  String get messageExportSheetBatchPdfSubtitle;
+
   /// No description provided for @messageExportSheetShowThinkingAndToolCards.
   ///
   /// In en, this message translates to:
@@ -5247,6 +5271,198 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'yyyy-MM-dd HH:mm:ss'**
   String get messageExportSheetDateTimeWithSecondsPattern;
+
+  /// No description provided for @pdfExportDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export PDF'**
+  String get pdfExportDialogTitle;
+
+  /// No description provided for @pdfExportDialogCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get pdfExportDialogCancel;
+
+  /// No description provided for @pdfExportDialogExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export PDF'**
+  String get pdfExportDialogExport;
+
+  /// No description provided for @pdfExportDialogSectionContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Content'**
+  String get pdfExportDialogSectionContent;
+
+  /// No description provided for @pdfExportDialogSectionFonts.
+  ///
+  /// In en, this message translates to:
+  /// **'Fonts'**
+  String get pdfExportDialogSectionFonts;
+
+  /// No description provided for @pdfExportFontRoleBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Body font'**
+  String get pdfExportFontRoleBody;
+
+  /// No description provided for @pdfExportFontRoleMono.
+  ///
+  /// In en, this message translates to:
+  /// **'Code font'**
+  String get pdfExportFontRoleMono;
+
+  /// No description provided for @pdfExportFontRoleEmoji.
+  ///
+  /// In en, this message translates to:
+  /// **'Emoji font'**
+  String get pdfExportFontRoleEmoji;
+
+  /// No description provided for @pdfExportFontCheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Check fonts'**
+  String get pdfExportFontCheck;
+
+  /// No description provided for @pdfExportFontChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking…'**
+  String get pdfExportFontChecking;
+
+  /// No description provided for @pdfExportFontMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'No embeddable CJK font was found; CJK text may print blank.'**
+  String get pdfExportFontMissing;
+
+  /// No description provided for @pdfExportFontUnusable.
+  ///
+  /// In en, this message translates to:
+  /// **'The chosen font could not be used; another was substituted.'**
+  String get pdfExportFontUnusable;
+
+  /// No description provided for @pdfExportFontBuiltIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in font'**
+  String get pdfExportFontBuiltIn;
+
+  /// No description provided for @pdfExportFontNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Not embedded'**
+  String get pdfExportFontNone;
+
+  /// No description provided for @pdfExportFontNeedsDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs download'**
+  String get pdfExportFontNeedsDownload;
+
+  /// No description provided for @pdfExportFontAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic'**
+  String get pdfExportFontAuto;
+
+  /// No description provided for @pdfExportFontGroupSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System fonts'**
+  String get pdfExportFontGroupSystem;
+
+  /// No description provided for @pdfExportFontGroupDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get pdfExportFontGroupDownload;
+
+  /// No description provided for @pdfExportFontGroupOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get pdfExportFontGroupOther;
+
+  /// No description provided for @pdfExportFontNoteCjk.
+  ///
+  /// In en, this message translates to:
+  /// **'Includes CJK'**
+  String get pdfExportFontNoteCjk;
+
+  /// No description provided for @pdfExportFontNoteColour.
+  ///
+  /// In en, this message translates to:
+  /// **'Colour'**
+  String get pdfExportFontNoteColour;
+
+  /// No description provided for @pdfExportFontNoteMonochrome.
+  ///
+  /// In en, this message translates to:
+  /// **'Monochrome'**
+  String get pdfExportFontNoteMonochrome;
+
+  /// No description provided for @pdfExportFontBuiltInNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Embeds no font; CJK prints blank'**
+  String get pdfExportFontBuiltInNote;
+
+  /// No description provided for @pdfExportFontDownloadNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Includes CJK, about 10 MB'**
+  String get pdfExportFontDownloadNote;
+
+  /// No description provided for @pdfExportFontListFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read the font list'**
+  String get pdfExportFontListFailed;
+
+  /// No description provided for @pdfExportResultTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export complete'**
+  String get pdfExportResultTitle;
+
+  /// No description provided for @pdfExportResultSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{pages} pages · {size}'**
+  String pdfExportResultSummary(Object pages, Object size);
+
+  /// No description provided for @pdfExportResultDegraded.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} item(s) not fully exported'**
+  String pdfExportResultDegraded(Object count);
+
+  /// No description provided for @pdfExportResultDegradedMath.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} formula(s) shown as plain text'**
+  String pdfExportResultDegradedMath(Object count);
+
+  /// No description provided for @pdfExportResultDegradedDiagram.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} diagram(s) shown as code'**
+  String pdfExportResultDegradedDiagram(Object count);
+
+  /// No description provided for @pdfExportResultDegradedImage.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} image(s) could not be read and are shown as their reference'**
+  String pdfExportResultDegradedImage(Object count);
+
+  /// No description provided for @pdfExportResultDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get pdfExportResultDone;
 
   /// No description provided for @exportDisclaimerAiGenerated.
   ///

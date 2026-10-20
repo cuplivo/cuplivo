@@ -79,6 +79,20 @@ List<CitationRef> parseCitationRefs(String source) {
   return result;
 }
 
+/// The label a citation shows for [ref], given the index it resolved to.
+///
+/// One definition for both readings of a citation — the chip the message shows
+/// and the capsule an exported page draws — because the number beside a claim is
+/// part of the claim: the index its message's search results give it wins, then
+/// the marker's own number when it wrote one, and `?` when nothing names it.
+String citationLabelOf(CitationRef ref, String? resolved) {
+  if (resolved != null && resolved.isNotEmpty) return resolved;
+  if (ref.index != ref.id || int.tryParse(ref.index) != null) {
+    return ref.index;
+  }
+  return '?';
+}
+
 /// Cached citation widgets still respond to changed search-result indices.
 class CitationScope extends InheritedWidget {
   const CitationScope({
@@ -168,12 +182,6 @@ class _CitationChips extends StatelessWidget {
     );
   }
 
-  String _label(CitationRef ref, CitationScope? scope) {
-    final resolved = scope?.resolve?.call(ref.id);
-    if (resolved != null && resolved.isNotEmpty) return resolved;
-    if (ref.index != ref.id || int.tryParse(ref.index) != null) {
-      return ref.index;
-    }
-    return '?';
-  }
+  String _label(CitationRef ref, CitationScope? scope) =>
+      citationLabelOf(ref, scope?.resolve?.call(ref.id));
 }

@@ -6,14 +6,17 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:image/image.dart' as image_lib;
 import 'package:intl/intl.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:pdf/pdf.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
+import 'export_progress_overlay.dart';
+import 'pdf_export_dialog.dart';
 import 'image_preview_sheet.dart';
 
 import '../../../icons/lucide_adapter.dart';
@@ -26,8 +29,9 @@ import '../../../core/providers/user_provider.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/services/chat/chat_service.dart';
-import '../../../utils/mcp_structured_image.dart';
+import '../../../core/services/fonts/google_fonts_service.dart';
 import '../../../utils/sandbox_path_resolver.dart';
+import '../../../shared/markdown/kelivo_markdown_extensions.dart';
 import '../../../shared/markdown/markdown_with_code_highlight.dart';
 import 'package:Cuplivo/shared/widgets/app_selection_area.dart';
 import '../../../shared/widgets/export_capture_scope.dart';
@@ -37,21 +41,22 @@ import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/ios_switch.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_font_weights.dart';
+import '../../../theme/custom_theme.dart';
+import '../../../theme/palettes.dart';
+import '../../../theme/theme_factory.dart';
 import '../../home/widgets/model_icon.dart';
+import '../utils/citation_index.dart';
+import '../utils/export_document.dart';
+import '../utils/markdown_pdf_emitter.dart';
+import '../utils/pdf_export_fonts.dart';
+import '../utils/pdf_export_options.dart';
+import '../utils/pdf_export_rasters.dart';
 import '../utils/thinking_tag_parser.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import 'chat_message_widget.dart'
     show ChatMessageWidget, ToolUIPart, ReasoningSegment;
 
 // Shared helpers
-String _guessImageMime(String path) {
-  final lower = path.toLowerCase();
-  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
-  if (lower.endsWith('.gif')) return 'image/gif';
-  if (lower.endsWith('.webp')) return 'image/webp';
-  return 'image/png';
-}
-
 String? _modelDisplayNameFromSettings(
   SettingsProvider settings,
   ChatMessage msg,
@@ -123,125 +128,24 @@ _Parsed _exportPartsFromMessage(ChatMessage message, {String? textOverride}) {
   return _Parsed(text, images, docs);
 }
 
-Future<void> _writeExportBlocks(
-  StringBuffer buf,
-  ChatMessage message, {
-  required bool includeThinking,
-  required bool includeTools,
-  required String thinkingLabel,
-  required bool markdown,
-  required Future<void> Function(String uri) writeImage,
-}) async {
-  var wroteReasoningPart = false;
-  final hasReasoningPart = message.parts.any((part) => part is ReasoningPart);
-  final stripThink = message.role == 'assistant' && !hasReasoningPart;
-  final joinedText = stripThink ? message.content : '';
-  final thinkRanges = stripThink
-      ? ThinkingTagParser.parseWithRanges(joinedText)
-      : null;
-  var textOffset = 0;
-  for (final part in message.parts) {
-    switch (part) {
-      case TextPart(:final text):
-        final start = textOffset;
-        final end = textOffset + text.length;
-        textOffset = end;
-        final body = thinkRanges == null || thinkRanges.hiddenRanges.isEmpty
-            ? text
-            : ThinkingTagParser.visibleSlice(
-                joinedText,
-                start: start,
-                end: end,
-                hiddenRanges: thinkRanges.hiddenRanges,
-              );
-        if (body.isEmpty) continue;
-        buf.writeln(body);
-        buf.writeln('');
-      case ImagePart(:final uri):
-        final trimmed = uri.trim();
-        if (trimmed.isEmpty) continue;
-        await writeImage(trimmed);
-      case FilePart(:final name, :final mime):
-        if (markdown) {
-          buf.writeln('- $name  `(${mime ?? 'application/octet-stream'})`');
-        } else {
-          buf.writeln('- $name (${mime ?? 'application/octet-stream'})');
-        }
-      case ReasoningPart(:final text):
-        if (!includeThinking || text.trim().isEmpty) continue;
-        wroteReasoningPart = true;
-        buf.writeln('');
-        buf.writeln(markdown ? '**$thinkingLabel**' : '[$thinkingLabel]');
-        buf.writeln('');
-        if (markdown) {
-          buf.writeln('```text');
-          buf.writeln(text.trim());
-          buf.writeln('```');
-        } else {
-          buf.writeln(text.trim());
-        }
-        buf.writeln('');
-      case ToolCallPart(:final payloadJson):
-        if (!includeTools) continue;
-        try {
-          final decoded = jsonDecode(payloadJson);
-          if (decoded is! Map) continue;
-          final name = (decoded['name'] ?? '').toString();
-          final content = toolResultContentForModel(
-            decoded['content']?.toString(),
-          );
-          buf.writeln(name.isEmpty ? '[tool]' : '[$name]');
-          if (content.trim().isNotEmpty) {
-            buf.writeln(content);
-          }
-          buf.writeln('');
-        } catch (_) {}
-      default:
-        break;
-    }
-  }
-  if (includeThinking && !wroteReasoningPart) {
-    final thinkingTexts = thinkRanges != null && thinkRanges.hasThinking
-        ? thinkRanges.thinkingTexts
-        : _thinkingExportDataForMessage(message).thinkingTexts;
-    if (thinkingTexts.isNotEmpty) {
-      final t = thinkingTexts.join('\n\n');
-      if (t.isNotEmpty) {
-        buf.writeln('');
-        buf.writeln(markdown ? '**$thinkingLabel**' : '[$thinkingLabel]');
-        buf.writeln('');
-        if (markdown) {
-          buf.writeln('```text');
-          buf.writeln(t);
-          buf.writeln('```');
-        } else {
-          buf.writeln(t);
-        }
-        buf.writeln('');
-      }
-    }
-  }
-}
-
+/// The blocks [message] exports, laid out the way the plain-text export lays
+/// them out, with a picture named rather than embedded.
 @visibleForTesting
 Future<String> exportMessageBlocksForTesting(
   ChatMessage message, {
   required bool showThinkingAndToolCards,
 }) async {
-  final buf = StringBuffer();
-  await _writeExportBlocks(
-    buf,
+  final blocks = await exportBlocksOf(
     message,
     includeThinking: showThinkingAndToolCards,
     includeTools: showThinkingAndToolCards,
-    thinkingLabel: 'Thinking',
-    markdown: false,
-    writeImage: (uri) async {
-      buf.writeln('![image]($uri)');
-      buf.writeln('');
-    },
   );
-  return buf.toString();
+  return renderExportBlocks(
+    blocks,
+    markdown: false,
+    thinkingLabel: 'Thinking',
+    imageLine: (image) => '![image](${image.uri})',
+  );
 }
 
 String _softBreakMd(String input) {
@@ -271,67 +175,6 @@ String _softBreakMd(String input) {
     out.writeln(l);
   }
   return out.toString();
-}
-
-class _ThinkingExportData {
-  const _ThinkingExportData({
-    required this.cleanedContent,
-    required this.thinkingTexts,
-  });
-
-  final String cleanedContent;
-  final List<String> thinkingTexts;
-}
-
-_ThinkingExportData _thinkingExportDataForMessage(ChatMessage message) {
-  final structuredReasoning = [
-    for (final part in message.parts)
-      if (part is ReasoningPart && part.text.trim().isNotEmpty)
-        part.text.trim(),
-  ];
-  if (structuredReasoning.isNotEmpty) {
-    return _ThinkingExportData(
-      cleanedContent: message.content.trim(),
-      thinkingTexts: structuredReasoning,
-    );
-  }
-
-  final thinkingTexts = <String>[];
-  var cleanedContent = message.content.trim();
-
-  // Prefer structured reasoning segments (may include multiple blocks).
-  final segJson = (message.reasoningSegmentsJson ?? '').trim();
-  if (segJson.isNotEmpty) {
-    try {
-      final decoded = jsonDecode(segJson);
-      if (decoded is List) {
-        _addReasoningSegmentTexts(thinkingTexts, decoded);
-      } else if (decoded is Map) {
-        _addReasoningSegmentTexts(
-          thinkingTexts,
-          decoded['segments'] as List? ?? const <dynamic>[],
-        );
-      }
-    } catch (_) {}
-  }
-
-  // Fall back to <think> tags if segments are not available.
-  if (thinkingTexts.isEmpty) {
-    final parsed = ThinkingTagParser.parseWithRanges(message.content);
-    cleanedContent = parsed.visibleContent;
-    thinkingTexts.addAll(parsed.thinkingTexts);
-  }
-
-  // Fall back to the legacy reasoningText field.
-  if (thinkingTexts.isEmpty) {
-    final rt = (message.reasoningText ?? '').trim();
-    if (rt.isNotEmpty) thinkingTexts.add(rt);
-  }
-
-  return _ThinkingExportData(
-    cleanedContent: cleanedContent,
-    thinkingTexts: thinkingTexts,
-  );
 }
 
 /// Prepare a message for image export.
@@ -393,15 +236,6 @@ List<MessagePart> _partsWithVisibleThinkSlices(
     onOther: next.add,
   );
   return next;
-}
-
-void _addReasoningSegmentTexts(List<String> output, List<dynamic> segments) {
-  for (final item in segments) {
-    if (item is Map) {
-      final t = (item['text']?.toString() ?? '').trim();
-      if (t.isNotEmpty) output.add(t);
-    }
-  }
 }
 
 class _ExportReasoningPayload {
@@ -512,7 +346,7 @@ _ExportReasoningPayload _exportReasoningPayloadForMessage(
   }
 
   if (segments.isEmpty) {
-    final thinkingData = _thinkingExportDataForMessage(message);
+    final thinkingData = thinkingExportDataForMessage(message);
     if (thinkingData.thinkingTexts.isNotEmpty) {
       segments.addAll(
         thinkingData.thinkingTexts.map(
@@ -737,6 +571,68 @@ Future<void> _saveExportTextWithPicker(
   );
 }
 
+/// Writes [bytes] where the user says, answering whether they were written.
+///
+/// [announce] false leaves the confirmation to the caller, because an export that
+/// opens a result dialog of its own would otherwise report itself twice.
+Future<bool> _saveExportBytesWithPicker(
+  BuildContext context, {
+  required String filename,
+  required Uint8List bytes,
+  required List<String> allowedExtensions,
+  bool announce = true,
+}) async {
+  final l10n = AppLocalizations.of(context)!;
+
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    final String? savePath = await FilePicker.platform.saveFile(
+      dialogTitle: l10n.backupPageExportToFile,
+      fileName: filename,
+      type: FileType.custom,
+      allowedExtensions: allowedExtensions,
+    );
+    if (savePath == null) return false; // user cancelled
+
+    try {
+      await File(savePath).parent.create(recursive: true);
+      await File(savePath).writeAsBytes(bytes, flush: true);
+    } catch (e) {
+      if (!context.mounted) return false;
+      showAppSnackBar(
+        context,
+        message: l10n.messageExportSheetExportFailed('$e'),
+        type: NotificationType.error,
+      );
+      return false;
+    }
+
+    if (!context.mounted || !announce) return true;
+    showAppSnackBar(
+      context,
+      message: l10n.messageExportSheetExportedAs(p.basename(savePath)),
+      type: NotificationType.success,
+    );
+    return true;
+  }
+
+  // Mobile: hand the bytes to the picker, which writes them itself.
+  final String? savePath = await FilePicker.platform.saveFile(
+    dialogTitle: l10n.backupPageExportToFile,
+    fileName: filename,
+    type: FileType.custom,
+    allowedExtensions: allowedExtensions,
+    bytes: bytes,
+  );
+  if (savePath == null) return false;
+  if (!context.mounted || !announce) return true;
+  showAppSnackBar(
+    context,
+    message: l10n.messageExportSheetExportedAs(p.basename(savePath)),
+    type: NotificationType.success,
+  );
+  return true;
+}
+
 Future<void> exportChatMessagesMarkdown(
   BuildContext context, {
   required Conversation conversation,
@@ -762,59 +658,33 @@ Future<void> exportChatMessagesMarkdown(
     final title = (conversation.title.trim().isNotEmpty)
         ? conversation.title
         : l10n.messageExportSheetDefaultTitle;
-    final includeThinking = showThinkingAndToolCards && expandThinkingContent;
-
-    final buf = StringBuffer();
-    buf.writeln('# $title');
-    buf.writeln('');
-
-    for (final msg in messages) {
-      final time = timeFormatter.format(msg.timestamp);
-      final roleName = _getRoleNameFromDependencies(
+    final document = await buildExportDocument(
+      title: title,
+      messages: messages,
+      roleNameOf: (msg) => _getRoleNameFromDependencies(
         l10n: l10n,
         settings: settings,
         userProvider: userProvider,
         assistant: assistant,
         msg: msg,
-      );
-      buf.writeln('> $time · $roleName');
-      buf.writeln('');
-
-      await _writeExportBlocks(
-        buf,
-        msg,
-        includeThinking: includeThinking,
-        includeTools: showThinkingAndToolCards,
-        thinkingLabel: thinkingLabel,
-        markdown: true,
-        writeImage: (imageUri) async {
-          final fixed = SandboxPathResolver.fix(imageUri);
-          try {
-            final f = File(fixed);
-            if (await f.exists()) {
-              final bytes = await f.readAsBytes();
-              final b64 = base64Encode(bytes);
-              final mime = _guessImageMime(fixed);
-              buf.writeln('![](data:$mime;base64,$b64)');
-            } else {
-              buf.writeln('![image]($fixed)');
-            }
-          } catch (_) {
-            buf.writeln('![image]($fixed)');
-          }
-          buf.writeln('');
-        },
-      );
-
-      buf.writeln('\n---\n');
-    }
+      ),
+      formatTime: timeFormatter.format,
+      includeThinking: showThinkingAndToolCards && expandThinkingContent,
+      includeTools: showThinkingAndToolCards,
+      readImageBytes: readExportImageBytes,
+    );
 
     final filename = 'chat-export-${DateTime.now().millisecondsSinceEpoch}.md';
     if (!context.mounted) return;
     await _saveExportTextWithPicker(
       context,
       filename: filename,
-      content: buf.toString(),
+      content: renderExportDocument(
+        document,
+        markdown: true,
+        thinkingLabel: thinkingLabel,
+        imageLine: exportImageMarkdownLine,
+      ),
       allowedExtensions: const ['md'],
     );
   } catch (e) {
@@ -825,6 +695,212 @@ Future<void> exportChatMessagesMarkdown(
       type: NotificationType.error,
     );
   }
+}
+
+/// The light scheme the exported page is drawn for.
+///
+/// A PDF is a light page whatever theme the app is in, and a dark theme's
+/// primary is a pale tint that would vanish into the paper — so when the app is
+/// dark the light scheme is derived the way `main.dart` derives the app's two
+/// themes (minus the dynamic scheme a phone contributes, which this has no way
+/// to reach).
+ColorScheme _pdfPageScheme(BuildContext context, SettingsProvider settings) {
+  final current = Theme.of(context).colorScheme;
+  if (current.brightness == Brightness.light) return current;
+  final custom = settings.selectedCustomTheme;
+  final palette =
+      settings.themePaletteId == ThemePalettes.customPaletteId && custom != null
+      ? buildCustomThemePalette(custom)
+      : ThemePalettes.byId(settings.themePaletteId);
+  return buildLightThemeForScheme(
+    palette.light,
+    pureBackground: settings.usePureBackground,
+    layeredSurfaces: settings.useLayeredSurfaces,
+  ).colorScheme;
+}
+
+/// The ink that scheme contributes to the page, guarded for paper.
+///
+/// A colour too pale to read on white, which a custom theme may choose, becomes
+/// the page's own default: an unreadable link is worse than a differently
+/// coloured one.
+({PdfColor accent, PdfColor muted}) _pdfPageInk(ColorScheme light) => (
+  accent: _readableOnPaper(light.primary, kPdfPageAccent),
+  muted: _readableOnPaper(light.onSurfaceVariant, kPdfPageMuted),
+);
+
+/// [colour] as an opaque page ink when it can be read on white, else [fallback].
+PdfColor _readableOnPaper(Color colour, PdfColor fallback) =>
+    colour.computeLuminance() > 0.6
+    ? fallback
+    : PdfColor.fromInt(colour.toARGB32() | 0xFF000000);
+
+/// The icon face a speaker's avatar disc is drawn with, read once per run.
+///
+/// The app draws its icons from a font it ships rather than from bitmaps, which is
+/// exactly what a page needs: the disc beside a message's name can carry the same
+/// glyph the screen puts in it, at vector quality, without capturing anything. The
+/// read is remembered because the file is most of a megabyte and an export is not
+/// the only thing that will ask for it.
+Uint8List? _iconFontBytes;
+bool _iconFontRead = false;
+
+Future<Uint8List?> _pdfIconFont() async {
+  if (_iconFontRead) return _iconFontBytes;
+  _iconFontRead = true;
+  try {
+    final data = await rootBundle.load(kLucideFontAsset);
+    final bytes = data.buffer.asUint8List(
+      data.offsetInBytes,
+      data.lengthInBytes,
+    );
+    // The writer opens single-face `glyf` fonts; anything else would embed a face
+    // with no glyphs rather than fail, so the check is what keeps a disc empty
+    // instead of drawing a box where the icon should be.
+    if (isPdfEmbeddableFont(bytes)) _iconFontBytes = bytes;
+  } catch (_) {
+    // A build without the icon asset simply draws the disc and nothing in it.
+  }
+  return _iconFontBytes;
+}
+
+/// Where the icon face lives in the bundle, as the icons package registers it.
+const String kLucideFontAsset =
+    'packages/lucide_icons_flutter/assets/lucide.ttf';
+
+/// Writes a PDF of [messages] where the user asks for it.
+///
+/// The layout runs off the UI isolate — a hundred-message conversation is not a
+/// frame's worth of work — so only plain data crosses: the fonts and the picture
+/// bytes are resolved here, where the settings, the filesystem and the widget tree
+/// are. The whole export runs behind the progress overlay, and the answer is what
+/// the layout produced: null when the user closed the save dialog, which is a
+/// cancellation rather than a failure.
+Future<PdfExportResult?> exportChatMessagesPdf(
+  BuildContext context, {
+  required Conversation conversation,
+  required List<ChatMessage> messages,
+  PdfExportOptions? options,
+  GoogleFontsService? googleFonts,
+  PdfFontResolver? resolver,
+}) async {
+  final l10n = AppLocalizations.of(context)!;
+  final settings = context.read<SettingsProvider>();
+  final userProvider = context.read<UserProvider>();
+  final assistant = context.read<AssistantProvider>().currentAssistant;
+  final thinkingLabel = l10n.messageExportThinkingContentLabel;
+  final timeFormatter = DateFormat(
+    l10n.messageExportSheetDateTimeWithSecondsPattern,
+  );
+  final choice = options ?? pdfExportSessionOptions;
+  final pageScheme = _pdfPageScheme(context, settings);
+  final pageInk = _pdfPageInk(pageScheme);
+  PdfExportResult? result;
+  try {
+    await runWithExportingOverlay(context, () async {
+      final title = (conversation.title.trim().isNotEmpty)
+          ? conversation.title
+          : l10n.messageExportSheetDefaultTitle;
+      final document = await buildExportDocument(
+        title: title,
+        messages: messages,
+        roleNameOf: (msg) => _getRoleNameFromDependencies(
+          l10n: l10n,
+          settings: settings,
+          userProvider: userProvider,
+          assistant: assistant,
+          msg: msg,
+        ),
+        formatTime: timeFormatter.format,
+        citationIndexOf: (msg) => citationIndexLookupOf(
+          searchCitationItemsOf(
+            _exportToolPartsForMessage(
+              context,
+              msg,
+            ).map((part) => (name: part.toolName, content: part.content)),
+          ),
+        ),
+        includeThinking:
+            choice.showThinkingAndToolCards && choice.expandThinkingContent,
+        includeTools: choice.showThinkingAndToolCards,
+        readImageBytes: readExportImageBytes,
+      );
+      final fonts =
+          await (resolver ?? PdfFontResolver(googleFonts: googleFonts)).resolve(
+            body: choice.body,
+            mono: choice.mono,
+            emoji: choice.emoji,
+            appFontPath: settings.appFontLocalPath,
+            codeFontPath: settings.codeFontLocalPath,
+          );
+      final iconFont = await _pdfIconFont();
+
+      // Formulas and diagrams are drawn here, where a widget tree exists, and the
+      // layout then runs off-thread with the bitmaps in hand. A drawing that does
+      // not come back is not a failure: the layout falls back to the formula's TeX
+      // and the diagram's code, and reports both.
+      if (!context.mounted) return;
+      final rasters = await rasterizePdfExportKeys(context, <PdfRasterKey>[
+        for (final message in document.messages)
+          for (final block in message.blocks)
+            if (block is ExportText)
+              ...pdfRasterKeysIn(
+                block.text,
+                enableMathRendering: settings.enableMathRendering,
+                enableDollarLatex: settings.enableDollarLatex,
+              )
+            else if (block is ExportReasoning)
+              ...pdfRasterKeysIn(
+                block.text,
+                enableMathRendering: settings.enableMathRendering,
+                enableDollarLatex: settings.enableDollarLatex,
+              ),
+      ], pagePalette: pageScheme);
+
+      final layout = await compute(
+        buildConversationPdf,
+        PdfExportRequest(
+          title: document.title,
+          subtitle: timeFormatter.format(DateTime.now()),
+          messages: document.messages,
+          thinkingLabel: thinkingLabel,
+          accent: pageInk.accent,
+          muted: pageInk.muted,
+          userLabel: l10n.messageExportSheetUser,
+          alertLabels: markdownAlertLabels(l10n),
+          bodyFont: fonts.body,
+          monoFont: fonts.mono,
+          emojiFont: fonts.emoji,
+          iconFont: iconFont,
+          assistantIcon: Lucide.Bot.codePoint,
+          rasters: rasters,
+          enableMathRendering: settings.enableMathRendering,
+          enableDollarLatex: settings.enableDollarLatex,
+        ),
+      );
+
+      final filename =
+          'chat-export-${DateTime.now().millisecondsSinceEpoch}.pdf';
+      if (!context.mounted) return;
+      final saved = await _saveExportBytesWithPicker(
+        context,
+        filename: filename,
+        bytes: layout.bytes,
+        allowedExtensions: const ['pdf'],
+        announce: false,
+      );
+      if (saved) result = layout;
+    });
+  } catch (e) {
+    if (!context.mounted) return null;
+    showAppSnackBar(
+      context,
+      message: l10n.messageExportSheetExportFailed('$e'),
+      type: NotificationType.error,
+    );
+    return null;
+  }
+  return result;
 }
 
 Future<void> exportChatMessagesTxt(
@@ -852,46 +928,32 @@ Future<void> exportChatMessagesTxt(
     final title = (conversation.title.trim().isNotEmpty)
         ? conversation.title
         : l10n.messageExportSheetDefaultTitle;
-    final includeThinking = showThinkingAndToolCards && expandThinkingContent;
-
-    final buf = StringBuffer();
-    buf.writeln(title);
-    buf.writeln('');
-
-    for (final msg in messages) {
-      final time = timeFormatter.format(msg.timestamp);
-      final roleName = _getRoleNameFromDependencies(
+    final document = await buildExportDocument(
+      title: title,
+      messages: messages,
+      roleNameOf: (msg) => _getRoleNameFromDependencies(
         l10n: l10n,
         settings: settings,
         userProvider: userProvider,
         assistant: assistant,
         msg: msg,
-      );
-      buf.writeln('$time · $roleName');
-      buf.writeln('');
-
-      await _writeExportBlocks(
-        buf,
-        msg,
-        includeThinking: includeThinking,
-        includeTools: showThinkingAndToolCards,
-        thinkingLabel: thinkingLabel,
-        markdown: false,
-        writeImage: (imageUri) async {
-          buf.writeln(imageUri);
-          buf.writeln('');
-        },
-      );
-
-      buf.writeln('\n---\n');
-    }
+      ),
+      formatTime: timeFormatter.format,
+      includeThinking: showThinkingAndToolCards && expandThinkingContent,
+      includeTools: showThinkingAndToolCards,
+    );
 
     final filename = 'chat-export-${DateTime.now().millisecondsSinceEpoch}.txt';
     if (!context.mounted) return;
     await _saveExportTextWithPicker(
       context,
       filename: filename,
-      content: buf.toString(),
+      content: renderExportDocument(
+        document,
+        markdown: false,
+        thinkingLabel: thinkingLabel,
+        imageLine: (image) => image.uri,
+      ),
       allowedExtensions: const ['txt'],
     );
   } catch (e) {
@@ -913,7 +975,7 @@ Future<void> exportChatMessagesImage(
 }) async {
   try {
     File? file;
-    await _runWithExportingOverlay(context, () async {
+    await runWithExportingOverlay(context, () async {
       file = await _renderAndSaveChatImage(
         context,
         conversation,
@@ -1944,7 +2006,7 @@ class _ExportDialogState extends State<_ExportDialog> {
       await Navigator.of(context).maybePop();
       if (!pctx.mounted) return;
       File? file;
-      await _runWithExportingOverlay(pctx, () async {
+      await runWithExportingOverlay(pctx, () async {
         file = await _renderAndSaveMessageImage(
           pctx,
           widget.message,
@@ -2166,6 +2228,25 @@ class _BatchExportDialogState extends State<_BatchExportDialog> {
     );
   }
 
+  Future<void> _onExportPdf() async {
+    if (_exporting) return;
+    final pctx = widget.parentContext;
+    final settings = pctx.read<SettingsProvider>();
+    await Navigator.of(context).maybePop();
+    if (!pctx.mounted) return;
+    await showPdfExportDialog(
+      pctx,
+      conversation: widget.conversation,
+      messages: widget.messages,
+      showThinkingAndToolCards: _showThinkingAndToolCards,
+      expandThinkingContent: _expandThinkingContent,
+      appFontPath: settings.appFontLocalPath,
+      codeFontPath: settings.codeFontLocalPath,
+      appFontFamily: settings.appFontFamily,
+      codeFontFamily: settings.codeFontFamily,
+    );
+  }
+
   Future<void> _onExportImage() async {
     if (_exporting) return;
     try {
@@ -2173,7 +2254,7 @@ class _BatchExportDialogState extends State<_BatchExportDialog> {
       await Navigator.of(context).maybePop();
       if (!pctx.mounted) return;
       File? file;
-      await _runWithExportingOverlay(pctx, () async {
+      await runWithExportingOverlay(pctx, () async {
         file = await _renderAndSaveChatImage(
           pctx,
           widget.conversation,
@@ -2263,6 +2344,12 @@ class _BatchExportDialogState extends State<_BatchExportDialog> {
                           title: l10n.messageExportSheetPlainText,
                           subtitle: l10n.messageExportSheetBatchTxtSubtitle,
                           onTap: _exporting ? null : _onExportTxt,
+                        ),
+                        _ExportOptionTile(
+                          icon: Lucide.FileType,
+                          title: l10n.messageExportSheetPdf,
+                          subtitle: l10n.messageExportSheetBatchPdfSubtitle,
+                          onTap: _exporting ? null : _onExportPdf,
                         ),
                         _ExportOptionTile(
                           icon: Lucide.Image,
@@ -2413,13 +2500,36 @@ class _BatchExportSheetState extends State<_BatchExportSheet> {
     );
   }
 
+  Future<void> _onExportPdf() async {
+    if (_exporting) return;
+
+    // Dismiss the sheet immediately: the configuration is its own surface, and
+    // the overlay that follows it must not be stacked behind this one.
+    final pctx = widget.parentContext;
+    final settings = pctx.read<SettingsProvider>();
+    if (mounted) Navigator.of(context).maybePop();
+    if (!pctx.mounted) return;
+
+    await showPdfExportDialog(
+      pctx,
+      conversation: widget.conversation,
+      messages: widget.messages,
+      showThinkingAndToolCards: _showThinkingAndToolCards,
+      expandThinkingContent: _expandThinkingContent,
+      appFontPath: settings.appFontLocalPath,
+      codeFontPath: settings.codeFontLocalPath,
+      appFontFamily: settings.appFontFamily,
+      codeFontFamily: settings.codeFontFamily,
+    );
+  }
+
   Future<void> _onExportImage() async {
     if (_exporting) return;
     setState(() => _exporting = true);
     try {
       final pctx = widget.parentContext;
       File? file;
-      await _runWithExportingOverlay(pctx, () async {
+      await runWithExportingOverlay(pctx, () async {
         file = await _renderAndSaveChatImage(
           pctx,
           widget.conversation,
@@ -2506,6 +2616,16 @@ class _BatchExportSheetState extends State<_BatchExportSheet> {
                         ? null
                         : () {
                             _onExportTxt();
+                          },
+                  ),
+                  _ExportOptionTile(
+                    icon: Lucide.FileType,
+                    title: l10n.messageExportSheetPdf,
+                    subtitle: l10n.messageExportSheetBatchPdfSubtitle,
+                    onTap: _exporting
+                        ? null
+                        : () {
+                            _onExportPdf();
                           },
                   ),
                   _ExportOptionTile(
@@ -2676,7 +2796,7 @@ class _ExportSheetState extends State<_ExportSheet> {
     try {
       final pctx = widget.parentContext;
       File? file;
-      await _runWithExportingOverlay(pctx, () async {
+      await runWithExportingOverlay(pctx, () async {
         file = await _renderAndSaveMessageImage(
           pctx,
           widget.message,
@@ -3223,55 +3343,6 @@ class _ExportDisclaimer extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-Future<void> _runWithExportingOverlay(
-  BuildContext context,
-  Future<void> Function() task,
-) async {
-  final cs = Theme.of(context).colorScheme;
-  final l10n = AppLocalizations.of(context)!;
-  final navigator = Navigator.of(context, rootNavigator: true);
-  // Show overlay first
-  showDialog<void>(
-    context: context,
-    barrierDismissible: false,
-    builder: (ctx) => Center(
-      child: Material(
-        color: context.appColors.surfaceCard,
-        elevation: 6,
-        shadowColor: cs.shadow.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CupertinoActivityIndicator(radius: 16),
-              const SizedBox(height: 12),
-              Text(
-                l10n.messageExportSheetExporting,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: cs.onSurface.withValues(alpha: 0.8),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-  try {
-    await WidgetsBinding.instance.endOfFrame;
-    await task();
-  } finally {
-    await Future<void>.delayed(Duration.zero);
-    if (navigator.mounted) {
-      await navigator.maybePop();
-      await Future<void>.delayed(Duration.zero);
-    }
   }
 }
 

@@ -1106,3 +1106,193 @@ contradicts one of them is a bug, not a preference.
   reply that is still being written); the 范围引用 entry stays, because its text was captured by value.
 - A citation neither creates nor preserves a conversation: a 整条引用 whose target is gone shows the stub
   and sends no 引文, and nothing else changes.
+
+## PDF export (PDF 导出) — ADR-0013
+
+- **Export block model (导出块模型)**: the plain-data shape a conversation takes for export — `ExportText` /
+  `ExportReasoning` / `ExportToolCall` / `ExportImage` / `ExportFile`, built once by `buildExportDocument` and
+  consumed by all three writers (MD, TXT, PDF). It is what lets the PDF layout run on a background isolate:
+  bytes and strings cross, never a widget or a provider. MD and TXT are byte-identical to what they were
+  before it existed.
+- **PDF emitter (PDF 发射器)**: `buildConversationPdf` — the one place the export block model becomes a
+  `pdf` document. Its load-bearing rule is that **every text leaf is a direct child of the page flow**: the
+  writer can only break a `Column` *between* children, and its page guard is an `assert`, so a block taller
+  than a page would hang a release build instead of throwing. Grouping is therefore drawn per block
+  (`_BlockSkin`), never nested, and anything unbreakable (a picture, a formula, a table row) is capped.
+- **Ruled skin (带竖线皮肤)**: a `_BlockSkin` that carries a rule — only a quote sets one. A rule is a
+  *non-uniform* border, and the writer refuses a radius beside one (`box_border.dart` asserts
+  `borderRadius == null`), so a ruled skin drops its own rounding. That is what lets a code surface, a degraded
+  display formula or a `<details>` band inside a quote export at all: each of them brings a radius of its own,
+  and without the rule winning, the export threw in debug and silently dropped the rounding in release.
+- **Font role (字体角色)**: one of 正文 / 代码 / Emoji, each resolved on its own because the writer needs a
+  different face for each. A role's answer is a `PdfFontChoice` — auto, a named system face, a downloadable
+  family, or the built-in font — and its state is carried as a `PdfFontStatus`, so which face a document was
+  drawn with is something the export can name rather than something a reader has to guess.
+- **Font catalogue lease (字体目录租约)**: who closes the download catalogue (`GoogleFontsService`), and when.
+  The dialog creates it, so the dialog is responsible for it — but not for as long as its *route* lives: the
+  export runs from the page after that route has left the screen, so closing the catalogue on pop closed it
+  before the first download, and every download then failed. The dialog therefore hands out a lease: an export
+  claims it before it pops and closes it once the export's own surfaces are done with it, and a dialog dismissed
+  without exporting closes it itself. A catalogue a caller passed in is the caller's, and is never closed here.
+- **Embeddable face (可嵌入字体)**: the one predicate the whole font story is filtered through,
+  `isPdfEmbeddableFont`. It accepts a single TrueType face and nothing else: a `ttcf` collection (every CJK font
+  iOS and Android ship, and Microsoft YaHei) parses to no glyphs at all, and `OTTO`/CFF has no `glyf` table for
+  the writer's loader to read. It also rejects Apple's `'true'` version word although the writer opens such a
+  face happily, because the writer decides Unicode by that word alone (`unicode => getUint32(0) == 0x10000`) and
+  writes every other face as Latin-1 — a `'true'` face therefore drops every rune outside U+00FF *silently*,
+  while still reporting itself as a real picked face, which is the one outcome the check exists to prevent.
+- **Export degrade (导出降级)**: what the layout fell back from and reported — a formula set as its TeX, a
+  diagram set as its code, a picture set as its reference. A degrade is not a failure: the same conversation
+  is still worth exporting, and `PdfExportResult` is how the result screen says what is missing instead of
+  leaving a reader to notice it.
+- **List nesting (列表层级)**: how deep an item sits. The tree carries it — a `ListNode` holds its
+  `ListItemNode`s and an item holds the list inside it — so the layout spends one step (`_indentStep`) per
+  level and stops at six, which is where a real document stops and a formatting accident begins. The depth is
+  never read out of the source, because a tab and two spaces are the same level to the grammar.
+- **The grammar the page shares (与屏幕同一份文法)**: the export parses with the surface's own parser and
+  options — `MarkdownParser` + `markdownParserOptionsFor` + `kelivoInlineSyntaxes` — so a `[cite:id]` marker is
+  a citation, a local picture path is a picture, and long inline `$$…$$` becomes a block on both sides. What the
+  page must *not* do is read raw source: it has no widget tree, and a second reading of the message is exactly
+  how an export came to print markdown the screen was drawing.
+- **Nested raster key (嵌套栅格键)**: the walk that names the formulas and diagrams the caller has to draw
+  (`pdfRasterKeysIn`). A quote, a list, a table cell and a `<details>` hold real children, so this walk reaches
+  exactly the bodies the layout draws without a second extraction — and a formula or a diagram in any of them
+  reaches the page as its picture rather than as its TeX or its source.
+- **Page ink (页面墨色)**: the accent and quiet ink a page draws links, citations, task boxes and table tints
+  with, resolved by the caller from the app's **light** scheme and guarded against white — a dark theme's
+  primary is a pale tint that would vanish into paper. Diagrams follow the same rule, because a bitmap
+  carries its own background: a diagram drawn for a dark screen would arrive as a dark box on a white page.
+- **Citation capsule (引用胶囊)**: the numbered pill a citation is drawn as, on screen and on paper alike. A
+  citation is its own node — the grammar's `kelivo-citation`, carrying the refs it was written with — and the
+  number is the cited result's place among that message's own search results, not something the text holds: it
+  travels as `ExportMessage.citationIndex` (`citation_index.dart`, built by the same scan the timeline runs) and
+  the label rule is one function (`citationLabelOf`) both surfaces call.
+- **Task marker (任务标记)**: `[x]`/`[ ]`/`(x)`/`( )` as an item's own state. The grammar reads it — a list item
+  carries `checked` and `radio` — so the page draws a box, a tick or a radio from the node and nothing has to
+  parse the syntax twice.
+- **Page scale (页面尺度)**: `kPdfBodyFontSize / kMarkdownBodyFontSize` — the factor everything the screen
+  measured in its own logical pixels keeps on paper (an author's `WxH` picture size, a 20-point citation pill,
+  an 18-point task box). It exists because the page sets prose at 10.5pt where the surface sets 15.5.
+- **Speaker line (发话人行)**: the header above a message's blocks. `ExportMessage.speaker` says what the
+  message *is* (a name is a label, and a label is not a role); an assistant gets a disc, its name and its time
+  stacked, a reader gets the label the caller passed (`PdfExportRequest.userLabel`) and no time.
+- **Avatar disc (头像圆盘)**: the circle beside an assistant's name. The screen paints the model's own picture
+  there, which is a bitmap that varies per message; the page draws the structure — a tinted disc and the icon
+  glyph the app already ships as a font (`PdfExportRequest.iconFont` + `assistantIcon`) — because an export
+  that cannot fetch a picture must still show the slot rather than an empty column.
+- **User band (用户底纹)**: the tint a reader's own messages are set on, the accent over paper at 7%. It is
+  drawn *per block* rather than as one box, for the same reason a table has no outer frame: a decorated
+  container around content that can break across pages is what makes this writer loop. Adjacent fills therefore
+  touch and the band is continuous until the page breaks — which also means it is square-ended.
+- **Faux-bold stroke (伪粗体描边)**: the weight the page draws where the screen asked for bold. The theme maps
+  every weight onto the one face an export can embed, so `fontWeight: bold` alone changes nothing; instead an
+  emphasised span is filled *and stroked* (`PdfTextRenderingMode.fillAndStroke`), with the line width set per
+  text leaf by a `CustomPaint` wrapper — graphics state, so it must be restored before the next leaf and
+  re-applied to each page fragment, both of which `CustomPaint`'s own save/restore and spanning hooks give. The
+  width is **3% of the size** (0.315pt beside 10.5pt prose), and the figure is lower than a real bold face's stem
+  difference would suggest because a stroke widens *every* contour it follows — the inside of a counter as much
+  as the outside of a stem, and a CJK crossbar is thinner than a Latin one at the same size. At 4% a page of
+  Chinese closed its own counters.
+- **Table type size (表格字号)**: a table's header and its cells at 13.0 and 13.5 logical pixels of the screen
+  (8.806 and 9.145 points here), the header smaller and heavier for it. It is named because it is the one place
+  the writer's own default is reachable: a cell whose text crosses as a plain string is drawn with
+  `ThemeData.defaultTextStyle` — 12 points, larger than this page's prose and larger than its own header — so
+  every cell, header and body alike, is built as a widget that carries its own style.
+- **Formula raster scale (公式栅格尺度)**: the size a formula is *drawn* at before it is embedded. The screen
+  sets an inline formula at 1.2 of its prose and a display one at the prose size itself; the page captures at
+  those sizes and 5× pixels, and an inline picture taller than the prose line is shrunk into it, because the
+  writer advances the line *after* a span by its overhang and a paragraph of formulas would otherwise read as a
+  paragraph of gaps.
+- **Line filling (行填充)**: `_filled` — the pass that hands the writer the line breaks it does not compute.
+  The writer's tokenizer splits on whitespace alone (`text.dart`, `_buildLines`), and a Chinese sentence has
+  none: it arrives as **one word**, and a word that does not fit the room left on a line is moved to the next
+  one whole. So the line before it ended where that word began — the short line a review of a first export
+  found, always in the same place: after a Latin word and a space. The layout now measures the line itself, with
+  the writer's own metrics (`Font.getFont(context)`, asked of the running layout's context), and puts a break
+  opportunity exactly at each line's end. It is not a second line breaker: the writer still draws and breaks the
+  text, and every opportunity is where the writer would have broken if it could.
+- **Break opportunity (断点)**: the separator the pass above inserts — a space in a span of its own whose
+  `wordSpacing` is `0`. Zero is what makes it free and invisible: the writer advances a separator by
+  `stringMetrics(' ').advanceWidth * wordSpacing` and never draws one, so it costs no width and leaves no gap, a
+  page of Chinese still copies and searches as one unbroken run (a first attempt put one opportunity after every
+  *character*, which read back as `小 节 标 题`), and the line is still one string. The two rules a Chinese
+  typesetter applies are applied here, because the writer has neither: `。` never opens a line and `「` never
+  closes one, and a break never lands inside a Latin word. A run that does not fit the room left is cut inside
+  itself for the same reason — the writer's own `_splitWord` walks code units and knows none of those rules,
+  which is how a line came to open with `。`.
+- **Hanging indent (挂缩进)**: how a wrapped list item lines up under its text rather than under its marker.
+  The writer cannot draw it — its text starts every line at the paragraph's own left edge, and the widgets that
+  would give it the indent (`Row`, a `Table` row) are the unbreakable boxes this layout exists to avoid. So the
+  item's first line is cut out by the same measurement as **Line filling**, and the item reaches the page as
+  two leaves: the marker with the line it fits, and everything after it one step (`_indentStep`) in, keeping the
+  first leaf's bottom gap so the item's spacing is unchanged. A marker this layout cannot measure — a task box,
+  which is a widget — leaves the item exactly as it was.
+- **Font default (字面跟随设置)**: the faces the export dialog offers when it opens. The page is meant to look
+  like the app's screen, so the first dialog of a session seeds 正文 from the app font and 代码 from the code
+  font (`PdfFontResolver.preferred`, asked of the same candidate list the picker shows) rather than leaving both
+  at auto. It happens once per session and only over roles still on auto, so a user who chose something keeps
+  it. A settings family is what the app's picker called the font — for a font installed on this machine, the
+  file's own name with its type in brackets — so a family whose own file the writer cannot open (CFF `.otf`, as
+  this machine's Noto Sans SC Medium is) is answered with the same family's embeddable file instead of nothing.
+
+Deliberate divergences from the screen (each measured, not a matter of taste — ADR-0013):
+
+- An unordered list keeps `-`: the writer's built-in face reaches only U+00FF, and `glyphMetrics` **throws**
+  for U+2022, so a bullet glyph is a crash risk on the one path that has no embedded face.
+- Inline code carries a fill but no padding or frame: a padded box would have to be an inline widget, and an
+  inline widget cannot break across lines — the screen's long-code wrapping depends on breaking.
+- A code block has no header bar (language, copy, save, preview): those are affordances, and a printed page
+  has nothing to click.
+- A table has no rounded outer frame: a decorated container around something that can run past a page is the
+  unbreakable box this writer loops on.
+- A code surface, a degraded display formula or a `<details>` band inside a quote is square-cornered: the quote's
+  rule wins over the block's own rounding, because the writer refuses a radius beside a non-uniform border — and
+  the alternative is a nested container around content that can break.
+- A reader's message is a full-width square-ended band, not a right-aligned rounded bubble: same reason as the
+  table's frame, and the rounding cannot survive being drawn block by block.
+- A reader's message carries no timestamp and is headed with the export's own label rather than the profile's
+  name: a page that leaves someone's disk should say who spoke, not who the reader is.
+- A bold run inside a *different* colour (a link's label) keeps its weight request and loses the stroke: one
+  text leaf has one stroke colour, and an ink outline around an accent-coloured link is worse than plain type.
+- Italic is not drawn: the writer embeds a single face and there is no honest way to slant it per span.
+- A display formula is set at the prose size rather than enlarged, and an inline one at 1.2 of it, clamped into
+  the prose line — both are the screen's own ratios read onto paper.
+- The paragraph gap is the page's own, not the screen's blank line — two empty lines of list height is a chat
+  convention, and a printed page that airy spends a fifth of its length on nothing. A blank line the *source*
+  wrote costs the same gap (17 points rather than the two line pitches of 32 that drawing it literally came to),
+  because the grammar already ended the paragraph there: the page has no reason to draw the emptiness. A blank
+  line *inside* an emphasised run (`**a` / blank / `b**`) is still drawn as one, because splitting there would
+  split the emphasis.
+- The page leads at **1.6 of its size** (16.8pt beside the screen's 1.5) and its paragraph gap is **8 points**.
+  A first review found the page cramped: at 1.5 and 5 points a paragraph break added barely a point over a line
+  pitch, so prose and lists read as one wall. A list is spaced by that same gap and by nothing of its own — its
+  items carry the body's skin — which is why "the list is too tight" was the paragraph gap, not the list.
+- A link keeps its underline: the screen separates a link by colour alone, and paper has no hover.
+- A bare `[n]` citation chip stays a number rather than becoming a capsule.
+- The rest of the message chrome — the reasoning rail, tool cards, the sources card, the token footer — is
+  still out of scope: it is a layout decision about what a PDF *is* rather than a fidelity defect, and the
+  parts of it that carry content (thinking, tool calls, citations) are already written out by the block model.
+
+Confirmed limitations (evidence first, carried by ADR-0013):
+
+- **A face with no CJK blanks CJK, whatever its flavour.** The review asked whether the silent loss is specific
+  to a `'true'` face; it is not. The writer asks a face whether it can draw a rune through its character map
+  (`PdfTtfFont.isRuneSupported` → `charToGlyphIndexMap`), and `_preProcessSpans` — the only text path — turns
+  every rune no font in the chain supports into a placeholder box. The export's chain is the body face plus
+  `[mono, emoji]`, and `_autoBody` prefers a picked `appFontLocalPath` before it ever looks for a CJK face, so
+  importing a Latin-only UI font — or a Latin-only *code* font, for CJK inside a code block — exports CJK as
+  boxes while the screen draws it through Flutter's own fallback. The fix is a fourth face: a CJK fallback
+  appended to the theme's `fontFallback`. It changes what every export embeds and what the dialog's "CJK may
+  print blank" warning means, so it is deliberately not part of this round.
+- **The "Colour" note on an emoji face is an upper bound.** `pdfFontHasColourBitmaps` tests for the `CBDT`/`CBLC`
+  tables, while the writer also needs CBLC `indexFormat == 1` and CBDT `imageFormat == 17`. A face that fails
+  those is drawn from its outlines in a single colour rather than dropped, so the note can overstate — never
+  understate — what the page will do.
+- **A table cell is not line-filled.** A cell's width belongs to the table, and the layout builds the cell's
+  widgets before the table has a column to lay them out in; an opportunity placed for the page's own column
+  would be *later* than the cell's end, which would leave the cell's lines shorter than they were before. A cell
+  therefore still reaches the writer as one word per run, and a table of Chinese sets its cells the writer's way.
+- **A list item whose marker is a widget does not hang.** The first line is cut by measurement, and a task item's
+  marker is a `WidgetSpan` whose width is the laid-out child's — so those items keep the flush-left second line
+  the whole page had before. A text marker (`-`, `1.`) is measured and hangs.
+

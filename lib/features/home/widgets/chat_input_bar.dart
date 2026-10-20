@@ -16,6 +16,7 @@ import '../../../l10n/app_localizations.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import '../../chat/pages/image_viewer_page.dart';
+import '../../chat/utils/reply_citation_label.dart';
 import '../../../utils/file_import_helper.dart';
 import '../../../utils/image_compressor.dart';
 import '../../../utils/upload_dedupe.dart';
@@ -56,6 +57,7 @@ import '../../../shared/widgets/long_message_editor.dart';
 import '../services/context_usage_service.dart';
 import 'package:Cuplivo/theme/app_font_weights.dart';
 import '../../../core/models/composer_draft.dart';
+import '../../../core/models/message_quote.dart';
 import '../../../core/database/composer_draft_store.dart';
 
 class ChatInputBarController {
@@ -171,6 +173,17 @@ class ChatInputBarController {
       _pendingDraft = input;
     } else {
       _state!._restoreDraft(input, resetHistory: resetHistory);
+    }
+  }
+
+  /// Starts (or replaces) the pending reply citation. [label] is the one-line
+  /// preview the composer shows; a whole-message citation's text lives on the
+  /// target, so its label only exists here and in the draft.
+  void setPendingQuote(MessageQuote quote, {String? label}) {
+    if (_state != null && _currentTarget) {
+      _root._state!._setPendingQuote(quote, label: label);
+    } else {
+      _mutate((input) => input.copyWith(quote: quote, quoteLabel: label));
     }
   }
 
@@ -398,6 +411,11 @@ class ChatInputBarController {
       ],
       documents: draft.documents,
       allowImagesApiRouting: draft.allowImagesApiRouting,
+      // The detached fallback still speaks for a composer that holds a pending
+      // reply: every rebuild of the submitted input carries the citation and the
+      // preview line it was made under (docs/adr/0012).
+      quote: draft.quote,
+      quoteLabel: draft.quoteLabel,
     );
   }
 
@@ -861,6 +879,15 @@ class _ChatInputBarState extends State<ChatInputBar>
   Future<void> _textPasteWriteTail = Future<void>.value();
   final List<DocumentAttachment> _docs =
       <DocumentAttachment>[]; // files to upload
+
+  /// Pending reply citation (docs/adr/0012). Part of the draft state: it is
+  /// cleared on sent/queued, kept on rejected, and rides the composer draft.
+  MessageQuote? _quoteDraft;
+
+  /// One-line preview for [_quoteDraft]. Composer-only presentation: a
+  /// whole-message citation's text lives on its target, so a restored draft
+  /// cannot re-derive this.
+  String? _quoteLabel;
   final Map<LogicalKeyboardKey, Timer?> _repeatTimers = {};
   static const Duration _repeatInitialDelay = Duration(milliseconds: 300);
   static const Duration _repeatPeriod = Duration(milliseconds: 35);
@@ -1329,7 +1356,22 @@ class _ChatInputBarState extends State<ChatInputBar>
       _docs
         ..clear()
         ..addAll(input.documents);
+      _quoteDraft = input.quote;
+      // The label rides the input so a queued send that is cancelled puts the
+      // quoted line back, not just the citation (docs/adr/0012).
+      _quoteLabel = input.quoteLabel;
       _pruneImageSizes();
+    });
+  }
+
+  /// Sets (or clears) the pending reply citation owned by this bar.
+  void _setPendingQuote(MessageQuote? quote, {String? label}) {
+    setState(() {
+      _quoteDraft = quote;
+      // Assigned together with the citation: a label describes the citation it
+      // was derived from, so one without a label must not inherit the previous
+      // citation's line.
+      _quoteLabel = quote == null ? null : label;
     });
   }
 
@@ -1344,6 +1386,8 @@ class _ChatInputBarState extends State<ChatInputBar>
       ],
       documents: List<DocumentAttachment>.of(_docs),
       allowImagesApiRouting: _allowImagesApiRouting,
+      quote: _quoteDraft,
+      quoteLabel: _quoteLabel,
     );
   }
 
@@ -1361,6 +1405,8 @@ class _ChatInputBarState extends State<ChatInputBar>
     ],
     documents: List.of(_docs),
     allowImagesApiRouting: _allowImagesApiRouting,
+    quote: _quoteDraft,
+    quoteLabel: _quoteLabel,
   );
 
   void _restoreDraft(ComposerDraftInput input, {bool resetHistory = true}) {
@@ -1420,6 +1466,8 @@ class _ChatInputBarState extends State<ChatInputBar>
           ),
         );
       _restoredRoutingChoice = input.allowImagesApiRouting;
+      _quoteDraft = input.quote;
+      _quoteLabel = input.quoteLabel;
     });
     _pumpImageProcessingQueue();
   }
@@ -1436,6 +1484,8 @@ class _ChatInputBarState extends State<ChatInputBar>
       _discardImageState(_images.map((image) => image.id));
       _images.clear();
       _docs.clear();
+      _quoteDraft = null;
+      _quoteLabel = null;
       _pruneImageSizes();
     });
   }
@@ -2413,6 +2463,8 @@ class _ChatInputBarState extends State<ChatInputBar>
     final submittedImageIds = submittedImages.map((image) => image.id).toSet();
     final submittedDocuments = List<DocumentAttachment>.of(_docs);
     final submittedDraft = _snapshotDraft(submittedText);
+    final submittedQuote = _quoteDraft;
+    final submittedQuoteLabel = _quoteLabel;
     final submittedDraftRevision = _draftReplacementRevision;
     final submitSerial = ++_submitSerial;
     _isSubmitting = true;
@@ -2440,6 +2492,8 @@ class _ChatInputBarState extends State<ChatInputBar>
       for (final document in submittedDocuments) {
         _docs.remove(document);
       }
+      _quoteDraft = null;
+      _quoteLabel = null;
     });
 
     Future<void> restoreRejected() async {
@@ -2460,6 +2514,8 @@ class _ChatInputBarState extends State<ChatInputBar>
           submittedValue,
           submittedImages,
           submittedDocuments,
+          quote: submittedQuote,
+          quoteLabel: submittedQuoteLabel,
         ),
       );
     }
@@ -2476,6 +2532,8 @@ class _ChatInputBarState extends State<ChatInputBar>
                 documents: List<DocumentAttachment>.of(submittedDocuments),
                 allowImagesApiRouting: submittedDraft.allowImagesApiRouting,
                 draftSubmission: draftSubmission,
+                quote: submittedQuote,
+                quoteLabel: submittedQuoteLabel,
               ),
             ) ??
             ChatInputSubmissionResult.rejected;
@@ -2531,8 +2589,10 @@ class _ChatInputBarState extends State<ChatInputBar>
   void _restoreSubmittedDraft(
     TextEditingValue submittedValue,
     List<_DraftImage> submittedImages,
-    List<DocumentAttachment> submittedDocuments,
-  ) {
+    List<DocumentAttachment> submittedDocuments, {
+    MessageQuote? quote,
+    String? quoteLabel,
+  }) {
     // A rejected submission may already have persisted the message
     // (temporary conversations write it before generation starts), so this
     // draft stops claiming those stored copies: a later re-compress must
@@ -2550,6 +2610,12 @@ class _ChatInputBarState extends State<ChatInputBar>
       0,
       submittedDocuments.where((document) => !_docs.contains(document)),
     );
+    // One citation slot: a reply started while the send was in flight wins, so
+    // a restore never overwrites a newer choice.
+    if (_quoteDraft == null && quote != null) {
+      _quoteDraft = quote;
+      _quoteLabel = quoteLabel;
+    }
   }
 
   void _restoreSubmittedText(TextEditingValue submittedValue) {
@@ -4177,6 +4243,87 @@ class _ChatInputBarState extends State<ChatInputBar>
     );
   }
 
+  /// Pending-reply preview row: the citation the next send will carry, with the
+  /// one tap that drops it (docs/adr/0012).
+  ///
+  /// Presentation only — the send reads `_quoteDraft`, and the model-facing
+  /// citation is derived from that, never from this label.
+  Widget _buildQuoteReplyRow(BuildContext context, bool isDark) {
+    final cs = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final quote = _quoteDraft;
+    var label = (_quoteLabel ?? '').trim();
+    if (label.isEmpty && quote?.text != null) {
+      label = replyCitationLabel(
+        quote!.text!,
+        settings: context.read<SettingsProvider>(),
+      );
+    }
+    // A whole-message citation with no label (one restored from an input
+    // snapshot rather than from a draft) has no text to show and no target to
+    // read here: the item's own label is the honest thing to display.
+    if (label.isEmpty) label = l10n.messageMoreSheetReply;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.xxs,
+            AppSpacing.sm,
+            AppSpacing.xxs,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Lucide.Reply,
+                size: 16,
+                color: cs.onSurface.withValues(alpha: 0.5),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: cs.onSurface.withValues(alpha: 0.65),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              IosCardPress(
+                key: const ValueKey('chat-input-quote-remove'),
+                haptics: false,
+                baseColor: Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                padding: const EdgeInsets.all(AppSpacing.xxs),
+                duration: const Duration(milliseconds: 140),
+                onTap: () => _setPendingQuote(null),
+                child: Tooltip(
+                  message: l10n.messageQuotePreviewRemove,
+                  child: Icon(
+                    Lucide.X,
+                    size: 15,
+                    color: cs.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Divider(
+          height: 1,
+          thickness: 1,
+          color: isDark
+              ? cs.onSurface.withValues(alpha: 0.06)
+              : cs.onSurface.withValues(alpha: 0.08),
+        ),
+      ],
+    );
+  }
+
   Widget _buildInlineAttachmentPreviews(BuildContext context, bool isDark) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -4459,6 +4606,8 @@ class _ChatInputBarState extends State<ChatInputBar>
                                             ),
                                     ),
                                 ],
+                                if (_quoteDraft != null)
+                                  _buildQuoteReplyRow(context, isDark),
                                 if (hasDocs || hasImages)
                                   _buildInlineAttachmentPreviews(
                                     context,

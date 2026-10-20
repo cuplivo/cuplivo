@@ -99,6 +99,27 @@ class HotkeyProvider extends ChangeNotifier {
       defaultMac: '',
       enabledByDefault: true,
     ),
+    // Copy the selected assistant text as Markdown. Shift+C is the copy
+    // variant of Ctrl+C; Ctrl+X (cut), Ctrl+Q (quit on macOS) and Ctrl+R
+    // (reload) are taken or destructive.
+    'copy_selection_markdown': AppHotkey(
+      id: 'copy_selection_markdown',
+      l10nLabelKey: 'hotkeyCopySelectionMarkdown',
+      defaultWinLinux: 'ctrl+shift+c',
+      defaultMac: 'cmd+shift+c',
+      enabledByDefault: true,
+    ),
+    // Reply with the selected assistant text (docs/adr/0012). Same Shift family
+    // as the copy above, and free of any other default here; the action is a
+    // workaround for the framework dropping a long selection on right-click,
+    // exactly like `copy_selection_markdown`.
+    'reply_selection': AppHotkey(
+      id: 'reply_selection',
+      l10nLabelKey: 'hotkeyReplySelection',
+      defaultWinLinux: 'ctrl+shift+r',
+      defaultMac: 'cmd+shift+r',
+      enabledByDefault: true,
+    ),
   };
 
   final Map<String, HotKey> _registered = <String, HotKey>{};
@@ -263,6 +284,12 @@ class HotkeyProvider extends ChangeNotifier {
         break;
       case 'focus_input':
         HotkeyEventBus.instance.fire(HotkeyAction.focusInput);
+        break;
+      case 'copy_selection_markdown':
+        HotkeyEventBus.instance.fire(HotkeyAction.copySelectionMarkdown);
+        break;
+      case 'reply_selection':
+        HotkeyEventBus.instance.fire(HotkeyAction.replySelection);
         break;
     }
   }

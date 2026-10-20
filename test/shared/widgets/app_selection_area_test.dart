@@ -16,16 +16,28 @@ Widget _widgetHarness(
   Widget child, {
   MarkstreamSelectionController? controller,
   ClipboardWriter? writer,
+  String? messageId,
+  ValueChanged<String>? onReplySelection,
 }) => MaterialApp(
   locale: const Locale('en'),
   supportedLocales: AppLocalizations.supportedLocales,
   localizationsDelegates: AppLocalizations.localizationsDelegates,
   home: Scaffold(
     body: controller == null
-        ? AppSelectionArea(clipboardWriter: writer, child: child)
+        ? AppSelectionArea(
+            clipboardWriter: writer,
+            messageId: messageId,
+            onReplySelection: onReplySelection,
+            child: child,
+          )
         : MarkstreamSelectionScope(
             controller: controller,
-            child: AppSelectionArea(clipboardWriter: writer, child: child),
+            child: AppSelectionArea(
+              clipboardWriter: writer,
+              messageId: messageId,
+              onReplySelection: onReplySelection,
+              child: child,
+            ),
           ),
   ),
 );
@@ -531,4 +543,70 @@ void main() {
       isTrue,
     );
   }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+
+  testWidgets('Reply hands the selection markdown to the message it came from', (
+    tester,
+  ) async {
+    final replies = <String>[];
+    await tester.pumpWidget(
+      _widgetHarness(
+        const MarkstreamView(
+          source: '**Bold** plain\n\n```dart\n  code();\n```',
+          cullToViewport: false,
+        ),
+        messageId: 'message-1',
+        onReplySelection: replies.add,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await selectAll(tester);
+    _menu(
+      tester,
+    ).buttonItems!.singleWhere((item) => item.label == 'Reply').onPressed!();
+    await tester.pumpAndSettle();
+    // The citation is the selection's own markdown, complete markers included —
+    // the same text "Copy Markdown" produces for that selection.
+    expect(replies.single, contains('**Bold** plain'));
+    expect(replies.single, contains('```dart\n  code();\n```'));
+  }, variant: TargetPlatformVariant.desktop());
+
+  testWidgets('Reply reads the recording, not the live selection', (
+    tester,
+  ) async {
+    final replies = <String>[];
+    await tester.pumpWidget(
+      _widgetHarness(
+        const MarkstreamView(source: '**Bold** plain'),
+        messageId: 'message-1',
+        onReplySelection: replies.add,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await selectAll(tester);
+    // A secondary tap elsewhere collapses the live selection before the toolbar
+    // is reached; the recording must survive it.
+    tester
+        .state<SelectableRegionState>(find.byType(SelectableRegion))
+        .selectAll(SelectionChangedCause.tap);
+    await tester.pumpAndSettle();
+    _menu(
+      tester,
+    ).buttonItems!.singleWhere((item) => item.label == 'Reply').onPressed!();
+    await tester.pumpAndSettle();
+    expect(replies.single, '**Bold** plain');
+  }, variant: TargetPlatformVariant.desktop());
+
+  testWidgets('a surface that renders no message offers no Reply', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _widgetHarness(const MarkstreamView(source: '**Bold** plain')),
+    );
+    await tester.pumpAndSettle();
+    await selectAll(tester);
+    expect(
+      _menu(tester).buttonItems!.any((item) => item.label == 'Reply'),
+      isFalse,
+    );
+  }, variant: TargetPlatformVariant.desktop());
 }

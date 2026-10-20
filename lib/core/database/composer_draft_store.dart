@@ -713,6 +713,13 @@ class ComposerDraftStore extends ChangeNotifier {
       ],
       allowImagesApiRouting: input.allowImagesApiRouting,
       draftSubmission: submission,
+      // A reply citation is part of what was submitted: this rebuild is the
+      // send path's last stop before the row, and dropping the citation here
+      // costs both the bubble's chip and the model's `<reply-to>`
+      // (docs/adr/0012). Its label rides along so a rejected send restores the
+      // composer's preview line too.
+      quote: input.quote,
+      quoteLabel: input.quoteLabel,
     );
   }
 

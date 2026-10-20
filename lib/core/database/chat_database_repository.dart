@@ -15,6 +15,7 @@ import '../models/chat_message.dart';
 import '../models/token_usage.dart';
 import '../models/conversation.dart';
 import '../models/message_part.dart';
+import '../models/message_quote.dart';
 import '../utils/multimodal_input_utils.dart';
 import '../../utils/sandbox_path_resolver.dart';
 import '../../utils/kelivo_file_uri.dart';
@@ -2363,6 +2364,30 @@ class ChatDatabaseRepository {
     return row == null ? null : _messageFromRowWithParts(row);
   }
 
+  /// [messageId] as a row of [conversationId], or null when that id belongs to
+  /// another conversation or to none.
+  ///
+  /// [getMessage] is a primary-key lookup with no conversation filter, so a row
+  /// id that outlived its conversation — a merge-mode backup import remaps
+  /// message ids but copies `extras_json` verbatim (see docs/adr/0012) — would
+  /// resolve to whichever conversation on this device still holds it. Anything
+  /// that resolves a stored reference into content for one conversation uses
+  /// this instead.
+  Future<ChatMessage?> getMessageInConversation(
+    String conversationId,
+    String messageId,
+  ) async {
+    if (conversationId.isEmpty || messageId.isEmpty) return null;
+    final row =
+        await (_db.select(_db.messageRows)..where(
+              (t) =>
+                  t.id.equals(messageId) &
+                  t.conversationId.equals(conversationId),
+            ))
+            .getSingleOrNull();
+    return row == null ? null : _messageFromRowWithParts(row);
+  }
+
   Future<List<ChatMessage>> getMessagesRange(
     String conversationId, {
     required int start,
@@ -4279,7 +4304,9 @@ class ChatDatabaseRepository {
               // copy. updatedAt deliberately stays null: the copy is a fresh
               // row, so its effective updated_at is its (copied) timestamp.
               senderId: Value(message.senderId),
-              extrasJson: Value(message.extrasJson),
+              extrasJson: Value(
+                _remapCopiedMessageExtras(message.extrasJson, messageIdMap),
+              ),
             ),
           );
       await _db.customStatement(
@@ -4921,6 +4948,9 @@ class ChatDatabaseRepository {
             : null,
         groupId: groupId,
         version: nextVersion,
+        // The citation is part of the user message's content identity, so a new
+        // version carries it (docs/adr/0012).
+        quote: original.quote,
       );
       final currentConversation = await _conversationFromRow(
         conversationRow,
@@ -6373,7 +6403,7 @@ class ChatDatabaseRepository {
     )..where((t) => t.id.equals(message.id))).write(
       _messageUpdate(message).copyWith(
         extrasJson: Value(
-          _encodeTokenExtras(
+          _encodeMessageExtras(
             current?.extrasJson ?? '{}',
             reasoningTokens: message.reasoningTokens,
             cacheWriteTokens: message.cacheWriteTokens,
@@ -6464,7 +6494,7 @@ class ChatDatabaseRepository {
         // merge onto the value that read saw.
         write = write.copyWith(
           extrasJson: Value(
-            _encodeTokenExtras(
+            _encodeMessageExtras(
               existing.extrasJson,
               reasoningTokens: reasoningTokens,
               cacheWriteTokens: cacheWriteTokens,
@@ -7538,6 +7568,7 @@ class ChatDatabaseRepository {
               Map<String, dynamic>.from(extras[_finishUsageExtraKey] as Map),
             )
           : null,
+      quote: MessageQuote.decodeFromExtras(extras),
     )..hydrateStorageOrder(row.messageOrder);
   }
 
@@ -7784,8 +7815,9 @@ class ChatDatabaseRepository {
       cachedTokens: Value(message.cachedTokens),
       durationMs: Value(message.durationMs),
       extrasJson: Value(
-        _encodeTokenExtras(
+        _encodeMessageExtras(
           '{}',
+          quote: message.quote,
           reasoningTokens: message.reasoningTokens,
           cacheWriteTokens: message.cacheWriteTokens,
           finishUsage: message.finishUsage,
@@ -7863,14 +7895,21 @@ class ChatDatabaseRepository {
     return null;
   }
 
-  String _encodeTokenExtras(
+  /// Merges [existing]'s extras with the fields this write owns.
+  ///
+  /// The one writer of `message_rows.extras_json`, so a reply citation written
+  /// at insert and a token/timing update land in the same map without either
+  /// dropping the other: every caller passes the extras it read, not `'{}'`.
+  String _encodeMessageExtras(
     String existing, {
+    MessageQuote? quote,
     int? reasoningTokens,
     int? cacheWriteTokens,
     TokenUsage? finishUsage,
     int? firstTokenMs,
   }) {
     final extras = Map<String, dynamic>.from(_decodeExtrasJson(existing));
+    quote?.encodeIntoExtras(extras);
     if (reasoningTokens != null) {
       extras[_reasoningTokensExtraKey] = reasoningTokens;
     }
@@ -7885,6 +7924,29 @@ class ChatDatabaseRepository {
     }
     if (extras.isEmpty) return '{}';
     return jsonEncode(extras);
+  }
+
+  /// [extras] with a reply citation's target id rewritten for a copied
+  /// conversation, whose message rows receive new ids.
+  ///
+  /// A whole-message citation whose target is not part of the copy is dropped:
+  /// keeping the original id would leave the copy pointing at a row it does not
+  /// hold, and the pointer is all it has. A ranged citation carries its own text
+  /// and travels unchanged (`MessageQuote.remapped`).
+  String _remapCopiedMessageExtras(
+    String extras,
+    Map<String, String> messageIdMap,
+  ) {
+    final decoded = Map<String, dynamic>.from(_decodeExtrasJson(extras));
+    final quote = MessageQuote.decodeFromExtras(decoded);
+    if (quote == null) return extras;
+    final remapped = quote.remapped(messageIdMap);
+    if (remapped == null) {
+      decoded.remove(MessageQuote.extrasKey);
+    } else {
+      remapped.encodeIntoExtras(decoded);
+    }
+    return jsonEncode(decoded);
   }
 
   // —— Memory system V1 read path (§13.3) ——

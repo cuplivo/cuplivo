@@ -2,6 +2,7 @@ import "../../../support/business_test_harness.dart";
 import 'dart:async';
 import 'package:Cuplivo/core/models/chat_input_data.dart';
 import 'package:Cuplivo/core/models/composer_draft.dart';
+import 'package:Cuplivo/core/models/message_quote.dart';
 import 'package:Cuplivo/core/models/model_spec.dart';
 import 'package:Cuplivo/core/models/reasoning_request.dart';
 import 'package:Cuplivo/features/home/utils/model_display_helper.dart';
@@ -233,6 +234,69 @@ void main() {
     expect(mediaController.hasDraftMedia, isFalse);
     expect(stopCount, 0);
     expect(find.byKey(const ValueKey('stop')), findsOneWidget);
+  });
+
+  testWidgets('待发送的回复引用随提交的输入一起送出', (tester) async {
+    final controller = TextEditingController(text: 'reply text');
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+    addTearDown(controller.dispose);
+    addTearDown(focusNode.dispose);
+    ChatInputData? submitted;
+
+    await tester.pumpWidget(
+      buildHarness(
+        controller: controller,
+        focusNode: focusNode,
+        mediaController: mediaController,
+        onSend: (input) async {
+          submitted = input;
+          return ChatInputSubmissionResult.sent;
+        },
+      ),
+    );
+
+    const quote = MessageQuote(id: 'quoted-message', text: 'quoted span');
+    mediaController.setPendingQuote(quote, label: 'quoted span');
+    await tester.pumpAndSettle();
+    await tapSendButton(tester);
+
+    expect(submitted?.text, 'reply text');
+    expect(submitted?.quote, quote);
+    // The preview line rides the payload too: a queued send that is cancelled
+    // has no target left to re-derive it from (docs/adr/0012).
+    expect(submitted?.quoteLabel, 'quoted span');
+  });
+
+  testWidgets('恢复一个待发输入时预览行显示它带回的引用', (tester) async {
+    // A whole-message citation carries no text of its own, so the restored
+    // composer can only show the line the input brought back.
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+    addTearDown(controller.dispose);
+    addTearDown(focusNode.dispose);
+
+    await tester.pumpWidget(
+      buildHarness(
+        controller: controller,
+        focusNode: focusNode,
+        mediaController: mediaController,
+        onSend: (_) async => ChatInputSubmissionResult.sent,
+      ),
+    );
+
+    mediaController.restoreInput(
+      const ChatInputData(
+        text: 'reply text',
+        quote: MessageQuote(id: 'quoted-message'),
+        quoteLabel: 'the quoted line',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('the quoted line'), findsOneWidget);
+    expect(find.text('Reply'), findsNothing);
   });
 
   testWidgets('已有排队消息时非空的锁定输入框仍可停止输出', (tester) async {

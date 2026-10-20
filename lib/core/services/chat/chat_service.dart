@@ -28,6 +28,7 @@ import '../api/providers/google_gemini.dart';
 import '../../models/assistant.dart';
 import '../api/providers/openai/responses_history.dart';
 import '../../models/message_part.dart';
+import '../../models/message_quote.dart';
 import '../../models/conversation.dart';
 import '../../models/workspace_binding.dart';
 import '../proactive_care_alarm_service.dart';
@@ -3017,6 +3018,7 @@ class ChatService extends ChangeNotifier {
     int? version,
     bool selectVersion = false,
     String? temporaryAfterGroupId,
+    MessageQuote? quote,
   }) async {
     if (!_initialized) await init();
 
@@ -3054,6 +3056,7 @@ class ChatService extends ChangeNotifier {
       reasoningFinishedAt: reasoningFinishedAt,
       groupId: groupId,
       version: version,
+      quote: quote,
     );
 
     if (_discardedTemporaryConversationIds.contains(conversationId)) {
@@ -3129,6 +3132,7 @@ class ChatService extends ChangeNotifier {
     required String modelId,
     required String providerId,
     DraftSubmission? draftSubmission,
+    MessageQuote? quote,
   }) async {
     if (!_initialized) await init();
     if (isTemporaryConversation(conversationId)) {
@@ -3146,6 +3150,7 @@ class ChatService extends ChangeNotifier {
       role: 'user',
       parts: userParts,
       conversationId: conversationId,
+      quote: quote,
     );
     final assistantMessage = ChatMessage(
       role: 'assistant',
@@ -3905,9 +3910,18 @@ class ChatService extends ChangeNotifier {
             ),
     );
 
+    // Clone ids are minted up front so a reply citation can be pointed at the
+    // copy of the message it quotes; a citation whose target is not part of the
+    // fork is dropped rather than left pointing into the source conversation.
+    final clonedIds = <String, String>{
+      for (final message in sourceMessages)
+        if (message.id.isNotEmpty) message.id: const Uuid().v4(),
+    };
+
     final cloned = <ChatMessage>[];
     for (final message in sourceMessages) {
       final forked = ChatMessage(
+        id: message.id.isEmpty ? null : clonedIds[message.id],
         role: message.role,
         parts: message.parts,
         timestamp: message.timestamp,
@@ -3929,6 +3943,7 @@ class ChatService extends ChangeNotifier {
         reasoningTokens: message.reasoningTokens,
         cacheWriteTokens: message.cacheWriteTokens,
         finishUsage: message.finishUsage,
+        quote: message.quote?.remapped(clonedIds),
       );
       await addMessageDirectly(targetConversationId, forked);
       cloned.add(forked);
@@ -4015,6 +4030,7 @@ class ChatService extends ChangeNotifier {
             : null,
         groupId: groupId,
         version: nextVersion,
+        quote: temporaryOriginal.quote,
       );
 
       final preserveArtifacts =

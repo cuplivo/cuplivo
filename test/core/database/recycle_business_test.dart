@@ -4,6 +4,7 @@ import 'package:Cuplivo/core/database/app_database.dart';
 import 'package:Cuplivo/core/database/business_data.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
 import 'package:Cuplivo/core/services/recycle/recycle_service.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -208,6 +209,42 @@ void main() {
       expect(
         (await repository.readEntities(BusinessEntityKind.assistant)).single.id,
         'a1',
+      );
+    });
+
+    test('a row this device keeps out of sync is not staged', () async {
+      // A linked workspace is a folder the user already had, so sync never
+      // offers it and a peer's delete naming it has nothing to remove. The
+      // staging call must sit *after* that guard: placed before it, the refusal
+      // still leaves a bin entry for a deletion that never happened, and the
+      // bin would offer to restore a workspace this device never lost.
+      await ExtensionEntityStore(database).upsert('workspace', 'linked-1', {
+        'id': 'linked-1',
+        'name': 'Notes',
+        'kind': 'linked',
+        'hostPath': '/home/me/notes',
+        'shellNeedsApproval': false,
+        'defaultCwd': '',
+        'disabledTools': const <String>[],
+        'createdAt': '2026-01-01T00:00:00.000Z',
+        'updatedAt': '2026-01-01T00:00:00.000Z',
+        'lastUsedAt': null,
+      });
+
+      expect(
+        await repository.syncDeleteEntity('workspace', 'linked-1'),
+        isFalse,
+        reason: 'a row this device never announced is not removable through sync',
+      );
+
+      expect(
+        await binEntries(),
+        isEmpty,
+        reason: 'a refused delete removes nothing, so there is nothing to keep',
+      );
+      expect(
+        (await repository.readEntities(BusinessEntityKind.workspace)).single.id,
+        'linked-1',
       );
     });
 

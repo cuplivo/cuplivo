@@ -234,7 +234,8 @@ void main() {
       expect(
         await repository.syncDeleteEntity('workspace', 'linked-1'),
         isFalse,
-        reason: 'a row this device never announced is not removable through sync',
+        reason:
+            'a row this device never announced is not removable through sync',
       );
 
       expect(

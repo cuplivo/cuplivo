@@ -19611,6 +19611,12 @@ abstract class AppLocalizations {
   /// **'This build cannot restore that entry'**
   String get recycleBinRestoreUnsupported;
 
+  /// No description provided for @recycleBinRestoreNoWorkspace.
+  ///
+  /// In en, this message translates to:
+  /// **'This file\'s workspace was deleted, so there is no folder to put it back into.'**
+  String get recycleBinRestoreNoWorkspace;
+
   /// No description provided for @recycleBinRestoreFailed.
   ///
   /// In en, this message translates to:
@@ -19760,6 +19766,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copy JSON'**
   String get recycleBinDetailCopyJson;
+
+  /// No description provided for @recycleBinDetailCopyText.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy text'**
+  String get recycleBinDetailCopyText;
 
   /// No description provided for @recycleBinDetailCopied.
   ///

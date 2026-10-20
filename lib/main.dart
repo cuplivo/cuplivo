@@ -327,10 +327,17 @@ Future<void> main() async {
       // logging.Logger.root.onRecord.listen((rec) { ... });
       // Cache current Documents directory to fix sandboxed absolute paths on iOS
       await SandboxPathResolver.init();
-      // The recycle bin is the app's to attach, not the gateway's (ADR-0013):
+      // The recycle bin is the app's to attach, not the gateway's (ADR-0014):
       // the gateway is what test harnesses acquire too, and a bin that writes
-      // files after a delete returns has no business in every harness.
-      ChatDatabaseGateway.instance.recycleFactory = RecycleService.new;
+      // files after a delete returns has no business in every harness. The
+      // workspace root rides along because restoring a staged file needs the
+      // same folder a sync landing writes into, and this is the one place that
+      // knows where that is.
+      ChatDatabaseGateway.instance.recycleFactory = (database) =>
+          RecycleService(
+            database,
+            workspaceRoot: AppDirectories.workspaceFilesDir,
+          );
       ChatDatabaseLease? processDatabaseLease;
       BusinessPreferences? businessPreferences;
       var recoveryAttempted = false;
@@ -808,6 +815,9 @@ class MyApp extends StatelessWidget {
             businessPreferences: businessPreferences,
             reloader: ctx.read<BusinessStateReloader>(),
             syncDirectory: AppDirectories.getSyncDirectory,
+            // The same bin the delete paths stage into: a workspace file a
+            // sync round replaces or removes goes here too (ADR-0014).
+            recycle: databaseLease.recycleService,
           ),
         ),
         ChangeNotifierProvider(create: (_) => McpToolService()),

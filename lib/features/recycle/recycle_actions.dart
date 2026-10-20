@@ -151,6 +151,7 @@ String _outcomeMessage(RecycleRestoreOutcome outcome, AppLocalizations l10n) =>
       RecycleRestoreOutcome.restored => l10n.recycleBinRestored,
       RecycleRestoreOutcome.skippedExisting => l10n.recycleBinRestoreSkipped,
       RecycleRestoreOutcome.unreadable => l10n.recycleBinRestoreUnreadable,
+      RecycleRestoreOutcome.workspaceGone => l10n.recycleBinRestoreNoWorkspace,
       RecycleRestoreOutcome.unsupported => l10n.recycleBinRestoreUnsupported,
       RecycleRestoreOutcome.failed => l10n.recycleBinRestoreFailed,
     };

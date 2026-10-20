@@ -10932,6 +10932,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'This build cannot restore that entry';
 
   @override
+  String get recycleBinRestoreNoWorkspace =>
+      'This file\'s workspace was deleted, so there is no folder to put it back into.';
+
+  @override
   String get recycleBinRestoreFailed => 'Could not restore that entry';
 
   @override
@@ -11015,6 +11019,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recycleBinDetailCopyJson => 'Copy JSON';
+
+  @override
+  String get recycleBinDetailCopyText => 'Copy text';
 
   @override
   String get recycleBinDetailCopied => 'Copied';

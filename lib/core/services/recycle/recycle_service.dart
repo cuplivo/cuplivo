@@ -9,6 +9,8 @@ import '../../database/app_database.dart';
 import '../../database/business_data.dart';
 import '../../database/chat_database_repository.dart';
 import '../../database/schema_columns.dart';
+import '../../../utils/app_directories.dart';
+import '../sync/workspace_content_index.dart';
 import 'recycle_store.dart';
 
 export 'recycle_store.dart';
@@ -25,6 +27,12 @@ enum RecycleRestoreOutcome {
 
   /// The staged body is gone or no longer parses.
   unreadable,
+
+  /// A workspace file whose workspace is gone, so there is no folder to put it
+  /// back into. Refused rather than recreated: a directory no `workspace_rows`
+  /// row describes is one the app never lists and the next sync round removes
+  /// as an orphan, so recreating it would only lose the file a second time.
+  workspaceGone,
 
   /// This build cannot restore that kind of entry.
   unsupported,
@@ -45,8 +53,22 @@ enum RecycleRestoreOutcome {
 /// logs and returns: it is a safety net under a delete the user asked for, not
 /// a condition of it.
 final class RecycleService {
-  RecycleService(this._database, {RecycleStore? store})
-    : _store = store ?? RecycleStore();
+  RecycleService(
+    this._database, {
+    RecycleStore? store,
+    Future<Directory> Function(String workspaceId)? workspaceRoot,
+  }) : _store = store ?? RecycleStore(),
+       // ignore: prefer_initializing_formals
+       _workspaceRoot = workspaceRoot;
+
+  /// Where one managed workspace's files live, or null when this build has no
+  /// workspace content plane wired.
+  ///
+  /// Injected for the reason the sync side injects it — a test hosts both peers
+  /// in one process — and so this service never learns how the app lays its data
+  /// directory out. Null makes a file restore [unsupported] rather than guessing
+  /// a path.
+  final Future<Directory> Function(String workspaceId)? _workspaceRoot;
 
   /// Tables a conversation delete cascades into, each with the column that ties
   /// its rows to the conversation. `conversation_rows` keys on the id itself.
@@ -171,6 +193,39 @@ final class RecycleService {
     }
   }
 
+  /// Stages one workspace file a sync round is about to replace or remove.
+  ///
+  /// Awaited, unlike the row paths, and for a mechanical reason rather than a
+  /// stylistic one: staging a file *moves* it out of the workspace, so the
+  /// caller's own rename or delete cannot proceed until the old version is
+  /// safely on the bin's side. Null means the move failed — an unwritable bin,
+  /// a described-but-unreadable file — which is the caller's cue to fall back to
+  /// its ordinary delete instead of assuming the file is preserved.
+  Future<RecycleEntry?> stageWorkspaceFile({
+    required String workspaceId,
+    required String relPath,
+    required File source,
+    required RecycleOrigin origin,
+    required RecycleReason reason,
+  }) async {
+    if (workspaceId.isEmpty || relPath.isEmpty) return null;
+    try {
+      return await _store.stageFile(
+        workspaceId: workspaceId,
+        relPath: relPath,
+        source: source,
+        origin: origin,
+        reason: reason,
+        title: relPath,
+      );
+    } catch (error) {
+      debugPrint(
+        'recycle: staging the workspace file "$relPath" failed: $error',
+      );
+      return null;
+    }
+  }
+
   /// Waits for every bin write this service has started.
   ///
   /// Production never needs this — the writes are the bin's own business — but
@@ -290,9 +345,7 @@ final class RecycleService {
         case RecycleEntryType.preference:
           outcome = await _restorePreference(entry);
         case RecycleEntryType.workspaceFile:
-          // Files are restored by the workspace-file side of sync, which owns
-          // the path gates that keep a landed file inside its root.
-          outcome = RecycleRestoreOutcome.unsupported;
+          outcome = await _restoreWorkspaceFile(entry);
       }
       if (outcome == RecycleRestoreOutcome.restored) {
         await _store.purgeKey(entry.type, entry.key);
@@ -436,6 +489,59 @@ final class RecycleService {
         DateTime.now().toUtc().microsecondsSinceEpoch,
       ],
     );
+    return RecycleRestoreOutcome.restored;
+  }
+
+  /// Puts one staged workspace file back inside its workspace.
+  ///
+  /// The same four gates a sync landing goes through, and the same functions —
+  /// a restore is a file arriving at a path that came from the wire just as much
+  /// as a fetch is, so two containment rules here would be one too many. What
+  /// differs is the stamp: a restore is a *fresh local write*, so the mtime is
+  /// the current clock. Keeping the staged (older) one would hand the file back
+  /// to the very comparison that removed it, and the peer's next plan would
+  /// delete it again.
+  Future<RecycleRestoreOutcome> _restoreWorkspaceFile(
+    RecycleEntry entry,
+  ) async {
+    final resolver = _workspaceRoot;
+    final workspaceId = entry.workspaceId;
+    final relPath = entry.relPath;
+    if (resolver == null || workspaceId == null || relPath == null) {
+      return RecycleRestoreOutcome.unsupported;
+    }
+    if (!isSafeWorkspaceId(workspaceId)) {
+      return RecycleRestoreOutcome.unsupported;
+    }
+    // The row is what owns the folder. A file put back into a folder no row
+    // describes is one the app never lists, and the next sync round removes it
+    // as an orphan — restoring it would lose it again, more quietly. Asked
+    // through [_entityRows] rather than by name, so the workspace kind's own
+    // table and its extension filter are the one place they already are.
+    if ((await _entityRows(
+      BusinessEntityKind.workspace,
+      workspaceId,
+    )).isEmpty) {
+      return RecycleRestoreOutcome.workspaceGone;
+    }
+    final root = await resolver(workspaceId);
+    final target = workspacePathWithin(root.path, relPath);
+    if (target == null) return RecycleRestoreOutcome.unsupported;
+    final file = File(target);
+    if (await file.exists()) return RecycleRestoreOutcome.skippedExisting;
+    final source = await _store.bodyFile(entry);
+    if (source == null) return RecycleRestoreOutcome.unreadable;
+    // Asked *before* the directory is created: `create(recursive: true)` follows
+    // the symlinks of the ancestors it finds, so a directory in the tree that
+    // points outside the workspace would otherwise already have redirected the
+    // write by the time anything was checked.
+    final existing = await nearestExistingAncestor(file.parent);
+    if (!await isReallyInsideWorkspace(root, existing)) {
+      return RecycleRestoreOutcome.unsupported;
+    }
+    await file.parent.create(recursive: true);
+    await source.copy(target);
+    await file.setLastModified(DateTime.now());
     return RecycleRestoreOutcome.restored;
   }
 

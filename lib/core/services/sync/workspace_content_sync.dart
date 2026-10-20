@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import '../../database/business_data.dart';
 import '../../database/business_repository.dart';
 import '../../models/workspace.dart';
+import '../recycle/recycle_service.dart';
 import 'sync_limits.dart';
 import 'sync_merge.dart';
 import 'sync_models.dart';
@@ -149,6 +150,7 @@ class WorkspaceContentSync {
     required this.businessRepository,
     required this.store,
     required this.resolveRoot,
+    this.recycle,
     this.maxFiles = kMaxWorkspaceFiles,
     this.maxBytes = kMaxWorkspaceBytes,
     this.maxLedgerEntries = kMaxWorkspaceLedgerEntries,
@@ -157,6 +159,15 @@ class WorkspaceContentSync {
   final BusinessRepository businessRepository;
   final SyncStore store;
   final WorkspaceRootResolver resolveRoot;
+
+  /// The device-local recycle bin, when the app attached one.
+  ///
+  /// A file this round replaces or removes is staged here first: the version at
+  /// that path is the only copy this device has of it, and a losing
+  /// last-write-wins comparison is exactly the loss the bin exists for
+  /// (ADR-0014). Null in every harness that has no bin, which is why both call
+  /// sites fall back to the plain delete.
+  final RecycleService? recycle;
 
   /// The per-workspace caps, as parameters only so a test can prove the abort
   /// without creating two thousand files. Production never passes them.
@@ -495,6 +506,7 @@ class WorkspaceContentSync {
       final root = await _resolveRootOrNull(workspaceId);
       if (root == null) return null;
       return await land(
+        workspaceId: workspaceId,
         root: root,
         relPath: relPath,
         staged: staged,
@@ -625,6 +637,7 @@ class WorkspaceContentSync {
       temp = await store.newBlobTempFile();
       await fetcher(snapshot.id, relPath, temp);
       return await land(
+        workspaceId: snapshot.id,
         root: root,
         relPath: relPath,
         staged: temp,
@@ -652,6 +665,7 @@ class WorkspaceContentSync {
   /// what the user sees in a file manager, and a filesystem that rounds it does
   /// not break convergence because the ledger remembers both sides' stamps.
   Future<WorkspaceFileStamp?> land({
+    required String workspaceId,
     required Directory root,
     required String relPath,
     required File staged,
@@ -667,8 +681,8 @@ class WorkspaceContentSync {
       // Containment is verified *before* anything is created: `create` follows
       // a symlinked ancestor, so creating first and checking afterwards would
       // already have made the directory on the far side of the link.
-      final existing = await _nearestExisting(file.parent);
-      if (!await _isReallyInside(root, existing)) {
+      final existing = await nearestExistingAncestor(file.parent);
+      if (!await isReallyInsideWorkspace(root, existing)) {
         debugPrint('sync workspace: refusing "$relPath": it leaves the root');
         return null;
       }
@@ -689,7 +703,23 @@ class WorkspaceContentSync {
         );
         return null;
       }
-      if (await file.exists()) await file.delete();
+      if (await file.exists()) {
+        // Staging *moves* the version at this path into the bin, which both
+        // keeps it and frees the path — so the rename below needs no delete at
+        // all. It runs only here, after every gate and the size check: a landing
+        // that is refused must not leave a copy of a file nothing replaced. A
+        // staging that failed (an unwritable bin, a file another process holds)
+        // falls back to the plain delete: an unpreserved file is bad, a merge
+        // that cannot land is worse, and this is the path the peer is waiting on.
+        final preserved = await recycle?.stageWorkspaceFile(
+          workspaceId: workspaceId,
+          relPath: relPath,
+          source: file,
+          origin: RecycleOrigin.remote,
+          reason: RecycleReason.overwritten,
+        );
+        if (preserved == null && await file.exists()) await file.delete();
+      }
       final landed = await staged.rename(target);
       try {
         await landed.setLastModified(
@@ -731,7 +761,20 @@ class WorkspaceContentSync {
       // it may be a real folder the user made since, and deleting it would
       // take its contents with it.
       if (type != FileSystemEntityType.file) return false;
-      await File(target).delete();
+      // The peer removed this file and its bytes are about to leave the disk:
+      // staged first for the same reason a replacement is, and awaited rather
+      // than detached, because the move has to finish before this session
+      // records the path as deleted. A failed staging still deletes — the
+      // removal is what the peer asked for, and refusing it would only re-offer
+      // the same file next session.
+      final preserved = await recycle?.stageWorkspaceFile(
+        workspaceId: snapshot.id,
+        relPath: relPath,
+        source: File(target),
+        origin: RecycleOrigin.remote,
+        reason: RecycleReason.deleted,
+      );
+      if (preserved == null) await File(target).delete();
       await _pruneEmptyParents(root, File(target).parent);
       return true;
     } catch (error) {
@@ -759,37 +802,6 @@ class WorkspaceContentSync {
       final parent = current.parent;
       if (p.equals(parent.path, current.path)) return;
       current = parent;
-    }
-  }
-
-  /// The deepest ancestor of [directory] that exists right now. Containment is
-  /// checked against this one, because the directories below it do not exist
-  /// yet and a not-yet-existing path cannot follow a symlink.
-  Future<Directory> _nearestExisting(Directory directory) async {
-    var current = directory;
-    while (!await current.exists()) {
-      final parent = current.parent;
-      if (p.equals(parent.path, current.path)) break;
-      current = parent;
-    }
-    return current;
-  }
-
-  /// Whether [directory] resolves to a place inside [root], symlinks and all.
-  /// Fails closed: a containment this device cannot verify is a write it does
-  /// not make (the file counts as unapplied and is retried).
-  Future<bool> _isReallyInside(Directory root, Directory directory) async {
-    try {
-      final realRoot = await root.resolveSymbolicLinks();
-      final realDirectory = await directory.resolveSymbolicLinks();
-      return p.equals(
-            p.canonicalize(realRoot),
-            p.canonicalize(realDirectory),
-          ) ||
-          p.isWithin(p.canonicalize(realRoot), p.canonicalize(realDirectory));
-    } catch (error) {
-      debugPrint('sync workspace: cannot verify containment: $error');
-      return false;
     }
   }
 

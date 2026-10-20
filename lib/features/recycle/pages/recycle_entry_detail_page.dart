@@ -458,6 +458,7 @@ class _RecycleEntryDetailPageState extends State<RecycleEntryDetailPage> {
     String preview, {
     required bool truncated,
     required String full,
+    String? copyLabel,
   }) {
     final cs = Theme.of(context).colorScheme;
     return Container(
@@ -505,7 +506,7 @@ class _RecycleEntryDetailPageState extends State<RecycleEntryDetailPage> {
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: Text(
-                l10n.recycleBinDetailCopyJson,
+                copyLabel ?? l10n.recycleBinDetailCopyJson,
                 style: const TextStyle(fontSize: 13),
               ),
             ),
@@ -538,6 +539,9 @@ class _RecycleEntryDetailPageState extends State<RecycleEntryDetailPage> {
       preview,
       truncated: preview.length < text.length,
       full: text,
+      // A file's body is the file, not JSON: the same block, named for what it
+      // actually copies.
+      copyLabel: l10n.recycleBinDetailCopyText,
     );
   }
 

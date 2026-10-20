@@ -22,7 +22,7 @@ final class ChatDatabaseLease {
   final BusinessRepository businessRepository;
   final ExtensionEntityStore extensionEntityStore;
 
-  /// The device-local recycle bin (ADR-0013), when the opener supplied one. One
+  /// The device-local recycle bin (ADR-0014), when the opener supplied one. One
   /// instance per open database, shared by both repositories so a staged entry
   /// and a restore agree on the same store.
   final RecycleService? recycleService;

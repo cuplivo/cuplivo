@@ -239,3 +239,39 @@ String? workspacePathWithin(String root, String relPath) {
   if (!p.isWithin(canonicalRoot, target)) return null;
   return target;
 }
+
+/// The deepest ancestor of [directory] that exists right now.
+///
+/// Containment has to be checked against this one rather than against
+/// [directory] itself: an ancestor that does not exist yet cannot follow a
+/// symlink, and `create(recursive: true)` follows the links of the ancestors it
+/// does find.
+Future<Directory> nearestExistingAncestor(Directory directory) async {
+  var current = directory;
+  while (!await current.exists()) {
+    final parent = current.parent;
+    if (p.equals(parent.path, current.path)) break;
+    current = parent;
+  }
+  return current;
+}
+
+/// Whether [directory] resolves to a place inside [root], symlinks and all.
+///
+/// Fails closed: a containment this device cannot verify is a write it does not
+/// make. The one authority for the rule — the landing path of a sync round and
+/// the restore of a staged file both ask it, so a refusal cannot differ between
+/// the two ways a file arrives.
+Future<bool> isReallyInsideWorkspace(
+  Directory root,
+  Directory directory,
+) async {
+  try {
+    final realRoot = await root.resolveSymbolicLinks();
+    final realDirectory = await directory.resolveSymbolicLinks();
+    return p.equals(p.canonicalize(realRoot), p.canonicalize(realDirectory)) ||
+        p.isWithin(p.canonicalize(realRoot), p.canonicalize(realDirectory));
+  } catch (_) {
+    return false;
+  }
+}

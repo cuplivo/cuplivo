@@ -22,31 +22,18 @@ import '../../shared/widgets/snackbar.dart';
 ///
 /// Returns the outcome so a caller that batches several restores can summarise
 /// them; a single call has already told the user by then.
-Future<RecycleRestoreOutcome?> restoreRecycleEntry(
+Future<RecycleRestoreOutcome> restoreRecycleEntry(
   BuildContext context, {
   required RecycleService service,
   required RecycleEntry entry,
 }) async {
-  final l10n = AppLocalizations.of(context);
-  final RecycleRestoreOutcome outcome;
-  try {
-    outcome = await service.restore(entry);
-  } catch (error) {
-    debugPrint('recycle: restoring ${entry.id} failed: $error');
-    if (!context.mounted) return RecycleRestoreOutcome.failed;
-    if (l10n != null) {
-      showAppSnackBar(
-        context,
-        message: l10n.recycleBinRestoreFailed,
-        type: NotificationType.warning,
-      );
-    }
-    return RecycleRestoreOutcome.failed;
-  }
+  final outcome = await _restoreOne(service, entry);
   if (outcome == RecycleRestoreOutcome.restored && context.mounted) {
-    await _refreshAfterRestore(context, entry);
+    await _refreshAfterRestore(context, _RefreshTargets()..add(entry));
   }
-  if (!context.mounted || l10n == null) return outcome;
+  if (!context.mounted) return outcome;
+  final l10n = AppLocalizations.of(context);
+  if (l10n == null) return outcome;
   showAppSnackBar(
     context,
     message: _outcomeMessage(outcome, l10n),
@@ -55,6 +42,59 @@ Future<RecycleRestoreOutcome?> restoreRecycleEntry(
         : NotificationType.warning,
   );
   return outcome;
+}
+
+/// Restores a whole deletion event as one act: one refresh, one report.
+///
+/// Every entry keeps its own outcome — a damaged copy, or an identity that is
+/// back already, is skipped rather than folded into a batch that can only say
+/// "some of it worked" — but the user hears about the act *once*. A per-entry
+/// toast is what a loop over [restoreRecycleEntry] produces, and it buries the
+/// summary it then shows under N copies of itself.
+Future<({int restored, int skipped})> restoreRecycleGroup(
+  BuildContext context, {
+  required RecycleService service,
+  required List<RecycleEntry> entries,
+}) async {
+  var restored = 0;
+  var skipped = 0;
+  final targets = _RefreshTargets();
+  for (final entry in entries) {
+    final outcome = await _restoreOne(service, entry);
+    if (outcome == RecycleRestoreOutcome.restored) {
+      restored++;
+      targets.add(entry);
+    } else {
+      skipped++;
+    }
+  }
+  if (context.mounted) await _refreshAfterRestore(context, targets);
+  if (!context.mounted) return (restored: restored, skipped: skipped);
+  final l10n = AppLocalizations.of(context);
+  if (l10n == null) return (restored: restored, skipped: skipped);
+  // One report for the act: the rows are already the proof of what came back.
+  showAppSnackBar(
+    context,
+    message: skipped == 0
+        ? l10n.recycleBinRestored
+        : l10n.recycleBinGroupRestored(restored, skipped),
+    type: skipped == 0 ? NotificationType.success : NotificationType.warning,
+  );
+  return (restored: restored, skipped: skipped);
+}
+
+/// One restore, with no UI at all: a throw is `failed`, and the entry is
+/// untouched so the user can retry it.
+Future<RecycleRestoreOutcome> _restoreOne(
+  RecycleService service,
+  RecycleEntry entry,
+) async {
+  try {
+    return await service.restore(entry);
+  } catch (error) {
+    debugPrint('recycle: restoring ${entry.id} failed: $error');
+    return RecycleRestoreOutcome.failed;
+  }
 }
 
 /// Asks, then deletes [entry] for good. Returns true when it went.
@@ -156,29 +196,59 @@ String _outcomeMessage(RecycleRestoreOutcome outcome, AppLocalizations l10n) =>
       RecycleRestoreOutcome.failed => l10n.recycleBinRestoreFailed,
     };
 
+/// What a restore has to make visible again, accumulated so a batch can do it
+/// once instead of once per entry.
+class _RefreshTargets {
+  /// Conversations whose rows came back: the chat cache and the draft store.
+  final Set<String> conversations = <String>{};
+
+  /// Whether any business row or synced preference came back.
+  bool business = false;
+
+  void add(RecycleEntry entry) {
+    switch (entry.type) {
+      case RecycleEntryType.conversation:
+        conversations.add(entry.key);
+      case RecycleEntryType.businessEntity:
+      case RecycleEntryType.preference:
+        business = true;
+      case RecycleEntryType.workspaceFile:
+        break;
+    }
+  }
+}
+
 /// Makes the restored rows visible without a restart: chat state for a
 /// conversation, the business view for a row or a preference. Both seams already
 /// exist for the sync apply, which has the same problem.
 Future<void> _refreshAfterRestore(
   BuildContext context,
-  RecycleEntry entry,
+  _RefreshTargets targets,
 ) async {
+  // Every provider is resolved before the first await: they are lookups on this
+  // context, and asking for one afterwards would be a use across an async gap.
+  final chat = targets.conversations.isEmpty
+      ? null
+      : _maybe<ChatService>(context);
+  final drafts = chat?.composerDrafts;
+  final reloader = targets.business
+      ? _maybe<BusinessStateReloader>(context)
+      : null;
   try {
-    switch (entry.type) {
-      case RecycleEntryType.conversation:
-        final chat = _maybe<ChatService>(context);
-        if (chat == null) return;
-        await chat.reloadAfterExternalChange(
-          touchedConversations: <String>{entry.key},
-        );
-      case RecycleEntryType.businessEntity:
-      case RecycleEntryType.preference:
-        final reloader = _maybe<BusinessStateReloader>(context);
-        if (reloader == null) return;
-        await reloader.reloadAll();
-      case RecycleEntryType.workspaceFile:
-        break;
+    // A restored conversation comes back with the draft its delete took, and the
+    // delete fenced that id against the store for good: without taking it back
+    // the composer cannot open the conversation it just recovered.
+    if (drafts != null) {
+      for (final id in targets.conversations) {
+        await drafts.reloadRestored(id);
+      }
     }
+    if (chat != null) {
+      await chat.reloadAfterExternalChange(
+        touchedConversations: targets.conversations,
+      );
+    }
+    if (reloader != null) await reloader.reloadAll();
   } catch (error) {
     // A provider that cannot reload must not make a completed restore look like
     // a failure; the rows are back and the next load picks them up.

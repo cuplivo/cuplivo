@@ -253,10 +253,18 @@ class RecycleEntry {
 class RecycleStore {
   RecycleStore({
     Future<Directory> Function()? directory,
+    String Function(DateTime deletedAt)? entryId,
     this.retention = defaultRetention,
     this.maxBytes = defaultMaxBytes,
     this.maxEntries = defaultMaxEntries,
-  }) : _directory = directory ?? AppDirectories.getRecycleDirectory;
+  }) : _directory = directory ?? AppDirectories.getRecycleDirectory,
+       // ignore: prefer_initializing_formals
+       _entryId = entryId ?? _defaultEntryId;
+
+  /// Injected only to force a collision: the failure path of [stageFile] — the
+  /// one where the entry cannot be published after its body was moved — has no
+  /// other way to be reached from a test. Production never passes it.
+  final String Function(DateTime deletedAt) _entryId;
 
   /// How long an entry stays restorable. Matches the conversation tombstone
   /// retention: past it, a device that was offline long enough to still need
@@ -555,11 +563,21 @@ class RecycleStore {
 
   /// Removes every entry that staged [key] — what a restore owes the bin, so a
   /// recovered row cannot also be restored again into a second copy.
-  Future<int> purgeKey(RecycleEntryType type, String key) async {
+  ///
+  /// [exceptId] keeps one entry: a restore that replaced a live row stages the
+  /// version it displaced, and that entry is the *result* of the restore rather
+  /// than one of the entries it retires.
+  Future<int> purgeKey(
+    RecycleEntryType type,
+    String key, {
+    String? exceptId,
+  }) async {
     final scan = await _scan();
     var removed = 0;
     for (final entry in scan.entries) {
-      if (entry.type != type || entry.key != key) continue;
+      if (entry.type != type || entry.key != key || entry.id == exceptId) {
+        continue;
+      }
       await purge(entry);
       removed++;
     }
@@ -619,7 +637,7 @@ class RecycleStore {
     return scan.entries.fold<int>(0, (sum, entry) => sum + entry.sizeBytes);
   }
 
-  static String _entryId(DateTime deletedAt) =>
+  static String _defaultEntryId(DateTime deletedAt) =>
       '${deletedAt.microsecondsSinceEpoch}-${const Uuid().v4().substring(0, 8)}';
 
   static int _byteLength(String value) => utf8.encode(value).length;
@@ -701,6 +719,12 @@ class RecycleStore {
   /// Writes one entry directory atomically: the whole entry is built under a
   /// `.tmp-` name and renamed into place, so a reader never sees a half-written
   /// entry and a crash leaves only an orphan the next [evict] reclaims.
+  ///
+  /// A failure *after* [moveSource] was moved hands the file back before the
+  /// staging directory is discarded. That ordering is the whole contract of the
+  /// return value: `false` means "not preserved", and the caller answers it by
+  /// doing its own delete — so a bin that deleted the file on its way out would
+  /// turn the caller's fallback into a no-op over a file that is already gone.
   Future<bool> _stage({
     required String id,
     required String entryJson,
@@ -709,6 +733,8 @@ class RecycleStore {
   }) async {
     final root = await _directory();
     final staging = Directory(p.join(root.path, '$_stagingPrefix$id'));
+    final bodyPath = p.join(staging.path, _fileBodyName);
+    File? movedFrom;
     // Registered before the directory exists and cleared once it is renamed, so
     // a sweep running in between cannot mistake this write for a crash leftover.
     // Staging is concurrent by design — an assistant's cascade launches one
@@ -728,16 +754,40 @@ class RecycleStore {
         ).writeAsString(bodyJson, flush: true);
       }
       if (moveSource != null) {
-        await _moveInto(moveSource, p.join(staging.path, _fileBodyName));
+        await _moveInto(moveSource, bodyPath);
+        movedFrom = moveSource;
       }
       await staging.rename(p.join(root.path, id));
       return true;
     } catch (error) {
       debugPrint('recycle: staging $id failed: $error');
-      await _deleteQuietly(staging);
+      if (movedFrom == null) {
+        await _deleteQuietly(staging);
+        return false;
+      }
+      if (await _putBack(File(bodyPath), movedFrom)) {
+        await _deleteQuietly(staging);
+      }
+      // A failed put-back leaves the staging directory alone: the bytes are
+      // still in it, and the next sweep is a later chance than deleting them
+      // here, on this path, as the side effect of a failure.
       return false;
     } finally {
       _stagingNames.remove('$_stagingPrefix$id');
+    }
+  }
+
+  /// Moves a staged body back to [target], reporting whether it landed there.
+  static Future<bool> _putBack(File staged, File target) async {
+    try {
+      await _moveInto(staged, target.path);
+      return true;
+    } catch (error) {
+      debugPrint(
+        'recycle: could not hand ${target.path} back, left in '
+        '${staged.path}: $error',
+      );
+      return false;
     }
   }
 

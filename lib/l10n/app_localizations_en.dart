@@ -10897,7 +10897,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recycleBinOriginRemote => 'Deleted by sync';
 
   @override
-  String get recycleBinReasonOverwritten => 'Replaced by sync';
+  String get recycleBinReasonOverwritten => 'Replaced by a newer copy';
 
   @override
   String get recycleBinRestore => 'Restore';
@@ -10921,7 +10921,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recycleBinRestoreSkipped =>
-      'That conversation is back already, so nothing was changed';
+      'That item is back already, so nothing was changed';
 
   @override
   String get recycleBinRestoreUnreadable =>

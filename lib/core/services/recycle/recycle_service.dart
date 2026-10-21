@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import '../../database/app_database.dart';
 import '../../database/business_data.dart';
 import '../../database/chat_database_repository.dart';
+import '../../database/composer_draft_store.dart';
 import '../../database/schema_columns.dart';
 import '../../../utils/app_directories.dart';
 import '../sync/workspace_content_index.dart';
@@ -41,6 +42,14 @@ enum RecycleRestoreOutcome {
   failed,
 }
 
+/// What one per-type restore did, and the entry it staged as a *result*.
+///
+/// [keepEntryId] is the version a restore displaced: an `overwritten` row the
+/// restore put back replaces the live row, and the live row goes into the bin so
+/// the act stays reversible. It is the one entry the retire step must not delete
+/// — the restore produced it, it is not one of the entries the restore retired.
+typedef _RestoreResult = ({RecycleRestoreOutcome outcome, String? keepEntryId});
+
 /// The recycle bin's one policy point: what gets staged, and what a restore
 /// writes back.
 ///
@@ -71,19 +80,36 @@ final class RecycleService {
   final Future<Directory> Function(String workspaceId)? _workspaceRoot;
 
   /// Tables a conversation delete cascades into, each with the column that ties
-  /// its rows to the conversation. `conversation_rows` keys on the id itself.
+  /// its rows to the conversation — and, for a table that hosts more than one
+  /// kind of row, the `kind` that picks this conversation's own.
   ///
   /// This list is the whole of a conversation snapshot: a table that is not
   /// here is not recovered, which is why it names the cascade targets
   /// explicitly rather than walking foreign keys.
-  static const List<({String table, String column})> _conversationTables = [
-    (table: 'conversation_rows', column: 'id'),
-    (table: 'conversation_mcp_server_rows', column: 'conversation_id'),
-    (table: 'message_rows', column: 'conversation_id'),
-    (table: 'message_part_rows', column: 'conversation_id'),
-    (table: 'provider_artifact_rows', column: 'conversation_id'),
-    (table: 'message_prompt_rows', column: 'conversation_id'),
-    (table: 'message_asset_rows', column: 'conversation_id'),
+  static const List<({String table, String column, String? kind})>
+  _conversationTables = [
+    (table: 'conversation_rows', column: 'id', kind: null),
+    (
+      table: 'conversation_mcp_server_rows',
+      column: 'conversation_id',
+      kind: null,
+    ),
+    (table: 'message_rows', column: 'conversation_id', kind: null),
+    (table: 'message_part_rows', column: 'conversation_id', kind: null),
+    (table: 'provider_artifact_rows', column: 'conversation_id', kind: null),
+    (table: 'message_prompt_rows', column: 'conversation_id', kind: null),
+    (table: 'message_asset_rows', column: 'conversation_id', kind: null),
+    // The composer draft is one device-local row keyed by the conversation id,
+    // removed by the same delete: it is text the user typed and never sent, so
+    // losing it is losing part of the conversation they deleted by accident. It
+    // is the only extension row a conversation owns, and the kind is named
+    // rather than implied — the id column alone would sweep up any future
+    // device-local row keyed the same way.
+    (
+      table: 'extension_entity_rows',
+      column: 'id',
+      kind: ComposerDraftStore.kind,
+    ),
   ];
 
   final AppDatabase _database;
@@ -268,14 +294,17 @@ final class RecycleService {
       for (final entry in _conversationTables)
         "'${entry.table}', (SELECT COALESCE(json_group_array("
             'json_object(${[for (final column in currentSchemaColumns[entry.table]!) "'$column', $column"].join(', ')})), json_array()) '
-            'FROM ${entry.table} WHERE ${entry.column} = ?)',
+            'FROM ${entry.table} WHERE ${entry.column} = ?'
+            '${entry.kind == null ? '' : ' AND kind = ?'})',
     ];
     final row = await _database
         .customSelect(
           'SELECT json_object(${projections.join(', ')}) AS subtree;',
           variables: <Variable<Object>>[
-            for (final _ in _conversationTables)
+            for (final entry in _conversationTables) ...[
               Variable<String>(conversationId),
+              if (entry.kind case final kind?) Variable<String>(kind),
+            ],
           ],
         )
         .getSingleOrNull();
@@ -334,21 +363,25 @@ final class RecycleService {
   /// the current clock where a clock decides the next comparison. Restoring the
   /// *old* clock would let the very version that won last time win again, and
   /// the recovered content would silently disappear at the next sync session.
+  ///
+  /// What a restore finds alive decides what it may do, and the two cases come
+  /// from what the entry records rather than from a preference: an entry staged
+  /// by a *deletion* is refused when its identity is back (the live row is not
+  /// the version this entry lost to, so replacing it would discard content
+  /// nothing asked to replace), while an entry staged by a *losing last-write-wins
+  /// comparison* exists only to replace the live row and cannot be refused
+  /// without making itself unrecoverable — restoring it puts the live version
+  /// into the bin, so the act can be undone in turn.
   Future<RecycleRestoreOutcome> restore(RecycleEntry entry) async {
     try {
-      final RecycleRestoreOutcome outcome;
-      switch (entry.type) {
-        case RecycleEntryType.conversation:
-          outcome = await _restoreConversation(entry);
-        case RecycleEntryType.businessEntity:
-          outcome = await _restoreEntity(entry);
-        case RecycleEntryType.preference:
-          outcome = await _restorePreference(entry);
-        case RecycleEntryType.workspaceFile:
-          outcome = await _restoreWorkspaceFile(entry);
-      }
+      final (:outcome, :keepEntryId) = switch (entry.type) {
+        RecycleEntryType.conversation => await _restoreConversation(entry),
+        RecycleEntryType.businessEntity => await _restoreEntity(entry),
+        RecycleEntryType.preference => await _restorePreference(entry),
+        RecycleEntryType.workspaceFile => await _restoreWorkspaceFile(entry),
+      };
       if (outcome == RecycleRestoreOutcome.restored) {
-        await _store.purgeKey(entry.type, entry.key);
+        await _store.purgeKey(entry.type, entry.key, exceptId: keepEntryId);
       }
       return outcome;
     } catch (error, stack) {
@@ -357,12 +390,12 @@ final class RecycleService {
     }
   }
 
-  Future<RecycleRestoreOutcome> _restoreConversation(RecycleEntry entry) async {
+  Future<_RestoreResult> _restoreConversation(RecycleEntry entry) async {
     final tables = await _store.readTables(entry);
-    if (tables == null) return RecycleRestoreOutcome.unreadable;
+    if (tables == null) return _not(RecycleRestoreOutcome.unreadable);
     final conversationId = entry.key;
     if (_singleRow(tables, 'conversation_rows') == null) {
-      return RecycleRestoreOutcome.unreadable;
+      return _not(RecycleRestoreOutcome.unreadable);
     }
     return _database.transaction(() async {
       final existing = await _database
@@ -371,7 +404,7 @@ final class RecycleService {
             variables: <Variable<Object>>[Variable<String>(conversationId)],
           )
           .getSingleOrNull();
-      if (existing != null) return RecycleRestoreOutcome.skippedExisting;
+      if (existing != null) return _not(RecycleRestoreOutcome.skippedExisting);
       final now = DateTime.now().toUtc().microsecondsSinceEpoch;
       await _insertRow(
         'conversation_rows',
@@ -435,6 +468,19 @@ final class RecycleService {
           conflictTarget: const ['conversation_id', 'server_id'],
         );
       }
+      final drafts = tables['extension_entity_rows'] ?? const [];
+      if (drafts.isNotEmpty && !await _hasDraft(conversationId)) {
+        // A draft that came back on its own wins: the composer is state the user
+        // is in the middle of, and replacing what they have typed would be a
+        // worse surprise than an older unsent message staying lost.
+        for (final row in drafts) {
+          await _insertRow(
+            'extension_entity_rows',
+            await _pruneDraftPaths(row),
+            conflictTarget: const ['kind', 'id'],
+          );
+        }
+      }
       // The tombstone recorded the deletion this restore undoes; leaving it
       // behind would keep announcing a removal for a conversation that is back.
       await _database.customStatement(
@@ -444,19 +490,28 @@ final class RecycleService {
           conversationId,
         ],
       );
-      return RecycleRestoreOutcome.restored;
+      return _not(RecycleRestoreOutcome.restored);
     });
   }
 
-  Future<RecycleRestoreOutcome> _restoreEntity(RecycleEntry entry) async {
+  Future<_RestoreResult> _restoreEntity(RecycleEntry entry) async {
     final kind = _kindForWire(entry.kindWire);
-    if (kind == null) return RecycleRestoreOutcome.unsupported;
+    if (kind == null) return _not(RecycleRestoreOutcome.unsupported);
     final tables = await _store.readTables(entry);
-    if (tables == null) return RecycleRestoreOutcome.unreadable;
+    if (tables == null) return _not(RecycleRestoreOutcome.unreadable);
     final row = _singleRow(tables, kind.tableName);
-    if (row == null) return RecycleRestoreOutcome.unreadable;
+    if (row == null) return _not(RecycleRestoreOutcome.unreadable);
     final now = DateTime.now().toUtc().microsecondsSinceEpoch;
-    await _database.transaction(() async {
+    final live = <Map<String, Object?>>[];
+    final skipped = await _database.transaction(() async {
+      live.addAll(await _entityRows(kind, entry.key));
+      // A row a *deletion* staged that exists again is not this entry's to
+      // replace: nothing here is the version it lost to, so writing over it
+      // would discard whatever is there now. The same refusal a conversation and
+      // a workspace file get. A row a *losing comparison* staged is the other
+      // case, and the only one where the live row is exactly what this entry
+      // has to replace.
+      if (live.isNotEmpty && entry.reason == RecycleReason.deleted) return true;
       await _insertRow(
         kind.tableName,
         row,
@@ -470,26 +525,73 @@ final class RecycleService {
           if (kind.extensionKind != null) 'kind': kind.extensionKind!,
         },
       );
+      return false;
     });
-    return RecycleRestoreOutcome.restored;
+    if (skipped) return _not(RecycleRestoreOutcome.skippedExisting);
+    if (live.isEmpty || live.first['payload'] == row['payload']) {
+      // Nothing was displaced: a restore that wrote what was already there owes
+      // the bin no second entry.
+      return _not(RecycleRestoreOutcome.restored);
+    }
+    final displaced = live.first;
+    final payload = displaced['payload'];
+    final staged = await _store.stageRows(
+      type: RecycleEntryType.businessEntity,
+      origin: RecycleOrigin.local,
+      reason: RecycleReason.overwritten,
+      key: entry.key,
+      title: payload is String ? _entityTitle(payload, entry.key) : entry.key,
+      kindWire: kind.wireName,
+      tables: {
+        kind.tableName: [displaced],
+      },
+    );
+    return (outcome: RecycleRestoreOutcome.restored, keepEntryId: staged?.id);
   }
 
-  Future<RecycleRestoreOutcome> _restorePreference(RecycleEntry entry) async {
+  Future<_RestoreResult> _restorePreference(RecycleEntry entry) async {
     final tables = await _store.readTables(entry);
-    if (tables == null) return RecycleRestoreOutcome.unreadable;
+    if (tables == null) return _not(RecycleRestoreOutcome.unreadable);
     final row = _singleRow(tables, 'preference_rows');
-    if (row == null) return RecycleRestoreOutcome.unreadable;
-    await _database.customStatement(
-      'INSERT INTO preference_rows (key, value, updated_at) VALUES (?, ?, ?) '
-      'ON CONFLICT(key) DO UPDATE SET value = excluded.value, '
-      'updated_at = excluded.updated_at;',
-      <Object?>[
-        row['key'],
-        row['value'],
-        DateTime.now().toUtc().microsecondsSinceEpoch,
-      ],
+    if (row == null) return _not(RecycleRestoreOutcome.unreadable);
+    final live = <Map<String, Object?>>[];
+    final skipped = await _database.transaction(() async {
+      final existing = await _database
+          .customSelect(
+            'SELECT * FROM preference_rows WHERE key = ?;',
+            variables: <Variable<Object>>[Variable<String>(entry.key)],
+          )
+          .getSingleOrNull();
+      if (existing != null) live.add(Map<String, Object?>.from(existing.data));
+      // Same rule as [_restoreEntity]: a deleted row that is back is left alone.
+      if (live.isNotEmpty && entry.reason == RecycleReason.deleted) return true;
+      await _database.customStatement(
+        'INSERT INTO preference_rows (key, value, updated_at) VALUES (?, ?, ?) '
+        'ON CONFLICT(key) DO UPDATE SET value = excluded.value, '
+        'updated_at = excluded.updated_at;',
+        <Object?>[
+          row['key'],
+          row['value'],
+          DateTime.now().toUtc().microsecondsSinceEpoch,
+        ],
+      );
+      return false;
+    });
+    if (skipped) return _not(RecycleRestoreOutcome.skippedExisting);
+    if (live.isEmpty || live.first['value'] == row['value']) {
+      return _not(RecycleRestoreOutcome.restored);
+    }
+    final staged = await _store.stageRows(
+      type: RecycleEntryType.preference,
+      origin: RecycleOrigin.local,
+      reason: RecycleReason.overwritten,
+      key: entry.key,
+      title: entry.title,
+      tables: {
+        'preference_rows': [live.first],
+      },
     );
-    return RecycleRestoreOutcome.restored;
+    return (outcome: RecycleRestoreOutcome.restored, keepEntryId: staged?.id);
   }
 
   /// Puts one staged workspace file back inside its workspace.
@@ -501,17 +603,15 @@ final class RecycleService {
   /// the current clock. Keeping the staged (older) one would hand the file back
   /// to the very comparison that removed it, and the peer's next plan would
   /// delete it again.
-  Future<RecycleRestoreOutcome> _restoreWorkspaceFile(
-    RecycleEntry entry,
-  ) async {
+  Future<_RestoreResult> _restoreWorkspaceFile(RecycleEntry entry) async {
     final resolver = _workspaceRoot;
     final workspaceId = entry.workspaceId;
     final relPath = entry.relPath;
     if (resolver == null || workspaceId == null || relPath == null) {
-      return RecycleRestoreOutcome.unsupported;
+      return _not(RecycleRestoreOutcome.unsupported);
     }
     if (!isSafeWorkspaceId(workspaceId)) {
-      return RecycleRestoreOutcome.unsupported;
+      return _not(RecycleRestoreOutcome.unsupported);
     }
     // The row is what owns the folder. A file put back into a folder no row
     // describes is one the app never lists, and the next sync round removes it
@@ -522,27 +622,96 @@ final class RecycleService {
       BusinessEntityKind.workspace,
       workspaceId,
     )).isEmpty) {
-      return RecycleRestoreOutcome.workspaceGone;
+      return _not(RecycleRestoreOutcome.workspaceGone);
     }
     final root = await resolver(workspaceId);
     final target = workspacePathWithin(root.path, relPath);
-    if (target == null) return RecycleRestoreOutcome.unsupported;
+    if (target == null) return _not(RecycleRestoreOutcome.unsupported);
     final file = File(target);
-    if (await file.exists()) return RecycleRestoreOutcome.skippedExisting;
+    if (await file.exists()) {
+      return _not(RecycleRestoreOutcome.skippedExisting);
+    }
     final source = await _store.bodyFile(entry);
-    if (source == null) return RecycleRestoreOutcome.unreadable;
+    if (source == null) return _not(RecycleRestoreOutcome.unreadable);
     // Asked *before* the directory is created: `create(recursive: true)` follows
     // the symlinks of the ancestors it finds, so a directory in the tree that
     // points outside the workspace would otherwise already have redirected the
     // write by the time anything was checked.
     final existing = await nearestExistingAncestor(file.parent);
     if (!await isReallyInsideWorkspace(root, existing)) {
-      return RecycleRestoreOutcome.unsupported;
+      return _not(RecycleRestoreOutcome.unsupported);
     }
     await file.parent.create(recursive: true);
     await source.copy(target);
     await file.setLastModified(DateTime.now());
-    return RecycleRestoreOutcome.restored;
+    return _not(RecycleRestoreOutcome.restored);
+  }
+
+  /// Whether the conversation already has a composer draft, so a restore leaves
+  /// it alone.
+  Future<bool> _hasDraft(String conversationId) async {
+    final row = await _database
+        .customSelect(
+          'SELECT 1 FROM extension_entity_rows WHERE kind = ? AND id = ?;',
+          variables: <Variable<Object>>[
+            const Variable<String>(ComposerDraftStore.kind),
+            Variable<String>(conversationId),
+          ],
+        )
+        .getSingleOrNull();
+    return row != null;
+  }
+
+  /// One staged draft row with the attachment paths that still resolve.
+  ///
+  /// A conversation's delete empties the draft's private attachment directory on
+  /// its way out, so the files behind `images` and `documents` are gone by the
+  /// time anything is restored: a chip pointing at one would come back as a
+  /// broken attachment. The row is otherwise written exactly as staged — the
+  /// text, the selection, the citation — and a row with nothing to drop comes
+  /// back untouched.
+  Future<Map<String, Object?>> _pruneDraftPaths(
+    Map<String, Object?> row,
+  ) async {
+    final payload = row['payload'];
+    if (payload is! String) return row;
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(payload);
+    } on FormatException {
+      return row;
+    }
+    if (decoded is! Map) return row;
+    var dropped = false;
+    for (final mode in const ['compose', 'edit', 'pending']) {
+      final input = decoded[mode];
+      if (input is! Map) continue;
+      for (final field in const ['images', 'documents']) {
+        final items = input[field];
+        if (items is! List) continue;
+        final kept = <Object?>[];
+        for (final item in items) {
+          final path = item is Map ? item['path'] : null;
+          if (path is! String || await _fileExists(path)) {
+            kept.add(item);
+          } else {
+            dropped = true;
+          }
+        }
+        if (kept.length != items.length) input[field] = kept;
+      }
+    }
+    return dropped ? {...row, 'payload': jsonEncode(decoded)} : row;
+  }
+
+  static Future<bool> _fileExists(String path) async {
+    try {
+      return await File(path).exists();
+    } catch (_) {
+      // A path the filesystem refuses to even be asked about is one this restore
+      // cannot point at.
+      return false;
+    }
   }
 
   Future<List<Map<String, Object?>>> _entityRows(
@@ -620,6 +789,11 @@ final class RecycleService {
       effective.values.toList(growable: false),
     );
   }
+
+  /// A result that staged nothing: the restore refused, or wrote over content
+  /// that was not there to displace.
+  static _RestoreResult _not(RecycleRestoreOutcome outcome) =>
+      (outcome: outcome, keepEntryId: null);
 
   static Map<String, Object?>? _singleRow(
     Map<String, List<Map<String, Object?>>> tables,

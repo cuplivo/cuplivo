@@ -10,7 +10,6 @@ import '../../../shared/widgets/ios_settings_rows.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/section_card.dart';
 import '../../../shared/widgets/segmented_tabs.dart';
-import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
 import '../recycle_actions.dart';
 import 'recycle_entry_detail_page.dart';
@@ -112,35 +111,14 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
         .toList(growable: false);
     if (entries.isEmpty) return;
     setState(() => _groupBusy = true);
-    var restored = 0;
-    var skipped = 0;
     try {
-      for (final entry in entries) {
-        final outcome = await restoreRecycleEntry(
-          context,
-          service: service,
-          entry: entry,
-        );
-        if (outcome == RecycleRestoreOutcome.restored) {
-          restored++;
-        } else {
-          skipped++;
-        }
-      }
+      // One report for the act, not one toast per entry: the batch owns both the
+      // refresh and the message.
+      await restoreRecycleGroup(context, service: service, entries: entries);
     } finally {
       if (mounted) setState(() => _groupBusy = false);
     }
     if (!mounted) return;
-    final l10n = AppLocalizations.of(context)!;
-    // One report for the act, not one toast per entry: the rows are already the
-    // proof of what came back.
-    showAppSnackBar(
-      context,
-      message: skipped == 0
-          ? l10n.recycleBinRestored
-          : l10n.recycleBinGroupRestored(restored, skipped),
-      type: skipped == 0 ? NotificationType.success : NotificationType.warning,
-    );
     await _load();
   }
 

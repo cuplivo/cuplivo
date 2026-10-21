@@ -165,4 +165,47 @@ void main() {
       reason: 'an id from the wire must never name a directory',
     );
   });
+
+  test('a staging that cannot publish its entry hands the file back', () async {
+    // The failure the move creates: by the time the rename that would publish
+    // the entry runs, the body is already inside the staging directory. The id
+    // is forced onto a path a *file* occupies, because a directory cannot be
+    // renamed over one on any platform — this is the only seam that reaches the
+    // path, and it is a failure injection like `directory` is.
+    final binRoot = Directory('${root.path}/bin');
+    await binRoot.create(recursive: true);
+    await File(
+      '${binRoot.path}/forced',
+    ).writeAsString('in the way', flush: true);
+    final forced = RecycleService(
+      database,
+      store: RecycleStore(
+        directory: () async => binRoot,
+        entryId: (deletedAt) => 'forced',
+      ),
+    );
+
+    final source = await putFile('w1', 'notes/b.md', 'the local bytes');
+
+    final entry = await forced.stageWorkspaceFile(
+      workspaceId: 'w1',
+      relPath: 'notes/b.md',
+      source: source,
+      origin: RecycleOrigin.remote,
+      reason: RecycleReason.deleted,
+    );
+
+    expect(entry, isNull);
+    expect(
+      await source.exists(),
+      isTrue,
+      reason: 'false means "not preserved", not "already taken"',
+    );
+    expect(await source.readAsString(), 'the local bytes');
+    expect(
+      await Directory('${binRoot.path}/.tmp-forced').exists(),
+      isFalse,
+      reason: 'the file came back, so the staging directory can go',
+    );
+  });
 }

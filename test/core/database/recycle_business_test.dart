@@ -189,6 +189,124 @@ void main() {
           .firstWhere((ref) => ref.key == 'user_name')
           .updatedAtUs;
       expect(clock, greaterThan(mineAt));
+      // The restore displaced the peer's value, and that value is now the bin's
+      // business rather than gone: the act is reversible in turn.
+      final repair = (await binEntries()).single;
+      expect(repair.type, RecycleEntryType.preference);
+      expect(repair.reason, RecycleReason.overwritten);
+      expect(
+        (await store.readTables(repair))!['preference_rows']!.single['value'],
+        '"Peer"',
+        reason: 'what the restore displaced is kept, not discarded',
+      );
+    });
+
+    test('a row that is back is not written over', () async {
+      await setAssistants([(id: 'a1', name: 'Ada'), (id: 'a2', name: 'Bob')]);
+      await setAssistants([(id: 'a1', name: 'Ada')]);
+      final entry = (await binEntries()).single;
+
+      // The same id exists again — what a peer re-sending the row, or the user
+      // re-creating it, leaves behind. It is not the version this entry lost to,
+      // so writing over it would discard content nothing asked to replace.
+      await setAssistants([
+        (id: 'a1', name: 'Ada'),
+        (id: 'a2', name: 'Bob EDITED SINCE'),
+      ]);
+
+      expect(
+        await recycle.restore(entry),
+        RecycleRestoreOutcome.skippedExisting,
+      );
+
+      expect(
+        (await repository.readEntities(
+          BusinessEntityKind.assistant,
+        )).firstWhere((row) => row.id == 'a2').payload,
+        contains('EDITED SINCE'),
+      );
+      expect(
+        await binEntries(),
+        hasLength(1),
+        reason: 'nothing was restored, so nothing is retired',
+      );
+    });
+
+    test('a preference that is set again is not written over', () async {
+      await preferences.setString('user_name', 'Mine');
+      expect(await repository.syncDeletePreference('user_name'), isTrue);
+      final entry = (await binEntries()).single;
+
+      await preferences.setString('user_name', 'Set later');
+      await preferences.reload();
+
+      expect(
+        await recycle.restore(entry),
+        RecycleRestoreOutcome.skippedExisting,
+      );
+
+      await preferences.reload();
+      expect(
+        preferences.getString('user_name'),
+        'Set later',
+        reason: 'the later value is not this entry to replace',
+      );
+      expect(await binEntries(), hasLength(1));
+    });
+
+    test('restoring an overwritten row keeps the version it displaced', () async {
+      await setAssistants([(id: 'a1', name: 'Mine')]);
+      final mineAt = (await repository.syncEntityRefs())
+          .firstWhere((ref) => ref.id == 'a1')
+          .updatedAtUs;
+      await repository.syncApplyBusinessRows(
+        entities: {
+          'assistant_rows': [
+            {
+              'id': 'a1',
+              'sort_order': 0,
+              'payload': '{"id":"a1","name":"Peer"}',
+              'updated_at': mineAt,
+            },
+          ],
+        },
+        preferences: const [],
+        myDeviceId: 'me',
+        peerDeviceId: 'peer',
+      );
+      final lost = (await binEntries()).single;
+      expect(lost.reason, RecycleReason.overwritten);
+
+      // An edit made *after* the loss report — exactly the content a restore over
+      // the live row would otherwise destroy without a copy.
+      await setAssistants([(id: 'a1', name: 'Mine again')]);
+
+      expect(await recycle.restore(lost), RecycleRestoreOutcome.restored);
+
+      expect(
+        (await repository.readEntities(
+          BusinessEntityKind.assistant,
+        )).single.payload,
+        contains('"Mine"'),
+      );
+      final displaced = (await binEntries()).single;
+      expect(displaced.reason, RecycleReason.overwritten);
+      expect(
+        (await store.readTables(
+          displaced,
+        ))!['assistant_rows']!.single['payload'],
+        contains('Mine again'),
+        reason: 'the version the restore replaced went into the bin',
+      );
+
+      // And the bin can put it back: one restore undoes another.
+      expect(await recycle.restore(displaced), RecycleRestoreOutcome.restored);
+      expect(
+        (await repository.readEntities(
+          BusinessEntityKind.assistant,
+        )).single.payload,
+        contains('Mine again'),
+      );
     });
 
     test('a peer deleting a row stages it before the delete', () async {

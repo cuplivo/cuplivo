@@ -4,6 +4,7 @@ import 'package:Cuplivo/core/database/app_database.dart';
 import 'package:Cuplivo/core/services/recycle/recycle_service.dart';
 import 'package:Cuplivo/features/recycle/pages/recycle_bin_page.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -29,6 +30,15 @@ void main() {
     if (await binRoot.exists()) await binRoot.delete(recursive: true);
   });
 
+  /// How many `runAsync` windows a wait may take before it is a failure.
+  ///
+  /// What is being waited on is real filesystem IO, which only progresses inside
+  /// a `runAsync` window, and `flutter test` runs one isolate per file in
+  /// parallel — so a loaded machine stretches the same number of windows into a
+  /// much longer wall clock. This is a budget, not a delay: a wait that converges
+  /// returns on the iteration it converges.
+  const int waitWindows = 600;
+
   /// Waits for something the page only draws once its real file reads land.
   ///
   /// Every await on a real path costs one scheduler window here, and the page
@@ -37,7 +47,7 @@ void main() {
   Future<void> pumpUntilFound(WidgetTester tester, Finder finder) async {
     for (
       var attempt = 0;
-      attempt < 200 && finder.evaluate().isEmpty;
+      attempt < waitWindows && finder.evaluate().isEmpty;
       attempt++
     ) {
       await tester.runAsync(
@@ -61,7 +71,7 @@ void main() {
   Future<void> pumpUntilGone(WidgetTester tester, Finder finder) async {
     for (
       var attempt = 0;
-      attempt < 200 && finder.evaluate().isNotEmpty;
+      attempt < waitWindows && finder.evaluate().isNotEmpty;
       attempt++
     ) {
       await tester.runAsync(
@@ -89,7 +99,7 @@ void main() {
   /// Polls the store rather than pumping a fixed number of frames, so the test
   /// does not race the page's own reload.
   Future<void> pumpUntilBinSize(WidgetTester tester, int expected) async {
-    for (var attempt = 0; attempt < 200; attempt++) {
+    for (var attempt = 0; attempt < waitWindows; attempt++) {
       final entries = await tester.runAsync(() => store.list());
       if ((entries ?? const <RecycleEntry>[]).length == expected) return;
       await tester.runAsync(
@@ -274,6 +284,11 @@ void main() {
     await tester.tap(find.text('Restore all'));
     await pumpUntilBinSize(tester, 1);
     await pumpUntilGone(tester, find.text('Restore all'));
+
+    // One report for the act. The page used to loop the single-entry action,
+    // which queued one toast per conversation and then a summary on top of them
+    // — three conversations meant four toasts.
+    expect(AppSnackBarManager().activeToasts, hasLength(1));
 
     // Only the assistant's own entry is left, and the header went with the
     // conversations it described.

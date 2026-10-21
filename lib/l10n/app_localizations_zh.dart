@@ -10433,7 +10433,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get recycleBinOriginRemote => '同步删除';
 
   @override
-  String get recycleBinReasonOverwritten => '同步覆盖';
+  String get recycleBinReasonOverwritten => '被更新的版本替换';
 
   @override
   String get recycleBinRestore => '恢复';
@@ -10454,7 +10454,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get recycleBinRestored => '已恢复';
 
   @override
-  String get recycleBinRestoreSkipped => '该对话已重新存在，未做改动';
+  String get recycleBinRestoreSkipped => '该项已重新存在，未做改动';
 
   @override
   String get recycleBinRestoreUnreadable => '暂存的副本已损坏，无法恢复';
@@ -24079,7 +24079,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get recycleBinOriginRemote => '同步删除';
 
   @override
-  String get recycleBinReasonOverwritten => '同步覆盖';
+  String get recycleBinReasonOverwritten => '被更新的版本替换';
 
   @override
   String get recycleBinRestore => '恢复';
@@ -24100,7 +24100,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get recycleBinRestored => '已恢复';
 
   @override
-  String get recycleBinRestoreSkipped => '该对话已重新存在，未做改动';
+  String get recycleBinRestoreSkipped => '该项已重新存在，未做改动';
 
   @override
   String get recycleBinRestoreUnreadable => '暂存的副本已损坏，无法恢复';
@@ -37801,7 +37801,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get recycleBinOriginRemote => '同步刪除';
 
   @override
-  String get recycleBinReasonOverwritten => '同步覆蓋';
+  String get recycleBinReasonOverwritten => '被更新的版本替換';
 
   @override
   String get recycleBinRestore => '還原';
@@ -37822,7 +37822,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get recycleBinRestored => '已還原';
 
   @override
-  String get recycleBinRestoreSkipped => '該對話已重新存在，未做變更';
+  String get recycleBinRestoreSkipped => '該項已重新存在，未做變更';
 
   @override
   String get recycleBinRestoreUnreadable => '暫存的副本已損壞，無法還原';

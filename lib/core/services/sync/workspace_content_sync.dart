@@ -766,7 +766,8 @@ class WorkspaceContentSync {
       // than detached, because the move has to finish before this session
       // records the path as deleted. A failed staging still deletes — the
       // removal is what the peer asked for, and refusing it would only re-offer
-      // the same file next session.
+      // the same file next session. Staging hands the file back when it cannot
+      // publish an entry, so there is something to delete unless it vanished.
       final preserved = await recycle?.stageWorkspaceFile(
         workspaceId: snapshot.id,
         relPath: relPath,
@@ -774,7 +775,9 @@ class WorkspaceContentSync {
         origin: RecycleOrigin.remote,
         reason: RecycleReason.deleted,
       );
-      if (preserved == null) await File(target).delete();
+      if (preserved == null && await File(target).exists()) {
+        await File(target).delete();
+      }
       await _pruneEmptyParents(root, File(target).parent);
       return true;
     } catch (error) {

@@ -19554,7 +19554,7 @@ abstract class AppLocalizations {
   /// No description provided for @recycleBinReasonOverwritten.
   ///
   /// In en, this message translates to:
-  /// **'Replaced by sync'**
+  /// **'Replaced by a newer copy'**
   String get recycleBinReasonOverwritten;
 
   /// No description provided for @recycleBinRestore.
@@ -19596,7 +19596,7 @@ abstract class AppLocalizations {
   /// No description provided for @recycleBinRestoreSkipped.
   ///
   /// In en, this message translates to:
-  /// **'That conversation is back already, so nothing was changed'**
+  /// **'That item is back already, so nothing was changed'**
   String get recycleBinRestoreSkipped;
 
   /// No description provided for @recycleBinRestoreUnreadable.

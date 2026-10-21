@@ -1296,3 +1296,26 @@ Confirmed limitations (evidence first, carried by ADR-0013):
   marker is a `WidgetSpan` whose width is the laid-out child's — so those items keep the flush-left second line
   the whole page had before. A text marker (`-`, `1.`) is measured and hangs.
 
+## Translation Languages (翻译语言) — issue #767 / ADR-0014
+
+- **翻译语言目录 (translate language catalog)**: The full set of translate target languages the app can send —
+  `supportedLanguages` in `language_select_sheet.dart` (16: zh-CN, en, zh-TW, ja, ko, fr, de, it, es, pt, ru, ar,
+  hi, th, vi, bn). Code-owned and ordered; the order is the selector order and is never user-reordered.
+- **可见语言集 (visible language set)**: The per-user subset shown in every translate target selector, persisted as
+  `translate_visible_languages_v1` (business preference, native StringList). The key being absent means
+  `defaultTranslateVisibleLanguages` (the historical 9), so languages added later (e.g. bn) are opt-in through the
+  manage UI. It is guaranteed non-empty: the manager refuses to hide the last entry and
+  `visibleTranslateLanguages()` falls back to the default set.
+- **语言管理 (language manager)**: The shared manage surface (`showTranslateLanguageManager`, mobile bottom sheet /
+  desktop centered dialog), opened from the selector footer (mobile sheet + desktop anchored menu) and from the
+  desktop standalone-translate inline dropdown. A checkbox per catalog entry — visibility only, no reordering.
+- **有效目标语言 (effective target language)**: The active target (`translate_target_lang_v1`) is never rewritten or nulled by a
+  visibility change. `effectiveTranslateLanguage(visible, persisted, locale)` is its only owner — the persisted code when it
+  is visible, else the locale language when visible, else the first visible entry. Hiding the active language therefore
+  changes what the pages show and translate to, while the key keeps the user's choice: re-enabling it restores that choice
+  immediately and after a restart.
+- **名称解析单源 (single name resolver)**: `translateLanguageDisplayName(l10n, code)` is the only display-name
+  resolver for every entry point (including `translation_service.dart`); the standalone translate pages previously
+  carried duplicate private switches that silently drifted (raw code shown) as the catalog grew.
+- **Backup/sync**: an ordinary business preference registered in `BusinessKeyRegistry.preferenceKeys` and
+  `syncedPreferenceKeys` (no separate LWW plumbing); old backups without the key restore to the historical nine.

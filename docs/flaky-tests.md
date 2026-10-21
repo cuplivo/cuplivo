@@ -77,11 +77,12 @@ runs predate the fix:
 
 Every `pr-check` run after the fix is green (`39419578180`, `39453953826`, and five on 10-21).
 The newest red run, `39450433190`, is **not** a test failure: the failing step is
-`Dart format (changed files only)` — the §7 item 7 that still logs no remedy. And because
-`pr-check.yml:6-8` is `on: pull_request: branches: [master]` only, **nothing runs on `master`
-itself**: a re-base is not verified until the next PR lands on it. Adding a
-`push: branches: [master]` trigger is the cheap fix; until then "is the rebase red?" is answered
-by the first PR after it, not by CI.
+`Dart format (changed files only)` — the §7 item 7 that still logs no remedy. And
+`pr-check.yml:6-8` used to be `on: pull_request: branches: [master]` only, so **nothing ran on
+`master` itself**: a re-base was not verified until the next PR landed on it. That trigger now
+exists (`push: branches: [master]`), and since a re-base rewrites `master`, the rewrite itself
+is what the run audits — which is the only way "is the rebase red?" can be answered by CI
+instead of by the first PR after it.
 
 ## How this was measured
 

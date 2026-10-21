@@ -2020,3 +2020,10 @@ applies the rule" is not read as stronger than it is:
 - A restore or an overwrite import costs one full re-convergence with every paired device: the
   rows both sides still hold are re-exchanged under `edit beats delete`, and the one-session
   override only suppresses deletions.
+
+## Amendment (2026-10, close-to-tray): moved to ADR-0015
+
+The listener's graceful stop is no longer the exit flush's job, and a close that hides to the tray is
+no longer answered as a quit. That decision, its platform evidence and its rejected alternatives live
+in [ADR-0015](0015-close-to-tray-listener.md); the parenthetical in the slice-16 amendment above ("the
+graceful stop is the exit flush's job") is superseded by it.

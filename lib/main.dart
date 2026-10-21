@@ -675,10 +675,30 @@ void _installExitFlush(BusinessPreferences businessPreferences) {
   AppExitFlush.register(ChatActions.flushActiveGenerationProgress);
   _exitFlushListener = AppLifecycleListener(
     onExitRequested: () async {
+      // A close that hides to the tray is not a quit. Windows delivers the
+      // window's close as this request *before* the window-manager delegate sees
+      // WM_CLOSE, so the tray controller has to answer it here: hide, and tell
+      // the engine not to exit (`cancel` is what stops it re-dispatching the
+      // close). Nothing is flushed — the process keeps running, queues included,
+      // and the LAN sync listener stays bound (#1036).
+      try {
+        if (await DesktopTrayController.instance.hideForExitRequest()) {
+          return AppExitResponse.cancel;
+        }
+      } catch (_) {}
+      // Not a hide: the controller has also cleared the close-to-tray gate, so
+      // the close the engine re-dispatches after our `exit` below really lands.
       try {
         // Bound the wait: a stuck write transaction must not leave the
         // process unkillable after macOS answers NSTerminateLater.
         await AppExitFlush.flushAll().timeout(
+          const Duration(seconds: 2),
+          onTimeout: () {},
+        );
+        // The process is really going away, so this is where resources that
+        // live with it are handed back (the LAN sync listener, its firewall
+        // rule) — not in the flush above, which a hiding window also runs.
+        await AppShutdown.runAll().timeout(
           const Duration(seconds: 2),
           onTimeout: () {},
         );

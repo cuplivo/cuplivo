@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -47,6 +49,118 @@ String capRecyclePreview(
   return buffer.toString();
 }
 
+/// The array format a JSON body is drawn in, at file scope because both the page
+/// and [encodeTablesHead] write through it.
+const JsonEncoder _pretty = JsonEncoder.withIndent('  ');
+
+/// The head of a body, read by range instead of in full.
+///
+/// The cap above is a *display* budget, but it used to be applied after
+/// `readAsBytes`, a full `utf8.decode` (just to answer "is this text") and a
+/// second decode in build: for a staged workspace file — the sync caps allow one
+/// to be 200 MB — that is hundreds of megabytes of transient copies on the UI
+/// isolate to show the first 200 KB. One range read of `capBytes + 4` bytes
+/// answers all three questions.
+///
+/// [text] is null when the bytes are not UTF-8 text, and a NUL is reported the
+/// same way: the reader is asking "can I show this as text", and the head
+/// answers that without the rest. A file cut at the byte offset ends inside a
+/// rune as often as not, so up to three trailing bytes are dropped rather than
+/// declaring a text file binary.
+@visibleForTesting
+Future<({String? text, bool truncated})> readBodyHead(
+  File file, {
+  int capBytes = kRecyclePreviewCapBytes,
+}) async {
+  final length = await file.length();
+  final head = BytesBuilder(copy: false);
+  await for (final chunk in file.openRead(0, math.min(length, capBytes + 4))) {
+    head.add(chunk);
+  }
+  final bytes = head.takeBytes();
+  final cut = length > bytes.length;
+  final decoded = _decodeHead(bytes, cutAtTail: cut);
+  if (decoded == null) return (text: null, truncated: cut);
+  final preview = capRecyclePreview(decoded, capBytes: capBytes);
+  return (text: preview, truncated: utf8.encode(preview).length < length);
+}
+
+/// [bytes] as text, or null when they are not UTF-8.
+///
+/// [cutAtTail] allows dropping up to three trailing bytes, which is what a cut
+/// mid-rune leaves behind. Without it the bytes are either valid UTF-8 or not
+/// text at all.
+String? _decodeHead(Uint8List bytes, {required bool cutAtTail}) {
+  if (bytes.contains(0)) return null;
+  final floor = cutAtTail ? math.max(0, bytes.length - 4) : bytes.length;
+  for (var end = bytes.length; end >= floor; end--) {
+    try {
+      return utf8.decode(Uint8List.sublistView(bytes, 0, end));
+    } on FormatException {
+      if (!cutAtTail) return null;
+    }
+  }
+  return null;
+}
+
+/// The staged tables as the JSON the page draws, cut to [capBytes] *while* it is
+/// being encoded.
+///
+/// `JsonEncoder.withIndent` builds the whole string first, so a conversation
+/// subtree became a multi-megabyte copy whose only fate was to be cut by
+/// [capRecyclePreview] — and a second copy was kept for the copy button. Writing
+/// through a bounded sink means the page never holds more than the budget it
+/// will draw.
+@visibleForTesting
+({String preview, bool truncated}) encodeTablesHead(
+  Map<String, List<Map<String, Object?>>> tables, {
+  int capBytes = kRecyclePreviewCapBytes,
+}) {
+  final sink = _CapSink(capBytes);
+  final conversion = _pretty.startChunkedConversion(sink);
+  conversion.add(tables);
+  conversion.close();
+  final encoded = sink.text;
+  final preview = capRecyclePreview(encoded, capBytes: capBytes);
+  return (
+    preview: preview,
+    truncated: sink.overflow || preview.length < encoded.length,
+  );
+}
+
+/// Keeps at most [capBytes] characters of what the encoder writes.
+///
+/// Characters, not bytes: one Dart rune encodes as at most four UTF-8 bytes, so
+/// the buffer is bounded by four times the budget and the exact byte cut stays
+/// [capRecyclePreview]'s job.
+class _CapSink implements Sink<String> {
+  _CapSink(this.capBytes);
+
+  final int capBytes;
+  final StringBuffer _buffer = StringBuffer();
+  int _length = 0;
+
+  /// What was kept: at most [capBytes] characters of the encoder's output.
+  String get text => _buffer.toString();
+
+  /// Whether something was dropped, which is what makes the result truncated.
+  bool overflow = false;
+
+  @override
+  void add(String data) {
+    if (overflow) return;
+    if (_length + data.length > capBytes) {
+      overflow = true;
+      return;
+    }
+    _buffer.write(data);
+    _length += data.length;
+  }
+
+  @override
+  void close() {}
+}
+
 /// The name to warn with when a staged conversation's assistant is gone, or null
 /// when there is nothing to say.
 ///
@@ -86,13 +200,14 @@ class RecycleEntryDetailPage extends StatefulWidget {
 
 class _RecycleEntryDetailPageState extends State<RecycleEntryDetailPage> {
   static final DateFormat _stampFormat = DateFormat('yyyy-MM-dd HH:mm');
-  static const JsonEncoder _pretty = JsonEncoder.withIndent('  ');
 
   RecycleEntry get _entry => widget.entry;
 
   Map<String, List<Map<String, Object?>>>? _tables;
-  List<int>? _fileBytes;
-  bool _fileIsText = false;
+
+  /// A file entry's preview: null when the body could not be read at all, and
+  /// `text` null when its bytes are not text.
+  ({String? text, bool truncated})? _fileHead;
   bool _loading = true;
   bool _busy = false;
   String? _orphanAssistantName;
@@ -121,11 +236,17 @@ class _RecycleEntryDetailPageState extends State<RecycleEntryDetailPage> {
     }
     if (_entry.bodyKind == RecycleBodyKind.byteFile) {
       final file = await service.bodyFile(_entry);
-      final bytes = file == null ? null : await _readFile(file);
+      ({String? text, bool truncated})? head;
+      if (file != null) {
+        try {
+          head = await readBodyHead(file);
+        } catch (error) {
+          debugPrint('recycle: reading ${file.path} failed: $error');
+        }
+      }
       if (!mounted) return;
       setState(() {
-        _fileBytes = bytes;
-        _fileIsText = bytes != null && _decodesAsText(bytes);
+        _fileHead = head;
         _loading = false;
       });
       return;
@@ -139,24 +260,6 @@ class _RecycleEntryDetailPageState extends State<RecycleEntryDetailPage> {
     if (_entry.type == RecycleEntryType.conversation) {
       final name = await _orphanAssistant(tables);
       if (mounted && name != null) setState(() => _orphanAssistantName = name);
-    }
-  }
-
-  static Future<List<int>?> _readFile(File file) async {
-    try {
-      return await file.readAsBytes();
-    } catch (error) {
-      debugPrint('recycle: reading ${file.path} failed: $error');
-      return null;
-    }
-  }
-
-  static bool _decodesAsText(List<int> bytes) {
-    try {
-      utf8.decode(bytes);
-      return true;
-    } catch (_) {
-      return false;
     }
   }
 
@@ -404,11 +507,9 @@ class _RecycleEntryDetailPageState extends State<RecycleEntryDetailPage> {
       for (final name in tables.keys)
         if (!preferred.contains(name)) name,
     ];
-    final json = _pretty.convert({
-      for (final name in names) name: tables[name],
+    final head = encodeTablesHead({
+      for (final name in names) name: tables[name]!,
     });
-    final preview = capRecyclePreview(json);
-    final truncated = preview.length < json.length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -448,7 +549,7 @@ class _RecycleEntryDetailPageState extends State<RecycleEntryDetailPage> {
           ),
         ),
         const SizedBox(height: 10),
-        _jsonBlock(l10n, preview, truncated: truncated, full: json),
+        _jsonBlock(l10n, head.preview, truncated: head.truncated),
       ],
     );
   }
@@ -457,7 +558,6 @@ class _RecycleEntryDetailPageState extends State<RecycleEntryDetailPage> {
     AppLocalizations l10n,
     String preview, {
     required bool truncated,
-    required String full,
     String? copyLabel,
   }) {
     final cs = Theme.of(context).colorScheme;
@@ -495,9 +595,12 @@ class _RecycleEntryDetailPageState extends State<RecycleEntryDetailPage> {
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
+              // What is copied is what is shown. Holding the whole body for this
+              // button is the cost this page exists to stop paying, and the
+              // notice above already says when the body was cut.
               onPressed: () => copyTextWithConfirmation(
                 context,
-                full,
+                preview,
                 message: l10n.recycleBinDetailCopied,
               ),
               style: TextButton.styleFrom(
@@ -517,28 +620,26 @@ class _RecycleEntryDetailPageState extends State<RecycleEntryDetailPage> {
   }
 
   Widget _fileBody(AppLocalizations l10n) {
-    final bytes = _fileBytes;
-    if (bytes == null) {
+    final head = _fileHead;
+    if (head == null) {
       return _notice(
         icon: Lucide.TriangleAlert,
         text: l10n.recycleBinDetailUnreadable,
         color: Theme.of(context).colorScheme.error,
       );
     }
-    if (!_fileIsText) {
+    final text = head.text;
+    if (text == null) {
       return _notice(
         icon: Lucide.FileText,
         text: l10n.recycleBinDetailBinary,
         color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
       );
     }
-    final text = utf8.decode(bytes);
-    final preview = capRecyclePreview(text);
     return _jsonBlock(
       l10n,
-      preview,
-      truncated: preview.length < text.length,
-      full: text,
+      text,
+      truncated: head.truncated,
       // A file's body is the file, not JSON: the same block, named for what it
       // actually copies.
       copyLabel: l10n.recycleBinDetailCopyText,

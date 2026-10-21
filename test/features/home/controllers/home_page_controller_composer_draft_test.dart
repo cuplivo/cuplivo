@@ -205,7 +205,12 @@ void main() {
         done = true;
       },
     );
-    for (var i = 0; i < 200 && !done; i++) {
+    // `done` is the pass condition; the deadline only bounds how long a hung
+    // operation may stall the suite, so it is wall-clock rather than a fixed
+    // number of pumps (200 × 15 ms was ~3 s and a loaded runner can exceed it
+    // for an import that is merely slow).
+    final deadline = DateTime.now().add(const Duration(seconds: 20));
+    while (!done && DateTime.now().isBefore(deadline)) {
       await tester.pump(const Duration(milliseconds: 10));
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 5)),

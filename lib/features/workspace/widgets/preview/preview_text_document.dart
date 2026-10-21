@@ -96,6 +96,17 @@ class PreviewTextReader {
   Future<void>? _closing;
   bool _closed = false;
 
+  /// Closes that have been scheduled but not finished yet.
+  ///
+  /// Windows refuses to delete a file that still has an open handle (`errno
+  /// 32`), and this reader deliberately keeps one open per mounted view. A test
+  /// that unmounts a preview and then deletes its temp tree can wait on this
+  /// count instead of retrying the delete.
+  static final Set<Future<void>> _pendingCloses = <Future<void>>{};
+
+  @visibleForTesting
+  static int get debugPendingCloseCount => _pendingCloses.length;
+
   @visibleForTesting
   int bytesRead = 0;
   @visibleForTesting
@@ -144,10 +155,16 @@ class PreviewTextReader {
   Future<void> close() {
     _closed = true;
     _cache.clear();
-    return _closing ??= _tail.then((_) async {
+    final closing = _closing ??= _tail.then((_) async {
       await _file?.close();
       _file = null;
     });
+    _pendingCloses.add(closing);
+    closing.then<void>(
+      (_) => _pendingCloses.remove(closing),
+      onError: (Object _, StackTrace __) => _pendingCloses.remove(closing),
+    );
+    return closing;
   }
 }
 

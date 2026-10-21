@@ -20,11 +20,21 @@ source**, or marked as **not reproduced**.
 | §3 — `chat_input_bar_attachment_cleanup_test.dart` › 源文件删除失败会记录日志且保留源文件 | the test waits for the release it asserts on (`debugHasPendingArtifactDeletes`) instead of polling a log for 2 s; it also runs on Windows now, via an open handle rather than `chmod` |
 | §3 — `chat_input_bar_attachment_cleanup_test.dart` › 超过 5000 个字符的粘贴内容转为文本附件 | the fixed 100 ms delay is gone; the test waits for the long-paste write tail (`debugTextPasteWriteSettled`), which the paste path completes only *after* it has released the file. That was the first half; the second is **fixed in 4.4**. It was never Windows-specific: it failed the 4.4 full local suite and then Linux CI twice (`refactor/lan-sync-channels` PR #1030, run 39402402618 and its rerun — 8946 passed, 1 failed both times). Mechanism, read in `chat_input_bar.dart`: the third paste is held inside `await dir` by the fake path provider's gate, `retained` is read before that await and the adoption check comes after it, so a dispose landing between the two points adopted the attachment into a composer that no longer existed and its file was never released. The adoption branch now requires `mounted`; a paste whose composer is gone deletes its file and, when a draft store survives, inserts the text instead — which is what the gate and the test always assumed |
 | §3 — `restore_bundle_staging_test.dart` › does not delete candidate while the revalidation isolate has not exited, and its db-isolate sibling | the test-only native-sleep hang now precedes the isolate's first cancel check, so the isolate provably cannot exit before the host abandons it |
+| same two tests, second pass (2026-10-21) | the remaining exposure was not the hang order but *which side of the cancel* decided first: under full-suite load the host's 120 ms abandon timer (`killGrace` + `isolateExitDeadline`) can be starved past the isolate's 2 s hang, so the isolate's own failure message — a `BackupCancelledException` whose `isolateExited` defaults to `true` — becomes the error, and `backupIsolateStillAlive` answers "gone" while the isolate is still sleeping. Fixing the flag at the source was tried and **reverted**: claiming `isolateExited: false` from inside the isolate moves `data_sync_backup_file_test`'s "cancelling … deletes the work directory" cases to the deferred branch and breaks their contract (the workspace must be gone when the call returns). The assertion was the wrong instrument instead: it now checks the invariant pair — a live isolate keeps its workspace, and nothing may survive once it is gone |
+| §9 — the three Windows-only defect families (`workspace_file_navigation_test.dart` ×5, `markstream_adapters_test.dart` › image providers…, `file_preview_test.dart` › code preview lazily…) | none of them was a platform limit: `p.canonicalize` lower-cases the whole path on Windows, `SandboxPathResolver.fix` returned its `/`-folded *matching* form, and the paged preview legitimately holds its file open until disposed. Fixed at each layer, see **§9** |
+| §3 — `file_browser_test.dart` › new folder rename and delete through the widget, and the `finish()` budget in `home_page_controller_composer_draft_test.dart` | both surfaced once in a 2026-10-21 full-suite run and pass in isolation. A single `_reload` after a mutation is not a synchronisation point — the mutation triggers its own refresh, and two refreshes can land out of order, so the older listing overwrites the newer one; the test now reloads until the item itself is on screen. `finish()` keeps `done` as the pass condition and bounds only a hung operation, in wall-clock terms instead of 200 × 15 ms (~3 s) |
 
 Verified with Dart 3.13.0 (the SDK CI pins): `dart format` clean and
 `dart analyze --fatal-infos lib test integration_test` clean over the whole project; the four
 affected files green, and the full local suite re-run (see §4). The regression test for §2
 was shown to fail against the pre-fix implementation before it was accepted.
+
+The 2026-10-21 pass was verified the same way: `dart format` + `dart analyze --fatal-infos`
+clean over `lib test integration_test`, the backups directory back to **525 passed, 14 skipped,
+0 failed**, the markstream package gate clean (`flutter analyze --fatal-infos` +
+**290 passed**), and the full local suite: **8904 passed, 61 skipped, 0 failed** (17 m 41 s).
+Every fix was confirmed non-vacuous: the pre-fix run is the red baseline for §9a's two path
+defects, and the preview fix was proved by deleting the unmount step (back to `errno 32`).
 
 **Deliberately not changed** — each was in the inventory, and each turned out to have a
 reason not to touch it:
@@ -50,8 +60,28 @@ reason not to touch it:
   ever gone red on CI; the exposure is a developer with the app running locally. It belongs
   in its own change alongside the adapter refactor, not folded into a flake fix.
 
-**Still open**: the `pubspec.lock` question in §6. The 8 deterministic Windows failures
-listed in §4 were resolved afterwards — see **§4a**.
+**Still open**: the `pubspec.lock` question in §6, and the fact that `pr-check.yml` only runs
+on `pull_request` — so a re-base on `master` is never audited by CI (see *CI after the fix*,
+below). The 8 deterministic Windows failures listed in §4 were resolved afterwards — see
+**§4a**; the 7 of §9 were resolved on 2026-10-21 — see **§9a**.
+
+### CI after the fix (checked 2026-10-21)
+
+The >5000-character paste case the Status table calls fixed did go red on CI twice, and both
+runs predate the fix:
+
+| run | branch | failing test | vs the fix |
+|---|---|---|---|
+| 39402402618 | `refactor/lan-sync-channels` | `chat_input_bar_attachment_cleanup_test.dart` › 超过 5000 个字符的粘贴内容转为文本附件 | fix `a6a3e268d` landed 11:26 UTC, this ran 09:40 |
+| 39410046824 | same | same | ran 10:44 |
+
+Every `pr-check` run after the fix is green (`39419578180`, `39453953826`, and five on 10-21).
+The newest red run, `39450433190`, is **not** a test failure: the failing step is
+`Dart format (changed files only)` — the §7 item 7 that still logs no remedy. And because
+`pr-check.yml:6-8` is `on: pull_request: branches: [master]` only, **nothing runs on `master`
+itself**: a re-base is not verified until the next PR lands on it. Adding a
+`push: branches: [master]` trigger is the cheap fix; until then "is the rebase red?" is answered
+by the first PR after it, not by CI.
 
 ## How this was measured
 
@@ -206,6 +236,30 @@ test observes it. This file has already been through one unflake pass —
 in staging tests so they do not race under full-suite load"`, which is an ancestor of HEAD —
 and the test still went red on 10-17. The approach is not converging; the assertion needs to
 stop depending on wall-clock margins.
+
+**Resolved 2026-10-21**: that assertion now checks the invariant pair instead of which side of
+the cancel won — a live isolate keeps its workspace, and nothing may survive once it is gone
+(see the Status table). Note what was *tried and reverted*: making the in-isolate cancellation
+claim `isolateExited: false` reads like the truth, but it moves
+`data_sync_backup_file_test`'s "cancelling … deletes the work directory" cases to the deferred
+branch and breaks their contract, so the flag stayed as it was and the assertion moved.
+
+**A single refresh is not a synchronisation point** — `file_browser_test.dart` › *new folder
+rename and delete through the widget* waited 50 ms, awaited `refreshEntries()` once, and
+asserted the renamed row. A mutation triggers its own refresh (`file_browser.dart:215`, `:230`),
+and two `_reload()`s can land out of order — the older listing wins the `setState` — so the row
+can be missing even though the rename succeeded. It now reloads until the row itself is on
+screen (`_reloadUntilItem`, bounded by attempts, 40 max), and the delete case polls for it to
+disappear. Worth noting the product hazard behind it: `_reload()` has no generation counter, so
+a slow listing can overwrite a newer one. That is a UI bug in its own right, left alone here
+because the widget test is the only place it reproduces today.
+
+**A cap is not a pass condition, but it can still flake** — `home_page_controller_composer_draft_test.dart:196-216`
+settles a future by pumping up to 200 × (10 ms pump + 5 ms real delay) ≈ 3 s, then asserts
+`done`. Under full-suite load ("recovery handles in-flight import (edit: false, restore:
+empty)") that budget ran out for an import that was merely slow. The condition is still `done`;
+only the bound is wall-clock now (20 s), which is what a "how long may a hung operation stall
+the suite" number should have been from the start.
 
 **Fixed delay standing in for a signal** — the same file's sibling assertion at
 `chat_input_bar_attachment_cleanup_test.dart:377-389` completes a gate, waits
@@ -433,6 +487,11 @@ Specific defects worth naming:
   (`_unusedPort()` — bind port 0, read it, close, hand the number to the code under test),
   used at 8 call sites; same shape in `mobile_loopback_oauth_test.dart:96-99,128-131`.
   Another process can take the port in the window.
+* **`p.canonicalize` as a value, not a key.** On Windows it lower-cases the whole path
+  (measured, §9a), so any place that *returns* its result — rather than comparing two of them
+  — hands a folded path to the UI, to `File`, or to a persisted field. Grep `p.canonicalize(`
+  and ask which of the two it is; the comparison sites (`p.equals`, `p.isWithin`, `!=` against
+  another canonical form) are fine, the returning ones are not.
 * **Unseeded randomness: none.** All 10 `Random(` uses are explicitly seeded
   (`image_compress_editor_test.dart:1471`, `output_buffer_test.dart:13`, …). This hazard is
   cleanly absent.
@@ -516,7 +575,8 @@ Items 4, 6 and 7 remain.
    keep it in — an entry is a promise that the failure is understood. Note the file is
    gitignored (`.gitignore:71`), so this is local-only either way; a *tracked* baseline list is
    still not available to CI. **Decide on `pubspec.lock`** separately; it is gitignored too, so
-   CI re-resolves every transitive dependency on every run.
+   CI re-resolves every transitive dependency on every run. The seven §9 failures followed the
+   same route on 2026-10-21 (**§9a**) — no entry was written for them either.
 7. **Make the format and l10n gates fail with the remedy in the log.** Two of eleven red runs
    were these, and neither log tells the contributor what to run. `AGENTS.md` already
    documents that CI formats with the *pinned* Dart SDK — the gate should say which version
@@ -544,10 +604,17 @@ flutter test test/core/services/backup/data_sync_backup_file_test.dart
 Failure-rate estimates in this document are per-run, from the observed CI window; they are
 order-of-magnitude, not measured rates.
 
-## 9. The 4.4 baseline: seven Windows failures that are upstream's own
+## 9. The 4.4 baseline: seven Windows failures that were upstream's own
+
+**Status: all seven are fixed in this tree (2026-10-21), and none of them was a
+platform limit.** The section below keeps the evidence as it stood, because the
+measurement is what identified the three defects; read **§9a** for what they
+turned out to be and where each was fixed. `.toolbridge/known-failures.json` is
+not involved any more: an entry is a promise that a failure is understood, and
+there is nothing left to promise here.
 
 Not flaky — **deterministic on Windows and green everywhere else**, which is why they are
-recorded separately from the sections above: nothing in this fork can fix them without
+recorded separately from the sections above: nothing in this fork could fix them without
 diverging from a test that upstream owns.
 
 Method, and it is the same one `§1`'s registered entries used: the same seven tests were run
@@ -563,14 +630,68 @@ never observes them.
 | `markstream_adapters_test.dart` › image providers support local files with spaces and data URLs | `Expected: 'C:\…\image one.png'` / `Actual: 'C:/…/image one.png'` — separators are normalised, case is not |
 | `file_preview_test.dart` › code preview lazily displays files above the old size limit | `PathAccessException: Deletion failed … errno = 32` — the temp tree is still held when the test tears it down |
 
-The first five and `markstream_adapters` are one defect wearing six hats: the app compares a
-path it normalised against the path the test built with `p.join`, and the two disagree about
-case and separators on this platform. `file_preview_test` is the locked-temp-tree class `§3`
-already documents.
+The first five and `markstream_adapters` looked like one defect wearing six hats: the app
+compares a path it normalised against the path the test built with `p.join`, and the two
+disagree about case and separators on this platform. `file_preview_test` looked like the
+locked-temp-tree class `§3` already documents.
 
-Registered in `.toolbridge/known-failures.json` as `kind: "platform"` so a local Windows run
-reports them as baseline rather than as new failures. If upstream fixes its assertions, the
-entries go away with them.
+Registered at the time in `.toolbridge/known-failures.json` as `kind: "platform"` so a local
+Windows run reported them as baseline rather than as new failures. That file is gitignored and
+per-worktree, and this worktree never had one — which is how the 2026-10-21 full-suite run
+found them as bare red and got them looked at again.
+
+### 9a. What they actually were (all three fixed here)
+
+**1. `p.canonicalize` lower-cases the whole path on Windows.** Measured against `path` 1.9.1
+(the resolved version), not assumed:
+
+```
+p.canonicalize(r'C:\Users\jason\AppData\Local\Temp\x\note.txt')
+  → c:\users\jason\appdata\local\temp\x\note.txt
+p.normalize / p.absolute  → C:\Users\jason\AppData\Local\Temp\x\note.txt   (unchanged)
+p.equals(a, a.toLowerCase()) → true      p.isWithin(lower(a), b) → true
+```
+
+So the folding was never needed for identity, and it leaked into every value derived from a
+workspace root: `WorkspacePaths._canonHost` was `p.canonicalize`, and
+`FileLinkResolver._entryUnderRoot` joined `p.canonicalize(root)` with the relative path, which
+is the single entry point behind the file preview, the read-only browser and the thumbnail. Both
+now return `p.normalize(p.absolute(...))` (`WorkspacePaths.canonicalHostPath`). Containment and
+membership stay case-insensitive because they go through `p.equals` / `p.isWithin` /
+`p.relative`. `lib/core/services/sync/workspace_content_sync.dart` still compares
+`p.canonicalize(...)` strings with `!=` on both sides and was deliberately left alone. Pinned by
+`test/core/services/workspace/workspace_paths_test.dart` › *canonical host paths keep the
+platform spelling*, which fails on Windows if the folding comes back.
+
+**2. `SandboxPathResolver.fix()` returned its matching form.** It computes
+`normalizeForMatch(path)` (Windows `\` → `/`) for the `/avatars/`, `/upload/` … scans and then
+returned that value. `markdownImageProvider` feeds the result to `File`, so
+`FileImage.file.path` came back `C:/…/image one.png` while the fixture was built with
+`'${dir.path}/image one.png'`. `fix()` now returns the platform's own spelling
+(`_nativeForIo`, the inverse), and the test asserts two things instead of one spelling: the
+provider hands back `file.uri.toFilePath()`, and `p.equals(provider.file.path, file.path)` —
+the file is the same file whatever separator the fixture used.
+
+**3. The paged preview keeps its file open, by design.** >128 KB text renders through
+`PagedTextFileView`, whose `PreviewTextReader` opens one `RandomAccessFile` on the first
+uncached page and closes it in `dispose()`. The test deleted its temp tree while the tree was
+still mounted, so Windows reported `errno 32` (Linux allows deleting an open file, which is why
+upstream CI never saw it). The test now unmounts, then polls
+`PreviewTextReader.debugPendingCloseCount` — the close chain was created inside the fake-async
+zone, so releasing it needs both a real event-loop turn and a pump. No delete retry: a handle
+still open 50 polls later is a defect, not a slow disk.
+
+**Verification.** The red baseline is the full local run on the same machine at `b7413ecdb`
+before any of this: **8895 passed, 61 skipped, 8 failed** (15 m 50 s) — five of them path case,
+one `fix()` separators, one the preview handle, one the isolate assertion. After the fixes:
+**8904 passed, 61 skipped, 0 failed** (17 m 41 s). The totals differ by exactly one: a new case
+pins the case-preserving contract in `workspace_paths_test.dart`, while that file's other ten
+changed lines only swap an expectation expressed through the old folding for the new helper.
+Interesting intermediate result worth recording: a run between the two had **2** failures —
+`file_browser_test.dart` › *new folder rename and delete*, and the `finish()` budget in
+`home_page_controller_composer_draft_test.dart`; both passed in isolation and are addressed in
+**§3**. They are pre-existing load hazards this branch happened to expose, not regressions from
+the path changes.
 
 ### Three that were ours, and are fixed
 

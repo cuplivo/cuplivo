@@ -253,6 +253,8 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   Future<void>? _startFuture;
   bool _stopRequested = false;
   bool _disposed = false;
+  bool _observingLifecycle = false;
+  bool _shutdownRegistered = false;
 
   /// Notifies the listeners, unless this provider is already disposed.
   ///
@@ -344,6 +346,10 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// keeps an odd dispose order from silencing a live panel.
   void panelOpened() {
     _panelViewers++;
+    // A panel the user opened is the last place "listener not running" should be
+    // readable: if the listener is down, start it now rather than waiting for
+    // the next resume.
+    ensureListening();
     // The user is looking at the cards: this is the moment to show every
     // endpoint's figure, including the tail's, rather than the head's only.
     _fullProbePending = true;
@@ -406,10 +412,11 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   String? get deviceId => _engine?.identity.deviceId;
   String? get deviceName => _engine?.identity.name;
 
-  /// Starts the listener. Idempotent; safe to call repeatedly (the app calls
-  /// it once per launch from a post-frame callback).
+  /// Starts the listener. Idempotent; safe to call repeatedly (the app calls it
+  /// once per launch from a post-frame callback, and [ensureListening] calls it
+  /// again from the moments the app is usable but the listener is down).
   Future<void> start() async {
-    if (kIsWeb || started) return;
+    if (kIsWeb || _disposed || started || starting) return;
     final inFlight = _startFuture;
     if (inFlight != null) return inFlight;
     final initialization = _start();
@@ -421,7 +428,22 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
+  /// Starts the listener when it is down and nothing is already trying.
+  ///
+  /// The app is usable whether or not the listener is up, so this is a no-op in
+  /// the normal case and the repair path otherwise: a tray restore and a panel
+  /// opening are the two moments the user would otherwise see "listener not
+  /// running" with no way back short of restarting the app (#1036).
+  void ensureListening() {
+    if (_disposed || started || starting) return;
+    unawaited(start());
+  }
+
   Future<void> _start() async {
+    // A start is a new attempt, not a continuation of the stop that preceded
+    // it: keeping the flag set is what made a stopped listener unstartable for
+    // the rest of the launch.
+    _stopRequested = false;
     starting = true;
     startError = null;
     _notify();
@@ -486,14 +508,22 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       unawaited(_ensureFirewallRule());
       // Foreground rounds: one right after start ("opened the app" is the
       // pickup journey), then one per resume, throttled by [autoSyncInterval].
-      WidgetsBinding.instance.addObserver(this);
+      if (!_observingLifecycle) {
+        _observingLifecycle = true;
+        WidgetsBinding.instance.addObserver(this);
+      }
       // The app is visible while it starts, so the dots start refreshing now;
       // a lifecycle `resumed` would otherwise not fire until a refocus.
       _startPresenceTimer();
       unawaited(_refreshAddressesThenRound());
       // Desktop graceful exit: stop the listener and drop the ephemeral-port
-      // firewall rule (the preferred-port rule stays for next launch).
-      AppExitFlush.register(stop);
+      // firewall rule (the preferred-port rule stays for next launch). This is
+      // a shutdown task, not an exit *flush*: a close that only hides to the
+      // tray runs the flush registry while the process keeps running.
+      if (!_shutdownRegistered) {
+        _shutdownRegistered = true;
+        AppShutdown.register(stop);
+      }
     } catch (error) {
       startError = '$error';
     } finally {
@@ -502,7 +532,12 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  /// Stops the listener. Idempotent; also registered as an exit-flush task.
+  /// Stops the listener. Idempotent.
+  ///
+  /// Registered with [AppShutdown], not [AppExitFlush]: this is process
+  /// teardown, and an exit *request* is not proof that the process is going
+  /// away — a close that only hides to the tray asks the same question. The
+  /// provider stays startable afterwards ([start] clears `_stopRequested`).
   Future<void> stop() async {
     _stopRequested = true;
     _stopPresenceTimer();
@@ -1194,6 +1229,9 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     // Desktop fires `resumed` on every window focus gain too; the global
     // throttle in [shouldAutoSyncNow] is what keeps that cheap.
     if (state == AppLifecycleState.resumed) {
+      // A window that comes back is a window whose listener must be up: a tray
+      // restore is the journey #1036 was reported from.
+      ensureListening();
       // Picking the device up is the pickup journey: this network may not be
       // the one the last round measured, so the first round after a resume
       // walks every endpoint rather than the head ones.
@@ -1459,7 +1497,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     _cancelBusyRetries();
     _arrivals.close();
     WidgetsBinding.instance.removeObserver(this);
-    AppExitFlush.unregister(stop);
+    AppShutdown.unregister(stop);
     super.dispose();
   }
 }

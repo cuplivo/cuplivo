@@ -1,10 +1,36 @@
 import 'package:flutter/foundation.dart'
-    show kIsWeb, defaultTargetPlatform, TargetPlatform;
+    show kIsWeb, defaultTargetPlatform, debugPrint, TargetPlatform;
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../core/services/app_exit_flush.dart';
 import '../l10n/app_localizations.dart';
+
+/// Whether an OS *exit request* is really the user closing the window with
+/// "minimize to tray on close" enabled.
+///
+/// Windows and Linux deliver the window's close as an exit request before any
+/// window-manager delegate sees `WM_CLOSE`: the engine's lifecycle manager
+/// consumes that message and asks the framework whether it may quit. An app
+/// that only hides from [WindowListener.onWindowClose] has therefore already
+/// been asked to quit by the time the window hides, and answering `exit` there
+/// runs the exit-flush registry — which is how #1036 closed the LAN sync
+/// listener on a window that never went away.
+///
+/// macOS is deliberately excluded: there the exit request *is* a terminate
+/// (Cmd+Q, Dock → Quit) and the red button never reaches it (window_manager
+/// intercepts that close first), so hiding here would turn Quit into a no-op.
+///
+/// [quitting] is the tray's own Exit item, which must always be a real quit.
+bool exitRequestHidesToTray({
+  required TargetPlatform platform,
+  required bool showTray,
+  required bool minimizeToTrayOnClose,
+  required bool quitting,
+}) {
+  if (quitting || !showTray || !minimizeToTrayOnClose) return false;
+  return platform == TargetPlatform.windows || platform == TargetPlatform.linux;
+}
 
 /// Desktop tray + window close behaviour controller.
 ///
@@ -21,6 +47,14 @@ class DesktopTrayController with TrayListener, WindowListener {
   bool _minimizeToTrayOnClose = false;
   String _localeKey = '';
   bool _contextMenuOpen = false;
+
+  /// Set by the tray's Exit item for the close it is about to request. From that
+  /// point a close is a quit, never a hide.
+  bool _quitting = false;
+
+  /// Whether a close request should hide the window rather than quit it.
+  bool get _hidesOnClose =>
+      _isDesktop && _showTraySetting && _minimizeToTrayOnClose;
 
   /// Sync tray state from settings & current localization.
   /// Safe to call multiple times; initialization is performed lazily.
@@ -131,8 +165,38 @@ class DesktopTrayController with TrayListener, WindowListener {
     } catch (_) {}
   }
 
+  /// Answers an OS exit request that this device treats as "hide to the tray".
+  ///
+  /// Returns true when the window was hidden and the caller must answer the
+  /// request as **cancel** — the app keeps running, and so does its LAN sync
+  /// listener. False means a real quit is being asked for, and the caller owns
+  /// the flush + shutdown.
+  Future<bool> hideForExitRequest() async {
+    if (!_isDesktop ||
+        !exitRequestHidesToTray(
+          platform: defaultTargetPlatform,
+          showTray: _showTraySetting,
+          minimizeToTrayOnClose: _minimizeToTrayOnClose,
+          quitting: _quitting,
+        )) {
+      return false;
+    }
+    try {
+      await windowManager.hide();
+      return true;
+    } catch (error) {
+      // A window that cannot be hidden must not leave the close button dead:
+      // fall through to the real quit instead.
+      debugPrint('desktop tray: hiding on an exit request failed: $error');
+      return false;
+    }
+  }
+
   Future<void> _exitApp() async {
     if (!_isDesktop) return;
+    // A close from here on is a quit: the exit request it produces must not be
+    // answered as a hide.
+    _quitting = true;
     try {
       // Drain pending writes before exiting. On macOS/Linux destroy()
       // routes through the engine's exit-request channel (which flushes
@@ -142,6 +206,16 @@ class DesktopTrayController with TrayListener, WindowListener {
       // The timeout keeps a stuck write queue from hanging tray exit.
       try {
         await AppExitFlush.flushAll().timeout(
+          const Duration(seconds: 2),
+          onTimeout: () {},
+        );
+      } catch (_) {}
+      // Hand back what lives with the process: the LAN sync listener and its
+      // ephemeral-port firewall rule. On macOS/Linux destroy() below bypasses
+      // the engine's exit-request channel entirely, so this is the only place
+      // that teardown is guaranteed to run.
+      try {
+        await AppShutdown.runAll().timeout(
           const Duration(seconds: 2),
           onTimeout: () {},
         );
@@ -163,7 +237,11 @@ class DesktopTrayController with TrayListener, WindowListener {
       // Other desktop platforms (and Windows fallback): destroy the
       // window so the process exits cleanly.
       await windowManager.destroy();
-    } catch (_) {}
+    } catch (_) {
+      // The window refused to go: leave the app usable rather than half-quit,
+      // where every later close would be treated as a quit.
+      _quitting = false;
+    }
   }
 
   // ===== TrayListener =====
@@ -211,9 +289,13 @@ class DesktopTrayController with TrayListener, WindowListener {
   @override
   void onWindowClose() async {
     if (!_isDesktop) return;
-    // Only intercept close when user enabled minimize-to-tray.
-    final shouldIntercept = _showTraySetting && _minimizeToTrayOnClose;
-    if (!shouldIntercept) return;
+    // The other delivery path of the same intent: on macOS the red-button close
+    // arrives here (the exit request never sees it), and on Windows or Linux it
+    // lands here only when the window-manager delegate got the message first.
+    // The intent is "the tray settings say close means hide" — [_hidesOnClose].
+    // Only the message that carries it differs, which is why
+    // [exitRequestHidesToTray] adds the platform check and this path does not.
+    if (_quitting || !_hidesOnClose) return;
     try {
       final isPreventClose = await windowManager.isPreventClose();
       if (!isPreventClose) return;

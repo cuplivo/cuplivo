@@ -17,6 +17,10 @@
 - **"Not reachable right now" no longer draws a row on the card**: the subtitle already says the peer is away, so the sentence row is gone; a manual sync still answers with the actionable line
 - **The LAN Sync panel is rebuilt**: this device with no IP on it, a workspace section with per-workspace state and switches, and one card per peer carrying an address grid instead of a single address line
 
+### Fixed
+
+- **LAN sync no longer stops listening when the window is closed to the tray**: with "close to tray" enabled, clicking the window's close button hid it and took port 9527 with it — the process stayed up with no listener, and restoring the window did not bring it back, because the close was answered as a quit. A close that only hides is now answered as a hide (Windows and Linux; macOS' quit is a terminate and still quits), the listener's graceful stop moved from the exit flush to a real shutdown, and a window that comes back to the foreground or a LAN Sync panel that is opened starts the listener again if it is ever down (#1036 by @cup113)
+
 ## [4.3.0] - 2026-10-14
 
 ### Added

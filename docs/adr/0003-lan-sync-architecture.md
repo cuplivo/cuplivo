@@ -2020,3 +2020,46 @@ applies the rule" is not read as stronger than it is:
 - A restore or an overwrite import costs one full re-convergence with every paired device: the
   rows both sides still hold are re-exchanged under `edit beats delete`, and the one-session
   override only suppresses deletions.
+
+## Amendment (2026-10, close-to-tray): the listener stops on exit, not on hide
+
+Slice 16 wrote that the listener's graceful stop "is the exit flush's job". That sentence assumed an
+exit *request* proves the process is going away. On Windows it does not. Closing the window with
+"minimize to tray on close" enabled is delivered as `System.requestAppExit` **before** any
+window-manager delegate sees `WM_CLOSE`: the engine's lifecycle manager consumes the message
+(`windows_lifecycle_manager.cc`, `HandleCloseMessage` → `RequestApplicationQuit` → `return true`),
+asks the framework, and re-dispatches `WM_CLOSE` only when the answer is `exit`. The flush registry
+ran `SyncProvider.stop` there, so a tray hide closed port 9527 on a process that stayed alive — and
+because `stop()` left `_stopRequested` set, no later `start()` could bind again, which is why
+restoring the window still read "listener not running". Both halves are now structural (issue #1036).
+
+- **A flush is not a shutdown.** `AppExitFlush` keeps only handlers that *drain* state
+  (`businessPreferences.flushPendingWrites`, draft and tool-schema queues, generation progress),
+  each of which is harmless for a process that keeps running. Resources that belong to the process
+  — the listener, its ephemeral-port firewall rule — register with the new `AppShutdown`, which runs
+  only on a real exit (the tray's Exit item, and an exit request that was not answered as a hide).
+  The two registries are independent, and a test asserts a flush never runs a shutdown handler.
+- **A close that hides is answered `cancel`.** `exitRequestHidesToTray` is the single rule: tray
+  setting **and** close-to-tray on, not quitting, and a platform whose close is delivered this way
+  (Windows, Linux). The request handler hides the window and answers `cancel`, which is also what
+  stops the engine re-dispatching the close, so the framework is never told "exit" while the app
+  keeps running. macOS is excluded on purpose: there the request is a terminate (Cmd+Q, Dock →
+  Quit) and the red button never reaches it, so hiding would make Quit a no-op; `onWindowClose`
+  stays as the macOS/Linux hide path, gated by the same intent.
+- **A window that comes back has a listener.** `ensureListening()` (resume, panel opening) starts the
+  listener when it is down, and `_start` clears `_stopRequested` — a stop is an event, not a
+  permanent property of the provider. This is the repair path for the reported step 5, and it holds
+  regardless of which of the two close paths an OS uses.
+- *Rejected: keep answering `exit` and rely on window_manager swallowing the re-dispatched
+  `WM_CLOSE`.* That is what the app did before this amendment: it works only while the message
+  ordering and `preventClose` stay as they are, it tells the framework the app is exiting while it
+  is not, and it is exactly the answer that killed the listener.
+- *Rejected: leave `stop` in the flush registry and skip it in the handler.* The registry would
+  still lie about what it holds, and any other caller of `flushAll` — the tray's Exit item already
+  is one — would keep tearing the listener down.
+- *Rejected: a "start listener" button on the panel.* The listener is the app's, not the panel's;
+  the user should not have to visit a settings screen to undo a hide.
+- The printed consequences: an ephemeral-port firewall rule is now deleted only on a real exit (a
+  hard kill leaked it before this change too); a window that cannot be hidden falls through to a
+  real quit rather than leaving the close button dead; and `stop()` stays public for tests and for
+  shutdown, with "process teardown only" as its documented meaning.

@@ -13,6 +13,7 @@ import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/models/message_part.dart';
 import 'package:Cuplivo/core/providers/sync_provider.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/recycle/recycle_service.dart';
 import 'package:Cuplivo/core/services/skills/skill_directory_sync.dart';
 import 'package:Cuplivo/core/services/sync/blob_sync.dart';
 import 'package:Cuplivo/core/services/sync/business_state_reloader.dart';
@@ -281,6 +282,7 @@ class _Side {
   _Side(
     this.label, {
     this.newerSchema = false,
+    this.withRecycle = false,
     this.clockOffsetUs = 0,
     this.workspaceMaxFiles = kMaxWorkspaceFiles,
     this.workspaceMaxLedgerEntries = kMaxWorkspaceLedgerEntries,
@@ -290,6 +292,15 @@ class _Side {
 
   final String label;
   final bool newerSchema;
+
+  /// Whether this side keeps a recycle bin. Off by default: most of this suite
+  /// never restores anything, and a bin on both sides would only add file writes.
+  /// The one test that does restore turns it on for the side the peer deletes
+  /// from, because that is where the bin entry is staged.
+  final bool withRecycle;
+
+  /// This side's bin, when [withRecycle] asked for one.
+  RecycleService? recycle;
 
   /// Shifts this side's hello clock, so a test can manufacture the skew the
   /// report is supposed to flag. Row clocks are untouched (they come from the
@@ -354,6 +365,16 @@ class _Side {
 
   /// The skills root the data plane hashes, zips and swaps in.
   Directory get skillsRoot => Directory('${dir.path}/skills');
+
+  /// This side's conversation digest, computed the way the manifest computes it:
+  /// message rows only. A restore that writes the conversation row is therefore
+  /// invisible here, which is the whole reason the announcement needed a clock.
+  Future<String> conversationDigest(String id) async {
+    final rows = await repository.syncMessageDigestInputs();
+    return digestFromDigestInput(
+      rows.firstWhere((row) => row.conversationId == id).digestInput,
+    );
+  }
 
   /// This side's files root for one managed workspace. One test process hosts
   /// both peers, so `AppDirectories`' single global root cannot serve both —
@@ -467,7 +488,13 @@ class _Side {
     dir = Directory('${root.path}/$label');
     await dir.create(recursive: true);
     database = AppDatabase(NativeDatabase.memory());
-    repository = ChatDatabaseRepository(database);
+    if (withRecycle) {
+      recycle = RecycleService(
+        database,
+        store: RecycleStore(directory: () async => Directory('${dir.path}/bin')),
+      );
+    }
+    repository = ChatDatabaseRepository(database, recycle: recycle);
     await repository.ensureReady();
     businessRepository = BusinessRepository(database);
     businessPreferences = BusinessPreferences(businessRepository);
@@ -1192,8 +1219,9 @@ void main() {
   Future<(_Side, _Side)> pair({
     bool newerSchema = false,
     String host = '127.0.0.1',
+    bool aWithRecycle = false,
   }) async {
-    final a = _Side('a');
+    final a = _Side('a', withRecycle: aWithRecycle);
     final b = _Side('b', newerSchema: newerSchema);
     await a.start(root);
     await b.start(root);
@@ -3843,6 +3871,82 @@ void main() {
     expect(await a.repository.syncReadConversationRow('conv-b'), isNull);
     expect(await b.repository.syncReadConversationRow('conv-b'), isNull);
     expect(await _conversationIds(a), {'conv-a'});
+  });
+
+  test('a conversation restored after the peer deleted it survives the next '
+      'session, on both devices', () async {
+    // The advertised flow: the sync report says a conversation was deleted and
+    // points at the recycle bin; the user restores it; the next session must keep
+    // it — here *and* on the peer, because a restore is an edit.
+    //
+    // What makes this hard: the bin writes the conversation row back with
+    // `now()` and every message row back byte-identical, so the digest the
+    // peer's checkpoint holds still matches. Only the row clock can tell the
+    // restored copy from the deleted one, which is why the announcement carries
+    // it (protocol v8).
+    final (a, b) = await pair(aWithRecycle: true);
+    final bin = a.recycle!;
+    await _seedConversation(a, id: 'conv-a', contents: ['a1', 'a2']);
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(await _conversationIds(b), contains('conv-a'));
+    final digestAtDeletion = await a.conversationDigest('conv-a');
+
+    await b.repository.deleteConversation('conv-a');
+    final applied = await a.engine.syncWithPeer(await a.peer(b));
+    expect(applied.success, isTrue, reason: applied.summary);
+    await bin.settle();
+    final entry = (await bin.list()).single;
+    expect(entry.origin, RecycleOrigin.remote);
+
+    expect(await bin.restore(entry), RecycleRestoreOutcome.restored);
+    expect(
+      await a.conversationDigest('conv-a'),
+      digestAtDeletion,
+      reason: 'the bin writes the messages back verbatim: only the row clock '
+          'moves, which is the half the announcement used to be missing',
+    );
+
+    final next = await a.engine.syncWithPeer(await a.peer(b));
+    expect(next.success, isTrue, reason: next.summary);
+    expect(
+      await _conversationIds(a),
+      contains('conv-a'),
+      reason: 'the announced deletion must not fire on a copy the bin wrote',
+    );
+    expect(
+      await _messageIds(a, 'conv-a'),
+      containsAll(<String>['conv-a-m0', 'conv-a-m1']),
+      reason: 'the restored copy is the whole subtree, not the row alone',
+    );
+    expect(
+      await _conversationIds(b),
+      contains('conv-a'),
+      reason: 'restoring an announced deletion undoes it on the peer too',
+    );
+  });
+
+  test('an announced deletion still removes a copy nobody wrote since', () async {
+    // The other half of the clock rule: the same plan state a restore starts
+    // from — the local copy present, the peer's gone, no checkpoint entry — but
+    // with nothing written here since the two sides agreed. The announcement is
+    // then the only thing that can delete it, and it must.
+    final (a, b) = await pair(aWithRecycle: true);
+    await _seedConversation(a, id: 'conv-a', contents: ['a1']);
+    await a.engine.syncWithPeer(await a.peer(b));
+
+    // Drop this device's checkpoint entry: the state a restore leaves behind,
+    // minus the row write that makes a restore an edit.
+    await a.store.saveCheckpoint(b.identity.deviceId, SyncCheckpoint(const {}));
+    await b.repository.deleteConversation('conv-a');
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    expect(
+      await a.repository.syncReadConversationRow('conv-a'),
+      isNull,
+      reason: 'a copy nobody wrote since is a copy the peer really deleted',
+    );
+    expect(await _conversationIds(a), isEmpty);
   });
 
   test('a stale conversation entry is healed by the none beat', () async {

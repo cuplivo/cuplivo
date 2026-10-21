@@ -1026,10 +1026,11 @@ void main() {
       },
     );
 
-    test('a hello round-trips its announced deletions and their digests', () {
-      // A deleted conversation is announced by name and by the digest both
-      // sides last agreed on: the digest is what lets the receiver tell a
-      // deletion from an edit it made since.
+    test('a hello round-trips its announced deletions, digest and clock', () {
+      // A deleted conversation is announced by name, by the digest both sides
+      // last agreed on, and by the conversation row's clock: the digest tells a
+      // deletion from a message edit, the clock from a row write that left the
+      // messages untouched — which is what a restore from the recycle bin is.
       final hello = SyncHello(
         protocolVersion: kSyncProtocolVersion,
         schemaVersion: 3,
@@ -1038,15 +1039,38 @@ void main() {
         platform: 'test',
         manifest: const SyncManifest({}),
         deletedConversations: const {
-          'conv-1': 'digest-a',
-          'conv-2': 'digest-b',
+          'conv-1': SyncAnnouncedDeletion(
+            digest: 'digest-a',
+            updatedAtUs: 11,
+          ),
+          'conv-2': SyncAnnouncedDeletion(
+            digest: 'digest-b',
+            updatedAtUs: 22,
+          ),
         },
       );
       final decoded = SyncHello.fromJson(hello.toJson());
       expect(decoded.deletedConversations, {
-        'conv-1': 'digest-a',
-        'conv-2': 'digest-b',
+        'conv-1': const SyncAnnouncedDeletion(
+          digest: 'digest-a',
+          updatedAtUs: 11,
+        ),
+        'conv-2': const SyncAnnouncedDeletion(
+          digest: 'digest-b',
+          updatedAtUs: 22,
+        ),
       });
+      // A v7-shaped announcement — a bare digest, no clock — still parses. The
+      // version gate refuses that pair; this keeps the refusal a gate verdict
+      // rather than a parse error on the way to it.
+      final legacy = SyncHello.fromJson({
+        ...hello.toJson(),
+        'deleted': {'conv-3': 'digest-c'},
+      });
+      expect(
+        legacy.deletedConversations['conv-3'],
+        const SyncAnnouncedDeletion(digest: 'digest-c'),
+      );
       // Omitted when there is nothing to announce.
       final quiet = SyncHello.fromJson(
         SyncHello(

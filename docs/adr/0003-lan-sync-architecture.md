@@ -385,6 +385,20 @@ database is replaced wholesale.
   for exactly as long as the peer has not caught up, and the digest preserves *edit beats delete* —
   a copy that moved on since is not deleted. This is the alternative the slice-6 amendment
   predicted would eventually be needed, and it is what lets the fetch beat stay unconfirmed.
+  *Amendment (protocol v8):* the announcement carries the conversation row's clock beside the digest,
+  because the digest is computed from the message rows and cannot see a row write that left every
+  message untouched. A restore from the recycle bin is exactly that — the row goes back with `now()`
+  and the messages come back byte-identical — so with the digest alone the announcing device deleted
+  the restored conversation again at the next session (measured, on two real peers: the copy came
+  back, the digest matched, and `_applyDeletionAnnouncements` rewrote the plan to `iDelete`). The
+  receiver now treats a copy whose digest matches but whose row clock is newer as something it wrote
+  since, and keeps it; that is the same rule the plan table's equal-digest branch already applies
+  (`bothSend`), which is why this is the announcement catching up rather than a new rule. The
+  comparison is `<=` rather than `!=` on purpose: deleting too much is recoverable (the copy is
+  staged into the bin again), while keeping too much resurrects content the peer's user deleted.
+  The plan table's own delete branch stays digest-keyed: a rename or a pin that left the messages
+  alone still loses to a peer's deletion, which is a separate question about whether a metadata edit
+  should outrank one.
 - **A skill is a record plus a directory, and the acknowledgement says so.** A skill whose body
   could not be fetched has its record stripped on the receiver (a record without a body installs a
   broken skill), yet the acknowledgement reported only that the row apply succeeded — so the sender

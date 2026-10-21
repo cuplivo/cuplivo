@@ -8,6 +8,7 @@
 - **Workspace sync**: a workspace's record now follows your paired devices, and a managed workspace's files do too. Every pair keeps a file table (path + size + modified time), the files are pulled from the device that holds them, and each workspace can be switched off in the LAN Sync panel. Linked workspaces never travel, and a workspace over 2,000 files or 200 MB keeps its record but syncs no content
 - **Per-address endpoints**: a paired device can remember up to twelve addresses, each with its own name, latency and history. Tapping an address's latency opens its details — last measured, last reached, sessions carried, when it was added — and that is also where it is renamed, edited or deleted
 - **A one-way LAN can now be picked up from the other side**: an initiator round that has not been answered yet yields to a hello arriving from the peer, so a pair on a network where only one direction connects still syncs
+- **Per-assistant chat suggestions**: each assistant can switch chat suggestions off on its own, so an assistant used for work no longer spends a request and shows suggestion bubbles after every reply while a role-play one still does. The switch in Default Models stays the master — an assistant's opt-out does nothing while it is off, and every existing assistant stays on, so nothing changes until one is switched off (#1024)
 
 ### Changed
 

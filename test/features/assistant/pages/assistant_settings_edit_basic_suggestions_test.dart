@@ -19,6 +19,7 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 import 'package:provider/provider.dart';
 
 import '../../../support/business_test_harness.dart';
+import '../../../support/temp_directory_cleanup.dart';
 
 class _FakePathProviderPlatform extends PathProviderPlatform {
   _FakePathProviderPlatform(this.path);
@@ -72,9 +73,7 @@ void main() {
   tearDown(() async {
     PathProviderPlatform.instance = previousPathProvider;
     await database.close();
-    if (tempDir.existsSync()) {
-      tempDir.deleteSync(recursive: true);
-    }
+    await deleteDirectoryWhenReleased(tempDir);
   });
 
   testWidgets('shows the opt-out and explains an inactive global switch', (

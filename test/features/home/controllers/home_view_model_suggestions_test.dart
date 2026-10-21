@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -54,12 +55,21 @@ void main() {
   late AssistantProvider assistantProvider;
   var generateTextRequestCount = 0;
 
+  /// When set, the fake server counts the request and parks its response, so a
+  /// test can act while a suggestion request is genuinely in flight. A gate is
+  /// completed per phase; a completed gate no longer blocks.
+  Completer<void>? responseGate;
+
   Future<void> handleApiRequest(HttpRequest request) async {
     final body =
         jsonDecode(await utf8.decoder.bind(request).join())
             as Map<String, dynamic>;
     if (body['stream'] != true) {
       generateTextRequestCount++;
+    }
+    final gate = responseGate;
+    if (gate != null) {
+      await gate.future;
     }
     request.response.statusCode = HttpStatus.ok;
     request.response.headers.contentType = ContentType.json;
@@ -91,6 +101,7 @@ void main() {
     chatService = ChatService(existingRepository: repository);
     await chatService.init();
     generateTextRequestCount = 0;
+    responseGate = null;
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.listen(handleApiRequest);
   });
@@ -166,10 +177,28 @@ void main() {
     return controller!;
   }
 
-  Future<void> setAssistantSuggestionsEnabled(bool enabled) async {
-    final assistant = assistantProvider.currentAssistant!;
+  Future<void> setAssistantSuggestionsEnabled(
+    bool enabled, {
+    String? assistantId,
+  }) async {
+    final assistant = assistantId == null
+        ? assistantProvider.currentAssistant!
+        : assistantProvider.getById(assistantId)!;
     await assistantProvider.updateAssistant(
       assistant.copyWith(suggestionsEnabled: enabled),
+    );
+  }
+
+  /// Waits until the server has counted [target] non-streaming requests, i.e.
+  /// the parked response for the latest one is already waiting on its gate.
+  Future<void> waitForSuggestionRequests(int target) async {
+    for (var i = 0; i < 400 && generateTextRequestCount < target; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+    expect(
+      generateTextRequestCount,
+      target,
+      reason: 'the suggestion request never reached the server',
     );
   }
 
@@ -257,6 +286,158 @@ void main() {
       expect(
         chatService.getConversation(conversationId)!.chatSuggestions,
         isEmpty,
+      );
+    });
+    await tester.pumpWidget(const SizedBox());
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('stored suggestions follow the owning assistant', (tester) async {
+    final controller = await pumpHarness(tester);
+    await tester.runAsync(() async {
+      await settings.resetSuggestionModel();
+      await setAssistantSuggestionsEnabled(true);
+      final conversationId = await seedSettledReply();
+      await chatService.updateConversationSuggestions(conversationId, const [
+        'Yes',
+        'Tell me more',
+      ]);
+      await controller.debugViewModel.switchConversation(conversationId);
+
+      expect(controller.debugViewModel.visibleChatSuggestions, const [
+        'Yes',
+        'Tell me more',
+      ]);
+
+      await setAssistantSuggestionsEnabled(false);
+      expect(
+        controller.debugViewModel.visibleChatSuggestions,
+        isEmpty,
+        reason:
+            'an opted-out assistant must not show chips it would not pay for',
+      );
+
+      await setAssistantSuggestionsEnabled(true);
+      expect(controller.debugViewModel.visibleChatSuggestions, const [
+        'Yes',
+        'Tell me more',
+      ]);
+    });
+    await tester.pumpWidget(const SizedBox());
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the global switch hides stored suggestions', (tester) async {
+    final controller = await pumpHarness(tester);
+    await tester.runAsync(() async {
+      await settings.resetSuggestionModel();
+      await setAssistantSuggestionsEnabled(true);
+      final conversationId = await seedSettledReply();
+      await chatService.updateConversationSuggestions(conversationId, const [
+        'Yes',
+      ]);
+      await controller.debugViewModel.switchConversation(conversationId);
+      expect(controller.debugViewModel.visibleChatSuggestions, const ['Yes']);
+
+      await settings.disableSuggestionGeneration();
+      expect(
+        controller.debugViewModel.visibleChatSuggestions,
+        isEmpty,
+        reason: 'the global switch stays the master over a stored list',
+      );
+    });
+    await tester.pumpWidget(const SizedBox());
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the conversation owner decides, not the selected assistant', (
+    tester,
+  ) async {
+    final controller = await pumpHarness(tester);
+    await tester.runAsync(() async {
+      await settings.resetSuggestionModel();
+      final workAssistantId = await assistantProvider.addAssistant(
+        name: 'Work Assistant',
+      );
+      await setAssistantSuggestionsEnabled(false, assistantId: workAssistantId);
+
+      final convo = await chatService.createConversation(
+        title: 'Work Chat',
+        assistantId: workAssistantId,
+      );
+      await chatService.updateConversationSuggestions(convo.id, const [
+        'Ship it',
+      ]);
+      // Switching selects the owner, so the selection is then moved away from
+      // the conversation's owner by hand: this is the cell a selection-based
+      // gate gets wrong.
+      await controller.debugViewModel.switchConversation(convo.id);
+      final personalAssistantId = assistantProvider.assistants
+          .firstWhere((a) => a.id != workAssistantId)
+          .id;
+      await assistantProvider.setCurrentAssistant(personalAssistantId);
+
+      expect(assistantProvider.currentAssistant!.suggestionsEnabled, isTrue);
+      expect(
+        controller.debugViewModel.currentConversation!.assistantId,
+        workAssistantId,
+      );
+      expect(
+        controller.debugViewModel.visibleChatSuggestions,
+        isEmpty,
+        reason: 'the chips belong to the conversation, not to the selection',
+      );
+
+      await setAssistantSuggestionsEnabled(true, assistantId: workAssistantId);
+      expect(controller.debugViewModel.visibleChatSuggestions, const [
+        'Ship it',
+      ]);
+    });
+    await tester.pumpWidget(const SizedBox());
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('an opt-out while the request is in flight discards the reply', (
+    tester,
+  ) async {
+    final controller = await pumpHarness(tester);
+    await tester.runAsync(() async {
+      await settings.resetSuggestionModel();
+      await setAssistantSuggestionsEnabled(true);
+      final viewModel = controller.debugViewModel;
+
+      // Control: with the same parked-response harness and no opt-out the
+      // reply is stored, so the discard below is the opt-out's doing.
+      final controlConversationId = await seedSettledReply();
+      var gate = Completer<void>();
+      responseGate = gate;
+      final controlRun = viewModel.debugMaybeGenerateSuggestionsFor(
+        controlConversationId,
+      );
+      await waitForSuggestionRequests(1);
+      gate.complete();
+      await controlRun;
+      expect(
+        chatService.getConversation(controlConversationId)!.chatSuggestions,
+        const ['Yes', 'Tell me more'],
+      );
+
+      final optedOutConversationId = await seedSettledReply();
+      gate = Completer<void>();
+      responseGate = gate;
+      final droppedRun = viewModel.debugMaybeGenerateSuggestionsFor(
+        optedOutConversationId,
+      );
+      await waitForSuggestionRequests(2);
+      // The reply is already on its way; the assistant opts out while it is.
+      await setAssistantSuggestionsEnabled(false);
+      gate.complete();
+      await droppedRun;
+
+      expect(
+        chatService.getConversation(optedOutConversationId)!.chatSuggestions,
+        isEmpty,
+        reason: 'a reply must not land after an opt-out that beat it',
       );
     });
     await tester.pumpWidget(const SizedBox());

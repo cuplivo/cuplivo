@@ -2140,6 +2140,35 @@ class HomeViewModel extends ChangeNotifier {
 
   final Map<String, Object> _suggestionRequests = {};
 
+  /// The one decision behind both the request and the rendered chips: resolve
+  /// the conversation's owning assistant, then apply the shared switch
+  /// predicate (global master ∧ per-assistant opt-out).
+  bool _suggestionsAllowedFor(
+    SettingsProvider settings,
+    AssistantProvider assistantProvider,
+    String? conversationAssistantId,
+  ) {
+    return settings.isSuggestionGenerationAllowedFor(
+      assistantProvider.resolveConversationAssistant(conversationAssistantId),
+    );
+  }
+
+  /// Suggestions the displayed conversation may render, or empty when the
+  /// effective switch is off. Rendering and generation must agree on which
+  /// assistant governs, so both resolve the owner here.
+  List<String> get visibleChatSuggestions {
+    final convo = currentConversation;
+    if (convo == null || convo.chatSuggestions.isEmpty) {
+      return const <String>[];
+    }
+    final allowed = _suggestionsAllowedFor(
+      _contextProvider.read<SettingsProvider>(),
+      _contextProvider.read<AssistantProvider>(),
+      convo.assistantId,
+    );
+    return allowed ? convo.chatSuggestions : const <String>[];
+  }
+
   Future<void> _clearSuggestionsFor(String conversationId) async {
     _suggestionRequests.remove(conversationId);
     final convo = _chatService.getConversation(conversationId);
@@ -2164,7 +2193,13 @@ class HomeViewModel extends ChangeNotifier {
     final assistant = assistantProvider.resolveConversationAssistant(
       convo.assistantId,
     );
-    if (!settings.isSuggestionGenerationAllowedFor(assistant)) return;
+    if (!_suggestionsAllowedFor(
+      settings,
+      assistantProvider,
+      convo.assistantId,
+    )) {
+      return;
+    }
     final chatModel = resolveChatModel(
       settings,
       conversation: convo,
@@ -2182,8 +2217,10 @@ class HomeViewModel extends ChangeNotifier {
     final prompt = settings.suggestionPrompt;
     bool isCurrent() =>
         identical(_suggestionRequests[conversationId], request) &&
-        settings.isSuggestionGenerationAllowedFor(
-          assistantProvider.resolveConversationAssistant(convo.assistantId),
+        _suggestionsAllowedFor(
+          settings,
+          assistantProvider,
+          convo.assistantId,
         ) &&
         settings.suggestionPrompt == prompt &&
         _chatService.getConversation(conversationId) != null &&

@@ -1028,6 +1028,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Enable streaming responses';
 
   @override
+  String get assistantEditChatSuggestionsTitle => 'Chat Suggestions';
+
+  @override
+  String get assistantEditChatSuggestionsTip =>
+      'Adds one request after each reply to propose up to three follow-ups. Off spends nothing.';
+
+  @override
+  String get assistantEditChatSuggestionsGlobalOff =>
+      'Inactive — turn on Chat Suggestions under Default Models first.';
+
+  @override
   String get assistantEditThinkingBudgetTitle => 'Thinking Budget';
 
   @override

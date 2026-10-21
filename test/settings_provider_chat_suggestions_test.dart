@@ -1,6 +1,8 @@
 import "support/business_test_harness.dart";
+
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 
 void main() {
@@ -114,5 +116,70 @@ void main() {
         isFalse,
       );
     });
+  });
+
+  group('SettingsProvider suggestion gate', () {
+    const optedIn = Assistant(id: 'assistant-on', name: 'On');
+    const optedOut = Assistant(
+      id: 'assistant-off',
+      name: 'Off',
+      suggestionsEnabled: false,
+    );
+
+    test(
+      'the global switch is the master and the assistant opts out',
+      () async {
+        final harness = await createBusinessTestHarness(initial: {});
+        final settings = SettingsProvider(harness.preferences);
+        await settings.loaded;
+
+        await settings.disableSuggestionGeneration();
+        expect(settings.isSuggestionGenerationAllowedFor(optedIn), isFalse);
+        expect(settings.isSuggestionGenerationAllowedFor(optedOut), isFalse);
+        // No assistant (an empty list) follows the global switch alone.
+        expect(settings.isSuggestionGenerationAllowedFor(null), isFalse);
+
+        await settings.resetSuggestionModel();
+        expect(settings.isSuggestionGenerationAllowedFor(optedIn), isTrue);
+        expect(settings.isSuggestionGenerationAllowedFor(null), isTrue);
+        expect(settings.isSuggestionGenerationAllowedFor(optedOut), isFalse);
+      },
+    );
+
+    test(
+      'a selected suggestion model does not override an assistant opt-out',
+      () async {
+        final harness = await createBusinessTestHarness(initial: {});
+        final settings = SettingsProvider(harness.preferences);
+        await settings.loaded;
+
+        await settings.setSuggestionModel('OpenAI', 'gpt-test');
+
+        expect(settings.isSuggestionGenerationAllowedFor(optedIn), isTrue);
+        expect(settings.isSuggestionGenerationAllowedFor(optedOut), isFalse);
+      },
+    );
+
+    test(
+      'the inactive note covers exactly one cell of the two switches',
+      () async {
+        final harness = await createBusinessTestHarness(initial: {});
+        final settings = SettingsProvider(harness.preferences);
+        await settings.loaded;
+
+        // Global off: only an assistant that still allows suggestions has
+        // something to explain.
+        await settings.disableSuggestionGeneration();
+        expect(settings.isSuggestionOptOutInactiveFor(optedIn), isTrue);
+        expect(settings.isSuggestionOptOutInactiveFor(optedOut), isFalse);
+        expect(settings.isSuggestionOptOutInactiveFor(null), isFalse);
+
+        // Global on: nothing is waiting on the master switch.
+        await settings.resetSuggestionModel();
+        expect(settings.isSuggestionOptOutInactiveFor(optedIn), isFalse);
+        expect(settings.isSuggestionOptOutInactiveFor(optedOut), isFalse);
+        expect(settings.isSuggestionOptOutInactiveFor(null), isFalse);
+      },
+    );
   });
 }

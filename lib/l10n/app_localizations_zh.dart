@@ -550,6 +550,36 @@ class AppLocalizationsZh extends AppLocalizations {
   String get languageDisplaySpanish => 'Español';
 
   @override
+  String get languageDisplayPortuguese => 'Português';
+
+  @override
+  String get languageDisplayRussian => 'Русский';
+
+  @override
+  String get languageDisplayArabic => 'العربية';
+
+  @override
+  String get languageDisplayHindi => 'हिन्दी';
+
+  @override
+  String get languageDisplayThai => 'ไทย';
+
+  @override
+  String get languageDisplayVietnamese => 'Tiếng Việt';
+
+  @override
+  String get languageDisplayBengali => 'বাংলা';
+
+  @override
+  String get translateLanguageManagerTitle => '管理语言';
+
+  @override
+  String get translateLanguageManagerSubtitle => '选择在翻译目标列表中显示的语言。';
+
+  @override
+  String get translateLanguageManagerAtLeastOne => '请至少保留一种语言。';
+
+  @override
   String get languageSelectSheetTitle => '选择翻译语言';
 
   @override
@@ -14051,6 +14081,36 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get languageDisplaySpanish => 'Español';
 
   @override
+  String get languageDisplayPortuguese => 'Português';
+
+  @override
+  String get languageDisplayRussian => 'Русский';
+
+  @override
+  String get languageDisplayArabic => 'العربية';
+
+  @override
+  String get languageDisplayHindi => 'हिन्दी';
+
+  @override
+  String get languageDisplayThai => 'ไทย';
+
+  @override
+  String get languageDisplayVietnamese => 'Tiếng Việt';
+
+  @override
+  String get languageDisplayBengali => 'বাংলা';
+
+  @override
+  String get translateLanguageManagerTitle => '管理语言';
+
+  @override
+  String get translateLanguageManagerSubtitle => '选择在翻译目标列表中显示的语言。';
+
+  @override
+  String get translateLanguageManagerAtLeastOne => '请至少保留一种语言。';
+
+  @override
   String get languageSelectSheetTitle => '选择翻译语言';
 
   @override
@@ -27476,6 +27536,36 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get languageDisplaySpanish => 'Español';
+
+  @override
+  String get languageDisplayPortuguese => 'Português';
+
+  @override
+  String get languageDisplayRussian => 'Русский';
+
+  @override
+  String get languageDisplayArabic => 'العربية';
+
+  @override
+  String get languageDisplayHindi => 'हिन्दी';
+
+  @override
+  String get languageDisplayThai => 'ไทย';
+
+  @override
+  String get languageDisplayVietnamese => 'Tiếng Việt';
+
+  @override
+  String get languageDisplayBengali => 'বাংলা';
+
+  @override
+  String get translateLanguageManagerTitle => '管理語言';
+
+  @override
+  String get translateLanguageManagerSubtitle => '選擇在翻譯目標清單中顯示的語言。';
+
+  @override
+  String get translateLanguageManagerAtLeastOne => '請至少保留一種語言。';
 
   @override
   String get languageSelectSheetTitle => '選擇翻譯語言';

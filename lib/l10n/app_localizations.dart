@@ -19695,6 +19695,12 @@ abstract class AppLocalizations {
   /// **'Restored {restored}, {skipped} already back'**
   String recycleBinGroupRestored(Object restored, Object skipped);
 
+  /// No description provided for @recycleBinGroupRestoreFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored {restored}, {failed} could not be restored'**
+  String recycleBinGroupRestoreFailed(Object failed, Object restored);
+
   /// No description provided for @recycleBinOpenDetail.
   ///
   /// In en, this message translates to:
@@ -19718,6 +19724,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Deleted'**
   String get recycleBinDetailWhen;
+
+  /// No description provided for @recycleBinDetailReplacedWhen.
+  ///
+  /// In en, this message translates to:
+  /// **'Replaced'**
+  String get recycleBinDetailReplacedWhen;
 
   /// No description provided for @recycleBinDetailSize.
   ///

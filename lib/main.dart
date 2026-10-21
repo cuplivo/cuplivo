@@ -327,7 +327,7 @@ Future<void> main() async {
       // logging.Logger.root.onRecord.listen((rec) { ... });
       // Cache current Documents directory to fix sandboxed absolute paths on iOS
       await SandboxPathResolver.init();
-      // The recycle bin is the app's to attach, not the gateway's (ADR-0014):
+      // The recycle bin is the app's to attach, not the gateway's (ADR-0015):
       // the gateway is what test harnesses acquire too, and a bin that writes
       // files after a delete returns has no business in every harness. The
       // workspace root rides along because restoring a staged file needs the
@@ -816,7 +816,7 @@ class MyApp extends StatelessWidget {
             reloader: ctx.read<BusinessStateReloader>(),
             syncDirectory: AppDirectories.getSyncDirectory,
             // The same bin the delete paths stage into: a workspace file a
-            // sync round replaces or removes goes here too (ADR-0014).
+            // sync round replaces or removes goes here too (ADR-0015).
             recycle: databaseLease.recycleService,
           ),
         ),

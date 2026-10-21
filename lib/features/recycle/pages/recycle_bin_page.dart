@@ -79,7 +79,9 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
     // when something is staged: an install that stops deleting still shrinks.
     await service.evict();
     final entries = await service.list();
-    final bytes = await service.totalBytes();
+    // Summed from the entries the list just read, rather than asking for a
+    // second scan of the whole bin for the same numbers.
+    final bytes = entries.fold<int>(0, (sum, entry) => sum + entry.sizeBytes);
     if (!mounted) return;
     setState(() {
       _entries = entries;

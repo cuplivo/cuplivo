@@ -1,4 +1,4 @@
-# ADR-0014: Recycle bin — undo a deletion and a losing last-write-wins comparison, with no schema change
+# ADR-0015: Recycle bin — undo a deletion and a losing last-write-wins comparison, with no schema change
 
 **Status:** Accepted (2026-xx)
 **Deciders:** cuplivo
@@ -67,7 +67,12 @@ deleted, and would put "your deleted conversation" into a peer's storage.
    through), so the capture is consistent with exactly what the cascade is about to remove and costs the
    delete a single round trip it does not notice. The *write* is detached: the operation hands the captured
    rows to the bin and returns, because the bin is a net held under the operation and the operation must
-   not wait for its own net. `BusinessRepository._deleteEntity` captures the row a user just removed;
+   not wait for its own net. Only the query itself is on the delete's path: turning SQLite's JSON into row
+   maps is linear in the conversation's size and happens in the detached write, because it used to run
+   inside the delete's transaction (measured on a 400-message, 800 KB conversation, best of three: the
+   hook's added latency was 19 ms before and 14 ms after, with the remaining cost being the query and the
+   string it builds — ~1 ms per 40 KB is the price of capturing inside the transaction at all).
+   `BusinessRepository._deleteEntity` captures the row a user just removed;
    `syncDeleteEntity` / `syncDeletePreference` capture the row a peer's plan is about to delete — the only
    shape a peer's deletion takes, since an edit made here re-sends instead; the two loss points in
    `syncApplyBusinessRows` capture the local row a peer's
@@ -111,11 +116,27 @@ deleted, and would put "your deleted conversation" into a peer's storage.
    identity are retired — all except the one a restore itself produced — so one row cannot be restored
    twice into two competing copies.
 
+   **For a conversation the clock that decides is the sync digest, and the row's `now()` was inert until
+   protocol v8.** The digest is computed from the message rows, so a restore that writes the row back with
+   `now()` and the messages back byte-identical left it unchanged — and the peer's announced deletion,
+   which compared digests only, deleted the restored conversation again at the next session (the plan said
+   `iSend`, the announcement rewrote it to `iDelete`). The announcement now carries the agreement's row
+   clock beside the digest, so a copy whose digest matches but whose row is newer counts as written here
+   since, which is what a restore is (ADR-0003). Nothing in the recycle bin changed for this: the restore
+   already stamped `now()`; the announcement had to start reading it.
+
 6. **The bin is bounded on three axes: 90 days, 256 MB, 1000 entries.** Eviction is oldest-first and runs
-   when something is staged and when the page opens, so an install that stops deleting still shrinks. The
-   entry just staged is exempt from eviction but still counted, because a cap that instantly ate the
-   newest deletion would make the newest mistake the one thing the bin could not show. A directory that no
-   longer parses is dropped by eviction rather than by listing: listing stays read-only.
+   when the page opens, so an install that stops deleting still shrinks, and once at the end of a staging
+   burst. It used to run on *every* staged entry, and eviction starts by reading and parsing the whole
+   bin — so an assistant's cascade, one entry per conversation, was O(entries × bin size): measured at
+   ~90 ms per entry into an empty bin and ~190 ms into one holding ~220 entries, i.e. 1.8 s and 3.8 s for a
+   twenty-conversation cascade. Staging now only *asks* for a sweep, and `RecycleService` runs it when the
+   burst's last write lands: the same twenty entries cost one scan (226 ms into an empty bin, 570 ms into a
+   full one, and the remaining cost is the entry writes). The caps therefore hold a moment after the burst
+   rather than after each write — the same "eventually" the writes themselves already had. The entry just
+   staged is exempt from eviction but still counted, because a cap that instantly ate the newest deletion
+   would make the newest mistake the one thing the bin could not show. A directory that no longer parses is
+   dropped by eviction rather than by listing: listing stays read-only.
 
 7. **It has a screen, reached from Storage space, and it does not count as reclaimable space.** The bin is
    a managed category there (v3's shape: `TrashDetailPage` hosted by the storage page) that reports what it
@@ -213,8 +234,13 @@ deleted, and would put "your deleted conversation" into a peer's storage.
   goes through the same delete funnel). Restoring the assistant does not itself restore its conversations:
   they are their own entries. What joins them is the group (decision 8).
 - Restoring a *peer's* deletion undoes it on the peer too: this device re-enters its manifest with a fresh
-  clock, so the deletion the peer made is re-learned as an edit and the row comes back everywhere. That is
-  what "recover" means here; the bin itself never travels.
+  row clock, the announcing peer now reads that clock beside the digest (protocol v8), so the deletion it
+  made is re-learned as an edit and the conversation comes back everywhere. That is what "recover" means
+  here; the bin itself never travels. Two limits worth knowing: a conversation with no message rows has no
+  digest to move, so for it the clock is the only signal — which is exactly why the clock is compared — and
+  a device whose clock lags the announcing one by more than the agreement can absorb will see the restored
+  copy deleted again (it is staged into the bin once more, so it is recoverable, and the skew is what the
+  session report already warns about).
 - A full restore (overwrite) replaces the database while the bin stays on disk. Its entries then describe
   ids that may not exist in the restored state; restoring one is an upsert, so the outcome is a new row
   rather than a corrupted one.
@@ -246,3 +272,10 @@ deleted, and would put "your deleted conversation" into a peer's storage.
   act about a workspace, not N deletions of files: staging it would fill the caps with a single action and
   evict everything else in the bin, and the workspace's own row is staged through the ordinary entity path
   so the deletion itself is still recoverable. What is lost with the folder is the files in it.
+- Staging `generation_run_rows`. A run is process bookkeeping for a generation that is happening now, not
+  history the user could want back: the delete removes those rows with the messages they target
+  (`target_revision_id`), and a restored run would describe a stream no writer is feeding. Decision 3's list
+  of tables is therefore what the *capture* recovers, not an exhaustive map of everything a delete touches.
+- A lazily laid-out preview. The detail page draws its budgeted body as one selectable block, so a
+  conversation whose body reaches the 200 KB cap is one very tall paragraph; splitting it into lazy rows or
+  lowering the cap are both open, and neither is worth doing before someone measures a frame time.

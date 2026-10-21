@@ -380,7 +380,12 @@ class _RecycleEntryDetailPageState extends State<RecycleEntryDetailPage> {
               '${_kindLabel(l10n)} · ${_originLabel(l10n)}',
             ),
             _field(
-              l10n.recycleBinDetailWhen,
+              // A losing comparison was replaced, not deleted: a "Deleted" label
+              // above an origin line that says "replaced by a newer copy" reads
+              // as a contradiction on the page that decides a restore.
+              _entry.reason == RecycleReason.overwritten
+                  ? l10n.recycleBinDetailReplacedWhen
+                  : l10n.recycleBinDetailWhen,
               _stampFormat.format(_entry.deletedAt.toLocal()),
             ),
             _field(l10n.recycleBinDetailSize, formatBytes(_entry.sizeBytes)),

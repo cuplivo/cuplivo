@@ -10510,6 +10510,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String recycleBinGroupRestoreFailed(Object failed, Object restored) {
+    return '已恢复 $restored 项，$failed 项未能恢复';
+  }
+
+  @override
   String get recycleBinOpenDetail => '查看详情';
 
   @override
@@ -10520,6 +10525,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get recycleBinDetailWhen => '删除时间';
+
+  @override
+  String get recycleBinDetailReplacedWhen => '替换时间';
 
   @override
   String get recycleBinDetailSize => '占用';
@@ -24156,6 +24164,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
+  String recycleBinGroupRestoreFailed(Object failed, Object restored) {
+    return '已恢复 $restored 项，$failed 项未能恢复';
+  }
+
+  @override
   String get recycleBinOpenDetail => '查看详情';
 
   @override
@@ -24166,6 +24179,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get recycleBinDetailWhen => '删除时间';
+
+  @override
+  String get recycleBinDetailReplacedWhen => '替换时间';
 
   @override
   String get recycleBinDetailSize => '占用';
@@ -37878,6 +37894,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String recycleBinGroupRestoreFailed(Object failed, Object restored) {
+    return '已還原 $restored 項，$failed 項未能還原';
+  }
+
+  @override
   String get recycleBinOpenDetail => '檢視詳情';
 
   @override
@@ -37888,6 +37909,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get recycleBinDetailWhen => '刪除時間';
+
+  @override
+  String get recycleBinDetailReplacedWhen => '替換時間';
 
   @override
   String get recycleBinDetailSize => '佔用';

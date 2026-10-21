@@ -118,6 +118,25 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// Waits for the toast a restore shows and hands back everything queued.
+  ///
+  /// Polled in 5 ms steps on purpose: the manager's list is real state, but the
+  /// toast's auto-dismiss timer runs on the tester's fake clock, so a wait that
+  /// spends seconds of fake time watches the toast it is waiting for disappear.
+  Future<List<AppNotification>> pumpUntilToasts(WidgetTester tester) async {
+    for (var attempt = 0; attempt < 400; attempt++) {
+      final toasts = AppSnackBarManager().activeToasts;
+      if (toasts.isNotEmpty) {
+        return [for (final entry in toasts) entry.notification];
+      }
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump(const Duration(milliseconds: 5));
+    }
+    fail('no toast appeared');
+  }
+
   Future<void> stageConversation(
     WidgetTester tester,
     String id,
@@ -282,13 +301,13 @@ void main() {
     expect(find.text('Restore all'), findsOneWidget);
 
     await tester.tap(find.text('Restore all'));
-    await pumpUntilBinSize(tester, 1);
-    await pumpUntilGone(tester, find.text('Restore all'));
-
     // One report for the act. The page used to loop the single-entry action,
     // which queued one toast per conversation and then a summary on top of them
     // — three conversations meant four toasts.
-    expect(AppSnackBarManager().activeToasts, hasLength(1));
+    final toasts = await pumpUntilToasts(tester);
+    expect(toasts, hasLength(1));
+    await pumpUntilBinSize(tester, 1);
+    await pumpUntilGone(tester, find.text('Restore all'));
 
     // Only the assistant's own entry is left, and the header went with the
     // conversations it described.
@@ -301,6 +320,94 @@ void main() {
     expect(restored?.read<int>('n'), 3);
 
     await drainSnackBar(tester);
+  });
+
+  testWidgets('a group restore says what could not be restored', (
+    tester,
+  ) async {
+    final group = RecycleGroup(id: 'g1', label: 'Delete Me');
+    await stageConversation(tester, 'c1', 'First', group: group);
+    await stageConversation(tester, 'c2', 'Second', group: group);
+    // A damaged copy in the same group: `restore` reports `unreadable` and the
+    // entry stays in the bin. It is not "already back", and saying so would be a
+    // lie about a recovery that did not happen.
+    final broken = await tester.runAsync(
+      () => store.stageRows(
+        type: RecycleEntryType.conversation,
+        origin: RecycleOrigin.local,
+        reason: RecycleReason.deleted,
+        key: 'broken',
+        title: 'Broken',
+        group: group,
+        tables: {
+          'conversation_rows': [
+            {
+              'id': 'broken',
+              'title': 'Broken',
+              'created_at': 1,
+              'updated_at': 1,
+            },
+          ],
+        },
+      ),
+    );
+    // Written through `runAsync`: real file I/O does not progress on the widget
+    // tester's fake clock, and a body that is still valid would restore cleanly.
+    await tester.runAsync(
+      () => File(
+        '${binRoot.path}/${broken!.id}/body.json',
+      ).writeAsString('{ not json'),
+    );
+
+    await pumpPage(tester);
+    await pumpUntilFound(tester, find.text('Broken'));
+
+    await tester.tap(find.text('Restore all'));
+
+    final toasts = await pumpUntilToasts(tester);
+    expect(toasts, hasLength(1));
+    expect(
+      toasts.single.message,
+      'Restored 2, 1 could not be restored',
+      reason: 'a copy that could not be restored is not "already back"',
+    );
+
+    // The damaged entry stays in the bin: it was not restored, so it was not
+    // retired either.
+    await pumpUntilBinSize(tester, 1);
+    await drainSnackBar(tester);
+  });
+
+  testWidgets('an entry a merge replaced says so, not "Deleted"', (
+    tester,
+  ) async {
+    await tester.runAsync(
+      () => store.stageRows(
+        type: RecycleEntryType.preference,
+        origin: RecycleOrigin.remote,
+        reason: RecycleReason.overwritten,
+        key: 'user_name',
+        title: 'user_name',
+        tables: {
+          'preference_rows': [
+            {'key': 'user_name', 'value': '"Mine"', 'updated_at': 1},
+          ],
+        },
+      ),
+    );
+
+    await pumpPage(tester);
+    await pumpUntilFound(tester, find.text('user_name'));
+    await tester.tap(find.text('user_name'));
+    await pumpUntilFound(tester, find.text('Contents'));
+
+    // Nothing was deleted: the row two fields up says it was replaced, and the
+    // date under this label is when that happened.
+    expect(find.text('Replaced'), findsOneWidget);
+    expect(find.text('Deleted'), findsNothing);
+
+    tester.state<NavigatorState>(find.byType(Navigator)).pop();
+    await tester.pumpAndSettle();
   });
 
   testWidgets('tapping a row opens what it holds, and the info button explains '

@@ -10980,6 +10980,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String recycleBinGroupRestoreFailed(Object failed, Object restored) {
+    return 'Restored $restored, $failed could not be restored';
+  }
+
+  @override
   String get recycleBinOpenDetail => 'View details';
 
   @override
@@ -10990,6 +10995,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recycleBinDetailWhen => 'Deleted';
+
+  @override
+  String get recycleBinDetailReplacedWhen => 'Replaced';
 
   @override
   String get recycleBinDetailSize => 'Size';

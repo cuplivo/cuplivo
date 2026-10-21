@@ -48,41 +48,58 @@ Future<RecycleRestoreOutcome> restoreRecycleEntry(
 
 /// Restores a whole deletion event as one act: one refresh, one report.
 ///
-/// Every entry keeps its own outcome — a damaged copy, or an identity that is
-/// back already, is skipped rather than folded into a batch that can only say
-/// "some of it worked" — but the user hears about the act *once*. A per-entry
-/// toast is what a loop over [restoreRecycleEntry] produces, and it buries the
-/// summary it then shows under N copies of itself.
-Future<({int restored, int skipped})> restoreRecycleGroup(
+/// Every entry keeps its own outcome — a damaged copy is *not* "already back" —
+/// but the user hears about the act *once*. A per-entry toast is what a loop over
+/// [restoreRecycleEntry] produces, and it buries the summary it then shows under
+/// N copies of itself. The three counts keep the summary honest: an entry that
+/// could not be restored stays in the bin and is reported as such, rather than
+/// folded into the "already back" bucket where it would look like a success.
+Future<({int restored, int skipped, int failed})> restoreRecycleGroup(
   BuildContext context, {
   required RecycleService service,
   required List<RecycleEntry> entries,
 }) async {
   var restored = 0;
   var skipped = 0;
+  var failed = 0;
   final targets = _RefreshTargets();
   for (final entry in entries) {
     final outcome = await _restoreOne(service, entry);
     if (outcome == RecycleRestoreOutcome.restored) {
       restored++;
       targets.add(entry);
-    } else {
+    } else if (outcome == RecycleRestoreOutcome.skippedExisting) {
       skipped++;
+    } else {
+      // `unreadable`, `unsupported`, `workspaceGone`, `failed`: the entry is
+      // still there because it could not be brought back, which is not "already
+      // back" and must not be reported as such.
+      failed++;
     }
   }
   if (context.mounted) await _refreshAfterRestore(context, targets);
-  if (!context.mounted) return (restored: restored, skipped: skipped);
+  if (!context.mounted) {
+    return (restored: restored, skipped: skipped, failed: failed);
+  }
   final l10n = AppLocalizations.of(context);
-  if (l10n == null) return (restored: restored, skipped: skipped);
+  if (l10n == null) {
+    return (restored: restored, skipped: skipped, failed: failed);
+  }
   // One report for the act: the rows are already the proof of what came back.
   showAppSnackBar(
     context,
-    message: skipped == 0
-        ? l10n.recycleBinRestored
-        : l10n.recycleBinGroupRestored(restored, skipped),
-    type: skipped == 0 ? NotificationType.success : NotificationType.warning,
+    message: failed > 0
+        // gen-l10n orders a key's placeholders by name, not by their position in
+        // the message: this one is (failed, restored).
+        ? l10n.recycleBinGroupRestoreFailed(failed, restored)
+        : skipped > 0
+        ? l10n.recycleBinGroupRestored(restored, skipped)
+        : l10n.recycleBinRestored,
+    type: failed > 0 || skipped > 0
+        ? NotificationType.warning
+        : NotificationType.success,
   );
-  return (restored: restored, skipped: skipped);
+  return (restored: restored, skipped: skipped, failed: failed);
 }
 
 /// One restore, with no UI at all: a throw is `failed`, and the entry is

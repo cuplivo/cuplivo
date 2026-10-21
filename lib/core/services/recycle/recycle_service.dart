@@ -81,13 +81,15 @@ final class RecycleService {
   /// a path.
   final Future<Directory> Function(String workspaceId)? _workspaceRoot;
 
-  /// Tables a conversation delete cascades into, each with the column that ties
-  /// its rows to the conversation — and, for a table that hosts more than one
-  /// kind of row, the `kind` that picks this conversation's own.
+  /// Tables a conversation snapshot recovers, each with the column that ties its
+  /// rows to the conversation — and, for a table that hosts more than one kind
+  /// of row, the `kind` that picks this conversation's own.
   ///
-  /// This list is the whole of a conversation snapshot: a table that is not
-  /// here is not recovered, which is why it names the cascade targets
-  /// explicitly rather than walking foreign keys.
+  /// This list is the whole of a conversation snapshot: a table that is not here
+  /// is not recovered. It is deliberately **not** an exhaustive map of what a
+  /// delete removes: `generation_run_rows` goes with the messages it targets and
+  /// is not staged, because a run is bookkeeping for a stream that is happening
+  /// now rather than history a user could want back (ADR-0015, "Not in scope").
   static const List<({String table, String column, String? kind})>
   _conversationTables = [
     (table: 'conversation_rows', column: 'id', kind: null),
@@ -121,9 +123,13 @@ final class RecycleService {
   /// Stages the whole subtree of a conversation that is about to be deleted.
   ///
   /// Called from inside the delete's transaction, before the row goes, so what
-  /// is staged is what the cascade is about to remove. The capture is part of
-  /// that transaction; the write is [detached][_detach], because the delete is
-  /// something the user is waiting for and the bin is only its safety net.
+  /// is staged is what the cascade is about to remove. Only the **query** waits
+  /// for that transaction; decoding its JSON into row maps and writing the entry
+  /// are [detached][_detach], because the delete is something the user is
+  /// waiting for and the bin is only its safety net. The decode used to sit on
+  /// the delete's own path, where it cost about a millisecond per 40 KB of
+  /// message content — linear in the conversation, and paid on the UI isolate
+  /// inside the write transaction.
   Future<void> stageConversationDeletion(
     String conversationId, {
     required RecycleOrigin origin,
@@ -131,12 +137,14 @@ final class RecycleService {
   }) async {
     if (conversationId.isEmpty) return;
     try {
-      final tables = await _readConversationSubtree(conversationId);
-      // No conversation row means there is nothing this id owns to preserve.
-      if (tables == null) return;
-      final title = tables['conversation_rows']!.first['title'];
-      _detach(
-        () => _store.stageRows(
+      final subtree = await _readConversationSubtree(conversationId);
+      if (subtree == null) return;
+      _detach(() async {
+        final tables = _decodeConversationSubtree(subtree);
+        // No conversation row means there is nothing this id owns to preserve.
+        if (tables == null) return;
+        final title = tables['conversation_rows']!.first['title'];
+        await _store.stageRows(
           type: RecycleEntryType.conversation,
           origin: origin,
           reason: RecycleReason.deleted,
@@ -144,8 +152,8 @@ final class RecycleService {
           title: title is String ? title : '',
           tables: tables,
           group: group,
-        ),
-      );
+        );
+      });
     } catch (error) {
       debugPrint(
         'recycle: staging conversation $conversationId failed: $error',
@@ -251,19 +259,31 @@ final class RecycleService {
         'recycle: staging the workspace file "$relPath" failed: $error',
       );
       return null;
+    } finally {
+      // This path is awaited rather than detached, so nothing else will notice
+      // that the burst ended, and the caller is already paying for a file move:
+      // one scan for the whole burst is the price of the caps holding.
+      await _sweepWhenSettled();
     }
   }
 
-  /// Waits for every bin write this service has started.
+  /// Waits for every bin write this service has started, and for the sweep those
+  /// writes scheduled.
   ///
   /// Production never needs this — the writes are the bin's own business — but
   /// a test that asserts what the bin holds after an operation has to let that
-  /// operation's net finish first.
+  /// operation's net finish first. The sweep is part of the net: staging
+  /// coalesces eviction instead of running it per entry, so a test that asserts
+  /// the caps would otherwise read a bin that has not been swept yet.
   @visibleForTesting
   Future<void> settle() async {
-    while (_pending.isNotEmpty) {
-      await Future.wait<void>(_pending.toList());
+    while (_pending.isNotEmpty || _sweeping != null) {
+      await Future.wait<void>([
+        ..._pending,
+        if (_sweeping case final sweep?) sweep,
+      ]);
     }
+    await _store.settle();
   }
 
   /// Starts a bin write without putting it on the caller's path.
@@ -277,7 +297,30 @@ final class RecycleService {
       debugPrint('recycle: a background write failed: $error');
     });
     _pending.add(pending);
-    unawaited(pending.whenComplete(() => _pending.remove(pending)));
+    unawaited(
+      pending.whenComplete(() {
+        _pending.remove(pending);
+        unawaited(_sweepWhenSettled());
+      }),
+    );
+  }
+
+  /// The sweep with the filesystem right now, so [settle] can wait for it.
+  Future<void>? _sweeping;
+
+  /// Runs the sweep staging asked for once the burst's last write has landed.
+  ///
+  /// A burst is what the service knows about: an assistant's cascade launches one
+  /// write per conversation, so the bin's eviction waits for the last of them
+  /// instead of scanning the whole bin once per entry. A single staged entry is a
+  /// burst of one, and sweeps immediately.
+  Future<void> _sweepWhenSettled() {
+    if (_pending.isNotEmpty) return Future<void>.value(); // still writing
+    final sweep = _store.sweepIfPending().whenComplete(() {
+      _sweeping = null;
+    });
+    _sweeping = sweep;
+    return sweep;
   }
 
   /// A conversation's whole subtree, read in **one** statement.
@@ -288,10 +331,12 @@ final class RecycleService {
   /// is the point: this runs inside the deletion's transaction, and every
   /// `await` on that path is a turn the user's delete pays for.
   ///
-  /// Returns null when there is no conversation row — nothing this id owns.
-  Future<Map<String, List<Map<String, Object?>>>?> _readConversationSubtree(
-    String conversationId,
-  ) async {
+  /// Returns the JSON as SQLite built it, still encoded:
+  /// [_decodeConversationSubtree] turns it into row maps *outside* that
+  /// transaction. Decoding used to happen here, which put work proportional to
+  /// the whole conversation — a few tens of a millisecond per megabyte, measured
+  /// — on the delete's own path.
+  Future<String?> _readConversationSubtree(String conversationId) async {
     final projections = <String>[
       for (final entry in _conversationTables)
         "'${entry.table}', (SELECT COALESCE(json_group_array("
@@ -310,10 +355,17 @@ final class RecycleService {
           ],
         )
         .getSingleOrNull();
-    if (row == null) return null;
+    return row?.read<String>('subtree');
+  }
+
+  /// The staged tables of one captured subtree, or null when the capture holds
+  /// no conversation row (nothing this id owns) or no longer parses.
+  Map<String, List<Map<String, Object?>>>? _decodeConversationSubtree(
+    String subtree,
+  ) {
     final Object? decoded;
     try {
-      decoded = jsonDecode(row.read<String>('subtree'));
+      decoded = jsonDecode(subtree);
     } on FormatException {
       return null;
     }

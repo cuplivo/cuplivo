@@ -375,7 +375,7 @@ class RecycleStore {
       moveSource: null,
     );
     if (!staged) return null;
-    await evict(keepId: id);
+    requestSweep(id);
     return _entry(
       id: id,
       type: type,
@@ -474,7 +474,7 @@ class RecycleStore {
       moveSource: source,
     );
     if (!staged) return null;
-    await evict(keepId: id);
+    requestSweep(id);
     return _entry(
       id: id,
       type: RecycleEntryType.workspaceFile,
@@ -604,6 +604,9 @@ class RecycleStore {
   /// newest deletion the one thing the bin cannot show. It still counts toward
   /// the caps, so a bin that is over budget by exactly one oversized entry does
   /// not thrash.
+  ///
+  /// Staging does not call this directly — see [_scheduleSweep]. A caller that
+  /// wants the caps enforced *now* (the bin page opening) still can.
   Future<int> evict({String? keepId, DateTime? now}) async {
     final root = await _directory();
     if (!await root.exists()) return 0;
@@ -630,6 +633,52 @@ class RecycleStore {
     }
     return removed;
   }
+
+  /// Whether a staged entry is waiting for the next sweep, so a burst costs one.
+  ///
+  /// A cascade stages one entry per conversation, and eviction starts with a
+  /// [`_scan`] that reads and parses every entry in the bin — so sweeping per
+  /// entry made a burst O(entries × bin size): measured at ~90 ms per entry into
+  /// an empty bin and ~190 ms into one holding ~220 entries. Staging therefore
+  /// only *asks* for a sweep ([requestSweep]); `RecycleService` runs it when its
+  /// last detached write lands, which is one scan per burst. The caps hold a
+  /// moment after the burst rather than after each write, the same "eventually"
+  /// [RecycleService.settle] already documents for the writes themselves.
+  bool _sweepPending = false;
+
+  /// The newest entry of the burst in flight: the one eviction must not take.
+  String? _sweepKeepId;
+
+  /// Sweeps seen, so a test can prove a burst costs one rather than one each.
+  @visibleForTesting
+  int scanCount = 0;
+
+  /// Notes that [keepId] needs a sweep soon. Cheap by design: no I/O, no timer.
+  void requestSweep(String keepId) {
+    _sweepPending = true;
+    _sweepKeepId = keepId;
+  }
+
+  /// Runs the sweep [requestSweep] asked for, if one is waiting.
+  Future<void> sweepIfPending() async {
+    if (!_sweepPending) return;
+    _sweepPending = false;
+    final keepId = _sweepKeepId;
+    _sweepKeepId = null;
+    try {
+      await evict(keepId: keepId);
+    } catch (error) {
+      debugPrint('recycle: a sweep failed: $error');
+    }
+  }
+
+  /// Runs a pending sweep now and waits for it.
+  ///
+  /// Production never calls this — eviction is the bin's own business — but a
+  /// test that asserts the caps after staging has to let the coalesced sweep
+  /// land first. [RecycleService.settle] chains it for the same reason it
+  /// awaits the writes.
+  Future<void> settle() => sweepIfPending();
 
   /// Bytes the bin currently holds, as the entries report themselves.
   Future<int> totalBytes() async {
@@ -824,6 +873,7 @@ class RecycleStore {
   /// here would turn a transient lock into a permanent loss of the one copy the
   /// bin holds. It stays, and the next pass reads it.
   Future<({List<RecycleEntry> entries, List<String> orphans})> _scan() async {
+    scanCount++;
     final root = await _directory();
     if (!await root.exists()) {
       return (entries: const <RecycleEntry>[], orphans: const <String>[]);

@@ -237,10 +237,32 @@ void main() {
           ],
         },
       );
+      // Staging coalesces its eviction: the caps hold once the burst's sweep
+      // lands, not after every write.
+      await bounded.settle();
 
       final kept = (await bounded.list()).map((entry) => entry.key);
       expect(kept, containsAll(<String>['second', 'third']));
       expect(kept, isNot(contains('first')));
+    });
+
+    test('a burst of staging costs one sweep, not one per entry', () async {
+      // The shape an assistant's cascade produces: one entry per conversation,
+      // staged back to back. Each sweep reads every entry in the bin, so a sweep
+      // per entry made the burst quadratic in the bin's size.
+      for (var i = 0; i < 20; i++) {
+        await stageEntity('burst-$i');
+      }
+      expect(store.scanCount, 0, reason: 'staging no longer sweeps by itself');
+      expect(await store.list(), hasLength(20));
+
+      final scansBefore = store.scanCount;
+      await store.settle();
+      expect(
+        store.scanCount - scansBefore,
+        1,
+        reason: 'twenty staged entries are one sweep, not twenty',
+      );
     });
 
     test('an unreadable entry is reclaimed by evict, not by list', () async {

@@ -3883,6 +3883,11 @@ Generate or update a brief summary of the user's questions and intentions.
   String? get suggestionModelProvider => _suggestionModelProvider;
   String? get suggestionModelId => _suggestionModelId;
   bool get isSuggestionGenerationEnabled => _suggestionGenerationEnabled;
+
+  /// The one gate shared by generation and rendering: the global switch is the
+  /// master, an assistant can only opt out of it.
+  bool isSuggestionGenerationAllowedFor(Assistant? assistant) =>
+      _suggestionGenerationEnabled && (assistant?.suggestionsEnabled ?? true);
   String? get suggestionModelKey =>
       (_suggestionModelProvider != null && _suggestionModelId != null)
       ? '${_suggestionModelProvider!}::${_suggestionModelId!}'

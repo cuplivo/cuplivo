@@ -962,6 +962,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assistantEditStreamOutputDescription => '是否启用消息的流式输出';
 
   @override
+  String get assistantEditChatSuggestionsTitle => '聊天建议';
+
+  @override
+  String get assistantEditChatSuggestionsTip =>
+      '每次助手回复后额外发一条请求，生成最多三条后续建议；关闭则不再请求。';
+
+  @override
+  String get assistantEditChatSuggestionsGlobalOff => '未生效：请先在「默认模型」中开启聊天建议。';
+
+  @override
   String get assistantEditThinkingBudgetTitle => '思考预算';
 
   @override
@@ -14463,6 +14473,16 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get assistantEditStreamOutputDescription => '是否启用消息的流式输出';
 
   @override
+  String get assistantEditChatSuggestionsTitle => '聊天建议';
+
+  @override
+  String get assistantEditChatSuggestionsTip =>
+      '每次助手回复后额外发一条请求，生成最多三条后续建议；关闭则不再请求。';
+
+  @override
+  String get assistantEditChatSuggestionsGlobalOff => '未生效：请先在「默认模型」中开启聊天建议。';
+
+  @override
   String get assistantEditThinkingBudgetTitle => '思考预算';
 
   @override
@@ -27888,6 +27908,16 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get assistantEditStreamOutputDescription => '是否啟用訊息的串流輸出';
+
+  @override
+  String get assistantEditChatSuggestionsTitle => '聊天建議';
+
+  @override
+  String get assistantEditChatSuggestionsTip =>
+      '每次助手回覆後額外發一條請求，生成最多三條後續建議；關閉則不再請求。';
+
+  @override
+  String get assistantEditChatSuggestionsGlobalOff => '未生效：請先在「預設模型」中開啟聊天建議。';
 
   @override
   String get assistantEditThinkingBudgetTitle => '思考預算';

@@ -1435,7 +1435,9 @@ class _HomePageState extends State<HomePage>
     }
 
     final settings = context.watch<SettingsProvider>();
-    final suggestionsEnabled = settings.isSuggestionGenerationEnabled;
+    final suggestionsEnabled = settings.isSuggestionGenerationAllowedFor(
+      assistant,
+    );
     return MessageListView(
       footer: footer,
       processingFilesMessageId: _controller.processingFilesMessageId,

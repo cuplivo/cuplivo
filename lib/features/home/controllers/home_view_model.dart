@@ -1856,6 +1856,11 @@ class HomeViewModel extends ChangeNotifier {
     bool force = false,
   }) => _maybeGenerateTitleFor(conversationId, force: force);
 
+  /// Test entry for [_maybeGenerateSuggestionsFor].
+  @visibleForTesting
+  Future<void> debugMaybeGenerateSuggestionsFor(String conversationId) =>
+      _maybeGenerateSuggestionsFor(conversationId);
+
   @visibleForTesting
   static int computeClearContextRemainingMessageCount({
     required int totalMessages,
@@ -2153,13 +2158,13 @@ class HomeViewModel extends ChangeNotifier {
     if (convo == null) return;
 
     final settings = _contextProvider.read<SettingsProvider>();
-    if (!settings.isSuggestionGenerationEnabled) return;
 
     // Read context-dependent inputs before the async gap below.
     final assistantProvider = _contextProvider.read<AssistantProvider>();
     final assistant = assistantProvider.resolveConversationAssistant(
       convo.assistantId,
     );
+    if (!settings.isSuggestionGenerationAllowedFor(assistant)) return;
     final chatModel = resolveChatModel(
       settings,
       conversation: convo,
@@ -2177,7 +2182,9 @@ class HomeViewModel extends ChangeNotifier {
     final prompt = settings.suggestionPrompt;
     bool isCurrent() =>
         identical(_suggestionRequests[conversationId], request) &&
-        settings.isSuggestionGenerationEnabled &&
+        settings.isSuggestionGenerationAllowedFor(
+          assistantProvider.resolveConversationAssistant(convo.assistantId),
+        ) &&
         settings.suggestionPrompt == prompt &&
         _chatService.getConversation(conversationId) != null &&
         _chatService.getContextStartIndex(conversationId) == truncateIndex;

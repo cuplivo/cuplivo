@@ -1924,6 +1924,24 @@ abstract class AppLocalizations {
   /// **'Enable streaming responses'**
   String get assistantEditStreamOutputDescription;
 
+  /// No description provided for @assistantEditChatSuggestionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat Suggestions'**
+  String get assistantEditChatSuggestionsTitle;
+
+  /// No description provided for @assistantEditChatSuggestionsTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Adds one request after each reply to propose up to three follow-ups. Off spends nothing.'**
+  String get assistantEditChatSuggestionsTip;
+
+  /// No description provided for @assistantEditChatSuggestionsGlobalOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Inactive — turn on Chat Suggestions under Default Models first.'**
+  String get assistantEditChatSuggestionsGlobalOff;
+
   /// No description provided for @assistantEditThinkingBudgetTitle.
   ///
   /// In en, this message translates to:

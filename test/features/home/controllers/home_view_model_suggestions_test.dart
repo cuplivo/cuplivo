@@ -1,0 +1,313 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:drift/drift.dart' show driftRuntimeOptions;
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+// ignore: depend_on_referenced_packages
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:provider/provider.dart';
+
+import '../../../support/business_test_harness.dart';
+
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/mcp/mcp_tool_service.dart';
+import 'package:Cuplivo/features/home/controllers/home_page_controller.dart';
+import 'package:Cuplivo/features/home/controllers/scroll_controller.dart';
+import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+
+import '../../../support/temp_directory_cleanup.dart';
+
+class _FakePathProviderPlatform extends PathProviderPlatform {
+  _FakePathProviderPlatform(this.path);
+
+  final String path;
+
+  @override
+  Future<String?> getApplicationDocumentsPath() async => path;
+
+  @override
+  Future<String?> getApplicationSupportPath() async => path;
+
+  @override
+  Future<String?> getApplicationCachePath() async => '$path/cache';
+
+  @override
+  Future<String?> getTemporaryPath() async => '$path/tmp';
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+
+  late Directory directory;
+  late PathProviderPlatform previousPathProvider;
+  late ChatDatabaseRepository repository;
+  late ChatService chatService;
+  late HttpServer server;
+  late SettingsProvider settings;
+  late AssistantProvider assistantProvider;
+  var generateTextRequestCount = 0;
+
+  Future<void> handleApiRequest(HttpRequest request) async {
+    final body =
+        jsonDecode(await utf8.decoder.bind(request).join())
+            as Map<String, dynamic>;
+    if (body['stream'] != true) {
+      generateTextRequestCount++;
+    }
+    request.response.statusCode = HttpStatus.ok;
+    request.response.headers.contentType = ContentType.json;
+    request.response.write(
+      jsonEncode({
+        'choices': [
+          {
+            'message': {
+              'content': jsonEncode({
+                'suggestions': ['Yes', 'Tell me more'],
+              }),
+            },
+          },
+        ],
+      }),
+    );
+    await request.response.close();
+  }
+
+  setUp(() async {
+    directory = await Directory.systemTemp.createTemp('kelivo_suggestions_');
+    previousPathProvider = PathProviderPlatform.instance;
+    PathProviderPlatform.instance = _FakePathProviderPlatform(directory.path);
+    HttpOverrides.global = null;
+    repository = ChatDatabaseRepository.open(
+      file: File('${directory.path}/kelivo.db'),
+    );
+    await repository.ensureReady();
+    chatService = ChatService(existingRepository: repository);
+    await chatService.init();
+    generateTextRequestCount = 0;
+    server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen(handleApiRequest);
+  });
+
+  tearDown(() async {
+    PathProviderPlatform.instance = previousPathProvider;
+    try {
+      await server.close(force: true);
+    } catch (_) {}
+    try {
+      await chatService.close().timeout(const Duration(seconds: 10));
+    } catch (_) {}
+    try {
+      await repository.close().timeout(const Duration(seconds: 10));
+    } catch (_) {}
+    await deleteDirectoryWhenReleased(directory, keepLockedLeftovers: true);
+  });
+
+  Future<HomePageController> pumpHarness(WidgetTester tester) async {
+    HomePageController? controller;
+    final baseUrl = 'http://${server.address.address}:${server.port}/v1';
+    await tester.runAsync(() async {
+      final settingsPrefs = createBusinessTestPreferences();
+      await settingsPrefs.load();
+      settings = SettingsProvider(settingsPrefs);
+      await settings.loaded;
+      await settings.setProviderConfig(
+        'SiliconFlow',
+        ProviderConfig(
+          id: 'SiliconFlow',
+          enabled: true,
+          name: 'SiliconFlow',
+          apiKey: 'suggestion-test-key',
+          baseUrl: baseUrl,
+          providerType: ProviderKind.openai,
+        ),
+      );
+      await settings.setCurrentModel('SiliconFlow', 'test-model');
+
+      final assistantPrefs = createBusinessTestPreferences();
+      await assistantPrefs.load();
+      assistantProvider = AssistantProvider(preferences: assistantPrefs);
+      await assistantProvider.loaded;
+      final assistantId = await assistantProvider.addAssistant(
+        name: 'Suggestion Assistant',
+      );
+      await assistantProvider.setCurrentAssistant(assistantId);
+    });
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<SettingsProvider>.value(value: settings),
+          ChangeNotifierProvider<ChatService>.value(value: chatService),
+          ChangeNotifierProvider<AssistantProvider>.value(
+            value: assistantProvider,
+          ),
+          ChangeNotifierProvider<McpProvider>(
+            create: (_) =>
+                McpProvider(preferences: createBusinessTestPreferences()),
+          ),
+          ChangeNotifierProvider<McpToolService>(
+            create: (_) => McpToolService(),
+          ),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: _ControllerHarness(onCreated: (value) => controller = value),
+        ),
+      ),
+    );
+    expect(tester.takeException(), isNull);
+    return controller!;
+  }
+
+  Future<void> setAssistantSuggestionsEnabled(bool enabled) async {
+    final assistant = assistantProvider.currentAssistant!;
+    await assistantProvider.updateAssistant(
+      assistant.copyWith(suggestionsEnabled: enabled),
+    );
+  }
+
+  Future<String> seedSettledReply() async {
+    final convo = await chatService.createConversation(
+      title: 'Suggestion Chat',
+      assistantId: assistantProvider.currentAssistantId,
+    );
+    await chatService.addMessage(
+      conversationId: convo.id,
+      role: 'user',
+      content: 'Help me pick a metronome app.',
+    );
+    await chatService.addMessage(
+      conversationId: convo.id,
+      role: 'assistant',
+      content: 'What platform are you on?',
+    );
+    return convo.id;
+  }
+
+  testWidgets(
+    'an enabled assistant spends one request and stores suggestions',
+    (tester) async {
+      final controller = await pumpHarness(tester);
+      await tester.runAsync(() async {
+        await settings.resetSuggestionModel();
+        await setAssistantSuggestionsEnabled(true);
+        final conversationId = await seedSettledReply();
+
+        await controller.debugViewModel.debugMaybeGenerateSuggestionsFor(
+          conversationId,
+        );
+
+        expect(generateTextRequestCount, 1);
+        expect(chatService.getConversation(conversationId)!.chatSuggestions, [
+          'Yes',
+          'Tell me more',
+        ]);
+      });
+      await tester.pumpWidget(const SizedBox());
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('an assistant that opts out spends no request', (tester) async {
+    final controller = await pumpHarness(tester);
+    await tester.runAsync(() async {
+      await settings.resetSuggestionModel();
+      await setAssistantSuggestionsEnabled(false);
+      final conversationId = await seedSettledReply();
+
+      await controller.debugViewModel.debugMaybeGenerateSuggestionsFor(
+        conversationId,
+      );
+
+      expect(
+        generateTextRequestCount,
+        0,
+        reason: 'a per-assistant opt-out must not pay for a suggestion call',
+      );
+      expect(
+        chatService.getConversation(conversationId)!.chatSuggestions,
+        isEmpty,
+      );
+    });
+    await tester.pumpWidget(const SizedBox());
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the global switch still wins over an enabled assistant', (
+    tester,
+  ) async {
+    final controller = await pumpHarness(tester);
+    await tester.runAsync(() async {
+      await settings.disableSuggestionGeneration();
+      await setAssistantSuggestionsEnabled(true);
+      final conversationId = await seedSettledReply();
+
+      await controller.debugViewModel.debugMaybeGenerateSuggestionsFor(
+        conversationId,
+      );
+
+      expect(generateTextRequestCount, 0);
+      expect(
+        chatService.getConversation(conversationId)!.chatSuggestions,
+        isEmpty,
+      );
+    });
+    await tester.pumpWidget(const SizedBox());
+    expect(tester.takeException(), isNull);
+  });
+}
+
+class _ControllerHarness extends StatefulWidget {
+  const _ControllerHarness({required this.onCreated});
+
+  final ValueChanged<HomePageController> onCreated;
+
+  @override
+  State<_ControllerHarness> createState() => _ControllerHarnessState();
+}
+
+class _ControllerHarnessState extends State<_ControllerHarness>
+    with TickerProviderStateMixin {
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+  final _inputBarKey = GlobalKey();
+  final _inputFocus = FocusNode();
+  final _inputController = TextEditingController();
+  final _mediaController = ChatInputBarController();
+  final _scrollController = ChatAutoFollowScrollController();
+  late final HomePageController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = HomePageController(
+      context: context,
+      vsync: this,
+      scaffoldKey: _scaffoldKey,
+      inputBarKey: _inputBarKey,
+      inputFocus: _inputFocus,
+      inputController: _inputController,
+      mediaController: _mediaController,
+      scrollController: _scrollController,
+    );
+    widget.onCreated(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _inputFocus.dispose();
+    _inputController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(key: _scaffoldKey);
+}

@@ -20,8 +20,10 @@ import '../../shared/widgets/snackbar.dart';
 
 /// Restores [entry], makes the rows visible, and reports what happened.
 ///
-/// Returns the outcome so a caller that batches several restores can summarise
-/// them; a single call has already told the user by then.
+/// This is the single-entry action: it refreshes what came back and says what
+/// happened. [restoreRecycleGroup] is the batch form, which is why this one is
+/// not what a loop should call — it would tell the user the same thing once per
+/// entry.
 Future<RecycleRestoreOutcome> restoreRecycleEntry(
   BuildContext context, {
   required RecycleService service,

@@ -21,9 +21,11 @@ enum RecycleRestoreOutcome {
   /// The rows are back, and the entries that staged them are retired.
   restored,
 
-  /// A conversation with that id is present again: bringing the staged subtree
-  /// back would either merge two histories or overwrite one of them, and
-  /// neither is what "recover the thing I deleted" means.
+  /// The entry's identity is present again, so a restore would have to replace
+  /// whatever is there now rather than bring something back. For a conversation
+  /// that would either merge two histories or overwrite one; for a business row
+  /// or a preference the live row is not the version this entry lost to; for a
+  /// workspace file the path is occupied. Nothing is written.
   skippedExisting,
 
   /// The staged body is gone or no longer parses.

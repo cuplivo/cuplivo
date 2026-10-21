@@ -53,6 +53,11 @@ deleted, and would put "your deleted conversation" into a peer's storage.
    preserves the bytes and the mtime, and it is O(1) where a copy is O(size). Nothing is compressed: a
    moved file cannot be compressed without giving up both properties, and the row snapshots are bounded by
    the caps below rather than by a codec. The envelope carries `v`, so a future build may add one.
+   A move is also a commitment: an entry is published by renaming the staging directory into place, and a
+   failure *after* the body was moved hands the file back to its original path before that directory is
+   discarded. `stageFile` returning null therefore means "not preserved", which is what the landing and
+   deletion paths answer with their ordinary delete — a bin that had already deleted the file on its way out
+   would make that answer a lie.
 
 3. **Staging reads where the content still exists, and writes off the caller's path.**
    `ChatDatabaseRepository.deleteConversation` — the single funnel every conversation deletion passes
@@ -88,9 +93,23 @@ deleted, and would put "your deleted conversation" into a peer's storage.
    preference. Writing back the *staged* clock would hand the next session's comparison to the same newer
    version that won last time, and the recovered content would silently disappear again on the next sync.
    A conversation that is already back is refused (`skippedExisting`) rather than merged over: this feature
-   answers "bring back what I lost", not "merge two histories". The deletion's tombstone is removed with
-   the restore it recorded, and the entries that staged that identity are retired, so one row cannot be
-   restored twice into two competing copies.
+   answers "bring back what I lost", not "merge two histories".
+
+   **What a restore finds alive decides what it may do, and the entry's own record says which case it is.**
+   An entry staged by a **deletion** is refused when its identity is back: the live row is not the version
+   the entry lost to — a peer re-sent it, or the user re-made it — so writing over it would discard content
+   nothing asked to replace. A conversation, a workspace file, a business row and a synced preference all
+   take that rule together. An entry staged by a **losing last-write-wins comparison** is the one case that
+   must overwrite, and refusing it would make it permanently unrecoverable: the live row is exactly what it
+   lost to, and the bin exists because that loss was not the user's choice. So that restore writes the
+   staged content back *and* stages the version it displaced — the live row — as an entry of its own, which
+   is what makes "a restore can only duplicate, never lose" true of every entry rather than most of them,
+   and what makes one restore undoable by the next. A live row that already says what the restore would
+   write displaces nothing and stages nothing.
+
+   The deletion's tombstone is removed with the restore it recorded, and the entries that staged that
+   identity are retired — all except the one a restore itself produced — so one row cannot be restored
+   twice into two competing copies.
 
 6. **The bin is bounded on three axes: 90 days, 256 MB, 1000 entries.** Eviction is oldest-first and runs
    when something is staged and when the page opens, so an install that stops deleting still shrinks. The
@@ -127,6 +146,16 @@ deleted, and would put "your deleted conversation" into a peer's storage.
    empty page. A conversation whose assistant no longer exists warns before the restore, because the
    conversation would come back bound to an owner this device does not have.
 
+   The budget is applied while the body is **read**, not after it is in memory. A file body is opened as a
+   range of `cap + 4` bytes and only that head is decoded (with up to three trailing bytes dropped, so a cut
+   inside a rune does not read as a binary file); a row set is encoded through a bounded sink. The bin's own
+   caps let one workspace file be 200 MB, and `readAsBytes` + two `utf8.decode`s + a pretty-printed copy
+   held for the copy button was hundreds of megabytes of transient allocation on the UI isolate to show the
+   first 200 KB. What the page shows is also what its copy button copies: a second whole-body copy for that
+   button would reintroduce exactly the cost the cap exists to avoid. A conversation's `body.json` is still
+   parsed whole, because JSON cannot be previewed from a prefix — that is the one cost the split body shape
+   leaves, and it is bounded by the caps rather than by the page.
+
 10. **A workspace file is staged by moving it, at the one landing path and behind the four gates.**
     `WorkspaceContentSync` has one landing path (`land`) and one deletion (`_deleteOne`), and both stage,
     under `RecycleOrigin.remote`. Staging *moves* the file, which is what makes it fit: the move keeps the
@@ -143,6 +172,20 @@ deleted, and would put "your deleted conversation" into a peer's storage.
     `now()`: decision 5 applies to a file unchanged. No group: each overwrite and each deletion is its own
     event, and nothing on the wire ties them together.
 
+11. **A conversation's unsent draft is part of its snapshot.** The row is one device-local
+    `extension_entity_rows` entry (`kind = composerDraft`, id = the conversation id), and the delete removes
+    it in the same transaction that removes the conversation — so a restore that left it out handed back a
+    conversation whose composer was empty, which is losing text the user typed and never sent. It travels in
+    the same one-statement capture, filtered by that kind rather than by the id alone (a future device-local
+    row keyed the same way should be a decision, not an accident), and a restore writes it back only when no
+    live draft exists: the composer is state the user is in the middle of, and replacing what they have
+    typed would be a worse surprise than an older unsent message staying lost. What the bin cannot carry is
+    the draft's private attachment files — the delete empties that directory too — so a restored
+    `images`/`documents` reference whose file is gone is dropped instead of being drawn as a broken chip;
+    the text, the selection and the citation stay. The device-local store also has to take the id back
+    (`ComposerDraftStore.reloadRestored`): a delete fences an id for the store's whole lifetime, and without
+    that seam the composer of the restored conversation cannot open at all.
+
 ## Consequences
 
 - The capture is transactional and the write is not, so the bin is *eventually* consistent with the
@@ -154,6 +197,12 @@ deleted, and would put "your deleted conversation" into a peer's storage.
   one part the bin does not own: assets are garbage-collected on their own 7-day schedule, so a restore
   after that window returns the text and drops the references whose asset row is gone (a foreign key would
   refuse them, and they would render as broken attachments anyway).
+- A restored conversation also brings back its unsent draft (decision 11): the text and its citation, plus
+  the attachment references whose files still exist. The draft's own private files are not staged, so an
+  attachment the delete removed is dropped on the way back.
+- Restoring a row that a **losing comparison** staged leaves the version it displaced in the bin (decision
+  5): the bin then holds the copy that is not live, which is what makes the restore reversible. That is the
+  one way a restore *grows* the bin, and it is bounded by the same caps as everything else.
 - Message-level deletion is deliberately **not** a bin operation. Deleting one message is an edit inside a
   conversation the bin still holds; a deleted conversation is recovered with its messages because they are
   part of its snapshot, not because messages are staged individually. v3 had a `message` type; this line
@@ -186,6 +235,13 @@ deleted, and would put "your deleted conversation" into a peer's storage.
   and the only way to join them would be to read the conversations' `assistant_id` from rows that are about
   to be deleted (and that may already have been reassigned). The group stays a local deletion's fact.
 - Message-level, per-version or attachment-only recovery.
+- Staging the private attachment files of a composer draft (decision 11). Only the row travels; the files the
+  delete removed are gone, and the references to them are dropped on the way back.
+- The proactive-care re-arm's reaction to a schedule whose owner is gone. Restoring a conversation whose
+  assistant no longer exists is one of the ways that state arises, and `rescheduleAll` refuses the app-wide
+  re-arm while any such schedule is still future-dated — a decision pinned by its own test. Separating "the
+  owner really is gone" from "the assistant store has not loaded" needs a change to that call's contract,
+  not to this bin.
 - Staging the files of a **workspace that is deleted** (`WorkspaceContentSync.deleteContent`). That is one
   act about a workspace, not N deletions of files: staging it would fill the caps with a single action and
   evict everything else in the bin, and the workspace's own row is staged through the ordinary entity path

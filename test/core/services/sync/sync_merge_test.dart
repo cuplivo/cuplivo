@@ -1039,14 +1039,8 @@ void main() {
         platform: 'test',
         manifest: const SyncManifest({}),
         deletedConversations: const {
-          'conv-1': SyncAnnouncedDeletion(
-            digest: 'digest-a',
-            updatedAtUs: 11,
-          ),
-          'conv-2': SyncAnnouncedDeletion(
-            digest: 'digest-b',
-            updatedAtUs: 22,
-          ),
+          'conv-1': SyncAnnouncedDeletion(digest: 'digest-a', updatedAtUs: 11),
+          'conv-2': SyncAnnouncedDeletion(digest: 'digest-b', updatedAtUs: 22),
         },
       );
       final decoded = SyncHello.fromJson(hello.toJson());

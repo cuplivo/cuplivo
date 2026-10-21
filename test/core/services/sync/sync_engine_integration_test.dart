@@ -491,7 +491,9 @@ class _Side {
     if (withRecycle) {
       recycle = RecycleService(
         database,
-        store: RecycleStore(directory: () async => Directory('${dir.path}/bin')),
+        store: RecycleStore(
+          directory: () async => Directory('${dir.path}/bin'),
+        ),
       );
     }
     repository = ChatDatabaseRepository(database, recycle: recycle);
@@ -3902,7 +3904,8 @@ void main() {
     expect(
       await a.conversationDigest('conv-a'),
       digestAtDeletion,
-      reason: 'the bin writes the messages back verbatim: only the row clock '
+      reason:
+          'the bin writes the messages back verbatim: only the row clock '
           'moves, which is the half the announcement used to be missing',
     );
 

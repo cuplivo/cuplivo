@@ -844,15 +844,11 @@ class SettingsProvider extends ChangeNotifier {
           ? defaultTranslateVisibleLanguages
           : Set.unmodifiable(cleaned);
     }
-    // Reconcile: a persisted target outside the visible set falls back to null
-    // (the feature layer then resolves locale -> first visible). Covers a
-    // cross-device restore where the visible set and target arrive separately.
-    // Soft-null only: the persisted key is kept so re-enabling the language
-    // restores the user's original choice.
-    if (_translateTargetLang != null &&
-        !translateVisibleLanguages.contains(_translateTargetLang)) {
-      _translateTargetLang = null;
-    }
+    // The target is loaded verbatim, even when the visible set excludes it:
+    // `effectiveTranslateLanguage` (the single owner of the target in effect)
+    // renders the fallback, and keeping the code here is what lets re-enabling
+    // the language restore the user's choice — in this session and after a
+    // restart.
     // load OCR model
     final ocrSel = prefs.getString(_ocrModelKey);
     if (ocrSel != null && ocrSel.contains('::')) {

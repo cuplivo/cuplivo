@@ -25,12 +25,15 @@ user-managed, persisted preference.
    is guaranteed non-empty (falls back to the default set). The manage surface
    (mobile bottom sheet / desktop centered dialog) is a checkbox list over the
    full catalog with an at-least-one-visible guard.
-4. **The active target is always visible.** Persisted
-   `translate_target_lang_v1` is soft-nulled on load when it falls outside the
-   visible set (then resolves to locale → first visible); the persisted key is
-   kept, so re-enabling the language restores the user's original choice. The
-   manage UI's `effectiveTranslateTarget` auto-switches the active target to the
-   first still-visible language when the user hides the active one.
+4. **The active target is always visible, and never rewritten.** The persisted
+   `translate_target_lang_v1` is never rewritten or nulled by a visibility
+   change: `effectiveTranslateLanguage(visible, persisted, locale)` is the
+   single owner of the target in effect — the persisted code when it is
+   visible, else the locale language when that is visible, else the first
+   visible catalog entry. Hiding the active language therefore changes what the
+   pages show and translate to, while the key keeps the user's choice, so
+   re-enabling the language restores that choice immediately and after a
+   restart.
 5. **One resolver, one catalog.** `translateLanguageDisplayName(l10n, code)` is
    the single display-name resolver used by every entry point (including the
    in-chat `translation_service`); the six duplicated private switches and the
@@ -47,6 +50,12 @@ user-managed, persisted preference.
 - **Keep six private resolver switches and patch each**: rejected — with a
   16-entry catalog, a missed copy renders the raw code; the drift trap is the
   exact defect this change would otherwise preserve.
+- **Auto-switch by writing the fallback over `translate_target_lang_v1`** (the
+  manager writing `setTranslateTargetLang(firstVisible)` when the active
+  language is hidden): rejected — it implements the visibility rule twice, and
+  the write is the only thing that makes "re-enabling restores the choice"
+  false. The resolver already renders a hidden target correctly, so the write
+  had no effect except destroying the preference.
 
 ## Consequences
 

@@ -106,16 +106,11 @@ List<LanguageOption> visibleTranslateLanguages(Set<String> visibleCodes) {
       .toList(growable: false);
 }
 
-/// The target language that stays valid after [visibleCodes] changes: the
-/// current one when still visible, otherwise the first visible (catalog order).
-String? effectiveTranslateTarget(Set<String> visibleCodes, String? current) {
-  if (current == null || visibleCodes.contains(current)) return current;
-  return visibleTranslateLanguages(visibleCodes).first.code;
-}
-
 /// The active target shown by the standalone translate pages: the persisted
 /// one when still visible, else the locale language when visible, else the
-/// first visible catalog entry. Single shared precedence for both pages.
+/// first visible catalog entry. Single shared precedence for both pages, and
+/// the only place that decides what a visibility change means for the active
+/// target — the persisted code is never rewritten to match it.
 LanguageOption effectiveTranslateLanguage({
   required List<LanguageOption> visible,
   required String? persistedCode,
@@ -440,16 +435,13 @@ class _TranslateLanguageManager extends StatelessWidget {
     } else {
       next.add(code);
     }
+    // Hiding the active language deliberately leaves `translate_target_lang_v1`
+    // alone: `effectiveTranslateLanguage` already renders the first
+    // still-visible fallback, so the selector never shows or uses a hidden
+    // language, while the persisted key keeps the user's choice for when the
+    // language comes back.
     try {
       await settings.setTranslateVisibleLanguages(next);
-
-      // Hiding the active target must not leave it invisible: switch to the
-      // first still-visible language (catalog order).
-      final active = settings.translateTargetLang;
-      final effective = effectiveTranslateTarget(next, active);
-      if (active != null && effective != active) {
-        await settings.setTranslateTargetLang(effective!);
-      }
     } catch (e, st) {
       // Persistence is best-effort: the in-memory state is already applied.
       debugPrint('TranslateLanguageManager: failed to persist toggle: $e\n$st');

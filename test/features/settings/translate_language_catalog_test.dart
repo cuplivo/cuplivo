@@ -102,20 +102,6 @@ void main() {
     });
   });
 
-  group('effectiveTranslateTarget', () {
-    test('keeps a still-visible target', () {
-      expect(effectiveTranslateTarget({'bn', 'en'}, 'bn'), 'bn');
-    });
-
-    test('falls back to the first visible when the target was hidden', () {
-      expect(effectiveTranslateTarget({'ja', 'fr'}, 'bn'), 'ja');
-    });
-
-    test('null target stays null', () {
-      expect(effectiveTranslateTarget({'en'}, null), isNull);
-    });
-  });
-
   group('effectiveTranslateLanguage', () {
     test('a visible persisted target wins over the locale', () {
       final target = effectiveTranslateLanguage(
@@ -180,7 +166,7 @@ void main() {
     });
 
     test(
-      'load soft-nulls a target outside the visible set but keeps the key',
+      'load keeps a hidden target verbatim and the resolver owns the fallback',
       () async {
         final storage = await createBusinessTestHarness(
           initial: {
@@ -192,11 +178,34 @@ void main() {
         addTearDown(settings.dispose);
         await settings.loaded;
 
-        expect(settings.translateTargetLang, isNull);
+        // The persisted choice survives a visible set that excludes it: only
+        // the resolver decides what is in effect.
+        expect(settings.translateTargetLang, 'bn');
         expect(storage.preferences.getString('translate_target_lang_v1'), 'bn');
+        expect(
+          effectiveTranslateLanguage(
+            visible: visibleTranslateLanguages(
+              settings.translateVisibleLanguages,
+            ),
+            persistedCode: settings.translateTargetLang,
+            localeLanguageCode: 'en',
+          ).code,
+          'en',
+        );
 
-        // Re-enabling the language restores the user's original choice.
+        // Re-enabling the language restores the user's original choice, in this
+        // session and after a restart.
         await settings.setTranslateVisibleLanguages({'en', 'ja', 'bn'});
+        expect(
+          effectiveTranslateLanguage(
+            visible: visibleTranslateLanguages(
+              settings.translateVisibleLanguages,
+            ),
+            persistedCode: settings.translateTargetLang,
+            localeLanguageCode: 'en',
+          ).code,
+          'bn',
+        );
         final restarted = SettingsProvider(
           BusinessPreferences(storage.repository),
         );

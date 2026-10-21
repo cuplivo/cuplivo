@@ -102,7 +102,9 @@ class _Harness {
 }
 
 Future<void> _waitUntil(Future<bool> Function() condition) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 30));
+  // Shorter than the default per-test timeout on purpose: a condition that
+  // never becomes true has to fail with this message, not with a bare timeout.
+  final deadline = DateTime.now().add(const Duration(seconds: 10));
   while (!await condition()) {
     if (DateTime.now().isAfter(deadline)) {
       throw StateError('condition never became true');
@@ -223,9 +225,9 @@ void main() {
   });
 
   // `start()` is called from more than one moment (the launch callback, a
-  // resume, the panel opening), so two of them can land together. The guards
-  // exist so that the second call cannot begin a second listener — here the
-  // first start is provably still in flight at the moment of the second call.
+  // resume, the panel opening), so two of them can land together. This covers
+  // the `_startFuture` join: the second call arrives after the first start's
+  // future exists, so it waits on that future instead of beginning its own.
   test(
     'a second start while one is in flight does not begin another',
     () async {
@@ -261,6 +263,51 @@ void main() {
       expect(provider.started, isTrue);
       expect(provider.port, isNotNull);
       expect(directoryReads, 1);
+    },
+  );
+
+  // The other guard, and the one the test above cannot reach: `_start` notifies
+  // its listeners *before* its first `await`, which is before `_startFuture`
+  // exists. A listener that asks for a start from inside that notification is
+  // stopped by `starting` alone; delete that term and this records two starts.
+  test(
+    'a start requested from a listener mid-start does not start twice',
+    () async {
+      var directoryReads = 0;
+      final gate = Completer<Directory>();
+      final provider = await harness.startProvider(
+        syncDirectory: () {
+          directoryReads++;
+          return gate.future;
+        },
+        start: false,
+      );
+
+      var reentered = false;
+      provider.addListener(() {
+        if (reentered || !provider.starting) return;
+        reentered = true;
+        unawaited(provider.start());
+      });
+
+      final first = provider.start();
+
+      expect(
+        reentered,
+        isTrue,
+        reason: 'the listener has to run inside the start to test the guard',
+      );
+      expect(directoryReads, 1);
+
+      gate.complete(harness.dir);
+      await first;
+
+      expect(provider.started, isTrue);
+      expect(
+        directoryReads,
+        1,
+        reason: 'the re-entrant request must not begin a second start',
+      );
     },
   );
 

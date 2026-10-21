@@ -1,5 +1,10 @@
 import 'package:flutter/foundation.dart'
-    show kIsWeb, defaultTargetPlatform, debugPrint, TargetPlatform;
+    show
+        kIsWeb,
+        defaultTargetPlatform,
+        debugPrint,
+        visibleForTesting,
+        TargetPlatform;
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -73,6 +78,22 @@ class DesktopTrayController with TrayListener, WindowListener {
   /// Whether a close request should hide the window rather than quit it.
   bool get _hidesOnClose =>
       _isDesktop && _showTraySetting && _minimizeToTrayOnClose;
+
+  /// Returns the controller to its pre-initialization state.
+  ///
+  /// This class is a process singleton, so a test that drives the close paths
+  /// has to start from a known state; the tray and window listeners stay
+  /// registered because registering them twice would double every event.
+  @visibleForTesting
+  void debugReset() {
+    _isDesktop = false;
+    _trayVisible = false;
+    _showTraySetting = false;
+    _minimizeToTrayOnClose = false;
+    _localeKey = '';
+    _contextMenuOpen = false;
+    _quitting = false;
+  }
 
   /// Sync tray state from settings & current localization.
   /// Safe to call multiple times; initialization is performed lazily.
@@ -167,7 +188,7 @@ class DesktopTrayController with TrayListener, WindowListener {
           MenuItem.separator(),
           MenuItem(
             label: l10n.desktopTrayMenuExit,
-            onClick: (_) async => _exitApp(),
+            onClick: (_) async => exitApp(),
           ),
         ],
       );
@@ -228,18 +249,27 @@ class DesktopTrayController with TrayListener, WindowListener {
     } catch (_) {}
   }
 
-  Future<void> _exitApp() async {
+  /// Quits the app from the tray's Exit item.
+  ///
+  /// A close from here on is a quit, not a hide: the exit request this close
+  /// produces must be answered with `exit`, so the quitting flag is set first
+  /// and the close-to-tray gate is cleared before the window is closed. Writes
+  /// are drained and process-owned resources handed back here rather than left
+  /// to the engine's exit-request channel — see the two comments below for why
+  /// that cannot be assumed on every platform.
+  Future<void> exitApp() async {
     if (!_isDesktop) return;
     // A close from here on is a quit: the exit request it produces must not be
     // answered as a hide.
     _quitting = true;
     try {
-      // Drain pending writes before exiting. On macOS/Linux destroy()
-      // routes through the engine's exit-request channel (which flushes
-      // again — flush handlers are idempotent), but on Windows the
-      // destroy() fallback posts WM_QUIT directly and bypasses WM_CLOSE,
-      // so without this the fallback exit would skip the flush entirely.
-      // The timeout keeps a stuck write queue from hanging tray exit.
+      // Drain pending writes before exiting. The flush registry is idempotent,
+      // and a platform whose close comes back through the engine's exit request
+      // (macOS terminates; Linux clears `preventClose` and closes, which emits
+      // `delete-event`) simply runs it a second time. Windows is the platform
+      // that needs it here: its `destroy()` fallback posts WM_QUIT and bypasses
+      // WM_CLOSE entirely. The timeout keeps a stuck write queue from hanging
+      // tray exit.
       try {
         await AppExitFlush.flushAll().timeout(
           const Duration(seconds: 2),
@@ -247,9 +277,11 @@ class DesktopTrayController with TrayListener, WindowListener {
         );
       } catch (_) {}
       // Hand back what lives with the process: the LAN sync listener and its
-      // ephemeral-port firewall rule. On macOS/Linux destroy() below bypasses
-      // the engine's exit-request channel entirely, so this is the only place
-      // that teardown is guaranteed to run.
+      // ephemeral-port firewall rule. Run here instead of relying on the
+      // engine's exit-request channel: the Windows destroy() fallback bypasses
+      // that channel, and this path should not depend on how each platform's
+      // close is routed. The handlers are idempotent, so a platform whose close
+      // does come back through the channel only runs them twice.
       try {
         await AppShutdown.runAll().timeout(
           const Duration(seconds: 2),
@@ -323,13 +355,19 @@ class DesktopTrayController with TrayListener, WindowListener {
   @override
   void onWindowClose() async {
     if (!_isDesktop) return;
-    // The close arrives here on Linux and macOS, and nowhere else: on Linux
-    // window_manager's own `delete-event` handler consumes the close (see
-    // [exitRequestHidesToTray]), and on macOS the red button never reaches the
-    // exit request. On Windows the exit request answers a close-to-tray close
-    // first, so this path only sees the closes that were already a quit — and
-    // [_hidesOnClose] is false for those. The intent is one: "the tray settings
-    // say close means hide"; only the message that carries it differs.
+    // Two questions, deliberately kept apart. [_hidesOnClose] is "the tray
+    // settings say a close means hide" — still true for a close that is a quit,
+    // because quitting does not change the settings; [_quitting] is "this close
+    // is a quit", set by the tray's Exit item. Both are read because the close
+    // that carries the settings' intent and the close that must be honoured as
+    // a quit are the same OS message.
+    //
+    // Where the two paths meet: on Linux and macOS a close arrives here and
+    // nowhere else (window_manager's own `delete-event` handler consumes it on
+    // Linux; macOS' red button never reaches the exit request), so this is the
+    // hide. On Windows a close-to-tray close is answered by the exit request
+    // before window_manager sees it, so the Windows closes that do reach this
+    // handler are already quits — and [_quitting] is what makes them quits.
     if (_quitting || !_hidesOnClose) return;
     try {
       final isPreventClose = await windowManager.isPreventClose();

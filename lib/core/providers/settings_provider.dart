@@ -3888,6 +3888,13 @@ Generate or update a brief summary of the user's questions and intentions.
   /// master, an assistant can only opt out of it.
   bool isSuggestionGenerationAllowedFor(Assistant? assistant) =>
       _suggestionGenerationEnabled && (assistant?.suggestionsEnabled ?? true);
+
+  /// True when the assistant allows suggestions but the global master is off,
+  /// so its opt-out cannot take effect yet and the row says why. Both the
+  /// mobile tab and the desktop dialog read this, so the explanation cannot
+  /// drift between the two layouts.
+  bool isSuggestionOptOutInactiveFor(Assistant? assistant) =>
+      (assistant?.suggestionsEnabled ?? false) && !_suggestionGenerationEnabled;
   String? get suggestionModelKey =>
       (_suggestionModelProvider != null && _suggestionModelId != null)
       ? '${_suggestionModelProvider!}::${_suggestionModelId!}'

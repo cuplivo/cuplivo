@@ -1477,6 +1477,12 @@ Widget _iosNavRow(
   );
 }
 
+/// Identifies the per-assistant chat-suggestions row in both the mobile tab and
+/// the desktop dialog, so either layout can be reached by the same key.
+const ValueKey<String> _chatSuggestionsSwitchKey = ValueKey<String>(
+  'assistantEditChatSuggestionsSwitch',
+);
+
 Widget _iosSwitchRow(
   BuildContext context, {
   required IconData icon,
@@ -1943,6 +1949,7 @@ class _DesktopAssistantBasicPaneState
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final ap = context.watch<AssistantProvider>();
     final a = ap.getById(widget.assistantId)!;
+    final settingsProvider = context.watch<SettingsProvider>();
 
     Widget header() {
       return Padding(
@@ -2141,8 +2148,8 @@ class _DesktopAssistantBasicPaneState
       );
     }
 
-    Widget simpleSwitchRow({
-      required String label,
+    Widget labeledSwitchRow({
+      required Widget title,
       required bool value,
       required ValueChanged<bool> onChanged,
     }) {
@@ -2153,20 +2160,30 @@ class _DesktopAssistantBasicPaneState
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           child: Row(
             children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: AppFontWeights.semibold,
-                    color: cs.onSurface.withValues(alpha: 0.9),
-                  ),
-                ),
-              ),
+              Expanded(child: title),
               IosSwitch(value: value, onChanged: onChanged),
             ],
           ),
         ),
+      );
+    }
+
+    Widget simpleSwitchRow({
+      required String label,
+      required bool value,
+      required ValueChanged<bool> onChanged,
+    }) {
+      return labeledSwitchRow(
+        title: Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: AppFontWeights.semibold,
+            color: cs.onSurface.withValues(alpha: 0.9),
+          ),
+        ),
+        value: value,
+        onChanged: onChanged,
       );
     }
 
@@ -2459,6 +2476,54 @@ class _DesktopAssistantBasicPaneState
                     onChanged: (v) => context
                         .read<AssistantProvider>()
                         .updateAssistant(a.copyWith(streamOutput: v)),
+                  ),
+                  sectionDivider(),
+                  // Chat suggestions: a per-assistant opt-out of the global
+                  // switch, with the same note the mobile tab shows.
+                  KeyedSubtree(
+                    key: _chatSuggestionsSwitchKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        labeledSwitchRow(
+                          title: labelWithHelp(
+                            l10n.assistantEditChatSuggestionsTitle,
+                            l10n.assistantEditChatSuggestionsTip,
+                          ),
+                          value: a.suggestionsEnabled,
+                          onChanged: (v) =>
+                              context.read<AssistantProvider>().updateAssistant(
+                                a.copyWith(suggestionsEnabled: v),
+                              ),
+                        ),
+                        AnimatedSize(
+                          duration: const Duration(milliseconds: 180),
+                          curve: Curves.easeOutCubic,
+                          alignment: Alignment.topLeft,
+                          child:
+                              settingsProvider.isSuggestionOptOutInactiveFor(a)
+                              ? Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    20,
+                                    0,
+                                    20,
+                                    8,
+                                  ),
+                                  child: Text(
+                                    l10n.assistantEditChatSuggestionsGlobalOff,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      height: 1.3,
+                                      color: cs.onSurface.withValues(
+                                        alpha: 0.58,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

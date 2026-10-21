@@ -159,5 +159,27 @@ void main() {
         expect(settings.isSuggestionGenerationAllowedFor(optedOut), isFalse);
       },
     );
+
+    test(
+      'the inactive note covers exactly one cell of the two switches',
+      () async {
+        final harness = await createBusinessTestHarness(initial: {});
+        final settings = SettingsProvider(harness.preferences);
+        await settings.loaded;
+
+        // Global off: only an assistant that still allows suggestions has
+        // something to explain.
+        await settings.disableSuggestionGeneration();
+        expect(settings.isSuggestionOptOutInactiveFor(optedIn), isTrue);
+        expect(settings.isSuggestionOptOutInactiveFor(optedOut), isFalse);
+        expect(settings.isSuggestionOptOutInactiveFor(null), isFalse);
+
+        // Global on: nothing is waiting on the master switch.
+        await settings.resetSuggestionModel();
+        expect(settings.isSuggestionOptOutInactiveFor(optedIn), isFalse);
+        expect(settings.isSuggestionOptOutInactiveFor(optedOut), isFalse);
+        expect(settings.isSuggestionOptOutInactiveFor(null), isFalse);
+      },
+    );
   });
 }

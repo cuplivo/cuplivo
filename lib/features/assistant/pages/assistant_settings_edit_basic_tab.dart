@@ -50,9 +50,7 @@ class _BasicSettingsTabState extends State<_BasicSettingsTab> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final ap = context.watch<AssistantProvider>();
     final a = ap.getById(widget.assistantId)!;
-    final suggestionsGlobalOn = context
-        .watch<SettingsProvider>()
-        .isSuggestionGenerationEnabled;
+    final settingsProvider = context.watch<SettingsProvider>();
 
     Widget avatarWidget({double size = 56}) {
       final bg = cs.primary.withValues(alpha: isDark ? 0.18 : 0.12);
@@ -261,7 +259,7 @@ class _BasicSettingsTabState extends State<_BasicSettingsTab> {
               _iosDivider(context),
               // Chat suggestions: a per-assistant opt-out of the global switch.
               KeyedSubtree(
-                key: const ValueKey('assistantEditChatSuggestionsSwitch'),
+                key: _chatSuggestionsSwitchKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -278,7 +276,7 @@ class _BasicSettingsTabState extends State<_BasicSettingsTab> {
                     AnimatedSize(
                       duration: const Duration(milliseconds: 180),
                       curve: Curves.easeOutCubic,
-                      child: (a.suggestionsEnabled && !suggestionsGlobalOn)
+                      child: settingsProvider.isSuggestionOptOutInactiveFor(a)
                           ? Padding(
                               padding: const EdgeInsets.fromLTRB(48, 0, 44, 8),
                               child: Text(

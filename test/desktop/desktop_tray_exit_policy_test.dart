@@ -26,9 +26,18 @@ void main() {
     expect(hides(), isTrue);
   });
 
-  test('a Linux close with close-to-tray on is a hide', () {
-    expect(hides(platform: TargetPlatform.linux), isTrue);
-  });
+  // Linux reaches the hide through `onWindowClose`, never through an exit
+  // request: window_manager installs its own `delete-event` handler whose return
+  // value is `preventClose` (0.5.2, `linux/window_manager_plugin.cc`), and it
+  // runs before the engine's handler, which is attached at realize — a handled
+  // delete-event stops the emission, so the engine never asks the framework.
+  // The rule must say so: an arm no close can reach is a path no test proves.
+  test(
+    'Linux is not a hide on an exit request: its close never gets there',
+    () {
+      expect(hides(platform: TargetPlatform.linux), isFalse);
+    },
+  );
 
   test('macOS is never a hide: its exit request is a terminate', () {
     expect(hides(platform: TargetPlatform.macOS), isFalse);

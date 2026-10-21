@@ -2040,16 +2040,32 @@ restoring the window still read "listener not running". Both halves are now stru
   only on a real exit (the tray's Exit item, and an exit request that was not answered as a hide).
   The two registries are independent, and a test asserts a flush never runs a shutdown handler.
 - **A close that hides is answered `cancel`.** `exitRequestHidesToTray` is the single rule: tray
-  setting **and** close-to-tray on, not quitting, and a platform whose close is delivered this way
-  (Windows, Linux). The request handler hides the window and answers `cancel`, which is also what
-  stops the engine re-dispatching the close, so the framework is never told "exit" while the app
-  keeps running. macOS is excluded on purpose: there the request is a terminate (Cmd+Q, Dock →
-  Quit) and the red button never reaches it, so hiding would make Quit a no-op; `onWindowClose`
-  stays as the macOS/Linux hide path, gated by the same intent.
+  setting **and** close-to-tray on, not quitting, and — the part the review of #1037 corrected — a
+  platform whose close actually arrives as an exit request, which today is **Windows only**. On
+  Windows the engine's lifecycle manager registers its top-level window proc delegate in
+  `Initialize`, before any plugin registers theirs (`flutter_windows_engine.cc`), so it consumes the
+  close, asks the framework, and re-dispatches only on `exit`. On Linux it never does: `window_manager`
+  installs its own `delete-event` handler whose return value is `preventClose`
+  (`window_manager 0.5.2`, `linux/window_manager_plugin.cc`, `on_window_close`) and that handler is
+  connected before the engine's, which is attached at realize (`fl_view.cc`, `realize_cb`, after
+  plugin registration) — a handled delete-event stops the emission, so `fl_engine_request_app_exit`
+  never runs while close-to-tray is on. `onWindowClose` is therefore Linux's hide path, not a
+  fallback; the earlier draft of this paragraph said "Windows and Linux" and named a path no Linux
+  close can reach. macOS is excluded for its own reason: there the request is a terminate (Cmd+Q,
+  Dock → Quit) and the red button never reaches it, so hiding would make Quit a no-op. The request
+  handler hides the window and answers `cancel`, which is also what stops the engine re-dispatching
+  the close, so the framework is never told "exit" while the app keeps running.
 - **A window that comes back has a listener.** `ensureListening()` (resume, panel opening) starts the
   listener when it is down, and `_start` clears `_stopRequested` — a stop is an event, not a
   permanent property of the provider. This is the repair path for the reported step 5, and it holds
-  regardless of which of the two close paths an OS uses.
+  regardless of which of the two close paths an OS uses. The panel asks from
+  `didChangeDependencies`, i.e. during the build phase, and `start()` notifies before its first
+  `await`; the panel's request is therefore scheduled as a microtask, which drains only after the
+  frame — a synchronous notify there would mark the provider's own ancestor dirty and the framework
+  refuses that ("setState() or markNeedsBuild() called during build", reproduced by the widget test
+  that now guards it). The rule that keeps it honest is `sync_panel_body_test.dart`'s opposite: that
+  file overrides `panelOpened`, so it can never catch this, which is why the new test mounts the real
+  panel over a real, unstarted provider.
 - *Rejected: keep answering `exit` and rely on window_manager swallowing the re-dispatched
   `WM_CLOSE`.* That is what the app did before this amendment: it works only while the message
   ordering and `preventClose` stay as they are, it tells the framework the app is exiting while it
@@ -2059,7 +2075,15 @@ restoring the window still read "listener not running". Both halves are now stru
   is one — would keep tearing the listener down.
 - *Rejected: a "start listener" button on the panel.* The listener is the app's, not the panel's;
   the user should not have to visit a settings screen to undo a hide.
+- *Rejected: keep Linux in `exitRequestHidesToTray` as "defence in depth".* It is a branch no
+  reachable close can take, and it would keep the doc claiming a delivery order the plugin's source
+  contradicts; a future plugin that stops intercepting the close is what would add the platform back,
+  and that change comes with the evidence that makes it testable.
 - The printed consequences: an ephemeral-port firewall rule is now deleted only on a real exit (a
   hard kill leaked it before this change too); a window that cannot be hidden falls through to a
-  real quit rather than leaving the close button dead; and `stop()` stays public for tests and for
-  shutdown, with "process teardown only" as its documented meaning.
+  real quit *that lands* — the controller clears the close-to-tray gate on both real-quit paths
+  (`_allowEngineExit`), because answering `exit` with `preventClose` still set would have
+  window_manager swallow the close the engine re-dispatches, leaving the process up with its writes
+  flushed and its shutdown already run (a channel-level failure injection is the only way to reach
+  that branch today, so it has no unit test); and `stop()` stays public for tests and for shutdown,
+  with "process teardown only" as its documented meaning.

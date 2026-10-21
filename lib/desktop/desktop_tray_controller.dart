@@ -9,17 +9,35 @@ import '../l10n/app_localizations.dart';
 /// Whether an OS *exit request* is really the user closing the window with
 /// "minimize to tray on close" enabled.
 ///
-/// Windows and Linux deliver the window's close as an exit request before any
-/// window-manager delegate sees `WM_CLOSE`: the engine's lifecycle manager
-/// consumes that message and asks the framework whether it may quit. An app
-/// that only hides from [WindowListener.onWindowClose] has therefore already
-/// been asked to quit by the time the window hides, and answering `exit` there
-/// runs the exit-flush registry — which is how #1036 closed the LAN sync
-/// listener on a window that never went away.
+/// It is, on Windows: the engine's lifecycle manager registers its top-level
+/// window proc delegate before any plugin registers theirs, consumes the last
+/// window's `WM_CLOSE` itself, and asks the framework whether it may quit
+/// (`windows_lifecycle_manager.cc`: `HandleCloseMessage` → `RequestApplicationQuit`
+/// → the message is handled), re-dispatching the close only when the answer is
+/// `exit`. An app that only hides from [WindowListener.onWindowClose] has
+/// therefore already been asked to quit by the time the window hides, and
+/// answering `exit` there also runs the exit-flush registry — which is how #1036
+/// closed the LAN sync listener on a window that never went away.
 ///
-/// macOS is deliberately excluded: there the exit request *is* a terminate
-/// (Cmd+Q, Dock → Quit) and the red button never reaches it (window_manager
-/// intercepts that close first), so hiding here would turn Quit into a no-op.
+/// The other two desktops answer "no" for their own reasons:
+///
+/// - **Linux** never delivers the close this way while close-to-tray is on.
+///   `window_manager` installs its own `delete-event` handler whose return value
+///   is `preventClose` (`window_manager 0.5.2`, `linux/window_manager_plugin.cc`,
+///   `on_window_close`), and it is connected before the engine's handler — the
+///   engine attaches its own at realize (`fl_view.cc`'s `realize_cb`), which runs
+///   after plugin registration. A handled delete-event stops the emission, so
+///   the engine's `fl_engine_request_app_exit` never runs.
+///   [WindowListener.onWindowClose] is Linux's hide path; the exit request there
+///   only arrives when `preventClose` is already false, which is exactly when
+///   this returns false.
+/// - **macOS**'s exit request *is* a terminate (Cmd+Q, Dock → Quit) and the red
+///   button never reaches it (window_manager intercepts that close first), so
+///   hiding here would turn Quit into a no-op.
+///
+/// A future plugin or embedder that stops intercepting the close on Linux would
+/// make that platform belong here; today it does not, and a platform list wider
+/// than the evidence is a path no test can reach.
 ///
 /// [quitting] is the tray's own Exit item, which must always be a real quit.
 bool exitRequestHidesToTray({
@@ -29,7 +47,7 @@ bool exitRequestHidesToTray({
   required bool quitting,
 }) {
   if (quitting || !showTray || !minimizeToTrayOnClose) return false;
-  return platform == TargetPlatform.windows || platform == TargetPlatform.linux;
+  return platform == TargetPlatform.windows;
 }
 
 /// Desktop tray + window close behaviour controller.
@@ -179,6 +197,7 @@ class DesktopTrayController with TrayListener, WindowListener {
           minimizeToTrayOnClose: _minimizeToTrayOnClose,
           quitting: _quitting,
         )) {
+      await _allowEngineExit();
       return false;
     }
     try {
@@ -186,10 +205,27 @@ class DesktopTrayController with TrayListener, WindowListener {
       return true;
     } catch (error) {
       // A window that cannot be hidden must not leave the close button dead:
-      // fall through to the real quit instead.
+      // fall through to the real quit instead — and let that quit land (see
+      // [_allowEngineExit]): answering `exit` while `preventClose` is still set
+      // would have window_manager swallow the close the engine re-dispatches.
       debugPrint('desktop tray: hiding on an exit request failed: $error');
+      await _allowEngineExit();
       return false;
     }
+  }
+
+  /// Clears the close-to-tray gate so a close the caller is about to allow
+  /// actually closes the window.
+  ///
+  /// The engine answers an `exit` decision by re-dispatching the OS close; with
+  /// `preventClose` still set, window_manager consumes that message, so the
+  /// process would stay up with the app's queues already flushed and its
+  /// shutdown already run. Both real-quit paths (the tray's Exit item, and an
+  /// exit request this controller answered as a quit) go through here.
+  Future<void> _allowEngineExit() async {
+    try {
+      await windowManager.setPreventClose(false);
+    } catch (_) {}
   }
 
   Future<void> _exitApp() async {
@@ -225,9 +261,7 @@ class DesktopTrayController with TrayListener, WindowListener {
       // close so the window can exit immediately without being
       // intercepted by the minimize‑to‑tray logic.
       if (defaultTargetPlatform == TargetPlatform.windows) {
-        try {
-          await windowManager.setPreventClose(false);
-        } catch (_) {}
+        await _allowEngineExit();
         try {
           await windowManager.close();
           return;
@@ -289,12 +323,13 @@ class DesktopTrayController with TrayListener, WindowListener {
   @override
   void onWindowClose() async {
     if (!_isDesktop) return;
-    // The other delivery path of the same intent: on macOS the red-button close
-    // arrives here (the exit request never sees it), and on Windows or Linux it
-    // lands here only when the window-manager delegate got the message first.
-    // The intent is "the tray settings say close means hide" — [_hidesOnClose].
-    // Only the message that carries it differs, which is why
-    // [exitRequestHidesToTray] adds the platform check and this path does not.
+    // The close arrives here on Linux and macOS, and nowhere else: on Linux
+    // window_manager's own `delete-event` handler consumes the close (see
+    // [exitRequestHidesToTray]), and on macOS the red button never reaches the
+    // exit request. On Windows the exit request answers a close-to-tray close
+    // first, so this path only sees the closes that were already a quit — and
+    // [_hidesOnClose] is false for those. The intent is one: "the tray settings
+    // say close means hide"; only the message that carries it differs.
     if (_quitting || !_hidesOnClose) return;
     try {
       final isPreventClose = await windowManager.isPreventClose();

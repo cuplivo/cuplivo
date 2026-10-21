@@ -686,6 +686,8 @@ void _installExitFlush(BusinessPreferences businessPreferences) {
           return AppExitResponse.cancel;
         }
       } catch (_) {}
+      // Not a hide: the controller has also cleared the close-to-tray gate, so
+      // the close the engine re-dispatches after our `exit` below really lands.
       try {
         // Bound the wait: a stuck write transaction must not leave the
         // process unkillable after macOS answers NSTerminateLater.

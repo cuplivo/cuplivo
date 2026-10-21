@@ -347,9 +347,15 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   void panelOpened() {
     _panelViewers++;
     // A panel the user opened is the last place "listener not running" should be
-    // readable: if the listener is down, start it now rather than waiting for
-    // the next resume.
-    ensureListening();
+    // readable: if the listener is down, start it rather than waiting for the
+    // next resume. Scheduled, not called: the panel opens this from
+    // `didChangeDependencies`, which is the build phase, and `start()` notifies
+    // before its first `await` — notifying an ancestor provider from inside a
+    // build is the one shape `markNeedsBuild` refuses. A microtask drains only
+    // after the frame, so the start lands outside it (and unlike a post-frame
+    // callback it does not need a frame, which the provider's own tests have no
+    // way to produce).
+    scheduleMicrotask(ensureListening);
     // The user is looking at the cards: this is the moment to show every
     // endpoint's figure, including the tail's, rather than the head's only.
     _fullProbePending = true;

@@ -11,6 +11,7 @@
 // listener up, and a listener that is down can be started again by the moments
 // the app is usable again (a resume, the panel opening).
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:Cuplivo/core/database/app_database.dart';
@@ -57,7 +58,14 @@ class _Harness {
   late final BusinessPreferences businessPreferences;
   SyncProvider? provider;
 
-  Future<SyncProvider> startProvider() async {
+  /// Builds the provider over a throwaway database and an empty sync directory.
+  ///
+  /// [syncDirectory] and [start] exist for the concurrency test, which has to
+  /// hold the directory future open and call `start()` itself.
+  Future<SyncProvider> startProvider({
+    Future<Directory> Function()? syncDirectory,
+    bool start = true,
+  }) async {
     database = AppDatabase(NativeDatabase.memory());
     repository = ChatDatabaseRepository(database);
     await repository.ensureReady();
@@ -72,13 +80,13 @@ class _Harness {
       businessRepository: businessRepository,
       businessPreferences: businessPreferences,
       reloader: BusinessStateReloader(businessPreferences),
-      syncDirectory: () async => dir,
+      syncDirectory: syncDirectory ?? () async => dir,
       // No NIC: the address list is not what these tests are about.
       addressSource: () async => const [],
       endpointProbe: (host, port) async {},
     );
     provider = started;
-    await started.start();
+    if (start) await started.start();
     return started;
   }
 
@@ -213,6 +221,48 @@ void main() {
 
     expect(provider.port, port, reason: 'no rebind on every focus gain');
   });
+
+  // `start()` is called from more than one moment (the launch callback, a
+  // resume, the panel opening), so two of them can land together. The guards
+  // exist so that the second call cannot begin a second listener — here the
+  // first start is provably still in flight at the moment of the second call.
+  test(
+    'a second start while one is in flight does not begin another',
+    () async {
+      var directoryReads = 0;
+      final gate = Completer<Directory>();
+      final provider = await harness.startProvider(
+        syncDirectory: () {
+          directoryReads++;
+          return gate.future;
+        },
+        start: false,
+      );
+
+      final first = provider.start();
+      // `_start`'s synchronous prefix is what sets these, so the first start is
+      // in flight without any pumping.
+      expect(directoryReads, 1);
+      expect(provider.starting, isTrue);
+
+      final second = provider.start();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(
+        directoryReads,
+        1,
+        reason: 'the second start must join the first, not begin its own',
+      );
+      expect(provider.starting, isTrue);
+
+      gate.complete(harness.dir);
+      await Future.wait([first, second]);
+
+      expect(provider.started, isTrue);
+      expect(provider.port, isNotNull);
+      expect(directoryReads, 1);
+    },
+  );
 
   test('opening the panel restarts a listener that is down', () async {
     final provider = await harness.startProvider();

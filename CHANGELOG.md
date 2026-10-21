@@ -19,7 +19,7 @@
 
 ### Fixed
 
-- **LAN sync no longer stops listening when the window is closed to the tray**: with "close to tray" enabled, clicking the window's close button hid it and took port 9527 with it — the process stayed up with no listener, and restoring the window did not bring it back, because the close was answered as a quit. A close that only hides is now answered as a hide (Windows and Linux; macOS' quit is a terminate and still quits), the listener's graceful stop moved from the exit flush to a real shutdown, and a window that comes back to the foreground or a LAN Sync panel that is opened starts the listener again if it is ever down (#1036 by @cup113)
+- **LAN sync no longer stops listening when the window is closed to the tray**: with "close to tray" enabled, clicking the window's close button hid it and took port 9527 with it — the process stayed up with no listener, and restoring the window did not bring it back, because the close was answered as a quit. A close that only hides is now answered as a hide on Windows (macOS' Quit is a terminate and still quits; on Linux the window manager intercepts the close before it ever becomes an exit request, so hiding there is unchanged), the listener's graceful stop moved from the exit flush to a real shutdown, and a window that comes back to the foreground or a LAN Sync panel that is opened starts the listener again if it is ever down (#1036 by @cup113)
 
 ## [4.3.0] - 2026-10-14
 

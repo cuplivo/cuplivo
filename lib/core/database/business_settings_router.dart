@@ -84,6 +84,10 @@ final class BusinessKeyRegistry {
     'translate_model_v1',
     'translate_prompt_v1',
     'translate_target_lang_v1',
+    // The visible set is the same user configuration as the target it belongs
+    // to. Without it a new device receives a target language it is not allowed
+    // to show and silently falls back to its own locale language.
+    'translate_visible_languages_v1',
     'translate_generation_thinking_enabled_v1',
     'ocr_model_v1',
     'ocr_prompt_v1',
@@ -237,6 +241,7 @@ final class BusinessKeyRegistry {
     'translate_model_v1',
     'translate_prompt_v1',
     'translate_target_lang_v1',
+    'translate_visible_languages_v1',
     'ocr_model_v1',
     'ocr_prompt_v1',
     'ocr_enabled_v1',

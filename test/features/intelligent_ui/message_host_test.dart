@@ -1,53 +1,53 @@
 // Inspect the retained native paragraph used by the real timeline renderer.
 // ignore: implementation_imports
 import 'package:markstream/src/flutter/render/native_paragraph_run.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_search_navigation.dart';
-import 'package:Kelivo/features/intelligent_ui/host/gallery/web_gallery.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_web_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_web_document.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_web_card.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_draft_request.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_user_context_parts.dart';
-import 'package:Kelivo/features/intelligent_ui/models/ui_context_attachment.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_context_chip.dart';
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_state.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_search_navigation.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/gallery/web_gallery.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_web_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_web_document.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_web_card.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_draft_request.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_user_context_parts.dart';
+import 'package:Cuplivo/features/intelligent_ui/models/ui_context_attachment.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_context_chip.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_state.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
-import 'package:Kelivo/features/home/controllers/streaming_content_notifier.dart';
-import 'package:Kelivo/features/intelligent_ui/host/gallery/message_gallery.dart'
+import 'package:Cuplivo/features/home/controllers/streaming_content_notifier.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/gallery/message_gallery.dart'
     show genUiMessageFixture;
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_interaction_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_interaction_controller.dart';
 import "../../support/business_test_harness.dart";
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/tts_provider.dart';
-import 'package:Kelivo/core/providers/user_provider.dart';
-import 'package:Kelivo/features/home/controllers/stream_controller.dart'
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/tts_provider.dart';
+import 'package:Cuplivo/core/providers/user_provider.dart';
+import 'package:Cuplivo/features/home/controllers/stream_controller.dart'
     as stream_ctrl;
-import 'package:Kelivo/features/home/services/ask_user_interaction_service.dart';
-import 'package:Kelivo/features/home/services/tool_approval_service.dart';
-import 'package:Kelivo/features/home/widgets/message_list_view.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/features/home/services/ask_user_interaction_service.dart';
+import 'package:Cuplivo/features/home/services/tool_approval_service.dart';
+import 'package:Cuplivo/features/home/widgets/message_list_view.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
 
-import 'package:Kelivo/core/database/generation_run.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_surface.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_host_scope.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_runtime_registry.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_source_map.dart';
-import 'package:Kelivo/shared/markdown/markdown_with_code_highlight.dart';
-import 'package:Kelivo/shared/markdown/kelivo_markdown_extensions.dart';
+import 'package:Cuplivo/core/database/generation_run.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_surface.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_host_scope.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_runtime_registry.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_source_map.dart';
+import 'package:Cuplivo/shared/markdown/markdown_with_code_highlight.dart';
+import 'package:Cuplivo/shared/markdown/kelivo_markdown_extensions.dart';
 import 'package:markstream/markstream.dart' as ms;
 import 'package:flutter/services.dart';
 
@@ -846,7 +846,7 @@ void main() {
       await tester.tap(find.text('Observe frozen Ask'));
       await tester.pumpAndSettle();
       expect(intents, hasLength(1));
-      expect(intents.single.context, {'name': 'Kelivo', 'quantity': 3});
+      expect(intents.single.context, {'name': 'Cuplivo', 'quantity': 3});
       surface.setInputs({'amount': 8}, token: surface.token);
       expect(intents.single.context['quantity'], 3);
       await tester.pumpWidget(const SizedBox());

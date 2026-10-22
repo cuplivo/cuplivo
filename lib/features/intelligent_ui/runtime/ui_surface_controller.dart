@@ -3,10 +3,10 @@ import 'dart:convert';
 
 import '../protocol/ui_source_hash.dart';
 import '../protocol/ui_validation.dart';
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_expression_walk.dart';
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_ir.dart';
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_stream_parser.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_evaluator.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_expression_walk.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_ir.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_stream_parser.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_evaluator.dart';
 import 'ui_resolved_node.dart';
 import 'ui_surface_state.dart';
 

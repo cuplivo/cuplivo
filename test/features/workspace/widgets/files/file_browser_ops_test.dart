@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:Kelivo/features/workspace/widgets/files/file_browser_ops.dart';
+import 'package:Cuplivo/features/workspace/widgets/files/file_browser_ops.dart';
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;

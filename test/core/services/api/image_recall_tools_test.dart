@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/image_context.dart';
-import 'package:Kelivo/core/services/api/request_image_context.dart';
-import 'package:Kelivo/features/home/services/context_assembly.dart';
-import 'package:Kelivo/utils/mcp_structured_image.dart';
+import 'package:Cuplivo/core/models/image_context.dart';
+import 'package:Cuplivo/core/services/api/request_image_context.dart';
+import 'package:Cuplivo/features/home/services/context_assembly.dart';
+import 'package:Cuplivo/utils/mcp_structured_image.dart';
 
 const _recall = {
   'type': 'function',

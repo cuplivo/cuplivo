@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:markstream/markstream_core.dart';
 
-import 'package:Kelivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
 
 /// Only visible rows are widgets, even when an expanded container has many nodes.
 class MarkdownAstView extends StatefulWidget {

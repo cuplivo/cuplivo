@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/shared/widgets/ios_text_button.dart';
-import 'package:Kelivo/features/settings/widgets/custom_theme_widgets.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/shared/widgets/ios_text_button.dart';
+import 'package:Cuplivo/features/settings/widgets/custom_theme_widgets.dart';
 import '../../catalog/ui_catalog.dart';
 import '../../runtime/ui_surface_controller.dart';
 import '../../runtime/ui_surface_state.dart';

@@ -5,9 +5,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:Kelivo/core/models/mcp_presentation.dart';
-import 'package:Kelivo/core/services/mcp/mcp_icon_cache.dart';
-import 'package:Kelivo/features/mcp/widgets/mcp_resolved_icon.dart';
+import 'package:Cuplivo/core/models/mcp_presentation.dart';
+import 'package:Cuplivo/core/services/mcp/mcp_icon_cache.dart';
+import 'package:Cuplivo/features/mcp/widgets/mcp_resolved_icon.dart';
 
 const _custom = 'https://icons.example/custom.svg';
 const _declared = 'https://mcp.example/declared.svg';

@@ -1,11 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/database/generation_run.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/compression_config.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/services/chat/chat_context_reader.dart';
+import 'package:Cuplivo/core/database/generation_run.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/compression_config.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/services/chat/chat_context_reader.dart';
 
 void main() {
   ChatMessage message({

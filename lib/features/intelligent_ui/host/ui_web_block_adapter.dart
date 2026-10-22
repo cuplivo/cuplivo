@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/widgets.dart';
 import 'package:markstream/markstream.dart';
-import 'package:Kelivo/features/chat/widgets/message_export_sheet.dart';
+import 'package:Cuplivo/features/chat/widgets/message_export_sheet.dart';
 import '../runtime/ui_surface_controller.dart';
 import '../widgets/genui_theme.dart';
 import '../widgets/genui_web_card.dart';

@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/memory_entry.dart';
-import 'package:Kelivo/core/models/user_profile_field.dart';
+import 'package:Cuplivo/core/models/memory_entry.dart';
+import 'package:Cuplivo/core/models/user_profile_field.dart';
 
 void main() {
   group('MemoryEntry.normalizeContent', () {

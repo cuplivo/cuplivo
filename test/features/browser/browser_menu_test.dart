@@ -7,11 +7,11 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:Kelivo/features/browser/widgets/browser_glass.dart';
-import 'package:Kelivo/features/browser/widgets/browser_menu.dart';
-import 'package:Kelivo/features/browser/models/browser_models.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/core/services/haptics.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_glass.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_menu.dart';
+import 'package:Cuplivo/features/browser/models/browser_models.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/services/haptics.dart';
 
 const _items = [
   BrowserMenuEntry(

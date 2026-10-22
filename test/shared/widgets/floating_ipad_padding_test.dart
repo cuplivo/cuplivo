@@ -1,4 +1,4 @@
-import 'package:Kelivo/shared/widgets/floating_ipad_padding.dart';
+import 'package:Cuplivo/shared/widgets/floating_ipad_padding.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

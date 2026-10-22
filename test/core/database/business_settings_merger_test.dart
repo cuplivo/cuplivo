@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/database/business_data.dart';
-import 'package:Kelivo/core/database/business_settings_merger.dart';
+import 'package:Cuplivo/core/database/business_data.dart';
+import 'package:Cuplivo/core/database/business_settings_merger.dart';
 
 void main() {
   test('snapshot merge preserves unrelated local row identities', () {

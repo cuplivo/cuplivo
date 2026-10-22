@@ -3,18 +3,18 @@ import 'dart:isolate';
 
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:Kelivo/core/services/api/generation/model_request_attempts.dart';
+import 'package:Cuplivo/core/services/api/generation/model_request_attempts.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/compression_config.dart';
-import 'package:Kelivo/core/models/context_compression_task.dart';
-import 'package:Kelivo/core/models/compress_context_options.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/models/token_usage.dart';
-import 'package:Kelivo/core/services/api/generation/text_generation_result.dart';
-import 'package:Kelivo/core/services/chat/compression_engine.dart';
-import 'package:Kelivo/core/services/chat/compression_planner.dart';
-import 'package:Kelivo/core/services/chat/compression_prompt.dart';
-import 'package:Kelivo/core/services/chat/compression_templates.dart';
+import 'package:Cuplivo/core/models/compression_config.dart';
+import 'package:Cuplivo/core/models/context_compression_task.dart';
+import 'package:Cuplivo/core/models/compress_context_options.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/token_usage.dart';
+import 'package:Cuplivo/core/services/api/generation/text_generation_result.dart';
+import 'package:Cuplivo/core/services/chat/compression_engine.dart';
+import 'package:Cuplivo/core/services/chat/compression_planner.dart';
+import 'package:Cuplivo/core/services/chat/compression_prompt.dart';
+import 'package:Cuplivo/core/services/chat/compression_templates.dart';
 
 void main() {
   const options = CompressContextOptions(

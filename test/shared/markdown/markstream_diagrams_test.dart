@@ -3,9 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:markstream/markstream.dart';
-import 'package:Kelivo/shared/markdown/diagram_code_blocks.dart';
-import 'package:Kelivo/shared/markdown/markdown_with_code_highlight.dart';
-import 'package:Kelivo/shared/widgets/mermaid_image_cache.dart';
+import 'package:Cuplivo/shared/markdown/diagram_code_blocks.dart';
+import 'package:Cuplivo/shared/markdown/markdown_with_code_highlight.dart';
+import 'package:Cuplivo/shared/widgets/mermaid_image_cache.dart';
 import 'markstream_adapters_test.dart' show host;
 
 void main() {

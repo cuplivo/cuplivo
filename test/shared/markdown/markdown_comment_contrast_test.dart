@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:markstream/markstream.dart';
-import 'package:Kelivo/shared/markdown/highlight_adapter.dart';
-import 'package:Kelivo/theme/palettes.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/shared/markdown/highlight_adapter.dart';
+import 'package:Cuplivo/theme/palettes.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 Iterable<TextSpan> spans(TextSpan root) sync* {
   yield root;

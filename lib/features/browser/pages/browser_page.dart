@@ -43,7 +43,7 @@ import '../browser_management_route.dart';
 import 'browser_desktop_layout.dart';
 import 'browser_mobile_layout.dart';
 import 'browser_management_page.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 enum _BrowserMenu {
   newTab,

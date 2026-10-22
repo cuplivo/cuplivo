@@ -1,17 +1,17 @@
 import 'dart:io';
 
-import 'package:Kelivo/core/models/avatar_config.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/desktop/model_spec_edit_dialog.dart';
-import 'package:Kelivo/features/home/widgets/model_icon.dart';
-import 'package:Kelivo/features/model/pages/model_spec_edit_page.dart';
-import 'package:Kelivo/features/model/widgets/model_spec_form/model_spec_form_controller.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/configurable_avatar.dart';
-import 'package:Kelivo/shared/widgets/segmented_tabs.dart';
-import 'package:Kelivo/utils/app_directories.dart';
-import 'package:Kelivo/utils/avatar_cache.dart';
-import 'package:Kelivo/utils/brand_assets.dart';
+import 'package:Cuplivo/core/models/avatar_config.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/desktop/model_spec_edit_dialog.dart';
+import 'package:Cuplivo/features/home/widgets/model_icon.dart';
+import 'package:Cuplivo/features/model/pages/model_spec_edit_page.dart';
+import 'package:Cuplivo/features/model/widgets/model_spec_form/model_spec_form_controller.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/configurable_avatar.dart';
+import 'package:Cuplivo/shared/widgets/segmented_tabs.dart';
+import 'package:Cuplivo/utils/app_directories.dart';
+import 'package:Cuplivo/utils/avatar_cache.dart';
+import 'package:Cuplivo/utils/brand_assets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 // ignore: depend_on_referenced_packages

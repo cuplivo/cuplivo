@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:markstream/markstream.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 /// Recognizes only explicit citation markers; ordinary [1] remains text.
 class CitationSyntax extends InlineSyntax {

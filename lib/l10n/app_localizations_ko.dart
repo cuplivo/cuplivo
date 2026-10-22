@@ -184,7 +184,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get storageSpaceClearDisplacedDatabasesConfirmMessage =>
-      '이 보관된 이전 데이터베이스를 삭제할까요? Kelivo가 데이터베이스를 재구축할 때 남긴 것으로, 해당 채팅 기록과 설정의 유일한 사본일 수 있습니다. 삭제 후에는 복구할 수 없습니다.';
+      '이 보관된 이전 데이터베이스를 삭제할까요? Cuplivo가 데이터베이스를 재구축할 때 남긴 것으로, 해당 채팅 기록과 설정의 유일한 사본일 수 있습니다. 삭제 후에는 복구할 수 없습니다.';
 
   @override
   String get storageSpaceRestoreTracesHint =>
@@ -1656,7 +1656,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupPageChooseExternalFolder =>
-      'iCloud Drive 또는 \'내 iPhone > Kelivo\' 외부의 폴더를 선택하세요. Kelivo 폴더의 파일은 앱과 함께 삭제됩니다. 백업이 저장되지 않았습니다.';
+      'iCloud Drive 또는 \'내 iPhone > Cuplivo\' 외부의 폴더를 선택하세요. Cuplivo 폴더의 파일은 앱과 함께 삭제됩니다. 백업이 저장되지 않았습니다.';
 
   @override
   String get backupPageFilesLabel => '파일 및 이미지';
@@ -1723,23 +1723,23 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupPageRestartContent =>
-      '가져오기에 성공했습니다. 안전하게 적용하려면 Kelivo를 재시작하세요.';
+      '가져오기에 성공했습니다. 안전하게 적용하려면 Cuplivo를 재시작하세요.';
 
   @override
   String backupPageRestartContentWithSkipped(int count) {
-    return '가져오기가 완료되었지만 메시지 순서가 잘못된 대화 $count개를 건너뛰었습니다. 가져온 데이터를 안전하게 적용하려면 Kelivo를 재시작하세요.';
+    return '가져오기가 완료되었지만 메시지 순서가 잘못된 대화 $count개를 건너뛰었습니다. 가져온 데이터를 안전하게 적용하려면 Cuplivo를 재시작하세요.';
   }
 
   @override
   String get restartAppFailedMessage =>
-      'Kelivo를 자동으로 재시작하지 못했습니다. 완전히 종료한 후 다시 실행하세요.';
+      'Cuplivo를 자동으로 재시작하지 못했습니다. 완전히 종료한 후 다시 실행하세요.';
 
   @override
   String get backupRestoreRolledBackTitle => '복원이 롤백되었습니다';
 
   @override
   String get backupRestoreRolledBackContent =>
-      '복원을 완료하지 못했습니다. Kelivo가 확인 후 기존 데이터를 유지했습니다.';
+      '복원을 완료하지 못했습니다. Cuplivo가 확인 후 기존 데이터를 유지했습니다.';
 
   @override
   String get backupRestoreDirectoryBlockedTitle => '복원이 폴더 해제를 기다리는 중입니다';
@@ -1756,21 +1756,22 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupRestoreFailureContent =>
-      'Kelivo가 기존 또는 새 데이터 세트의 완전성을 확인하지 못해 채팅 데이터를 열지 않았습니다. Kelivo를 종료한 후 다시 시도하세요. 문제가 반복되면 지원을 위해 진단 코드를 보관하세요.';
+      'Cuplivo가 기존 또는 새 데이터 세트의 완전성을 확인하지 못해 채팅 데이터를 열지 않았습니다. Cuplivo를 종료한 후 다시 시도하세요. 문제가 반복되면 지원을 위해 진단 코드를 보관하세요.';
 
   @override
-  String get backupRestoreBusinessLeaseUnavailableTitle => 'Kelivo가 이미 실행 중입니다';
+  String get backupRestoreBusinessLeaseUnavailableTitle =>
+      'Cuplivo가 이미 실행 중입니다';
 
   @override
   String get backupRestoreBusinessLeaseUnavailableContent =>
-      'Kelivo의 데이터가 다른 앱 프로세스에서 아직 사용 중입니다. 다른 Kelivo 창을 닫은 후 다시 시작하세요. 현재 프로세스는 채팅 데이터를 열지 않았습니다.';
+      'Cuplivo의 데이터가 다른 앱 프로세스에서 아직 사용 중입니다. 다른 Cuplivo 창을 닫은 후 다시 시작하세요. 현재 프로세스는 채팅 데이터를 열지 않았습니다.';
 
   @override
   String get restoreProgressTitle => '백업 복원 중';
 
   @override
   String get restoreProgressWarning =>
-      '완료될 때까지 Kelivo를 열어 두세요. 지금 닫으면 다음 실행 시 처음부터 다시 시작됩니다.';
+      '완료될 때까지 Cuplivo를 열어 두세요. 지금 닫으면 다음 실행 시 처음부터 다시 시작됩니다.';
 
   @override
   String get restoreProgressStageCheckingBackup => '백업 확인 중';
@@ -1791,7 +1792,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get restoreProgressStageFinishing => '마무리 중';
 
   @override
-  String get backupRestoreFailureRestartButton => 'Kelivo 재시작';
+  String get backupRestoreFailureRestartButton => 'Cuplivo 재시작';
 
   @override
   String get backupRestoreFailureCopyButton => '진단 코드 복사';
@@ -1831,14 +1832,14 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get startupRecoveryResetFailed =>
-      '초기화에 실패했습니다. Kelivo를 완전히 종료한 후 다시 열어 주세요.';
+      '초기화에 실패했습니다. Cuplivo를 완전히 종료한 후 다시 열어 주세요.';
 
   @override
   String get startupRecoveryResetDialogTitle => '빈 채팅 목록으로 시작할까요?';
 
   @override
   String get startupRecoveryResetDialogContent =>
-      '이 작업은 이전 채팅을 복구하지 않습니다. Kelivo는 현재 데이터베이스와 기존 사본을 유지하고 새로운 빈 채팅 목록을 시작합니다. 채팅을 되찾으려면 취소하고 로컬 사본을 선택하세요.';
+      '이 작업은 이전 채팅을 복구하지 않습니다. Cuplivo는 현재 데이터베이스와 기존 사본을 유지하고 새로운 빈 채팅 목록을 시작합니다. 채팅을 되찾으려면 취소하고 로컬 사본을 선택하세요.';
 
   @override
   String get startupRecoveryResetDialogConfirm => '사본 유지하고 새로 시작';
@@ -1952,18 +1953,18 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get startupRecoveryDangerBody =>
-      '새로 시작하면 현재 데이터가 표시되지 않습니다. Kelivo는 복구를 위해 기존 데이터베이스와 기존 사본을 보존합니다. 가능하면 먼저 데이터 사본을 내보내세요.';
+      '새로 시작하면 현재 데이터가 표시되지 않습니다. Cuplivo는 복구를 위해 기존 데이터베이스와 기존 사본을 보존합니다. 가능하면 먼저 데이터 사본을 내보내세요.';
 
   @override
   String get startupRecoveryResetAcknowledge =>
       '지금 채팅을 복구하지 않고 빈 채팅 목록으로 계속 진행하는 데 동의합니다.';
 
   @override
-  String get startupDatabaseUpdateRequiredTitle => '계속하려면 Kelivo를 업데이트하세요';
+  String get startupDatabaseUpdateRequiredTitle => '계속하려면 Cuplivo를 업데이트하세요';
 
   @override
   String get startupDatabaseUpdateRequiredContent =>
-      '이 기기의 채팅 데이터베이스는 더 새로운 버전의 Kelivo에서 생성되어 현재 버전에서는 열 수 없습니다. 데이터는 변경되지 않았습니다. 최신 버전의 Kelivo를 설치한 후 다시 열어 주세요.';
+      '이 기기의 채팅 데이터베이스는 더 새로운 버전의 Cuplivo에서 생성되어 현재 버전에서는 열 수 없습니다. 데이터는 변경되지 않았습니다. 최신 버전의 Cuplivo를 설치한 후 다시 열어 주세요.';
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeTitle => '이전 버전이 필요한 경우';
@@ -1974,7 +1975,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeStep1 =>
-      '최신 버전의 Kelivo를 설치하고 열어서 설정 → 백업에서 백업 파일을 내보내세요.';
+      '최신 버전의 Cuplivo를 설치하고 열어서 설정 → 백업에서 백업 파일을 내보내세요.';
 
   @override
   String startupDatabaseUpdateRequiredDowngradeStep2(String url) {
@@ -2033,7 +2034,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String backupPageForwardCompatBody(int backupVersion, int currentVersion) {
-    return '이 백업은 더 새로운 버전의 Kelivo에서 생성되었습니다(데이터 형식 $backupVersion, 현재 버전 지원 $currentVersion). 이전 버전에서 읽을 수 있는지 여부는 명시되지 않았습니다.\n\n계속할 수 있습니다. 현재 버전이 인식하지 못하는 내용은 건너뛰며 백업 파일 자체는 수정되지 않습니다. 하지만 새 버전에서 기존 데이터 저장 방식을 변경했다면 일부 내용이 잘못 가져와질 수 있습니다.\n\nKelivo를 먼저 업데이트하는 것이 더 안전합니다.';
+    return '이 백업은 더 새로운 버전의 Cuplivo에서 생성되었습니다(데이터 형식 $backupVersion, 현재 버전 지원 $currentVersion). 이전 버전에서 읽을 수 있는지 여부는 명시되지 않았습니다.\n\n계속할 수 있습니다. 현재 버전이 인식하지 못하는 내용은 건너뛰며 백업 파일 자체는 수정되지 않습니다. 하지만 새 버전에서 기존 데이터 저장 방식을 변경했다면 일부 내용이 잘못 가져와질 수 있습니다.\n\nCuplivo를 먼저 업데이트하는 것이 더 안전합니다.';
   }
 
   @override
@@ -2044,7 +2045,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupPageSchemaTooNewMessage =>
-      '이 백업은 더 새로운 버전의 Kelivo에서 생성되어 현재 버전에서는 읽을 수 없습니다. Kelivo를 업데이트한 후 다시 시도하세요.';
+      '이 백업은 더 새로운 버전의 Cuplivo에서 생성되어 현재 버전에서는 읽을 수 없습니다. Cuplivo를 업데이트한 후 다시 시도하세요.';
 
   @override
   String get backupPageBackupUploaded => '백업 업로드됨';
@@ -2227,14 +2228,14 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupPageIosSystemBackupNote =>
-      'Kelivo의 로컬 데이터는 iCloud 기기 백업에 포함되지 않습니다. 기기를 변경하거나 앱을 삭제하기 전에 iCloud Drive 또는 Kelivo 외부의 폴더에 백업하세요. \'내 iPhone > Kelivo\'의 파일은 앱과 함께 삭제됩니다.';
+      'Cuplivo의 로컬 데이터는 iCloud 기기 백업에 포함되지 않습니다. 기기를 변경하거나 앱을 삭제하기 전에 iCloud Drive 또는 Cuplivo 외부의 폴더에 백업하세요. \'내 iPhone > Cuplivo\'의 파일은 앱과 함께 삭제됩니다.';
 
   @override
   String get backupPageImportFromCherryStudio => 'Cherry Studio에서 가져오기';
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return '이 백업은 Cherry Studio 형식 버전 $version을(를) 사용하며, Kelivo에서는 아직 가져올 수 없습니다. Cherry Studio v1에서 내보내거나 Cherry Studio v2 백업을 지원하는 Kelivo 업데이트를 기다리세요.';
+    return '이 백업은 Cherry Studio 형식 버전 $version을(를) 사용하며, Cuplivo에서는 아직 가져올 수 없습니다. Cherry Studio v1에서 내보내거나 Cherry Studio v2 백업을 지원하는 Cuplivo 업데이트를 기다리세요.';
   }
 
   @override
@@ -5125,13 +5126,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get aboutPageEasterEggButton => '좋아요!';
 
   @override
-  String get aboutPageKelivoSearchUnlocked => '이름 없는 문이 살짝 열렸습니다. 설정에서 찾아보세요.';
-
-  @override
-  String get aboutPageKelivoSearchAlreadyUnlocked => '이미 이 문을 열어본 적이 있습니다.';
-
-  @override
-  String get aboutPageAppName => 'Kelivo';
+  String get aboutPageAppName => 'Cuplivo';
 
   @override
   String get aboutPageAppDescription => '오픈소스 AI 어시스턴트';
@@ -5189,13 +5184,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get aboutPageJoinQQGroup => 'QQ 그룹 참여';
 
   @override
-  String get aboutPageQQGroupOne => 'Kelivo 1그룹';
+  String get aboutPageQQGroupOne => 'Cuplivo 1그룹';
 
   @override
-  String get aboutPageQQGroupTwo => 'Kelivo 2그룹';
+  String get aboutPageQQGroupTwo => 'Cuplivo 2그룹';
 
   @override
-  String get aboutPageQQGroupThree => 'Kelivo 3그룹';
+  String get aboutPageQQGroupThree => 'Cuplivo 3그룹';
 
   @override
   String get aboutPageJoinDiscord => 'Discord에서 참여하기';
@@ -6256,7 +6251,7 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get settingsShare => 'Kelivo - 오픈 소스 AI 어시스턴트';
+  String get settingsShare => 'Cuplivo - 오픈 소스 AI 어시스턴트';
 
   @override
   String get searchProviderBingLocalDescription =>
@@ -6471,9 +6466,6 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get searchServicesDialogMaximumTokensInvalid =>
       '최대 토큰 수는 1024에서 32768 사이여야 합니다.';
-
-  @override
-  String get searchServiceNameKelivo => 'Kelivo';
 
   @override
   String get searchServicesDialogCountryOptional => '국가/지역 (선택 사항)';
@@ -6752,7 +6744,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get healthDataSettingsDescription =>
-      '현재 어시스턴트가 일상 대화에서 사용할 수 있는 HealthKit 신호입니다. 스위치는 Kelivo가 읽기를 시도할 수 있는 범위를 제어하며, 실제 접근 권한은 여전히 iOS가 관리합니다.';
+      '현재 어시스턴트가 일상 대화에서 사용할 수 있는 HealthKit 신호입니다. 스위치는 Cuplivo가 읽기를 시도할 수 있는 범위를 제어하며, 실제 접근 권한은 여전히 iOS가 관리합니다.';
 
   @override
   String healthDataSettingsBadge(int selected, int total) {
@@ -8074,7 +8066,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get legacyMemoryExport => '내보내기';
 
   @override
-  String get legacyMemoryExportTitle => 'Kelivo 레거시 메모리 내보내기';
+  String get legacyMemoryExportTitle => 'Cuplivo 레거시 메모리 내보내기';
 
   @override
   String legacyMemoryAssistantHeader(String name) {
@@ -8692,7 +8684,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get migrationIntroSubtitle =>
-      'Kelivo가 채팅 기록을 더 빠른 SQLite 데이터베이스로 이전합니다. 데이터 일관성을 유지하기 위해 앱이 열리기 전에 업그레이드가 실행됩니다.';
+      'Cuplivo가 채팅 기록을 더 빠른 SQLite 데이터베이스로 이전합니다. 데이터 일관성을 유지하기 위해 앱이 열리기 전에 업그레이드가 실행됩니다.';
 
   @override
   String get migrationBackupNote =>
@@ -8736,14 +8728,14 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get migrationBackingUpSubtitle =>
-      '설정, 채팅 기록, 업로드된 파일, 이미지, 글꼴을 내보내는 중입니다. 완료될 때까지 Kelivo를 열어 두세요.';
+      '설정, 채팅 기록, 업로드된 파일, 이미지, 글꼴을 내보내는 중입니다. 완료될 때까지 Cuplivo를 열어 두세요.';
 
   @override
   String get migrationMigratingTitle => 'SQLite로 마이그레이션 중';
 
   @override
   String get migrationMigratingSubtitle =>
-      '대용량 기록이 메모리를 과부하시키지 않도록 대화와 메시지를 일괄로 기록하는 중입니다. 마이그레이션이 완료될 때까지 Kelivo를 포그라운드에 유지하세요.';
+      '대용량 기록이 메모리를 과부하시키지 않도록 대화와 메시지를 일괄로 기록하는 중입니다. 마이그레이션이 완료될 때까지 Cuplivo를 포그라운드에 유지하세요.';
 
   @override
   String migrationBackingUpDetail(String fileName) {
@@ -8802,7 +8794,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get migrationCompleteSubtitle =>
-      '채팅 기록이 이제 SQLite에 저장됩니다. 업그레이드된 앱으로 들어가려면 Kelivo를 다시 시작하세요.';
+      '채팅 기록이 이제 SQLite에 저장됩니다. 업그레이드된 앱으로 들어가려면 Cuplivo를 다시 시작하세요.';
 
   @override
   String get migrationConversationCount => '대화';
@@ -8820,7 +8812,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get migrationMissingFilesCount => '누락된 파일';
 
   @override
-  String get migrationRestartButton => 'Kelivo 재시작';
+  String get migrationRestartButton => 'Cuplivo 재시작';
 
   @override
   String get migrationFailedTitle => '마이그레이션 실패';
@@ -8846,7 +8838,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get migrationSkipDialogMessage =>
-      'Kelivo가 빈 채팅 데이터베이스로 시작됩니다. 기존 채팅 기록은 디스크에 남아 있지만(.retired 접미사로 이름 변경) 마이그레이션되지 않으며 앱에 표시되지 않습니다. 나중에 복구하려면 백업 ZIP을 사용하세요.';
+      'Cuplivo가 빈 채팅 데이터베이스로 시작됩니다. 기존 채팅 기록은 디스크에 남아 있지만(.retired 접미사로 이름 변경) 마이그레이션되지 않으며 앱에 표시되지 않습니다. 나중에 복구하려면 백업 ZIP을 사용하세요.';
 
   @override
   String get migrationSkipDialogCancel => '취소';
@@ -9264,7 +9256,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get localSnapshotEnabledSubtitle =>
-      'Kelivo가 이 기기에 데이터베이스 사본을 주기적으로 저장하여 데이터가 단 하나만 존재하지 않도록 합니다.';
+      'Cuplivo가 이 기기에 데이터베이스 사본을 주기적으로 저장하여 데이터가 단 하나만 존재하지 않도록 합니다.';
 
   @override
   String get localSnapshotIntervalTitle => '주기';
@@ -9373,7 +9365,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get localSnapshotCopiesScopeNote =>
-      '로컬 복사본은 이 기기에만 저장됩니다. 앱 내 데이터 손상이나 실수로 인한 삭제는 방지할 수 있지만, 기기 분실이나 Kelivo 제거로 인한 손실은 방지할 수 없습니다. 이를 위해서는 WebDAV 또는 S3 백업을 사용하세요.';
+      '로컬 복사본은 이 기기에만 저장됩니다. 앱 내 데이터 손상이나 실수로 인한 삭제는 방지할 수 있지만, 기기 분실이나 Cuplivo 제거로 인한 손실은 방지할 수 없습니다. 이를 위해서는 WebDAV 또는 S3 백업을 사용하세요.';
 
   @override
   String get localSnapshotOriginAutomatic => '자동';
@@ -10062,7 +10054,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get workspaceEnvUpToDate => '최신 상태입니다';
 
   @override
-  String get workspaceEnvRestartBanner => '완료하려면 Kelivo를 재시작하세요';
+  String get workspaceEnvRestartBanner => '완료하려면 Cuplivo를 재시작하세요';
 
   @override
   String get workspaceEnvDetectingMirrors => '가장 빠른 미러 감지 중…';
@@ -10171,7 +10163,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get workspaceEnvNativeExplanation =>
-      '데스크톱에서 Kelivo는 Linux 샌드박스 대신 시스템 셸을 사용합니다.';
+      '데스크톱에서 Cuplivo는 Linux 샌드박스 대신 시스템 셸을 사용합니다.';
 
   @override
   String workspaceEnvNativeShellPath(String path) {
@@ -11082,7 +11074,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get workspaceDesktopManagedHint =>
-      'Kelivo가 이 프로젝트를 위한 폴더를 생성하고 관리합니다.';
+      'Cuplivo가 이 프로젝트를 위한 폴더를 생성하고 관리합니다.';
 
   @override
   String get workspaceDesktopHostHint => '파일과 명령이 이 컴퓨터에서 실행됩니다.';
@@ -11324,7 +11316,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get workspaceExternalStorageMessage =>
-      '작업 공간과 Shell에서 외부 폴더를 읽고 쓰려면 Android 설정에서 Kelivo의 파일 관리 권한을 허용하세요. Android 11 이상에서는 \'모든 파일 접근 권한\'을 켠 다음, 마운트할 기기 내 폴더를 선택하세요.';
+      '작업 공간과 Shell에서 외부 폴더를 읽고 쓰려면 Android 설정에서 Cuplivo의 파일 관리 권한을 허용하세요. Android 11 이상에서는 \'모든 파일 접근 권한\'을 켠 다음, 마운트할 기기 내 폴더를 선택하세요.';
 
   @override
   String get workspaceExternalGrantAccess => '권한 허용';
@@ -11546,7 +11538,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get backgroundSettingsTitle => '백그라운드 작업';
 
   @override
-  String get backgroundTaskTitle => 'Kelivo 작업';
+  String get backgroundTaskTitle => 'Cuplivo 작업';
 
   @override
   String get backgroundCompleted => '생성 완료';
@@ -11680,7 +11672,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get backgroundOverlayIcon => '플로팅 아이콘';
 
   @override
-  String get backgroundIconDefault => 'Kelivo 아이콘';
+  String get backgroundIconDefault => 'Cuplivo 아이콘';
 
   @override
   String get backgroundIconImage => '이미지 선택';
@@ -11894,7 +11886,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get startupRecoverySnapshotBody =>
-      '데이터베이스를 열 수 없더라도 이 기기의 스냅샷을 선택해 대화와 설정을 복구할 수 있습니다. Kelivo를 제거하지 마세요. 제거하면 이 스냅샷도 함께 삭제됩니다.';
+      '데이터베이스를 열 수 없더라도 이 기기의 스냅샷을 선택해 대화와 설정을 복구할 수 있습니다. Cuplivo를 제거하지 마세요. 제거하면 이 스냅샷도 함께 삭제됩니다.';
 
   @override
   String get startupRecoverySnapshotEmpty =>
@@ -11905,7 +11897,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String startupRecoverySnapshotConfirm(String when) {
-    return '대화와 설정을 $when 스냅샷으로 복구할까요? 이 스냅샷 이후의 변경 사항은 포함되지 않습니다. 기존 첨부 파일과 스냅샷은 유지되며, 복구를 완료하려면 Kelivo가 다시 시작됩니다.';
+    return '대화와 설정을 $when 스냅샷으로 복구할까요? 이 스냅샷 이후의 변경 사항은 포함되지 않습니다. 기존 첨부 파일과 스냅샷은 유지되며, 복구를 완료하려면 Cuplivo가 다시 시작됩니다.';
   }
 
   @override
@@ -11915,7 +11907,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get startupRecoverySnapshotReady =>
-      '스냅샷이 준비되었습니다. 복구를 완료하려면 Kelivo를 다시 시작하세요.';
+      '스냅샷이 준비되었습니다. 복구를 완료하려면 Cuplivo를 다시 시작하세요.';
 
   @override
   String get scheduledTasksTitle => '예약 작업';
@@ -11988,7 +11980,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get scheduledTasksReliability =>
-      '더 안정적인 실행을 위해 배터리 설정에서 Kelivo를 제한 없이 사용하도록 설정하세요. 앱을 강제 중지하면 다시 열 때까지 알람이 취소됩니다. 놓친 실행은 건너뛰며, 작업은 기기 시간대를 따릅니다.';
+      '더 안정적인 실행을 위해 배터리 설정에서 Cuplivo를 제한 없이 사용하도록 설정하세요. 앱을 강제 중지하면 다시 열 때까지 알람이 취소됩니다. 놓친 실행은 건너뛰며, 작업은 기기 시간대를 따릅니다.';
 
   @override
   String get scheduledTasksExecutionDetail =>
@@ -12169,7 +12161,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get scheduledTasksDesktopReliability =>
-      '작업은 Kelivo가 실행 중일 때만 실행되며, 최소화되거나 시스템 트레이에 있을 때도 포함됩니다. 앱 종료 또는 컴퓨터 절전 중 놓친 시간은 건너뜁니다. Kelivo는 자동으로 시작되지 않습니다.';
+      '작업은 Cuplivo가 실행 중일 때만 실행되며, 최소화되거나 시스템 트레이에 있을 때도 포함됩니다. 앱 종료 또는 컴퓨터 절전 중 놓친 시간은 건너뜁니다. Cuplivo는 자동으로 시작되지 않습니다.';
 
   @override
   String get scheduledTasksDesktopExecutionDetail =>
@@ -12548,7 +12540,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get scheduledTasksIOSDetail =>
-      'iOS 백그라운드 제한으로 인해 Kelivo는 지정된 시간에 자동으로 깨어나 모델을 실행할 수 없습니다. 대신 앱이 실행될 수 있을 때 콘텐츠를 미리 준비하고, 시스템이 예정된 시간에 알림을 표시합니다. 다음 한 번의 결과만 준비됩니다. 앱을 나간 후에는 준비가 완료되지 않을 수 있으며, 이후 작업은 Kelivo를 다시 열어야 준비됩니다.';
+      'iOS 백그라운드 제한으로 인해 Cuplivo는 지정된 시간에 자동으로 깨어나 모델을 실행할 수 없습니다. 대신 앱이 실행될 수 있을 때 콘텐츠를 미리 준비하고, 시스템이 예정된 시간에 알림을 표시합니다. 다음 한 번의 결과만 준비됩니다. 앱을 나간 후에는 준비가 완료되지 않을 수 있으며, 이후 작업은 Cuplivo를 다시 열어야 준비됩니다.';
 
   @override
   String get scheduledTasksContextPolicy => '대화 컨텍스트';
@@ -12613,7 +12605,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get scheduledTasksReminderBody =>
-      '예약된 작업 시간이 되었습니다. Kelivo를 열어 계속하세요.';
+      '예약된 작업 시간이 되었습니다. Cuplivo를 열어 계속하세요.';
 
   @override
   String get scheduledTasksResultBody => '예약된 작업 결과가 준비되었습니다.';
@@ -12627,7 +12619,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get scheduledTasksAllowPreparationTip =>
-      'Kelivo가 실행될 수 있을 때 다음 작업 결과를 미리 생성하며, 만료 전에는 채팅에 표시되지 않습니다. 텍스트만 사용하고 도구, 첨부 파일 또는 사용자 지정 요청 본문은 사용하지 않습니다. 모델 호출로 비용이 발생할 수 있습니다.';
+      'Cuplivo가 실행될 수 있을 때 다음 작업 결과를 미리 생성하며, 만료 전에는 채팅에 표시되지 않습니다. 텍스트만 사용하고 도구, 첨부 파일 또는 사용자 지정 요청 본문은 사용하지 않습니다. 모델 호출로 비용이 발생할 수 있습니다.';
 
   @override
   String get scheduledTasksContextPolicyTip =>
@@ -12635,7 +12627,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get scheduledTasksPreparationWindowTip =>
-      '작업 시간 전 최대 24시간까지 준비를 시작할 수 있습니다. 예를 들어 다음 날 아침 알림이라면 전날 정오에 Kelivo를 열었을 때 준비할 기회가 생깁니다. 시간이 길수록 준비 기회는 많아지지만 내용이 더 일찍 오래될 수 있습니다. 작업 시간을 변경하지 않으며 백그라운드 정기 실행을 보장하지도 않습니다. 「지금 준비」는 이 자동 대기 시간과 모든 시도 제한을 우회합니다.';
+      '작업 시간 전 최대 24시간까지 준비를 시작할 수 있습니다. 예를 들어 다음 날 아침 알림이라면 전날 정오에 Cuplivo를 열었을 때 준비할 기회가 생깁니다. 시간이 길수록 준비 기회는 많아지지만 내용이 더 일찍 오래될 수 있습니다. 작업 시간을 변경하지 않으며 백그라운드 정기 실행을 보장하지도 않습니다. 「지금 준비」는 이 자동 대기 시간과 모든 시도 제한을 우회합니다.';
 
   @override
   String get scheduledTasksPreparationAttemptsTip =>
@@ -12647,7 +12639,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get scheduledTasksUnavailableTip =>
-      '사용 가능한 준비 결과가 없고 작업 시간에 작업을 실행할 수 없으면 알림을 보내거나 이번 회차를 건너뜁니다. 알림에는 모델이 생성한 답변이 포함되지 않으며 알림이 활성화되어 있어야 합니다. 작업 시간에 Kelivo가 열려 있으면 그때 작업을 실행할 수 있습니다.';
+      '사용 가능한 준비 결과가 없고 작업 시간에 작업을 실행할 수 없으면 알림을 보내거나 이번 회차를 건너뜁니다. 알림에는 모델이 생성한 답변이 포함되지 않으며 알림이 활성화되어 있어야 합니다. 작업 시간에 Cuplivo가 열려 있으면 그때 작업을 실행할 수 있습니다.';
 
   @override
   String get scheduledTasksNotifyTip =>
@@ -12830,14 +12822,14 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get phoneControlAssistantHint =>
-      '두 가지 권한이 모두 필요합니다: 시스템 접근성 설정에서 Kelivo 휴대폰 제어를 활성화한 다음, 어시스턴트의 로컬 도구에서 휴대폰 제어를 활성화하세요(대화 도구 메뉴에서도 가능). 각 어시스턴트는 개별적으로 구성됩니다. 작업을 실행하는 동안 휴대폰 잠금을 해제해 두세요.';
+      '두 가지 권한이 모두 필요합니다: 시스템 접근성 설정에서 Cuplivo 휴대폰 제어를 활성화한 다음, 어시스턴트의 로컬 도구에서 휴대폰 제어를 활성화하세요(대화 도구 메뉴에서도 가능). 각 어시스턴트는 개별적으로 구성됩니다. 작업을 실행하는 동안 휴대폰 잠금을 해제해 두세요.';
 
   @override
   String get phoneControlRestrictedTitle => '접근성 스위치를 사용할 수 없나요?';
 
   @override
   String get phoneControlRestrictedHint =>
-      '일부 다운로드한 APK의 경우 Android에서 먼저 앱 정보 메뉴에서 \'제한된 설정 허용\'이 필요합니다. 탭하여 Kelivo 앱 정보를 연 다음 접근성 설정으로 돌아오세요.';
+      '일부 다운로드한 APK의 경우 Android에서 먼저 앱 정보 메뉴에서 \'제한된 설정 허용\'이 필요합니다. 탭하여 Cuplivo 앱 정보를 연 다음 접근성 설정으로 돌아오세요.';
 
   @override
   String get phoneControlEnableAssistant => '이 어시스턴트가 휴대폰 제어를 사용하도록 허용';
@@ -13032,7 +13024,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get recoveryMissingDataBody =>
-      'Kelivo가 현재 채팅 데이터베이스를 찾지 못했습니다. 로딩을 일시 중지했으며 빈 데이터베이스를 새로 만들지 않았습니다. 아래에서 이전 사본을 찾아볼 것이며, 기존 파일은 유지됩니다.';
+      'Cuplivo가 현재 채팅 데이터베이스를 찾지 못했습니다. 로딩을 일시 중지했으며 빈 데이터베이스를 새로 만들지 않았습니다. 아래에서 이전 사본을 찾아볼 것이며, 기존 파일은 유지됩니다.';
 
   @override
   String get recoveryEmptyDataTitle => '현재 채팅 기록이 비어 있습니다';
@@ -13074,7 +13066,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get recoveryStorageFailureBody =>
-      '데이터 업데이트를 완료하지 못했습니다. 원본 데이터는 유지되었습니다. Kelivo를 다시 열거나 아래에서 로컬 사본을 선택해 복구해 보세요.';
+      '데이터 업데이트를 완료하지 못했습니다. 원본 데이터는 유지되었습니다. Cuplivo를 다시 열거나 아래에서 로컬 사본을 선택해 복구해 보세요.';
 
   @override
   String get recoveryProtectingTitle => '채팅 데이터베이스 보호 중';
@@ -13099,7 +13091,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get recoveryStorageInsufficientSpaceBody =>
-      '데이터를 안전하게 준비하기에 저장 공간이 부족합니다. 시스템 설정에서 공간을 확보한 뒤 Kelivo를 다시 열거나 아래 사본을 다시 확인하세요. Kelivo를 설치된 상태로 두고 데이터와 로컬 사본을 그대로 유지하세요.';
+      '데이터를 안전하게 준비하기에 저장 공간이 부족합니다. 시스템 설정에서 공간을 확보한 뒤 Cuplivo를 다시 열거나 아래 사본을 다시 확인하세요. Cuplivo를 설치된 상태로 두고 데이터와 로컬 사본을 그대로 유지하세요.';
 
   @override
   String get migrationFreshStartTitle => '새로 시작할 준비가 되었습니다';
@@ -13181,7 +13173,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupEncryptionUnsupported =>
-      '이 암호화된 백업을 사용하려면 더 새로운 버전의 Kelivo가 필요합니다.';
+      '이 암호화된 백업을 사용하려면 더 새로운 버전의 Cuplivo가 필요합니다.';
 
   @override
   String get backupProgressEncrypting => '백업 암호화 중';
@@ -13344,7 +13336,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get browserRestoreTabs => '탭 복원';
 
   @override
-  String get browserRestoreTabsDescription => 'Kelivo를 시작할 때 탭을 다시 엽니다.';
+  String get browserRestoreTabsDescription => 'Cuplivo를 시작할 때 탭을 다시 엽니다.';
 
   @override
   String get browserSaveHistory => '방문 기록 저장';
@@ -15070,7 +15062,7 @@ class AppLocalizationsKo extends AppLocalizations {
       '아래 디렉터리의 유지된 사본을 제거할까요? 현재 디렉터리의 데이터는 유지되며, 이동 후 변경된 파일은 삭제되지 않습니다.';
 
   @override
-  String get dataDirectoryMoving => '데이터 이동 및 검증 중… Kelivo를 열어 두세요.';
+  String get dataDirectoryMoving => '데이터 이동 및 검증 중… Cuplivo를 열어 두세요.';
 
   @override
   String get dataDirectoryStartupFailed => '데이터 디렉터리를 열 수 없습니다';
@@ -15114,7 +15106,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get dataDirectoryGenericError =>
-      '작업을 완료하지 못했습니다. 디스크 여유 공간, 폴더 권한, 다른 Kelivo 프로세스 실행 여부를 확인한 후 다시 시도하세요. 기존 데이터는 보관되었습니다.';
+      '작업을 완료하지 못했습니다. 디스크 여유 공간, 폴더 권한, 다른 Cuplivo 프로세스 실행 여부를 확인한 후 다시 시도하세요. 기존 데이터는 보관되었습니다.';
 
   @override
   String get dataDirectoryCancelHint =>
@@ -15359,7 +15351,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get recoveryGuideBody =>
-      'Kelivo가 데이터 로드를 일시 중지했습니다. 로컬 사본을 찾아 복구할 항목을 선택할 수 있도록 합니다. 기존 파일은 유지됩니다.';
+      'Cuplivo가 데이터 로드를 일시 중지했습니다. 로컬 사본을 찾아 복구할 항목을 선택할 수 있도록 합니다. 기존 파일은 유지됩니다.';
 
   @override
   String get recoverySpaceTitle => '약간의 여유 공간이 필요합니다';
@@ -15380,7 +15372,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get recoveryRestoreRetryBody =>
-      '복구를 완료하지 못했습니다. 선택한 사본은 유지되었습니다. 로컬 사본을 다시 확인하거나 Kelivo를 다시 열어 계속하세요.';
+      '복구를 완료하지 못했습니다. 선택한 사본은 유지되었습니다. 로컬 사본을 다시 확인하거나 Cuplivo를 다시 열어 계속하세요.';
 
   @override
   String recoverySpaceAmount(String required, String available) {
@@ -15389,7 +15381,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get recoveryCopiesNeedUpdate =>
-      '일부 사본은 최신 버전의 Kelivo에서 생성되었습니다. 해당 사본을 복구하려면 Kelivo를 업데이트하세요. 이 사본들은 유지되었습니다.';
+      '일부 사본은 최신 버전의 Cuplivo에서 생성되었습니다. 해당 사본을 복구하려면 Cuplivo를 업데이트하세요. 이 사본들은 유지되었습니다.';
 
   @override
   String get imageContextAllowRecall => '모델이 이미지를 다시 불러오도록 허용';
@@ -15996,22 +15988,22 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String requestBudgetSingleError(int index, String actual, String limit) {
-    return 'Kelivo 로컬 사전 검사: 이미지 $index의 인코딩 크기가 $actual로 단일 이미지 한도 $limit을(를) 초과했습니다.';
+    return 'Cuplivo 로컬 사전 검사: 이미지 $index의 인코딩 크기가 $actual로 단일 이미지 한도 $limit을(를) 초과했습니다.';
   }
 
   @override
   String requestBudgetTotalError(String actual, String limit) {
-    return 'Kelivo 로컬 사전 검사: 인코딩된 이미지 합계가 $actual로 이미지 예산 $limit을(를) 초과했습니다.';
+    return 'Cuplivo 로컬 사전 검사: 인코딩된 이미지 합계가 $actual로 이미지 예산 $limit을(를) 초과했습니다.';
   }
 
   @override
   String requestBudgetCountError(String actual, int limit) {
-    return 'Kelivo 로컬 사전 검사: 요청에 이미지가 $actual개 포함되어 한도 $limit개를 초과했습니다.';
+    return 'Cuplivo 로컬 사전 검사: 요청에 이미지가 $actual개 포함되어 한도 $limit개를 초과했습니다.';
   }
 
   @override
   String requestBudgetBodyError(String actual, String limit) {
-    return 'Kelivo 로컬 사전 검사: 전체 요청 본문이 $actual로 요청 본문 예산 $limit을(를) 초과했습니다.';
+    return 'Cuplivo 로컬 사전 검사: 전체 요청 본문이 $actual로 요청 본문 예산 $limit을(를) 초과했습니다.';
   }
 
   @override
@@ -16206,4 +16198,1275 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get workspaceEnvNativeShellSave => '저장';
+
+  @override
+  String get storageSpaceCategoryAssistantData => '어시스턴트';
+
+  @override
+  String get storageSpaceSubAssistantAvatars => '아바타';
+
+  @override
+  String get storageSpaceSubAssistantImages => '이미지';
+
+  @override
+  String get storageSpaceSourceLabel => '출처';
+
+  @override
+  String get storageSpaceSourceAll => '전체';
+
+  @override
+  String get storageSpaceSourceUserUpload => '사용자 업로드';
+
+  @override
+  String get storageSpaceSourceAssistant => '어시스턴트';
+
+  @override
+  String get languageDisplayPortuguese => '포르투갈어';
+
+  @override
+  String get languageDisplayArabic => '아랍어';
+
+  @override
+  String get languageDisplayHindi => '힌디어';
+
+  @override
+  String get languageDisplayThai => '태국어';
+
+  @override
+  String get languageDisplayVietnamese => '베트남어';
+
+  @override
+  String get languageDisplayBengali => '벵골어';
+
+  @override
+  String get translateLanguageManagerTitle => '언어 관리';
+
+  @override
+  String get translateLanguageManagerSubtitle => '번역 대상 목록에 표시할 언어를 선택하세요.';
+
+  @override
+  String get translateLanguageManagerAtLeastOne => '언어를 하나 이상 표시해야 해요.';
+
+  @override
+  String get assistantEditChatSuggestionsTitle => '채팅 제안';
+
+  @override
+  String get assistantEditChatSuggestionsTip =>
+      '답변마다 요청을 한 번 더 보내 최대 세 가지 후속 질문을 제안해요. 끄면 요청하지 않아요.';
+
+  @override
+  String get assistantEditChatSuggestionsGlobalOff =>
+      '비활성 — 먼저 \'기본 모델\'에서 채팅 제안을 켜세요.';
+
+  @override
+  String get hotkeyFocusInput => '입력창 포커스';
+
+  @override
+  String get hotkeyCopySelectionMarkdown => '선택 영역을 Markdown으로 복사';
+
+  @override
+  String get hotkeyReplySelection => '선택 영역에 답장';
+
+  @override
+  String get compressingContext => '컨텍스트 압축 중...';
+
+  @override
+  String compressContextReadoutRounds(int rounds) {
+    String _temp0 = intl.Intl.pluralLogic(
+      rounds,
+      locale: localeName,
+      other: '$rounds라운드',
+      one: '1라운드',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String compressContextReadoutKeptRounds(int rounds) {
+    String _temp0 = intl.Intl.pluralLogic(
+      rounds,
+      locale: localeName,
+      other: '$rounds라운드',
+      one: '1라운드',
+    );
+    return '$_temp0 + 요약';
+  }
+
+  @override
+  String compressContextReadoutTokens(String tokens) {
+    return '~$tokens 토큰';
+  }
+
+  @override
+  String compressContextReadoutTokensBand(String min, String max) {
+    return '~$min–$max 토큰';
+  }
+
+  @override
+  String compressContextReadoutReduction(int percent) {
+    return '−$percent%';
+  }
+
+  @override
+  String get messageQuotePreviewRemove => '답장 해제';
+
+  @override
+  String get messageQuoteTargetMissing => '원본 메시지를 볼 수 없어요';
+
+  @override
+  String get messageMoreSheetReply => '답장';
+
+  @override
+  String get messageMoreSheetCopyLink => '링크 복사';
+
+  @override
+  String reasoningBudgetSheetCurrentLevel(String level) {
+    return '현재 단계: $level';
+  }
+
+  @override
+  String get chatMessageWidgetReplySelection => '답장';
+
+  @override
+  String get chatSelectionExportPdf => 'PDF';
+
+  @override
+  String get messageExportSheetUser => '사용자';
+
+  @override
+  String get messageExportSheetPdf => 'PDF';
+
+  @override
+  String get messageExportSheetBatchPdfSubtitle => '선택한 메시지를 PDF 문서로 내보내기';
+
+  @override
+  String get pdfExportDialogTitle => 'PDF 내보내기';
+
+  @override
+  String get pdfExportDialogCancel => '취소';
+
+  @override
+  String get pdfExportDialogExport => 'PDF 내보내기';
+
+  @override
+  String get pdfExportDialogSectionContent => '내용';
+
+  @override
+  String get pdfExportDialogSectionFonts => '글꼴';
+
+  @override
+  String get pdfExportFontRoleBody => '본문 글꼴';
+
+  @override
+  String get pdfExportFontRoleMono => '코드 글꼴';
+
+  @override
+  String get pdfExportFontRoleEmoji => '이모지 글꼴';
+
+  @override
+  String get pdfExportFontCheck => '글꼴 확인';
+
+  @override
+  String get pdfExportFontChecking => '확인 중…';
+
+  @override
+  String get pdfExportFontMissing =>
+      '삽입 가능한 CJK 글꼴을 찾지 못했어요. CJK 문자가 빈칸으로 인쇄될 수 있어요.';
+
+  @override
+  String get pdfExportFontUnusable => '선택한 글꼴을 사용할 수 없어 다른 글꼴로 대체했어요.';
+
+  @override
+  String get pdfExportFontBuiltIn => '기본 제공 글꼴';
+
+  @override
+  String get pdfExportFontNone => '삽입 안 함';
+
+  @override
+  String get pdfExportFontNeedsDownload => '다운로드 필요';
+
+  @override
+  String get pdfExportFontAuto => '자동';
+
+  @override
+  String get pdfExportFontGroupSystem => '시스템 글꼴';
+
+  @override
+  String get pdfExportFontGroupDownload => '다운로드';
+
+  @override
+  String get pdfExportFontGroupOther => '기타';
+
+  @override
+  String get pdfExportFontNoteCjk => 'CJK 포함';
+
+  @override
+  String get pdfExportFontNoteColour => '컬러';
+
+  @override
+  String get pdfExportFontNoteMonochrome => '모노';
+
+  @override
+  String get pdfExportFontBuiltInNote => '글꼴을 삽입하지 않아 CJK가 빈칸으로 인쇄돼요';
+
+  @override
+  String get pdfExportFontDownloadNote => 'CJK 포함, 약 10 MB';
+
+  @override
+  String get pdfExportFontListFailed => '글꼴 목록을 읽을 수 없어요';
+
+  @override
+  String get pdfExportResultTitle => '내보내기 완료';
+
+  @override
+  String pdfExportResultSummary(Object pages, Object size) {
+    return '$pages페이지 · $size';
+  }
+
+  @override
+  String pdfExportResultDegraded(Object count) {
+    return '$count개 항목이 완전히 내보내지지 않았어요';
+  }
+
+  @override
+  String pdfExportResultDegradedMath(Object count) {
+    return '$count개 수식이 일반 텍스트로 표시됐어요';
+  }
+
+  @override
+  String pdfExportResultDegradedDiagram(Object count) {
+    return '$count개 다이어그램이 코드로 표시됐어요';
+  }
+
+  @override
+  String pdfExportResultDegradedImage(Object count) {
+    return '$count개 이미지를 읽지 못해 링크로 표시했어요';
+  }
+
+  @override
+  String get pdfExportResultDone => '완료';
+
+  @override
+  String get sideDrawerMenuCopyLink => '링크 복사';
+
+  @override
+  String get conversationLinkCopied => '링크를 복사했어요';
+
+  @override
+  String get conversationLinkMissing => '이 대화는 이 기기에 없어요.';
+
+  @override
+  String modelDetailSheetModelIdDisabledHint(String modelId) {
+    return '$modelId';
+  }
+
+  @override
+  String get modelDetailSheetSearchTool => '검색';
+
+  @override
+  String get modelDetailSheetSearchToolDescription => 'Google 검색 연동 사용';
+
+  @override
+  String get modelDetailSheetModelIdExistsError => '모델 ID가 이미 있어요';
+
+  @override
+  String get aboutPageCuplivoSearchUnlocked => '이름 없는 문이 살짝 열렸습니다. 설정에서 찾아보세요.';
+
+  @override
+  String get aboutPageCuplivoSearchAlreadyUnlocked => '이미 이 문을 열어본 적이 있습니다.';
+
+  @override
+  String get aboutPageQQGroup => 'Cuplivo 그룹';
+
+  @override
+  String get draftImageCropAction => '자르기';
+
+  @override
+  String get draftImageCropFailed => '이미지를 자르지 못했어요. 원본은 그대로예요.';
+
+  @override
+  String get displaySettingsPageAutoScrollIdleTitle => '자동 하단 복귀 지연';
+
+  @override
+  String get displaySettingsPageAutoScrollIdleSubtitle =>
+      '스크롤을 멈춘 뒤 맨 아래로 돌아가기까지 기다리는 시간';
+
+  @override
+  String get searchServiceNameCuplivo => 'Cuplivo';
+
+  @override
+  String get memorySettingsFullInjectionTypesTitle => '항상 삽입할 유형';
+
+  @override
+  String get memorySettingsFullInjectionTypesSubtitle =>
+      '하나 이상 선택하면 현재 어시스턴트가 볼 수 있는 해당 유형의 유효한 기억을 모두 삽입해요. 이 유형은 개수 제한을 무시해 컨텍스트와 토큰을 더 사용해요.';
+
+  @override
+  String get toolApprovalApprove => '승인';
+
+  @override
+  String get imageSettingsPageModeTitle => '압축 모드';
+
+  @override
+  String get imageSettingsPageModeManual => '수동';
+
+  @override
+  String get imageSettingsPageModeAuto => '자동';
+
+  @override
+  String get imageSettingsPageModeOff => '끔';
+
+  @override
+  String get imageSettingsPageModeManualSubtitle =>
+      '이미지는 원본 그대로 첨부되며, 미리보기에서 직접 압축할 수 있어요';
+
+  @override
+  String get imageSettingsPageModeAutoSubtitle => '첨부할 때 아래 프리셋으로 다시 인코딩해요';
+
+  @override
+  String get imageSettingsPageModeOffSubtitle => '이미지를 압축하지 않아요';
+
+  @override
+  String get compressEditorTitle => '이미지 압축';
+
+  @override
+  String get compressEditorFormatJpeg => 'JPEG';
+
+  @override
+  String get compressEditorFormatPng => 'PNG';
+
+  @override
+  String get compressEditorFormatOriginal => '원본';
+
+  @override
+  String get compressEditorLongEdgeLabel => '긴 변';
+
+  @override
+  String get compressEditorLongEdgeFull => '100%';
+
+  @override
+  String get compressEditorLongEdgeHalf => '50%';
+
+  @override
+  String get compressEditorLongEdgeQuarter => '25%';
+
+  @override
+  String get compressEditorQualityLabel => '품질';
+
+  @override
+  String get compressEditorOriginalSide => '원본';
+
+  @override
+  String get compressEditorEstimating => '크기 계산 중…';
+
+  @override
+  String get compressEditorEstimateFailed => '크기를 계산할 수 없어요';
+
+  @override
+  String compressEditorSavings(int percent) {
+    return '−$percent%';
+  }
+
+  @override
+  String compressEditorGrowth(int percent) {
+    return '+$percent%';
+  }
+
+  @override
+  String get compressEditorNoReencode => '재인코딩 없음';
+
+  @override
+  String get compressEditorDecodeFailed => '이 이미지는 미리볼 수 없어 다시 압축할 수 없어요.';
+
+  @override
+  String get compressEditorTooLarge =>
+      '이미지가 너무 커서 편집기에서 열 수 없어 여기서 다시 압축할 수 없어요. 원본 그대로 첨부돼요.';
+
+  @override
+  String compressEditorWorkingScale(String source, int percent) {
+    return '원본 $source, 메모리 한도 내로 $percent%로 불러옴';
+  }
+
+  @override
+  String get compressEditorCancel => '취소';
+
+  @override
+  String get compressEditorApply => '적용';
+
+  @override
+  String get compressEditorApplyAll => '모두에 적용';
+
+  @override
+  String get compressEditorDone => '완료';
+
+  @override
+  String get workspaceToolAllowAll => '이 세션에서 모두 허용';
+
+  @override
+  String get workspaceEntryAllowAll => '이 세션에서 모두 허용';
+
+  @override
+  String get workspaceEntryAllowAllSubtitle => '이 대화의 셸 명령은 승인 없이 실행돼요.';
+
+  @override
+  String get recycleBinTitle => '휴지통';
+
+  @override
+  String get recycleBinManage => '휴지통 관리';
+
+  @override
+  String get recycleBinStorageHint => '이 기기에만 보관되며 동기화되거나 백업에 포함되지 않아요.';
+
+  @override
+  String get recycleBinEntriesLabel => '개';
+
+  @override
+  String get recycleBinEmptyTitle => '휴지통이 비어 있어요';
+
+  @override
+  String get recycleBinEmptyBody =>
+      '삭제한 대화와 어시스턴트, 동기화 병합으로 대체된 설정이 여기에 보관되어 언제든 되살릴 수 있어요.';
+
+  @override
+  String get recycleBinUntitled => '제목 없음';
+
+  @override
+  String get recycleBinKindConversation => '대화';
+
+  @override
+  String get recycleBinKindAssistant => '어시스턴트';
+
+  @override
+  String get recycleBinKindProvider => '공급자';
+
+  @override
+  String get recycleBinKindWorldBook => '로어북';
+
+  @override
+  String get recycleBinKindMemory => '기억';
+
+  @override
+  String get recycleBinKindPreference => '설정 항목';
+
+  @override
+  String get recycleBinKindWorkspaceFile => '작업 공간 파일';
+
+  @override
+  String get recycleBinKindConfig => '구성';
+
+  @override
+  String get recycleBinOriginLocal => '이 기기에서 삭제';
+
+  @override
+  String get recycleBinOriginRemote => '동기화로 삭제';
+
+  @override
+  String get recycleBinReasonOverwritten => '최신 사본으로 대체됨';
+
+  @override
+  String get recycleBinRestore => '복원';
+
+  @override
+  String get recycleBinDeleteForever => '영구 삭제';
+
+  @override
+  String get recycleBinDeleteForeverBody => '이 항목은 영구 삭제되어 복구할 수 없어요.';
+
+  @override
+  String get recycleBinClearAll => '휴지통 비우기';
+
+  @override
+  String get recycleBinClearAllBody => '휴지통의 모든 항목이 영구 삭제되어 복구할 수 없어요.';
+
+  @override
+  String get recycleBinRestored => '복원했어요';
+
+  @override
+  String get recycleBinRestoreSkipped => '이미 있는 항목이라 변경하지 않았어요';
+
+  @override
+  String get recycleBinRestoreUnreadable => '보관된 사본이 손상되어 복원할 수 없어요';
+
+  @override
+  String get recycleBinRestoreUnsupported => '이 버전에서는 이 항목을 복원할 수 없어요';
+
+  @override
+  String get recycleBinRestoreNoWorkspace => '이 파일의 작업 공간이 삭제되어 되돌릴 폴더가 없어요.';
+
+  @override
+  String get recycleBinRestoreFailed => '이 항목을 복원하지 못했어요';
+
+  @override
+  String get recycleBinFilterAll => '전체';
+
+  @override
+  String get recycleBinFilterConversation => '대화';
+
+  @override
+  String get recycleBinFilterAssistants => '어시스턴트';
+
+  @override
+  String get recycleBinFilterSettings => '설정';
+
+  @override
+  String get recycleBinFilterFiles => '파일';
+
+  @override
+  String get recycleBinCancel => '취소';
+
+  @override
+  String get recycleBinInfoTitle => '휴지통 정보';
+
+  @override
+  String get recycleBinInfoBody =>
+      '여기서 삭제한 것 — 대화, 어시스턴트, 공급자, 기억, 설정 항목 — 은 이 기기에 보관되어 언제든 되살릴 수 있어요.\n\n휴지통은 동기화되지 않고 백업에도 들어가지 않아요. 항목은 90일 동안 보관되며, 256 MB나 1000개를 넘으면 오래된 것부터 지워져요.\n\n복원하면 현재 시각으로 기록되므로, 지난번에 이긴 버전으로 곧바로 대체되지는 않아요.';
+
+  @override
+  String get recycleBinInfoClose => '확인';
+
+  @override
+  String recycleBinGroupHeader(Object count, Object name) {
+    return '$name 삭제 시 함께 지워진 대화 $count개';
+  }
+
+  @override
+  String get recycleBinRestoreGroup => '모두 복원';
+
+  @override
+  String recycleBinGroupRestored(Object restored, Object skipped) {
+    return '$restored개를 복원했고 $skipped개는 이미 있어요';
+  }
+
+  @override
+  String recycleBinGroupRestoreFailed(Object failed, Object restored) {
+    return '$restored개를 복원했고 $failed개는 복원하지 못했어요';
+  }
+
+  @override
+  String get recycleBinOpenDetail => '상세 보기';
+
+  @override
+  String get recycleBinDetailKey => '식별자';
+
+  @override
+  String get recycleBinDetailOrigin => '출처';
+
+  @override
+  String get recycleBinDetailWhen => '삭제 시각';
+
+  @override
+  String get recycleBinDetailReplacedWhen => '대체 시각';
+
+  @override
+  String get recycleBinDetailSize => '용량';
+
+  @override
+  String get recycleBinDetailModified => '파일 수정 시각';
+
+  @override
+  String get recycleBinDetailContent => '내용';
+
+  @override
+  String recycleBinDetailRows(Object count) {
+    return '$count행';
+  }
+
+  @override
+  String recycleBinDetailTruncated(Object shown) {
+    return '내용이 너무 커서 앞부분 $shown만 표시해요';
+  }
+
+  @override
+  String get recycleBinDetailBinary => '바이너리 파일 — 미리보기 없음';
+
+  @override
+  String get recycleBinDetailUnreadable => '보관된 사본이 손상되어 내용을 읽을 수 없어요';
+
+  @override
+  String get recycleBinDetailCopyJson => 'JSON 복사';
+
+  @override
+  String get recycleBinDetailCopyText => '텍스트 복사';
+
+  @override
+  String get recycleBinDetailCopied => '복사했어요';
+
+  @override
+  String recycleBinDetailAssistantGone(Object name) {
+    return '이 대화의 어시스턴트인 $name이(가) 더 이상 이 기기에 없어요. 복원한 뒤에는 어시스턴트를 다시 지정해야 해요.';
+  }
+
+  @override
+  String get settingsPageLanSync => 'LAN 동기화';
+
+  @override
+  String get lanSyncThisDevice => '이 기기';
+
+  @override
+  String get lanSyncListenerStarting => '수신 대기 시작 중…';
+
+  @override
+  String get lanSyncListenerNotRunning => '수신 대기가 꺼져 있어요';
+
+  @override
+  String lanSyncListenerFailed(Object error) {
+    return '수신 대기를 시작하지 못했어요: $error';
+  }
+
+  @override
+  String get lanSyncPairSectionTitle => '기기 페어링';
+
+  @override
+  String get lanSyncPairIntro => '같은 LAN의 두 기기에서 한쪽이 QR 코드를 보여주고 다른 쪽이 스캔해요.';
+
+  @override
+  String get lanSyncPairFirstSyncNote =>
+      '페어링 후 첫 동기화가 자동으로 시작되며 시간이 걸릴 수 있어요. 데스크톱 앱은 계속 실행하고, 모바일에서는 이 앱을 앞에 두세요.';
+
+  @override
+  String get lanSyncShowCode => '페어링 QR 표시';
+
+  @override
+  String get lanSyncEnterCode => '코드 스캔 또는 입력';
+
+  @override
+  String get lanSyncPairingCode => '페어링 코드';
+
+  @override
+  String lanSyncPairingExpiresIn(Object time) {
+    return '$time 후 만료';
+  }
+
+  @override
+  String get lanSyncPairingEndpointHint => '다른 기기에 이 주소를 입력하세요';
+
+  @override
+  String get lanSyncPairingNoIpHint =>
+      'LAN 주소를 찾지 못했어요. 다른 기기에서 이 기기의 IP나 호스트 이름으로 연결할 수는 있어요.';
+
+  @override
+  String get lanSyncHostLabel => '주소';
+
+  @override
+  String get lanSyncPortLabel => '포트';
+
+  @override
+  String get lanSyncPairButton => '페어링';
+
+  @override
+  String get lanSyncPairAgain => '다시 페어링';
+
+  @override
+  String get lanSyncPairingBusy => '페어링 중…';
+
+  @override
+  String lanSyncPairSuccess(Object name) {
+    return '$name과 페어링했어요';
+  }
+
+  @override
+  String get lanSyncPairErrorInvalidPin => '페어링 코드가 틀렸거나 상대 기기의 페어링 창이 닫혔어요.';
+
+  @override
+  String get lanSyncPairErrorInvalidAddress => '상대 기기의 주소와 포트를 입력하세요.';
+
+  @override
+  String get lanSyncPairErrorUnreachable =>
+      '기기에 연결하지 못했어요. 주소와 포트, 두 기기가 같은 네트워크에 있는지 확인하세요.';
+
+  @override
+  String get lanSyncPairErrorNoCertificate => '상대 기기가 신원을 제시하지 않아 페어링을 중단했어요.';
+
+  @override
+  String get lanSyncPairErrorIdMismatch => '상대 기기의 신원을 확인할 수 없어 페어링을 중단했어요.';
+
+  @override
+  String get lanSyncPairErrorNoListener => '이 기기의 동기화 수신 대기가 아직 시작되지 않았어요.';
+
+  @override
+  String lanSyncPairErrorUnknown(Object error) {
+    return '페어링 실패: $error';
+  }
+
+  @override
+  String get lanSyncScanQr => '페어링 QR 스캔';
+
+  @override
+  String get lanSyncPairQrCaption => '스캔해서 페어링하거나, 다른 기기에 아래 정보를 입력하세요';
+
+  @override
+  String lanSyncPairUpdatedSnackbar(Object name) {
+    return '$name과의 페어링을 업데이트했어요';
+  }
+
+  @override
+  String get lanSyncPairErrorFingerprintMismatch =>
+      '기기 인증서가 스캔한 코드와 맞지 않아 페어링을 중단했어요.';
+
+  @override
+  String get lanSyncPairErrorNoEndpointInQr =>
+      '코드에 주소가 없어요. 아래에 주소를 입력해 페어링하세요.';
+
+  @override
+  String get lanSyncPairErrorNotPairingQr => 'Cuplivo 페어링 코드가 아니에요.';
+
+  @override
+  String get lanSyncPairErrorInvalidQr => '페어링 코드를 읽을 수 없어요.';
+
+  @override
+  String get lanSyncPairErrorQrBadVersion =>
+      '최신 버전에서 만든 페어링 코드예요. 앱을 업데이트한 뒤 다시 시도하세요.';
+
+  @override
+  String get lanSyncClosePairing => '페어링 창 닫기';
+
+  @override
+  String get lanSyncPairedDevices => '페어링된 기기';
+
+  @override
+  String get lanSyncWorkspaces => '작업 공간';
+
+  @override
+  String get lanSyncWorkspaceTip =>
+      '시간을 아끼려고 버전 관리와 의존성/빌드 폴더는 건너뛰어요. 파일이 2,000개를 넘거나 200 MB가 넘는 작업 공간은 파일을 동기화하지 않아요. 작업 공간 기록은 항상 동기화되며 스위치는 파일만 제어해요. 스위치가 꺼진 폴더는 전송되지 않고 동기화로 삭제되지도 않아요.';
+
+  @override
+  String lanSyncWorkspaceSyncing(Object count) {
+    return '$count개 파일 동기화 중';
+  }
+
+  @override
+  String get lanSyncWorkspaceStatusSyncing => '동기화 중';
+
+  @override
+  String get lanSyncWorkspaceStatusTooLarge => '너무 큼';
+
+  @override
+  String get lanSyncWorkspaceStatusUnreadable => '읽을 수 없음';
+
+  @override
+  String get lanSyncWorkspaceStatusOff => '꺼짐';
+
+  @override
+  String lanSyncWorkspaceFiles(Object count) {
+    return '$count개 파일';
+  }
+
+  @override
+  String lanSyncWorkspaceFilesAtLeast(Object count) {
+    return '$count개 이상';
+  }
+
+  @override
+  String lanSyncWorkspaceSizeAtLeast(Object size) {
+    return '$size+';
+  }
+
+  @override
+  String get lanSyncNoDevices => '아직 페어링된 기기가 없어요. 페어링하면 동기화를 시작할 수 있어요.';
+
+  @override
+  String get lanSyncPlatformAndroid => 'Android';
+
+  @override
+  String get lanSyncPlatformIos => 'iOS';
+
+  @override
+  String get lanSyncPlatformWindows => 'Windows';
+
+  @override
+  String get lanSyncPlatformMacos => 'macOS';
+
+  @override
+  String get lanSyncPlatformLinux => 'Linux';
+
+  @override
+  String get lanSyncPlatformUnknown => '알 수 없는 기기';
+
+  @override
+  String lanSyncLastSyncedAt(Object time) {
+    return '마지막 동기화 $time';
+  }
+
+  @override
+  String get lanSyncNeverSynced => '동기화한 적 없음';
+
+  @override
+  String get lanSyncJustSynced => '방금 동기화됨';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n분 전';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n시간 전';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n일 전';
+  }
+
+  @override
+  String get lanSyncSyncNow => '지금 동기화';
+
+  @override
+  String get lanSyncOnline => '온라인';
+
+  @override
+  String get lanSyncOnlineFromSession => '온라인 — 마지막 동기화에서 연결됨';
+
+  @override
+  String get lanSyncOfflineFromSession => '오프라인 — 마지막 동기화에서 연결하지 못함';
+
+  @override
+  String lanSyncPhaseConnectingTo(Object address) {
+    return '$address에 연결 중…';
+  }
+
+  @override
+  String get lanSyncOffline => '오프라인';
+
+  @override
+  String get lanSyncUpToDate => '최신 상태';
+
+  @override
+  String get lanSyncPhaseConnecting => '연결 중…';
+
+  @override
+  String get lanSyncPhaseExchanging => '데이터 비교 중…';
+
+  @override
+  String get lanSyncPhaseSending => '변경 사항 보내는 중…';
+
+  @override
+  String get lanSyncPhaseReceiving => '변경 사항 받는 중…';
+
+  @override
+  String lanSyncPhaseFiles(Object done, Object total) {
+    return '파일 다운로드 중… ($done/$total)';
+  }
+
+  @override
+  String get lanSyncPhaseFilesNoTotal => '파일 다운로드 중…';
+
+  @override
+  String get lanSyncPhaseApplying => '변경 사항 적용 중…';
+
+  @override
+  String get lanSyncFirstSyncHint =>
+      '첫 동기화가 진행 중이에요. 끝날 때까지 두 기기를 켜 두고 Cuplivo를 열어 두세요(모바일은 앞에 두세요).';
+
+  @override
+  String get lanSyncRename => '이름 변경';
+
+  @override
+  String get lanSyncRenameTitle => '기기 이름';
+
+  @override
+  String get lanSyncEditAddress => '주소 편집';
+
+  @override
+  String get lanSyncAddressCopied => '주소를 복사했어요';
+
+  @override
+  String get lanSyncUnpair => '페어링 해제';
+
+  @override
+  String lanSyncUnpairConfirmTitle(Object name) {
+    return '$name 페어링을 해제할까요?';
+  }
+
+  @override
+  String get lanSyncUnpairConfirmBody =>
+      '대화는 두 기기에 그대로 남고, 다시 페어링할 때까지 이 기기와는 동기화하지 않아요.';
+
+  @override
+  String lanSyncReportSent(Object n) {
+    return '$n개 보냄';
+  }
+
+  @override
+  String lanSyncReportReceived(Object n) {
+    return '$n개 받음';
+  }
+
+  @override
+  String lanSyncReportMessagesUpserted(Object n) {
+    return '+$n개 메시지';
+  }
+
+  @override
+  String lanSyncReportMessagesDeleted(Object n) {
+    return '-$n개 메시지';
+  }
+
+  @override
+  String lanSyncReportConversationsDeleted(Object n) {
+    return '-$n개 대화';
+  }
+
+  @override
+  String lanSyncReportDeferred(Object n) {
+    return '$n개 보류';
+  }
+
+  @override
+  String lanSyncReportEntities(Object n) {
+    return '$n개 항목';
+  }
+
+  @override
+  String lanSyncReportPreferences(Object n) {
+    return '$n개 설정';
+  }
+
+  @override
+  String lanSyncReportBlobsWithSize(Object n, Object size) {
+    return '$n개 파일 · $size';
+  }
+
+  @override
+  String lanSyncReportBlobs(Object n) {
+    return '$n개 파일';
+  }
+
+  @override
+  String lanSyncReportSkills(Object n) {
+    return '$n개 스킬';
+  }
+
+  @override
+  String lanSyncReportSkillConflicts(Object n) {
+    return '$n건의 스킬 수정이 대체됨';
+  }
+
+  @override
+  String lanSyncReportBlobsMissing(Object n) {
+    return '상대 기기에 $n개 파일이 없음';
+  }
+
+  @override
+  String lanSyncReportWorkspaceFiles(Object count) {
+    return '작업 공간 파일 $count개';
+  }
+
+  @override
+  String lanSyncReportWorkspaceFilesWithSize(Object count, Object size) {
+    return '작업 공간 파일 $count개 · $size';
+  }
+
+  @override
+  String lanSyncReportWorkspaceRemoved(Object count) {
+    return '-작업 공간 파일 $count개';
+  }
+
+  @override
+  String lanSyncReportWorkspaceConflicts(Object count) {
+    return '작업 공간 파일 $count건의 수정이 대체됨';
+  }
+
+  @override
+  String lanSyncReportWorkspaceMissing(Object count) {
+    return '작업 공간 파일 $count개를 적용하지 못했어요';
+  }
+
+  @override
+  String lanSyncReportWorkspacesOmitted(Object count) {
+    return '파일을 동기화하지 않는 작업 공간 $count개';
+  }
+
+  @override
+  String lanSyncReportWorkspacesKept(Object count) {
+    return '작업 공간 폴더 $count개 보관(스위치 꺼짐)';
+  }
+
+  @override
+  String lanSyncReportRowsLost(Object n) {
+    return '상대 기기의 최신 버전으로 대체된 로컬 기록 $n개(휴지통에서 복원 가능)';
+  }
+
+  @override
+  String lanSyncReportClockSkew(Object n) {
+    return '두 기기의 시계가 약 $n분 차이 나요. 기기 시계를 맞춘 뒤 다시 동기화하세요';
+  }
+
+  @override
+  String get lanSyncReportUnreachable =>
+      '동기화 실패: 상대 기기에 연결하지 못했어요. 오프라인이거나 다른 네트워크일 수 있어요. QR 코드를 다시 스캔하거나 카드에서 주소를 수정하세요.';
+
+  @override
+  String get lanSyncReportNoEndpoint =>
+      '동기화 실패: 상대 기기의 주소가 저장되어 있지 않아요. QR 코드를 다시 스캔하거나 카드에서 주소를 입력하세요.';
+
+  @override
+  String get lanSyncReportTimeout => '동기화 실패: 상대 기기가 응답을 멈췄어요.';
+
+  @override
+  String get lanSyncReportPeerError => '동기화 실패: 상대 기기가 오류를 보고했어요.';
+
+  @override
+  String get lanSyncReportInternal => '동기화에 실패했어요. 자세한 내용은 로그를 확인하세요.';
+
+  @override
+  String get lanSyncRefusedPeerSchemaNewer =>
+      '상대 기기의 데이터베이스가 더 최신이에요. 이 기기를 먼저 업데이트한 뒤 다시 동기화하세요.';
+
+  @override
+  String get lanSyncRefusedProtocolUnknown =>
+      '상대 기기가 다른 동기화 프로토콜을 사용해요. 두 기기의 앱을 모두 업데이트하세요.';
+
+  @override
+  String get lanSyncRefusedNotPaired =>
+      '이 기기와 상대 기기의 페어링 기록이 일치하지 않아요. 상대에서 페어링을 해제했거나 양쪽에서 재페어링이 끝나지 않았어요. 두 기기에서 다시 페어링하세요.';
+
+  @override
+  String get lanSyncRefusedIdentityMismatch =>
+      '상대 기기의 신원이 일치하지 않아요. 두 기기에서 다시 페어링하세요.';
+
+  @override
+  String get lanSyncRefusedBusy => '다른 동기화 세션이 진행 중이에요. 잠시 후 다시 시도하세요.';
+
+  @override
+  String get lanSyncFirewallTitle => 'Windows 방화벽';
+
+  @override
+  String lanSyncFirewallHint(Object port) {
+    return '포트 $port의 인바운드 규칙에 관리자 승인이 한 번 필요해요.';
+  }
+
+  @override
+  String get lanSyncFirewallFix => '액세스 허용(UAC)';
+
+  @override
+  String get lanSyncFirewallFixed => '인바운드 액세스를 허용했어요.';
+
+  @override
+  String lanSyncArrivalToast(Object name) {
+    return '$name과 동기화했어요';
+  }
+
+  @override
+  String get lanSyncArrivalDetails => '상세';
+
+  @override
+  String get lanSyncNever => '없음';
+
+  @override
+  String get lanSyncTemporarilyUnreachable => '지금은 연결할 수 없음';
+
+  @override
+  String get lanSyncListening => '수신 대기 중';
+
+  @override
+  String get lanSyncCopy => '복사';
+
+  @override
+  String get lanSyncMoreActions => '추가 작업';
+
+  @override
+  String get lanSyncEndpointTip =>
+      '주소마다 타일이 하나씩 있어요. 이름을 눌러 바꾸고, 지연을 눌러 상세 정보(마지막 측정 시각, 동기화 횟수, 추가 시각)를 보세요. 주소는 거기서 수정하거나 삭제할 수 있어요.';
+
+  @override
+  String get lanSyncJustNow => '방금';
+
+  @override
+  String get lanSyncShowAddresses => '주소';
+
+  @override
+  String get lanSyncPairTrustTip =>
+      '코드는 신뢰하는 네트워크에서만 사용하세요. 수동 도청은 막지만 중간자 기기는 막지 못해요. QR은 상대 기기의 인증서 지문을 함께 담기 때문에 더 안전해요.';
+
+  @override
+  String get lanSyncNoAddress => '이 기기의 주소가 저장되어 있지 않아요.';
+
+  @override
+  String get lanSyncAddAddress => '주소 추가';
+
+  @override
+  String lanSyncAddressLimit(Object count) {
+    return '이 기기는 그 기기의 주소를 이미 $count개 기억하고 있어요. 하나를 삭제한 뒤 추가하세요.';
+  }
+
+  @override
+  String get lanSyncRenameEndpointTitle => '주소 이름';
+
+  @override
+  String get lanSyncRenameEndpointHint => '예: 집 네트워크';
+
+  @override
+  String get lanSyncEndpointLatency => '지연 시간';
+
+  @override
+  String get lanSyncEndpointLastMeasured => '마지막 측정';
+
+  @override
+  String get lanSyncEndpointLastReached => '마지막 연결';
+
+  @override
+  String get lanSyncEndpointSuccessCount => '동기화 횟수';
+
+  @override
+  String get lanSyncEndpointAddedAt => '추가 시각';
+
+  @override
+  String lanSyncEndpointSuccessTimes(Object n) {
+    return '$n회';
+  }
+
+  @override
+  String get lanSyncDeleteEndpoint => '이 주소 삭제';
+
+  @override
+  String get lanSyncEndpointUnreachable => '연결할 수 없음';
+
+  @override
+  String get lanSyncSupersededByPeer => '이번 동기화는 상대 기기가 시작했어요.';
+
+  @override
+  String get assistantEditProactiveCareEnableTitle => '능동 케어';
+
+  @override
+  String get assistantEditProactiveCareDefaultDescription =>
+      '개별 설정이 없는 대화의 기본값';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      '시간 결정에 쓰는 메시지 수';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      '다음 능동 메시지 시간을 정할 때 모델에 보내는 최근 대화 메시지의 최대 개수';
+
+  @override
+  String get assistantEditProactiveCareConversationTimesTitle => '대화별 다음 편지 시간';
+
+  @override
+  String get assistantEditProactiveCareNoEligibleConversations =>
+      '이 어시스턴트의 대화 중 켜진 대화가 없어요';
+
+  @override
+  String assistantEditProactiveCareConversationTimeFuture(String time) {
+    return '예정 · $time';
+  }
+
+  @override
+  String assistantEditProactiveCareConversationTimeExpired(String time) {
+    return '만료됨 · $time';
+  }
+
+  @override
+  String get assistantEditProactiveCareConversationTimeUnset => '설정 안 됨';
+
+  @override
+  String get assistantEditProactiveCarePermissionsTitle => 'Android 준비 상태';
+
+  @override
+  String get assistantEditProactiveCareNotificationsTitle => '알림';
+
+  @override
+  String get assistantEditProactiveCareExactAlarmTitle => '정확한 알람';
+
+  @override
+  String get assistantEditProactiveCareAutoStartTitle => '자동 시작';
+
+  @override
+  String get assistantEditProactiveCareBatteryTitle => '배터리 최적화 예외';
+
+  @override
+  String get assistantEditProactiveCarePermissionRequired => '필수';
+
+  @override
+  String get assistantEditProactiveCarePermissionRecommended => '권장';
+
+  @override
+  String get assistantEditProactiveCarePermissionReady => '준비됨';
+
+  @override
+  String get assistantEditProactiveCarePermissionMissing => '눌러서 허용';
+
+  @override
+  String get assistantEditProactiveCarePermissionManual => '직접 설정';
+
+  @override
+  String get assistantEditProactiveCarePermissionUnknown => '알 수 없음';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeTitle => '다음 능동 메시지 시간';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeUnset => '설정 안 됨';
+
+  @override
+  String get assistantEditProactiveCarePromptTitle => '능동 케어 프롬프트';
+
+  @override
+  String get assistantEditProactiveCarePromptHint =>
+      '어시스턴트가 먼저 메시지를 보낼 때 쓰는 프롬프트';
+
+  @override
+  String get assistantEditProactiveCarePromptDefault =>
+      '어시스턴트의 캐릭터 설정과 대화 컨텍스트, 현재 시간을 바탕으로 사용자에게 메시지를 보내세요.';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptTitle => '시간 결정 안내 프롬프트';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptDefault =>
+      '당신은 역할극 시나리오의 감독으로, 어시스턴트가 다음에 언제 사용자에게 먼저 메시지를 보낼지 판단합니다.\n\n[기능 설명]\n· 능동 메시지: 어시스턴트는 사용자가 먼저 말하지 않아도 정해진 시간에 사용자에게 메시지를 보낼 수 있습니다.\n· 능동 메시지 시간을 설정하지 않으면, 어시스턴트는 사용자가 말하지 않는 동안 어떤 메시지도 보낼 수 없습니다.\n· 현재 설정된 다음 메시지 시간을 평가하세요. 조정이 필요 없다고 보면 그대로 두고, 아니면 변경하세요.\n\n[주의]\n· 사용자의 관점이 아니라 어시스턴트의 관점에서 보이는 정보만 고려하세요.\n\n[고려할 각도]\n1. 어시스턴트는 잠에서 깨어났을 때, 어떤 일을 마쳤을 때, 기숙사에 무사히 도착했을 때 등에 먼저 사용자에게 알리거나 인사해야 합니다.\n2. 컨텍스트에 어시스턴트가 잠들거나 바빠서 사용자의 메시지를 제때 확인하지 못했다는 내용이 있으면, 어시스턴트가 깨어나거나 일이 끝난 뒤 먼저 메시지를 보내도록 시간을 설정하세요.\n3. 컨텍스트에 어시스턴트가 특정 시각에 사용자를 감독하거나 알려 줘야 한다는 내용이 있으면, 그 시각으로 메시지 시간을 설정하세요.\n4. 대화 주제가 아직 끝나지 않았을 때는 어시스턴트의 마지막 메시지 이후 사용자가 끝내 답하지 않는다고 가정하고, 어시스턴트가 언제 먼저 이어 물어야 할지 정하세요.\n\n[예시]\n1. 채팅 기록에서 사용자가 새벽에 불면증을 겪는다며 10:30에 일어날 예정이라고 했지만, 어시스턴트는 불면증이 없어 평소처럼 8:30에 일어납니다. 이때 능동 메시지 시간을 어시스턴트가 일어나는 시간으로 설정합니다.\n2. 채팅 기록에서 사용자와 어시스턴트가 시험 이야기를 하고 있습니다. 8:30에 마지막으로 보이는 메시지는 어시스턴트가 보낸 질문입니다. 규칙 4에 따라 사용자가 계속 답하지 않는 경우를 고려해, 어시스턴트는 10분 안에 먼저 메시지를 보내 이어 물어야 합니다.';
+
+  @override
+  String get assistantEditProactiveCareDateTimePickerTitle => '날짜와 시간 선택';
+
+  @override
+  String get assistantEditProactiveCareTimeMustBeFuture => '미래의 시간을 선택하세요.';
+
+  @override
+  String get conversationProactiveCareTitle => '대화 능동 케어';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOn => '어시스턴트 설정 따름: 켜짐';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOff =>
+      '어시스턴트 설정 따름: 꺼짐';
+
+  @override
+  String get conversationProactiveCareExplicitOn => '대화 설정: 켜짐';
+
+  @override
+  String get conversationProactiveCareExplicitOff => '대화 설정: 꺼짐';
+
+  @override
+  String get conversationProactiveCareRestoreFollowing => '어시스턴트 설정 따르기';
+
+  @override
+  String get conversationProactiveCareClearTime => '다음 메시지 시간 지우기';
+
+  @override
+  String get conversationProactiveCareUpdateFailed =>
+      '대화 능동 케어 설정을 업데이트하지 못했어요.';
+
+  @override
+  String get defaultModelPageProactiveCareModelTitle => 'Ta의 편지 결정 모델';
+
+  @override
+  String get defaultModelPageProactiveCareModelSubtitle =>
+      '어시스턴트가 언제 먼저 메시지를 보낼지 결정하는 모델';
+
+  @override
+  String get proactiveCareFailedNotificationBody =>
+      '능동 케어 메시지를 만들지 못했어요. 앱을 열어 모델 설정과 네트워크를 확인하세요.';
+
+  @override
+  String get proactiveCareLetterArrivalBody => '편지가 도착했어요. 앱을 열어 확인하세요.';
+
+  @override
+  String get assistantEditPageRoleplayTab => '역할극';
+
+  @override
+  String get assistantEditProactiveCareFeatureTitle => 'Ta의 편지';
 }

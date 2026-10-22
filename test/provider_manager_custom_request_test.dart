@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/providers/model_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/model_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
 
 void main() {
   for (final (kind, vertexAI, authHeader) in [
@@ -87,7 +87,7 @@ void main() {
         expect(receivedHeaders.value('x-model-only'), isNull);
         expect(
           receivedHeaders.value('user-agent'),
-          customUserAgent == null ? 'Kelivo' : 'GatewayClient/1.0',
+          customUserAgent == null ? 'Cuplivo' : 'GatewayClient/1.0',
         );
         expect(
           receivedHeaders.value(authHeader),

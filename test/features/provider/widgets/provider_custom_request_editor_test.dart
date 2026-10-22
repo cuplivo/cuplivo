@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/features/provider/widgets/provider_custom_request_editor.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/features/provider/widgets/provider_custom_request_editor.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
 
 void main() {
   testWidgets('adds, edits, and removes provider request rows', (tester) async {

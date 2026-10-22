@@ -4,11 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/chat_api_helpers.dart';
-import 'package:Kelivo/core/services/api/providers/google_gemini.dart';
-import 'package:Kelivo/core/services/workspace/workspace_tools_service.dart';
-import 'package:Kelivo/features/home/services/local_tools_service.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/chat_api_helpers.dart';
+import 'package:Cuplivo/core/services/api/providers/google_gemini.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_tools_service.dart';
+import 'package:Cuplivo/features/home/services/local_tools_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

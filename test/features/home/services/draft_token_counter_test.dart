@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/features/home/services/draft_token_counter.dart';
+import 'package:Cuplivo/features/home/services/draft_token_counter.dart';
 
 void main() {
   test('typing only counts the last draft after the quiet period', () {

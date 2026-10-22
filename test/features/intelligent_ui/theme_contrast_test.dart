@@ -2,10 +2,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_theme.dart';
-import 'package:Kelivo/shared/markdown/markdown_surface_scope.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_theme.dart';
+import 'package:Cuplivo/shared/markdown/markdown_surface_scope.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
 import '../../support/markdown_backdrop_host.dart';
 import '../../support/business_test_harness.dart';
 

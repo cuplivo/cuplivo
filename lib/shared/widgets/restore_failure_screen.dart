@@ -19,7 +19,7 @@ import '../../core/services/backup/restore_business_lease.dart';
 import '../../core/services/storage/storage_space.dart';
 import '../../icons/lucide_adapter.dart';
 import '../../l10n/app_localizations.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 export '../../core/database/startup_failure_report.dart'
     show
@@ -658,7 +658,7 @@ class _RestoreFailureScreenState extends State<RestoreFailureScreen> {
       FlutterErrorDetails(
         exception: error,
         stack: stackTrace,
-        library: 'Kelivo restore',
+        library: 'Cuplivo restore',
         context: ErrorDescription(context),
       ),
     );

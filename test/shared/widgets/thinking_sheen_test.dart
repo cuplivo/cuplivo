@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/shared/widgets/thinking_sheen.dart';
+import 'package:Cuplivo/shared/widgets/thinking_sheen.dart';
 
 void main() {
   test('sheen palette stays opaque so srcIn keeps the child alpha', () {

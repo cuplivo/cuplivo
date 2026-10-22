@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/widget_previews.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
 import '../genui_theme.dart';
 import '../genui_chart_canvas.dart';
 import '../../runtime/ui_chart_data.dart';

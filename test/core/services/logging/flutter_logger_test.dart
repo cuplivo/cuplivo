@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:Kelivo/core/services/logging/flutter_logger.dart';
+import 'package:Cuplivo/core/services/logging/flutter_logger.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 // ignore: depend_on_referenced_packages

@@ -1,18 +1,18 @@
-import 'package:Kelivo/core/models/image_context.dart';
+import 'package:Cuplivo/core/models/image_context.dart';
 import 'dart:convert';
-import 'package:Kelivo/core/models/native_compaction.dart';
+import 'package:Cuplivo/core/models/native_compaction.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/request_history_context.dart';
-import 'package:Kelivo/core/services/api/request_image_context.dart';
-import 'package:Kelivo/core/services/api/providers/openai/openai_provider.dart';
-import 'package:Kelivo/core/services/api/providers/claude_official.dart';
-import 'package:Kelivo/core/services/api/providers/google_gemini.dart';
-import 'package:Kelivo/core/services/api/providers/google_vertex.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk.dart';
-import 'package:Kelivo/core/services/chat/chat_context_reader.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/request_history_context.dart';
+import 'package:Cuplivo/core/services/api/request_image_context.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/openai_provider.dart';
+import 'package:Cuplivo/core/services/api/providers/claude_official.dart';
+import 'package:Cuplivo/core/services/api/providers/google_gemini.dart';
+import 'package:Cuplivo/core/services/api/providers/google_vertex.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk.dart';
+import 'package:Cuplivo/core/services/chat/chat_context_reader.dart';
 
 Map<String, dynamic> response(String protocol, bool tool) {
   if (protocol == 'claude' || protocol == 'vertex') {

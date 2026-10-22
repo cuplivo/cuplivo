@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/models/auto_retry_options.dart';
-import 'package:Kelivo/core/providers/model_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/chat_api_service.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk.dart';
-import 'package:Kelivo/core/services/auth/provider_oauth_service.dart';
+import 'package:Cuplivo/core/models/auto_retry_options.dart';
+import 'package:Cuplivo/core/providers/model_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/chat_api_service.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk.dart';
+import 'package:Cuplivo/core/services/auth/provider_oauth_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/business_test_harness.dart';

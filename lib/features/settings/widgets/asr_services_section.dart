@@ -17,7 +17,7 @@ import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../utils/brand_assets.dart';
 import 'voice_service_widgets.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 /// The speech-recognition half of the Voice Services screen.
 ///

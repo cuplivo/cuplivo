@@ -1,7 +1,7 @@
-import 'package:Kelivo/utils/protected_text.dart';
-import 'package:Kelivo/utils/source_text_map.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/models/message_part_snapshot.dart';
+import 'package:Cuplivo/utils/protected_text.dart';
+import 'package:Cuplivo/utils/source_text_map.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/message_part_snapshot.dart';
 import 'package:markstream/markstream_core.dart';
 
 /// Original coordinates precede thinking extraction, visual regexes and bubbles.
@@ -12,7 +12,7 @@ final class UiMessageSource {
   static final _negativeSnapshots =
       Expando<WeakReference<MessagePartSnapshot>>();
   static const _maxCandidateChanges = 16;
-  // The longest marker, kelivo-web, has ten UTF-16 units.
+  // The longest marker, cuplivo-web, has ten UTF-16 units.
   static const _markerOverlap = 9;
   static final empty = UiMessageSource._(const [], const {});
   final List<UiTextRun> runs;
@@ -54,7 +54,7 @@ final class UiMessageSource {
   }
 
   static bool _containsMarker(String text) =>
-      text.contains('kelivo-ui') || text.contains('kelivo-web');
+      text.contains('cuplivo-ui') || text.contains('cuplivo-web');
 
   static bool _candidateAround(List<MessagePart> parts, int index) {
     final text = (parts[index] as TextPart).text;
@@ -209,8 +209,8 @@ final class UiMessageSource {
     final source = _parts[ordinal];
     if (source == null) return null;
     final (run, part) = source;
-    if (!run.source.contains('kelivo-ui') &&
-        !run.source.contains('kelivo-web')) {
+    if (!run.source.contains('cuplivo-ui') &&
+        !run.source.contains('cuplivo-web')) {
       return null;
     }
     if (start < 0 || start > end || end > part.length) {
@@ -242,7 +242,7 @@ final class UiTextRun {
   late final List<UiSourceFence> fences;
 
   void _parseFences() {
-    if (!source.contains('kelivo-ui') && !source.contains('kelivo-web')) {
+    if (!source.contains('cuplivo-ui') && !source.contains('cuplivo-web')) {
       fences = const [];
       return;
     }
@@ -252,7 +252,7 @@ final class UiTextRun {
     while (pending.isNotEmpty) {
       final node = pending.removeLast();
       if (node is CodeBlockNode &&
-          const {'kelivo-ui', 'kelivo-web'}.contains(node.info.trim())) {
+          const {'cuplivo-ui', 'cuplivo-web'}.contains(node.info.trim())) {
         nodes.add(node);
       }
       pending.addAll(node.children.reversed);
@@ -263,7 +263,7 @@ final class UiTextRun {
       for (final node in nodes)
         UiSourceFence._(
           this,
-          node.info.trim() == 'kelivo-web' ? webOrdinal++ : nativeOrdinal++,
+          node.info.trim() == 'cuplivo-web' ? webOrdinal++ : nativeOrdinal++,
           node,
           document.children.contains(node),
         ),
@@ -277,7 +277,7 @@ final class UiSourceFence {
   final int ordinal;
   final CodeBlockNode node;
   final bool topLevel;
-  bool get isWeb => node.info.trim() == 'kelivo-web';
+  bool get isWeb => node.info.trim() == 'cuplivo-web';
   String get surfaceKey =>
       '${isWeb ? "web:" : ""}${run.firstPartOrdinal}:$ordinal';
   String get source => node.span.slice(run.source);

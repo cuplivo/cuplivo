@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:Kelivo/core/models/composer_draft.dart';
-import 'package:Kelivo/features/settings/widgets/custom_theme_widgets.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_text_button.dart';
+import 'package:Cuplivo/core/models/composer_draft.dart';
+import 'package:Cuplivo/features/settings/widgets/custom_theme_widgets.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_text_button.dart';
 import '../models/ui_context_attachment.dart';
 import 'genui_context_chip.dart';
 import 'genui_theme.dart';

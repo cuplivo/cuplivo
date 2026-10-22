@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_catalog.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_state.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_surface.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_catalog.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_state.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_surface.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
 
 // Explicit print-only benchmark, excluded from the default *_test.dart glob.
 // Reports debug widget observations, not device build/raster acceptance.

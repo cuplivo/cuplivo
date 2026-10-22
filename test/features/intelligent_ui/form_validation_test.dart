@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_catalog.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_state.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_form_validation.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_catalog.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_state.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_form_validation.dart';
 
 UiSurfaceController _surface(String source) {
   final c = UiSurfaceController(

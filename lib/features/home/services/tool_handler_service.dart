@@ -1,7 +1,7 @@
 import '../../../core/services/api/request_image_context.dart';
-import 'package:Kelivo/core/services/conversation_tool_permissions.dart';
-import 'package:Kelivo/core/models/tool_permission_mode.dart';
-import 'package:Kelivo/utils/mcp_structured_image.dart';
+import 'package:Cuplivo/core/services/conversation_tool_permissions.dart';
+import 'package:Cuplivo/core/models/tool_permission_mode.dart';
+import 'package:Cuplivo/utils/mcp_structured_image.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -707,7 +707,7 @@ class ToolHandlerService {
                     FlutterErrorDetails(
                       exception: error,
                       stack: stack,
-                      library: 'Kelivo local tools',
+                      library: 'Cuplivo local tools',
                       context: ErrorDescription('while playing text-to-speech'),
                     ),
                   );

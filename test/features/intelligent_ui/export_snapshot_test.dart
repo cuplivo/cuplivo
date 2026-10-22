@@ -1,35 +1,35 @@
 import 'package:provider/provider.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_web_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_web_card.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/user_provider.dart';
-import 'package:Kelivo/core/providers/tts_provider.dart';
-import 'package:Kelivo/features/home/services/tool_approval_service.dart';
-import 'package:Kelivo/features/home/services/ask_user_interaction_service.dart';
-import 'package:Kelivo/shared/widgets/export_capture_scope.dart';
-import 'package:Kelivo/shared/markdown/markdown_with_code_highlight.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_web_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_web_card.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/user_provider.dart';
+import 'package:Cuplivo/core/providers/tts_provider.dart';
+import 'package:Cuplivo/features/home/services/tool_approval_service.dart';
+import 'package:Cuplivo/features/home/services/ask_user_interaction_service.dart';
+import 'package:Cuplivo/shared/widgets/export_capture_scope.dart';
+import 'package:Cuplivo/shared/markdown/markdown_with_code_highlight.dart';
 import '../../support/business_test_harness.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/database/generation_run.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/features/chat/widgets/export_image_capture.dart';
-import 'package:Kelivo/features/chat/widgets/message_export_sheet.dart';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_budgets.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_export_capture.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_message_projection.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_runtime_registry.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_state.dart';
-import 'package:Kelivo/features/intelligent_ui/text/ui_message_text.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_surface.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Cuplivo/core/database/generation_run.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/features/chat/widgets/export_image_capture.dart';
+import 'package:Cuplivo/features/chat/widgets/message_export_sheet.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_budgets.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_export_capture.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_message_projection.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_runtime_registry.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_state.dart';
+import 'package:Cuplivo/features/intelligent_ui/text/ui_message_text.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_surface.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
 import '../../support/genui_projection_fixture.dart';
 
 const _body = r'''ui 1 catalog "kelivo.native/1"
@@ -368,8 +368,8 @@ void main() {
           const web = '```kelivo-web\n$source```';
           final parts = <MessagePart>[
             if (provider) const ReasoningPart('provider reasoning'),
-            const TextPart('<think>PRIVATE</think>\n\n```kelivo-'),
-            TextPart(web.substring('```kelivo-'.length)),
+            const TextPart('<think>PRIVATE</think>\n\n```cuplivo-'),
+            TextPart(web.substring('```cuplivo-'.length)),
           ];
           final msg = message(parts: parts);
           final projection = await project(msg);

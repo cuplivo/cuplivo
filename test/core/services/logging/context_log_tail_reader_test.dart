@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/services/logging/context_log_tail_reader.dart';
+import 'package:Cuplivo/core/services/logging/context_log_tail_reader.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

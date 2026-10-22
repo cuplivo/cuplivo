@@ -4,7 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../models/browser_models.dart';
 import 'browser_glass.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 /// Interaction/layout preview; optical fidelity is validated on native hosts,
 /// because the web previewer's renderer cannot run Impeller image filters.

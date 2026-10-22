@@ -1,19 +1,19 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/request_budget.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/models/image_context.dart';
-import 'package:Kelivo/core/services/api/request_image_context.dart';
-import 'package:Kelivo/core/services/api/request_history_context.dart';
-import 'package:Kelivo/core/services/api/tool_result_content.dart';
-import 'package:Kelivo/core/services/api/providers/openai/chat_completions_api.dart';
-import 'package:Kelivo/core/services/api/native_input_attachments.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/models/model_spec.dart';
-import 'package:Kelivo/utils/mcp_structured_image.dart';
-import 'package:Kelivo/features/home/services/context_assembly.dart';
+import 'package:Cuplivo/core/models/request_budget.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/image_context.dart';
+import 'package:Cuplivo/core/services/api/request_image_context.dart';
+import 'package:Cuplivo/core/services/api/request_history_context.dart';
+import 'package:Cuplivo/core/services/api/tool_result_content.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/chat_completions_api.dart';
+import 'package:Cuplivo/core/services/api/native_input_attachments.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/models/model_spec.dart';
+import 'package:Cuplivo/utils/mcp_structured_image.dart';
+import 'package:Cuplivo/features/home/services/context_assembly.dart';
 
 const pixels = 'data:image/png;base64,YWJj';
 ChatContextImage image(

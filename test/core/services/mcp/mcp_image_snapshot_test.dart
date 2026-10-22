@@ -7,13 +7,13 @@ import 'package:image/image.dart' as img;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
-import 'package:Kelivo/core/services/api/tool_call_cancellation.dart';
-import 'package:Kelivo/core/services/api/chat_api_service.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/mcp/mcp_image_snapshot.dart';
-import 'package:Kelivo/core/services/tool_image.dart';
-import 'package:Kelivo/utils/mcp_structured_image.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/core/services/api/tool_call_cancellation.dart';
+import 'package:Cuplivo/core/services/api/chat_api_service.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/mcp/mcp_image_snapshot.dart';
+import 'package:Cuplivo/core/services/tool_image.dart';
+import 'package:Cuplivo/utils/mcp_structured_image.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 
 import '../../../support/claude_test_api.dart' show FakePathProviderPlatform;
 

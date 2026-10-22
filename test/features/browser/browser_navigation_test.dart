@@ -5,12 +5,12 @@ import 'package:flutter_test/flutter_test.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:provider/provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/browser/browser_service.dart';
-import 'package:Kelivo/features/browser/browser_navigation.dart';
-import 'package:Kelivo/features/browser/browser_panel_controller.dart';
-import 'package:Kelivo/features/browser/pages/browser_page.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/browser/browser_service.dart';
+import 'package:Cuplivo/features/browser/browser_navigation.dart';
+import 'package:Cuplivo/features/browser/browser_panel_controller.dart';
+import 'package:Cuplivo/features/browser/pages/browser_page.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import '../../support/business_test_harness.dart';
 
 class _Paths extends PathProviderPlatform {

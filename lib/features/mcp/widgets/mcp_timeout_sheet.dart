@@ -7,7 +7,7 @@ import '../../../core/providers/mcp_provider.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 Future<void> showMcpTimeoutSheet(BuildContext context) async {
   final l10n = AppLocalizations.of(context)!;

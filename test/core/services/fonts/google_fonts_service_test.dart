@@ -6,7 +6,8 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:Kelivo/core/services/fonts/google_fonts_service.dart';
+import 'package:path/path.dart' as p;
+import 'package:Cuplivo/core/services/fonts/google_fonts_service.dart';
 
 Map<String, dynamic> entry(String family, {String? url, bool regular = true}) =>
     {
@@ -82,7 +83,7 @@ void main() {
       final second = GoogleFontsService(client: client, cacheDirectory: dir);
       expect((await second.loadCatalog()).single.family, 'Abel');
       expect(requests, 1);
-      expect(await dir.list().map((f) => f.path.split('/').last).toList(), [
+      expect(await dir.list().map((f) => p.basename(f.path)).toList(), [
         'catalog.json',
       ]);
       client.close();

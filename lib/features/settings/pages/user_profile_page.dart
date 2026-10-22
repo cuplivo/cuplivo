@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 import '../../../core/models/memory_entry.dart';
 import '../../../core/models/user_profile_field.dart';
@@ -14,7 +14,7 @@ import '../../../shared/widgets/ios_tile_button.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../utils/platform_utils.dart';
 import '../widgets/memory_ui.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 /// Structured user profile fields (§14.4 / §5.7).
 class UserProfilePage extends StatelessWidget {

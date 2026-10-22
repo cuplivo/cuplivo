@@ -7,7 +7,7 @@ import '../../../l10n/app_localizations.dart';
 import '../widgets/browser_progressive_edge.dart';
 import '../widgets/browser_scroll_configuration.dart';
 import '../widgets/browser_surface_controls.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 /// Mobile management content scrolls beneath a safe-area-aware floating header.
 class BrowserManagementPage extends StatelessWidget {

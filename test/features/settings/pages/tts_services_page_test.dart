@@ -1,14 +1,14 @@
 import 'dart:async';
 
 import "../../../support/business_test_harness.dart";
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/tts_provider.dart';
-import 'package:Kelivo/core/services/tts/network_tts.dart';
-import 'package:Kelivo/desktop/setting/tts_services_pane.dart';
-import 'package:Kelivo/features/settings/pages/tts_services_page.dart';
-import 'package:Kelivo/features/settings/widgets/voice_service_widgets.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/tts_provider.dart';
+import 'package:Cuplivo/core/services/tts/network_tts.dart';
+import 'package:Cuplivo/desktop/setting/tts_services_pane.dart';
+import 'package:Cuplivo/features/settings/pages/tts_services_page.dart';
+import 'package:Cuplivo/features/settings/widgets/voice_service_widgets.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

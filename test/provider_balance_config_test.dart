@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:Kelivo/core/database/business_preferences.dart';
-import 'package:Kelivo/core/database/business_settings_router.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/business_settings_router.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/business_test_harness.dart';

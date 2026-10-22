@@ -1,9 +1,9 @@
-import 'package:Kelivo/core/models/context_operation.dart';
-import 'package:Kelivo/core/models/native_compaction.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/services/api/generation/text_generation_result.dart';
-import 'package:Kelivo/core/services/api/providers/openai/responses_history.dart';
-import 'package:Kelivo/l10n/app_localizations_en.dart';
+import 'package:Cuplivo/core/models/context_operation.dart';
+import 'package:Cuplivo/core/models/native_compaction.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/services/api/generation/text_generation_result.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/responses_history.dart';
+import 'package:Cuplivo/l10n/app_localizations_en.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -11,14 +11,14 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/models/compress_context_options.dart';
-import 'package:Kelivo/core/models/compression_config.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/models/quote_ref.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/chat/context_compression_service.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/models/compress_context_options.dart';
+import 'package:Cuplivo/core/models/compression_config.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/quote_ref.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/chat/context_compression_service.dart';
 
 class _Paths extends PathProviderPlatform {
   _Paths(this.path);

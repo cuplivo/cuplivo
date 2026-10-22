@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:Kelivo/utils/utf16_safe_cut.dart';
+import 'package:Cuplivo/utils/utf16_safe_cut.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

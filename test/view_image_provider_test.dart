@@ -1,6 +1,6 @@
-import 'package:Kelivo/core/models/image_context.dart';
-import 'package:Kelivo/core/services/api/request_image_context.dart';
-import 'package:Kelivo/core/services/api/native_input_attachments.dart';
+import 'package:Cuplivo/core/models/image_context.dart';
+import 'package:Cuplivo/core/services/api/request_image_context.dart';
+import 'package:Cuplivo/core/services/api/native_input_attachments.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -10,18 +10,18 @@ import 'package:image/image.dart' as img;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/chat_api_service.dart';
-import 'package:Kelivo/core/services/api/providers/openai/chat_completions_api.dart';
-import 'package:Kelivo/core/models/model_spec.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/workspace/workspace_tools_service.dart';
-import 'package:Kelivo/features/home/services/message_builder_service.dart';
-import 'package:Kelivo/utils/mcp_structured_image.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/chat_api_service.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/chat_completions_api.dart';
+import 'package:Cuplivo/core/models/model_spec.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_tools_service.dart';
+import 'package:Cuplivo/features/home/services/message_builder_service.dart';
+import 'package:Cuplivo/utils/mcp_structured_image.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 
 import 'support/collect_generation.dart';
 import 'support/claude_test_api.dart' show FakePathProviderPlatform;
@@ -598,7 +598,7 @@ void main() {
         expect(requests, hasLength(2));
         expect(jsonEncode(requests.first), jsonEncode(requests.last));
         expect(jsonEncode(requests.first), contains('![remote diagram]($url)'));
-        expect(jsonEncode(requests.first), isNot(contains('_kelivo_image_')));
+        expect(jsonEncode(requests.first), isNot(contains('_cuplivo_image_')));
       },
     );
   }
@@ -757,7 +757,7 @@ void main() {
             reason: 'one user attachment and four tool observations',
           );
           for (final body in requests) {
-            expect(jsonEncode(body), isNot(contains('kelivo-image-ref:')));
+            expect(jsonEncode(body), isNot(contains('cuplivo-image-ref:')));
             expect(jsonEncode(body), isNot(contains(imageContextOwnerKey)));
             for (var i = 0; i < 12; i++) {
               expect(jsonEncode(body), contains('old text $i'));

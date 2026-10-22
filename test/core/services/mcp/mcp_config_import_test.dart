@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/providers/mcp_provider.dart';
-import 'package:Kelivo/core/services/mcp/mcp_config_import.dart';
+import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/services/mcp/mcp_config_import.dart';
 import '../../../support/business_test_harness.dart';
 
 void main() {

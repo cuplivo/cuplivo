@@ -192,7 +192,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get storageSpaceClearDisplacedDatabasesConfirmMessage =>
-      'Bu ayrılmış veritabanları silinsin mi? Kelivo, veritabanını yeniden oluştururken bunları sakladı ve bunlar o sohbetlerin ve ayarların hayatta kalan tek kopyası olabilir. Bu işlem geri alınamaz.';
+      'Bu ayrılmış veritabanları silinsin mi? Cuplivo, veritabanını yeniden oluştururken bunları sakladı ve bunlar o sohbetlerin ve ayarların hayatta kalan tek kopyası olabilir. Bu işlem geri alınamaz.';
 
   @override
   String get storageSpaceRestoreTracesHint =>
@@ -1697,7 +1697,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backupPageChooseExternalFolder =>
-      'iCloud Drive\'ı veya \"iPhone\'um > Kelivo\" dışında bir klasör seçin. Kelivo klasöründeki dosyalar uygulamayla birlikte silinir. Yedek kaydedilmedi.';
+      'iCloud Drive\'ı veya \"iPhone\'um > Cuplivo\" dışında bir klasör seçin. Cuplivo klasöründeki dosyalar uygulamayla birlikte silinir. Yedek kaydedilmedi.';
 
   @override
   String get backupPageFilesLabel => 'Dosyalar ve Görseller';
@@ -1764,23 +1764,23 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backupPageRestartContent =>
-      'İçe aktarma başarılı. Güvenli şekilde uygulamak için Kelivo\'yu yeniden başlatın.';
+      'İçe aktarma başarılı. Güvenli şekilde uygulamak için Cuplivo\'yu yeniden başlatın.';
 
   @override
   String backupPageRestartContentWithSkipped(int count) {
-    return 'İçe aktarma tamamlandı, ancak geçersiz mesaj sıralamasına sahip $count sohbet atlandı. İçe aktarılan verileri güvenli şekilde uygulamak için Kelivo\'yu yeniden başlatın.';
+    return 'İçe aktarma tamamlandı, ancak geçersiz mesaj sıralamasına sahip $count sohbet atlandı. İçe aktarılan verileri güvenli şekilde uygulamak için Cuplivo\'yu yeniden başlatın.';
   }
 
   @override
   String get restartAppFailedMessage =>
-      'Kelivo otomatik olarak yeniden başlatılamadı. Tamamen kapatın, ardından yeniden açın.';
+      'Cuplivo otomatik olarak yeniden başlatılamadı. Tamamen kapatın, ardından yeniden açın.';
 
   @override
   String get backupRestoreRolledBackTitle => 'Geri yükleme geri alındı';
 
   @override
   String get backupRestoreRolledBackContent =>
-      'Geri yükleme tamamlanamadı. Kelivo önceki verilerinizi doğruladı ve korudu.';
+      'Geri yükleme tamamlanamadı. Cuplivo önceki verilerinizi doğruladı ve korudu.';
 
   @override
   String get backupRestoreDirectoryBlockedTitle =>
@@ -1798,22 +1798,22 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backupRestoreFailureContent =>
-      'Kelivo eksiksiz bir eski veya yeni veri kümesini doğrulayamadı, bu nedenle sohbet verileri açılmadı. Kelivo\'yu kapatın ve tekrar deneyin. Sorun tekrarlanırsa destek için tanılama kodunu saklayın.';
+      'Cuplivo eksiksiz bir eski veya yeni veri kümesini doğrulayamadı, bu nedenle sohbet verileri açılmadı. Cuplivo\'yu kapatın ve tekrar deneyin. Sorun tekrarlanırsa destek için tanılama kodunu saklayın.';
 
   @override
   String get backupRestoreBusinessLeaseUnavailableTitle =>
-      'Kelivo zaten çalışıyor';
+      'Cuplivo zaten çalışıyor';
 
   @override
   String get backupRestoreBusinessLeaseUnavailableContent =>
-      'Kelivo\'nun verileri hâlâ başka bir uygulama süreci tarafından kullanılıyor. Diğer Kelivo pencerelerini kapatın, ardından yeniden başlatın. Sohbet verileriniz bu süreç tarafından açılmadı.';
+      'Cuplivo\'nun verileri hâlâ başka bir uygulama süreci tarafından kullanılıyor. Diğer Cuplivo pencerelerini kapatın, ardından yeniden başlatın. Sohbet verileriniz bu süreç tarafından açılmadı.';
 
   @override
   String get restoreProgressTitle => 'Yedeğiniz geri yükleniyor';
 
   @override
   String get restoreProgressWarning =>
-      'Bu işlem bitene kadar Kelivo\'yu açık tutun. Şimdi kapatırsanız, bir sonraki başlatmada bu işlem baştan başlar.';
+      'Bu işlem bitene kadar Cuplivo\'yu açık tutun. Şimdi kapatırsanız, bir sonraki başlatmada bu işlem baştan başlar.';
 
   @override
   String get restoreProgressStageCheckingBackup => 'Yedek kontrol ediliyor';
@@ -1836,7 +1836,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get restoreProgressStageFinishing => 'Tamamlanıyor';
 
   @override
-  String get backupRestoreFailureRestartButton => 'Kelivo\'yu yeniden başlat';
+  String get backupRestoreFailureRestartButton => 'Cuplivo\'yu yeniden başlat';
 
   @override
   String get backupRestoreFailureCopyButton => 'Tanılama kodunu kopyala';
@@ -1879,7 +1879,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get startupRecoveryResetFailed =>
-      'Sıfırlama başarısız oldu. Kelivo\'yu tamamen kapatın, ardından yeniden açın.';
+      'Sıfırlama başarısız oldu. Cuplivo\'yu tamamen kapatın, ardından yeniden açın.';
 
   @override
   String get startupRecoveryResetDialogTitle =>
@@ -1887,7 +1887,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get startupRecoveryResetDialogContent =>
-      'Bu işlem önceki sohbetlerinizi kurtarmaz. Kelivo mevcut veritabanını ve mevcut kopyaları koruyacak ve yeni bir boş sohbet listesi başlatacaktır. Sohbetlerinizi geri almak için iptal edip yerel bir kopya seçin.';
+      'Bu işlem önceki sohbetlerinizi kurtarmaz. Cuplivo mevcut veritabanını ve mevcut kopyaları koruyacak ve yeni bir boş sohbet listesi başlatacaktır. Sohbetlerinizi geri almak için iptal edip yerel bir kopya seçin.';
 
   @override
   String get startupRecoveryResetDialogConfirm =>
@@ -2003,7 +2003,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get startupRecoveryDangerBody =>
-      'Yeni bir başlangıç, mevcut verileri görünümden kaldırır. Kelivo, kurtarma için eski veritabanını ve mevcut kopyaları korur. Mümkünse önce bir veri kopyası dışa aktarın.';
+      'Yeni bir başlangıç, mevcut verileri görünümden kaldırır. Cuplivo, kurtarma için eski veritabanını ve mevcut kopyaları korur. Mümkünse önce bir veri kopyası dışa aktarın.';
 
   @override
   String get startupRecoveryResetAcknowledge =>
@@ -2011,11 +2011,11 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get startupDatabaseUpdateRequiredTitle =>
-      'Devam etmek için Kelivo\'yu güncelleyin';
+      'Devam etmek için Cuplivo\'yu güncelleyin';
 
   @override
   String get startupDatabaseUpdateRequiredContent =>
-      'Bu cihazdaki sohbet veritabanı Kelivo\'nun daha yeni bir sürümü tarafından oluşturulmuş ve bu sürüm tarafından açılamıyor. Verileriniz değiştirilmedi. Kelivo\'nun en son sürümünü yükleyip tekrar açın.';
+      'Bu cihazdaki sohbet veritabanı Cuplivo\'nun daha yeni bir sürümü tarafından oluşturulmuş ve bu sürüm tarafından açılamıyor. Verileriniz değiştirilmedi. Cuplivo\'nun en son sürümünü yükleyip tekrar açın.';
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeTitle =>
@@ -2027,7 +2027,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeStep1 =>
-      'Kelivo\'nun en son sürümünü yükleyip açın, ardından Ayarlar → Yedek bölümünden bir yedek dışa aktarın.';
+      'Cuplivo\'nun en son sürümünü yükleyip açın, ardından Ayarlar → Yedek bölümünden bir yedek dışa aktarın.';
 
   @override
   String startupDatabaseUpdateRequiredDowngradeStep2(String url) {
@@ -2086,7 +2086,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String backupPageForwardCompatBody(int backupVersion, int currentVersion) {
-    return 'Bu yedek, Kelivo\'nun daha yeni bir sürümü tarafından oluşturulmuş (veri biçimi $backupVersion; bu sürüm $currentVersion destekliyor) ve eski sürümlerin okuyup okuyamayacağı belirtilmemiş.\n\nDevam edebilirsiniz: bu sürümün tanımadığı her şey atlanır ve yedek dosyasının kendisi değiştirilmez. Ancak yeni sürüm mevcut verilerin saklanma biçimini değiştirdiyse bazı içerikler yanlış içe aktarılabilir.\n\nÖnce Kelivo\'yu güncellemek daha güvenli bir seçimdir.';
+    return 'Bu yedek, Cuplivo\'nun daha yeni bir sürümü tarafından oluşturulmuş (veri biçimi $backupVersion; bu sürüm $currentVersion destekliyor) ve eski sürümlerin okuyup okuyamayacağı belirtilmemiş.\n\nDevam edebilirsiniz: bu sürümün tanımadığı her şey atlanır ve yedek dosyasının kendisi değiştirilmez. Ancak yeni sürüm mevcut verilerin saklanma biçimini değiştirdiyse bazı içerikler yanlış içe aktarılabilir.\n\nÖnce Cuplivo\'yu güncellemek daha güvenli bir seçimdir.';
   }
 
   @override
@@ -2097,7 +2097,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backupPageSchemaTooNewMessage =>
-      'Bu yedek, Kelivo\'nun daha yeni bir sürümü tarafından oluşturulmuş ve bu sürüm tarafından okunamıyor. Lütfen Kelivo\'yu güncelleyip tekrar deneyin.';
+      'Bu yedek, Cuplivo\'nun daha yeni bir sürümü tarafından oluşturulmuş ve bu sürüm tarafından okunamıyor. Lütfen Cuplivo\'yu güncelleyip tekrar deneyin.';
 
   @override
   String get backupPageBackupUploaded => 'Yedek yüklendi';
@@ -2283,14 +2283,14 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backupPageIosSystemBackupNote =>
-      'Kelivo\'nun yerel verileri iCloud cihaz yedeklemelerine dahil edilmez. Cihaz değiştirmeden veya uygulamayı silmeden önce iCloud Drive\'a ya da Kelivo dışında bir klasöre yedekleyin. \"iPhone\'um > Kelivo\" içindeki dosyalar uygulamayla birlikte silinir.';
+      'Cuplivo\'nun yerel verileri iCloud cihaz yedeklemelerine dahil edilmez. Cihaz değiştirmeden veya uygulamayı silmeden önce iCloud Drive\'a ya da Cuplivo dışında bir klasöre yedekleyin. \"iPhone\'um > Cuplivo\" içindeki dosyalar uygulamayla birlikte silinir.';
 
   @override
   String get backupPageImportFromCherryStudio => 'Cherry Studio\'dan İçe Aktar';
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return 'Bu yedek, Kelivo\'nun henüz içe aktaramadığı Cherry Studio biçim sürümü $version kullanıyor. Bunun yerine Cherry Studio v1\'den dışa aktarın veya Cherry Studio v2 yedeklerini destekleyen bir Kelivo güncellemesini bekleyin.';
+    return 'Bu yedek, Cuplivo\'nun henüz içe aktaramadığı Cherry Studio biçim sürümü $version kullanıyor. Bunun yerine Cherry Studio v1\'den dışa aktarın veya Cherry Studio v2 yedeklerini destekleyen bir Cuplivo güncellemesini bekleyin.';
   }
 
   @override
@@ -5280,15 +5280,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get aboutPageEasterEggButton => 'Harika!';
 
   @override
-  String get aboutPageKelivoSearchUnlocked =>
-      'İsimsiz bir kapı aralandı. Ayarlar\'da bulabilirsiniz.';
-
-  @override
-  String get aboutPageKelivoSearchAlreadyUnlocked =>
-      'Bu kapıdan zaten geçtiniz.';
-
-  @override
-  String get aboutPageAppName => 'Kelivo';
+  String get aboutPageAppName => 'Cuplivo';
 
   @override
   String get aboutPageAppDescription => 'Açık kaynaklı AI asistanı';
@@ -5346,13 +5338,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get aboutPageJoinQQGroup => 'QQ Grubumuza katılın';
 
   @override
-  String get aboutPageQQGroupOne => 'Kelivo Grup 1';
+  String get aboutPageQQGroupOne => 'Cuplivo Grup 1';
 
   @override
-  String get aboutPageQQGroupTwo => 'Kelivo Grup 2';
+  String get aboutPageQQGroupTwo => 'Cuplivo Grup 2';
 
   @override
-  String get aboutPageQQGroupThree => 'Kelivo Grup 3';
+  String get aboutPageQQGroupThree => 'Cuplivo Grup 3';
 
   @override
   String get aboutPageJoinDiscord => 'Discord\'da bize katılın';
@@ -6481,7 +6473,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get settingsShare => 'Kelivo - Açık Kaynak AI Asistanı';
+  String get settingsShare => 'Cuplivo - Açık Kaynak AI Asistanı';
 
   @override
   String get searchProviderBingLocalDescription =>
@@ -6696,9 +6688,6 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String get searchServicesDialogMaximumTokensInvalid =>
       'Maksimum token 1024 ile 32768 arasında olmalıdır.';
-
-  @override
-  String get searchServiceNameKelivo => 'Kelivo';
 
   @override
   String get searchServicesDialogCountryOptional => 'Ülke/bölge (isteğe bağlı)';
@@ -6985,7 +6974,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get healthDataSettingsDescription =>
-      'Geçerli asistanın günlük sohbette kullanabileceği HealthKit sinyalleri. Anahtarlar Kelivo\'nun hangi aralığı okumayı deneyebileceğini belirler; gerçek Health erişimini yine iOS yönetir.';
+      'Geçerli asistanın günlük sohbette kullanabileceği HealthKit sinyalleri. Anahtarlar Cuplivo\'nun hangi aralığı okumayı deneyebileceğini belirler; gerçek Health erişimini yine iOS yönetir.';
 
   @override
   String healthDataSettingsBadge(int selected, int total) {
@@ -8363,7 +8352,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get legacyMemoryExport => 'Dışa aktar';
 
   @override
-  String get legacyMemoryExportTitle => 'Kelivo eski anı dışa aktarımı';
+  String get legacyMemoryExportTitle => 'Cuplivo eski anı dışa aktarımı';
 
   @override
   String legacyMemoryAssistantHeader(String name) {
@@ -9002,11 +8991,11 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get migrationIntroSubtitle =>
-      'Kelivo sohbet geçmişini daha hızlı bir SQLite veritabanına taşıyor. Verilerinizin tutarlı kalması için yükseltme uygulama açılmadan önce çalışır.';
+      'Cuplivo sohbet geçmişini daha hızlı bir SQLite veritabanına taşıyor. Verilerinizin tutarlı kalması için yükseltme uygulama açılmadan önce çalışır.';
 
   @override
   String get migrationBackupNote =>
-      'Geçiş başlamadan önce Kelivo; ayarlar, sohbet geçmişi ve yerel dosyaları içeren bir ZIP yedeği dışa aktarır.';
+      'Geçiş başlamadan önce Cuplivo; ayarlar, sohbet geçmişi ve yerel dosyaları içeren bir ZIP yedeği dışa aktarır.';
 
   @override
   String get migrationPerformanceNote =>
@@ -9046,14 +9035,14 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get migrationBackingUpSubtitle =>
-      'Ayarlar, sohbet geçmişi, yüklenen dosyalar, görseller ve yazı tipleri dışa aktarılıyor. Bu işlem bitene kadar Kelivo\'yu açık tutun.';
+      'Ayarlar, sohbet geçmişi, yüklenen dosyalar, görseller ve yazı tipleri dışa aktarılıyor. Bu işlem bitene kadar Cuplivo\'yu açık tutun.';
 
   @override
   String get migrationMigratingTitle => 'SQLite\'a Geçiliyor';
 
   @override
   String get migrationMigratingSubtitle =>
-      'Büyük geçmişlerin belleği aşırı yüklememesi için sohbetler ve mesajlar toplu olarak yazılıyor. Geçiş bitene kadar Kelivo\'yu ön planda tutun.';
+      'Büyük geçmişlerin belleği aşırı yüklememesi için sohbetler ve mesajlar toplu olarak yazılıyor. Geçiş bitene kadar Cuplivo\'yu ön planda tutun.';
 
   @override
   String migrationBackingUpDetail(String fileName) {
@@ -9114,7 +9103,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get migrationCompleteSubtitle =>
-      'Sohbet geçmişiniz artık SQLite\'ta saklanıyor. Yükseltilmiş uygulamaya girmek için Kelivo\'yu yeniden başlatın.';
+      'Sohbet geçmişiniz artık SQLite\'ta saklanıyor. Yükseltilmiş uygulamaya girmek için Cuplivo\'yu yeniden başlatın.';
 
   @override
   String get migrationConversationCount => 'Sohbetler';
@@ -9132,7 +9121,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get migrationMissingFilesCount => 'Eksik dosyalar';
 
   @override
-  String get migrationRestartButton => 'Kelivo\'yu Yeniden Başlat';
+  String get migrationRestartButton => 'Cuplivo\'yu Yeniden Başlat';
 
   @override
   String get migrationFailedTitle => 'Geçiş Başarısız';
@@ -9158,7 +9147,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get migrationSkipDialogMessage =>
-      'Kelivo boş bir sohbet veritabanıyla başlayacak. Eski sohbet geçmişiniz diskte kalır (.retired sonekiyle yeniden adlandırılır) ancak geçiş yapılmaz ve uygulamada görünmez. Daha sonra kurtarmanız gerekirse yedek ZIP dosyanızı kullanın.';
+      'Cuplivo boş bir sohbet veritabanıyla başlayacak. Eski sohbet geçmişiniz diskte kalır (.retired sonekiyle yeniden adlandırılır) ancak geçiş yapılmaz ve uygulamada görünmez. Daha sonra kurtarmanız gerekirse yedek ZIP dosyanızı kullanın.';
 
   @override
   String get migrationSkipDialogCancel => 'İptal';
@@ -9587,7 +9576,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get localSnapshotEnabledSubtitle =>
-      'Kelivo veritabanının bir kopyasını düzenli olarak bu cihazda kaydeder, böylece verileriniz tek bir yerde kalmaz.';
+      'Cuplivo veritabanının bir kopyasını düzenli olarak bu cihazda kaydeder, böylece verileriniz tek bir yerde kalmaz.';
 
   @override
   String get localSnapshotIntervalTitle => 'Sıklık';
@@ -9702,7 +9691,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get localSnapshotCopiesScopeNote =>
-      'Yerel kopyalar yalnızca bu cihazda bulunur. Uygulama içindeki verilerinizin zarar görmesine karşı korur; cihazın kaybolmasına veya Kelivo\'nun kaldırılmasına karşı korumaz — bunun için WebDAV veya S3 yedeğini kullanın.';
+      'Yerel kopyalar yalnızca bu cihazda bulunur. Uygulama içindeki verilerinizin zarar görmesine karşı korur; cihazın kaybolmasına veya Cuplivo\'nun kaldırılmasına karşı korumaz — bunun için WebDAV veya S3 yedeğini kullanın.';
 
   @override
   String get localSnapshotOriginAutomatic => 'Otomatik';
@@ -10427,7 +10416,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get workspaceEnvRestartBanner =>
-      'Tamamlamak için Kelivo\'yu yeniden başlatın';
+      'Tamamlamak için Cuplivo\'yu yeniden başlatın';
 
   @override
   String get workspaceEnvDetectingMirrors => 'En hızlı yansılar algılanıyor…';
@@ -10542,7 +10531,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get workspaceEnvNativeExplanation =>
-      'Masaüstünde Kelivo, Linux sandbox yerine sistem kabuğunuzu kullanır.';
+      'Masaüstünde Cuplivo, Linux sandbox yerine sistem kabuğunuzu kullanır.';
 
   @override
   String workspaceEnvNativeShellPath(String path) {
@@ -11479,7 +11468,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get workspaceDesktopManagedHint =>
-      'Kelivo bu proje için bir klasör oluşturur ve yönetir.';
+      'Cuplivo bu proje için bir klasör oluşturur ve yönetir.';
 
   @override
   String get workspaceDesktopHostHint =>
@@ -11737,7 +11726,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get workspaceExternalStorageMessage =>
-      'Çalışma alanında ve Shell\'de harici klasörleri okuyup yazmak için Android ayarlarından Kelivo\'nun dosyaları yönetmesine izin verin. Android 11 veya üzerinde tüm dosyalara erişimi etkinleştirin. Ardından bağlamak için cihazdaki bir klasörü seçin.';
+      'Çalışma alanında ve Shell\'de harici klasörleri okuyup yazmak için Android ayarlarından Cuplivo\'nun dosyaları yönetmesine izin verin. Android 11 veya üzerinde tüm dosyalara erişimi etkinleştirin. Ardından bağlamak için cihazdaki bir klasörü seçin.';
 
   @override
   String get workspaceExternalGrantAccess => 'Erişim ver';
@@ -11962,7 +11951,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get backgroundSettingsTitle => 'Arka plan görevleri';
 
   @override
-  String get backgroundTaskTitle => 'Kelivo görevi';
+  String get backgroundTaskTitle => 'Cuplivo görevi';
 
   @override
   String get backgroundCompleted => 'Oluşturma tamamlandı';
@@ -12098,7 +12087,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get backgroundOverlayIcon => 'Yüzen simge';
 
   @override
-  String get backgroundIconDefault => 'Kelivo simgesi';
+  String get backgroundIconDefault => 'Cuplivo simgesi';
 
   @override
   String get backgroundIconImage => 'Görsel seç';
@@ -12319,7 +12308,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get startupRecoverySnapshotBody =>
-      'Veritabanı açılamasa bile sohbetlerinizi ve ayarlarınızı kurtarmak için bu cihazdaki bir anlık görüntüyü seçin. Kelivo\'yu kaldırmayın: kaldırmak bu anlık görüntüleri de siler.';
+      'Veritabanı açılamasa bile sohbetlerinizi ve ayarlarınızı kurtarmak için bu cihazdaki bir anlık görüntüyü seçin. Cuplivo\'yu kaldırmayın: kaldırmak bu anlık görüntüleri de siler.';
 
   @override
   String get startupRecoverySnapshotEmpty =>
@@ -12330,7 +12319,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String startupRecoverySnapshotConfirm(String when) {
-    return 'Sohbetler ve ayarlar $when anlık görüntüsünden geri yüklensin mi? Bu anlık görüntüden sonra yapılan değişiklikler dahil edilmez. Mevcut ek dosyaları ve anlık görüntü korunur. Geri yüklemeyi tamamlamak için Kelivo yeniden başlatılacak.';
+    return 'Sohbetler ve ayarlar $when anlık görüntüsünden geri yüklensin mi? Bu anlık görüntüden sonra yapılan değişiklikler dahil edilmez. Mevcut ek dosyaları ve anlık görüntü korunur. Geri yüklemeyi tamamlamak için Cuplivo yeniden başlatılacak.';
   }
 
   @override
@@ -12340,7 +12329,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get startupRecoverySnapshotReady =>
-      'Anlık görüntü hazır. Geri yüklemeyi tamamlamak için Kelivo\'yu yeniden başlatın.';
+      'Anlık görüntü hazır. Geri yüklemeyi tamamlamak için Cuplivo\'yu yeniden başlatın.';
 
   @override
   String get scheduledTasksTitle => 'Zamanlanmış görevler';
@@ -12414,7 +12403,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get scheduledTasksReliability =>
-      'Daha güvenilir çalıştırma için Kelivo\'yu pil ayarlarında kısıtlamasız tutun. Uygulamayı zorla durdurmak, yeniden açana kadar alarmları iptal eder. Kaçırılan çalıştırmalar atlanır; görevler cihazın saat dilimini izler.';
+      'Daha güvenilir çalıştırma için Cuplivo\'yu pil ayarlarında kısıtlamasız tutun. Uygulamayı zorla durdurmak, yeniden açana kadar alarmları iptal eder. Kaçırılan çalıştırmalar atlanır; görevler cihazın saat dilimini izler.';
 
   @override
   String get scheduledTasksExecutionDetail =>
@@ -12602,7 +12591,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get scheduledTasksDesktopReliability =>
-      'Görevler yalnızca Kelivo çalışırken yürütülür; simge durumuna küçültüldüğünde veya sistem tepsisindeyken de devam eder. Uygulamadan çıkıldıktan veya bilgisayar uykuya geçtikten sonra kaçırılan zamanlar atlanır. Kelivo otomatik olarak başlamaz.';
+      'Görevler yalnızca Cuplivo çalışırken yürütülür; simge durumuna küçültüldüğünde veya sistem tepsisindeyken de devam eder. Uygulamadan çıkıldıktan veya bilgisayar uykuya geçtikten sonra kaçırılan zamanlar atlanır. Cuplivo otomatik olarak başlamaz.';
 
   @override
   String get scheduledTasksDesktopExecutionDetail =>
@@ -13001,7 +12990,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get scheduledTasksIOSDetail =>
-      'iOS arka plan kısıtlamaları, Kelivo\'nun belirlenen saatte uyanıp model çalıştırmasını engeller. Bunun yerine, uygulama çalışabildiğinde içerik hazırlanır ve sistem planlanan saatte bir bildirim gösterir. Yalnızca bir sonraki tekrar hazırlanır. Uygulamadan ayrıldıktan sonra hazırlık tamamlanmayabilir; sonraki tekrarları hazırlamak için Kelivo\'yu yeniden açın.';
+      'iOS arka plan kısıtlamaları, Cuplivo\'nun belirlenen saatte uyanıp model çalıştırmasını engeller. Bunun yerine, uygulama çalışabildiğinde içerik hazırlanır ve sistem planlanan saatte bir bildirim gösterir. Yalnızca bir sonraki tekrar hazırlanır. Uygulamadan ayrıldıktan sonra hazırlık tamamlanmayabilir; sonraki tekrarları hazırlamak için Cuplivo\'yu yeniden açın.';
 
   @override
   String get scheduledTasksContextPolicy => 'Sohbet bağlamı';
@@ -13068,7 +13057,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get scheduledTasksReminderBody =>
-      'Planlanmış görevinizin zamanı geldi. Devam etmek için Kelivo\'yu açın.';
+      'Planlanmış görevinizin zamanı geldi. Devam etmek için Cuplivo\'yu açın.';
 
   @override
   String get scheduledTasksResultBody => 'Planlanmış görevinizin sonucu hazır.';
@@ -13083,7 +13072,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get scheduledTasksAllowPreparationTip =>
-      'Kelivo çalışabildiğinde bir sonraki sonucu planlanan saatinden önce oluşturun. Sonuç, zamanı gelene kadar sohbette görünmez. Hazırlık yalnızca metin kullanır; araç, ek veya özel istek gövdesi kullanmaz. Model ücretlerine yol açabilir.';
+      'Cuplivo çalışabildiğinde bir sonraki sonucu planlanan saatinden önce oluşturun. Sonuç, zamanı gelene kadar sohbette görünmez. Hazırlık yalnızca metin kullanır; araç, ek veya özel istek gövdesi kullanmaz. Model ücretlerine yol açabilir.';
 
   @override
   String get scheduledTasksContextPolicyTip =>
@@ -13091,7 +13080,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get scheduledTasksPreparationWindowTip =>
-      'Hazırlığın planlanan saatten en fazla ne kadar önce başlayabileceği, en fazla 24 saat. Örneğin öğlen Kelivo\'yu açmak ertesi sabahki hatırlatmayı hazırlayabilir. Daha geniş bir aralık daha fazla hazırlama şansı verir, ancak sonuç daha eski olabilir. Planlanan saati değiştirmez ve arka planda çalışmayı garanti etmez. Şimdi hazırla bu otomatik bekleme süresini ve tüm deneme sınırlarını atlar.';
+      'Hazırlığın planlanan saatten en fazla ne kadar önce başlayabileceği, en fazla 24 saat. Örneğin öğlen Cuplivo\'yu açmak ertesi sabahki hatırlatmayı hazırlayabilir. Daha geniş bir aralık daha fazla hazırlama şansı verir, ancak sonuç daha eski olabilir. Planlanan saati değiştirmez ve arka planda çalışmayı garanti etmez. Şimdi hazırla bu otomatik bekleme süresini ve tüm deneme sınırlarını atlar.';
 
   @override
   String get scheduledTasksPreparationAttemptsTip =>
@@ -13103,7 +13092,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get scheduledTasksUnavailableTip =>
-      'Hazır bir sonuç yoksa ve görev zamanı geldiğinde çalıştırılamıyorsa, bir hatırlatma gönder veya bu tekrarı atla. Hatırlatma oluşturulmuş bir yanıt içermez ve bildirimlerin etkin olmasını gerektirir. Görev zamanı geldiğinde Kelivo açıksa görevi o anda çalıştırabilir.';
+      'Hazır bir sonuç yoksa ve görev zamanı geldiğinde çalıştırılamıyorsa, bir hatırlatma gönder veya bu tekrarı atla. Hatırlatma oluşturulmuş bir yanıt içermez ve bildirimlerin etkin olmasını gerektirir. Görev zamanı geldiğinde Cuplivo açıksa görevi o anda çalıştırabilir.';
 
   @override
   String get scheduledTasksNotifyTip =>
@@ -13309,7 +13298,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get phoneControlAssistantHint =>
-      'Her iki izin de gereklidir: sistem Erişilebilirlik ayarlarında Kelivo telefon kontrolünü etkinleştirin, ardından asistanınızın Yerel Araçlar bölümünde Telefon Kontrolü\'nü açın (sohbet araçları menüsünden de erişilebilir). Her asistan ayrı ayrı yapılandırılır. Görev çalışırken telefonun kilidini açık tutun.';
+      'Her iki izin de gereklidir: sistem Erişilebilirlik ayarlarında Cuplivo telefon kontrolünü etkinleştirin, ardından asistanınızın Yerel Araçlar bölümünde Telefon Kontrolü\'nü açın (sohbet araçları menüsünden de erişilebilir). Her asistan ayrı ayrı yapılandırılır. Görev çalışırken telefonun kilidini açık tutun.';
 
   @override
   String get phoneControlRestrictedTitle =>
@@ -13317,7 +13306,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get phoneControlRestrictedHint =>
-      'Bazı indirilen APK\'ler için Android önce uygulama bilgisi menüsünde \"Kısıtlı ayarlara izin ver\" seçeneğini gerektirir. Kelivo\'nun uygulama bilgilerini açmak için dokunun, ardından Erişilebilirlik ayarlarına dönün.';
+      'Bazı indirilen APK\'ler için Android önce uygulama bilgisi menüsünde \"Kısıtlı ayarlara izin ver\" seçeneğini gerektirir. Cuplivo\'nun uygulama bilgilerini açmak için dokunun, ardından Erişilebilirlik ayarlarına dönün.';
 
   @override
   String get phoneControlEnableAssistant =>
@@ -13517,7 +13506,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get recoveryMissingDataBody =>
-      'Kelivo mevcut sohbet veritabanını bulamadı. Yüklemeyi duraklattı ve boş bir veritabanı oluşturmadı. Aşağıda önceki kopyaları arayacağız; mevcut dosyalar korunacak.';
+      'Cuplivo mevcut sohbet veritabanını bulamadı. Yüklemeyi duraklattı ve boş bir veritabanı oluşturmadı. Aşağıda önceki kopyaları arayacağız; mevcut dosyalar korunacak.';
 
   @override
   String get recoveryEmptyDataTitle => 'Mevcut sohbet geçmişi boş';
@@ -13561,7 +13550,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get recoveryStorageFailureBody =>
-      'Veri güncellemesi tamamlanamadı. Orijinal veriler korundu. Kelivo\'yu yeniden açmayı deneyin veya kurtarmak için aşağıdan yerel bir kopya seçin.';
+      'Veri güncellemesi tamamlanamadı. Orijinal veriler korundu. Cuplivo\'yu yeniden açmayı deneyin veya kurtarmak için aşağıdan yerel bir kopya seçin.';
 
   @override
   String get recoveryProtectingTitle => 'Sohbet veritabanı korunuyor';
@@ -13587,7 +13576,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get recoveryStorageInsufficientSpaceBody =>
-      'Verilerinizi güvenli şekilde hazırlamak için yeterli depolama alanı yok. Sistem ayarlarından alan boşaltın, ardından Kelivo\'yu yeniden açın veya aşağıdaki kopyaları yeniden kontrol edin. Kelivo\'yu yüklü tutun ve verilerini ve yerel kopyalarını yerinde bırakın.';
+      'Verilerinizi güvenli şekilde hazırlamak için yeterli depolama alanı yok. Sistem ayarlarından alan boşaltın, ardından Cuplivo\'yu yeniden açın veya aşağıdaki kopyaları yeniden kontrol edin. Cuplivo\'yu yüklü tutun ve verilerini ve yerel kopyalarını yerinde bırakın.';
 
   @override
   String get migrationFreshStartTitle => 'Yeni başlangıç hazır';
@@ -13672,7 +13661,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backupEncryptionUnsupported =>
-      'Bu şifreli yedek, Kelivo\'nun daha yeni bir sürümünü gerektiriyor.';
+      'Bu şifreli yedek, Cuplivo\'nun daha yeni bir sürümünü gerektiriyor.';
 
   @override
   String get backupProgressEncrypting => 'Yedek şifreleniyor';
@@ -13841,7 +13830,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get browserRestoreTabsDescription =>
-      'Kelivo başladığında sekmelerinizi yeniden aç.';
+      'Cuplivo başladığında sekmelerinizi yeniden aç.';
 
   @override
   String get browserSaveHistory => 'Geçmişi kaydet';
@@ -15585,7 +15574,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get toolPermissionRequestApprovalDesc =>
-      'Kelivo, çalışma alanı dışındaki dosyalara erişmeden, masaüstü komutlarını çalıştırmadan veya onay gerektiren diğer araçları kullanmadan önce soracaktır.';
+      'Cuplivo, çalışma alanı dışındaki dosyalara erişmeden, masaüstü komutlarını çalıştırmadan veya onay gerektiren diğer araçları kullanmadan önce soracaktır.';
 
   @override
   String get contextLimitedInputHint =>
@@ -15646,7 +15635,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get dataDirectoryMoving =>
-      'Veriler taşınıyor ve doğrulanıyor… Lütfen Kelivo\'yu açık tutun.';
+      'Veriler taşınıyor ve doğrulanıyor… Lütfen Cuplivo\'yu açık tutun.';
 
   @override
   String get dataDirectoryStartupFailed => 'Veri dizini açılamıyor';
@@ -15692,7 +15681,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get dataDirectoryGenericError =>
-      'İşlem tamamlanamadı. Kullanılabilir disk alanını, klasör izinlerini ve başka bir Kelivo sürecinin çalışıp çalışmadığını kontrol edip yeniden deneyin. Mevcut veriler korundu.';
+      'İşlem tamamlanamadı. Kullanılabilir disk alanını, klasör izinlerini ve başka bir Cuplivo sürecinin çalışıp çalışmadığını kontrol edip yeniden deneyin. Mevcut veriler korundu.';
 
   @override
   String get dataDirectoryCancelHint =>
@@ -15938,7 +15927,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get recoveryGuideBody =>
-      'Kelivo verilerinizi yüklemeyi duraklattı. Kurtarmak istediklerinizi seçebilmeniz için yerel kopyaları arayacağız. Mevcut dosyalar korunacak.';
+      'Cuplivo verilerinizi yüklemeyi duraklattı. Kurtarmak istediklerinizi seçebilmeniz için yerel kopyaları arayacağız. Mevcut dosyalar korunacak.';
 
   @override
   String get recoverySpaceTitle => 'Biraz boş alana ihtiyaç var';
@@ -15959,7 +15948,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get recoveryRestoreRetryBody =>
-      'Geri yükleme tamamlanamadı. Seçilen kopya korundu. Devam etmek için yerel kopyaları yeniden denetleyin veya Kelivo\'yu yeniden açın.';
+      'Geri yükleme tamamlanamadı. Seçilen kopya korundu. Devam etmek için yerel kopyaları yeniden denetleyin veya Cuplivo\'yu yeniden açın.';
 
   @override
   String recoverySpaceAmount(String required, String available) {
@@ -15968,7 +15957,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get recoveryCopiesNeedUpdate =>
-      'Bazı kopyalar Kelivo\'nun daha yeni bir sürümüyle oluşturulmuş. Bunları geri yüklemeden önce Kelivo\'yu güncelleyin. Bu kopyalar korundu.';
+      'Bazı kopyalar Cuplivo\'nun daha yeni bir sürümüyle oluşturulmuş. Bunları geri yüklemeden önce Cuplivo\'yu güncelleyin. Bu kopyalar korundu.';
 
   @override
   String get imageContextAllowRecall =>
@@ -16606,22 +16595,22 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String requestBudgetSingleError(int index, String actual, String limit) {
-    return 'Kelivo yerel ön kontrolü: $index. görselin kodlanmış boyutu $actual, tek görsel sınırı olan $limit değerini aşıyor.';
+    return 'Cuplivo yerel ön kontrolü: $index. görselin kodlanmış boyutu $actual, tek görsel sınırı olan $limit değerini aşıyor.';
   }
 
   @override
   String requestBudgetTotalError(String actual, String limit) {
-    return 'Kelivo yerel ön kontrolü: kodlanmış görseller toplam $actual, görsel bütçesi olan $limit değerini aşıyor.';
+    return 'Cuplivo yerel ön kontrolü: kodlanmış görseller toplam $actual, görsel bütçesi olan $limit değerini aşıyor.';
   }
 
   @override
   String requestBudgetCountError(String actual, int limit) {
-    return 'Kelivo yerel ön kontrolü: istek $actual görsel içeriyor, $limit sınırını aşıyor.';
+    return 'Cuplivo yerel ön kontrolü: istek $actual görsel içeriyor, $limit sınırını aşıyor.';
   }
 
   @override
   String requestBudgetBodyError(String actual, String limit) {
-    return 'Kelivo yerel ön kontrolü: tam istek gövdesi $actual, istek gövdesi bütçesi olan $limit değerini aşıyor.';
+    return 'Cuplivo yerel ön kontrolü: tam istek gövdesi $actual, istek gövdesi bütçesi olan $limit değerini aşıyor.';
   }
 
   @override
@@ -16817,4 +16806,1321 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get workspaceEnvNativeShellSave => 'Kaydet';
+
+  @override
+  String get storageSpaceCategoryAssistantData => 'Asistanlar';
+
+  @override
+  String get storageSpaceSubAssistantAvatars => 'Avatarlar';
+
+  @override
+  String get storageSpaceSubAssistantImages => 'Görseller';
+
+  @override
+  String get storageSpaceSourceLabel => 'Kaynak';
+
+  @override
+  String get storageSpaceSourceAll => 'Tümü';
+
+  @override
+  String get storageSpaceSourceUserUpload => 'Kullanıcı yüklemeleri';
+
+  @override
+  String get storageSpaceSourceAssistant => 'Asistan';
+
+  @override
+  String get languageDisplayPortuguese => 'Português';
+
+  @override
+  String get languageDisplayArabic => 'العربية';
+
+  @override
+  String get languageDisplayHindi => 'हिन्दी';
+
+  @override
+  String get languageDisplayThai => 'ไทย';
+
+  @override
+  String get languageDisplayVietnamese => 'Tiếng Việt';
+
+  @override
+  String get languageDisplayBengali => 'বাংলা';
+
+  @override
+  String get translateLanguageManagerTitle => 'Dilleri yönet';
+
+  @override
+  String get translateLanguageManagerSubtitle =>
+      'Çeviri hedef listesinde görünecek dilleri seçin.';
+
+  @override
+  String get translateLanguageManagerAtLeastOne =>
+      'En az bir dil görünür kalmalı.';
+
+  @override
+  String get assistantEditChatSuggestionsTitle => 'Sohbet önerileri';
+
+  @override
+  String get assistantEditChatSuggestionsTip =>
+      'Her yanıttan sonra en fazla üç devam önerisi için bir istek ekler. Kapalıyken hiç harcama yapmaz.';
+
+  @override
+  String get assistantEditChatSuggestionsGlobalOff =>
+      'Etkin değil — önce Varsayılan Modeller altında Sohbet önerileri\'ni açın.';
+
+  @override
+  String get hotkeyFocusInput => 'Girişe odaklan';
+
+  @override
+  String get hotkeyCopySelectionMarkdown => 'Seçimi Markdown olarak kopyala';
+
+  @override
+  String get hotkeyReplySelection => 'Seçime yanıt ver';
+
+  @override
+  String get compressingContext => 'Bağlam sıkıştırılıyor...';
+
+  @override
+  String compressContextReadoutRounds(int rounds) {
+    String _temp0 = intl.Intl.pluralLogic(
+      rounds,
+      locale: localeName,
+      other: '$rounds tur',
+      one: '1 tur',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String compressContextReadoutKeptRounds(int rounds) {
+    String _temp0 = intl.Intl.pluralLogic(
+      rounds,
+      locale: localeName,
+      other: '$rounds tur',
+      one: '1 tur',
+    );
+    return '$_temp0 + özet';
+  }
+
+  @override
+  String compressContextReadoutTokens(String tokens) {
+    return '~$tokens token';
+  }
+
+  @override
+  String compressContextReadoutTokensBand(String min, String max) {
+    return '~$min–$max token';
+  }
+
+  @override
+  String compressContextReadoutReduction(int percent) {
+    return '−$percent%';
+  }
+
+  @override
+  String get messageQuotePreviewRemove => 'Yanıtı kaldır';
+
+  @override
+  String get messageQuoteTargetMissing => 'Özgün mesaj kullanılamıyor';
+
+  @override
+  String get messageMoreSheetReply => 'Yanıtla';
+
+  @override
+  String get messageMoreSheetCopyLink => 'Bağlantıyı kopyala';
+
+  @override
+  String reasoningBudgetSheetCurrentLevel(String level) {
+    return 'Geçerli düzey: $level';
+  }
+
+  @override
+  String get chatMessageWidgetReplySelection => 'Yanıtla';
+
+  @override
+  String get chatSelectionExportPdf => 'PDF';
+
+  @override
+  String get messageExportSheetUser => 'Kullanıcı';
+
+  @override
+  String get messageExportSheetPdf => 'PDF';
+
+  @override
+  String get messageExportSheetBatchPdfSubtitle =>
+      'Seçili mesajları PDF belgesi olarak dışa aktar';
+
+  @override
+  String get pdfExportDialogTitle => 'PDF dışa aktar';
+
+  @override
+  String get pdfExportDialogCancel => 'İptal';
+
+  @override
+  String get pdfExportDialogExport => 'PDF dışa aktar';
+
+  @override
+  String get pdfExportDialogSectionContent => 'İçerik';
+
+  @override
+  String get pdfExportDialogSectionFonts => 'Yazı tipleri';
+
+  @override
+  String get pdfExportFontRoleBody => 'Gövde yazı tipi';
+
+  @override
+  String get pdfExportFontRoleMono => 'Kod yazı tipi';
+
+  @override
+  String get pdfExportFontRoleEmoji => 'Emoji yazı tipi';
+
+  @override
+  String get pdfExportFontCheck => 'Yazı tiplerini denetle';
+
+  @override
+  String get pdfExportFontChecking => 'Denetleniyor…';
+
+  @override
+  String get pdfExportFontMissing =>
+      'Gömülebilir CJK yazı tipi bulunamadı; CJK metin boş basılabilir.';
+
+  @override
+  String get pdfExportFontUnusable =>
+      'Seçilen yazı tipi kullanılamadı; yerine başkası konuldu.';
+
+  @override
+  String get pdfExportFontBuiltIn => 'Yerleşik yazı tipi';
+
+  @override
+  String get pdfExportFontNone => 'Gömülü değil';
+
+  @override
+  String get pdfExportFontNeedsDownload => 'İndirme gerekir';
+
+  @override
+  String get pdfExportFontAuto => 'Otomatik';
+
+  @override
+  String get pdfExportFontGroupSystem => 'Sistem yazı tipleri';
+
+  @override
+  String get pdfExportFontGroupDownload => 'İndir';
+
+  @override
+  String get pdfExportFontGroupOther => 'Diğer';
+
+  @override
+  String get pdfExportFontNoteCjk => 'CJK içerir';
+
+  @override
+  String get pdfExportFontNoteColour => 'Renkli';
+
+  @override
+  String get pdfExportFontNoteMonochrome => 'Tek renk';
+
+  @override
+  String get pdfExportFontBuiltInNote => 'Yazı tipi gömmez; CJK boş basılır';
+
+  @override
+  String get pdfExportFontDownloadNote => 'CJK içerir, yaklaşık 10 MB';
+
+  @override
+  String get pdfExportFontListFailed => 'Yazı tipi listesi okunamadı';
+
+  @override
+  String get pdfExportResultTitle => 'Dışa aktarma tamamlandı';
+
+  @override
+  String pdfExportResultSummary(Object pages, Object size) {
+    return '$pages sayfa · $size';
+  }
+
+  @override
+  String pdfExportResultDegraded(Object count) {
+    return '$count öğe tam olarak dışa aktarılamadı';
+  }
+
+  @override
+  String pdfExportResultDegradedMath(Object count) {
+    return '$count formül düz metin olarak gösterildi';
+  }
+
+  @override
+  String pdfExportResultDegradedDiagram(Object count) {
+    return '$count diyagram kod olarak gösterildi';
+  }
+
+  @override
+  String pdfExportResultDegradedImage(Object count) {
+    return '$count görsel okunamadı ve bağlantısı gösteriliyor';
+  }
+
+  @override
+  String get pdfExportResultDone => 'Bitti';
+
+  @override
+  String get sideDrawerMenuCopyLink => 'Bağlantıyı kopyala';
+
+  @override
+  String get conversationLinkCopied => 'Bağlantı kopyalandı';
+
+  @override
+  String get conversationLinkMissing => 'Bu sohbet bu cihazda değil.';
+
+  @override
+  String modelDetailSheetModelIdDisabledHint(String modelId) {
+    return '$modelId';
+  }
+
+  @override
+  String get modelDetailSheetSearchTool => 'Arama';
+
+  @override
+  String get modelDetailSheetSearchToolDescription =>
+      'Google Arama entegrasyonunu aç';
+
+  @override
+  String get modelDetailSheetModelIdExistsError => 'Model ID zaten var';
+
+  @override
+  String get aboutPageCuplivoSearchUnlocked =>
+      'İsimsiz bir kapı aralandı. Ayarlar\'da bulabilirsiniz.';
+
+  @override
+  String get aboutPageCuplivoSearchAlreadyUnlocked =>
+      'Bu kapıdan zaten geçtiniz.';
+
+  @override
+  String get aboutPageQQGroup => 'Cuplivo Grubu';
+
+  @override
+  String get draftImageCropAction => 'Kırp';
+
+  @override
+  String get draftImageCropFailed =>
+      'Bu görsel kırpılamadı. Orijinal değişmedi.';
+
+  @override
+  String get displaySettingsPageAutoScrollIdleTitle =>
+      'Otomatik geri kaydırma gecikmesi';
+
+  @override
+  String get displaySettingsPageAutoScrollIdleSubtitle =>
+      'Kullanıcı kaydırmayı bıraktıktan sonra alta dönmek için beklenecek süre';
+
+  @override
+  String get searchServiceNameCuplivo => 'Cuplivo';
+
+  @override
+  String get memorySettingsFullInjectionTypesTitle =>
+      'Bu türleri her zaman ekle';
+
+  @override
+  String get memorySettingsFullInjectionTypesSubtitle =>
+      'Bir veya daha fazla tür seçin; bu türlerdeki geçerli tüm anılar asistanın görebildiği kadarıyla eklenir. Bu türler öğe sınırını yok sayar ve daha fazla bağlam ile token kullanır.';
+
+  @override
+  String get toolApprovalApprove => 'Onayla';
+
+  @override
+  String get imageSettingsPageModeTitle => 'Sıkıştırma modu';
+
+  @override
+  String get imageSettingsPageModeManual => 'El ile';
+
+  @override
+  String get imageSettingsPageModeAuto => 'Otomatik';
+
+  @override
+  String get imageSettingsPageModeOff => 'Kapalı';
+
+  @override
+  String get imageSettingsPageModeManualSubtitle =>
+      'Görseller değiştirilmeden eklenir; el ile sıkıştırmak için önizlemeyi açın';
+
+  @override
+  String get imageSettingsPageModeAutoSubtitle =>
+      'Görseller eklenirken aşağıdaki ön ayarla yeniden kodlanır';
+
+  @override
+  String get imageSettingsPageModeOffSubtitle => 'Görseller hiç sıkıştırılmaz';
+
+  @override
+  String get compressEditorTitle => 'Görseli sıkıştır';
+
+  @override
+  String get compressEditorFormatJpeg => 'JPEG';
+
+  @override
+  String get compressEditorFormatPng => 'PNG';
+
+  @override
+  String get compressEditorFormatOriginal => 'Özgün';
+
+  @override
+  String get compressEditorLongEdgeLabel => 'Uzun kenar';
+
+  @override
+  String get compressEditorLongEdgeFull => '100%';
+
+  @override
+  String get compressEditorLongEdgeHalf => '50%';
+
+  @override
+  String get compressEditorLongEdgeQuarter => '25%';
+
+  @override
+  String get compressEditorQualityLabel => 'Kalite';
+
+  @override
+  String get compressEditorOriginalSide => 'Özgün';
+
+  @override
+  String get compressEditorEstimating => 'Boyut tahmin ediliyor…';
+
+  @override
+  String get compressEditorEstimateFailed => 'Boyut tahmini yok';
+
+  @override
+  String compressEditorSavings(int percent) {
+    return '−$percent%';
+  }
+
+  @override
+  String compressEditorGrowth(int percent) {
+    return '+$percent%';
+  }
+
+  @override
+  String get compressEditorNoReencode => 'yeniden kodlama yok';
+
+  @override
+  String get compressEditorDecodeFailed =>
+      'Bu görsel önizlenemiyor, bu yüzden yeniden sıkıştırılamaz.';
+
+  @override
+  String get compressEditorTooLarge =>
+      'Bu görsel düzenleyicide açılamayacak kadar büyük, burada yeniden sıkıştırılamaz. Olduğu gibi eklenecek.';
+
+  @override
+  String compressEditorWorkingScale(String source, int percent) {
+    return 'Kaynak $source, bellek sınırında kalmak için %$percent ile yüklendi';
+  }
+
+  @override
+  String get compressEditorCancel => 'İptal';
+
+  @override
+  String get compressEditorApply => 'Uygula';
+
+  @override
+  String get compressEditorApplyAll => 'Tümüne uygula';
+
+  @override
+  String get compressEditorDone => 'Bitti';
+
+  @override
+  String get workspaceToolAllowAll => 'Bu oturumda tümüne izin ver';
+
+  @override
+  String get workspaceEntryAllowAll => 'Bu oturumda tümüne izin ver';
+
+  @override
+  String get workspaceEntryAllowAllSubtitle =>
+      'Bu sohbetteki Shell komutları onay istemeden çalışacak.';
+
+  @override
+  String get recycleBinTitle => 'Geri dönüşüm kutusu';
+
+  @override
+  String get recycleBinManage => 'Geri dönüşüm kutusunu yönet';
+
+  @override
+  String get recycleBinStorageHint =>
+      'Yalnızca bu cihazda tutulur — hiç eşitlenmez, yedeğe girmez.';
+
+  @override
+  String get recycleBinEntriesLabel => 'öğe';
+
+  @override
+  String get recycleBinEmptyTitle => 'Kutu boş';
+
+  @override
+  String get recycleBinEmptyBody =>
+      'Sildiğiniz sohbetler ve asistanlar ile bir eşitleme birleşmesinin değiştirdiği ayarlar, geri alabilmeniz için burada tutulur.';
+
+  @override
+  String get recycleBinUntitled => 'Adsız';
+
+  @override
+  String get recycleBinKindConversation => 'Sohbet';
+
+  @override
+  String get recycleBinKindAssistant => 'Asistan';
+
+  @override
+  String get recycleBinKindProvider => 'Sağlayıcı';
+
+  @override
+  String get recycleBinKindWorldBook => 'Dünya kitabı';
+
+  @override
+  String get recycleBinKindMemory => 'Anı';
+
+  @override
+  String get recycleBinKindPreference => 'Ayar';
+
+  @override
+  String get recycleBinKindWorkspaceFile => 'Çalışma alanı dosyası';
+
+  @override
+  String get recycleBinKindConfig => 'Yapılandırma';
+
+  @override
+  String get recycleBinOriginLocal => 'Burada silindi';
+
+  @override
+  String get recycleBinOriginRemote => 'Eşitlemeyle silindi';
+
+  @override
+  String get recycleBinReasonOverwritten =>
+      'Daha yeni bir kopyayla değiştirildi';
+
+  @override
+  String get recycleBinRestore => 'Geri yükle';
+
+  @override
+  String get recycleBinDeleteForever => 'Kalıcı olarak sil';
+
+  @override
+  String get recycleBinDeleteForeverBody =>
+      'Bu öğe kalıcı olarak silinecek ve bir daha kurtarılamayacak.';
+
+  @override
+  String get recycleBinClearAll => 'Kutuyu boşalt';
+
+  @override
+  String get recycleBinClearAllBody =>
+      'Kutudaki tüm öğeler kalıcı olarak silinecek ve bir daha kurtarılamayacak.';
+
+  @override
+  String get recycleBinRestored => 'Geri yüklendi';
+
+  @override
+  String get recycleBinRestoreSkipped =>
+      'Bu öğe zaten geri dönmüş, hiçbir şey değişmedi';
+
+  @override
+  String get recycleBinRestoreUnreadable =>
+      'Bekletilen kopya bozuk, geri yüklenemiyor';
+
+  @override
+  String get recycleBinRestoreUnsupported =>
+      'Bu sürüm o öğeyi geri yükleyemiyor';
+
+  @override
+  String get recycleBinRestoreNoWorkspace =>
+      'Bu dosyanın çalışma alanı silinmiş, geri koyacak bir klasör yok.';
+
+  @override
+  String get recycleBinRestoreFailed => 'O öğe geri yüklenemedi';
+
+  @override
+  String get recycleBinFilterAll => 'Tümü';
+
+  @override
+  String get recycleBinFilterConversation => 'Sohbetler';
+
+  @override
+  String get recycleBinFilterAssistants => 'Asistanlar';
+
+  @override
+  String get recycleBinFilterSettings => 'Ayarlar';
+
+  @override
+  String get recycleBinFilterFiles => 'Dosyalar';
+
+  @override
+  String get recycleBinCancel => 'İptal';
+
+  @override
+  String get recycleBinInfoTitle => 'Geri dönüşüm kutusu hakkında';
+
+  @override
+  String get recycleBinInfoBody =>
+      'Burada sildiğiniz şeyler — bir sohbet, bir asistan, bir sağlayıcı, bir anı, bir ayar — geri getirilebilsin diye bu cihazda tutulur.\n\nKutu hiç eşitlenmez ve hiçbir yedeğe girmez. Öğeler 90 gün boyunca, ya da kutu 256 MB veya 1000 öğeyi aşana kadar tutulur; iki sınırdan biri aşılırsa en eskiler önce gider.\n\nGeri getirmek öğeyi şu anki zamanla yazar, böylece geçen sefer kazanan sürümle hemen değiştirilmez.';
+
+  @override
+  String get recycleBinInfoClose => 'Anladım';
+
+  @override
+  String recycleBinGroupHeader(Object count, Object name) {
+    return '“$name” ile birlikte silinen $count sohbet';
+  }
+
+  @override
+  String get recycleBinRestoreGroup => 'Tümünü geri yükle';
+
+  @override
+  String recycleBinGroupRestored(Object restored, Object skipped) {
+    return '$restored geri yüklendi, $skipped zaten vardı';
+  }
+
+  @override
+  String recycleBinGroupRestoreFailed(Object failed, Object restored) {
+    return '$restored geri yüklendi, $failed geri yüklenemedi';
+  }
+
+  @override
+  String get recycleBinOpenDetail => 'Ayrıntıları gör';
+
+  @override
+  String get recycleBinDetailKey => 'Kimlik';
+
+  @override
+  String get recycleBinDetailOrigin => 'Kaynak';
+
+  @override
+  String get recycleBinDetailWhen => 'Silindi';
+
+  @override
+  String get recycleBinDetailReplacedWhen => 'Değiştirildi';
+
+  @override
+  String get recycleBinDetailSize => 'Boyut';
+
+  @override
+  String get recycleBinDetailModified => 'Dosya değişikliği';
+
+  @override
+  String get recycleBinDetailContent => 'İçerik';
+
+  @override
+  String recycleBinDetailRows(Object count) {
+    return '$count satır';
+  }
+
+  @override
+  String recycleBinDetailTruncated(Object shown) {
+    return 'Çok büyük — ilk $shown gösteriliyor';
+  }
+
+  @override
+  String get recycleBinDetailBinary => 'İkili dosya — önizleme yok';
+
+  @override
+  String get recycleBinDetailUnreadable =>
+      'Bekletilen kopya bozuk; içeriği okunamıyor';
+
+  @override
+  String get recycleBinDetailCopyJson => 'JSON kopyala';
+
+  @override
+  String get recycleBinDetailCopyText => 'Metni kopyala';
+
+  @override
+  String get recycleBinDetailCopied => 'Kopyalandı';
+
+  @override
+  String recycleBinDetailAssistantGone(Object name) {
+    return 'Bu sohbet “$name” asistanına aitti ve o artık bu cihazda yok. Geri yükledikten sonra ona bir asistan seçmeniz gerekecek.';
+  }
+
+  @override
+  String get settingsPageLanSync => 'LAN eşitleme';
+
+  @override
+  String get lanSyncThisDevice => 'Bu cihaz';
+
+  @override
+  String get lanSyncListenerStarting => 'Dinleyici başlatılıyor…';
+
+  @override
+  String get lanSyncListenerNotRunning => 'Dinleyici çalışmıyor';
+
+  @override
+  String lanSyncListenerFailed(Object error) {
+    return 'Dinleyici başlatılamadı: $error';
+  }
+
+  @override
+  String get lanSyncPairSectionTitle => 'Cihaz eşleştir';
+
+  @override
+  String get lanSyncPairIntro =>
+      'Aynı LAN\'daki iki cihaz: biri QR kodunu gösterir, diğeri okutur.';
+
+  @override
+  String get lanSyncPairFirstSyncNote =>
+      'Eşleştirmeden sonra ilk eşitleme kendiliğinden başlar ve uzun sürebilir. Masaüstü uygulaması açık kalsın, mobilde bu uygulama ön planda olsun.';
+
+  @override
+  String get lanSyncShowCode => 'Eşleştirme QR\'ını göster';
+
+  @override
+  String get lanSyncEnterCode => 'Kodu okutun veya girin';
+
+  @override
+  String get lanSyncPairingCode => 'Eşleştirme kodu';
+
+  @override
+  String lanSyncPairingExpiresIn(Object time) {
+    return '$time sonra geçersiz';
+  }
+
+  @override
+  String get lanSyncPairingEndpointHint => 'Bunu diğer cihaza girin';
+
+  @override
+  String get lanSyncPairingNoIpHint =>
+      'LAN adresi bulunamadı. Diğer cihaz bu cihaza yine de IP\'si veya ana makine adıyla ulaşabilir.';
+
+  @override
+  String get lanSyncHostLabel => 'Adres';
+
+  @override
+  String get lanSyncPortLabel => 'Bağlantı noktası';
+
+  @override
+  String get lanSyncPairButton => 'Eşleştir';
+
+  @override
+  String get lanSyncPairAgain => 'Yeniden eşleştir';
+
+  @override
+  String get lanSyncPairingBusy => 'Eşleştiriliyor…';
+
+  @override
+  String lanSyncPairSuccess(Object name) {
+    return '$name ile eşleştirildi';
+  }
+
+  @override
+  String get lanSyncPairErrorInvalidPin =>
+      'Eşleştirme kodu yanlış veya diğer cihazın eşleştirme penceresi kapalı.';
+
+  @override
+  String get lanSyncPairErrorInvalidAddress =>
+      'Diğer cihazın adresini ve bağlantı noktasını girin.';
+
+  @override
+  String get lanSyncPairErrorUnreachable =>
+      'Cihaza ulaşılamadı. Adresi ve bağlantı noktasını, iki cihazın aynı ağda olduğunu kontrol edin.';
+
+  @override
+  String get lanSyncPairErrorNoCertificate =>
+      'Diğer cihaz kimliğini göstermedi. Eşleştirme iptal edildi.';
+
+  @override
+  String get lanSyncPairErrorIdMismatch =>
+      'Diğer cihazın kimliği doğrulanamadı. Eşleştirme iptal edildi.';
+
+  @override
+  String get lanSyncPairErrorNoListener =>
+      'Bu cihazdaki eşitleme dinleyicisi henüz çalışmıyor.';
+
+  @override
+  String lanSyncPairErrorUnknown(Object error) {
+    return 'Eşleştirme başarısız: $error';
+  }
+
+  @override
+  String get lanSyncScanQr => 'Eşleştirme QR\'ını okut';
+
+  @override
+  String get lanSyncPairQrCaption =>
+      'Eşleştirmek için okutun veya aşağıdaki bilgileri diğer cihaza girin';
+
+  @override
+  String lanSyncPairUpdatedSnackbar(Object name) {
+    return '$name ile eşleştirme güncellendi';
+  }
+
+  @override
+  String get lanSyncPairErrorFingerprintMismatch =>
+      'Cihaz sertifikası okutulan kodla eşleşmiyor. Eşleştirme iptal edildi.';
+
+  @override
+  String get lanSyncPairErrorNoEndpointInQr =>
+      'Kodda adres yok. Eşleştirmek için aşağıya bir adres girin.';
+
+  @override
+  String get lanSyncPairErrorNotPairingQr =>
+      'Bu bir Cuplivo eşleştirme kodu değil.';
+
+  @override
+  String get lanSyncPairErrorInvalidQr => 'Eşleştirme kodu okunamadı.';
+
+  @override
+  String get lanSyncPairErrorQrBadVersion =>
+      'Bu eşleştirme kodu daha yeni bir sürümden. Uygulamayı güncelleyip yeniden deneyin.';
+
+  @override
+  String get lanSyncClosePairing => 'Eşleştirme penceresini kapat';
+
+  @override
+  String get lanSyncPairedDevices => 'Eşleştirilmiş cihazlar';
+
+  @override
+  String get lanSyncWorkspaces => 'Çalışma alanları';
+
+  @override
+  String get lanSyncWorkspaceTip =>
+      'Zaman kazanmak için sürüm denetimi ile bağımlılık/derleme klasörleri atlanır. 2.000 dosyadan veya 200 MB\'tan büyük çalışma alanları dosyalarını eşitlemez. Çalışma alanı kaydı her zaman eşitlenir — anahtar yalnızca dosyalarını yönetir: anahtarı kapalı bir klasör hiç gönderilmez ve eşitleme onu hiç kaldırmaz.';
+
+  @override
+  String lanSyncWorkspaceSyncing(Object count) {
+    return '$count dosya eşitleniyor';
+  }
+
+  @override
+  String get lanSyncWorkspaceStatusSyncing => 'Eşitleniyor';
+
+  @override
+  String get lanSyncWorkspaceStatusTooLarge => 'Çok büyük';
+
+  @override
+  String get lanSyncWorkspaceStatusUnreadable => 'Okunamıyor';
+
+  @override
+  String get lanSyncWorkspaceStatusOff => 'Kapalı';
+
+  @override
+  String lanSyncWorkspaceFiles(Object count) {
+    return '$count dosya';
+  }
+
+  @override
+  String lanSyncWorkspaceFilesAtLeast(Object count) {
+    return '$count+ dosya';
+  }
+
+  @override
+  String lanSyncWorkspaceSizeAtLeast(Object size) {
+    return '$size+';
+  }
+
+  @override
+  String get lanSyncNoDevices =>
+      'Henüz eşleştirilmiş cihaz yok. Eşitlemeye başlamak için bir cihaz eşleştirin.';
+
+  @override
+  String get lanSyncPlatformAndroid => 'Android';
+
+  @override
+  String get lanSyncPlatformIos => 'iOS';
+
+  @override
+  String get lanSyncPlatformWindows => 'Windows';
+
+  @override
+  String get lanSyncPlatformMacos => 'macOS';
+
+  @override
+  String get lanSyncPlatformLinux => 'Linux';
+
+  @override
+  String get lanSyncPlatformUnknown => 'Bilinmeyen cihaz';
+
+  @override
+  String lanSyncLastSyncedAt(Object time) {
+    return 'Son eşitleme $time';
+  }
+
+  @override
+  String get lanSyncNeverSynced => 'Hiç eşitlenmedi';
+
+  @override
+  String get lanSyncJustSynced => 'Az önce eşitlendi';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n dk önce';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n sa önce';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n gün önce';
+  }
+
+  @override
+  String get lanSyncSyncNow => 'Şimdi eşitle';
+
+  @override
+  String get lanSyncOnline => 'Çevrimiçi';
+
+  @override
+  String get lanSyncOnlineFromSession => 'Çevrimiçi — son eşitleme bağlandı';
+
+  @override
+  String get lanSyncOfflineFromSession =>
+      'Çevrimdışı — son eşitleme bağlanamadı';
+
+  @override
+  String lanSyncPhaseConnectingTo(Object address) {
+    return '$address adresine bağlanılıyor…';
+  }
+
+  @override
+  String get lanSyncOffline => 'Çevrimdışı';
+
+  @override
+  String get lanSyncUpToDate => 'Güncel';
+
+  @override
+  String get lanSyncPhaseConnecting => 'Bağlanılıyor…';
+
+  @override
+  String get lanSyncPhaseExchanging => 'Veriler karşılaştırılıyor…';
+
+  @override
+  String get lanSyncPhaseSending => 'Değişiklikler gönderiliyor…';
+
+  @override
+  String get lanSyncPhaseReceiving => 'Değişiklikler alınıyor…';
+
+  @override
+  String lanSyncPhaseFiles(Object done, Object total) {
+    return 'Dosyalar indiriliyor… ($done/$total)';
+  }
+
+  @override
+  String get lanSyncPhaseFilesNoTotal => 'Dosyalar indiriliyor…';
+
+  @override
+  String get lanSyncPhaseApplying => 'Değişiklikler uygulanıyor…';
+
+  @override
+  String get lanSyncFirstSyncHint =>
+      'İlk eşitleme sürüyor — bitene kadar iki cihazı da uyanık ve Cuplivo\'yu açık tutun (mobilde ön planda).';
+
+  @override
+  String get lanSyncRename => 'Yeniden adlandır';
+
+  @override
+  String get lanSyncRenameTitle => 'Cihaz adı';
+
+  @override
+  String get lanSyncEditAddress => 'Adresi düzenle';
+
+  @override
+  String get lanSyncAddressCopied => 'Adres kopyalandı';
+
+  @override
+  String get lanSyncUnpair => 'Eşleştirmeyi kaldır';
+
+  @override
+  String lanSyncUnpairConfirmTitle(Object name) {
+    return '$name ile eşleştirme kaldırılsın mı?';
+  }
+
+  @override
+  String get lanSyncUnpairConfirmBody =>
+      'Sohbetler iki cihazda da kalır. Yeniden eşleştirene kadar onunla eşitleme durur.';
+
+  @override
+  String lanSyncReportSent(Object n) {
+    return '$n gönderildi';
+  }
+
+  @override
+  String lanSyncReportReceived(Object n) {
+    return '$n alındı';
+  }
+
+  @override
+  String lanSyncReportMessagesUpserted(Object n) {
+    return '+$n mesaj';
+  }
+
+  @override
+  String lanSyncReportMessagesDeleted(Object n) {
+    return '-$n mesaj';
+  }
+
+  @override
+  String lanSyncReportConversationsDeleted(Object n) {
+    return '-$n sohbet';
+  }
+
+  @override
+  String lanSyncReportDeferred(Object n) {
+    return '$n ertelendi';
+  }
+
+  @override
+  String lanSyncReportEntities(Object n) {
+    return '$n varlık';
+  }
+
+  @override
+  String lanSyncReportPreferences(Object n) {
+    return '$n tercih';
+  }
+
+  @override
+  String lanSyncReportBlobsWithSize(Object n, Object size) {
+    return '$n dosya · $size';
+  }
+
+  @override
+  String lanSyncReportBlobs(Object n) {
+    return '$n dosya';
+  }
+
+  @override
+  String lanSyncReportSkills(Object n) {
+    return '$n beceri';
+  }
+
+  @override
+  String lanSyncReportSkillConflicts(Object n) {
+    return '$n beceri düzenlemesi değiştirildi';
+  }
+
+  @override
+  String lanSyncReportBlobsMissing(Object n) {
+    return 'Diğer cihazda $n dosya eksik';
+  }
+
+  @override
+  String lanSyncReportWorkspaceFiles(Object count) {
+    return '$count çalışma alanı dosyası';
+  }
+
+  @override
+  String lanSyncReportWorkspaceFilesWithSize(Object count, Object size) {
+    return '$count çalışma alanı dosyası · $size';
+  }
+
+  @override
+  String lanSyncReportWorkspaceRemoved(Object count) {
+    return '-$count çalışma alanı dosyası';
+  }
+
+  @override
+  String lanSyncReportWorkspaceConflicts(Object count) {
+    return '$count çalışma alanı dosyası düzenlemesi değiştirildi';
+  }
+
+  @override
+  String lanSyncReportWorkspaceMissing(Object count) {
+    return '$count çalışma alanı dosyası uygulanamadı';
+  }
+
+  @override
+  String lanSyncReportWorkspacesOmitted(Object count) {
+    return '$count çalışma alanı dosya eşitlemiyor';
+  }
+
+  @override
+  String lanSyncReportWorkspacesKept(Object count) {
+    return '$count çalışma alanı klasörü korundu (anahtar kapalı)';
+  }
+
+  @override
+  String lanSyncReportRowsLost(Object n) {
+    return '$n yerel kayıt, eşteki daha yeni sürümlerle değiştirildi (geri dönüşüm kutusundan kurtarılabilir)';
+  }
+
+  @override
+  String lanSyncReportClockSkew(Object n) {
+    return 'Saatler yaklaşık $n dk farklı — cihaz saatini düzeltip yeniden eşitleyin';
+  }
+
+  @override
+  String get lanSyncReportUnreachable =>
+      'Eşitleme başarısız: diğer cihaza ulaşılamadı. Çevrimdışı olabilir ya da başka bir ağda olabilir — QR kodunu yeniden okutun veya kartındaki adresi düzenleyin.';
+
+  @override
+  String get lanSyncReportNoEndpoint =>
+      'Eşitleme başarısız: diğer cihaz için kayıtlı adres yok. QR kodunu yeniden okutun veya kartına adresi girin.';
+
+  @override
+  String get lanSyncReportTimeout =>
+      'Eşitleme başarısız: diğer cihaz yanıt vermeyi durdurdu.';
+
+  @override
+  String get lanSyncReportPeerError =>
+      'Eşitleme başarısız: diğer cihaz bir hata bildirdi.';
+
+  @override
+  String get lanSyncReportInternal =>
+      'Eşitleme başarısız. Ayrıntılar için günlüklere bakın.';
+
+  @override
+  String get lanSyncRefusedPeerSchemaNewer =>
+      'Diğer cihazın veritabanı daha yeni. Önce bu cihazı güncelleyip sonra yeniden eşitleyin.';
+
+  @override
+  String get lanSyncRefusedProtocolUnknown =>
+      'Diğer cihaz farklı bir eşitleme protokolü kullanıyor. Uygulamayı iki cihazda da güncelleyin.';
+
+  @override
+  String get lanSyncRefusedNotPaired =>
+      'Bu cihaz ile diğeri bu eşleştirme konusunda artık aynı kayda sahip değil — orada eşleştirme kaldırıldı ya da yeniden eşleştirme iki tarafta tamamlanmadı. İki cihazda da yeniden eşleştirin.';
+
+  @override
+  String get lanSyncRefusedIdentityMismatch =>
+      'Diğer cihaz uyuşmayan bir kimlik sundu. İki cihazda da yeniden eşleştirin.';
+
+  @override
+  String get lanSyncRefusedBusy =>
+      'Başka bir eşitleme oturumu sürüyor. Kısa süre sonra yeniden deneyin.';
+
+  @override
+  String get lanSyncFirewallTitle => 'Windows Güvenlik Duvarı';
+
+  @override
+  String lanSyncFirewallHint(Object port) {
+    return 'Bağlantı noktası $port için gelen kuralı bir kez yönetici onayı gerektiriyor.';
+  }
+
+  @override
+  String get lanSyncFirewallFix => 'Erişime izin ver (UAC)';
+
+  @override
+  String get lanSyncFirewallFixed => 'Gelen erişime izin verildi.';
+
+  @override
+  String lanSyncArrivalToast(Object name) {
+    return '$name ile eşitlendi';
+  }
+
+  @override
+  String get lanSyncArrivalDetails => 'Ayrıntılar';
+
+  @override
+  String get lanSyncNever => 'Hiç';
+
+  @override
+  String get lanSyncTemporarilyUnreachable => 'Şu anda ulaşılamıyor';
+
+  @override
+  String get lanSyncListening => 'Dinliyor';
+
+  @override
+  String get lanSyncCopy => 'Kopyala';
+
+  @override
+  String get lanSyncMoreActions => 'Diğer işlemler';
+
+  @override
+  String get lanSyncEndpointTip =>
+      'Her adres için bir kutu: adı yeniden adlandırmak için ada dokunun, ayrıntılar için gecikmeye dokunun — en son ne zaman ölçüldüğü, kaç eşitleme taşıdığı, ne zaman eklendiği. Adresi orada düzenleyebilir veya silebilirsiniz.';
+
+  @override
+  String get lanSyncJustNow => 'Az önce';
+
+  @override
+  String get lanSyncShowAddresses => 'Adresler';
+
+  @override
+  String get lanSyncPairTrustTip =>
+      'Bir kodu yalnızca güvendiğiniz bir ağda kullanın: pasif bir dinleyiciyi durdurur, aradaki bir makineyi durdurmaz. QR, diğer cihazın sertifika parmak izini taşır, bu yüzden daha güvenli olan yarısıdır.';
+
+  @override
+  String get lanSyncNoAddress => 'Bu cihaz için hatırlanan adres yok.';
+
+  @override
+  String get lanSyncAddAddress => 'Adres ekle';
+
+  @override
+  String lanSyncAddressLimit(Object count) {
+    return 'Bu cihaz o cihaz için zaten $count adres hatırlıyor. Yenisini eklemeden önce birini kaldırın.';
+  }
+
+  @override
+  String get lanSyncRenameEndpointTitle => 'Adres adı';
+
+  @override
+  String get lanSyncRenameEndpointHint => 'Örn. Ev ağı';
+
+  @override
+  String get lanSyncEndpointLatency => 'Gecikme';
+
+  @override
+  String get lanSyncEndpointLastMeasured => 'Son ölçüm';
+
+  @override
+  String get lanSyncEndpointLastReached => 'Son bağlantı';
+
+  @override
+  String get lanSyncEndpointSuccessCount => 'Eşitlemeler';
+
+  @override
+  String get lanSyncEndpointAddedAt => 'Eklendi';
+
+  @override
+  String lanSyncEndpointSuccessTimes(Object n) {
+    return '$n kez';
+  }
+
+  @override
+  String get lanSyncDeleteEndpoint => 'Bu adresi sil';
+
+  @override
+  String get lanSyncEndpointUnreachable => 'Ulaşılamıyor';
+
+  @override
+  String get lanSyncSupersededByPeer => 'Bu eşitlemeyi diğer cihaz yürütüyor.';
+
+  @override
+  String get assistantEditProactiveCareEnableTitle => 'Proaktif ilgi';
+
+  @override
+  String get assistantEditProactiveCareDefaultDescription =>
+      'Ayrı ayarı olmayan sohbetler için varsayılan';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      'Zaman kararlarında kullanılan mesajlar';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      'Sonraki proaktif mesaj zamanına karar verilirken modele gönderilen en fazla son sohbet mesajı sayısı';
+
+  @override
+  String get assistantEditProactiveCareConversationTimesTitle =>
+      'Sohbetlerin sonraki mektup zamanları';
+
+  @override
+  String get assistantEditProactiveCareNoEligibleConversations =>
+      'Bu asistan için açık sohbet yok';
+
+  @override
+  String assistantEditProactiveCareConversationTimeFuture(String time) {
+    return 'Gelecek · $time';
+  }
+
+  @override
+  String assistantEditProactiveCareConversationTimeExpired(String time) {
+    return 'Süresi doldu · $time';
+  }
+
+  @override
+  String get assistantEditProactiveCareConversationTimeUnset => 'Ayarlanmadı';
+
+  @override
+  String get assistantEditProactiveCarePermissionsTitle => 'Android hazırlığı';
+
+  @override
+  String get assistantEditProactiveCareNotificationsTitle => 'Bildirimler';
+
+  @override
+  String get assistantEditProactiveCareExactAlarmTitle => 'Tam alarmlar';
+
+  @override
+  String get assistantEditProactiveCareAutoStartTitle => 'Otomatik başlatma';
+
+  @override
+  String get assistantEditProactiveCareBatteryTitle =>
+      'Pil iyileştirmesinden muafiyet';
+
+  @override
+  String get assistantEditProactiveCarePermissionRequired => 'Gerekli';
+
+  @override
+  String get assistantEditProactiveCarePermissionRecommended => 'Önerilir';
+
+  @override
+  String get assistantEditProactiveCarePermissionReady => 'Hazır';
+
+  @override
+  String get assistantEditProactiveCarePermissionMissing =>
+      'Vermek için dokunun';
+
+  @override
+  String get assistantEditProactiveCarePermissionManual => 'El ile';
+
+  @override
+  String get assistantEditProactiveCarePermissionUnknown => 'Bilinmiyor';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeTitle =>
+      'Sonraki proaktif mesaj zamanı';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeUnset => 'Ayarlanmadı';
+
+  @override
+  String get assistantEditProactiveCarePromptTitle => 'Proaktif ilgi istemi';
+
+  @override
+  String get assistantEditProactiveCarePromptHint =>
+      'Asistan proaktif mesaj gönderirken kullanılan istem';
+
+  @override
+  String get assistantEditProactiveCarePromptDefault =>
+      'Asistanın karakter ayarlarına, sohbet bağlamına ve şu anki zamana göre kullanıcıya bir mesaj gönder.';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptTitle =>
+      'Zaman kararı yönerge istemi';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptDefault =>
+      'Bir rol yapma senaryosunun yönetmenisiniz; asistanın kullanıcıya bir sonraki proaktif mesajı ne zaman göndereceğine karar vermekle sorumlusunuz.\n\n[Özellik açıklaması]\n· Proaktif mesajlaşma: asistan, kullanıcının önce konuşmasını beklemeden planlanan bir zamanda kullanıcıya mesaj gönderebilir.\n· Proaktif mesaj zamanı ayarlanmamışsa, kullanıcı sessizken asistan hiçbir mesaj gönderemez.\n· Şu anda planlanmış sonraki mesaj zamanını değerlendir: ayar gerekmiyorsa koru; gerekiyorsa değiştir.\n\n[Not]\n· Yalnızca asistanın bakış açısından görünen bilgileri dikkate al, kullanıcının bakış açısını değil.\n\n[Dikkat edilecekler]\n1. Asistan uyandıktan, bir işi bitirdikten, yurduna sağ salim vardıktan sonra vb. kendiliğinden haber vermeli veya selam vermelidir.\n2. Bağlam, asistanın uyku veya meşguliyet yüzünden kullanıcının mesajlarını kaçırdığını belirtiyorsa, asistan uyandığında veya işi bittiğinde gönderilecek bir mesaj planla.\n3. Bağlam, asistanın belirli bir zamanda kullanıcıyı denetlemesi veya ona hatırlatma yapması gerektiğini belirtiyorsa, mesajı o zamana planla.\n4. Bir konu yarım kaldığında, asistanın son mesajından sonra kullanıcının hiç yanıt vermediğini varsay — asistanın ne zaman proaktif olarak devam etmesi gerektiğine karar ver.\n\n[Örnekler]\n1. Kullanıcı gece yarısı uykusuzluk çektiğini ve 10:30\'da uyanmayı planladığını yazdı, ama asistan normal uyur ve 8:30\'da uyanır. Proaktif mesaj zamanını asistanın uyanma saatine ayarla.\n2. Kullanıcı ve asistan bir sınav hakkında konuşuyor. 8:30\'da son mesaj asistanın bir sorusudur. Kural 4\'e göre kullanıcının hiç yanıt vermediğini varsay — asistan 10 dakika içinde devam etmelidir.';
+
+  @override
+  String get assistantEditProactiveCareDateTimePickerTitle =>
+      'Tarih ve saat seçin';
+
+  @override
+  String get assistantEditProactiveCareTimeMustBeFuture =>
+      'Gelecekte bir zaman seçin.';
+
+  @override
+  String get conversationProactiveCareTitle => 'Sohbet proaktif ilgisi';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOn =>
+      'Asistan ayarına uyuluyor: Açık';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOff =>
+      'Asistan ayarına uyuluyor: Kapalı';
+
+  @override
+  String get conversationProactiveCareExplicitOn => 'Sohbet ayarı: Açık';
+
+  @override
+  String get conversationProactiveCareExplicitOff => 'Sohbet ayarı: Kapalı';
+
+  @override
+  String get conversationProactiveCareRestoreFollowing => 'Asistan ayarına uy';
+
+  @override
+  String get conversationProactiveCareClearTime =>
+      'Sonraki mesaj zamanını temizle';
+
+  @override
+  String get conversationProactiveCareUpdateFailed =>
+      'Sohbet proaktif ilgisi güncellenemedi.';
+
+  @override
+  String get defaultModelPageProactiveCareModelTitle => 'Mektup karar modeli';
+
+  @override
+  String get defaultModelPageProactiveCareModelSubtitle =>
+      'Asistanın ne zaman proaktif mesaj göndereceğine karar veren model';
+
+  @override
+  String get proactiveCareFailedNotificationBody =>
+      'Proaktif ilgi mesajı oluşturulamadı. Model ayarlarını ve ağı denetlemek için uygulamayı açın.';
+
+  @override
+  String get proactiveCareLetterArrivalBody =>
+      'Bir mektup geldi. Okumak için uygulamayı açın.';
+
+  @override
+  String get assistantEditPageRoleplayTab => 'Rol yapma';
+
+  @override
+  String get assistantEditProactiveCareFeatureTitle => 'Onun Mektubu';
 }

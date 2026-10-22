@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:Kelivo/shared/widgets/avatar_image.dart';
-import 'package:Kelivo/utils/avatar_cache.dart';
-import 'package:Kelivo/utils/safe_resize_image.dart';
+import 'package:Cuplivo/shared/widgets/avatar_image.dart';
+import 'package:Cuplivo/utils/avatar_cache.dart';
+import 'package:Cuplivo/utils/safe_resize_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;

@@ -3,13 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:markstream/markstream.dart';
 import 'package:provider/provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_content.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_theme.dart';
-import 'package:Kelivo/shared/markdown/markdown_theme_mapper.dart';
-import 'package:Kelivo/shared/markdown/kelivo_markdown_extensions.dart'
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_content.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_theme.dart';
+import 'package:Cuplivo/shared/markdown/markdown_theme_mapper.dart';
+import 'package:Cuplivo/shared/markdown/kelivo_markdown_extensions.dart'
     show markdownCodeOptions;
-import 'package:Kelivo/shared/markdown/markdown_with_code_highlight.dart';
+import 'package:Cuplivo/shared/markdown/markdown_with_code_highlight.dart';
 
 import '../../support/business_test_harness.dart';
 import 'markstream_adapters_test.dart' show host;

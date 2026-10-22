@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/features/chat/widgets/frosted/chat_frosted_backdrop.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/features/chat/widgets/frosted/chat_frosted_backdrop.dart';
 import 'business_test_harness.dart';
 
 /// Stable wallpaper context shared by visual and performance probes. No image

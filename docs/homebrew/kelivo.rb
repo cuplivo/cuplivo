@@ -28,9 +28,9 @@ cask "kelivo" do
   app "kelivo.app"
 
   zap trash: [
-    "~/Library/Application Support/com.psyche.kelivo",
-    "~/Library/Caches/com.psyche.kelivo",
-    "~/Library/Preferences/com.psyche.kelivo.plist",
-    "~/Library/Saved Application State/com.psyche.kelivo.savedState",
+    "~/Library/Application Support/com.cuplivo.cuplivo",
+    "~/Library/Caches/com.cuplivo.cuplivo",
+    "~/Library/Preferences/com.cuplivo.cuplivo.plist",
+    "~/Library/Saved Application State/com.cuplivo.cuplivo.savedState",
   ]
 end

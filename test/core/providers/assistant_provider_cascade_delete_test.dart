@@ -7,10 +7,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/features/search/services/global_session_search_service.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/features/search/services/global_session_search_service.dart';
 
 import '../../support/business_preferences_test_harness.dart';
 
@@ -68,7 +68,7 @@ void main() {
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp(
-      'kelivo_assistant_cascade_test_',
+      'cuplivo_assistant_cascade_test_',
     );
     PathProviderPlatform.instance = _FakePathProviderPlatform(tempDir.path);
     harness = await BusinessPreferencesTestHarness.create();
@@ -94,7 +94,7 @@ void main() {
   }
 
   test(
-    'retiring KelivoIN clears assistant and conversation model overrides',
+    'retiring CuplivoIN clears assistant and conversation model overrides',
     () async {
       SharedPreferences.setMockInitialValues({'flutter_log_enabled_v1': false});
       final chatService = createService();
@@ -106,7 +106,7 @@ void main() {
           {
             'id': 'assistant-delete',
             'name': 'Retired model',
-            'chatModelProvider': 'KelivoIN',
+            'chatModelProvider': 'CuplivoIN',
             'chatModelId': 'mistral',
           },
           {
@@ -122,7 +122,7 @@ void main() {
       );
       await chatService.setConversationModel(
         retiredChat.id,
-        providerKey: 'KelivoIN',
+        providerKey: 'CuplivoIN',
         modelId: 'qwen-coder',
       );
       final keptChat = await chatService.createConversation(title: 'Keep');
@@ -131,14 +131,14 @@ void main() {
         providerKey: 'OpenAI',
         modelId: 'gpt-4o',
       );
-      final retired = ProviderConfig.defaultsFor('KelivoIN').copyWith(
+      final retired = ProviderConfig.defaultsFor('CuplivoIN').copyWith(
         baseUrl: 'https://text.pollinations.ai/openai',
-        apiKey: 'kelivo',
+        apiKey: 'cuplivo',
         models: ['mistral', 'qwen-coder'],
       );
       await session.preferences.setString(
         'provider_configs_v1',
-        jsonEncode({'KelivoIN': retired.toJson()}),
+        jsonEncode({'CuplivoIN': retired.toJson()}),
       );
       final settings = SettingsProvider(
         session.preferences,
@@ -151,7 +151,7 @@ void main() {
       expect(assistants.assistants[1].chatModelId, 'gpt-4o');
       expect(chatService.getConversation(retiredChat.id)!.chatModelId, isNull);
       expect(chatService.getConversation(keptChat.id)!.chatModelId, 'gpt-4o');
-      expect(settings.getProviderConfig('KelivoIN').models, contains('auto'));
+      expect(settings.getProviderConfig('CuplivoIN').models, contains('auto'));
 
       final reloadedSession = await harness.open();
       final reloadedAssistants = AssistantProvider(

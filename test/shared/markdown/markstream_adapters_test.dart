@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:markstream/markstream.dart';
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
@@ -226,10 +227,15 @@ void main() {
     addTearDown(() => dir.deleteSync(recursive: true));
     final file = File('${dir.path}/image one.png')
       ..writeAsBytesSync(provider.bytes);
-    expect(
-      (markdownImageProvider(file.uri.toString()) as FileImage).file.path,
-      file.path,
-    );
+    final image = markdownImageProvider(file.uri.toString()) as FileImage;
+    // The provider must hand back the platform's own spelling, not the
+    // `/`-folded form SandboxPathResolver uses for comparison: this path is
+    // what later gets compared against stored paths and shown to the user.
+    expect(image.file.path, file.uri.toFilePath());
+    // The file the fixture built spells its separator as `/`; `p.equals`
+    // compares paths (case- and separator-insensitive on Windows) instead of
+    // pinning one spelling, which is the property under test: one file.
+    expect(p.equals(image.file.path, file.path), isTrue);
     expect(markdownImageProvider('data:image/png;base64,invalid!'), isNull);
     expect(
       markdownImageProvider('https://example.com/a.png'),

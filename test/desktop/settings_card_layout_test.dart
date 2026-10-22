@@ -144,6 +144,17 @@ void main() {
           l10n.backupPageWebDavServerSettings,
           l10n.backupPageS3ServerSettings,
         ]) {
+          // Start from the top for every heading. `scrollUntilVisible` only
+          // ever drags one way, and a section that has been scrolled past
+          // leaves the tree, so a heading that now renders *above* the current
+          // position can never be reached. Resetting makes this loop
+          // independent of the order the pane renders its sections in, which
+          // the backup pane has already changed once (local actions moved up).
+          await tester.drag(
+            find.byType(Scrollable).first,
+            const Offset(0, 4000),
+          );
+          await tester.pumpAndSettle();
           await tester.scrollUntilVisible(
             find.text(title),
             300,

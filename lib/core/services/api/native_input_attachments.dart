@@ -79,7 +79,12 @@ class NativeInputAttachments {
       final source = remote || ref.uri.startsWith('data:')
           ? ref.uri
           : SandboxPathResolver.resolveForIo(ref.uri) ?? ref.uri;
-      if (!seen.add(source)) continue;
+      // The same file reaches this list in more than one spelling: a structured
+      // ref keeps the stored path verbatim (possibly built with `/` on Windows),
+      // while a `userPaths` entry may be a `file://` URI that decodes to
+      // backslashes. Comparing raw strings would upload the attachment twice, so
+      // key the set with the separator-normalized form.
+      if (!seen.add(SandboxPathResolver.normalizeForMatch(source))) continue;
       if (!pdf &&
           (protocol == NativeInputProtocol.responses ||
               protocol == NativeInputProtocol.claude)) {

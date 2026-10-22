@@ -11,6 +11,7 @@ import '../models/assistant_copy_options.dart';
 import '../models/assistant_regex.dart';
 import '../models/preset_message.dart';
 import '../services/chat/chat_service.dart';
+import '../services/recycle/recycle_service.dart';
 import '../services/assistant_copy_service.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/avatar_cache.dart';
@@ -326,13 +327,19 @@ class AssistantProvider extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<void> _persist() => preferences.runExclusiveMutation(() async {
-    await preferences.setString(
-      _assistantsKey,
-      Assistant.encodeList(_assistants),
-    );
-    await _ensureOrphanedAssistant();
-  });
+  Future<void> _persist({RecycleGroup? group}) =>
+      preferences.runExclusiveMutation(() async {
+        await preferences.setString(
+          _assistantsKey,
+          Assistant.encodeList(_assistants),
+          // This write is where a deleted assistant's row goes: the list no
+          // longer names it, so the write removes it — and the bin entry that
+          // preserves it has to be part of the event the caller is performing,
+          // not a stray line beside it.
+          removalGroup: group,
+        );
+        await _ensureOrphanedAssistant();
+      });
 
   Future<void> setCurrentAssistant(String id) async {
     await loaded;
@@ -637,7 +644,14 @@ class AssistantProvider extends ChangeNotifier {
     // Do not allow deleting the last remaining assistant
     if (_assistants.length <= 1) return false;
 
-    await chatService?.deleteConversationsForAssistant(id);
+    // One deletion event: the assistant goes and so do its conversations. The
+    // group is what lets the bin show them as the one act they were instead of N
+    // unrelated "deleted" rows plus a stray assistant beside them.
+    final group = RecycleGroup(
+      id: const Uuid().v4().substring(0, 8),
+      label: _assistants[idx].name,
+    );
+    await chatService?.deleteConversationsForAssistant(id, group: group);
 
     final removingCurrent = _assistants[idx].id == _currentAssistantId;
     _assistants.removeAt(idx);
@@ -646,7 +660,9 @@ class AssistantProvider extends ChangeNotifier {
           ? _assistants.first.id
           : null;
     }
-    await _persist();
+    // The assistant's own row is removed by this write, so it takes the same
+    // group the conversations did.
+    await _persist(group: group);
     if (_currentAssistantId != null) {
       await preferences.setString(_currentAssistantKey, _currentAssistantId!);
     } else {

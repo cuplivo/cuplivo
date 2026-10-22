@@ -12,6 +12,7 @@ import '../database/business_repository.dart';
 import '../database/chat_database_repository.dart';
 import '../services/app_exit_flush.dart';
 import '../services/chat/chat_service.dart';
+import '../services/recycle/recycle_service.dart';
 import '../services/skills/skill_directory_sync.dart';
 import '../services/sync/business_state_reloader.dart';
 import '../services/sync/sync_client.dart';
@@ -205,6 +206,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     required BusinessPreferences businessPreferences,
     required BusinessStateReloader reloader,
     required Future<Directory> Function() syncDirectory,
+    RecycleService? recycle,
     Future<List<LanAddress>> Function()? addressSource,
     EndpointProbeFn? endpointProbe,
   }) : // Public injection names intentionally omit the private-field prefix
@@ -220,6 +222,8 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
        // ignore: prefer_initializing_formals
        _reloader = reloader,
        // ignore: prefer_initializing_formals
+       _recycle = recycle,
+       // ignore: prefer_initializing_formals
        _syncDirectory = syncDirectory,
        // ignore: prefer_initializing_formals
        _addressSource = addressSource,
@@ -231,6 +235,12 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   final BusinessRepository _businessRepository;
   final BusinessPreferences _businessPreferences;
   final BusinessStateReloader _reloader;
+
+  /// The device-local recycle bin, when the app attached one. A workspace file
+  /// this device replaces or removes during a sync round is staged here first
+  /// (ADR-0016) — the one loss that used to have no net under it at all.
+  final RecycleService? _recycle;
+
   final Future<Directory> Function() _syncDirectory;
 
   /// Where [refreshLocalAddresses] enumerates interfaces from. Null means the
@@ -471,6 +481,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         businessRepository: _businessRepository,
         store: store,
         resolveRoot: AppDirectories.workspaceFilesDir,
+        recycle: _recycle,
       );
       final engine = SyncEngine(
         identity: identity,

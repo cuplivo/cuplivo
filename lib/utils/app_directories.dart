@@ -161,6 +161,19 @@ class AppDirectories {
   /// builds the path itself (see `SyncStore.resetForBulkReplacement`).
   static const syncDirName = 'sync';
 
+  /// The recycle bin: `<appData>/recycle`.
+  ///
+  /// Holds what a deletion removed and what a losing last-write-wins comparison
+  /// replaced, so either can be undone. Deliberately outside the backup face
+  /// and outside every sync manifest — the same standing as [getSyncDirectory]:
+  /// this is one device's own safety net, not shared state.
+  static Future<Directory> getRecycleDirectory() =>
+      _ensureSubdir(recycleDirName);
+
+  /// The recycle directory's name under the app data root. Exported because the
+  /// storage-space report measures it by name while walking that root.
+  static const recycleDirName = 'recycle';
+
   /// Files root for a managed workspace: `<appData>/workspaces/<id>/files`.
   ///
   /// Throws for an id that is not a single safe path segment. The id arrives

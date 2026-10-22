@@ -30,6 +30,42 @@ enum McpStatus {
   error,
 }
 
+/// `401` as a standalone status code, and never as part of a longer number.
+///
+/// `package:http` embeds the request URI in what it throws, so a dropped socket
+/// reads `ClientException: Connection closed before full header was received,
+/// uri=http://127.0.0.1:34010/mcp`. A bare `contains('401')` finds the port
+/// inside that URI and reports an OAuth failure for what is really a transport
+/// failure - and which port a socket got is not a property of the response.
+///
+/// Neither neighbour may be a digit (so `34010`, `14012`, `40100` and `94011`
+/// are all out), a preceding `.` disqualifies an address octet, and a following
+/// `.<digit>` disqualifies a decimal, while `401`, `401,` and `401.` all still
+/// read as a status code.
+final RegExp _standaloneUnauthorizedStatus = RegExp(r'(?<![\d.])401(?!\.?\d)');
+
+/// Any URL embedded in an error message. A URL is not evidence of the status
+/// that failed: neither its port nor its path may decide that a request came
+/// back unauthorized.
+final RegExp _urlInErrorMessage = RegExp(
+  r'[a-z][a-z0-9+.-]*://\S+',
+  caseSensitive: false,
+);
+
+/// Whether a free-text error message is evidence that the server answered
+/// "unauthorized".
+///
+/// Only consulted for errors that are not an [mcp.McpHttpError]; those carry the
+/// real status code, which is always preferred over reading prose.
+@visibleForTesting
+bool mcpErrorTextLooksUnauthorized(String message) {
+  final text = message.toLowerCase().replaceAll(_urlInErrorMessage, ' ');
+  return _standaloneUnauthorizedStatus.hasMatch(text) ||
+      text.contains('unauthorized') ||
+      text.contains('invalid_token') ||
+      text.contains('authentication failed');
+}
+
 class _Cooldown {
   final DateTime startedAt;
   final DateTime until;
@@ -2020,11 +2056,7 @@ class McpProvider extends ChangeNotifier {
       return error.statusCode == 401 ||
           (error.statusCode == 403 && _isInsufficientScope(error));
     }
-    final message = error.toString().toLowerCase();
-    return message.contains('401') ||
-        message.contains('unauthorized') ||
-        message.contains('invalid_token') ||
-        message.contains('authentication failed');
+    return mcpErrorTextLooksUnauthorized(error.toString());
   }
 
   bool _isHttpUnauthorized(Object error) =>

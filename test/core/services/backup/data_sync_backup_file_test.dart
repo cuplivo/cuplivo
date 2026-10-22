@@ -253,6 +253,14 @@ Future<Directory> _singleRestoreRunDirectory(Directory appDataDirectory) async {
   return runs.single;
 }
 
+/// Raises the uncompressed size a streamed entry declares.
+///
+/// [DataSync.prepareBackupFile] streams through `_StreamingZipWriter`, which
+/// leaves the sizes zero in each local header and appends a data descriptor;
+/// `ZipDecoder.decodeStream` reports that descriptor's size, not the central
+/// record's (a central-record tamper still decodes as the real size). The
+/// `ZipFileEncoder` fixtures in this file write real local sizes instead, and
+/// for those the central record is the one the reader reads.
 Future<void> _overwriteLastDataDescriptorUncompressedSize(
   File zipFile,
   int size,
@@ -1646,7 +1654,16 @@ void main() {
           isFalse,
         );
 
+        // `manifest.json` is packed last, so both of its size records are the
+        // last ones in the file. Raise both: which one `ZipDecoder` believes is
+        // not the same on every platform -- the streamed data descriptor is
+        // authoritative on Windows, the central directory on Linux -- and this
+        // assertion must not depend on the runner.
         await _overwriteLastDataDescriptorUncompressedSize(
+          backupFile,
+          16 * 1024 * 1024 + 1,
+        );
+        await _overwriteCentralDirectoryUncompressedSize(
           backupFile,
           16 * 1024 * 1024 + 1,
         );

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'chat_input_data.dart';
+import 'message_quote.dart';
 
 /// The editor value, before the send path trims text or filters attachments.
 class ComposerDraftInput {
@@ -10,6 +11,8 @@ class ComposerDraftInput {
     this.images = const [],
     this.documents = const [],
     this.allowImagesApiRouting = true,
+    this.quote,
+    this.quoteLabel,
   });
 
   final String text;
@@ -18,6 +21,20 @@ class ComposerDraftInput {
   final List<DraftImage> images;
   final List<DocumentAttachment> documents;
   final bool allowImagesApiRouting;
+
+  /// The pending reply citation. Draft-only in the sense that it rides the
+  /// composer state, but it is carried into the sent user message as
+  /// `ChatMessage.quote`.
+  final MessageQuote? quote;
+
+  /// One-line presentation of [quote] for the composer's preview row.
+  ///
+  /// Presentation only: the sent bubble renders its own citation, and the
+  /// model-facing citation is derived from [quote] — never from this string.
+  /// It rides the draft because a whole-message citation's text is resolved
+  /// from a target the restored composer no longer holds.
+  final String? quoteLabel;
+
   bool get isEmpty => text.isEmpty && images.isEmpty && documents.isEmpty;
   Iterable<String> get paths sync* {
     yield* images.map((image) => image.path);
@@ -30,6 +47,8 @@ class ComposerDraftInput {
     int? selectionExtent,
     List<DraftImage>? images,
     List<DocumentAttachment>? documents,
+    MessageQuote? quote,
+    String? quoteLabel,
   }) => ComposerDraftInput(
     text: text ?? this.text,
     selectionBase: selectionBase ?? this.selectionBase,
@@ -37,6 +56,11 @@ class ComposerDraftInput {
     images: images ?? this.images,
     documents: documents ?? this.documents,
     allowImagesApiRouting: allowImagesApiRouting,
+    // A pending quote is cleared by rebuilding this value from the composer's
+    // own state, never through `copyWith`: text and attachment edits revise a
+    // draft in place and must keep the citation they were made under.
+    quote: quote ?? this.quote,
+    quoteLabel: quoteLabel ?? this.quoteLabel,
   );
 
   ChatInputData toInput({DraftSubmission? submission}) => ChatInputData(
@@ -45,6 +69,8 @@ class ComposerDraftInput {
     documents: documents,
     allowImagesApiRouting: allowImagesApiRouting,
     draftSubmission: submission,
+    quote: quote,
+    quoteLabel: quoteLabel,
   );
 
   factory ComposerDraftInput.fromInput(ChatInputData input) =>
@@ -53,6 +79,8 @@ class ComposerDraftInput {
         images: [for (final path in input.imagePaths) DraftImage(path: path)],
         documents: List.of(input.documents),
         allowImagesApiRouting: input.allowImagesApiRouting,
+        quote: input.quote,
+        quoteLabel: input.quoteLabel,
       );
 
   Map<String, dynamic> toJson() => {
@@ -65,6 +93,8 @@ class ComposerDraftInput {
         {'path': doc.path, 'fileName': doc.fileName, 'mime': doc.mime},
     ],
     'allowImagesApiRouting': allowImagesApiRouting,
+    'quote': quote?.toJson(),
+    'quoteLabel': quoteLabel,
   };
 
   factory ComposerDraftInput.fromJson(Map<String, dynamic> json) =>
@@ -85,6 +115,9 @@ class ComposerDraftInput {
             ),
         ],
         allowImagesApiRouting: json['allowImagesApiRouting'] as bool,
+        // Absent in drafts written before the reply feature.
+        quote: MessageQuote.tryParse(json['quote']),
+        quoteLabel: json['quoteLabel'] as String?,
       );
 
   bool sameValue(ComposerDraftInput other) =>
@@ -92,6 +125,8 @@ class ComposerDraftInput {
       selectionBase == other.selectionBase &&
       selectionExtent == other.selectionExtent &&
       allowImagesApiRouting == other.allowImagesApiRouting &&
+      quote == other.quote &&
+      quoteLabel == other.quoteLabel &&
       listEquals(
         images
             .map((image) => (image.path, image.processing, image.failed))

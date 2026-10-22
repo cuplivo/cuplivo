@@ -578,6 +578,7 @@ class MessageGenerationService {
       conversationId: conversationId,
       role: 'user',
       parts: parts,
+      quote: input.quote,
     );
   }
 
@@ -600,6 +601,7 @@ class MessageGenerationService {
         conversationId: conversationId,
         role: 'user',
         parts: userParts,
+        quote: input.quote,
       );
       final assistantMessage = await createAssistantPlaceholder(
         conversationId: conversationId,
@@ -618,6 +620,7 @@ class MessageGenerationService {
       modelId: modelId,
       providerId: providerKey,
       draftSubmission: input.draftSubmission,
+      quote: input.quote,
     );
     return (
       userMessage: result.userMessage!,

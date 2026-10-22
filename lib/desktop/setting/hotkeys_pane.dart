@@ -137,6 +137,10 @@ class _HotkeyRowState extends State<_HotkeyRow> {
           return loc.hotkeyToggleTopicPanel;
         case 'hotkeyFocusInput':
           return loc.hotkeyFocusInput;
+        case 'hotkeyCopySelectionMarkdown':
+          return loc.hotkeyCopySelectionMarkdown;
+        case 'hotkeyReplySelection':
+          return loc.hotkeyReplySelection;
         default:
           return item.l10nLabelKey;
       }

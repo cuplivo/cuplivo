@@ -42,7 +42,7 @@ Conversations, settings and files are stored locally. Cuplivo has no account sys
 
 ## ✨ What's new in 4.0
 
-Cuplivo 4.0 moves the whole code base onto the **Kelivo v1.3.0** baseline and re-implements Cuplivo's own features on top of it. From here on the repository re-bases on every Kelivo release instead of diverging permanently, so upstream's work keeps arriving.
+Cuplivo 4.0 moves the whole code base onto the **Kelivo v1.3.1** baseline and re-implements Cuplivo's own features on top of it. From here on the repository re-bases on every Kelivo release instead of diverging permanently, so upstream's work keeps arriving.
 
 - **LAN sync** — conversations, the business data behind them, attachments and skills follow you across your own devices over the LAN. Pair once by QR code (endpoints + certificate fingerprint + a one-shot PIN), then sync without restarting: no server, no hub device, no manual merge.
 - **Input draft** — the unsent composer content (text, image paths and document attachments) is kept across restarts, so an accidental exit no longer loses what you were writing.

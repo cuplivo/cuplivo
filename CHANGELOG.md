@@ -1,6 +1,5 @@
 # Changelog
 
-<<<<<<< HEAD
 - **LAN sync no longer stops listening when the window is closed to the tray**: with "close to tray" enabled, clicking the window's close button hid it and took port 9527 with it — the process stayed up with no listener, and restoring the window did not bring it back, because the close was answered as a quit. A close that only hides is now answered as a hide on Windows (macOS' Quit is a terminate and still quits; on Linux the window manager intercepts the close before it ever becomes an exit request, so hiding there is unchanged), the listener's graceful stop moved from the exit flush to a real shutdown, and a window that comes back to the foreground or a LAN Sync panel that is opened starts the listener again if it is ever down (#1036 by @cup113)
 
 >>>>>>> ec441209c (fix(sync): a close to the tray no longer stops the LAN sync listener (#1037))
@@ -16,12 +15,6 @@
 - **A letter taking minutes to show up after tapping its notification**: on a cold start `resumed` arrives before the conversation cache is loaded, so the overdue catch-up could only see an empty list; `initChat` now kicks off the catch-up again (`unawaited`) once the data is ready, and `onLetterPersisted` reloads the open window as soon as the letter is stored (#1007 by @Pheobe-Southwood)
 - **A fired letter on Android waiting for the app to come back to the front**: while the process is alive but the UI is not in front, the letter is handed straight to Dart instead of waiting for a foreground-service start or the next `MainActivity.onStart` (it still posts its own notification once stored) (#1007 by @Pheobe-Southwood)
 - **iOS logs when an arrival notification was refused**: a missing notification grant or a full pending queue is logged so it is explicit that the letter then depends on the in-app executor and the catch-up (#1007 by @Pheobe-Southwood)
-=======
-## [Unreleased]
-
-### Added
-
-- **Message replies**: a message's ⋯ menu (and a user bubble's long-press or right-click menu) can reply to it, and a selection inside an assistant reply can reply to just that span — the reply shows a one-line citation above the bubble, and the model receives it as a `<reply-to>` prefix frozen with the rest of the turn. Desktop binds `Ctrl/Cmd+Shift+R` to reply with the selection, because a right-click can take the selection away before the toolbar is reached. The citation rides the message row's extras, so it needs no schema change and travels with LAN sync and backups (#1027 by @cup113)
 >>>>>>> 7838dc8a4 (feat(reply): a message reply carries a quote citation, on markstream's selection (#1027))
 
 ## [4.3.0] - 2026-10-14

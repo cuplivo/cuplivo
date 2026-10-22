@@ -1436,7 +1436,6 @@ class _HomePageState extends State<HomePage>
     }
 
     final settings = context.watch<SettingsProvider>();
-    final suggestionsEnabled = settings.isSuggestionGenerationEnabled;
     return MessageListView(
       footer: footer,
       processingFilesMessageId: _controller.processingFilesMessageId,
@@ -1453,10 +1452,7 @@ class _HomePageState extends State<HomePage>
       translations: _buildTranslationUiStates(),
       selecting: _controller.selecting,
       selectedItems: _controller.selectedItems,
-      suggestions: suggestionsEnabled
-          ? (_controller.currentConversation?.chatSuggestions ??
-                const <String>[])
-          : const <String>[],
+      suggestions: _controller.visibleChatSuggestions,
       topContentPadding: topContentPadding,
       bottomContentPadding: bottomContentPadding,
       dividerPadding: dividerPadding,

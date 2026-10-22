@@ -5,11 +5,14 @@ latest Kelivo **stable** and *re-do* Cuplivo's features on it, never to port the
 This file records the mechanics of that replay, so the next re-base is a replay and not a porting
 project.
 
-Four re-bases have been run: 4.0 → `df60f7425`, 4.1 → `3c92d1062`, 4.2 → `4742d2e28` and the 4.4
-line → `cf2af98e6` (upstream master, `v1.3.1-11`). The conflict counts quoted below are the 4.1 one's;
-the *rules* are what to carry forward. The unit list below is the 4.4 line's series
-(`reorg/series-v4.4`, 15 units, normalized 2026-10-22 from the 34-commit line): baseline repair →
-features → the mechanical reformat at the tip.
+Five re-bases have been run: 4.0 → `df60f7425`, 4.1 → `3c92d1062`, 4.2 → `4742d2e28`, the 4.4 line →
+`cf2af98e6` (`v1.3.1-11`) and 4.4 → `a83647077` (upstream master: the storage/backup rework, the
+recovery screens and the markdown theme tokens). The conflict counts quoted below are the 4.1 one's;
+the *rules* are what to carry forward. The unit list below is the 4.4 line's series as replayed onto
+`a83647077` (`reorg/series-v4.4`, 15 units, normalized 2026-10-22 from the 34-commit line, then
+re-based onto the new baseline with each unit's l10n re-derived by `flutter gen-l10n`): baseline
+repair → features → the mechanical reformat at the tip, plus a `docs(agents)` commit recording what
+that pass learned.
 
 ## The replay units, in order
 

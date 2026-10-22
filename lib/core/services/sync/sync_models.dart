@@ -56,7 +56,17 @@ import 'sync_limits.dart';
 /// gave the workspace plane. A v6 peer would read the blob list as "nothing
 /// owed" and had no reverse connection to fetch over either, so an undiallable
 /// peer's images would keep failing while both reports claimed success.
-const int kSyncProtocolVersion = 7;
+///
+/// v8: the deletion announcement carries the conversation row's clock beside the
+/// digest ([SyncAnnouncedDeletion]). The digest is computed from the message
+/// rows, so it cannot see a row write that left every message untouched — which
+/// is exactly what a restore from the recycle bin is: the row goes back with
+/// `now()` while the messages come back byte-identical. Without the clock, the
+/// announcing peer deletes the restored conversation again at the next session.
+/// A v7 peer would read the pair as a digest string (`toString`), match nothing,
+/// and silently stop honouring announced deletions, so this is refused at hello
+/// like every other shape change.
+const int kSyncProtocolVersion = 8;
 
 /// Wall-clock divergence (milliseconds) beyond which a session report carries
 /// a clock-skew warning. Kerberos-style tolerance: below it, LWW comparisons
@@ -324,6 +334,57 @@ class SyncWorkspaceFileRequest {
   }
 }
 
+/// One conversation the announcing device deleted, as its hello states it.
+///
+/// [digest] is the state both sides last agreed on, and [updatedAtUs] is the
+/// conversation row's clock at that moment. Both halves are needed: the digest
+/// is computed from the *message* rows, so it cannot see a row write that left
+/// every message untouched — a restore from the recycle bin is exactly that,
+/// writing the row back with `now()` and the messages back byte-identical. The
+/// receiver treats a copy whose digest matches but whose row clock is newer as
+/// something it wrote since, and an edit beats a delete (the same rule the plan
+/// table's equal-digest branch applies).
+///
+/// [updatedAtUs] is null only when the announcement came off the wire without
+/// one, which a v8 pair never does: the version gate refuses a v7 peer, and this
+/// stays parseable so that refusal is a gate verdict rather than a parse error.
+class SyncAnnouncedDeletion {
+  const SyncAnnouncedDeletion({required this.digest, this.updatedAtUs});
+
+  final String digest;
+  final int? updatedAtUs;
+
+  /// `[digest, clock]`, the compact shape [WorkspaceFileStamp] uses too.
+  List<Object?> toJson() => [digest, if (updatedAtUs != null) updatedAtUs];
+
+  /// Lenient: a bare string is a digest with no clock (the v7 shape), and
+  /// anything that is not a list or a string is not an announcement.
+  static SyncAnnouncedDeletion? tryParse(Object? raw) {
+    if (raw is String) return SyncAnnouncedDeletion(digest: raw);
+    if (raw is! List || raw.isEmpty) return null;
+    final digest = raw.first;
+    if (digest is! String) return null;
+    return SyncAnnouncedDeletion(
+      digest: digest,
+      updatedAtUs: raw.length > 1 && raw[1] is num
+          ? (raw[1] as num).toInt()
+          : null,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is SyncAnnouncedDeletion &&
+      other.digest == digest &&
+      other.updatedAtUs == updatedAtUs;
+
+  @override
+  int get hashCode => Object.hash(digest, updatedAtUs);
+
+  @override
+  String toString() => 'SyncAnnouncedDeletion($digest @ $updatedAtUs)';
+}
+
 /// Hello request/response body. The initiator sends its manifest with hello;
 /// the responder answers with its own, so one round trip is enough to plan
 /// both directions.
@@ -375,15 +436,16 @@ class SyncHello {
   final int epoch;
 
   /// Conversations this device shared with the peer and no longer holds — a
-  /// deletion the peer has not confirmed yet — mapped to the digest both sides
-  /// last agreed on. A deletion is otherwise inferred from the peer's absence,
-  /// which cannot be told apart from "the peer never received it": this list
-  /// says which of the two it is, and the digest lets the receiver keep an edit
-  /// it made since (`edit beats delete`), exactly as the plan table does.
+  /// deletion the peer has not confirmed yet — with the digest *and the row
+  /// clock* both sides last agreed on. A deletion is otherwise inferred from the
+  /// peer's absence, which cannot be told apart from "the peer never received
+  /// it": this list says which of the two it is, and the pair lets the receiver
+  /// keep a copy it wrote since (`edit beats delete`), exactly as the plan table
+  /// does — the clock is what makes a restore from the recycle bin count as one.
   ///
   /// Derived from the checkpoint rather than a separate table, so an entry
   /// survives exactly as long as the peer has not caught up.
-  final Map<String, String> deletedConversations;
+  final Map<String, SyncAnnouncedDeletion> deletedConversations;
 
   const SyncHello({
     required this.protocolVersion,
@@ -413,7 +475,11 @@ class SyncHello {
     if (clockUs != null) 'clockUs': clockUs,
     if (unappliedConversations.isNotEmpty) 'unapplied': unappliedConversations,
     if (unappliedBusiness) 'unappliedBusiness': true,
-    if (deletedConversations.isNotEmpty) 'deleted': deletedConversations,
+    if (deletedConversations.isNotEmpty)
+      'deleted': {
+        for (final entry in deletedConversations.entries)
+          entry.key: entry.value.toJson(),
+      },
     if (epoch != 0) 'epoch': epoch,
   };
 
@@ -441,7 +507,8 @@ class SyncHello {
           in ((json['deleted'] as Map?)?.cast<String, dynamic>() ??
                   const <String, dynamic>{})
               .entries)
-        entry.key: entry.value.toString(),
+        if (SyncAnnouncedDeletion.tryParse(entry.value) case final deletion?)
+          entry.key: deletion,
     },
     epoch: (json['epoch'] as num?)?.toInt() ?? 0,
   );

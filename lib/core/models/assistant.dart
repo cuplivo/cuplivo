@@ -53,6 +53,11 @@ class Assistant {
   final bool allowConversationPromptInjection;
   final String messageTemplate; // e.g. "{{ message }}"
   final bool searchEnabled; // per-assistant external web search switch
+
+  /// Per-assistant opt-out of chat suggestions. The global switch in Default
+  /// Models stays the master; this only decides whether this assistant is
+  /// covered when it is on.
+  final bool suggestionsEnabled;
   final List<String> mcpServerIds; // bound MCP server IDs
   final bool allowConversationMcp;
   final List<String> localToolIds; // enabled local tool IDs
@@ -131,6 +136,7 @@ class Assistant {
     this.allowConversationPromptInjection = false,
     this.messageTemplate = '{{ message }}',
     this.searchEnabled = false,
+    this.suggestionsEnabled = true,
     this.mcpServerIds = const <String>[],
     this.allowConversationMcp = false,
     this.localToolIds = const <String>[],
@@ -185,6 +191,7 @@ class Assistant {
     bool? allowConversationPromptInjection,
     String? messageTemplate,
     bool? searchEnabled,
+    bool? suggestionsEnabled,
     List<String>? mcpServerIds,
     bool? allowConversationMcp,
     List<String>? localToolIds,
@@ -252,6 +259,7 @@ class Assistant {
           this.allowConversationPromptInjection,
       messageTemplate: messageTemplate ?? this.messageTemplate,
       searchEnabled: searchEnabled ?? this.searchEnabled,
+      suggestionsEnabled: suggestionsEnabled ?? this.suggestionsEnabled,
       mcpServerIds: mcpServerIds ?? this.mcpServerIds,
       allowConversationMcp: allowConversationMcp ?? this.allowConversationMcp,
       localToolIds: localToolIds ?? this.localToolIds,
@@ -335,6 +343,7 @@ class Assistant {
     'allowConversationPromptInjection': allowConversationPromptInjection,
     'messageTemplate': messageTemplate,
     'searchEnabled': searchEnabled,
+    'suggestionsEnabled': suggestionsEnabled,
     'mcpServerIds': mcpServerIds,
     'allowConversationMcp': allowConversationMcp,
     'localToolIds': localToolIds,
@@ -401,6 +410,7 @@ class Assistant {
         (json['allowConversationPromptInjection'] as bool?) ?? false,
     messageTemplate: (json['messageTemplate'] as String?) ?? '{{ message }}',
     searchEnabled: json['searchEnabled'] as bool? ?? false,
+    suggestionsEnabled: json['suggestionsEnabled'] as bool? ?? true,
     mcpServerIds:
         (json['mcpServerIds'] as List?)?.cast<String>() ?? const <String>[],
     allowConversationMcp: json['allowConversationMcp'] as bool? ?? false,

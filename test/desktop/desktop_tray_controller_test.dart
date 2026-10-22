@@ -1,5 +1,5 @@
-import 'package:Kelivo/desktop/desktop_tray_controller.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/desktop/desktop_tray_controller.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';

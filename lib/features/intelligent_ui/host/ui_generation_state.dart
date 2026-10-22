@@ -1,5 +1,5 @@
-import 'package:Kelivo/core/database/generation_run.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/database/generation_run.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
 import '../runtime/ui_surface_controller.dart';
 
 /// A real fence closer is only half the gate. Reuse the host's authoritative

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/desktop/widgets/desktop_select_dropdown.dart';
+import 'package:Cuplivo/desktop/widgets/desktop_select_dropdown.dart';
 
 void main() {
   testWidgets('mobile description menu aligns with its full width trigger', (

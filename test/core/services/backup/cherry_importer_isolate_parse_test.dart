@@ -8,14 +8,14 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/business_repository.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/models/backup.dart';
-import 'package:Kelivo/core/services/backup/backup_cancel_token.dart';
-import 'package:Kelivo/core/services/backup/backup_task_progress.dart';
-import 'package:Kelivo/core/services/backup/cherry_importer.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/backup.dart';
+import 'package:Cuplivo/core/services/backup/backup_cancel_token.dart';
+import 'package:Cuplivo/core/services/backup/backup_task_progress.dart';
+import 'package:Cuplivo/core/services/backup/cherry_importer.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
 
 class _FakePathProvider extends PathProviderPlatform {
   _FakePathProvider(this.root);

@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_budgets.dart';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_catalog.dart';
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_ir.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_budgets.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_catalog.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_ir.dart';
 import 'ui_diagnostic.dart';
 import 'ui_record_parser.dart';
 import 'ui_validation.dart';

@@ -2,12 +2,12 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:Kelivo/core/models/image_context.dart';
-import 'package:Kelivo/core/models/request_budget.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/providers/openai/openai_provider.dart';
-import 'package:Kelivo/core/services/api/request_image_context.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk.dart';
+import 'package:Cuplivo/core/models/image_context.dart';
+import 'package:Cuplivo/core/models/request_budget.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/openai_provider.dart';
+import 'package:Cuplivo/core/services/api/request_image_context.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk.dart';
 
 void main() {
   const tool = {

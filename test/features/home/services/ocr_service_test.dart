@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
-import 'package:Kelivo/features/home/services/ocr_service.dart';
+import 'package:Cuplivo/features/home/services/ocr_service.dart';
 
 void main() {
   group('OcrService content-hash cache', () {

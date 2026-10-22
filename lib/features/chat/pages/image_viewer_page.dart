@@ -5,7 +5,7 @@ import 'package:syncfusion_flutter_core/theme.dart';
 import '../../../core/models/image_upload_quality.dart';
 import '../models/image_viewer_draft_mode.dart';
 import 'dart:convert';
-import 'package:Kelivo/utils/svg_image_provider.dart';
+import 'package:Cuplivo/utils/svg_image_provider.dart';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -28,7 +28,7 @@ import '../../../utils/safe_resize_image.dart';
 import '../../../utils/clipboard_images.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../l10n/app_localizations.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 @visibleForTesting
 const int kMaxViewerDecodeEdge = 4096;
@@ -1095,7 +1095,7 @@ class _ImageViewerPageState extends State<ImageViewerPage>
         return;
       }
 
-      final name = 'kelivo-${DateTime.now().millisecondsSinceEpoch}';
+      final name = 'cuplivo-${DateTime.now().millisecondsSinceEpoch}';
       final dynamic result;
       if (_formatFromMagicBytes(bytes) == 'gif') {
         // saveImage re-encodes as JPEG on Android and iOS, losing animation.
@@ -1199,7 +1199,7 @@ class _ImageViewerPageState extends State<ImageViewerPage>
         temp = await File(
           p.join(
             tmp.path,
-            'kelivo_${DateTime.now().millisecondsSinceEpoch}.png',
+            'cuplivo_${DateTime.now().millisecondsSinceEpoch}.png',
           ),
         ).create(recursive: true);
         await temp.writeAsBytes(bytes);
@@ -1212,7 +1212,7 @@ class _ImageViewerPageState extends State<ImageViewerPage>
           temp = await File(
             p.join(
               tmp.path,
-              'kelivo_${DateTime.now().millisecondsSinceEpoch}.png',
+              'cuplivo_${DateTime.now().millisecondsSinceEpoch}.png',
             ),
           ).create(recursive: true);
           await temp.writeAsBytes(bytes);
@@ -1227,7 +1227,7 @@ class _ImageViewerPageState extends State<ImageViewerPage>
           temp = await File(
             p.join(
               tmp.path,
-              'kelivo_${DateTime.now().millisecondsSinceEpoch}${ext.isNotEmpty ? ext : '.jpg'}',
+              'cuplivo_${DateTime.now().millisecondsSinceEpoch}${ext.isNotEmpty ? ext : '.jpg'}',
             ),
           ).create(recursive: true);
           await temp.writeAsBytes(resp.bodyBytes);
@@ -2357,7 +2357,7 @@ class _ImageViewerPageState extends State<ImageViewerPage>
         return;
       }
 
-      final defaultName = 'kelivo-${DateTime.now().millisecondsSinceEpoch}$ext';
+      final defaultName = 'cuplivo-${DateTime.now().millisecondsSinceEpoch}$ext';
       final allowed = [ext.replaceFirst('.', '').toLowerCase()];
       String? savePath = await FilePicker.platform.saveFile(
         dialogTitle: l10n.imageViewerPageSaveButton,

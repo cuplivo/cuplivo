@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/features/home/services/tool_handler_service.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/home/services/tool_handler_service.dart';
 
 void main() {
   for (final kind in [ProviderKind.openai, ProviderKind.claude]) {

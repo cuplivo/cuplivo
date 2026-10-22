@@ -1,6 +1,6 @@
 import 'package:markstream/markstream_core.dart';
-import 'package:Kelivo/core/services/tts/tts_text_selection.dart';
-import 'package:Kelivo/utils/source_text_map.dart';
+import 'package:Cuplivo/core/services/tts/tts_text_selection.dart';
+import 'package:Cuplivo/utils/source_text_map.dart';
 import '../catalog/ui_budgets.dart';
 import '../runtime/ui_surface_controller.dart';
 import '../runtime/ui_surface_state.dart';

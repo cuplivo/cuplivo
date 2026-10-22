@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-import 'package:Kelivo/core/models/workspace.dart';
-import 'package:Kelivo/features/settings/widgets/custom_theme_widgets.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/models/workspace.dart';
+import 'package:Cuplivo/features/settings/widgets/custom_theme_widgets.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'desktop_workspace_text_field.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 import 'desktop_workspace_button.dart';
 import 'workspace_picker.dart';

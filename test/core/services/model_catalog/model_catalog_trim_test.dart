@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/model_catalog/model_catalog_trim.dart';
+import 'package:Cuplivo/core/services/model_catalog/model_catalog_trim.dart';
 
 void main() {
   final generatedAt = DateTime.utc(2026, 9, 15, 12);

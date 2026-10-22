@@ -1,4 +1,4 @@
-import 'package:Kelivo/core/services/api/stream/stream_chunk_ids.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk_ids.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

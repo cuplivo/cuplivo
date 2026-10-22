@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/utils/token_format.dart';
+import 'package:Cuplivo/core/utils/token_format.dart';
 
 void main() {
   test('formatTokenCount scales with at most one decimal', () {

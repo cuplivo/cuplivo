@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-import 'package:Kelivo/core/models/workspace_directory_access.dart';
+import 'package:Cuplivo/core/models/workspace_directory_access.dart';
 
 const String kWorkspaceMethodChannel = 'app.workspace';
 const String kWorkspaceEventChannel = 'app.workspace/events';

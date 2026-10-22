@@ -1,13 +1,13 @@
 import 'dart:convert';
 
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_budgets.dart';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_catalog.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_budgets.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_catalog.dart';
 
 /// Generated Skill assets and manual evaluation share these catalog-derived
 /// references. The fixed scenarios are authored examples, not inferred schemas.
 abstract final class UiGuidance {
   static const capabilitySummary =
-      'Kelivo supports native interactive calculators, forms, charts and tables '
+      'Cuplivo supports native interactive calculators, forms, charts and tables '
       'in assistant replies. Input changes are local; Ask prepares an editable '
       'draft without sending. Use the visualize skill when interaction helps; '
       'read its protocol and relevant reference first. Keep a useful conclusion '
@@ -15,7 +15,7 @@ abstract final class UiGuidance {
 
   static const main = '''---
 name: visualize
-description: Create a native interactive calculator, conditional form, chart or data table when local input changes help answer the user. Also handles repairs to an existing Kelivo interface.
+description: Create a native interactive calculator, conditional form, chart or data table when local input changes help answer the user. Also handles repairs to an existing Cuplivo interface.
 ---
 
 # Interactive answers
@@ -59,7 +59,7 @@ possible. Copy/read-aloud behavior is described in `references/semantics.md`.
 ''';
 
   static String get protocol =>
-      '''# Kelivo UI protocol
+      '''# Cuplivo UI protocol
 
 Use an ordinary assistant reply with a useful conclusion and one top-level
 fenced block labelled `kelivo-ui`. The first physical source line is exactly:

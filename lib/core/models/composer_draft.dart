@@ -3,7 +3,7 @@ import 'image_upload_quality.dart';
 import 'package:flutter/foundation.dart';
 import 'chat_input_data.dart';
 import 'quote_ref.dart';
-import 'package:Kelivo/features/intelligent_ui/models/ui_context_attachment.dart';
+import 'package:Cuplivo/features/intelligent_ui/models/ui_context_attachment.dart';
 
 /// The editor value, before the send path trims text or filters attachments.
 class ComposerDraftInput {

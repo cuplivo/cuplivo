@@ -1,11 +1,11 @@
-import 'package:Kelivo/shared/text_input/message_editing_controller.dart';
+import 'package:Cuplivo/shared/text_input/message_editing_controller.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/shared/widgets/long_message_editor.dart';
+import 'package:Cuplivo/shared/widgets/long_message_editor.dart';
 import 'controlled_native_message_input.dart';
-import 'package:Kelivo/shared/text_input/compact_edit.dart';
+import 'package:Cuplivo/shared/text_input/compact_edit.dart';
 
 class MirrorHarness {
   MirrorHarness(this.tester);

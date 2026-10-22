@@ -1,8 +1,8 @@
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/quote_ref.dart';
-import 'package:Kelivo/features/chat/widgets/quote_interaction_scope.dart';
-import 'package:Kelivo/features/chat/widgets/quote_source_highlight.dart';
-import 'package:Kelivo/utils/source_text_map.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/quote_ref.dart';
+import 'package:Cuplivo/features/chat/widgets/quote_interaction_scope.dart';
+import 'package:Cuplivo/features/chat/widgets/quote_source_highlight.dart';
+import 'package:Cuplivo/utils/source_text_map.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:markstream/markstream.dart' show SourceSpan;

@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:Kelivo/utils/svg_preview_html.dart';
+import 'package:Cuplivo/utils/svg_preview_html.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xml/xml.dart';
 

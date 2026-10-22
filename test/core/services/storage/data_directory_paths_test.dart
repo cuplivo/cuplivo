@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:Kelivo/core/services/storage/data_directory_paths.dart';
+import 'package:Cuplivo/core/services/storage/data_directory_paths.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/shared/markdown/markdown_image_sources.dart';
+import 'package:Cuplivo/shared/markdown/markdown_image_sources.dart';
 import 'package:markstream/markstream_core.dart';
 
 void main() {

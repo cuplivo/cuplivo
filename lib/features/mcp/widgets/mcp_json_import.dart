@@ -9,7 +9,7 @@ import '../../../shared/widgets/ios_tile_button.dart';
 import '../../../shared/widgets/section_card.dart';
 import 'mcp_form.dart';
 import '../../../shared/widgets/ios_text_button.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 Future<void> showMcpJsonImport(
   BuildContext context, {

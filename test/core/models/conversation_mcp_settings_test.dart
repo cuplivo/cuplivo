@@ -1,6 +1,6 @@
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/conversation_mcp_settings.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/conversation_mcp_settings.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

@@ -5,13 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/workspace/tool_run_registry.dart';
-import 'package:Kelivo/core/services/workspace/workspace_tool_metadata.dart';
-import 'package:Kelivo/features/chat/widgets/workspace_tool_detail.dart';
-import 'package:Kelivo/features/chat/widgets/workspace_tool_ui.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/workspace/tool_run_registry.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_tool_metadata.dart';
+import 'package:Cuplivo/features/chat/widgets/workspace_tool_detail.dart';
+import 'package:Cuplivo/features/chat/widgets/workspace_tool_ui.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 import '../../../support/business_test_harness.dart';
 

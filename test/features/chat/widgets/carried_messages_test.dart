@@ -1,15 +1,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/carried_original.dart';
-import 'package:Kelivo/core/models/carried_selection.dart';
-import 'package:Kelivo/core/models/context_operation.dart';
-import 'package:Kelivo/features/chat/widgets/carried_options_section.dart';
-import 'package:Kelivo/features/chat/widgets/carried_messages_section.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/l10n/app_localizations_en.dart';
-import 'package:Kelivo/shared/widgets/ios_checkbox.dart';
-import 'package:Kelivo/shared/widgets/ios_switch.dart';
+import 'package:Cuplivo/core/models/carried_original.dart';
+import 'package:Cuplivo/core/models/carried_selection.dart';
+import 'package:Cuplivo/core/models/context_operation.dart';
+import 'package:Cuplivo/features/chat/widgets/carried_options_section.dart';
+import 'package:Cuplivo/features/chat/widgets/carried_messages_section.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/l10n/app_localizations_en.dart';
+import 'package:Cuplivo/shared/widgets/ios_checkbox.dart';
+import 'package:Cuplivo/shared/widgets/ios_switch.dart';
 
 void main() {
   final l = AppLocalizationsEn();

@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:Kelivo/features/chat/widgets/chat_gradient_background.dart';
+import 'package:Cuplivo/features/chat/widgets/chat_gradient_background.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';

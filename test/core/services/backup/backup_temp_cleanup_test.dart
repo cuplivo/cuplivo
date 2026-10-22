@@ -3,10 +3,10 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/backup/backup_cancel_token.dart';
-import 'package:Kelivo/core/services/backup/backup_isolate_runner.dart';
-import 'package:Kelivo/core/services/backup/data_sync.dart';
-import 'package:Kelivo/core/services/backup/backup_staging.dart';
+import 'package:Cuplivo/core/services/backup/backup_cancel_token.dart';
+import 'package:Cuplivo/core/services/backup/backup_isolate_runner.dart';
+import 'package:Cuplivo/core/services/backup/data_sync.dart';
+import 'package:Cuplivo/core/services/backup/backup_staging.dart';
 
 void main() {
   test(

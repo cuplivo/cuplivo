@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 
-import 'package:Kelivo/core/services/tool_image.dart';
+import 'package:Cuplivo/core/services/tool_image.dart';
 
 void main() {
   for (final orientation in [2, 6]) {

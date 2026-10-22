@@ -6,22 +6,22 @@ import 'package:flutter/rendering.dart' show RenderRepaintBoundary;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:Kelivo/core/services/browser/browser_service.dart';
-import 'package:Kelivo/core/services/browser/browser_store.dart';
-import 'package:Kelivo/features/browser/models/browser_models.dart';
-import 'package:Kelivo/features/browser/pages/browser_management_page.dart';
-import 'package:Kelivo/features/browser/pages/browser_bookmark_editor.dart';
-import 'package:Kelivo/features/browser/widgets/browser_glass.dart';
-import 'package:Kelivo/features/browser/widgets/browser_library.dart';
-import 'package:Kelivo/features/browser/widgets/browser_favicon.dart';
-import 'package:Kelivo/features/browser/widgets/browser_settings.dart';
-import 'package:Kelivo/features/browser/widgets/browser_surface_controls.dart';
-import 'package:Kelivo/features/browser/widgets/browser_switch_lens.dart';
-import 'package:Kelivo/features/browser/widgets/browser_progressive_edge.dart';
+import 'package:Cuplivo/core/services/browser/browser_service.dart';
+import 'package:Cuplivo/core/services/browser/browser_store.dart';
+import 'package:Cuplivo/features/browser/models/browser_models.dart';
+import 'package:Cuplivo/features/browser/pages/browser_management_page.dart';
+import 'package:Cuplivo/features/browser/pages/browser_bookmark_editor.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_glass.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_library.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_favicon.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_settings.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_surface_controls.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_switch_lens.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_progressive_edge.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart'
     show GlassAccessibilityScope;
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/features/browser/widgets/browser_text_field.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_text_field.dart';
 
 void main() {
   late BrowserService service;

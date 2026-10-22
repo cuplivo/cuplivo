@@ -5,6 +5,10 @@
 >>>>>>> ec441209c (fix(sync): a close to the tray no longer stops the LAN sync listener (#1037))
 ## [4.3.0] - 2026-10-14
 
+### 新增
+
+- **复制对话链接，或单条消息链接**: 对话菜单与消息 ⋯ 菜单新增**复制链接**，写入 `cuplivo://conversation/<id>`；在消息上复制时带 `?message=<id>`。iOS 点击该链接会直接打开对应对话并滚动到该消息。链接是指针而非副本：只有在本地存在该对话（本机复制，或经局域网同步到本机）时才能打开；若本机没有该对话，现在会明确提示，而不是毫无反应 (#981)
+
 ### 修复
 
 - **iOS 端「Ta的来信」的无效通知**: `IosProactiveCareScheduler.rescheduleAll` 现在会撤销掉出待发集合的会话通知（已过期、已关闭或恢复导入后失效的会话），并向 Kelivo 的通知适配器传入裸会话 ID（由适配器在 `schedule` 与 `cancel` 两侧统一加上前缀），不再在重挂后残留旧到达通知 (#1007 by @Pheobe-Southwood)

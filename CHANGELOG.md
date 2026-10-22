@@ -5,6 +5,10 @@
 >>>>>>> ec441209c (fix(sync): a close to the tray no longer stops the LAN sync listener (#1037))
 ## [4.3.0] - 2026-10-14
 
+### Added
+
+- **Copy a link to a conversation, or to one message**: the conversation menu and the message ⋯ menu now offer **Copy Link**, writing `cuplivo://conversation/<id>` — with `?message=<id>` when copied from a message — which iOS opens straight into that conversation, scrolled to the message. A link is a pointer, not a copy: it resolves where the conversation exists (the device that copied it, or a device LAN sync carried it to), and a link whose conversation is not on this device now says so instead of doing nothing (#981)
+
 ### Fixed
 
 - **A stale "Their Letter" notification on iOS**: `IosProactiveCareScheduler.rescheduleAll` now cancels arrival notifications for conversations that dropped out of the pending set (past-due, disabled, or replaced on restore) and passes the bare conversation id that Kelivo's notification adapter prefixes in both `schedule` and `cancel`, so stale arrival notifications no longer survive re-arming (#1007 by @Pheobe-Southwood)

@@ -221,13 +221,16 @@ void main() {
     );
   });
 
-  test('backup registry classifies the overrides key as a preference', () {
+  test('sync registry splits the overrides keys by disposition', () {
+    // The shared overlay rides sync (ADR-0003 slice 2): it says how the app
+    // should look on any device, so a new device wants it. The per-user overlay
+    // stays device-local, like the other per-user presentation keys.
     expect(
       BusinessKeyRegistry.classify('chat_bubble_style_overrides_v1'),
-      BusinessKeyDisposition.preference,
+      BusinessKeyDisposition.syncedPreference,
     );
     expect(
-      BusinessKeyRegistry.preferenceKeys,
+      BusinessKeyRegistry.syncedPreferenceKeys,
       contains('chat_bubble_style_overrides_v1'),
     );
     expect(

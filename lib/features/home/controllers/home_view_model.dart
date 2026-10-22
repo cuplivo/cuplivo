@@ -1856,6 +1856,11 @@ class HomeViewModel extends ChangeNotifier {
     bool force = false,
   }) => _maybeGenerateTitleFor(conversationId, force: force);
 
+  /// Test entry for [_maybeGenerateSuggestionsFor].
+  @visibleForTesting
+  Future<void> debugMaybeGenerateSuggestionsFor(String conversationId) =>
+      _maybeGenerateSuggestionsFor(conversationId);
+
   @visibleForTesting
   static int computeClearContextRemainingMessageCount({
     required int totalMessages,
@@ -2135,6 +2140,35 @@ class HomeViewModel extends ChangeNotifier {
 
   final Map<String, Object> _suggestionRequests = {};
 
+  /// The one decision behind both the request and the rendered chips: resolve
+  /// the conversation's owning assistant, then apply the shared switch
+  /// predicate (global master ∧ per-assistant opt-out).
+  bool _suggestionsAllowedFor(
+    SettingsProvider settings,
+    AssistantProvider assistantProvider,
+    String? conversationAssistantId,
+  ) {
+    return settings.isSuggestionGenerationAllowedFor(
+      assistantProvider.resolveConversationAssistant(conversationAssistantId),
+    );
+  }
+
+  /// Suggestions the displayed conversation may render, or empty when the
+  /// effective switch is off. Rendering and generation must agree on which
+  /// assistant governs, so both resolve the owner here.
+  List<String> get visibleChatSuggestions {
+    final convo = currentConversation;
+    if (convo == null || convo.chatSuggestions.isEmpty) {
+      return const <String>[];
+    }
+    final allowed = _suggestionsAllowedFor(
+      _contextProvider.read<SettingsProvider>(),
+      _contextProvider.read<AssistantProvider>(),
+      convo.assistantId,
+    );
+    return allowed ? convo.chatSuggestions : const <String>[];
+  }
+
   Future<void> _clearSuggestionsFor(String conversationId) async {
     _suggestionRequests.remove(conversationId);
     final convo = _chatService.getConversation(conversationId);
@@ -2153,13 +2187,19 @@ class HomeViewModel extends ChangeNotifier {
     if (convo == null) return;
 
     final settings = _contextProvider.read<SettingsProvider>();
-    if (!settings.isSuggestionGenerationEnabled) return;
 
     // Read context-dependent inputs before the async gap below.
     final assistantProvider = _contextProvider.read<AssistantProvider>();
     final assistant = assistantProvider.resolveConversationAssistant(
       convo.assistantId,
     );
+    if (!_suggestionsAllowedFor(
+      settings,
+      assistantProvider,
+      convo.assistantId,
+    )) {
+      return;
+    }
     final chatModel = resolveChatModel(
       settings,
       conversation: convo,
@@ -2177,7 +2217,11 @@ class HomeViewModel extends ChangeNotifier {
     final prompt = settings.suggestionPrompt;
     bool isCurrent() =>
         identical(_suggestionRequests[conversationId], request) &&
-        settings.isSuggestionGenerationEnabled &&
+        _suggestionsAllowedFor(
+          settings,
+          assistantProvider,
+          convo.assistantId,
+        ) &&
         settings.suggestionPrompt == prompt &&
         _chatService.getConversation(conversationId) != null &&
         _chatService.getContextStartIndex(conversationId) == truncateIndex;

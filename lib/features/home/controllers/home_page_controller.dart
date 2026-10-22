@@ -702,6 +702,11 @@ class HomePageController extends ChangeNotifier {
 
   QueuedChatInput? get currentQueuedInput => _viewModel.currentQueuedInput;
 
+  /// Suggestions the displayed conversation may render. The switch decision
+  /// lives in [HomeViewModel.visibleChatSuggestions] so generation and
+  /// rendering cannot drift apart.
+  List<String> get visibleChatSuggestions => _viewModel.visibleChatSuggestions;
+
   ValueNotifier<String?> get processingFilesMessageId =>
       _viewModel.processingFilesMessageId;
 

@@ -186,12 +186,29 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
 
   /// Entries with a day header in front of the first entry of each day, and one
   /// group header in front of the first entry of each deletion event.
+  ///
+  /// A group is an assistant's cascade: the assistant's own row and the
+  /// conversations it took. The header names the assistant and counts the
+  /// *conversations*, so it reads the same in every tab, and it is drawn only
+  /// where a conversation is visible — the Assistants tab shows the assistant as
+  /// a card of its own rather than under a header that talks about the
+  /// conversations that tab filters out.
   List<Object> get _rows {
     final visible = _visibleEntries;
     final counts = <String, int>{};
+    final headed = <String>{};
+    for (final entry in _entries) {
+      final group = entry.group;
+      if (group == null) continue;
+      if (entry.type == RecycleEntryType.conversation) {
+        counts[group.id] = (counts[group.id] ?? 0) + 1;
+      }
+    }
     for (final entry in visible) {
       final group = entry.group;
-      if (group != null) counts[group.id] = (counts[group.id] ?? 0) + 1;
+      if (group != null && entry.type == RecycleEntryType.conversation) {
+        headed.add(group.id);
+      }
     }
     final rows = <Object>[];
     DateTime? day;
@@ -209,7 +226,9 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
         openGroup = null;
       } else if (group.id != openGroup) {
         openGroup = group.id;
-        rows.add(_BinGroup(group, counts[group.id] ?? 1));
+        if (headed.contains(group.id)) {
+          rows.add(_BinGroup(group, counts[group.id] ?? 1));
+        }
       }
       rows.add(entry);
     }

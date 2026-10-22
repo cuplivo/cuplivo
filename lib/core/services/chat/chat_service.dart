@@ -2037,9 +2037,9 @@ class ChatService extends ChangeNotifier {
   ///
   /// [group] is stamped on each staged conversation so the bin can show them as
   /// what they are: the conversations one deletion took with it. The assistant's
-  /// own row is staged by the entity path, which a group cannot reach (it rides
-  /// the generic list persistence, not a delete call), so the group holds the
-  /// conversations and the list puts the assistant's entry right above them.
+  /// own row is staged by the entity path, and it takes the same group — its row
+  /// is removed by the assistant list's write, which is a delete call for the
+  /// rows it drops (`AssistantProvider.deleteAssistant` passes it down).
   Future<void> deleteConversationsForAssistant(
     String assistantId, {
     RecycleGroup? group,

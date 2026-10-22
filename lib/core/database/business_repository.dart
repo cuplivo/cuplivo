@@ -50,10 +50,20 @@ final class BusinessRepository {
     await _database.transaction(() => _replaceEntities(kind, rows));
   }
 
+  /// Writes one list-shaped kind: rows whose id is no longer in [rows] are
+  /// deleted, the rest are upserted.
+  ///
+  /// [group] is stamped on the entries staged for the rows this write *removes*.
+  /// It exists because a list write is how several deletions actually happen —
+  /// deleting an assistant drops its row through here, not through
+  /// [deleteEntity] — and a caller that is performing one deletion event passes
+  /// the same group it gave the rest of that event, so the bin can show the act
+  /// as one instead of an assistant standing next to its own cascade.
   Future<void> synchronizeEntities(
     BusinessEntityKind kind,
-    List<BusinessEntityValue> rows,
-  ) async {
+    List<BusinessEntityValue> rows, {
+    RecycleGroup? group,
+  }) async {
     _validateRows(kind, rows);
     await _database.transaction(() async {
       final existing = await _readEntities(kind);
@@ -64,7 +74,7 @@ final class BusinessRepository {
       for (final row in existing) {
         if (!retainedIds.contains(row.id)) {
           _assertDecodablePayload(kind, row);
-          await _deleteEntity(kind, row.id);
+          await _deleteEntity(kind, row.id, group: group);
         }
       }
       final updatedAt = DateTime.now().toUtc().microsecondsSinceEpoch;

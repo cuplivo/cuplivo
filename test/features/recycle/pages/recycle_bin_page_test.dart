@@ -199,6 +199,7 @@ void main() {
     String id,
     String title, {
     String kindWire = 'assistant_rows',
+    RecycleGroup? group,
   }) => tester.runAsync(
     () => store.stageRows(
       type: RecycleEntryType.businessEntity,
@@ -207,6 +208,7 @@ void main() {
       key: id,
       title: title,
       kindWire: kindWire,
+      group: group,
       tables: {
         kindWire: [
           {'id': id, 'payload': '{}', 'sort_order': 0, 'updated_at': 1},
@@ -304,14 +306,18 @@ void main() {
     await stageConversation(tester, 'c1', 'First', group: group);
     await stageConversation(tester, 'c2', 'Second', group: group);
     await stageConversation(tester, 'c3', 'Third', group: group);
-    await stageEntity(tester, 'a1', 'Delete Me');
+    // The assistant is part of the same event, staged last because the list
+    // write is what removes its row.
+    await stageEntity(tester, 'a1', 'Delete Me', group: group);
 
     await pumpPage(tester);
     // Newest first: the assistant's own entry is the last staged, and the
     // conversations follow it, so 'Third' is the row the viewport builds.
     await pumpUntilFound(tester, find.text('Third'));
 
-    // One header for the three, naming the assistant and the count.
+    // One header for the group, naming the assistant and counting the
+    // conversations — the assistant's own entry is not a conversation, so it
+    // must not inflate the number the label promises.
     expect(
       find.text('3 conversations deleted together with “Delete Me”'),
       findsOneWidget,
@@ -324,20 +330,53 @@ void main() {
     // — three conversations meant four toasts.
     final toasts = await pumpUntilToasts(tester);
     expect(toasts, hasLength(1));
-    await pumpUntilBinSize(tester, 1);
+    await pumpUntilBinSize(tester, 0);
     await pumpUntilGone(tester, find.text('Restore all'));
 
-    // Only the assistant's own entry is left, and the header went with the
-    // conversations it described.
-    expect(find.text('Delete Me'), findsOneWidget);
-    final restored = await tester.runAsync(
-      () => database
+    // "Restore all" is the whole event: the assistant the header names comes
+    // back with the conversations that name it, and the bin is empty.
+    final restored = await tester.runAsync(() async {
+      final conversations = await database
           .customSelect('SELECT COUNT(*) AS n FROM conversation_rows;')
-          .getSingle(),
+          .getSingle();
+      final assistants = await database
+          .customSelect(
+            "SELECT COUNT(*) AS n FROM assistant_rows WHERE id = 'a1';",
+          )
+          .getSingle();
+      return (
+        conversations: conversations.read<int>('n'),
+        assistants: assistants.read<int>('n'),
+      );
+    });
+    expect(restored?.conversations, 3);
+    expect(
+      restored?.assistants,
+      1,
+      reason: 'the row the header names is part of the act it offers',
     );
-    expect(restored?.read<int>('n'), 3);
 
     await drainSnackBar(tester);
+  });
+
+  testWidgets('the assistants tab shows a cascade group as a plain card', (
+    tester,
+  ) async {
+    // A group header names conversations and offers to restore the event. In the
+    // Assistants tab the conversations are filtered out, so drawing the header
+    // there would describe a list the tab does not show ("1 conversations…");
+    // the assistant is the whole of what is visible and gets its own card.
+    final group = RecycleGroup(id: 'g1', label: 'Delete Me');
+    await stageConversation(tester, 'c1', 'First', group: group);
+    await stageEntity(tester, 'a1', 'Delete Me', group: group);
+
+    await pumpPage(tester);
+    await pumpUntilFound(tester, find.text('Delete Me'));
+    await tester.tap(find.text('Assistants'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Delete Me'), findsOneWidget);
+    expect(find.textContaining('deleted together with'), findsNothing);
   });
 
   testWidgets('a group restore says what could not be restored', (

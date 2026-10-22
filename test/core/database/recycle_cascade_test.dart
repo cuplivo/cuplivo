@@ -34,10 +34,11 @@ class _FakePathProviderPlatform extends PathProviderPlatform {
 ///
 /// The cascade removes conversations and then the assistant's own row, and the
 /// bin must show that as the one act it was: every conversation the cascade
-/// took carries the same group, and the assistant's entry — which rides the
-/// generic list persistence rather than a delete call — sits next to them with
-/// its own name. Both halves are asserted here because the group is only worth
-/// anything if it names the thing the user actually deleted.
+/// took carries the same group, and so does the assistant — its row is removed
+/// by the assistant list's write, which drops it through the same delete call a
+/// cascade uses, and the delete that drops it takes the group the caller is
+/// holding. The group is only worth anything if it names the thing the user
+/// actually deleted, so both halves are asserted here.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -156,9 +157,12 @@ void main() {
       );
       expect(assistant.key, 'assistant-delete');
       expect(assistant.kindWire, 'assistant_rows');
-      // The assistant's own entry is not in the group: its row is removed by the
-      // list persistence, which a delete call cannot stamp.
-      expect(assistant.group, isNull);
+      // The assistant is part of its own event: its row is dropped by the
+      // assistant list's write, which deletes through the same call a cascade
+      // uses, so the group the cascade decided rides along. Without it the
+      // header would offer a "Restore all" that leaves the assistant behind.
+      expect(assistant.group?.id, groupIds.single);
+      expect(assistant.group!.label, 'Delete Me');
 
       expect(chatService.getConversation(kept.id), isNotNull);
       expect(entries.any((entry) => entry.key == kept.id), isFalse);

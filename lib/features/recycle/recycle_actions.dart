@@ -63,7 +63,18 @@ Future<({int restored, int skipped, int failed})> restoreRecycleGroup(
   var skipped = 0;
   var failed = 0;
   final targets = _RefreshTargets();
-  for (final entry in entries) {
+  // The row the conversations name comes back first. An assistant's cascade is
+  // one entity plus its conversations, and restoring a conversation while its
+  // assistant is still missing is the state the detail view warns about; the
+  // batch should never pass through it, whatever order staging left them in.
+  final ordered = [...entries]
+    ..sort((x, y) {
+      final xIsRow = x.type != RecycleEntryType.conversation;
+      final yIsRow = y.type != RecycleEntryType.conversation;
+      if (xIsRow != yIsRow) return xIsRow ? -1 : 1;
+      return y.deletedAt.compareTo(x.deletedAt);
+    });
+  for (final entry in ordered) {
     final outcome = await _restoreOne(service, entry);
     if (outcome == RecycleRestoreOutcome.restored) {
       restored++;

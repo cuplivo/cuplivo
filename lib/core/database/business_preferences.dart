@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'business_data.dart';
 import 'business_repository.dart';
 import 'business_settings_router.dart';
+import '../services/recycle/recycle_service.dart';
 
 typedef _SyntheticEntityIdentity = ({
   String rowId,
@@ -121,7 +122,18 @@ final class BusinessPreferences {
 
   Future<bool> setDouble(String key, double value) => _setValue(key, value);
 
-  Future<bool> setString(String key, String value) => _setValue(key, value);
+  /// Writes one list-shaped kind, and stamps [removalGroup] on whatever rows the
+  /// write removes.
+  ///
+  /// Only the assistant list needs it: deleting an assistant drops its row
+  /// through this write rather than through a delete call, and the caller that
+  /// decided to delete it already holds the group the rest of that act carries.
+  /// Every other key leaves it null, which is the same write as before.
+  Future<bool> setString(
+    String key,
+    String value, {
+    RecycleGroup? removalGroup,
+  }) => _setValue(key, value, removalGroup: removalGroup);
 
   Future<bool> setStringList(String key, List<String> value) =>
       _setValue(key, List<String>.unmodifiable(value));
@@ -144,7 +156,11 @@ final class BusinessPreferences {
     });
   }
 
-  Future<bool> _setValue(String key, Object value) async {
+  Future<bool> _setValue(
+    String key,
+    Object value, {
+    RecycleGroup? removalGroup,
+  }) async {
     await load();
     return _serialize(() async {
       final kind = _entityKindForKey(key);
@@ -165,7 +181,11 @@ final class BusinessPreferences {
             preferences: routed.preferences,
           );
         }
-        await _repository.synchronizeEntities(kind, routed.entities[kind]!);
+        await _repository.synchronizeEntities(
+          kind,
+          routed.entities[kind]!,
+          group: removalGroup,
+        );
         _applyRuntimeEntity(kind, routed);
       } else {
         _validatePreferenceKey(key);

@@ -301,10 +301,15 @@ class AssistantProvider extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<void> _persist() async {
+  Future<void> _persist({RecycleGroup? group}) async {
     await preferences.setString(
       _assistantsKey,
       Assistant.encodeList(_assistants),
+      // This write is where a deleted assistant's row goes: the list no longer
+      // names it, so the write removes it — and the bin entry that preserves it
+      // has to be part of the event the caller is performing, not a stray line
+      // beside it.
+      removalGroup: group,
     );
     await _ensureOrphanedAssistant();
   }
@@ -558,11 +563,8 @@ class AssistantProvider extends ChangeNotifier {
     if (_assistants.length <= 1) return false;
 
     // One deletion event: the assistant goes and so do its conversations. The
-    // conversations carry this group, which is what lets the bin show them as
-    // the one act they were instead of N unrelated "deleted" rows. The
-    // assistant's own row cannot carry it — its row is removed by the generic
-    // list persistence rather than by a delete call — so the group names the
-    // assistant for the entries that can.
+    // group is what lets the bin show them as the one act they were instead of N
+    // unrelated "deleted" rows plus a stray assistant beside them.
     final group = RecycleGroup(
       id: const Uuid().v4().substring(0, 8),
       label: _assistants[idx].name,
@@ -576,7 +578,9 @@ class AssistantProvider extends ChangeNotifier {
           ? _assistants.first.id
           : null;
     }
-    await _persist();
+    // The assistant's own row is removed by this write, so it takes the same
+    // group the conversations did.
+    await _persist(group: group);
     if (_currentAssistantId != null) {
       await preferences.setString(_currentAssistantKey, _currentAssistantId!);
     } else {

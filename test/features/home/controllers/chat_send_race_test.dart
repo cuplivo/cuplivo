@@ -18,6 +18,7 @@ import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/composer_draft.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/message_quote.dart';
 import 'package:Cuplivo/core/models/preset_message.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
 import 'package:Cuplivo/core/providers/mcp_provider.dart';
@@ -94,6 +95,7 @@ class _GatedChatService extends ChatService {
     int? version,
     bool selectVersion = false,
     String? temporaryAfterGroupId,
+    MessageQuote? quote,
   }) async {
     if (content == 'preset question' && presetHold != null) {
       presetConversationId = conversationId;
@@ -115,6 +117,7 @@ class _GatedChatService extends ChatService {
       version: version,
       selectVersion: selectVersion,
       temporaryAfterGroupId: temporaryAfterGroupId,
+      quote: quote,
     );
   }
 
@@ -1601,6 +1604,38 @@ void main() {
       expect(streamRequestCount, 1);
     });
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a queued reply keeps its citation and its text', (tester) async {
+    final controller = await pumpHarness(tester);
+    await tester.runAsync(() async {
+      final convo = await openConversation(controller);
+      // A streaming turn owns the conversation, so this send queues.
+      controller.chatController.setConversationLoading(convo.id, true);
+      const quote = MessageQuote(id: 'quoted-message', text: 'quoted span');
+      final result = await controller.sendMessage(
+        const ChatInputData(
+          text: 'reply text',
+          quote: quote,
+          quoteLabel: 'quoted span',
+        ),
+      );
+      expect(result, ChatInputSubmissionResult.queued);
+      // The queued input is a copy of what was submitted — the copy that drops
+      // the citation loses it for the turn that eventually runs, and the
+      // cancelled copy loses it in the composer (docs/adr/0012).
+      expect(controller.currentQueuedInput?.input.quote, quote);
+      expect(controller.currentQueuedInput?.input.text, 'reply text');
+      // The preview line travels with it: a whole-message citation has no text
+      // of its own, so a restore that drops the label shows the menu wording
+      // instead of the line the composer was displaying.
+      expect(controller.currentQueuedInput?.input.quoteLabel, 'quoted span');
+
+      controller.cancelQueuedMessage();
+      expect(controller.currentQueuedInput, isNull);
+    });
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('double regenerate tap creates a single new version', (

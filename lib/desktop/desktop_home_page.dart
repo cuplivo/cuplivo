@@ -132,6 +132,16 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
             ChatActionBus.instance.fire(ChatAction.focusInput);
           }
           break;
+        case HotkeyAction.copySelectionMarkdown:
+          if (_tabIndex == 0) {
+            ChatActionBus.instance.fire(ChatAction.copySelectionMarkdown);
+          }
+          break;
+        case HotkeyAction.replySelection:
+          if (_tabIndex == 0) {
+            ChatActionBus.instance.fire(ChatAction.replySelection);
+          }
+          break;
       }
     });
 

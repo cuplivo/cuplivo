@@ -65,6 +65,7 @@ import 'timeline_projection.dart';
 import 'select_copy_sheet.dart';
 import 'timeline_visibility.dart';
 import 'citation_sources_sheet.dart';
+import 'quote_citation.dart';
 import 'chat_surface.dart';
 import 'collapsible_user_text.dart';
 import 'chat_suggestion_bubbles.dart';
@@ -1243,6 +1244,21 @@ class ChatMessageWidget extends StatefulWidget {
   final VoidCallback? onMore;
   final VoidCallback? onEdit; // user: edit
   final VoidCallback? onDelete; // user: delete
+
+  /// Starts a whole-message reply to this message (docs/adr/0012). Offered from
+  /// the message menus while the message is not streaming.
+  final VoidCallback? onReply;
+
+  /// Starts a ranged reply from the assistant content's text selection; carries
+  /// the markdown the renderer's mapping produced for that selection.
+  final ValueChanged<String>? onReplySelection;
+
+  /// Resolved target of [ChatMessage.quote], when it is in the loaded window.
+  /// Null renders the stub for a whole-message citation.
+  final ChatMessage? quoteTarget;
+
+  /// Scrolls to the quoted message, when it can be resolved.
+  final VoidCallback? onQuoteTap;
   // Optional version switcher (branch) UI controls
   final int? versionIndex; // zero-based display ordinal, not a version number
   final int? versionCount;
@@ -1305,6 +1321,10 @@ class ChatMessageWidget extends StatefulWidget {
     this.onMore,
     this.onEdit,
     this.onDelete,
+    this.onReply,
+    this.onReplySelection,
+    this.quoteTarget,
+    this.onQuoteTap,
     this.versionIndex,
     this.versionCount,
     this.onPrevVersion,
@@ -1795,6 +1815,16 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                                     widget.onEdit?.call();
                                   },
                                 ),
+                              if (widget.onReply != null &&
+                                  !widget.message.isStreaming)
+                                _MenuItem(
+                                  icon: Lucide.Reply,
+                                  label: l10n.messageMoreSheetReply,
+                                  onTap: () {
+                                    Navigator.of(ctx).pop();
+                                    widget.onReply?.call();
+                                  },
+                                ),
                               _MenuItem(
                                 icon: Lucide.Trash2,
                                 danger: true,
@@ -1983,6 +2013,9 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     );
     final showUserActions = userMessageSettings.showActions;
     final showVersionSwitcher = (widget.versionCount ?? 1) > 1;
+    // The one width a user turn may reach: the bubble and the citation above it
+    // share it, so a citation can never be wider than the reply it belongs to.
+    final maxBubbleWidth = MediaQuery.sizeOf(context).width * 0.75;
     final mediaPreview = _buildAttachmentPreview(
       context,
       parts: widget.message.parts,
@@ -2072,13 +2105,31 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
             behavior: HitTestBehavior.translucent,
             child: Container(
               key: _userBubbleKey,
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.sizeOf(context).width * 0.75,
-              ),
+              constraints: BoxConstraints(maxWidth: maxBubbleWidth),
               child: Column(
                 key: ValueKey('user-message-content:${widget.message.id}'),
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  if (widget.message.quote != null) ...[
+                    // A max width, never a fixed one: the citation hugs its own
+                    // text and the end-aligned column lands it on the bubble's
+                    // right edge, instead of stranding it at the far left of a
+                    // box as wide as the widest bubble (docs/adr/0012).
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: maxBubbleWidth),
+                      child: QuoteCitation(
+                        key: ValueKey(
+                          'user-message-quote:${widget.message.id}',
+                        ),
+                        quote: widget.message.quote!,
+                        target: widget.quoteTarget,
+                        onTap: widget.quoteTarget == null
+                            ? null
+                            : widget.onQuoteTap,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   if (mediaPreview != null) mediaPreview,
                   if (mediaPreview != null && textBubble != null)
                     const SizedBox(height: 8),
@@ -2255,6 +2306,12 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
             icon: Lucide.Pencil,
             label: l10n.messageMoreSheetEdit,
             onTap: () => widget.onEdit?.call(),
+          ),
+        if (widget.onReply != null && !widget.message.isStreaming)
+          DesktopContextMenuItem(
+            icon: Lucide.Reply,
+            label: l10n.messageMoreSheetReply,
+            onTap: () => widget.onReply?.call(),
           ),
         DesktopContextMenuItem(
           icon: Lucide.Trash2,
@@ -2789,6 +2846,8 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
               ? 'assistant_${widget.message.id}'
               : 'assistant_${widget.message.id}_$contentKey',
         ),
+        messageId: widget.message.id,
+        onReplySelection: widget.onReplySelection,
         child: DefaultTextStyle.merge(
           style: TextStyle(fontSize: baseAssistant, height: 1.5),
           child: assistantContent,

@@ -24,6 +24,7 @@ import '../../../core/services/conversation_link.dart';
 
 enum MessageMoreAction {
   edit,
+  reply,
   fork,
   deleteCurrentVersion,
   deleteAllVersions,
@@ -111,6 +112,16 @@ Future<MessageMoreAction?> showMessageMoreSheet(
           label: l10n.messageMoreSheetEdit,
           onTap: () {
             selected = MessageMoreAction.edit;
+          },
+        ),
+      // A reply cites the whole target, so it is withheld while the target is
+      // still streaming (docs/adr/0012).
+      if (!message.isStreaming)
+        DesktopContextMenuItem(
+          icon: Lucide.Reply,
+          label: l10n.messageMoreSheetReply,
+          onTap: () {
+            selected = MessageMoreAction.reply;
           },
         ),
       DesktopContextMenuItem(
@@ -341,6 +352,14 @@ class _MessageMoreSheetState extends State<_MessageMoreSheet> {
                         label: l10n.messageMoreSheetEdit,
                         onTap: () {
                           Navigator.of(context).pop(MessageMoreAction.edit);
+                        },
+                      ),
+                    if (!widget.message.isStreaming)
+                      _actionItem(
+                        icon: Lucide.Reply,
+                        label: l10n.messageMoreSheetReply,
+                        onTap: () {
+                          Navigator.of(context).pop(MessageMoreAction.reply);
                         },
                       ),
                     _actionItem(

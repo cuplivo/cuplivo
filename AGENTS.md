@@ -62,6 +62,40 @@ locally — a local patch is the first thing the next re-base silently drops, an
 package's own gate meaningless. The 4.4 re-base deferred the hand-cursor fix (#1014) this way
 (Chevey339/kelivo#1269) and recorded the gap in `docs/markstream-delta-audit.md`.
 
+## History normalization (rewrite pass)
+
+Between a release and the next re-base the line collects fix-ups, and a pass folds them into replay
+units so the next re-base replays ~15 commits instead of ~34. The unit table and the procedure live in
+`docs/rebase-runbook.md`; what the 4.4 pass added:
+
+- **A follow-up folds into its unit only when the files it crosses are the changelogs, `lib/l10n/`,
+  `main.dart` or a document.** Measured: `#1030`+`#1037` into sync crossed only `main.dart`;
+  `#1007`+`#1008` into care crossed `home_page_controller.dart`; `#1034` into the link unit crossed
+  one test file. Those folds are what removes a conflict round at the next re-base.
+- **Do not fold the content carry below the units that write the changelogs.** The carry installs the
+  released section every feature unit appends to, so folding it into the identity unit turns one
+  document conflict into one per unit. If it is folded anyway, materialise the changelogs from the old
+  tip into the last unit that touches them and say so — the per-unit attribution no longer holds for
+  those lines.
+- **Prove a rewrite with ancestry as well as the tree.** An empty `git diff <old-tip> <new-tip>` is
+  necessary, never sufficient: a `commit-tree` that omitted `-p <baseline>` reproduced the same tree
+  while cutting every upstream commit out of the line. Always also assert
+  `git merge-base --is-ancestor <baseline> <new-tip>`, `git rev-list --count <baseline>..<new-tip>`,
+  and that the total commit count moved by exactly the units removed.
+- **A fold keeps its folded messages.** `git commit -C <base>` keeps only the base message; assemble
+  base subject and body plus every folded body and feed it to `git commit-tree -F`. Those bodies are
+  the evidence the next re-base reads.
+- **The brand rename applies to the incoming side too.** The identity unit renames `Kelivo` → `Cuplivo`
+  in ARB *keys and values*. A merge that kept a fork value because it already equalled
+  `rename(upstream)` must still write `rename(upstream[k])`; taking the raw upstream value put 53
+  `Kelivo` strings back into `lib/l10n/` and turned ten string assertions red while `dart analyze`
+  stayed clean and every ARB was still valid JSON. Upstream's pre-rename key
+  (`searchServiceNameKelivo`) is dropped, not kept beside the fork's (`searchServiceNameCuplivo`).
+  Prove it before pushing: `git grep -c Kelivo master -- lib/l10n/` prints nothing, and the generated
+  files are re-derived by `flutter gen-l10n` from the package root.
+- **Back up before the force push**: `backup/master-<sha>`, plus a `backup/series-<old-baseline>` when
+  a series branch is replaced, both pushed.
+
 ## Benchmarks are not tests
 
 `test/perf/*_bench.dart` print timings and contain no `expect()`, so they cannot

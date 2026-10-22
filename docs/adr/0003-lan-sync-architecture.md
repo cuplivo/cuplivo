@@ -385,6 +385,36 @@ database is replaced wholesale.
   for exactly as long as the peer has not caught up, and the digest preserves *edit beats delete* —
   a copy that moved on since is not deleted. This is the alternative the slice-6 amendment
   predicted would eventually be needed, and it is what lets the fetch beat stay unconfirmed.
+  *Amendment (protocol v8):* the announcement carries the conversation row's clock beside the digest,
+  because the digest is computed from the message rows and cannot see a row write that left every
+  message untouched. A restore from the recycle bin is exactly that — the row goes back with `now()`
+  and the messages come back byte-identical — so with the digest alone the announcing device deleted
+  the restored conversation again at the next session (measured, on two real peers: the copy came
+  back, the digest matched, and `_applyDeletionAnnouncements` rewrote the plan to `iDelete`). The
+  receiver now treats a copy whose digest matches but whose row clock is newer as something it wrote
+  since, and keeps it; that is the same rule the plan table's equal-digest branch already applies
+  (`bothSend`), which is why this is the announcement catching up rather than a new rule. The
+  comparison is `<=` rather than `!=` on purpose: deleting too much is recoverable (the copy is
+  staged into the bin again), while keeping too much resurrects content the peer's user deleted.
+  The plan table's own delete branch was still digest-keyed, which left the mirror case open: a
+  conversation *this* device deleted, then restored, is a copy whose digest matches the agreement and
+  whose delete this device itself asked for — the peer has nothing to announce, because it deleted on
+  request, and the branch that keeps a checkpoint entry on `peerDeletes` is exactly what leaves the
+  entry live for the plan to act on. So that branch now asks the same question, through the same
+  function (`copyWrittenSinceAgreement`, in `sync_merge.dart`): digest equal and row clock newer than
+  the agreement means the copy was written here since, and the plan says `iSend`. One rule, two
+  readers, which is why the announcement could be fixed without a second rule appearing. The
+  consequence is that a rename or a pin that left every message alone now survives a peer's deletion
+  too — it moves the same row clock — and that is the plan table's existing "edit beats delete"
+  applied to the row rather than to the messages, at the same `<=` trade described above.
+  *Amendment (business rows):* the same branch, on the same function, had the same hole for a
+  business row or a synced preference, because their digest *is* their content: a restore writes the
+  same digest back with a new clock, so a digest-only branch deleted the recovered row again. The
+  entity, preference and skill-content planners now pass the clock pair too, from manifests and
+  checkpoint entries that already carried it. They do not pass the peer's clock, and that asymmetry
+  is the rule rather than an omission: a row whose digest covers its content is not something a
+  clock-only difference should make the two sides exchange, so the equal-digest branch's `bothSend`
+  stays what it was — a conversation-face answer to a digest that cannot see a row write.
 - **A skill is a record plus a directory, and the acknowledgement says so.** A skill whose body
   could not be fetched has its record stripped on the receiver (a record without a body installs a
   broken skill), yet the acknowledgement reported only that the row apply succeeded — so the sender

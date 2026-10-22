@@ -1,8 +1,12 @@
+import 'dart:convert';
+
 import '../utils/token_estimator.dart';
+import '../../utils/mcp_structured_image.dart';
+import '../../utils/utf16_safe_cut.dart';
 import 'chat_message.dart';
 import 'context_operation.dart';
 import 'message_part.dart';
-import '../../utils/utf16_safe_cut.dart';
+import 'message_part.dart';
 
 enum CompressContextLimitMode { start, recent, unlimited, keepRecent }
 
@@ -36,8 +40,8 @@ class CompressContextOptions {
   /// wrapper and the model's completion.
   static const double contextReserveFraction = 0.30;
 
-  /// Conservative chars/token (CJK-heavy). Matches
-  /// [estimateCompressionTokens] (`cjk / 1.6`).
+  /// Conservative chars/token (CJK-heavy), for [compressRequestCharBudget] when
+  /// per-message token counting is unavailable.
   static const double charsPerToken = 1.6;
 
   /// Max binary splits when a compress `generateText` hits a context-length
@@ -244,21 +248,6 @@ String? conversationLineForCompression(
   return '${message.role == "assistant" ? "Assistant" : "User"}: $content';
 }
 
-String buildConversationTextForCompression(
-  List<ChatMessage> messages, {
-  required String Function(int) quoteMarker,
-}) {
-  final lines = <String>[];
-  for (final message in messages) {
-    final line = conversationLineForCompression(
-      message,
-      quoteMarker: quoteMarker,
-    );
-    if (line != null) lines.add(line);
-  }
-  return lines.join('\n\n');
-}
-
 /// Incremental start/recent window. Walks messages and stops at [maxChars]
 /// without first joining the full history.
 String buildBoundedConversationText(
@@ -446,47 +435,49 @@ List<String> buildCompressRequestContents(
   );
 }
 
-/// Select the trailing messages starting at the last [keepUserMessages]
-/// user messages, including attachment-only inputs. Leading summaries stay
-/// outside the retained region so an explicit original-history reread can
-/// regenerate them even when all raw user messages are retained.
+/// Index where the kept (verbatim) region starts: the position of the
+/// [keepUserMessages]-th user message counted from the end.
+///
+/// A message counts the same way the keep count and the dialog's round total
+/// count it — [isCompressionUserMessage], which includes attachment-only
+/// inputs. The kept region therefore always begins on a user message, so an
+/// assistant reply is never separated from the request that produced it.
+///
+/// Leading summaries stay outside the retained region, so an explicit
+/// original-history reread can regenerate them even when every raw user
+/// message is retained.
+///
+/// Returns 0 when the requested count covers every user message (nothing is
+/// left to summarize), and null when the list holds no user message at all
+/// (nothing can be kept).
+int? keepRecentStartIndex(List<ChatMessage> messages, int keepUserMessages) {
+  if (keepUserMessages <= 0) return null;
+  final userIndices = <int>[];
+  for (var i = 0; i < messages.length; i++) {
+    if (isCompressionUserMessage(messages[i])) {
+      userIndices.add(i);
+    }
+  }
+  if (userIndices.isEmpty) return null;
+  if (userIndices.length <= keepUserMessages) return 0;
+  return userIndices[userIndices.length - keepUserMessages];
+}
+
+/// Select the trailing messages from [keepRecentStartIndex] to the end.
 List<ChatMessage> selectKeepRecentMessages(
   List<ChatMessage> messages,
   int keepUserMessages,
 ) {
-  if (keepUserMessages <= 0) return const <ChatMessage>[];
-  final userIndices = <int>[];
-  for (var i = 0; i < messages.length; i++) {
-    final m = messages[i];
-    if (isCompressionUserMessage(m)) {
-      userIndices.add(i);
-    }
-  }
-  if (userIndices.isEmpty) return const <ChatMessage>[];
-  if (userIndices.length <= keepUserMessages) {
-    return messages.skipWhile(ContextOperation.isSummary).toList();
-  }
-  return messages.sublist(userIndices[userIndices.length - keepUserMessages]);
+  final start = keepRecentStartIndex(messages, keepUserMessages);
+  if (start == null) return const <ChatMessage>[];
+  if (start == 0) return messages.skipWhile(ContextOperation.isSummary).toList();
+  return messages.sublist(start);
 }
 
 /// Number of user messages in a collapsed list (role 'user', non-empty
 /// content) — the count that [selectKeepRecentMessages] counts against.
 int countUserMessages(List<ChatMessage> messages) {
   return messages.where(isCompressionUserMessage).length;
-}
-
-class CompressionTokenEstimate {
-  const CompressionTokenEstimate({
-    required this.totalTokens,
-    required this.keptTokens,
-    required this.minResultTokens,
-    required this.maxResultTokens,
-  });
-
-  final int totalTokens;
-  final int keptTokens;
-  final int minResultTokens;
-  final int maxResultTokens;
 }
 
 /// Conservative detector for provider context-window / prompt-too-long errors.
@@ -603,32 +594,140 @@ Future<String> _summarizeWithContextRetry(
   }
 }
 
-/// Estimate the token budget of a keep-recent compression result.
+/// The text one message contributes to the compression readout's estimate.
 ///
-/// Assumptions (documented in CONTEXT.md): kept tokens = totalTokens ×
-/// (kept chars / total chars) — length ratio equals token ratio; the
-/// summarized-away part is estimated at 10%–30% of its own tokens, exposed
-/// as a [minResultTokens]–[maxResultTokens] band.
-CompressionTokenEstimate estimateCompressionTokens({
-  required String totalText,
-  required String keptText,
+/// The readout answers "how many tokens does this conversation cost", so it
+/// counts what the model would see for the message: its body, plus every tool
+/// call and tool result. It is deliberately *not* the text a compression
+/// request carries — that stays body-only ([conversationLineForCompression]) —
+/// so counting tool payloads here never makes a request larger.
+///
+/// Images are counted separately ([compressWeightImageCountForMessage]): the
+/// model receives them as image parts, not as the markdown line a tool result
+/// carries, so that line is stripped here exactly like `ToolResultContent`
+/// strips it before sending.
+String compressWeightTextForMessage(
+  ChatMessage message, {
+  required List<Map<String, dynamic>> toolEvents,
 }) {
-  final totalTokens = estimateTokens(totalText);
-  final totalChars = totalText.length;
-  if (totalChars == 0) {
-    return const CompressionTokenEstimate(
-      totalTokens: 0,
-      keptTokens: 0,
-      minResultTokens: 0,
-      maxResultTokens: 0,
-    );
+  final buffer = StringBuffer(message.content);
+  for (final event in toolEvents) {
+    final name = (event['name'] ?? '').toString().trim();
+    buffer
+      ..write('\n\n')
+      ..write(name.isEmpty ? '[tool]' : '[$name]');
+    final arguments = event['arguments'];
+    if (arguments is Map && arguments.isNotEmpty) {
+      try {
+        buffer
+          ..write('\n')
+          ..write(jsonEncode(arguments));
+      } catch (_) {
+        // An argument map that cannot be encoded is not worth failing an
+        // estimate over; the result below is usually the heavier half anyway.
+      }
+    } else if (arguments != null) {
+      // Streamed JSON that never finished parsing is persisted as a raw
+      // String (stream_chunk_handler.dart); dropping it would silently
+      // uncount this call's arguments.
+      final raw = arguments.toString();
+      if (raw.trim().isNotEmpty) {
+        buffer
+          ..write('\n')
+          ..write(raw);
+      }
+    }
+    var result = toolResultContentForModel(event['content']?.toString());
+    for (final uri in _toolResultImageUris(event)) {
+      result = result.replaceAll(
+        '![](${encodeMarkdownImageDestination(uri)})',
+        '',
+      );
+    }
+    if (result.trim().isNotEmpty) {
+      buffer
+        ..write('\n')
+        ..write(result);
+    }
   }
-  final keptTokens = (totalTokens * keptText.length / totalChars).round();
-  final oldTokens = totalTokens - keptTokens;
-  return CompressionTokenEstimate(
-    totalTokens: totalTokens,
-    keptTokens: keptTokens,
-    minResultTokens: keptTokens + (oldTokens * 0.10).round(),
-    maxResultTokens: keptTokens + (oldTokens * 0.30).round(),
+  return buffer.toString();
+}
+
+/// Images the model receives from one message: its attached image parts plus
+/// the typed images of its tool results.
+///
+/// Only `metadata.mcpResult.imageUris` counts, because that is exactly what
+/// `ToolResultContent` turns into image input — also when a later request
+/// rebuilds the turn from history. The older envelope's `imageUris` and a
+/// result's markdown `![...](path)` line never become image parts, so they stay
+/// what they are: text the model reads.
+///
+/// Whether the target model accepts image input is not consulted: a model
+/// without vision receives a text marker instead, and charging the image anyway
+/// errs high rather than promising a saving that is not there.
+int compressWeightImageCountForMessage(
+  ChatMessage message, {
+  required List<Map<String, dynamic>> toolEvents,
+}) {
+  var count = 0;
+  for (final part in message.parts) {
+    if (part is ImagePart && !part.unavailable && part.uri.trim().isNotEmpty) {
+      count++;
+    }
+  }
+  for (final event in toolEvents) {
+    count += _toolResultImageUris(event).length;
+  }
+  return count;
+}
+
+/// Typed image URIs of one tool event, in `ToolResultContent`'s reading.
+List<String> _toolResultImageUris(Map<String, dynamic> event) {
+  final metadata = event['metadata'];
+  if (metadata is! Map) return const <String>[];
+  return mcpResultImageUris(
+    readMcpResultMetadata(metadata.cast<String, dynamic>()),
   );
+}
+/// What one compression costs before and after, in tokens.
+class CompressContextSplit {
+  const CompressContextSplit({
+    required this.totalTokens,
+    required this.keptTokens,
+    required this.summaryInputTokens,
+  });
+
+  /// Share of the summarized span assumed to survive as the summary. Both ends
+  /// are shown as a band, so the assumption stays visible instead of reading as
+  /// a measurement.
+  static const double minSummaryFraction = 0.10;
+  static const double maxSummaryFraction = 0.30;
+
+  /// Tokens of the whole compressed span, as the model sees it.
+  final int totalTokens;
+
+  /// Tokens that stay verbatim, as the model sees them.
+  final int keptTokens;
+
+  /// Tokens of the summarized span **as the summarizer reads it** — bodies
+  /// only. Deliberately not `totalTokens - keptTokens`: tool payloads are model
+  /// tokens that never enter a compression request, so applying the summary
+  /// fraction to the tool-inclusive mass understates the reduction.
+  final int summaryInputTokens;
+
+  int get minResultTokens => _withSummary(minSummaryFraction);
+  int get maxResultTokens => _withSummary(maxSummaryFraction);
+
+  /// Midpoint of the result band: the one number the readout reduces by.
+  int get midResultTokens => ((minResultTokens + maxResultTokens) / 2).round();
+
+  /// Whole-percent reduction from [totalTokens] to [midResultTokens]; 0 when
+  /// there is nothing to compress, or nothing to measure.
+  int get reductionPercent {
+    if (totalTokens <= 0 || summaryInputTokens <= 0) return 0;
+    return ((totalTokens - midResultTokens) / totalTokens * 100).round();
+  }
+
+  int _withSummary(double fraction) =>
+      keptTokens + (summaryInputTokens * fraction).round();
 }

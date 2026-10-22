@@ -2397,38 +2397,76 @@ class SyncEngine implements SyncServerHandler {
 
   /// Deletions to announce on this hello: conversations this device still has a
   /// shared-history record for (it and the peer reached that state) but no
-  /// longer carries. The alternative — letting the peer infer the deletion from
-  /// this device's absent manifest — cannot tell a deletion from a transfer the
-  /// peer never confirmed, which is exactly what the fetch-beat rule stopped
-  /// claiming. The entry stops being announced once the peer's manifest drops
-  /// it too.
-  static Map<String, String> _deletionsToAnnounce(
+  /// longer carries, with the state both sides agreed on — the digest *and* the
+  /// conversation row's clock.
+  ///
+  /// The alternative — letting the peer infer the deletion from this device's
+  /// absent manifest — cannot tell a deletion from a transfer the peer never
+  /// confirmed, which is exactly what the fetch-beat rule stopped claiming. The
+  /// entry stops being announced once the peer's manifest drops it too.
+  static Map<String, SyncAnnouncedDeletion> _deletionsToAnnounce(
     SyncCheckpoint checkpoint,
     SyncManifest manifest,
   ) => {
     for (final entry in checkpoint.conversations.entries)
       if (!manifest.conversations.containsKey(entry.key))
-        entry.key: entry.value.digest,
+        entry.key: SyncAnnouncedDeletion(
+          digest: entry.value.digest,
+          updatedAtUs: entry.value.updatedAtUs,
+        ),
   };
 
-  /// Applies the peer's announced deletions. A local copy whose digest still
-  /// equals the one the peer last shared is a copy the peer really deleted;
-  /// a copy that differs was edited here since, and an edit beats a delete
-  /// exactly as it does in the plan table.
+  /// Applies the peer's announced deletions. A local copy the peer still
+  /// remembers as it was is a copy the peer really deleted; a copy that differs
+  /// — in its messages or in the conversation row's clock — was written here
+  /// since, and an edit beats a delete exactly as it does in the plan table.
+  ///
+  /// The clock is what makes a restore from the recycle bin an edit: the bin
+  /// writes the row back with `now()` while the messages come back identical, so
+  /// the digest cannot tell the restored copy from the deleted one and only the
+  /// row clock can (protocol v8). The comparison is `<=` rather than `!=` on
+  /// purpose: deleting too much is recoverable (the copy is staged into the bin
+  /// again), while keeping too much resurrects content the peer's user deleted.
   static List<SyncConvPlan> _applyDeletionAnnouncements(
     List<SyncConvPlan> plan,
-    Map<String, String> announced,
+    Map<String, SyncAnnouncedDeletion> announced,
     SyncManifest mine,
   ) {
     if (announced.isEmpty) return plan;
     return [
       for (final item in plan)
-        announced[item.conversationId] != null &&
-                mine.conversations[item.conversationId]?.digest ==
-                    announced[item.conversationId]
+        _announcementKills(
+              announced[item.conversationId],
+              mine.conversations[item.conversationId],
+            )
             ? SyncConvPlan(item.conversationId, SyncConvAction.iDelete)
             : item,
     ];
+  }
+
+  /// Whether the peer's announced deletion still describes this device's copy.
+  ///
+  /// The same question the plan's delete branch asks, so the same function
+  /// answers it ([copyWrittenSinceAgreement]): a copy with an identical digest
+  /// and a row clock no newer than the announcement is the copy the peer
+  /// deleted. The comparison is `<=` rather than `!=` on purpose: deleting too
+  /// much is recoverable (the copy is staged into the bin again), while keeping
+  /// too much resurrects content the peer's user deleted.
+  ///
+  /// An announcement without a clock is the v7 shape: the version gate refuses
+  /// such a pair, and if one ever slipped through the digest alone is the old —
+  /// narrower — rule rather than a wrong one.
+  static bool _announcementKills(
+    SyncAnnouncedDeletion? announced,
+    SyncManifestEntry? mine,
+  ) {
+    if (announced == null || mine == null) return false;
+    return !copyWrittenSinceAgreement(
+      digest: mine.digest,
+      agreedDigest: announced.digest,
+      clock: mine.updatedAtUs,
+      agreedClock: announced.updatedAtUs,
+    );
   }
 
   /// Business rows a peer's deferred apply makes ambiguous. A row that peer

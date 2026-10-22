@@ -8,6 +8,13 @@ import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/theme/app_font_weights.dart';
 import 'package:Cuplivo/theme/theme_factory.dart' show getPlatformFontFallback;
 
+/// The size the markdown surface sets prose at when its caller names none.
+///
+/// It is the reference the PDF export's page scale is computed against: everything
+/// the screen measured in its own pixels lands on paper as this ratio, so the one
+/// number has to live where both can read it.
+const double kMarkdownBodyFontSize = 15.5;
+
 MarkstreamTheme mapMarkdownTheme(
   BuildContext context,
   SettingsProvider settings,
@@ -23,7 +30,7 @@ MarkstreamTheme mapMarkdownTheme(
                 : family,
             fontFamilyFallback:
                 baseStyle?.fontFamilyFallback ?? getPlatformFontFallback(),
-            fontSize: baseStyle?.fontSize ?? 15.5,
+            fontSize: baseStyle?.fontSize ?? kMarkdownBodyFontSize,
             height: baseStyle?.height ?? 1.55,
             letterSpacing:
                 baseStyle?.letterSpacing ??

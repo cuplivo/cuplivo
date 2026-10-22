@@ -1022,6 +1022,7 @@ class _HomePageState extends State<HomePage>
       hasMultiVersionSelection:
           _controller.selectedMessagesIncludeMultipleVersions,
       onShare: _controller.exportSelectedMessages,
+      onExportPdf: _controller.exportSelectedAsPdf,
       onDeleteCurrentVersions: () {
         unawaited(
           _handleDeleteSelectedMessages(context, deleteAllVersions: false),

@@ -8,12 +8,12 @@ import 'package:http/testing.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/model_catalog/catalog_entry.dart';
-import 'package:Kelivo/core/services/model_catalog/model_catalog_service.dart';
-import 'package:Kelivo/features/provider/pages/model_catalog_page.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_switch.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/model_catalog/catalog_entry.dart';
+import 'package:Cuplivo/core/services/model_catalog/model_catalog_service.dart';
+import 'package:Cuplivo/features/provider/pages/model_catalog_page.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_switch.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

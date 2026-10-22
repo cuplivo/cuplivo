@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/features/workspace/terminal/widgets/system_terminal_card.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_tile_button.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Cuplivo/features/workspace/terminal/widgets/system_terminal_card.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_tile_button.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
 
 void main() {
   testWidgets('open button is disabled when onOpen is null', (tester) async {

@@ -1,9 +1,9 @@
-import 'package:Kelivo/core/models/composer_draft.dart';
-import 'package:Kelivo/core/models/chat_input_data.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/token_usage.dart';
+import 'package:Cuplivo/core/models/composer_draft.dart';
+import 'package:Cuplivo/core/models/chat_input_data.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/token_usage.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -11,27 +11,27 @@ import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:Kelivo/core/services/api/providers/claude_official.dart';
+import 'package:Cuplivo/core/services/api/providers/claude_official.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/composer_draft_store.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/composer_draft_store.dart';
 import 'package:drift/native.dart';
-import 'package:Kelivo/core/database/generation_run.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/chat_api_service.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk_handler.dart';
-import 'package:Kelivo/core/services/api/providers/openai/responses_history.dart';
-import 'package:Kelivo/core/services/api/providers/claude/claude_history.dart';
-import 'package:Kelivo/core/services/api/providers/claude/claude_thinking_recovery.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
-import 'package:Kelivo/features/home/services/message_builder_service.dart';
+import 'package:Cuplivo/core/database/generation_run.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/chat_api_service.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk_handler.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/responses_history.dart';
+import 'package:Cuplivo/core/services/api/providers/claude/claude_history.dart';
+import 'package:Cuplivo/core/services/api/providers/claude/claude_thinking_recovery.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/features/home/services/message_builder_service.dart';
 import '../../../support/claude_test_api.dart'
     show claudeConfig, captureClaudeExchange, sseRound;
 
@@ -1275,8 +1275,11 @@ void main() {
       final corrupt = sqlite.sqlite3.open(databasePath);
       late final String originalAssetId;
       const secret = '/private/attachment-metadata';
-      final malformedPayload =
-          '{"uri":"${upload.path}","name":"live.txt","mime":["$secret"]}';
+      final malformedPayload = jsonEncode({
+        'uri': upload.path,
+        'name': 'live.txt',
+        'mime': [secret],
+      });
       try {
         originalAssetId =
             corrupt.select(

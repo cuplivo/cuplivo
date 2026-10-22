@@ -5,10 +5,10 @@ import 'dart:typed_data';
 
 import 'package:archive/archive_io.dart';
 import 'package:crypto/crypto.dart';
-import 'package:Kelivo/core/services/backup/streaming_zip_entry.dart';
+import 'package:Cuplivo/core/services/backup/streaming_zip_entry.dart';
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
 import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

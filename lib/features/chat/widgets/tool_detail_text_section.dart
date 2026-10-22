@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 /// Labeled text block for the tool detail view, rendered as a sliver.
 ///

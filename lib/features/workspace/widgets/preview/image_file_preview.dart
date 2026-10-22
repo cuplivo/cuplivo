@@ -6,8 +6,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 import 'preview_states.dart';
 

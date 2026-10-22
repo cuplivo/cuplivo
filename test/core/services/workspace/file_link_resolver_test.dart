@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:Kelivo/core/models/workspace_directory_access.dart';
-import 'package:Kelivo/core/providers/external_mounts_provider.dart';
+import 'package:Cuplivo/core/models/workspace_directory_access.dart';
+import 'package:Cuplivo/core/providers/external_mounts_provider.dart';
 import '../sandbox/sandbox_channel_harness.dart';
 import 'dart:io';
 
@@ -11,15 +11,15 @@ import 'package:path/path.dart' as p;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/extension_entity_store.dart';
-import 'package:Kelivo/core/models/workspace.dart';
-import 'package:Kelivo/core/models/workspace_binding.dart';
-import 'package:Kelivo/core/providers/workspace_provider.dart';
-import 'package:Kelivo/core/services/workspace/file_link_resolver.dart';
-import 'package:Kelivo/core/services/workspace/workspace_paths.dart';
-import 'package:Kelivo/core/services/workspace/workspace_runtime.dart';
-import 'package:Kelivo/core/services/workspace/workspace_tools_service.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/models/workspace.dart';
+import 'package:Cuplivo/core/models/workspace_binding.dart';
+import 'package:Cuplivo/core/providers/workspace_provider.dart';
+import 'package:Cuplivo/core/services/workspace/file_link_resolver.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_paths.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_runtime.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_tools_service.dart';
 
 class _FakePathProviderPlatform extends PathProviderPlatform {
   _FakePathProviderPlatform(this.path);
@@ -37,6 +37,14 @@ class _FakePathProviderPlatform extends PathProviderPlatform {
 
   @override
   Future<String?> getTemporaryPath() async => p.join(path, 'tmp');
+}
+
+/// `FileLinkResolver` resolves symbolic links, so it returns the on-disk
+/// casing while the test builds its path from the temp directory it created.
+/// `p.equals` compares paths case- and separator-insensitively on Windows.
+void expectSamePath(String? actual, String expected) {
+  expect(actual, isNotNull);
+  expect(p.equals(actual!, expected), isTrue, reason: 'actual: $actual');
 }
 
 void main() {
@@ -221,7 +229,7 @@ void main() {
         conversationId: 'conv-1',
         binding: binding(),
       );
-      expect(resolved?.path, file.path);
+      expectSamePath(resolved?.path, file.path);
     });
 
     test('returns null when workspace is unbound', () async {
@@ -295,8 +303,8 @@ void main() {
           conversationId: conversationId,
           binding: const WorkspaceBinding(),
         );
-        expect(attachResolved?.path, attach.path);
-        expect(outputResolved?.path, output.path);
+        expectSamePath(attachResolved?.path, attach.path);
+        expectSamePath(outputResolved?.path, output.path);
       },
     );
 
@@ -312,7 +320,7 @@ void main() {
         conversationId: 'conv-1',
         binding: const WorkspaceBinding(),
       );
-      expect(resolved?.path, skillFile.path);
+      expectSamePath(resolved?.path, skillFile.path);
 
       final escaped = await resolver.resolveToHostFile(
         const KelivoLink(
@@ -355,7 +363,7 @@ void main() {
           conversationId: 'conv-1',
           binding: binding(),
         );
-        expect(resolved?.path, file.path);
+        expectSamePath(resolved?.path, file.path);
       },
     );
 
@@ -375,7 +383,7 @@ void main() {
         conversationId: 'other-conv',
         binding: const WorkspaceBinding(),
       );
-      expect(resolved?.path, output.path);
+      expectSamePath(resolved?.path, output.path);
     });
 
     test(
@@ -388,7 +396,7 @@ void main() {
           binding: binding(),
         );
         expect(directory, isA<Directory>());
-        expect(directory?.path, workspaceRoot.path);
+        expectSamePath(directory?.path, workspaceRoot.path);
         expect(
           await resolver.resolveToHostFile(
             rootLink,
@@ -491,7 +499,7 @@ void main() {
             externalMounts: mounts,
           );
           await mounts.update(parsed.mountId!, name: 'Renamed', readOnly: true);
-          expect(
+          expectSamePath(
             (await mountResolver.resolveToHostFile(
               parsed,
               conversationId: 'conv-1',

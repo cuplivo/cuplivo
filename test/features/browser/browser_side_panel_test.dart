@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
-import 'package:Kelivo/features/browser/browser_panel_controller.dart';
-import 'package:Kelivo/features/browser/widgets/browser_window_chrome.dart';
-import 'package:Kelivo/features/home/pages/home_desktop_layout.dart';
+import 'package:Cuplivo/features/browser/browser_panel_controller.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_window_chrome.dart';
+import 'package:Cuplivo/features/home/pages/home_desktop_layout.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';

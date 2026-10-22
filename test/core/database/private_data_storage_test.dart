@@ -1,16 +1,16 @@
 import 'dart:io';
 import 'package:archive/archive_io.dart';
-import 'package:Kelivo/core/database/startup_recovery_service.dart';
-import 'package:Kelivo/core/database/database_installation_gate.dart';
-import 'package:Kelivo/core/services/backup/local_copy_catalog.dart';
+import 'package:Cuplivo/core/database/startup_recovery_service.dart';
+import 'package:Cuplivo/core/database/database_installation_gate.dart';
+import 'package:Cuplivo/core/services/backup/local_copy_catalog.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
-import 'package:Kelivo/core/services/backup/restore_startup_gate.dart';
+import 'package:Cuplivo/core/services/backup/restore_startup_gate.dart';
 import '../../support/recovery_snapshot_fixture.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:Kelivo/core/database/private_data_storage.dart';
+import 'package:Cuplivo/core/database/private_data_storage.dart';
 import '../../support/recovery_fault_durability.dart';
-import 'package:Kelivo/core/services/storage/device_storage_probe.dart';
+import 'package:Cuplivo/core/services/storage/device_storage_probe.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

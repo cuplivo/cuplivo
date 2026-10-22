@@ -4,10 +4,10 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:Kelivo/features/workspace/widgets/files/file_browser_ops.dart';
-import 'package:Kelivo/features/workspace/widgets/files/workspace_file_thumbnail.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/utils/safe_resize_image.dart';
+import 'package:Cuplivo/features/workspace/widgets/files/file_browser_ops.dart';
+import 'package:Cuplivo/features/workspace/widgets/files/workspace_file_thumbnail.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/utils/safe_resize_image.dart';
 import 'package:archive/archive.dart' show getCrc32;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

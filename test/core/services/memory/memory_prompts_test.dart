@@ -4,7 +4,7 @@ import 'package:timezone/data/latest.dart' as tz_data;
 // ignore: depend_on_referenced_packages
 import 'package:timezone/timezone.dart' as tz;
 
-import 'package:Kelivo/core/services/memory/memory_prompts.dart';
+import 'package:Cuplivo/core/services/memory/memory_prompts.dart';
 
 void main() {
   group('formatCurrentTimeTag (§9.1)', () {

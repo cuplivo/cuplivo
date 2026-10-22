@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 /// Single tile used by the chat ＋ tools sheet (`BottomToolsSheet` and
 /// `WorkspaceSection`).

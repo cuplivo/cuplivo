@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/model_spec.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/model_tag_wrap.dart';
+import 'package:Cuplivo/core/models/model_spec.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/model_tag_wrap.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

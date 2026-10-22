@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
-import 'package:Kelivo/features/chat/utils/export_image_processor.dart';
+import 'package:Cuplivo/features/chat/utils/export_image_processor.dart';
 
 Uint8List png(img.Format format, List<List<int>> pixels) {
   final image = img.Image(

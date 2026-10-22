@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:markstream/markstream.dart';
 import 'package:provider/provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/shared/widgets/export_capture_scope.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/shared/widgets/export_capture_scope.dart';
 
 import 'citation_syntax.dart';
 import 'highlight_adapter.dart';

@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:Kelivo/utils/safe_resize_image.dart';
+import 'package:Cuplivo/utils/safe_resize_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

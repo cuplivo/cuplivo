@@ -1,4 +1,4 @@
-import 'package:Kelivo/features/browser/browser_desktop_route.dart';
+import 'package:Cuplivo/features/browser/browser_desktop_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

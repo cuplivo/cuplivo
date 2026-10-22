@@ -1,9 +1,9 @@
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/models/workspace.dart';
-import 'package:Kelivo/core/models/workspace_binding.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/features/home/services/tool_approval_service.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/workspace.dart';
+import 'package:Cuplivo/core/models/workspace_binding.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/features/home/services/tool_approval_service.dart';
 
 /// Save the current binding's grant before releasing matching pending Shells.
 Future<void> setConversationWorkspaceAllowAll(

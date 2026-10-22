@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:Kelivo/core/services/browser/browser_engine.dart';
-import 'package:Kelivo/core/services/browser/browser_service.dart';
-import 'package:Kelivo/core/services/browser/browser_store.dart';
+import 'package:Cuplivo/core/services/browser/browser_engine.dart';
+import 'package:Cuplivo/core/services/browser/browser_service.dart';
+import 'package:Cuplivo/core/services/browser/browser_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart' show CupertinoPageRoute;
 import 'package:flutter/foundation.dart';

@@ -1,5 +1,5 @@
 import '../services/composer_clipboard.dart';
-import 'package:Kelivo/shared/text_input/message_editing_controller.dart';
+import 'package:Cuplivo/shared/text_input/message_editing_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/rendering.dart';
@@ -51,7 +51,7 @@ import '../../../shared/widgets/context_usage_ring.dart';
 import '../../../shared/widgets/long_message_editor.dart';
 import '../../../shared/widgets/app_text_selection_toolbar.dart';
 import '../services/context_usage_service.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 import '../../../core/models/composer_draft.dart';
 import '../../../core/database/composer_draft_store.dart';
 

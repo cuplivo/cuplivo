@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
-import 'package:Kelivo/core/services/backup/restore_durability.dart';
+import 'package:Cuplivo/core/services/backup/restore_durability.dart';
 
 class FaultDurability implements RestoreDurability {
   final delegate = RestorePlatformDurability();

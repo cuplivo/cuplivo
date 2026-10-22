@@ -5,8 +5,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/workspace/desktop_process_runtime.dart';
-import 'package:Kelivo/core/services/workspace/workspace_runtime.dart';
+import 'package:Cuplivo/core/services/workspace/desktop_process_runtime.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_runtime.dart';
 
 void main() {
   final isDesktop = Platform.isMacOS || Platform.isLinux || Platform.isWindows;

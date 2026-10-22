@@ -2,13 +2,13 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/environment_variable.dart';
-import 'package:Kelivo/core/models/workspace.dart';
-import 'package:Kelivo/core/models/workspace_binding.dart';
-import 'package:Kelivo/core/services/api/tool_call_cancellation.dart';
-import 'package:Kelivo/core/services/workspace/workspace_paths.dart';
-import 'package:Kelivo/core/services/workspace/workspace_tools_service.dart';
-import 'package:Kelivo/features/home/services/tool_approval_service.dart';
+import 'package:Cuplivo/core/models/environment_variable.dart';
+import 'package:Cuplivo/core/models/workspace.dart';
+import 'package:Cuplivo/core/models/workspace_binding.dart';
+import 'package:Cuplivo/core/services/api/tool_call_cancellation.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_paths.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_tools_service.dart';
+import 'package:Cuplivo/features/home/services/tool_approval_service.dart';
 
 void main() {
   for (final tool in ['write_file', 'edit_file']) {

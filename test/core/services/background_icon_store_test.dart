@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:Kelivo/core/services/background_icon_store.dart';
+import 'package:Cuplivo/core/services/background_icon_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 

@@ -1,6 +1,6 @@
 import 'dart:ui' as ui;
 
-import 'package:Kelivo/shared/widgets/optional_shader_mask.dart';
+import 'package:Cuplivo/shared/widgets/optional_shader_mask.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';

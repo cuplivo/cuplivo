@@ -8,14 +8,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:provider/provider.dart';
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/business_preferences.dart';
-import 'package:Kelivo/core/database/business_repository.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/browser/browser_service.dart';
-import 'package:Kelivo/core/services/browser/browser_store.dart';
-import 'package:Kelivo/features/browser/pages/browser_page.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/browser/browser_service.dart';
+import 'package:Cuplivo/core/services/browser/browser_store.dart';
+import 'package:Cuplivo/features/browser/pages/browser_page.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 // Explicit native runtime probe, outside the default *_test.dart glob.
 // Uses an ephemeral loopback server, browser directory and settings database.

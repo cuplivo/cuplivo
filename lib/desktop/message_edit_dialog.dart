@@ -4,7 +4,7 @@ import '../features/chat/models/message_edit_result.dart';
 import '../l10n/app_localizations.dart';
 import '../icons/lucide_adapter.dart';
 import '../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 Future<MessageEditResult?> showMessageEditDesktopDialog(
   BuildContext context, {

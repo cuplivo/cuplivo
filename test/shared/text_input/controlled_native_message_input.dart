@@ -1,4 +1,4 @@
-import 'package:Kelivo/shared/text_input/native_message_input.dart';
+import 'package:Cuplivo/shared/text_input/native_message_input.dart';
 import 'package:flutter/services.dart';
 
 /// Holds native event delivery in tests without shipping probe controls.

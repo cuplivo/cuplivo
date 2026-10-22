@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:Kelivo/core/services/mcp/workspace_stdio_transport.dart';
-import 'package:Kelivo/core/services/workspace/workspace_runtime.dart';
+import 'package:Cuplivo/core/services/mcp/workspace_stdio_transport.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_runtime.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mcp_client/mcp_client.dart' as mcp;
 

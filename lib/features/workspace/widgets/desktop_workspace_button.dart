@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'package:Kelivo/theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 /// Compact, keyboard-focusable action for workspace toolbars and dialogs.
 class DesktopWorkspaceButton extends StatelessWidget {

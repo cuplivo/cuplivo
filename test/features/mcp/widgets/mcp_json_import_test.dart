@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:Kelivo/core/providers/mcp_provider.dart';
-import 'package:Kelivo/features/mcp/widgets/mcp_json_import.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/features/mcp/widgets/mcp_json_import.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import '../../../support/business_test_harness.dart';
 
 void main() {

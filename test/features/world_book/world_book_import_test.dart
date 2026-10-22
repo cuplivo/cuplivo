@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/world_book.dart';
-import 'package:Kelivo/core/services/world_book_activation.dart';
-import 'package:Kelivo/features/world_book/utils/world_book_import.dart';
+import 'package:Cuplivo/core/models/world_book.dart';
+import 'package:Cuplivo/core/services/world_book_activation.dart';
+import 'package:Cuplivo/features/world_book/utils/world_book_import.dart';
 
 Map<String, dynamic> tavernEntry(Map<String, dynamic> overrides) => {
   'uid': 0,

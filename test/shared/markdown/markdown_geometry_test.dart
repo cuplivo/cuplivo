@@ -1,8 +1,8 @@
 import 'dart:io';
 
-import 'package:Kelivo/shared/markdown/diagram_chrome.dart';
-import 'package:Kelivo/shared/markdown/markdown_actions.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/markdown/diagram_chrome.dart';
+import 'package:Cuplivo/shared/markdown/markdown_actions.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';

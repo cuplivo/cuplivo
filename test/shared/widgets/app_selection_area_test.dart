@@ -1,15 +1,15 @@
 import 'dart:ui' as ui;
 import 'package:super_clipboard/super_clipboard.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart' show kSecondaryMouseButton;
 import '../../support/markdown_render_helpers.dart';
 import 'package:markstream/markstream.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/app_selection_area.dart';
-import 'package:Kelivo/shared/widgets/app_text_selection_toolbar.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/app_selection_area.dart';
+import 'package:Cuplivo/shared/widgets/app_text_selection_toolbar.dart';
 
 Widget _harness(String source) => _widgetHarness(Text(source));
 

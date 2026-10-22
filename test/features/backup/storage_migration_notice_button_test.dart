@@ -3,10 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/database/private_data_storage.dart';
-import 'package:Kelivo/features/backup/widgets/storage_migration_notice_button.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/restore_outcome_notice.dart';
+import 'package:Cuplivo/core/database/private_data_storage.dart';
+import 'package:Cuplivo/features/backup/widgets/storage_migration_notice_button.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/restore_outcome_notice.dart';
 
 const _title = 'Chat database moved to internal storage';
 

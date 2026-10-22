@@ -28,7 +28,6 @@ import 'providers/tinyfish_search_service.dart';
 import 'providers/anysearch_search_service.dart';
 import 'providers/kagi_search_service.dart';
 import 'providers/doubao_search_service.dart';
-import 'providers/kelivo_search_service.dart';
 import 'providers/parallel_search_service.dart';
 import 'providers/kimi_search_service.dart';
 import 'providers/you_search_service.dart';
@@ -117,8 +116,6 @@ abstract class SearchService<T extends SearchServiceOptions> {
         return KagiSearchService() as SearchService;
       case DoubaoOptions _:
         return DoubaoSearchService() as SearchService;
-      case KelivoOptions _:
-        return KelivoSearchService() as SearchService;
       case ParallelOptions _:
         return ParallelSearchService() as SearchService;
       case KimiOptions _:
@@ -283,8 +280,6 @@ abstract class SearchServiceOptions {
         return KagiOptions.fromJson(json);
       case 'doubao':
         return DoubaoOptions.fromJson(json);
-      case 'kelivo':
-        return KelivoOptions.fromJson(json);
       case 'parallel':
         return ParallelOptions.fromJson(json);
       case 'kimi':
@@ -1113,18 +1108,6 @@ class DoubaoOptions extends SearchServiceOptions {
     apiKey: json['apiKey'] ?? '',
     extraApiKeys: SearchServiceOptions.parseExtraApiKeys(json),
   );
-}
-
-class KelivoOptions extends SearchServiceOptions {
-  static const String builtInId = 'kelivo';
-
-  KelivoOptions({required super.id});
-
-  @override
-  Map<String, dynamic> toJson() => {'type': 'kelivo', 'id': id};
-
-  factory KelivoOptions.fromJson(Map<String, dynamic> json) =>
-      KelivoOptions(id: json['id']);
 }
 
 class ParallelOptions extends SearchServiceOptions {

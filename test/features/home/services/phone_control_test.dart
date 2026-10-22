@@ -7,18 +7,18 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/mcp_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/mcp/mcp_tool_service.dart';
-import 'package:Kelivo/features/home/services/local_tool_toggle.dart';
-import 'package:Kelivo/features/home/services/local_tools_service.dart';
-import 'package:Kelivo/features/home/services/tool_handler_service.dart';
-import 'package:Kelivo/features/settings/pages/phone_control_settings_page.dart';
-import 'package:Kelivo/features/settings/search/settings_search_index.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/l10n/app_localizations_en.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/mcp/mcp_tool_service.dart';
+import 'package:Cuplivo/features/home/services/local_tool_toggle.dart';
+import 'package:Cuplivo/features/home/services/local_tools_service.dart';
+import 'package:Cuplivo/features/home/services/tool_handler_service.dart';
+import 'package:Cuplivo/features/settings/pages/phone_control_settings_page.dart';
+import 'package:Cuplivo/features/settings/search/settings_search_index.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/l10n/app_localizations_en.dart';
 
 import '../../../support/business_test_harness.dart';
 

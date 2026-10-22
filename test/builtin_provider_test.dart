@@ -1,100 +1,18 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/api_keys.dart';
-import 'package:Kelivo/core/models/model_spec.dart';
-import 'package:Kelivo/core/models/reasoning_request.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/chat_api_helpers.dart';
-import 'package:Kelivo/core/services/api/chat_api_service.dart';
-import 'package:Kelivo/core/services/api_key_manager.dart';
-import 'package:Kelivo/core/services/model_spec/model_spec_resolver.dart';
-import 'package:Kelivo/features/provider/widgets/share_provider_sheet.dart';
+import 'package:Cuplivo/core/models/api_keys.dart';
+import 'package:Cuplivo/core/models/model_spec.dart';
+import 'package:Cuplivo/core/models/reasoning_request.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/chat_api_helpers.dart';
+import 'package:Cuplivo/core/services/api/chat_api_service.dart';
 
 void main() {
-  test('KelivoIN defaults expose the requested models and capabilities', () {
-    final config = ProviderConfig.defaultsFor('KelivoIN');
-    expect(config.baseUrl, 'https://api.psycheas.top/v1');
-    expect(config.chatPath, '/chat/completions');
-    expect(config.useResponseApi, isFalse);
-    expect(config.models, [
-      'Qwen/Qwen3-8B',
-      'Qwen/Qwen3.5-4B',
-      'THUDM/GLM-4-9B-0414',
-      'auto',
-    ]);
-    for (final id in config.models) {
-      final spec = ModelSpecResolver.instance.spec(config, id);
-      expect(spec.supportsTool, isTrue, reason: id);
-      expect(spec.supportsReasoning, id != 'THUDM/GLM-4-9B-0414', reason: id);
-    }
-    expect(
-      ModelSpecResolver.instance.spec(config, 'auto').reasoning.dialect,
-      ReasoningDialect.openaiReasoningEffort,
-    );
-  });
-
-  test('KelivoIN resolves its token without storing it in settings', () {
-    final config = ProviderConfig.defaultsFor('KelivoIN');
-    final restored = ProviderConfig.fromJson(config.toJson());
-    expect(config.apiKey, isEmpty);
-    expect(config.toJson()['apiKey'], isEmpty);
-    expect(restored.apiKey, isEmpty);
-    final key = ApiKeyManager().effectiveKeyForProvider(restored);
-    expect(
-      sha256.convert(utf8.encode(key)).toString(),
-      '1fb95460e2cb9531b2e7399f272af2974f5968e9a98b31f1214d19280c5dd44c',
-    );
-    expect(apiKeyForRequest(restored, 'auto'), key);
-  });
-
-  test('the built-in token is limited to the Kelivo HTTPS endpoint', () {
-    final config = ProviderConfig.defaultsFor('KelivoIN');
-    final manager = ApiKeyManager();
-    for (final baseUrl in [
-      'https://example.test/v1',
-      'https://api.psycheas.top.example.test/v1',
-      'http://api.psycheas.top/v1',
-      'https://api.psycheas.top:8443/v1',
-      '',
-    ]) {
-      expect(
-        manager.effectiveKeyForProvider(config.copyWith(baseUrl: baseUrl)),
-        isEmpty,
-        reason: baseUrl,
-      );
-    }
-  });
-
-  test('shared KelivoIN configurations keep authentication after import', () {
-    final config = ProviderConfig.defaultsFor('KelivoIN');
-    final shared =
-        jsonDecode(
-              utf8.decode(
-                base64Decode(
-                  encodeProviderConfig(
-                    config,
-                  ).substring('ai-provider:v1:'.length),
-                ),
-              ),
-            )
-            as Map<String, dynamic>;
-    expect(shared['apiKey'], isEmpty);
-    final imported = ProviderConfig.fromJson({
-      ...shared,
-      'id': 'OpenAI - KelivoIN',
-    });
-    expect(effectiveApiKey(imported), effectiveApiKey(config));
-    expect(effectiveApiKey(imported.copyWith(apiKey: 'user-key')), 'user-key');
-  });
-
   test('explicit keys and multi-key selection take precedence', () {
-    final config = ProviderConfig.defaultsFor(
-      'KelivoIN',
-    ).copyWith(apiKey: 'user-key');
+    final config = ProviderConfig.defaultsFor('TestProvider').copyWith(apiKey: 'user-key');
     expect(effectiveApiKey(config), 'user-key');
     final multiKey = config.copyWith(
       multiKeyEnabled: true,
@@ -151,7 +69,7 @@ void main() {
         );
         await request.response.close();
       });
-      final config = ProviderConfig.defaultsFor('KelivoIN').copyWith(
+      final config = ProviderConfig.defaultsFor('TestProvider').copyWith(
         apiKey: 'user-key',
         baseUrl: 'http://${server.address.address}:${server.port}/v1',
       );

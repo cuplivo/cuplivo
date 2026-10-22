@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:Kelivo/core/services/workspace/workspace_runtime.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_runtime.dart';
 
 class ScriptedPtySession implements PtySession {
   ScriptedPtySession();

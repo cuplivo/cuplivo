@@ -7,8 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../core/services/haptics.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
 
 class SponsorPage extends StatefulWidget {
   const SponsorPage({super.key});

@@ -1,9 +1,11 @@
-import 'package:Cuplivo/l10n/app_localizations_en.dart';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/utils/token_estimator.dart';
 import 'package:Cuplivo/features/home/controllers/home_view_model.dart';
+import 'package:Cuplivo/utils/mcp_structured_image.dart';
 
 ChatMessage _message({
   required String id,
@@ -128,36 +130,151 @@ void main() {
     });
   });
 
-  group('buildConversationTextForCompression', () {
-    test('使用完整历史生成压缩文本', () {
-      final visibleWindow = [
-        _message(id: 'u80', role: 'user', content: 'visible user'),
-        _message(id: 'a81', role: 'assistant', content: 'visible assistant'),
-      ];
-      final completeHistory = [
-        _message(id: 'u0', role: 'user', content: 'earliest user'),
-        _message(id: 'a1', role: 'assistant', content: 'earliest assistant'),
-        ...visibleWindow,
-      ];
+  group('compressWeightTextForMessage', () {
+    test('无工具调用时等于消息正文', () {
+      final message = _message(id: 'a1', role: 'assistant', content: 'answer');
 
-      final text = buildConversationTextForCompression(
-        completeHistory,
-        quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
+      expect(
+        compressWeightTextForMessage(message, toolEvents: const []),
+        'answer',
       );
-
-      expect(text, contains('User: earliest user'));
-      expect(text, contains('Assistant: earliest assistant'));
-      expect(text, contains('User: visible user'));
-      expect(text, contains('Assistant: visible assistant'));
     });
 
-    test('压缩文本会忽略空内容消息', () {
-      final text = buildConversationTextForCompression([
-        _message(id: 'u1', role: 'user', content: '  '),
-        _message(id: 'a1', role: 'assistant', content: 'answer'),
-      ], quoteMarker: AppLocalizationsEn().selectionQuoteMarker);
+    test('带上工具调用的名字、参数与结果', () {
+      final message = _message(id: 'a1', role: 'assistant', content: 'answer');
 
-      expect(text, 'Assistant: answer');
+      final text = compressWeightTextForMessage(
+        message,
+        toolEvents: const [
+          {
+            'name': 'read_file',
+            'arguments': {'path': 'lib/main.dart'},
+            'content': 'void main() {}',
+          },
+        ],
+      );
+
+      expect(text, startsWith('answer'));
+      expect(text, contains('[read_file]'));
+      expect(text, contains('{"path":"lib/main.dart"}'));
+      expect(text, contains('void main() {}'));
+    });
+
+    test('工具结果为空时只留名字', () {
+      final text = compressWeightTextForMessage(
+        _message(id: 'a1', role: 'assistant', content: ''),
+        toolEvents: const [
+          {'name': 'noop', 'content': '   '},
+        ],
+      );
+
+      expect(text.trim(), '[noop]');
+    });
+
+    test('参数是未解析的字符串时照样计入', () {
+      final text = compressWeightTextForMessage(
+        _message(id: 'a1', role: 'assistant', content: ''),
+        toolEvents: const [
+          {'name': 'read_file', 'arguments': '{"path":"lib/main.dar'},
+        ],
+      );
+
+      expect(text, contains('{"path":"lib/main.dar'));
+    });
+
+    test('typed 图片的结果行按模型所见剥离，只留文本', () {
+      final text = compressWeightTextForMessage(
+        _message(id: 'a1', role: 'assistant', content: ''),
+        toolEvents: const [
+          {
+            'name': 'view_image',
+            'content': 'Image (1024 x 768).\n![](/images/x.png)',
+            'metadata': {
+              'mcpResult': {
+                'version': 1,
+                'imageUris': ['/images/x.png'],
+              },
+            },
+          },
+        ],
+      );
+
+      expect(text, contains('Image (1024 x 768).'));
+      expect(text, isNot(contains('![](')));
+    });
+  });
+
+  group('compressWeightImageCountForMessage', () {
+    test('附件图片计入，不可用与空 uri 不计', () {
+      final message = ChatMessage(
+        id: 'u1',
+        role: 'user',
+        parts: const [
+          ImagePart(uri: '/images/a.png'),
+          ImagePart(uri: '/images/b.png', unavailable: true),
+          ImagePart(uri: '   '),
+        ],
+        conversationId: 'conversation-1',
+      );
+
+      expect(
+        compressWeightImageCountForMessage(message, toolEvents: const []),
+        1,
+      );
+    });
+
+    test('只认 metadata.mcpResult 的 typed 图片', () {
+      final message = _message(id: 'a1', role: 'assistant', content: 'done');
+
+      expect(
+        compressWeightImageCountForMessage(
+          message,
+          toolEvents: const [
+            {
+              'name': 'view_image',
+              'content': 'Image (1024 x 768).\n![](/images/x.png)',
+              'metadata': {
+                'mcpResult': {
+                  'version': 1,
+                  'imageUris': ['/images/x.png', '/images/y.png'],
+                },
+              },
+            },
+          ],
+        ),
+        2,
+      );
+      // 同样的 markdown 行，但没有 typed metadata：路径只是文本。
+      expect(
+        compressWeightImageCountForMessage(
+          message,
+          toolEvents: const [
+            {
+              'name': 'mcp_search',
+              'content': 'found:\n![](https://example.test/a.png)',
+            },
+          ],
+        ),
+        0,
+      );
+    });
+
+    test('legacy envelope 的 imageUris 不会送到模型，不计图片', () {
+      final message = _message(id: 'a1', role: 'assistant', content: 'done');
+      final legacy = encodeLegacyMcpToolResultEnvelope(
+        text: 'ok',
+        imageUris: ['/images/y.png'],
+      );
+
+      expect(
+        compressWeightImageCountForMessage(
+          message,
+          toolEvents: [
+            {'name': 'mcp_tool', 'content': legacy},
+          ],
+        ),
+        0,
+      );
     });
   });
 
@@ -297,56 +414,99 @@ void main() {
     expect(CompressContextOptions.defaultKeepUserMessages, 6);
   });
 
-  group('estimateCompressionTokens', () {
-    test('保留区按长度占比折算 token', () {
-      final est = estimateCompressionTokens(
-        totalText: 'a' * 1000,
-        keptText: 'b' * 250,
+  group('CompressContextSplit', () {
+    test('结果区间 = 保留段 + 被总结段正文 token 的 10%–30%', () {
+      const split = CompressContextSplit(
+        totalTokens: 1000,
+        keptTokens: 400,
+        summaryInputTokens: 600,
       );
 
-      // tokenx: 1000 lowercase letters → ceil(1000/7) = 143
-      expect(est.totalTokens, 143);
-      expect(est.keptTokens, 36);
-      expect(est.minResultTokens, 47);
-      expect(est.maxResultTokens, 68);
+      expect(split.minResultTokens, 460);
+      expect(split.maxResultTokens, 580);
+      expect(split.midResultTokens, 520);
+      expect(split.reductionPercent, 48);
     });
 
-    test('CJK 走 tokenx 汉字权重', () {
-      final est = estimateCompressionTokens(
-        totalText: '中' * 400,
-        keptText: '中' * 100,
+    test('含工具的总量不做底数：区间只随正文列走', () {
+      const split = CompressContextSplit(
+        totalTokens: 1000,
+        keptTokens: 400,
+        summaryInputTokens: 100,
       );
 
-      expect(est.totalTokens, 348);
-      expect(est.keptTokens, 87);
+      expect(split.minResultTokens, 410);
+      expect(split.maxResultTokens, 430);
+      expect(split.midResultTokens, 420);
+      expect(split.reductionPercent, 58);
     });
 
-    test('混合文本走 tokenx（整段命中 CJK 则按汉字计价）', () {
-      final est = estimateCompressionTokens(
-        totalText: '中' * 200 + 'a' * 400,
-        keptText: '',
+    test('无可压缩内容时降幅为 0', () {
+      const split = CompressContextSplit(
+        totalTokens: 500,
+        keptTokens: 500,
+        summaryInputTokens: 0,
       );
 
-      expect(est.totalTokens, 522);
+      expect(split.reductionPercent, 0);
+    });
+  });
+
+  group('keepRecentStartIndex', () {
+    test('从倒数第 N 条用户消息开始', () {
+      final messages = <ChatMessage>[
+        _message(id: 'u1', role: 'user', content: 'q1'),
+        _message(id: 'a1', role: 'assistant', content: 'a1'),
+        _message(id: 'u2', role: 'user', content: 'q2'),
+        _message(id: 'a2', role: 'assistant', content: 'a2'),
+        _message(id: 'u3', role: 'user', content: 'q3'),
+      ];
+
+      expect(keepRecentStartIndex(messages, 1), 4);
+      expect(keepRecentStartIndex(messages, 2), 2);
+      expect(keepRecentStartIndex(messages, 3), 0);
     });
 
-    test('空文本返回全零', () {
-      final est = estimateCompressionTokens(totalText: '', keptText: '');
+    test('覆盖全部 / 无用户消息 / N ≤ 0', () {
+      final messages = <ChatMessage>[
+        _message(id: 'a0', role: 'assistant', content: 'leading'),
+        _message(id: 'u1', role: 'user', content: 'q1'),
+        _message(id: 'a1', role: 'assistant', content: 'a1'),
+      ];
 
-      expect(est.totalTokens, 0);
-      expect(est.keptTokens, 0);
-      expect(est.minResultTokens, 0);
-      expect(est.maxResultTokens, 0);
-    });
-
-    test('区间上界不低于下界', () {
-      final est = estimateCompressionTokens(
-        totalText: 'a' * 5000,
-        keptText: 'b' * 100,
+      expect(keepRecentStartIndex(messages, 5), 0);
+      expect(keepRecentStartIndex(messages, 0), isNull);
+      expect(keepRecentStartIndex(messages, -1), isNull);
+      expect(
+        keepRecentStartIndex([
+          _message(id: 'a1', role: 'assistant', content: 'a1'),
+        ], 1),
+        isNull,
       );
+      expect(keepRecentStartIndex(const [], 1), isNull);
+    });
 
-      expect(est.minResultTokens, lessThanOrEqualTo(est.maxResultTokens));
-      expect(est.keptTokens, lessThanOrEqualTo(est.totalTokens));
+    test('与 selectKeepRecentMessages 保持同一套边界', () {
+      final messages = <ChatMessage>[
+        _message(id: 'a0', role: 'assistant', content: 'leading'),
+        _message(id: 'u1', role: 'user', content: 'q1'),
+        _message(id: 'a1', role: 'assistant', content: 'a1'),
+        _message(id: 'u2', role: 'user', content: 'q2'),
+        _message(id: 'a2', role: 'assistant', content: 'a2'),
+      ];
+
+      for (final keep in [0, 1, 2, 3, 5]) {
+        final start = keepRecentStartIndex(messages, keep);
+        final kept = selectKeepRecentMessages(messages, keep);
+        expect(
+          kept.length,
+          start == null ? 0 : messages.length - start,
+          reason: 'keep=$keep',
+        );
+        if (start != null && start > 0) {
+          expect(kept.first.id, messages[start].id, reason: 'keep=$keep');
+        }
+      }
     });
   });
 
@@ -362,17 +522,18 @@ void main() {
         mode: CompressContextLimitMode.start,
         maxChars: 6000,
       );
-      final joined = buildConversationTextForCompression(
-        messages,
-        quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
-      );
+      // The joined reference the incremental window must agree with: roles plus
+      // bodies, blank-content messages dropped.
+      final joined = messages
+          .map(conversationLineForCompression)
+          .whereType<String>()
+          .join('\n\n');
 
       expect(
         buildBoundedConversationText(
           messages,
           mode: CompressContextLimitMode.start,
           maxChars: 6000,
-          quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
         ),
         buildCompressContextContent(joined, options),
       );
@@ -389,17 +550,18 @@ void main() {
         mode: CompressContextLimitMode.recent,
         maxChars: 6000,
       );
-      final joined = buildConversationTextForCompression(
-        messages,
-        quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
-      );
+      // The joined reference the incremental window must agree with: roles plus
+      // bodies, blank-content messages dropped.
+      final joined = messages
+          .map(conversationLineForCompression)
+          .whereType<String>()
+          .join('\n\n');
 
       expect(
         buildBoundedConversationText(
           messages,
           mode: CompressContextLimitMode.recent,
           maxChars: 6000,
-          quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
         ),
         buildCompressContextContent(joined, options),
       );
@@ -419,7 +581,6 @@ void main() {
         messages,
         mode: CompressContextLimitMode.start,
         maxChars: 6000,
-        quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
       );
       expect(start.length, lessThanOrEqualTo(6000));
       expect(start, contains('block-0'));
@@ -429,7 +590,6 @@ void main() {
         messages,
         mode: CompressContextLimitMode.recent,
         maxChars: 6000,
-        quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
       );
       expect(recent.length, lessThanOrEqualTo(6000));
       expect(recent, contains('block-199'));
@@ -445,11 +605,7 @@ void main() {
         _message(id: 'u2', role: 'user', content: 'ccc'),
       ];
 
-      final chunks = chunkMessagesForCompression(
-        messages,
-        maxChars: 20,
-        quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
-      );
+      final chunks = chunkMessagesForCompression(messages, maxChars: 20);
 
       expect(chunks, hasLength(greaterThan(1)));
       expect(chunks.every((chunk) => chunk.length <= 20), isTrue);
@@ -462,16 +618,9 @@ void main() {
       final messages = [
         _message(id: 'u1', role: 'user', content: 'aa$emoji${'b' * 30}'),
       ];
-      final line = conversationLineForCompression(
-        messages.single,
-        quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
-      )!;
+      final line = conversationLineForCompression(messages.single)!;
 
-      final chunks = chunkMessagesForCompression(
-        messages,
-        maxChars: 9,
-        quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
-      );
+      final chunks = chunkMessagesForCompression(messages, maxChars: 9);
 
       expect(chunks, hasLength(greaterThan(1)));
       expect(chunks.join(), line);
@@ -493,7 +642,6 @@ void main() {
         messages,
         const CompressContextOptions(mode: CompressContextLimitMode.unlimited),
         safeRequestChars: 50,
-        quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
       );
 
       expect(chunks, hasLength(greaterThan(1)));
@@ -515,7 +663,6 @@ void main() {
           keepUserMessages: 1,
         ),
         safeRequestChars: 50,
-        quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
       );
 
       expect(chunks, hasLength(greaterThan(1)));

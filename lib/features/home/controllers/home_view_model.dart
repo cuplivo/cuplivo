@@ -2521,13 +2521,14 @@ class HomeViewModel extends ChangeNotifier {
     if (convo == null) return;
 
     final settings = _contextProvider.read<SettingsProvider>();
-    if (!settings.isSuggestionGenerationEnabled) return;
 
     // Read context-dependent inputs before the async gap below.
     final assistantProvider = _contextProvider.read<AssistantProvider>();
     final assistant = assistantProvider.resolveConversationAssistant(
       convo.assistantId,
     );
+    // The global switch is the master; a per-assistant opt-out only narrows it.
+    if (!settings.isSuggestionGenerationAllowedFor(assistant)) return;
     final chatModel = resolveChatModel(
       settings,
       conversation: convo,
@@ -2545,7 +2546,7 @@ class HomeViewModel extends ChangeNotifier {
     final prompt = settings.suggestionPrompt;
     bool isCurrent() =>
         identical(_suggestionRequests[conversationId], request) &&
-        settings.isSuggestionGenerationEnabled &&
+        settings.isSuggestionGenerationAllowedFor(assistant) &&
         settings.suggestionPrompt == prompt &&
         _chatService.getConversation(conversationId) != null &&
         _chatService.getContextStartIndex(conversationId) == truncateIndex;

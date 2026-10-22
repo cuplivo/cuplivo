@@ -17,7 +17,11 @@ import '../providers/settings_provider.dart' show ProviderKind;
 /// serialized maps often omit or under-count.
 const int kToolDefinitionOverheadTokens = 8;
 
-const int _unknownImageTokens = 1000;
+/// Tokens charged for an image whose pixel size is not known.
+///
+/// The context-usage buckets use it (their image refs carry no size), and the
+/// compression readout charges it per image for the same reason.
+const int kUnknownImageTokens = 1000;
 
 /// JS `\s` (no `/u` flag): ASCII whitespace plus the Unicode separators
 /// ECMA-262 includes in `\s`.
@@ -106,7 +110,7 @@ Iterable<String> _splitKeepingDelimiters(String text) sync* {
 
 int estimateImageTokens(ProviderKind kind, {int? width, int? height}) {
   if (width == null || height == null || width <= 0 || height <= 0) {
-    return _unknownImageTokens;
+    return kUnknownImageTokens;
   }
   return switch (kind) {
     // OpenAI high-detail: fit 2048×2048, shortest side → 768, 170/512px tile + 85.

@@ -94,6 +94,11 @@ dependencies:
   syncfusion_flutter_core: ^31.2.5
   syncfusion_flutter_sliders: ^31.2.5
   syncfusion_flutter_pdf: ^31.2.5
+  # Conversation PDF export renders the Markdown IR directly, so no WebView and
+  # no second renderer is involved. `pdf` is the pure-Dart writer that fits it:
+  # MultiPage paginates flowing content and RichText carries inline styling.
+  # Capped below 3.13, which requires xml 7 — a bump syncfusion 31 forbids.
+  pdf: '>=3.12.0 <3.13.0'
   audioplayers: ^6.5.1
   record: ^7.1.1
   # Keep this release for compatibility with our macOS 12 deployment target.
@@ -167,6 +172,12 @@ dev_dependencies:
   url_launcher_platform_interface: ^2.3.2
   vm_service: ^15.3.0
 dependency_overrides:
+  # pdf 3.12 declares archive <4.1.0, but data_sync.dart overrides
+  # OutputStream.writeBackReference — an archive 4.2 API — so that floor cannot
+  # move down (#954). pdf 3.13.1 widened its own range to <5.0.0, which is what
+  # this override anticipates; drop it once pdf 3.13 is reachable, which needs
+  # syncfusion 33 (xml 7) and math_expressions 3 (petitparser 7).
+  archive: ^4.2.0
   # Prevent the location from being accessed continuously on Windows
   permission_handler_windows:
     path: ./dependencies/flutter-permission-handler/permission_handler_windows

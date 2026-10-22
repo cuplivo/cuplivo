@@ -267,3 +267,25 @@ git branch -f master rebase/onto-<new-baseline>
   plus `git rm` for the paths `<old-master>` no longer has makes them conflict-free by construction, and
   it is what lets the tree-equality check above be exact. Their patches are never applied, so a
   formatting-only conflict cannot invent one.
+- **Never resolve a conflicted file by taking one side wholesale.** `git checkout --theirs -- <file>` on
+  a conflict is not "take the incoming hunk": it restores the *old baseline's* whole file plus the unit,
+  so on the 4.4 replay it silently rewound 239 lines of newer upstream code in
+  `home_page_controller.dart` (twelve tests died at once) and dropped the keys Git had auto-merged into
+  the ARBs. Resolve by hunk — or, when the two sides' changes are disjoint, re-derive the file with a
+  real three-way merge (`git merge-file -p --diff3 ours base theirs`) rather than picking a side.
+- **A conflict preview is free.** `git merge-tree <base> <ours> <theirs>` prints the merge and its
+  conflict markers without touching the working tree or the index, so the plan can name the conflicting
+  files before anything is mutated. Its `changed in both` list is the *surface*, not the verdict: on 4.4
+  it named twelve files and the cherry-pick actually conflicted on four.
+- **A re-base never carries a patch to a package we consume.** The 4.4 line's hand-cursor fix (#1014)
+  needed two changes inside `dependencies/markstream`, and the vendored patch was written and reverted
+  on purpose: a local patch is the first thing the next re-base drops, and it makes the package's own
+  gate measure a tree nobody else has. File it upstream
+  ([Chevey339/kelivo#1269](https://github.com/Chevey339/kelivo/issues/1269)), record the gap in
+  `docs/markstream-delta-audit.md`, and leave the mechanism alone.
+- **A vendored package's gate needs a working directory, and `flutter test -C` does not exist.**
+  `flutter pub get -C dependencies/markstream` works; `analyze`/`test` need the caller to *be* there. In
+  the DSH sandbox that means a one-off `package.json` whose script `cd`s into the package and runs the
+  three commands, deleted afterwards — and `flutter pub get` rewrites
+  `dependencies/markstream/analysis_options.yaml`, so restore that file before the format gate.
+

@@ -53,6 +53,7 @@ import '../../../utils/platform_utils.dart';
 import '../../home/services/ask_user_interaction_service.dart';
 import '../../home/services/local_tools_service.dart';
 import '../../home/services/tool_approval_service.dart';
+import '../utils/citation_index.dart';
 import '../utils/assistant_paragraph_splitter.dart';
 import '../utils/thinking_tag_parser.dart';
 import 'timeline_projection.dart';
@@ -3649,30 +3650,16 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
 
   // Keep callbacks stable while only the streamed text changes. A new lookup
   // changes the resolver identity so cached citation widgets refresh their labels.
+  // The rule itself lives in `citation_index.dart`, which the PDF export reads too,
+  // so the number a capsule shows is decided once — the map shape here is only the
+  // identity the widget cache compares.
   String? Function(String) _buildCitationIndexResolver(
     List<Map<String, dynamic>> items,
   ) {
-    final lookup = <String, String>{};
-    // An exact ID match wins over a legacy numeric index.
-    for (final item in items) {
-      final id = item['id']?.toString() ?? '';
-      final index = item['index']?.toString() ?? '';
-      if (id.isNotEmpty && index.isNotEmpty) lookup[id] ??= index;
-    }
-    for (final item in items) {
-      final index = item['index']?.toString() ?? '';
-      if (index.isNotEmpty) lookup[index] ??= index;
-    }
+    final lookup = citationIndexLookupOf(items);
     if (!mapEquals(lookup, _citationIndexLookup)) {
       _citationIndexLookup = lookup;
-      _citationIndexResolver = (id) {
-        final key = id.trim();
-        if (key.isEmpty) return null;
-        final direct = lookup[key];
-        if (direct != null) return direct;
-        final asIndex = int.tryParse(key);
-        return asIndex == null ? null : lookup[asIndex.toString()];
-      };
+      _citationIndexResolver = (id) => resolveCitationIndex(id, lookup);
     }
     return _citationIndexResolver;
   }
@@ -3747,45 +3734,17 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     }
   }
 
-  // Extract items from all search_web or builtin_search tool results for this assistant message.
-  // We scan from end to start so "latest" items win when there are duplicates.
+  // The items are scanned from end to start so "latest" wins on duplicates,
+  // and the scan is memoized on the parts list identity: the timeline asks for
+  // them on every rebuild of a streaming reply.
   List<Map<String, dynamic>> _allSearchItems() {
     final parts = widget.toolParts ?? const <ToolUIPart>[];
     if (identical(parts, _searchItemsParts) && _searchItemsCache != null) {
       return _searchItemsCache!;
     }
-    if (parts.isEmpty) {
-      _searchItemsParts = parts;
-      _searchItemsCache = const <Map<String, dynamic>>[];
-      return _searchItemsCache!;
-    }
-
-    final out = <Map<String, dynamic>>[];
-    final seen = <String>{};
-
-    for (int i = parts.length - 1; i >= 0; i--) {
-      final p = parts[i];
-      if ((p.toolName != 'search_web' && p.toolName != 'builtin_search') ||
-          (p.content?.isNotEmpty ?? false) == false) {
-        continue;
-      }
-      try {
-        final obj = jsonDecode(p.content!) as Map<String, dynamic>;
-        final arr = obj['items'] as List? ?? const <dynamic>[];
-        for (final it in arr) {
-          if (it is! Map) continue;
-          final m = it.cast<String, dynamic>();
-          final key = (m['id'] ?? m['url'] ?? '')
-              .toString(); // builtin_search no id
-          if (key.isNotEmpty) {
-            if (!seen.add(key)) continue;
-          }
-          out.add(m);
-        }
-      } catch (_) {
-        // ignore broken tool payload
-      }
-    }
+    final out = searchCitationItemsOf(
+      parts.map((part) => (name: part.toolName, content: part.content)),
+    );
     _searchItemsParts = parts;
     _searchItemsCache = out;
     return out;

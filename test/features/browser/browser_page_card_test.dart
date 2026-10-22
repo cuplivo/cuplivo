@@ -1,5 +1,5 @@
 import 'package:provider/provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
 import '../../support/business_test_harness.dart';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -7,17 +7,17 @@ import 'dart:io';
 import 'package:image/image.dart' as img;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
-import 'package:Kelivo/core/services/mcp/mcp_image_snapshot.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/core/services/mcp/mcp_image_snapshot.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 import '../../support/claude_test_api.dart' show FakePathProviderPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/services/browser/browser_service.dart';
-import 'package:Kelivo/features/browser/models/browser_models.dart';
-import 'package:Kelivo/features/browser/models/browser_tool_presentation.dart';
-import 'package:Kelivo/features/browser/widgets/browser_page_card.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/core/services/browser/browser_service.dart';
+import 'package:Cuplivo/features/browser/models/browser_models.dart';
+import 'package:Cuplivo/features/browser/models/browser_tool_presentation.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_page_card.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
 
 class CardBrowser extends BrowserService {
   Uint8List? preview;

@@ -1,12 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/memory/memory_prompts.dart';
-import 'package:Kelivo/core/services/tools/built_in_tool_catalog.dart';
-import 'package:Kelivo/core/services/tools/tool_schema_overrides.dart';
-import 'package:Kelivo/core/models/tool_schema_override.dart';
-import 'package:Kelivo/core/services/workspace/workspace_tools_service.dart';
-import 'package:Kelivo/features/home/services/local_tools_service.dart';
+import 'package:Cuplivo/core/services/memory/memory_prompts.dart';
+import 'package:Cuplivo/core/services/tools/built_in_tool_catalog.dart';
+import 'package:Cuplivo/core/services/tools/tool_schema_overrides.dart';
+import 'package:Cuplivo/core/models/tool_schema_override.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_tools_service.dart';
+import 'package:Cuplivo/features/home/services/local_tools_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

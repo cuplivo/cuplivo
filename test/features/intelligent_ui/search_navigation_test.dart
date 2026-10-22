@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_search_navigation.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_state.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_search_navigation.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_state.dart';
 
 void main() {
   testWidgets(

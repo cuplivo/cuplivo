@@ -1,12 +1,12 @@
 import 'dart:convert';
 
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/models/token_usage.dart';
-import 'package:Kelivo/core/services/api/providers/openai/chat_completions_decoder.dart';
-import 'package:Kelivo/core/services/api/stream/sse_event.dart';
-import 'package:Kelivo/core/services/api/generation/text_generation_result.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk_handler.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/token_usage.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/chat_completions_decoder.dart';
+import 'package:Cuplivo/core/services/api/stream/sse_event.dart';
+import 'package:Cuplivo/core/services/api/generation/text_generation_result.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk_handler.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

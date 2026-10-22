@@ -1,4 +1,4 @@
-import 'package:Kelivo/core/models/tool_permission_mode.dart';
+import 'package:Cuplivo/core/models/tool_permission_mode.dart';
 import 'package:sqlite3/sqlite3.dart' as composer_sqlite;
 import 'dart:async';
 import 'dart:convert';

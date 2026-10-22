@@ -4,11 +4,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/models/mobile_background_settings.dart';
-import 'package:Kelivo/core/services/mobile_background.dart';
-import 'package:Kelivo/core/services/notification_service.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/models/mobile_background_settings.dart';
+import 'package:Cuplivo/core/services/mobile_background.dart';
+import 'package:Cuplivo/core/services/notification_service.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';

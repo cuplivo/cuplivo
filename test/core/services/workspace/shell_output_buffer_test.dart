@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/workspace/shell_output_buffer.dart';
+import 'package:Cuplivo/core/services/workspace/shell_output_buffer.dart';
 
 void main() {
   const cases = <String, String>{

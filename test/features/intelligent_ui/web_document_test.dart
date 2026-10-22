@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_budgets.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_web_document.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_budgets.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_web_document.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:html/parser.dart' as html;
 

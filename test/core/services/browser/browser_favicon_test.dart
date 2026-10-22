@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:Kelivo/core/services/browser/browser_engine.dart';
-import 'package:Kelivo/core/services/browser/browser_favicon_loader.dart';
-import 'package:Kelivo/core/services/browser/browser_service.dart';
-import 'package:Kelivo/core/services/browser/browser_store.dart';
-import 'package:Kelivo/features/browser/widgets/browser_favicon.dart';
-import 'package:Kelivo/features/browser/models/browser_models.dart';
+import 'package:Cuplivo/core/services/browser/browser_engine.dart';
+import 'package:Cuplivo/core/services/browser/browser_favicon_loader.dart';
+import 'package:Cuplivo/core/services/browser/browser_service.dart';
+import 'package:Cuplivo/core/services/browser/browser_store.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_favicon.dart';
+import 'package:Cuplivo/features/browser/models/browser_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';

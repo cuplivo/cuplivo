@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:Kelivo/features/browser/widgets/browser_window_chrome.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_window_chrome.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

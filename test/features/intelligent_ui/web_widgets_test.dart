@@ -1,14 +1,14 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
-import 'package:Kelivo/features/intelligent_ui/host/gallery/web_gallery.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_web_document.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_web_preview.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_theme.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_web_card.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/gallery/web_gallery.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_web_document.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_web_preview.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_theme.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_web_card.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';

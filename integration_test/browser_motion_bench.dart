@@ -9,19 +9,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:provider/provider.dart';
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/business_preferences.dart';
-import 'package:Kelivo/core/database/business_repository.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/browser/browser_engine.dart';
-import 'package:Kelivo/core/services/browser/browser_service.dart';
-import 'package:Kelivo/core/services/browser/browser_store.dart';
-import 'package:Kelivo/features/browser/models/browser_models.dart';
-import 'package:Kelivo/features/browser/pages/browser_mobile_layout.dart';
-import 'package:Kelivo/features/browser/pages/browser_page.dart';
-import 'package:Kelivo/features/browser/widgets/browser_controls.dart';
-import 'package:Kelivo/features/browser/widgets/native_browser_glass.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/browser/browser_engine.dart';
+import 'package:Cuplivo/core/services/browser/browser_service.dart';
+import 'package:Cuplivo/core/services/browser/browser_store.dart';
+import 'package:Cuplivo/features/browser/models/browser_models.dart';
+import 'package:Cuplivo/features/browser/pages/browser_mobile_layout.dart';
+import 'package:Cuplivo/features/browser/pages/browser_page.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_controls.dart';
+import 'package:Cuplivo/features/browser/widgets/native_browser_glass.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 // Explicit mobile-only probe; excluded from the default *_test.dart glob.
 // Keep the installed app after drive (its default cleanup uninstalls it):

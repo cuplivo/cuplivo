@@ -1,22 +1,22 @@
 import 'package:flutter/services.dart';
-import 'package:Kelivo/features/mcp/widgets/mcp_text_dialog.dart';
-import 'package:Kelivo/features/mcp/widgets/mcp_form.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/shared/widgets/form_sheet.dart';
-import 'package:Kelivo/desktop/widgets/desktop_form_dialog.dart';
+import 'package:Cuplivo/features/mcp/widgets/mcp_text_dialog.dart';
+import 'package:Cuplivo/features/mcp/widgets/mcp_form.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/shared/widgets/form_sheet.dart';
+import 'package:Cuplivo/desktop/widgets/desktop_form_dialog.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/mcp_presentation.dart';
-import 'package:Kelivo/core/providers/mcp_provider.dart';
-import 'package:Kelivo/features/mcp/widgets/mcp_error_details_sheet.dart';
-import 'package:Kelivo/desktop/setting/mcp_pane.dart';
-import 'package:Kelivo/features/mcp/pages/mcp_page.dart';
-import 'package:Kelivo/features/mcp/widgets/mcp_icon_picker.dart';
-import 'package:Kelivo/features/mcp/widgets/mcp_server_card.dart';
-import 'package:Kelivo/shared/widgets/ios_switch.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/core/models/mcp_presentation.dart';
+import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/features/mcp/widgets/mcp_error_details_sheet.dart';
+import 'package:Cuplivo/desktop/setting/mcp_pane.dart';
+import 'package:Cuplivo/features/mcp/pages/mcp_page.dart';
+import 'package:Cuplivo/features/mcp/widgets/mcp_icon_picker.dart';
+import 'package:Cuplivo/features/mcp/widgets/mcp_server_card.dart';
+import 'package:Cuplivo/shared/widgets/ios_switch.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 
 import '../../../support/mcp_presentation_harness.dart';
 

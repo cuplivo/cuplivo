@@ -12,6 +12,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_inappwebview_android/flutter_inappwebview_android.dart'
     show AndroidPathHandler;
 import '../../../features/browser/models/browser_models.dart';
+import '../workspace/file_link_resolver.dart';
 import 'browser_engine.dart';
 import 'browser_failure.dart';
 import 'browser_download_cookies.dart';
@@ -281,7 +282,7 @@ class NativeBrowserEngine implements BrowserEngine {
           action: ContentBlockerAction(type: ContentBlockerActionType.BLOCK),
         ),
     ],
-    resourceCustomSchemes: const ['kelivo'],
+    resourceCustomSchemes: const [KelivoLink.scheme],
     webViewAssetLoader: _workspaceLoader,
     useShouldOverrideUrlLoading: true,
     useOnDownloadStart: true,
@@ -1524,7 +1525,7 @@ class NativeBrowserEngine implements BrowserEngine {
     final uri = Uri.tryParse(request.url.toString());
     if (scope == null ||
         uri == null ||
-        uri.scheme != 'kelivo' ||
+        uri.scheme != 'cuplivo' ||
         !scope.owns(uri) ||
         request.method != 'GET') {
       return null;

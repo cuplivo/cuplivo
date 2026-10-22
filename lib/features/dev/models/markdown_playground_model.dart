@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:markstream/markstream_core.dart';
-import 'package:Kelivo/shared/markdown/kelivo_markdown_extensions.dart';
+import 'package:Cuplivo/shared/markdown/kelivo_markdown_extensions.dart';
 
 /// Drives the developer preview without modifying the editor's complete source.
 class MarkdownPlaygroundModel extends ChangeNotifier {

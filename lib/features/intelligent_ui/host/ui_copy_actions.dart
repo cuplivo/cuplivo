@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 import '../text/ui_message_text.dart';
 import '../widgets/genui_clipboard.dart';
 import 'ui_message_projection.dart';

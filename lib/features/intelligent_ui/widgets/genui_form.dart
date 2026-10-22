@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_form_validation.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_form_validation.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'genui_interactions.dart';
 import 'genui_theme.dart';
 

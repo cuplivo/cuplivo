@@ -1,10 +1,10 @@
 import 'package:provider/provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'ui_snapshot_export.dart';
 import '../widgets/genui_expansion.dart';
 import 'ui_search_navigation.dart';
 import '../catalog/ui_budgets.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import '../text/ui_text_projection.dart';
 import '../widgets/genui_localizations.dart';
 import 'ui_draft_request.dart';

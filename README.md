@@ -1,18 +1,18 @@
 <div align="center">
 
-<img src="assets/app_icon.png" alt="Kelivo" width="112" />
+<img src="assets/app_icon.png" alt="Cuplivo" width="112" />
 
-# Kelivo
+# Cuplivo
 
 **An open-source LLM client for mobile and desktop.**
 
 Use every major model in one app, give it a workspace to get real work done, and keep your data on your own device.
 
 <p>
-  <a href="https://github.com/Chevey339/kelivo/releases/latest"><img src="https://img.shields.io/github/v/release/Chevey339/kelivo?style=flat-square&amp;label=release" alt="Latest release" /></a>
-  <a href="https://github.com/Chevey339/kelivo/releases"><img src="https://img.shields.io/github/downloads/Chevey339/kelivo/total?style=flat-square" alt="Downloads" /></a>
-  <a href="https://github.com/Chevey339/kelivo/stargazers"><img src="https://img.shields.io/github/stars/Chevey339/kelivo?style=flat-square" alt="Stars" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/Chevey339/kelivo?style=flat-square" alt="License" /></a>
+  <a href="https://github.com/cuplivo/cuplivo/releases/latest"><img src="https://img.shields.io/github/v/release/cuplivo/cuplivo?style=flat-square&amp;label=release" alt="Latest release" /></a>
+  <a href="https://github.com/cuplivo/cuplivo/releases"><img src="https://img.shields.io/github/downloads/cuplivo/cuplivo/total?style=flat-square" alt="Downloads" /></a>
+  <a href="https://github.com/cuplivo/cuplivo/stargazers"><img src="https://img.shields.io/github/stars/cuplivo/cuplivo?style=flat-square" alt="Stars" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/cuplivo/cuplivo?style=flat-square" alt="License" /></a>
   <a href="https://flutter.dev"><img src="https://img.shields.io/badge/built%20with-Flutter-02569B?style=flat-square&amp;logo=flutter&amp;logoColor=white" alt="Built with Flutter" /></a>
 </p>
 
@@ -21,9 +21,8 @@ Use every major model in one app, give it a workspace to get real work done, and
   <a href="https://qm.qq.com/q/OQaXetKssC"><img src="https://img.shields.io/badge/QQ%20Group-0366CC?style=for-the-badge&amp;logo=qq&amp;logoColor=white" alt="QQ Group" /></a>
 </p>
 
-<a href="https://trendshift.io/repositories/15452?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-15452" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/15452" alt="Chevey339%2Fkelivo | Trendshift" width="250" height="55"/></a>
 
-[Website](https://kelivo.psycheas.top) · [User Guide](https://kelivo.psycheas.top/guide) · [Download](#-download) · [Report an Issue](https://github.com/Chevey339/kelivo/issues)
+[Website](https://kelivo.psycheas.top) · [User Guide](https://kelivo.psycheas.top/guide) · [Download](#-download) · [Changelog](CHANGELOG.md) · [Report an Issue](https://github.com/cuplivo/cuplivo/issues) · [QQ Group](https://qm.qq.com/q/9Rnnf7XyNO) · [Discord](https://discord.gg/kaTf8CXG4)
 
 **English** · [简体中文](README_ZH_CN.md)
 
@@ -31,11 +30,25 @@ Use every major model in one app, give it a workspace to get real work done, and
 
 ## 💡 Overview
 
-Kelivo is a cross-platform LLM client built with Flutter for Android, iOS, macOS, Windows and Linux. Connect your own API keys or sign in with a supported subscription, and switch between OpenAI, Gemini, Claude, DeepSeek, OpenRouter and any OpenAI-compatible service without switching apps.
+Cuplivo is a community fork of Kelivo: a cross-platform LLM client built with Flutter for Android, iOS, macOS, Windows and Linux. Connect your own API keys or sign in with a supported subscription, and switch between OpenAI, Gemini, Claude, DeepSeek, OpenRouter and any OpenAI-compatible service without switching apps.
 
-Kelivo goes beyond chat. Models can search the web, call MCP servers, follow skills and remember what matters to you. Bind a conversation to a **workspace** and the model can read and edit files and run commands: inside a Linux sandbox on your phone, or in a native shell on your computer.
+Cuplivo goes beyond chat. Models can search the web, call MCP servers, follow skills and remember what matters to you. Bind a conversation to a **workspace** and the model can read and edit files and run commands: inside a Linux sandbox on your phone, or in a native shell on your computer.
 
-Conversations, settings and files are stored locally. Kelivo has no account system of its own; back up to WebDAV or S3-compatible storage whenever you choose.
+Conversations, settings and files are stored locally. Cuplivo has no account system of its own; back up to WebDAV or S3-compatible storage whenever you choose.
+
+## ✨ What's new in 4.1
+
+- **Their Letter (Proactive Care)** — the assistant can write to you first. A **Roleplay** tab in assistant settings turns it on and holds both prompts and each conversation's next letter time; after every reply a silent request to the decision model fixes when the next letter is due, and when that time arrives the letter is composed from the persona, memories, world book and history and saved as an ordinary assistant message. Delivery follows what each platform can do: Android wakes the app with an exact alarm, desktop sends while the app is running, and iOS posts an arrival notification whose body is written the next time the app opens.
+
+## ✨ What's new in 4.0
+
+Cuplivo 4.0 moves the whole code base onto the **Kelivo v1.3.0** baseline and re-implements Cuplivo's own features on top of it. From here on the repository re-bases on upstream's own line instead of diverging permanently, so upstream's work keeps arriving.
+
+- **LAN sync** — conversations, the business data behind them, attachments and skills follow you across your own devices over the LAN. Pair once by QR code (endpoints + certificate fingerprint + a one-shot PIN), then sync without restarting: no server, no hub device, no manual merge.
+- **Input draft** — the unsent composer content (text, image paths and document attachments) is kept across restarts, so an accidental exit no longer loses what you were writing.
+- **Manual-first image compression** — alongside Kelivo's automatic pipeline you can compress by hand: pick JPEG / PNG / original, set the long edge and quality, and compare before and after 1:1 with a real full-image size estimate.
+
+4.0 installs **side by side** with Kelivo and Cuplivo 3.x: nothing is overwritten and data is not migrated automatically. The [changelog](CHANGELOG.md) has the migration steps (from 3.x, use **Data Migration → Export Kelivo-Compatible Backup**, not the plain export).
 
 ## 💖 Sponsors
 
@@ -61,7 +74,7 @@ Conversations, settings and files are stored locally. Kelivo has no account syst
 </tr>
 </table>
 
-If Kelivo is useful to you, you can also [support the project on WeChat](docx/sponsor.jpg).
+If the upstream Kelivo project is useful to you, you can also [support it on WeChat](docx/sponsor.jpg).
 
 ## 📸 Screenshots
 
@@ -74,14 +87,13 @@ If Kelivo is useful to you, you can also [support the project on WeChat](docx/sp
 
 ## 🚀 Download
 
-| Platform | Get Kelivo | Package | Requirements |
+| Platform | Get Cuplivo | Package | Requirements |
 | --- | --- | --- | --- |
-| iOS / iPadOS | [App Store](https://apps.apple.com/us/app/kelivo/id6752122930) · [TestFlight](https://testflight.apple.com/join/erbGGykR) (beta) | App Store, or unsigned IPA in [Releases](https://github.com/Chevey339/kelivo/releases/latest) | iOS 15.0 or later |
-| Android | [GitHub Releases](https://github.com/Chevey339/kelivo/releases/latest) | APK (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | Android 7.0 or later |
-| macOS | [GitHub Releases](https://github.com/Chevey339/kelivo/releases/latest) | DMG | macOS 12.0 or later, Apple silicon or Intel |
-| Windows | [GitHub Releases](https://github.com/Chevey339/kelivo/releases/latest) | Installer (`setup.exe`) or portable ZIP | Windows 10 or 11 |
-| Linux | [GitHub Releases](https://github.com/Chevey339/kelivo/releases/latest) | AppImage, DEB, RPM, tar.gz | x86_64 |
-| HarmonyOS | [kelivo-ohos](https://github.com/Chevey339/kelivo-ohos) | Maintained in a separate repository | — |
+| iOS / iPadOS | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | Unsigned IPA (sideload) | iOS 15.0 or later |
+| Android | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | APK (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | Android 7.0 or later |
+| macOS | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | DMG | macOS 12.0 or later, Apple silicon or Intel |
+| Windows | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | Installer (`setup.exe`) or portable ZIP | Windows 10 or 11 |
+| Linux | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | AppImage, DEB, RPM, tar.gz | x86_64 |
 
 The [download page](https://kelivo.psycheas.top/downloads) on the website lists the same builds.
 
@@ -99,7 +111,7 @@ The [User Guide](https://kelivo.psycheas.top/guide) (Chinese) covers providers, 
 
 - **Native protocols**: OpenAI Chat Completions and Responses API, Google Gemini and Vertex AI, and Anthropic Claude, plus any OpenAI-compatible endpoint, including self-hosted models.
 - **Built-in presets** for OpenAI, Gemini, Claude, DeepSeek, OpenRouter, SiliconFlow, Alibaba Cloud, Zhipu AI, xAI, ByteDance and more.
-- **Account sign-in**: use a ChatGPT (Codex), Grok or Kimi Code account directly. Kelivo syncs the available models and shows your usage limits.
+- **Account sign-in**: use a ChatGPT (Codex), Grok or Kimi Code account directly. Cuplivo syncs the available models and shows your usage limits.
 - **Model capabilities**: set input and output modalities, tool use and reasoning per model. Choose a reasoning level from off to maximum, or set a custom token budget.
 - **Provider-side tools**, where supported: native web search, URL context, code execution, code interpreter and image generation.
 - **Multiple API keys** per provider, with round-robin, priority, least-used or random load balancing and automatic error tracking.
@@ -108,7 +120,7 @@ The [User Guide](https://kelivo.psycheas.top/guide) (Chinese) covers providers, 
 
 ### 🤖 Agent and Workspaces
 
-- **Workspaces**: bind a conversation to a workspace to give the model eight tools: `shell`, `read_file`, `view_image`, `write_file`, `edit_file`, `list_dir`, `glob` and `grep`. Command output streams live, file edits appear as diffs, and file access outside authorized folders and desktop commands ask for approval. A conversation can explicitly enable Full access to skip ordinary tool approvals, including MCP and supported local actions.
+- **Workspaces**: bind a conversation to a workspace to give the model seven tools: `shell`, `read_file`, `write_file`, `edit_file`, `list_dir`, `glob` and `grep`. Command output streams live, file edits appear as diffs, and shell commands can require approval, which you grant per command or for the whole session.
 - **A Linux sandbox on your phone**: Android runs Ubuntu, Debian or Alpine Linux through PRoot, or a rootfs image you import. iOS includes Alpine Linux based on iSH, so nothing needs to be downloaded. Install Python, Node.js, Git, SSH and other common tools from the app, and choose the fastest apt/apk, pip and npm mirrors after a speed test.
 - **Native on desktop**: on macOS, Windows and Linux, tools run in your system shell, in an app-managed folder or a folder you link from your computer.
 - **Files and terminal**: browse workspace files with previews for Markdown, HTML, CSV, images and text. Mobile has an in-app terminal; on desktop, open the workspace in your system terminal. On mobile, you can also mount up to 10 external folders into the sandbox, read-only or read-write.
@@ -126,10 +138,11 @@ The [User Guide](https://kelivo.psycheas.top/guide) (Chinese) covers providers, 
 - **World books**: entries triggered by keywords or regular expressions, injected at a configurable position, role and depth.
 - **Instruction injection**: reusable prompt cards, such as the built-in Learning Mode, applied before you send a message.
 - **Conversation tools**: context compression into a new chat, branches, response versions, temporary chats that are never saved, follow-up suggestions, and a per-chat model and system prompt. The descriptions of built-in tools can also be edited.
+- **Their Letter (Proactive Care)**: each assistant has a **Roleplay** tab between *Memory* and *Local tools*, where proactive care is configured — a master switch that its conversations follow unless they override it, both prompts, how many recent messages the time decision may read, and each conversation's next letter time. Letters are composed with the persona, memories, world book and history and saved as ordinary assistant messages: Android delivers them through an exact alarm that wakes the app, desktop while the app is running, and iOS as an arrival notification whose body is written the next time the app opens. A separate decision model can be chosen, or the chat model chain is used.
 
 ### 🔍 Search, Voice and Vision
 
-- **Web search** with 24 services: Bing, DuckDuckGo, SearXNG, Brave, Exa, Tavily, Jina, Perplexity, Serper, Firecrawl, You.com, LinkUp, Parallel, Querit, TinyFish, AnySearch, Grok, Ollama, Bocha, Metaso, Zhipu, Doubao, StepFun and Kelivo. Multiple API keys are rotated automatically, and answers show their cited sources.
+- **Web search** with 24 services: Bing, DuckDuckGo, SearXNG, Brave, Exa, Tavily, Jina, Perplexity, Serper, Firecrawl, You.com, LinkUp, Parallel, Querit, TinyFish, AnySearch, Grok, Ollama, Bocha, Metaso, Zhipu, Doubao and StepFun. Multiple API keys are rotated automatically, and answers show their cited sources.
 - **Text-to-speech**: the system voice, or OpenAI, Gemini, Azure, ElevenLabs, MiniMax, Qwen, Groq, xAI, MiMo, StepFun and Fish Audio.
 - **Speech recognition**: the system recognizer, offline on-device models, or cloud services from OpenAI (Realtime), DashScope, Volcengine, MiMo and StepFun.
 - **Multimodal input**: images, PDF and Word documents, text and code files, and audio for models that accept it. OCR with a dedicated vision model, and configurable image compression.
@@ -160,8 +173,8 @@ The [User Guide](https://kelivo.psycheas.top/guide) (Chinese) covers providers, 
 
 ### 🔗 System Integration
 
-- **Mobile**: generation continues in the background with completion notifications, Live Activities on iOS, and Live Updates or a floating status capsule on Android. Share text and files to Kelivo from other apps, or send selected text to it from the Android text selection menu.
-- **Desktop**: a multi-pane layout, customizable keyboard shortcuts including a global shortcut to show or hide Kelivo, system tray, drag-and-drop attachments, and window size and position restored between launches.
+- **Mobile**: generation continues in the background with completion notifications, Live Activities on iOS, and Live Updates or a floating status capsule on Android. Share text and files to Cuplivo from other apps, or send selected text to it from the Android text selection menu.
+- **Desktop**: a multi-pane layout, customizable keyboard shortcuts including a global shortcut to show or hide Cuplivo, system tray, drag-and-drop attachments, and window size and position restored between launches.
 
 ## 📊 Platform Differences
 
@@ -175,7 +188,7 @@ Most features work on every platform. These depend on the operating system:
 | Access to outside folders | Up to 10 mounted folders | Up to 10 mounted folders | Link any local folder |
 | MCP over STDIO | In sandbox | In sandbox | Native |
 | Scheduled tasks | ✓ | — | ✓ |
-| Background generation | Notification, Live Updates, floating capsule | Extra background time, Live Activities | While Kelivo is running |
+| Background generation | Notification, Live Updates, floating capsule | Extra background time, Live Activities | While Cuplivo is running |
 | Platform-specific device tools | Calendar, location, screen time | Calendar, location, weather, reminders, Health | — |
 | Global shortcut and system tray | — | — | ✓ |
 
@@ -192,8 +205,8 @@ On desktop, workspace commands run with your user account's permissions and are 
 - Android only: `python3`, `curl` and `tar`. The Gradle build downloads the PRoot binaries automatically.
 
 ```bash
-git clone https://github.com/Chevey339/kelivo.git
-cd kelivo
+git clone https://github.com/cuplivo/cuplivo.git
+cd cuplivo
 flutter pub get
 flutter run
 ```
@@ -210,26 +223,32 @@ dart analyze --fatal-infos lib test
 flutter test
 ```
 
-- **Bug reports and feature requests**: use the [issue templates](https://github.com/Chevey339/kelivo/issues/new/choose).
+- **Bug reports and feature requests**: use the [issue templates](https://github.com/cuplivo/cuplivo/issues/new/choose).
 - **UI changes**: follow the UI guidelines in [AGENTS.md](AGENTS.md), including separate mobile and desktop layouts for new pages.
 - **Localization**: strings live in [`lib/l10n`](lib/l10n), with `app_en.arb` as the template. Run `flutter gen-l10n` after editing and commit the generated files.
 - **Questions and discussion**: join us on [Discord](https://discord.gg/Tb8DyvvV5T) or in the [QQ group](https://qm.qq.com/q/OQaXetKssC).
 
 ## 🙏 Acknowledgements
 
+- [Kelivo](https://github.com/Chevey339/kelivo) by Chevey339 — the upstream project this fork is based on.
+
 - [RikkaHub](https://github.com/re-ovo/rikkahub), whose beautiful and practical design inspired Kelivo's interface.
 - [Minis](https://github.com/OpenMinis/OpenMinis): Kelivo's iOS Linux sandbox is built on its [iSH-ARM64](https://github.com/OpenMinis/ish-arm64) port, and much of the workspace feature draws on its design.
 - [iSH](https://github.com/ish-app/ish), the upstream Linux shell for iOS behind the iOS sandbox.
 - [PRoot](https://github.com/termux/proot) and [Termux](https://termux.dev), which power the Android Linux sandbox.
 - [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx), which provides offline speech recognition.
-- Every open-source package Kelivo depends on, listed in [`pubspec.yaml`](pubspec.yaml).
+- Every open-source package Cuplivo depends on, listed in [`pubspec.yaml`](pubspec.yaml).
 
 Full third-party notices for the sandbox components are in [`ios/sandbox/NOTICE`](ios/sandbox/NOTICE) and [`android/app/src/main/jniLibs/NOTICE`](android/app/src/main/jniLibs/NOTICE).
 
 ## ⭐ Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=Chevey339/kelivo&type=Date)](https://star-history.com/#Chevey339/kelivo&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=cuplivo/cuplivo&type=Date)](https://star-history.com/#cuplivo/cuplivo&Date)
+
+## ⚠️ Note
+
+Cuplivo is a community fork of [Kelivo](https://github.com/Chevey339/kelivo), re-based on upstream from 4.0 on and currently sitting on upstream `master` at `a02ee457a` (2026-10-26) — upstream's newest tag, `v1.3.1`, is older than that. Outward-facing identity is Cuplivo; names that belong to a protocol, to persisted data or to upstream infrastructure are kept on purpose (`kelivo://` content links, `kelivo-file://` URIs, `kelivo_*` MCP tool ids, `kelivo.db` and the like), because renaming them would break imported conversations and recorded tool calls. Community: QQ group `1101061750`, [Discord](https://discord.gg/kaTf8CXG4).
 
 ## 📄 License
 
-Kelivo is licensed under the [GNU Affero General Public License v3.0](LICENSE).
+Cuplivo is licensed under the [GNU Affero General Public License v3.0](LICENSE).

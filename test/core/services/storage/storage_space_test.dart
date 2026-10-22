@@ -3,9 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
-import 'package:Kelivo/core/database/startup_failure_report.dart';
-import 'package:Kelivo/core/services/storage/device_storage_probe.dart';
-import 'package:Kelivo/core/services/storage/storage_space.dart';
+import 'package:Cuplivo/core/database/startup_failure_report.dart';
+import 'package:Cuplivo/core/services/storage/device_storage_probe.dart';
+import 'package:Cuplivo/core/services/storage/storage_space.dart';
 
 void main() {
   final binding = TestWidgetsFlutterBinding.ensureInitialized();

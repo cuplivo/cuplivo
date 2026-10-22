@@ -2,9 +2,9 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/services/browser/browser_workspace_resources.dart';
-import 'package:Kelivo/core/services/browser/browser_service.dart';
-import 'package:Kelivo/core/services/browser/browser_tools_service.dart';
+import 'package:Cuplivo/core/services/browser/browser_workspace_resources.dart';
+import 'package:Cuplivo/core/services/browser/browser_service.dart';
+import 'package:Cuplivo/core/services/browser/browser_tools_service.dart';
 
 void main() {
   late Directory root;
@@ -61,7 +61,7 @@ void main() {
         expect(
           Directory(
             bindings['chat-a']!.path,
-          ).listSync().where((e) => e.path.contains('.kelivo-screenshot-')),
+          ).listSync().where((e) => e.path.contains('.cuplivo-screenshot-')),
           isEmpty,
         );
       }
@@ -145,7 +145,7 @@ void main() {
           'kelivo://workspace/index.html',
           android: android,
         );
-        expect(url.scheme, android ? 'https' : 'kelivo');
+        expect(url.scheme, android ? 'https' : 'cuplivo');
         expect((await scope.read(url))!.mime, 'text/html');
         expect(
           String.fromCharCodes(

@@ -4,8 +4,8 @@ import '../../../core/providers/tag_provider.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 class TagsManagerPage extends StatefulWidget {
   const TagsManagerPage({super.key, required this.assistantId});

@@ -32,7 +32,7 @@ Future<void> verifyEvaluationRuntime(
       package['name'] as String: package,
   };
   for (final local in {
-    'Kelivo': root,
+    'Cuplivo': root,
     'markstream': p.join(root, 'dependencies', 'markstream'),
   }.entries) {
     final package = packages[local.key];

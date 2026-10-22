@@ -1,8 +1,8 @@
-import 'package:Kelivo/l10n/app_localizations_en.dart';
-import 'package:Kelivo/core/models/quote_ref.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_context_submission.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_user_context_parts.dart';
-import 'package:Kelivo/features/intelligent_ui/models/ui_context_attachment.dart';
+import 'package:Cuplivo/l10n/app_localizations_en.dart';
+import 'package:Cuplivo/core/models/quote_ref.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_context_submission.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_user_context_parts.dart';
+import 'package:Cuplivo/features/intelligent_ui/models/ui_context_attachment.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -16,36 +16,37 @@ import 'package:provider/provider.dart';
 
 import '../../../support/business_test_harness.dart';
 import '../../../support/gated_xfile.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/database/business_preferences.dart';
-import 'package:Kelivo/core/models/chat_input_data.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/composer_draft.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/compress_context_options.dart';
-import 'package:Kelivo/core/services/chat/context_compression_service.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/models/preset_message.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/mcp_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/api/providers/openai/responses_history.dart';
-import 'package:Kelivo/core/services/api/providers/claude/claude_history.dart';
-import 'package:Kelivo/core/services/api/providers/google_gemini.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk_emit.dart';
-import 'package:Kelivo/core/services/mcp/mcp_tool_service.dart';
-import 'package:Kelivo/features/chat/widgets/chat_message_widget.dart'
+import '../../../support/temp_directory_cleanup.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/models/chat_input_data.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/composer_draft.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/compress_context_options.dart';
+import 'package:Cuplivo/core/services/chat/context_compression_service.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/preset_message.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/responses_history.dart';
+import 'package:Cuplivo/core/services/api/providers/claude/claude_history.dart';
+import 'package:Cuplivo/core/services/api/providers/google_gemini.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk_emit.dart';
+import 'package:Cuplivo/core/services/mcp/mcp_tool_service.dart';
+import 'package:Cuplivo/features/chat/widgets/chat_message_widget.dart'
     show ToolUIPart;
-import 'package:Kelivo/features/home/controllers/home_page_controller.dart';
-import 'package:Kelivo/features/home/controllers/chat_actions.dart';
-import 'package:Kelivo/features/home/controllers/scroll_controller.dart';
-import 'package:Kelivo/features/home/services/ask_user_interaction_service.dart';
-import 'package:Kelivo/features/home/utils/model_display_helper.dart';
-import 'package:Kelivo/features/home/widgets/chat_input_bar.dart';
-import 'package:Kelivo/features/search/services/global_session_search_service.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/features/home/controllers/home_page_controller.dart';
+import 'package:Cuplivo/features/home/controllers/chat_actions.dart';
+import 'package:Cuplivo/features/home/controllers/scroll_controller.dart';
+import 'package:Cuplivo/features/home/services/ask_user_interaction_service.dart';
+import 'package:Cuplivo/features/home/utils/model_display_helper.dart';
+import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
+import 'package:Cuplivo/features/search/services/global_session_search_service.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
 
 class _GatedChatService extends ChatService {
   _GatedChatService({required super.existingRepository});
@@ -353,7 +354,7 @@ void main() {
     try {
       await repository.close().timeout(const Duration(seconds: 10));
     } catch (_) {}
-    if (await directory.exists()) await directory.delete(recursive: true);
+    await deleteDirectoryWhenReleased(directory, keepLockedLeftovers: true);
   });
 
   Future<HomePageController> pumpHarness(
@@ -2306,6 +2307,10 @@ void main() {
       );
     });
     expect(tester.takeException(), isNull);
+    // Unmount before the temp directory goes away: the controller closes
+    // its database asynchronously in dispose, and Windows refuses to
+    // unlink it until then.
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('single-flight cancel hides loading before slow teardown', (

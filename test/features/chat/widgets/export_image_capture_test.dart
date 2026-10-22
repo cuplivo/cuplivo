@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
-import 'package:Kelivo/features/chat/utils/export_image_processor.dart';
-import 'package:Kelivo/features/chat/widgets/export_image_capture.dart';
-import 'package:Kelivo/features/chat/widgets/image_preview_sheet.dart';
-import 'package:Kelivo/features/chat/widgets/message_export_sheet.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/features/chat/utils/export_image_processor.dart';
+import 'package:Cuplivo/features/chat/widgets/export_image_capture.dart';
+import 'package:Cuplivo/features/chat/widgets/image_preview_sheet.dart';
+import 'package:Cuplivo/features/chat/widgets/message_export_sheet.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'dart:io';
 
 void main() {

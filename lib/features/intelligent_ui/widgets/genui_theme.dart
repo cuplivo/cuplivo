@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:markstream/markstream.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
-import 'package:Kelivo/theme/design_tokens.dart';
-import 'package:Kelivo/theme/surface_ladder.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/design_tokens.dart';
+import 'package:Cuplivo/theme/surface_ladder.dart';
 
-/// The sole mapping from Kelivo appearance tokens to generated native content.
+/// The sole mapping from Cuplivo appearance tokens to generated native content.
 /// Model declarations select semantic variants, never colors or pixel geometry.
 final class GenUiTheme {
   GenUiTheme._(

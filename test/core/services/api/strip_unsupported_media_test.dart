@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/model_spec.dart';
-import 'package:Kelivo/core/services/api/chat_api_service.dart';
-import 'package:Kelivo/core/utils/multimodal_input_utils.dart';
+import 'package:Cuplivo/core/models/model_spec.dart';
+import 'package:Cuplivo/core/services/api/chat_api_service.dart';
+import 'package:Cuplivo/core/utils/multimodal_input_utils.dart';
 
 ModelSpec _spec(List<Modality> input) =>
     ModelSpec(id: 'm', displayName: 'm', input: input);

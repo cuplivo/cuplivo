@@ -3,14 +3,14 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/models/message_part_snapshot.dart';
-import 'package:Kelivo/core/models/tool_event_snapshot.dart';
-import 'package:Kelivo/features/chat/widgets/incremental_timeline_projection.dart';
-import 'package:Kelivo/features/chat/widgets/timeline_projection.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/message_part_snapshot.dart';
+import 'package:Cuplivo/core/models/tool_event_snapshot.dart';
+import 'package:Cuplivo/features/chat/widgets/incremental_timeline_projection.dart';
+import 'package:Cuplivo/features/chat/widgets/timeline_projection.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Map<String, int> percentiles(List<int> samples) {

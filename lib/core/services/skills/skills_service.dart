@@ -793,7 +793,7 @@ class SkillsService extends ChangeNotifier {
   }
 
   static const Map<String, String> _githubHeaders = {
-    'User-Agent': 'Kelivo',
+    'User-Agent': 'Cuplivo',
     'Accept': 'application/vnd.github+json',
   };
 }

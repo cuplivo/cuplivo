@@ -1,8 +1,8 @@
 import 'dart:io';
-import 'package:Kelivo/core/models/chat_input_data.dart';
-import 'package:Kelivo/core/services/incoming_share_service.dart';
-import 'package:Kelivo/features/home/widgets/composer_attachment_card.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/models/chat_input_data.dart';
+import 'package:Cuplivo/core/services/incoming_share_service.dart';
+import 'package:Cuplivo/features/home/widgets/composer_attachment_card.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

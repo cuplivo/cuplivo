@@ -2,10 +2,10 @@ import 'package:drift/native.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/business_preferences.dart';
-import 'package:Kelivo/core/database/business_repository.dart';
-import 'package:Kelivo/features/intelligent_ui/host/gallery/message_gallery.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/gallery/message_gallery.dart';
 
 /// Isolated native fixture: production message/list/focus widgets, in-memory
 /// storage, no credentials or model requests. Never imported by the app entry.

@@ -1,11 +1,11 @@
-import 'package:Kelivo/features/browser/widgets/browser_text_field.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import 'package:Kelivo/features/browser/widgets/browser_controls.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_controls.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 void main() {
   testWidgets('address baseline scales continuously inside the capsule', (

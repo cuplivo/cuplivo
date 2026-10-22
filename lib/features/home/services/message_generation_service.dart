@@ -2,7 +2,7 @@ import '../../../core/services/api/providers/zhipu_layout_parsing.dart';
 import '../../../core/models/context_operation.dart';
 import '../../../core/services/api/request_image_context.dart';
 import '../../intelligent_ui/host/ui_context_submission.dart';
-import 'package:Kelivo/core/providers/external_mounts_provider.dart';
+import 'package:Cuplivo/core/providers/external_mounts_provider.dart';
 import 'dart:async';
 import '../../../core/models/quote_ref.dart';
 import 'package:flutter/widgets.dart';

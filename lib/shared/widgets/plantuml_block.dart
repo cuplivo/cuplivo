@@ -3,7 +3,7 @@ import 'package:markstream/markstream.dart';
 import '../markdown/diagram_chrome.dart';
 import '../markdown/markdown_surface_scope.dart';
 
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';

@@ -4,10 +4,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:Kelivo/core/services/browser/browser_service.dart';
-import 'package:Kelivo/core/services/browser/browser_store.dart';
-import 'package:Kelivo/core/services/browser/browser_tools_service.dart';
-import 'package:Kelivo/core/services/browser/browser_workspace_resources.dart';
+import 'package:Cuplivo/core/services/browser/browser_service.dart';
+import 'package:Cuplivo/core/services/browser/browser_store.dart';
+import 'package:Cuplivo/core/services/browser/browser_tools_service.dart';
+import 'package:Cuplivo/core/services/browser/browser_workspace_resources.dart';
 
 // Run in an isolated runner/profile. Uses temporary files and no app database,
 // provider credentials, external websites or installed-app state.
@@ -105,7 +105,7 @@ void main() {
         'script': 'document.querySelector("#ticker").textContent="unrelated"',
       });
       expect(
-        (await run('type', {'ref': ref, 'text': 'Kelivo'}))['verified'],
+        (await run('type', {'ref': ref, 'text': 'Cuplivo'}))['verified'],
         true,
       );
       expect(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:markstream/markstream.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
 
 /// Shared presentation only; diagram state and rendering stay with each owner.
 class DiagramChrome extends StatelessWidget {

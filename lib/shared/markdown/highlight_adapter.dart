@@ -3,7 +3,7 @@ import 'package:flutter_highlight/themes/github.dart';
 import 'package:flutter_highlight/themes/atom-one-dark-reasonable.dart';
 import 'package:highlight/highlight.dart' show Node, highlight;
 import 'package:markstream/markstream.dart';
-import 'package:Kelivo/shared/cache/byte_lru_cache.dart';
+import 'package:Cuplivo/shared/cache/byte_lru_cache.dart';
 
 // Cache syntax trees, not styled spans, so changing the theme does not reparse.
 final _nodes = ByteLruCache<String, List<Node>>(

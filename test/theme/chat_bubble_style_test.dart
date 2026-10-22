@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/theme/chat_bubble_style.dart';
-import 'package:Kelivo/features/chat/widgets/frosted/chat_frosted_backdrop.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/theme/chat_bubble_style.dart';
+import 'package:Cuplivo/features/chat/widgets/frosted/chat_frosted_backdrop.dart';
 
 void main() {
   final cs = ColorScheme.fromSeed(seedColor: const Color(0xFF4D5C92));

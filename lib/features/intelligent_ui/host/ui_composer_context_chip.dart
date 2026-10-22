@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import '../models/ui_context_attachment.dart';
 import '../widgets/genui_context_chip.dart';
 

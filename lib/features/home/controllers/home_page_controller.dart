@@ -1,12 +1,12 @@
 import '../../chat/controllers/quote_editing_controller.dart';
 import '../../side_panel/desktop_side_panel_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_search_navigation.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_search_navigation.dart';
 import '../../intelligent_ui/host/ui_copy_actions.dart';
 import '../../intelligent_ui/host/ui_draft_staging.dart';
 import '../../intelligent_ui/host/ui_draft_request.dart';
 import '../../intelligent_ui/widgets/genui_draft_dialog.dart';
 import '../../intelligent_ui/host/ui_context_submission.dart';
-import 'package:Kelivo/shared/text_input/message_editing_controller.dart';
+import 'package:Cuplivo/shared/text_input/message_editing_controller.dart';
 import '../../../core/database/composer_draft_store.dart';
 import '../../../core/models/composer_draft.dart';
 import '../../../core/services/app_exit_flush.dart';

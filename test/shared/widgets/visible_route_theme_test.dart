@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/shared/widgets/visible_route_theme.dart';
-import 'package:Kelivo/shared/widgets/interactive_drawer.dart';
+import 'package:Cuplivo/shared/widgets/visible_route_theme.dart';
+import 'package:Cuplivo/shared/widgets/interactive_drawer.dart';
 
 void main() {
   final first = ThemeData(

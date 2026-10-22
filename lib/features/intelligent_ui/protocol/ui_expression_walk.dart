@@ -1,4 +1,4 @@
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_ir.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_ir.dart';
 
 /// Dependency-first traversal without recursion across declarations. Cycles
 /// include only their members, so consumers can report a dependency error.

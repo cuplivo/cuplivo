@@ -1,6 +1,6 @@
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
-import 'package:Kelivo/theme/surface_ladder.dart';
+import 'package:Cuplivo/theme/surface_ladder.dart';
 
 /// Semantic colors that have no dedicated role in [ColorScheme].
 ///

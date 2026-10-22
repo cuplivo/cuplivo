@@ -1,8 +1,8 @@
 import 'package:drift/drift.dart';
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/gen_ui_derived_schema.dart';
-import 'package:Kelivo/core/database/generation_run.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/gen_ui_derived_schema.dart';
+import 'package:Cuplivo/core/database/generation_run.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
 import '../text/ui_search_text.dart';
 
 /// Derived text lives on the existing state row. Rebuilding touches only its

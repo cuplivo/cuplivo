@@ -1,4 +1,4 @@
-import 'package:Kelivo/core/services/browser/browser_download_cookies.dart';
+import 'package:Cuplivo/core/services/browser/browser_download_cookies.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_test/flutter_test.dart';

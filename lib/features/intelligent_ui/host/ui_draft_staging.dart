@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
-import 'package:Kelivo/features/home/widgets/chat_input_bar.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
 import '../widgets/genui_draft_dialog.dart';
 import 'ui_draft_request.dart';
 

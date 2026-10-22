@@ -3,7 +3,7 @@ import '../../utils/chat_image_result.dart';
 import '../../models/quote_ref.dart';
 import '../../../features/intelligent_ui/host/ui_context_submission.dart';
 import '../../../features/intelligent_ui/models/ui_context_attachment.dart';
-import 'package:Kelivo/core/models/tool_permission_mode.dart';
+import 'package:Cuplivo/core/models/tool_permission_mode.dart';
 import '../../models/composer_draft.dart';
 import '../../../features/intelligent_ui/storage/ui_state_transfer.dart';
 import '../../../features/intelligent_ui/runtime/ui_surface_state.dart';
@@ -2550,7 +2550,7 @@ class ChatService extends ChangeNotifier {
         try {
           for (final file in regularFiles) {
             final quarantine = File(
-              '${file.path}.kelivo-gc-${candidate.assetId}-'
+              '${file.path}.cuplivo-gc-${candidate.assetId}-'
               '${candidate.generation}',
             );
             if (await quarantine.exists()) {

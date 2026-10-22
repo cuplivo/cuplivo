@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/haptics.dart';
-import 'package:Kelivo/shared/widgets/effort_slider.dart';
+import 'package:Cuplivo/core/services/haptics.dart';
+import 'package:Cuplivo/shared/widgets/effort_slider.dart';
 
 Future<void> _pumpSlider(
   WidgetTester tester, {

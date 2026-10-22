@@ -9,17 +9,17 @@ import 'package:image/image.dart' as img;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
-import 'package:Kelivo/core/services/api/tool_result_content.dart';
-import 'package:Kelivo/core/services/browser/browser_engine.dart';
-import 'package:Kelivo/core/services/browser/browser_service.dart';
-import 'package:Kelivo/core/services/browser/browser_store.dart';
-import 'package:Kelivo/core/services/browser/browser_tools_service.dart';
-import 'package:Kelivo/core/services/browser/browser_workspace_resources.dart';
-import 'package:Kelivo/core/services/mcp/mcp_image_snapshot.dart';
-import 'package:Kelivo/features/browser/models/browser_models.dart';
-import 'package:Kelivo/features/browser/models/browser_agent_activity.dart';
-import 'package:Kelivo/utils/mcp_structured_image.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/core/services/api/tool_result_content.dart';
+import 'package:Cuplivo/core/services/browser/browser_engine.dart';
+import 'package:Cuplivo/core/services/browser/browser_service.dart';
+import 'package:Cuplivo/core/services/browser/browser_store.dart';
+import 'package:Cuplivo/core/services/browser/browser_tools_service.dart';
+import 'package:Cuplivo/core/services/browser/browser_workspace_resources.dart';
+import 'package:Cuplivo/core/services/mcp/mcp_image_snapshot.dart';
+import 'package:Cuplivo/features/browser/models/browser_models.dart';
+import 'package:Cuplivo/features/browser/models/browser_agent_activity.dart';
+import 'package:Cuplivo/utils/mcp_structured_image.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 
 import '../../../support/claude_test_api.dart' show FakePathProviderPlatform;
 

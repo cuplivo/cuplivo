@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/desktop/chat_history_dialog.dart';
-import 'package:Kelivo/features/chat/pages/chat_history_page.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/desktop/chat_history_dialog.dart';
+import 'package:Cuplivo/features/chat/pages/chat_history_page.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';

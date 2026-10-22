@@ -10,21 +10,21 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/database/database_installation_gate.dart';
-import 'package:Kelivo/core/database/private_data_storage.dart';
-import 'package:Kelivo/core/database/startup_recovery_service.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/services/backup/local_copy_catalog.dart';
-import 'package:Kelivo/core/services/backup/local_snapshot_store.dart';
-import 'package:Kelivo/core/services/backup/restore_bundle_preparation.dart';
-import 'package:Kelivo/core/services/backup/restore_durability.dart';
-import 'package:Kelivo/core/services/backup/restore_startup_gate.dart';
-import 'package:Kelivo/core/services/backup/restore_receipt.dart';
-import 'package:Kelivo/core/services/storage/device_storage_probe.dart';
-import 'package:Kelivo/core/services/storage/storage_usage_service.dart';
-import 'package:Kelivo/utils/app_directories.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/database/database_installation_gate.dart';
+import 'package:Cuplivo/core/database/private_data_storage.dart';
+import 'package:Cuplivo/core/database/startup_recovery_service.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/services/backup/local_copy_catalog.dart';
+import 'package:Cuplivo/core/services/backup/local_snapshot_store.dart';
+import 'package:Cuplivo/core/services/backup/restore_bundle_preparation.dart';
+import 'package:Cuplivo/core/services/backup/restore_durability.dart';
+import 'package:Cuplivo/core/services/backup/restore_startup_gate.dart';
+import 'package:Cuplivo/core/services/backup/restore_receipt.dart';
+import 'package:Cuplivo/core/services/storage/device_storage_probe.dart';
+import 'package:Cuplivo/core/services/storage/storage_usage_service.dart';
+import 'package:Cuplivo/utils/app_directories.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 import '../../support/recovery_snapshot_fixture.dart';
 
 class _Paths extends PathProviderPlatform {
@@ -140,13 +140,18 @@ void main() {
       );
       expect(await snapshot.readAsBytes(), [8, 9]);
       expect(
-        (await AppDirectories.getImagesDirectory()).path,
-        image.parent.path,
+        p.equals(
+          (await AppDirectories.getImagesDirectory()).path,
+          image.parent.path,
+        ),
+        isTrue,
       );
       await SandboxPathResolver.init();
       expect(
-        SandboxPathResolver.resolveForIo('kelivo-file:///images/photo.png'),
-        image.path,
+        p.normalize(
+          SandboxPathResolver.resolveForIo('kelivo-file:///images/photo.png')!,
+        ),
+        p.normalize(image.path),
       );
     },
   );

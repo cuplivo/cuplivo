@@ -5,8 +5,8 @@ import 'package:audioplayers_platform_interface/audioplayers_platform_interface.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/audio_clip_player.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/audio_clip_player.dart';
 
 import '../../support/fake_audioplayers_platform.dart';
 

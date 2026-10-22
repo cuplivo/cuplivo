@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/browser/browser_management_route.dart';
+import 'package:Cuplivo/features/browser/browser_management_route.dart';
 
 void main() {
   for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {

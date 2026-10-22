@@ -1,9 +1,9 @@
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/generation_run.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/generation_run.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
 import '../host/ui_source_map.dart';
 import '../host/ui_source_selection.dart';
 import '../protocol/ui_source_hash.dart';

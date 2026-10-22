@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/services/browser/browser_engine.dart';
-import 'package:Kelivo/core/services/browser/browser_scroll_observer.dart';
+import 'package:Cuplivo/core/services/browser/browser_engine.dart';
+import 'package:Cuplivo/core/services/browser/browser_scroll_observer.dart';
 
 void main() {
   Map<String, Object> event(

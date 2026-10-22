@@ -3,16 +3,16 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:markstream/markstream.dart';
 import 'package:provider/provider.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/features/chat/widgets/chat_surface.dart';
-import 'package:Kelivo/features/chat/widgets/frosted/chat_frosted_backdrop.dart';
-import 'package:Kelivo/shared/markdown/markdown_surface_scope.dart';
-import 'package:Kelivo/shared/markdown/markdown_theme_mapper.dart';
-import 'package:Kelivo/shared/markdown/markdown_with_code_highlight.dart';
-import 'package:Kelivo/shared/widgets/export_capture_scope.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/chat/widgets/chat_surface.dart';
+import 'package:Cuplivo/features/chat/widgets/frosted/chat_frosted_backdrop.dart';
+import 'package:Cuplivo/shared/markdown/markdown_surface_scope.dart';
+import 'package:Cuplivo/shared/markdown/markdown_theme_mapper.dart';
+import 'package:Cuplivo/shared/markdown/markdown_with_code_highlight.dart';
+import 'package:Cuplivo/shared/widgets/export_capture_scope.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import '../../support/business_test_harness.dart';
 
 class _Assistants extends AssistantProvider {

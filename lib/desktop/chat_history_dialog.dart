@@ -10,7 +10,7 @@ import '../core/services/chat/chat_service.dart';
 import '../core/models/conversation.dart';
 import '../theme/app_font_weights.dart';
 import '../features/home/controllers/chat_actions.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 Future<String?> showChatHistoryDesktopDialog(
   BuildContext context, {

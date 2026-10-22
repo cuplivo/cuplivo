@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/update_required_screen.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/update_required_screen.dart';
 
 Widget wrap(Widget child) => MaterialApp(
   locale: const Locale('en'),
@@ -33,7 +33,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Update Kelivo to continue'), findsOneWidget);
+      expect(find.text('Update Cuplivo to continue'), findsOneWidget);
       expect(find.text('If you need an older version'), findsOneWidget);
       expect(
         find.textContaining('export a backup from Settings'),

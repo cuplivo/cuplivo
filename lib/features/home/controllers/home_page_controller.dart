@@ -1,4 +1,4 @@
-import 'package:Kelivo/shared/text_input/message_editing_controller.dart';
+import 'package:Cuplivo/shared/text_input/message_editing_controller.dart';
 import '../../../core/database/composer_draft_store.dart';
 import '../../../core/models/composer_draft.dart';
 import '../../../core/services/app_exit_flush.dart';

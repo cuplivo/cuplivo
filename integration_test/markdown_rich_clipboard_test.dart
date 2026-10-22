@@ -5,8 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:markstream/markstream.dart';
 import 'package:super_clipboard/super_clipboard.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/app_selection_area.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/app_selection_area.dart';
 
 class _ObservedWriter implements ClipboardWriter {
   _ObservedWriter(this.clipboard);

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ============================================================================
-# iSH-ARM64 static library build for the Kelivo iOS Workspace sandbox
+# iSH-ARM64 static library build for the Cuplivo iOS Workspace sandbox
 # ============================================================================
 # Builds libish.a / libish_emu.a / libfakefs.a (arm64) from the Chevey339
 # ish-arm64 fork, which emulates an aarch64 Linux userland inside the app
@@ -24,7 +24,7 @@ set -euo pipefail
 #   only has guest-arm64 gadgets for an aarch64 host (no gadgets-x86_64), so
 #   x86_64 simulator is excluded in Flutter/Workspace.xcconfig.
 #
-# Kelivo patches (ios/sandbox/patches/*.patch) are applied after fetch_ish
+# Cuplivo patches (ios/sandbox/patches/*.patch) are applied after fetch_ish
 # pins the clone to ISH_SHA. apply_ish_patches is idempotent: git apply
 # --check then apply, or skip if git apply --reverse --check succeeds
 # (already applied). Re-running on an existing checkout is safe. See
@@ -481,7 +481,7 @@ main() {
     if [ "${1:-}" = "fingerprint" ]; then build_fingerprint; return; fi
     echo ""
     echo "============================================================"
-    echo "  Kelivo iOS Workspace: iSH-ARM64 static library builder"
+    echo "  Cuplivo iOS Workspace: iSH-ARM64 static library builder"
     echo "  Guest arch: arm64 (aarch64 Linux userland emulation)"
     echo "============================================================"
     echo ""

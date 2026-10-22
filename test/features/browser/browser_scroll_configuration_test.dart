@@ -5,15 +5,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/browser/browser_service.dart';
-import 'package:Kelivo/core/services/browser/browser_store.dart';
-import 'package:Kelivo/core/services/haptics.dart';
-import 'package:Kelivo/features/browser/pages/browser_management_page.dart';
-import 'package:Kelivo/features/browser/pages/browser_page.dart';
-import 'package:Kelivo/features/browser/widgets/browser_scroll_configuration.dart';
-import 'package:Kelivo/features/browser/widgets/browser_settings.dart';
-import 'package:Kelivo/features/browser/widgets/browser_surface_controls.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/services/browser/browser_service.dart';
+import 'package:Cuplivo/core/services/browser/browser_store.dart';
+import 'package:Cuplivo/core/services/haptics.dart';
+import 'package:Cuplivo/features/browser/pages/browser_management_page.dart';
+import 'package:Cuplivo/features/browser/pages/browser_page.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_scroll_configuration.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_settings.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_surface_controls.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 void main() {
   void browserTest(String name, WidgetTesterCallback body) {

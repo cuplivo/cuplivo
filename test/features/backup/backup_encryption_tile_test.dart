@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/backup/widgets/backup_encryption_tile.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_switch.dart';
-import 'package:Kelivo/shared/widgets/form_sheet.dart';
+import 'package:Cuplivo/features/backup/widgets/backup_encryption_tile.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_switch.dart';
+import 'package:Cuplivo/shared/widgets/form_sheet.dart';
 
 void main() {
   for (final platform in [TargetPlatform.iOS, TargetPlatform.macOS]) {

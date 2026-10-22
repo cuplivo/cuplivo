@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/browser/models/browser_tool_presentation.dart';
-import 'package:Kelivo/l10n/app_localizations_zh.dart';
+import 'package:Cuplivo/features/browser/models/browser_tool_presentation.dart';
+import 'package:Cuplivo/l10n/app_localizations_zh.dart';
 
 void main() {
   final l = AppLocalizationsZh();

@@ -7,11 +7,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/storage/storage_usage_service.dart';
-import 'package:Kelivo/features/settings/widgets/storage_contents_list.dart';
-import 'package:Kelivo/features/workspace/widgets/files/file_browser.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/storage/storage_usage_service.dart';
+import 'package:Cuplivo/features/settings/widgets/storage_contents_list.dart';
+import 'package:Cuplivo/features/workspace/widgets/files/file_browser.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 void main() {
   late Directory root;

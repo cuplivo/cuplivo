@@ -1,16 +1,16 @@
-import 'package:Kelivo/features/browser/widgets/browser_text_field.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import 'package:Kelivo/features/browser/models/browser_models.dart';
-import 'package:Kelivo/features/browser/pages/browser_bookmark_editor.dart';
-import 'package:Kelivo/features/browser/widgets/browser_controls.dart';
-import 'package:Kelivo/features/browser/widgets/browser_find_bar.dart';
-import 'package:Kelivo/features/browser/widgets/browser_surface_controls.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/features/browser/models/browser_models.dart';
+import 'package:Cuplivo/features/browser/pages/browser_bookmark_editor.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_controls.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_find_bar.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_surface_controls.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 void main() {
   const family = 'BrowserCustomFont';

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/services/mcp/stdio_arguments.dart';
+import 'package:Cuplivo/core/services/mcp/stdio_arguments.dart';
 
 void main() {
   test('plain arguments stay compact', () {

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/workspace.dart';
+import 'package:Cuplivo/core/models/workspace.dart';
 
 void main() {
   group('Workspace', () {

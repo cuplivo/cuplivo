@@ -5,14 +5,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/chat_api_service.dart';
-import 'package:Kelivo/core/services/api/providers/openai/openai_provider.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk_handler.dart';
-import 'package:Kelivo/features/home/services/assistant_tool_history.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/chat_api_service.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/openai_provider.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk_handler.dart';
+import 'package:Cuplivo/features/home/services/assistant_tool_history.dart';
 import 'support/collect_generation.dart';
 
-/// Regression tests for https://github.com/Chevey339/kelivo/issues/764
+/// Regression tests for https://github.com/cuplivo/cuplivo/issues/764
 ///
 /// Claude models served through OpenAI-compatible proxies rebuild Anthropic
 /// thinking blocks from the echoed reasoning fields. An unsigned

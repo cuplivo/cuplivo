@@ -1,4 +1,4 @@
-import 'package:Kelivo/features/chat/utils/prompt_injection_selection.dart';
+import 'package:Cuplivo/features/chat/utils/prompt_injection_selection.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -8,7 +8,7 @@ import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import '../../../shared/widgets/section_card.dart';
 
 class WorldBookSheet extends StatelessWidget {

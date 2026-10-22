@@ -1,7 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/browser/widgets/browser_switch_lens.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_switch_lens.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

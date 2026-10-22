@@ -1,5 +1,5 @@
-import 'package:Kelivo/desktop/macos_window_drag_area.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/desktop/macos_window_drag_area.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,6 +17,10 @@ void main() {
         .setMockMethodCallHandler(channel, (call) async {
           calls.add(call.method);
           if (call.method == 'isMaximized') return maximized;
+          // window_manager 0.5.2's `startDragging` asks `isFullScreen` first on
+          // Windows hosts; an unanswered channel hands back null and the await
+          // then throws instead of starting the drag.
+          if (call.method == 'isFullScreen') return false;
           if (call.method == 'maximize') maximized = true;
           if (call.method == 'unmaximize') maximized = false;
           return null;
@@ -95,7 +99,7 @@ void main() {
 
     await tester.dragFrom(const Offset(600, 20), const Offset(80, 20));
     await tester.pumpAndSettle();
-    expect(calls, ['startDragging']);
+    expect(calls.where((call) => call != 'isFullScreen'), ['startDragging']);
   }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
 
   testWidgets(

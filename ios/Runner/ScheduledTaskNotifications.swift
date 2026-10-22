@@ -80,7 +80,7 @@ final class ScheduledTaskNotifications {
                 content.title = title
                 content.body = String(body.prefix(4000))
                 content.sound = .default
-                content.threadIdentifier = "kelivo.scheduled-tasks"
+                content.threadIdentifier = "cuplivo.scheduled-tasks"
                 // Use flutter_local_notifications' response bridge for both
                 // cold-launch and warm-launch taps, alongside normal replies.
                 content.userInfo = ["NotificationId": 0, "payload": payload,

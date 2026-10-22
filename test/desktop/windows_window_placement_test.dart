@@ -2,8 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/desktop/windows_window_geometry.dart';
-import 'package:Kelivo/desktop/windows_window_placement.dart';
+import 'package:Cuplivo/desktop/windows_window_geometry.dart';
+import 'package:Cuplivo/desktop/windows_window_placement.dart';
 
 WindowsDisplay display(
   Rect workArea, {

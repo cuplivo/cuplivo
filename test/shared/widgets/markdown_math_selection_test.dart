@@ -1,8 +1,8 @@
 import 'dart:ui' as ui;
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/markdown/markdown_with_code_highlight.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/markdown/markdown_with_code_highlight.dart';
 import 'package:markstream/markstream.dart' show SelectableSpanAdapter;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';

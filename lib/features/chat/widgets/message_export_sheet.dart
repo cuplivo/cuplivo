@@ -29,7 +29,7 @@ import '../../../core/services/chat/chat_service.dart';
 import '../../../utils/mcp_structured_image.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import '../../../shared/markdown/markdown_with_code_highlight.dart';
-import 'package:Kelivo/shared/widgets/app_selection_area.dart';
+import 'package:Cuplivo/shared/widgets/app_selection_area.dart';
 import '../../../shared/widgets/export_capture_scope.dart';
 import '../../../shared/widgets/diagram_exporter.dart';
 import '../../../shared/widgets/snackbar.dart';
@@ -39,7 +39,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../home/widgets/model_icon.dart';
 import '../utils/thinking_tag_parser.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import 'chat_message_widget.dart'
     show ChatMessageWidget, ToolUIPart, ReasoningSegment;
 

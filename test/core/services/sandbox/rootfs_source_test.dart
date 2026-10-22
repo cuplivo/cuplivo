@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/services/sandbox/rootfs_source.dart';
+import 'package:Cuplivo/core/services/sandbox/rootfs_source.dart';
 
 void main() {
   const source = RootfsSource();

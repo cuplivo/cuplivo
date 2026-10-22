@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/features/model/pages/model_spec_edit_page.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/model/pages/model_spec_edit_page.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 ProviderConfig _config() {
   return ProviderConfig(

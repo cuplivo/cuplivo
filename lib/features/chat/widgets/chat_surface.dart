@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/theme/chat_bubble_style.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/theme/chat_bubble_style.dart';
 
 import 'frosted/frosted_surface.dart';
-import 'package:Kelivo/shared/markdown/markdown_surface_scope.dart';
+import 'package:Cuplivo/shared/markdown/markdown_surface_scope.dart';
 
 ({ChatMessageBackgroundStyle style, ChatBubbleStyleOverrides overrides})
 _chatSurfaceStyleSelection(BuildContext context, {bool isUser = false}) {

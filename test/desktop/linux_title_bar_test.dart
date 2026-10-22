@@ -1,6 +1,6 @@
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/linux_window_service.dart';
-import 'package:Kelivo/desktop/desktop_window_controller.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/linux_window_service.dart';
+import 'package:Cuplivo/desktop/desktop_window_controller.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';

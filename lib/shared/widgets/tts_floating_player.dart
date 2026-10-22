@@ -387,7 +387,7 @@ class _SaveButtonState extends State<_SaveButton> {
       final bytes = audio.$1;
       final extension = audio.$2;
       final fileName =
-          'kelivo_tts_${DateTime.now().millisecondsSinceEpoch}.$extension';
+          'cuplivo_tts_${DateTime.now().millisecondsSinceEpoch}.$extension';
       final isDesktop =
           Platform.isWindows || Platform.isLinux || Platform.isMacOS;
       final savePath = await FilePicker.platform.saveFile(

@@ -10,7 +10,7 @@ Cuplivo is a cross-platform LLM chat client built with Flutter, targeting iOS, A
 - **Desktop / mobile split**: most UI pages have separate desktop and mobile layouts (e.g. `home_desktop_layout.dart` / `home_mobile_layout.dart`). Desktop-only code lives in `lib/desktop/`. Use `ResponsiveHelper` from `lib/shared/responsive/` to branch by screen type.
 - **State management**: Provider (`lib/core/providers/`).
 - **Database**: Drift (`lib/core/database/`). Schema versions tracked in `drift_schemas/`.
-- **Localization**: ARB-based (`lib/l10n/`), English template (`app_en.arb`). Run `flutter gen-l10n` after editing ARB files and commit the generated output.
+- **Localization**: ARB-based (`lib/l10n/`), English template (`app_en.arb`). Run `flutter gen-l10n` after editing ARB files and commit the generated output exactly as it is written — the generator formats its own files, so never hand-edit or reformat them. CI regenerates and compares (`pr-check.yml`), and a generated file that was reformatted outside the package (e.g. a copy under the system temp directory, where the package's language version does not apply) fails that comparison.
 
 ## Pre-commit checklist
 

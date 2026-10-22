@@ -1120,6 +1120,21 @@ class HomePageController extends ChangeNotifier {
         final conversationId = _pendingNotificationConversationId!;
         _pendingNotificationConversationId = null;
         if (_chatService.getConversation(conversationId) == null) {
+          // A tap on a notification whose run was deleted, or a link whose
+          // conversation is not on this device (it never synced here): say so
+          // rather than swallowing the tap.
+          if (_context.mounted) {
+            showAppSnackBar(
+              _context,
+              message: AppLocalizations.of(_context)!.conversationLinkMissing,
+              type: NotificationType.info,
+            );
+          }
+          // Nothing may survive for an id that is gone. The anchor that arrived
+          // with it would scroll a later, anchor-less open of this id to a
+          // message of this dead request, and the pending composer text would be
+          // pasted into whatever conversation opens next.
+          NotificationService.takePendingMessageId(conversationId);
           NotificationService.takePendingComposerText(conversationId);
           continue;
         }

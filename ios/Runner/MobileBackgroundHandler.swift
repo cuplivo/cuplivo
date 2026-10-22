@@ -63,7 +63,7 @@ final class MobileBackgroundHandler: NSObject, CLLocationManagerDelegate {
   private var observers: [NSObjectProtocol] = []
   private var lastError = UserDefaults.standard.string(forKey: "kelivo.background.lastError") ?? ""
   private var dartReady = false
-  private static let pendingConversationKey = "kelivo.background.pendingConversation"
+  private static let pendingConversationLinkKey = "kelivo.background.pendingConversationLink"
 
   static var liveActivitiesSupported: Bool {
     #if targetEnvironment(macCatalyst)
@@ -200,11 +200,11 @@ final class MobileBackgroundHandler: NSObject, CLLocationManagerDelegate {
         handler.returnStatus(result)
       }
     case "getStatus": returnStatus(result)
-    case "takePendingConversation":
+    case "takePendingConversationLink":
       dartReady = true
-      let id = UserDefaults.standard.string(forKey: Self.pendingConversationKey)
-      UserDefaults.standard.removeObject(forKey: Self.pendingConversationKey)
-      result(id)
+      let link = UserDefaults.standard.string(forKey: Self.pendingConversationLinkKey)
+      UserDefaults.standard.removeObject(forKey: Self.pendingConversationLinkKey)
+      result(link)
     case "requestPermission": requestPermission(call.arguments as? String ?? "", result: result)
     case "openSettings": openSettings(call.arguments as? String ?? "app", result: result)
     case "audioOwner":
@@ -225,12 +225,17 @@ final class MobileBackgroundHandler: NSObject, CLLocationManagerDelegate {
     }
   }
 
+  /// Accepts `cuplivo://conversation/<id>[?message=<id>]` — the Live Activity
+  /// widget URL and the link a user copies. The URL travels whole: the grammar
+  /// (and the message anchor) is parsed in Dart by `ConversationLink`, so this
+  /// side never has to know about query parameters.
   func receive(_ url: URL) -> Bool {
     guard url.scheme == "cuplivo", url.host == "conversation" else { return false }
     let id = url.pathComponents.dropFirst().first ?? ""
     guard !id.isEmpty else { return false }
-    if dartReady { channel?.invokeMethod("openConversation", arguments: id) }
-    else { UserDefaults.standard.set(id, forKey: Self.pendingConversationKey) }
+    let link = url.absoluteString
+    if dartReady { channel?.invokeMethod("openConversationLink", arguments: link) }
+    else { UserDefaults.standard.set(link, forKey: Self.pendingConversationLinkKey) }
     return true
   }
 

@@ -208,15 +208,23 @@ class RunnerTests: XCTestCase {
   }
 
   @MainActor
-  func testActivityConversationLinkIsBufferedForColdStartAndConsumedOnce() async {
+  func testConversationLinkIsBufferedForColdStartAndConsumedOnce() async {
     let handler = MobileBackgroundHandler()
     XCTAssertFalse(handler.receive(URL(string: "cuplivo://unrelated/chat")!))
+    XCTAssertFalse(handler.receive(URL(string: "cuplivo://conversation")!))
     XCTAssertTrue(handler.receive(URL(string: "cuplivo://conversation/chat-123")!))
-    let pending = await backgroundCall(handler, "takePendingConversation")
-    XCTAssertEqual(pending as? String, "chat-123")
-    let again = await backgroundCall(handler, "takePendingConversation")
+    let pending = await backgroundCall(handler, "takePendingConversationLink")
+    XCTAssertEqual(pending as? String, "cuplivo://conversation/chat-123")
+    let again = await backgroundCall(handler, "takePendingConversationLink")
     XCTAssertNil(again)
     handler.prepareForTermination()
+
+    // The message anchor rides the same buffer, whole: Dart parses it.
+    let anchored = MobileBackgroundHandler()
+    XCTAssertTrue(anchored.receive(URL(string: "cuplivo://conversation/chat-9?message=msg-4")!))
+    let anchoredPending = await backgroundCall(anchored, "takePendingConversationLink")
+    XCTAssertEqual(anchoredPending as? String, "cuplivo://conversation/chat-9?message=msg-4")
+    anchored.prepareForTermination()
   }
 
   @MainActor

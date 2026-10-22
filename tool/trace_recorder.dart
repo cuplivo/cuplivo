@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/services/api/stream/sse_event.dart';
-import 'package:Kelivo/core/services/api/stream/sse_framing.dart';
-import 'package:Kelivo/core/services/api/stream/stream_trace.dart';
+import 'package:Cuplivo/core/services/api/stream/sse_event.dart';
+import 'package:Cuplivo/core/services/api/stream/sse_framing.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_trace.dart';
 
 import 'src/traces_config.dart';
 
@@ -145,7 +145,7 @@ Directory _repoRoot() {
     final parent = dir.parent;
     if (parent.path == dir.path) {
       throw StateError(
-        'Run from the Kelivo repository (missing tool/traces.yaml).',
+        'Run from the Cuplivo repository (missing tool/traces.yaml).',
       );
     }
     dir = parent;

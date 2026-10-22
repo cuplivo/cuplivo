@@ -1,4 +1,4 @@
-import 'package:Kelivo/utils/windows_file_path.dart';
+import 'package:Cuplivo/utils/windows_file_path.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

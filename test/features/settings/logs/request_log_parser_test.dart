@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:isolate';
 
-import 'package:Kelivo/core/services/logging/log_payload_elider.dart';
-import 'package:Kelivo/core/services/logging/log_redactor.dart';
-import 'package:Kelivo/core/services/network/request_logger.dart';
-import 'package:Kelivo/features/settings/logs/request_log_parser.dart';
+import 'package:Cuplivo/core/services/logging/log_payload_elider.dart';
+import 'package:Cuplivo/core/services/logging/log_redactor.dart';
+import 'package:Cuplivo/core/services/network/request_logger.dart';
+import 'package:Cuplivo/features/settings/logs/request_log_parser.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

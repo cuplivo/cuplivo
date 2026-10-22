@@ -1,4 +1,4 @@
-import 'package:Kelivo/features/browser/widgets/browser_text_field.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_text_field.dart';
 import 'dart:async';
 import 'dart:ui' as ui;
 
@@ -9,29 +9,29 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
 import '../../support/business_test_harness.dart';
-import 'package:Kelivo/core/services/browser/browser_engine.dart';
-import 'package:Kelivo/core/services/browser/browser_service.dart';
-import 'package:Kelivo/core/services/browser/browser_store.dart';
-import 'package:Kelivo/core/services/haptics.dart';
-import 'package:Kelivo/features/browser/models/browser_models.dart';
-import 'package:Kelivo/features/browser/browser_tabs_route.dart';
-import 'package:Kelivo/features/browser/pages/browser_desktop_layout.dart';
-import 'package:Kelivo/features/browser/pages/browser_mobile_layout.dart';
-import 'package:Kelivo/features/browser/pages/browser_management_page.dart';
-import 'package:Kelivo/features/browser/pages/browser_page.dart';
-import 'package:Kelivo/features/browser/widgets/browser_glass.dart';
-import 'package:Kelivo/features/browser/widgets/browser_controls.dart';
-import 'package:Kelivo/features/browser/widgets/browser_find_bar.dart';
-import 'package:Kelivo/features/browser/widgets/browser_library.dart';
-import 'package:Kelivo/features/browser/widgets/browser_settings.dart';
-import 'package:Kelivo/features/browser/widgets/browser_tabs.dart';
-import 'package:Kelivo/features/browser/widgets/browser_transition_snapshot.dart';
-import 'package:Kelivo/features/browser/widgets/browser_window_chrome.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/custom_bottom_sheet.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/core/services/browser/browser_engine.dart';
+import 'package:Cuplivo/core/services/browser/browser_service.dart';
+import 'package:Cuplivo/core/services/browser/browser_store.dart';
+import 'package:Cuplivo/core/services/haptics.dart';
+import 'package:Cuplivo/features/browser/models/browser_models.dart';
+import 'package:Cuplivo/features/browser/browser_tabs_route.dart';
+import 'package:Cuplivo/features/browser/pages/browser_desktop_layout.dart';
+import 'package:Cuplivo/features/browser/pages/browser_mobile_layout.dart';
+import 'package:Cuplivo/features/browser/pages/browser_management_page.dart';
+import 'package:Cuplivo/features/browser/pages/browser_page.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_glass.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_controls.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_find_bar.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_library.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_settings.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_tabs.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_transition_snapshot.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_window_chrome.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/custom_bottom_sheet.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 
 BrowserPageState _scroll(
   double offset, {

@@ -197,7 +197,7 @@ try {
         if (el.hasAttribute('placeholder')) entry.placeholder = clean(el.getAttribute('placeholder'));
         if ('checked' in el) entry.checked = el.checked;
         if ('value' in el) entry.value = el.type === 'password' ? '[redacted]' : clean(el.value);
-        if (el.href && /^(https?|kelivo):/.test(el.href)) {
+        if (el.href && /^(https?|cuplivo):/.test(el.href)) {
           entry.href = el.href.slice(0,512);
           if (el.href.length > 512) { entry.href_truncated = true; entry.href_length = el.href.length; }
         }

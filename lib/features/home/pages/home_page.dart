@@ -1,4 +1,4 @@
-import 'package:Kelivo/features/intelligent_ui/host/ui_search_navigation.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_search_navigation.dart';
 import '../../intelligent_ui/host/ui_host_scope.dart';
 import '../../chat/widgets/context_dialog.dart';
 import '../../../core/models/context_compression_task.dart';
@@ -8,7 +8,7 @@ import '../../chat/widgets/compress_context_options_dialog.dart';
 import '../../chat/widgets/context_operation_actions.dart';
 import '../../chat/widgets/context_compression_status.dart';
 import '../../browser/browser_navigation.dart';
-import 'package:Kelivo/shared/text_input/message_editing_controller.dart';
+import 'package:Cuplivo/shared/text_input/message_editing_controller.dart';
 import '../../chat/controllers/quote_editing_controller.dart';
 import '../../chat/widgets/quote_interaction_scope.dart';
 import '../../../core/models/quote_ref.dart';
@@ -86,7 +86,7 @@ import '../controllers/home_page_controller.dart';
 import '../controllers/scroll_controller.dart' as scroll_ctrl;
 import 'home_mobile_layout.dart';
 import 'home_desktop_layout.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});

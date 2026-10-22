@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_web_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_web_controller.dart';
 import '../test/support/genui_scenario_exercise.dart';
 
 void main() {

@@ -1,17 +1,18 @@
 import 'dart:io';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/features/workspace/widgets/preview/code_file_preview.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/workspace/widgets/preview/code_file_preview.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart';
-import 'package:Kelivo/features/workspace/widgets/preview/preview_text_document.dart';
+import 'package:Cuplivo/features/workspace/widgets/preview/preview_text_document.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../../../../support/business_test_harness.dart';
+import '../../../../support/temp_directory_cleanup.dart';
 
 Widget _app(Widget child) {
   return ChangeNotifierProvider(
@@ -51,11 +52,9 @@ void main() {
     tempDir = Directory.systemTemp.createTempSync('kelivo_code_preview_');
   });
 
-  tearDown(() {
-    if (tempDir.existsSync()) {
-      tempDir.deleteSync(recursive: true);
-    }
-  });
+  tearDown(
+    () => deleteDirectoryWhenReleased(tempDir, keepLockedLeftovers: true),
+  );
 
   testWidgets('code preview renders the line count', (tester) async {
     final file = File(p.join(tempDir.path, 'lines.txt'))
@@ -81,6 +80,10 @@ void main() {
     expect(find.byKey(CodeFilePreview.codeKey), findsNothing);
     expect(find.byType(SelectableText).evaluate().length, lessThan(10));
     expect(tester.takeException(), isNull);
+    // Unmount before the temp directory goes away: the preview reader closes
+    // its file asynchronously in dispose, and Windows refuses to unlink it until
+    // then.
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('long files reach the final chunk and copy the original source', (
@@ -148,6 +151,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
+    // Unmount before the temp directory goes away: the preview reader closes
+    // its file asynchronously in dispose, and Windows refuses to unlink it until
+    // then.
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('code preview header shows the language and toggles wrap', (

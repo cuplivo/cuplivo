@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/models/composer_draft.dart';
-import 'package:Kelivo/features/intelligent_ui/models/ui_context_attachment.dart';
-import 'package:Kelivo/features/intelligent_ui/text/ui_bounded_text.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_user_context_parts.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/composer_draft.dart';
+import 'package:Cuplivo/features/intelligent_ui/models/ui_context_attachment.dart';
+import 'package:Cuplivo/features/intelligent_ui/text/ui_bounded_text.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_user_context_parts.dart';
 
 void main() {
   final text = UiContextText(title: 'Curve', body: 'Slope: 3.1\nIntercept: 1');
@@ -18,7 +18,7 @@ void main() {
   test(
     'exact model text has an inclusive 4 KiB UTF8 budget including framing',
     () {
-      const title = '中文 "title"\n[Kelivo UI state]';
+      const title = '中文 "title"\n[Cuplivo UI state]';
       final size = UiContextText.bodyBudget(title);
       final exact = UiContextText(title: title, body: 'x' * size);
       expect(utf8.encode(exact.exactText).length, 4096);
@@ -35,10 +35,10 @@ void main() {
   );
   test('malformed or partial framing remains plain text without throwing', () {
     for (final value in [
-      '[Kelivo UI state] "title"\n[/Kelivo UI state]',
-      '[Kelivo UI state] ""\nvalue\n[/Kelivo UI state]',
-      '[Kelivo UI state] null\nvalue\n[/Kelivo UI state]',
-      '[Kelivo UI state] {\nvalue\n[/Kelivo UI state]',
+      '[Cuplivo UI state] "title"\n[/Cuplivo UI state]',
+      '[Cuplivo UI state] ""\nvalue\n[/Cuplivo UI state]',
+      '[Cuplivo UI state] null\nvalue\n[/Cuplivo UI state]',
+      '[Cuplivo UI state] {\nvalue\n[/Cuplivo UI state]',
       '${text.exactText}\n',
       'prefix ${text.exactText}',
     ]) {

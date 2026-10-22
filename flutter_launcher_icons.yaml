@@ -4,15 +4,20 @@ flutter_launcher_icons:
   image_path: assets/app_icon_2.png
   image_path_ios: "assets/app_icon_2.png"
   image_path_ios_dark_transparent: "assets/app_icon_dark.png"
-  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_background: "#C1BDB4"
   adaptive_icon_foreground: assets/app_icon_2.png
+  remove_alpha_ios: true
   min_sdk_android: 21
   web:
     generate: true
     image_path: "assets/app_icon.png"
-    background_color: "#FFFFFF"
+    background_color: "#C1BDB4"
   windows:
-    generate: true
+    # The Windows .ico (windows/runner/resources/app_icon.ico) is generated
+    # locally with rounded corners (12.5% Fluent-style radius, multi-size
+    # 16-256px). Keep generation disabled so this tool never overwrites it
+    # with the square master PNG.
+    generate: false
     image_path: "assets/app_icon.png"
     icon_size: 256
   macos:

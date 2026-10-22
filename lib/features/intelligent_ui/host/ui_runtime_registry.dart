@@ -1,4 +1,4 @@
-import 'package:Kelivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
 import 'ui_generation_state.dart';
 import 'ui_source_selection.dart';
 import 'ui_persistence_binding.dart';

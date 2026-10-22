@@ -1,9 +1,9 @@
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_budgets.dart';
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_ir.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_form_validation.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_resolved_node.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_state.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_budgets.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_ir.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_form_validation.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_resolved_node.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_state.dart';
 
 /// A local, frozen observation. Producing this value does not send a message or
 /// change a composer; only an explicitly connected host may consume it.

@@ -1,6 +1,6 @@
-import 'package:Kelivo/core/models/provider_oauth.dart';
-import 'package:Kelivo/features/provider/widgets/oauth_login_panel.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/models/provider_oauth.dart';
+import 'package:Cuplivo/features/provider/widgets/oauth_login_panel.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

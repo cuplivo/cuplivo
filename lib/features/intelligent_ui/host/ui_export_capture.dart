@@ -1,8 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import '../text/ui_message_text.dart';
 import '../text/ui_text_projection.dart';
 import '../runtime/ui_surface_state.dart';

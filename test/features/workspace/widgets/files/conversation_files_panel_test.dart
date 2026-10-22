@@ -1,22 +1,22 @@
 import 'dart:io';
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/extension_entity_store.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/models/workspace_binding.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/workspace_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/workspace/file_link_resolver.dart';
-import 'package:Kelivo/features/workspace/widgets/files/conversation_files_panel.dart';
-import 'package:Kelivo/features/workspace/widgets/files/file_browser.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/segmented_tabs.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
-import 'package:Kelivo/utils/app_directories.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/workspace_binding.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/workspace_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/workspace/file_link_resolver.dart';
+import 'package:Cuplivo/features/workspace/widgets/files/conversation_files_panel.dart';
+import 'package:Cuplivo/features/workspace/widgets/files/file_browser.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/segmented_tabs.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/utils/app_directories.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -88,11 +88,11 @@ class _RecordingResolver extends FileLinkResolver {
   _RecordingResolver(WorkspaceProvider workspaces)
     : super(workspaces: workspaces);
 
-  final calls = <({KelivoLink link, String conversationId})>[];
+  final calls = <({CuplivoLink link, String conversationId})>[];
 
   @override
   Future<FileSystemEntity?> resolveToHostEntry(
-    KelivoLink link, {
+    CuplivoLink link, {
     required String conversationId,
     required WorkspaceBinding binding,
   }) async {
@@ -373,7 +373,7 @@ void main() {
       expect(resolver.calls, isEmpty);
     } else {
       expect(previews, isEmpty);
-      expect(resolver.calls.single.link.kind, KelivoLinkKind.workspaceFile);
+      expect(resolver.calls.single.link.kind, CuplivoLinkKind.workspaceFile);
       expect(resolver.calls.single.link.relativePath, 'page.HTML');
       expect(resolver.calls.single.conversationId, id);
     }

@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:Kelivo/features/chat/controllers/selection_translation_controller.dart';
+import 'package:Cuplivo/features/chat/controllers/selection_translation_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

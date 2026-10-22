@@ -5,7 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../utils/url_launcher_ext.dart';
 
 /// Shown when the installed database was written by a newer app version;
-/// restarting cannot help, so the only immediate action is updating Kelivo.
+/// restarting cannot help, so the only immediate action is updating Cuplivo.
 class UpdateRequiredScreen extends StatelessWidget {
   const UpdateRequiredScreen({
     super.key,

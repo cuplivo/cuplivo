@@ -3,16 +3,16 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:Kelivo/core/database/generation_run.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_web_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/gallery/scenario_sources.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_slider.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_surface.dart';
+import 'package:Cuplivo/core/database/generation_run.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_web_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/gallery/scenario_sources.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_slider.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_surface.dart';
 import '../integration_test/support/message_profile_host.dart';
 import '../integration_test/support/profile_measurement.dart';
 import 'genui_profile_harness.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
 
 /// Print-only profile measurements. Local state-to-raster latency is distinct
 /// from the continuous pointer-drag frame sample and actual IME acceptance.

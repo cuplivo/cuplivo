@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:image/image.dart' as img;
-import 'package:Kelivo/features/chat/widgets/export_image_capture.dart';
+import 'package:Cuplivo/features/chat/widgets/export_image_capture.dart';
 
 // Run in profile mode on an iOS device. The fixture contains fractional colors
 // and antialiased text, which exercise Metal's high-precision PNG readback.

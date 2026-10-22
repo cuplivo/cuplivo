@@ -1,9 +1,9 @@
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import 'dart:ui' as ui;
 
-import 'package:Kelivo/features/browser/models/browser_models.dart';
-import 'package:Kelivo/features/browser/widgets/browser_controls.dart';
-import 'package:Kelivo/features/browser/widgets/browser_glass.dart';
+import 'package:Cuplivo/features/browser/models/browser_models.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_controls.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_glass.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';

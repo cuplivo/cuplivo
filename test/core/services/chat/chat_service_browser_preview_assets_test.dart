@@ -8,12 +8,12 @@ import 'package:sqlite3/sqlite3.dart' as sqlite;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/database/generation_run.dart';
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/services/mcp/mcp_image_snapshot.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/database/generation_run.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/services/mcp/mcp_image_snapshot.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 import '../../../support/claude_test_api.dart' show FakePathProviderPlatform;
 
 void main() {

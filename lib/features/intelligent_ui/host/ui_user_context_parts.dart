@@ -1,4 +1,4 @@
-import 'package:Kelivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
 import '../models/ui_context_attachment.dart';
 
 /// A leading, complete, separately persisted TextPart is the only chip marker.

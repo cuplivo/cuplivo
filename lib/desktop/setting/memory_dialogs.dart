@@ -15,7 +15,7 @@ import '../../shared/widgets/ios_form_text_field.dart';
 import '../../shared/widgets/ios_tactile.dart';
 import '../../shared/widgets/ios_tile_button.dart';
 import '../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 /// Shared chrome for memory-related desktop dialogs (matches MCP / assistant
 /// dialog shells: surface Dialog + title row + close).

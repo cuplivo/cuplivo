@@ -20,7 +20,7 @@ class BrowserWorkspaceResources {
     }
     final uri = Uri.tryParse(value);
     return uri != null &&
-        uri.scheme == 'kelivo' &&
+        uri.scheme == 'cuplivo' &&
         uri.host == 'workspace' &&
         uri.userInfo.isEmpty &&
         !uri.hasPort &&
@@ -73,7 +73,7 @@ class BrowserWorkspaceResources {
     if (directory == null) throw StateError('browser_workspace_not_bound');
     final root = await directory.resolveSymbolicLinks();
     final host =
-        'ws-${sha256.convert(utf8.encode('$sessionId\n$root')).toString().substring(0, 32)}.kelivo.invalid';
+        'ws-${sha256.convert(utf8.encode('$sessionId\n$root')).toString().substring(0, 32)}.cuplivo.invalid';
     return BrowserWorkspaceScope._(this, sessionId, root, host);
   }
 }
@@ -92,19 +92,19 @@ class BrowserWorkspaceScope {
     }
     return Uri.parse(
       publicUrl,
-    ).replace(scheme: android ? 'https' : 'kelivo', host: host);
+    ).replace(scheme: android ? 'https' : 'cuplivo', host: host);
   }
 
   bool owns(Uri uri) =>
       uri.host == host &&
       uri.userInfo.isEmpty &&
       !uri.hasPort &&
-      (uri.scheme == 'kelivo' || uri.scheme == 'https');
+      (uri.scheme == 'cuplivo' || uri.scheme == 'https');
 
   String publicUrl(String value) {
     final uri = Uri.tryParse(value);
     return uri != null && owns(uri)
-        ? uri.replace(scheme: 'kelivo', host: 'workspace').toString()
+        ? uri.replace(scheme: 'cuplivo', host: 'workspace').toString()
         : value;
   }
 
@@ -172,7 +172,7 @@ class BrowserWorkspaceScope {
     }
     // Write only to an unpredictable staging name, then publish with an
     // atomic no-replace operation. Never reopen the caller's leaf to truncate.
-    final staging = await target.parent.createTemp('.kelivo-screenshot-');
+    final staging = await target.parent.createTemp('.cuplivo-screenshot-');
     try {
       final temp = File(p.join(staging.path, 'page.png'));
       await temp.writeAsBytes(bytes, flush: true);

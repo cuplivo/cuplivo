@@ -1,20 +1,20 @@
 import 'dart:io';
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/business_preferences.dart';
-import 'package:Kelivo/core/database/business_repository.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/services/backup/data_sync.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_source_selection.dart';
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_source_hash.dart';
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_stream_parser.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_state.dart';
-import 'package:Kelivo/features/intelligent_ui/storage/ui_state_repository.dart';
-import 'package:Kelivo/utils/app_directories.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/services/backup/data_sync.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_source_selection.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_source_hash.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_stream_parser.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_state.dart';
+import 'package:Cuplivo/features/intelligent_ui/storage/ui_state_repository.dart';
+import 'package:Cuplivo/utils/app_directories.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -79,8 +79,8 @@ final class GenUiBackupFixture {
     SandboxPathResolver.debugSetDirs(docsDir: root.path, supportDir: root.path);
     SharedPreferences.setMockInitialValues({});
     PackageInfo.setMockInitialValues(
-      appName: 'Kelivo',
-      packageName: 'Kelivo',
+      appName: 'Cuplivo',
+      packageName: 'Cuplivo',
       version: '1.3.1',
       buildNumber: '80',
       buildSignature: 'synthetic-test',

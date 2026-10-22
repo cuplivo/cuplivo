@@ -1,11 +1,11 @@
 import 'genui_control_region.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_resolved_node.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_checkbox.dart';
-import 'package:Kelivo/shared/widgets/ios_switch.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_resolved_node.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_checkbox.dart';
+import 'package:Cuplivo/shared/widgets/ios_switch.dart';
 import 'genui_field_frame.dart';
 import 'genui_interactions.dart';
 import 'genui_localizations.dart';

@@ -1,6 +1,6 @@
 import 'support/business_test_harness.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

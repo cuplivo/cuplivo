@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/services/backup/local_snapshot_retention.dart';
-import 'package:Kelivo/core/services/backup/local_snapshot_schedule.dart';
-import 'package:Kelivo/core/services/backup/local_snapshot_store.dart';
+import 'package:Cuplivo/core/services/backup/local_snapshot_retention.dart';
+import 'package:Cuplivo/core/services/backup/local_snapshot_schedule.dart';
+import 'package:Cuplivo/core/services/backup/local_snapshot_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 

@@ -1,14 +1,14 @@
-import 'package:Kelivo/features/browser/widgets/browser_text_field.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import 'package:Kelivo/features/browser/models/browser_models.dart';
-import 'package:Kelivo/features/browser/widgets/browser_find_bar.dart';
-import 'package:Kelivo/features/browser/widgets/browser_glass.dart';
-import 'package:Kelivo/features/browser/widgets/browser_surface_controls.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/features/browser/models/browser_models.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_find_bar.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_glass.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_surface_controls.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 void main() {
   Future<({TextEditingController controller, List<String> calls})> mount(

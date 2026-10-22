@@ -1,4 +1,4 @@
-import 'package:Kelivo/features/chat/widgets/tool_detail_text_section.dart';
+import 'package:Cuplivo/features/chat/widgets/tool_detail_text_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';

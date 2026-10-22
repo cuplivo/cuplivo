@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:Kelivo/core/database/private_data_storage.dart';
+import 'package:Cuplivo/core/database/private_data_storage.dart';
 import '../../support/recovery_fault_durability.dart';
 import 'dart:convert';
 import 'dart:ui' as ui;
@@ -9,15 +9,15 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import '../../support/recovery_snapshot_fixture.dart';
-import 'package:Kelivo/core/database/database_installation_gate.dart';
-import 'package:Kelivo/core/database/empty_database_recovery_guard.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
-import 'package:Kelivo/theme/palettes.dart';
-import 'package:Kelivo/core/services/backup/local_snapshot_schedule.dart';
-import 'package:Kelivo/core/services/backup/restore_diagnostic_exception.dart';
-import 'package:Kelivo/shared/widgets/restore_failure_screen.dart';
+import 'package:Cuplivo/core/database/database_installation_gate.dart';
+import 'package:Cuplivo/core/database/empty_database_recovery_guard.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
+import 'package:Cuplivo/theme/palettes.dart';
+import 'package:Cuplivo/core/services/backup/local_snapshot_schedule.dart';
+import 'package:Cuplivo/core/services/backup/restore_diagnostic_exception.dart';
+import 'package:Cuplivo/shared/widgets/restore_failure_screen.dart';
 
 /// Stands in for the platform channel, which never answers under `flutter
 /// test` and would otherwise leave a pending timeout timer behind.
@@ -92,7 +92,7 @@ void main() {
         () => Directory.systemTemp.createTemp('private-failure-ui-'),
       );
       final source = Directory('${root!.path}/Documents');
-      final target = Directory('${root.path}/Support/kelivo-data');
+      final target = Directory('${root.path}/Support/cuplivo-data');
       addTearDown(() async => root.delete(recursive: true));
       await tester.runAsync(() async {
         await source.create();
@@ -234,7 +234,7 @@ void main() {
 
     expect(find.text('Let’s recover your chats'), findsOneWidget);
     expect(find.textContaining('paused loading your data'), findsOneWidget);
-    expect(find.text('Restart Kelivo'), findsOneWidget);
+    expect(find.text('Restart Cuplivo'), findsOneWidget);
 
     // The first screen guides recovery; diagnostics remain accessible.
     expect(
@@ -250,7 +250,7 @@ void main() {
     expect(find.text('restore_startup_receipt'), findsOneWidget);
     expect(find.text('Restore gate'), findsOneWidget);
 
-    await tester.tap(find.text('Restart Kelivo'));
+    await tester.tap(find.text('Restart Cuplivo'));
     await tester.pump();
     expect(restartCalls, 1);
   });
@@ -293,9 +293,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Kelivo is already running'), findsOneWidget);
+    expect(find.text('Cuplivo is already running'), findsOneWidget);
     expect(find.textContaining('another app process'), findsOneWidget);
-    expect(find.text('Restart Kelivo'), findsOneWidget);
+    expect(find.text('Restart Cuplivo'), findsOneWidget);
     // A lease conflict is not a data problem, so no file-level actions.
     expect(find.text('Other options'), findsNothing);
   });
@@ -390,7 +390,7 @@ void main() {
       (tester) async {
         await tester.runAsync(() async {
           final file = File(
-            '${directory.path}/kelivo-snapshot-1792421104232879.zip',
+            '${directory.path}/cuplivo-snapshot-1792421104232879.zip',
           );
           await file.writeAsString('damaged original');
         });
@@ -405,7 +405,7 @@ void main() {
         expect(
           await tester.runAsync(
             () => File(
-              '${directory.path}/kelivo-snapshot-1792421104232879.zip',
+              '${directory.path}/cuplivo-snapshot-1792421104232879.zip',
             ).readAsString(),
           ),
           'damaged original',

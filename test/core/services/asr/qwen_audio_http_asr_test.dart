@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:Kelivo/core/services/asr/asr_service_options.dart';
-import 'package:Kelivo/core/services/asr/cloud_asr_service.dart';
+import 'package:Cuplivo/core/services/asr/asr_service_options.dart';
+import 'package:Cuplivo/core/services/asr/cloud_asr_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';

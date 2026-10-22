@@ -38,7 +38,7 @@ startFetchMcpInMemory() async {
   final transport = KelivoInMemoryClientTransport(server);
 
   final client = mcp.McpClient.createClient(
-    mcp.McpClient.simpleConfig(name: 'Kelivo App', version: '1.0.0'),
+    mcp.McpClient.simpleConfig(name: 'Cuplivo App', version: '1.0.0'),
   );
   await client.connect(transport);
 

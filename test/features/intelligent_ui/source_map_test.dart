@@ -1,17 +1,17 @@
-import 'package:Kelivo/features/intelligent_ui/host/ui_runtime_registry.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_state.dart';
-import 'package:Kelivo/features/chat/widgets/timeline_projection.dart';
-import 'package:Kelivo/utils/protected_text.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_runtime_registry.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_state.dart';
+import 'package:Cuplivo/features/chat/widgets/timeline_projection.dart';
+import 'package:Cuplivo/utils/protected_text.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:markstream/markstream_core.dart';
-import 'package:Kelivo/core/database/generation_run.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/models/message_part_snapshot.dart';
-import 'package:Kelivo/features/chat/utils/thinking_tag_parser.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_source_map.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_generation_state.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/core/database/generation_run.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/message_part_snapshot.dart';
+import 'package:Cuplivo/features/chat/utils/thinking_tag_parser.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_source_map.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_generation_state.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
 
 const _body =
     'ui 1 catalog "kelivo.native/1"\nroot = Text(text="你好 😀 <think>literal</think>")';
@@ -20,7 +20,7 @@ const _web =
     '```kelivo-web\n{"version":1,"title":"<think>literal</think>","summary":"😀"}\n<b>Local</b>\n```';
 void main() {
   const parser = MarkdownParser();
-  for (final language in ['kelivo-ui', 'kelivo-web']) {
+  for (final language in ['cuplivo-ui', 'cuplivo-web']) {
     test(
       '$language preserves a closed tail only when its body is unchanged',
       () {
@@ -45,7 +45,7 @@ void main() {
             expect(resolved.node.code, node.code);
             expect(
               source.messageOrdinalOf(resolved),
-              language == 'kelivo-ui' ? 1 : 2,
+              language == 'cuplivo-ui' ? 1 : 2,
             );
           }
           for (final text in [
@@ -87,7 +87,7 @@ void main() {
           expect(resolved!.source, startsWith(node.span.slice(before)));
           expect(
             source.messageOrdinalOf(resolved),
-            language == 'kelivo-ui' ? 1 : 2,
+            language == 'cuplivo-ui' ? 1 : 2,
           );
         }
 
@@ -180,13 +180,13 @@ void main() {
         ];
         final previous = builder.update(parts);
         expect(UiMessageSource.of(previous).hasCandidate, isFalse);
-        for (final prefix in ['```kelivo-', '```kelivx-', '```kelivo-']) {
+        for (final prefix in ['```cuplivo-', '```kelivx-', '```cuplivo-']) {
           parts[0] = TextPart(prefix);
           expect(
             UiMessageSource.of(
               builder.update(parts, changed: {0}),
             ).hasCandidate,
-            prefix == '```kelivo-',
+            prefix == '```cuplivo-',
           );
         }
       },
@@ -199,7 +199,7 @@ void main() {
       for (final removeBoundary in [false, true]) {
         final builder = MessagePartSnapshotBuilder();
         final parts = <MessagePart>[
-          const TextPart('```kelivo-'),
+          const TextPart('```cuplivo-'),
           const ToolCallPart('{}'),
           const TextPart('invalid'),
         ];
@@ -261,7 +261,7 @@ void main() {
     expect(UiMessageSource.of(first).hasCandidate, isFalse);
   });
 
-  for (final language in ['kelivo-ui', 'kelivo-web']) {
+  for (final language in ['cuplivo-ui', 'cuplivo-web']) {
     test('$language candidate spans short and empty adjacent text parts', () {
       final source = UiMessageSource.of([
         const TextPart('```'),
@@ -285,7 +285,7 @@ void main() {
         AssistantRoundEndPart(),
       ]) {
         final source = UiMessageSource.of([
-          const TextPart('```kelivo-'),
+          const TextPart('```cuplivo-'),
           const TextPart(''),
           boundary,
           const TextPart(''),
@@ -395,7 +395,7 @@ void main() {
         isNull,
       );
       final splitMarker = UiMessageSource.of([
-        const TextPart('```kelivo-'),
+        const TextPart('```cuplivo-'),
         const FilePart(uri: '/file', name: 'file'),
         const TextPart('ui\n$_body\n```'),
       ]);

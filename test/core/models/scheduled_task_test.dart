@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:Kelivo/core/models/scheduled_task.dart';
+import 'package:Cuplivo/core/models/scheduled_task.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

@@ -2,12 +2,12 @@ import '../../../../support/business_test_harness.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/model_spec.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/builtin_tools.dart';
-import 'package:Kelivo/core/services/model_spec/model_spec_resolver.dart';
-import 'package:Kelivo/features/model/widgets/model_spec_form/model_spec_form_controller.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/models/model_spec.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/builtin_tools.dart';
+import 'package:Cuplivo/core/services/model_spec/model_spec_resolver.dart';
+import 'package:Cuplivo/features/model/widgets/model_spec_form/model_spec_form_controller.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 ProviderConfig _cfg({
   String id = 'Test',

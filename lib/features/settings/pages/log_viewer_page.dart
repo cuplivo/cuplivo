@@ -23,7 +23,7 @@ import '../../../core/services/logging/context_log_tail_reader.dart';
 import '../../../core/services/logging/log_payload_elider.dart';
 import '../logs/request_log_parser.dart';
 import '../../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 /// Mobile log viewer - shows list of log files and allows viewing/exporting
 class LogViewerPage extends StatefulWidget {

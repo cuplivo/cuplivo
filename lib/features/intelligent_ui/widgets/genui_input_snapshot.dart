@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import '../runtime/ui_resolved_node.dart';
 import '../text/ui_number.dart';
 import 'genui_field_frame.dart';

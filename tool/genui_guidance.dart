@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_guidance.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_guidance.dart';
 
 /// Offline deterministic asset generation; never invokes a model or network.
 void main(List<String> args) {

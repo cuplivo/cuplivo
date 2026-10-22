@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:Kelivo/core/services/browser/browser_service.dart';
-import 'package:Kelivo/features/side_panel/desktop_side_panel_controller.dart';
+import 'package:Cuplivo/core/services/browser/browser_service.dart';
+import 'package:Cuplivo/features/side_panel/desktop_side_panel_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../../core/services/browser/browser_service_test.dart'
     show FakeBrowserEngine;

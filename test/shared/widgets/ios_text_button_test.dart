@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/shared/widgets/ios_text_button.dart';
+import 'package:Cuplivo/shared/widgets/ios_text_button.dart';
 
 void main() {
   testWidgets('text actions fade their text without painting a press block', (

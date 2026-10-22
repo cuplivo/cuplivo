@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:Kelivo/core/services/browser/browser_windows_environment.dart';
+import 'package:Cuplivo/core/services/browser/browser_windows_environment.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';

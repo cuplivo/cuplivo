@@ -1,13 +1,13 @@
 import 'dart:convert';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/diagram_exporter.dart';
-import 'package:Kelivo/shared/widgets/export_capture_scope.dart';
-import 'package:Kelivo/shared/markdown/markdown_with_code_highlight.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/diagram_exporter.dart';
+import 'package:Cuplivo/shared/widgets/export_capture_scope.dart';
+import 'package:Cuplivo/shared/markdown/markdown_with_code_highlight.dart';
 import 'package:markstream/markstream.dart';
-import 'package:Kelivo/shared/widgets/mermaid_bridge.dart';
-import 'package:Kelivo/shared/widgets/mermaid_image_cache.dart';
+import 'package:Cuplivo/shared/widgets/mermaid_bridge.dart';
+import 'package:Cuplivo/shared/widgets/mermaid_image_cache.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';

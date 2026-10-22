@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/utils/svg_image_provider.dart';
-import 'package:Kelivo/utils/safe_resize_image.dart';
+import 'package:Cuplivo/utils/svg_image_provider.dart';
+import 'package:Cuplivo/utils/safe_resize_image.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as images;
@@ -237,7 +237,7 @@ void main() {
     () async {
       await HttpOverrides.runWithHttpOverrides(() async {
         final directory = await Directory.systemTemp.createTemp(
-          'kelivo-svg-test-',
+          'cuplivo-svg-test-',
         );
         final file = await File(
           '${directory.path}/test.svg',

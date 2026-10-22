@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:Kelivo/core/services/browser/browser_engine.dart';
-import 'package:Kelivo/features/browser/widgets/browser_viewport_insets.dart';
+import 'package:Cuplivo/core/services/browser/browser_engine.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_viewport_insets.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

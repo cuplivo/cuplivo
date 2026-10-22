@@ -178,7 +178,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get storageSpaceClearDisplacedDatabasesConfirmMessage =>
-      'Delete these set-aside databases? Kelivo kept them when it rebuilt its database, and they may be the only surviving copy of those chats and settings. This cannot be undone.';
+      'Delete these set-aside databases? Cuplivo kept them when it rebuilt its database, and they may be the only surviving copy of those chats and settings. This cannot be undone.';
 
   @override
   String get storageSpaceRestoreTracesHint =>
@@ -198,6 +198,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get storageSpaceSubCompletedRestoreRuns =>
       'Completed restore snapshots';
+
+  @override
+  String get storageSpaceCategoryAssistantData => 'Assistants';
 
   @override
   String get storageSpaceCategoryCache => 'Cache';
@@ -240,6 +243,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get storageSpaceSubChatSharedMemory => 'Shared memory index';
+
+  @override
+  String get storageSpaceSubAssistantAvatars => 'Avatars';
+
+  @override
+  String get storageSpaceSubAssistantImages => 'Images';
 
   @override
   String get storageSpaceSubCacheAvatars => 'Avatar cache';
@@ -348,6 +357,18 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get storageSpaceSourceLabel => 'Source';
+
+  @override
+  String get storageSpaceSourceAll => 'All';
+
+  @override
+  String get storageSpaceSourceUserUpload => 'User uploads';
+
+  @override
+  String get storageSpaceSourceAssistant => 'Assistant';
+
+  @override
   String get storageSpaceSortLabel => 'Sort';
 
   @override
@@ -430,22 +451,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statsPageLaunchCount => 'App Launches';
-
-  @override
-  String statsPageCost(String currency) {
-    return 'Cost ($currency)';
-  }
-
-  @override
-  String statsPageModelsWithoutPricing(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count models without pricing',
-      one: '$count model without pricing',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get statsPageUsageTrendTitle => 'Usage Trend';
@@ -560,6 +565,38 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get languageDisplaySpanish => 'Spanish';
+
+  @override
+  String get languageDisplayPortuguese => 'Portuguese';
+
+  @override
+  String get languageDisplayRussian => 'Russian';
+
+  @override
+  String get languageDisplayArabic => 'Arabic';
+
+  @override
+  String get languageDisplayHindi => 'Hindi';
+
+  @override
+  String get languageDisplayThai => 'Thai';
+
+  @override
+  String get languageDisplayVietnamese => 'Vietnamese';
+
+  @override
+  String get languageDisplayBengali => 'Bengali';
+
+  @override
+  String get translateLanguageManagerTitle => 'Manage Languages';
+
+  @override
+  String get translateLanguageManagerSubtitle =>
+      'Choose which languages appear in the translate target list.';
+
+  @override
+  String get translateLanguageManagerAtLeastOne =>
+      'Keep at least one language visible.';
 
   @override
   String get languageSelectSheetTitle => 'Select Translation Language';
@@ -992,14 +1029,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'Enable streaming responses';
 
   @override
-  String get assistantEditThinkingBudgetTitle => 'Thinking';
+  String get assistantEditChatSuggestionsTitle => 'Chat Suggestions';
 
   @override
-  String get assistantEditReasoningFollowDefault => 'Follow model default';
+  String get assistantEditChatSuggestionsTip =>
+      'Adds one request after each reply to propose up to three follow-ups. Off spends nothing.';
 
   @override
-  String get assistantEditReasoningClampedSubtitle =>
-      'The actual level is clamped to what each model supports';
+  String get assistantEditChatSuggestionsGlobalOff =>
+      'Inactive — turn on Chat Suggestions under Default Models first.';
+
+  @override
+  String get assistantEditThinkingBudgetTitle => 'Thinking Budget';
 
   @override
   String get assistantEditConfigureButton => 'Configure';
@@ -1457,77 +1498,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get assistantSettingsCopySuffix => 'Copy';
 
   @override
-  String get assistantCopyTitle => 'Copy assistant';
-
-  @override
-  String get assistantCopyDefaultHint =>
-      'Choose what to copy, or copy everything.';
-
-  @override
-  String get assistantCopyConfiguration => 'Assistant configuration';
-
-  @override
-  String get assistantCopyConfigurationHint =>
-      'Always included: name, avatar, prompts, model, parameters, and preset messages.';
-
-  @override
-  String get assistantCopyMemories => 'Assistant memories';
-
-  @override
-  String get assistantCopyMemoriesHint =>
-      'Includes current and legacy memories, preserving archived status. Global memories remain shared.';
-
-  @override
-  String get assistantCopyChooseMemories => 'Choose memories';
-
-  @override
-  String get assistantCopyChooseEntries => 'Choose entries';
-
-  @override
-  String get assistantCopyPhrasesHint =>
-      'Copy this assistant’s phrases. Global phrases remain shared.';
-
-  @override
-  String get assistantCopyBindingsHint =>
-      'These options reuse existing resources; workspace files are not copied. Unselected world books and injections use global defaults.';
-
-  @override
-  String get assistantCopyWorldBooks => 'World book bindings';
-
-  @override
-  String get assistantCopySkills => 'Skill selection';
-
-  @override
-  String get assistantCopyTools => 'Tool and search settings';
-
-  @override
-  String get assistantCopyWorkspace => 'Default workspace binding';
-
-  @override
-  String get assistantCopyAll => 'Copy everything';
-
-  @override
-  String get assistantCopyInProgress => 'Copying…';
-
-  @override
-  String get assistantCopyFailed =>
-      'Could not copy the assistant. Your original data is unchanged. Please try again.';
-
-  @override
-  String get assistantCopyMemoryLoadFailed =>
-      'Could not load memories. Please try again.';
-
-  @override
-  String get assistantCopyRetry => 'Retry';
-
-  @override
-  String get assistantCopyNoMemories =>
-      'This assistant has no personal memories to copy.';
-
-  @override
-  String get assistantCopySelectAll => 'Select all memories';
-
-  @override
   String get assistantSettingsDeleteButton => 'Delete';
 
   @override
@@ -1582,6 +1552,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hotkeyToggleTopicPanel => 'Toggle Topics';
 
   @override
+  String get hotkeyFocusInput => 'Focus Input';
+
+  @override
+  String get hotkeyCopySelectionMarkdown => 'Copy Selection as Markdown';
+
+  @override
+  String get hotkeyReplySelection => 'Reply to Selection';
+
+  @override
   String get hotkeysPressShortcut => 'Press a shortcut';
 
   @override
@@ -1615,22 +1594,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get assistantSettingsAtLeastOneAssistantRequired =>
       'At least one assistant is required';
-
-  @override
-  String get assistantConversationMcpTitle => 'Allow per-conversation MCP';
-
-  @override
-  String get assistantConversationMcpHint =>
-      'Let conversations choose their own MCP servers. Conversations use the assistant’s selection until customized.';
-
-  @override
-  String get mcpSelectionInherited => 'Following assistant';
-
-  @override
-  String get mcpSelectionCustom => 'Custom for this chat';
-
-  @override
-  String get mcpInheritAssistant => 'Use assistant settings';
 
   @override
   String get mcpAssistantSheetTitle => 'MCP Servers';
@@ -1733,56 +1696,45 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupPageRestartContent =>
-      'Import successful. Restart Kelivo to apply it safely.';
+      'Import successful. Restart Cuplivo to apply it safely.';
 
   @override
   String backupPageRestartContentWithSkipped(int count) {
-    return 'Import completed, but $count conversations with invalid message ordering were skipped. Restart Kelivo to apply the imported data safely.';
+    return 'Import completed, but $count conversations with invalid message ordering were skipped. Restart Cuplivo to apply the imported data safely.';
   }
 
   @override
   String get restartAppFailedMessage =>
-      'Kelivo could not restart automatically. Fully close it, then open it again.';
+      'Cuplivo could not restart automatically. Fully close it, then open it again.';
 
   @override
   String get backupRestoreRolledBackTitle => 'Restore was rolled back';
 
   @override
   String get backupRestoreRolledBackContent =>
-      'The restore could not be completed. Kelivo verified and kept your previous data.';
-
-  @override
-  String get backupRestoreDirectoryBlockedTitle =>
-      'Restore is waiting for a folder';
-
-  @override
-  String get backupRestoreDirectoryBlockedContent =>
-      'Windows could not move the folder below. Close terminals, editors, or other programs using it, then continue restoring. If it is still blocked, check that your account can move the folder. Your restore progress has been kept.';
-
-  @override
-  String get backupRestoreContinueButton => 'Continue restore';
+      'The restore could not be completed. Cuplivo verified and kept your previous data.';
 
   @override
   String get backupRestoreFailureTitle => 'Restore requires attention';
 
   @override
   String get backupRestoreFailureContent =>
-      'Kelivo could not verify a complete old or new data set, so chat data was not opened. Close Kelivo and try again. If this repeats, keep the diagnostic code for support.';
+      'Cuplivo could not verify a complete old or new data set, so chat data was not opened. Close Cuplivo and try again. If this repeats, keep the diagnostic code for support.';
 
   @override
   String get backupRestoreBusinessLeaseUnavailableTitle =>
-      'Kelivo is already running';
+      'Cuplivo is already running';
 
   @override
   String get backupRestoreBusinessLeaseUnavailableContent =>
-      'Kelivo\'s data is still in use by another app process. Close any other Kelivo window, then restart. Your chat data has not been opened by this process.';
+      'Cuplivo\'s data is still in use by another app process. Close any other Cuplivo window, then restart. Your chat data has not been opened by this process.';
 
   @override
   String get restoreProgressTitle => 'Restoring your backup';
 
   @override
   String get restoreProgressWarning =>
-      'Keep Kelivo open until this finishes. If you close it now, the next launch starts this over.';
+      'Keep Cuplivo open until this finishes. If you close it now, the next launch starts this over.';
 
   @override
   String get restoreProgressStageCheckingBackup => 'Checking the backup';
@@ -1804,7 +1756,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get restoreProgressStageFinishing => 'Finishing up';
 
   @override
-  String get backupRestoreFailureRestartButton => 'Restart Kelivo';
+  String get backupRestoreFailureRestartButton => 'Restart Cuplivo';
 
   @override
   String get backupRestoreFailureCopyButton => 'Copy diagnostic code';
@@ -1827,7 +1779,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get startupRecoveryExportButton => 'Export a copy of my data';
 
   @override
-  String get startupRecoveryResetButton => 'Start with an empty chat list';
+  String get startupRecoveryResetButton => 'Reset data';
 
   @override
   String get startupRecoveryBusy => 'Working…';
@@ -1845,18 +1797,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get startupRecoveryResetFailed =>
-      'Reset failed. Fully close Kelivo, then open it again.';
+      'Reset failed. Fully close Cuplivo, then open it again.';
 
   @override
-  String get startupRecoveryResetDialogTitle =>
-      'Start with an empty chat list?';
+  String get startupRecoveryResetDialogTitle => 'Reset all data?';
 
   @override
   String get startupRecoveryResetDialogContent =>
-      'This will not recover your previous chats. Kelivo will keep the current database and existing copies, and start a new empty chat list. To get your chats back, cancel and choose a local copy.';
+      'Start with a new empty database? The current database, its journals and existing copies will be retained for recovery.';
 
   @override
-  String get startupRecoveryResetDialogConfirm => 'Keep copies and start fresh';
+  String get startupRecoveryResetDialogConfirm => 'Reset and restart';
 
   @override
   String get startupRecoveryResetDialogCancel => 'Cancel';
@@ -1929,7 +1880,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get startupRecoverySectionDataBody =>
-      'You can also export the remaining data and keep it somewhere safe before continuing.';
+      'Nothing has been deleted. Save a copy somewhere safe before trying anything below.';
 
   @override
   String startupRecoveryExportSavedTo(String path) {
@@ -1964,22 +1915,22 @@ class AppLocalizationsEn extends AppLocalizations {
       'The integrity check could not run.';
 
   @override
-  String get startupRecoveryDangerZone => 'Other options';
+  String get startupRecoveryDangerZone => 'Danger zone';
 
   @override
   String get startupRecoveryDangerBody =>
-      'A fresh start removes the current data from view. Kelivo will preserve the old database and existing copies for recovery. Export a data copy first if possible.';
+      'A fresh start removes the current data from view. Cuplivo will preserve the old database and existing copies for recovery. Export a data copy first if possible.';
 
   @override
   String get startupRecoveryResetAcknowledge =>
-      'I choose to continue with an empty chat list without recovering my chats now.';
+      'I want to start with a new empty database.';
 
   @override
-  String get startupDatabaseUpdateRequiredTitle => 'Update Kelivo to continue';
+  String get startupDatabaseUpdateRequiredTitle => 'Update Cuplivo to continue';
 
   @override
   String get startupDatabaseUpdateRequiredContent =>
-      'The chat database on this device was created by a newer version of Kelivo and cannot be opened by this version. Your data has not been changed. Install the latest version of Kelivo, then open it again.';
+      'The chat database on this device was created by a newer version of Cuplivo and cannot be opened by this version. Your data has not been changed. Install the latest version of Cuplivo, then open it again.';
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeTitle =>
@@ -1991,7 +1942,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeStep1 =>
-      'Install and open the latest Kelivo, then export a backup from Settings → Backup.';
+      'Install and open the latest Cuplivo, then export a backup from Settings → Backup.';
 
   @override
   String startupDatabaseUpdateRequiredDowngradeStep2(String url) {
@@ -2033,7 +1984,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupPageOverwriteModeDescription =>
-      'Replace the selected components; keep unselected components and unrelated local settings. Replacing chats also clears local unsent drafts.';
+      'Replace the selected components; keep unselected components and unrelated local settings';
 
   @override
   String get backupPageMergeMode => 'Merge';
@@ -2050,7 +2001,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String backupPageForwardCompatBody(int backupVersion, int currentVersion) {
-    return 'This backup was created by a newer version of Kelivo (data format $backupVersion; this version supports $currentVersion), and it does not say whether older versions can read it.\n\nYou can continue: anything this version does not recognise will be skipped, and the backup file itself is not modified. But if the newer version changed how existing data is stored, some content may be imported incorrectly.\n\nUpdating Kelivo first is the safer choice.';
+    return 'This backup was created by a newer version of Cuplivo (data format $backupVersion; this version supports $currentVersion), and it does not say whether older versions can read it.\n\nYou can continue: anything this version does not recognise will be skipped, and the backup file itself is not modified. But if the newer version changed how existing data is stored, some content may be imported incorrectly.\n\nUpdating Cuplivo first is the safer choice.';
   }
 
   @override
@@ -2061,7 +2012,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupPageSchemaTooNewMessage =>
-      'This backup was created by a newer version of Kelivo and cannot be read by this version. Please update Kelivo and try again.';
+      'This backup was created by a newer version of Cuplivo and cannot be read by this version. Please update Cuplivo and try again.';
 
   @override
   String get backupPageBackupUploaded => 'Backup uploaded';
@@ -2077,20 +2028,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupProgressCancelled => 'Cancelled';
-
-  @override
-  String get backupProgressFailed => 'Operation failed';
-
-  @override
-  String backupProgressFailedAt(String phase) {
-    return 'Failed during: $phase';
-  }
-
-  @override
-  String get backupProgressCopyError => 'Copy error';
-
-  @override
-  String get backupProgressErrorCopied => 'Error copied';
 
   @override
   String get backupProgressPreparing => 'Preparing';
@@ -2251,7 +2188,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return 'This backup uses Cherry Studio format version $version, which Kelivo cannot import yet. Export from Cherry Studio v1 instead, or wait for a Kelivo update that supports Cherry Studio v2 backups.';
+    return 'This backup uses Cherry Studio format version $version, which Cuplivo cannot import yet. Export from Cherry Studio v1 instead, or wait for a Cuplivo update that supports Cherry Studio v2 backups.';
   }
 
   @override
@@ -2441,6 +2378,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get contextManagement => 'Context Management';
 
   @override
+  String get compressingContext => 'Compressing context...';
+
+  @override
   String get compressContextFailed => 'Failed to compress context';
 
   @override
@@ -2491,21 +2431,47 @@ class AppLocalizationsEn extends AppLocalizations {
   String get compressContextKeepRecentMessages => 'Keep N';
 
   @override
-  String get compressContextKeepCountLabel => 'Recent user messages';
+  String get compressContextKeepCountLabel => 'Keep recent rounds';
 
   @override
   String get compressContextKeepAllMessages =>
-      'Keeping that many covers all messages — nothing to compress';
+      'Keeping that many covers all rounds — nothing to compress';
 
   @override
-  String compressContextEstimatePreview(
-    int summarized,
-    int kept,
-    int minTokens,
-    int maxTokens,
-    int totalTokens,
-  ) {
-    return 'Summarize $summarized chars, keep $kept chars verbatim → about $minTokens–$maxTokens tokens (original about $totalTokens tokens)';
+  String compressContextReadoutRounds(int rounds) {
+    String _temp0 = intl.Intl.pluralLogic(
+      rounds,
+      locale: localeName,
+      other: '$rounds rounds',
+      one: '1 round',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String compressContextReadoutKeptRounds(int rounds) {
+    String _temp0 = intl.Intl.pluralLogic(
+      rounds,
+      locale: localeName,
+      other: '$rounds rounds',
+      one: '1 round',
+    );
+    return '$_temp0 + summary';
+  }
+
+  @override
+  String compressContextReadoutTokens(String tokens) {
+    return '~$tokens tokens';
+  }
+
+  @override
+  String compressContextReadoutTokensBand(String min, String max) {
+    return '~$min–$max tokens';
+  }
+
+  @override
+  String compressContextReadoutReduction(int percent) {
+    return '−$percent%';
   }
 
   @override
@@ -2549,7 +2515,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageMoreSheetEdit => 'Edit';
 
   @override
+  String get messageQuotePreviewRemove => 'Remove reply';
+
+  @override
+  String get messageQuoteTargetMissing => 'Original message unavailable';
+
+  @override
+  String get messageMoreSheetReply => 'Reply';
+
+  @override
   String get messageMoreSheetShare => 'Share';
+
+  @override
+  String get messageMoreSheetCopyLink => 'Copy Link';
 
   @override
   String get messageMoreSheetSelectMessages => 'Select Messages';
@@ -2567,98 +2545,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reasoningBudgetSheetTitle => 'Reasoning Chain Strength';
 
   @override
-  String get reasoningLevelSheetTitle => 'Reasoning';
-
-  @override
-  String get reasoningLevelAuto => 'Auto';
-
-  @override
-  String get reasoningLevelAutoSubtitle => 'Uses the model or provider default';
-
-  @override
-  String get reasoningLevelOff => 'Off';
-
-  @override
-  String get reasoningLevelOffSubtitle =>
-      'Turn off reasoning and answer directly';
-
-  @override
-  String get reasoningLevelMinimal => 'Minimal';
-
-  @override
-  String get reasoningLevelMinimalSubtitle =>
-      'Use the lightest reasoning to answer questions';
-
-  @override
-  String get reasoningLevelLow => 'Low';
-
-  @override
-  String get reasoningLevelLowSubtitle =>
-      'Use light reasoning to answer questions';
-
-  @override
-  String get reasoningLevelMedium => 'Medium';
-
-  @override
-  String get reasoningLevelMediumSubtitle =>
-      'Use moderate reasoning to answer questions';
-
-  @override
-  String get reasoningLevelHigh => 'High';
-
-  @override
-  String get reasoningLevelHighSubtitle =>
-      'Use heavy reasoning for complex questions';
-
-  @override
-  String get reasoningLevelXhigh => 'Extra High';
-
-  @override
-  String get reasoningLevelXhighSubtitle =>
-      'Use very high reasoning depth for harder problems';
-
-  @override
-  String get reasoningLevelMax => 'Max';
-
-  @override
-  String get reasoningLevelMaxSubtitle =>
-      'Use maximum reasoning depth for the toughest problems';
-
-  @override
-  String get reasoningLevelFollowModelDefaultSubtitle =>
-      'Use the model\'s default when the assistant doesn\'t set one';
-
-  @override
-  String get reasoningLevelNoReasoning =>
-      'This model does not support reasoning';
-
-  @override
-  String get reasoningLevelCustomBudget => 'Custom Reasoning Budget';
-
-  @override
-  String get reasoningLevelCustomBudgetHint => 'Token budget, e.g. 2048';
-
-  @override
-  String get reasoningLevelCompactMin => 'min';
-
-  @override
-  String get reasoningLevelCompactLow => 'low';
-
-  @override
-  String get reasoningLevelCompactMid => 'mid';
-
-  @override
-  String get reasoningLevelCompactHigh => 'high';
-
-  @override
-  String get reasoningLevelCompactXhigh => 'xhigh';
-
-  @override
-  String get reasoningLevelCompactMax => 'max';
-
-  @override
-  String reasoningLevelBudgetTokens(String budget) {
-    return '$budget tokens';
+  String reasoningBudgetSheetCurrentLevel(String level) {
+    return 'Current Level: $level';
   }
 
   @override
@@ -2678,6 +2566,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatMessageWidgetCopiedToClipboard => 'Copied to clipboard';
+
+  @override
+  String get chatMessageWidgetReplySelection => 'Reply';
 
   @override
   String get chatMessageWidgetResendTooltip => 'Resend';
@@ -2758,11 +2649,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String chatMessageWidgetWebSearch(String query) {
     return 'Web Search: $query';
-  }
-
-  @override
-  String chatMessageWidgetWebFetch(String target) {
-    return 'Read page: $target';
   }
 
   @override
@@ -2848,6 +2734,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatSelectionExportImage => 'Image';
 
   @override
+  String get chatSelectionExportPdf => 'PDF';
+
+  @override
   String get chatSelectionThinkingTools => 'Thinking tools';
 
   @override
@@ -2872,6 +2761,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get messageExportSheetAssistant => 'Assistant';
+
+  @override
+  String get messageExportSheetUser => 'User';
 
   @override
   String get messageExportSheetDefaultTitle => 'New Chat';
@@ -2903,14 +2795,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get displaySettingsPageEnableMathSubtitle =>
       'Render LaTeX math (inline and block)';
-
-  @override
-  String get displaySettingsPageUseLegacyInlineCodeStyleTitle =>
-      'Legacy inline code style';
-
-  @override
-  String get displaySettingsPageUseLegacyInlineCodeStyleSubtitle =>
-      'Use a lighter background, a thin border, and more line spacing for inline code.';
 
   @override
   String get displaySettingsPageEnableUserMarkdownTitle =>
@@ -2997,6 +2881,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Render selected messages to a PNG image';
 
   @override
+  String get messageExportSheetPdf => 'PDF';
+
+  @override
+  String get messageExportSheetBatchPdfSubtitle =>
+      'Export selected messages as a PDF document';
+
+  @override
   String get messageExportSheetShowThinkingAndToolCards =>
       'Show Deep Thinking and tool cards';
 
@@ -3009,6 +2900,114 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get messageExportSheetDateTimeWithSecondsPattern =>
       'yyyy-MM-dd HH:mm:ss';
+
+  @override
+  String get pdfExportDialogTitle => 'Export PDF';
+
+  @override
+  String get pdfExportDialogCancel => 'Cancel';
+
+  @override
+  String get pdfExportDialogExport => 'Export PDF';
+
+  @override
+  String get pdfExportDialogSectionContent => 'Content';
+
+  @override
+  String get pdfExportDialogSectionFonts => 'Fonts';
+
+  @override
+  String get pdfExportFontRoleBody => 'Body font';
+
+  @override
+  String get pdfExportFontRoleMono => 'Code font';
+
+  @override
+  String get pdfExportFontRoleEmoji => 'Emoji font';
+
+  @override
+  String get pdfExportFontCheck => 'Check fonts';
+
+  @override
+  String get pdfExportFontChecking => 'Checking…';
+
+  @override
+  String get pdfExportFontMissing =>
+      'No embeddable CJK font was found; CJK text may print blank.';
+
+  @override
+  String get pdfExportFontUnusable =>
+      'The chosen font could not be used; another was substituted.';
+
+  @override
+  String get pdfExportFontBuiltIn => 'Built-in font';
+
+  @override
+  String get pdfExportFontNone => 'Not embedded';
+
+  @override
+  String get pdfExportFontNeedsDownload => 'Needs download';
+
+  @override
+  String get pdfExportFontAuto => 'Automatic';
+
+  @override
+  String get pdfExportFontGroupSystem => 'System fonts';
+
+  @override
+  String get pdfExportFontGroupDownload => 'Download';
+
+  @override
+  String get pdfExportFontGroupOther => 'Other';
+
+  @override
+  String get pdfExportFontNoteCjk => 'Includes CJK';
+
+  @override
+  String get pdfExportFontNoteColour => 'Colour';
+
+  @override
+  String get pdfExportFontNoteMonochrome => 'Monochrome';
+
+  @override
+  String get pdfExportFontBuiltInNote => 'Embeds no font; CJK prints blank';
+
+  @override
+  String get pdfExportFontDownloadNote => 'Includes CJK, about 10 MB';
+
+  @override
+  String get pdfExportFontListFailed => 'Could not read the font list';
+
+  @override
+  String get pdfExportResultTitle => 'Export complete';
+
+  @override
+  String pdfExportResultSummary(Object pages, Object size) {
+    return '$pages pages · $size';
+  }
+
+  @override
+  String pdfExportResultDegraded(Object count) {
+    return '$count item(s) not fully exported';
+  }
+
+  @override
+  String pdfExportResultDegradedMath(Object count) {
+    return '$count formula(s) shown as plain text';
+  }
+
+  @override
+  String pdfExportResultDegradedDiagram(Object count) {
+    return '$count diagram(s) shown as code';
+  }
+
+  @override
+  String pdfExportResultDegradedImage(Object count) {
+    return '$count image(s) could not be read and are shown as their reference';
+  }
+
+  @override
+  String get pdfExportResultDone => 'Done';
 
   @override
   String get exportDisclaimerAiGenerated =>
@@ -3039,6 +3038,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sideDrawerMenuCopy => 'Copy';
+
+  @override
+  String get sideDrawerMenuCopyLink => 'Copy Link';
 
   @override
   String get sideDrawerMenuMoveTo => 'Move to';
@@ -3180,6 +3182,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sideDrawerLinkCopied => 'Link copied';
 
   @override
+  String get conversationLinkCopied => 'Link copied';
+
+  @override
+  String get conversationLinkMissing =>
+      'This conversation isn\'t on this device.';
+
+  @override
   String get sideDrawerPinnedLabel => 'Pinned';
 
   @override
@@ -3314,24 +3323,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatInputBarVoiceTranscribing => 'Recognizing…';
 
   @override
-  String get chatInputBarVoiceAttachAudioTooltip => 'Stop and attach as audio';
-
-  @override
-  String get chatInputBarVoiceSendAudioTooltip => 'Send recording';
-
-  @override
-  String get chatInputBarVoiceSavingAudio => 'Saving audio…';
-
-  @override
-  String get audioClipPlayTooltip => 'Play audio';
-
-  @override
-  String get audioClipPauseTooltip => 'Pause';
-
-  @override
-  String get audioClipPlaybackFailed => 'Couldn\'t play this audio';
-
-  @override
   String get chatInputBarImageProcessing => 'Processing image';
 
   @override
@@ -3354,84 +3345,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatInputBarCollapse => 'Collapse';
-
-  @override
-  String get contextUsageTitle => 'Context window';
-
-  @override
-  String get contextUsageStateExact => 'Exact (from last response)';
-
-  @override
-  String get contextUsageStateExactCalibrated =>
-      'Exact (breakdown scaled from estimate)';
-
-  @override
-  String get contextUsageStateEstimated => 'Estimated';
-
-  @override
-  String get contextUsageStateStale => 'Stale, updating…';
-
-  @override
-  String get contextUsageStateComputing => 'Computing…';
-
-  @override
-  String get contextUsageStateNone => 'No data yet';
-
-  @override
-  String get contextUsageBucketSystem => 'System prompt';
-
-  @override
-  String get contextUsageBucketInjections => 'Instruction injections';
-
-  @override
-  String get contextUsageBucketHistory => 'Messages';
-
-  @override
-  String get contextUsageBucketTools => 'Built-in tools';
-
-  @override
-  String get contextUsageBucketMemory => 'Memory';
-
-  @override
-  String get contextUsageBucketWorldBook => 'World books';
-
-  @override
-  String get contextUsageBucketSkills => 'Skills';
-
-  @override
-  String get contextUsageBucketWorkspace => 'Workspace';
-
-  @override
-  String get contextUsageBucketSearch => 'Search prompt';
-
-  @override
-  String get contextUsageBucketMcpTools => 'MCP tools';
-
-  @override
-  String get contextUsageBucketAttachments => 'Attachments';
-
-  @override
-  String get contextUsageBucketDraft => 'Draft';
-
-  @override
-  String get contextUsageBucketUsed => 'Used';
-
-  @override
-  String get contextUsageFreeSpace => 'Free space';
-
-  @override
-  String contextUsageUsedWindow(String used, String window, int percent) {
-    return '$used / $window ($percent%)';
-  }
-
-  @override
-  String get contextUsageNoWindow => 'No context window';
-
-  @override
-  String get contextUsageSetWindow => 'Set context window';
-
-  @override
-  String get contextUsageRefresh => 'Refresh';
 
   @override
   String get mcpPageBackTooltip => 'Back';
@@ -3802,6 +3715,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Required, suggest lowercase/digits/hyphens';
 
   @override
+  String modelDetailSheetModelIdDisabledHint(String modelId) {
+    return '$modelId';
+  }
+
+  @override
   String get modelDetailSheetModelNameLabel => 'Model Name';
 
   @override
@@ -3856,6 +3774,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get modelDetailSheetBuiltinToolsDescription =>
       'Built-in tools depend on the provider and API mode.';
+
+  @override
+  String get modelDetailSheetSearchTool => 'Search';
+
+  @override
+  String get modelDetailSheetSearchToolDescription =>
+      'Enable Google Search integration';
 
   @override
   String get modelDetailSheetUrlContextTool => 'URL Context';
@@ -3932,6 +3857,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Please enter a valid model ID (>=2 chars)';
 
   @override
+  String get modelDetailSheetModelIdExistsError => 'Model ID already exists';
+
+  @override
   String get modelDetailSheetHeaderKeyHint => 'Header Key';
 
   @override
@@ -3942,317 +3870,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get modelDetailSheetBodyJsonHint => 'Body JSON';
-
-  @override
-  String get modelSpecFormSourceCustom => 'Custom';
-
-  @override
-  String get modelSpecFormSourceCatalog => 'Catalog';
-
-  @override
-  String get modelSpecFormSourceInferred => 'Inferred';
-
-  @override
-  String get modelSpecFormSourceDefault => 'Default';
-
-  @override
-  String get modelSpecFormReset => 'Reset to default';
-
-  @override
-  String get modelSpecFormModalitiesSection => 'Modalities & abilities';
-
-  @override
-  String get modelSpecFormImageType => 'Image';
-
-  @override
-  String get modelSpecFormAudioMode => 'Audio';
-
-  @override
-  String get modelSpecFormVideoMode => 'Video';
-
-  @override
-  String get modelSpecFormPdfMode => 'PDF';
-
-  @override
-  String get modelSpecFormStructuredOutputAbility => 'Structured Output';
-
-  @override
-  String get modelSpecFormReasoningSection => 'Reasoning';
-
-  @override
-  String get modelSpecFormDialect => 'Dialect';
-
-  @override
-  String get modelSpecFormDialectNone => 'None';
-
-  @override
-  String get modelSpecFormDialectNoneSubtitle => 'No reasoning fields';
-
-  @override
-  String get modelSpecFormDialectOpenaiReasoningEffort =>
-      'OpenAI reasoning effort';
-
-  @override
-  String get modelSpecFormDialectOpenaiReasoningEffortSubtitle =>
-      'reasoning_effort';
-
-  @override
-  String get modelSpecFormDialectOpenaiResponsesReasoning =>
-      'OpenAI Responses reasoning';
-
-  @override
-  String get modelSpecFormDialectOpenaiResponsesReasoningSubtitle =>
-      'reasoning.effort';
-
-  @override
-  String get modelSpecFormDialectOpenrouterReasoning => 'OpenRouter reasoning';
-
-  @override
-  String get modelSpecFormDialectOpenrouterReasoningSubtitle => 'reasoning';
-
-  @override
-  String get modelSpecFormDialectAnthropicBudget => 'Anthropic budget';
-
-  @override
-  String get modelSpecFormDialectAnthropicBudgetSubtitle =>
-      'thinking.budget_tokens';
-
-  @override
-  String get modelSpecFormDialectAnthropicAdaptiveEffort =>
-      'Anthropic adaptive effort';
-
-  @override
-  String get modelSpecFormDialectAnthropicAdaptiveEffortSubtitle =>
-      'thinking + output_config.effort';
-
-  @override
-  String get modelSpecFormDialectAnthropicBetweenTools =>
-      'Anthropic adaptive / between_tools';
-
-  @override
-  String get modelSpecFormDialectAnthropicBetweenToolsSubtitle =>
-      'Adaptive thinking; Off uses between_tools';
-
-  @override
-  String get modelSpecFormDialectAnthropicEffort => 'Anthropic effort';
-
-  @override
-  String get modelSpecFormDialectAnthropicEffortSubtitle =>
-      'thinking + output_config.effort';
-
-  @override
-  String get modelSpecFormDialectGeminiThinkingBudget =>
-      'Gemini thinking budget';
-
-  @override
-  String get modelSpecFormDialectGeminiThinkingBudgetSubtitle =>
-      'thinkingConfig.thinkingBudget';
-
-  @override
-  String get modelSpecFormDialectGeminiThinkingLevel => 'Gemini thinking level';
-
-  @override
-  String get modelSpecFormDialectGeminiThinkingLevelSubtitle =>
-      'thinkingConfig.thinkingLevel';
-
-  @override
-  String get modelSpecFormDialectQwenEnableThinking => 'Qwen enable thinking';
-
-  @override
-  String get modelSpecFormDialectQwenEnableThinkingSubtitle =>
-      'enable_thinking';
-
-  @override
-  String get modelSpecFormDialectThinkingType => 'Thinking type';
-
-  @override
-  String get modelSpecFormDialectThinkingTypeSubtitle => 'thinking.type';
-
-  @override
-  String get modelSpecFormDialectSiliconflowEnableThinking =>
-      'SiliconFlow enable thinking';
-
-  @override
-  String get modelSpecFormDialectSiliconflowEnableThinkingSubtitle =>
-      'enable_thinking';
-
-  @override
-  String get modelSpecFormDialectInternThinkingMode => 'Intern thinking mode';
-
-  @override
-  String get modelSpecFormDialectInternThinkingModeSubtitle => 'thinking_mode';
-
-  @override
-  String get modelSpecFormDialectChatTemplateKwargs => 'Chat template kwargs';
-
-  @override
-  String get modelSpecFormDialectChatTemplateKwargsSubtitle =>
-      'chat_template_kwargs.enable_thinking';
-
-  @override
-  String get modelSpecFormDialectKimiThinking => 'Kimi thinking';
-
-  @override
-  String get modelSpecFormDialectKimiThinkingSubtitle => 'thinking';
-
-  @override
-  String get modelSpecFormDialectCustom => 'Custom JSON';
-
-  @override
-  String get modelSpecFormDialectCustomSubtitle => 'Per-level JSON patch';
-
-  @override
-  String get modelSpecFormLevels => 'Supported levels';
-
-  @override
-  String get modelSpecFormCanDisable => 'Allow disabling';
-
-  @override
-  String get modelSpecFormDefaultLevel => 'Default level';
-
-  @override
-  String get modelSpecFormBudgets => 'Token budgets';
-
-  @override
-  String modelSpecFormBudgetPlaceholder(String tokens) {
-    return '$tokens';
-  }
-
-  @override
-  String modelSpecFormCustomPatch(String level) {
-    return 'JSON patch ($level)';
-  }
-
-  @override
-  String get modelSpecFormCustomPatchHint => 'e.g. reasoning_effort: high';
-
-  @override
-  String get modelSpecFormInvalidJson =>
-      'Custom reasoning patch must be a valid JSON object';
-
-  @override
-  String get modelSpecFormInvalidNumber => 'Please enter a valid number';
-
-  @override
-  String get modelSpecFormStrategySection => 'Strategy';
-
-  @override
-  String get modelSpecFormSampling => 'Sampling';
-
-  @override
-  String get modelSpecFormRequestQuirks => 'Request compatibility';
-
-  @override
-  String get modelSpecFormDynamicWebSearch => 'Dynamic filtering search tools';
-
-  @override
-  String get modelSpecFormDynamicWebSearchSubtitle =>
-      'When dynamic filtering is on, send the 2026-03-18 web search and fetch tools';
-
-  @override
-  String get modelSpecFormRemoteImageUrls => 'Remote image links';
-
-  @override
-  String get modelSpecFormRemoteImageUrlsSubtitle =>
-      'Send http(s) image links as-is; when off, remote links are dropped and only local images are sent';
-
-  @override
-  String get modelSpecFormPromptCacheControl => 'Prompt cache marker';
-
-  @override
-  String get modelSpecFormPromptCacheControlSubtitle =>
-      'When prompt caching is on, add cache_control to OpenRouter requests';
-
-  @override
-  String get modelSpecFormSamplingAlways => 'Always';
-
-  @override
-  String get modelSpecFormSamplingAlwaysSubtitle =>
-      'Keep temperature and other sampling fields';
-
-  @override
-  String get modelSpecFormSamplingOnlyWhenReasoningOff =>
-      'Only when reasoning is off';
-
-  @override
-  String get modelSpecFormSamplingOnlyWhenReasoningOffSubtitle =>
-      'Strip sampling fields while the model is thinking';
-
-  @override
-  String get modelSpecFormSamplingNever => 'Never';
-
-  @override
-  String get modelSpecFormSamplingNeverSubtitle =>
-      'Always strip sampling fields';
-
-  @override
-  String get modelSpecFormReplay => 'Reasoning replay';
-
-  @override
-  String get modelSpecFormReplayNone => 'None';
-
-  @override
-  String get modelSpecFormReplayNoneSubtitle =>
-      'Do not send prior reasoning back to the model';
-
-  @override
-  String get modelSpecFormReplayToolTurns => 'Tool turns';
-
-  @override
-  String get modelSpecFormReplayToolTurnsSubtitle =>
-      'Replay reasoning on tool-call turns';
-
-  @override
-  String get modelSpecFormReplayAll => 'All';
-
-  @override
-  String get modelSpecFormReplayAllSubtitle =>
-      'Replay reasoning on every follow-up turn';
-
-  @override
-  String get modelSpecFormReplayField => 'Replay field';
-
-  @override
-  String get modelSpecFormReplayFieldReasoningContent => 'reasoning_content';
-
-  @override
-  String get modelSpecFormReplayFieldReasoning => 'reasoning';
-
-  @override
-  String get modelSpecFormReplayFieldReasoningDetails => 'reasoning_details';
-
-  @override
-  String get modelSpecFormLimitsSection => 'Limits';
-
-  @override
-  String get modelSpecFormLimitsPricingSection => 'Limits & pricing';
-
-  @override
-  String get modelSpecFormContextWindow => 'Context window';
-
-  @override
-  String get modelSpecFormMaxOutput => 'Max output';
-
-  @override
-  String get modelSpecFormPricingSection => 'Pricing / 1M';
-
-  @override
-  String get modelSpecFormPricingInput => 'Input';
-
-  @override
-  String get modelSpecFormPricingOutput => 'Output';
-
-  @override
-  String get modelSpecFormPricingCacheRead => 'Cache read';
-
-  @override
-  String get modelSpecFormPricingCacheWrite => 'Cache write';
-
-  @override
-  String get modelSpecFormCurrency => 'Currency';
-
-  @override
-  String get modelSpecFormAdvancedSection => 'Request';
 
   @override
   String get modelSelectSheetSearchHint => 'Search models or providers';
@@ -4333,14 +3950,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get providerDetailPageResponseApiTitle => 'Response API (/responses)';
-
-  @override
-  String get providerDetailPagePromptCacheKeyTitle =>
-      'Send Conversation Cache Key';
-
-  @override
-  String get providerDetailPagePromptCacheKeyHelp =>
-      'Adds a stable prompt_cache_key for each conversation to OpenAI-compatible requests. Enable only if your provider supports it. Custom Body values take precedence; cache hits are not guaranteed.';
 
   @override
   String get providerDetailPageAihubmixAppCodeLabel => 'APP-Code (10% off)';
@@ -4534,43 +4143,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get providersPageProviderAddedSnackbar => 'Provider added';
-
-  @override
-  String get modelCatalogTitle => 'Model catalog';
-
-  @override
-  String modelCatalogSourceBundled(String date) {
-    return 'Bundled snapshot · $date';
-  }
-
-  @override
-  String modelCatalogSourceRemote(String date) {
-    return 'models.dev · updated $date';
-  }
-
-  @override
-  String get modelCatalogAutoUpdate => 'Auto-update every 24 hours';
-
-  @override
-  String get modelCatalogRefresh => 'Update now';
-
-  @override
-  String get modelCatalogUpdated => 'Model catalog updated';
-
-  @override
-  String modelCatalogRefreshFailed(String error) {
-    return 'Update failed: $error';
-  }
-
-  @override
-  String modelCatalogProviderCount(int count) {
-    return '$count providers';
-  }
-
-  @override
-  String modelCatalogModelCount(int count) {
-    return '$count models';
-  }
 
   @override
   String get providerGroupsGroupLabel => 'Group';
@@ -4795,50 +4367,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Auto-test connections on launch';
 
   @override
-  String get searchServicesPageWebFetchSection => 'Web page reading';
-
-  @override
-  String get searchServicesPageWebFetchModeTitle => 'Read pages with';
-
-  @override
-  String get searchServicesPageWebFetchFollow => 'Follow search service';
-
-  @override
-  String searchServicesPageWebFetchFollowValue(String name) {
-    return 'Follow search · $name';
-  }
-
-  @override
-  String searchServicesPageWebFetchFollowSubtitle(String name) {
-    return 'Currently $name';
-  }
-
-  @override
-  String get searchServicesPageWebFetchLocal => 'Local';
-
-  @override
-  String get searchServicesPageWebFetchLocalSubtitle =>
-      'Free. This device requests the page directly.';
-
-  @override
-  String get searchServicesPageWebFetchProviderSubtitle =>
-      'Uses this service\'s API key and quota';
-
-  @override
-  String get searchServicesPageWebFetchOff => 'Off';
-
-  @override
-  String get searchServicesPageWebFetchOffSubtitle =>
-      'Search only, without reading pages';
-
-  @override
-  String get searchServicesPageWebFetchFooter =>
-      'With web search on, the model can also read full pages. When the search service can\'t read pages, local reading is used, which can\'t handle pages that need JavaScript or block bots.\n\nIf you use the page reader configured here, disable the built-in @kelivo/fetch in Settings → MCP to avoid overlapping tools. The page reader configured here will still work.';
-
-  @override
-  String get searchServicesPageWebFetchSupported => 'Can read web pages';
-
-  @override
   String get searchServicesPageMaxResults => 'Max Results';
 
   @override
@@ -4918,9 +4446,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchServicesDialogApiKey => 'API Key';
-
-  @override
-  String get searchServicesDialogApiKeyOptional => 'API Key (optional)';
 
   @override
   String get searchServicesDialogModel => 'Model';
@@ -5086,31 +4611,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get searchServiceEditorTestModeSearch => 'Search';
-
-  @override
-  String get searchServiceEditorTestModeFetch => 'Read page';
-
-  @override
-  String get searchServiceEditorTestUrlHint => 'Enter a URL';
-
-  @override
-  String get searchServiceEditorTestFetchRun => 'Run test fetch';
-
-  @override
-  String get searchServiceEditorTestFetchRunning => 'Reading…';
-
-  @override
-  String searchServiceEditorTestFetchFailed(String message) {
-    return 'Fetch failed: $message';
-  }
-
-  @override
-  String searchServiceEditorTestFetchStats(String characters, String seconds) {
-    return '$characters characters · ${seconds}s';
-  }
-
-  @override
   String get searchServiceEditorResultOpenTooltip => 'Open result';
 
   @override
@@ -5180,15 +4680,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutPageEasterEggButton => 'Nice!';
 
   @override
-  String get aboutPageKelivoSearchUnlocked =>
+  String get aboutPageCuplivoSearchUnlocked =>
       'An unnamed door opened a crack. You might find it in Settings.';
 
   @override
-  String get aboutPageKelivoSearchAlreadyUnlocked =>
+  String get aboutPageCuplivoSearchAlreadyUnlocked =>
       'You\'ve already been through this door.';
 
   @override
-  String get aboutPageAppName => 'Kelivo';
+  String get aboutPageAppName => 'Cuplivo';
 
   @override
   String get aboutPageAppDescription => 'Open-source AI Assistant';
@@ -5246,13 +4746,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutPageJoinQQGroup => 'Join our QQ Group';
 
   @override
-  String get aboutPageQQGroupOne => 'Kelivo Group 1';
-
-  @override
-  String get aboutPageQQGroupTwo => 'Kelivo Group 2';
-
-  @override
-  String get aboutPageQQGroupThree => 'Kelivo Group 3';
+  String get aboutPageQQGroup => 'Cuplivo Group';
 
   @override
   String get aboutPageJoinDiscord => 'Join us on Discord';
@@ -5321,14 +4815,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Show Token & Context Stats';
 
   @override
-  String get displaySettingsPageShowTotalTokensTitle =>
-      'Show tokens for the entire turn';
-
-  @override
-  String get displaySettingsPageShowTotalTokensSubtitle =>
-      'Sum usage across all API requests in a reply. When off, show only the final request. Statistics always include all requests.';
-
-  @override
   String get displaySettingsPageShowTokenStatsSubtitle =>
       'Show token usage and message count';
 
@@ -5345,14 +4831,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get displaySettingsPageShowToolCardsSubtitle =>
       'When off, tool-use cards are hidden in chat.';
-
-  @override
-  String get displaySettingsShowReasoningLevelBadge =>
-      'Show reasoning level on the button';
-
-  @override
-  String get displaySettingsShowReasoningLevelBadgeSubtitle =>
-      'Show the current level next to the reasoning icon in the input bar';
 
   @override
   String get displaySettingsPageAutoCollapseThinkingTitle =>
@@ -5427,7 +4905,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get displaySettingsPageEnableImageCropperSubtitle =>
-      'Crop images after selecting from gallery or camera';
+      'Show a Crop action when previewing an unsent image';
+
+  @override
+  String get draftImageCropAction => 'Crop';
+
+  @override
+  String get draftImageCropFailed =>
+      'Could not crop this image. The original is unchanged.';
 
   @override
   String get displaySettingsPageKeepSidebarOpenOnAssistantTapTitle =>
@@ -5569,6 +5054,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get displaySettingsPageAutoScrollEnableTitle => 'Auto-follow bottom';
+
+  @override
+  String get displaySettingsPageAutoScrollIdleTitle => 'Auto-Scroll Back Delay';
+
+  @override
+  String get displaySettingsPageAutoScrollIdleSubtitle =>
+      'Wait time after user scroll before jumping to bottom';
 
   @override
   String get displaySettingsPageAutoScrollDisabledLabel => 'Off';
@@ -5815,9 +5307,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get asrServicesMistralSubtitle => 'Voxtral segmented transcription';
 
   @override
-  String get asrServicesElevenLabsSubtitle => 'Scribe segmented transcription';
-
-  @override
   String get asrServicesDashScopeTitle => 'DashScope';
 
   @override
@@ -5876,38 +5365,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get asrServicesEndpointLabel => 'Endpoint';
-
-  @override
-  String get asrServicesRecognitionModeLabel => 'Recognition mode';
-
-  @override
-  String get asrServicesRealtimeMode => 'Real-time';
-
-  @override
-  String get asrServicesRecordedMode => 'Recorded audio';
-
-  @override
-  String get asrServicesQwenAudioSubtitle =>
-      'Real-time or recorded audio transcription';
-
-  @override
-  String get asrServicesQwenTokenPlanHint =>
-      'For Token Plan, choose Recorded audio, enter token-plan as the Workspace ID, and select the region for your key.';
-
-  @override
-  String get asrServicesEndpointOverrideLabel => 'Custom endpoint (optional)';
-
-  @override
-  String get asrServicesWorkspaceIdInvalid =>
-      'Enter a workspace ID, not a URL.';
-
-  @override
-  String get asrServicesWebSocketEndpointInvalid =>
-      'Enter a complete ws:// or wss:// endpoint without credentials or a fragment.';
-
-  @override
-  String get asrServicesHttpEndpointInvalid =>
-      'Enter a complete http:// or https:// endpoint without credentials or a fragment.';
 
   @override
   String get asrServicesModelLabel => 'Model';
@@ -6359,7 +5816,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get settingsShare => 'Kelivo - Open Source AI Assistant';
+  String get settingsShare => 'Cuplivo - Open Source AI Assistant';
 
   @override
   String get searchProviderBingLocalDescription =>
@@ -6376,10 +5833,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get searchProviderExaDescription =>
       'Neural search with semantic understanding. Great for research and finding specific content.';
-
-  @override
-  String get searchProviderExaMcpDescription =>
-      'Exa search via MCP. An API key is optional for limited free usage.';
 
   @override
   String get searchProviderLinkUpDescription =>
@@ -6424,9 +5877,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchServiceNameExa => 'Exa';
-
-  @override
-  String get searchServiceNameExaMcp => 'Exa MCP';
 
   @override
   String get searchServiceNameZhipu => 'Zhipu AI';
@@ -6576,7 +6026,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Maximum tokens must be between 1024 and 32768.';
 
   @override
-  String get searchServiceNameKelivo => 'Kelivo';
+  String get searchServiceNameCuplivo => 'Cuplivo';
 
   @override
   String get searchServicesDialogCountryOptional => 'Country/region (optional)';
@@ -6861,7 +6311,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get healthDataSettingsDescription =>
-      'HealthKit signals available to the current assistant in daily conversation. Switches control what Kelivo may try to read; iOS still manages actual Health access.';
+      'HealthKit signals available to the current assistant in daily conversation. Switches control what Cuplivo may try to read; iOS still manages actual Health access.';
 
   @override
   String healthDataSettingsBadge(int selected, int total) {
@@ -8224,7 +7674,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get legacyMemoryExport => 'Export';
 
   @override
-  String get legacyMemoryExportTitle => 'Kelivo legacy memory export';
+  String get legacyMemoryExportTitle => 'Cuplivo legacy memory export';
 
   @override
   String legacyMemoryAssistantHeader(String name) {
@@ -8657,11 +8107,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get worldBookInjectionPositionAtDepth => 'At depth';
 
   @override
-  String worldBookImportUnsupportedEntries(int count) {
-    return 'Imported. $count entries use unsupported SillyTavern features (such as macros, regex, timing, filters, or insertion rules). Their content was kept and they were disabled. Review them before enabling.';
-  }
-
-  @override
   String get worldBookInjectionRoleUser => 'User';
 
   @override
@@ -8672,6 +8117,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get toolApprovalPending => 'Waiting for approval';
+
+  @override
+  String get toolApprovalApprove => 'Approve';
 
   @override
   String get toolApprovalDeny => 'Deny';
@@ -8749,28 +8197,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String tokenDetailFirstToken(String value) {
-    return '${value}s (first token)';
-  }
-
-  @override
   String tokenDetailTotalTokens(int count) {
     return '$count tokens';
-  }
-
-  @override
-  String tokenDetailReasoningTokens(int count) {
-    return '$count tokens';
-  }
-
-  @override
-  String tokenDetailCacheWriteTokens(int count) {
-    return '$count cache write tokens';
-  }
-
-  @override
-  String tokenDetailCost(String amount) {
-    return '$amount';
   }
 
   @override
@@ -8862,11 +8290,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get migrationIntroSubtitle =>
-      'Kelivo is moving chat history to a faster SQLite database. The upgrade runs before the app opens so your data stays consistent.';
+      'Cuplivo is moving chat history to a faster SQLite database. The upgrade runs before the app opens so your data stays consistent.';
 
   @override
   String get migrationBackupNote =>
-      'Before migration starts, Kelivo exports a ZIP backup with settings, chat history, and local files.';
+      'Before migration starts, Cuplivo exports a ZIP backup with settings, chat history, and local files.';
 
   @override
   String get migrationPerformanceNote =>
@@ -8906,14 +8334,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get migrationBackingUpSubtitle =>
-      'Exporting settings, chat history, uploaded files, images, and fonts. Keep Kelivo open until this finishes.';
+      'Exporting settings, chat history, uploaded files, images, and fonts. Keep Cuplivo open until this finishes.';
 
   @override
   String get migrationMigratingTitle => 'Migrating to SQLite';
 
   @override
   String get migrationMigratingSubtitle =>
-      'Writing conversations and messages in batches so large histories do not overload memory. Keep Kelivo in the foreground until migration finishes.';
+      'Writing conversations and messages in batches so large histories do not overload memory. Keep Cuplivo in the foreground until migration finishes.';
 
   @override
   String migrationBackingUpDetail(String fileName) {
@@ -8973,7 +8401,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get migrationCompleteSubtitle =>
-      'Your chat history is now stored in SQLite. Restart Kelivo to enter the upgraded app.';
+      'Your chat history is now stored in SQLite. Restart Cuplivo to enter the upgraded app.';
 
   @override
   String get migrationConversationCount => 'Conversations';
@@ -8991,7 +8419,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get migrationMissingFilesCount => 'Missing files';
 
   @override
-  String get migrationRestartButton => 'Restart Kelivo';
+  String get migrationRestartButton => 'Restart Cuplivo';
 
   @override
   String get migrationFailedTitle => 'Migration Failed';
@@ -9017,7 +8445,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get migrationSkipDialogMessage =>
-      'Kelivo will start with an empty chat database. Your old chat history stays on disk (renamed with a .retired suffix) but will NOT be migrated and will not appear in the app. Use your backup ZIP if you need to recover it later.';
+      'Cuplivo will start with an empty chat database. Your old chat history stays on disk (renamed with a .retired suffix) but will NOT be migrated and will not appear in the app. Use your backup ZIP if you need to recover it later.';
 
   @override
   String get migrationSkipDialogCancel => 'Cancel';
@@ -9048,6 +8476,29 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get imageSettingsPageQualitySectionTitle => 'Upload Image Quality';
+
+  @override
+  String get imageSettingsPageModeTitle => 'Compression Mode';
+
+  @override
+  String get imageSettingsPageModeManual => 'Manual';
+
+  @override
+  String get imageSettingsPageModeAuto => 'Automatic';
+
+  @override
+  String get imageSettingsPageModeOff => 'Off';
+
+  @override
+  String get imageSettingsPageModeManualSubtitle =>
+      'Images are attached unchanged; open the preview to compress them manually';
+
+  @override
+  String get imageSettingsPageModeAutoSubtitle =>
+      'Images are re-encoded when attached, using the preset below';
+
+  @override
+  String get imageSettingsPageModeOffSubtitle => 'Images are never compressed';
 
   @override
   String get imageSettingsPageQualityOriginal => 'Original';
@@ -9098,6 +8549,80 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get imageSettingsPageFooter =>
       'Compression happens when images are added. Previously saved or sent images are not affected. Compressed images are sent as JPEG files.';
+
+  @override
+  String get compressEditorTitle => 'Compress Image';
+
+  @override
+  String get compressEditorFormatJpeg => 'JPEG';
+
+  @override
+  String get compressEditorFormatPng => 'PNG';
+
+  @override
+  String get compressEditorFormatOriginal => 'Original';
+
+  @override
+  String get compressEditorLongEdgeLabel => 'Long edge';
+
+  @override
+  String get compressEditorLongEdgeFull => '100%';
+
+  @override
+  String get compressEditorLongEdgeHalf => '50%';
+
+  @override
+  String get compressEditorLongEdgeQuarter => '25%';
+
+  @override
+  String get compressEditorQualityLabel => 'Quality';
+
+  @override
+  String get compressEditorOriginalSide => 'Original';
+
+  @override
+  String get compressEditorEstimating => 'Estimating size…';
+
+  @override
+  String get compressEditorEstimateFailed => 'Size estimate unavailable';
+
+  @override
+  String compressEditorSavings(int percent) {
+    return '−$percent%';
+  }
+
+  @override
+  String compressEditorGrowth(int percent) {
+    return '+$percent%';
+  }
+
+  @override
+  String get compressEditorNoReencode => 'no re-encode';
+
+  @override
+  String get compressEditorDecodeFailed =>
+      'This image can\'t be previewed, so it can\'t be re-compressed.';
+
+  @override
+  String get compressEditorTooLarge =>
+      'This image is too large to open in the editor, so it can\'t be re-compressed here. It will be attached as it is.';
+
+  @override
+  String compressEditorWorkingScale(String source, int percent) {
+    return 'Source $source, loaded at $percent% to stay within memory';
+  }
+
+  @override
+  String get compressEditorCancel => 'Cancel';
+
+  @override
+  String get compressEditorApply => 'Apply';
+
+  @override
+  String get compressEditorApplyAll => 'Apply to all';
+
+  @override
+  String get compressEditorDone => 'Done';
 
   @override
   String get imageSettingsPageSendSectionTitle => 'Sending';
@@ -9445,7 +8970,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get localSnapshotEnabledSubtitle =>
-      'Kelivo periodically saves a copy of its database on this device, so it is never the only one.';
+      'Cuplivo periodically saves a copy of its database on this device, so it is never the only one.';
 
   @override
   String get localSnapshotIntervalTitle => 'How often';
@@ -9560,7 +9085,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get localSnapshotCopiesScopeNote =>
-      'Local copies live on this device only. They protect against damage to your data inside the app, not against losing the device or uninstalling Kelivo — use WebDAV or S3 backup for that.';
+      'Local copies live on this device only. They protect against damage to your data inside the app, not against losing the device or uninstalling Cuplivo — use WebDAV or S3 backup for that.';
 
   @override
   String get localSnapshotOriginAutomatic => 'Automatic';
@@ -9618,7 +9143,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String localSnapshotRestoreMessage(String when) {
-    return 'Your current chats and settings will be replaced by this copy from $when. A copy of the current chats and settings is saved first. Unsent drafts are excluded from copies and will be cleared.';
+    return 'Your current chats and settings will be replaced by this copy from $when. A copy of what you have now is saved first, so this can be undone.';
   }
 
   @override
@@ -10093,6 +9618,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workspaceToolImageTag => 'image';
 
   @override
+  String get workspaceToolAllowAll => 'Allow all this session';
+
+  @override
   String get workspaceToolStdout => 'stdout';
 
   @override
@@ -10139,9 +9667,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workspaceToolTitleReadFile => 'Read file';
-
-  @override
-  String get workspaceToolTitleViewImage => 'View image';
 
   @override
   String get workspaceToolTitleWriteFile => 'Write file';
@@ -10282,7 +9807,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workspaceEnvUpToDate => 'You\'re up to date';
 
   @override
-  String get workspaceEnvRestartBanner => 'Restart Kelivo to finish';
+  String get workspaceEnvRestartBanner => 'Restart Cuplivo to finish';
 
   @override
   String get workspaceEnvDetectingMirrors => 'Detecting fastest mirrors…';
@@ -10399,7 +9924,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workspaceEnvNativeExplanation =>
-      'On desktop, Kelivo uses your system shell instead of a Linux sandbox.';
+      'On desktop, Cuplivo uses your system shell instead of a Linux sandbox.';
 
   @override
   String workspaceEnvNativeShellPath(String path) {
@@ -10686,6 +10211,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workspaceEntrySessionSkills => 'Skills';
+
+  @override
+  String get workspaceEntryAllowAll => 'Allow all this session';
+
+  @override
+  String get workspaceEntryAllowAllSubtitle =>
+      'Shell commands in this conversation will run without approval.';
 
   @override
   String get workspaceEntryEnvironment => 'Environment';
@@ -11316,6 +10848,202 @@ class AppLocalizationsEn extends AppLocalizations {
   String get storageSpaceManageSkills => 'Manage skills';
 
   @override
+  String get recycleBinTitle => 'Recycle Bin';
+
+  @override
+  String get recycleBinManage => 'Manage recycle bin';
+
+  @override
+  String get recycleBinStorageHint =>
+      'Kept on this device only — never synced, never in a backup.';
+
+  @override
+  String get recycleBinEntriesLabel => 'items';
+
+  @override
+  String get recycleBinEmptyTitle => 'Nothing in the bin';
+
+  @override
+  String get recycleBinEmptyBody =>
+      'Conversations and assistants you delete, and settings a sync merge replaced, are kept here so you can bring them back.';
+
+  @override
+  String get recycleBinUntitled => 'Untitled';
+
+  @override
+  String get recycleBinKindConversation => 'Conversation';
+
+  @override
+  String get recycleBinKindAssistant => 'Assistant';
+
+  @override
+  String get recycleBinKindProvider => 'Provider';
+
+  @override
+  String get recycleBinKindWorldBook => 'World book';
+
+  @override
+  String get recycleBinKindMemory => 'Memory';
+
+  @override
+  String get recycleBinKindPreference => 'Setting';
+
+  @override
+  String get recycleBinKindWorkspaceFile => 'Workspace file';
+
+  @override
+  String get recycleBinKindConfig => 'Configuration';
+
+  @override
+  String get recycleBinOriginLocal => 'Deleted here';
+
+  @override
+  String get recycleBinOriginRemote => 'Deleted by sync';
+
+  @override
+  String get recycleBinReasonOverwritten => 'Replaced by a newer copy';
+
+  @override
+  String get recycleBinRestore => 'Restore';
+
+  @override
+  String get recycleBinDeleteForever => 'Delete permanently';
+
+  @override
+  String get recycleBinDeleteForeverBody =>
+      'This entry will be deleted for good and can no longer be recovered.';
+
+  @override
+  String get recycleBinClearAll => 'Empty the bin';
+
+  @override
+  String get recycleBinClearAllBody =>
+      'Every entry in the bin will be deleted for good and can no longer be recovered.';
+
+  @override
+  String get recycleBinRestored => 'Restored';
+
+  @override
+  String get recycleBinRestoreSkipped =>
+      'That item is back already, so nothing was changed';
+
+  @override
+  String get recycleBinRestoreUnreadable =>
+      'The staged copy is damaged and cannot be restored';
+
+  @override
+  String get recycleBinRestoreUnsupported =>
+      'This build cannot restore that entry';
+
+  @override
+  String get recycleBinRestoreNoWorkspace =>
+      'This file\'s workspace was deleted, so there is no folder to put it back into.';
+
+  @override
+  String get recycleBinRestoreFailed => 'Could not restore that entry';
+
+  @override
+  String get recycleBinFilterAll => 'All';
+
+  @override
+  String get recycleBinFilterConversation => 'Conversations';
+
+  @override
+  String get recycleBinFilterAssistants => 'Assistants';
+
+  @override
+  String get recycleBinFilterSettings => 'Settings';
+
+  @override
+  String get recycleBinFilterFiles => 'Files';
+
+  @override
+  String get recycleBinCancel => 'Cancel';
+
+  @override
+  String get recycleBinInfoTitle => 'About the recycle bin';
+
+  @override
+  String get recycleBinInfoBody =>
+      'What you delete here — a conversation, an assistant, a provider, a memory, a setting — is kept on this device so it can be brought back.\n\nThe bin never syncs and never goes into a backup. Entries are kept for 90 days, or until the bin passes 256 MB or 1000 entries; past either limit the oldest go first.\n\nBringing something back writes it as of now, so it is not immediately replaced by whatever won last time.';
+
+  @override
+  String get recycleBinInfoClose => 'Got it';
+
+  @override
+  String recycleBinGroupHeader(Object count, Object name) {
+    return '$count conversations deleted together with “$name”';
+  }
+
+  @override
+  String get recycleBinRestoreGroup => 'Restore all';
+
+  @override
+  String recycleBinGroupRestored(Object restored, Object skipped) {
+    return 'Restored $restored, $skipped already back';
+  }
+
+  @override
+  String recycleBinGroupRestoreFailed(Object failed, Object restored) {
+    return 'Restored $restored, $failed could not be restored';
+  }
+
+  @override
+  String get recycleBinOpenDetail => 'View details';
+
+  @override
+  String get recycleBinDetailKey => 'Identity';
+
+  @override
+  String get recycleBinDetailOrigin => 'Origin';
+
+  @override
+  String get recycleBinDetailWhen => 'Deleted';
+
+  @override
+  String get recycleBinDetailReplacedWhen => 'Replaced';
+
+  @override
+  String get recycleBinDetailSize => 'Size';
+
+  @override
+  String get recycleBinDetailModified => 'File modified';
+
+  @override
+  String get recycleBinDetailContent => 'Contents';
+
+  @override
+  String recycleBinDetailRows(Object count) {
+    return '$count rows';
+  }
+
+  @override
+  String recycleBinDetailTruncated(Object shown) {
+    return 'Too large — showing the first $shown';
+  }
+
+  @override
+  String get recycleBinDetailBinary => 'Binary file — no preview';
+
+  @override
+  String get recycleBinDetailUnreadable =>
+      'The staged copy is damaged; its contents cannot be read';
+
+  @override
+  String get recycleBinDetailCopyJson => 'Copy JSON';
+
+  @override
+  String get recycleBinDetailCopyText => 'Copy text';
+
+  @override
+  String get recycleBinDetailCopied => 'Copied';
+
+  @override
+  String recycleBinDetailAssistantGone(Object name) {
+    return 'This conversation belonged to “$name”, which is no longer on this device. After restoring it you will need to choose an assistant for it.';
+  }
+
+  @override
   String get storageSessionFilesCleanOrphans =>
       'Clean orphaned conversation files';
 
@@ -11333,7 +11061,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workspaceDesktopManagedHint =>
-      'Kelivo creates and manages a folder for this project.';
+      'Cuplivo creates and manages a folder for this project.';
 
   @override
   String get workspaceDesktopHostHint =>
@@ -11458,10 +11186,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get workspaceToolHelpRead =>
       'Read files with line numbers and paging.';
-
-  @override
-  String get workspaceToolHelpViewImage =>
-      'Let the model inspect an image from the workspace.';
 
   @override
   String get workspaceToolHelpWrite =>
@@ -11590,7 +11314,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workspaceExternalStorageMessage =>
-      'To read and write external folders in the workspace and Shell, allow Kelivo to manage files in Android settings. On Android 11 or later, enable All files access. Then select an on-device folder to mount.';
+      'To read and write external folders in the workspace and Shell, allow Cuplivo to manage files in Android settings. On Android 11 or later, enable All files access. Then select an on-device folder to mount.';
 
   @override
   String get workspaceExternalGrantAccess => 'Grant access';
@@ -11814,7 +11538,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backgroundSettingsTitle => 'Background tasks';
 
   @override
-  String get backgroundTaskTitle => 'Kelivo task';
+  String get backgroundTaskTitle => 'Cuplivo task';
 
   @override
   String get backgroundCompleted => 'Generation complete';
@@ -11950,7 +11674,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backgroundOverlayIcon => 'Floating icon';
 
   @override
-  String get backgroundIconDefault => 'Kelivo icon';
+  String get backgroundIconDefault => 'Cuplivo icon';
 
   @override
   String get backgroundIconImage => 'Choose image';
@@ -12167,22 +11891,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mcpImportConfirm => 'Import';
 
   @override
-  String get startupRecoverySnapshotTitle => 'Recover from a local copy';
+  String get startupRecoverySnapshotTitle => 'Restore from a database snapshot';
 
   @override
   String get startupRecoverySnapshotBody =>
-      'Choose a snapshot on this device to recover your chats and settings, even when the database cannot open. Do not uninstall Kelivo: uninstalling also removes these snapshots.';
+      'Choose a snapshot on this device to recover your chats and settings, even when the database cannot open. Do not uninstall Cuplivo: uninstalling also removes these snapshots.';
 
   @override
   String get startupRecoverySnapshotEmpty =>
       'No database snapshots were found on this device. Export your data before trying other recovery actions.';
 
   @override
-  String get startupRecoverySnapshotButton => 'Choose a copy to recover';
+  String get startupRecoverySnapshotButton => 'Choose a snapshot';
 
   @override
   String startupRecoverySnapshotConfirm(String when) {
-    return 'Restore chats and settings from $when? Changes made after this snapshot will not be included. Existing attachment files and the snapshot will be kept. Kelivo will restart to complete the restore.';
+    return 'Restore chats and settings from $when? Changes made after this snapshot will not be included. Existing attachment files and the snapshot will be kept. Cuplivo will restart to complete the restore.';
   }
 
   @override
@@ -12192,7 +11916,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get startupRecoverySnapshotReady =>
-      'The snapshot is ready. Restart Kelivo to complete the restore.';
+      'The snapshot is ready. Restart Cuplivo to complete the restore.';
 
   @override
   String get scheduledTasksTitle => 'Scheduled tasks';
@@ -12266,7 +11990,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scheduledTasksReliability =>
-      'Keep Kelivo unrestricted in battery settings for more reliable execution. Force stopping the app cancels alarms until you reopen it. Missed runs are skipped; tasks follow the device time zone.';
+      'Keep Cuplivo unrestricted in battery settings for more reliable execution. Force stopping the app cancels alarms until you reopen it. Missed runs are skipped; tasks follow the device time zone.';
 
   @override
   String get scheduledTasksExecutionDetail =>
@@ -12454,7 +12178,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scheduledTasksDesktopReliability =>
-      'Tasks run only while Kelivo is running, including when minimized or in the system tray. Missed times are skipped after quitting or computer sleep. Kelivo will not start automatically.';
+      'Tasks run only while Cuplivo is running, including when minimized or in the system tray. Missed times are skipped after quitting or computer sleep. Cuplivo will not start automatically.';
 
   @override
   String get scheduledTasksDesktopExecutionDetail =>
@@ -12616,7 +12340,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get oauthModelsHint =>
-      'Available models are synced from your account. Choose which models appear in the model picker. Your choices are kept when syncing or signing in again.';
+      'Available models are synced from your account.';
 
   @override
   String get oauthNoModels => 'Sync models to start chatting';
@@ -12687,70 +12411,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String oauthUsedValue(String value) {
-    return 'Used $value';
-  }
-
-  @override
   String get oauthNetworkError =>
       'Could not connect. Check your network and try again.';
-
-  @override
-  String get oauthDnsError =>
-      'DNS lookup failed. Check your network or proxy DNS settings.';
-
-  @override
-  String get oauthTlsError =>
-      'The TLS connection failed. Check the certificates used by your network or proxy.';
-
-  @override
-  String get oauthProxyError =>
-      'The proxy connection failed. Check your proxy address and authentication settings.';
-
-  @override
-  String get oauthConnectionError =>
-      'The connection failed or was interrupted. Check your network or proxy settings.';
-
-  @override
-  String get oauthConnectionTimeout =>
-      'Connecting to the server timed out. Check your network or proxy settings.';
-
-  @override
-  String get oauthSendTimeout =>
-      'Sending the request timed out. Check your network and try again.';
-
-  @override
-  String get oauthReceiveTimeout =>
-      'Waiting for the server response timed out. Please try again.';
-
-  @override
-  String get oauthRequestTimeout =>
-      'The request timed out. Check your network or proxy settings and try again.';
-
-  @override
-  String oauthFailureStage(String stage) {
-    return 'Failed at: $stage';
-  }
-
-  @override
-  String get oauthStageRequestDeviceCode => 'Requesting a device code';
-
-  @override
-  String get oauthStageWaitDeviceAuthorization =>
-      'Waiting for device authorization';
-
-  @override
-  String get oauthStagePrepareBrowser => 'Preparing browser sign-in';
-
-  @override
-  String get oauthStageBrowserAuthorization =>
-      'Browser authorization and callback';
-
-  @override
-  String get oauthStageExchangeToken => 'Exchanging the authorization code';
-
-  @override
-  String get oauthStageRefreshToken => 'Refreshing the login token';
 
   @override
   String get oauthInvalidResponse =>
@@ -12811,32 +12473,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get oauthExtraUsage => 'Extra usage';
 
   @override
-  String get oauthMonthlyTotal => 'Monthly total';
-
-  @override
-  String get oauthMonthlyCode => 'Monthly code';
-
-  @override
-  String get oauthSpendCap => 'Credit spend cap';
-
-  @override
-  String get oauthOnDemand => 'On-demand quota';
-
-  @override
-  String get oauthQuotaAdvisory =>
-      'For reference only: active weekly credits make this monthly limit uncertain.';
-
-  @override
-  String oauthCreditsValue(String value) {
-    return '$value credits';
-  }
-
-  @override
-  String oauthRemainingValue(String value) {
-    return 'Remaining $value';
-  }
-
-  @override
   String get oauthPromptCachingHelp =>
       'Reuse context across messages and choose how long the cache is retained.';
 
@@ -12852,7 +12488,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scheduledTasksIOSDetail =>
-      'iOS background limits prevent Kelivo from waking at a set time to run a model. Instead, content is prepared while the app can run, and the system shows a notification at the scheduled time. Only the next occurrence is prepared. Preparation may not finish after leaving the app; reopen Kelivo to prepare subsequent occurrences.';
+      'iOS background limits prevent Cuplivo from waking at a set time to run a model. Instead, content is prepared while the app can run, and the system shows a notification at the scheduled time. Only the next occurrence is prepared. Preparation may not finish after leaving the app; reopen Cuplivo to prepare subsequent occurrences.';
 
   @override
   String get scheduledTasksContextPolicy => 'Conversation context';
@@ -12918,7 +12554,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scheduledTasksReminderBody =>
-      'Your scheduled task is due. Open Kelivo to continue.';
+      'Your scheduled task is due. Open Cuplivo to continue.';
 
   @override
   String get scheduledTasksResultBody => 'Your scheduled task result is ready.';
@@ -12932,7 +12568,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scheduledTasksAllowPreparationTip =>
-      'Generate the next result before its scheduled time, while Kelivo can run. The result stays out of the chat until it is due. Preparation uses text only, without tools, attachments or custom request bodies. It may incur model charges.';
+      'Generate the next result before its scheduled time, while Cuplivo can run. The result stays out of the chat until it is due. Preparation uses text only, without tools, attachments or custom request bodies. It may incur model charges.';
 
   @override
   String get scheduledTasksContextPolicyTip =>
@@ -12940,7 +12576,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scheduledTasksPreparationWindowTip =>
-      'How far ahead of the scheduled time preparation may begin, up to 24 hours. For example, opening Kelivo at noon can prepare the next morning’s reminder. A larger window gives more chances to prepare, but the result may be less current. It does not change the scheduled time or guarantee background execution. Prepare now bypasses this automatic waiting period and all attempt limits.';
+      'How far ahead of the scheduled time preparation may begin, up to 24 hours. For example, opening Cuplivo at noon can prepare the next morning’s reminder. A larger window gives more chances to prepare, but the result may be less current. It does not change the scheduled time or guarantee background execution. Prepare now bypasses this automatic waiting period and all attempt limits.';
 
   @override
   String get scheduledTasksPreparationAttemptsTip =>
@@ -12952,7 +12588,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scheduledTasksUnavailableTip =>
-      'If no prepared result is available and the task cannot run when due, send a reminder or skip the occurrence. A reminder contains no generated answer and requires notifications to be enabled. If Kelivo is open when the task is due, it can run the task then.';
+      'If no prepared result is available and the task cannot run when due, send a reminder or skip the occurrence. A reminder contains no generated answer and requires notifications to be enabled. If Cuplivo is open when the task is due, it can run the task then.';
 
   @override
   String get scheduledTasksNotifyTip =>
@@ -13155,18 +12791,1430 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get phoneControlAssistantHint =>
-      'Both permissions are required: enable Kelivo phone control in system Accessibility settings, then enable Phone Control under your assistant’s Local Tools (also available in the chat tools menu). Each assistant is configured separately. Keep the phone unlocked while running a task.';
+      'Both permissions are required: enable Cuplivo phone control in system Accessibility settings, then enable Phone Control under your assistant’s Local Tools (also available in the chat tools menu). Each assistant is configured separately. Keep the phone unlocked while running a task.';
 
   @override
   String get phoneControlRestrictedTitle => 'Accessibility switch unavailable?';
 
   @override
   String get phoneControlRestrictedHint =>
-      'For some downloaded APKs, Android requires “Allow restricted settings” in the app info menu first. Tap to open Kelivo’s app info, then return to Accessibility settings.';
+      'For some downloaded APKs, Android requires “Allow restricted settings” in the app info menu first. Tap to open Cuplivo’s app info, then return to Accessibility settings.';
 
   @override
   String get phoneControlEnableAssistant =>
       'Allow this assistant to use phone control';
+
+  @override
+  String get settingsPageLanSync => 'LAN Sync';
+
+  @override
+  String get lanSyncThisDevice => 'This device';
+
+  @override
+  String get lanSyncListenerStarting => 'Starting listener…';
+
+  @override
+  String get lanSyncListenerNotRunning => 'Listener not running';
+
+  @override
+  String lanSyncListenerFailed(Object error) {
+    return 'Listener failed to start: $error';
+  }
+
+  @override
+  String get lanSyncPairSectionTitle => 'Pair a device';
+
+  @override
+  String get lanSyncPairIntro =>
+      'Two devices on the same LAN: one shows the QR code, the other scans it.';
+
+  @override
+  String get lanSyncPairFirstSyncNote =>
+      'After pairing, the first sync starts automatically and can take a while. Keep the desktop app running and this app in the foreground on mobile.';
+
+  @override
+  String get lanSyncShowCode => 'Show pairing QR';
+
+  @override
+  String get lanSyncEnterCode => 'Scan or enter code';
+
+  @override
+  String get lanSyncPairingCode => 'Pairing code';
+
+  @override
+  String lanSyncPairingExpiresIn(Object time) {
+    return 'Expires in $time';
+  }
+
+  @override
+  String get lanSyncPairingEndpointHint => 'Enter this on the other device';
+
+  @override
+  String get lanSyncPairingNoIpHint =>
+      'No LAN address was found. The other device can still reach this one by its IP or hostname.';
+
+  @override
+  String get lanSyncHostLabel => 'Address';
+
+  @override
+  String get lanSyncPortLabel => 'Port';
+
+  @override
+  String get lanSyncPairButton => 'Pair';
+
+  @override
+  String get lanSyncPairAgain => 'Pair again';
+
+  @override
+  String get lanSyncPairingBusy => 'Pairing…';
+
+  @override
+  String lanSyncPairSuccess(Object name) {
+    return 'Paired with $name';
+  }
+
+  @override
+  String get lanSyncPairErrorInvalidPin =>
+      'Wrong pairing code, or the other device\'s pairing window is closed.';
+
+  @override
+  String get lanSyncPairErrorInvalidAddress =>
+      'Enter the other device\'s address and port.';
+
+  @override
+  String get lanSyncPairErrorUnreachable =>
+      'Could not reach the device. Check the address and port, and that both devices are on the same network.';
+
+  @override
+  String get lanSyncPairErrorNoCertificate =>
+      'The other device did not identify itself. Pairing aborted.';
+
+  @override
+  String get lanSyncPairErrorIdMismatch =>
+      'The other device\'s identity could not be verified. Pairing aborted.';
+
+  @override
+  String get lanSyncPairErrorNoListener =>
+      'The sync listener on this device is not running yet.';
+
+  @override
+  String lanSyncPairErrorUnknown(Object error) {
+    return 'Pairing failed: $error';
+  }
+
+  @override
+  String get lanSyncScanQr => 'Scan pairing QR';
+
+  @override
+  String get lanSyncPairQrCaption =>
+      'Scan to pair, or enter the details below on the other device';
+
+  @override
+  String lanSyncPairUpdatedSnackbar(Object name) {
+    return 'Pairing with $name updated';
+  }
+
+  @override
+  String get lanSyncPairErrorFingerprintMismatch =>
+      'The device\'s certificate does not match the scanned code. Pairing aborted.';
+
+  @override
+  String get lanSyncPairErrorNoEndpointInQr =>
+      'The code carries no address. Enter one below to pair.';
+
+  @override
+  String get lanSyncPairErrorNotPairingQr =>
+      'This is not a Cuplivo pairing code.';
+
+  @override
+  String get lanSyncPairErrorInvalidQr => 'The pairing code could not be read.';
+
+  @override
+  String get lanSyncPairErrorQrBadVersion =>
+      'This pairing code is from a newer version. Update the app and try again.';
+
+  @override
+  String get lanSyncClosePairing => 'Close pairing window';
+
+  @override
+  String get lanSyncPairedDevices => 'Paired devices';
+
+  @override
+  String get lanSyncWorkspaces => 'Workspaces';
+
+  @override
+  String get lanSyncWorkspaceTip =>
+      'Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files or 200 MB don\'t sync their files. A workspace\'s record always syncs — the switch governs only its files: a folder with the switch off is never sent, and a sync never removes it.';
+
+  @override
+  String lanSyncWorkspaceSyncing(Object count) {
+    return '$count syncing files';
+  }
+
+  @override
+  String get lanSyncWorkspaceStatusSyncing => 'Syncing';
+
+  @override
+  String get lanSyncWorkspaceStatusTooLarge => 'Too large';
+
+  @override
+  String get lanSyncWorkspaceStatusUnreadable => 'Unreadable';
+
+  @override
+  String get lanSyncWorkspaceStatusOff => 'Off';
+
+  @override
+  String lanSyncWorkspaceFiles(Object count) {
+    return '$count files';
+  }
+
+  @override
+  String lanSyncWorkspaceFilesAtLeast(Object count) {
+    return '$count+ files';
+  }
+
+  @override
+  String lanSyncWorkspaceSizeAtLeast(Object size) {
+    return '$size+';
+  }
+
+  @override
+  String get lanSyncNoDevices =>
+      'No paired devices yet. Pair one to start syncing.';
+
+  @override
+  String get lanSyncPlatformAndroid => 'Android';
+
+  @override
+  String get lanSyncPlatformIos => 'iOS';
+
+  @override
+  String get lanSyncPlatformWindows => 'Windows';
+
+  @override
+  String get lanSyncPlatformMacos => 'macOS';
+
+  @override
+  String get lanSyncPlatformLinux => 'Linux';
+
+  @override
+  String get lanSyncPlatformUnknown => 'Unknown device';
+
+  @override
+  String lanSyncLastSyncedAt(Object time) {
+    return 'Last synced $time';
+  }
+
+  @override
+  String get lanSyncNeverSynced => 'Never synced';
+
+  @override
+  String get lanSyncJustSynced => 'Just synced';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n min ago';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n h ago';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n d ago';
+  }
+
+  @override
+  String get lanSyncSyncNow => 'Sync now';
+
+  @override
+  String get lanSyncOnline => 'Online';
+
+  @override
+  String get lanSyncOnlineFromSession => 'Online — the last sync connected';
+
+  @override
+  String get lanSyncOfflineFromSession =>
+      'Offline — the last sync could not connect';
+
+  @override
+  String lanSyncPhaseConnectingTo(Object address) {
+    return 'Connecting to $address…';
+  }
+
+  @override
+  String get lanSyncOffline => 'Offline';
+
+  @override
+  String get lanSyncUpToDate => 'Up to date';
+
+  @override
+  String get lanSyncPhaseConnecting => 'Connecting…';
+
+  @override
+  String get lanSyncPhaseExchanging => 'Comparing data…';
+
+  @override
+  String get lanSyncPhaseSending => 'Sending changes…';
+
+  @override
+  String get lanSyncPhaseReceiving => 'Receiving changes…';
+
+  @override
+  String lanSyncPhaseFiles(Object done, Object total) {
+    return 'Downloading files… ($done/$total)';
+  }
+
+  @override
+  String get lanSyncPhaseFilesNoTotal => 'Downloading files…';
+
+  @override
+  String get lanSyncPhaseApplying => 'Applying changes…';
+
+  @override
+  String get lanSyncFirstSyncHint =>
+      'First sync in progress — keep both devices awake and Cuplivo open (in the foreground on mobile) until it finishes.';
+
+  @override
+  String get lanSyncRename => 'Rename';
+
+  @override
+  String get lanSyncRenameTitle => 'Device name';
+
+  @override
+  String get lanSyncEditAddress => 'Edit address';
+
+  @override
+  String get lanSyncAddressCopied => 'Address copied';
+
+  @override
+  String get lanSyncUnpair => 'Unpair';
+
+  @override
+  String lanSyncUnpairConfirmTitle(Object name) {
+    return 'Unpair $name?';
+  }
+
+  @override
+  String get lanSyncUnpairConfirmBody =>
+      'Conversations stay on both devices. Syncing with it stops until you pair again.';
+
+  @override
+  String lanSyncReportSent(Object n) {
+    return '$n sent';
+  }
+
+  @override
+  String lanSyncReportReceived(Object n) {
+    return '$n received';
+  }
+
+  @override
+  String lanSyncReportMessagesUpserted(Object n) {
+    return '+$n messages';
+  }
+
+  @override
+  String lanSyncReportMessagesDeleted(Object n) {
+    return '-$n messages';
+  }
+
+  @override
+  String lanSyncReportConversationsDeleted(Object n) {
+    return '-$n conversations';
+  }
+
+  @override
+  String lanSyncReportDeferred(Object n) {
+    return '$n deferred';
+  }
+
+  @override
+  String lanSyncReportEntities(Object n) {
+    return '$n entities';
+  }
+
+  @override
+  String lanSyncReportPreferences(Object n) {
+    return '$n preferences';
+  }
+
+  @override
+  String lanSyncReportBlobsWithSize(Object n, Object size) {
+    return '$n files · $size';
+  }
+
+  @override
+  String lanSyncReportBlobs(Object n) {
+    return '$n files';
+  }
+
+  @override
+  String lanSyncReportSkills(Object n) {
+    return '$n skills';
+  }
+
+  @override
+  String lanSyncReportSkillConflicts(Object n) {
+    return '$n skill edits replaced';
+  }
+
+  @override
+  String lanSyncReportBlobsMissing(Object n) {
+    return '$n files missing on the other device';
+  }
+
+  @override
+  String lanSyncReportWorkspaceFiles(Object count) {
+    return '$count workspace files';
+  }
+
+  @override
+  String lanSyncReportWorkspaceFilesWithSize(Object count, Object size) {
+    return '$count workspace files · $size';
+  }
+
+  @override
+  String lanSyncReportWorkspaceRemoved(Object count) {
+    return '-$count workspace files';
+  }
+
+  @override
+  String lanSyncReportWorkspaceConflicts(Object count) {
+    return '$count workspace file edits replaced';
+  }
+
+  @override
+  String lanSyncReportWorkspaceMissing(Object count) {
+    return '$count workspace files could not be applied';
+  }
+
+  @override
+  String lanSyncReportWorkspacesOmitted(Object count) {
+    return '$count workspaces not syncing files';
+  }
+
+  @override
+  String lanSyncReportWorkspacesKept(Object count) {
+    return '$count workspace folders kept (switch off)';
+  }
+
+  @override
+  String lanSyncReportRowsLost(Object n) {
+    return '$n local rows replaced by newer versions on the peer (recoverable in the recycle bin)';
+  }
+
+  @override
+  String lanSyncReportClockSkew(Object n) {
+    return 'Clocks differ by ~$n min — fix the device clock, then sync again';
+  }
+
+  @override
+  String get lanSyncReportUnreachable =>
+      'Sync failed: the other device could not be reached. It may be offline or on another network — rescan its QR code, or edit its address on the card.';
+
+  @override
+  String get lanSyncReportNoEndpoint =>
+      'Sync failed: no address is stored for the other device. Rescan its QR code, or enter the address on its card.';
+
+  @override
+  String get lanSyncReportTimeout =>
+      'Sync failed: the other device stopped responding.';
+
+  @override
+  String get lanSyncReportPeerError =>
+      'Sync failed: the other device reported an error.';
+
+  @override
+  String get lanSyncReportInternal => 'Sync failed. See the logs for details.';
+
+  @override
+  String get lanSyncRefusedPeerSchemaNewer =>
+      'The other device\'s database is newer. Update this device first, then sync again.';
+
+  @override
+  String get lanSyncRefusedProtocolUnknown =>
+      'The other device speaks a different sync protocol. Update the app on both devices.';
+
+  @override
+  String get lanSyncRefusedNotPaired =>
+      'This device and the other one no longer agree on this pairing — it was unpaired there, or a re-pairing did not finish on both sides. Pair again on both devices.';
+
+  @override
+  String get lanSyncRefusedIdentityMismatch =>
+      'The other device presented a mismatched identity. Pair again on both devices.';
+
+  @override
+  String get lanSyncRefusedBusy =>
+      'Another sync session is in progress. Try again shortly.';
+
+  @override
+  String get lanSyncFirewallTitle => 'Windows Firewall';
+
+  @override
+  String lanSyncFirewallHint(Object port) {
+    return 'The inbound rule for port $port needs one-time administrator approval.';
+  }
+
+  @override
+  String get lanSyncFirewallFix => 'Allow access (UAC)';
+
+  @override
+  String get lanSyncFirewallFixed => 'Inbound access allowed.';
+
+  @override
+  String lanSyncArrivalToast(Object name) {
+    return 'Synced with $name';
+  }
+
+  @override
+  String get lanSyncArrivalDetails => 'Details';
+
+  @override
+  String get lanSyncNever => 'Never';
+
+  @override
+  String get lanSyncTemporarilyUnreachable => 'Can\'t reach right now';
+
+  @override
+  String get lanSyncListening => 'Listening';
+
+  @override
+  String get lanSyncCopy => 'Copy';
+
+  @override
+  String get lanSyncMoreActions => 'More actions';
+
+  @override
+  String get lanSyncEndpointTip =>
+      'One tile per address: tap the name to rename it, tap the latency for details — when it was last measured, how many syncs it has carried, when it was added. Edit or delete the address there.';
+
+  @override
+  String get lanSyncJustNow => 'Just now';
+
+  @override
+  String get lanSyncShowAddresses => 'Addresses';
+
+  @override
+  String get lanSyncPairTrustTip =>
+      'Use a code only on a network you trust: it stops a passive eavesdropper, not a machine in the middle. The QR carries the other device\'s certificate fingerprint, which is why it is the safer half.';
+
+  @override
+  String get lanSyncNoAddress => 'No address is remembered for this device.';
+
+  @override
+  String get lanSyncAddAddress => 'Add address';
+
+  @override
+  String lanSyncAddressLimit(Object count) {
+    return 'This device already remembers $count addresses for that device. Remove one before adding another.';
+  }
+
+  @override
+  String get lanSyncRenameEndpointTitle => 'Address name';
+
+  @override
+  String get lanSyncRenameEndpointHint => 'e.g. Home network';
+
+  @override
+  String get lanSyncEndpointLatency => 'Latency';
+
+  @override
+  String get lanSyncEndpointLastMeasured => 'Last measured';
+
+  @override
+  String get lanSyncEndpointLastReached => 'Last connected';
+
+  @override
+  String get lanSyncEndpointSuccessCount => 'Syncs';
+
+  @override
+  String get lanSyncEndpointAddedAt => 'Added';
+
+  @override
+  String lanSyncEndpointSuccessTimes(Object n) {
+    return '$n times';
+  }
+
+  @override
+  String get lanSyncDeleteEndpoint => 'Delete this address';
+
+  @override
+  String get lanSyncEndpointUnreachable => 'Not reachable';
+
+  @override
+  String get lanSyncSupersededByPeer =>
+      'The other device is running this sync.';
+
+  @override
+  String get assistantEditProactiveCareEnableTitle => 'Proactive Care';
+
+  @override
+  String get assistantEditProactiveCareDefaultDescription =>
+      'Default for conversations without an override';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      'Messages used for time decisions';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      'Maximum number of recent conversation messages sent to the model when deciding the next proactive message time';
+
+  @override
+  String get assistantEditProactiveCareConversationTimesTitle =>
+      'Conversation next-letter times';
+
+  @override
+  String get assistantEditProactiveCareNoEligibleConversations =>
+      'No enabled conversations for this assistant';
+
+  @override
+  String assistantEditProactiveCareConversationTimeFuture(String time) {
+    return 'Future · $time';
+  }
+
+  @override
+  String assistantEditProactiveCareConversationTimeExpired(String time) {
+    return 'Expired · $time';
+  }
+
+  @override
+  String get assistantEditProactiveCareConversationTimeUnset => 'Unset';
+
+  @override
+  String get assistantEditProactiveCarePermissionsTitle => 'Android readiness';
+
+  @override
+  String get assistantEditProactiveCareNotificationsTitle => 'Notifications';
+
+  @override
+  String get assistantEditProactiveCareExactAlarmTitle => 'Exact alarms';
+
+  @override
+  String get assistantEditProactiveCareAutoStartTitle => 'Auto-start';
+
+  @override
+  String get assistantEditProactiveCareBatteryTitle =>
+      'Battery optimization exemption';
+
+  @override
+  String get assistantEditProactiveCarePermissionRequired => 'Required';
+
+  @override
+  String get assistantEditProactiveCarePermissionRecommended => 'Recommended';
+
+  @override
+  String get assistantEditProactiveCarePermissionReady => 'Ready';
+
+  @override
+  String get assistantEditProactiveCarePermissionMissing => 'Tap to grant';
+
+  @override
+  String get assistantEditProactiveCarePermissionManual => 'Manual';
+
+  @override
+  String get assistantEditProactiveCarePermissionUnknown => 'Unknown';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeTitle =>
+      'Next proactive message time';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeUnset => 'Not set';
+
+  @override
+  String get assistantEditProactiveCarePromptTitle => 'Proactive care prompt';
+
+  @override
+  String get assistantEditProactiveCarePromptHint =>
+      'Prompt used when the assistant proactively sends a message';
+
+  @override
+  String get assistantEditProactiveCarePromptDefault =>
+      'Based on the assistant\'s character settings, conversation context, and the current time, send a message to the user.';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptTitle =>
+      'Decision time instruction prompt';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptDefault =>
+      'You are the director of a role-playing scenario, responsible for deciding when the assistant should next proactively message the user.\n\n[Feature description]\n· Proactive messaging: the assistant can send a message to the user at a scheduled time without waiting for the user to speak first.\n· If no proactive message time is set, the assistant cannot send any message while the user is silent.\n· Evaluate the currently scheduled next message time: keep it if no adjustment is needed; otherwise change it.\n\n[Note]\n· Only consider information visible from the assistant\'s perspective, not the user\'s.\n\n[Considerations]\n1. The assistant should proactively check in or greet the user after waking up, finishing a task, arriving safely at the dorm, etc.\n2. If the context mentions the assistant missed the user\'s messages due to sleeping or being busy, schedule a message for when the assistant wakes up or finishes.\n3. If the context mentions the assistant needs to supervise or remind the user at a specific time, schedule the message for that time.\n4. When a topic is unfinished, assume the user never replies after the assistant\'s last message — decide when the assistant should proactively follow up.\n\n[Examples]\n1. The user messaged at midnight saying they have insomnia and plan to wake at 10:30, but the assistant sleeps normally and wakes at 8:30. Set the proactive message time to the assistant\'s wake-up time.\n2. The user and assistant are discussing an exam. At 8:30 the last message is a question from the assistant. Per rule 4, assume the user never replies — the assistant should follow up within 10 minutes.';
+
+  @override
+  String get assistantEditProactiveCareDateTimePickerTitle =>
+      'Choose date and time';
+
+  @override
+  String get assistantEditProactiveCareTimeMustBeFuture =>
+      'Choose a time in the future.';
+
+  @override
+  String get conversationProactiveCareTitle => 'Conversation proactive care';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOn =>
+      'Following assistant setting: On';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOff =>
+      'Following assistant setting: Off';
+
+  @override
+  String get conversationProactiveCareExplicitOn => 'Conversation setting: On';
+
+  @override
+  String get conversationProactiveCareExplicitOff =>
+      'Conversation setting: Off';
+
+  @override
+  String get conversationProactiveCareRestoreFollowing =>
+      'Follow assistant setting';
+
+  @override
+  String get conversationProactiveCareClearTime => 'Clear next message time';
+
+  @override
+  String get conversationProactiveCareUpdateFailed =>
+      'Couldn\'t update conversation proactive care.';
+
+  @override
+  String get defaultModelPageProactiveCareModelTitle =>
+      'Ta\'s Letter Decision Model';
+
+  @override
+  String get defaultModelPageProactiveCareModelSubtitle =>
+      'Model used to decide when the assistant should proactively message';
+
+  @override
+  String get proactiveCareFailedNotificationBody =>
+      'Couldn\'t generate the proactive care message. Open the app to check the model settings and network.';
+
+  @override
+  String get proactiveCareLetterArrivalBody =>
+      'A letter has arrived. Open the app to read it.';
+
+  @override
+  String get assistantEditPageRoleplayTab => 'Roleplay';
+
+  @override
+  String get assistantEditProactiveCareFeatureTitle => 'Their Letter';
+
+  @override
+  String statsPageCost(String currency) {
+    return 'Cost ($currency)';
+  }
+
+  @override
+  String statsPageModelsWithoutPricing(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count models without pricing',
+      one: '$count model without pricing',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get assistantEditReasoningFollowDefault => 'Follow model default';
+
+  @override
+  String get assistantEditReasoningClampedSubtitle =>
+      'The actual level is clamped to what each model supports';
+
+  @override
+  String get backupProgressFailed => 'Operation failed';
+
+  @override
+  String backupProgressFailedAt(String phase) {
+    return 'Failed during: $phase';
+  }
+
+  @override
+  String get backupProgressCopyError => 'Copy error';
+
+  @override
+  String get backupProgressErrorCopied => 'Error copied';
+
+  @override
+  String get reasoningLevelSheetTitle => 'Reasoning';
+
+  @override
+  String get reasoningLevelAuto => 'Auto';
+
+  @override
+  String get reasoningLevelAutoSubtitle => 'Uses the model or provider default';
+
+  @override
+  String get reasoningLevelOff => 'Off';
+
+  @override
+  String get reasoningLevelOffSubtitle =>
+      'Turn off reasoning and answer directly';
+
+  @override
+  String get reasoningLevelMinimal => 'Minimal';
+
+  @override
+  String get reasoningLevelMinimalSubtitle =>
+      'Use the lightest reasoning to answer questions';
+
+  @override
+  String get reasoningLevelLow => 'Low';
+
+  @override
+  String get reasoningLevelLowSubtitle =>
+      'Use light reasoning to answer questions';
+
+  @override
+  String get reasoningLevelMedium => 'Medium';
+
+  @override
+  String get reasoningLevelMediumSubtitle =>
+      'Use moderate reasoning to answer questions';
+
+  @override
+  String get reasoningLevelHigh => 'High';
+
+  @override
+  String get reasoningLevelHighSubtitle =>
+      'Use heavy reasoning for complex questions';
+
+  @override
+  String get reasoningLevelXhigh => 'Extra High';
+
+  @override
+  String get reasoningLevelXhighSubtitle =>
+      'Use very high reasoning depth for harder problems';
+
+  @override
+  String get reasoningLevelMax => 'Max';
+
+  @override
+  String get reasoningLevelMaxSubtitle =>
+      'Use maximum reasoning depth for the toughest problems';
+
+  @override
+  String get reasoningLevelFollowModelDefaultSubtitle =>
+      'Use the model\'s default when the assistant doesn\'t set one';
+
+  @override
+  String get reasoningLevelNoReasoning =>
+      'This model does not support reasoning';
+
+  @override
+  String get reasoningLevelCustomBudget => 'Custom Reasoning Budget';
+
+  @override
+  String get reasoningLevelCustomBudgetHint => 'Token budget, e.g. 2048';
+
+  @override
+  String get reasoningLevelCompactMin => 'min';
+
+  @override
+  String get reasoningLevelCompactLow => 'low';
+
+  @override
+  String get reasoningLevelCompactMid => 'mid';
+
+  @override
+  String get reasoningLevelCompactHigh => 'high';
+
+  @override
+  String get reasoningLevelCompactXhigh => 'xhigh';
+
+  @override
+  String get reasoningLevelCompactMax => 'max';
+
+  @override
+  String reasoningLevelBudgetTokens(String budget) {
+    return '$budget tokens';
+  }
+
+  @override
+  String chatMessageWidgetWebFetch(String target) {
+    return 'Read page: $target';
+  }
+
+  @override
+  String get chatInputBarVoiceAttachAudioTooltip => 'Stop and attach as audio';
+
+  @override
+  String get chatInputBarVoiceSendAudioTooltip => 'Send recording';
+
+  @override
+  String get chatInputBarVoiceSavingAudio => 'Saving audio…';
+
+  @override
+  String get audioClipPlayTooltip => 'Play audio';
+
+  @override
+  String get audioClipPauseTooltip => 'Pause';
+
+  @override
+  String get audioClipPlaybackFailed => 'Couldn\'t play this audio';
+
+  @override
+  String get contextUsageTitle => 'Context window';
+
+  @override
+  String get contextUsageStateExact => 'Exact (from last response)';
+
+  @override
+  String get contextUsageStateExactCalibrated =>
+      'Exact (breakdown scaled from estimate)';
+
+  @override
+  String get contextUsageStateEstimated => 'Estimated';
+
+  @override
+  String get contextUsageStateStale => 'Stale, updating…';
+
+  @override
+  String get contextUsageStateComputing => 'Computing…';
+
+  @override
+  String get contextUsageStateNone => 'No data yet';
+
+  @override
+  String get contextUsageBucketSystem => 'System prompt';
+
+  @override
+  String get contextUsageBucketInjections => 'Instruction injections';
+
+  @override
+  String get contextUsageBucketHistory => 'Messages';
+
+  @override
+  String get contextUsageBucketTools => 'Built-in tools';
+
+  @override
+  String get contextUsageBucketMemory => 'Memory';
+
+  @override
+  String get contextUsageBucketWorldBook => 'World books';
+
+  @override
+  String get contextUsageBucketSkills => 'Skills';
+
+  @override
+  String get contextUsageBucketWorkspace => 'Workspace';
+
+  @override
+  String get contextUsageBucketSearch => 'Search prompt';
+
+  @override
+  String get contextUsageBucketMcpTools => 'MCP tools';
+
+  @override
+  String get contextUsageBucketAttachments => 'Attachments';
+
+  @override
+  String get contextUsageBucketDraft => 'Draft';
+
+  @override
+  String get contextUsageBucketUsed => 'Used';
+
+  @override
+  String get contextUsageFreeSpace => 'Free space';
+
+  @override
+  String contextUsageUsedWindow(String used, String window, int percent) {
+    return '$used / $window ($percent%)';
+  }
+
+  @override
+  String get contextUsageNoWindow => 'No context window';
+
+  @override
+  String get contextUsageSetWindow => 'Set context window';
+
+  @override
+  String get contextUsageRefresh => 'Refresh';
+
+  @override
+  String get modelSpecFormSourceCustom => 'Custom';
+
+  @override
+  String get modelSpecFormSourceCatalog => 'Catalog';
+
+  @override
+  String get modelSpecFormSourceInferred => 'Inferred';
+
+  @override
+  String get modelSpecFormSourceDefault => 'Default';
+
+  @override
+  String get modelSpecFormReset => 'Reset to default';
+
+  @override
+  String get modelSpecFormModalitiesSection => 'Modalities & abilities';
+
+  @override
+  String get modelSpecFormImageType => 'Image';
+
+  @override
+  String get modelSpecFormAudioMode => 'Audio';
+
+  @override
+  String get modelSpecFormVideoMode => 'Video';
+
+  @override
+  String get modelSpecFormPdfMode => 'PDF';
+
+  @override
+  String get modelSpecFormStructuredOutputAbility => 'Structured Output';
+
+  @override
+  String get modelSpecFormReasoningSection => 'Reasoning';
+
+  @override
+  String get modelSpecFormDialect => 'Dialect';
+
+  @override
+  String get modelSpecFormDialectNone => 'None';
+
+  @override
+  String get modelSpecFormDialectNoneSubtitle => 'No reasoning fields';
+
+  @override
+  String get modelSpecFormDialectOpenaiReasoningEffort =>
+      'OpenAI reasoning effort';
+
+  @override
+  String get modelSpecFormDialectOpenaiReasoningEffortSubtitle =>
+      'reasoning_effort';
+
+  @override
+  String get modelSpecFormDialectOpenaiResponsesReasoning =>
+      'OpenAI Responses reasoning';
+
+  @override
+  String get modelSpecFormDialectOpenaiResponsesReasoningSubtitle =>
+      'reasoning.effort';
+
+  @override
+  String get modelSpecFormDialectOpenrouterReasoning => 'OpenRouter reasoning';
+
+  @override
+  String get modelSpecFormDialectOpenrouterReasoningSubtitle => 'reasoning';
+
+  @override
+  String get modelSpecFormDialectAnthropicBudget => 'Anthropic budget';
+
+  @override
+  String get modelSpecFormDialectAnthropicBudgetSubtitle =>
+      'thinking.budget_tokens';
+
+  @override
+  String get modelSpecFormDialectAnthropicAdaptiveEffort =>
+      'Anthropic adaptive effort';
+
+  @override
+  String get modelSpecFormDialectAnthropicAdaptiveEffortSubtitle =>
+      'thinking + output_config.effort';
+
+  @override
+  String get modelSpecFormDialectAnthropicEffort => 'Anthropic effort';
+
+  @override
+  String get modelSpecFormDialectAnthropicEffortSubtitle =>
+      'thinking + output_config.effort';
+
+  @override
+  String get modelSpecFormDialectGeminiThinkingBudget =>
+      'Gemini thinking budget';
+
+  @override
+  String get modelSpecFormDialectGeminiThinkingBudgetSubtitle =>
+      'thinkingConfig.thinkingBudget';
+
+  @override
+  String get modelSpecFormDialectGeminiThinkingLevel => 'Gemini thinking level';
+
+  @override
+  String get modelSpecFormDialectGeminiThinkingLevelSubtitle =>
+      'thinkingConfig.thinkingLevel';
+
+  @override
+  String get modelSpecFormDialectQwenEnableThinking => 'Qwen enable thinking';
+
+  @override
+  String get modelSpecFormDialectQwenEnableThinkingSubtitle =>
+      'enable_thinking';
+
+  @override
+  String get modelSpecFormDialectThinkingType => 'Thinking type';
+
+  @override
+  String get modelSpecFormDialectThinkingTypeSubtitle => 'thinking.type';
+
+  @override
+  String get modelSpecFormDialectSiliconflowEnableThinking =>
+      'SiliconFlow enable thinking';
+
+  @override
+  String get modelSpecFormDialectSiliconflowEnableThinkingSubtitle =>
+      'enable_thinking';
+
+  @override
+  String get modelSpecFormDialectInternThinkingMode => 'Intern thinking mode';
+
+  @override
+  String get modelSpecFormDialectInternThinkingModeSubtitle => 'thinking_mode';
+
+  @override
+  String get modelSpecFormDialectChatTemplateKwargs => 'Chat template kwargs';
+
+  @override
+  String get modelSpecFormDialectChatTemplateKwargsSubtitle =>
+      'chat_template_kwargs.enable_thinking';
+
+  @override
+  String get modelSpecFormDialectKimiThinking => 'Kimi thinking';
+
+  @override
+  String get modelSpecFormDialectKimiThinkingSubtitle => 'thinking';
+
+  @override
+  String get modelSpecFormDialectCustom => 'Custom JSON';
+
+  @override
+  String get modelSpecFormDialectCustomSubtitle => 'Per-level JSON patch';
+
+  @override
+  String get modelSpecFormLevels => 'Supported levels';
+
+  @override
+  String get modelSpecFormCanDisable => 'Allow disabling';
+
+  @override
+  String get modelSpecFormDefaultLevel => 'Default level';
+
+  @override
+  String get modelSpecFormBudgets => 'Token budgets';
+
+  @override
+  String modelSpecFormBudgetPlaceholder(String tokens) {
+    return '$tokens';
+  }
+
+  @override
+  String modelSpecFormCustomPatch(String level) {
+    return 'JSON patch ($level)';
+  }
+
+  @override
+  String get modelSpecFormCustomPatchHint => 'e.g. reasoning_effort: high';
+
+  @override
+  String get modelSpecFormInvalidJson =>
+      'Custom reasoning patch must be a valid JSON object';
+
+  @override
+  String get modelSpecFormInvalidNumber => 'Please enter a valid number';
+
+  @override
+  String get modelSpecFormStrategySection => 'Strategy';
+
+  @override
+  String get modelSpecFormSampling => 'Sampling';
+
+  @override
+  String get modelSpecFormRequestQuirks => 'Request compatibility';
+
+  @override
+  String get modelSpecFormDynamicWebSearch => 'Dynamic filtering search tools';
+
+  @override
+  String get modelSpecFormDynamicWebSearchSubtitle =>
+      'When dynamic filtering is on, send the 2026-03-18 web search and fetch tools';
+
+  @override
+  String get modelSpecFormRemoteImageUrls => 'Remote image links';
+
+  @override
+  String get modelSpecFormRemoteImageUrlsSubtitle =>
+      'Send http(s) image links as-is; when off, remote links are dropped and only local images are sent';
+
+  @override
+  String get modelSpecFormPromptCacheControl => 'Prompt cache marker';
+
+  @override
+  String get modelSpecFormPromptCacheControlSubtitle =>
+      'When prompt caching is on, add cache_control to OpenRouter requests';
+
+  @override
+  String get modelSpecFormSamplingAlways => 'Always';
+
+  @override
+  String get modelSpecFormSamplingAlwaysSubtitle =>
+      'Keep temperature and other sampling fields';
+
+  @override
+  String get modelSpecFormSamplingOnlyWhenReasoningOff =>
+      'Only when reasoning is off';
+
+  @override
+  String get modelSpecFormSamplingOnlyWhenReasoningOffSubtitle =>
+      'Strip sampling fields while the model is thinking';
+
+  @override
+  String get modelSpecFormSamplingNever => 'Never';
+
+  @override
+  String get modelSpecFormSamplingNeverSubtitle =>
+      'Always strip sampling fields';
+
+  @override
+  String get modelSpecFormReplay => 'Reasoning replay';
+
+  @override
+  String get modelSpecFormReplayNone => 'None';
+
+  @override
+  String get modelSpecFormReplayNoneSubtitle =>
+      'Do not send prior reasoning back to the model';
+
+  @override
+  String get modelSpecFormReplayToolTurns => 'Tool turns';
+
+  @override
+  String get modelSpecFormReplayToolTurnsSubtitle =>
+      'Replay reasoning on tool-call turns';
+
+  @override
+  String get modelSpecFormReplayAll => 'All';
+
+  @override
+  String get modelSpecFormReplayAllSubtitle =>
+      'Replay reasoning on every follow-up turn';
+
+  @override
+  String get modelSpecFormReplayField => 'Replay field';
+
+  @override
+  String get modelSpecFormReplayFieldReasoningContent => 'reasoning_content';
+
+  @override
+  String get modelSpecFormReplayFieldReasoning => 'reasoning';
+
+  @override
+  String get modelSpecFormReplayFieldReasoningDetails => 'reasoning_details';
+
+  @override
+  String get modelSpecFormLimitsSection => 'Limits';
+
+  @override
+  String get modelSpecFormLimitsPricingSection => 'Limits & pricing';
+
+  @override
+  String get modelSpecFormContextWindow => 'Context window';
+
+  @override
+  String get modelSpecFormMaxOutput => 'Max output';
+
+  @override
+  String get modelSpecFormPricingSection => 'Pricing / 1M';
+
+  @override
+  String get modelSpecFormPricingInput => 'Input';
+
+  @override
+  String get modelSpecFormPricingOutput => 'Output';
+
+  @override
+  String get modelSpecFormPricingCacheRead => 'Cache read';
+
+  @override
+  String get modelSpecFormPricingCacheWrite => 'Cache write';
+
+  @override
+  String get modelSpecFormCurrency => 'Currency';
+
+  @override
+  String get modelSpecFormAdvancedSection => 'Request';
+
+  @override
+  String get providerDetailPagePromptCacheKeyTitle =>
+      'Send Conversation Cache Key';
+
+  @override
+  String get providerDetailPagePromptCacheKeyHelp =>
+      'Adds a stable prompt_cache_key for each conversation to OpenAI-compatible requests. Enable only if your provider supports it. Custom Body values take precedence; cache hits are not guaranteed.';
+
+  @override
+  String get modelCatalogTitle => 'Model catalog';
+
+  @override
+  String modelCatalogSourceBundled(String date) {
+    return 'Bundled snapshot · $date';
+  }
+
+  @override
+  String modelCatalogSourceRemote(String date) {
+    return 'models.dev · updated $date';
+  }
+
+  @override
+  String get modelCatalogAutoUpdate => 'Auto-update every 24 hours';
+
+  @override
+  String get modelCatalogRefresh => 'Update now';
+
+  @override
+  String get modelCatalogUpdated => 'Model catalog updated';
+
+  @override
+  String modelCatalogRefreshFailed(String error) {
+    return 'Update failed: $error';
+  }
+
+  @override
+  String modelCatalogProviderCount(int count) {
+    return '$count providers';
+  }
+
+  @override
+  String modelCatalogModelCount(int count) {
+    return '$count models';
+  }
+
+  @override
+  String get searchServicesPageWebFetchSection => 'Web page reading';
+
+  @override
+  String get searchServicesPageWebFetchModeTitle => 'Read pages with';
+
+  @override
+  String get searchServicesPageWebFetchFollow => 'Follow search service';
+
+  @override
+  String searchServicesPageWebFetchFollowValue(String name) {
+    return 'Follow search · $name';
+  }
+
+  @override
+  String searchServicesPageWebFetchFollowSubtitle(String name) {
+    return 'Currently $name';
+  }
+
+  @override
+  String get searchServicesPageWebFetchLocal => 'Local';
+
+  @override
+  String get searchServicesPageWebFetchLocalSubtitle =>
+      'Free. This device requests the page directly.';
+
+  @override
+  String get searchServicesPageWebFetchProviderSubtitle =>
+      'Uses this service\'s API key and quota';
+
+  @override
+  String get searchServicesPageWebFetchOff => 'Off';
+
+  @override
+  String get searchServicesPageWebFetchOffSubtitle =>
+      'Search only, without reading pages';
+
+  @override
+  String get searchServicesPageWebFetchFooter =>
+      'With web search on, the model can also read full pages. When the search service can\'t read pages, local reading is used, which can\'t handle pages that need JavaScript or block bots.';
+
+  @override
+  String get searchServicesPageWebFetchSupported => 'Can read web pages';
+
+  @override
+  String get searchServicesDialogApiKeyOptional => 'API Key (optional)';
+
+  @override
+  String get searchServiceEditorTestModeSearch => 'Search';
+
+  @override
+  String get searchServiceEditorTestModeFetch => 'Read page';
+
+  @override
+  String get searchServiceEditorTestUrlHint => 'Enter a URL';
+
+  @override
+  String get searchServiceEditorTestFetchRun => 'Run test fetch';
+
+  @override
+  String get searchServiceEditorTestFetchRunning => 'Reading…';
+
+  @override
+  String searchServiceEditorTestFetchFailed(String message) {
+    return 'Fetch failed: $message';
+  }
+
+  @override
+  String searchServiceEditorTestFetchStats(String characters, String seconds) {
+    return '$characters characters · ${seconds}s';
+  }
+
+  @override
+  String get displaySettingsPageShowTotalTokensTitle =>
+      'Show tokens for the entire turn';
+
+  @override
+  String get displaySettingsPageShowTotalTokensSubtitle =>
+      'Sum usage across all API requests in a reply. When off, show only the final request. Statistics always include all requests.';
+
+  @override
+  String get displaySettingsShowReasoningLevelBadge =>
+      'Show reasoning level on the button';
+
+  @override
+  String get displaySettingsShowReasoningLevelBadgeSubtitle =>
+      'Show the current level next to the reasoning icon in the input bar';
+
+  @override
+  String get searchProviderExaMcpDescription =>
+      'Exa search via MCP. An API key is optional for limited free usage.';
+
+  @override
+  String get searchServiceNameExaMcp => 'Exa MCP';
+
+  @override
+  String worldBookImportUnsupportedEntries(int count) {
+    return 'Imported. $count entries use unsupported SillyTavern features (such as macros, regex, timing, filters, or insertion rules). Their content was kept and they were disabled. Review them before enabling.';
+  }
+
+  @override
+  String tokenDetailFirstToken(String value) {
+    return '${value}s (first token)';
+  }
+
+  @override
+  String tokenDetailReasoningTokens(int count) {
+    return '$count tokens';
+  }
+
+  @override
+  String tokenDetailCacheWriteTokens(int count) {
+    return '$count cache write tokens';
+  }
+
+  @override
+  String tokenDetailCost(String amount) {
+    return '$amount';
+  }
+
+  @override
+  String get workspaceToolTitleViewImage => 'View image';
+
+  @override
+  String get workspaceToolHelpViewImage =>
+      'Let the model inspect an image from the workspace.';
+
+  @override
+  String oauthUsedValue(String value) {
+    return 'Used $value';
+  }
 
   @override
   String get composerDraftLabel => 'Draft';
@@ -13359,25 +14407,45 @@ class AppLocalizationsEn extends AppLocalizations {
   String get markdownCopySelectionFailed => 'Could not copy the selected text.';
 
   @override
+  String compressContextEstimatePreview(
+    int summarized,
+    int kept,
+    int minTokens,
+    int maxTokens,
+    int totalTokens,
+  ) {
+    return 'Summarize $summarized chars, keep $kept chars verbatim → about $minTokens–$maxTokens tokens (original about $totalTokens tokens)';
+  }
+
+  @override
+  String get aboutPageQQGroupOne => 'Cuplivo Group 1';
+
+  @override
+  String get aboutPageQQGroupTwo => 'Cuplivo Group 2';
+
+  @override
+  String get aboutPageQQGroupThree => 'Cuplivo Group 3';
+
+  @override
   String get recoveryMissingDataTitle => 'Previous data detected';
 
   @override
   String get recoveryMissingDataBody =>
-      'Kelivo could not find the current chat database. It has paused loading and has not created an empty database. We’ll look for previous copies below; existing files will be kept.';
+      'The current database is missing, but this device still contains previous data. Cuplivo has paused startup and has not created an empty database. Your remaining files and copies are being preserved.';
 
   @override
   String get recoveryEmptyDataTitle => 'Current chat history is empty';
 
   @override
   String get recoveryEmptyDataBody =>
-      'The current chat list is empty, and previous copies were found. Choose a copy below to recover your chats. Existing files will be kept.';
+      'The current database has no conversations, but previous copies were found. Cuplivo has paused startup so you can recover a copy or explicitly keep the current data. Nothing will be overwritten automatically.';
 
   @override
-  String get recoveryKeepCurrent => 'Continue with an empty chat list';
+  String get recoveryKeepCurrent => 'Keep current data and continue';
 
   @override
   String get recoveryKeepCurrentConfirm =>
-      'This continues without recovering your previous chats. The current chat list will stay empty; old copies will be kept. If you want your chats back, cancel and choose a local copy.';
+      'Continue with the current empty database? Previous copies will remain available for recovery later.';
 
   @override
   String get recoverySearchingCopies =>
@@ -13406,7 +14474,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recoveryStorageFailureBody =>
-      'The data update could not finish. The original data has been kept. Try reopening Kelivo, or choose a local copy below to recover.';
+      'Cuplivo could not activate its protected data storage. Startup has stopped and the original data has been kept. Export a copy of your data or retry; no empty database will be created.';
 
   @override
   String get recoveryProtectingTitle => 'Protecting the chat database';
@@ -13432,7 +14500,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recoveryStorageInsufficientSpaceBody =>
-      'There is not enough storage to safely prepare your data. Free space in system settings, then reopen Kelivo or recheck the copies below. Keep Kelivo installed and leave its data and local copies in place.';
+      'There is not enough free space to keep the original database and create its verified internal copy. Existing data and snapshots are unchanged. Free some space, then retry.';
 
   @override
   String get migrationFreshStartTitle => 'Fresh start is ready';
@@ -13448,6 +14516,17 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get migrationFreshStartFailedSubtitle =>
       'Your previous data has been retained. Retry starting fresh, or close and reopen the app.';
+
+  @override
+  String get backupRestoreDirectoryBlockedTitle =>
+      'Restore is waiting for a folder';
+
+  @override
+  String get backupRestoreDirectoryBlockedContent =>
+      'Windows could not move the folder below. Close terminals, editors, or other programs using it, then continue restoring. If it is still blocked, check that your account can move the folder. Your restore progress has been kept.';
+
+  @override
+  String get backupRestoreContinueButton => 'Continue restore';
 
   @override
   String get imageExportPreparing => 'Preparing image…';
@@ -13477,11 +14556,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupEncryptionOnHint =>
-      'Backups are encrypted. Enter the password again after restarting the app.';
+      'Backups are encrypted while this page stays open.';
 
   @override
   String get backupEncryptionPasswordHint =>
-      'Keep this password safe. If you lose it, the backup cannot be restored. It is kept in memory until you exit the app.';
+      'Keep this password safe. If you lose it, the backup cannot be restored. It is kept only while this page is open.';
 
   @override
   String get backupEncryptionPassword => 'Password';
@@ -13518,7 +14597,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupEncryptionUnsupported =>
-      'This encrypted backup requires a newer version of Kelivo.';
+      'This encrypted backup requires a newer version of Cuplivo.';
 
   @override
   String get backupProgressEncrypting => 'Encrypting backup';
@@ -13686,7 +14765,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get browserRestoreTabsDescription =>
-      'Reopen your tabs when Kelivo starts.';
+      'Reopen your tabs when Cuplivo starts.';
 
   @override
   String get browserSaveHistory => 'Save history';
@@ -14107,6 +15186,61 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get browserObserverHint =>
       'AI is using this page. Select Take over to interact.';
+
+  @override
+  String get displaySettingsPageIosNativeSelectionMenuTitle =>
+      'iOS 26+ native selection menu';
+
+  @override
+  String get displaySettingsPageIosNativeSelectionMenuSubtitle =>
+      'Applies to input and messages. Turn off if menus feel slow.';
+
+  @override
+  String get worldBookCopyEntries => 'Copy to…';
+
+  @override
+  String get worldBookMoveEntries => 'Move to…';
+
+  @override
+  String get worldBookSelectEntries => 'Select entries';
+
+  @override
+  String worldBookSelectedEntries(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String get worldBookSelectionDone => 'Done';
+
+  @override
+  String get worldBookNoMoveTargets =>
+      'Create another world book to move entries into it.';
+
+  @override
+  String worldBookEntriesCopied(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Copied $count entries',
+      one: 'Copied 1 entry',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String worldBookEntriesMoved(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Moved $count entries',
+      one: 'Moved 1 entry',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get worldBookTransferFailed =>
+      'Could not save the entries. Please try again.';
 
   @override
   String get genuiSurfaceTitle => 'Interactive UI';
@@ -14783,10 +15917,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get worldBookTransferFailed =>
-      'Could not save the entries. Please try again.';
-
-  @override
   String contextDetailKeptCount(int count) {
     return 'Latest $count user messages, replies and tools';
   }
@@ -14800,10 +15930,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get browserActionScreenshot => 'Capture screenshot';
-
-  @override
-  String get displaySettingsPageIosNativeSelectionMenuSubtitle =>
-      'Applies to input and messages. Turn off if menus feel slow.';
 
   @override
   String contextUndoneSnack(String from, String to) {
@@ -14853,13 +15979,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Deleting images affects chat history and tool results. Avatars and backgrounds in use are protected.';
 
   @override
-  String get displaySettingsPageIosNativeSelectionMenuTitle =>
-      'iOS 26+ native selection menu';
-
-  @override
-  String get worldBookMoveEntries => 'Move to…';
-
-  @override
   String get compressReread => 'Re-read compressed originals';
 
   @override
@@ -14904,9 +16023,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get compressStaleSnack =>
       'Chat history changed; the summary was not applied.';
-
-  @override
-  String get worldBookCopyEntries => 'Copy to…';
 
   @override
   String get contextEditEmpty =>
@@ -15028,17 +16144,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get contextDetailKept => 'Kept';
-
-  @override
-  String worldBookEntriesCopied(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: 'Copied $count entries',
-      one: 'Copied 1 entry',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get toolPermissionSaveFailed => 'Couldn’t save. Permission unchanged.';
@@ -15182,9 +16287,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get storageSpaceImageTypeChat => 'Chat images';
 
   @override
-  String get worldBookSelectEntries => 'Select entries';
-
-  @override
   String get compressUsageSummary => 'Est. summary';
 
   @override
@@ -15213,15 +16315,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get contextDetailExcluded => 'Excluded history';
-
-  @override
-  String get worldBookNoMoveTargets =>
-      'Create another world book to move entries into it.';
-
-  @override
-  String worldBookSelectedEntries(int count) {
-    return '$count selected';
-  }
 
   @override
   String get contextDetailReplaced => 'Replaced';
@@ -15296,17 +16389,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Include available attachment text and bounded tool records. Truncation is marked; images are not reinterpreted.';
 
   @override
-  String worldBookEntriesMoved(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: 'Moved $count entries',
-      one: 'Moved 1 entry',
-    );
-    return '$_temp0';
-  }
-
-  @override
   String get contextImpactSourceDescription =>
       'Change the originals and undo their summaries and dependent nodes together. Other messages and independent nodes are kept; no model is called.';
 
@@ -15346,9 +16428,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get storageSpaceImageInUse => 'In use';
-
-  @override
-  String get worldBookSelectionDone => 'Done';
 
   @override
   String get contextDividerFailed => 'Compression failed';
@@ -15413,7 +16492,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get toolPermissionRequestApprovalDesc =>
-      'Kelivo will ask before accessing files outside the workspace, running desktop commands, or using other tools that need approval.';
+      'Cuplivo will ask before accessing files outside the workspace, running desktop commands, or using other tools that need approval.';
 
   @override
   String get contextLimitedInputHint =>
@@ -15436,6 +16515,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get toolPermissionScopeThisChat => 'This chat only';
+
+  @override
+  String get modelSpecFormDialectAnthropicBetweenTools =>
+      'Anthropic adaptive / between_tools';
+
+  @override
+  String get modelSpecFormDialectAnthropicBetweenToolsSubtitle =>
+      'Adaptive thinking; Off uses between_tools';
 
   @override
   String get dataDirectoryTitle => 'Data directory';
@@ -15474,7 +16561,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dataDirectoryMoving =>
-      'Moving and verifying data… Please keep Kelivo open.';
+      'Moving and verifying data… Please keep Cuplivo open.';
 
   @override
   String get dataDirectoryStartupFailed => 'Unable to open the data directory';
@@ -15520,312 +16607,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dataDirectoryGenericError =>
-      'The operation could not finish. Check available disk space, folder permissions and whether another Kelivo process is running, then retry. Existing data has been kept.';
+      'The operation could not finish. Check available disk space, folder permissions and whether another Cuplivo process is running, then retry. Existing data has been kept.';
 
   @override
   String get dataDirectoryCancelHint =>
       'Cancelling keeps any files already copied to the destination. You can inspect and remove that partial copy yourself.';
-
-  @override
-  String providerDetailPageBaseUrlExample(String url) {
-    return 'e.g. $url';
-  }
-
-  @override
-  String get providerDetailPageApiKeyExample => 'e.g. sk-…';
-
-  @override
-  String get providerDetailPageRequestUrlLabel => 'Request URL';
-
-  @override
-  String providerDetailPageUrlWillAppendVersion(String v) {
-    return 'No version in URL; $v will be added when you leave the field';
-  }
-
-  @override
-  String providerDetailPageUrlAppendedVersion(String v) {
-    return 'Added $v automatically';
-  }
-
-  @override
-  String get providerDetailPageUrlTrimmedSlash => 'Removed trailing /';
-
-  @override
-  String providerDetailPageUrlMovedPath(String path) {
-    return 'Full endpoint detected; $path moved to API Path';
-  }
-
-  @override
-  String get providerDetailPageUrlEmptyError => 'Required to send requests';
-
-  @override
-  String get providerDetailPageUrlInvalidError =>
-      'Invalid URL; must start with http:// or https://';
-
-  @override
-  String get providerDetailPageRestoreDefaultTooltip => 'Restore default';
-
-  @override
-  String get providerDetailPageClearTooltip => 'Clear';
-
-  @override
-  String providerDetailPageTestSuccessWithLatency(String ms) {
-    return 'Success · $ms ms';
-  }
-
-  @override
-  String providerDetailPageTestFailedWithCode(String code) {
-    return 'Failed · $code';
-  }
-
-  @override
-  String providerDetailPageTestHintMissingVersion(String url) {
-    return 'The URL may be missing a version; try $url';
-  }
-
-  @override
-  String providerAutoVersionAdded(String v) {
-    return 'Added $v automatically';
-  }
-
-  @override
-  String get providerUndo => 'Undo';
-
-  @override
-  String get sidePanelToggle => 'Toggle side panel';
-
-  @override
-  String get sidePanelFiles => 'Files';
-
-  @override
-  String get sidePanelTopics => 'Topics';
-
-  @override
-  String get sidePanelExpand => 'Expand panel';
-
-  @override
-  String get sidePanelCollapse => 'Exit expanded';
-
-  @override
-  String get sidePanelAllTabs => 'All tabs';
-
-  @override
-  String sidePanelMoreTabs(int count) {
-    return '$count more';
-  }
-
-  @override
-  String get sidePanelSearchTabs => 'Search tabs';
-
-  @override
-  String get sidePanelOpenFile => 'Open file…';
-
-  @override
-  String get sidePanelCloseOthers => 'Close other tabs';
-
-  @override
-  String get sidePanelCloseRight => 'Close tabs to the right';
-
-  @override
-  String get sidePanelReopenTab => 'Reopen closed tab';
-
-  @override
-  String get sidePanelPinned => 'Pinned · can’t close';
-
-  @override
-  String get sidePanelMoveTopicsLeft => 'Move topics back to the left…';
-
-  @override
-  String get sidePanelPinnedHint =>
-      'Topics stay pinned while on the right. Change it in Settings › Display › Topic position.';
-
-  @override
-  String get sidePanelEvictedTitle => 'Page unloaded';
-
-  @override
-  String sidePanelEvictedBody(int count) {
-    return 'Unloaded in the background to save memory (up to $count background pages are kept). Reload to continue browsing.';
-  }
-
-  @override
-  String get sidePanelEvictedTooltip => 'Unloaded · reload to continue';
-
-  @override
-  String get sidePanelFileMissing => 'File unavailable';
-
-  @override
-  String sidePanelFileMissingBody(String path) {
-    return '$path was deleted or moved.';
-  }
-
-  @override
-  String get sidePanelRelocate => 'Find again';
-
-  @override
-  String sidePanelBackgroundIn(String topic) {
-    return 'Running in “$topic”';
-  }
-
-  @override
-  String sidePanelWidth(int px) {
-    return '${px}px';
-  }
-
-  @override
-  String get sidePanelWidthMax => 'max';
-
-  @override
-  String get sidePanelWidthMin => 'min';
-
-  @override
-  String get sidePanelRecentFiles => 'Recent outputs and attachments';
-
-  @override
-  String get sidePanelOpenExternalUrl => 'Open URL in system browser…';
-
-  @override
-  String get sidePanelWebPages => 'Web pages';
-
-  @override
-  String get hotkeyToggleSidePanel => 'Toggle side panel';
-
-  @override
-  String get hotkeySidePanelNewWeb => 'New web tab';
-
-  @override
-  String get hotkeySidePanelFiles => 'Show files';
-
-  @override
-  String get hotkeySidePanelExpand => 'Expand side panel';
-
-  @override
-  String get hotkeySidePanelReopenTab => 'Reopen closed tab';
-
-  @override
-  String get hotkeySidePanelNextTab => 'Next panel tab';
-
-  @override
-  String get hotkeySidePanelPreviousTab => 'Previous panel tab';
-
-  @override
-  String get hotkeySidePanelAddress => 'Focus web address';
-
-  @override
-  String get hotkeySidePanelFocus => 'Cycle chat and panel focus';
-
-  @override
-  String get selectionQuote => 'Quote';
-
-  @override
-  String selectionQuoteMarker(int index) {
-    return '[Quote $index]';
-  }
-
-  @override
-  String get selectionTranslate => 'Translate';
-
-  @override
-  String get selectionAiTranslateIos => 'AI Translate';
-
-  @override
-  String get selectionCopyMarkdown => 'Copy as Markdown';
-
-  @override
-  String get selectionCopyRich => 'Copy rich text';
-
-  @override
-  String get quoteJumpToSource => 'Jump to source';
-
-  @override
-  String get quoteRemove => 'Remove quote';
-
-  @override
-  String get quoteDuplicate => 'Already quoted';
-
-  @override
-  String get quoteLimit => 'Up to 10 quotes per message';
-
-  @override
-  String get quoteLocated => 'Jumped to quoted text';
-
-  @override
-  String get quoteSourceMissing => 'Source no longer exists';
-
-  @override
-  String get selectionRegenerate => 'Regenerate';
-
-  @override
-  String get translating => 'Translating…';
-
-  @override
-  String get retry => 'Retry';
-
-  @override
-  String get recoveryGuideTitle => 'Let’s recover your chats';
-
-  @override
-  String get recoveryGuideBody =>
-      'Kelivo paused loading your data. We’ll look for local copies so you can choose what to recover. Existing files will be kept.';
-
-  @override
-  String get recoverySpaceTitle => 'Some free space is needed';
-
-  @override
-  String get recoveryChecksNeedSpace =>
-      'Local copies were found, but there is not enough space to check them. This does not mean they are damaged. Free some space, then check again.';
-
-  @override
-  String get recoveryChecksUnavailable =>
-      'Some local copies could not be checked yet. Their files are still available. Check again, or export your data for help.';
-
-  @override
-  String get recoveryRecheckCopies => 'Check local copies again';
-
-  @override
-  String get recoveryCopyPreview => 'Copy preview';
-
-  @override
-  String get recoveryRestoreRetryBody =>
-      'The restore could not be completed. The selected copy has been kept. Check local copies again or reopen Kelivo to continue.';
-
-  @override
-  String recoverySpaceAmount(String required, String available) {
-    return 'Last check: $available available; at least $required of free space is needed to prepare your data safely.';
-  }
-
-  @override
-  String get recoveryCopiesNeedUpdate =>
-      'Some copies were made by a newer version of Kelivo. Update Kelivo before restoring them. These copies have been kept.';
-
-  @override
-  String get imageContextTitle => 'Image context';
-
-  @override
-  String get imageContextAutomatic => 'Manage history images automatically';
-
-  @override
-  String get imageContextDescription =>
-      'Keep user attachments longer; retire old tool screenshots in batches. Pins keep images in their original messages and may change the cached prefix. Add again places a new attachment in the composer. The preview uses saved files; pending OCR, remote files and provider limits are checked when sending.';
-
-  @override
-  String get imageContextIncluded => 'Included';
-
-  @override
-  String get imageContextOmitted => 'Omitted';
-
-  @override
-  String get imageContextPin => 'Pin image';
-
-  @override
-  String get imageContextUnpin => 'Unpin image';
-
-  @override
-  String get imageContextAttachAgain => 'Add to composer again';
-
-  @override
-  String get imageContextEmpty => 'No images in the current context';
-
-  @override
-  String get imageContextUnavailable =>
-      'This image is unavailable in the current context.';
 }

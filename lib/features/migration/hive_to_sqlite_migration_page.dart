@@ -136,7 +136,9 @@ class _HiveToSqliteMigrationPageState extends State<HiveToSqliteMigrationPage> {
           // Counter persistence is best-effort; never mask the real failure.
         }
       }
-      await _refreshSkipAvailability();
+      // The failure state is set before the attempt-state refresh on purpose:
+      // that refresh reads a file, and the user must not wait on bookkeeping to
+      // see that the migration failed.
       if (mounted && _status.stage != HiveToSqliteMigrationStage.failed) {
         setState(() {
           _status = HiveToSqliteMigrationStatus(
@@ -153,6 +155,7 @@ class _HiveToSqliteMigrationPageState extends State<HiveToSqliteMigrationPage> {
           );
         });
       }
+      await _refreshSkipAvailability();
     } finally {
       await _deleteTemporaryBackup();
       if (mounted) setState(() => _busy = false);

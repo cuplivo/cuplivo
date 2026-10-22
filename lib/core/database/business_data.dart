@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import '../../utils/app_directories.dart';
+
 typedef BusinessEntityRowIds = Map<String, List<String>>;
 
 typedef BusinessSettingsExport = ({
@@ -55,7 +59,68 @@ enum BusinessEntityKind {
   final String tableName;
   final String? extensionKind;
 
+  /// Identity of this kind on the sync wire. Ordinary kinds travel under
+  /// their table name; extension kinds share `extension_entity_rows`, so
+  /// they travel under their extension kind (`skill`) — the wire name must
+  /// be 1:1 with a kind, and the SQL filters by the kind column.
+  String get wireName => extensionKind ?? tableName;
+
   String get idColumn => this == provider ? 'provider_key' : 'id';
+}
+
+/// Whether one workspace payload describes a *linked* folder — a directory the
+/// user already had, which Cuplivo merely points at — rather than a managed
+/// workspace, whose directory Cuplivo owns and can copy.
+///
+/// The distinction is the whole of workspace portability: a linked workspace is
+/// a place on *one* machine's filesystem, so its row can neither travel in a
+/// backup nor ride LAN sync. Both rules read this predicate so the two can never
+/// drift into disagreeing about what "linked" means; a payload that cannot be
+/// read is treated as ordinary, so a corrupt row is carried as a managed
+/// workspace instead of being silently hidden — nothing here ever reads the
+/// linked path itself, and the content plane only ever resolves managed folders
+/// under Cuplivo's own `<appData>/workspaces/<id>/files`.
+bool isLinkedWorkspace(String payload) {
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(payload);
+  } on FormatException {
+    return false;
+  }
+  return decoded is Map && decoded['kind'] == 'linked';
+}
+
+/// One payload as a decoded JSON object, or null when it is not one.
+///
+/// The decode every rule that reads a payload shares, so "this payload is not
+/// an object" is one answer instead of one per caller.
+Map<String, dynamic>? decodePayloadObject(String payload) {
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(payload);
+  } on FormatException {
+    return null;
+  }
+  if (decoded is! Map) return null;
+  return decoded.map((key, value) => MapEntry(key.toString(), value));
+}
+
+/// Whether one decoded workspace payload names exactly [rowId] as its own id —
+/// and that id may name a directory under `<appData>/workspaces`.
+///
+/// A workspace carries its identity twice: the table's `id` column decides what
+/// the row *is*, while the payload's own `id` is what the app reads
+/// (`Workspace.fromJson`) and therefore what names
+/// `<appData>/workspaces/<id>/files` and what a delete removes. When the two
+/// disagree, the payload's is the one nothing else validated: the provider
+/// lists the workspace under it, an update mints a second row under it, and a
+/// delete with files builds `<appData>/workspaces/..` for `..` — which is the
+/// app data root itself. A row whose halves disagree is malformed, and every
+/// face that offers, serves, applies, lists or deletes a workspace reads this
+/// one rule.
+bool workspacePayloadNamesId(Map<String, dynamic> payload, String rowId) {
+  final id = payload['id'];
+  return id is String && id == rowId && isSafeWorkspaceId(id);
 }
 
 final class BusinessEntityValue {

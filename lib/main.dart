@@ -76,6 +76,8 @@ import 'core/database/chat_database_gateway.dart';
 import 'core/services/backup/backup_activity.dart';
 import 'core/services/backup/local_snapshot_schedule.dart';
 import 'core/services/chat/chat_service.dart';
+import 'core/providers/sync_provider.dart';
+import 'core/services/sync/business_state_reloader.dart';
 import 'features/home/services/context_usage_service.dart';
 import 'core/services/model_catalog/model_catalog_service.dart';
 import 'core/services/app_exit_flush.dart';
@@ -93,6 +95,7 @@ import 'utils/sandbox_path_resolver.dart';
 import 'shared/widgets/app_overlays.dart';
 import 'shared/widgets/floating_ipad_padding.dart';
 import 'shared/widgets/snackbar.dart';
+import 'features/sync/widgets/sync_arrival_announcer.dart';
 import 'shared/widgets/restore_failure_screen.dart';
 import 'shared/widgets/restore_progress_screen.dart';
 import 'shared/widgets/restore_outcome_notice.dart';
@@ -114,6 +117,68 @@ final RouteObserver<ModalRoute<dynamic>> routeObserver =
 bool _didCheckUpdates = false; // one-time update check flag
 bool _didEnsureAssistants = false; // ensure defaults after l10n ready
 bool _didWireWorkspace = false;
+bool _didWireSyncReloaders = false;
+
+/// Tells LAN sync how to refresh the providers that read business state, so a
+/// session that applied entity or preference rows shows up without a restart
+/// (ADR-0003 decision 8: apply → one state reload).
+///
+/// Settings comes first because providers that derive their own state from
+/// settings (ASR, for one) refresh through its notification. Providers whose
+/// state is read on demand rather than cached are absent on purpose.
+void _wireSyncReloaders(BuildContext ctx) {
+  try {
+    final reloader = ctx.read<BusinessStateReloader>();
+    reloader.register(
+      () => ctx.read<SettingsProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx.read<AssistantProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx.read<McpProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx.read<TagProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx.read<UserProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx.read<QuickPhraseProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx.read<WorldBookProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () =>
+          ctx.read<InstructionInjectionProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx
+          .read<InstructionInjectionGroupProvider>()
+          .reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx.read<TtsProvider>().reloadAfterExternalChange(),
+    );
+    // Memory entries ride sync as entity rows; this re-reads the current scope
+    // without narrowing what the memory UI is showing.
+    reloader.register(() => ctx.read<MemoryProviderV2>().reloadCurrentScope());
+    // Skill records and bodies ride sync (slice 3): a record row arrives as an
+    // entity row and a swapped-in directory changes what the service exposes,
+    // so the rescan must run even when only a body moved.
+    reloader.register(() => ctx.read<SkillsService>().rescan());
+    // Workspace records ride sync (managed ones only; a linked folder stays on
+    // the device that holds it). The list is cached and parsed, so without this
+    // the peer's workspaces would sit in SQLite unseen until the next launch.
+    reloader.register(
+      () => ctx.read<WorkspaceProvider>().reloadAfterExternalChange(),
+    );
+  } catch (error) {
+    debugPrint('Failed to wire sync reloaders: $error');
+  }
+}
 
 void _wireWorkspaceServices(BuildContext ctx) {
   try {
@@ -612,10 +677,30 @@ void _installExitFlush(BusinessPreferences businessPreferences) {
   AppExitFlush.register(ChatActions.flushActiveGenerationProgress);
   _exitFlushListener = AppLifecycleListener(
     onExitRequested: () async {
+      // A close that hides to the tray is not a quit. Windows delivers the
+      // window's close as this request *before* the window-manager delegate sees
+      // WM_CLOSE, so the tray controller has to answer it here: hide, and tell
+      // the engine not to exit (`cancel` is what stops it re-dispatching the
+      // close). Nothing is flushed — the process keeps running, queues included,
+      // and the LAN sync listener stays bound (#1036).
+      try {
+        if (await DesktopTrayController.instance.hideForExitRequest()) {
+          return AppExitResponse.cancel;
+        }
+      } catch (_) {}
+      // Not a hide: the controller has also cleared the close-to-tray gate, so
+      // the close the engine re-dispatches after our `exit` below really lands.
       try {
         // Bound the wait: a stuck write transaction must not leave the
         // process unkillable after macOS answers NSTerminateLater.
         await AppExitFlush.flushAll().timeout(
+          const Duration(seconds: 2),
+          onTimeout: () {},
+        );
+        // The process is really going away, so this is where resources that
+        // live with it are handed back (the LAN sync listener, its firewall
+        // rule) — not in the flush above, which a hiding window also runs.
+        await AppShutdown.runAll().timeout(
           const Duration(seconds: 2),
           onTimeout: () {},
         );
@@ -700,12 +785,25 @@ class MyApp extends StatelessWidget {
           value: databaseLease.businessRepository,
         ),
         Provider<BusinessPreferences>.value(value: businessPreferences),
+        Provider<BusinessStateReloader>(
+          create: (_) => BusinessStateReloader(businessPreferences),
+        ),
         ChangeNotifierProvider(
           create: (_) => UserProvider(preferences: businessPreferences),
         ),
         ChangeNotifierProvider(
           create: (_) =>
               ChatService(existingRepository: databaseLease.chatRepository),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) => SyncProvider(
+            chatService: ctx.read<ChatService>(),
+            repository: databaseLease.chatRepository,
+            businessRepository: databaseLease.businessRepository,
+            businessPreferences: businessPreferences,
+            reloader: ctx.read<BusinessStateReloader>(),
+            syncDirectory: AppDirectories.getSyncDirectory,
+          ),
         ),
         ChangeNotifierProvider(create: (_) => McpToolService()),
         ChangeNotifierProvider(create: (_) => ToolApprovalService()),
@@ -1138,6 +1236,20 @@ class MyApp extends StatelessWidget {
                       _wireWorkspaceServices(ctx);
                     });
                   }
+                  if (!_didWireSyncReloaders) {
+                    _didWireSyncReloaders = true;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _wireSyncReloaders(ctx);
+                    });
+                  }
+
+                  // LAN sync listener starts with the app (pairing is the
+                  // opt-in; the pairing window stays closed until opened).
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    try {
+                      unawaited(ctx.read<SyncProvider>().start());
+                    } catch (_) {}
+                  });
 
                   // Desktop tray + close behaviour (minimize to tray) sync
                   final l10n = AppLocalizations.of(ctx);
@@ -1181,7 +1293,12 @@ class MyApp extends StatelessWidget {
                   final appWithOverlays = FloatingIpadPadding(
                     child: LocalSnapshotScheduler(
                       child: AppOverlays(
-                        child: child ?? const SizedBox.shrink(),
+                        // An automatic LAN sync that brings data announces
+                        // itself wherever the user is; the announcer renders
+                        // nothing of its own.
+                        child: SyncArrivalAnnouncer(
+                          child: child ?? const SizedBox.shrink(),
+                        ),
                       ),
                     ),
                   );

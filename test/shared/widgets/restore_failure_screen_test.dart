@@ -18,6 +18,26 @@ import 'package:Cuplivo/theme/palettes.dart';
 import 'package:Cuplivo/core/services/backup/local_snapshot_schedule.dart';
 import 'package:Cuplivo/core/services/backup/restore_diagnostic_exception.dart';
 import 'package:Cuplivo/shared/widgets/restore_failure_screen.dart';
+// ignore: depend_on_referenced_packages
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+
+/// Validating a discovered copy stages a working directory through
+/// `BackupStaging`, which asks path_provider for a data root. A host without the
+/// plugin is not a product state, so point it at a scratch directory of our own.
+class _StagingPaths extends PathProviderPlatform {
+  _StagingPaths(this.root);
+
+  final String root;
+
+  @override
+  Future<String?> getApplicationDocumentsPath() async => root;
+
+  @override
+  Future<String?> getApplicationSupportPath() async => root;
+
+  @override
+  Future<String?> getTemporaryPath() async => root;
+}
 
 /// Stands in for the platform channel, which never answers under `flutter
 /// test` and would otherwise leave a pending timeout timer behind.
@@ -302,15 +322,24 @@ void main() {
 
   group('with a data directory', () {
     late Directory directory;
+    late Directory staging;
+    late PathProviderPlatform previousPaths;
 
     setUp(() async {
       directory = await Directory.systemTemp.createTemp(
         'kelivo_restore_failure_screen_',
       );
+      staging = await Directory.systemTemp.createTemp(
+        'kelivo_restore_failure_staging_',
+      );
+      previousPaths = PathProviderPlatform.instance;
+      PathProviderPlatform.instance = _StagingPaths(staging.path);
     });
 
     tearDown(() async {
+      PathProviderPlatform.instance = previousPaths;
       if (await directory.exists()) await directory.delete(recursive: true);
+      if (await staging.exists()) await staging.delete(recursive: true);
     });
 
     Future<void> pumpScreen(WidgetTester tester) async {

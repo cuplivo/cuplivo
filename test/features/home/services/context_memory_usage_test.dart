@@ -44,6 +44,7 @@ import 'package:Cuplivo/features/home/services/message_builder_service.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 
 import '../../../support/business_test_harness.dart';
+import '../../../support/temp_directory_cleanup.dart';
 
 class _Chat extends ChatService {
   _Chat(this.repository) : super(existingRepository: repository);
@@ -292,7 +293,7 @@ void main() {
     settings.dispose();
     assistants.dispose();
     PathProviderPlatform.instance = paths;
-    await directory.delete(recursive: true);
+    await deleteDirectoryWhenReleased(directory, keepLockedLeftovers: true);
   });
 
   Future<void> mount(WidgetTester tester) async {

@@ -18,6 +18,8 @@ class _Paths extends PathProviderPlatform {
   final String path;
   @override
   Future<String?> getApplicationSupportPath() async => path;
+  @override
+  Future<String?> getApplicationDocumentsPath() async => path;
 }
 
 // Store writes started by a pumped debounce timer continue in the fake zone.

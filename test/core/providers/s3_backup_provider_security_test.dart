@@ -11,7 +11,13 @@ import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/database/business_repository.dart';
 import 'package:Cuplivo/core/models/backup.dart';
 import 'package:Cuplivo/core/providers/s3_backup_provider.dart';
+import 'package:Cuplivo/core/services/backup/backup_staging.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
+
+/// Where the product keeps its working files. A desktop host stages inside the
+/// data root and a mobile one in temp, so a `tmp/` literal here only holds on a
+/// macOS host; ask `BackupStaging` instead of assuming.
+Future<String> _stagingPath() async => (await BackupStaging.root()).path;
 
 class _FakePathProviderPlatform extends PathProviderPlatform {
   _FakePathProviderPlatform(this.root);
@@ -117,12 +123,7 @@ void main() {
 
       expect(await relativeSentinel.readAsString(), 'keep relative');
       expect(await absoluteSentinel.readAsString(), 'keep absolute');
-      expect(
-        await Directory(
-          '${root.path}/tmp/kelivo_backup_staging',
-        ).list().toList(),
-        isEmpty,
-      );
+      expect(await Directory(await _stagingPath()).list().toList(), isEmpty);
     });
   });
 }

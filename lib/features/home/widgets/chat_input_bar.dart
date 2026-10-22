@@ -317,6 +317,45 @@ class ChatInputBarController {
   }
 
   void clearImages() => _state?._clearImages();
+
+  /// Owned-file deletions this controller has started but not yet finished.
+  ///
+  /// Releasing a draft's copies is fire-and-forget by design - no UI waits on it
+  /// - but the work still has to be observable, because "is this draft's disk
+  /// state settled yet" is a real question and because a test that sleeps
+  /// instead of waiting flakes under load. The set lives on the controller
+  /// rather than on the State: a release can start while the widget is being
+  /// disposed, when [_state] is already gone.
+  final Set<Future<void>> _pendingArtifactDeletes = <Future<void>>{};
+
+  void _trackArtifactDelete(Future<void> work) {
+    _pendingArtifactDeletes.add(work);
+    unawaited(work.whenComplete(() => _pendingArtifactDeletes.remove(work)));
+  }
+
+  /// Whether an owned-artifact deletion is still in flight.
+  ///
+  /// Test-only. It flips back to false only after the deletion has finished, so
+  /// a test that polls it to false has seen every side effect of the release,
+  /// including the log line a failing deletion emits.
+  @visibleForTesting
+  bool get debugHasPendingArtifactDeletes => _pendingArtifactDeletes.isNotEmpty;
+
+  /// Whether every long paste this controller started has finished writing, and
+  /// released its file if the draft no longer wanted it.
+  ///
+  /// The write tail already serialises pastes; this mirrors its state so a test
+  /// can observe it after the widget that started the paste is gone.
+  bool _textPasteWriteSettled = true;
+
+  void _trackTextPasteWrite(Future<void> write) {
+    _textPasteWriteSettled = false;
+    unawaited(write.whenComplete(() => _textPasteWriteSettled = true));
+  }
+
+  @visibleForTesting
+  bool get debugTextPasteWriteSettled => _textPasteWriteSettled;
+
   void addFiles(List<DocumentAttachment> docs) {
     if (_currentTarget) {
       _root._state?._addFiles(docs);
@@ -417,7 +456,7 @@ class _NativeComposerOwner extends ChangeNotifier {
             target.enqueueImages(
               data.paths,
               compression,
-              deleteSourcesAfterProcessing: true,
+              ownsSourceFile: true,
             );
           } else if (data.text case final text? when text.isNotEmpty) {
             await _registerText(target, text, asFile, threshold);
@@ -475,7 +514,7 @@ class _NativeComposerOwner extends ChangeNotifier {
       target.enqueueImages(
         [file.path],
         compression,
-        deleteSourcesAfterProcessing: true,
+        ownsSourceFile: true,
       );
       registered = true;
     } finally {
@@ -1057,6 +1096,39 @@ class _ChatInputBarState extends State<ChatInputBar>
     _pumpImageProcessingQueue();
   }
 
+  /// Releases a stored copy this draft created. Safe when the file is
+  /// already gone, and refused by [UploadDedupe] when another chip resolved
+  /// to the same path.
+  void _releaseOwnedArtifact(String path) {
+    unawaited(UploadDedupe.deleteIfUnshared(path));
+  }
+
+  /// Drops the pristine source a draft image was keeping, deleting the file the
+  /// draft owned. Safe when there is nothing to release, or when it is gone.
+  void _releaseRetainedSource(int id) {
+    final path = _retainedImageSources.remove(id);
+    if (path != null) _dropArtifactFile(path);
+  }
+
+  /// Drops the copies this draft created for [images]. Only the paths where
+  /// the attachment never left the composer are released: the submit paths
+  /// deliberately keep their files, which the persisted message references.
+  void _dropOwnedArtifacts(Iterable<_DraftImage> images) {
+    for (final image in images) {
+      if (_imageOwnsFile[image.id] != true) continue;
+      _releaseOwnedArtifact(image.path);
+    }
+  }
+
+  /// Keeps the chip size cache to the paths the draft still shows: a stored
+  /// name that is deleted and later reused would otherwise keep serving the
+  /// previous file's size.
+  void _pruneImageSizes() {
+    if (_imageSizeFutures.isEmpty) return;
+    final live = _images.map((image) => image.path).toSet();
+    _imageSizeFutures.removeWhere((path, _) => !live.contains(path));
+  }
+
   void _discardImageState(Iterable<int> ids) {
     final discarded = ids.toSet();
     final discardedQueuedTasks = _imageProcessingQueue
@@ -1068,7 +1140,7 @@ class _ChatInputBarState extends State<ChatInputBar>
     for (final task in discardedQueuedTasks) {
       if (task.deleteSourceAfterProcessing &&
           widget.mediaController?.draftStore == null) {
-        unawaited(_deleteTemporaryImageSource(task.sourcePath));
+        _dropArtifactFile(task.sourcePath);
       }
     }
   }
@@ -2479,6 +2551,19 @@ class _ChatInputBarState extends State<ChatInputBar>
     }
   }
 
+  /// Starts the deletion of an owned copy, registering it with the controller
+  /// when one is attached so the cleanup stays observable (see
+  /// [ChatInputBarController.debugHasPendingArtifactDeletes]).
+  void _dropArtifactFile(String path) {
+    final work = _deleteTemporaryImageSource(path);
+    final controller = widget.mediaController;
+    if (controller == null) {
+      unawaited(work);
+      return;
+    }
+    controller._trackArtifactDelete(work);
+  }
+
   Future<void> _deleteTemporaryImageSource(String path) async {
     try {
       await File(path).delete();
@@ -2772,6 +2857,7 @@ class _ChatInputBarState extends State<ChatInputBar>
     final previousWrite = _textPasteWriteTail;
     final writeDone = Completer<void>();
     _textPasteWriteTail = writeDone.future;
+    (target ?? widget.mediaController)?._trackTextPasteWrite(writeDone.future);
 
     try {
       await previousWrite;
@@ -2796,10 +2882,18 @@ class _ChatInputBarState extends State<ChatInputBar>
         );
       } catch (_) {}
 
+      // An attachment cannot outlive the composer that owns it. A draft keeps
+      // text, not files, so adopting a file into a composer that is already gone
+      // leaves a file nobody will ever release — the superseded-paste leak the
+      // cleanup test pins, and the reason the `retained` path below inserts the
+      // *text* instead. A live composer still adopts the attachment; the two
+      // `mounted` uses here are the whole decision, and there is exactly one
+      // adoption site for a pasted text file in this file.
       if (attachment != null &&
+          mounted &&
           ((retained && target.isValid) ||
-              (mounted && _pendingTextPasteIds.contains(pasteId)))) {
-        if (mounted) setState(() => _pendingTextPasteIds.remove(pasteId));
+              _pendingTextPasteIds.contains(pasteId))) {
+        setState(() => _pendingTextPasteIds.remove(pasteId));
         if (target != null) {
           target.addFiles([attachment]);
         } else {

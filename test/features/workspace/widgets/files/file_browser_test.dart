@@ -31,6 +31,29 @@ Future<void> _reload(WidgetTester tester) async {
   await tester.pump();
 }
 
+/// Reloads until [key] is on screen.
+///
+/// A mutation triggers its own refresh, and two reloads can land out of order —
+/// the older listing then overwrites the newer one — so a single explicit reload
+/// after a mutation is not a synchronisation point. Bounded by attempts; the
+/// signal is the item itself, not a delay.
+Future<void> _reloadUntilItem(WidgetTester tester, Key key) async {
+  for (var i = 0; i < 40; i++) {
+    await _reload(tester);
+    if (find.byKey(key).evaluate().isNotEmpty) return;
+    await _pumpUi(tester);
+  }
+}
+
+/// The same for an item that a mutation must remove from the list.
+Future<void> _reloadUntilItemGone(WidgetTester tester, Key key) async {
+  for (var i = 0; i < 40; i++) {
+    await _reload(tester);
+    if (find.byKey(key).evaluate().isEmpty) return;
+    await _pumpUi(tester);
+  }
+}
+
 Future<void> _pumpUi(WidgetTester tester) async {
   await _flushIo(tester);
   await tester.pump();
@@ -300,7 +323,7 @@ void main() {
       () => Future<void>.delayed(const Duration(milliseconds: 50)),
     );
     await _pumpUi(tester);
-    await _reload(tester);
+    await _reloadUntilItem(tester, FileBrowser.itemKey('created'));
     expect(Directory(p.join(tempDir.path, 'created')).existsSync(), isTrue);
     expect(find.byKey(FileBrowser.itemKey('created')), findsOneWidget);
 
@@ -315,7 +338,7 @@ void main() {
       () => Future<void>.delayed(const Duration(milliseconds: 50)),
     );
     await _pumpUi(tester);
-    await _reload(tester);
+    await _reloadUntilItem(tester, FileBrowser.itemKey('renamed'));
     expect(Directory(p.join(tempDir.path, 'renamed')).existsSync(), isTrue);
     expect(Directory(p.join(tempDir.path, 'created')).existsSync(), isFalse);
 
@@ -331,7 +354,7 @@ void main() {
       () => Future<void>.delayed(const Duration(milliseconds: 50)),
     );
     await _pumpUi(tester);
-    await _reload(tester);
+    await _reloadUntilItemGone(tester, FileBrowser.itemKey('renamed'));
     expect(Directory(p.join(tempDir.path, 'renamed')).existsSync(), isFalse);
   });
 

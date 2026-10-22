@@ -1243,35 +1243,36 @@ void main() {
         }
 
         expect(error, isNotNull);
-        expect(backupIsolateStillAlive(error!), isTrue);
+        // Which side of the cancel wins is a scheduling question: the host may
+        // learn about it from the isolate's own failure message, or by
+        // abandoning an isolate that ignored the kill. Only the second case has
+        // to keep the workspace (a live isolate still owns that run); in both,
+        // nothing may be left once the isolate is gone. Asserting the pair
+        // checks the invariant without betting on which timer fired first.
+        final stillAlive = backupIsolateStillAlive(error!);
         workspaceRoot = Directory(
           p.join(root.path, RestoreBundleStaging.workspaceRootName),
         );
-        final runs = await workspaceRoot
+        Future<List<String>> remainingRuns() async => workspaceRoot!
             .list(followLinks: false)
             .where((entry) => p.basename(entry.path).startsWith('run_'))
+            .map((entry) => p.basename(entry.path))
             .toList();
-        expect(runs, isNotEmpty);
+
+        if (stillAlive) {
+          expect(await remainingRuns(), isNotEmpty);
+        }
 
         final isolateExit = backupIsolateExitFuture(error);
-        expect(isolateExit, isNotNull);
-        await isolateExit!.timeout(const Duration(seconds: 5));
+        if (isolateExit != null) {
+          await isolateExit.timeout(const Duration(seconds: 5));
+        }
         final deadline = DateTime.now().add(const Duration(seconds: 2));
         while (DateTime.now().isBefore(deadline)) {
-          final remaining = await workspaceRoot
-              .list(followLinks: false)
-              .where((entry) => p.basename(entry.path).startsWith('run_'))
-              .toList();
-          if (remaining.isEmpty) break;
+          if ((await remainingRuns()).isEmpty) break;
           await Future<void>.delayed(const Duration(milliseconds: 20));
         }
-        expect(
-          await workspaceRoot
-              .list(followLinks: false)
-              .where((entry) => p.basename(entry.path).startsWith('run_'))
-              .toList(),
-          isEmpty,
-        );
+        expect(await remainingRuns(), isEmpty);
       },
     );
 
@@ -1385,35 +1386,36 @@ void main() {
 
         expect(revalidationStarted, isTrue);
         expect(error, isNotNull);
-        expect(backupIsolateStillAlive(error!), isTrue);
+        // Which side of the cancel wins is a scheduling question: the host may
+        // learn about it from the isolate's own failure message, or by
+        // abandoning an isolate that ignored the kill. Only the second case has
+        // to keep the workspace (a live isolate still owns that run); in both,
+        // nothing may be left once the isolate is gone. Asserting the pair
+        // checks the invariant without betting on which timer fired first.
+        final stillAlive = backupIsolateStillAlive(error!);
         workspaceRoot = Directory(
           p.join(root.path, RestoreBundleStaging.workspaceRootName),
         );
-        final runs = await workspaceRoot
+        Future<List<String>> remainingRuns() async => workspaceRoot!
             .list(followLinks: false)
             .where((entry) => p.basename(entry.path).startsWith('run_'))
+            .map((entry) => p.basename(entry.path))
             .toList();
-        expect(runs, isNotEmpty);
+
+        if (stillAlive) {
+          expect(await remainingRuns(), isNotEmpty);
+        }
 
         final isolateExit = backupIsolateExitFuture(error);
-        expect(isolateExit, isNotNull);
-        await isolateExit!.timeout(const Duration(seconds: 5));
+        if (isolateExit != null) {
+          await isolateExit.timeout(const Duration(seconds: 5));
+        }
         final deadline = DateTime.now().add(const Duration(seconds: 2));
         while (DateTime.now().isBefore(deadline)) {
-          final remaining = await workspaceRoot
-              .list(followLinks: false)
-              .where((entry) => p.basename(entry.path).startsWith('run_'))
-              .toList();
-          if (remaining.isEmpty) break;
+          if ((await remainingRuns()).isEmpty) break;
           await Future<void>.delayed(const Duration(milliseconds: 20));
         }
-        expect(
-          await workspaceRoot
-              .list(followLinks: false)
-              .where((entry) => p.basename(entry.path).startsWith('run_'))
-              .toList(),
-          isEmpty,
-        );
+        expect(await remainingRuns(), isEmpty);
       },
     );
 

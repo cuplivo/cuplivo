@@ -75,10 +75,21 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
       if (mounted) setState(() => _loading = false);
       return;
     }
-    // Retention and the size caps are enforced when the user looks, not only
-    // when something is staged: an install that stops deleting still shrinks.
-    await service.evict();
-    final entries = await service.list();
+    List<RecycleEntry> entries;
+    try {
+      // Retention and the size caps are enforced when the user looks, not only
+      // when something is staged: an install that stops deleting still shrinks.
+      await service.evict();
+      entries = await service.list();
+    } catch (error) {
+      // The bin is a folder on disk, and a folder can be unreadable — a
+      // permission change, a full disk, a root that is no longer a directory.
+      // Falling through to the empty state leaves the page usable and navigable;
+      // letting the throw escape would strand it on a spinner nothing resolves.
+      debugPrint('recycle: reading the bin failed: $error');
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
     // Summed from the entries the list just read, rather than asking for a
     // second scan of the whole bin for the same numbers.
     final bytes = entries.fold<int>(0, (sum, entry) => sum + entry.sizeBytes);

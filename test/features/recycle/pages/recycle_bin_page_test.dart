@@ -10,6 +10,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
+/// A bin whose folder cannot be read at all.
+///
+/// The one failure a page cannot see coming: every per-entry problem is handled
+/// inside the store, so the store failing as a whole is what would reach the
+/// page's own load. Simulated rather than provoked on disk, because a directory
+/// that refuses to list is a platform question this test is not about.
+class _UnreadableStore extends RecycleStore {
+  _UnreadableStore({required super.directory});
+
+  @override
+  Future<int> evict({String? keepId, DateTime? now}) async =>
+      throw const FileSystemException('the bin cannot be read');
+
+  @override
+  Future<List<RecycleEntry>> list() async =>
+      throw const FileSystemException('the bin cannot be read');
+}
+
 /// The bin page against a real store: what an entry looks like, that restore
 /// retires it, and that a permanent delete is confirmed first.
 void main() {
@@ -473,6 +491,23 @@ void main() {
     expect(restored?.read<String>('title'), 'Weekly notes');
 
     await drainSnackBar(tester);
+  });
+
+  testWidgets('a bin that cannot be read lands on the empty state', (
+    tester,
+  ) async {
+    // A recovery feature is opened exactly when something has gone wrong, so the
+    // page must not have a state it cannot leave. The bin is a folder on disk and
+    // reading it can fail; the load has to absorb that instead of leaving
+    // `_loading` true, where nothing but the back button resolves it.
+    service = RecycleService(
+      database,
+      store: _UnreadableStore(directory: () async => binRoot),
+    );
+
+    await pumpPage(tester);
+    await pumpUntilFound(tester, find.text('Nothing in the bin'));
+    expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
   testWidgets('a permanent delete asks first, then removes only that entry', (

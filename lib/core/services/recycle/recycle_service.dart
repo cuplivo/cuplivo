@@ -44,6 +44,19 @@ enum RecycleRestoreOutcome {
   failed,
 }
 
+/// What a delete's transaction captured, for
+/// [RecycleService.stageCapturedConversation]: the subtree still encoded, plus
+/// the two facts the caller decided rather than read.
+///
+/// A record instead of six parameters, and no store type in it: the capture
+/// crosses the transaction boundary, so what travels has to be inert.
+typedef RecycleConversationCapture = ({
+  String id,
+  String subtree,
+  RecycleOrigin origin,
+  RecycleGroup? group,
+});
+
 /// What one per-type restore did, and the entry it staged as a *result*.
 ///
 /// [keepEntryId] is the version a restore displaced: an `overwritten` row the
@@ -89,7 +102,7 @@ final class RecycleService {
   /// is not recovered. It is deliberately **not** an exhaustive map of what a
   /// delete removes: `generation_run_rows` goes with the messages it targets and
   /// is not staged, because a run is bookkeeping for a stream that is happening
-  /// now rather than history a user could want back (ADR-0015, "Not in scope").
+  /// now rather than history a user could want back (ADR-0016, "Not in scope").
   static const List<({String table, String column, String? kind})>
   _conversationTables = [
     (table: 'conversation_rows', column: 'id', kind: null),
@@ -120,45 +133,67 @@ final class RecycleService {
   final RecycleStore _store;
   final Set<Future<void>> _pending = <Future<void>>{};
 
-  /// Stages the whole subtree of a conversation that is about to be deleted.
+  /// Reads the whole subtree of a conversation that is about to be deleted,
+  /// still encoded, for [stageCapturedConversation].
   ///
   /// Called from inside the delete's transaction, before the row goes, so what
-  /// is staged is what the cascade is about to remove. Only the **query** waits
-  /// for that transaction; decoding its JSON into row maps and writing the entry
-  /// are [detached][_detach], because the delete is something the user is
-  /// waiting for and the bin is only its safety net. The decode used to sit on
-  /// the delete's own path, where it cost about a millisecond per 40 KB of
-  /// message content — linear in the conversation, and paid on the UI isolate
-  /// inside the write transaction.
-  Future<void> stageConversationDeletion(
+  /// is captured is what the cascade is about to remove — that is the whole
+  /// reason the query cannot be moved out. It is also the *only* part that has
+  /// to be there: this method awaits one statement and returns a string, and the
+  /// caller stages it after the transaction returns. Decoding its JSON into row
+  /// maps and encoding the bin entry are work proportional to the conversation
+  /// (measured at ~11 ms/MB), so neither belongs on a path the user is waiting
+  /// on with a write transaction open.
+  ///
+  /// Null when the id owns no conversation row: there is nothing to preserve.
+  Future<RecycleConversationCapture?> captureConversationDeletion(
     String conversationId, {
     required RecycleOrigin origin,
     RecycleGroup? group,
   }) async {
-    if (conversationId.isEmpty) return;
+    if (conversationId.isEmpty) return null;
     try {
       final subtree = await _readConversationSubtree(conversationId);
-      if (subtree == null) return;
-      _detach(() async {
-        final tables = _decodeConversationSubtree(subtree);
-        // No conversation row means there is nothing this id owns to preserve.
-        if (tables == null) return;
-        final title = tables['conversation_rows']!.first['title'];
-        await _store.stageRows(
-          type: RecycleEntryType.conversation,
-          origin: origin,
-          reason: RecycleReason.deleted,
-          key: conversationId,
-          title: title is String ? title : '',
-          tables: tables,
-          group: group,
-        );
-      });
+      if (subtree == null) return null;
+      return (
+        id: conversationId,
+        subtree: subtree,
+        origin: origin,
+        group: group,
+      );
     } catch (error) {
       debugPrint(
-        'recycle: staging conversation $conversationId failed: $error',
+        'recycle: capturing conversation $conversationId failed: $error',
       );
+      return null;
     }
+  }
+
+  /// Stages a capture [captureConversationDeletion] took inside the delete's
+  /// transaction.
+  ///
+  /// The caller runs this *after* that transaction has committed, and the write
+  /// is [detached][_detach] on top of that, so neither the decode nor the
+  /// encode nor the filesystem is on the delete's path. The pair is one
+  /// operation in two halves; the delete funnel
+  /// (`ChatDatabaseRepository.deleteConversation`) is its only caller, which is
+  /// what keeps the halves together.
+  void stageCapturedConversation(RecycleConversationCapture capture) {
+    _detach(() async {
+      final tables = _decodeConversationSubtree(capture.subtree);
+      // No conversation row means there is nothing this id owns to preserve.
+      if (tables == null) return;
+      final title = tables['conversation_rows']!.first['title'];
+      await _store.stageRows(
+        type: RecycleEntryType.conversation,
+        origin: capture.origin,
+        reason: RecycleReason.deleted,
+        key: capture.id,
+        title: title is String ? title : '',
+        tables: tables,
+        group: capture.group,
+      );
+    });
   }
 
   /// Stages one business entity row — an assistant, provider, world book,
@@ -244,6 +279,31 @@ final class RecycleService {
     required RecycleOrigin origin,
     required RecycleReason reason,
   }) async {
+    final staged = await _stageWorkspaceFile(
+      workspaceId: workspaceId,
+      relPath: relPath,
+      source: source,
+      origin: origin,
+      reason: reason,
+    );
+    // This path is awaited rather than detached, so nothing else will notice
+    // that the burst ended, and the caller is already paying for a file move:
+    // one scan for the whole burst is the price of the caps holding.
+    await _sweepWhenSettled();
+    return staged;
+  }
+
+  /// The move alone: no sweep, and a failure turned into null.
+  ///
+  /// Split out for the one caller that has to write something *after* the move
+  /// and before the sweep — a restore, whose own entry the sweep may evict.
+  Future<RecycleEntry?> _stageWorkspaceFile({
+    required String workspaceId,
+    required String relPath,
+    required File source,
+    required RecycleOrigin origin,
+    required RecycleReason reason,
+  }) async {
     if (workspaceId.isEmpty || relPath.isEmpty) return null;
     try {
       return await _store.stageFile(
@@ -259,11 +319,6 @@ final class RecycleService {
         'recycle: staging the workspace file "$relPath" failed: $error',
       );
       return null;
-    } finally {
-      // This path is awaited rather than detached, so nothing else will notice
-      // that the burst ended, and the caller is already paying for a file move:
-      // one scan for the whole burst is the price of the caps holding.
-      await _sweepWhenSettled();
     }
   }
 
@@ -286,14 +341,22 @@ final class RecycleService {
     await _store.settle();
   }
 
-  /// Starts a bin write without putting it on the caller's path.
+  /// Starts a bin write on the next event-loop turn, off the caller's stack.
   ///
   /// By the time this is called the rows are already captured, so the write
-  /// touches nothing but the filesystem. Detaching it is what keeps a delete
-  /// (and a first sync session's applies) at database speed: the operation must
-  /// not wait for a net held under it.
+  /// touches nothing but the filesystem. Two things have to be true for a
+  /// delete (or a first sync session's applies) to stay at database speed: the
+  /// work must not be on the caller's path, and it must not hold the caller's
+  /// transaction open. Invoking [write] here would do both — an `async` body
+  /// runs synchronously up to its first `await`, and this closure's first
+  /// statement is a `jsonDecode` proportional to the conversation — so the
+  /// closure is scheduled instead of called, and it starts only after the
+  /// caller's own turn (transaction included) has finished.
   void _detach(Future<void> Function() write) {
-    final pending = write().catchError((Object error, StackTrace stack) {
+    final pending = Future<void>.delayed(Duration.zero, write).catchError((
+      Object error,
+      StackTrace stack,
+    ) {
       debugPrint('recycle: a background write failed: $error');
     });
     _pending.add(pending);
@@ -535,8 +598,11 @@ final class RecycleService {
           );
         }
       }
-      // The tombstone recorded the deletion this restore undoes; leaving it
-      // behind would keep announcing a removal for a conversation that is back.
+      // The local tombstone recorded the deletion this restore undoes, so it goes
+      // with it. It is bookkeeping, not a signal: nothing on the sync path reads
+      // tombstones — an announced deletion is derived from the checkpoint
+      // (ADR-0003, protocol v8) — so removing the row is not what keeps the
+      // conversation from being announced again. The restored row's clock is.
       await _database.customStatement(
         'DELETE FROM tombstone_rows WHERE scope = ? AND entity_id = ?;',
         <Object?>[
@@ -657,6 +723,16 @@ final class RecycleService {
   /// the current clock. Keeping the staged (older) one would hand the file back
   /// to the very comparison that removed it, and the peer's next plan would
   /// delete it again.
+  ///
+  /// What it finds at the path decides what it may do, and [RecycleEntry.reason]
+  /// says which case it is — decision 5's split, for a file. An entry staged by
+  /// a *deletion* is refused when the path is occupied again: the file there is
+  /// one this entry never lost to. An entry staged by a *losing comparison* is
+  /// the one case that must overwrite, because the landing path is occupied by
+  /// construction — the merge moved the old version out and then renamed the
+  /// new one in — so refusing it would make the entry permanently
+  /// unrestorable. The live version goes into the bin first, which is what makes
+  /// the restore undoable in turn.
   Future<_RestoreResult> _restoreWorkspaceFile(RecycleEntry entry) async {
     final resolver = _workspaceRoot;
     final workspaceId = entry.workspaceId;
@@ -682,9 +758,6 @@ final class RecycleService {
     final target = workspacePathWithin(root.path, relPath);
     if (target == null) return _not(RecycleRestoreOutcome.unsupported);
     final file = File(target);
-    if (await file.exists()) {
-      return _not(RecycleRestoreOutcome.skippedExisting);
-    }
     final source = await _store.bodyFile(entry);
     if (source == null) return _not(RecycleRestoreOutcome.unreadable);
     // Asked *before* the directory is created: `create(recursive: true)` follows
@@ -695,10 +768,33 @@ final class RecycleService {
     if (!await isReallyInsideWorkspace(root, existing)) {
       return _not(RecycleRestoreOutcome.unsupported);
     }
+    String? keepEntryId;
+    if (await file.exists()) {
+      if (entry.reason == RecycleReason.deleted) {
+        return _not(RecycleRestoreOutcome.skippedExisting);
+      }
+      // Moved, not copied, and before a byte is written: the version at the path
+      // is the only copy of itself, so a bin that cannot take it stops the
+      // restore instead of being written over. The move is also what frees the
+      // path.
+      final displaced = await _stageWorkspaceFile(
+        workspaceId: workspaceId,
+        relPath: relPath,
+        source: file,
+        origin: RecycleOrigin.local,
+        reason: RecycleReason.overwritten,
+      );
+      if (displaced == null) return _not(RecycleRestoreOutcome.failed);
+      keepEntryId = displaced.id;
+    }
     await file.parent.create(recursive: true);
     await source.copy(target);
     await file.setLastModified(DateTime.now());
-    return _not(RecycleRestoreOutcome.restored);
+    // After the bytes are back, not inside the staging: this sweep is what could
+    // evict the very entry being restored, and it no longer has to be waited for
+    // here — the caps hold a moment later either way.
+    await _sweepWhenSettled();
+    return (outcome: RecycleRestoreOutcome.restored, keepEntryId: keepEntryId);
   }
 
   /// Whether the conversation already has a composer draft, so a restore leaves

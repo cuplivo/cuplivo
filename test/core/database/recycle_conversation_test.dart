@@ -11,12 +11,49 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// The boundary this file also pins: deleting one message is not a bin
 /// operation, and a bulk reset stages nothing at all.
+/// A bin that says when it starts writing, for the test that has to prove the
+/// write is not on the delete's own path.
+///
+/// [onStage] runs at the moment the snapshot is handed over, so it can read the
+/// database and answer whether the delete had already committed by then.
+class _RecordingStore extends RecycleStore {
+  _RecordingStore({required super.directory});
+
+  Future<void> Function(String key)? onStage;
+  final List<String> stagedKeys = <String>[];
+
+  @override
+  Future<RecycleEntry?> stageRows({
+    required RecycleEntryType type,
+    required RecycleOrigin origin,
+    required RecycleReason reason,
+    required String key,
+    required String title,
+    required Map<String, List<Map<String, Object?>>> tables,
+    String? kindWire,
+    RecycleGroup? group,
+  }) async {
+    stagedKeys.add(key);
+    await onStage?.call(key);
+    return super.stageRows(
+      type: type,
+      origin: origin,
+      reason: reason,
+      key: key,
+      title: title,
+      tables: tables,
+      kindWire: kindWire,
+      group: group,
+    );
+  }
+}
+
 void main() {
   group('conversation deletion recovery', () {
     late Directory directory;
     late Directory binRoot;
     late AppDatabase database;
-    late RecycleStore store;
+    late _RecordingStore store;
     late RecycleService recycle;
     late ChatDatabaseRepository repository;
 
@@ -24,7 +61,7 @@ void main() {
       directory = await Directory.systemTemp.createTemp('kelivo_recycle_conv_');
       binRoot = Directory('${directory.path}/bin');
       database = AppDatabase.open(file: File('${directory.path}/chat.sqlite'));
-      store = RecycleStore(directory: () async => binRoot);
+      store = _RecordingStore(directory: () async => binRoot);
       recycle = RecycleService(database, store: store);
       repository = ChatDatabaseRepository(database, recycle: recycle);
       await repository.ensureReady();
@@ -159,6 +196,49 @@ void main() {
       final entry = (await binEntries()).single;
       expect(entry.origin, RecycleOrigin.remote);
       expect(entry.key, 'c1');
+    });
+
+    test('a delete returns before the bin has begun writing', () async {
+      // The delete is something the user waits for; the bin is only its safety
+      // net. "Detached" therefore has to mean the bin's decode and encode are not
+      // on the delete's own stack — an async body runs synchronously up to its
+      // first await, so *calling* the closure puts that work back on the path.
+      await seedConversation('c1');
+
+      await repository.deleteConversation('c1');
+
+      expect(
+        store.stagedKeys,
+        isEmpty,
+        reason: 'nothing may be decoded or written on the delete\'s own path',
+      );
+      await recycle.settle();
+      expect(store.stagedKeys, ['c1']);
+    });
+
+    test('the capture crosses the transaction it was taken in', () async {
+      // The other half, and the one a detach alone cannot give: the capture has
+      // to be staged *after* the transaction that removed the rows commits, or
+      // the decode holds the write transaction open for its duration. Read per
+      // staging rather than into one variable: a build that stages twice would
+      // otherwise let the second, later reading answer for the first.
+      await seedConversation('c1');
+      final rowPresentWhenStaged = <bool>[];
+      store.onStage = (key) async {
+        rowPresentWhenStaged.add(
+          await repository.syncReadConversationRow(key) != null,
+        );
+      };
+
+      await repository.deleteConversation('c1');
+      await recycle.settle();
+
+      expect(rowPresentWhenStaged, isNotEmpty);
+      expect(
+        rowPresentWhenStaged.first,
+        isFalse,
+        reason: 'the write runs after the delete committed, not before it',
+      );
     });
 
     test('deleting one message stages nothing', () async {

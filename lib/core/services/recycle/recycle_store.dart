@@ -818,8 +818,10 @@ class RecycleStore {
         await _deleteQuietly(staging);
       }
       // A failed put-back leaves the staging directory alone: the bytes are
-      // still in it, and the next sweep is a later chance than deleting them
-      // here, on this path, as the side effect of a failure.
+      // still in it, and the next sweep is a later chance to *clean it up* (that
+      // is all `evict` does with a `.tmp-` directory — reclaim the space). It is
+      // not a second attempt at restoring the file; deleting it here, on this
+      // path, as the side effect of a failure, is what must not happen.
       return false;
     } finally {
       _stagingNames.remove('$_stagingPrefix$id');

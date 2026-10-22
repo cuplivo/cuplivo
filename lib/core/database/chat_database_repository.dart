@@ -6643,10 +6643,16 @@ class ChatDatabaseRepository {
     RecycleOrigin origin = RecycleOrigin.local,
     RecycleGroup? group,
   }) async {
+    // The recycle bin works in two halves around the transaction: the capture is
+    // taken inside it, because what is staged has to be what the cascade is
+    // about to remove, and it is staged after it returns, because decoding the
+    // capture and writing the entry are proportional to the conversation and
+    // would otherwise be paid for by the delete (with its transaction open).
+    RecycleConversationCapture? capture;
     await composerDrafts.delete(
       id,
       deleteConversation: () async {
-        await recycle?.stageConversationDeletion(
+        final captured = await recycle?.captureConversationDeletion(
           id,
           origin: origin,
           group: group,
@@ -6655,6 +6661,7 @@ class ChatDatabaseRepository {
           _db.conversationRows,
         )..where((t) => t.id.equals(id))).go();
         if (deleted == 0) return;
+        capture = captured;
         final now = DateTime.now().toUtc();
         await _db
             .into(_db.tombstoneRows)
@@ -6673,6 +6680,7 @@ class ChatDatabaseRepository {
             .go();
       },
     );
+    if (capture case final staged?) recycle?.stageCapturedConversation(staged);
   }
 
   /// Reads deletion tombstones, newest first, optionally filtered by [scope].

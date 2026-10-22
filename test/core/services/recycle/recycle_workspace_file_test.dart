@@ -67,12 +67,14 @@ void main() {
     File source, {
     String workspaceId = 'w1',
     String relPath = 'notes/a.md',
-  }) => recycle.stageWorkspaceFile(
+    RecycleReason reason = RecycleReason.deleted,
+    RecycleService? service,
+  }) => (service ?? recycle).stageWorkspaceFile(
     workspaceId: workspaceId,
     relPath: relPath,
     source: source,
     origin: RecycleOrigin.remote,
-    reason: RecycleReason.deleted,
+    reason: reason,
   );
 
   test('a staged file goes back where it came from, stamped as new', () async {
@@ -137,6 +139,102 @@ void main() {
       'written since',
     );
   });
+
+  // The other reason, and the case the feature exists for: a merge that replaces
+  // a file stages the version it replaced and then re-occupies the path, so a
+  // restore that refused an occupied path could never bring anything back. The
+  // rows have taken this split since decision 5; a file takes it too.
+  test(
+    'a file a losing comparison replaced goes back over the live copy',
+    () async {
+      await putWorkspace('w1');
+      final entry = (await stage(
+        await putFile('w1', 'notes/a.md', 'the old bytes'),
+        reason: RecycleReason.overwritten,
+      ))!;
+      expect(
+        inWorkspace('w1', 'notes/a.md').existsSync(),
+        isFalse,
+        reason:
+            'staging moves the loser out, and the landing puts the winner in',
+      );
+      // What the landing does next: the peer's newer version takes the path.
+      await inWorkspace('w1', 'notes/a.md').writeAsString('the newer bytes');
+      await inWorkspace(
+        'w1',
+        'notes/a.md',
+      ).setLastModified(DateTime.utc(2002, 3, 4, 5, 6, 7));
+
+      expect(await recycle.restore(entry), RecycleRestoreOutcome.restored);
+
+      final restored = inWorkspace('w1', 'notes/a.md');
+      expect(await restored.readAsString(), 'the old bytes');
+      expect(
+        restored.statSync().modified.millisecondsSinceEpoch,
+        greaterThan(DateTime.utc(2002, 3, 4, 5, 6, 7).millisecondsSinceEpoch),
+        reason:
+            'a restore is a fresh local write, so it beats the version it lost to',
+      );
+
+      final displaced = (await recycle.list()).single;
+      expect(
+        displaced.id,
+        isNot(entry.id),
+        reason: 'the entry that was restored is retired',
+      );
+      expect(displaced.reason, RecycleReason.overwritten);
+      expect(displaced.origin, RecycleOrigin.local);
+      final body = await recycle.bodyFile(displaced);
+      expect(
+        await body!.readAsString(),
+        'the newer bytes',
+        reason:
+            'the live version goes into the bin, which is what makes it undoable',
+      );
+    },
+  );
+
+  test(
+    'a replaced file whose live copy cannot be staged is not written over',
+    () async {
+      await putWorkspace('w1');
+      final entry = (await stage(
+        await putFile('w1', 'notes/a.md', 'the old bytes'),
+        reason: RecycleReason.overwritten,
+      ))!;
+      await inWorkspace('w1', 'notes/a.md').writeAsString('the newer bytes');
+
+      // The same forced-id seam as the staging test below: the bin cannot publish
+      // an entry, so the move cannot take the live file.
+      final binRoot = Directory('${root.path}/bin');
+      await binRoot.create(recursive: true);
+      await File(
+        '${binRoot.path}/forced',
+      ).writeAsString('in the way', flush: true);
+      final blocked = RecycleService(
+        database,
+        store: RecycleStore(
+          directory: () async => binRoot,
+          entryId: (deletedAt) => 'forced',
+        ),
+        workspaceRoot: (id) async =>
+            Directory('${root.path}/workspaces/$id/files'),
+      );
+
+      expect(await blocked.restore(entry), RecycleRestoreOutcome.failed);
+
+      expect(
+        await inWorkspace('w1', 'notes/a.md').readAsString(),
+        'the newer bytes',
+        reason: 'a bin that cannot take the live copy must not be written over',
+      );
+      expect(
+        (await recycle.list()).single.id,
+        entry.id,
+        reason: 'nothing was restored, so nothing was retired',
+      );
+    },
+  );
 
   test('a path that leaves the workspace is refused', () async {
     await putWorkspace('w1');

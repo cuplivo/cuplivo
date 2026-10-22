@@ -22,6 +22,7 @@ import 'dart:convert';
 import 'package:Cuplivo/theme/app_font_weights.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import '../../../shared/widgets/section_card.dart';
+import '../../../core/services/conversation_link.dart';
 
 enum MessageMoreAction {
   edit,
@@ -126,6 +127,26 @@ Future<MessageMoreAction?> showMessageMoreSheet(
           label: l10n.messageMoreSheetEdit,
           onTap: () {
             selected = MessageMoreAction.edit;
+          },
+        ),
+      if (ConversationLink.osRegistered &&
+          ConversationLink.supportsId(message.conversationId) &&
+          ConversationLink.supportsId(message.id))
+        DesktopContextMenuItem(
+          icon: Lucide.Link,
+          label: l10n.messageMoreSheetCopyLink,
+          onTap: () {
+            afterClose = () async {
+              if (!context.mounted) return;
+              await copyTextWithConfirmation(
+                context,
+                ConversationLink(
+                  conversationId: message.conversationId,
+                  messageId: message.id,
+                ).url,
+                message: l10n.conversationLinkCopied,
+              );
+            };
           },
         ),
       DesktopContextMenuItem(
@@ -363,6 +384,27 @@ class _MessageMoreSheetState extends State<_MessageMoreSheet> {
                         label: l10n.messageMoreSheetEdit,
                         onTap: () {
                           Navigator.of(context).pop(MessageMoreAction.edit);
+                        },
+                      ),
+                    if (ConversationLink.osRegistered &&
+                        ConversationLink.supportsId(
+                          widget.message.conversationId,
+                        ) &&
+                        ConversationLink.supportsId(widget.message.id))
+                      _actionItem(
+                        icon: Lucide.Link,
+                        label: l10n.messageMoreSheetCopyLink,
+                        onTap: () async {
+                          final parentCtx = widget.parentContext;
+                          Navigator.of(context).pop();
+                          await copyTextWithConfirmation(
+                            parentCtx,
+                            ConversationLink(
+                              conversationId: widget.message.conversationId,
+                              messageId: widget.message.id,
+                            ).url,
+                            message: l10n.conversationLinkCopied,
+                          );
                         },
                       ),
                     _actionItem(

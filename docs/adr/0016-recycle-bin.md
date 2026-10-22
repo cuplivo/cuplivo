@@ -148,7 +148,7 @@ deleted, and would put "your deleted conversation" into a peer's storage.
    "unchanged". `planBusinessSync` — entities *and* synced preferences — and the skill-content plan now pass
    the same clock pair, from manifests and checkpoint entries that already carried it. The window is
    narrower than the conversation one for a reason worth recording: a business checkpoint *drops* its entry
-   on `peerDeletes` (`SyncEngin._advanceBusinessCheckpoint`), where the conversation face keeps it, so it
+   on `peerDeletes` (`SyncEngine._advanceBusinessCheckpoint`), where the conversation face keeps it, so it
    takes this device deleting and restoring a row, and the peer deleting the same row, all before one
    session runs. The peer's own clock is deliberately not passed on that face: a row whose digest covers
    its content is not something a clock-only difference should make the two sides exchange, so the

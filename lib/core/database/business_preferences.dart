@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 
+import '../services/recycle/recycle_service.dart';
 import 'business_data.dart';
 import 'business_repository.dart';
 import 'business_settings_router.dart';
-import '../services/recycle/recycle_service.dart';
 
 typedef _SyntheticEntityIdentity = ({
   String rowId,
@@ -125,10 +125,11 @@ final class BusinessPreferences {
   /// Writes one list-shaped kind, and stamps [removalGroup] on whatever rows the
   /// write removes.
   ///
-  /// Only the assistant list needs it: deleting an assistant drops its row
-  /// through this write rather than through a delete call, and the caller that
-  /// decided to delete it already holds the group the rest of that act carries.
-  /// Every other key leaves it null, which is the same write as before.
+  /// Only the assistant list needs it. Deleting an assistant drops its row by
+  /// rewriting this list — the write is what performs the delete, through
+  /// `synchronizeEntities` — and the caller that decided on the deletion already
+  /// holds the group the rest of that act carries. Every other key leaves it
+  /// null, which is the same write as before.
   Future<bool> setString(
     String key,
     String value, {

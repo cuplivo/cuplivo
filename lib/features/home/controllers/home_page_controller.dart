@@ -3060,6 +3060,13 @@ class HomePageController extends ChangeNotifier {
     return _chatController.allMessagesForCurrentConversationContext();
   }
 
+  /// Token weights of [messages], for the compress dialog's readout.
+  Future<CompressContextWeights> compressContextWeights(
+    List<ChatMessage> messages,
+  ) {
+    return _viewModel.compressContextWeights(messages);
+  }
+
   // ============================================================================
   // Public Methods - UI State
   // ============================================================================

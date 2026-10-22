@@ -83,6 +83,19 @@ class ChatController extends ChangeNotifier {
   /// Serial of the latest window load; only it may clear [_isLoadingWindow].
   int _windowLoadSerial = 0;
 
+  /// Per conversation, the [ChatService.externalWriteRevision] the loaded
+  /// window was built from. A window holding fewer than the service's count was
+  /// written into by LAN sync since it was rendered and is rebuilt on the next
+  /// notification.
+  final Map<String, int> _renderedExternalRevisions = <String, int>{};
+
+  /// Conversations whose rebuild was held back because a local generation owned
+  /// the window. Applied when that generation ends — waiting for the next
+  /// service notification instead would leave the user on pre-sync content
+  /// whenever the stream's own end does not happen to notify.
+  final Set<String> _deferredExternalReloads = <String>{};
+
+
   /// Selected version per message group (groupId -> selected version index).
   Map<String, int> _versionSelections = <String, int>{};
   Map<String, int> get versionSelections => _versionSelections;
@@ -121,9 +134,42 @@ class ChatController extends ChangeNotifier {
   void _syncCurrentConversationWithService() {
     final conversation = _currentConversation;
     if (conversation == null) return;
-    if (_chatService.getConversation(conversation.id) != null) return;
-    _clearCurrentConversationState();
-    notifyListeners();
+    if (_chatService.getConversation(conversation.id) == null) {
+      _clearCurrentConversationState();
+      notifyListeners();
+      return;
+    }
+    // The conversation still exists, but an external writer (LAN sync's apply)
+    // may have written into it: the loaded window is a snapshot, so it has to be
+    // rebuilt or the user keeps reading pre-sync content until they leave the
+    // conversation and come back. The counter is compared against the one the
+    // window was built from, so every other notification — the app's own
+    // frequent write traffic — costs one integer comparison.
+    final current = _chatService.externalWriteRevision(conversation.id);
+    if (current == (_renderedExternalRevisions[conversation.id] ?? 0)) return;
+    if (_loadingConversationIds.contains(conversation.id)) {
+      // A local generation owns this window; reloading under it would fight the
+      // stream's own writes. Remember it and rebuild when that generation ends.
+      _deferredExternalReloads.add(conversation.id);
+      return;
+    }
+    _renderedExternalRevisions[conversation.id] = current;
+    unawaited(_reloadAfterExternalWrite(conversation.id));
+  }
+
+  /// Rebuilds the loaded window after LAN sync wrote into [conversationId], and
+  /// refreshes the conversation row the page renders outside the window (title,
+  /// pin, timestamps).
+  ///
+  /// Position is preserved the way a local mutation preserves it: at the bottom
+  /// the window follows the tail — the messages that just arrived are what the
+  /// user is there for — and above it the rebuild anchors on the first loaded
+  /// row, so the viewport does not jump to the end.
+  Future<void> _reloadAfterExternalWrite(String conversationId) async {
+    if (_currentConversation?.id != conversationId) return;
+    final refreshed = _chatService.getConversation(conversationId);
+    if (refreshed != null) _currentConversation = refreshed;
+    await refreshTimelineAfterMutation();
   }
 
   // ============================================================================
@@ -310,6 +356,10 @@ class ChatController extends ChangeNotifier {
 
   Future<void> _loadInitialMessageWindow(String conversationId) async {
     final serial = ++_windowLoadSerial;
+    // Captured before the read: an external write landing while the page loads
+    // is then still newer than the marker, so its notification rebuilds the
+    // window instead of being swallowed as already-rendered.
+    final externalRevision = _chatService.externalWriteRevision(conversationId);
     _isLoadingWindow = true;
     try {
       final page = await _chatService.loadTimelinePage(
@@ -319,6 +369,7 @@ class ChatController extends ChangeNotifier {
       // Discard the page if the conversation changed while loading.
       if (_currentConversation?.id != conversationId) return;
       _replaceWindow(page);
+      _renderedExternalRevisions[conversationId] = externalRevision;
     } finally {
       if (serial == _windowLoadSerial) _isLoadingWindow = false;
     }
@@ -528,6 +579,11 @@ class ChatController extends ChangeNotifier {
     final previousSlotIds = <String>{
       for (final message in _messages) message.groupId ?? message.id,
     };
+    // Same rule as the initial load: the marker is read before the page, so a
+    // write that lands during the read is still newer than what was rendered.
+    final externalRevision = _chatService.externalWriteRevision(
+      conversation.id,
+    );
     final page = await _chatService.loadTimelinePage(
       conversation.id,
       aroundRevisionId: anchorId,
@@ -535,6 +591,7 @@ class ChatController extends ChangeNotifier {
     );
     if (_currentConversation?.id != conversation.id) return false;
     _replaceWindow(_withoutBackfilledHead(page, previousSlotIds));
+    _renderedExternalRevisions[conversation.id] = externalRevision;
     await _preloadVisibleGroupData();
     notifyListeners();
     return page != null;
@@ -1193,6 +1250,13 @@ class ChatController extends ChangeNotifier {
         ScreenWakelock.acquire();
       } else if (!loading && _loadingConversationIds.isEmpty) {
         ScreenWakelock.release();
+      }
+      if (!loading && _deferredExternalReloads.remove(conversationId)) {
+        // A sync write landed while this generation owned the window; it is
+        // rebuilt now that the stream has released it.
+        _renderedExternalRevisions[conversationId] = _chatService
+            .externalWriteRevision(conversationId);
+        unawaited(_reloadAfterExternalWrite(conversationId));
       }
     }
   }

@@ -9,6 +9,7 @@ enum BusinessKeyDisposition {
   entity,
   providerOrder,
   preference,
+  syncedPreference,
   localOnly,
   discarded,
   unknownPreference,
@@ -31,6 +32,118 @@ final class BusinessKeyRegistry {
     'display_chat_font_scale_v1',
     'flutter_log_enabled_v1',
     'model_catalog_auto_update_v1',
+  };
+
+  /// Business preferences a brand-new device wants to arrive with the pairing
+  /// (ADR-0003 decision 6). Membership follows the new-device test: business
+  /// configuration yes; window geometry, proxies, platform flags, fonts and
+  /// session-position keys no. This set is the single authority for what LAN
+  /// sync carries — keys outside it never ride sync, so adding a key here is
+  /// the whole act of making it sync.
+  ///
+  /// Strictly a subset of [preferenceKeys]: a synced key is still an ordinary
+  /// business preference to every non-sync consumer (backup merge, restore,
+  /// the runtime view).
+  static const syncedPreferenceKeys = <String>{
+    // Theme and language.
+    'theme_mode_v1',
+    'theme_palette_v1',
+    // A custom palette is *named* by 'theme_palette_v1' ('custom') and
+    // *defined* by these two. Syncing the name without the definitions lands a
+    // new device on a palette id it cannot resolve: main.dart falls back to the
+    // default palette while the settings page still shows the custom one as
+    // selected, with an empty theme list.
+    'custom_themes_v1',
+    'custom_theme_selected_v1',
+    'use_dynamic_color_v1',
+    'app_locale_v1',
+    // Generation configuration: models, prompts and thinking toggles.
+    'title_model_v1',
+    'title_generation_enabled_v1',
+    'title_prompt_v1',
+    'title_generation_thinking_enabled_v1',
+    'summary_model_v1',
+    'summary_prompt_v1',
+    'summary_generation_thinking_enabled_v1',
+    'suggestion_model_v1',
+    'suggestion_generation_enabled_v1',
+    'suggestion_prompt_v1',
+    'suggestion_generation_thinking_enabled_v1',
+    'suggestion_insert_on_tap_only_v1',
+    'compress_model_v1',
+    'compress_prompt_v1',
+    // The rest of the compress page: the thinking toggle every other feature
+    // already synced, plus the limit mode, the keep-last-user-messages count and
+    // the char budget — the model and the prompt alone leave a new device
+    // compressing by different rules.
+    'compress_generation_thinking_enabled_v1',
+    'compress_limit_mode_v1',
+    'compress_keep_user_messages_v1',
+    'compress_max_chars_v1',
+    'translate_model_v1',
+    'translate_prompt_v1',
+    'translate_target_lang_v1',
+    'translate_generation_thinking_enabled_v1',
+    'ocr_model_v1',
+    'ocr_prompt_v1',
+    'ocr_enabled_v1',
+    'ocr_generation_thinking_enabled_v1',
+    // No 'thinking_budget_v1': the baseline retires the global thinking budget
+    // in favour of per-model reasoning configuration, so the key is not an
+    // ordinary business preference any more and nothing writes it.
+    // Memory configuration. The prompts below ride sync, and so must the rest of
+    // the feature: a new device cannot run auto-organize at all without the
+    // model, and the injection cap belongs to the same settings page. The
+    // migration batch size rides too — legacy memories themselves sync, so a new
+    // device runs that migration as well. Only tracing (a diagnostics runtime
+    // flag) stays device-local.
+    'memory_model_v1',
+    'memory_model_thinking_enabled_v1',
+    'memory_legacy_mode_v1',
+    'memory_injection_max_items_v1',
+    'memory_migration_batch_size_v1',
+    // The prompts themselves (wording only — tracing state stays local).
+    'memory_prompt_lang_v1',
+    'memory_legacy_prompt_zh_v1',
+    'memory_legacy_prompt_en_v1',
+    'memory_rules_prompt_zh_v1',
+    'memory_rules_prompt_en_v1',
+    'memory_gate_prompt_zh_v1',
+    'memory_gate_prompt_en_v1',
+    'memory_extract_prompt_zh_v1',
+    'memory_extract_prompt_en_v1',
+    'memory_smart_add_prompt_zh_v1',
+    'memory_smart_add_prompt_en_v1',
+    'memory_smart_add_batch_prompt_zh_v1',
+    'memory_smart_add_batch_prompt_en_v1',
+    'memory_profile_distill_prompt_zh_v1',
+    'memory_profile_distill_prompt_en_v1',
+    'memory_migrate_prompt_zh_v1',
+    'memory_migrate_prompt_en_v1',
+    // Service configuration.
+    'asr_services_v1',
+    // 'tts_selected_service_id_v1' already rides sync; the ASR twin did not.
+    'asr_selected_service_id_v1',
+    'tts_speech_rate_v1',
+    'tts_pitch_v1',
+    'tts_selected_service_id_v1',
+    'search_common_v1',
+    'search_selected_v1',
+    'search_enabled_v1',
+    // Models and user identity.
+    'pinned_models_v1',
+    'user_name',
+    'avatar_type',
+    'avatar_value',
+    // Backup configuration (state such as the last-backup stamp stays local).
+    'webdav_config_v1',
+    's3_config_v1',
+    'backup_reminder_enabled_v1',
+    'backup_reminder_interval_days_v1',
+    'backup_reminder_minutes_of_day_v1',
+    // Style and tool overrides.
+    'chat_bubble_style_overrides_v1',
+    'tool_schema_overrides_v1',
   };
 
   static const discardedKeys = <String>{
@@ -82,11 +195,32 @@ final class BusinessKeyRegistry {
     'backup_reminder_minutes_of_day_v1',
     'backup_reminder_enabled_at_v1',
     'backup_reminder_last_backup_at_v1',
+    // Local (on-device) snapshots. Ordinary business preferences like the
+    // remote-backup config above, so a snapshot taken on this device
+    // round-trips them; deliberately *not* synced (they describe this device's
+    // own schedule and retention), and the run stamps below are state about
+    // this device's runs rather than configuration.
+    'local_snapshot_enabled_v1',
+    'local_snapshot_interval_days_v1',
+    'local_snapshot_keep_recent_v1',
+    'local_snapshot_keep_weekly_v1',
+    'local_snapshot_keep_monthly_v1',
+    'local_snapshot_max_total_bytes_v1',
+    'local_snapshot_announce_v1',
+    'local_snapshot_last_success_at_v1',
+    'local_snapshot_last_failure_at_v1',
+    'local_snapshot_last_failure_v1',
+    'local_snapshot_last_skip_v1',
+    'local_snapshot_failure_streak_v1',
+    'local_snapshot_fingerprint_v1',
+    'local_snapshot_first_observed_at_v1',
     'user_name',
     'avatar_type',
     'avatar_value',
     'theme_mode_v1',
     'theme_palette_v1',
+    'custom_themes_v1',
+    'custom_theme_selected_v1',
     'use_dynamic_color_v1',
     'app_locale_v1',
     'title_model_v1',
@@ -112,16 +246,27 @@ final class BusinessKeyRegistry {
     'suggestion_insert_on_tap_only_v1',
     'compress_model_v1',
     'compress_prompt_v1',
+    'compress_limit_mode_v1',
+    'compress_keep_user_messages_v1',
+    'compress_max_chars_v1',
     'reasoning_choice_by_model_v1',
     'image_cropper_enabled_v1',
     'image_upload_quality_v1',
     'image_compress_custom_quality_v1',
     'image_compress_transparent_enabled_v1',
+    // The other half of the same settings page: upload/compression behaviour and
+    // the manual editor's last-used parameters.
+    'image_compression_mode_v1',
+    'manual_compress_format_v1',
+    'manual_compress_quality_v1',
+    'manual_compress_max_long_edge_v1',
+    'send_markdown_image_links_as_images_v1',
     'desktop_topic_position_v1',
     'desktop_right_sidebar_open_v1',
     'desktop_sidebar_width_v1',
     'desktop_sidebar_open_v1',
     'desktop_right_sidebar_width_v1',
+    'desktop_workspace_bar_open_v1',
     'desktop_send_shortcut_v1',
     'android_background_chat_mode_v1',
     'ios_background_generation_enabled_v1',
@@ -147,6 +292,10 @@ final class BusinessKeyRegistry {
     'log_save_output_v1',
     'log_auto_delete_days_v1',
     'log_max_size_mb_v1',
+    // Diagnostics logging: local by nature (they describe this device's log
+    // files and how much of them is written).
+    'context_log_enabled_v1',
+    'log_elide_large_payloads_v1',
     'app_launch_count_v1',
     'mcp_request_timeout_ms_v1',
     'learning_mode_enabled_v1',
@@ -154,6 +303,7 @@ final class BusinessKeyRegistry {
     'mobile_assistant_edit_tab_order_v1',
     'mobile_assistant_edit_tab_hidden_v1',
     'mobile_assistant_detail_outline_enabled_v1',
+    'mobile_background_settings_v1',
     'memory_model_v1',
     'memory_model_thinking_enabled_v1',
     'memory_prompt_lang_v1',
@@ -177,6 +327,11 @@ final class BusinessKeyRegistry {
     'memory_migrate_prompt_en_v1',
     'memory_migration_batch_size_v1',
     'memory_full_injection_types_v1',
+    'memory_injection_max_items_v1',
+    // Chat editing behaviour: ordinary business preferences, device-local in
+    // practice like the display_* presentation family.
+    'chat_fork_keep_message_versions_v1',
+    'chat_edit_assistant_keep_thinking_tool_cards_v1',
     'chat_bubble_style_overrides_v1',
     'chat_bubble_style_overrides_user_v1',
     'tool_schema_overrides_v1',
@@ -184,6 +339,13 @@ final class BusinessKeyRegistry {
     'environment_mirrors_v1',
     'environment_variables_v1',
     'environment_privacy_mode_v1',
+    // Where this device keeps its rootfs and how it runs PRoot. Device state
+    // that happens to live in the preference store: BackupPortability strips it
+    // from a backup that travels (`devicePreferenceKeys`), which is why it is an
+    // ordinary preference here rather than localOnly.
+    'environment_rootfs_selection_v1',
+    'environment_proot_options_v1',
+    'environment_disk_usage_v1',
   };
 
   static BusinessKeyDisposition classify(String key) {
@@ -198,6 +360,9 @@ final class BusinessKeyRegistry {
     }
     if (discardedKeys.contains(key)) {
       return BusinessKeyDisposition.discarded;
+    }
+    if (syncedPreferenceKeys.contains(key)) {
+      return BusinessKeyDisposition.syncedPreference;
     }
     if (preferenceKeys.contains(key) || key.startsWith('display_')) {
       return BusinessKeyDisposition.preference;

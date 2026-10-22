@@ -70,6 +70,7 @@ import 'setting/quick_phrases_pane.dart';
 import 'setting/instruction_injection_pane.dart';
 import 'setting/world_book_pane.dart';
 import 'setting/backup_pane.dart';
+import 'setting/sync_pane.dart';
 import 'setting/scheduled_tasks_pane.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart' show LucideIcons;
 import 'setting/hotkeys_pane.dart';
@@ -128,6 +129,7 @@ enum _SettingsMenuItem {
   tts,
   networkProxy,
   backup,
+  lanSync,
   scheduledTasks,
   hotkeys,
   stats,
@@ -169,6 +171,7 @@ class _DesktopSettingsPageState extends State<DesktopSettingsPage> {
       SettingsSearchDestination.memory => _SettingsMenuItem.memory,
       SettingsSearchDestination.networkProxy => _SettingsMenuItem.networkProxy,
       SettingsSearchDestination.backup => _SettingsMenuItem.backup,
+      SettingsSearchDestination.lanSync => _SettingsMenuItem.lanSync,
       SettingsSearchDestination.scheduledTasks =>
         _SettingsMenuItem.scheduledTasks,
       SettingsSearchDestination.hotkeys => _SettingsMenuItem.hotkeys,
@@ -324,6 +327,10 @@ class _DesktopSettingsPageState extends State<DesktopSettingsPage> {
                           return const DesktopBackupPane(
                             key: ValueKey('backup'),
                           );
+                        case _SettingsMenuItem.lanSync:
+                          return const DesktopSyncPane(
+                            key: ValueKey('lanSync'),
+                          );
                         case _SettingsMenuItem.scheduledTasks:
                           return const DesktopScheduledTasksPane(
                             key: ValueKey('scheduledTasks'),
@@ -443,6 +450,11 @@ class _SettingsMenu extends StatelessWidget {
         _SettingsMenuItem.backup,
         lucide.Lucide.Database,
         l10n.settingsPageBackup,
+      ),
+      (
+        _SettingsMenuItem.lanSync,
+        lucide.Lucide.RefreshCw,
+        l10n.settingsPageLanSync,
       ),
       (
         _SettingsMenuItem.scheduledTasks,

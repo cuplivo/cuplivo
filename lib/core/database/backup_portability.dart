@@ -20,7 +20,7 @@ final class BackupPortability {
   };
 
   static bool _isLinked(BusinessEntityValue row) =>
-      (jsonDecode(row.payload) as Map)['kind'] == 'linked';
+      isLinkedWorkspace(row.payload);
 
   static BusinessSnapshot portable(BusinessSnapshot source) {
     final workspaces = source.entities[BusinessEntityKind.workspace]!;

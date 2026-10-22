@@ -311,9 +311,15 @@ void main() {
       expect(settings.appFontLocalAlias, isNotEmpty);
       expect(settings.appFontFamily, settings.appFontLocalAlias);
       final prefs = harness.preferences;
+      // The reloaded value is the current font file, whatever separator the
+      // fixture spelled it with: `fix` now returns the platform's own spelling
+      // instead of the `/`-folded form it uses for comparison.
       expect(
-        prefs.getString('display_app_font_local_path_v1'),
-        currentFont.path,
+        p.equals(
+          prefs.getString('display_app_font_local_path_v1')!,
+          currentFont.path,
+        ),
+        isTrue,
       );
     });
   });

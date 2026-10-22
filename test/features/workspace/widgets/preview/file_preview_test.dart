@@ -14,6 +14,7 @@ import 'package:Cuplivo/features/chat/pages/image_viewer_page.dart';
 import 'package:Cuplivo/features/settings/widgets/custom_theme_widgets.dart';
 import 'package:Cuplivo/features/workspace/widgets/preview/code_file_preview.dart';
 import 'package:Cuplivo/features/workspace/widgets/preview/file_preview.dart';
+import 'package:Cuplivo/features/workspace/widgets/preview/preview_text_document.dart';
 import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/shared/widgets/custom_bottom_sheet.dart';
@@ -167,6 +168,28 @@ Future<void> _loadImagePreview(WidgetTester tester) async {
   await tester.pump();
 }
 
+/// Unmounts the preview and waits until its file handle is released.
+///
+/// The paged text view keeps the file open for random access while it is
+/// mounted, and Windows refuses to delete a tree that still has that handle
+/// (`errno 32`). The close chain is created inside the fake-async test zone, so
+/// it needs both a real event-loop turn (the OS close) and a pump (the zone's
+/// own microtasks). Poll the reader's own signal — never a fixed sleep.
+Future<void> _releasePreview(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox());
+  for (var i = 0; i < 50; i++) {
+    if (PreviewTextReader.debugPendingCloseCount == 0) {
+      await tester.pump();
+      return;
+    }
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+  }
+  await tester.pump();
+}
+
 List<int> _png2x2Bytes() {
   final image = image_lib.Image(width: 2, height: 2, numChannels: 4)
     ..clear(image_lib.ColorRgba8(255, 80, 160, 255));
@@ -297,6 +320,10 @@ void main() {
     expect(find.byKey(CodeFilePreview.codeKey), findsNothing);
     expect(find.byType(SelectableText).evaluate().length, lessThan(10));
     expect(tester.takeException(), isNull);
+
+    // The paged view holds its file open for random access until it is
+    // disposed, and the shared tearDown deletes the tree: release it here.
+    await _releasePreview(tester);
   });
 
   testWidgets('showFilePreview opens markdown with a source/rendered toggle', (

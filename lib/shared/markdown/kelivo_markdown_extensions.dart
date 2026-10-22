@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:markstream/markstream.dart';
 import 'package:provider/provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/utils/svg_preview_html.dart';
-import 'package:Kelivo/shared/widgets/plantuml_block.dart';
-import 'package:Kelivo/shared/widgets/export_capture_scope.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/utils/svg_preview_html.dart';
+import 'package:Cuplivo/shared/widgets/plantuml_block.dart';
+import 'package:Cuplivo/shared/widgets/export_capture_scope.dart';
 
 import 'citation_syntax.dart';
 import 'diagram_code_blocks.dart';

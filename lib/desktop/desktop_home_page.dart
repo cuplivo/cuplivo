@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform;
 import 'desktop_nav_rail.dart';
@@ -321,7 +321,7 @@ class _TitleBarLeading extends StatelessWidget {
       children: [
         // App icon
         Image.asset(
-          'assets/icons/kelivo.png',
+          'assets/app_icon_about.png',
           width: 16,
           height: 16,
           filterQuality: FilterQuality.medium,

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'package:Kelivo/core/services/haptics.dart';
-import 'package:Kelivo/shared/widgets/ios_switch.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/core/services/haptics.dart';
+import 'package:Cuplivo/shared/widgets/ios_switch.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 /// Opens a World Book–style keyboard form sheet
 /// (`_showBookConfigSheet` in `world_book_page.dart`).

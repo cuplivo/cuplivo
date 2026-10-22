@@ -48,7 +48,7 @@ class IosScheduledTaskNotifications implements ScheduledTaskNotifications {
     return await _channel.invokeMethod<bool>('schedule', {
           'runId': run.id,
           'at': run.scheduledFor!.millisecondsSinceEpoch,
-          'title': hideContent ? 'Kelivo' : payload?.title ?? task.name,
+          'title': hideContent ? 'Cuplivo' : payload?.title ?? task.name,
           'prepared': payload != null,
           'body': payload == null
               ? reminderBody()

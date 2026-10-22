@@ -1,14 +1,14 @@
 import 'dart:io';
-import 'package:Kelivo/core/database/startup_failure_report.dart';
-import 'package:Kelivo/core/database/startup_recovery_service.dart';
+import 'package:Cuplivo/core/database/startup_failure_report.dart';
+import 'package:Cuplivo/core/database/startup_recovery_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart' as sqlite;
-import 'package:Kelivo/core/database/database_family_preserver.dart';
-import 'package:Kelivo/core/database/database_installation_gate.dart';
-import 'package:Kelivo/core/services/backup/data_sync.dart';
-import 'package:Kelivo/core/services/backup/local_copy_catalog.dart';
-import 'package:Kelivo/core/services/backup/restore_durability.dart';
+import 'package:Cuplivo/core/database/database_family_preserver.dart';
+import 'package:Cuplivo/core/database/database_installation_gate.dart';
+import 'package:Cuplivo/core/services/backup/data_sync.dart';
+import 'package:Cuplivo/core/services/backup/local_copy_catalog.dart';
+import 'package:Cuplivo/core/services/backup/restore_durability.dart';
 
 class _InterruptRetirement implements RestoreDurability {
   final delegate = RestorePlatformDurability();

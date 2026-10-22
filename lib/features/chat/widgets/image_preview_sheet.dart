@@ -18,7 +18,7 @@ import '../../../utils/clipboard_images.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import 'dart:ui' as ui;
 import '../../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 const int _previewBlankTrimPreservePadding = 48;
 const int _previewBlankAlphaTolerance = 8;
@@ -148,7 +148,8 @@ class _ImagePreviewDesktopDialogState
       final ext = p.extension(widget.file.path).isNotEmpty
           ? p.extension(widget.file.path)
           : '.png';
-      final defaultName = 'kelivo-${DateTime.now().millisecondsSinceEpoch}$ext';
+      final defaultName =
+          'cuplivo-${DateTime.now().millisecondsSinceEpoch}$ext';
       final allowed = [ext.replaceFirst('.', '').toLowerCase()];
       final String? savePath = await FilePicker.platform.saveFile(
         dialogTitle: l10n.imageViewerPageSaveButton,
@@ -1024,7 +1025,7 @@ class _ImagePreviewSheetState extends State<_ImagePreviewSheet> {
     setState(() => _saving = true);
     final l10n = AppLocalizations.of(context)!;
     try {
-      final name = 'kelivo-${DateTime.now().millisecondsSinceEpoch}';
+      final name = 'cuplivo-${DateTime.now().millisecondsSinceEpoch}';
       final result = await _saveImagePreviewFile(widget.file, name: name);
       if (!mounted) return;
       bool success = false;

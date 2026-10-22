@@ -1,4 +1,4 @@
-import 'package:Kelivo/core/services/api/stream/sse_event.dart';
+import 'package:Cuplivo/core/services/api/stream/sse_event.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

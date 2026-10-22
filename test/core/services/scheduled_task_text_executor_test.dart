@@ -2,14 +2,14 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/services/auth/provider_oauth_service.dart';
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/models/scheduled_task.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/scheduled_task_text_executor.dart';
-import 'package:Kelivo/core/services/scheduled_tasks_service.dart';
+import 'package:Cuplivo/core/services/auth/provider_oauth_service.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/scheduled_task.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/scheduled_task_text_executor.dart';
+import 'package:Cuplivo/core/services/scheduled_tasks_service.dart';
 import '../../support/business_test_harness.dart';
 
 // Route the real OAuth/API transport to a local server without changing the

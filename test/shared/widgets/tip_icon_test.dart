@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/shared/widgets/tip_icon.dart';
+import 'package:Cuplivo/shared/widgets/tip_icon.dart';
 
 void main() {
   testWidgets('TipIcon exposes the message for tap / long-press', (

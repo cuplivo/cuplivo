@@ -7,17 +7,18 @@ body:
     attributes:
       value: |
         Thank you for taking the time to report a bug!
-        
+
         Before filling out this form, please:
-        - Search for [existing issues](https://github.com/Chevey339/kelivo/issues) to avoid duplicates
-        - Make sure you're using the latest version of the application
+        - Search for [existing issues](https://github.com/cuplivo/cuplivo/issues) to avoid duplicates
+        - Make sure you're using the latest Cuplivo release
+        - If the bug also reproduces in upstream Kelivo v1.3.0, report it to [Chevey339/kelivo](https://github.com/Chevey339/kelivo/issues). Cuplivo is a fork that re-bases on each Kelivo release, so an upstream fix reaches Cuplivo with the next re-base.
 
   - type: textarea
     attributes:
       label: Describe the bug
       description: |
         清楚简洁地描述这个错误是什么。
-        
+
         A clear and concise description of what the bug is.
       placeholder: What went wrong?
     validations:
@@ -27,40 +28,41 @@ body:
     attributes:
       label: Environment
       description: |
-        请提供你的环境信息。 
-        
+        请提供你的环境信息。
+
         Please provide information about your environment.
-        
+
         - Device: [e.g. iPhone 14]
         - OS: [e.g. iOS 17, Windows 11]
-        - App Version: [e.g. v1.0.8(5)]
+        - Cuplivo version: [e.g. v4.0.0(1)]
+        - Installed alongside Kelivo / Cuplivo 3.x? [yes / no]
     validations:
       required: true
-  
+
   - type: textarea
     attributes:
       label: Screenshots or Video
       description: |
         如果有，请添加截图或录屏来解释问题。
-        
+
         If applicable, add screenshots or a screen recording to help explain your problem.
       value: |
         <details open>
         <summary>Screenshots / Video demonstration</summary>
         [Upload media here]
         </details>
-  
+
   - type: textarea
     attributes:
       label: Additional context
       description: |
         如果有，在此添加关于问题的其他信息，例如报错日志或任何其他相关信息。
-        
-        Add any other context about the problem here, such as error logs 
-        from the browser console or any other relevant information.
+
+        Add any other context about the problem here, such as error logs
+        or any other relevant information.
       value: |
         <details open><summary>Additional information</summary>
-        
+
         ```
         [Paste any logs or additional context here]
         ```

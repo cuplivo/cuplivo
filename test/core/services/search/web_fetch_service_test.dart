@@ -2,12 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/search/search_service.dart';
-import 'package:Kelivo/core/services/search/providers/tavily_search_service.dart';
-import 'package:Kelivo/core/services/search/web_fetch.dart';
-import 'package:Kelivo/core/services/search/web_fetch_service.dart';
-import 'package:Kelivo/core/services/search/web_fetch_tool_service.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/search/search_service.dart';
+import 'package:Cuplivo/core/services/search/providers/tavily_search_service.dart';
+import 'package:Cuplivo/core/services/search/web_fetch.dart';
+import 'package:Cuplivo/core/services/search/web_fetch_service.dart';
+import 'package:Cuplivo/core/services/search/web_fetch_tool_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';

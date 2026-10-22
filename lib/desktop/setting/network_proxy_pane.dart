@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 import 'package:flutter/material.dart';
 import 'package:http/io_client.dart';
@@ -10,8 +10,8 @@ import '../../shared/widgets/ios_switch.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../core/providers/settings_provider.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
 
 class DesktopNetworkProxyPane extends StatefulWidget {
   const DesktopNetworkProxyPane({super.key});

@@ -4,11 +4,11 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:Kelivo/core/services/api/providers/claude/claude_history.dart';
-import 'package:Kelivo/core/services/api/providers/claude/claude_thinking_recovery.dart';
-import 'package:Kelivo/core/services/api/providers/claude_official.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk.dart';
-import 'package:Kelivo/core/utils/multimodal_input_utils.dart';
+import 'package:Cuplivo/core/services/api/providers/claude/claude_history.dart';
+import 'package:Cuplivo/core/services/api/providers/claude/claude_thinking_recovery.dart';
+import 'package:Cuplivo/core/services/api/providers/claude_official.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk.dart';
+import 'package:Cuplivo/core/utils/multimodal_input_utils.dart';
 
 import '../../../../../support/claude_test_api.dart';
 

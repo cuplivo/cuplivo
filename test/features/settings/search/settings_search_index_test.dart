@@ -1,6 +1,6 @@
-import 'package:Kelivo/features/settings/search/settings_search_index.dart';
-import 'package:Kelivo/l10n/app_localizations_en.dart';
-import 'package:Kelivo/l10n/app_localizations_zh.dart';
+import 'package:Cuplivo/features/settings/search/settings_search_index.dart';
+import 'package:Cuplivo/l10n/app_localizations_en.dart';
+import 'package:Cuplivo/l10n/app_localizations_zh.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 

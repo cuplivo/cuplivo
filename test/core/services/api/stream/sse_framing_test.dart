@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:Kelivo/core/services/api/stream/sse_event.dart';
-import 'package:Kelivo/core/services/api/stream/sse_framing.dart';
+import 'package:Cuplivo/core/services/api/stream/sse_event.dart';
+import 'package:Cuplivo/core/services/api/stream/sse_framing.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 

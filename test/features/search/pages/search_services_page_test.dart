@@ -1,10 +1,10 @@
 import '../../../support/business_test_harness.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/search/search_service.dart';
-import 'package:Kelivo/core/services/search/web_fetch_service.dart';
-import 'package:Kelivo/features/search/pages/search_service_editor_page.dart';
-import 'package:Kelivo/features/search/pages/search_services_page.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/search/search_service.dart';
+import 'package:Cuplivo/core/services/search/web_fetch_service.dart';
+import 'package:Cuplivo/features/search/pages/search_service_editor_page.dart';
+import 'package:Cuplivo/features/search/pages/search_services_page.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';

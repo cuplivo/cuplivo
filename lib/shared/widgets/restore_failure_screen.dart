@@ -588,7 +588,7 @@ class _RestoreFailureScreenState extends State<RestoreFailureScreen> {
       FlutterErrorDetails(
         exception: error,
         stack: stackTrace,
-        library: 'Kelivo restore',
+        library: 'Cuplivo restore',
         context: ErrorDescription(context),
       ),
     );

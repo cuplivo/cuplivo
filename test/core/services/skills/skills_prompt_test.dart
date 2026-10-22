@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/skill_record.dart';
-import 'package:Kelivo/core/services/skills/skill.dart';
-import 'package:Kelivo/core/services/skills/skills_prompt.dart';
+import 'package:Cuplivo/core/models/skill_record.dart';
+import 'package:Cuplivo/core/services/skills/skill.dart';
+import 'package:Cuplivo/core/services/skills/skills_prompt.dart';
 
 Skill _skill({
   required String id,

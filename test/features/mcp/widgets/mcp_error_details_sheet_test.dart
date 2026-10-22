@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/mcp/widgets/mcp_error_details_sheet.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/form_sheet.dart';
+import 'package:Cuplivo/features/mcp/widgets/mcp_error_details_sheet.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/form_sheet.dart';
 
 void main() {
   for (final size in [const Size(320, 568), const Size(568, 320)]) {

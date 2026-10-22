@@ -162,7 +162,7 @@
   ) -> Bool {
     if backgroundGenerationHandler.receive(url) { return true }
     if incomingShareHandler.receive(url) { return true }
-    if url.scheme == "kelivo" && url.host == "oauth-return" {
+    if url.scheme == "cuplivo" && url.host == "oauth-return" {
       return true
     }
     return super.application(app, open: url, options: options)

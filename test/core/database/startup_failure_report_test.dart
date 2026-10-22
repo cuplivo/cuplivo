@@ -1,11 +1,11 @@
 import 'dart:io';
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/database/startup_failure_report.dart';
-import 'package:Kelivo/core/database/startup_recovery_service.dart';
-import 'package:Kelivo/core/services/backup/restore_cutover_executor.dart';
-import 'package:Kelivo/core/services/backup/restore_diagnostic_exception.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/database/startup_failure_report.dart';
+import 'package:Cuplivo/core/database/startup_recovery_service.dart';
+import 'package:Cuplivo/core/services/backup/restore_cutover_executor.dart';
+import 'package:Cuplivo/core/services/backup/restore_diagnostic_exception.dart';
 import 'package:drift/isolate.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/shared/widgets/long_message_editor.dart';
+import 'package:Cuplivo/shared/widgets/long_message_editor.dart';
 import 'package:re_editor/re_editor.dart';
 
 import 'mirror_harness.dart';

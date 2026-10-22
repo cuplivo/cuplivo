@@ -1,6 +1,6 @@
 import '../../../utils/utf16_safe_cut.dart';
 import '../../chat/utils/thinking_tag_parser.dart';
-import 'package:Kelivo/core/providers/external_mounts_provider.dart';
+import 'package:Cuplivo/core/providers/external_mounts_provider.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:drift/drift.dart' show Value;

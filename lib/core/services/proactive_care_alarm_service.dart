@@ -320,16 +320,20 @@ class ProactiveCareAlarmService {
     }
   }
 
-  /// Whether [assistants] can resolve the owner of every conversation the
-  /// re-arm would actually arm — a future schedule that [pendingForReschedule]
-  /// would include once its owner is known. An unloaded assistant store, or a
-  /// resolver that dropped an owner, makes the snapshot unusable for a
-  /// replace-all: the conversation would silently fall out of the payload and
-  /// lose its alarm.
+  /// Whether [assistants] can resolve the owner of every conversation whose
+  /// schedule is still in the future — the schedules a replace-all would arm. An
+  /// unloaded assistant store, or a resolver that dropped an owner, makes the
+  /// snapshot unusable for a replace-all: that conversation would silently fall
+  /// out of the payload and lose its alarm.
   ///
-  /// Schedules the re-arm omits by design must not veto it: a past-due one is
-  /// cancelled on purpose, and one whose owner id is gone can never be armed
-  /// again, so neither may block every other pending letter.
+  /// The rule is deliberately the conservative one, and its cost is real: a
+  /// schedule whose owner id is genuinely gone is indistinguishable here from one
+  /// whose owner the resolver merely failed to load, so it vetoes the whole
+  /// re-arm and every other pending letter goes unarmed with it. Telling those
+  /// two apart needs the resolver's answer to say which it is (or a caller that
+  /// knows the assistant store finished loading), not a looser predicate here. A
+  /// past-due schedule is not part of this at all: the re-arm cancels those on
+  /// purpose, and [pendingForReschedule] only ever returns the future ones.
   static bool _resolvesEveryScheduledOwner(
     List<Conversation> conversations,
     List<Assistant> assistants, {

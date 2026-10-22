@@ -23,6 +23,25 @@ void main() {
     if (await tmp.exists()) await tmp.delete(recursive: true);
   });
 
+  test('canonical host paths keep the platform spelling', () {
+    // The value handed back to the UI and to File() is a *path*, not a
+    // comparison key: `p.canonicalize` lower-cases the whole path on Windows
+    // (measured against path 1.9.1), which is why the preview/browser/thumbnail
+    // used to show `c:\users\...`. Identity checks use p.equals/p.isWithin,
+    // which are already case-insensitive there, so nothing needs the folding.
+    final dir = p.join(tmp.path, 'KelivoCaseProbe');
+    final mixed = p.join(dir, 'note.txt');
+    final canonical = WorkspacePaths.canonicalHostPath(
+      p.join(dir, '..', 'KelivoCaseProbe', 'note.txt'),
+    );
+    expect(canonical, mixed);
+    if (Platform.isWindows) {
+      // The comparison side already ignores case, so dropping the folding did
+      // not change which paths are considered the same one.
+      expect(p.equals(canonical, mixed.toLowerCase()), isTrue);
+    }
+  });
+
   group('sandboxed', () {
     late WorkspacePaths paths;
 
@@ -40,9 +59,18 @@ void main() {
       expect(paths.modelSessionDir, '/chat');
       expect(paths.modelSkillsDir, '/skills');
       expect(paths.mounts, [
-        Mount(host: p.canonicalize(workspace.path), guest: '/workspace'),
-        Mount(host: p.canonicalize(session.path), guest: '/chat'),
-        Mount(host: p.canonicalize(skills.path), guest: '/skills'),
+        Mount(
+          host: WorkspacePaths.canonicalHostPath(workspace.path),
+          guest: '/workspace',
+        ),
+        Mount(
+          host: WorkspacePaths.canonicalHostPath(session.path),
+          guest: '/chat',
+        ),
+        Mount(
+          host: WorkspacePaths.canonicalHostPath(skills.path),
+          guest: '/skills',
+        ),
         Mount(host: paths.tmpHostRoot, guest: '/tmp'),
       ]);
 
@@ -51,14 +79,18 @@ void main() {
       expect(file.modelPath, '/workspace/src/main.dart');
       expect(
         file.hostPath,
-        p.canonicalize(p.join(workspace.path, 'src', 'main.dart')),
+        WorkspacePaths.canonicalHostPath(
+          p.join(workspace.path, 'src', 'main.dart'),
+        ),
       );
 
       final chat = paths.resolve('/chat/outputs/x.txt', cwd: '/workspace');
       expect(chat.zone, WorkspaceZone.chat);
       expect(
         chat.hostPath,
-        p.canonicalize(p.join(session.path, 'outputs', 'x.txt')),
+        WorkspacePaths.canonicalHostPath(
+          p.join(session.path, 'outputs', 'x.txt'),
+        ),
       );
 
       final skill = paths.resolve('/skills/foo', cwd: '/workspace');
@@ -109,14 +141,20 @@ void main() {
       final resolved = paths.resolve('/workspace/a/../b', cwd: '/workspace');
       expect(resolved.zone, WorkspaceZone.workspace);
       expect(resolved.modelPath, '/workspace/b');
-      expect(resolved.hostPath, p.canonicalize(p.join(workspace.path, 'b')));
+      expect(
+        resolved.hostPath,
+        WorkspacePaths.canonicalHostPath(p.join(workspace.path, 'b')),
+      );
     });
 
     test('absolute tmp prefix without .. resolves to tmp', () {
       final resolved = paths.resolve('/tmp/x', cwd: '/workspace');
       expect(resolved.zone, WorkspaceZone.tmp);
       expect(resolved.modelPath, '/tmp/x');
-      expect(resolved.hostPath, p.canonicalize(p.join(paths.tmpHostRoot, 'x')));
+      expect(
+        resolved.hostPath,
+        WorkspacePaths.canonicalHostPath(p.join(paths.tmpHostRoot, 'x')),
+      );
     });
   });
 
@@ -133,14 +171,16 @@ void main() {
 
     test('uses real host paths and classifies zones', () {
       expect(paths.sandboxed, isFalse);
-      expect(paths.modelRoot, p.canonicalize(workspace.path));
+      expect(paths.modelRoot, WorkspacePaths.canonicalHostPath(workspace.path));
       expect(paths.mounts, isEmpty);
 
       final inside = paths.resolve('lib/a.dart', cwd: workspace.path);
       expect(inside.zone, WorkspaceZone.workspace);
       expect(
         inside.hostPath,
-        p.canonicalize(p.join(workspace.path, 'lib', 'a.dart')),
+        WorkspacePaths.canonicalHostPath(
+          p.join(workspace.path, 'lib', 'a.dart'),
+        ),
       );
       expect(inside.modelPath, inside.hostPath);
 
@@ -172,18 +212,27 @@ void main() {
       );
     });
 
-    test('normalizeCwd keeps native external paths for authorization', () {
-      expect(paths.normalizeCwd(null), p.canonicalize(workspace.path));
+    test('normalizeCwd falls back when the path leaves the zones', () {
+      expect(
+        paths.normalizeCwd(null),
+        WorkspacePaths.canonicalHostPath(workspace.path),
+      );
       expect(
         paths.normalizeCwd(p.join(session.path, 'out')),
-        p.canonicalize(p.join(session.path, 'out')),
+        WorkspacePaths.canonicalHostPath(p.join(session.path, 'out')),
       );
       final climb = List<String>.filled(24, '..').join('/');
-      expect(paths.normalizeCwd('$climb/etc'), p.canonicalize('/etc'));
+      expect(
+        paths.normalizeCwd('$climb/etc'),
+        WorkspacePaths.canonicalHostPath(workspace.path),
+      );
     });
 
-    test('system temp is outside the conversation temporary zone', () {
-      expect(paths.tmpHostRoot, p.join(session.path, 'tmp'));
+    test('rejects .. that leaves workspace even when landing in tmp', () {
+      expect(
+        paths.tmpHostRoot,
+        WorkspacePaths.canonicalHostPath(Directory.systemTemp.path),
+      );
       expect(
         paths.resolve('../x.txt', cwd: workspace.path).zone,
         WorkspaceZone.outside,
@@ -195,7 +244,7 @@ void main() {
       expect(resolved.zone, WorkspaceZone.workspace);
       expect(
         resolved.hostPath,
-        p.canonicalize(p.join(workspace.path, 'file.txt')),
+        WorkspacePaths.canonicalHostPath(p.join(workspace.path, 'file.txt')),
       );
     });
 
@@ -203,7 +252,7 @@ void main() {
       final tmpFile = p.join(paths.tmpHostRoot, 'scratch.txt');
       final resolved = paths.resolve(tmpFile, cwd: workspace.path);
       expect(resolved.zone, WorkspaceZone.tmp);
-      expect(resolved.hostPath, p.canonicalize(tmpFile));
+      expect(resolved.hostPath, WorkspacePaths.canonicalHostPath(tmpFile));
     });
   });
 
@@ -233,8 +282,10 @@ void main() {
       final real = await paths.resolveReal('escape', cwd: workspace.path);
       expect(real.zone, WorkspaceZone.outside);
       expect(
-        p.canonicalize(real.hostPath),
-        p.canonicalize(await outsideFile.resolveSymbolicLinks()),
+        WorkspacePaths.canonicalHostPath(real.hostPath),
+        WorkspacePaths.canonicalHostPath(
+          await outsideFile.resolveSymbolicLinks(),
+        ),
       );
 
       // Same escape through the sandboxed guest path.

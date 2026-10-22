@@ -65,19 +65,33 @@ void main() {
       expect(find.byType(BottomSheet), desktop ? findsNothing : findsOneWidget);
       expect(find.text('Markdown'), findsOneWidget);
       expect(find.text('Plain Text'), findsOneWidget);
-      expect(find.text('Export as Image'), findsOneWidget);
-
-      await tester.scrollUntilVisible(
-        find.text('Show thinking content'),
-        120,
-        scrollable: find
-            .descendant(
-              of: find.byType(ListView),
-              matching: find.byType(Scrollable),
-            )
-            .last,
+      // A format of this menu, read from the menu's own label: the PDF entry
+      // was carried out to the selection bar by a re-base and belongs here.
+      expect(find.text('PDF'), findsOneWidget);
+      expect(
+        find.text('Export selected messages as a PDF document'),
+        findsOneWidget,
       );
-      await tester.pumpAndSettle();
+
+      // The desktop dialog is height-bounded, so the fourth format is below the
+      // fold it was measured against; the list is what has to show it.
+      Future<void> reveal(String text) async {
+        await tester.scrollUntilVisible(
+          find.text(text),
+          120,
+          scrollable: find
+              .descendant(
+                of: find.byType(ListView),
+                matching: find.byType(Scrollable),
+              )
+              .last,
+        );
+        await tester.pumpAndSettle();
+      }
+
+      await reveal('Export as Image');
+      expect(find.text('Export as Image'), findsOneWidget);
+      await reveal('Show thinking content');
       IosSwitch tools() =>
           tester.widget<IosSwitch>(find.byType(IosSwitch).first);
       IosSwitch thinking() =>

@@ -81,8 +81,8 @@ regression. A regression test is added in
 | unit | scope | status |
 | --- | --- | --- |
 | #1014 | hand cursor over links, citations, inline `<a>`, inline images and `<details>` labels; I-beam over surrounding text; an unresolvable workspace image keeps the I-beam | **not carried — asked upstream, see below** |
-| #1027 | a reply carries a quote citation (rendered through markstream's citation syntax) plus its hotkey | to be ported |
-| #1028 | a PDF laid out from the document AST, no WebView and no second renderer | to be re-laid on markstream's visitor / text index |
+| #1027 | a reply carries a quote citation (rendered through markstream's citation syntax) plus its hotkey | **re-done** on markstream's selection controller — `selection_markdown_memory.dart` stores the pruned node list and renders it with `toMarkdown`; ADR-0012 |
+| #1028 | a PDF laid out from the document AST, no WebView and no second renderer | **re-done** on markstream's AST — see the section below; ADR-0013 |
 
 ## Cursor affordability (#1014) — deferred to upstream
 
@@ -122,4 +122,50 @@ per-glyph cursor region that hit-tests the pointer position and falls back to
 `text`, plus a `MouseRegion(click)` on the details summary — is requested upstream
 in [Chevey339/kelivo#1269](https://github.com/Chevey339/kelivo/issues/1269).
 When that lands, #1014 is a no-op on the next re-base.
+
+## #1028 — the PDF export, re-laid on markstream's AST
+
+The unit is not absorbed: nothing in markstream knows about a page. What *is*
+absorbed is the shape it used to read — the flattened IR — so the export was
+re-done rather than replayed, and the page itself (pagination, fonts, the chrome,
+line filling, the fake bold, the raster keys) is unchanged.
+
+| the IR the export was written against | what the page reads now |
+| --- | --- |
+| `MdDocument.blocks`, one flat node per line-ish construct | `DocumentNode.children` of typed `BlockNode`s |
+| `MdNodeKind` switch on a `kind` field | the node type itself (`ParagraphNode`, `ListNode`, `TableCellNode`, …) |
+| a quote/table/`<details>` as an *opaque* node whose source the layout re-extracts (`markdownQuoteText`, `markdownTableData`, `markdownParseDetails`, `unmaskBlockquoteFenceMarkers`) | real children (`BlockQuoteNode.children`, `TableNode.children`, `DetailsNode.children`) — no second extraction exists |
+| a fence decoded by `markdownFenceSource` + `isDiagramFence` | `CodeBlockNode.info` / `.code` + one `_diagramOf` rule shared with the raster keys |
+| nesting measured from the source line (`pdfIndentForSourceLine`) | the tree's depth, one `_indentStep` per level, capped at six |
+| a task marker parsed from `[x]`/`(x)` (`pdfTaskMarkerOf`) | `ListItemNode.checked` / `.radio`, i.e. the grammar's own reading |
+| a citation recovered from a link (`markdownCitationRefForLink`) | the grammar's `kelivo-citation` node (`NamedInlineNode`) |
+| the surface's preparation stage run by hand (`markdownPreprocessFences`, `markdownSanitizeImageLinks`) | the surface's own parse — same `ParserOptions`, same `kelivoInlineSyntaxes` |
+| `parseMarkdownImageElement` for an `alt`/`url` split | `ImageNode.destination` / children, with one size rule (`markdownImageSizeOf`) shared with the screen |
+
+Retired with this re-do: `pdfIndentForSourceLine`, `pdfTaskMarkerOf`,
+`markdownCitationRefForLink`, `markdownCitationLabel`, `parseMarkdownImageElement`
+and the whole `markdown_line_lexer.dart` family — none of them come back, because
+each was a second reading of the source that the grammar now performs once.
+`test/shared/widgets/markdown_source_preparation_test.dart` was **not** landed for
+the same reason: the stage it pinned no longer exists.
+
+Three expectations had to be re-derived from the parser's real output rather than
+carried over from `gpt_markdown`:
+
+- `Inline $$x^2$$ in prose.` is a **display formula** wherever it stands (the
+  grammar claims `$$…$$` as a block even mid-line); the old rule left a short pair
+  literal. A single `$…$` pair is the inline one, and that is what the page pins.
+- A task item reaches the page through `ListItemNode.checked` / `.radio`; the old
+  test read the marker string.
+- A heading's stand-off from its body is now carried by padding, because a
+  single-line leaf is only as tall as its face — the page keeps the reviewed ~31
+  points (decision recorded in `markdown_pdf_emitter.dart`'s `_headingTop`/
+  `_headingBottom`), which is why those two figures are not symmetric.
+
+New in this re-do, rather than ported: a callout (`NamedBlockNode` — an alert or a
+directive) is drawn as a titled band with its body, and `PdfExportRequest.alertLabels`
+carries the titles because the layout runs without a locale. An HTML block keeps
+its text (mono) when the parser could not read it, so nothing a model wrote is
+silently missing from the page.
+
 

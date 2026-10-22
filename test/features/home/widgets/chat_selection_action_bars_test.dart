@@ -57,7 +57,11 @@ void main() {
     );
     expect(find.text('Share'), findsOneWidget);
     expect(find.text('Delete'), findsOneWidget);
-    expect(find.text('TXT'), findsNothing);
+    // The export formats — PDF among them — are items of the Share menu, not
+    // buttons beside it: a format is a choice within "share this selection",
+    // and a row of one button per format competes with the two actions the bar
+    // exists for.
+    expect(find.text('PDF'), findsNothing);
     await tester.tap(find.text('Share'));
     await tester.tap(find.text('Delete'));
     expect(shares, 1);

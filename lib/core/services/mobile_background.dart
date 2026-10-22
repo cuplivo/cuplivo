@@ -8,6 +8,7 @@ import 'package:flutter/widgets.dart';
 import '../../l10n/app_localizations.dart';
 import '../models/mobile_background_settings.dart';
 import '../providers/settings_provider.dart';
+import 'conversation_link.dart';
 import 'notification_service.dart';
 
 enum BackgroundTaskPhase { requesting, generating, thinking, tool, retrying }
@@ -95,11 +96,33 @@ class MobileBackgroundCoordinator extends ChangeNotifier
     WidgetsBinding.instance.addObserver(this);
     _channel.setMethodCallHandler(_handleNativeCall);
     await _enqueue(() async {
+      // Native Android notifications carry row keys directly; they may refer to
+      // imported ids that the bounded external URL grammar cannot carry.
+      if (platform == TargetPlatform.android) {
+        final id = await _channel.invokeMethod<String>(
+          'takePendingConversation',
+        );
+        if (id != null) NotificationService.openConversation(id);
+      }
+      // Each native delivery path becomes ready when its own inbox is drained.
+      // Both platforms hand over external URLs whole, preserving message anchors.
       final pending = await _channel.invokeMethod<String>(
-        'takePendingConversation',
+        'takePendingConversationLink',
       );
-      if (pending != null) NotificationService.openConversation(pending);
+      if (pending != null) _openConversationLink(pending);
     });
+  }
+
+  /// Opens the app-scoped link the OS handed over:
+  /// `cuplivo://conversation/<id>[?message=<id>]`. Anything else is ignored —
+  /// this input is untrusted (any web page can fire the scheme).
+  void _openConversationLink(String raw) {
+    final link = ConversationLink.tryParse(raw);
+    if (link == null) return;
+    NotificationService.openConversation(
+      link.conversationId,
+      messageId: link.messageId,
+    );
   }
 
   /// Settings can finish loading after the last frame before going background.
@@ -368,6 +391,9 @@ class MobileBackgroundCoordinator extends ChangeNotifier
     if (call.method == 'openConversation') {
       final id = call.arguments as String?;
       if (id != null) NotificationService.openConversation(id);
+    } else if (call.method == 'openConversationLink') {
+      final url = call.arguments as String?;
+      if (url != null) _openConversationLink(url);
     } else if (call.method == 'cancelTasks' || call.method == 'interrupted') {
       final args = Map<String, dynamic>.from(call.arguments as Map? ?? {});
       final ids = (args['ids'] as List? ?? []).cast<String>().toSet();

@@ -93,6 +93,13 @@ units so the next re-base replays ~15 commits instead of ~34. The unit table and
   (`searchServiceNameKelivo`) is dropped, not kept beside the fork's (`searchServiceNameCuplivo`).
   Prove it before pushing: `git grep -c Kelivo master -- lib/l10n/` prints nothing, and the generated
   files are re-derived by `flutter gen-l10n` from the package root.
+- **The new baseline's tests are POSIX-only; the Windows run is what finds them.** The 4.4 replay
+  surfaced 18 failures that were all in tests upstream never runs on Windows: path assertions
+  written with `/` (five files fixed with `p.equals` / `p.normalize`), `window_manager` 0.5.2's
+  Windows-only `isFullScreen` probe at the head of `startDragging` (an unanswered channel hands the
+  await a null), and a widget test whose 2 s interleave window no longer covered the durable
+  empty-database acknowledgement the fork adds to the last deletion. None was a product defect, and
+  repairing them belongs to the baseline-repair unit, not to an optional cleanup.
 - **Back up before the force push**: `backup/master-<sha>`, plus a `backup/series-<old-baseline>` when
   a series branch is replaced, both pushed.
 

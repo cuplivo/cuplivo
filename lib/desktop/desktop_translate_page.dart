@@ -19,7 +19,14 @@ import '../features/translate/widgets/translation_output.dart';
 import '../features/model/widgets/model_select_sheet.dart'
     show showModelSelector;
 import '../features/settings/widgets/language_select_sheet.dart'
-    show LanguageOption, supportedLanguages;
+    show
+        LanguageOption,
+        TranslateLanguageActionRow,
+        effectiveTranslateLanguage,
+        showTranslateLanguageManager,
+        translateLanguageDisplayName,
+        visibleTranslateLanguages;
+import 'widgets/desktop_select_dropdown.dart';
 
 class DesktopTranslatePage extends StatefulWidget {
   const DesktopTranslatePage({super.key});
@@ -32,13 +39,16 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
   final TextEditingController _source = TextEditingController();
   final ValueNotifier<String> _output = ValueNotifier('');
 
-  LanguageOption? _targetLang;
   String? _modelProviderKey;
   String? _modelId;
 
   StreamSubscription? _subscription;
   bool _translating = false;
   late final String _requestId = 'desktop-translate-${identityHashCode(this)}';
+
+  List<DesktopSelectOption<String>>? _cachedLanguageOptions;
+  Set<String>? _cachedOptionsCodes;
+  String? _cachedOptionsLocale;
 
   @override
   void initState() {
@@ -60,15 +70,6 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
     final settings = context.read<SettingsProvider>();
     final assistant = context.read<AssistantProvider>().currentAssistant;
 
-    final savedLang = _languageForCode(settings.translateTargetLang);
-    final locale = Localizations.localeOf(context).languageCode.toLowerCase();
-    final localeLang = locale.startsWith('zh')
-        ? _languageForCode('zh-CN')
-        : _languageForCode(locale) ?? _languageForCode('en');
-    setState(() {
-      _targetLang = savedLang ?? localeLang ?? supportedLanguages.first;
-    });
-
     // Default model: translate model -> assistant's chat model -> global default
     final providerKey =
         settings.translateModelProvider ??
@@ -84,44 +85,38 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
     });
   }
 
-  LanguageOption? _languageForCode(String? code) {
-    if (code == null || code.isEmpty) return null;
-    try {
-      return supportedLanguages.firstWhere((e) => e.code == code);
-    } catch (_) {
-      return null;
-    }
+  Future<void> _onLanguageSelected(String code) async {
+    // Keep the target fixed for the running request (parity with the old
+    // disabled trigger). The option list is refreshed by the dropdown, so the
+    // emitted code is always one of the currently visible entries.
+    if (_translating) return;
+    await context.read<SettingsProvider>().setTranslateTargetLang(code);
   }
 
-  Future<void> _onLanguageChanged(LanguageOption? lang) async {
-    if (lang == null) return;
-    setState(() => _targetLang = lang);
-    await context.read<SettingsProvider>().setTranslateTargetLang(lang.code);
-  }
-
-  String _displayNameFor(AppLocalizations l10n, String code) {
-    switch (code) {
-      case 'zh-CN':
-        return l10n.languageDisplaySimplifiedChinese;
-      case 'en':
-        return l10n.languageDisplayEnglish;
-      case 'zh-TW':
-        return l10n.languageDisplayTraditionalChinese;
-      case 'ja':
-        return l10n.languageDisplayJapanese;
-      case 'ko':
-        return l10n.languageDisplayKorean;
-      case 'fr':
-        return l10n.languageDisplayFrench;
-      case 'de':
-        return l10n.languageDisplayGerman;
-      case 'it':
-        return l10n.languageDisplayItalian;
-      case 'es':
-        return l10n.languageDisplaySpanish;
-      default:
-        return code;
+  List<DesktopSelectOption<String>> _languageOptions(
+    Set<String> visibleCodes,
+    List<LanguageOption> visible,
+    String localeCode,
+  ) {
+    final cached = _cachedLanguageOptions;
+    if (cached != null &&
+        identical(_cachedOptionsCodes, visibleCodes) &&
+        _cachedOptionsLocale == localeCode) {
+      return cached;
     }
+    final l10n = AppLocalizations.of(context)!;
+    final options = [
+      for (final lang in visible)
+        DesktopSelectOption<String>(
+          value: lang.code,
+          label: translateLanguageDisplayName(l10n, lang.code),
+          leading: lang.flag,
+        ),
+    ];
+    _cachedLanguageOptions = options;
+    _cachedOptionsCodes = visibleCodes;
+    _cachedOptionsLocale = localeCode;
+    return options;
   }
 
   Future<void> _pickModel() async {
@@ -163,10 +158,20 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
 
     final cfg = settings.getProviderConfig(providerKey);
 
-    final lang = _targetLang ?? supportedLanguages.first;
+    final visible = visibleTranslateLanguages(
+      settings.translateVisibleLanguages,
+    );
+    final lang = effectiveTranslateLanguage(
+      visible: visible,
+      persistedCode: settings.translateTargetLang,
+      localeLanguageCode: Localizations.localeOf(context).languageCode,
+    );
     final prompt = settings.translatePrompt
         .replaceAll('{source_text}', text)
-        .replaceAll('{target_lang}', _displayNameFor(l10n, lang.code));
+        .replaceAll(
+          '{target_lang}',
+          translateLanguageDisplayName(l10n, lang.code),
+        );
 
     setState(() {
       _translating = true;
@@ -230,6 +235,19 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
     final cs = Theme.of(context).colorScheme;
     final compact = MediaQuery.sizeOf(context).width < 600;
     final l10n = AppLocalizations.of(context)!;
+    // Rebuild only when the visible set or the target actually changes.
+    final (visibleCodes, targetCode) = context
+        .select<SettingsProvider, (Set<String>, String?)>(
+          (s) => (s.translateVisibleLanguages, s.translateTargetLang),
+        );
+    final visible = visibleTranslateLanguages(visibleCodes);
+    final localeCode = Localizations.localeOf(context).languageCode;
+    final currentTarget = effectiveTranslateLanguage(
+      visible: visible,
+      persistedCode: targetCode,
+      localeLanguageCode: localeCode,
+    );
+    final languageOptions = _languageOptions(visibleCodes, visible, localeCode);
 
     final topBar = SizedBox(
       height: 36,

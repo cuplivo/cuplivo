@@ -406,8 +406,9 @@ class _RenderBlockColumn extends RenderFlex implements ViewportClipParticipant {
     final next = _childrenNearViewport(clips.semantics);
     final previous = _semanticChildren ?? const <RenderBox>[];
     if (next.length != previous.length ||
-        Iterable<int>.generate(next.length)
-            .any((i) => next[i] != previous[i])) {
+        Iterable<int>.generate(
+          next.length,
+        ).any((i) => next[i] != previous[i])) {
       _semanticChildren = next;
       markNeedsSemanticsUpdate();
     }

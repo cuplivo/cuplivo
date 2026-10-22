@@ -226,7 +226,8 @@ void main() {
     await tester.pumpWidget(
       host(
         MarkstreamView(
-          source: '<ol start="7"><li>First</li><li><b>Second</b></li><li>Third</li></ol>',
+          source:
+              '<ol start="7"><li>First</li><li><b>Second</b></li><li>Third</li></ol>',
           selectionController: controller,
         ),
         selectable: true,
@@ -244,7 +245,8 @@ void main() {
       await tester.pumpWidget(
         host(
           const MarkstreamView(
-            source: '<div><custom>Keep</custom><script>SECRET</script><style>SECRET</style><iframe>SECRET</iframe><p>After</p></div>',
+            source:
+                '<div><custom>Keep</custom><script>SECRET</script><style>SECRET</style><iframe>SECRET</iframe><p>After</p></div>',
           ),
         ),
       );

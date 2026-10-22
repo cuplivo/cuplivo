@@ -90,7 +90,39 @@ SyncConvAction _planConversation({
   // untouched is visible here and nowhere else.
   mineClock: mine?.updatedAtUs,
   peerClock: peers?.updatedAtUs,
+  // What the two sides last agreed on, clock included. The delete branch needs
+  // it for the same reason the announcement does: a restore writes the row back
+  // with a fresh clock and leaves the digest alone.
+  checkpointClock: checkpoint?.updatedAtUs,
 );
+
+/// Whether this device's copy was written here since the two sides last agreed
+/// on it.
+///
+/// This is the one question both readers of an agreement ask, so it is answered
+/// in one place: the plan asks it before honouring a delete this device would
+/// otherwise apply ([planRowSync]), and the hello asks it before honouring a
+/// deletion the peer announces ([SyncEngine._announcementKills]).
+///
+/// A differing digest is always "changed". When the digests agree, only the row
+/// clock can tell: a conversation's digest is computed from its message rows, so
+/// a row-only write is invisible to it. The recycle bin's restore is exactly
+/// that write — the row goes back with `now()`, the messages come back
+/// verbatim — and so is a rename that left every message alone.
+///
+/// With no clock on either side (a business row, whose digest covers the whole
+/// row; or an agreement recorded before the clock travelled) the digest is the
+/// whole answer, which is the narrower rule rather than a wrong one.
+bool copyWrittenSinceAgreement({
+  required String digest,
+  required String agreedDigest,
+  required int? clock,
+  required int? agreedClock,
+}) {
+  if (digest != agreedDigest) return true;
+  if (clock == null || agreedClock == null) return false;
+  return clock > agreedClock;
+}
 
 /// The one decision table both sync faces use: a conversation and a business
 /// row (entity or preference) differ only in what "row state" means, so the
@@ -101,14 +133,19 @@ SyncConvAction _planConversation({
 /// [mineClock] and [peerClock] are the conversation row's mutation clocks,
 /// passed only by the conversation face: its digest covers the message rows,
 /// so a change to the row itself (title, pin, selected version, extras) is
-/// otherwise invisible and would never transfer. Business rows pass no clocks
-/// because their digest already covers the whole row.
+/// otherwise invisible and would never transfer. [checkpointClock] is the row
+/// clock the two sides last agreed on, and is what keeps the delete branch from
+/// undoing a restore: the bin writes the row back with `now()` and the messages
+/// back byte-identical, so the digest still matches the agreement while the row
+/// says this device wrote here since. Business rows pass no clocks because
+/// their digest already covers the whole row.
 SyncConvAction planRowSync({
   required String? mineDigest,
   required String? peerDigest,
   required String? checkpointDigest,
   int? mineClock,
   int? peerClock,
+  int? checkpointClock,
 }) {
   if (mineDigest == null && peerDigest == null) {
     return checkpointDigest == null
@@ -124,9 +161,18 @@ SyncConvAction planRowSync({
   }
   if (peerDigest == null) {
     if (checkpointDigest == null) return SyncConvAction.iSend;
-    return mineDigest == checkpointDigest
-        ? SyncConvAction.iDelete
-        : SyncConvAction.iSend; // modified here: edit beats delete
+    // The peer deleted it and this device held the agreed state — unless it did
+    // not. A copy whose rows still match the agreement but whose row clock is
+    // newer was written here since, and an edit beats a delete here exactly as
+    // it does in the digest comparison below.
+    return copyWrittenSinceAgreement(
+          digest: mineDigest,
+          agreedDigest: checkpointDigest,
+          clock: mineClock,
+          agreedClock: checkpointClock,
+        )
+        ? SyncConvAction.iSend
+        : SyncConvAction.iDelete;
   }
   if (mineDigest == peerDigest) {
     if (mineClock != null && peerClock != null && mineClock != peerClock) {

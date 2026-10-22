@@ -179,6 +179,66 @@ void main() {
       );
     });
 
+    // The recycle bin's restore is a row-only write: the conversation row goes
+    // back with `now()` and every message row comes back with the clock it had,
+    // so the digest still matches the agreement. A digest-only delete branch
+    // removes that copy again at the next session — silently, and only once,
+    // because the entry the plan kept is gone by then.
+    test('a copy written since the agreement survives a deletion', () {
+      const agreed = 10;
+      final base = {
+        'c1': _entry(agreed, {'m1': 5}),
+      };
+      final cp = _checkpoint(base);
+      // Restored: same messages, row clock moved.
+      final restored = {
+        'c1': _entry(agreed + 1, {'m1': 5}),
+      };
+      expect(
+        planSync(
+          mine: _manifest(restored),
+          peers: _manifest({}),
+          checkpoint: cp,
+        ).single.action,
+        SyncConvAction.iSend,
+        reason: 'a copy this device wrote since the agreement is an edit',
+      );
+      // Unchanged since the agreement (same row clock): the delete stands.
+      expect(
+        planSync(
+          mine: _manifest(base),
+          peers: _manifest({}),
+          checkpoint: cp,
+        ).single.action,
+        SyncConvAction.iDelete,
+      );
+      // A clock exactly at the agreement is "no newer": the delete stands, which
+      // is the same `<=` the announcement applies.
+      expect(
+        planSync(
+          mine: _manifest({
+            'c1': _entry(agreed, {'m1': 5}),
+          }),
+          peers: _manifest({}),
+          checkpoint: cp,
+        ).single.action,
+        SyncConvAction.iDelete,
+      );
+      // An empty conversation has a constant digest, so the clock is the only
+      // signal it has — and it is enough.
+      final emptyAgreed = {'c1': _entry(agreed, const {})};
+      expect(
+        planSync(
+          mine: _manifest({'c1': _entry(agreed + 1, const {})}),
+          peers: _manifest({}),
+          checkpoint: _checkpoint(emptyAgreed),
+        ).single.action,
+        SyncConvAction.iSend,
+        reason:
+            'nothing in the message rows can move for an empty conversation',
+      );
+    });
+
     test('plan is symmetric under role swap', () {
       final base = {
         'c1': _entry(10, {'m1': 5}),
@@ -431,12 +491,35 @@ void main() {
     });
 
     test('deletions propagate only when the other side is unmodified', () {
-      // Peer deleted it; we still hold exactly what the checkpoint recorded.
+      // Peer deleted it; we still hold exactly what the checkpoint recorded. A
+      // business row passes no clocks, so the digest is the whole answer for it.
       expect(
         planRowSync(mineDigest: 'd', peerDigest: null, checkpointDigest: 'd'),
         SyncConvAction.iDelete,
       );
-      // We edited it since: edit beats delete.
+      // The conversation face passes them, and a row written since the agreement
+      // is an edit: the delete does not stand.
+      expect(
+        planRowSync(
+          mineDigest: 'd',
+          peerDigest: null,
+          checkpointDigest: 'd',
+          mineClock: 20,
+          checkpointClock: 10,
+        ),
+        SyncConvAction.iSend,
+      );
+      expect(
+        planRowSync(
+          mineDigest: 'd',
+          peerDigest: null,
+          checkpointDigest: 'd',
+          mineClock: 10,
+          checkpointClock: 10,
+        ),
+        SyncConvAction.iDelete,
+      );
+      // A digest that moved is an edit with or without clocks.
       expect(
         planRowSync(
           mineDigest: 'edited',

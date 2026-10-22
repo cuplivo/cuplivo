@@ -165,7 +165,7 @@ class WorkspaceContentSync {
   /// A file this round replaces or removes is staged here first: the version at
   /// that path is the only copy this device has of it, and a losing
   /// last-write-wins comparison is exactly the loss the bin exists for
-  /// (ADR-0015). Null in every harness that has no bin, which is why both call
+  /// (ADR-0016). Null in every harness that has no bin, which is why both call
   /// sites fall back to the plain delete.
   final RecycleService? recycle;
 

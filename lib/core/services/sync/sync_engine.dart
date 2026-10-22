@@ -2446,6 +2446,13 @@ class SyncEngine implements SyncServerHandler {
 
   /// Whether the peer's announced deletion still describes this device's copy.
   ///
+  /// The same question the plan's delete branch asks, so the same function
+  /// answers it ([copyWrittenSinceAgreement]): a copy with an identical digest
+  /// and a row clock no newer than the announcement is the copy the peer
+  /// deleted. The comparison is `<=` rather than `!=` on purpose: deleting too
+  /// much is recoverable (the copy is staged into the bin again), while keeping
+  /// too much resurrects content the peer's user deleted.
+  ///
   /// An announcement without a clock is the v7 shape: the version gate refuses
   /// such a pair, and if one ever slipped through the digest alone is the old —
   /// narrower — rule rather than a wrong one.
@@ -2454,10 +2461,12 @@ class SyncEngine implements SyncServerHandler {
     SyncManifestEntry? mine,
   ) {
     if (announced == null || mine == null) return false;
-    if (mine.digest != announced.digest) return false;
-    final agreedClock = announced.updatedAtUs;
-    if (agreedClock == null) return true;
-    return mine.updatedAtUs <= agreedClock;
+    return !copyWrittenSinceAgreement(
+      digest: mine.digest,
+      agreedDigest: announced.digest,
+      clock: mine.updatedAtUs,
+      agreedClock: announced.updatedAtUs,
+    );
   }
 
   /// Business rows a peer's deferred apply makes ambiguous. A row that peer

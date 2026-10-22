@@ -1,4 +1,4 @@
-# ADR-0015: Recycle bin — undo a deletion and a losing last-write-wins comparison, with no schema change
+# ADR-0016: Recycle bin — undo a deletion and a losing last-write-wins comparison, with no schema change
 
 **Status:** Accepted (2026-xx)
 **Deciders:** cuplivo
@@ -59,19 +59,28 @@ deleted, and would put "your deleted conversation" into a peer's storage.
    deletion paths answer with their ordinary delete — a bin that had already deleted the file on its way out
    would make that answer a lie.
 
-3. **Staging reads where the content still exists, and writes off the caller's path.**
-   `ChatDatabaseRepository.deleteConversation` — the single funnel every conversation deletion passes
-   through, including a peer's (`syncApplyPeerDeletion`) and an assistant's cascade — captures the whole
-   subtree **inside its own transaction, in one statement**: SQLite builds the rows as JSON
+3. **Staging reads where the content still exists, and everything else waits for the transaction to
+   close.** `ChatDatabaseRepository.deleteConversation` — the single funnel every conversation deletion
+   passes through, including a peer's (`syncApplyPeerDeletion`) and an assistant's cascade — captures the
+   whole subtree **inside its own transaction, in one statement**: SQLite builds the rows as JSON
    (`json_group_array` over `json_object`, from the same `currentSchemaColumns` lists the sync apply writes
    through), so the capture is consistent with exactly what the cascade is about to remove and costs the
-   delete a single round trip it does not notice. The *write* is detached: the operation hands the captured
-   rows to the bin and returns, because the bin is a net held under the operation and the operation must
-   not wait for its own net. Only the query itself is on the delete's path: turning SQLite's JSON into row
-   maps is linear in the conversation's size and happens in the detached write, because it used to run
-   inside the delete's transaction (measured on a 400-message, 800 KB conversation, best of three: the
-   hook's added latency was 19 ms before and 14 ms after, with the remaining cost being the query and the
-   string it builds — ~1 ms per 40 KB is the price of capturing inside the transaction at all).
+   delete a single round trip it does not notice. Everything after that statement waits: the funnel hands
+   the *still-encoded* capture out through `RecycleService.captureConversationDeletion`, the transaction
+   commits, and only then does `stageCapturedConversation` decode it and write the entry. The decode and the
+   entry's `jsonEncode` are both linear in the conversation's size, and the delete is something the user is
+   waiting for while the bin is only the net under it.
+
+   The first version of this said the same thing and did the opposite, in a way worth recording because it
+   is a Dart language trap rather than a slip: `_detach(() async { … })` *calls* the closure, and an `async`
+   body runs synchronously up to its first `await` — so the `jsonDecode` that was supposed to be detached
+   ran on the delete's own stack, inside its transaction. Measured on 200 messages × 5 KB: the delete cost
+   37–56 ms more with a bin than without, and the bin's `stageRows` was reached from two
+   `DatabaseConnectionUser.transaction` frames. After the split the same probe measures 7.6 ms more than the
+   no-bin baseline, of which ~4 ms is the capture query itself, and **zero** transaction frames; `_detach`
+   now schedules its closure (`Future<void>.delayed(Duration.zero, …)`) instead of invoking it, so a delete
+   returns before any of that work starts. The two runs are different machines, so what is comparable is the
+   within-run delta, not the absolute milliseconds.
    `BusinessRepository._deleteEntity` captures the row a user just removed;
    `syncDeleteEntity` / `syncDeletePreference` capture the row a peer's plan is about to delete — the only
    shape a peer's deletion takes, since an edit made here re-sends instead; the two loss points in
@@ -114,7 +123,9 @@ deleted, and would put "your deleted conversation" into a peer's storage.
 
    The deletion's tombstone is removed with the restore it recorded, and the entries that staged that
    identity are retired — all except the one a restore itself produced — so one row cannot be restored
-   twice into two competing copies.
+   twice into two competing copies. Removing the tombstone is bookkeeping, not mechanism: nothing on the
+   sync path reads tombstones (an announced deletion is derived from the checkpoint), so the restored
+   row's clock is what keeps the conversation from being announced again.
 
    **For a conversation the clock that decides is the sync digest, and the row's `now()` was inert until
    protocol v8.** The digest is computed from the message rows, so a restore that writes the row back with
@@ -124,6 +135,12 @@ deleted, and would put "your deleted conversation" into a peer's storage.
    clock beside the digest, so a copy whose digest matches but whose row is newer counts as written here
    since, which is what a restore is (ADR-0003). Nothing in the recycle bin changed for this: the restore
    already stamped `now()`; the announcement had to start reading it.
+
+   The plan table's own delete branch had to learn the same thing, and it is the case the announcement
+   cannot cover: when *this* device deleted the conversation, the peer deleted on request and has nothing
+   to announce, while the checkpoint entry survives on `peerDeletes` — so the restored copy met a plan that
+   said `iDelete` and was removed again, silently, once. Both readers now ask one function
+   (`copyWrittenSinceAgreement`), so the two faces cannot drift apart again.
 
 6. **The bin is bounded on three axes: 90 days, 256 MB, 1000 entries.** Eviction is oldest-first and runs
    when the page opens, so an install that stops deleting still shrinks, and once at the end of a staging
@@ -189,9 +206,17 @@ deleted, and would put "your deleted conversation" into a peer's storage.
     same `workspacePathWithin`, `nearestExistingAncestor` and `isReallyInsideWorkspace`, since a restored
     path arrives from the wire just as a fetched one does — is refused when the workspace itself is gone
     (`workspaceGone`: a folder no row describes is an orphan the next round removes, so putting the file
-    back would lose it again, more quietly), is skipped when the file is there again, and is stamped
-    `now()`: decision 5 applies to a file unchanged. No group: each overwrite and each deletion is its own
-    event, and nothing on the wire ties them together.
+    back would lose it again, more quietly), and is stamped `now()`: decision 5 applies to a file
+    unchanged. What it finds at the path follows decision 5's split, and this is the half that had to be
+    fixed rather than documented: an entry staged by a **deletion** is skipped when the path is occupied
+    again, but an entry staged by a **losing comparison** is *always* looking at an occupied path — the
+    landing moved the old version out and renamed the new one in — so refusing it made that entry
+    permanently unrestorable, which is the one thing the split exists to prevent. That restore now moves
+    the live file into the bin first (`overwritten`, local origin) and copies the staged bytes in after
+    it; a bin that cannot take the live version stops the restore (`failed`, nothing written) rather than
+    being written over. The sweep waits until the bytes are back, because it is the sweep that could
+    evict the entry being restored. No group: each overwrite and each deletion is its own event, and
+    nothing on the wire ties them together.
 
 11. **A conversation's unsent draft is part of its snapshot.** The row is one device-local
     `extension_entity_rows` entry (`kind = composerDraft`, id = the conversation id), and the delete removes
@@ -223,7 +248,24 @@ deleted, and would put "your deleted conversation" into a peer's storage.
   attachment the delete removed is dropped on the way back.
 - Restoring a row that a **losing comparison** staged leaves the version it displaced in the bin (decision
   5): the bin then holds the copy that is not live, which is what makes the restore reversible. That is the
-  one way a restore *grows* the bin, and it is bounded by the same caps as everything else.
+  one way a restore *grows* the bin, and it is bounded by the same caps as everything else. A workspace
+  file the merge replaced is the same case and takes the same path: the live file moves into the bin and
+  the staged bytes go back on disk.
+- The displaced copy is staged *after* the live row is written for a row, so a bin that cannot take it
+  (an unwritable directory, a full disk) leaves the live row replaced and the entry retired — the one
+  window in this feature where a restore is not undoable, and it needs the filesystem to fail at the exact
+  moment the database write succeeded. Ordering it the other way would trade that window for a worse one:
+  a row read, staged and then written after another writer had already replaced it, which stages the wrong
+  version. A file does not have the window at all: the live file is moved into the bin *before* the staged
+  bytes are copied back, so a staging that fails stops the restore with the workspace untouched.
+- Restoring a conversation this device deleted itself also survives now, and that was the harder direction:
+  the peer has nothing to announce (it deleted on request) while this device keeps the checkpoint entry, so
+  the plan's own delete branch was the thing that removed the restored copy. Both faces ask one function
+  (decision 5), which is also why a rename or a pin — a row write that leaves every message alone — now
+  survives a peer's deletion: it moves the same clock.
+- A device whose clock lags the agreement by more than a session can absorb still loses the restored copy,
+  in either direction, and it is staged into the bin again on the way out. That is the skew the session
+  report already warns about, not a hole in the rule.
 - Message-level deletion is deliberately **not** a bin operation. Deleting one message is an edit inside a
   conversation the bin still holds; a deleted conversation is recovered with its messages because they are
   part of its snapshot, not because messages are staged individually. v3 had a `message` type; this line

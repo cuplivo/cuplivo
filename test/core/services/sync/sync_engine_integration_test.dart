@@ -3952,6 +3952,54 @@ void main() {
     expect(await _conversationIds(a), isEmpty);
   });
 
+  test('a conversation this device deleted, then restored, is not deleted '
+      'again by the session that asked the peer to delete it', () async {
+    // The other direction of the restore, and the one the announcement cannot
+    // save: here *this* device deleted, so its plan was `peerDeletes` — the one
+    // branch of the advance that keeps its checkpoint entry, because dropping it
+    // would let the next session read "the peer has a conversation this device
+    // never had" and download the deleted subtree back. The entry surviving is
+    // what leaves the plan's delete branch live on the restored copy: the digest
+    // is the agreement's, the row clock is not.
+    final (a, b) = await pair(aWithRecycle: true);
+    final bin = a.recycle!;
+    await _seedConversation(a, id: 'conv-a', contents: ['a1', 'a2']);
+    await a.engine.syncWithPeer(await a.peer(b));
+    final digestAtDeletion = await a.conversationDigest('conv-a');
+
+    await a.repository.deleteConversation('conv-a');
+    await bin.settle();
+    final first = await a.engine.syncWithPeer(await a.peer(b));
+    expect(first.success, isTrue, reason: first.summary);
+    expect(await _conversationIds(b), isNot(contains('conv-a')));
+    expect(
+      (await a.store.loadCheckpoint(b.identity.deviceId)).conversations,
+      contains('conv-a'),
+      reason: 'a peerDeletes entry is kept until the peer catches up',
+    );
+
+    final entry = (await bin.list()).single;
+    expect(await bin.restore(entry), RecycleRestoreOutcome.restored);
+    expect(
+      await a.conversationDigest('conv-a'),
+      digestAtDeletion,
+      reason: 'the messages come back verbatim: only the row clock moved',
+    );
+
+    final next = await a.engine.syncWithPeer(await a.peer(b));
+    expect(next.success, isTrue, reason: next.summary);
+    expect(
+      await _conversationIds(a),
+      contains('conv-a'),
+      reason: 'a copy newer than the agreement is an edit, not a deletion',
+    );
+    expect(
+      await _conversationIds(b),
+      contains('conv-a'),
+      reason: 'the restore goes back to the peer in the same session',
+    );
+  });
+
   test('a stale conversation entry is healed by the none beat', () async {
     // An interrupted session can leave an entry older than the state both
     // devices actually hold. `none` must refresh it from local (the business

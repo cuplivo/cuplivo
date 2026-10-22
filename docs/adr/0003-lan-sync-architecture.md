@@ -396,9 +396,17 @@ database is replaced wholesale.
   (`bothSend`), which is why this is the announcement catching up rather than a new rule. The
   comparison is `<=` rather than `!=` on purpose: deleting too much is recoverable (the copy is
   staged into the bin again), while keeping too much resurrects content the peer's user deleted.
-  The plan table's own delete branch stays digest-keyed: a rename or a pin that left the messages
-  alone still loses to a peer's deletion, which is a separate question about whether a metadata edit
-  should outrank one.
+  The plan table's own delete branch was still digest-keyed, which left the mirror case open: a
+  conversation *this* device deleted, then restored, is a copy whose digest matches the agreement and
+  whose delete this device itself asked for — the peer has nothing to announce, because it deleted on
+  request, and the branch that keeps a checkpoint entry on `peerDeletes` is exactly what leaves the
+  entry live for the plan to act on. So that branch now asks the same question, through the same
+  function (`copyWrittenSinceAgreement`, in `sync_merge.dart`): digest equal and row clock newer than
+  the agreement means the copy was written here since, and the plan says `iSend`. One rule, two
+  readers, which is why the announcement could be fixed without a second rule appearing. The
+  consequence is that a rename or a pin that left every message alone now survives a peer's deletion
+  too — it moves the same row clock — and that is the plan table's existing "edit beats delete"
+  applied to the row rather than to the messages, at the same `<=` trade described above.
 - **A skill is a record plus a directory, and the acknowledgement says so.** A skill whose body
   could not be fetched has its record stripped on the receiver (a record without a body installs a
   broken skill), yet the acknowledgement reported only that the row apply succeeded — so the sender

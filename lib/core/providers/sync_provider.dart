@@ -238,7 +238,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   /// The device-local recycle bin, when the app attached one. A workspace file
   /// this device replaces or removes during a sync round is staged here first
-  /// (ADR-0015) — the one loss that used to have no net under it at all.
+  /// (ADR-0016) — the one loss that used to have no net under it at all.
   final RecycleService? _recycle;
 
   final Future<Directory> Function() _syncDirectory;

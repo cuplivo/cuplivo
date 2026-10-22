@@ -142,6 +142,19 @@ deleted, and would put "your deleted conversation" into a peer's storage.
    said `iDelete` and was removed again, silently, once. Both readers now ask one function
    (`copyWrittenSinceAgreement`), so the two faces cannot drift apart again.
 
+   **The business face was the second caller of that same rule, and it had the same hole.** A business
+   row's digest is its *content* (`entityRowDigest(payload, sortOrder)`, `businessContentDigest(value)`), so
+   a restore writes the same digest back with a new clock and the digest-only delete branch read it as
+   "unchanged". `planBusinessSync` — entities *and* synced preferences — and the skill-content plan now pass
+   the same clock pair, from manifests and checkpoint entries that already carried it. The window is
+   narrower than the conversation one for a reason worth recording: a business checkpoint *drops* its entry
+   on `peerDeletes` (`SyncEngin._advanceBusinessCheckpoint`), where the conversation face keeps it, so it
+   takes this device deleting and restoring a row, and the peer deleting the same row, all before one
+   session runs. The peer's own clock is deliberately not passed on that face: a row whose digest covers
+   its content is not something a clock-only difference should make the two sides exchange, so the
+   equal-digest branch's `bothSend` stays a conversation rule — pinned by a test, which is what keeps the
+   next caller from enabling it by accident.
+
 6. **The bin is bounded on three axes: 90 days, 256 MB, 1000 entries.** Eviction is oldest-first and runs
    when the page opens, so an install that stops deleting still shrinks, and once at the end of a staging
    burst. It used to run on *every* staged entry, and eviction starts by reading and parsing the whole
@@ -170,8 +183,15 @@ deleted, and would put "your deleted conversation" into a peer's storage.
    caps count entries, so one large assistant entry would evict the bin around it. Instead the envelope
    gains an optional `group: {id, label}`, and every conversation a cascade stages carries the same one;
    the list draws one header, names the assistant from the label, and offers a restore that loops the
-   existing per-entry path. The assistant's own row cannot carry it — it is removed by the generic list
-   persistence, not by a delete call — so it stays an ungrouped entry next to the group.
+   existing per-entry path. **The assistant's own row carries it too.** The list write that removes the
+   assistant is a delete call for the rows it drops — `synchronizeEntities` removes the row through
+   `_deleteEntity`, the same funnel a cascade uses — so the caller that decided to delete passes its group
+   down to it, and the row is staged as a member of the event rather than as a stray entry beside it. That
+   is what makes the header's button the act it promises: the assistant comes back first, then the
+   conversations that name it. It is also why the header counts **conversations** only — the assistant is a
+   member of the event, not another conversation in it — and why the header is drawn only where a
+   conversation of that group is visible (the Assistants tab shows the assistant as a card of its own
+   instead of under a header that talks about the list that tab filters out).
    Only a local cascade stamps a group: a peer's equivalent arrives as independent plan items, with
    nothing on the wire saying they were one act.
 
@@ -192,7 +212,11 @@ deleted, and would put "your deleted conversation" into a peer's storage.
    first 200 KB. What the page shows is also what its copy button copies: a second whole-body copy for that
    button would reintroduce exactly the cost the cap exists to avoid. A conversation's `body.json` is still
    parsed whole, because JSON cannot be previewed from a prefix — that is the one cost the split body shape
-   leaves, and it is bounded by the caps rather than by the page.
+   leaves, and it is bounded by the caps rather than by the page. Measured on staged conversations rather
+   than argued, on a debug desktop build: 6 ms at 0.5 MB, 15 ms at 4.1 MB and 40 ms at 16.3 MB for the read
+   the page needs before it can count the rows it draws (the review's own run of the same probe read 6, 19
+   and 49) — a frame of jank at the caps, not a stall, so the byte-file half is the only half that had to
+   be bounded.
 
 10. **A workspace file is staged by moving it, at the one landing path and behind the four gates.**
     `WorkspaceContentSync` has one landing path (`land`) and one deletion (`_deleteOne`), and both stage,
@@ -273,8 +297,11 @@ deleted, and would put "your deleted conversation" into a peer's storage.
 - A local `removePreference` (an explicit key removal) is likewise not staged; only the comparison's losers
   and the rows a user removes through their own lists are.
 - Deleting an assistant stages the assistant row and, separately, each of its conversations (the cascade
-  goes through the same delete funnel). Restoring the assistant does not itself restore its conversations:
-  they are their own entries. What joins them is the group (decision 8).
+  goes through the same delete funnel). What joins them is the group (decision 8), and all of them are in
+  it, the assistant included: **Restore all** restores the event — the assistant first, then the
+  conversations that name it — which is the one thing the header's button can promise. Restoring the
+  assistant on its own still does not resurrect its conversations: they are their own entries, and one
+  restore stays one restore.
 - Restoring a *peer's* deletion undoes it on the peer too: this device re-enters its manifest with a fresh
   row clock, the announcing peer now reads that clock beside the digest (protocol v8), so the deletion it
   made is re-learned as an edit and the conversation comes back everywhere. That is what "recover" means

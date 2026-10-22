@@ -407,6 +407,14 @@ database is replaced wholesale.
   consequence is that a rename or a pin that left every message alone now survives a peer's deletion
   too — it moves the same row clock — and that is the plan table's existing "edit beats delete"
   applied to the row rather than to the messages, at the same `<=` trade described above.
+  *Amendment (business rows):* the same branch, on the same function, had the same hole for a
+  business row or a synced preference, because their digest *is* their content: a restore writes the
+  same digest back with a new clock, so a digest-only branch deleted the recovered row again. The
+  entity, preference and skill-content planners now pass the clock pair too, from manifests and
+  checkpoint entries that already carried it. They do not pass the peer's clock, and that asymmetry
+  is the rule rather than an omission: a row whose digest covers its content is not something a
+  clock-only difference should make the two sides exchange, so the equal-digest branch's `bothSend`
+  stays what it was — a conversation-face answer to a digest that cannot see a row write.
 - **A skill is a record plus a directory, and the acknowledgement says so.** A skill whose body
   could not be fetched has its record stripped on the receiver (a record without a body installs a
   broken skill), yet the acknowledgement reported only that the row apply succeeded — so the sender

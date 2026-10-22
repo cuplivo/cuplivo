@@ -35,6 +35,12 @@ class QuickPhraseProvider with ChangeNotifier {
     }
   }
 
+  /// Re-reads quick phrases after LAN sync wrote them outside this provider.
+  Future<void> reloadAfterExternalChange() async {
+    await loadAll();
+    notifyListeners();
+  }
+
   Future<void> loadAll() async {
     try {
       _phrases = await _store.getAll();

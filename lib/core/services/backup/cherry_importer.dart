@@ -18,6 +18,7 @@ import '../../models/chat_message.dart';
 import '../../models/conversation.dart';
 import '../../models/message_part.dart';
 import '../chat/chat_service.dart';
+import '../sync/sync_store.dart';
 import '../../../utils/app_directories.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import 'backup_cancel_token.dart';
@@ -149,14 +150,29 @@ class CherryImporter {
       // settings together, and acknowledge an empty result only at commit.
       // The service can fail during post-commit cache refresh, so do not delete
       // the prepared files on error: they may already belong to the new DB.
-      await chatService.commitParsedImport(
-        businessRepository: businessRepository,
-        overwrite: mode == RestoreMode.overwrite,
-        deleteUploads: false,
-        conversationBatches: prepared.conversationBatches,
-        messagesToAppend: prepared.messagesToAppend,
-        transformBusiness: transformBusiness,
-      );
+      try {
+        await chatService.commitParsedImport(
+          businessRepository: businessRepository,
+          overwrite: mode == RestoreMode.overwrite,
+          deleteUploads: false,
+          conversationBatches: prepared.conversationBatches,
+          messagesToAppend: prepared.messagesToAppend,
+          transformBusiness: transformBusiness,
+        );
+      } finally {
+        // An overwrite import replaces the whole local history, exactly like a
+        // restore: the per-peer sync checkpoints describe rows this device no
+        // longer has, and a peer reading that absence as a deletion would delete
+        // its own copies. Resetting them and bumping the data epoch lets the
+        // paired devices re-converge from "nothing shared" instead. It runs in
+        // `finally` because the commit can fail after the new database is
+        // installed, and the reset is idempotent.
+        if (mode == RestoreMode.overwrite) {
+          await SyncStore.resetForBulkReplacement(
+            await AppDirectories.getSyncDirectory(),
+          );
+        }
+      }
     } else {
       await businessRepository.transformSnapshot(
         transformBusiness,

@@ -80,20 +80,15 @@ class KelivoLinkHandler implements LinkHandler {
 
 class KelivoImageBuilder implements ImageBuilder {
   const KelivoImageBuilder();
-  static final _dimensions = RegExp(r'^(?:(\d+)(?:x(\d+))?|x(\d+))$');
   @override
   Widget build(BuildContext context, ImageNode image, MarkstreamTheme theme) {
-    final dimensions = _dimensions.firstMatch(toPlainText(image).trim());
-    double? size(String? value) {
-      final number = double.tryParse(value ?? '');
-      return number != null && number.isFinite && number > 0 ? number : null;
-    }
+    final size = markdownImageSizeOf(toPlainText(image));
 
     return _MarkdownImage(
       theme: theme,
       url: image.destination,
-      width: size(dimensions?[1]),
-      height: size(dimensions?[2] ?? dimensions?[3]),
+      width: size?.width,
+      height: size?.height,
     );
   }
 }

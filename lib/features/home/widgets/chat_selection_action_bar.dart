@@ -15,6 +15,7 @@ class ChatSelectionActionBar extends StatelessWidget {
     required this.hasSelection,
     required this.hasMultiVersionSelection,
     required this.onShare,
+    required this.onExportPdf,
     required this.onDeleteCurrentVersions,
     required this.onDeleteAllVersions,
   });
@@ -22,6 +23,7 @@ class ChatSelectionActionBar extends StatelessWidget {
   final bool hasSelection;
   final bool hasMultiVersionSelection;
   final VoidCallback onShare;
+  final VoidCallback onExportPdf;
   final VoidCallback onDeleteCurrentVersions;
   final VoidCallback onDeleteAllVersions;
 
@@ -105,6 +107,16 @@ class ChatSelectionActionBar extends StatelessWidget {
                             label: l10n.messageMoreSheetShare,
                             color: cs.primary,
                             onTap: hasSelection ? onShare : null,
+                            dense: compact,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _ActionButton(
+                            icon: Lucide.FileType,
+                            label: l10n.chatSelectionExportPdf,
+                            color: cs.onSurfaceVariant,
+                            onTap: hasSelection ? onExportPdf : null,
                             dense: compact,
                           ),
                         ),

@@ -1,7 +1,7 @@
-import 'package:Kelivo/core/services/browser/browser_store.dart';
-import 'package:Kelivo/features/side_panel/desktop_side_panel_controller.dart';
-import 'package:Kelivo/features/side_panel/widgets/desktop_side_panel.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/services/browser/browser_store.dart';
+import 'package:Cuplivo/features/side_panel/desktop_side_panel_controller.dart';
+import 'package:Cuplivo/features/side_panel/widgets/desktop_side_panel.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 class SidePanelMemoryStore extends BrowserStore {

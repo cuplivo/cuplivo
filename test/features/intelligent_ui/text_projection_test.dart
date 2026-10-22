@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_catalog.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_state.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_catalog.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_state.dart';
 import '../../support/genui_projection_fixture.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_interaction_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_interaction_controller.dart';
 
 UiSurfaceController _controller(String body, {bool header = true}) {
   final c = UiSurfaceController(

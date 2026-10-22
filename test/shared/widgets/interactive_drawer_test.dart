@@ -1,4 +1,4 @@
-import 'package:Kelivo/shared/widgets/interactive_drawer.dart';
+import 'package:Cuplivo/shared/widgets/interactive_drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';

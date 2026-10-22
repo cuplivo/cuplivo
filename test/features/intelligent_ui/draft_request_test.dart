@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_draft_request.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_state.dart';
-import 'package:Kelivo/features/intelligent_ui/models/ui_context_attachment.dart';
-import 'package:Kelivo/utils/unicode_sanitizer.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_draft_request.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_state.dart';
+import 'package:Cuplivo/features/intelligent_ui/models/ui_context_attachment.dart';
+import 'package:Cuplivo/utils/unicode_sanitizer.dart';
 
 void main() {
   UiSurfaceController controller(String body) {

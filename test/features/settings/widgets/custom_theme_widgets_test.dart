@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/features/settings/widgets/custom_theme_widgets.dart';
+import 'package:Cuplivo/features/settings/widgets/custom_theme_widgets.dart';
 
 void main() {
   testWidgets('showAppDialog keeps horizontal insets on narrow screens', (

@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:Kelivo/core/services/network/dio_http_client.dart';
-import 'package:Kelivo/core/services/network/request_logger.dart';
-import 'package:Kelivo/core/services/network/provider_http_exception.dart';
+import 'package:Cuplivo/core/services/network/dio_http_client.dart';
+import 'package:Cuplivo/core/services/network/request_logger.dart';
+import 'package:Cuplivo/core/services/network/provider_http_exception.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;

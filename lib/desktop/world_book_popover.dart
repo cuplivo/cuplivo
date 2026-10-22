@@ -1,5 +1,6 @@
 import 'dart:math' as math;
-import 'package:Kelivo/features/chat/utils/prompt_injection_selection.dart';
+import 'package:Cuplivo/features/chat/utils/prompt_injection_selection.dart';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -8,7 +9,7 @@ import '../core/models/world_book.dart';
 import '../core/providers/world_book_provider.dart';
 import '../icons/lucide_adapter.dart';
 import '../l10n/app_localizations.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 import '../theme/design_tokens.dart';
 import 'desktop_overlay_backdrop.dart';
 

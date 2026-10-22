@@ -1,6 +1,6 @@
 import '../../intelligent_ui/host/ui_persistence_host.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_runtime_registry.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_control_region.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_runtime_registry.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_control_region.dart';
 import '../../../core/models/context_operation.dart';
 import '../../../core/models/context_compression_task.dart';
 import '../../chat/widgets/context_compression_status.dart';

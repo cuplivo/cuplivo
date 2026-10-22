@@ -6,7 +6,7 @@ import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:Kelivo/core/services/skills/skill_archive.dart';
+import 'package:Cuplivo/core/services/skills/skill_archive.dart';
 
 void main() {
   late Directory tmp;

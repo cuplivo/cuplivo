@@ -5,11 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/providers/claude/claude_container.dart';
-import 'package:Kelivo/core/services/api/providers/claude/claude_files.dart';
-import 'package:Kelivo/core/services/api/providers/claude_official.dart';
-import 'package:Kelivo/core/utils/multimodal_input_utils.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/providers/claude/claude_container.dart';
+import 'package:Cuplivo/core/services/api/providers/claude/claude_files.dart';
+import 'package:Cuplivo/core/services/api/providers/claude_official.dart';
+import 'package:Cuplivo/core/utils/multimodal_input_utils.dart';
 
 const _model = 'claude-sonnet-4-5-20250929';
 

@@ -5,8 +5,8 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:Kelivo/core/services/network/dio_http_client.dart';
-import 'package:Kelivo/core/services/network/provider_http_exception.dart';
+import 'package:Cuplivo/core/services/network/dio_http_client.dart';
+import 'package:Cuplivo/core/services/network/provider_http_exception.dart';
 
 class _Adapter implements HttpClientAdapter {
   _Adapter(this.open, {this.statusCode = 200, this.headers = const {}});

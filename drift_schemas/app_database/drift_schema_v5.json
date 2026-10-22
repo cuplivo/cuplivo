@@ -851,7 +851,7 @@
                       ">('length(CAST(state_json AS BLOB)) <= ${",
                       {
                         "lexeme": "UiBudgets",
-                        "import_uri": "package:Kelivo/features/intelligent_ui/catalog/ui_budgets.dart"
+                        "import_uri": "package:Cuplivo/features/intelligent_ui/catalog/ui_budgets.dart"
                       },
                       ".stateBytes} AND ' 'CASE WHEN json_valid(state_json) THEN ' \"json_type(state_json) IS 'object' AND \" \"json_type(state_json, '\\$.inputs') IS 'object' AND \" \"json_type(state_json, '\\$.view') IS 'object' ELSE 0 END\")"
                     ]
@@ -886,7 +886,7 @@
                       ">('length(CAST(search_text AS BLOB)) <= ${",
                       {
                         "lexeme": "UiBudgets",
-                        "import_uri": "package:Kelivo/features/intelligent_ui/catalog/ui_budgets.dart"
+                        "import_uri": "package:Cuplivo/features/intelligent_ui/catalog/ui_budgets.dart"
                       },
                       ".searchTextBytes}')"
                     ]

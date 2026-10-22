@@ -1,9 +1,9 @@
 import 'dart:convert';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/provider_request_headers.dart';
-import 'package:Kelivo/core/models/provider_oauth.dart';
-import 'package:Kelivo/core/services/auth/codex_request.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/provider_request_headers.dart';
+import 'package:Cuplivo/core/models/provider_oauth.dart';
+import 'package:Cuplivo/core/services/auth/codex_request.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 

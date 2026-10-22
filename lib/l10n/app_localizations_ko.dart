@@ -5125,12 +5125,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get aboutPageEasterEggButton => '좋아요!';
 
   @override
-  String get aboutPageKelivoSearchUnlocked => '이름 없는 문이 살짝 열렸습니다. 설정에서 찾아보세요.';
-
-  @override
-  String get aboutPageKelivoSearchAlreadyUnlocked => '이미 이 문을 열어본 적이 있습니다.';
-
-  @override
   String get aboutPageAppName => 'Kelivo';
 
   @override
@@ -6471,9 +6465,6 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get searchServicesDialogMaximumTokensInvalid =>
       '최대 토큰 수는 1024에서 32768 사이여야 합니다.';
-
-  @override
-  String get searchServiceNameKelivo => 'Kelivo';
 
   @override
   String get searchServicesDialogCountryOptional => '국가/지역 (선택 사항)';
@@ -16206,4 +16197,1321 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get workspaceEnvNativeShellSave => '저장';
+
+  @override
+  String get storageSpaceCategoryAssistantData => 'Assistants';
+
+  @override
+  String get storageSpaceSubAssistantAvatars => 'Avatars';
+
+  @override
+  String get storageSpaceSubAssistantImages => 'Images';
+
+  @override
+  String get storageSpaceSourceLabel => 'Source';
+
+  @override
+  String get storageSpaceSourceAll => 'All';
+
+  @override
+  String get storageSpaceSourceUserUpload => 'User uploads';
+
+  @override
+  String get storageSpaceSourceAssistant => 'Assistant';
+
+  @override
+  String get languageDisplayPortuguese => 'Portuguese';
+
+  @override
+  String get languageDisplayArabic => 'Arabic';
+
+  @override
+  String get languageDisplayHindi => 'Hindi';
+
+  @override
+  String get languageDisplayThai => 'Thai';
+
+  @override
+  String get languageDisplayVietnamese => 'Vietnamese';
+
+  @override
+  String get languageDisplayBengali => 'Bengali';
+
+  @override
+  String get translateLanguageManagerTitle => 'Manage Languages';
+
+  @override
+  String get translateLanguageManagerSubtitle =>
+      'Choose which languages appear in the translate target list.';
+
+  @override
+  String get translateLanguageManagerAtLeastOne =>
+      'Keep at least one language visible.';
+
+  @override
+  String get assistantEditChatSuggestionsTitle => 'Chat Suggestions';
+
+  @override
+  String get assistantEditChatSuggestionsTip =>
+      'Adds one request after each reply to propose up to three follow-ups. Off spends nothing.';
+
+  @override
+  String get assistantEditChatSuggestionsGlobalOff =>
+      'Inactive — turn on Chat Suggestions under Default Models first.';
+
+  @override
+  String get hotkeyFocusInput => 'Focus Input';
+
+  @override
+  String get hotkeyCopySelectionMarkdown => 'Copy Selection as Markdown';
+
+  @override
+  String get hotkeyReplySelection => 'Reply to Selection';
+
+  @override
+  String get compressingContext => 'Compressing context...';
+
+  @override
+  String compressContextReadoutRounds(int rounds) {
+    String _temp0 = intl.Intl.pluralLogic(
+      rounds,
+      locale: localeName,
+      other: '$rounds rounds',
+      one: '1 round',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String compressContextReadoutKeptRounds(int rounds) {
+    String _temp0 = intl.Intl.pluralLogic(
+      rounds,
+      locale: localeName,
+      other: '$rounds rounds',
+      one: '1 round',
+    );
+    return '$_temp0 + summary';
+  }
+
+  @override
+  String compressContextReadoutTokens(String tokens) {
+    return '~$tokens tokens';
+  }
+
+  @override
+  String compressContextReadoutTokensBand(String min, String max) {
+    return '~$min–$max tokens';
+  }
+
+  @override
+  String compressContextReadoutReduction(int percent) {
+    return '−$percent%';
+  }
+
+  @override
+  String get messageQuotePreviewRemove => 'Remove reply';
+
+  @override
+  String get messageQuoteTargetMissing => 'Original message unavailable';
+
+  @override
+  String get messageMoreSheetReply => 'Reply';
+
+  @override
+  String get messageMoreSheetCopyLink => 'Copy Link';
+
+  @override
+  String reasoningBudgetSheetCurrentLevel(String level) {
+    return 'Current Level: $level';
+  }
+
+  @override
+  String get chatMessageWidgetReplySelection => 'Reply';
+
+  @override
+  String get chatSelectionExportPdf => 'PDF';
+
+  @override
+  String get messageExportSheetUser => 'User';
+
+  @override
+  String get messageExportSheetPdf => 'PDF';
+
+  @override
+  String get messageExportSheetBatchPdfSubtitle =>
+      'Export selected messages as a PDF document';
+
+  @override
+  String get pdfExportDialogTitle => 'Export PDF';
+
+  @override
+  String get pdfExportDialogCancel => 'Cancel';
+
+  @override
+  String get pdfExportDialogExport => 'Export PDF';
+
+  @override
+  String get pdfExportDialogSectionContent => 'Content';
+
+  @override
+  String get pdfExportDialogSectionFonts => 'Fonts';
+
+  @override
+  String get pdfExportFontRoleBody => 'Body font';
+
+  @override
+  String get pdfExportFontRoleMono => 'Code font';
+
+  @override
+  String get pdfExportFontRoleEmoji => 'Emoji font';
+
+  @override
+  String get pdfExportFontCheck => 'Check fonts';
+
+  @override
+  String get pdfExportFontChecking => 'Checking…';
+
+  @override
+  String get pdfExportFontMissing =>
+      'No embeddable CJK font was found; CJK text may print blank.';
+
+  @override
+  String get pdfExportFontUnusable =>
+      'The chosen font could not be used; another was substituted.';
+
+  @override
+  String get pdfExportFontBuiltIn => 'Built-in font';
+
+  @override
+  String get pdfExportFontNone => 'Not embedded';
+
+  @override
+  String get pdfExportFontNeedsDownload => 'Needs download';
+
+  @override
+  String get pdfExportFontAuto => 'Automatic';
+
+  @override
+  String get pdfExportFontGroupSystem => 'System fonts';
+
+  @override
+  String get pdfExportFontGroupDownload => 'Download';
+
+  @override
+  String get pdfExportFontGroupOther => 'Other';
+
+  @override
+  String get pdfExportFontNoteCjk => 'Includes CJK';
+
+  @override
+  String get pdfExportFontNoteColour => 'Colour';
+
+  @override
+  String get pdfExportFontNoteMonochrome => 'Monochrome';
+
+  @override
+  String get pdfExportFontBuiltInNote => 'Embeds no font; CJK prints blank';
+
+  @override
+  String get pdfExportFontDownloadNote => 'Includes CJK, about 10 MB';
+
+  @override
+  String get pdfExportFontListFailed => 'Could not read the font list';
+
+  @override
+  String get pdfExportResultTitle => 'Export complete';
+
+  @override
+  String pdfExportResultSummary(Object pages, Object size) {
+    return '$pages pages · $size';
+  }
+
+  @override
+  String pdfExportResultDegraded(Object count) {
+    return '$count item(s) not fully exported';
+  }
+
+  @override
+  String pdfExportResultDegradedMath(Object count) {
+    return '$count formula(s) shown as plain text';
+  }
+
+  @override
+  String pdfExportResultDegradedDiagram(Object count) {
+    return '$count diagram(s) shown as code';
+  }
+
+  @override
+  String pdfExportResultDegradedImage(Object count) {
+    return '$count image(s) could not be read and are shown as their reference';
+  }
+
+  @override
+  String get pdfExportResultDone => 'Done';
+
+  @override
+  String get sideDrawerMenuCopyLink => 'Copy Link';
+
+  @override
+  String get conversationLinkCopied => 'Link copied';
+
+  @override
+  String get conversationLinkMissing =>
+      'This conversation isn\'t on this device.';
+
+  @override
+  String modelDetailSheetModelIdDisabledHint(String modelId) {
+    return '$modelId';
+  }
+
+  @override
+  String get modelDetailSheetSearchTool => 'Search';
+
+  @override
+  String get modelDetailSheetSearchToolDescription =>
+      'Enable Google Search integration';
+
+  @override
+  String get modelDetailSheetModelIdExistsError => 'Model ID already exists';
+
+  @override
+  String get aboutPageCuplivoSearchUnlocked =>
+      'An unnamed door opened a crack. You might find it in Settings.';
+
+  @override
+  String get aboutPageCuplivoSearchAlreadyUnlocked =>
+      'You\'ve already been through this door.';
+
+  @override
+  String get aboutPageQQGroup => 'Cuplivo Group';
+
+  @override
+  String get draftImageCropAction => 'Crop';
+
+  @override
+  String get draftImageCropFailed =>
+      'Could not crop this image. The original is unchanged.';
+
+  @override
+  String get displaySettingsPageAutoScrollIdleTitle => 'Auto-Scroll Back Delay';
+
+  @override
+  String get displaySettingsPageAutoScrollIdleSubtitle =>
+      'Wait time after user scroll before jumping to bottom';
+
+  @override
+  String get searchServiceNameCuplivo => 'Cuplivo';
+
+  @override
+  String get memorySettingsFullInjectionTypesTitle =>
+      'Always inject these types';
+
+  @override
+  String get memorySettingsFullInjectionTypesSubtitle =>
+      'Select one or more types to inject all their active memories visible to the current assistant. These types ignore the item limit and use more context and tokens.';
+
+  @override
+  String get toolApprovalApprove => 'Approve';
+
+  @override
+  String get imageSettingsPageModeTitle => 'Compression Mode';
+
+  @override
+  String get imageSettingsPageModeManual => 'Manual';
+
+  @override
+  String get imageSettingsPageModeAuto => 'Automatic';
+
+  @override
+  String get imageSettingsPageModeOff => 'Off';
+
+  @override
+  String get imageSettingsPageModeManualSubtitle =>
+      'Images are attached unchanged; open the preview to compress them manually';
+
+  @override
+  String get imageSettingsPageModeAutoSubtitle =>
+      'Images are re-encoded when attached, using the preset below';
+
+  @override
+  String get imageSettingsPageModeOffSubtitle => 'Images are never compressed';
+
+  @override
+  String get compressEditorTitle => 'Compress Image';
+
+  @override
+  String get compressEditorFormatJpeg => 'JPEG';
+
+  @override
+  String get compressEditorFormatPng => 'PNG';
+
+  @override
+  String get compressEditorFormatOriginal => 'Original';
+
+  @override
+  String get compressEditorLongEdgeLabel => 'Long edge';
+
+  @override
+  String get compressEditorLongEdgeFull => '100%';
+
+  @override
+  String get compressEditorLongEdgeHalf => '50%';
+
+  @override
+  String get compressEditorLongEdgeQuarter => '25%';
+
+  @override
+  String get compressEditorQualityLabel => 'Quality';
+
+  @override
+  String get compressEditorOriginalSide => 'Original';
+
+  @override
+  String get compressEditorEstimating => 'Estimating size…';
+
+  @override
+  String get compressEditorEstimateFailed => 'Size estimate unavailable';
+
+  @override
+  String compressEditorSavings(int percent) {
+    return '−$percent%';
+  }
+
+  @override
+  String compressEditorGrowth(int percent) {
+    return '+$percent%';
+  }
+
+  @override
+  String get compressEditorNoReencode => 'no re-encode';
+
+  @override
+  String get compressEditorDecodeFailed =>
+      'This image can\'t be previewed, so it can\'t be re-compressed.';
+
+  @override
+  String get compressEditorTooLarge =>
+      'This image is too large to open in the editor, so it can\'t be re-compressed here. It will be attached as it is.';
+
+  @override
+  String compressEditorWorkingScale(String source, int percent) {
+    return 'Source $source, loaded at $percent% to stay within memory';
+  }
+
+  @override
+  String get compressEditorCancel => 'Cancel';
+
+  @override
+  String get compressEditorApply => 'Apply';
+
+  @override
+  String get compressEditorApplyAll => 'Apply to all';
+
+  @override
+  String get compressEditorDone => 'Done';
+
+  @override
+  String get workspaceToolAllowAll => 'Allow all this session';
+
+  @override
+  String get workspaceEntryAllowAll => 'Allow all this session';
+
+  @override
+  String get workspaceEntryAllowAllSubtitle =>
+      'Shell commands in this conversation will run without approval.';
+
+  @override
+  String get recycleBinTitle => 'Recycle Bin';
+
+  @override
+  String get recycleBinManage => 'Manage recycle bin';
+
+  @override
+  String get recycleBinStorageHint =>
+      'Kept on this device only — never synced, never in a backup.';
+
+  @override
+  String get recycleBinEntriesLabel => 'items';
+
+  @override
+  String get recycleBinEmptyTitle => 'Nothing in the bin';
+
+  @override
+  String get recycleBinEmptyBody =>
+      'Conversations and assistants you delete, and settings a sync merge replaced, are kept here so you can bring them back.';
+
+  @override
+  String get recycleBinUntitled => 'Untitled';
+
+  @override
+  String get recycleBinKindConversation => 'Conversation';
+
+  @override
+  String get recycleBinKindAssistant => 'Assistant';
+
+  @override
+  String get recycleBinKindProvider => 'Provider';
+
+  @override
+  String get recycleBinKindWorldBook => 'World book';
+
+  @override
+  String get recycleBinKindMemory => 'Memory';
+
+  @override
+  String get recycleBinKindPreference => 'Setting';
+
+  @override
+  String get recycleBinKindWorkspaceFile => 'Workspace file';
+
+  @override
+  String get recycleBinKindConfig => 'Configuration';
+
+  @override
+  String get recycleBinOriginLocal => 'Deleted here';
+
+  @override
+  String get recycleBinOriginRemote => 'Deleted by sync';
+
+  @override
+  String get recycleBinReasonOverwritten => 'Replaced by a newer copy';
+
+  @override
+  String get recycleBinRestore => 'Restore';
+
+  @override
+  String get recycleBinDeleteForever => 'Delete permanently';
+
+  @override
+  String get recycleBinDeleteForeverBody =>
+      'This entry will be deleted for good and can no longer be recovered.';
+
+  @override
+  String get recycleBinClearAll => 'Empty the bin';
+
+  @override
+  String get recycleBinClearAllBody =>
+      'Every entry in the bin will be deleted for good and can no longer be recovered.';
+
+  @override
+  String get recycleBinRestored => 'Restored';
+
+  @override
+  String get recycleBinRestoreSkipped =>
+      'That item is back already, so nothing was changed';
+
+  @override
+  String get recycleBinRestoreUnreadable =>
+      'The staged copy is damaged and cannot be restored';
+
+  @override
+  String get recycleBinRestoreUnsupported =>
+      'This build cannot restore that entry';
+
+  @override
+  String get recycleBinRestoreNoWorkspace =>
+      'This file\'s workspace was deleted, so there is no folder to put it back into.';
+
+  @override
+  String get recycleBinRestoreFailed => 'Could not restore that entry';
+
+  @override
+  String get recycleBinFilterAll => 'All';
+
+  @override
+  String get recycleBinFilterConversation => 'Conversations';
+
+  @override
+  String get recycleBinFilterAssistants => 'Assistants';
+
+  @override
+  String get recycleBinFilterSettings => 'Settings';
+
+  @override
+  String get recycleBinFilterFiles => 'Files';
+
+  @override
+  String get recycleBinCancel => 'Cancel';
+
+  @override
+  String get recycleBinInfoTitle => 'About the recycle bin';
+
+  @override
+  String get recycleBinInfoBody =>
+      'What you delete here — a conversation, an assistant, a provider, a memory, a setting — is kept on this device so it can be brought back.\n\nThe bin never syncs and never goes into a backup. Entries are kept for 90 days, or until the bin passes 256 MB or 1000 entries; past either limit the oldest go first.\n\nBringing something back writes it as of now, so it is not immediately replaced by whatever won last time.';
+
+  @override
+  String get recycleBinInfoClose => 'Got it';
+
+  @override
+  String recycleBinGroupHeader(Object count, Object name) {
+    return '$count conversations deleted together with “$name”';
+  }
+
+  @override
+  String get recycleBinRestoreGroup => 'Restore all';
+
+  @override
+  String recycleBinGroupRestored(Object restored, Object skipped) {
+    return 'Restored $restored, $skipped already back';
+  }
+
+  @override
+  String recycleBinGroupRestoreFailed(Object failed, Object restored) {
+    return 'Restored $restored, $failed could not be restored';
+  }
+
+  @override
+  String get recycleBinOpenDetail => 'View details';
+
+  @override
+  String get recycleBinDetailKey => 'Identity';
+
+  @override
+  String get recycleBinDetailOrigin => 'Origin';
+
+  @override
+  String get recycleBinDetailWhen => 'Deleted';
+
+  @override
+  String get recycleBinDetailReplacedWhen => 'Replaced';
+
+  @override
+  String get recycleBinDetailSize => 'Size';
+
+  @override
+  String get recycleBinDetailModified => 'File modified';
+
+  @override
+  String get recycleBinDetailContent => 'Contents';
+
+  @override
+  String recycleBinDetailRows(Object count) {
+    return '$count rows';
+  }
+
+  @override
+  String recycleBinDetailTruncated(Object shown) {
+    return 'Too large — showing the first $shown';
+  }
+
+  @override
+  String get recycleBinDetailBinary => 'Binary file — no preview';
+
+  @override
+  String get recycleBinDetailUnreadable =>
+      'The staged copy is damaged; its contents cannot be read';
+
+  @override
+  String get recycleBinDetailCopyJson => 'Copy JSON';
+
+  @override
+  String get recycleBinDetailCopyText => 'Copy text';
+
+  @override
+  String get recycleBinDetailCopied => 'Copied';
+
+  @override
+  String recycleBinDetailAssistantGone(Object name) {
+    return 'This conversation belonged to “$name”, which is no longer on this device. After restoring it you will need to choose an assistant for it.';
+  }
+
+  @override
+  String get settingsPageLanSync => 'LAN Sync';
+
+  @override
+  String get lanSyncThisDevice => 'This device';
+
+  @override
+  String get lanSyncListenerStarting => 'Starting listener…';
+
+  @override
+  String get lanSyncListenerNotRunning => 'Listener not running';
+
+  @override
+  String lanSyncListenerFailed(Object error) {
+    return 'Listener failed to start: $error';
+  }
+
+  @override
+  String get lanSyncPairSectionTitle => 'Pair a device';
+
+  @override
+  String get lanSyncPairIntro =>
+      'Two devices on the same LAN: one shows the QR code, the other scans it.';
+
+  @override
+  String get lanSyncPairFirstSyncNote =>
+      'After pairing, the first sync starts automatically and can take a while. Keep the desktop app running and this app in the foreground on mobile.';
+
+  @override
+  String get lanSyncShowCode => 'Show pairing QR';
+
+  @override
+  String get lanSyncEnterCode => 'Scan or enter code';
+
+  @override
+  String get lanSyncPairingCode => 'Pairing code';
+
+  @override
+  String lanSyncPairingExpiresIn(Object time) {
+    return 'Expires in $time';
+  }
+
+  @override
+  String get lanSyncPairingEndpointHint => 'Enter this on the other device';
+
+  @override
+  String get lanSyncPairingNoIpHint =>
+      'No LAN address was found. The other device can still reach this one by its IP or hostname.';
+
+  @override
+  String get lanSyncHostLabel => 'Address';
+
+  @override
+  String get lanSyncPortLabel => 'Port';
+
+  @override
+  String get lanSyncPairButton => 'Pair';
+
+  @override
+  String get lanSyncPairAgain => 'Pair again';
+
+  @override
+  String get lanSyncPairingBusy => 'Pairing…';
+
+  @override
+  String lanSyncPairSuccess(Object name) {
+    return 'Paired with $name';
+  }
+
+  @override
+  String get lanSyncPairErrorInvalidPin =>
+      'Wrong pairing code, or the other device\'s pairing window is closed.';
+
+  @override
+  String get lanSyncPairErrorInvalidAddress =>
+      'Enter the other device\'s address and port.';
+
+  @override
+  String get lanSyncPairErrorUnreachable =>
+      'Could not reach the device. Check the address and port, and that both devices are on the same network.';
+
+  @override
+  String get lanSyncPairErrorNoCertificate =>
+      'The other device did not identify itself. Pairing aborted.';
+
+  @override
+  String get lanSyncPairErrorIdMismatch =>
+      'The other device\'s identity could not be verified. Pairing aborted.';
+
+  @override
+  String get lanSyncPairErrorNoListener =>
+      'The sync listener on this device is not running yet.';
+
+  @override
+  String lanSyncPairErrorUnknown(Object error) {
+    return 'Pairing failed: $error';
+  }
+
+  @override
+  String get lanSyncScanQr => 'Scan pairing QR';
+
+  @override
+  String get lanSyncPairQrCaption =>
+      'Scan to pair, or enter the details below on the other device';
+
+  @override
+  String lanSyncPairUpdatedSnackbar(Object name) {
+    return 'Pairing with $name updated';
+  }
+
+  @override
+  String get lanSyncPairErrorFingerprintMismatch =>
+      'The device\'s certificate does not match the scanned code. Pairing aborted.';
+
+  @override
+  String get lanSyncPairErrorNoEndpointInQr =>
+      'The code carries no address. Enter one below to pair.';
+
+  @override
+  String get lanSyncPairErrorNotPairingQr =>
+      'This is not a Cuplivo pairing code.';
+
+  @override
+  String get lanSyncPairErrorInvalidQr => 'The pairing code could not be read.';
+
+  @override
+  String get lanSyncPairErrorQrBadVersion =>
+      'This pairing code is from a newer version. Update the app and try again.';
+
+  @override
+  String get lanSyncClosePairing => 'Close pairing window';
+
+  @override
+  String get lanSyncPairedDevices => 'Paired devices';
+
+  @override
+  String get lanSyncWorkspaces => 'Workspaces';
+
+  @override
+  String get lanSyncWorkspaceTip =>
+      'Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files or 200 MB don\'t sync their files. A workspace\'s record always syncs — the switch governs only its files: a folder with the switch off is never sent, and a sync never removes it.';
+
+  @override
+  String lanSyncWorkspaceSyncing(Object count) {
+    return '$count syncing files';
+  }
+
+  @override
+  String get lanSyncWorkspaceStatusSyncing => 'Syncing';
+
+  @override
+  String get lanSyncWorkspaceStatusTooLarge => 'Too large';
+
+  @override
+  String get lanSyncWorkspaceStatusUnreadable => 'Unreadable';
+
+  @override
+  String get lanSyncWorkspaceStatusOff => 'Off';
+
+  @override
+  String lanSyncWorkspaceFiles(Object count) {
+    return '$count files';
+  }
+
+  @override
+  String lanSyncWorkspaceFilesAtLeast(Object count) {
+    return '$count+ files';
+  }
+
+  @override
+  String lanSyncWorkspaceSizeAtLeast(Object size) {
+    return '$size+';
+  }
+
+  @override
+  String get lanSyncNoDevices =>
+      'No paired devices yet. Pair one to start syncing.';
+
+  @override
+  String get lanSyncPlatformAndroid => 'Android';
+
+  @override
+  String get lanSyncPlatformIos => 'iOS';
+
+  @override
+  String get lanSyncPlatformWindows => 'Windows';
+
+  @override
+  String get lanSyncPlatformMacos => 'macOS';
+
+  @override
+  String get lanSyncPlatformLinux => 'Linux';
+
+  @override
+  String get lanSyncPlatformUnknown => 'Unknown device';
+
+  @override
+  String lanSyncLastSyncedAt(Object time) {
+    return 'Last synced $time';
+  }
+
+  @override
+  String get lanSyncNeverSynced => 'Never synced';
+
+  @override
+  String get lanSyncJustSynced => 'Just synced';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n min ago';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n h ago';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n d ago';
+  }
+
+  @override
+  String get lanSyncSyncNow => 'Sync now';
+
+  @override
+  String get lanSyncOnline => 'Online';
+
+  @override
+  String get lanSyncOnlineFromSession => 'Online — the last sync connected';
+
+  @override
+  String get lanSyncOfflineFromSession =>
+      'Offline — the last sync could not connect';
+
+  @override
+  String lanSyncPhaseConnectingTo(Object address) {
+    return 'Connecting to $address…';
+  }
+
+  @override
+  String get lanSyncOffline => 'Offline';
+
+  @override
+  String get lanSyncUpToDate => 'Up to date';
+
+  @override
+  String get lanSyncPhaseConnecting => 'Connecting…';
+
+  @override
+  String get lanSyncPhaseExchanging => 'Comparing data…';
+
+  @override
+  String get lanSyncPhaseSending => 'Sending changes…';
+
+  @override
+  String get lanSyncPhaseReceiving => 'Receiving changes…';
+
+  @override
+  String lanSyncPhaseFiles(Object done, Object total) {
+    return 'Downloading files… ($done/$total)';
+  }
+
+  @override
+  String get lanSyncPhaseFilesNoTotal => 'Downloading files…';
+
+  @override
+  String get lanSyncPhaseApplying => 'Applying changes…';
+
+  @override
+  String get lanSyncFirstSyncHint =>
+      'First sync in progress — keep both devices awake and Cuplivo open (in the foreground on mobile) until it finishes.';
+
+  @override
+  String get lanSyncRename => 'Rename';
+
+  @override
+  String get lanSyncRenameTitle => 'Device name';
+
+  @override
+  String get lanSyncEditAddress => 'Edit address';
+
+  @override
+  String get lanSyncAddressCopied => 'Address copied';
+
+  @override
+  String get lanSyncUnpair => 'Unpair';
+
+  @override
+  String lanSyncUnpairConfirmTitle(Object name) {
+    return 'Unpair $name?';
+  }
+
+  @override
+  String get lanSyncUnpairConfirmBody =>
+      'Conversations stay on both devices. Syncing with it stops until you pair again.';
+
+  @override
+  String lanSyncReportSent(Object n) {
+    return '$n sent';
+  }
+
+  @override
+  String lanSyncReportReceived(Object n) {
+    return '$n received';
+  }
+
+  @override
+  String lanSyncReportMessagesUpserted(Object n) {
+    return '+$n messages';
+  }
+
+  @override
+  String lanSyncReportMessagesDeleted(Object n) {
+    return '-$n messages';
+  }
+
+  @override
+  String lanSyncReportConversationsDeleted(Object n) {
+    return '-$n conversations';
+  }
+
+  @override
+  String lanSyncReportDeferred(Object n) {
+    return '$n deferred';
+  }
+
+  @override
+  String lanSyncReportEntities(Object n) {
+    return '$n entities';
+  }
+
+  @override
+  String lanSyncReportPreferences(Object n) {
+    return '$n preferences';
+  }
+
+  @override
+  String lanSyncReportBlobsWithSize(Object n, Object size) {
+    return '$n files · $size';
+  }
+
+  @override
+  String lanSyncReportBlobs(Object n) {
+    return '$n files';
+  }
+
+  @override
+  String lanSyncReportSkills(Object n) {
+    return '$n skills';
+  }
+
+  @override
+  String lanSyncReportSkillConflicts(Object n) {
+    return '$n skill edits replaced';
+  }
+
+  @override
+  String lanSyncReportBlobsMissing(Object n) {
+    return '$n files missing on the other device';
+  }
+
+  @override
+  String lanSyncReportWorkspaceFiles(Object count) {
+    return '$count workspace files';
+  }
+
+  @override
+  String lanSyncReportWorkspaceFilesWithSize(Object count, Object size) {
+    return '$count workspace files · $size';
+  }
+
+  @override
+  String lanSyncReportWorkspaceRemoved(Object count) {
+    return '-$count workspace files';
+  }
+
+  @override
+  String lanSyncReportWorkspaceConflicts(Object count) {
+    return '$count workspace file edits replaced';
+  }
+
+  @override
+  String lanSyncReportWorkspaceMissing(Object count) {
+    return '$count workspace files could not be applied';
+  }
+
+  @override
+  String lanSyncReportWorkspacesOmitted(Object count) {
+    return '$count workspaces not syncing files';
+  }
+
+  @override
+  String lanSyncReportWorkspacesKept(Object count) {
+    return '$count workspace folders kept (switch off)';
+  }
+
+  @override
+  String lanSyncReportRowsLost(Object n) {
+    return '$n local rows replaced by newer versions on the peer (recoverable in the recycle bin)';
+  }
+
+  @override
+  String lanSyncReportClockSkew(Object n) {
+    return 'Clocks differ by ~$n min — fix the device clock, then sync again';
+  }
+
+  @override
+  String get lanSyncReportUnreachable =>
+      'Sync failed: the other device could not be reached. It may be offline or on another network — rescan its QR code, or edit its address on the card.';
+
+  @override
+  String get lanSyncReportNoEndpoint =>
+      'Sync failed: no address is stored for the other device. Rescan its QR code, or enter the address on its card.';
+
+  @override
+  String get lanSyncReportTimeout =>
+      'Sync failed: the other device stopped responding.';
+
+  @override
+  String get lanSyncReportPeerError =>
+      'Sync failed: the other device reported an error.';
+
+  @override
+  String get lanSyncReportInternal => 'Sync failed. See the logs for details.';
+
+  @override
+  String get lanSyncRefusedPeerSchemaNewer =>
+      'The other device\'s database is newer. Update this device first, then sync again.';
+
+  @override
+  String get lanSyncRefusedProtocolUnknown =>
+      'The other device speaks a different sync protocol. Update the app on both devices.';
+
+  @override
+  String get lanSyncRefusedNotPaired =>
+      'This device and the other one no longer agree on this pairing — it was unpaired there, or a re-pairing did not finish on both sides. Pair again on both devices.';
+
+  @override
+  String get lanSyncRefusedIdentityMismatch =>
+      'The other device presented a mismatched identity. Pair again on both devices.';
+
+  @override
+  String get lanSyncRefusedBusy =>
+      'Another sync session is in progress. Try again shortly.';
+
+  @override
+  String get lanSyncFirewallTitle => 'Windows Firewall';
+
+  @override
+  String lanSyncFirewallHint(Object port) {
+    return 'The inbound rule for port $port needs one-time administrator approval.';
+  }
+
+  @override
+  String get lanSyncFirewallFix => 'Allow access (UAC)';
+
+  @override
+  String get lanSyncFirewallFixed => 'Inbound access allowed.';
+
+  @override
+  String lanSyncArrivalToast(Object name) {
+    return 'Synced with $name';
+  }
+
+  @override
+  String get lanSyncArrivalDetails => 'Details';
+
+  @override
+  String get lanSyncNever => 'Never';
+
+  @override
+  String get lanSyncTemporarilyUnreachable => 'Can\'t reach right now';
+
+  @override
+  String get lanSyncListening => 'Listening';
+
+  @override
+  String get lanSyncCopy => 'Copy';
+
+  @override
+  String get lanSyncMoreActions => 'More actions';
+
+  @override
+  String get lanSyncEndpointTip =>
+      'One tile per address: tap the name to rename it, tap the latency for details — when it was last measured, how many syncs it has carried, when it was added. Edit or delete the address there.';
+
+  @override
+  String get lanSyncJustNow => 'Just now';
+
+  @override
+  String get lanSyncShowAddresses => 'Addresses';
+
+  @override
+  String get lanSyncPairTrustTip =>
+      'Use a code only on a network you trust: it stops a passive eavesdropper, not a machine in the middle. The QR carries the other device\'s certificate fingerprint, which is why it is the safer half.';
+
+  @override
+  String get lanSyncNoAddress => 'No address is remembered for this device.';
+
+  @override
+  String get lanSyncAddAddress => 'Add address';
+
+  @override
+  String lanSyncAddressLimit(Object count) {
+    return 'This device already remembers $count addresses for that device. Remove one before adding another.';
+  }
+
+  @override
+  String get lanSyncRenameEndpointTitle => 'Address name';
+
+  @override
+  String get lanSyncRenameEndpointHint => 'e.g. Home network';
+
+  @override
+  String get lanSyncEndpointLatency => 'Latency';
+
+  @override
+  String get lanSyncEndpointLastMeasured => 'Last measured';
+
+  @override
+  String get lanSyncEndpointLastReached => 'Last connected';
+
+  @override
+  String get lanSyncEndpointSuccessCount => 'Syncs';
+
+  @override
+  String get lanSyncEndpointAddedAt => 'Added';
+
+  @override
+  String lanSyncEndpointSuccessTimes(Object n) {
+    return '$n times';
+  }
+
+  @override
+  String get lanSyncDeleteEndpoint => 'Delete this address';
+
+  @override
+  String get lanSyncEndpointUnreachable => 'Not reachable';
+
+  @override
+  String get lanSyncSupersededByPeer =>
+      'The other device is running this sync.';
+
+  @override
+  String get assistantEditProactiveCareEnableTitle => 'Proactive Care';
+
+  @override
+  String get assistantEditProactiveCareDefaultDescription =>
+      'Default for conversations without an override';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      'Messages used for time decisions';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      'Maximum number of recent conversation messages sent to the model when deciding the next proactive message time';
+
+  @override
+  String get assistantEditProactiveCareConversationTimesTitle =>
+      'Conversation next-letter times';
+
+  @override
+  String get assistantEditProactiveCareNoEligibleConversations =>
+      'No enabled conversations for this assistant';
+
+  @override
+  String assistantEditProactiveCareConversationTimeFuture(String time) {
+    return 'Future · $time';
+  }
+
+  @override
+  String assistantEditProactiveCareConversationTimeExpired(String time) {
+    return 'Expired · $time';
+  }
+
+  @override
+  String get assistantEditProactiveCareConversationTimeUnset => 'Unset';
+
+  @override
+  String get assistantEditProactiveCarePermissionsTitle => 'Android readiness';
+
+  @override
+  String get assistantEditProactiveCareNotificationsTitle => 'Notifications';
+
+  @override
+  String get assistantEditProactiveCareExactAlarmTitle => 'Exact alarms';
+
+  @override
+  String get assistantEditProactiveCareAutoStartTitle => 'Auto-start';
+
+  @override
+  String get assistantEditProactiveCareBatteryTitle =>
+      'Battery optimization exemption';
+
+  @override
+  String get assistantEditProactiveCarePermissionRequired => 'Required';
+
+  @override
+  String get assistantEditProactiveCarePermissionRecommended => 'Recommended';
+
+  @override
+  String get assistantEditProactiveCarePermissionReady => 'Ready';
+
+  @override
+  String get assistantEditProactiveCarePermissionMissing => 'Tap to grant';
+
+  @override
+  String get assistantEditProactiveCarePermissionManual => 'Manual';
+
+  @override
+  String get assistantEditProactiveCarePermissionUnknown => 'Unknown';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeTitle =>
+      'Next proactive message time';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeUnset => 'Not set';
+
+  @override
+  String get assistantEditProactiveCarePromptTitle => 'Proactive care prompt';
+
+  @override
+  String get assistantEditProactiveCarePromptHint =>
+      'Prompt used when the assistant proactively sends a message';
+
+  @override
+  String get assistantEditProactiveCarePromptDefault =>
+      'Based on the assistant\'s character settings, conversation context, and the current time, send a message to the user.';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptTitle =>
+      'Decision time instruction prompt';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptDefault =>
+      'You are the director of a role-playing scenario, responsible for deciding when the assistant should next proactively message the user.\n\n[Feature description]\n· Proactive messaging: the assistant can send a message to the user at a scheduled time without waiting for the user to speak first.\n· If no proactive message time is set, the assistant cannot send any message while the user is silent.\n· Evaluate the currently scheduled next message time: keep it if no adjustment is needed; otherwise change it.\n\n[Note]\n· Only consider information visible from the assistant\'s perspective, not the user\'s.\n\n[Considerations]\n1. The assistant should proactively check in or greet the user after waking up, finishing a task, arriving safely at the dorm, etc.\n2. If the context mentions the assistant missed the user\'s messages due to sleeping or being busy, schedule a message for when the assistant wakes up or finishes.\n3. If the context mentions the assistant needs to supervise or remind the user at a specific time, schedule the message for that time.\n4. When a topic is unfinished, assume the user never replies after the assistant\'s last message — decide when the assistant should proactively follow up.\n\n[Examples]\n1. The user messaged at midnight saying they have insomnia and plan to wake at 10:30, but the assistant sleeps normally and wakes at 8:30. Set the proactive message time to the assistant\'s wake-up time.\n2. The user and assistant are discussing an exam. At 8:30 the last message is a question from the assistant. Per rule 4, assume the user never replies — the assistant should follow up within 10 minutes.';
+
+  @override
+  String get assistantEditProactiveCareDateTimePickerTitle =>
+      'Choose date and time';
+
+  @override
+  String get assistantEditProactiveCareTimeMustBeFuture =>
+      'Choose a time in the future.';
+
+  @override
+  String get conversationProactiveCareTitle => 'Conversation proactive care';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOn =>
+      'Following assistant setting: On';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOff =>
+      'Following assistant setting: Off';
+
+  @override
+  String get conversationProactiveCareExplicitOn => 'Conversation setting: On';
+
+  @override
+  String get conversationProactiveCareExplicitOff =>
+      'Conversation setting: Off';
+
+  @override
+  String get conversationProactiveCareRestoreFollowing =>
+      'Follow assistant setting';
+
+  @override
+  String get conversationProactiveCareClearTime => 'Clear next message time';
+
+  @override
+  String get conversationProactiveCareUpdateFailed =>
+      'Couldn\'t update conversation proactive care.';
+
+  @override
+  String get defaultModelPageProactiveCareModelTitle =>
+      'Ta\'s Letter Decision Model';
+
+  @override
+  String get defaultModelPageProactiveCareModelSubtitle =>
+      'Model used to decide when the assistant should proactively message';
+
+  @override
+  String get proactiveCareFailedNotificationBody =>
+      'Couldn\'t generate the proactive care message. Open the app to check the model settings and network.';
+
+  @override
+  String get proactiveCareLetterArrivalBody =>
+      'A letter has arrived. Open the app to read it.';
+
+  @override
+  String get assistantEditPageRoleplayTab => 'Roleplay';
+
+  @override
+  String get assistantEditProactiveCareFeatureTitle => 'Their Letter';
 }

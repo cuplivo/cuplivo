@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/provider/utils/provider_test_failure.dart';
-import 'package:Kelivo/features/provider/widgets/provider_test_details.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/features/provider/utils/provider_test_failure.dart';
+import 'package:Cuplivo/features/provider/widgets/provider_test_details.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 void main() {
   test('HTTP failure keeps status and reason separate from server detail', () {

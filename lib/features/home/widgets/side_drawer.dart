@@ -1,4 +1,4 @@
-import 'package:Kelivo/features/chat/widgets/tool_permission_widgets.dart';
+import 'package:Cuplivo/features/chat/widgets/tool_permission_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform, listEquals;
@@ -55,7 +55,7 @@ import '../utils/model_display_helper.dart';
 import 'assistant_avatar.dart';
 import 'assistant_entry_actions.dart';
 import 'sidebar_selection_bars.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import '../../../shared/widgets/section_card.dart';
 
 class SideDrawer extends StatefulWidget {

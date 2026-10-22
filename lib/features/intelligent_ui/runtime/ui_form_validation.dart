@@ -1,7 +1,7 @@
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_catalog.dart';
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_ir.dart';
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_validation.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_resolved_node.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_catalog.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_ir.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_validation.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_resolved_node.dart';
 
 enum UiFieldError {
   required,

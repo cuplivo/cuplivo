@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_surface.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_text_input.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_surface.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_text_input.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
 import '../test/support/genui_scenario_host.dart';
 import '../test/support/message_test_services.dart';
 
@@ -223,10 +223,10 @@ void main() {
         phases.add('native-selection');
         ready(
           'replace',
-          'Type kelivo with the real English keyboard to replace the selection.',
+          'Type cuplivo with the real English keyboard to replace the selection.',
         );
         await until(
-          () => surface.captureRead().inputs['name'] == 'kelivo',
+          () => surface.captureRead().inputs['name'] == 'cuplivo',
           'Native replacement did not preserve selection semantics',
         );
         phases.add('native-replacement');

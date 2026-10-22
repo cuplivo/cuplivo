@@ -6,11 +6,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:mcp_client/mcp_client.dart' as mcp;
-import 'package:Kelivo/core/services/sandbox/ios_ish_runtime.dart';
-import 'package:Kelivo/core/services/sandbox/workspace_channel.dart';
-import 'package:Kelivo/core/services/workspace/workspace_runtime.dart';
-import 'package:Kelivo/core/services/mcp/workspace_stdio_transport.dart';
-import 'package:Kelivo/core/services/mcp/workspace_stdio_command.dart';
+import 'package:Cuplivo/core/services/sandbox/ios_ish_runtime.dart';
+import 'package:Cuplivo/core/services/sandbox/workspace_channel.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_runtime.dart';
+import 'package:Cuplivo/core/services/mcp/workspace_stdio_transport.dart';
+import 'package:Cuplivo/core/services/mcp/workspace_stdio_command.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();

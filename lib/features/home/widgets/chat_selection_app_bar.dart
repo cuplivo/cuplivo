@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 import '../../../desktop/macos_window_drag_area.dart';
 import '../../../l10n/app_localizations.dart';

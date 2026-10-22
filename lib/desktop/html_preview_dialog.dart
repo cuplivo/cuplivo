@@ -11,7 +11,7 @@ import '../icons/lucide_adapter.dart';
 import '../shared/widgets/snackbar.dart';
 import '../shared/widgets/ios_tactile.dart';
 import 'dart:convert';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 Future<void> showHtmlPreviewDesktopDialog(
   BuildContext context, {

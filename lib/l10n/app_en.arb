@@ -77,7 +77,7 @@
   "storageSpaceCategoryRestoreTraces": "Restore Traces",
   "storageSpaceCategoryDisplacedDatabases": "Set-Aside Databases",
   "storageSpaceSubDisplacedDatabases": "Kept before an automatic rebuild",
-  "storageSpaceClearDisplacedDatabasesConfirmMessage": "Delete these set-aside databases? Kelivo kept them when it rebuilt its database, and they may be the only surviving copy of those chats and settings. This cannot be undone.",
+  "storageSpaceClearDisplacedDatabasesConfirmMessage": "Delete these set-aside databases? Cuplivo kept them when it rebuilt its database, and they may be the only surviving copy of those chats and settings. This cannot be undone.",
   "storageSpaceRestoreTracesHint": "Previous data snapshots kept after completed restores. Clearing them does not affect the current app data.",
   "storageSpaceClearRestoreTracesButton": "Clear Restore Traces",
   "storageSpaceClearDisplacedDatabasesButton": "Delete Set-Aside Databases",
@@ -441,7 +441,7 @@
   "assistantEditContextMessagesDescription": "How many recent messages to keep in context",
   "assistantEditStreamOutputTitle": "Stream Output",
   "assistantEditStreamOutputDescription": "Enable streaming responses",
-  "assistantEditThinkingBudgetTitle": "Thinking",
+  "assistantEditThinkingBudgetTitle": "Thinking Budget",
   "assistantEditReasoningFollowDefault": "Follow model default",
   "assistantEditReasoningClampedSubtitle": "The actual level is clamped to what each model supports",
   "assistantEditConfigureButton": "Configure",
@@ -704,9 +704,9 @@
   "@backupPageChooseBackupFolder": {
     "description": "Title of the iOS folder picker for saving a local backup outside the app container."
   },
-  "backupPageChooseExternalFolder": "Choose iCloud Drive or a folder outside On My iPhone > Kelivo. Files in the Kelivo folder are deleted with the app. The backup was not saved.",
+  "backupPageChooseExternalFolder": "Choose iCloud Drive or a folder outside On My iPhone > Cuplivo. Files in the Cuplivo folder are deleted with the app. The backup was not saved.",
   "@backupPageChooseExternalFolder": {
-    "description": "Error shown when an iOS local backup destination is inside the app container. No file is copied and the backup is not counted as successful. Ask the user to choose a folder that survives deleting Kelivo."
+    "description": "Error shown when an iOS local backup destination is inside the app container. No file is copied and the backup is not counted as successful. Ask the user to choose a folder that survives deleting Cuplivo."
   },
   "backupPageFilesLabel": "Files and Images",
   "backupPageScopeTitle": "Backup and import content",
@@ -739,35 +739,34 @@
   "backupPageTestDone": "Test done",
   "backupPageTestConnection": "Test",
   "backupPageRestartRequired": "Restart Required",
-  "backupPageRestartContent": "Import successful. Restart Kelivo to apply it safely.",
-  "backupPageRestartContentWithSkipped": "Import completed, but {count} conversations with invalid message ordering were skipped. Restart Kelivo to apply the imported data safely.",
+  "backupPageRestartContent": "Import successful. Restart Cuplivo to apply it safely.",
+  "backupPageRestartContentWithSkipped": "Import completed, but {count} conversations with invalid message ordering were skipped. Restart Cuplivo to apply the imported data safely.",
   "@backupPageRestartContentWithSkipped": {
     "placeholders": {
       "count": {
         "type": "int"
       }
-    },
-    "description": "Dialog body after import when some conversations were skipped due to invalid message ordering; {count} is the number skipped."
+    }
   },
-  "restartAppFailedMessage": "Kelivo could not restart automatically. Fully close it, then open it again.",
+  "restartAppFailedMessage": "Cuplivo could not restart automatically. Fully close it, then open it again.",
   "backupRestoreRolledBackTitle": "Restore was rolled back",
-  "backupRestoreRolledBackContent": "The restore could not be completed. Kelivo verified and kept your previous data.",
+  "backupRestoreRolledBackContent": "The restore could not be completed. Cuplivo verified and kept your previous data.",
   "backupRestoreDirectoryBlockedTitle": "Restore is waiting for a folder",
   "backupRestoreDirectoryBlockedContent": "Windows could not move the folder below. Close terminals, editors, or other programs using it, then continue restoring. If it is still blocked, check that your account can move the folder. Your restore progress has been kept.",
   "backupRestoreContinueButton": "Continue restore",
   "backupRestoreFailureTitle": "Restore requires attention",
-  "backupRestoreFailureContent": "Kelivo could not verify a complete old or new data set, so chat data was not opened. Close Kelivo and try again. If this repeats, keep the diagnostic code for support.",
-  "backupRestoreBusinessLeaseUnavailableTitle": "Kelivo is already running",
-  "backupRestoreBusinessLeaseUnavailableContent": "Kelivo's data is still in use by another app process. Close any other Kelivo window, then restart. Your chat data has not been opened by this process.",
+  "backupRestoreFailureContent": "Cuplivo could not verify a complete old or new data set, so chat data was not opened. Close Cuplivo and try again. If this repeats, keep the diagnostic code for support.",
+  "backupRestoreBusinessLeaseUnavailableTitle": "Cuplivo is already running",
+  "backupRestoreBusinessLeaseUnavailableContent": "Cuplivo's data is still in use by another app process. Close any other Cuplivo window, then restart. Your chat data has not been opened by this process.",
   "restoreProgressTitle": "Restoring your backup",
-  "restoreProgressWarning": "Keep Kelivo open until this finishes. If you close it now, the next launch starts this over.",
+  "restoreProgressWarning": "Keep Cuplivo open until this finishes. If you close it now, the next launch starts this over.",
   "restoreProgressStageCheckingBackup": "Checking the backup",
   "restoreProgressStagePreservingCurrentData": "Preserving your current data",
   "restoreProgressStageInstallingBackup": "Installing the backup",
   "restoreProgressStageVerifying": "Verifying",
   "restoreProgressStageRollingBack": "Restoring your previous data",
   "restoreProgressStageFinishing": "Finishing up",
-  "backupRestoreFailureRestartButton": "Restart Kelivo",
+  "backupRestoreFailureRestartButton": "Restart Cuplivo",
   "backupRestoreFailureCopyButton": "Copy diagnostic code",
   "backupRestoreFailureCopied": "Diagnostic code copied",
   "backupRestoreFailureDiagnostic": "Diagnostic code: {code}",
@@ -787,9 +786,9 @@
   "startupRecoveryExportSucceeded": "A copy of your data was saved.",
   "startupRecoveryExportFailed": "Could not export a copy of your data.",
   "startupRecoveryRepairFailed": "Repair could not complete. Your data is preserved; choose a validated copy or export your data for further diagnosis.",
-  "startupRecoveryResetFailed": "Reset failed. Fully close Kelivo, then open it again.",
+  "startupRecoveryResetFailed": "Reset failed. Fully close Cuplivo, then open it again.",
   "startupRecoveryResetDialogTitle": "Start with an empty chat list?",
-  "startupRecoveryResetDialogContent": "This will not recover your previous chats. Kelivo will keep the current database and existing copies, and start a new empty chat list. To get your chats back, cancel and choose a local copy.",
+  "startupRecoveryResetDialogContent": "This will not recover your previous chats. Cuplivo will keep the current database and existing copies, and start a new empty chat list. To get your chats back, cancel and choose a local copy.",
   "startupRecoveryResetDialogConfirm": "Keep copies and start fresh",
   "startupRecoveryResetDialogCancel": "Cancel",
   "startupRecoveryWhatFailed": "What failed",
@@ -865,13 +864,13 @@
   "startupRecoveryIntegrityMissing": "No database file was found in the data folder.",
   "startupRecoveryIntegrityFailed": "The integrity check could not run.",
   "startupRecoveryDangerZone": "Other options",
-  "startupRecoveryDangerBody": "A fresh start removes the current data from view. Kelivo will preserve the old database and existing copies for recovery. Export a data copy first if possible.",
+  "startupRecoveryDangerBody": "A fresh start removes the current data from view. Cuplivo will preserve the old database and existing copies for recovery. Export a data copy first if possible.",
   "startupRecoveryResetAcknowledge": "I choose to continue with an empty chat list without recovering my chats now.",
-  "startupDatabaseUpdateRequiredTitle": "Update Kelivo to continue",
-  "startupDatabaseUpdateRequiredContent": "The chat database on this device was created by a newer version of Kelivo and cannot be opened by this version. Your data has not been changed. Install the latest version of Kelivo, then open it again.",
+  "startupDatabaseUpdateRequiredTitle": "Update Cuplivo to continue",
+  "startupDatabaseUpdateRequiredContent": "The chat database on this device was created by a newer version of Cuplivo and cannot be opened by this version. Your data has not been changed. Install the latest version of Cuplivo, then open it again.",
   "startupDatabaseUpdateRequiredDowngradeTitle": "If you need an older version",
   "startupDatabaseUpdateRequiredDowngradeIntro": "This version cannot open the database on this device. If you must keep using an older version, follow the steps below. Do not delete or overwrite the data here until you have a backup.",
-  "startupDatabaseUpdateRequiredDowngradeStep1": "Install and open the latest Kelivo, then export a backup from Settings → Backup.",
+  "startupDatabaseUpdateRequiredDowngradeStep1": "Install and open the latest Cuplivo, then export a backup from Settings → Backup.",
   "startupDatabaseUpdateRequiredDowngradeStep2": "Open {url} and convert that backup to the older version you want to use.",
   "@startupDatabaseUpdateRequiredDowngradeStep2": {
     "placeholders": {
@@ -906,12 +905,12 @@
   "backupPageSelectImportMode": "Select Import Mode",
   "backupPageSelectImportModeDescription": "Choose a restore mode. The switches in Backup Management apply to this import.",
   "backupPageOverwriteMode": "Complete Overwrite",
-  "backupPageOverwriteModeDescription": "Replace the selected components; keep unselected components and unrelated local settings. Replacing chats also clears local unsent drafts.",
+  "backupPageOverwriteModeDescription": "Replace the selected components; keep unselected components and unrelated local settings",
   "backupPageMergeMode": "Merge",
   "backupPageMergeModeDescription": "Keep local data and add backup data. Identical conversations are skipped and conflicting conversations receive new IDs.",
   "backupPageRestore": "Restore",
   "backupPageForwardCompatTitle": "Backup is from a newer version",
-  "backupPageForwardCompatBody": "This backup was created by a newer version of Kelivo (data format {backupVersion}; this version supports {currentVersion}), and it does not say whether older versions can read it.\n\nYou can continue: anything this version does not recognise will be skipped, and the backup file itself is not modified. But if the newer version changed how existing data is stored, some content may be imported incorrectly.\n\nUpdating Kelivo first is the safer choice.",
+  "backupPageForwardCompatBody": "This backup was created by a newer version of Cuplivo (data format {backupVersion}; this version supports {currentVersion}), and it does not say whether older versions can read it.\n\nYou can continue: anything this version does not recognise will be skipped, and the backup file itself is not modified. But if the newer version changed how existing data is stored, some content may be imported incorrectly.\n\nUpdating Cuplivo first is the safer choice.",
   "@backupPageForwardCompatBody": {
     "placeholders": {
       "backupVersion": {
@@ -920,12 +919,11 @@
       "currentVersion": {
         "type": "int"
       }
-    },
-    "description": "Long warning in the forward-compatibility dialog; {backupVersion} and {currentVersion} are schema version numbers, explaining risks of importing a newer backup."
+    }
   },
   "backupPageForwardCompatContinue": "Import anyway",
   "backupPageForwardCompatCancel": "Cancel",
-  "backupPageSchemaTooNewMessage": "This backup was created by a newer version of Kelivo and cannot be read by this version. Please update Kelivo and try again.",
+  "backupPageSchemaTooNewMessage": "This backup was created by a newer version of Cuplivo and cannot be read by this version. Please update Cuplivo and try again.",
   "backupPageBackupUploaded": "Backup uploaded",
   "backupPageBackup": "Backup",
   "backupPageExporting": "Exporting...",
@@ -1013,16 +1011,15 @@
   "backupPageSave": "Save",
   "backupPageBackupNow": "Backup Now",
   "backupPageLocalBackup": "Local Backup",
-  "backupPageIosSystemBackupNote": "Kelivo's local data is excluded from iCloud device backups. Before changing devices or deleting the app, back up to iCloud Drive or another folder outside Kelivo. Files in On My iPhone > Kelivo are deleted with the app.",
+  "backupPageIosSystemBackupNote": "Cuplivo's local data is excluded from iCloud device backups. Before changing devices or deleting the app, back up to iCloud Drive or another folder outside Cuplivo. Files in On My iPhone > Cuplivo are deleted with the app.",
   "backupPageImportFromCherryStudio": "Import from Cherry Studio",
-  "backupPageCherryStudioUnsupportedBackupVersion": "This backup uses Cherry Studio format version {version}, which Kelivo cannot import yet. Export from Cherry Studio v1 instead, or wait for a Kelivo update that supports Cherry Studio v2 backups.",
+  "backupPageCherryStudioUnsupportedBackupVersion": "This backup uses Cherry Studio format version {version}, which Cuplivo cannot import yet. Export from Cherry Studio v1 instead, or wait for a Cuplivo update that supports Cherry Studio v2 backups.",
   "@backupPageCherryStudioUnsupportedBackupVersion": {
     "placeholders": {
       "version": {
         "type": "String"
       }
-    },
-    "description": "Error message shown when a Cherry Studio backup uses format version {version} that Kelivo cannot import; advises exporting from Cherry Studio v1 or waiting for v2 support."
+    }
   },
   "backupPageImportFromChatbox": "Import from Chatbox",
   "backupReminderSectionTitle": "Backup Reminder",
@@ -1107,8 +1104,8 @@
   "compressContextModelLabel": "Model",
   "compressContextModelUnset": "Select a model",
   "compressContextKeepRecentMessages": "Keep recent turns",
-  "compressContextKeepCountLabel": "Recent user messages",
-  "compressContextKeepAllMessages": "Keeping that many covers all messages — nothing to compress",
+  "compressContextKeepCountLabel": "Keep recent rounds",
+  "compressContextKeepAllMessages": "Keeping that many covers all rounds — nothing to compress",
   "compressContextEstimatePreview": "Summarize {summarized} chars, keep {kept} chars verbatim → about {minTokens}–{maxTokens} tokens (original about {totalTokens} tokens)",
   "@compressContextEstimatePreview": {
     "description": "Keep-recent compression preview: summarized/kept char counts and the estimated result token band",
@@ -2271,7 +2268,7 @@
   "searchServicesPageWebFetchProviderSubtitle": "Uses this service's API key and quota",
   "searchServicesPageWebFetchOff": "Off",
   "searchServicesPageWebFetchOffSubtitle": "Search only, without reading pages",
-  "searchServicesPageWebFetchFooter": "With web search on, the model can also read full pages. When the search service can't read pages, local reading is used, which can't handle pages that need JavaScript or block bots.\n\nIf you use the page reader configured here, disable the built-in @kelivo/fetch in Settings → MCP to avoid overlapping tools. The page reader configured here will still work.",
+  "searchServicesPageWebFetchFooter": "With web search on, the model can also read full pages. When the search service can't read pages, local reading is used, which can't handle pages that need JavaScript or block bots.\n\nIf you use the page reader configured here, disable the built-in @cuplivo/fetch in Settings → MCP to avoid overlapping tools. The page reader configured here will still work.",
   "searchServicesPageWebFetchSupported": "Can read web pages",
   "searchServicesPageMaxResults": "Max Results",
   "searchServicesPageTimeoutSeconds": "Timeout (seconds)",
@@ -2471,9 +2468,7 @@
   "searchSettingsSheetNoServicesMessage": "No services. Add from Search Services.",
   "aboutPageEasterEggMessage": "Thanks for exploring! \n (No egg yet)",
   "aboutPageEasterEggButton": "Nice!",
-  "aboutPageKelivoSearchUnlocked": "An unnamed door opened a crack. You might find it in Settings.",
-  "aboutPageKelivoSearchAlreadyUnlocked": "You've already been through this door.",
-  "aboutPageAppName": "Kelivo",
+  "aboutPageAppName": "Cuplivo",
   "aboutPageAppDescription": "Open-source AI Assistant",
   "aboutPageNoQQGroup": "No QQ group yet",
   "aboutPageVersion": "Version",
@@ -2510,9 +2505,9 @@
   "aboutPageGithub": "GitHub",
   "aboutPageLicense": "License",
   "aboutPageJoinQQGroup": "Join our QQ Group",
-  "aboutPageQQGroupOne": "Kelivo Group 1",
-  "aboutPageQQGroupTwo": "Kelivo Group 2",
-  "aboutPageQQGroupThree": "Kelivo Group 3",
+  "aboutPageQQGroupOne": "Cuplivo Group 1",
+  "aboutPageQQGroupTwo": "Cuplivo Group 2",
+  "aboutPageQQGroupThree": "Cuplivo Group 3",
   "aboutPageJoinDiscord": "Join us on Discord",
   "displaySettingsPageShowUserAvatarTitle": "Show User Avatar",
   "displaySettingsPageShowUserAvatarSubtitle": "Display user avatar in chat messages",
@@ -2567,10 +2562,8 @@
   "@displaySettingsPageEnableImageCropperTitle": {
     "description": "Toggle title in image settings, also used as the cropper toolbar title, enabling image cropping after picking from gallery or camera."
   },
-  "displaySettingsPageEnableImageCropperSubtitle": "Crop images after selecting from gallery or camera",
-  "@displaySettingsPageEnableImageCropperSubtitle": {
-    "description": "Toggle subtitle explaining images can be cropped after selecting from gallery or camera."
-  },
+  "displaySettingsPageEnableImageCropperSubtitle": "Show a Crop action when previewing an unsent image",
+  "@displaySettingsPageEnableImageCropperSubtitle": {},
   "displaySettingsPageKeepSidebarOpenOnAssistantTapTitle": "Keep sidebar open when selecting assistant",
   "displaySettingsPageKeepSidebarOpenOnTopicTapTitle": "Keep sidebar open when selecting topic",
   "displaySettingsPageKeepAssistantListExpandedOnSidebarCloseTitle": "Don't collapse assistant list when closing sidebar",
@@ -2943,7 +2936,7 @@
     },
     "description": "Error snackbar shown when saving an image fails; {error} is the error detail."
   },
-  "settingsShare": "Kelivo - Open Source AI Assistant",
+  "settingsShare": "Cuplivo - Open Source AI Assistant",
   "searchProviderBingLocalDescription": "Uses web scraping to fetch Bing results. No API key required; may be unstable.",
   "searchProviderDuckDuckGoDescription": "Privacy-focused DuckDuckGo search via DDGS. No API key required; supports region selection.",
   "searchProviderBraveDescription": "Independent search engine by Brave. Privacy-focused with no tracking or profiling.",
@@ -3006,7 +2999,6 @@
   "searchServicesDialogLlmContext": "LLM Context",
   "searchServicesDialogMaximumTokens": "Maximum tokens",
   "searchServicesDialogMaximumTokensInvalid": "Maximum tokens must be between 1024 and 32768.",
-  "searchServiceNameKelivo": "Kelivo",
   "searchServicesDialogCountryOptional": "Country/region (optional)",
   "searchServicesDialogLanguageOptional": "Language (optional)",
   "searchServicesDialogTimeFilterOptional": "Time filter (optional)",
@@ -3112,7 +3104,7 @@
     "description": "Status text in the Health tool row showing how many health data types are selected out of the total; {selected} and {total} are counts."
   },
   "healthDataSettingsTitle": "Health Data",
-  "healthDataSettingsDescription": "HealthKit signals available to the current assistant in daily conversation. Switches control what Kelivo may try to read; iOS still manages actual Health access.",
+  "healthDataSettingsDescription": "HealthKit signals available to the current assistant in daily conversation. Switches control what Cuplivo may try to read; iOS still manages actual Health access.",
   "healthDataSettingsBadge": "{selected}/{total} on",
   "@healthDataSettingsBadge": {
     "placeholders": {
@@ -3754,7 +3746,7 @@
   "legacyMemoryCopy": "Copy",
   "legacyMemoryCopied": "Copied",
   "legacyMemoryExport": "Export",
-  "legacyMemoryExportTitle": "Kelivo legacy memory export",
+  "legacyMemoryExportTitle": "Cuplivo legacy memory export",
   "legacyMemoryAssistantHeader": "Assistant: {name}",
   "@legacyMemoryAssistantHeader": {
     "placeholders": {
@@ -4187,8 +4179,8 @@
     "description": "Template for each generated message in the many-messages test; {role} is the sender role and {index} the message number."
   },
   "migrationIntroTitle": "Upgrade Chat Storage",
-  "migrationIntroSubtitle": "Kelivo is moving chat history to a faster SQLite database. The upgrade runs before the app opens so your data stays consistent.",
-  "migrationBackupNote": "Before migration starts, Kelivo exports a ZIP backup with settings, chat history, and local files.",
+  "migrationIntroSubtitle": "Cuplivo is moving chat history to a faster SQLite database. The upgrade runs before the app opens so your data stays consistent.",
+  "migrationBackupNote": "Before migration starts, Cuplivo exports a ZIP backup with settings, chat history, and local files.",
   "migrationPerformanceNote": "After migration, startup, history loading, and search use SQLite indexes for smoother long-chat performance.",
   "migrationSourceDatabaseLabel": "Hive",
   "migrationTargetDatabaseLabel": "SQLite",
@@ -4200,9 +4192,9 @@
   "migrationSkipBackupOption": "Skip this backup",
   "migrationSkipBackupDescription": "Only select this if you already have a verified backup. Migration will start immediately.",
   "migrationBackingUpTitle": "Backing Up",
-  "migrationBackingUpSubtitle": "Exporting settings, chat history, uploaded files, images, and fonts. Keep Kelivo open until this finishes.",
+  "migrationBackingUpSubtitle": "Exporting settings, chat history, uploaded files, images, and fonts. Keep Cuplivo open until this finishes.",
   "migrationMigratingTitle": "Migrating to SQLite",
-  "migrationMigratingSubtitle": "Writing conversations and messages in batches so large histories do not overload memory. Keep Kelivo in the foreground until migration finishes.",
+  "migrationMigratingSubtitle": "Writing conversations and messages in batches so large histories do not overload memory. Keep Cuplivo in the foreground until migration finishes.",
   "migrationBackingUpDetail": "Backing up {fileName}",
   "@migrationBackingUpDetail": {
     "placeholders": {
@@ -4236,13 +4228,13 @@
   "migrationStepMigrate": "Migrate",
   "migrationStepComplete": "Done",
   "migrationCompleteTitle": "Upgrade Complete",
-  "migrationCompleteSubtitle": "Your chat history is now stored in SQLite. Restart Kelivo to enter the upgraded app.",
+  "migrationCompleteSubtitle": "Your chat history is now stored in SQLite. Restart Cuplivo to enter the upgraded app.",
   "migrationConversationCount": "Conversations",
   "migrationMessageCount": "Messages",
   "migrationConvertedCount": "Converted",
   "migrationMalformedCount": "Malformed",
   "migrationMissingFilesCount": "Missing files",
-  "migrationRestartButton": "Restart Kelivo",
+  "migrationRestartButton": "Restart Cuplivo",
   "migrationFailedTitle": "Migration Failed",
   "migrationFailedSubtitle": "The original Hive data is still intact. Any backup that finished earlier is unchanged. Review the reason below, then retry.",
   "migrationUnknownError": "Unknown migration error.",
@@ -4250,7 +4242,7 @@
   "migrationRetryButton": "Retry Migration",
   "migrationSkipButton": "Skip Migration and Start Fresh",
   "migrationSkipDialogTitle": "Skip migration?",
-  "migrationSkipDialogMessage": "Kelivo will start with an empty chat database. Your old chat history stays on disk (renamed with a .retired suffix) but will NOT be migrated and will not appear in the app. Use your backup ZIP if you need to recover it later.",
+  "migrationSkipDialogMessage": "Cuplivo will start with an empty chat database. Your old chat history stays on disk (renamed with a .retired suffix) but will NOT be migrated and will not appear in the app. Use your backup ZIP if you need to recover it later.",
   "migrationSkipDialogCancel": "Cancel",
   "migrationSkipDialogConfirm": "Skip and Start Fresh",
   "migrationChatsExportDegradedNote": "The chats.json export was skipped because of an error. The backup ZIP still contains the raw Hive files with your complete chat history.",
@@ -4426,7 +4418,7 @@
   "messageStyleSettingsPageRoleAssistantHint": "Assistant settings also apply to thinking, tool-call, and translation cards.",
   "localSnapshotSectionTitle": "Local Copies",
   "localSnapshotEnabledTitle": "Keep local copies",
-  "localSnapshotEnabledSubtitle": "Kelivo periodically saves a copy of its database on this device, so it is never the only one.",
+  "localSnapshotEnabledSubtitle": "Cuplivo periodically saves a copy of its database on this device, so it is never the only one.",
   "localSnapshotIntervalTitle": "How often",
   "localSnapshotIntervalAutomatic": "Automatic",
   "localSnapshotIntervalAutomaticDetail": "Daily, less often as the database grows",
@@ -4498,7 +4490,7 @@
   "localSnapshotCopiesTitle": "Local Copies",
   "localSnapshotCopiesEmpty": "No local copies yet",
   "localSnapshotCopiesEmptyHint": "A copy is saved automatically as your data changes, and one is always saved before a restore.",
-  "localSnapshotCopiesScopeNote": "Local copies live on this device only. They protect against damage to your data inside the app, not against losing the device or uninstalling Kelivo — use WebDAV or S3 backup for that.",
+  "localSnapshotCopiesScopeNote": "Local copies live on this device only. They protect against damage to your data inside the app, not against losing the device or uninstalling Cuplivo — use WebDAV or S3 backup for that.",
   "localSnapshotOriginAutomatic": "Automatic",
   "localSnapshotOriginManual": "Saved by you",
   "localSnapshotOriginBeforeRestore": "Before a restore",
@@ -4523,14 +4515,13 @@
   "localSnapshotActionPin": "Keep this copy",
   "localSnapshotActionUnpin": "Stop keeping",
   "localSnapshotRestoreTitle": "Restore this copy?",
-  "localSnapshotRestoreMessage": "Your current chats and settings will be replaced by this copy from {when}. A copy of the current chats and settings is saved first. Unsent drafts are excluded from copies and will be cleared.",
+  "localSnapshotRestoreMessage": "Your current chats and settings will be replaced by this copy from {when}. A copy of what you have now is saved first, so this can be undone.",
   "@localSnapshotRestoreMessage": {
     "placeholders": {
       "when": {
         "type": "String"
       }
-    },
-    "description": "Confirmation body warning that current chats/settings will be replaced by the copy from {when}, a safety copy is saved first, and unsent drafts are cleared."
+    }
   },
   "localSnapshotRestorePreparing": "Preparing copy",
   "localSnapshotDeleteTitle": "Delete this copy?",
@@ -4937,7 +4928,7 @@
     "description": "Message stating a newer sandbox version is available, with {version} substituted."
   },
   "workspaceEnvUpToDate": "You're up to date",
-  "workspaceEnvRestartBanner": "Restart Kelivo to finish",
+  "workspaceEnvRestartBanner": "Restart Cuplivo to finish",
   "workspaceEnvDetectingMirrors": "Detecting fastest mirrors…",
   "workspaceEnvApplyingMirror": "Applying {category} mirror…",
   "@workspaceEnvApplyingMirror": {
@@ -5008,7 +4999,7 @@
   "workspaceEnvChipInstallingIndeterminate": "Installing…",
   "workspaceEnvChipError": "Sandbox error",
   "workspaceEnvChipRestart": "Restart required",
-  "workspaceEnvNativeExplanation": "On desktop, Kelivo uses your system shell instead of a Linux sandbox.",
+  "workspaceEnvNativeExplanation": "On desktop, Cuplivo uses your system shell instead of a Linux sandbox.",
   "workspaceEnvNativeShellPath": "Shell: {path}",
   "@workspaceEnvNativeShellPath": {
     "placeholders": {
@@ -5537,7 +5528,7 @@
   },
   "workspaceDesktopFolderPath": "Folder path",
   "workspaceDesktopFolderMissing": "Choose an existing folder or enter its absolute path.",
-  "workspaceDesktopManagedHint": "Kelivo creates and manages a folder for this project.",
+  "workspaceDesktopManagedHint": "Cuplivo creates and manages a folder for this project.",
   "workspaceDesktopHostHint": "Files and commands use this computer.",
   "workspaceDesktopSearch": "Search workspaces",
   "workspaceDesktopNoResults": "No matching workspaces",
@@ -5619,7 +5610,7 @@
   "workspaceExternalMount": "Mount external folder",
   "workspaceExternalMountSubtitle": "Selected folders are mounted at /mounts/<name> and shared across workspaces. AI tools, Shell and the file browser can access them. Up to 10 folders.",
   "workspaceExternalStorageTitle": "Allow file access",
-  "workspaceExternalStorageMessage": "To read and write external folders in the workspace and Shell, allow Kelivo to manage files in Android settings. On Android 11 or later, enable All files access. Then select an on-device folder to mount.",
+  "workspaceExternalStorageMessage": "To read and write external folders in the workspace and Shell, allow Cuplivo to manage files in Android settings. On Android 11 or later, enable All files access. Then select an on-device folder to mount.",
   "workspaceExternalGrantAccess": "Grant access",
   "workspaceExternalLocalOnly": "Android can mount on-device folders only. This document provider does not expose a local folder to Shell.",
   "workspaceExternalUnavailable": "The external folder is unavailable. Check its storage connection and permissions, then select the folder again to restore access.",
@@ -5686,7 +5677,7 @@
   "assistantEditGradientPreview": "Preview",
   "assistantEditGradientNextFrame": "Another frame",
   "backgroundSettingsTitle": "Background tasks",
-  "backgroundTaskTitle": "Kelivo task",
+  "backgroundTaskTitle": "Cuplivo task",
   "backgroundCompleted": "Generation complete",
   "backgroundFailed": "Generation failed. Open the chat for details.",
   "backgroundCancelled": "Generation cancelled",
@@ -5727,7 +5718,7 @@
   "backgroundFinishUntilForeground": "Until returning to the app",
   "backgroundFinishVisibilityDetail": "Applies to the Android capsule and iOS Lock Screen completion card. Returning to the app clears completed status; the maximum is 15 minutes. Cancellation dismisses immediately.",
   "backgroundOverlayIcon": "Floating icon",
-  "backgroundIconDefault": "Kelivo icon",
+  "backgroundIconDefault": "Cuplivo icon",
   "backgroundIconImage": "Choose image",
   "backgroundIconEmoji": "Choose Emoji",
   "backgroundPermissionsTitle": "Permissions and system settings",
@@ -5795,19 +5786,18 @@
   "mcpImportPreview": "Preview",
   "mcpImportConfirm": "Import",
   "startupRecoverySnapshotTitle": "Recover from a local copy",
-  "startupRecoverySnapshotBody": "Choose a snapshot on this device to recover your chats and settings, even when the database cannot open. Do not uninstall Kelivo: uninstalling also removes these snapshots.",
+  "startupRecoverySnapshotBody": "Choose a snapshot on this device to recover your chats and settings, even when the database cannot open. Do not uninstall Cuplivo: uninstalling also removes these snapshots.",
   "startupRecoverySnapshotEmpty": "No database snapshots were found on this device. Export your data before trying other recovery actions.",
   "startupRecoverySnapshotButton": "Choose a copy to recover",
-  "startupRecoverySnapshotConfirm": "Restore chats and settings from {when}? Changes made after this snapshot will not be included. Existing attachment files and the snapshot will be kept. Kelivo will restart to complete the restore.",
+  "startupRecoverySnapshotConfirm": "Restore chats and settings from {when}? Changes made after this snapshot will not be included. Existing attachment files and the snapshot will be kept. Cuplivo will restart to complete the restore.",
   "startupRecoverySnapshotFailed": "Could not prepare the snapshot restore: {reason}",
-  "startupRecoverySnapshotReady": "The snapshot is ready. Restart Kelivo to complete the restore.",
+  "startupRecoverySnapshotReady": "The snapshot is ready. Restart Cuplivo to complete the restore.",
   "@startupRecoverySnapshotConfirm": {
     "placeholders": {
       "when": {
         "type": "String"
       }
-    },
-    "description": "Confirmation dialog text asking to restore chats and settings from a snapshot at {when}, noting later changes are excluded and Kelivo will restart."
+    }
   },
   "@startupRecoverySnapshotFailed": {
     "placeholders": {
@@ -5839,7 +5829,7 @@
   "scheduledTasksPermission": "Alarms & reminders",
   "scheduledTasksPermissionDetail": "Allow exact alarms to run tasks at your chosen time. Enabled tasks will wait until permission is granted.",
   "scheduledTasksPermissionAction": "Allow",
-  "scheduledTasksReliability": "Keep Kelivo unrestricted in battery settings for more reliable execution. Force stopping the app cancels alarms until you reopen it. Missed runs are skipped; tasks follow the device time zone.",
+  "scheduledTasksReliability": "Keep Cuplivo unrestricted in battery settings for more reliable execution. Force stopping the app cancels alarms until you reopen it. Missed runs are skipped; tasks follow the device time zone.",
   "scheduledTasksExecutionDetail": "Results are saved in chats. A completion notification previews the reply and opens the conversation when tapped. Runs stop after 10 minutes or when user input or tool approval is needed.",
   "scheduledTasksRunNow": "Run now",
   "scheduledTasksHistory": "Run history",
@@ -5904,7 +5894,7 @@
   "scheduledTasksMessageMissing": "The selected question is no longer available.",
   "scheduledTasksChatBusy": "This conversation is generating a reply. The scheduled run was skipped.",
   "scheduledTasksDesktopEmpty": "No scheduled tasks",
-  "scheduledTasksDesktopReliability": "Tasks run only while Kelivo is running, including when minimized or in the system tray. Missed times are skipped after quitting or computer sleep. Kelivo will not start automatically.",
+  "scheduledTasksDesktopReliability": "Tasks run only while Cuplivo is running, including when minimized or in the system tray. Missed times are skipped after quitting or computer sleep. Cuplivo will not start automatically.",
   "scheduledTasksDesktopExecutionDetail": "Results are saved in chats. Open them from the task’s run history. Runs stop after 10 minutes or when user input or tool approval is needed.",
   "worldBookStickyLabel": "Sticky (messages)",
   "worldBookStickyHint": "Keep this entry active for N messages after triggering. Repeated matches do not extend it. 0 disables this effect.",
@@ -6131,7 +6121,7 @@
   "scheduledTasksPreparation": "Execution and notifications",
   "scheduledTasksAllowPreparation": "Allow advance preparation",
   "scheduledTasksPreparationDetail": "Advance preparation is for text tasks that do not need current information. It cannot use tools or attachments, or perform external actions.",
-  "scheduledTasksIOSDetail": "iOS background limits prevent Kelivo from waking at a set time to run a model. Instead, content is prepared while the app can run, and the system shows a notification at the scheduled time. Only the next occurrence is prepared. Preparation may not finish after leaving the app; reopen Kelivo to prepare subsequent occurrences.",
+  "scheduledTasksIOSDetail": "iOS background limits prevent Cuplivo from waking at a set time to run a model. Instead, content is prepared while the app can run, and the system shows a notification at the scheduled time. Only the next occurrence is prepared. Preparation may not finish after leaving the app; reopen Cuplivo to prepare subsequent occurrences.",
   "scheduledTasksContextPolicy": "Conversation context",
   "scheduledTasksContextLatest": "Follow the latest conversation",
   "scheduledTasksContextSnapshot": "Use the prepared snapshot",
@@ -6152,16 +6142,16 @@
   "scheduledTasksReminded": "Due · reminder only",
   "scheduledTasksSkipped": "Skipped",
   "scheduledTasksCancelled": "Cancelled",
-  "scheduledTasksReminderBody": "Your scheduled task is due. Open Kelivo to continue.",
+  "scheduledTasksReminderBody": "Your scheduled task is due. Open Cuplivo to continue.",
   "scheduledTasksResultBody": "Your scheduled task result is ready.",
   "scheduledTasksNotificationPermission": "Allow task notifications",
   "scheduledTasksPreparationCost": "Preparation calls the model and may cost extra. With “Follow latest conversation”, new messages before the due time can invalidate a prepared result. Unused or cancelled output may still be billed, and preparing again makes another model request.",
-  "scheduledTasksAllowPreparationTip": "Generate the next result before its scheduled time, while Kelivo can run. The result stays out of the chat until it is due. Preparation uses text only, without tools, attachments or custom request bodies. It may incur model charges.",
+  "scheduledTasksAllowPreparationTip": "Generate the next result before its scheduled time, while Cuplivo can run. The result stays out of the chat until it is due. Preparation uses text only, without tools, attachments or custom request bodies. It may incur model charges.",
   "scheduledTasksContextPolicyTip": "Follow latest conversation: before the task is due, new messages, edits or switching message versions invalidate the prepared result; preparing again uses another attempt and may cost extra. Once due, the saved notification result is added to the chat unchanged.\n\nUse preparation snapshot: keep the prepared result even if the conversation changes. It will not reflect later messages.",
-  "scheduledTasksPreparationWindowTip": "How far ahead of the scheduled time preparation may begin, up to 24 hours. For example, opening Kelivo at noon can prepare the next morning’s reminder. A larger window gives more chances to prepare, but the result may be less current. It does not change the scheduled time or guarantee background execution. Prepare now bypasses this automatic waiting period and all attempt limits.",
+  "scheduledTasksPreparationWindowTip": "How far ahead of the scheduled time preparation may begin, up to 24 hours. For example, opening Cuplivo at noon can prepare the next morning’s reminder. A larger window gives more chances to prepare, but the result may be less current. It does not change the scheduled time or guarantee background execution. Prepare now bypasses this automatic waiting period and all attempt limits.",
   "scheduledTasksPreparationAttemptsTip": "Automatic preparation pauses when this occurrence reaches the total attempt limit. First attempts, failures, cancellations and manual preparation all count in the record. Prepare now can still run after this limit is reached. More attempts may incur more model charges; this is not a spending limit.",
   "scheduledTasksPreparationCooldownTip": "Minimum time between the start of preparation attempts for the same occurrence. Waiting longer reduces repeated requests. A retry still needs the app to be able to run; it is not a background timer. Prepare now bypasses this automatic waiting period and all attempt limits.",
-  "scheduledTasksUnavailableTip": "If no prepared result is available and the task cannot run when due, send a reminder or skip the occurrence. A reminder contains no generated answer and requires notifications to be enabled. If Kelivo is open when the task is due, it can run the task then.",
+  "scheduledTasksUnavailableTip": "If no prepared result is available and the task cannot run when due, send a reminder or skip the occurrence. A reminder contains no generated answer and requires notifications to be enabled. If Cuplivo is open when the task is due, it can run the task then.",
   "scheduledTasksNotifyTip": "Allow result notifications and fallback reminders. Turning this off does not stop the task or model calls, and does not prevent preparation charges. System notification permission is also required.",
   "scheduledTasksShowPreviewTip": "Show the prepared result text in the notification, including on the lock screen if allowed by system settings. Turn this off to show a generic notice; the full result remains available in the chat. Global notification privacy settings also apply.",
   "scheduledTasksHours": "{count, plural, =1{1 hour} other{{count} hours}}",
@@ -6257,9 +6247,9 @@
   "phoneControlUsageTitle": "How it works",
   "phoneControlDisclosure": "For phone control tasks you request in a conversation, the assistant can read the current screen, tap, enter text, scroll, navigate, and open apps. Screen content is sent to the model provider configured for that conversation and is saved in its tool results. Password fields are hidden. This service does not continuously record screen content. You can turn off this tool for the assistant, or disable the service in system settings at any time.",
   "phoneControlAssistantTitle": "Enable the tool for your assistant",
-  "phoneControlAssistantHint": "Both permissions are required: enable Kelivo phone control in system Accessibility settings, then enable Phone Control under your assistant’s Local Tools (also available in the chat tools menu). Each assistant is configured separately. Keep the phone unlocked while running a task.",
+  "phoneControlAssistantHint": "Both permissions are required: enable Cuplivo phone control in system Accessibility settings, then enable Phone Control under your assistant’s Local Tools (also available in the chat tools menu). Each assistant is configured separately. Keep the phone unlocked while running a task.",
   "phoneControlRestrictedTitle": "Accessibility switch unavailable?",
-  "phoneControlRestrictedHint": "For some downloaded APKs, Android requires “Allow restricted settings” in the app info menu first. Tap to open Kelivo’s app info, then return to Accessibility settings.",
+  "phoneControlRestrictedHint": "For some downloaded APKs, Android requires “Allow restricted settings” in the app info menu first. Tap to open Cuplivo’s app info, then return to Accessibility settings.",
   "phoneControlEnableAssistant": "Allow this assistant to use phone control",
   "composerDraftLabel": "Draft",
   "composerDraftRecovered": "An unsent message was recovered.",
@@ -6339,9 +6329,9 @@
   "markdownCopyRichTextAction": "Copy rich text",
   "markdownCopySelectionFailed": "Could not copy the selected text.",
   "recoveryMissingDataTitle": "Previous data detected",
-  "recoveryMissingDataBody": "Kelivo could not find the current chat database. It has paused loading and has not created an empty database. We’ll look for previous copies below; existing files will be kept.",
+  "recoveryMissingDataBody": "The current database is missing, but this device still contains previous data. Cuplivo has paused startup and has not created an empty database. Your remaining files and copies are being preserved.",
   "recoveryEmptyDataTitle": "Current chat history is empty",
-  "recoveryEmptyDataBody": "The current chat list is empty, and previous copies were found. Choose a copy below to recover your chats. Existing files will be kept.",
+  "recoveryEmptyDataBody": "The current database has no conversations, but previous copies were found. Cuplivo has paused startup so you can recover a copy or explicitly keep the current data. Nothing will be overwritten automatically.",
   "recoveryKeepCurrent": "Continue with an empty chat list",
   "recoveryKeepCurrentConfirm": "This continues without recovering your previous chats. The current chat list will stay empty; old copies will be kept. If you want your chats back, cancel and choose a local copy.",
   "recoverySearchingCopies": "Finding and validating local data copies…",
@@ -6366,14 +6356,14 @@
   "recoverySearchFailed": "Some data locations could not be read. Your files have been kept; export a data copy before trying other recovery actions.",
   "recoveryDiscoveredCopyBody": "Found outside the managed copy folder. This original is preserved and will be fully validated before recovery.",
   "recoveryStorageFailureTitle": "Data storage needs attention",
-  "recoveryStorageFailureBody": "The data update could not finish. The original data has been kept. Try reopening Kelivo, or choose a local copy below to recover.",
+  "recoveryStorageFailureBody": "Cuplivo could not activate its protected data storage. Startup has stopped and the original data has been kept. Export a copy of your data or retry; no empty database will be created.",
   "recoveryProtectingTitle": "Protecting the chat database",
   "recoveryProtectingData": "Copying and verifying the database. Images, attachments and snapshots stay in Documents and are not copied again. The original database will be kept.",
   "recoveryStorageReadyTitle": "Chat database moved to internal storage",
   "recoveryStorageReadyBody": "The database containing chats, assistants and settings now uses internal app storage. Snapshots, images and attachments remain accessible in the Files app under Documents. The original database is retained. If older chats are missing, open Settings → Backup → Local Copies.",
   "recoveryRetainedData": "Retained original data",
   "recoveryNoValidCopies": "Copies were found, but none passed validation. The originals have been kept. You can export your data for further diagnosis.",
-  "recoveryStorageInsufficientSpaceBody": "There is not enough storage to safely prepare your data. Free space in system settings, then reopen Kelivo or recheck the copies below. Keep Kelivo installed and leave its data and local copies in place.",
+  "recoveryStorageInsufficientSpaceBody": "There is not enough storage to safely prepare your data. Free space in system settings, then reopen Cuplivo or recheck the copies below. Keep Cuplivo installed and leave its data and local copies in place.",
   "migrationFreshStartTitle": "Fresh start is ready",
   "migrationFreshStartSubtitle": "A new empty database is ready, and your previous data has been retained. Restart the app to continue.",
   "migrationFreshStartFailedTitle": "Fresh start could not be completed",
@@ -6419,7 +6409,7 @@
   "backupEncryptionUnlock": "Unlock",
   "backupEncryptionFailed": "The password is incorrect, or the backup is damaged. Try again or cancel.",
   "backupEncryptionInvalid": "The encrypted backup is incomplete or invalid.",
-  "backupEncryptionUnsupported": "This encrypted backup requires a newer version of Kelivo.",
+  "backupEncryptionUnsupported": "This encrypted backup requires a newer version of Cuplivo.",
   "backupProgressEncrypting": "Encrypting backup",
   "backupProgressDecrypting": "Decrypting backup",
   "mcpPageStatusFailed": "Connection failed",
@@ -6498,7 +6488,7 @@
   "browserDesktopMode": "Desktop website",
   "browserDesktopModeDescription": "Reload open pages with a desktop user agent.",
   "browserRestoreTabs": "Restore tabs",
-  "browserRestoreTabsDescription": "Reopen your tabs when Kelivo starts.",
+  "browserRestoreTabsDescription": "Reopen your tabs when Cuplivo starts.",
   "browserSaveHistory": "Save history",
   "browserSaveHistoryDescription": "Keep a local record of the pages you visit.",
   "browserClearData": "Clear website data",
@@ -7590,7 +7580,7 @@
   "contextNewConversation": "Create a new chat with the summary",
   "contextUnknownLimit": "unknown limit",
   "browserErrActionTimeout": "Operation timed out; outcome unknown. Check the page before allowing AI to continue.",
-  "toolPermissionRequestApprovalDesc": "Kelivo will ask before accessing files outside the workspace, running desktop commands, or using other tools that need approval.",
+  "toolPermissionRequestApprovalDesc": "Cuplivo will ask before accessing files outside the workspace, running desktop commands, or using other tools that need approval.",
   "contextLimitedInputHint": "Only the selected character window is read. The rest of the replaced history is not included in the summary; original messages remain available.",
   "contextTaskCancelled": "Compression cancelled",
   "contextDetailClearTitle": "Context cleared",
@@ -7616,7 +7606,7 @@
   "dataDirectoryPreviousHint": "The original copy was retained. Once the new directory has started successfully, you can remove the old copy to free disk space. Clean it before changing directories again.",
   "dataDirectoryCleanPrevious": "Clean up original copy",
   "dataDirectoryCleanConfirm": "Remove the retained copy from the directory below? Data in the current directory will be kept. Files changed since the move will not be deleted.",
-  "dataDirectoryMoving": "Moving and verifying data… Please keep Kelivo open.",
+  "dataDirectoryMoving": "Moving and verifying data… Please keep Cuplivo open.",
   "dataDirectoryStartupFailed": "Unable to open the data directory",
   "dataDirectoryRetry": "Retry",
   "dataDirectoryUnavailable": "The data directory is unavailable. Reconnect the drive or restore the folder to its original location, then retry. No empty database will be created.",
@@ -7628,7 +7618,7 @@
   "dataDirectoryPendingRestore": "A backup restore is pending. Cancel the directory move and restart to finish restoring, then try the move again.",
   "dataDirectorySourceChanged": "The original data has changed since the copy was made. It has been kept. Cancel the pending move before starting a new one; retained copies can be inspected manually.",
   "dataDirectoryCopyChanged": "The destination contains unexpected or changed files. The original data has been kept. Check the destination before retrying.",
-  "dataDirectoryGenericError": "The operation could not finish. Check available disk space, folder permissions and whether another Kelivo process is running, then retry. Existing data has been kept.",
+  "dataDirectoryGenericError": "The operation could not finish. Check available disk space, folder permissions and whether another Cuplivo process is running, then retry. Existing data has been kept.",
   "dataDirectoryCancelHint": "Cancelling keeps any files already copied to the destination. You can inspect and remove that partial copy yourself.",
   "providerDetailPageBaseUrlExample": "e.g. {url}",
   "@providerDetailPageBaseUrlExample": {
@@ -7811,13 +7801,13 @@
   "translating": "Translating…",
   "retry": "Retry",
   "recoveryGuideTitle": "Let’s recover your chats",
-  "recoveryGuideBody": "Kelivo paused loading your data. We’ll look for local copies so you can choose what to recover. Existing files will be kept.",
+  "recoveryGuideBody": "Cuplivo paused loading your data. We’ll look for local copies so you can choose what to recover. Existing files will be kept.",
   "recoverySpaceTitle": "Some free space is needed",
   "recoveryChecksNeedSpace": "Local copies were found, but there is not enough space to check them. This does not mean they are damaged. Free some space, then check again.",
   "recoveryChecksUnavailable": "Some local copies could not be checked yet. Their files are still available. Check again, or export your data for help.",
   "recoveryRecheckCopies": "Check local copies again",
   "recoveryCopyPreview": "Copy preview",
-  "recoveryRestoreRetryBody": "The restore could not be completed. The selected copy has been kept. Check local copies again or reopen Kelivo to continue.",
+  "recoveryRestoreRetryBody": "The restore could not be completed. The selected copy has been kept. Check local copies again or reopen Cuplivo to continue.",
   "recoverySpaceAmount": "Last check: {available} available; at least {required} of free space is needed to prepare your data safely.",
   "@recoverySpaceAmount": {
     "placeholders": {
@@ -7830,7 +7820,7 @@
     },
     "description": "Message on the restore failure screen showing available space and required free space; {available} and {required} are formatted byte strings."
   },
-  "recoveryCopiesNeedUpdate": "Some copies were made by a newer version of Kelivo. Update Kelivo before restoring them. These copies have been kept.",
+  "recoveryCopiesNeedUpdate": "Some copies were made by a newer version of Cuplivo. Update Cuplivo before restoring them. These copies have been kept.",
   "imageContextAllowRecall": "Allow the model to recall images",
   "imageContextAllowRecallDescription": "Let the model retrieve images from this conversation when needed. Turning this off does not change automatic image management.",
   "imageContextTitle": "Image context",
@@ -8148,7 +8138,7 @@
     },
     "description": "Formats a byte size as MiB with two decimals plus the raw byte count, used in budget error messages."
   },
-  "requestBudgetSingleError": "Kelivo local preflight: image {index} has an encoded size of {actual}, exceeding the single-image limit of {limit}.",
+  "requestBudgetSingleError": "Cuplivo local preflight: image {index} has an encoded size of {actual}, exceeding the single-image limit of {limit}.",
   "@requestBudgetSingleError": {
     "placeholders": {
       "index": {
@@ -8163,7 +8153,7 @@
     },
     "description": "Preflight error stating that a specific image's encoded size exceeds the single-image budget."
   },
-  "requestBudgetTotalError": "Kelivo local preflight: encoded images total {actual}, exceeding the image budget of {limit}.",
+  "requestBudgetTotalError": "Cuplivo local preflight: encoded images total {actual}, exceeding the image budget of {limit}.",
   "@requestBudgetTotalError": {
     "placeholders": {
       "actual": {
@@ -8175,7 +8165,7 @@
     },
     "description": "Preflight error stating that the combined encoded size of images exceeds the total image budget."
   },
-  "requestBudgetCountError": "Kelivo local preflight: the request contains {actual} images, exceeding the limit of {limit}.",
+  "requestBudgetCountError": "Cuplivo local preflight: the request contains {actual} images, exceeding the limit of {limit}.",
   "@requestBudgetCountError": {
     "placeholders": {
       "actual": {
@@ -8187,7 +8177,7 @@
     },
     "description": "Preflight error stating that the request contains more images than the allowed count."
   },
-  "requestBudgetBodyError": "Kelivo local preflight: the complete request body is {actual}, exceeding the request budget of {limit}.",
+  "requestBudgetBodyError": "Cuplivo local preflight: the complete request body is {actual}, exceeding the request budget of {limit}.",
   "@requestBudgetBodyError": {
     "placeholders": {
       "actual": {
@@ -9832,10 +9822,10 @@
     "description": "Dialog title telling the user a restart is required after import."
   },
   "@backupPageRestartContent": {
-    "description": "Dialog body shown after a successful import, instructing the user to restart Kelivo to apply changes safely."
+    "description": "Dialog body shown after a successful import, instructing the user to restart Cuplivo to apply changes safely."
   },
   "@restartAppFailedMessage": {
-    "description": "Error message shown when automatic app restart fails, asking the user to fully close and reopen Kelivo."
+    "description": "Error message shown when automatic app restart fails, asking the user to fully close and reopen Cuplivo."
   },
   "@backupRestoreRolledBackTitle": {
     "description": "Dialog title indicating a restore was rolled back."
@@ -9856,19 +9846,19 @@
     "description": "Title for the restore failure state requiring user attention."
   },
   "@backupRestoreFailureContent": {
-    "description": "Body text explaining Kelivo could not verify complete old or new data, so chat data was not opened, and advising restart and keeping the diagnostic code."
+    "description": "Body text explaining Cuplivo could not verify complete old or new data, so chat data was not opened, and advising restart and keeping the diagnostic code."
   },
   "@backupRestoreBusinessLeaseUnavailableTitle": {
-    "description": "Restore failure title shown when another Kelivo process holds the data lock."
+    "description": "Restore failure title shown when another Cuplivo process holds the data lock."
   },
   "@backupRestoreBusinessLeaseUnavailableContent": {
-    "description": "Body explaining Kelivo's data is in use by another process, asking to close other windows and restart, noting chat data was not opened."
+    "description": "Body explaining Cuplivo's data is in use by another process, asking to close other windows and restart, noting chat data was not opened."
   },
   "@restoreProgressTitle": {
     "description": "Title on the restore progress screen shown while a backup is being restored."
   },
   "@restoreProgressWarning": {
-    "description": "Warning on the restore progress screen telling the user to keep Kelivo open or the restore restarts on next launch."
+    "description": "Warning on the restore progress screen telling the user to keep Cuplivo open or the restore restarts on next launch."
   },
   "@restoreProgressStageCheckingBackup": {
     "description": "Progress stage label indicating the backup is being verified."
@@ -9889,7 +9879,7 @@
     "description": "Restore progress stage label shown in the final step of the restore process."
   },
   "@backupRestoreFailureRestartButton": {
-    "description": "Button on the restore failure screen that restarts Kelivo; shown instead of the continue button when the restore cannot be resumed."
+    "description": "Button on the restore failure screen that restarts Cuplivo; shown instead of the continue button when the restore cannot be resumed."
   },
   "@backupRestoreFailureCopyButton": {
     "description": "Button label for copying the restore failure diagnostic code to the clipboard."
@@ -9907,7 +9897,7 @@
     "description": "Action tile that exports a copy of the user's data to a safe location during startup recovery."
   },
   "@startupRecoveryResetButton": {
-    "description": "Button that starts Kelivo with a new empty chat list, keeping the current database and existing copies."
+    "description": "Button that starts Cuplivo with a new empty chat list, keeping the current database and existing copies."
   },
   "@startupRecoveryBusy": {
     "description": "Inline status text shown while a recovery action is in progress."
@@ -9922,7 +9912,7 @@
     "description": "Error message shown when the repair action cannot complete; advises choosing a validated copy or exporting data for diagnosis."
   },
   "@startupRecoveryResetFailed": {
-    "description": "Error message shown when resetting after a startup failure fails; instructs the user to fully close and reopen Kelivo."
+    "description": "Error message shown when resetting after a startup failure fails; instructs the user to fully close and reopen Cuplivo."
   },
   "@startupRecoveryResetDialogTitle": {
     "description": "Title of the confirmation dialog for starting with an empty chat list."
@@ -10018,10 +10008,10 @@
     "description": "Checkbox label on the restore-failure screen confirming the user accepts continuing with an empty chat list without restoring now."
   },
   "@startupDatabaseUpdateRequiredTitle": {
-    "description": "Headline on the update-required screen shown at startup when the local database was created by a newer Kelivo version."
+    "description": "Headline on the update-required screen shown at startup when the local database was created by a newer Cuplivo version."
   },
   "@startupDatabaseUpdateRequiredContent": {
-    "description": "Body text on the update-required screen explaining the database is from a newer version, data is unchanged, and the user should install the latest Kelivo."
+    "description": "Body text on the update-required screen explaining the database is from a newer version, data is unchanged, and the user should install the latest Cuplivo."
   },
   "@startupDatabaseUpdateRequiredDowngradeTitle": {
     "description": "Section heading on the update-required screen introducing instructions for users who must stay on an older version."
@@ -10030,7 +10020,7 @@
     "description": "Introductory paragraph on the update-required screen warning not to delete or overwrite data before backing it up when downgrading."
   },
   "@startupDatabaseUpdateRequiredDowngradeStep1": {
-    "description": "First numbered step on the update-required screen: install latest Kelivo and export a backup from Settings → Backup."
+    "description": "First numbered step on the update-required screen: install latest Cuplivo and export a backup from Settings → Backup."
   },
   "@startupDatabaseUpdateRequiredDowngradeStep3": {
     "description": "Third numbered step on the update-required screen: after confirming a backup, install the older version and import the converted backup."
@@ -10066,7 +10056,7 @@
     "description": "Button label that starts restoring a backup, used in backup settings panes."
   },
   "@backupPageForwardCompatTitle": {
-    "description": "Dialog title warning that the selected backup was created by a newer Kelivo version."
+    "description": "Dialog title warning that the selected backup was created by a newer Cuplivo version."
   },
   "@backupPageForwardCompatContinue": {
     "description": "Destructive-styled button in the forward-compatibility dialog that proceeds with importing the newer backup anyway."
@@ -10075,7 +10065,7 @@
     "description": "Cancel button in the forward-compatibility dialog that aborts the import."
   },
   "@backupPageSchemaTooNewMessage": {
-    "description": "Message shown when a backup's schema is too new to read, advising the user to update Kelivo and retry."
+    "description": "Message shown when a backup's schema is too new to read, advising the user to update Cuplivo and retry."
   },
   "@backupPageBackupUploaded": {
     "description": "Fallback success notification shown after a backup is uploaded to a remote provider when no provider message is supplied."
@@ -10240,7 +10230,7 @@
     "description": "Section header for local backup options."
   },
   "@backupPageIosSystemBackupNote": {
-    "description": "Note below Local Backup on iOS. Distinguishes iCloud device backups from an exported backup in iCloud Drive, and explains that the app-owned Kelivo folder is deleted when the app is deleted."
+    "description": "Note below Local Backup on iOS. Distinguishes iCloud device backups from an exported backup in iCloud Drive, and explains that the app-owned Cuplivo folder is deleted when the app is deleted."
   },
   "@backupPageImportFromCherryStudio": {
     "description": "Button label and task title for importing data from a Cherry Studio backup."
@@ -12448,7 +12438,7 @@
     "description": "Subtitle explaining that with fetching off, the model only searches and does not read pages."
   },
   "@searchServicesPageWebFetchFooter": {
-    "description": "Explanatory footer text about web fetching behavior and a note to disable the built-in @kelivo/fetch MCP tool to avoid overlap."
+    "description": "Explanatory footer text about web fetching behavior and a note to disable the built-in @cuplivo/fetch MCP tool to avoid overlap."
   },
   "@searchServicesPageWebFetchSupported": {
     "description": "Tooltip/semantic label on an icon indicating a search service supports reading web pages."
@@ -12723,17 +12713,11 @@
   "@aboutPageEasterEggButton": {
     "description": "Dismiss button in the easter-egg dialog."
   },
-  "@aboutPageKelivoSearchUnlocked": {
-    "description": "Success notification shown when a hidden feature is unlocked via the about page easter egg, hinting to look in Settings."
-  },
-  "@aboutPageKelivoSearchAlreadyUnlocked": {
-    "description": "Success notification shown when the hidden feature was already unlocked previously."
-  },
   "@aboutPageAppName": {
-    "description": "The app name 'Kelivo' displayed in the about page header and desktop home page."
+    "description": "The app name 'Cuplivo' displayed in the about page header and desktop home page."
   },
   "@aboutPageAppDescription": {
-    "description": "Short tagline under the app name on the about page describing Kelivo as an open-source AI assistant."
+    "description": "Short tagline under the app name on the about page describing Cuplivo as an open-source AI assistant."
   },
   "@aboutPageNoQQGroup": {
     "description": "Placeholder text shown when no QQ group is available."
@@ -12766,10 +12750,10 @@
     "description": "Localized display name for the iOS platform in system info."
   },
   "@aboutPageWebsite": {
-    "description": "Row label linking to the Kelivo official website."
+    "description": "Row label linking to the Cuplivo official website."
   },
   "@aboutPageGithub": {
-    "description": "Row label linking to the Kelivo GitHub repository."
+    "description": "Row label linking to the Cuplivo GitHub repository."
   },
   "@aboutPageLicense": {
     "description": "Row label linking to the project's license file."
@@ -12787,7 +12771,7 @@
     "description": "Name of the third QQ group entry in the join sheet."
   },
   "@aboutPageJoinDiscord": {
-    "description": "Row label linking to the Kelivo Discord server invite."
+    "description": "Row label linking to the Cuplivo Discord server invite."
   },
   "@displaySettingsPageShowUserAvatarTitle": {
     "description": "Toggle label in display settings controlling whether the user avatar is shown."
@@ -13735,7 +13719,7 @@
     "description": "Success snackbar shown after an image is saved to the gallery or chosen location."
   },
   "@settingsShare": {
-    "description": "Share message text for the app (Kelivo - Open Source AI Assistant); its share button usage is commented out in settings."
+    "description": "Share message text for the app (Cuplivo - Open Source AI Assistant); its share button usage is commented out in settings."
   },
   "@searchProviderBingLocalDescription": {
     "description": "Description under the Bing (Local) search provider option explaining it scrapes Bing without an API key and may be unstable."
@@ -13922,9 +13906,6 @@
   },
   "@searchServicesDialogMaximumTokensInvalid": {
     "description": "Validation error shown under the maximum tokens field when the value is outside the allowed 1024–32768 range."
-  },
-  "@searchServiceNameKelivo": {
-    "description": "Display name for the built-in Kelivo search provider, returned by a switch on the service type in the search services settings pane and editor page."
   },
   "@searchServicesDialogCountryOptional": {
     "description": "Text field label for an optional country/region filter (gl parameter) in the search service settings."
@@ -14179,7 +14160,7 @@
     "description": "App bar title of the Health Data settings page for an assistant."
   },
   "@healthDataSettingsDescription": {
-    "description": "Introductory description on the Health Data settings page explaining the switches control what Kelivo may try to read while iOS manages actual access."
+    "description": "Introductory description on the Health Data settings page explaining the switches control what Cuplivo may try to read while iOS manages actual access."
   },
   "@healthDataSettingsIosReadTitle": {
     "description": "Title of a system status row on the Health Data page indicating iOS Health read status."
@@ -15850,7 +15831,7 @@
     "description": "Header title on the migration page shown when the upgrade has finished."
   },
   "@migrationCompleteSubtitle": {
-    "description": "Header subtitle after completion telling the user to restart Kelivo to enter the upgraded app."
+    "description": "Header subtitle after completion telling the user to restart Cuplivo to enter the upgraded app."
   },
   "@migrationConversationCount": {
     "description": "Stat label in the migration summary showing the number of conversations."
@@ -15868,7 +15849,7 @@
     "description": "Stat label in the migration summary showing how many referenced files were missing."
   },
   "@migrationRestartButton": {
-    "description": "Primary button on the Hive-to-SQLite migration page that restarts Kelivo; disabled when the onRestart callback is null."
+    "description": "Primary button on the Hive-to-SQLite migration page that restarts Cuplivo; disabled when the onRestart callback is null."
   },
   "@migrationFailedTitle": {
     "description": "Heading shown on the migration page when the migration fails (unless the fresh-start path is selected, which uses a different title)."
@@ -15892,7 +15873,7 @@
     "description": "Title of the confirmation dialog asking whether to skip migration."
   },
   "@migrationSkipDialogMessage": {
-    "description": "Dialog body warning that Kelivo will start with an empty chat database, old history is kept on disk with a .retired suffix but not migrated, and a backup ZIP is needed to recover."
+    "description": "Dialog body warning that Cuplivo will start with an empty chat database, old history is kept on disk with a .retired suffix but not migrated, and a backup ZIP is needed to recover."
   },
   "@migrationSkipDialogCancel": {
     "description": "Cancel button in the skip-migration confirmation dialog; closes it without skipping."
@@ -16267,7 +16248,7 @@
     "description": "Switch label to enable periodic local copies of the database on this device."
   },
   "@localSnapshotEnabledSubtitle": {
-    "description": "Explanation that Kelivo periodically saves a local database copy so data is never stored only once."
+    "description": "Explanation that Cuplivo periodically saves a local database copy so data is never stored only once."
   },
   "@localSnapshotIntervalTitle": {
     "description": "Row label and picker title for how often local snapshots are taken."
@@ -16864,7 +16845,7 @@
     "description": "Info snackbar message shown when no sandbox update is available."
   },
   "@workspaceEnvRestartBanner": {
-    "description": "Banner text prompting the user to restart Kelivo to complete sandbox installation."
+    "description": "Banner text prompting the user to restart Cuplivo to complete sandbox installation."
   },
   "@workspaceEnvDetectingMirrors": {
     "description": "Status text shown while probing mirrors for speed, used on download and mirror pages."
@@ -16942,7 +16923,7 @@
     "description": "Status chip label shown when the workspace environment phase is needsRestart, indicating the sandbox must be restarted before changes take effect."
   },
   "@workspaceEnvNativeExplanation": {
-    "description": "Section footer in the environment pane explaining that on desktop Kelivo uses the system shell rather than a Linux sandbox."
+    "description": "Section footer in the environment pane explaining that on desktop Cuplivo uses the system shell rather than a Linux sandbox."
   },
   "@workspaceEnvNativeShellApproval": {
     "description": "Informational note that the shell tool requires approval when the app is in 'Ask for approval' mode."
@@ -17683,7 +17664,7 @@
     "description": "Validation error shown when the chosen desktop folder does not exist or no absolute path is given."
   },
   "@workspaceDesktopManagedHint": {
-    "description": "Hint in the create dialog explaining Kelivo creates and manages a folder for a managed project."
+    "description": "Hint in the create dialog explaining Cuplivo creates and manages a folder for a managed project."
   },
   "@workspaceDesktopHostHint": {
     "description": "Subtitle indicating files and commands run on this computer, shown for desktop-target workspaces."
@@ -17899,7 +17880,7 @@
     "description": "Explanation that selected folders mount at /mounts/<name>, are shared across workspaces, accessible to AI tools, Shell and file browser, with a limit of 10 folders."
   },
   "@workspaceExternalStorageTitle": {
-    "description": "Title of a confirmation dialog asking the user to allow Kelivo file access before mounting external folders; paired with a message and a confirm button."
+    "description": "Title of a confirmation dialog asking the user to allow Cuplivo file access before mounting external folders; paired with a message and a confirm button."
   },
   "@workspaceExternalStorageMessage": {
     "description": "Dialog body explaining that Android file access (All files access on Android 11+) is needed to read/write external folders, then a local folder is selected to mount. Also returned as an error message for the external_storage_permission code."
@@ -18226,7 +18207,7 @@
     "description": "Section header in the floating overlay appearance page for choosing the overlay icon."
   },
   "@backgroundIconDefault": {
-    "description": "Row action that resets the overlay icon to the default Kelivo app icon."
+    "description": "Row action that resets the overlay icon to the default Cuplivo app icon."
   },
   "@backgroundIconImage": {
     "description": "Row action that opens an image picker to use a custom image as the overlay icon; shows ellipsis while importing."
@@ -18430,7 +18411,7 @@
     "description": "Dialog title and section heading on the restore failure screen for recovering from a local database snapshot."
   },
   "@startupRecoverySnapshotBody": {
-    "description": "Explanatory text describing snapshot recovery and warning that uninstalling Kelivo deletes the snapshots."
+    "description": "Explanatory text describing snapshot recovery and warning that uninstalling Cuplivo deletes the snapshots."
   },
   "@startupRecoverySnapshotEmpty": {
     "description": "Message shown when no database snapshots are found on the device, advising exporting data first."
@@ -18439,7 +18420,7 @@
     "description": "Button label on the restore failure screen to choose a local snapshot copy to recover from."
   },
   "@startupRecoverySnapshotReady": {
-    "description": "Status message indicating the snapshot is prepared and Kelivo must restart to finish restoring."
+    "description": "Status message indicating the snapshot is prepared and Cuplivo must restart to finish restoring."
   },
   "@scheduledTasksTitle": {
     "description": "Page title and settings menu label for the scheduled tasks feature."
@@ -18676,7 +18657,7 @@
     "description": "Empty-state text on the desktop scheduled-tasks page when no tasks exist."
   },
   "@scheduledTasksDesktopReliability": {
-    "description": "Informational note on the desktop scheduled-tasks page explaining that tasks run only while Kelivo is running (including minimized/tray), missed times are skipped, and the app does not auto-start."
+    "description": "Informational note on the desktop scheduled-tasks page explaining that tasks run only while Cuplivo is running (including minimized/tray), missed times are skipped, and the app does not auto-start."
   },
   "@scheduledTasksDesktopExecutionDetail": {
     "description": "Help text in the scheduled-task editor on desktop platforms describing where results are saved and that runs stop after 10 minutes or when user input or tool approval is needed."
@@ -19033,7 +19014,7 @@
     "description": "Status label for a scheduled task occurrence that was cancelled."
   },
   "@scheduledTasksReminderBody": {
-    "description": "Notification body text sent when a scheduled task is due, prompting the user to open Kelivo."
+    "description": "Notification body text sent when a scheduled task is due, prompting the user to open Cuplivo."
   },
   "@scheduledTasksResultBody": {
     "description": "Notification body text indicating a scheduled task's prepared result is ready."
@@ -19426,7 +19407,7 @@
     "description": "Status text stating copies were found but none passed validation, originals kept, and data can be exported for diagnosis."
   },
   "@recoveryStorageInsufficientSpaceBody": {
-    "description": "Warning that storage is insufficient to prepare data, advising freeing space and keeping Kelivo data and copies intact."
+    "description": "Warning that storage is insufficient to prepare data, advising freeing space and keeping Cuplivo data and copies intact."
   },
   "@migrationFreshStartTitle": {
     "description": "Migration page header title shown when a fresh start has completed."
@@ -19639,7 +19620,7 @@
     "description": "Settings switch label controlling whether browser tabs are reopened on app start."
   },
   "@browserRestoreTabsDescription": {
-    "description": "Subtitle under the restore-tabs switch explaining tabs reopen when Kelivo starts."
+    "description": "Subtitle under the restore-tabs switch explaining tabs reopen when Cuplivo starts."
   },
   "@browserSaveHistory": {
     "description": "Settings switch label controlling whether visited pages are recorded locally."
@@ -20905,7 +20886,7 @@
     "description": "Confirmation text asking whether to remove the retained copy in the shown directory; current data is kept and files changed since the move are not deleted."
   },
   "@dataDirectoryMoving": {
-    "description": "Progress message shown during startup while data is being moved and verified, asking the user to keep Kelivo open."
+    "description": "Progress message shown during startup while data is being moved and verified, asking the user to keep Cuplivo open."
   },
   "@dataDirectoryStartupFailed": {
     "description": "Startup error title shown when the data directory cannot be opened."
@@ -20941,7 +20922,7 @@
     "description": "Error message when the destination has unexpected or changed files; originals kept, user should check the destination and retry."
   },
   "@dataDirectoryGenericError": {
-    "description": "Fallback error message for a failed data directory operation; suggests checking disk space, permissions, and other Kelivo processes, noting data was kept."
+    "description": "Fallback error message for a failed data directory operation; suggests checking disk space, permissions, and other Cuplivo processes, noting data was kept."
   },
   "@dataDirectoryCancelHint": {
     "description": "Hint shown in the directory-move cancel dialog explaining that cancelling keeps already-copied files in the destination for manual cleanup."
@@ -21133,7 +21114,7 @@
     "description": "Message on the restore failure screen when a restore did not complete; the selected copy is kept and user can recheck or reopen."
   },
   "@recoveryCopiesNeedUpdate": {
-    "description": "Message on the restore failure screen warning some copies come from a newer Kelivo version and require an app update; copies kept."
+    "description": "Message on the restore failure screen warning some copies come from a newer Cuplivo version and require an app update; copies kept."
   },
   "@imageContextAllowRecall": {
     "description": "Setting card label in the image context panel; toggles whether the model may recall historical images."
@@ -21765,5 +21746,587 @@
   "workspaceEnvNativeShellSave": "Save",
   "@workspaceEnvNativeShellSave": {
     "description": "Button in the desktop default shell dialog; validates and saves the executable path or automatic detection setting."
+  },
+  "storageSpaceCategoryAssistantData": "Assistants",
+  "storageSpaceSubAssistantAvatars": "Avatars",
+  "storageSpaceSubAssistantImages": "Images",
+  "storageSpaceSourceLabel": "Source",
+  "storageSpaceSourceAll": "All",
+  "storageSpaceSourceUserUpload": "User uploads",
+  "storageSpaceSourceAssistant": "Assistant",
+  "languageDisplayPortuguese": "Portuguese",
+  "languageDisplayArabic": "Arabic",
+  "languageDisplayHindi": "Hindi",
+  "languageDisplayThai": "Thai",
+  "languageDisplayVietnamese": "Vietnamese",
+  "languageDisplayBengali": "Bengali",
+  "translateLanguageManagerTitle": "Manage Languages",
+  "translateLanguageManagerSubtitle": "Choose which languages appear in the translate target list.",
+  "translateLanguageManagerAtLeastOne": "Keep at least one language visible.",
+  "assistantEditChatSuggestionsTitle": "Chat Suggestions",
+  "assistantEditChatSuggestionsTip": "Adds one request after each reply to propose up to three follow-ups. Off spends nothing.",
+  "assistantEditChatSuggestionsGlobalOff": "Inactive — turn on Chat Suggestions under Default Models first.",
+  "hotkeyFocusInput": "Focus Input",
+  "hotkeyCopySelectionMarkdown": "Copy Selection as Markdown",
+  "hotkeyReplySelection": "Reply to Selection",
+  "compressingContext": "Compressing context...",
+  "compressContextReadoutRounds": "{rounds, plural, =1{1 round} other{{rounds} rounds}}",
+  "@compressContextReadoutRounds": {
+    "placeholders": {
+      "rounds": {
+        "type": "int"
+      }
+    }
+  },
+  "compressContextReadoutKeptRounds": "{rounds, plural, =1{1 round} other{{rounds} rounds}} + summary",
+  "@compressContextReadoutKeptRounds": {
+    "placeholders": {
+      "rounds": {
+        "type": "int"
+      }
+    }
+  },
+  "compressContextReadoutTokens": "~{tokens} tokens",
+  "@compressContextReadoutTokens": {
+    "placeholders": {
+      "tokens": {
+        "type": "String"
+      }
+    }
+  },
+  "compressContextReadoutTokensBand": "~{min}–{max} tokens",
+  "@compressContextReadoutTokensBand": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "compressContextReadoutReduction": "−{percent}%",
+  "@compressContextReadoutReduction": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "messageQuotePreviewRemove": "Remove reply",
+  "messageQuoteTargetMissing": "Original message unavailable",
+  "messageMoreSheetReply": "Reply",
+  "messageMoreSheetCopyLink": "Copy Link",
+  "reasoningBudgetSheetCurrentLevel": "Current Level: {level}",
+  "@reasoningBudgetSheetCurrentLevel": {
+    "placeholders": {
+      "level": {
+        "type": "String"
+      }
+    }
+  },
+  "chatMessageWidgetReplySelection": "Reply",
+  "chatSelectionExportPdf": "PDF",
+  "messageExportSheetUser": "User",
+  "messageExportSheetPdf": "PDF",
+  "messageExportSheetBatchPdfSubtitle": "Export selected messages as a PDF document",
+  "pdfExportDialogTitle": "Export PDF",
+  "pdfExportDialogCancel": "Cancel",
+  "pdfExportDialogExport": "Export PDF",
+  "pdfExportDialogSectionContent": "Content",
+  "pdfExportDialogSectionFonts": "Fonts",
+  "pdfExportFontRoleBody": "Body font",
+  "pdfExportFontRoleMono": "Code font",
+  "pdfExportFontRoleEmoji": "Emoji font",
+  "pdfExportFontCheck": "Check fonts",
+  "pdfExportFontChecking": "Checking…",
+  "pdfExportFontMissing": "No embeddable CJK font was found; CJK text may print blank.",
+  "pdfExportFontUnusable": "The chosen font could not be used; another was substituted.",
+  "pdfExportFontBuiltIn": "Built-in font",
+  "pdfExportFontNone": "Not embedded",
+  "pdfExportFontNeedsDownload": "Needs download",
+  "pdfExportFontAuto": "Automatic",
+  "pdfExportFontGroupSystem": "System fonts",
+  "pdfExportFontGroupDownload": "Download",
+  "pdfExportFontGroupOther": "Other",
+  "pdfExportFontNoteCjk": "Includes CJK",
+  "pdfExportFontNoteColour": "Colour",
+  "pdfExportFontNoteMonochrome": "Monochrome",
+  "pdfExportFontBuiltInNote": "Embeds no font; CJK prints blank",
+  "pdfExportFontDownloadNote": "Includes CJK, about 10 MB",
+  "pdfExportFontListFailed": "Could not read the font list",
+  "pdfExportResultTitle": "Export complete",
+  "pdfExportResultSummary": "{pages} pages · {size}",
+  "pdfExportResultDegraded": "{count} item(s) not fully exported",
+  "pdfExportResultDegradedMath": "{count} formula(s) shown as plain text",
+  "pdfExportResultDegradedDiagram": "{count} diagram(s) shown as code",
+  "pdfExportResultDegradedImage": "{count} image(s) could not be read and are shown as their reference",
+  "pdfExportResultDone": "Done",
+  "sideDrawerMenuCopyLink": "Copy Link",
+  "conversationLinkCopied": "Link copied",
+  "conversationLinkMissing": "This conversation isn't on this device.",
+  "modelDetailSheetModelIdDisabledHint": "{modelId}",
+  "@modelDetailSheetModelIdDisabledHint": {
+    "placeholders": {
+      "modelId": {
+        "type": "String"
+      }
+    }
+  },
+  "modelDetailSheetSearchTool": "Search",
+  "modelDetailSheetSearchToolDescription": "Enable Google Search integration",
+  "modelDetailSheetModelIdExistsError": "Model ID already exists",
+  "aboutPageCuplivoSearchUnlocked": "An unnamed door opened a crack. You might find it in Settings.",
+  "aboutPageCuplivoSearchAlreadyUnlocked": "You've already been through this door.",
+  "aboutPageQQGroup": "Cuplivo Group",
+  "draftImageCropAction": "Crop",
+  "@draftImageCropAction": {},
+  "draftImageCropFailed": "Could not crop this image. The original is unchanged.",
+  "@draftImageCropFailed": {},
+  "displaySettingsPageAutoScrollIdleTitle": "Auto-Scroll Back Delay",
+  "displaySettingsPageAutoScrollIdleSubtitle": "Wait time after user scroll before jumping to bottom",
+  "searchServiceNameCuplivo": "Cuplivo",
+  "memorySettingsFullInjectionTypesTitle": "Always inject these types",
+  "memorySettingsFullInjectionTypesSubtitle": "Select one or more types to inject all their active memories visible to the current assistant. These types ignore the item limit and use more context and tokens.",
+  "toolApprovalApprove": "Approve",
+  "imageSettingsPageModeTitle": "Compression Mode",
+  "imageSettingsPageModeManual": "Manual",
+  "imageSettingsPageModeAuto": "Automatic",
+  "imageSettingsPageModeOff": "Off",
+  "imageSettingsPageModeManualSubtitle": "Images are attached unchanged; open the preview to compress them manually",
+  "imageSettingsPageModeAutoSubtitle": "Images are re-encoded when attached, using the preset below",
+  "imageSettingsPageModeOffSubtitle": "Images are never compressed",
+  "compressEditorTitle": "Compress Image",
+  "compressEditorFormatJpeg": "JPEG",
+  "compressEditorFormatPng": "PNG",
+  "compressEditorFormatOriginal": "Original",
+  "compressEditorLongEdgeLabel": "Long edge",
+  "compressEditorLongEdgeFull": "100%",
+  "compressEditorLongEdgeHalf": "50%",
+  "compressEditorLongEdgeQuarter": "25%",
+  "compressEditorQualityLabel": "Quality",
+  "compressEditorOriginalSide": "Original",
+  "compressEditorEstimating": "Estimating size…",
+  "compressEditorEstimateFailed": "Size estimate unavailable",
+  "compressEditorSavings": "−{percent}%",
+  "@compressEditorSavings": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "compressEditorGrowth": "+{percent}%",
+  "@compressEditorGrowth": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "compressEditorNoReencode": "no re-encode",
+  "compressEditorDecodeFailed": "This image can't be previewed, so it can't be re-compressed.",
+  "compressEditorTooLarge": "This image is too large to open in the editor, so it can't be re-compressed here. It will be attached as it is.",
+  "compressEditorWorkingScale": "Source {source}, loaded at {percent}% to stay within memory",
+  "@compressEditorWorkingScale": {
+    "description": "Shown when a very large image is worked at a reduced resolution.",
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "compressEditorCancel": "Cancel",
+  "compressEditorApply": "Apply",
+  "compressEditorApplyAll": "Apply to all",
+  "compressEditorDone": "Done",
+  "workspaceToolAllowAll": "Allow all this session",
+  "workspaceEntryAllowAll": "Allow all this session",
+  "workspaceEntryAllowAllSubtitle": "Shell commands in this conversation will run without approval.",
+  "recycleBinTitle": "Recycle Bin",
+  "recycleBinManage": "Manage recycle bin",
+  "recycleBinStorageHint": "Kept on this device only — never synced, never in a backup.",
+  "recycleBinEntriesLabel": "items",
+  "recycleBinEmptyTitle": "Nothing in the bin",
+  "recycleBinEmptyBody": "Conversations and assistants you delete, and settings a sync merge replaced, are kept here so you can bring them back.",
+  "recycleBinUntitled": "Untitled",
+  "recycleBinKindConversation": "Conversation",
+  "recycleBinKindAssistant": "Assistant",
+  "recycleBinKindProvider": "Provider",
+  "recycleBinKindWorldBook": "World book",
+  "recycleBinKindMemory": "Memory",
+  "recycleBinKindPreference": "Setting",
+  "recycleBinKindWorkspaceFile": "Workspace file",
+  "recycleBinKindConfig": "Configuration",
+  "recycleBinOriginLocal": "Deleted here",
+  "recycleBinOriginRemote": "Deleted by sync",
+  "recycleBinReasonOverwritten": "Replaced by a newer copy",
+  "recycleBinRestore": "Restore",
+  "recycleBinDeleteForever": "Delete permanently",
+  "recycleBinDeleteForeverBody": "This entry will be deleted for good and can no longer be recovered.",
+  "recycleBinClearAll": "Empty the bin",
+  "recycleBinClearAllBody": "Every entry in the bin will be deleted for good and can no longer be recovered.",
+  "recycleBinRestored": "Restored",
+  "recycleBinRestoreSkipped": "That item is back already, so nothing was changed",
+  "recycleBinRestoreUnreadable": "The staged copy is damaged and cannot be restored",
+  "recycleBinRestoreUnsupported": "This build cannot restore that entry",
+  "recycleBinRestoreNoWorkspace": "This file's workspace was deleted, so there is no folder to put it back into.",
+  "recycleBinRestoreFailed": "Could not restore that entry",
+  "recycleBinFilterAll": "All",
+  "recycleBinFilterConversation": "Conversations",
+  "recycleBinFilterAssistants": "Assistants",
+  "recycleBinFilterSettings": "Settings",
+  "recycleBinFilterFiles": "Files",
+  "recycleBinCancel": "Cancel",
+  "recycleBinInfoTitle": "About the recycle bin",
+  "recycleBinInfoBody": "What you delete here — a conversation, an assistant, a provider, a memory, a setting — is kept on this device so it can be brought back.\n\nThe bin never syncs and never goes into a backup. Entries are kept for 90 days, or until the bin passes 256 MB or 1000 entries; past either limit the oldest go first.\n\nBringing something back writes it as of now, so it is not immediately replaced by whatever won last time.",
+  "recycleBinInfoClose": "Got it",
+  "recycleBinGroupHeader": "{count} conversations deleted together with “{name}”",
+  "recycleBinRestoreGroup": "Restore all",
+  "recycleBinGroupRestored": "Restored {restored}, {skipped} already back",
+  "recycleBinGroupRestoreFailed": "Restored {restored}, {failed} could not be restored",
+  "recycleBinOpenDetail": "View details",
+  "recycleBinDetailKey": "Identity",
+  "recycleBinDetailOrigin": "Origin",
+  "recycleBinDetailWhen": "Deleted",
+  "recycleBinDetailReplacedWhen": "Replaced",
+  "recycleBinDetailSize": "Size",
+  "recycleBinDetailModified": "File modified",
+  "recycleBinDetailContent": "Contents",
+  "recycleBinDetailRows": "{count} rows",
+  "recycleBinDetailTruncated": "Too large — showing the first {shown}",
+  "recycleBinDetailBinary": "Binary file — no preview",
+  "recycleBinDetailUnreadable": "The staged copy is damaged; its contents cannot be read",
+  "recycleBinDetailCopyJson": "Copy JSON",
+  "recycleBinDetailCopyText": "Copy text",
+  "recycleBinDetailCopied": "Copied",
+  "recycleBinDetailAssistantGone": "This conversation belonged to “{name}”, which is no longer on this device. After restoring it you will need to choose an assistant for it.",
+  "settingsPageLanSync": "LAN Sync",
+  "lanSyncThisDevice": "This device",
+  "lanSyncListenerStarting": "Starting listener…",
+  "lanSyncListenerNotRunning": "Listener not running",
+  "lanSyncListenerFailed": "Listener failed to start: {error}",
+  "lanSyncPairSectionTitle": "Pair a device",
+  "lanSyncPairIntro": "Two devices on the same LAN: one shows the QR code, the other scans it.",
+  "lanSyncPairFirstSyncNote": "After pairing, the first sync starts automatically and can take a while. Keep the desktop app running and this app in the foreground on mobile.",
+  "lanSyncShowCode": "Show pairing QR",
+  "lanSyncEnterCode": "Scan or enter code",
+  "lanSyncPairingCode": "Pairing code",
+  "lanSyncPairingExpiresIn": "Expires in {time}",
+  "lanSyncPairingEndpointHint": "Enter this on the other device",
+  "lanSyncPairingNoIpHint": "No LAN address was found. The other device can still reach this one by its IP or hostname.",
+  "lanSyncHostLabel": "Address",
+  "lanSyncPortLabel": "Port",
+  "lanSyncPairButton": "Pair",
+  "lanSyncPairAgain": "Pair again",
+  "lanSyncPairingBusy": "Pairing…",
+  "lanSyncPairSuccess": "Paired with {name}",
+  "lanSyncPairErrorInvalidPin": "Wrong pairing code, or the other device's pairing window is closed.",
+  "lanSyncPairErrorInvalidAddress": "Enter the other device's address and port.",
+  "lanSyncPairErrorUnreachable": "Could not reach the device. Check the address and port, and that both devices are on the same network.",
+  "lanSyncPairErrorNoCertificate": "The other device did not identify itself. Pairing aborted.",
+  "lanSyncPairErrorIdMismatch": "The other device's identity could not be verified. Pairing aborted.",
+  "lanSyncPairErrorNoListener": "The sync listener on this device is not running yet.",
+  "lanSyncPairErrorUnknown": "Pairing failed: {error}",
+  "lanSyncScanQr": "Scan pairing QR",
+  "lanSyncPairQrCaption": "Scan to pair, or enter the details below on the other device",
+  "lanSyncPairUpdatedSnackbar": "Pairing with {name} updated",
+  "lanSyncPairErrorFingerprintMismatch": "The device's certificate does not match the scanned code. Pairing aborted.",
+  "lanSyncPairErrorNoEndpointInQr": "The code carries no address. Enter one below to pair.",
+  "lanSyncPairErrorNotPairingQr": "This is not a Cuplivo pairing code.",
+  "lanSyncPairErrorInvalidQr": "The pairing code could not be read.",
+  "lanSyncPairErrorQrBadVersion": "This pairing code is from a newer version. Update the app and try again.",
+  "lanSyncClosePairing": "Close pairing window",
+  "lanSyncPairedDevices": "Paired devices",
+  "lanSyncWorkspaces": "Workspaces",
+  "lanSyncWorkspaceTip": "Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files or 200 MB don't sync their files. A workspace's record always syncs — the switch governs only its files: a folder with the switch off is never sent, and a sync never removes it.",
+  "lanSyncWorkspaceSyncing": "{count} syncing files",
+  "lanSyncWorkspaceStatusSyncing": "Syncing",
+  "lanSyncWorkspaceStatusTooLarge": "Too large",
+  "lanSyncWorkspaceStatusUnreadable": "Unreadable",
+  "lanSyncWorkspaceStatusOff": "Off",
+  "lanSyncWorkspaceFiles": "{count} files",
+  "lanSyncWorkspaceFilesAtLeast": "{count}+ files",
+  "lanSyncWorkspaceSizeAtLeast": "{size}+",
+  "lanSyncNoDevices": "No paired devices yet. Pair one to start syncing.",
+  "lanSyncPlatformAndroid": "Android",
+  "lanSyncPlatformIos": "iOS",
+  "lanSyncPlatformWindows": "Windows",
+  "lanSyncPlatformMacos": "macOS",
+  "lanSyncPlatformLinux": "Linux",
+  "lanSyncPlatformUnknown": "Unknown device",
+  "lanSyncLastSyncedAt": "Last synced {time}",
+  "lanSyncNeverSynced": "Never synced",
+  "lanSyncJustSynced": "Just synced",
+  "lanSyncMinutesAgo": "{n} min ago",
+  "lanSyncHoursAgo": "{n} h ago",
+  "lanSyncDaysAgo": "{n} d ago",
+  "lanSyncSyncNow": "Sync now",
+  "lanSyncOnline": "Online",
+  "lanSyncOnlineFromSession": "Online — the last sync connected",
+  "lanSyncOfflineFromSession": "Offline — the last sync could not connect",
+  "lanSyncPhaseConnectingTo": "Connecting to {address}…",
+  "lanSyncOffline": "Offline",
+  "lanSyncUpToDate": "Up to date",
+  "lanSyncPhaseConnecting": "Connecting…",
+  "lanSyncPhaseExchanging": "Comparing data…",
+  "lanSyncPhaseSending": "Sending changes…",
+  "lanSyncPhaseReceiving": "Receiving changes…",
+  "lanSyncPhaseFiles": "Downloading files… ({done}/{total})",
+  "lanSyncPhaseFilesNoTotal": "Downloading files…",
+  "lanSyncPhaseApplying": "Applying changes…",
+  "lanSyncFirstSyncHint": "First sync in progress — keep both devices awake and Cuplivo open (in the foreground on mobile) until it finishes.",
+  "lanSyncRename": "Rename",
+  "lanSyncRenameTitle": "Device name",
+  "lanSyncEditAddress": "Edit address",
+  "lanSyncAddressCopied": "Address copied",
+  "lanSyncUnpair": "Unpair",
+  "lanSyncUnpairConfirmTitle": "Unpair {name}?",
+  "lanSyncUnpairConfirmBody": "Conversations stay on both devices. Syncing with it stops until you pair again.",
+  "lanSyncReportSent": "{n} sent",
+  "lanSyncReportReceived": "{n} received",
+  "lanSyncReportMessagesUpserted": "+{n} messages",
+  "lanSyncReportMessagesDeleted": "-{n} messages",
+  "lanSyncReportConversationsDeleted": "-{n} conversations",
+  "lanSyncReportDeferred": "{n} deferred",
+  "lanSyncReportEntities": "{n} entities",
+  "lanSyncReportPreferences": "{n} preferences",
+  "lanSyncReportBlobsWithSize": "{n} files · {size}",
+  "lanSyncReportBlobs": "{n} files",
+  "lanSyncReportSkills": "{n} skills",
+  "lanSyncReportSkillConflicts": "{n} skill edits replaced",
+  "lanSyncReportBlobsMissing": "{n} files missing on the other device",
+  "lanSyncReportWorkspaceFiles": "{count} workspace files",
+  "lanSyncReportWorkspaceFilesWithSize": "{count} workspace files · {size}",
+  "lanSyncReportWorkspaceRemoved": "-{count} workspace files",
+  "lanSyncReportWorkspaceConflicts": "{count} workspace file edits replaced",
+  "lanSyncReportWorkspaceMissing": "{count} workspace files could not be applied",
+  "lanSyncReportWorkspacesOmitted": "{count} workspaces not syncing files",
+  "lanSyncReportWorkspacesKept": "{count} workspace folders kept (switch off)",
+  "lanSyncReportRowsLost": "{n} local rows replaced by newer versions on the peer (recoverable in the recycle bin)",
+  "lanSyncReportClockSkew": "Clocks differ by ~{n} min — fix the device clock, then sync again",
+  "lanSyncReportUnreachable": "Sync failed: the other device could not be reached. It may be offline or on another network — rescan its QR code, or edit its address on the card.",
+  "lanSyncReportNoEndpoint": "Sync failed: no address is stored for the other device. Rescan its QR code, or enter the address on its card.",
+  "lanSyncReportTimeout": "Sync failed: the other device stopped responding.",
+  "lanSyncReportPeerError": "Sync failed: the other device reported an error.",
+  "lanSyncReportInternal": "Sync failed. See the logs for details.",
+  "lanSyncRefusedPeerSchemaNewer": "The other device's database is newer. Update this device first, then sync again.",
+  "lanSyncRefusedProtocolUnknown": "The other device speaks a different sync protocol. Update the app on both devices.",
+  "lanSyncRefusedNotPaired": "This device and the other one no longer agree on this pairing — it was unpaired there, or a re-pairing did not finish on both sides. Pair again on both devices.",
+  "lanSyncRefusedIdentityMismatch": "The other device presented a mismatched identity. Pair again on both devices.",
+  "lanSyncRefusedBusy": "Another sync session is in progress. Try again shortly.",
+  "lanSyncFirewallTitle": "Windows Firewall",
+  "lanSyncFirewallHint": "The inbound rule for port {port} needs one-time administrator approval.",
+  "lanSyncFirewallFix": "Allow access (UAC)",
+  "lanSyncFirewallFixed": "Inbound access allowed.",
+  "lanSyncArrivalToast": "Synced with {name}",
+  "lanSyncArrivalDetails": "Details",
+  "lanSyncNever": "Never",
+  "lanSyncTemporarilyUnreachable": "Can't reach right now",
+  "lanSyncListening": "Listening",
+  "lanSyncCopy": "Copy",
+  "lanSyncMoreActions": "More actions",
+  "lanSyncEndpointTip": "One tile per address: tap the name to rename it, tap the latency for details — when it was last measured, how many syncs it has carried, when it was added. Edit or delete the address there.",
+  "lanSyncJustNow": "Just now",
+  "lanSyncShowAddresses": "Addresses",
+  "lanSyncPairTrustTip": "Use a code only on a network you trust: it stops a passive eavesdropper, not a machine in the middle. The QR carries the other device's certificate fingerprint, which is why it is the safer half.",
+  "lanSyncNoAddress": "No address is remembered for this device.",
+  "lanSyncAddAddress": "Add address",
+  "lanSyncAddressLimit": "This device already remembers {count} addresses for that device. Remove one before adding another.",
+  "lanSyncRenameEndpointTitle": "Address name",
+  "lanSyncRenameEndpointHint": "e.g. Home network",
+  "lanSyncEndpointLatency": "Latency",
+  "lanSyncEndpointLastMeasured": "Last measured",
+  "lanSyncEndpointLastReached": "Last connected",
+  "lanSyncEndpointSuccessCount": "Syncs",
+  "lanSyncEndpointAddedAt": "Added",
+  "lanSyncEndpointSuccessTimes": "{n} times",
+  "lanSyncDeleteEndpoint": "Delete this address",
+  "lanSyncEndpointUnreachable": "Not reachable",
+  "lanSyncSupersededByPeer": "The other device is running this sync.",
+  "assistantEditProactiveCareEnableTitle": "Proactive Care",
+  "@assistantEditProactiveCareEnableTitle": {
+    "description": "Title for the proactive care enable switch"
+  },
+  "assistantEditProactiveCareDefaultDescription": "Default for conversations without an override",
+  "@assistantEditProactiveCareDefaultDescription": {
+    "description": "Explains that the assistant proactive care switch is a conversation default"
+  },
+  "assistantEditProactiveCareDecisionHistoryLimitTitle": "Messages used for time decisions",
+  "@assistantEditProactiveCareDecisionHistoryLimitTitle": {
+    "description": "Title for the proactive-care decision history message limit"
+  },
+  "assistantEditProactiveCareDecisionHistoryLimitDescription": "Maximum number of recent conversation messages sent to the model when deciding the next proactive message time",
+  "@assistantEditProactiveCareDecisionHistoryLimitDescription": {
+    "description": "Description for the proactive-care decision history message limit"
+  },
+  "assistantEditProactiveCareConversationTimesTitle": "Conversation next-letter times",
+  "@assistantEditProactiveCareConversationTimesTitle": {
+    "description": "Title for the expandable conversation proactive care schedule section"
+  },
+  "assistantEditProactiveCareNoEligibleConversations": "No enabled conversations for this assistant",
+  "@assistantEditProactiveCareNoEligibleConversations": {
+    "description": "Empty state for the assistant conversation proactive care schedule list"
+  },
+  "assistantEditProactiveCareConversationTimeFuture": "Future · {time}",
+  "@assistantEditProactiveCareConversationTimeFuture": {
+    "description": "Status for a future conversation proactive care schedule",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "assistantEditProactiveCareConversationTimeExpired": "Expired · {time}",
+  "@assistantEditProactiveCareConversationTimeExpired": {
+    "description": "Status for an expired conversation proactive care schedule",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "assistantEditProactiveCareConversationTimeUnset": "Unset",
+  "@assistantEditProactiveCareConversationTimeUnset": {
+    "description": "Status for an enabled conversation without a proactive care schedule"
+  },
+  "assistantEditProactiveCarePermissionsTitle": "Android readiness",
+  "@assistantEditProactiveCarePermissionsTitle": {
+    "description": "Title for the expandable Android proactive care readiness section"
+  },
+  "assistantEditProactiveCareNotificationsTitle": "Notifications",
+  "@assistantEditProactiveCareNotificationsTitle": {
+    "description": "Android app and proactive care notification channel readiness row"
+  },
+  "assistantEditProactiveCareExactAlarmTitle": "Exact alarms",
+  "@assistantEditProactiveCareExactAlarmTitle": {
+    "description": "Android exact alarm readiness row"
+  },
+  "assistantEditProactiveCareAutoStartTitle": "Auto-start",
+  "@assistantEditProactiveCareAutoStartTitle": {
+    "description": "Android auto-start settings row"
+  },
+  "assistantEditProactiveCareBatteryTitle": "Battery optimization exemption",
+  "@assistantEditProactiveCareBatteryTitle": {
+    "description": "Android battery optimization exemption row"
+  },
+  "assistantEditProactiveCarePermissionRequired": "Required",
+  "@assistantEditProactiveCarePermissionRequired": {
+    "description": "Marks an Android proactive care setting as required"
+  },
+  "assistantEditProactiveCarePermissionRecommended": "Recommended",
+  "@assistantEditProactiveCarePermissionRecommended": {
+    "description": "Marks an Android proactive care setting as recommended"
+  },
+  "assistantEditProactiveCarePermissionReady": "Ready",
+  "@assistantEditProactiveCarePermissionReady": {
+    "description": "Android proactive care setting is ready"
+  },
+  "assistantEditProactiveCarePermissionMissing": "Tap to grant",
+  "@assistantEditProactiveCarePermissionMissing": {
+    "description": "Android proactive care setting is missing"
+  },
+  "assistantEditProactiveCarePermissionManual": "Manual",
+  "@assistantEditProactiveCarePermissionManual": {
+    "description": "Android proactive care setting must be checked manually"
+  },
+  "assistantEditProactiveCarePermissionUnknown": "Unknown",
+  "@assistantEditProactiveCarePermissionUnknown": {
+    "description": "Android proactive care setting could not be determined"
+  },
+  "assistantEditProactiveCareNextMessageTimeTitle": "Next proactive message time",
+  "@assistantEditProactiveCareNextMessageTimeTitle": {
+    "description": "Label for the next proactive message time row"
+  },
+  "assistantEditProactiveCareNextMessageTimeUnset": "Not set",
+  "@assistantEditProactiveCareNextMessageTimeUnset": {
+    "description": "Shown when no proactive message time is set"
+  },
+  "assistantEditProactiveCarePromptTitle": "Proactive care prompt",
+  "@assistantEditProactiveCarePromptTitle": {
+    "description": "Title for the proactive care prompt editor"
+  },
+  "assistantEditProactiveCarePromptHint": "Prompt used when the assistant proactively sends a message",
+  "@assistantEditProactiveCarePromptHint": {
+    "description": "Hint text for the proactive care prompt field"
+  },
+  "assistantEditProactiveCarePromptDefault": "Based on the assistant's character settings, conversation context, and the current time, send a message to the user.",
+  "@assistantEditProactiveCarePromptDefault": {
+    "description": "Default proactive care prompt"
+  },
+  "assistantEditProactiveCareDecisionPromptTitle": "Decision time instruction prompt",
+  "@assistantEditProactiveCareDecisionPromptTitle": {
+    "description": "Title for the decision prompt editor"
+  },
+  "assistantEditProactiveCareDecisionPromptDefault": "You are the director of a role-playing scenario, responsible for deciding when the assistant should next proactively message the user.\n\n[Feature description]\n· Proactive messaging: the assistant can send a message to the user at a scheduled time without waiting for the user to speak first.\n· If no proactive message time is set, the assistant cannot send any message while the user is silent.\n· Evaluate the currently scheduled next message time: keep it if no adjustment is needed; otherwise change it.\n\n[Note]\n· Only consider information visible from the assistant's perspective, not the user's.\n\n[Considerations]\n1. The assistant should proactively check in or greet the user after waking up, finishing a task, arriving safely at the dorm, etc.\n2. If the context mentions the assistant missed the user's messages due to sleeping or being busy, schedule a message for when the assistant wakes up or finishes.\n3. If the context mentions the assistant needs to supervise or remind the user at a specific time, schedule the message for that time.\n4. When a topic is unfinished, assume the user never replies after the assistant's last message — decide when the assistant should proactively follow up.\n\n[Examples]\n1. The user messaged at midnight saying they have insomnia and plan to wake at 10:30, but the assistant sleeps normally and wakes at 8:30. Set the proactive message time to the assistant's wake-up time.\n2. The user and assistant are discussing an exam. At 8:30 the last message is a question from the assistant. Per rule 4, assume the user never replies — the assistant should follow up within 10 minutes.",
+  "@assistantEditProactiveCareDecisionPromptDefault": {
+    "description": "Default decision prompt for proactive care timing"
+  },
+  "assistantEditProactiveCareDateTimePickerTitle": "Choose date and time",
+  "@assistantEditProactiveCareDateTimePickerTitle": {
+    "description": "Title for the date/time picker bottom sheet"
+  },
+  "assistantEditProactiveCareTimeMustBeFuture": "Choose a time in the future.",
+  "@assistantEditProactiveCareTimeMustBeFuture": {
+    "description": "Warning when a proactive care time is no longer in the future"
+  },
+  "conversationProactiveCareTitle": "Conversation proactive care",
+  "@conversationProactiveCareTitle": {
+    "description": "Title and input action label for conversation-level proactive care"
+  },
+  "conversationProactiveCareFollowingAssistantOn": "Following assistant setting: On",
+  "@conversationProactiveCareFollowingAssistantOn": {
+    "description": "Status when conversation proactive care inherits an enabled assistant setting"
+  },
+  "conversationProactiveCareFollowingAssistantOff": "Following assistant setting: Off",
+  "@conversationProactiveCareFollowingAssistantOff": {
+    "description": "Status when conversation proactive care inherits a disabled assistant setting"
+  },
+  "conversationProactiveCareExplicitOn": "Conversation setting: On",
+  "@conversationProactiveCareExplicitOn": {
+    "description": "Status when conversation proactive care is explicitly enabled"
+  },
+  "conversationProactiveCareExplicitOff": "Conversation setting: Off",
+  "@conversationProactiveCareExplicitOff": {
+    "description": "Status when conversation proactive care is explicitly disabled"
+  },
+  "conversationProactiveCareRestoreFollowing": "Follow assistant setting",
+  "@conversationProactiveCareRestoreFollowing": {
+    "description": "Action that clears the conversation proactive care override"
+  },
+  "conversationProactiveCareClearTime": "Clear next message time",
+  "@conversationProactiveCareClearTime": {
+    "description": "Action that clears the conversation proactive care time"
+  },
+  "conversationProactiveCareUpdateFailed": "Couldn't update conversation proactive care.",
+  "@conversationProactiveCareUpdateFailed": {
+    "description": "Error shown when a conversation proactive care update fails"
+  },
+  "defaultModelPageProactiveCareModelTitle": "Ta's Letter Decision Model",
+  "@defaultModelPageProactiveCareModelTitle": {
+    "description": "Title for the proactive care decision model card"
+  },
+  "defaultModelPageProactiveCareModelSubtitle": "Model used to decide when the assistant should proactively message",
+  "@defaultModelPageProactiveCareModelSubtitle": {
+    "description": "Subtitle for the proactive care decision model card"
+  },
+  "proactiveCareFailedNotificationBody": "Couldn't generate the proactive care message. Open the app to check the model settings and network.",
+  "@proactiveCareFailedNotificationBody": {
+    "description": "Notification body when proactive care message generation fails"
+  },
+  "proactiveCareLetterArrivalBody": "A letter has arrived. Open the app to read it.",
+  "@proactiveCareLetterArrivalBody": {
+    "description": "Notification body announcing a due proactive care letter on platforms that announce the arrival and generate the letter at the next app start"
+  },
+  "assistantEditPageRoleplayTab": "Roleplay",
+  "@assistantEditPageRoleplayTab": {
+    "description": "Assistant edit page tab for roleplay features (Their Letter)"
+  },
+  "assistantEditProactiveCareFeatureTitle": "Their Letter",
+  "@assistantEditProactiveCareFeatureTitle": {
+    "description": "Feature header for the proactive care (Their Letter) section"
   }
 }

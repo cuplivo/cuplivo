@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/memory/memory_gatekeeper.dart';
-import 'package:Kelivo/core/services/memory/memory_prompts.dart';
+import 'package:Cuplivo/core/services/memory/memory_gatekeeper.dart';
+import 'package:Cuplivo/core/services/memory/memory_prompts.dart';
 
 void main() {
   group('MemoryGatekeeper.parse (§18.1 item 13)', () {

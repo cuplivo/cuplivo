@@ -4,21 +4,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/model_spec.dart';
-import 'package:Kelivo/core/models/token_usage.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/providers/claude_official.dart';
-import 'package:Kelivo/core/services/api/providers/google_common.dart';
-import 'package:Kelivo/core/services/api/providers/claude/claude_decoder.dart';
-import 'package:Kelivo/core/services/api/providers/google/google_decoder.dart';
-import 'package:Kelivo/core/services/api/providers/openai/chat_completions_decoder.dart';
-import 'package:Kelivo/core/services/api/providers/openai/responses_decoder.dart';
-import 'package:Kelivo/core/services/api/stream/sse_event.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk_handler.dart';
-import 'package:Kelivo/core/utils/model_cost.dart';
-import 'package:Kelivo/features/home/services/context_assembly.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/model_spec.dart';
+import 'package:Cuplivo/core/models/token_usage.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/providers/claude_official.dart';
+import 'package:Cuplivo/core/services/api/providers/google_common.dart';
+import 'package:Cuplivo/core/services/api/providers/claude/claude_decoder.dart';
+import 'package:Cuplivo/core/services/api/providers/google/google_decoder.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/chat_completions_decoder.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/responses_decoder.dart';
+import 'package:Cuplivo/core/services/api/stream/sse_event.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk_handler.dart';
+import 'package:Cuplivo/core/utils/model_cost.dart';
+import 'package:Cuplivo/features/home/services/context_assembly.dart';
 
 void main() {
   SseEvent event(Map<String, dynamic> payload) =>

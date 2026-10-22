@@ -8,7 +8,7 @@ import '../../../theme/palettes.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_switch.dart';
 import '../../../core/services/haptics.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 import '../../../theme/custom_theme.dart';
 import '../widgets/custom_theme_widgets.dart';
 import '../../../shared/widgets/section_card.dart';

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/shared/widgets/interactive_drawer.dart';
-import 'package:Kelivo/shared/widgets/selection_back_scope.dart';
+import 'package:Cuplivo/shared/widgets/interactive_drawer.dart';
+import 'package:Cuplivo/shared/widgets/selection_back_scope.dart';
 
 Future<void> _backGesture(WidgetTester tester, {bool cancel = false}) async {
   for (final call in [

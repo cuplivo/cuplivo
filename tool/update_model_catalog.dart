@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/services/model_catalog/catalog_entry.dart';
-import 'package:Kelivo/core/services/model_catalog/model_catalog_trim.dart';
+import 'package:Cuplivo/core/services/model_catalog/catalog_entry.dart';
+import 'package:Cuplivo/core/services/model_catalog/model_catalog_trim.dart';
 
 const String _defaultOutput = 'assets/model_catalog/models_dev.json';
 const String _defaultUrl = 'https://models.dev/api.json';

@@ -7,11 +7,11 @@ import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/database/gen_ui_derived_schema.dart';
-import 'package:Kelivo/core/database/schema_migrations.dart';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_budgets.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/database/gen_ui_derived_schema.dart';
+import 'package:Cuplivo/core/database/schema_migrations.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_budgets.dart';
 
 import 'generated_schema/schema.dart';
 

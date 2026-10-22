@@ -1,5 +1,5 @@
-import 'package:Kelivo/utils/protected_text.dart';
-import 'package:Kelivo/utils/source_text_map.dart';
+import 'package:Cuplivo/utils/protected_text.dart';
+import 'package:Cuplivo/utils/source_text_map.dart';
 import 'package:markstream/markstream_core.dart' show SourceSpan;
 import 'dart:convert';
 

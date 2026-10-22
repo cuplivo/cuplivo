@@ -1,15 +1,15 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/database/generation_run.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/services/tts/tts_text_selection.dart';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_catalog.dart';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_budgets.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_message_projection.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_state.dart';
-import 'package:Kelivo/features/intelligent_ui/text/ui_text_projection.dart';
+import 'package:Cuplivo/core/database/generation_run.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/services/tts/tts_text_selection.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_catalog.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_budgets.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_message_projection.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_state.dart';
+import 'package:Cuplivo/features/intelligent_ui/text/ui_text_projection.dart';
 import '../../support/genui_projection_fixture.dart';
 
 const _body = r'''ui 1 catalog "kelivo.native/1"
@@ -145,7 +145,7 @@ void main() {
       _message(
         '',
         parts: const [
-          TextPart('```kelivo-'),
+          TextPart('```cuplivo-'),
           ImagePart(uri: 'boundary.png'),
           TextPart('ui\n$_body```'),
         ],
@@ -163,7 +163,7 @@ void main() {
   test('adjacent text parts retain original surface identity', () async {
     final item = _message(
       '',
-      parts: const [TextPart('```kelivo-'), TextPart('ui\n$_body```')],
+      parts: const [TextPart('```cuplivo-'), TextPart('ui\n$_body```')],
     );
     final controller = _controller(_body);
     controller.setInputs({'a': 4}, token: controller.token);

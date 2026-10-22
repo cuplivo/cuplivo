@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_catalog.dart';
-import 'package:Kelivo/features/intelligent_ui/text/ui_text_projection.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_catalog.dart';
+import 'package:Cuplivo/features/intelligent_ui/text/ui_text_projection.dart';
 
 final testUiProjection = UiTextProjection(
   UiProjectionLabels(

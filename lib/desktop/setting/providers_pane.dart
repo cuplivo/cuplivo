@@ -318,7 +318,6 @@ class _DesktopProvidersBodyState extends State<_DesktopProvidersBody> {
       (name: 'Gemini', key: 'Gemini'),
       (name: 'STA1N API', key: 'STA1N API'),
       (name: 'OpenRouter', key: 'OpenRouter'),
-      (name: 'KelivoIN', key: 'KelivoIN'),
       (name: '10dian-API', key: '10dian-API'),
       (name: 'DeepSeek', key: 'DeepSeek'),
       (name: l10n.providersPageSiliconFlowName, key: 'SiliconFlow'),
@@ -6214,7 +6213,7 @@ class _DesktopProviderShareDialogState
 
     try {
       final file = File(
-        p.join(Directory.systemTemp.path, 'kelivo-provider-qr.png'),
+        p.join(Directory.systemTemp.path, 'cuplivo-provider-qr.png'),
       );
       await file.writeAsBytes(bytes, flush: true);
       return await ClipboardImages.setImagePath(file.path);

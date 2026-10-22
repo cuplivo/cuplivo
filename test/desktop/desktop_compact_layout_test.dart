@@ -1,12 +1,12 @@
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/desktop/desktop_translate_page.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/desktop/desktop_translate_page.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:provider/provider.dart';
 import '../support/business_test_harness.dart';
-import 'package:Kelivo/desktop/desktop_context_menu.dart';
-import 'package:Kelivo/desktop/desktop_glass_popover.dart';
-import 'package:Kelivo/desktop/widgets/desktop_labeled_control.dart';
+import 'package:Cuplivo/desktop/desktop_context_menu.dart';
+import 'package:Cuplivo/desktop/desktop_glass_popover.dart';
+import 'package:Cuplivo/desktop/widgets/desktop_labeled_control.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

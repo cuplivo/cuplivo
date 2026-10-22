@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/chat/widgets/timeline_projection.dart';
-import 'package:Kelivo/features/home/services/local_tools_service.dart';
+import 'package:Cuplivo/features/chat/widgets/timeline_projection.dart';
+import 'package:Cuplivo/features/home/services/local_tools_service.dart';
 
 TimelineProjectedStep tool(
   String id, {

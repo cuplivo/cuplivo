@@ -43,7 +43,7 @@ S1/S6/shell matrix, light/dark, wallpaper, RTL, large text and mobile/desktop.
 Independent review returned no remaining findings after the boundary repairs.
 
 Native Android evidence uses dedicated device fee8c1be and a separate
-com.psyche.kelivo.genui.visual package, with synthetic local data and the production
+com.cuplivo.cuplivo.genui.visual package, with synthetic local data and the production
 message host. A swipe beginning on the chart reached the text after the capped
 card; Expand reached the final extra node. The native capture sequence is under
 build/genui/trial/android-visual-20261025T042946Z. This is native interaction

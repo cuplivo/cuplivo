@@ -15,7 +15,7 @@ import '../core/services/chat/chat_service.dart';
 import '../features/chat/utils/ensure_conversation.dart';
 import '../features/home/services/local_tool_labels.dart';
 import '../features/home/services/local_tool_toggle.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 import '../theme/design_tokens.dart';
 import 'desktop_overlay_backdrop.dart';
 

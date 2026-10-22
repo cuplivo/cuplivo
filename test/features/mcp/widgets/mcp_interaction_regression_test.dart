@@ -3,15 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/desktop/widgets/desktop_form_dialog.dart';
-import 'package:Kelivo/desktop/setting/mcp_pane.dart';
-import 'package:Kelivo/features/mcp/pages/mcp_page.dart';
-import 'package:Kelivo/features/mcp/widgets/mcp_icon_picker.dart';
-import 'package:Kelivo/features/mcp/widgets/mcp_text_dialog.dart';
-import 'package:Kelivo/features/provider/widgets/provider_icon_picker.dart';
-import 'package:Kelivo/shared/widgets/ios_text_button.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
-import 'package:Kelivo/utils/brand_assets.dart';
+import 'package:Cuplivo/desktop/widgets/desktop_form_dialog.dart';
+import 'package:Cuplivo/desktop/setting/mcp_pane.dart';
+import 'package:Cuplivo/features/mcp/pages/mcp_page.dart';
+import 'package:Cuplivo/features/mcp/widgets/mcp_icon_picker.dart';
+import 'package:Cuplivo/features/mcp/widgets/mcp_text_dialog.dart';
+import 'package:Cuplivo/features/provider/widgets/provider_icon_picker.dart';
+import 'package:Cuplivo/shared/widgets/ios_text_button.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/utils/brand_assets.dart';
 
 import '../../../support/mcp_presentation_harness.dart';
 

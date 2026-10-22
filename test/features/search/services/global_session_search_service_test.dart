@@ -1,6 +1,6 @@
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/features/search/services/global_session_search_service.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/features/search/services/global_session_search_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _Chat extends ChatService {

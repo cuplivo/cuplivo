@@ -1,4 +1,4 @@
-/// Platform-independent syntax and typed references for Kelivo UI DSL v1.
+/// Platform-independent syntax and typed references for Cuplivo UI DSL v1.
 /// No widget, database, provider or platform imports belong in this library.
 library;
 

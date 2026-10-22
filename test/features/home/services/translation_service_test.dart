@@ -1,5 +1,5 @@
-import 'package:Kelivo/core/services/api/retry_policy.dart';
-import 'package:Kelivo/features/home/services/translation_service.dart';
+import 'package:Cuplivo/core/services/api/retry_policy.dart';
+import 'package:Cuplivo/features/home/services/translation_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 

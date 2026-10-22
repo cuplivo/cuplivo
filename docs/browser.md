@@ -2102,14 +2102,14 @@ R19/R20's host, input bridge and lifetime wrapper were withdrawn from the active
 browser checkout; R18 hosting and its material-change document retention are
 restored. The withdrawn source is retained in `/tmp/browser-r20-withdrawn-20261020`
 for diagnosis. Further host experiments run in the separate
-`browser-input-probe` worktree with package `com.psyche.kelivo.browserprobe`,
+`browser-input-probe` worktree with package `com.cuplivo.cuplivo.browserprobe`,
 not the user's installed application. Input validation must pass through Android
 InputDispatcher and check foreground/background window ownership. Performance
 remains unresolved in the restored R18 application.
 
 ### Isolated R21 experiment rejected after system-input comparison
 
-A separate `com.psyche.kelivo.browserprobe` application corrected the embedded
+A separate `com.cuplivo.cuplivo.browserprobe` application corrected the embedded
 host's display to its actual virtual display and rejected a physical-display
 attachment. A local coordinator sent gestures through `adb shell input`;
 `shouldPropagateDevicePointerEvents` was enabled in the test binding, which
@@ -2161,7 +2161,7 @@ or push was made. The performance objective remains unresolved.
 
 R22 uses the restored R18 WebView host. It adds no SurfaceControlViewHost,
 input window, custom virtual-display controller or device input setting. Work
-was first exercised in the separate `com.psyche.kelivo.browserprobe` package;
+was first exercised in the separate `com.cuplivo.cuplivo.browserprobe` package;
 normal application data was not used by the fixture.
 
 Changes:
@@ -2243,7 +2243,7 @@ The probe's diagnostic Activity was moved to the profile source set before its
 normal-entry Release build, so that application contains no input-test Activity.
 
 The normally launchable independent ARM64 Release was installed successfully as
-`com.psyche.kelivo.browserprobe`, label `Kelivo Browser Probe`, version code 2080.
+`com.cuplivo.cuplivo.browserprobe`, label `Kelivo Browser Probe`, version code 2080.
 APK SHA-256: `f1ce1ccb27a5f4901665cc420455134d801713d51cf8a38a8a266186e5418409`.
 Its debug signing certificate matches the isolated profile package; it cannot
 replace the separately identified normal application. Launch completed (1079ms
@@ -2310,7 +2310,7 @@ Both DEX and `lib/arm64-v8a/libapp.so` were checked for absence of the unintende
 2.5.x JNI registrar, and root dependency locks matched before/after build.
 Two cold launches were visually verified at the real New Conversation home
 screen. The Kelivo website/browser menu was subsequently observed with the
-foreground package confirmed as `com.psyche.kelivo.browserprobe`; input automation
+foreground package confirmed as `com.cuplivo.cuplivo.browserprobe`; input automation
 was stopped for manual use. The installed normal package hash still exactly
 matches R18. No data-reset or recovery action was performed. Performance
 acceptance remains pending on this dependency-aligned, normally launched Release.
@@ -2401,9 +2401,9 @@ while preserving archive bytes, hashes and per-chunk cancellation. The repair
 and its additional progress assertions received independent review too.
 
 The final independent normal-entry ARM64 Release was verified on emulator cold
-startup and installed with `adb install -r` as `com.psyche.kelivo.browserprobe`.
+startup and installed with `adb install -r` as `com.cuplivo.cuplivo.browserprobe`.
 APK SHA-256: `73e6378b37c61d3d4cd87435e042220e9b727aef02858298edb432c80b17bd2c`.
 The physical phone remained locked, so R23 physical-device frame/input checks
-were not performed. The normal `com.psyche.kelivo` APK still hashes to
+were not performed. The normal `com.cuplivo.cuplivo` APK still hashes to
 `48f6e3bbf091af4ef883025d44b5a9ecc95a1a94204e74753f733b9c13c1ef96`;
 it was not replaced, cleared or reset.

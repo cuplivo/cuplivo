@@ -1515,11 +1515,11 @@ class SettingsProvider extends ChangeNotifier {
       await prefs.setString(_providerConfigsKey, jsonEncode(seededConfigs));
     }
 
-    final kelivo = _providerConfigs['KelivoIN'];
-    final kelivoHost = Uri.tryParse(kelivo?.baseUrl ?? '')?.host.toLowerCase();
-    if (kelivo != null &&
-        (kelivoHost == 'pollinations.ai' ||
-            (kelivoHost?.endsWith('.pollinations.ai') ?? false))) {
+    final cuplivo = _providerConfigs['KelivoIN'];
+    final cuplivoHost = Uri.tryParse(cuplivo?.baseUrl ?? '')?.host.toLowerCase();
+    if (cuplivo != null &&
+        (cuplivoHost == 'pollinations.ai' ||
+            (cuplivoHost?.endsWith('.pollinations.ai') ?? false))) {
       // The retired service cannot be used anymore. Drop its saved credentials,
       // models and selections before installing the current built-in provider.
       await onProviderModelsRetired?.call('KelivoIN');
@@ -1528,7 +1528,7 @@ class SettingsProvider extends ChangeNotifier {
         'KelivoIN',
         ProviderConfig.defaultsFor(
           'KelivoIN',
-        ).copyWith(enabled: kelivo.enabled),
+        ).copyWith(enabled: cuplivo.enabled),
       );
     }
 
@@ -2237,7 +2237,7 @@ class SettingsProvider extends ChangeNotifier {
     final services = List<SearchServiceOptions>.from(_searchServices);
     final common = _searchCommonOptions;
     for (final s in services) {
-      if (s is BingLocalOptions || s is KelivoOptions) {
+      if (s is BingLocalOptions || s is CuplivoOptions) {
         _searchConnection[s.id] = null;
         continue;
       }
@@ -5729,11 +5729,11 @@ Requirements:
   }
 
   // Search service settings
-  Future<bool> unlockKelivoSearch() async {
-    if (_searchServices.any((s) => s is KelivoOptions)) return false;
+  Future<bool> unlockCuplivoSearch() async {
+    if (_searchServices.any((s) => s is CuplivoOptions)) return false;
     await setSearchServices([
       ..._searchServices,
-      KelivoOptions(id: KelivoOptions.builtInId),
+      CuplivoOptions(id: CuplivoOptions.builtInId),
     ]);
     return true;
   }
@@ -6713,7 +6713,7 @@ class ProviderConfig {
   static String _defaultBase(String key) {
     final k = key.toLowerCase();
     if (k.contains('tensdaq')) return 'https://tensdaq-api.x-aio.com/v1';
-    if (k.contains('kelivoin')) return 'https://api.psycheas.top/v1';
+    if (k.contains('cuplivoin')) return 'https://api.cuplivoas.top/v1';
     if (k.contains('openrouter')) return 'https://openrouter.ai/api/v1';
     if (k.contains('vercel')) return 'https://ai-gateway.vercel.sh/v1';
     if (k.contains('aihubmix')) return 'https://aihubmix.com/v1';
@@ -6758,7 +6758,7 @@ class ProviderConfig {
       if (s.contains('gemini') || s.contains('google')) return true;
       if (s.contains('silicon')) return true;
       if (s.contains('openrouter')) return true;
-      if (s.contains('kelivoin')) return true;
+      if (s.contains('cuplivoin')) return true;
       return false; // others disabled by default
     }
 
@@ -6819,7 +6819,7 @@ class ProviderConfig {
         );
       case ProviderKind.openai:
         // Special-case KelivoIN default models and overrides
-        if (lowerKey.contains('kelivoin')) {
+        if (lowerKey.contains('cuplivoin')) {
           return ProviderConfig(
             id: key,
             enabled: defaultEnabled(key),

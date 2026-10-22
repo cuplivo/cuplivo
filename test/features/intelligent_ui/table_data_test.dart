@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_catalog.dart';
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_diagnostic.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_chart_data.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_table_data.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_state.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_catalog.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_diagnostic.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_chart_data.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_table_data.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_state.dart';
 
 Map<String, Object?> _props(List<Object?> rows, {List<Object?>? columns}) => {
   'data': rows,

@@ -17,8 +17,8 @@ import '../../assistant/pages/assistant_settings_edit_page.dart';
 import '../../assistant/pages/tags_manager_page.dart';
 import '../../assistant/widgets/tags_manager_dialog.dart';
 import '../../assistant/widgets/assistant_copy_dialog.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 class AssistantEntryActions {
   const AssistantEntryActions._();

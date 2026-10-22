@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:Kelivo/shared/responsive/screen_type_helper.dart';
+import 'package:Cuplivo/shared/responsive/screen_type_helper.dart';
 import 'genui_theme.dart';
 
 /// Compact painted segments with independent, full-sized touch targets.

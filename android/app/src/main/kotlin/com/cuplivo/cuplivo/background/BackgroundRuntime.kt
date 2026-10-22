@@ -60,13 +60,19 @@ class BackgroundRuntime(private val context: Context) {
         const val NOTIFICATION_PERMISSION_REQUEST = 4301
         const val CONVERSATION_EXTRA = "kelivo.background.conversation"
         private const val PENDING_CONVERSATION = "pending_conversation"
+        private const val PENDING_CONVERSATION_LINK = "pending_conversation_link"
+        private const val CONSUMED_LAUNCH = "consumed_launch_payload"
     }
+
+    /** Which lifecycle path delivered a conversation intent; decides replay suppression. */
+    enum class Origin { TASK_LAUNCH, RECORD_RESTORE, NEW_INTENT }
 
     private val prefs = context.getSharedPreferences("kelivo_background", Context.MODE_PRIVATE)
     private val main = Handler(Looper.getMainLooper())
     private var channel: MethodChannel? = null
     private var activity = WeakReference<Activity>(null)
     private var dartReady = false
+    private var dartLinkReady = false
     private var revision = -1L
     private var serviceStarting = false
     private var blocked = false
@@ -118,6 +124,12 @@ class BackgroundRuntime(private val context: Context) {
                             val id = prefs.getString(PENDING_CONVERSATION, null)
                             prefs.edit().remove(PENDING_CONVERSATION).apply()
                             result.success(id)
+                        }
+                        "takePendingConversationLink" -> {
+                            dartLinkReady = true
+                            val link = prefs.getString(PENDING_CONVERSATION_LINK, null)
+                            prefs.edit().remove(PENDING_CONVERSATION_LINK).apply()
+                            result.success(link)
                         }
                         "requestPermission" -> {
                             requestPermission(call.arguments as? String ?: "")
@@ -243,11 +255,46 @@ class BackgroundRuntime(private val context: Context) {
         if (!shouldRunService()) stopTasks()
     }
 
-    fun receiveConversation(intent: Intent?) {
-        val id = intent?.getStringExtra(CONVERSATION_EXTRA)?.takeIf { it.isNotBlank() } ?: return
+    /**
+     * [origin] is the lifecycle path that delivered the intent, and together with the
+     * payload it decides replay suppression:
+     *
+     * - [Origin.TASK_LAUNCH]: record the payload as the one this task launched with.
+     * - [Origin.RECORD_RESTORE]: `onCreate(savedInstanceState != null)`, where AMS
+     *   re-delivers the intent it kept for this task, so an equal payload is a replay.
+     *   Clearing `intent.data` below only edits this process's copy of it.
+     * - [Origin.NEW_INTENT]: a live delivery, always a new tap.
+     *
+     * Only a restore is suppressed, and only against the launch payload, so a warm tap
+     * before the kill cannot mask the replay. A restore is indistinguishable from a
+     * fresh tap of that same launch payload into a destroyed record -- the intents are
+     * identical -- so such a tap is dropped. A process killed while resumed saves no
+     * instance state either, so it reads as a launch and replays (pre-existing).
+     */
+    fun receiveConversation(intent: Intent?, origin: Origin) {
+        if (intent == null || intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
+        // Keep the URL whole, including encoded ids and the optional message
+        // anchor. ConversationLink in Dart owns validation for both platforms.
+        val uri = intent.data
+        val link = if (intent.action == Intent.ACTION_VIEW && uri?.scheme == "cuplivo") uri.toString() else null
+        // Notification row keys are not constrained by the external URL grammar.
+        val id = if (link == null) intent.getStringExtra(CONVERSATION_EXTRA)?.takeIf { it.isNotBlank() } else null
+        val payload = link ?: id ?: return
+        if (origin == Origin.RECORD_RESTORE && payload == prefs.getString(CONSUMED_LAUNCH, null)) return
+        if (origin == Origin.TASK_LAUNCH) prefs.edit().putString(CONSUMED_LAUNCH, payload).apply()
+
+        if (link != null) {
+            intent.data = null // Consumed for this process only: AMS keeps its own copy.
+            intent.removeExtra(CONVERSATION_EXTRA)
+            prefs.edit().remove(PENDING_CONVERSATION).apply()
+            if (!dartLinkReady) prefs.edit().putString(PENDING_CONVERSATION_LINK, link).apply()
+            else channel?.invokeMethod("openConversationLink", link)
+            return
+        }
         intent.removeExtra(CONVERSATION_EXTRA)
-        if (!dartReady) prefs.edit().putString(PENDING_CONVERSATION, id).apply()
-        else channel?.invokeMethod("openConversation", id)
+        prefs.edit().remove(PENDING_CONVERSATION_LINK).apply()
+        if (!dartReady) prefs.edit().putString(PENDING_CONVERSATION, payload).apply()
+        else channel?.invokeMethod("openConversation", payload)
     }
 
     fun openConversation(id: String) {

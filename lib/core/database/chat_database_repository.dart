@@ -35,6 +35,7 @@ import '../services/api/providers/claude/claude_thinking_recovery.dart';
 import '../services/api/providers/claude/claude_history.dart';
 import '../services/backup/restore_durability.dart';
 import '../services/backup/restore_previous_plan.dart';
+import '../services/recycle/recycle_service.dart';
 import '../services/sync/sync_merge.dart';
 import '../services/sync/sync_models.dart';
 
@@ -158,6 +159,7 @@ class ChatDatabaseRepository {
     this._db, {
     File? databaseFile,
     ChatDatabaseObserver? observer,
+    this.recycle,
   }) : _databaseFile = databaseFile?.absolute,
        _observer = observer ?? ChatDatabaseObserver.instance;
 
@@ -166,6 +168,10 @@ class ChatDatabaseRepository {
   late final ComposerDraftStore composerDrafts = ComposerDraftStore(_db);
   final File? _databaseFile;
   final ChatDatabaseObserver _observer;
+
+  /// The device-local recycle bin, when this repository was opened by the
+  /// gateway. Null in tests and one-shot opens, where nothing stages.
+  final RecycleService? recycle;
   bool _messageSearchFtsReady = false;
 
   static ChatDatabaseRepository open({
@@ -5254,9 +5260,13 @@ class ChatDatabaseRepository {
   /// Applies a peer's conversation deletion using the standard tombstone path,
   /// so a third paired device can learn about the deletion as well. Returns
   /// false when the deletion is deferred (a generation is running).
+  ///
+  /// The subtree is staged with [RecycleOrigin.remote]: a conversation removed
+  /// because another device removed it is exactly as recoverable as one removed
+  /// here, and the bin records which was which.
   Future<bool> syncApplyPeerDeletion(String conversationId) async {
     if (await syncConversationIsStreaming(conversationId)) return false;
-    await deleteConversation(conversationId);
+    await deleteConversation(conversationId, origin: RecycleOrigin.remote);
     return true;
   }
 
@@ -6619,19 +6629,43 @@ class ChatDatabaseRepository {
   /// Deletes [id] and records a tombstone in the same transaction so a future
   /// sync can propagate the deletion to other devices.
   ///
+  /// The whole subtree is staged into the recycle bin first, in the same
+  /// transaction, so the deletion stays undoable for
+  /// [RecycleStore.defaultRetention].
+  /// Every deletion this device performs funnels through here — its own UI, an
+  /// assistant's cascade, and a peer's deletion via [syncApplyPeerDeletion] —
+  /// which is why [origin] (and, for a cascade, [group]) is the only thing the
+  /// caller decides.
+  ///
   /// Bulk resets (overwrite restore, importer wipes) go through
   /// [clearAllData], which clears tombstones instead of writing them:
   /// replacing the whole local state is not a cross-device deletion intent.
   /// Draft conversations never reach this method (they are not persisted), so
   /// no tombstone is written for them.
-  Future<void> deleteConversation(String id) async {
+  Future<void> deleteConversation(
+    String id, {
+    RecycleOrigin origin = RecycleOrigin.local,
+    RecycleGroup? group,
+  }) async {
+    // The recycle bin works in two halves around the transaction: the capture is
+    // taken inside it, because what is staged has to be what the cascade is
+    // about to remove, and it is staged after it returns, because decoding the
+    // capture and writing the entry are proportional to the conversation and
+    // would otherwise be paid for by the delete (with its transaction open).
+    RecycleConversationCapture? capture;
     await composerDrafts.delete(
       id,
       deleteConversation: () async {
+        final captured = await recycle?.captureConversationDeletion(
+          id,
+          origin: origin,
+          group: group,
+        );
         final deleted = await (_db.delete(
           _db.conversationRows,
         )..where((t) => t.id.equals(id))).go();
         if (deleted == 0) return;
+        capture = captured;
         final now = DateTime.now().toUtc();
         await _db
             .into(_db.tombstoneRows)
@@ -6650,6 +6684,7 @@ class ChatDatabaseRepository {
             .go();
       },
     );
+    if (capture case final staged?) recycle?.stageCapturedConversation(staged);
   }
 
   /// Reads deletion tombstones, newest first, optionally filtered by [scope].

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:Cuplivo/core/database/app_database.dart';
 import 'package:Cuplivo/core/database/business_repository.dart';
 import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/services/recycle/recycle_service.dart';
 import 'package:Cuplivo/core/services/sync/sync_models.dart';
 import 'package:Cuplivo/core/services/sync/sync_store.dart';
 import 'package:Cuplivo/core/services/sync/workspace_content_index.dart';
@@ -20,12 +21,20 @@ void main() {
   late BusinessRepository businessRepository;
   late ExtensionEntityStore store;
   late WorkspaceContentSync content;
+  late RecycleService recycle;
 
   setUp(() async {
     root = await Directory.systemTemp.createTemp('ws-content-');
     database = AppDatabase(NativeDatabase.memory());
     businessRepository = BusinessRepository(database);
     store = ExtensionEntityStore(database);
+    // Every test in this file runs with a bin attached: the hooks are on the
+    // landing and deletion paths themselves, so "with a bin" is the shape
+    // production has, and a test that wants the fallback builds its own.
+    recycle = RecycleService(
+      database,
+      store: RecycleStore(directory: () async => Directory('${root.path}/bin')),
+    );
     content = WorkspaceContentSync(
       businessRepository: businessRepository,
       store: SyncStore(Directory('${root.path}/sync')),
@@ -34,6 +43,7 @@ void main() {
         await dir.create(recursive: true);
         return dir;
       },
+      recycle: recycle,
     );
   });
 
@@ -89,6 +99,12 @@ void main() {
         await destination.writeAsString(data, flush: true);
         return data.length;
       };
+
+  /// The bin's contents, after the staging write it was handed has finished.
+  Future<List<RecycleEntry>> binEntries() async {
+    await recycle.settle();
+    return recycle.list();
+  }
 
   group('snapshots', () {
     test(
@@ -582,6 +598,38 @@ void main() {
       },
     );
 
+    test('a file the peer deleted is staged before it goes', () async {
+      await putWorkspace('w1');
+      await putFile('w1', 'deep/a.txt', 'x', mtimeMs: 5000);
+      final snapshots = await content.snapshots();
+      final mine = snapshots.single.index.files['deep/a.txt']!;
+
+      final outcome = await content.applyIncoming(
+        myDeviceId: 'me',
+        peerDeviceId: 'peer',
+        mine: snapshots,
+        peerTables: const {'w1': <String, WorkspaceFileStamp>{}},
+        ledger: {
+          'w1': {'deep/a.txt': SyncAgreedFile(mine, mine)},
+        },
+        allowDeletes: true,
+        fetch: fetcher('unused'),
+      );
+
+      expect(outcome.filesRemoved, 1);
+      final entry = (await binEntries()).single;
+      expect(entry.type, RecycleEntryType.workspaceFile);
+      expect(entry.origin, RecycleOrigin.remote);
+      expect(entry.reason, RecycleReason.deleted);
+      expect(entry.workspaceId, 'w1');
+      expect(entry.relPath, 'deep/a.txt');
+      expect(
+        await (await recycle.bodyFile(entry))!.readAsString(),
+        'x',
+        reason: 'the bytes the peer removed are the ones the bin keeps',
+      );
+    });
+
     test(
       'a workspace the peer does not share is left completely alone',
       () async {
@@ -669,6 +717,38 @@ void main() {
           advertised.mtimeMs,
           reason:
               'a pushed file carries the peer\'s edit time, like a fetched one',
+        );
+      },
+    );
+
+    test(
+      'a push that replaces a file stages the version it replaced',
+      () async {
+        await putWorkspace('w1');
+        await putFile('w1', 'a.txt', 'mine', mtimeMs: 1000);
+        final staged = File('${root.path}/staged.bin');
+        await staged.writeAsString('theirs', flush: true);
+
+        final landed = await content.acceptPushed(
+          workspaceId: 'w1',
+          relPath: 'a.txt',
+          staged: staged,
+          advertised: const WorkspaceFileStamp(size: 6, mtimeMs: 2000),
+        );
+
+        expect(landed, isNotNull);
+        expect(await workspaceFile('w1', 'a.txt').readAsString(), 'theirs');
+        final entry = (await binEntries()).single;
+        expect(entry.type, RecycleEntryType.workspaceFile);
+        expect(entry.origin, RecycleOrigin.remote);
+        expect(entry.reason, RecycleReason.overwritten);
+        expect(entry.workspaceId, 'w1');
+        expect(entry.relPath, 'a.txt');
+        expect(
+          await (await recycle.bodyFile(entry))!.readAsString(),
+          'mine',
+          reason:
+              'the version the peer replaced is the one kept, not the new one',
         );
       },
     );

@@ -80,6 +80,7 @@ import 'core/providers/sync_provider.dart';
 import 'core/services/sync/business_state_reloader.dart';
 import 'features/home/services/context_usage_service.dart';
 import 'core/services/model_catalog/model_catalog_service.dart';
+import 'core/services/recycle/recycle_service.dart';
 import 'core/services/app_exit_flush.dart';
 import 'core/services/backup/restore_archive_pruner.dart';
 import 'core/services/backup/restore_business_lease.dart';
@@ -326,6 +327,17 @@ Future<void> main() async {
       // logging.Logger.root.onRecord.listen((rec) { ... });
       // Cache current Documents directory to fix sandboxed absolute paths on iOS
       await SandboxPathResolver.init();
+      // The recycle bin is the app's to attach, not the gateway's (ADR-0016):
+      // the gateway is what test harnesses acquire too, and a bin that writes
+      // files after a delete returns has no business in every harness. The
+      // workspace root rides along because restoring a staged file needs the
+      // same folder a sync landing writes into, and this is the one place that
+      // knows where that is.
+      ChatDatabaseGateway.instance.recycleFactory = (database) =>
+          RecycleService(
+            database,
+            workspaceRoot: AppDirectories.workspaceFilesDir,
+          );
       ChatDatabaseLease? processDatabaseLease;
       BusinessPreferences? businessPreferences;
       var recoveryAttempted = false;
@@ -783,6 +795,8 @@ class MyApp extends StatelessWidget {
           value: databaseLease.businessRepository,
         ),
         Provider<BusinessPreferences>.value(value: businessPreferences),
+        if (databaseLease.recycleService case final recycle?)
+          Provider<RecycleService>.value(value: recycle),
         Provider<BusinessStateReloader>(
           create: (_) => BusinessStateReloader(businessPreferences),
         ),
@@ -801,6 +815,9 @@ class MyApp extends StatelessWidget {
             businessPreferences: businessPreferences,
             reloader: ctx.read<BusinessStateReloader>(),
             syncDirectory: AppDirectories.getSyncDirectory,
+            // The same bin the delete paths stage into: a workspace file a
+            // sync round replaces or removes goes here too (ADR-0016).
+            recycle: databaseLease.recycleService,
           ),
         ),
         ChangeNotifierProvider(create: (_) => McpToolService()),

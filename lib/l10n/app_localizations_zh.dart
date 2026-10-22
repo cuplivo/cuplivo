@@ -10382,6 +10382,193 @@ class AppLocalizationsZh extends AppLocalizations {
   String get storageSpaceManageSkills => '管理技能';
 
   @override
+  String get recycleBinTitle => '回收站';
+
+  @override
+  String get recycleBinManage => '管理回收站';
+
+  @override
+  String get recycleBinStorageHint => '本机暂存，不参与同步与备份。';
+
+  @override
+  String get recycleBinEntriesLabel => '条目';
+
+  @override
+  String get recycleBinEmptyTitle => '回收站是空的';
+
+  @override
+  String get recycleBinEmptyBody => '你删除的对话与助手、被同步覆盖的设置都会暂存在这里，随时可以找回。';
+
+  @override
+  String get recycleBinUntitled => '未命名';
+
+  @override
+  String get recycleBinKindConversation => '对话';
+
+  @override
+  String get recycleBinKindAssistant => '助手';
+
+  @override
+  String get recycleBinKindProvider => '服务商';
+
+  @override
+  String get recycleBinKindWorldBook => '世界书';
+
+  @override
+  String get recycleBinKindMemory => '记忆';
+
+  @override
+  String get recycleBinKindPreference => '设置项';
+
+  @override
+  String get recycleBinKindWorkspaceFile => '工作区文件';
+
+  @override
+  String get recycleBinKindConfig => '配置';
+
+  @override
+  String get recycleBinOriginLocal => '本机删除';
+
+  @override
+  String get recycleBinOriginRemote => '同步删除';
+
+  @override
+  String get recycleBinReasonOverwritten => '被更新的版本替换';
+
+  @override
+  String get recycleBinRestore => '恢复';
+
+  @override
+  String get recycleBinDeleteForever => '彻底删除';
+
+  @override
+  String get recycleBinDeleteForeverBody => '该条目将被永久删除，无法再恢复。';
+
+  @override
+  String get recycleBinClearAll => '清空回收站';
+
+  @override
+  String get recycleBinClearAllBody => '回收站中的全部条目都将被永久删除，无法再恢复。';
+
+  @override
+  String get recycleBinRestored => '已恢复';
+
+  @override
+  String get recycleBinRestoreSkipped => '该项已重新存在，未做改动';
+
+  @override
+  String get recycleBinRestoreUnreadable => '暂存的副本已损坏，无法恢复';
+
+  @override
+  String get recycleBinRestoreUnsupported => '当前版本无法恢复该条目';
+
+  @override
+  String get recycleBinRestoreNoWorkspace => '该文件所属的工作区已被删除，没有可以放回的位置。';
+
+  @override
+  String get recycleBinRestoreFailed => '恢复失败';
+
+  @override
+  String get recycleBinFilterAll => '全部';
+
+  @override
+  String get recycleBinFilterConversation => '对话';
+
+  @override
+  String get recycleBinFilterAssistants => '助手';
+
+  @override
+  String get recycleBinFilterSettings => '设置';
+
+  @override
+  String get recycleBinFilterFiles => '文件';
+
+  @override
+  String get recycleBinCancel => '取消';
+
+  @override
+  String get recycleBinInfoTitle => '关于回收站';
+
+  @override
+  String get recycleBinInfoBody =>
+      '在这里删除的东西——对话、助手、服务商、记忆、设置项——都会留在本机，随时可以找回。\n\n回收站不参与同步，也不会写进备份。条目保留 90 天，或直到超过 256 MB 或 1000 条；超过后从最旧的开始清理。\n\n恢复会把它记为当前时间，所以不会立刻又被上次胜出的版本覆盖。';
+
+  @override
+  String get recycleBinInfoClose => '知道了';
+
+  @override
+  String recycleBinGroupHeader(Object count, Object name) {
+    return '随「$name」一起删除的 $count 个对话';
+  }
+
+  @override
+  String get recycleBinRestoreGroup => '全部恢复';
+
+  @override
+  String recycleBinGroupRestored(Object restored, Object skipped) {
+    return '已恢复 $restored 项，$skipped 项已存在';
+  }
+
+  @override
+  String recycleBinGroupRestoreFailed(Object failed, Object restored) {
+    return '已恢复 $restored 项，$failed 项未能恢复';
+  }
+
+  @override
+  String get recycleBinOpenDetail => '查看详情';
+
+  @override
+  String get recycleBinDetailKey => '标识';
+
+  @override
+  String get recycleBinDetailOrigin => '来源';
+
+  @override
+  String get recycleBinDetailWhen => '删除时间';
+
+  @override
+  String get recycleBinDetailReplacedWhen => '替换时间';
+
+  @override
+  String get recycleBinDetailSize => '占用';
+
+  @override
+  String get recycleBinDetailModified => '文件修改时间';
+
+  @override
+  String get recycleBinDetailContent => '内容';
+
+  @override
+  String recycleBinDetailRows(Object count) {
+    return '$count 行';
+  }
+
+  @override
+  String recycleBinDetailTruncated(Object shown) {
+    return '内容过大，只显示前 $shown';
+  }
+
+  @override
+  String get recycleBinDetailBinary => '二进制文件，无法预览';
+
+  @override
+  String get recycleBinDetailUnreadable => '暂存的副本已损坏，读不出内容';
+
+  @override
+  String get recycleBinDetailCopyJson => '复制 JSON';
+
+  @override
+  String get recycleBinDetailCopyText => '复制文本';
+
+  @override
+  String get recycleBinDetailCopied => '已复制';
+
+  @override
+  String recycleBinDetailAssistantGone(Object name) {
+    return '该对话属于助手「$name」，它已不在本机；恢复后需要为它重新指定助手。';
+  }
+
+  @override
   String get storageSessionFilesCleanOrphans => '清理无对话的会话文件';
 
   @override
@@ -12406,7 +12593,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String lanSyncReportRowsLost(Object n) {
-    return '$n 条本地记录被对端更新的版本覆盖';
+    return '$n 条本地记录被对端更新的版本覆盖（可在回收站恢复）';
   }
 
   @override
@@ -23849,6 +24036,193 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get storageSpaceManageSkills => '管理技能';
 
   @override
+  String get recycleBinTitle => '回收站';
+
+  @override
+  String get recycleBinManage => '管理回收站';
+
+  @override
+  String get recycleBinStorageHint => '本机暂存，不参与同步与备份。';
+
+  @override
+  String get recycleBinEntriesLabel => '条目';
+
+  @override
+  String get recycleBinEmptyTitle => '回收站是空的';
+
+  @override
+  String get recycleBinEmptyBody => '你删除的对话与助手、被同步覆盖的设置都会暂存在这里，随时可以找回。';
+
+  @override
+  String get recycleBinUntitled => '未命名';
+
+  @override
+  String get recycleBinKindConversation => '对话';
+
+  @override
+  String get recycleBinKindAssistant => '助手';
+
+  @override
+  String get recycleBinKindProvider => '服务商';
+
+  @override
+  String get recycleBinKindWorldBook => '世界书';
+
+  @override
+  String get recycleBinKindMemory => '记忆';
+
+  @override
+  String get recycleBinKindPreference => '设置项';
+
+  @override
+  String get recycleBinKindWorkspaceFile => '工作区文件';
+
+  @override
+  String get recycleBinKindConfig => '配置';
+
+  @override
+  String get recycleBinOriginLocal => '本机删除';
+
+  @override
+  String get recycleBinOriginRemote => '同步删除';
+
+  @override
+  String get recycleBinReasonOverwritten => '被更新的版本替换';
+
+  @override
+  String get recycleBinRestore => '恢复';
+
+  @override
+  String get recycleBinDeleteForever => '彻底删除';
+
+  @override
+  String get recycleBinDeleteForeverBody => '该条目将被永久删除，无法再恢复。';
+
+  @override
+  String get recycleBinClearAll => '清空回收站';
+
+  @override
+  String get recycleBinClearAllBody => '回收站中的全部条目都将被永久删除，无法再恢复。';
+
+  @override
+  String get recycleBinRestored => '已恢复';
+
+  @override
+  String get recycleBinRestoreSkipped => '该项已重新存在，未做改动';
+
+  @override
+  String get recycleBinRestoreUnreadable => '暂存的副本已损坏，无法恢复';
+
+  @override
+  String get recycleBinRestoreUnsupported => '当前版本无法恢复该条目';
+
+  @override
+  String get recycleBinRestoreNoWorkspace => '该文件所属的工作区已被删除，没有可以放回的位置。';
+
+  @override
+  String get recycleBinRestoreFailed => '恢复失败';
+
+  @override
+  String get recycleBinFilterAll => '全部';
+
+  @override
+  String get recycleBinFilterConversation => '对话';
+
+  @override
+  String get recycleBinFilterAssistants => '助手';
+
+  @override
+  String get recycleBinFilterSettings => '设置';
+
+  @override
+  String get recycleBinFilterFiles => '文件';
+
+  @override
+  String get recycleBinCancel => '取消';
+
+  @override
+  String get recycleBinInfoTitle => '关于回收站';
+
+  @override
+  String get recycleBinInfoBody =>
+      '在这里删除的东西——对话、助手、服务商、记忆、设置项——都会留在本机，随时可以找回。\n\n回收站不参与同步，也不会写进备份。条目保留 90 天，或直到超过 256 MB 或 1000 条；超过后从最旧的开始清理。\n\n恢复会把它记为当前时间，所以不会立刻又被上次胜出的版本覆盖。';
+
+  @override
+  String get recycleBinInfoClose => '知道了';
+
+  @override
+  String recycleBinGroupHeader(Object count, Object name) {
+    return '随「$name」一起删除的 $count 个对话';
+  }
+
+  @override
+  String get recycleBinRestoreGroup => '全部恢复';
+
+  @override
+  String recycleBinGroupRestored(Object restored, Object skipped) {
+    return '已恢复 $restored 项，$skipped 项已存在';
+  }
+
+  @override
+  String recycleBinGroupRestoreFailed(Object failed, Object restored) {
+    return '已恢复 $restored 项，$failed 项未能恢复';
+  }
+
+  @override
+  String get recycleBinOpenDetail => '查看详情';
+
+  @override
+  String get recycleBinDetailKey => '标识';
+
+  @override
+  String get recycleBinDetailOrigin => '来源';
+
+  @override
+  String get recycleBinDetailWhen => '删除时间';
+
+  @override
+  String get recycleBinDetailReplacedWhen => '替换时间';
+
+  @override
+  String get recycleBinDetailSize => '占用';
+
+  @override
+  String get recycleBinDetailModified => '文件修改时间';
+
+  @override
+  String get recycleBinDetailContent => '内容';
+
+  @override
+  String recycleBinDetailRows(Object count) {
+    return '$count 行';
+  }
+
+  @override
+  String recycleBinDetailTruncated(Object shown) {
+    return '内容过大，只显示前 $shown';
+  }
+
+  @override
+  String get recycleBinDetailBinary => '二进制文件，无法预览';
+
+  @override
+  String get recycleBinDetailUnreadable => '暂存的副本已损坏，读不出内容';
+
+  @override
+  String get recycleBinDetailCopyJson => '复制 JSON';
+
+  @override
+  String get recycleBinDetailCopyText => '复制文本';
+
+  @override
+  String get recycleBinDetailCopied => '已复制';
+
+  @override
+  String recycleBinDetailAssistantGone(Object name) {
+    return '该对话属于助手「$name」，它已不在本机；恢复后需要为它重新指定助手。';
+  }
+
+  @override
   String get storageSessionFilesCleanOrphans => '清理无对话的会话文件';
 
   @override
@@ -25873,7 +26247,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String lanSyncReportRowsLost(Object n) {
-    return '$n 条本地记录被对端更新的版本覆盖';
+    return '$n 条本地记录被对端更新的版本覆盖（可在回收站恢复）';
   }
 
   @override
@@ -37392,6 +37766,193 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get storageSpaceManageSkills => '管理技能';
 
   @override
+  String get recycleBinTitle => '回收站';
+
+  @override
+  String get recycleBinManage => '管理回收站';
+
+  @override
+  String get recycleBinStorageHint => '本機暫存，不參與同步與備份。';
+
+  @override
+  String get recycleBinEntriesLabel => '條目';
+
+  @override
+  String get recycleBinEmptyTitle => '回收站是空的';
+
+  @override
+  String get recycleBinEmptyBody => '你刪除的對話與助手、被同步覆蓋的設定都會暫存在這裡，隨時可以找回。';
+
+  @override
+  String get recycleBinUntitled => '未命名';
+
+  @override
+  String get recycleBinKindConversation => '對話';
+
+  @override
+  String get recycleBinKindAssistant => '助手';
+
+  @override
+  String get recycleBinKindProvider => '服務商';
+
+  @override
+  String get recycleBinKindWorldBook => '世界書';
+
+  @override
+  String get recycleBinKindMemory => '記憶';
+
+  @override
+  String get recycleBinKindPreference => '設定項';
+
+  @override
+  String get recycleBinKindWorkspaceFile => '工作區檔案';
+
+  @override
+  String get recycleBinKindConfig => '設定';
+
+  @override
+  String get recycleBinOriginLocal => '本機刪除';
+
+  @override
+  String get recycleBinOriginRemote => '同步刪除';
+
+  @override
+  String get recycleBinReasonOverwritten => '被更新的版本替換';
+
+  @override
+  String get recycleBinRestore => '還原';
+
+  @override
+  String get recycleBinDeleteForever => '徹底刪除';
+
+  @override
+  String get recycleBinDeleteForeverBody => '該條目將被永久刪除，無法再還原。';
+
+  @override
+  String get recycleBinClearAll => '清空回收站';
+
+  @override
+  String get recycleBinClearAllBody => '回收站中的全部條目都將被永久刪除，無法再還原。';
+
+  @override
+  String get recycleBinRestored => '已還原';
+
+  @override
+  String get recycleBinRestoreSkipped => '該項已重新存在，未做變更';
+
+  @override
+  String get recycleBinRestoreUnreadable => '暫存的副本已損壞，無法還原';
+
+  @override
+  String get recycleBinRestoreUnsupported => '目前版本無法還原該條目';
+
+  @override
+  String get recycleBinRestoreNoWorkspace => '該檔案所屬的工作區已被刪除，沒有可以放回的位置。';
+
+  @override
+  String get recycleBinRestoreFailed => '還原失敗';
+
+  @override
+  String get recycleBinFilterAll => '全部';
+
+  @override
+  String get recycleBinFilterConversation => '對話';
+
+  @override
+  String get recycleBinFilterAssistants => '助手';
+
+  @override
+  String get recycleBinFilterSettings => '設定';
+
+  @override
+  String get recycleBinFilterFiles => '檔案';
+
+  @override
+  String get recycleBinCancel => '取消';
+
+  @override
+  String get recycleBinInfoTitle => '關於回收站';
+
+  @override
+  String get recycleBinInfoBody =>
+      '在這裡刪除的東西——對話、助手、服務商、記憶、設定項——都會留在本機，隨時可以找回。\n\n回收站不參與同步，也不會寫進備份。條目保留 90 天，或直到超過 256 MB 或 1000 條；超過後從最舊的開始清理。\n\n還原會把它記為目前時間，所以不會立刻又被上次勝出的版本覆蓋。';
+
+  @override
+  String get recycleBinInfoClose => '知道了';
+
+  @override
+  String recycleBinGroupHeader(Object count, Object name) {
+    return '隨「$name」一起刪除的 $count 個對話';
+  }
+
+  @override
+  String get recycleBinRestoreGroup => '全部還原';
+
+  @override
+  String recycleBinGroupRestored(Object restored, Object skipped) {
+    return '已還原 $restored 項，$skipped 項已存在';
+  }
+
+  @override
+  String recycleBinGroupRestoreFailed(Object failed, Object restored) {
+    return '已還原 $restored 項，$failed 項未能還原';
+  }
+
+  @override
+  String get recycleBinOpenDetail => '檢視詳情';
+
+  @override
+  String get recycleBinDetailKey => '識別';
+
+  @override
+  String get recycleBinDetailOrigin => '來源';
+
+  @override
+  String get recycleBinDetailWhen => '刪除時間';
+
+  @override
+  String get recycleBinDetailReplacedWhen => '替換時間';
+
+  @override
+  String get recycleBinDetailSize => '佔用';
+
+  @override
+  String get recycleBinDetailModified => '檔案修改時間';
+
+  @override
+  String get recycleBinDetailContent => '內容';
+
+  @override
+  String recycleBinDetailRows(Object count) {
+    return '$count 行';
+  }
+
+  @override
+  String recycleBinDetailTruncated(Object shown) {
+    return '內容過大，只顯示前 $shown';
+  }
+
+  @override
+  String get recycleBinDetailBinary => '二進位檔案，無法預覽';
+
+  @override
+  String get recycleBinDetailUnreadable => '暫存的副本已損壞，讀不出內容';
+
+  @override
+  String get recycleBinDetailCopyJson => '複製 JSON';
+
+  @override
+  String get recycleBinDetailCopyText => '複製文字';
+
+  @override
+  String get recycleBinDetailCopied => '已複製';
+
+  @override
+  String recycleBinDetailAssistantGone(Object name) {
+    return '該對話屬於助手「$name」，它已不在本機；還原後需要為它重新指定助手。';
+  }
+
+  @override
   String get storageSessionFilesCleanOrphans => '清理無對話的會話檔案';
 
   @override
@@ -39419,7 +39980,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String lanSyncReportRowsLost(Object n) {
-    return '$n 條本地記錄被對端更新的版本覆蓋';
+    return '$n 條本地記錄被對端更新的版本覆蓋（可在回收站還原）';
   }
 
   @override

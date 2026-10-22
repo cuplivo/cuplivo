@@ -633,6 +633,108 @@ void main() {
       );
       expect(plan.single.action, SyncConvAction.iDelete);
     });
+
+    // The defect round 3 fixed for conversations and left live on the second
+    // caller of the same rule: a row restored here writes the same *content*
+    // back with a new clock, so its digest still matches the agreement, and a
+    // digest-only delete branch plans `iDelete` for a row the user just
+    // recovered. The window needs the peer to delete the same row before any
+    // session runs — a business checkpoint drops its entry on `peerDeletes`,
+    // unlike the conversation face — which is why it is narrow rather than
+    // unreachable.
+    test('a row written here since the agreement survives its deletion', () {
+      SyncManifestEntry row(int clockUs, String digest) => SyncManifestEntry(
+        updatedAtUs: clockUs,
+        messageCount: 0,
+        digest: digest,
+      );
+      final checkpoint = SyncCheckpoint(
+        const {},
+        entities: {
+          'assistant_rows': {
+            'a1': const SyncCheckpointEntry(updatedAtUs: 10, digest: 'same'),
+          },
+        },
+        preferences: {
+          'user_name': const SyncCheckpointEntry(
+            updatedAtUs: 10,
+            digest: 'same',
+          ),
+        },
+      );
+      // Restored: identical content, a row clock written here since.
+      final restored = SyncManifest(
+        const {},
+        entities: {
+          'assistant_rows': {'a1': row(20, 'same')},
+        },
+        preferences: {'user_name': row(20, 'same')},
+      );
+      final plan = planBusinessSync(
+        mine: restored,
+        peers: const SyncManifest({}),
+        checkpoint: checkpoint,
+      );
+      final byId = {
+        for (final item in plan) syncBusinessKey(item.kindWire, item.id): item,
+      };
+      expect(
+        byId[syncBusinessKey('assistant_rows', 'a1')]!.action,
+        SyncConvAction.iSend,
+        reason: 'a restored entity is an edit, not a deletion',
+      );
+      expect(
+        byId[syncBusinessKey(kSyncPreferenceWire, 'user_name')]!.action,
+        SyncConvAction.iSend,
+        reason: 'the preference face has the same clock and the same rule',
+      );
+      // Nothing written here since: the peer's deletion stands.
+      final unchanged = SyncManifest(
+        const {},
+        entities: {
+          'assistant_rows': {'a1': row(10, 'same')},
+        },
+        preferences: {'user_name': row(10, 'same')},
+      );
+      final deletePlan = planBusinessSync(
+        mine: unchanged,
+        peers: const SyncManifest({}),
+        checkpoint: checkpoint,
+      );
+      expect(
+        deletePlan.map((item) => item.action),
+        everyElement(SyncConvAction.iDelete),
+      );
+    });
+
+    test('the two faces still disagree the way they should', () {
+      // The business face passes no peer clock: a clock-only difference between
+      // two sides holding the same content is not something to exchange, so the
+      // equal-digest branch stays a conversation rule. Pinned here so a future
+      // caller that passes all three clocks is a decision rather than an
+      // accident.
+      expect(
+        planRowSync(
+          mineDigest: 'd',
+          peerDigest: 'd',
+          checkpointDigest: 'd',
+          mineClock: 20,
+          checkpointClock: 10,
+        ),
+        SyncConvAction.none,
+      );
+      expect(
+        planRowSync(
+          mineDigest: 'd',
+          peerDigest: 'd',
+          checkpointDigest: 'd',
+          mineClock: 20,
+          peerClock: 10,
+          checkpointClock: 10,
+        ),
+        SyncConvAction.bothSend,
+      );
+    });
   });
 
   group('incomingBusinessRowWins', () {

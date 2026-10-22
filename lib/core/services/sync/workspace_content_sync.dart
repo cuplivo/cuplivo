@@ -707,10 +707,14 @@ class WorkspaceContentSync {
         // Staging *moves* the version at this path into the bin, which both
         // keeps it and frees the path — so the rename below needs no delete at
         // all. It runs only here, after every gate and the size check: a landing
-        // that is refused must not leave a copy of a file nothing replaced. A
-        // staging that failed (an unwritable bin, a file another process holds)
-        // falls back to the plain delete: an unpreserved file is bad, a merge
-        // that cannot land is worse, and this is the path the peer is waiting on.
+        // that is refused must not leave a copy of a file nothing replaced.
+        //
+        // The fallback below is for the staging that did not move anything (an
+        // unwritable bin, a file another process holds): the file is still at
+        // the path, and the rename needs it gone. When the move *did* happen but
+        // neither the entry nor the put-back did, there is nothing left to
+        // delete — the path is already free — so the `exists()` check is what
+        // keeps the two cases apart rather than a second guess about the failure.
         final preserved = await recycle?.stageWorkspaceFile(
           workspaceId: workspaceId,
           relPath: relPath,
@@ -764,10 +768,11 @@ class WorkspaceContentSync {
       // The peer removed this file and its bytes are about to leave the disk:
       // staged first for the same reason a replacement is, and awaited rather
       // than detached, because the move has to finish before this session
-      // records the path as deleted. A failed staging still deletes — the
-      // removal is what the peer asked for, and refusing it would only re-offer
-      // the same file next session. Staging hands the file back when it cannot
-      // publish an entry, so there is something to delete unless it vanished.
+      // records the path as deleted. A staging that moved nothing still deletes —
+      // the removal is what the peer asked for, and refusing it would only
+      // re-offer the same file next session — and a staging that moved the file
+      // but could not publish an entry hands it back, so the `exists()` check is
+      // what says whether there is anything left to remove.
       final preserved = await recycle?.stageWorkspaceFile(
         workspaceId: snapshot.id,
         relPath: relPath,

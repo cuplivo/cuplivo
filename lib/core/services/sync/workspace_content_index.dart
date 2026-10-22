@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../utils/app_directories.dart';
@@ -271,7 +272,12 @@ Future<bool> isReallyInsideWorkspace(
     final realDirectory = await directory.resolveSymbolicLinks();
     return p.equals(p.canonicalize(realRoot), p.canonicalize(realDirectory)) ||
         p.isWithin(p.canonicalize(realRoot), p.canonicalize(realDirectory));
-  } catch (_) {
+  } catch (error) {
+    // Failing closed is the rule; failing *silently* is what makes a refusal
+    // undiagnosable. A caller reports its own reason (a restore says
+    // `unsupported`, which the user reads as "this build cannot do that"), so
+    // the throw that produced it has to be in the log.
+    debugPrint('sync workspace: containment check failed: $error');
     return false;
   }
 }

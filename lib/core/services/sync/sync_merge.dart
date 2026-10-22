@@ -137,8 +137,17 @@ bool copyWrittenSinceAgreement({
 /// clock the two sides last agreed on, and is what keeps the delete branch from
 /// undoing a restore: the bin writes the row back with `now()` and the messages
 /// back byte-identical, so the digest still matches the agreement while the row
-/// says this device wrote here since. Business rows pass no clocks because
-/// their digest already covers the whole row.
+/// says this device wrote here since.
+///
+/// **The business face passes [mineClock] and [checkpointClock] but not
+/// [peerClock], and that asymmetry is the point.** A business row's digest *is*
+/// its content, so a clock-only difference between the two sides is not
+/// something to exchange — leaving [peerClock] null keeps the equal-digest
+/// branch's `bothSend` a conversation-face rule, where the digest genuinely
+/// cannot see the row write. The clocks are still needed on that face for the
+/// delete branch: a restore writes the same content back with a new clock, and
+/// the comparison that decides whether a deletion may be applied is the same one
+/// in both cases.
 SyncConvAction planRowSync({
   required String? mineDigest,
   required String? peerDigest,
@@ -236,6 +245,14 @@ List<SyncBusinessPlanItem> planBusinessSync({
             mineDigest: mineRows[id]?.digest,
             peerDigest: peerRows[id]?.digest,
             checkpointDigest: checkpointRows[id]?.digest,
+            // A business row's digest is its content, and a restore writes the
+            // same content back with a fresh clock — so the delete branch cannot
+            // see a restore from the digest alone any more than the conversation
+            // face can. The clocks are already in both manifests and the
+            // checkpoint, so the same rule applies. [peerClock] stays out on
+            // purpose; see [planRowSync].
+            mineClock: mineRows[id]?.updatedAtUs,
+            checkpointClock: checkpointRows[id]?.updatedAtUs,
           ),
         ),
       );
@@ -256,6 +273,9 @@ List<SyncBusinessPlanItem> planBusinessSync({
           mineDigest: mine.preferences[key]?.digest,
           peerDigest: peers.preferences[key]?.digest,
           checkpointDigest: checkpoint.preferences[key]?.digest,
+          // Same as the entity loop: a synced preference's digest is its value.
+          mineClock: mine.preferences[key]?.updatedAtUs,
+          checkpointClock: checkpoint.preferences[key]?.updatedAtUs,
         ),
       ),
     );
@@ -324,6 +344,14 @@ List<SkillContentPlan> planSkillContentSync({
           mineDigest: mineRows[id]?.digest,
           peerDigest: peerRows[id]?.digest,
           checkpointDigest: checkpointRows[id]?.digest,
+          // The digest already covers the body (`combineSkillDigest`), so a
+          // restored skill row — which comes back without its directory, and
+          // therefore with a different hash — moves it on its own. The clocks go
+          // in anyway for the case it does not: a directory that happens to be
+          // identical again leaves the digest equal to the agreement, and then
+          // only the record clock separates a restore from a deletion.
+          mineClock: mineRows[id]?.updatedAtUs,
+          checkpointClock: checkpointRows[id]?.updatedAtUs,
         ),
       ),
   ];

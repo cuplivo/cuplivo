@@ -498,7 +498,7 @@ class _Side {
     }
     repository = ChatDatabaseRepository(database, recycle: recycle);
     await repository.ensureReady();
-    businessRepository = BusinessRepository(database);
+    businessRepository = BusinessRepository(database, recycle: recycle);
     businessPreferences = BusinessPreferences(businessRepository);
     await businessPreferences.load();
     chatService = ChatService(existingRepository: repository);
@@ -6121,6 +6121,49 @@ void main() {
     final report = await a.engine.syncWithPeer(await a.peer(b));
     expect(report.success, isTrue, reason: report.summary);
     expect(b.businessPreferences.getString('user_name'), isNull);
+  });
+
+  test('a business row deleted and restored here survives the peer deleting '
+      'the same row', () async {
+    // Round 3 gave the conversation face the agreement's clock and left the
+    // second caller of the same rule on the digest-only path. A business row's
+    // digest is its content, so a restore — the same content back with a new
+    // clock — still matches the agreement, and the delete branch plans
+    // `iDelete` for the row the user just recovered. The window is narrow by
+    // construction: the business checkpoint *drops* its entry on
+    // `peerDeletes` (unlike the conversation face, which keeps it), so it takes
+    // this device deleting and restoring, and the peer deleting the same row,
+    // all before one session runs.
+    final (a, b) = await pair(aWithRecycle: true);
+    final bin = a.recycle!;
+    await _setAssistants(a, [
+      (id: 'assistant-1', name: 'Keep'),
+      (id: 'assistant-2', name: 'Drop'),
+    ]);
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect((await _assistantsOf(b)).keys, {'assistant-1', 'assistant-2'});
+
+    await _setAssistants(a, [(id: 'assistant-1', name: 'Keep')]);
+    await bin.settle();
+    final entry = (await bin.list()).single;
+    expect(entry.key, 'assistant-2');
+    expect(await bin.restore(entry), RecycleRestoreOutcome.restored);
+
+    // The peer deletes the same row on its own, before its next session.
+    await _setAssistants(b, [(id: 'assistant-1', name: 'Keep')]);
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    expect(
+      (await _assistantsOf(a)).keys,
+      contains('assistant-2'),
+      reason: 'a row written here since the agreement is an edit',
+    );
+    expect(
+      (await _assistantsOf(b)).keys,
+      contains('assistant-2'),
+      reason: 'the restore goes back to the peer in the same session',
+    );
   });
 
   test('a business deletion through the data plane removes the row', () async {

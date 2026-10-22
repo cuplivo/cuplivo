@@ -65,7 +65,7 @@ contradicts one of them is a bug, not a preference.
 - **Side-by-side installs**: the applicationId differs from both Kelivo and Cuplivo 3.x, so
   installs coexist and never overwrite each other. Data migration is therefore *not* implemented;
   restoring a backup is the supported path between them.
-- **Legacy bundle ids**: the `kelivo-file://` whitelist accepts `com.cuplivo.cuplivo`,
+- **Legacy bundle ids**: the `kelivo-file://` whitelist accepts `com.psyche.kelivo`,
   `psyche.kelivo`, `com.cup11.cuplivo` and `com.cuplivo.cuplivo`, and the Windows `AppData` vendor
   prefixes `com.psyche` / `com.cup11` / `com.cuplivo`, so backups and absolute paths recorded by
   either lineage keep resolving.
@@ -956,3 +956,153 @@ contradicts one of them is a bug, not a preference.
 - Short edge case that motivates the manual default: a long screenshot whose long edge is far larger
   than any preset cap would be reduced to illegibility by 自动, so 手动 leaves that decision to the user.
   The same screenshots are why the editor decodes at the artifact's size instead of the source's.
+
+## Markdown IR (结构中间表示) — ADR-0007
+
+- **Markdown IR（结构中间表示）**: the widget-agnostic tree the Markdown renderer's own walk produces —
+  node kind, source range, children, display text and the markers a node re-emits. It is a *product of the
+  same traversal* that builds the spans, never a second parse: a component's pattern claims the same text
+  in both paths, so a rule change reaches both or neither. It carries no Flutter type, so a widget builder
+  and a future PDF emitter consume the same tree.
+- **源区间 (source range)**: `[start, end)` of the source a node came from. A range carries its own source
+  string, because not every node addresses the same one: a rewritten document (a `<details>` block
+  replaced by a placeholder token, a quote whose `>` markers are stripped) is walked in rewritten space
+  while its children address the original text.
+- **显示文本 (display text)**: the text a node contributes to what a selection sees. It is the node's own
+  business — content contributes its source slice, a widget that declares text through a
+  `SelectableAdapter` contributes that, a painted line contributes nothing — which is what keeps the IR
+  and the rendered widgets from drifting.
+- **装饰文本 (decoration)**: display text the source does not contain (an ordered list's rendered number,
+  an enumerated heading's number). It occupies display space so a selection matches, and emits nothing.
+- **空隙节点 (gap node)**: a node that occupies no display space but re-emits its source when a selection
+  spans across it — an image, a horizontal rule, a disabled display-math block, a diagram. This is why
+  selecting a whole reply can still copy its images.
+- **叶子表 (item table)**: the ordered `(display text, source, ancestors)` list a document flattens to.
+  **显示空间 (display space)** is its concatenation, and it equals what a selection over the rendered
+  widgets copies: `SelectableRegion` contributes one run per selectable, a `RichText` contributes the runs
+  between its `WidgetSpan`s (the placeholders themselves are never copied), and a `SelectableAdapter`
+  contributes the text it declares. A table contributes its cells' text and a code block the code it shows,
+  because both are paragraphs of the surface's owner (ADR-0010).
+- **选区映射 (selection mapping)**: locating a copied selection in the display space by *text*, not by
+  framework offsets. The offsets a selection reports live in a space where a `SelectableAdapter`
+  contributes one unit while copying its whole declared text, so they are not the display space; text is
+  the one thing both sides agree on. Normalization (CRLF folding, folded newline runs, stripped invisible
+  characters) runs over the whole concatenation on both sides, never per item.
+- **结构保真补全 (structure-faithful completion)**: the re-emission rule. A node the selection cut
+  re-emits its own markers around the covered text (`**lo**, wor`), a block re-emits its structural marker
+  (`- `, `### `), and a node whose display text is not its source is emitted whole, because a cut inside it
+  cannot be resolved. A miss falls back to sanitized plain text, so the action is never worse than a copy.
+- **发射器 (emitter)**: a consumer that walks the IR to a target. The span builder is one; the markdown
+  re-emitter that turns a covered range back into source is another; a PDF writer would be a third.
+- **展开状态 (details expansion)**: which `<details>` blocks a surface currently shows open, recorded in
+  a `MarkdownDetailsExpansion` keyed by the block's own source. It is an *input to the document build*,
+  not something the parse can infer: a collapsed block builds no body (so the body is not in the copied
+  text) while an open one's body is selectable like any other text, and the same source therefore has two
+  display spaces. A block with no record follows its own `open` attribute.
+- The copy action's **match source** is the bubble's own rendered source, so the split-paragraph option
+  matches per bubble, and the walk is rebuilt per copy rather than cached per rendered widget.
+- **代码跨度 (code span)**: an `inlineCode` node whose delimiters the re-emitter puts back around the covered
+  body. Which text is a span is the surface component's rule (`EscapeAwareHighlightedTextMd`), and a backslash
+  escapes the *opener* only — `` \`code\` `` draws a literal backtick through `BackslashEscapeMd` — because a
+  code span has no escapes: `` `D:\ComfyUI\` `` is one span whose closer is the backslash-preceded backtick
+  (#544). One component rule reaches the renderer, the IR/copy mapping and the streaming splitter at once
+  (ADR-0008).
+
+## Selection copy (选区复制) — ADR-0009
+
+- **Markdown copy (Markdown 复制)**: a selection made inside an assistant reply can be copied as the
+  markdown source that produced it. The mapping is the IR's 选区映射 — `MdDocument.emitSelectionMarkdown` —
+  so a cut run gets its markers completed instead of left dangling, and a miss falls back to 净化复制: the
+  action is never worse than a plain copy. Its menu item is the single word `Markdown`.
+- **Match source (匹配源)**: the surface's own rendered source, captured by value, so streaming growth cannot
+  shift a selection that already happened. With the split-paragraph option each part is its own surface with
+  its own 匹配源 and its own selection, and the walk is rebuilt per copy — which is why 展开状态 is an input
+  to that build.
+- **Sanitized copy (净化复制)**: a selection with the characters the renderer inserts into rendered text
+  removed — the U+200B soft breaks in over-long inline-code and table-cell tokens. It is the one side that
+  must not be lossy: other invisible characters are content and survive, notably the ZWJ that joins emoji
+  sequences and the ZWNJ that Persian, Arabic and Urdu write. Plain copy, keyboard copy and share from every
+  markdown surface are sanitized, except where a 嵌套选区归属 copies through the framework.
+- **Selection ownership (选区归属)**: one owner per surface (ADR-0010). The surface's `SelectionArea` owns
+  the selection, and every selectable text under it — a paragraph, a table cell, a code block's body — is a
+  paragraph it can reach, so one drag crosses them and one toolbar serves them. A surface with no owner
+  provides one; nothing nests an owner inside another. The sanitizer's copy-intent override is registered
+  only while this surface owns a non-empty selection.
+- **Selection memory (选区记忆)**: the last assistant selection, filed under the surface that made it,
+  together with the message it was made in and the way to rebuild its 匹配源 — held so the
+  `Copy Selection as Markdown` and `Reply to Selection` hotkeys can act without a context menu. It is
+  cleared when the selection is cleared or emptied, and a surface that goes away (a reply scrolled out
+  of the viewport, a conversation switched) retires its own recording, so a hotkey cannot act on a
+  selection nobody can see. The `Markdown` item never reads it: the item maps the surface whose menu
+  is open.
+- **Nested selection owner (嵌套选区归属)**: what ADR-0010's rule leaves outside it — a diagram's code view,
+  which owns its selection area, so its text is reached through that area and never through the text around
+  it. Such an owner **claims** the selection from the area above it, and the sanitizer's copy-intent
+  override — which the framework's own copy actions forward to — retires on that claim; the framework then
+  copies the nested owner's text, un-sanitized.
+
+### Relationships
+
+- A selection has exactly one owner, and at most the assistant one has a 匹配源. 选区记忆 keeps only the most
+  recent assistant selection, and only until its surface goes away.
+- Markdown 复制 is offered while a reply is still streaming: the source was captured by value, so one that has
+  been rewritten since degrades to 净化复制 rather than to nothing.
+- The hotkey and the menu item produce the same text, through one mapping, but they read different selections:
+  the item reads the surface whose menu is open, the hotkey the remembered one. The hotkey exists because the
+  framework can dismiss a long backward selection on right-click, which the copy path does not work around.
+- A selection that repeats inside one surface maps to the first occurrence, so the emitted markdown can carry
+  markup (`## `, a code span, a link) from that earlier place: the framework reports a selection as text
+  alone, so the mapping has nothing to prefer by.
+- Reasoning text is 净化复制 but has no Markdown 复制: what it displays is not a 匹配源.
+
+## Message reply (消息回复) — ADR-0012
+
+- **Reply (回复)**: the user's own message answers a message it names — QQ-style. Never a thread, never
+  a tree, never a role change. Two forms: **整条引用** (the whole target message, resolved live from its
+  row id) and **范围引用** (a span the user selected, carried as its own text).
+- **Quote (引用)**: the citation a 回复 stores — `{id, text?}`. `text` is the quoted span as **raw
+  markdown**, exactly what the Markdown 复制 mapping re-emits for that selection; `text == null` means
+  整条引用. It is deliberately **offset-free**: v3 stored half-open ranges into the target's markdown and
+  re-located them with a subsequence matcher, and ADR-0007 decision 5 deleted that matcher, so a
+  citation here is a snapshot rather than a pointer into text that may have moved.
+- **`<reply-to>` citation (引文)**: the model-facing form of a Quote — a user body whose citation
+  resolves becomes `<reply-to>{markdown}</reply-to>` ahead of its own text. It is folded in **before**
+  the prompt is assembled, so it freezes into `message_prompt_rows` with the rest of the turn: what was
+  sent stays what is replayed, and the prompt cache keeps its prefix. An unresolvable target contributes
+  nothing at all — the stub a reader sees is UI language, never model language.
+- **Citation chip (引用栏)**: the one-line citation above a bubble's content, and the preview row the
+  composer shows while the reply is pending. Its text is the citation in the IR's *display space* — the
+  same walk the bubble itself rendered with, derived once per citation rather than once per build (the
+  timeline rebuilds on every stream publish). A 范围引用 is self-sufficient (it shows its own text even
+  after its target is gone; the target only feeds the tap that jumps to it), while an 整条引用 shows the
+  target it resolved or 桩文案 when none resolves at all. 解析按**消息槽**而不是被引的那一版：时间线每组只留
+  选中版，切版、重生成、编辑重发都会换掉它，于是槽当前显示的那一版为它历史上所有 id 作答——和「目标被编辑后引用栏
+  显示新文本」是同一条规则。解析到了但渲染为空的引用（纯图片消息、只有工具调用的回答）显示「回复」/Reply 而不是桩
+  文案：消息就在那里并且可点，说「不可用」是假话，这也正是 composer 预览行的回落。
+- **Quote target (引文目标)**: the message a Quote names. It is resolved from the request's own stream,
+  then the conversation cache, then the database — that last step scoped to the conversation the
+  citation is sent in, because a row id means something only inside its own conversation; with no
+  conversation to scope it to, the step is skipped. For display it resolves against the window on screen
+  alone, by 消息槽 — the revision the slot shows now answers for a revision a switch moved off — and
+  anything outside that window renders the stub. A **copied conversation** (fork, duplicate) remaps its
+  citations onto the copy's own rows, drops an 整条引用 whose target the copy does not hold, and keeps a
+  范围引用 exactly as it stands, because its own text *is* the citation. A **merge-mode import** keeps
+  `extras_json` verbatim (the conversation fingerprint hashes it, and a repeated merge dedupes on it),
+  so an 整条引用 it carries resolves to nothing — same outcome as a dropped one, and never a row of
+  another conversation.
+- **Naming boundary**: 「引用」 in the UI means a search citation (「引用来源」, 「引用 (共 N 条)」), so the
+  menu item reads 「回复」 / "Reply" while the domain term — and every identifier in the code — is
+  **Quote**. The text-level 「引用粘贴」 (selection → `> …` into the composer) is a separate v3 feature
+  that was **not** carried over.
+
+### Relationships
+
+- A 回复 exists only on a user-originated message, and it is part of that message's content identity: a
+  new version of the row carries it, and a copy of the conversation remaps it.
+- A Quote needs no schema version: it rides `message_rows.extras_json` under `reply.quote`, beside the
+  `tokens.*` / `timing.*` side channel, so 整条引用 and 范围引用 arrive with the message row on LAN sync
+  and in a backup.
+- The whole-message entry is withheld while its target is still streaming (the citation would freeze a
+  reply that is still being written); the 范围引用 entry stays, because its text was captured by value.
+- A citation neither creates nor preserves a conversation: a 整条引用 whose target is gone shows the stub
+  and sends no 引文, and nothing else changes.

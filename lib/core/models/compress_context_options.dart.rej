@@ -1,0 +1,77 @@
+diff a/lib/core/models/compress_context_options.dart b/lib/core/models/compress_context_options.dart	(rejected hunks)
+@@ -240,15 +244,6 @@ String? conversationLineForCompression(ChatMessage message) {
+   return '${message.role == "assistant" ? "Assistant" : "User"}: ${message.content}';
+ }
+ 
+-String buildConversationTextForCompression(List<ChatMessage> messages) {
+-  final lines = <String>[];
+-  for (final message in messages) {
+-    final line = conversationLineForCompression(message);
+-    if (line != null) lines.add(line);
+-  }
+-  return lines.join('\n\n');
+-}
+-
+ /// Incremental start/recent window. Walks messages and stops at [maxChars]
+ /// without first joining the full history.
+ String buildBoundedConversationText(
+@@ -421,27 +416,43 @@ List<String> buildCompressRequestContents(
+   return chunkMessagesForCompression(messages, maxChars: safeRequestChars);
+ }
+ 
+-/// Select the trailing messages starting at the last [keepUserMessages]
+-/// user messages, including attachment-only inputs. Leading summaries stay
+-/// outside the retained region so an explicit original-history reread can
+-/// regenerate them even when all raw user messages are retained.
+-List<ChatMessage> selectKeepRecentMessages(
+-  List<ChatMessage> messages,
+-  int keepUserMessages,
+-) {
+-  if (keepUserMessages <= 0) return const <ChatMessage>[];
++/// Index where the kept (verbatim) region starts: the position of the
++/// [keepUserMessages]-th user message counted from the end.
++///
++/// A message counts the same way the keep count and the dialog's round total
++/// count it — [isCompressionUserMessage], which includes attachment-only
++/// inputs. The kept region therefore always begins on a user message, so an
++/// assistant reply is never separated from the request that produced it.
++///
++/// Leading summaries stay outside the retained region, so an explicit
++/// original-history reread can regenerate them even when every raw user
++/// message is retained.
++///
++/// Returns 0 when the requested count covers every user message (nothing is
++/// left to summarize), and null when the list holds no user message at all
++/// (nothing can be kept).
++int? keepRecentStartIndex(List<ChatMessage> messages, int keepUserMessages) {
++  if (keepUserMessages <= 0) return null;
+   final userIndices = <int>[];
+   for (var i = 0; i < messages.length; i++) {
+-    final m = messages[i];
+-    if (isCompressionUserMessage(m)) {
++    if (isCompressionUserMessage(messages[i])) {
+       userIndices.add(i);
+     }
+   }
+-  if (userIndices.isEmpty) return const <ChatMessage>[];
+-  if (userIndices.length <= keepUserMessages) {
+-    return messages.skipWhile(ContextOperation.isSummary).toList();
+-  }
+-  return messages.sublist(userIndices[userIndices.length - keepUserMessages]);
++  if (userIndices.isEmpty) return null;
++  if (userIndices.length <= keepUserMessages) return 0;
++  return userIndices[userIndices.length - keepUserMessages];
++}
++
++/// Select the trailing messages from [keepRecentStartIndex] to the end.
++List<ChatMessage> selectKeepRecentMessages(
++  List<ChatMessage> messages,
++  int keepUserMessages,
++) {
++  final start = keepRecentStartIndex(messages, keepUserMessages);
++  if (start == null) return const <ChatMessage>[];
++  if (start == 0) return messages.skipWhile(ContextOperation.isSummary).toList();
++  return messages.sublist(start);
+ }
+ 
+ /// Number of user messages in a collapsed list (role 'user', non-empty

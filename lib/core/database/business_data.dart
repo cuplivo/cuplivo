@@ -55,6 +55,13 @@ enum BusinessEntityKind {
   final String tableName;
   final String? extensionKind;
 
+  /// Identity of this kind on the wire, and in a recycle-bin entry's own record
+  /// of what it staged. Ordinary kinds travel under their table name; extension
+  /// kinds share `extension_entity_rows`, so they travel under their extension
+  /// kind (`skill`) — the wire name must be 1:1 with a kind, and the SQL filters
+  /// by the kind column.
+  String get wireName => extensionKind ?? tableName;
+
   String get idColumn => this == provider ? 'provider_key' : 'id';
 }
 

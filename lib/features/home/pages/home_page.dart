@@ -1174,7 +1174,15 @@ class _HomePageState extends State<HomePage>
     }
 
     final settings = context.watch<SettingsProvider>();
-    final suggestionsEnabled = settings.isSuggestionGenerationEnabled;
+    final suggestionConversation = conversationId == null
+        ? null
+        : chat.getConversation(conversationId!);
+    final suggestionAssistant = context
+        .watch<AssistantProvider>()
+        .resolveConversationAssistant(suggestionConversation?.assistantId);
+    final suggestionsEnabled = settings.isSuggestionGenerationAllowedFor(
+      suggestionAssistant,
+    );
     final suggestions = context.select<ChatService, List<String>>(
       (chat) => suggestionsEnabled && conversationId != null
           ? (chat.getConversation(conversationId)?.chatSuggestions ?? const [])

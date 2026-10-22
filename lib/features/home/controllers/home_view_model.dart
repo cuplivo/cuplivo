@@ -32,6 +32,7 @@ import '../services/context_usage_service.dart';
 import '../services/message_builder_service.dart';
 import '../services/message_generation_service.dart';
 import '../services/chat_suggestion_service.dart';
+import '../services/compress_context_estimate.dart';
 import '../utils/model_display_helper.dart';
 import 'chat_actions.dart';
 import 'file_processing_indicator_controller.dart';
@@ -1480,6 +1481,21 @@ class HomeViewModel extends ChangeNotifier {
       _chatController.updateCurrentConversation(updated);
       notifyListeners();
     }
+  }
+
+  /// Per-message token weights for the compress dialog's readout.
+  ///
+  /// The dialog previews what a compression costs, so this counts what the
+  /// model sees — bodies plus tool calls, tool results and images — over the
+  /// same message list the compression itself will walk. It is called on demand
+  /// (the first time the dialog displays a keep-N readout), not on every open.
+  Future<CompressContextWeights> compressContextWeights(
+    List<ChatMessage> messages,
+  ) {
+    return estimateCompressContextWeights(
+      messages: messages,
+      toolEventsFor: _chatService.getToolEventsForMessage,
+    );
   }
 
   /// Compress context: summarize messages via LLM, create new conversation with summary.

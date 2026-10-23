@@ -102,6 +102,7 @@ void main() {
                         context,
                         anchorKey: anchorKey,
                         assistantId: _assistantId,
+                        supportsModelTools: true,
                         conversation: conversation,
                       ),
                       child: const Text('open'),

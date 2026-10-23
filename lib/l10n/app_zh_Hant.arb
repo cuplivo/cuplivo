@@ -5284,8 +5284,6 @@
   "backupRestoreDirectoryBlockedTitle": "還原正在等待資料夾釋放",
   "backupRestoreDirectoryBlockedContent": "Windows 無法移動下方資料夾。請關閉正在使用該資料夾的終端機、編輯器或其他程式，然後繼續還原。如果仍然受阻，請檢查目前帳戶是否有移動該資料夾的權限。先前的還原進度已保留。",
   "backupRestoreContinueButton": "繼續還原",
-  "aboutPageKelivoSearchUnlocked": "有扇沒有名字的門開了一條縫。去設定裡找找看。",
-  "aboutPageKelivoSearchAlreadyUnlocked": "這扇門你已經推開過了。",
   "imageExportPreparing": "正在準備圖片…",
   "imageExportDiagrams": "正在準備圖表 {completed}/{total}…",
   "@imageExportDiagrams": {

@@ -25746,18 +25746,6 @@ abstract class AppLocalizations {
   /// **'Continue restore'**
   String get backupRestoreContinueButton;
 
-  /// No description provided for @aboutPageKelivoSearchUnlocked.
-  ///
-  /// In en, this message translates to:
-  /// **'An unnamed door opened a crack. You might find it in Settings.'**
-  String get aboutPageKelivoSearchUnlocked;
-
-  /// No description provided for @aboutPageKelivoSearchAlreadyUnlocked.
-  ///
-  /// In en, this message translates to:
-  /// **'You\'ve already been through this door.'**
-  String get aboutPageKelivoSearchAlreadyUnlocked;
-
   /// No description provided for @imageExportPreparing.
   ///
   /// In en, this message translates to:

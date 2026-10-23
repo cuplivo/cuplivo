@@ -14525,14 +14525,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backupRestoreContinueButton => 'Continue restore';
 
   @override
-  String get aboutPageKelivoSearchUnlocked =>
-      'An unnamed door opened a crack. You might find it in Settings.';
-
-  @override
-  String get aboutPageKelivoSearchAlreadyUnlocked =>
-      'You\'ve already been through this door.';
-
-  @override
   String get imageExportPreparing => 'Preparing image…';
 
   @override

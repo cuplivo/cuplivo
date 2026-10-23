@@ -128,7 +128,9 @@ class _AppSelectionAreaState extends State<AppSelectionArea> {
           ),
         if (replyMarkdown != null && replyMarkdown.trim().isNotEmpty)
           ContextMenuButtonItem(
-            label: AppLocalizations.of(context)!.chatMessageWidgetReplySelection,
+            label: AppLocalizations.of(
+              context,
+            )!.chatMessageWidgetReplySelection,
             onPressed: () {
               region.hideToolbar();
               widget.onReplySelection!(replyMarkdown);
@@ -167,9 +169,7 @@ class _AppSelectionAreaState extends State<AppSelectionArea> {
     SelectionMarkdownMemory.instance.capture(
       owner: this,
       messageId: messageId,
-      content: [
-        for (final selection in selections) selection.content,
-      ],
+      content: [for (final selection in selections) selection.content],
     );
   }
 

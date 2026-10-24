@@ -13,8 +13,9 @@ final class MarkdownStructure {
     String source, {
     ParserOptions options = const ParserOptions(),
   }) {
-    final document = BlockParser(options: options)
-        .parse(source, streaming: true);
+    final document = BlockParser(
+      options: options,
+    ).parse(source, streaming: true);
     final code = <CodeBlockNode>[];
     final protected = <SourceSpan>[];
     final pending = <MarkdownNode>[document];

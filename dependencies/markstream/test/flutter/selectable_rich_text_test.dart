@@ -58,55 +58,54 @@ Widget harness(
   ),
 );
 void main() {
-  testWidgets(
-    'partial source offsets before, across and after an inline atom',
-    (tester) async {
-      final listener = SelectionListenerNotifier();
-      addTearDown(listener.dispose);
-      String? selected;
-      await tester.pumpWidget(
-        harness(
-          Text.rich(
-            TextSpan(
-              children: [
-                const TextSpan(text: 'Before '),
-                WidgetSpan(child: atom(r'$中😀$')),
-                const TextSpan(text: ' middle '),
-                WidgetSpan(child: atom(r'$b$')),
-                const TextSpan(text: ' After'),
-              ],
-            ),
+  testWidgets('partial source offsets before, across and after an inline atom', (
+    tester,
+  ) async {
+    final listener = SelectionListenerNotifier();
+    addTearDown(listener.dispose);
+    String? selected;
+    await tester.pumpWidget(
+      harness(
+        Text.rich(
+          TextSpan(
+            children: [
+              const TextSpan(text: 'Before '),
+              WidgetSpan(child: atom(r'$中😀$')),
+              const TextSpan(text: ' middle '),
+              WidgetSpan(child: atom(r'$b$')),
+              const TextSpan(text: ' After'),
+            ],
           ),
-          listener,
-          (value) => selected = value?.plainText,
         ),
-      );
-      await tester.pumpAndSettle();
-      final p = paragraph();
-      // Plain rendered offsets use one U+FFFC per atom; reported offsets count LaTeX UTF-16.
-      for (final c in [
-        (0, 5, 0, 6, 'Before'),
-        (9, 14, 13, 19, 'middle'),
-        (18, 22, 24, 29, 'After'),
-        (2, 20, 2, 27, r'fore $中😀$ middle $b$ Aft'),
-      ]) {
-        for (final reverse in [false, true]) {
-          tester
-              .state<SelectableRegionState>(find.byType(SelectableRegion))
-              .clearSelection();
-          await tester.pump();
-          final a = edge(p, c.$1, false), b = edge(p, c.$2, true);
-          await drag(tester, reverse ? b : a, reverse ? a : b);
-          expect(selected, c.$5, reason: '$c reverse=$reverse');
-          final range = listener.selection.range!;
-          expect((
-            range.startOffset,
-            range.endOffset,
-          ), reverse ? (c.$4, c.$3) : (c.$3, c.$4));
-        }
+        listener,
+        (value) => selected = value?.plainText,
+      ),
+    );
+    await tester.pumpAndSettle();
+    final p = paragraph();
+    // Plain rendered offsets use one U+FFFC per atom; reported offsets count LaTeX UTF-16.
+    for (final c in [
+      (0, 5, 0, 6, 'Before'),
+      (9, 14, 13, 19, 'middle'),
+      (18, 22, 24, 29, 'After'),
+      (2, 20, 2, 27, r'fore $中😀$ middle $b$ Aft'),
+    ]) {
+      for (final reverse in [false, true]) {
+        tester
+            .state<SelectableRegionState>(find.byType(SelectableRegion))
+            .clearSelection();
+        await tester.pump();
+        final a = edge(p, c.$1, false), b = edge(p, c.$2, true);
+        await drag(tester, reverse ? b : a, reverse ? a : b);
+        expect(selected, c.$5, reason: '$c reverse=$reverse');
+        final range = listener.selection.range!;
+        expect((
+          range.startOffset,
+          range.endOffset,
+        ), reverse ? (c.$4, c.$3) : (c.$3, c.$4));
       }
-    },
-  );
+    }
+  });
   testWidgets('RTL text and atoms copy in source order', (tester) async {
     final listener = SelectionListenerNotifier();
     addTearDown(listener.dispose);

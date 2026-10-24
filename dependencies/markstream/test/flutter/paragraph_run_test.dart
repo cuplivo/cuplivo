@@ -69,9 +69,9 @@ Future<(Size, Uint8List)> pixels(
   final bytes = await tester.runAsync(() async {
     final image = await boundary.toImage();
     try {
-      return (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!
-          .buffer
-          .asUint8List();
+      return (await image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      ))!.buffer.asUint8List();
     } finally {
       image.dispose();
     }
@@ -145,9 +145,9 @@ Future<Uint8List> movingScene(WidgetTester tester, bool batch) async {
   final bytes = await tester.runAsync(() async {
     final image = await render.toImage();
     try {
-      return (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!
-          .buffer
-          .asUint8List();
+      return (await image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      ))!.buffer.asUint8List();
     } finally {
       image.dispose();
     }

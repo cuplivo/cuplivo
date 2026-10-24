@@ -410,8 +410,9 @@ class _CodeTextFragmentState extends State<_CodeTextFragment> {
 
   @override
   Widget build(BuildContext context) {
-    final inherited = DefaultTextStyle.of(context).style
-        .merge(widget.theme.code.text);
+    final inherited = DefaultTextStyle.of(
+      context,
+    ).style.merge(widget.theme.code.text);
     final body = Padding(
       padding: const EdgeInsets.only(right: 3),
       child: StreamingText(

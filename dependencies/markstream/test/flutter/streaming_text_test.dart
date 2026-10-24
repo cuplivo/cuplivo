@@ -189,9 +189,9 @@ void main() {
     if (visualFont.isNotEmpty) {
       final loader = FontLoader('VisualFont');
       loader.addFont(
-        File(visualFont)
-            .readAsBytes()
-            .then((data) => ByteData.sublistView(data)),
+        File(
+          visualFont,
+        ).readAsBytes().then((data) => ByteData.sublistView(data)),
       );
       await loader.load();
     }

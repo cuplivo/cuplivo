@@ -365,8 +365,9 @@ final class _BlockSession {
       return;
     }
     block.text.addAll(
-      LineCursor(SourceLine(source, cursor.offset, close, close))
-          .textFragments(),
+      LineCursor(
+        SourceLine(source, cursor.offset, close, close),
+      ).textFragments(),
     );
     block
       ..closed = true
@@ -849,8 +850,9 @@ final class _BlockSession {
             ..markerSpan = SourceSpan(task.start, task.end)
             ..end = line.end;
           node.text.addAll(
-            LineCursor(SourceLine(source, task.end, line.end, line.next))
-                .textFragments(),
+            LineCursor(
+              SourceLine(source, task.end, line.end, line.next),
+            ).textFragments(),
           );
           _touch(line);
           return;

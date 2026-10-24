@@ -204,6 +204,16 @@ Units from earlier series that are **gone, and must not come back**:
     reformat. **It must also be the series tip:** on the 4.3.0 line it sat ten commits below the tip, so
     the `~1` cut would have dropped the care `#1008` fix instead of the reformat. Normalize the series so
     the reformat is last, or name it explicitly in a `rebase -i` todo.
+
+    **The pass covers `dependencies/markstream` too, and this is the gate that finds it.** CI's format
+    step names the Dart files a change touched, and on a rewrite that set is the whole re-base —
+    including the vendored package. `e15df5485` brings a markstream laid out for an older Dart, so the
+    first run on the rewritten `master` was red on 25 files there (7 `lib/src`, 18 `test/`) while the
+    root tree was already clean; the fix is the same `dart format` over
+    `dependencies/markstream/{lib,test}`, and it is style-only. Run the formatter over all five paths
+    before pushing and the format step has nothing to say. Note that a `flutter pub get` inside that
+    package rewrites its `analysis_options.yaml` with platform excludes — restore that file first, it
+    is upstream's.
 11. **Never hand-resolve a conflict block without reading what sits outside the markers.** Removing
     the `<<<<<<<`/`=======`/`>>>>>>>` lines by hand silently drops the lines the conflict *didn't*
     cover: upstream's `result.headers.addAll(authHeaders)` lived between two conflict blocks and would
@@ -392,12 +402,13 @@ the next replay can compare against numbers instead of an impression.
 | --- | --- |
 | `dart analyze --fatal-infos lib test integration_test` | No issues found |
 | `flutter gen-l10n` | idempotent — `git status --short -- lib/l10n` empty |
-| `dart format --output=none --set-exit-if-changed` (pinned Dart 3.13.0) | 0 changed |
+| `dart format --output=none --set-exit-if-changed` (pinned Dart 3.13.0) | 0 changed of 2216 files — `lib`, `test`, `integration_test`, `dependencies/markstream/{lib,test}` |
 | `flutter test` | **10005 passed, 62 skipped, 8 failed** — all eight the registered Windows golden cases |
 | `dependencies/markstream`: `pub get`, `dart analyze --fatal-infos`, `flutter test` | No issues found; **296 passed** |
 | `gradlew :app:testDebugUnitTest --tests '*BrowserWebViewHostTest*'` | BUILD SUCCESSFUL |
 | `flutter build windows --debug` | `√ Built build\windows\x64\runner\Debug\cuplivo.exe` (778 s) |
 | `gh workflow run release.yml -f publish_release=false` | run `40056162793`: macOS / Windows / Android / iOS / Linux **5/5 success** (the release-body job is skipped, by design) |
+| `pr-check.yml` on the rewritten `master` | green — analyze, both packages' tests, l10n and the format step on `ubuntu-latest`, which is the only place the POSIX path assumptions are exercised in the direction this machine cannot |
 
 The series itself: 15 replay units, the `docs(agents)` commit, and four tail commits — `fix(tests)`
 ×2, `fix(l10n)`, `feat(sync)` — which is 20 commits on top of `e15df5485`;

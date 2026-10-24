@@ -102,6 +102,10 @@ void main() {
         windowChannel,
         (call) async {
           calls.add(call.method);
+          // window_manager 0.5.2's `startDragging` asks `isFullScreen` first on
+          // Windows hosts; an unanswered channel hands back null and the await
+          // then throws instead of starting the drag.
+          if (call.method == 'isFullScreen') return false;
           return null;
         },
       );

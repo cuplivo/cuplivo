@@ -2,7 +2,7 @@
 
 ## Project overview
 
-Cuplivo is a cross-platform LLM chat client built with Flutter, targeting iOS, Android, macOS, Windows, and Linux. Package name is `Cuplivo` — imports use `package:Cuplivo/...`. It is a community fork of Kelivo, re-baselined on Kelivo v1.3.1; from 4.0 on, every version re-bases on the latest Kelivo stable and re-does Cuplivo's own features as cherry-picks on that baseline.
+Cuplivo is a cross-platform LLM chat client built with Flutter, targeting iOS, Android, macOS, Windows, and Linux. Package name is `Cuplivo` — imports use `package:Cuplivo/...`. It is a community fork of Kelivo, re-baselined on Kelivo upstream `master` at `199647a5d` (2026-10-24); upstream's newest published tag is still `v1.3.1` and older than the 4.3, 4.4 and current baselines, so master is the live line. From 4.0 on, every version re-bases on that upstream line and re-does Cuplivo's own features as cherry-picks on it.
 
 ## Architecture
 
@@ -35,10 +35,22 @@ leaves files CI wants changed — either way turning the PR check red. Format wi
 whenever the local one differs, and confirm with `--output=none --set-exit-if-changed` before
 pushing.
 
+`pubspec.lock` is committed — both here and in `dependencies/markstream` — and `pr-check.yml` runs
+`flutter pub get --enforce-lockfile`, so CI resolves exactly the set that was tested instead of a
+fresh one. That is the baseline's policy as of `199647a5d`; the `e15df5485` replay paid for it, with a
+stale local lock pinning `drift 2.34.3` while CI took `2.35.3` (7 deprecation infos in the committed
+`app_database.g.dart`, invisible locally) and CI's fresh `sqlite3 3.8.0` breaking the recycle bin's
+staging (13 cases). Neither is a `pubspec.yaml` ceiling any more: `199647a5d` pins `drift 2.35.3` and
+the lock pins `sqlite3 3.5.2`, so a bump is now a commit that changes the lock, never a silent
+resolution. This fork adds packages upstream does not have (`pdf`, `basic_utils`,
+`device_info_plus`), so it cannot inherit upstream's lock verbatim: seed ours from the baseline's and
+run **one** `flutter pub get` — that kept upstream's pins and added only ours. Check the lock into
+the same commit as any `pubspec.yaml` change, or the next CI run fails on `--enforce-lockfile`.
+
 ## Releases
 
 - **Version**: `pubspec.yaml` only (`version: X.Y.Z+N`); the release tag is `vX.Y.Z`.
-- **Rebases**: master is rewritten whenever the line re-bases on a new Kelivo stable. Re-create the
+- **Rebases**: master is rewritten whenever the line re-bases on a new Kelivo baseline. Re-create the
   release tag on the new tip and re-dispatch `release.yml` for it, so the published assets match the
   rewritten tree.
 - **Changelog**: `CHANGELOG.md` (English) and `CHANGELOG_CN.md` (Chinese) carry the same entries,
@@ -51,21 +63,25 @@ pushing.
 
 ## Upstream policy
 
-Cuplivo follows upstream: a new version re-bases the code base on the latest Kelivo stable and
-re-does Cuplivo's own features on that baseline instead of porting the fork forward. Never let the
-fork diverge permanently — the 3.x line ended because hand-syncing every upstream change became
-unmaintainable. See `docs/adr/0004-follow-upstream-rebase.md`.
+Cuplivo follows upstream: a new version re-bases the code base on the newest Kelivo line — upstream
+`master`, since its last published tag (`v1.3.1`, `4742d2e28`) is older than the 4.3, 4.4 and current
+baselines — and re-does Cuplivo's own features on that baseline instead of porting the fork forward.
+Never let the fork diverge permanently — the 3.x line ended because hand-syncing every upstream change
+became unmaintainable. See `docs/adr/0004-follow-upstream-rebase.md`.
 
 A re-base never carries patches to a package we consume. `dependencies/markstream` is upstream's
 code, vendored by path; a defect found there is filed on upstream and waited for, not patched
 locally — a local patch is the first thing the next re-base silently drops, and it makes the
 package's own gate meaningless. The 4.4 re-base deferred the hand-cursor fix (#1014) this way
-(Chevey339/kelivo#1269) and recorded the gap in `docs/markstream-delta-audit.md`.
+(Chevey339/kelivo#1269) and recorded the gap in `docs/markstream-delta-audit.md`. That issue was
+closed `NOT_PLANNED` upstream on 2026-10-20 and both defects are still in the vendored package at
+`199647a5d`, so the gap is now permanent rather than pending: re-check it per re-base, keep it
+documented, and do not patch it locally.
 
 ## History normalization (rewrite pass)
 
 Between a release and the next re-base the line collects fix-ups, and a pass folds them into replay
-units so the next re-base replays ~15 commits instead of ~34. The unit table and the procedure live in
+units so the next re-base replays 18 commits instead of 35. The unit table and the procedure live in
 `docs/rebase-runbook.md`; what the 4.4 pass added:
 
 - **A follow-up folds into its unit only when the files it crosses are the changelogs, `lib/l10n/`,
@@ -85,6 +101,15 @@ units so the next re-base replays ~15 commits instead of ~34. The unit table and
 - **A fold keeps its folded messages.** `git commit -C <base>` keeps only the base message; assemble
   base subject and body plus every folded body and feed it to `git commit-tree -F`. Those bodies are
   the evidence the next re-base reads.
+- **A landing's fix-ups fold by path from the tip, not by replaying their patches.** The `199647a5d`
+  landing's 21 tail commits became four — the baseline's own repairs, the lock and release wiring, the
+  record, and the reformat at the tip. Each one is
+  `git restore --source=<old-tip> --staged --worktree -- <its paths>` on top of the last unit, so the
+  tip tree is reproduced byte for byte by construction; the one constraint is that no path may be
+  split across two of them, which is why `f75363461` and `724affebc` contribute their document hunks
+  to the record and the rest to another commit. This is the cheap direction: a tail that cannot fold
+  back into its unit (the unit's own test files are in the way) can still merge with its neighbours,
+  and that removes a replay round without moving the conflict surface.
 - **The brand rename applies to the incoming side too.** The identity unit renames `Kelivo` → `Cuplivo`
   in ARB *keys and values*. A merge that kept a fork value because it already equalled
   `rename(upstream)` must still write `rename(upstream[k])`; taking the raw upstream value put 53
@@ -93,6 +118,30 @@ units so the next re-base replays ~15 commits instead of ~34. The unit table and
   (`searchServiceNameKelivo`) is dropped, not kept beside the fork's (`searchServiceNameCuplivo`).
   Prove it before pushing: `git grep -c Kelivo master -- lib/l10n/` prints nothing, and the generated
   files are re-derived by `flutter gen-l10n` from the package root.
+- **The new baseline's tests are POSIX-only; the Windows run is what finds them.** The 4.4 replay
+  surfaced 18 failures that were all in tests upstream never runs on Windows: path assertions
+  written with `/` (five files fixed with `p.equals` / `p.normalize`), `window_manager` 0.5.2's
+  Windows-only `isFullScreen` probe at the head of `startDragging` (an unanswered channel hands the
+  await a null), and a widget test whose 2 s interleave window no longer covered the durable
+  empty-database acknowledgement the fork adds to the last deletion. None was a product defect, and
+  repairing them belongs to the baseline-repair unit, not to an optional cleanup. The `e15df5485`
+  replay added two classes to that set: a `/` literal frozen into a path filter
+  (`data_sync_backup_file_test.dart`), and persisted names the identity sweep had rewritten in a test
+  fixture (`restore_failure_screen_test.dart` looked for `cuplivo-snapshot-…` while discovery matches
+  `kelivo-snapshot-`, and for a `cuplivo-data` folder where the durability fault matches `kelivo-data`).
+  The eight `test/goldens/markdown_backdrop_golden_test.dart` cases are a third class: their baselines
+  are pixel fixtures, and Skia's text rasterisation differs between the image that generated them and
+  this machine. They are registered `kind: "platform"` for Windows (0.67–2.07 %), and their baselines
+  are generated **on the CI image** (ubuntu-24.04) so that `pr-check.yml` compares against its own
+  renderer — a fixture that fails everywhere is a fixture that was never generated where it runs, not
+  a platform to register.
+- **Register a Windows failure only after a control run at upstream's tip.** The eight goldens were
+  not guessed at: `git worktree add … e15df5485`, `flutter pub get`, the same file, and all eight
+  failed there with the same magnitudes. A registry entry is a claim that the failure is the
+  platform's, and the claim is only worth the control run behind it. The claim has to be re-earned
+  when the baseline moves: `199647a5d` got its own control worktree and reproduced the same eight at
+  the same percentages (2.07/1.46/1.35/0.71 light, 2.04/1.45/1.34/0.70 dark), which is why the
+  entries could stay.
 - **Back up before the force push**: `backup/master-<sha>`, plus a `backup/series-<old-baseline>` when
   a series branch is replaced, both pushed.
 

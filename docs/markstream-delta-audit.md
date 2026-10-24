@@ -121,7 +121,13 @@ reasoning as the runbook's "two implementations of one defect"). The fix — a
 per-glyph cursor region that hit-tests the pointer position and falls back to
 `text`, plus a `MouseRegion(click)` on the details summary — is requested upstream
 in [Chevey339/kelivo#1269](https://github.com/Chevey339/kelivo/issues/1269).
-When that lands, #1014 is a no-op on the next re-base.
+
+**Upstream closed #1269 as `NOT_PLANNED` on 2026-10-20**, so this is no longer a
+waiting item. Re-measured at `199647a5d`: `lib/src/flutter/render/paragraph_run.dart:166`
+is still `MouseRegion(cursor: SystemMouseCursors.text)` and
+`lib/src/flutter/render/blocks/details_block.dart:63` still wraps the summary in a bare
+`GestureDetector` with no cursor region. #1014 stays unimplemented in this fork — re-check both
+files at every re-base, keep the gap recorded here, and do not patch the package locally.
 
 ## #1028 — the PDF export, re-laid on markstream's AST
 

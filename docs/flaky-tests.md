@@ -704,3 +704,68 @@ when the re-base rebuilt that file from upstream's copy, so `rootBundle` could n
 Declaring it again fixed all three, and `app_mark_assets_test.dart` — which is this fork's own
 guard for exactly that class — had been red for the same reason.
 
+## 10. The `e15df5485` baseline: eight goldens and three test-side Windows assumptions
+
+Same method as **§9**, and it is the reason these are trustworthy: every entry was reproduced at
+upstream's own tip in a clean worktree — `git worktree add … e15df5485`, `flutter pub get`, then the
+same file — before a line of it was blamed on the platform. `pr-check.yml` still runs
+`ubuntu-latest` only, so upstream's CI never observes any of them.
+
+| test | how it fails on Windows |
+|---|---|
+| `test/goldens/markdown_backdrop_golden_test.dart` › all eight (`wallpaper light\|dark × code\|table\|details\|diagram`) | `Pixel test failed, 0.67 %–2.07 %, 1253–3872 px diff`. The baselines are PNGs of Skia's text rasterisation, which differs between the machine that generated them and this one. Re-measured after the baselines were regenerated **on the CI image**: 2.04/1.32/1.25/0.67 light, 2.07/1.31/1.25/0.67 dark. Control runs at `e15df5485` and `199647a5d` with no Cuplivo commit applied reproduced the same eight (2.07/1.46/1.35/0.71 and 2.04/1.45/1.34/0.70 against the *old* baselines), so the renderer is not the variable. |
+| `browser_desktop_layout_test.dart` › blank title row moves window while tabs and toolbar stay interactive | `startDragging` is never invoked. `window_manager` 0.5.2 became `if (Platform.isWindows && await isFullScreen()) return;` ahead of the drag, the test's mock channel answers `null`, and the typed `Future<bool>` `await` throws before the invoke. |
+| `data_sync_backup_file_test.dart` › startup snapshot retries after a damaged candidate and keeps the failed run | `Bad state: No element` — the test filters with `endsWith('/previous/preserved.txt')` and Windows spells the path with `\`. |
+| `data_sync_backup_file_test.dart` › kelivo-file portable attachments resolve after root change without rewriting persisted URIs | `'${rootB.path}/upload/pic.png'` against the resolver's native separator (`…\upload\pic.png`). |
+
+Repaired in the baseline-repair unit, not registered: the browser case (answer `isFullScreen` with
+`false`, the same fix `macos_window_drag_area_test.dart` already carries) and the two
+`data_sync_backup_file_test` cases (`p.join` instead of a `/` literal). Those two are this fork's own
+tests and both are the §9a-2 shape — a `/` frozen into an expectation — so the repair is the same one
+that section records.
+
+Registered instead, because repairing them means rewriting upstream's own test or its assets:
+`.toolbridge/known-failures.json`, `kind: "platform"`, `platform: "windows"`, eight entries named
+`wallpaper <light|dark> <code|table|details|diagram>`, each carrying the control-run numbers rather
+than a promise.
+
+## 11. The `199647a5d` baseline: one timing budget and one non-nullable toolbar
+
+The seven commits between `e15df5485` and `199647a5d` added iOS native selection menus, the world-book
+copy/batch transfer, macOS notarization, and the commit that commits both lockfiles. The full suite on
+that tree surfaced two test-side defects, neither a product bug, and **no new golden failure**: the
+eight registered cases still fail with the same magnitudes (2.07/1.46/1.35/0.71 light,
+2.04/1.45/1.34/0.70 dark), which is the control run's own fingerprint. Those baselines were afterwards
+regenerated on the CI image (§12), which moved the Windows percentages but not the finding.
+
+| test | how it fails | disposition |
+|---|---|---|
+| `test/shared/widgets/app_selection_area_test.dart` › the three Reply cases | three `unnecessary_non_null_assertion` warnings under `dart analyze --fatal-infos`. Upstream replaced `AdaptiveTextSelectionToolbar.buttonItems` with its own `AppTextSelectionToolbar`, whose `buttonItems` is `required` and non-nullable, so the `!` the fork's tests wrote became redundant. | repaired — the `!` dropped, nothing else |
+| `test/features/migration/migration_app_test.dart` › mobile retry does not export an already saved backup again | failed exactly once in 10063 tests: `_waitUntil` polled 100 × 10 ms — a 1 s budget — for file IO (export the backup, delete the temporary copy) that a loaded machine does not finish in time. The file passes alone, 7/7. | repaired — a 15 s deadline around the same condition |
+
+The migration case is §9a's shape one level up: the assertion was right and the *budget* was tuned on a
+quiet machine, exactly like the 2 s interleave window in §10. The helper still asserts the condition,
+so a genuinely stuck retry fails — it just fails for its own reason instead of for load.
+
+Two counts moved without a failure: the skip count goes 62 → 65 because the three
+`test/tool/macos_signing_test.dart` cases are `skip: !(Platform.isMacOS || Platform.isLinux)`, and the
+runtime of the suite grows with upstream's six new test files.
+
+## 12. The CI image is a platform too: five browser cases and eight pixel fixtures
+
+The first `pr-check.yml` run that got past `dart analyze` (it had been red on format, then on analyze,
+since the `e15df5485` landing) reported **13 failures on ubuntu-24.04** that never appear on Windows.
+Neither class was caused by the re-base; both arrived with the baseline and had simply never been
+observed, because no run had reached `flutter test` since:
+
+| test | how it fails on ubuntu-24.04 | disposition |
+|---|---|---|
+| `browser_library_test.dart` › `bookmarks\|history\|downloads ignores native page progress but refreshes its entries` (3), `browser_scroll_configuration_test.dart` › `browser start and independently pushed management pages have no stretch decoration`, `browser_navigation_test.dart` › `card tab is selected for dock and full page; closed tab falls back` | `UnsupportedError: browser_platform_unsupported` from `BrowserService._engine`: the browser exists for Android, iOS, macOS and Windows only, and these cases mount a page (or `initialize()` a service whose engine gate still runs even with an injected factory). | repaired — `BrowserService.platformSupported` states the platform rule once, `isSupported` derives from it, and the five cases skip where there is no engine. Every other browser test still runs everywhere |
+| `test/goldens/markdown_backdrop_golden_test.dart` › all eight | `Pixel test failed, 1.41 %–2.24 %` — the PNGs were generated on a machine whose font stack differs from the runner, so they matched neither this machine (0.70–2.07 %) nor CI. `frosted_surface_golden_test.dart`, whose baselines came from the runner, passes in both places. | repaired — regenerated **on ubuntu-24.04** by a one-off `workflow_dispatch` job (`flutter test --update-goldens`, artifact, copied in, workflow deleted), so CI now compares against its own image; Windows still differs (0.67–2.07 %, see §10) and stays registered |
+
+The lesson is the one §10 already carries on the Windows side, made symmetric: **a pixel fixture belongs
+to the image that produced it.** A golden that fails everywhere is not a platform failure to register —
+it is a fixture that was never generated where it runs. And a test that mounts a platform service has
+to ask that service's platform rule before it runs, or the CI's operating system becomes an implicit,
+untested input.
+

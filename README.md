@@ -42,7 +42,7 @@ Conversations, settings and files are stored locally. Cuplivo has no account sys
 
 ## ✨ What's new in 4.0
 
-Cuplivo 4.0 moves the whole code base onto the **Kelivo v1.3.1** baseline and re-implements Cuplivo's own features on top of it. From here on the repository re-bases on every Kelivo release instead of diverging permanently, so upstream's work keeps arriving.
+Cuplivo 4.0 moves the whole code base onto the **Kelivo v1.3.0** baseline and re-implements Cuplivo's own features on top of it. From here on the repository re-bases on upstream's own line instead of diverging permanently, so upstream's work keeps arriving.
 
 - **LAN sync** — conversations, the business data behind them, attachments and skills follow you across your own devices over the LAN. Pair once by QR code (endpoints + certificate fingerprint + a one-shot PIN), then sync without restarting: no server, no hub device, no manual merge.
 - **Input draft** — the unsent composer content (text, image paths and document attachments) is kept across restarts, so an accidental exit no longer loses what you were writing.
@@ -247,7 +247,7 @@ Full third-party notices for the sandbox components are in [`ios/sandbox/NOTICE`
 
 ## ⚠️ Note
 
-Cuplivo is a community fork of [Kelivo](https://github.com/Chevey339/kelivo), re-baselined on Kelivo v1.3.1 and re-based on each Kelivo release from 4.0 on. Outward-facing identity is Cuplivo; names that belong to a protocol, to persisted data or to upstream infrastructure are kept on purpose (`kelivo://` content links, `kelivo-file://` URIs, `kelivo_*` MCP tool ids, `kelivo.db` and the like), because renaming them would break imported conversations and recorded tool calls. Community: QQ group `1101061750`, [Discord](https://discord.gg/kaTf8CXG4).
+Cuplivo is a community fork of [Kelivo](https://github.com/Chevey339/kelivo), re-based on upstream from 4.0 on and currently sitting on upstream `master` at `199647a5d` (2026-10-24) — upstream's newest tag, `v1.3.1`, is older than that. Outward-facing identity is Cuplivo; names that belong to a protocol, to persisted data or to upstream infrastructure are kept on purpose (`kelivo://` content links, `kelivo-file://` URIs, `kelivo_*` MCP tool ids, `kelivo.db` and the like), because renaming them would break imported conversations and recorded tool calls. Community: QQ group `1101061750`, [Discord](https://discord.gg/kaTf8CXG4).
 
 ## 📄 License
 

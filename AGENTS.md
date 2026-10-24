@@ -2,7 +2,7 @@
 
 ## Project overview
 
-Cuplivo is a cross-platform LLM chat client built with Flutter, targeting iOS, Android, macOS, Windows, and Linux. Package name is `Cuplivo` — imports use `package:Cuplivo/...`. It is a community fork of Kelivo, re-baselined on Kelivo v1.3.1; from 4.0 on, every version re-bases on the latest Kelivo stable and re-does Cuplivo's own features as cherry-picks on that baseline.
+Cuplivo is a cross-platform LLM chat client built with Flutter, targeting iOS, Android, macOS, Windows, and Linux. Package name is `Cuplivo` — imports use `package:Cuplivo/...`. It is a community fork of Kelivo, re-baselined on Kelivo upstream `master` at `e15df5485` (2026-10-23); upstream's newest published tag is still `v1.3.1` and older than the 4.3, 4.4 and current baselines, so master is the live line. From 4.0 on, every version re-bases on that upstream line and re-does Cuplivo's own features as cherry-picks on it.
 
 ## Architecture
 
@@ -38,7 +38,7 @@ pushing.
 ## Releases
 
 - **Version**: `pubspec.yaml` only (`version: X.Y.Z+N`); the release tag is `vX.Y.Z`.
-- **Rebases**: master is rewritten whenever the line re-bases on a new Kelivo stable. Re-create the
+- **Rebases**: master is rewritten whenever the line re-bases on a new Kelivo baseline. Re-create the
   release tag on the new tip and re-dispatch `release.yml` for it, so the published assets match the
   rewritten tree.
 - **Changelog**: `CHANGELOG.md` (English) and `CHANGELOG_CN.md` (Chinese) carry the same entries,
@@ -51,16 +51,20 @@ pushing.
 
 ## Upstream policy
 
-Cuplivo follows upstream: a new version re-bases the code base on the latest Kelivo stable and
-re-does Cuplivo's own features on that baseline instead of porting the fork forward. Never let the
-fork diverge permanently — the 3.x line ended because hand-syncing every upstream change became
-unmaintainable. See `docs/adr/0004-follow-upstream-rebase.md`.
+Cuplivo follows upstream: a new version re-bases the code base on the newest Kelivo line — upstream
+`master`, since its last published tag (`v1.3.1`, `4742d2e28`) is older than the 4.3, 4.4 and current
+baselines — and re-does Cuplivo's own features on that baseline instead of porting the fork forward.
+Never let the fork diverge permanently — the 3.x line ended because hand-syncing every upstream change
+became unmaintainable. See `docs/adr/0004-follow-upstream-rebase.md`.
 
 A re-base never carries patches to a package we consume. `dependencies/markstream` is upstream's
 code, vendored by path; a defect found there is filed on upstream and waited for, not patched
 locally — a local patch is the first thing the next re-base silently drops, and it makes the
 package's own gate meaningless. The 4.4 re-base deferred the hand-cursor fix (#1014) this way
-(Chevey339/kelivo#1269) and recorded the gap in `docs/markstream-delta-audit.md`.
+(Chevey339/kelivo#1269) and recorded the gap in `docs/markstream-delta-audit.md`. That issue was
+closed `NOT_PLANNED` upstream on 2026-10-20 and both defects are still in the vendored package at
+`e15df5485`, so the gap is now permanent rather than pending: re-check it per re-base, keep it
+documented, and do not patch it locally.
 
 ## History normalization (rewrite pass)
 
@@ -99,7 +103,18 @@ units so the next re-base replays ~15 commits instead of ~34. The unit table and
   Windows-only `isFullScreen` probe at the head of `startDragging` (an unanswered channel hands the
   await a null), and a widget test whose 2 s interleave window no longer covered the durable
   empty-database acknowledgement the fork adds to the last deletion. None was a product defect, and
-  repairing them belongs to the baseline-repair unit, not to an optional cleanup.
+  repairing them belongs to the baseline-repair unit, not to an optional cleanup. The `e15df5485`
+  replay added two classes to that set: a `/` literal frozen into a path filter
+  (`data_sync_backup_file_test.dart`), and persisted names the identity sweep had rewritten in a test
+  fixture (`restore_failure_screen_test.dart` looked for `cuplivo-snapshot-…` while discovery matches
+  `kelivo-snapshot-`, and for a `cuplivo-data` folder where the durability fault matches `kelivo-data`).
+  The eight `test/goldens/markdown_backdrop_golden_test.dart` cases are a third class: their baselines
+  were generated on Linux and differ by 0.70–2.07 % here — the control run at `e15df5485` in a clean
+  worktree reproduces every one of them, so they are registered `kind: "platform"`, not repaired.
+- **Register a Windows failure only after a control run at upstream's tip.** The eight goldens were
+  not guessed at: `git worktree add … e15df5485`, `flutter pub get`, the same file, and all eight
+  failed there with the same magnitudes. A registry entry is a claim that the failure is the
+  platform's, and the claim is only worth the control run behind it.
 - **Back up before the force push**: `backup/master-<sha>`, plus a `backup/series-<old-baseline>` when
   a series branch is replaced, both pushed.
 

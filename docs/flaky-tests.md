@@ -704,3 +704,28 @@ when the re-base rebuilt that file from upstream's copy, so `rootBundle` could n
 Declaring it again fixed all three, and `app_mark_assets_test.dart` — which is this fork's own
 guard for exactly that class — had been red for the same reason.
 
+## 10. The `e15df5485` baseline: eight goldens and three test-side Windows assumptions
+
+Same method as **§9**, and it is the reason these are trustworthy: every entry was reproduced at
+upstream's own tip in a clean worktree — `git worktree add … e15df5485`, `flutter pub get`, then the
+same file — before a line of it was blamed on the platform. `pr-check.yml` still runs
+`ubuntu-latest` only, so upstream's CI never observes any of them.
+
+| test | how it fails on Windows |
+|---|---|
+| `test/goldens/markdown_backdrop_golden_test.dart` › all eight (`wallpaper light\|dark × code\|table\|details\|diagram`) | `Pixel test failed, 0.70 %–2.07 %, 1317–3875 px diff`. The baselines are PNGs generated on Linux and Skia rasterises text and antialiasing differently here. Control run at `e15df5485` with no Cuplivo commit applied: the same eight, the same band (2.07/1.46/1.35/0.71 light, 2.04/1.45/1.34/0.70 dark). |
+| `browser_desktop_layout_test.dart` › blank title row moves window while tabs and toolbar stay interactive | `startDragging` is never invoked. `window_manager` 0.5.2 became `if (Platform.isWindows && await isFullScreen()) return;` ahead of the drag, the test's mock channel answers `null`, and the typed `Future<bool>` `await` throws before the invoke. |
+| `data_sync_backup_file_test.dart` › startup snapshot retries after a damaged candidate and keeps the failed run | `Bad state: No element` — the test filters with `endsWith('/previous/preserved.txt')` and Windows spells the path with `\`. |
+| `data_sync_backup_file_test.dart` › kelivo-file portable attachments resolve after root change without rewriting persisted URIs | `'${rootB.path}/upload/pic.png'` against the resolver's native separator (`…\upload\pic.png`). |
+
+Repaired in the baseline-repair unit, not registered: the browser case (answer `isFullScreen` with
+`false`, the same fix `macos_window_drag_area_test.dart` already carries) and the two
+`data_sync_backup_file_test` cases (`p.join` instead of a `/` literal). Those two are this fork's own
+tests and both are the §9a-2 shape — a `/` frozen into an expectation — so the repair is the same one
+that section records.
+
+Registered instead, because repairing them means rewriting upstream's own test or its assets:
+`.toolbridge/known-failures.json`, `kind: "platform"`, `platform: "windows"`, eight entries named
+`wallpaper <light|dark> <code|table|details|diagram>`, each carrying the control-run numbers rather
+than a promise.
+

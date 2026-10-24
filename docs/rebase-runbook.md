@@ -14,10 +14,12 @@ rework and a markdown contrast pass) and 4.4 → `199647a5d` (upstream master, s
 on: iOS native selection menus, the world-book copy/batch transfer, macOS Developer-ID
 notarization, and the commit that commits both lockfiles and makes CI enforce them). The conflict
 counts quoted below are the 4.1 one's; the *rules* are what to carry forward. The unit list below
-is the 4.4 line's series as replayed onto `e15df5485` and then, unchanged, onto `199647a5d`
-(15 units, normalized from the 34-commit line, each unit's l10n re-derived by `flutter gen-l10n`):
-baseline repair → features → the mechanical reformat at the tip, plus a `docs(agents)` commit
-recording what that pass learned.
+is the 4.4 line's series as replayed onto `e15df5485` and then onto `199647a5d` (14 content units,
+normalized from the 34-commit line, each unit's l10n re-derived by `flutter gen-l10n`): baseline
+repair → features → four landing commits — the new baseline's own repairs, the lock and the release
+wiring, the record, and the mechanical reformat at the tip. The `199647a5d` landing was then
+normalized from 35 commits to 18 by materializing the landing commits' paths from the tip
+(§ *The landing is 18 commits*), which is lossless by construction.
 
 ## The replay units, in order
 
@@ -44,7 +46,10 @@ every fold below names the crossings it accepts.
 | 12 | `feat(translate): user-managed target languages incl. Bengali (#1039)` | ADR-0014 |
 | 13 | `feat(suggestions): a chat-suggestions switch per assistant (#1040)` | — |
 | 14 | `feat(recycle): a recycle bin for deletions, losing merges and workspace files (#1035)` | ADR-0016 |
-| 15 | `style: reformat the files the 3.47.6 formatter lays out differently` | re-derived at the tip (rule 10); never replayed, and never folded into a content unit — a mixed unit could be neither dropped nor re-derived |
+| 15 | `fix: the new baseline's suite, fixtures and preference keys` | the landing repair: the two tests the baseline reshaped (`0bb6bc952`), the Windows-only assumptions the suite still carried (`6f4252bf5`), the non-nullable selection-toolbar items (`8407fbc88`), the migration retry's 1 s poll budget (`e4b111e31`), the browser cases the platform cannot run and the golden fixtures generated on the CI image (`71b0afa17`, `724affebc`), the two pre-rename ARB messages upstream still ships (`379fd2b35`), and the MCP presentation key the sync registry owed (`5efd382ff`). Not folded into unit 2, its natural home: the repairs touch test files units 3-14 own, so folding would mean replaying the whole series |
+| 16 | `chore(deps): the lock and the release wiring the gates run against` | `00d9c4580` (the seeded `pubspec.lock` every gate now runs against), `f75363461`'s `.gitignore` line for golden failures, and `515e807e2` — the notarization signs `cuplivo.app` and `Cuplivo_macos_*.dmg`, and `docs/homebrew/kelivo.rb` is deleted (rule 15) |
+| 17 | `docs(rebase): the invariants and the 199647a5d record` | `docs(agents)` `2eda72787` folded in, then `76993e753`, `956bec9fe`, `81271f940`, `e362f75bf`, `779452761`, `78436c40b`, `ea19c6cc1`, plus the document hunks of `f75363461` and `724affebc` |
+| 18 | `style: reformat the files the 3.47.6 formatter lays out differently` | re-derived at the tip (rule 10); never replayed, and never folded into a content unit — a mixed unit could be neither dropped nor re-derived. **Last on purpose**: the series tip is the reformat, which is what makes the `<old-master>~1` cut in the procedure correct again |
 
 The tail is no longer a run of one-commit chores: the l10n cleanup and every test/CI repair now belong
 to unit 2, and the content carry, the CI collapse, the release-notes step and the runbook itself belong
@@ -55,11 +60,21 @@ the series tip, which is what makes the `<old-master>~1` cut below correct.
 The `e15df5485` replay added tail commits after the units, and only because their corrections could
 not be folded back into the unit that owns them without replaying the whole series again: a
 `fix(tests)` for the two tests the new baseline reshaped, a `fix(l10n)` for the two messages upstream
-still ships under their pre-rename names, the re-derived reformat (unit 15), and — once the full
+still ships under their pre-rename names, the re-derived reformat (unit 15 there), and — once the full
 Windows suite had been run — a second `fix(tests)` for the three test-side assumptions it found (see
 `docs/flaky-tests.md` §10) plus a `feat(sync)` for the one new upstream preference key that needed a
 disposition decision. A one-line correction belongs in its own unit when the replay is still open;
 once it is closed, a tail commit with the evidence in its message is the cheaper record.
+
+The `199647a5d` landing closed the same way and then folded itself: its 21 tails (that paragraph's
+commits, the nine this baseline added, and `docs(agents)`) became **four** — unit 15 the baseline's
+suite, fixtures and preference keys, 16 the lock and the release wiring, 17 the record, 18 the
+reformat at the tip. They are folded by *path from the tip* rather than by replaying their patches:
+each landing commit materializes its paths from the old tip
+(`git restore --source=<old-tip> --staged --worktree -- <paths>`), which reproduces the tip tree byte
+for byte as long as no path is split across two of them — `f75363461` and `724affebc` each hand their
+document hunks to 17 and the rest to 16 and 15. The fold is what removes the replay rounds; it does
+not move the conflict surface, which is the union of the same 77 paths.
 
 Units from earlier series that are **gone, and must not come back**:
 
@@ -304,7 +319,7 @@ with the baseline fact re-read from upstream's tree).
 
 ```bash
 # a scratch branch, so master is untouched until the line is verified
-# (the normalized series ends with the mechanical reformat, so ~1 drops exactly that; the release
+# (the series ends with the mechanical reformat — unit 18 — so ~1 drops exactly that; the release
 #  commits are not in the series — the content carry owns their content)
 git branch --force rebase/onto-<new-baseline> <old-master>~1
 git rebase --onto <new-baseline> <old-baseline> rebase/onto-<new-baseline>
@@ -472,16 +487,51 @@ run finally describe the same dependency set.
 | `gh workflow run release.yml -f publish_release=false` | run `40075370914`: macOS / Windows / Android / iOS / Linux **5/5 success** (the release-body job is skipped, by design). The macOS job also ran the new Developer-ID sign and notarize steps, which no-op cleanly with no secrets configured |
 | `pr-check.yml` on the rewritten `master` | three runs, and the story is rule 16: `40075337329` red on 13 ubuntu-only tests (5 browser cases with no engine there, 8 goldens generated elsewhere); `40078790202` after the browser guards — **10111 passed, 8 failed, 18 skipped**; `40079570731` at the tip `724affebc` — **green on every step**, the last two read against the CI image's own baselines |
 
-The series is 15 replay units, `docs(agents)`, eight earlier tails and nine new ones on top of
-`199647a5d`; `git rev-list --count 199647a5d..master` prints the live total — it moves with every
-follow-up commit, so this paragraph deliberately does not name it. `git merge-base --is-ancestor
-199647a5d HEAD` holds, no tag points at the tip, and `pubspec.yaml` still says `4.3.0+6`.
+The series is 14 replayed content units and four landing commits on top of `199647a5d` (§ *The
+landing is 18 commits*); `git rev-list --count 199647a5d..master` prints the live total — it moves
+with every follow-up commit, so this paragraph deliberately does not name it.
+`git merge-base --is-ancestor 199647a5d HEAD` holds, no tag points at the tip, and `pubspec.yaml`
+still says `4.3.0+6`.
 
 Two failures on this replay belonged to the machine, not the tree, and neither changed a line:
 `:mobile_scanner:compileDebugKotlin` died on a corrupted Kotlin incremental cache in the pub cache
 (re-running that one task cleared it, with an `org.jetbrains.kotlin.incremental.storage` stack trace in
 the log as the tell), and the first Windows link failed because `build/windows` still held objects
 from the previous `record` version — deleting that directory was the fix.
+
+### The landing is 18 commits
+The replay closed at 35 commits: 14 replayed content units, then 21 tails written while the gates were
+being cleared. Those 21 became four landing commits, so the next re-base replays 18 — and the pass is
+proved by the tip tree, not by inspection:
+
+| # | Landing commit | Folded in |
+| --- | --- | --- |
+| 15 | `fix: the new baseline's suite, fixtures and preference keys` | `0bb6bc952`, `6f4252bf5`, `8407fbc88`, `e4b111e31`, `71b0afa17`, `724affebc`'s fixtures and its one-off `regen-goldens.yml`, `379fd2b35` (`fix(l10n)`), `5efd382ff` (`feat(sync)`) |
+| 16 | `chore(deps): the lock and the release wiring the gates run against` | `00d9c4580`, `f75363461`'s `.gitignore` line, `515e807e2` |
+| 17 | `docs(rebase): the invariants and the 199647a5d record` | `2eda72787` (`docs(agents)`), `76993e753`, `956bec9fe`, `81271f940`, `e362f75bf`, `779452761`, `78436c40b`, `ea19c6cc1`, plus the document hunks of `f75363461` and `724affebc` |
+| 18 | `style: reformat the files the pinned SDK lays out differently` | `41288ec37`, `7eb2cc808` |
+
+Why those four and not fewer: the landing content cannot fold back into the unit that owns it — the
+repairs touch test files units 3-14 own, so folding them into unit 2 would mean replaying the whole
+series again — and the reformat must stay droppable (rule 10), so it is one commit of its own. Two
+landing commits are the floor after that (the repairs and the record, which is what a 16-commit series
+would look like); four is what keeps each concern reviewable. Sixteen is the floor overall: below it
+the reformat would have to share a commit with a content unit and could no longer be re-derived.
+
+The mechanism is one `git restore --source=<old-tip> --staged --worktree -- <paths>` per landing
+commit, on top of the last unit. Each path belongs to exactly one of them, so materializing the tip's
+content for it is exact — no patch is applied, so a formatting-only conflict cannot invent one. The
+partition is 29 paths in 15, 5 in 16, 7 in 17 and 36 in 18 out of the 77 the tails changed; the only
+deletion (`docs/homebrew/kelivo.rb`) goes through `git rm`, because `git restore` does not delete.
+
+Prove it in this order — tree first, ancestry and count after, per the rule above:
+`git diff --quiet <old-tip> <new-tip>`; `git diff --stat 6052bf812 <new-tip>` unchanged; then
+`git merge-base --is-ancestor 199647a5d <new-tip>` and
+`git rev-list --count 199647a5d..<new-tip>` = 18. The 14 units keep their hashes — nothing before
+`6052bf812` moves — so a unit's message and tree are still the ones the table describes.
+
+The landing changed no code: the only edits were these documents, so the green `pr-check` on the
+pre-normalization tip stays valid evidence for the tree, and the push re-runs it on the new one.
 
 ### The baseline commits its lockfiles; a fork with extra packages seeds them
 `199647a5d` commits `pubspec.lock` and `dependencies/markstream/pubspec.lock`, un-ignores both, and

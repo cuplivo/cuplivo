@@ -81,7 +81,7 @@ documented, and do not patch it locally.
 ## History normalization (rewrite pass)
 
 Between a release and the next re-base the line collects fix-ups, and a pass folds them into replay
-units so the next re-base replays ~15 commits instead of ~34. The unit table and the procedure live in
+units so the next re-base replays 18 commits instead of 35. The unit table and the procedure live in
 `docs/rebase-runbook.md`; what the 4.4 pass added:
 
 - **A follow-up folds into its unit only when the files it crosses are the changelogs, `lib/l10n/`,
@@ -101,6 +101,15 @@ units so the next re-base replays ~15 commits instead of ~34. The unit table and
 - **A fold keeps its folded messages.** `git commit -C <base>` keeps only the base message; assemble
   base subject and body plus every folded body and feed it to `git commit-tree -F`. Those bodies are
   the evidence the next re-base reads.
+- **A landing's fix-ups fold by path from the tip, not by replaying their patches.** The `199647a5d`
+  landing's 21 tail commits became four — the baseline's own repairs, the lock and release wiring, the
+  record, and the reformat at the tip. Each one is
+  `git restore --source=<old-tip> --staged --worktree -- <its paths>` on top of the last unit, so the
+  tip tree is reproduced byte for byte by construction; the one constraint is that no path may be
+  split across two of them, which is why `f75363461` and `724affebc` contribute their document hunks
+  to the record and the rest to another commit. This is the cheap direction: a tail that cannot fold
+  back into its unit (the unit's own test files are in the way) can still merge with its neighbours,
+  and that removes a replay round without moving the conflict surface.
 - **The brand rename applies to the incoming side too.** The identity unit renames `Kelivo` → `Cuplivo`
   in ARB *keys and values*. A merge that kept a fork value because it already equalled
   `rename(upstream)` must still write `rename(upstream[k])`; taking the raw upstream value put 53

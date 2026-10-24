@@ -5,16 +5,19 @@ latest Kelivo **stable** and *re-do* Cuplivo's features on it, never to port the
 This file records the mechanics of that replay, so the next re-base is a replay and not a porting
 project.
 
-Six re-bases have been run: 4.0 → `df60f7425`, 4.1 → `3c92d1062`, 4.2 → `4742d2e28`, the 4.4 line →
+Seven re-bases have been run: 4.0 → `df60f7425`, 4.1 → `3c92d1062`, 4.2 → `4742d2e28`, the 4.4 line →
 `cf2af98e6` (`v1.3.1-11`), 4.4 → `a83647077` (upstream master: the storage/backup rework, the
-recovery screens and the markdown theme tokens) and 4.4 → `e15df5485` (upstream master, 31 commits
+recovery screens and the markdown theme tokens), 4.4 → `e15df5485` (upstream master, 31 commits
 on: the integrated browser over four vendored `flutter_inappwebview` forks plus
 `liquid_glass_widgets`, password-encrypted backups, MCP presentation groups, the long-image export
-rework and a markdown contrast pass). The conflict counts quoted below are the 4.1 one's; the
-*rules* are what to carry forward. The unit list below is the 4.4 line's series as replayed onto
-`e15df5485` (15 units, normalized from the 34-commit line, each unit's l10n re-derived by
-`flutter gen-l10n`): baseline repair → features → the mechanical reformat at the tip, plus a
-`docs(agents)` commit recording what that pass learned.
+rework and a markdown contrast pass) and 4.4 → `199647a5d` (upstream master, seven commits further
+on: iOS native selection menus, the world-book copy/batch transfer, macOS Developer-ID
+notarization, and the commit that commits both lockfiles and makes CI enforce them). The conflict
+counts quoted below are the 4.1 one's; the *rules* are what to carry forward. The unit list below
+is the 4.4 line's series as replayed onto `e15df5485` and then, unchanged, onto `199647a5d`
+(15 units, normalized from the 34-commit line, each unit's l10n re-derived by `flutter gen-l10n`):
+baseline repair → features → the mechanical reformat at the tip, plus a `docs(agents)` commit
+recording what that pass learned.
 
 ## The replay units, in order
 
@@ -132,6 +135,14 @@ Units from earlier series that are **gone, and must not come back**:
    `com.cuplivo.cuplivo`, or a path move. That is what makes a conflicted identity file resolvable by
    construction — `rename(upstream's new content)` — instead of by hand, and it is the check to run
    first on any identity conflict: if `rename(base) == identity` for that file, take `rename(theirs)`.
+
+   **This is not a one-off: the sweep belongs to every replay, not only the one that builds the
+   identity commit.** The `199647a5d` replay reused the existing identity commit, and the base had
+   meanwhile grown files that did not exist at `e15df5485` — four new `.dart` tests importing
+   `package:Kelivo/…`, which no conflict will ever hand you because the identity unit's patch never
+   mentions them. Treat the sweep as "files added by the *incoming* range", whatever the replay
+   shape: `git grep 'package:Kelivo/'` after unit 1 is the check, `dart analyze` is what finds them
+   when you forget, and they are invisible in `git status` because nothing was ever in conflict.
 4. **Only sweep tokens upstream's new code *introduced*.** The tree is fully swept at the old tip, so
    the exact work is the set difference: for every file upstream touched, compare its brand-matching
    lines at the old tip against the current tree and take what is new. Classify every survivor against
@@ -231,6 +242,22 @@ Units from earlier series that are **gone, and must not come back**:
     `home_page_controller.dart` and `chat_message_widget.dart`, so folding it up would re-resolve the
     crop, focus, markdown and link units for no gain. On the 4.3 series this folded the two sync
     follow-ups and kept `#1008` separate.
+14. **A file with no conflict marker can still be wrong.** Git merges by hunk, so a commit that adds a
+    *new* line naming the other product lands silently: `639b60a51` added
+    `bash tool/macos_sign_and_notarize.sh sign-app "…/Release/kelivo.app"` and a `Kelivo_macos_*.dmg`
+    notarize step to the four macOS build jobs, our `release.yml` is the rename of one of them, and
+    the merge reported "Auto-merging .github/workflows/release.yml" with the paths still upstream's —
+    in a job whose every other line says `cuplivo.app`. The re-base is not done when the conflicts are
+    resolved; it is done when grepping for the other product's *identifiers* comes back clean:
+    `package:Kelivo/`, `kelivo.app`, `Kelivo_macos_`, and any path or bundle id a build produces. An
+    inconsistent file — one app name among several — is a conflict git failed to report.
+15. **A note that describes upstream's distribution is deleted, not swept.** `docs/homebrew/kelivo.rb`
+    arrived with the notarization commit as a cask draft for `Chevey339/kelivo`'s own releases. Swept
+    by the rename rules it would claim `com.cuplivo.cuplivo` as Kelivo's zap path; unswept it
+    advertises a cask this fork does not submit, and `docs/macos-signing.md` walked a reader through
+    filing it. Both went, and the signing doc's verification commands now name our artifacts. The
+    "docs stay verbatim" rule below covers notes that *record* upstream (CONTEXT.md, the ADRs,
+    measurement logs); it does not cover a procedure our own workflow executes.
 
 ## The CI rule
 
@@ -415,31 +442,39 @@ The series itself: 15 replay units, the `docs(agents)` commit, and four tail com
 `git merge-base --is-ancestor e15df5485 HEAD` holds, no tag points at the tip, and `pubspec.yaml`
 still says `4.3.0+6`.
 
-### The fresh resolution CI uses is not the lock your worktree has
+### The baseline commits its lockfiles; a fork with extra packages seeds them
 
-`pubspec.lock` is gitignored, so `pr-check.yml` resolves a fresh dependency set on every run while a
-long-lived worktree keeps whatever lock it last wrote. Two red gates on this replay came from that gap
-alone, and neither is visible from the source — the same tree, the same SDK, a different lock:
+`199647a5d` commits `pubspec.lock` and `dependencies/markstream/pubspec.lock`, un-ignores both, and
+switches `pr-check.yml` to `flutter pub get --enforce-lockfile`. That retires the whole class of failure
+the `e15df5485` replay hit, where CI resolved a fresh dependency set on every run while a long-lived
+worktree kept whatever lock it last wrote — the same tree, the same SDK, a different resolution:
 
 1. **`drift 2.35.3` deprecates a member the committed schema emits.** `app_database.g.dart` was
    generated by `drift_dev 2.34.5` and calls `$_getPrefetchedData`; the 2.35 runtime deprecates it, so
-   `dart analyze --fatal-infos` reports **7 infos in that one generated file** — red on CI, green
-   locally. Regenerating with `drift_dev` 2.35 does silence it, but the generated code then speaks the
-   newer runtime and that migration deserves its own round.
+   `dart analyze --fatal-infos` reported **7 infos in that one generated file** — red on CI, green
+   locally. Regenerating with `drift_dev` 2.35 silences it, but the generated code then speaks the
+   newer runtime, which is why that replay capped the dependency instead.
 2. **`sqlite3 3.8.0` breaks the recycle bin.** A conversation delete stops staging its `RecycleEntry`
    rows: 13 cases across `recycle_conversation_test`, `recycle_cascade_test` and `recycle_draft_test`
-   fail with an empty entry list, and two sync sessions re-delete a conversation that was restored.
-   Bisected: 3.5.1, 3.5.2, 3.7.0 and 3.7.1 pass, 3.8.0 fails deterministically — and it reproduces
-   with the previous generated schema and `drift 2.34.4`, so the code generator is not implicated.
+   failed with an empty entry list, and two sync sessions re-deleted a conversation that was restored.
+   Bisected: 3.5.1, 3.5.2, 3.7.0 and 3.7.1 pass, 3.8.0 fails deterministically — and it reproduced
+   with the previous generated schema and `drift 2.34.4`, so the code generator was not implicated.
 
-Both are now ceilings in `pubspec.yaml`, each with its measurement in a comment. That is the rule the
-next replay should follow: **when a fresh resolution breaks a working tree, hold the dependency at the
-last version that passed and record what you measured** — do not repair the product for a regression
-released hours ago, and do not leave the ceiling unexplained.
+That replay left two ceilings in `pubspec.yaml`, each with its measurement in a comment. The next
+baseline made them unnecessary: its lock pins `drift 2.35.3`, `drift_dev 2.35.2`, `sqlite3 3.5.2` and
+`archive 4.5.2`, and its `app_database.g.dart` *is* drift_dev 2.35 output — so the `199647a5d` replay
+deleted both ceilings while resolving the very commit that had added them. The measurement survives
+here; the constraint does not need to.
 
-Procedure: delete `pubspec.lock`, `flutter pub get`, confirm the resolved versions of anything you just
-capped, then run `dart analyze --fatal-infos` and the suite. Two things to know if you do regenerate
-the schema with `build_runner`:
+**The rule for a fork:** it cannot inherit upstream's lock verbatim, because it adds packages upstream
+does not have (`pdf`, `basic_utils`, `device_info_plus` here). Seed, then re-resolve once: the lock
+arrives with the baseline, a single `flutter pub get` keeps every version it can still satisfy (all
+four above stayed put) and adds only the fork's own packages, and that result is committed. Prove it
+with `flutter pub get --enforce-lockfile` — exactly what CI runs — and put that command in the gate
+list beside `dart analyze`. From then on a dependency bump is a commit that changes the lock, so a
+regression like `sqlite3 3.8.0` cannot arrive without one.
+
+Two things to know if you do regenerate the schema with `build_runner`:
 
 - **It prunes `chat_message.g.dart` and `conversation.g.dart`.** Both are `part` files
   `chat_message.dart` / `conversation.dart` declare, and the current builder no longer emits them;

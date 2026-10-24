@@ -729,3 +729,24 @@ Registered instead, because repairing them means rewriting upstream's own test o
 `wallpaper <light|dark> <code|table|details|diagram>`, each carrying the control-run numbers rather
 than a promise.
 
+## 11. The `199647a5d` baseline: one timing budget and one non-nullable toolbar
+
+The seven commits between `e15df5485` and `199647a5d` added iOS native selection menus, the world-book
+copy/batch transfer, macOS notarization, and the commit that commits both lockfiles. The full suite on
+that tree surfaced two test-side defects, neither a product bug, and **no new golden failure**: the
+eight registered cases still fail with the same magnitudes (2.07/1.46/1.35/0.71 light,
+2.04/1.45/1.34/0.70 dark), which is the control run's own fingerprint.
+
+| test | how it fails | disposition |
+|---|---|---|
+| `test/shared/widgets/app_selection_area_test.dart` › the three Reply cases | three `unnecessary_non_null_assertion` warnings under `dart analyze --fatal-infos`. Upstream replaced `AdaptiveTextSelectionToolbar.buttonItems` with its own `AppTextSelectionToolbar`, whose `buttonItems` is `required` and non-nullable, so the `!` the fork's tests wrote became redundant. | repaired — the `!` dropped, nothing else |
+| `test/features/migration/migration_app_test.dart` › mobile retry does not export an already saved backup again | failed exactly once in 10063 tests: `_waitUntil` polled 100 × 10 ms — a 1 s budget — for file IO (export the backup, delete the temporary copy) that a loaded machine does not finish in time. The file passes alone, 7/7. | repaired — a 15 s deadline around the same condition |
+
+The migration case is §9a's shape one level up: the assertion was right and the *budget* was tuned on a
+quiet machine, exactly like the 2 s interleave window in §10. The helper still asserts the condition,
+so a genuinely stuck retry fails — it just fails for its own reason instead of for load.
+
+Two counts moved without a failure: the skip count goes 62 → 65 because the three
+`test/tool/macos_signing_test.dart` cases are `skip: !(Platform.isMacOS || Platform.isLinux)`, and the
+runtime of the suite grows with upstream's six new test files.
+

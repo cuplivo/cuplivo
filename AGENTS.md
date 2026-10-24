@@ -2,7 +2,7 @@
 
 ## Project overview
 
-Cuplivo is a cross-platform LLM chat client built with Flutter, targeting iOS, Android, macOS, Windows, and Linux. Package name is `Cuplivo` — imports use `package:Cuplivo/...`. It is a community fork of Kelivo, re-baselined on Kelivo upstream `master` at `e15df5485` (2026-10-23); upstream's newest published tag is still `v1.3.1` and older than the 4.3, 4.4 and current baselines, so master is the live line. From 4.0 on, every version re-bases on that upstream line and re-does Cuplivo's own features as cherry-picks on it.
+Cuplivo is a cross-platform LLM chat client built with Flutter, targeting iOS, Android, macOS, Windows, and Linux. Package name is `Cuplivo` — imports use `package:Cuplivo/...`. It is a community fork of Kelivo, re-baselined on Kelivo upstream `master` at `199647a5d` (2026-10-24); upstream's newest published tag is still `v1.3.1` and older than the 4.3, 4.4 and current baselines, so master is the live line. From 4.0 on, every version re-bases on that upstream line and re-does Cuplivo's own features as cherry-picks on it.
 
 ## Architecture
 
@@ -35,14 +35,17 @@ leaves files CI wants changed — either way turning the PR check red. Format wi
 whenever the local one differs, and confirm with `--output=none --set-exit-if-changed` before
 pushing.
 
-`pubspec.lock` is gitignored, so CI resolves a fresh dependency set on every run and your worktree's
-lock can be months older. A green local `dart analyze` is therefore not the gate CI runs. The
-`e15df5485` replay hit both shapes of that: a stale lock pinned `drift 2.34.3` while CI's resolution
-took `2.35.3`, whose runtime deprecates a member the committed `app_database.g.dart` still calls (7
-infos, invisible locally), and CI's fresh `sqlite3 3.8.0` broke the recycle bin's staging (13 cases).
-Before claiming the gates, delete `pubspec.lock`, `flutter pub get`, and compare the versions you get
-with the ones you tested; `pubspec.yaml` now carries a ceiling and a measurement for each of those two
-(`drift <2.35.0`, `sqlite3 <3.8.0`).
+`pubspec.lock` is committed — both here and in `dependencies/markstream` — and `pr-check.yml` runs
+`flutter pub get --enforce-lockfile`, so CI resolves exactly the set that was tested instead of a
+fresh one. That is the baseline's policy as of `199647a5d`; the `e15df5485` replay paid for it, with a
+stale local lock pinning `drift 2.34.3` while CI took `2.35.3` (7 deprecation infos in the committed
+`app_database.g.dart`, invisible locally) and CI's fresh `sqlite3 3.8.0` breaking the recycle bin's
+staging (13 cases). Neither is a `pubspec.yaml` ceiling any more: `199647a5d` pins `drift 2.35.3` and
+the lock pins `sqlite3 3.5.2`, so a bump is now a commit that changes the lock, never a silent
+resolution. This fork adds packages upstream does not have (`pdf`, `basic_utils`,
+`device_info_plus`), so it cannot inherit upstream's lock verbatim: seed ours from the baseline's and
+run **one** `flutter pub get` — that kept upstream's pins and added only ours. Check the lock into
+the same commit as any `pubspec.yaml` change, or the next CI run fails on `--enforce-lockfile`.
 
 ## Releases
 
@@ -72,7 +75,7 @@ locally — a local patch is the first thing the next re-base silently drops, an
 package's own gate meaningless. The 4.4 re-base deferred the hand-cursor fix (#1014) this way
 (Chevey339/kelivo#1269) and recorded the gap in `docs/markstream-delta-audit.md`. That issue was
 closed `NOT_PLANNED` upstream on 2026-10-20 and both defects are still in the vendored package at
-`e15df5485`, so the gap is now permanent rather than pending: re-check it per re-base, keep it
+`199647a5d`, so the gap is now permanent rather than pending: re-check it per re-base, keep it
 documented, and do not patch it locally.
 
 ## History normalization (rewrite pass)

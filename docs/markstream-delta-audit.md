@@ -123,7 +123,7 @@ per-glyph cursor region that hit-tests the pointer position and falls back to
 in [Chevey339/kelivo#1269](https://github.com/Chevey339/kelivo/issues/1269).
 
 **Upstream closed #1269 as `NOT_PLANNED` on 2026-10-20**, so this is no longer a
-waiting item. Re-measured at `e15df5485`: `lib/src/flutter/render/paragraph_run.dart:166`
+waiting item. Re-measured at `199647a5d`: `lib/src/flutter/render/paragraph_run.dart:166`
 is still `MouseRegion(cursor: SystemMouseCursors.text)` and
 `lib/src/flutter/render/blocks/details_block.dart:63` still wraps the summary in a bare
 `GestureDetector` with no cursor region. #1014 stays unimplemented in this fork — re-check both

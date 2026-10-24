@@ -247,7 +247,7 @@ Full third-party notices for the sandbox components are in [`ios/sandbox/NOTICE`
 
 ## ⚠️ Note
 
-Cuplivo is a community fork of [Kelivo](https://github.com/Chevey339/kelivo), re-based on upstream from 4.0 on and currently sitting on upstream `master` at `e15df5485` (2026-10-23) — upstream's newest tag, `v1.3.1`, is older than that. Outward-facing identity is Cuplivo; names that belong to a protocol, to persisted data or to upstream infrastructure are kept on purpose (`kelivo://` content links, `kelivo-file://` URIs, `kelivo_*` MCP tool ids, `kelivo.db` and the like), because renaming them would break imported conversations and recorded tool calls. Community: QQ group `1101061750`, [Discord](https://discord.gg/kaTf8CXG4).
+Cuplivo is a community fork of [Kelivo](https://github.com/Chevey339/kelivo), re-based on upstream from 4.0 on and currently sitting on upstream `master` at `199647a5d` (2026-10-24) — upstream's newest tag, `v1.3.1`, is older than that. Outward-facing identity is Cuplivo; names that belong to a protocol, to persisted data or to upstream infrastructure are kept on purpose (`kelivo://` content links, `kelivo-file://` URIs, `kelivo_*` MCP tool ids, `kelivo.db` and the like), because renaming them would break imported conversations and recorded tool calls. Community: QQ group `1101061750`, [Discord](https://discord.gg/kaTf8CXG4).
 
 ## 📄 License
 

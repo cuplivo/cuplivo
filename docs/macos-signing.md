@@ -1,15 +1,10 @@
-# macOS 签名、公证与 Homebrew
+# macOS 签名与公证
 
 发布 workflow 的 macOS job 会在 secrets 配齐时，用 **Developer ID Application** 签名 `cuplivo.app` 和 DMG，再用 `notarytool` 公证并 staple。secrets 全部未配置时（fork、PR、还没准备证书），job 仍构建未签名 DMG，并且成功结束。
 
 个人 Apple Developer 账号，Team ID：`5WN7Y88J52`。
 
-签名脚本是 `tool/macos_sign_and_notarize.sh`。下面四个 workflow 的 macOS job 都会调用它，Windows / Linux / Android / iOS job 没有改动：
-
-- `.github/workflows/build.yml`（Flutter master）
-- `.github/workflows/build-stable.yml`
-- `.github/workflows/build-stable-44.yml`
-- `.github/workflows/build-stable-47.yml`
+签名脚本是 `tool/macos_sign_and_notarize.sh`，由 `.github/workflows/release.yml` 的 macOS job 调用：本仓库只保留一个构建 workflow（上游按 Flutter 版本拆成多个 `build*.yml`，re-base 时合并成它），所以签名和公证的接线只有这一处。
 
 用平时发版的那个 workflow，勾选构建 macOS。要上传到 GitHub Release 时再勾选发布并填写 tag（现有 tag 形如 `v4.3.0`）。公证失败时不会执行发布步骤。
 

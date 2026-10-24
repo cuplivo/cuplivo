@@ -126,7 +126,10 @@ units so the next re-base replays ~15 commits instead of ~34. The unit table and
 - **Register a Windows failure only after a control run at upstream's tip.** The eight goldens were
   not guessed at: `git worktree add … e15df5485`, `flutter pub get`, the same file, and all eight
   failed there with the same magnitudes. A registry entry is a claim that the failure is the
-  platform's, and the claim is only worth the control run behind it.
+  platform's, and the claim is only worth the control run behind it. The claim has to be re-earned
+  when the baseline moves: `199647a5d` got its own control worktree and reproduced the same eight at
+  the same percentages (2.07/1.46/1.35/0.71 light, 2.04/1.45/1.34/0.70 dark), which is why the
+  entries could stay.
 - **Back up before the force push**: `backup/master-<sha>`, plus a `backup/series-<old-baseline>` when
   a series branch is replaced, both pushed.
 

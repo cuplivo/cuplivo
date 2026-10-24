@@ -442,8 +442,33 @@ The series itself: 15 replay units, the `docs(agents)` commit, and four tail com
 `git merge-base --is-ancestor e15df5485 HEAD` holds, no tag points at the tip, and `pubspec.yaml`
 still says `4.3.0+6`.
 
-### The baseline commits its lockfiles; a fork with extra packages seeds them
+## Verification of the `199647a5d` replay
 
+Measured on Windows on 2026-10-24, in the same order as the table above, against the **committed**
+lock (`flutter pub get --enforce-lockfile`) — which is what CI resolves too, so this table and the CI
+run finally describe the same dependency set.
+
+| gate | result |
+| --- | --- |
+| `dart analyze --fatal-infos lib test integration_test` | No issues found — after dropping three `!` that became redundant when upstream made `AppTextSelectionToolbar.buttonItems` non-nullable |
+| `flutter gen-l10n` | idempotent — `git status --short -- lib/l10n` empty |
+| `dart format --output=none --set-exit-if-changed` (pinned Dart 3.13.0) | 0 changed of **2224** files |
+| `flutter test` | first run **10063 passed, 65 skipped, 9 failed**; after the `_waitUntil` deadline repair, **10064 passed, 65 skipped, 8 failed** — the eight registered golden cases and nothing else |
+| `dependencies/markstream`: `pub get --enforce-lockfile`, `dart analyze --fatal-infos`, `flutter test` | No issues found; **296 passed** |
+| `gradlew -p android :app:testDebugUnitTest --tests '*BrowserWebViewHostTest*'` | BUILD SUCCESSFUL (119 s) |
+| `flutter build windows --debug` | `√ Built build\windows\x64\runner\Debug\cuplivo.exe` (706 s) |
+
+The series: 15 replay units, `docs(agents)`, eight earlier tails and five new ones — **29 commits** on
+top of `199647a5d`; `git merge-base --is-ancestor 199647a5d HEAD` holds, no tag points at the tip, and
+`pubspec.yaml` still says `4.3.0+6`.
+
+Two failures on this replay belonged to the machine, not the tree, and neither changed a line:
+`:mobile_scanner:compileDebugKotlin` died on a corrupted Kotlin incremental cache in the pub cache
+(re-running that one task cleared it, with an `org.jetbrains.kotlin.incremental.storage` stack trace in
+the log as the tell), and the first Windows link failed because `build/windows` still held objects
+from the previous `record` version — deleting that directory was the fix.
+
+### The baseline commits its lockfiles; a fork with extra packages seeds them
 `199647a5d` commits `pubspec.lock` and `dependencies/markstream/pubspec.lock`, un-ignores both, and
 switches `pr-check.yml` to `flutter pub get --enforce-lockfile`. That retires the whole class of failure
 the `e15df5485` replay hit, where CI resolved a fresh dependency set on every run while a long-lived

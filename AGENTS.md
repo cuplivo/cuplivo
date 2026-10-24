@@ -35,6 +35,15 @@ leaves files CI wants changed — either way turning the PR check red. Format wi
 whenever the local one differs, and confirm with `--output=none --set-exit-if-changed` before
 pushing.
 
+`pubspec.lock` is gitignored, so CI resolves a fresh dependency set on every run and your worktree's
+lock can be months older. A green local `dart analyze` is therefore not the gate CI runs. The
+`e15df5485` replay hit both shapes of that: a stale lock pinned `drift 2.34.3` while CI's resolution
+took `2.35.3`, whose runtime deprecates a member the committed `app_database.g.dart` still calls (7
+infos, invisible locally), and CI's fresh `sqlite3 3.8.0` broke the recycle bin's staging (13 cases).
+Before claiming the gates, delete `pubspec.lock`, `flutter pub get`, and compare the versions you get
+with the ones you tested; `pubspec.yaml` now carries a ceiling and a measurement for each of those two
+(`drift <2.35.0`, `sqlite3 <3.8.0`).
+
 ## Releases
 
 - **Version**: `pubspec.yaml` only (`version: X.Y.Z+N`); the release tag is `vX.Y.Z`.

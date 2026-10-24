@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
@@ -45,6 +46,7 @@ void main() {
 
   late AssistantProvider assistants;
   late McpProvider mcp;
+  late BusinessPreferences uiPreferences;
 
   setUp(() async {
     final assistantPreferences = createBusinessTestPreferences();
@@ -66,6 +68,15 @@ void main() {
     assistants = AssistantProvider(preferences: assistantPreferences);
     await assistants.loaded;
     mcp = McpProvider(preferences: createBusinessTestPreferences());
+    // The popover's tool groups persist their expanded state, and the workspace
+    // group builds a section that needs providers this test has no business
+    // wiring. Collapse it: the care row is pinned above the groups either way,
+    // which is exactly what this file asserts.
+    uiPreferences = createBusinessTestPreferences();
+    await uiPreferences.setStringList(
+      'display_chat_tools_expanded_groups_v1',
+      const ['mcp'],
+    );
   });
 
   Future<void> pumpPopoverHost(
@@ -82,6 +93,7 @@ void main() {
         providers: [
           ChangeNotifierProvider<AssistantProvider>.value(value: assistants),
           ChangeNotifierProvider<McpProvider>.value(value: mcp),
+          Provider<BusinessPreferences>.value(value: uiPreferences),
           ChangeNotifierProvider<ChatService>.value(
             value: _FakeChatService(conversation),
           ),
@@ -102,6 +114,7 @@ void main() {
                         context,
                         anchorKey: anchorKey,
                         assistantId: _assistantId,
+                        supportsModelTools: true,
                         conversation: conversation,
                       ),
                       child: const Text('open'),

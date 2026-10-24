@@ -5284,8 +5284,6 @@
   "backupRestoreDirectoryBlockedTitle": "还原正在等待目录释放",
   "backupRestoreDirectoryBlockedContent": "Windows 无法移动下方目录。请关闭正在使用该目录的终端、编辑器或其他程序，然后继续还原。如果仍然受阻，请检查当前账户是否有移动该目录的权限。此前的还原进度已保留。",
   "backupRestoreContinueButton": "继续还原",
-  "aboutPageKelivoSearchUnlocked": "有扇没有名字的门开了一条缝。去设置里找找看。",
-  "aboutPageKelivoSearchAlreadyUnlocked": "这扇门你已经推开过了。",
   "imageExportPreparing": "正在准备图片…",
   "imageExportDiagrams": "正在准备图表 {completed}/{total}…",
   "@imageExportDiagrams": {

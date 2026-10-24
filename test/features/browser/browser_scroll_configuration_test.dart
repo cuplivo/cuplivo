@@ -16,8 +16,12 @@ import 'package:Cuplivo/features/browser/widgets/browser_surface_controls.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 
 void main() {
-  void browserTest(String name, WidgetTesterCallback body) {
-    testWidgets(name, (tester) async {
+  void browserTest(
+    String name,
+    WidgetTesterCallback body, {
+    bool skip = false,
+  }) {
+    testWidgets(name, skip: skip, (tester) async {
       Haptics.setEnabled(false);
       try {
         await body(tester);
@@ -259,6 +263,8 @@ void main() {
         await tester.pumpAndSettle();
       }
     },
+    // `initialize()` refuses where the build has no browser engine (Linux on CI).
+    skip: !BrowserService.platformSupported,
   );
 
   browserTest(

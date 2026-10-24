@@ -6551,8 +6551,6 @@
   "backupRestoreDirectoryBlockedTitle": "Restore is waiting for a folder",
   "backupRestoreDirectoryBlockedContent": "Windows could not move the folder below. Close terminals, editors, or other programs using it, then continue restoring. If it is still blocked, check that your account can move the folder. Your restore progress has been kept.",
   "backupRestoreContinueButton": "Continue restore",
-  "aboutPageKelivoSearchUnlocked": "An unnamed door opened a crack. You might find it in Settings.",
-  "aboutPageKelivoSearchAlreadyUnlocked": "You've already been through this door.",
   "imageExportPreparing": "Preparing image…",
   "imageExportDiagrams": "Preparing diagrams {completed}/{total}…",
   "@imageExportDiagrams": {

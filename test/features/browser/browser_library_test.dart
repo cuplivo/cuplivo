@@ -295,6 +295,9 @@ void main() {
   for (final section in BrowserLibrarySection.values) {
     testWidgets(
       '$section ignores native page progress but refreshes its entries',
+      // `initialize()` reaches `_engine`, which refuses to run where the build
+      // has no browser engine (Linux on CI) even with an injected factory.
+      skip: !BrowserService.platformSupported,
       (tester) async {
         tester.view.physicalSize = const Size(390, 844);
         tester.view.devicePixelRatio = 1;

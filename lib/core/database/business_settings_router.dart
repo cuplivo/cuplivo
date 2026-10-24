@@ -149,6 +149,13 @@ final class BusinessKeyRegistry {
     // Style and tool overrides.
     'chat_bubble_style_overrides_v1',
     'tool_schema_overrides_v1',
+    // MCP organization. The servers are entities that sync, so the metadata that
+    // organizes them must ride too: the groups, the per-server group and icon,
+    // and the collapsed set. Without it a new device shows every paired server
+    // ungrouped while the device it paired with still has its layout.
+    // 'mcp_request_timeout_ms_v1' deliberately stays out — it describes this
+    // device's patience with its own network, not the MCP setup.
+    'mcp_presentation_v1',
   };
 
   static const discardedKeys = <String>{

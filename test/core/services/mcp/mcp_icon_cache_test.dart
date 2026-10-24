@@ -6,12 +6,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:Cuplivo/core/services/mcp/mcp_icon_cache.dart';
 
 class _Paths extends PathProviderPlatform {
-  _Paths(this.root);
+  _Paths(String root) : root = p.normalize(root);
   final String root;
   @override
   Future<String?> getApplicationDocumentsPath() async => root;
@@ -141,18 +142,24 @@ void main() {
       final original = PathProviderPlatform.instance;
       addTearDown(() => PathProviderPlatform.instance = original);
       PathProviderPlatform.instance = _Paths('${directory.path}/before');
-      final source = File('${directory.path}/upload.png');
+      final source = File(p.join(directory.path, 'upload.png'));
       final png = img.encodePng(img.Image(width: 2, height: 2));
       await source.writeAsBytes(png);
       final name = await McpIconCache.importFile(source.path);
       expect(name, isNot(contains('/')));
       final stored = (await McpIconCache.localPath(name))!;
       await source.delete();
-      final restored = File('${directory.path}/after/avatars/$name');
+      final restored = File(p.join(directory.path, 'after', 'avatars', name));
       await restored.parent.create(recursive: true);
       await File(stored).copy(restored.path);
       PathProviderPlatform.instance = _Paths('${directory.path}/after');
-      expect(await McpIconCache.localPath(name), restored.path);
+      // `AppDirectories` builds its subdirectories as `'${root}/avatars'`, so a
+      // stored path mixes separators on Windows while this test's expectation is
+      // all backslashes. Compare paths, not strings.
+      expect(
+        p.equals((await McpIconCache.localPath(name))!, restored.path),
+        isTrue,
+      );
       expect(await restored.readAsBytes(), png);
       expect(await McpIconCache.localPath('../upload.png'), isNull);
     },

@@ -472,9 +472,10 @@ run finally describe the same dependency set.
 | `gh workflow run release.yml -f publish_release=false` | run `40075370914`: macOS / Windows / Android / iOS / Linux **5/5 success** (the release-body job is skipped, by design). The macOS job also ran the new Developer-ID sign and notarize steps, which no-op cleanly with no secrets configured |
 | `pr-check.yml` on the rewritten `master` | three runs, and the story is rule 16: `40075337329` red on 13 ubuntu-only tests (5 browser cases with no engine there, 8 goldens generated elsewhere); `40078790202` after the browser guards — **10111 passed, 8 failed, 18 skipped**; `40079570731` at the tip `724affebc` — **green on every step**, the last two read against the CI image's own baselines |
 
-The series: 15 replay units, `docs(agents)`, eight earlier tails and nine new ones — **33 commits** on
-top of `199647a5d`; `git merge-base --is-ancestor 199647a5d HEAD` holds, no tag points at the tip, and
-`pubspec.yaml` still says `4.3.0+6`.
+The series is 15 replay units, `docs(agents)`, eight earlier tails and nine new ones on top of
+`199647a5d`; `git rev-list --count 199647a5d..master` prints the live total — it moves with every
+follow-up commit, so this paragraph deliberately does not name it. `git merge-base --is-ancestor
+199647a5d HEAD` holds, no tag points at the tip, and `pubspec.yaml` still says `4.3.0+6`.
 
 Two failures on this replay belonged to the machine, not the tree, and neither changed a line:
 `:mobile_scanner:compileDebugKotlin` died on a corrupted Kotlin incremental cache in the pub cache

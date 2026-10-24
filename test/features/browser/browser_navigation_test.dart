@@ -40,6 +40,9 @@ Future<void> _flushBrowser(WidgetTester tester, BrowserService browser) async {
 void main() {
   testWidgets(
     'card tab is selected for dock and full page; closed tab falls back',
+    // Mounts the real page and its singleton service, which has no engine on
+    // Linux (what pr-check runs on) — see BrowserService.platformSupported.
+    skip: !BrowserService.platformSupported,
     (tester) async {
       final oldPaths = PathProviderPlatform.instance;
       late Directory directory;

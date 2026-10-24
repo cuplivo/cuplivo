@@ -260,7 +260,7 @@ jobs:
         run: flutter build macos --release
 
       - name: 🔐 使用 Developer ID 签名应用
-        run: bash tool/macos_sign_and_notarize.sh sign-app "build/macos/Build/Products/Release/kelivo.app"
+        run: bash tool/macos_sign_and_notarize.sh sign-app "build/macos/Build/Products/Release/cuplivo.app"
 
       - name: 📦 创建 DMG
         run: |
@@ -279,7 +279,7 @@ jobs:
           fi
 
       - name: 🧾 公证并验证 DMG
-        run: bash tool/macos_sign_and_notarize.sh notarize-dmg "Kelivo_macos_${VERSION}.dmg" "build/macos/Build/Products/Release/kelivo.app"
+        run: bash tool/macos_sign_and_notarize.sh notarize-dmg "Cuplivo_macos_${VERSION}.dmg" "build/macos/Build/Products/Release/cuplivo.app"
 
       - name: 🚀 发布到 Release
         if: ${{ github.event.inputs.publish_release == 'true' && github.event.inputs.release_tag != '' }}

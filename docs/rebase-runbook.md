@@ -258,6 +258,18 @@ Units from earlier series that are **gone, and must not come back**:
     filing it. Both went, and the signing doc's verification commands now name our artifacts. The
     "docs stay verbatim" rule below covers notes that *record* upstream (CONTEXT.md, the ADRs,
     measurement logs); it does not cover a procedure our own workflow executes.
+16. **The CI image is a platform, and a first run can be the first time it is exercised.** The
+    `199647a5d` replay's `pr-check.yml` run was the first one to get past `dart analyze` since the
+    baseline's browser and golden tests were added, and it reported 13 ubuntu-only failures: five
+    browser cases that mount a page on a platform where `BrowserService` has no engine
+    (`browser_platform_unsupported`), and eight `markdown_backdrop` goldens whose PNGs were generated
+    on a machine whose font stack differs from the runner (1.4–2.2 % here, 0.67–2.07 % on Windows).
+    Neither is a fork regression, and neither had ever been observed. The repair is one rule each:
+    a test that mounts a platform service asks that service's platform predicate and skips, and a
+    pixel fixture is **generated on the image that will compare it** — a one-off
+    `workflow_dispatch` job running `flutter test --update-goldens`, its artifact downloaded and
+    committed, the workflow then deleted. A fixture that fails on every platform is not a platform
+    failure to register; it is a fixture that was never generated where it runs.
 
 ## The CI rule
 
@@ -453,7 +465,7 @@ run finally describe the same dependency set.
 | `dart analyze --fatal-infos lib test integration_test` | No issues found — after dropping three `!` that became redundant when upstream made `AppTextSelectionToolbar.buttonItems` non-nullable |
 | `flutter gen-l10n` | idempotent — `git status --short -- lib/l10n` empty |
 | `dart format --output=none --set-exit-if-changed` (pinned Dart 3.13.0) | 0 changed of **2224** files |
-| `flutter test` | first run **10063 passed, 65 skipped, 9 failed**; after the `_waitUntil` deadline repair, **10064 passed, 65 skipped, 8 failed** — the eight registered golden cases and nothing else |
+| `flutter test` | first run **10063 passed, 65 skipped, 9 failed**; after the `_waitUntil` deadline repair, **10064 passed, 65 skipped, 8 failed** — the eight registered golden cases and nothing else (against the baselines as they were; they have since been regenerated on ubuntu-24.04, so this machine now reports 0.67–2.07 % instead of 0.70–2.07 %, rule 16) |
 | `dependencies/markstream`: `pub get --enforce-lockfile`, `dart analyze --fatal-infos`, `flutter test` | No issues found; **296 passed** |
 | `gradlew -p android :app:testDebugUnitTest --tests '*BrowserWebViewHostTest*'` | BUILD SUCCESSFUL (119 s) |
 | `flutter build windows --debug` | `√ Built build\windows\x64\runner\Debug\cuplivo.exe` (706 s) |

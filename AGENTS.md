@@ -121,8 +121,11 @@ units so the next re-base replays ~15 commits instead of ~34. The unit table and
   fixture (`restore_failure_screen_test.dart` looked for `cuplivo-snapshot-…` while discovery matches
   `kelivo-snapshot-`, and for a `cuplivo-data` folder where the durability fault matches `kelivo-data`).
   The eight `test/goldens/markdown_backdrop_golden_test.dart` cases are a third class: their baselines
-  were generated on Linux and differ by 0.70–2.07 % here — the control run at `e15df5485` in a clean
-  worktree reproduces every one of them, so they are registered `kind: "platform"`, not repaired.
+  are pixel fixtures, and Skia's text rasterisation differs between the image that generated them and
+  this machine. They are registered `kind: "platform"` for Windows (0.67–2.07 %), and their baselines
+  are generated **on the CI image** (ubuntu-24.04) so that `pr-check.yml` compares against its own
+  renderer — a fixture that fails everywhere is a fixture that was never generated where it runs, not
+  a platform to register.
 - **Register a Windows failure only after a control run at upstream's tip.** The eight goldens were
   not guessed at: `git worktree add … e15df5485`, `flutter pub get`, the same file, and all eight
   failed there with the same magnitudes. A registry entry is a claim that the failure is the

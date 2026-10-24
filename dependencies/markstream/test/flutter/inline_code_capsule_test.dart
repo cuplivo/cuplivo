@@ -99,48 +99,43 @@ Offset point(RenderParagraph p, int offset, {bool end = false}) {
 }
 
 void main() {
-  testWidgets(
-    'desktop drag crosses code and math atoms in both directions',
-    (tester) async {
-      final listener = SelectionListenerNotifier();
-      addTearDown(listener.dispose);
-      String? selected;
-      await tester.pumpWidget(
-        harness(
-          code: 'run(中😀)',
-          platform: defaultTargetPlatform,
-          listener: listener,
-          onSelection: (value) => selected = value?.plainText,
-        ),
+  testWidgets('desktop drag crosses code and math atoms in both directions', (
+    tester,
+  ) async {
+    final listener = SelectionListenerNotifier();
+    addTearDown(listener.dispose);
+    String? selected;
+    await tester.pumpWidget(
+      harness(
+        code: 'run(中😀)',
+        platform: defaultTargetPlatform,
+        listener: listener,
+        onSelection: (value) => selected = value?.plainText,
+      ),
+    );
+    await tester.pumpAndSettle();
+    final p = paragraph();
+    for (final reverse in [false, true]) {
+      tester
+          .state<SelectableRegionState>(find.byType(SelectableRegion))
+          .clearSelection();
+      await tester.pump(const Duration(milliseconds: 600));
+      final a = point(p, 0), b = point(p, 22, end: true);
+      final gesture = await tester.startGesture(
+        reverse ? b : a,
+        kind: ui.PointerDeviceKind.mouse,
       );
+      await gesture.moveTo(reverse ? a : b);
+      await tester.pump();
+      await gesture.up();
+      await gesture.removePointer();
       await tester.pumpAndSettle();
-      final p = paragraph();
-      for (final reverse in [false, true]) {
-        tester
-            .state<SelectableRegionState>(find.byType(SelectableRegion))
-            .clearSelection();
-        await tester.pump(const Duration(milliseconds: 600));
-        final a = point(p, 0), b = point(p, 22, end: true);
-        final gesture = await tester.startGesture(
-          reverse ? b : a,
-          kind: ui.PointerDeviceKind.mouse,
-        );
-        await gesture.moveTo(reverse ? a : b);
-        await tester.pump();
-        await gesture.up();
-        await gesture.removePointer();
-        await tester.pumpAndSettle();
-        expect(selected, r'Before run(中😀) middle $x+y$ After');
-        final range = listener.selection.range!;
-        expect((
-          range.startOffset,
-          range.endOffset,
-        ), reverse ? (34, 0) : (0, 34));
-      }
-      expect(tester.takeException(), isNull);
-    },
-    variant: TargetPlatformVariant.desktop(),
-  );
+      expect(selected, r'Before run(中😀) middle $x+y$ After');
+      final range = listener.selection.range!;
+      expect((range.startOffset, range.endOffset), reverse ? (34, 0) : (0, 34));
+    }
+    expect(tester.takeException(), isNull);
+  }, variant: TargetPlatformVariant.desktop());
 
   testWidgets(
     'mobile long press and end handle extend across an inline capsule',
@@ -222,56 +217,51 @@ void main() {
       expect(tester.takeException(), isNull);
     }
   });
-  testWidgets(
-    'platform copy shortcut includes both inline atoms',
-    (tester) async {
-      String? clipboard;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+  testWidgets('platform copy shortcut includes both inline atoms', (
+    tester,
+  ) async {
+    String? clipboard;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          clipboard = (call.arguments as Map)['text'] as String;
+        }
+        if (call.method == 'Clipboard.hasStrings')
+          return {'value': clipboard != null};
+        if (call.method == 'Clipboard.getData') return {'text': clipboard};
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.setData') {
-            clipboard = (call.arguments as Map)['text'] as String;
-          }
-          if (call.method == 'Clipboard.hasStrings')
-            return {'value': clipboard != null};
-          if (call.method == 'Clipboard.getData') return {'text': clipboard};
-          return null;
-        },
-      );
-      addTearDown(
-        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-          SystemChannels.platform,
-          null,
-        ),
-      );
-      final listener = SelectionListenerNotifier();
-      addTearDown(listener.dispose);
-      await tester.pumpWidget(
-        harness(
-          code: 'code',
-          listener: listener,
-          platform: defaultTargetPlatform,
-          onSelection: (_) {},
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.tapAt(
-        point(paragraph(), 0),
-        kind: ui.PointerDeviceKind.mouse,
-      );
-      tester
-          .state<SelectableRegionState>(find.byType(SelectableRegion))
-          .selectAll(SelectionChangedCause.keyboard);
-      await tester.pumpAndSettle();
-      final modifier = defaultTargetPlatform == TargetPlatform.macOS
-          ? LogicalKeyboardKey.metaLeft
-          : LogicalKeyboardKey.controlLeft;
-      await tester.sendKeyDownEvent(modifier);
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
-      await tester.sendKeyUpEvent(modifier);
-      await tester.pumpAndSettle();
-      expect(clipboard, r'Before code middle $x+y$ After');
-    },
-    variant: TargetPlatformVariant.desktop(),
-  );
+        null,
+      ),
+    );
+    final listener = SelectionListenerNotifier();
+    addTearDown(listener.dispose);
+    await tester.pumpWidget(
+      harness(
+        code: 'code',
+        listener: listener,
+        platform: defaultTargetPlatform,
+        onSelection: (_) {},
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tapAt(point(paragraph(), 0), kind: ui.PointerDeviceKind.mouse);
+    tester
+        .state<SelectableRegionState>(find.byType(SelectableRegion))
+        .selectAll(SelectionChangedCause.keyboard);
+    await tester.pumpAndSettle();
+    final modifier = defaultTargetPlatform == TargetPlatform.macOS
+        ? LogicalKeyboardKey.metaLeft
+        : LogicalKeyboardKey.controlLeft;
+    await tester.sendKeyDownEvent(modifier);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+    await tester.sendKeyUpEvent(modifier);
+    await tester.pumpAndSettle();
+    expect(clipboard, r'Before code middle $x+y$ After');
+  }, variant: TargetPlatformVariant.desktop());
 }

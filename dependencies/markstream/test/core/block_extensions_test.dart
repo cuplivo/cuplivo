@@ -97,10 +97,9 @@ void main() {
     expect(open.tex, 'x+y');
     expect(open.closed, isFalse);
     expect(
-      const BlockParser(options: ParserOptions.commonMark())
-          .parse('\$\$\nx+y')
-          .children
-          .single,
+      const BlockParser(
+        options: ParserOptions.commonMark(),
+      ).parse('\$\$\nx+y').children.single,
       isA<ParagraphNode>(),
     );
   });
@@ -127,12 +126,9 @@ void main() {
     expect(list.children.first.children.single, isA<ParagraphNode>());
     expect(list.children.first.markerSpan!.slice(source), '[x] ');
     expect(
-      const BlockParser(options: ParserOptions.commonMark())
-          .parse(source)
-          .children
-          .single
-          .children
-          .first,
+      const BlockParser(
+        options: ParserOptions.commonMark(),
+      ).parse(source).children.single.children.first,
       isA<ListItemNode>().having((n) => n.checked, 'checked', isNull),
     );
   });
@@ -190,10 +186,9 @@ void main() {
       'line',
     );
     expect(
-      const BlockParser(options: ParserOptions.commonMark())
-          .parse('a | b\n--- | ---')
-          .children
-          .single,
+      const BlockParser(
+        options: ParserOptions.commonMark(),
+      ).parse('a | b\n--- | ---').children.single,
       isA<ParagraphNode>(),
     );
   });
@@ -248,18 +243,21 @@ void main() {
     expect(nested.children.single, isA<DetailsNode>());
     expect((nested.children.single as DetailsNode).closed, isTrue);
   });
-  test('details closing tags in code are literal; an open container stays open', () {
-    const source =
-        '<details><summary>A</summary>\n\n`</details>`\n\n```html\n</details>\n```';
-    final details = parser.parse(source).children.single as DetailsNode;
-    expect(details.closed, isFalse);
-    expect(details.children.last, isA<CodeBlockNode>());
-    expect(_text(details.children[1]), '`</details>`');
-    expect(
-      parser.parse('<detailsx>Text</detailsx>').children.single,
-      isA<ParagraphNode>(),
-    );
-  });
+  test(
+    'details closing tags in code are literal; an open container stays open',
+    () {
+      const source =
+          '<details><summary>A</summary>\n\n`</details>`\n\n```html\n</details>\n```';
+      final details = parser.parse(source).children.single as DetailsNode;
+      expect(details.closed, isFalse);
+      expect(details.children.last, isA<CodeBlockNode>());
+      expect(_text(details.children[1]), '`</details>`');
+      expect(
+        parser.parse('<detailsx>Text</detailsx>').children.single,
+        isA<ParagraphNode>(),
+      );
+    },
+  );
   test('task marker permits a tab but requires separation before label', () {
     final list =
         parser.parse('- [\t] task\n- [x]literal').children.single as ListNode;

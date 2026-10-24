@@ -66,7 +66,8 @@ void main() {
       await tester.pumpWidget(
         host(
           MarkstreamView(
-            source: '[`code`](https://code.test) [![alt](image.png)](https://image.test)',
+            source:
+                '[`code`](https://code.test) [![alt](image.png)](https://image.test)',
             imageBuilder: _Images(),
             linkHandler: links,
           ),

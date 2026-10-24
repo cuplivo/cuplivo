@@ -104,9 +104,11 @@ final class InlineParser {
         pending.add((node, true));
         for (final child in children.reversed) pending.add((child, false));
       } else {
-        converted[node] = replaceChildren(node, [
-          for (final child in parsed[node]!) converted[child]!,
-        ]) as InlineNode;
+        converted[node] =
+            replaceChildren(node, [
+                  for (final child in parsed[node]!) converted[child]!,
+                ])
+                as InlineNode;
       }
     }
     return List.unmodifiable([for (final root in roots) converted[root]!]);
@@ -555,8 +557,9 @@ final class _InlineSession {
         } else {
           converted[node] = [
             replaceChildren(node, [
-              for (final child in node.children) ...converted[child]!,
-            ]) as InlineNode,
+                  for (final child in node.children) ...converted[child]!,
+                ])
+                as InlineNode,
           ];
         }
       } else {

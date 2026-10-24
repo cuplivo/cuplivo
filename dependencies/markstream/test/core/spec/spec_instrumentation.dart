@@ -4,9 +4,10 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:markstream/markstream_core.dart';
 
-List<Map<String, dynamic>> loadSpec(String filename) => (jsonDecode(
-  File('test/core/spec/fixtures/$filename').readAsStringSync(),
-) as List<dynamic>).cast<Map<String, dynamic>>();
+List<Map<String, dynamic>> loadSpec(String filename) =>
+    (jsonDecode(File('test/core/spec/fixtures/$filename').readAsStringSync())
+            as List<dynamic>)
+        .cast<Map<String, dynamic>>();
 
 /// Output comparison is a conformance instrument, not a pass-rate gate.
 /// Crashes and invalid source ranges remain correctness failures.

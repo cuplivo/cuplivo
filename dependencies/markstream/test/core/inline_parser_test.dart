@@ -123,8 +123,9 @@ void main() {
   test('two-phase parser resolves references across nested blocks', () {
     const source =
         '[a *label*][ID] and [ID][] and [id]\n\n> [ID]: /path "title"\n\n[ID]: /ignored\n\nNext';
-    final doc = const MarkdownParser(options: ParserOptions.commonMark())
-        .parse(source);
+    final doc = const MarkdownParser(
+      options: ParserOptions.commonMark(),
+    ).parse(source);
     final links = doc.children.first.children.whereType<LinkNode>().toList();
     expect(links, hasLength(3));
     expect(

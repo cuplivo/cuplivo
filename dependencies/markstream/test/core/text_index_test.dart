@@ -58,12 +58,18 @@ void main() {
       expect(() => index.sourceSpanForRange(0, 99), throwsRangeError);
     },
   );
-  test('code indexes exclude one structural final newline and preserve indentation', () {
-    const source = '```\n  a\n  b\n```';
-    final index = TextIndex.fromDocument(parser.parse(source));
-    expect(index.text, '  a\n  b');
-    expect(index.sourceSpanForRange(0, index.length).slice(source), '  a\n  b');
-  });
+  test(
+    'code indexes exclude one structural final newline and preserve indentation',
+    () {
+      const source = '```\n  a\n  b\n```';
+      final index = TextIndex.fromDocument(parser.parse(source));
+      expect(index.text, '  a\n  b');
+      expect(
+        index.sourceSpanForRange(0, index.length).slice(source),
+        '  a\n  b',
+      );
+    },
+  );
   test('full HTML code retains quote-prefix and CRLF gaps in its index', () {
     const source = '> <html>\r\n> <body>page</body>\r\n> </html>';
     final doc = parser.parse(source);

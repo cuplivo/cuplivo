@@ -563,7 +563,7 @@ void main() {
     await selectAll(tester);
     _menu(
       tester,
-    ).buttonItems!.singleWhere((item) => item.label == 'Reply').onPressed!();
+    ).buttonItems.singleWhere((item) => item.label == 'Reply').onPressed!();
     await tester.pumpAndSettle();
     // The citation is the selection's own markdown, complete markers included —
     // the same text "Copy Markdown" produces for that selection.
@@ -592,7 +592,7 @@ void main() {
     await tester.pumpAndSettle();
     _menu(
       tester,
-    ).buttonItems!.singleWhere((item) => item.label == 'Reply').onPressed!();
+    ).buttonItems.singleWhere((item) => item.label == 'Reply').onPressed!();
     await tester.pumpAndSettle();
     expect(replies.single, '**Bold** plain');
   }, variant: TargetPlatformVariant.desktop());
@@ -606,7 +606,7 @@ void main() {
     await tester.pumpAndSettle();
     await selectAll(tester);
     expect(
-      _menu(tester).buttonItems!.any((item) => item.label == 'Reply'),
+      _menu(tester).buttonItems.any((item) => item.label == 'Reply'),
       isFalse,
     );
   }, variant: TargetPlatformVariant.desktop());

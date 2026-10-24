@@ -36,7 +36,8 @@ void main() {
     expect(
       violations,
       isEmpty,
-      reason: 'Core must not depend on Flutter, the rendering layer, or third-party packages.',
+      reason:
+          'Core must not depend on Flutter, the rendering layer, or third-party packages.',
     );
   });
 }

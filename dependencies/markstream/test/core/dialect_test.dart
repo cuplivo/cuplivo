@@ -10,10 +10,9 @@ void main() {
       MarkdownParser(options: options).parse(source);
   test('LLM visible newlines do not enable setext or indented code', () {
     expect(
-      parse('first\nsecond').children.single.children
-          .whereType<LineBreakNode>()
-          .single
-          .hard,
+      parse(
+        'first\nsecond',
+      ).children.single.children.whereType<LineBreakNode>().single.hard,
       true,
     );
     expect(parse('Title\n---').children.map((n) => n.type), [

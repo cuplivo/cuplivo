@@ -180,10 +180,9 @@ void main() {
       expect(node.attributes['title'], 'A & B');
       expect(node.span.slice(source), source);
       expect(
-        (const MarkdownParser(options: ParserOptions(entities: false))
-                    .parse(source)
-                    .children
-                    .single
+        (const MarkdownParser(
+                  options: ParserOptions(entities: false),
+                ).parse(source).children.single
                 as NamedBlockNode)
             .attributes['title'],
         'A &amp; B',

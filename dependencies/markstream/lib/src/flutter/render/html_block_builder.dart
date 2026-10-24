@@ -123,9 +123,9 @@ extension _HtmlBlockRenderer on MarkstreamRenderer {
             .where((n) => n.tag == 'code')
             .firstOrNull;
         final language =
-            RegExp(r'(?:^|\s)language-([\w+-]+)')
-                .firstMatch(code?.attributes['class'] ?? '')
-                ?.group(1) ??
+            RegExp(
+              r'(?:^|\s)language-([\w+-]+)',
+            ).firstMatch(code?.attributes['class'] ?? '')?.group(1) ??
             '';
         child = MarkstreamCodeBlock(
           node: CodeBlockNode(

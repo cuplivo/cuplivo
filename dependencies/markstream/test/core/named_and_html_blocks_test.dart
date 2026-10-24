@@ -6,30 +6,33 @@ String textOf(MarkdownNode node) =>
 
 void main() {
   const parser = BlockParser();
-  test('inline nested details close their own container before the outer body', () {
-    const source =
-        '<details><summary>outer</summary>prefix <details><summary>inner</summary>body</details>after</details>';
-    final doc = const MarkdownParser().parse(source);
-    final outer = doc.children.single as DetailsNode;
-    expect(outer.closed, isTrue);
-    final inner = outer.children.whereType<DetailsNode>().single;
-    expect(inner.closed, isTrue);
-    expect(
-      inner.span.slice(source),
-      '<details><summary>inner</summary>body</details>',
-    );
-    expect(toPlainText(outer.children.last), 'after');
-    expect(
-      outer.children
-          .whereType<ParagraphNode>()
-          .first
-          .children
-          .single
-          .span
-          .slice(source),
-      'prefix ',
-    );
-  });
+  test(
+    'inline nested details close their own container before the outer body',
+    () {
+      const source =
+          '<details><summary>outer</summary>prefix <details><summary>inner</summary>body</details>after</details>';
+      final doc = const MarkdownParser().parse(source);
+      final outer = doc.children.single as DetailsNode;
+      expect(outer.closed, isTrue);
+      final inner = outer.children.whereType<DetailsNode>().single;
+      expect(inner.closed, isTrue);
+      expect(
+        inner.span.slice(source),
+        '<details><summary>inner</summary>body</details>',
+      );
+      expect(toPlainText(outer.children.last), 'after');
+      expect(
+        outer.children
+            .whereType<ParagraphNode>()
+            .first
+            .children
+            .single
+            .span
+            .slice(source),
+        'prefix ',
+      );
+    },
+  );
   test('GitHub alerts use the same named nodes as directives', () {
     final doc = parser.parse(
       '> [!WARNING]\n> Be **careful**.\n>\n> - next\n\nAfter',
@@ -44,10 +47,9 @@ void main() {
       isA<BlockQuoteNode>(),
     );
     expect(
-      const BlockParser(options: ParserOptions.commonMark())
-          .parse('> [!NOTE]\n> text')
-          .children
-          .single,
+      const BlockParser(
+        options: ParserOptions.commonMark(),
+      ).parse('> [!NOTE]\n> text').children.single,
       isA<BlockQuoteNode>(),
     );
   });
@@ -104,23 +106,28 @@ void main() {
     expect((note.children.single as CodeBlockNode).code, ':::\n');
     expect(note.closed, true);
   });
-  test('native HTML blocks preserve supported tags and remove unknown shells', () {
-    const source =
-        '<div class="box"><h2>Title</h2><custom><b>Bold</b> plain</custom><br><img src="x.png" onerror="bad()"></div>\n\nAfter';
-    final doc = parser.parse(source);
-    final block = doc.children.first as HtmlBlockNode;
-    final div = block.children.single as HtmlElementNode;
-    expect(div.tag, 'div');
-    expect(
-      div.children.map(
-        (node) => node is HtmlElementNode ? node.tag : node.type,
-      ),
-      ['h2', 'b', 'text', 'br', 'img'],
-    );
-    expect((div.children.last as HtmlElementNode).attributes, {'src': 'x.png'});
-    expect(textOf(div), 'TitleBold plain');
-    expect(textOf(doc.children.last), 'After');
-  });
+  test(
+    'native HTML blocks preserve supported tags and remove unknown shells',
+    () {
+      const source =
+          '<div class="box"><h2>Title</h2><custom><b>Bold</b> plain</custom><br><img src="x.png" onerror="bad()"></div>\n\nAfter';
+      final doc = parser.parse(source);
+      final block = doc.children.first as HtmlBlockNode;
+      final div = block.children.single as HtmlElementNode;
+      expect(div.tag, 'div');
+      expect(
+        div.children.map(
+          (node) => node is HtmlElementNode ? node.tag : node.type,
+        ),
+        ['h2', 'b', 'text', 'br', 'img'],
+      );
+      expect((div.children.last as HtmlElementNode).attributes, {
+        'src': 'x.png',
+      });
+      expect(textOf(div), 'TitleBold plain');
+      expect(textOf(doc.children.last), 'After');
+    },
+  );
   test(
     'script, style and iframe bodies disappear including embedded fake tags',
     () {

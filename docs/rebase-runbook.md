@@ -469,8 +469,10 @@ run finally describe the same dependency set.
 | `dependencies/markstream`: `pub get --enforce-lockfile`, `dart analyze --fatal-infos`, `flutter test` | No issues found; **296 passed** |
 | `gradlew -p android :app:testDebugUnitTest --tests '*BrowserWebViewHostTest*'` | BUILD SUCCESSFUL (119 s) |
 | `flutter build windows --debug` | `√ Built build\windows\x64\runner\Debug\cuplivo.exe` (706 s) |
+| `gh workflow run release.yml -f publish_release=false` | run `40075370914`: macOS / Windows / Android / iOS / Linux **5/5 success** (the release-body job is skipped, by design). The macOS job also ran the new Developer-ID sign and notarize steps, which no-op cleanly with no secrets configured |
+| `pr-check.yml` on the rewritten `master` | three runs, and the story is rule 16: `40075337329` red on 13 ubuntu-only tests (5 browser cases with no engine there, 8 goldens generated elsewhere); `40078790202` after the browser guards — **10111 passed, 8 failed, 18 skipped**; `40079570731` at the tip `724affebc` — **green on every step**, the last two read against the CI image's own baselines |
 
-The series: 15 replay units, `docs(agents)`, eight earlier tails and five new ones — **29 commits** on
+The series: 15 replay units, `docs(agents)`, eight earlier tails and six new ones — **31 commits** on
 top of `199647a5d`; `git merge-base --is-ancestor 199647a5d HEAD` holds, no tag points at the tip, and
 `pubspec.yaml` still says `4.3.0+6`.
 

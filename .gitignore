@@ -79,6 +79,8 @@ internationalization.md
 
 # Local Markdown visual baselines and comparison reports
 /test_goldens/out/
+# flutter_test writes a case's master/test/diff images here when a golden fails.
+/test/goldens/failures/
 
 # MCP/tools UI screenshots stay local, outside the tracked test suite.
 /test/goldens/baselines/mcp_*.png

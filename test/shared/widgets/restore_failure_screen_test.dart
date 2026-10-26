@@ -92,7 +92,7 @@ void main() {
         () => Directory.systemTemp.createTemp('private-failure-ui-'),
       );
       final source = Directory('${root!.path}/Documents');
-      final target = Directory('${root.path}/Support/cuplivo-data');
+      final target = Directory('${root.path}/Support/kelivo-data');
       addTearDown(() async => root.delete(recursive: true));
       await tester.runAsync(() async {
         await source.create();
@@ -390,7 +390,7 @@ void main() {
       (tester) async {
         await tester.runAsync(() async {
           final file = File(
-            '${directory.path}/cuplivo-snapshot-1792421104232879.zip',
+            '${directory.path}/kelivo-snapshot-1792421104232879.zip',
           );
           await file.writeAsString('damaged original');
         });
@@ -405,7 +405,7 @@ void main() {
         expect(
           await tester.runAsync(
             () => File(
-              '${directory.path}/cuplivo-snapshot-1792421104232879.zip',
+              '${directory.path}/kelivo-snapshot-1792421104232879.zip',
             ).readAsString(),
           ),
           'damaged original',

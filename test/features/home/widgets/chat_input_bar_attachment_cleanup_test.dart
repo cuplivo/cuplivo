@@ -13,6 +13,7 @@ import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
 import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/utils/image_compressor.dart';
+import 'package:path/path.dart' as p;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -21,7 +22,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:irondash_message_channel/irondash_message_channel.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
-import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 // ignore: depend_on_referenced_packages, implementation_imports
@@ -143,6 +143,30 @@ void main() {
     final file = File('${dir.path}/$name');
     await file.writeAsBytes(List<int>.filled(byteCount, 7), flush: true);
     return file;
+  }
+
+  /// Makes [file] impossible to delete until the returned callback runs.
+  ///
+  /// Portable on purpose, so the tests that need a *failing* deletion can run on
+  /// every platform instead of being skipped on Windows: POSIX cannot unlink
+  /// inside a read-only directory, and Windows cannot delete a file that is open
+  /// without share-delete. Either way the deletion must fail, which is the
+  /// condition these tests are about.
+  Future<Future<void> Function()> makeUndeletable(
+    File file, {
+    required Directory parentToLock,
+  }) async {
+    if (!Platform.isWindows) {
+      final result = await Process.run('chmod', ['0555', parentToLock.path]);
+      if (result.exitCode != 0) {
+        throw StateError('chmod 0555 failed: ${result.stderr}');
+      }
+      return () async {
+        await Process.run('chmod', ['-R', '0755', parentToLock.path]);
+      };
+    }
+    final handle = file.openSync(mode: FileMode.read);
+    return () async => handle.closeSync();
   }
 
   Future<bool> fileExists(WidgetTester tester, File file) async {
@@ -453,20 +477,56 @@ void main() {
       fakePathProvider.completedAppDataRequests,
       greaterThan(completedRequestsBeforeDispose),
     );
-    // Pump the continuation that removes a file written after disposal; a
-    // fixed real-clock delay does not drain the widget test's fake-clock work.
-    Set<String>? remainingPaths;
-    for (var attempt = 0; attempt < 400; attempt++) {
-      await tester.pump();
-      remainingPaths = await tester.runAsync(
-        () => uploadDir.list().map((entry) => entry.path).toSet(),
-      );
-      if (setEquals(remainingPaths, existingPaths)) break;
+    // The third paste writes its file and then releases it if the composer is
+    // gone, both from a future. Wait for that write to settle instead of for a
+    // fixed 100 ms: the delay could expire in the gap between the write and its
+    // cleanup, or before the write had even landed, and either way left the
+    // extra file behind - see docs/flaky-tests.md.
+    for (
+      var i = 0;
+      i < 250 && !mediaController.debugTextPasteWriteSettled;
+      i++
+    ) {
       await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
       );
+      await tester.pump(const Duration(milliseconds: 20));
     }
-    expect(remainingPaths, existingPaths);
+    expect(
+      mediaController.debugTextPasteWriteSettled,
+      isTrue,
+      reason: 'the superseded long paste must settle at all',
+    );
+    // Then wait for the *invariant*, not for one instant after the flag: the
+    // flag says every paste finished writing, while the directory is the thing
+    // this test is about, and on CI the two are not ordered tightly enough to
+    // read the directory once (a red run there reported the settled flag with the
+    // third `pasted_*.txt` still listed). Polling cannot hide the leak the test
+    // exists for - a paste that never releases its file still fails, and it
+    // fails below with the file named.
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+    var remainingPaths = existingPaths;
+    while (true) {
+      remainingPaths =
+          await tester.runAsync(
+            () => uploadDir.list().map((entry) => entry.path).toSet(),
+          ) ??
+          remainingPaths;
+      if (remainingPaths.length == existingPaths.length &&
+          remainingPaths.containsAll(existingPaths)) {
+        break;
+      }
+      if (DateTime.now().isAfter(deadline)) break;
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(
+      remainingPaths,
+      existingPaths,
+      reason: 'a superseded long paste must release its file',
+    );
 
     controller.dispose();
     focusNode.dispose();
@@ -813,6 +873,42 @@ void main() {
     focusNode.dispose();
   });
 
+  testWidgets('压缩期间保留图片缩略图和轻量进度标识', (tester) async {
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+    final gate = Completer<void>();
+    fakePathProvider.appDataGate = gate;
+    final source = await tester.runAsync(
+      () => writeUserImage('processing_preview.png'),
+    );
+    await tester.pumpWidget(
+      buildHarness(
+        controller: controller,
+        focusNode: focusNode,
+        mediaController: mediaController,
+        onSend: (_) async => ChatInputSubmissionResult.rejected,
+      ),
+    );
+    mediaController.enqueueImages([source!.path], _config);
+    await tester.pump();
+    final preview = find.byKey(const ValueKey('chat-input-image-preview:0'));
+    expect(preview, findsOneWidget);
+    expect(
+      find.descendant(of: preview, matching: find.byType(Image)),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('chat-input-image-processing:0')),
+      findsOneWidget,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    gate.complete();
+    fakePathProvider.appDataGate = null;
+    controller.dispose();
+    focusNode.dispose();
+  });
+
   testWidgets('退出页面会清理排队中的应用临时图片', (tester) async {
     final controller = TextEditingController();
     final focusNode = FocusNode();
@@ -842,7 +938,7 @@ void main() {
       mediaController.enqueueImages(
         sources.map((file) => file.path).toList(),
         _config,
-        deleteSourcesAfterProcessing: true,
+        ownsSourceFile: true,
       );
     });
     expect(
@@ -875,7 +971,9 @@ void main() {
     await tester.runAsync(() async {
       source = await writeUserImage('user_photo.png');
     });
-    final product = File('${appSupportDir.path}/upload/user_photo.png');
+    final product = File(
+      p.join(appSupportDir.path, 'upload', 'user_photo.png'),
+    );
     final controller = TextEditingController(text: 'with image');
     final focusNode = FocusNode();
     final mediaController = ChatInputBarController();
@@ -897,7 +995,7 @@ void main() {
       mediaController.enqueueImages(
         [source.path],
         _config,
-        deleteSourcesAfterProcessing: false,
+        ownsSourceFile: false,
       );
     });
     expect(
@@ -911,7 +1009,9 @@ void main() {
     await tester.tap(find.byIcon(Lucide.ArrowUp));
     await tester.pumpAndSettle();
 
-    expect(submitted?.imagePaths.single, product.path);
+    expect(submitted, isNotNull);
+    // The stored copy path mixes separators, so compare it as a path.
+    expect(p.equals(submitted!.imagePaths.single, product.path), isTrue);
     expect(await fileExists(tester, source), isTrue);
 
     controller.dispose();
@@ -940,7 +1040,7 @@ void main() {
       mediaController.enqueueImages(
         [source.path],
         _config,
-        deleteSourcesAfterProcessing: false,
+        ownsSourceFile: false,
       );
     });
     expect(
@@ -982,7 +1082,7 @@ void main() {
       mediaController.enqueueImages(
         [source.path],
         _config,
-        deleteSourcesAfterProcessing: false,
+        ownsSourceFile: false,
       );
     });
     expect(
@@ -1018,7 +1118,7 @@ void main() {
       mediaController.enqueueImages(
         [source.path],
         _config,
-        deleteSourcesAfterProcessing: false,
+        ownsSourceFile: false,
       );
     });
     expect(
@@ -1036,7 +1136,7 @@ void main() {
       mediaController.enqueueImages(
         [source.path],
         _config,
-        deleteSourcesAfterProcessing: false,
+        ownsSourceFile: false,
       );
       mediaController.clearImages();
       await Future<void>.delayed(const Duration(seconds: 2));
@@ -1071,13 +1171,13 @@ void main() {
       );
       final uploadDir = Directory('${appSupportDir.path}/upload');
       await uploadDir.create(recursive: true);
-      final product = File('${uploadDir.path}/inflight_user.png');
+      final product = File(p.join(uploadDir.path, 'inflight_user.png'));
       var sawProductCreated = false;
       final productDeleted = Completer<void>();
       final subscription = uploadDir
           .watch(events: FileSystemEvent.create | FileSystemEvent.delete)
           .listen((event) {
-            if (event.path != product.path) return;
+            if (!p.equals(event.path, product.path)) return;
             if (event.type == FileSystemEvent.create) {
               sawProductCreated = true;
             } else if (event.type == FileSystemEvent.delete &&
@@ -1091,7 +1191,7 @@ void main() {
       mediaController.enqueueImages(
         [source.path],
         _config,
-        deleteSourcesAfterProcessing: false,
+        ownsSourceFile: false,
       );
       // Discard synchronously while the task is in flight.
       mediaController.clearImages();
@@ -1111,7 +1211,7 @@ void main() {
     focusNode.dispose();
   });
 
-  testWidgets('应用自有临时源在处理完成后被删除', (tester) async {
+  testWidgets('应用自有临时源保留到图片离开输入栏', (tester) async {
     late File tempSource;
     await tester.runAsync(() async {
       tempSource = await writeUserImage('pasted_temp.png');
@@ -1134,7 +1234,7 @@ void main() {
       mediaController.enqueueImages(
         [tempSource.path],
         _config,
-        deleteSourcesAfterProcessing: true,
+        ownsSourceFile: true,
       );
     });
     expect(
@@ -1142,9 +1242,148 @@ void main() {
       isTrue,
     );
 
-    expect(await fileExists(tester, tempSource), isFalse);
+    // The pass stored its own copy, but the pristine source stays on disk: a
+    // crop opened afterwards still has to read the original.
     expect(await fileExists(tester, product), isTrue);
+    expect(await fileExists(tester, tempSource), isTrue);
 
+    // Only when the image leaves the composer does the draft release it.
+    mediaController.clearImages();
+    expect(
+      await pumpUntil(tester, () => !tempSource.existsSync()),
+      isTrue,
+      reason: 'dropping the image must release the app-owned source',
+    );
+
+    controller.dispose();
+    focusNode.dispose();
+  });
+
+  testWidgets('裁剪读取原始临时源而不是压缩后的副本', (tester) async {
+    const cropperChannel = MethodChannel('plugins.hunghd.vn/image_cropper');
+    final messenger = tester.binding.defaultBinaryMessenger;
+    late File tempSource;
+    late File croppedOutput;
+    String? croppedSourcePath;
+    await tester.runAsync(() async {
+      tempSource = await writeUserImage('pasted_crop.png');
+      croppedOutput = await writeUserImage('cropper_output.png');
+    });
+    messenger.setMockMethodCallHandler(cropperChannel, (call) async {
+      if (call.method != 'cropImage') return null;
+      croppedSourcePath = (call.arguments as Map)['source_path'] as String?;
+      return croppedOutput.path;
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(cropperChannel, null));
+
+    final settings = SettingsProvider(createBusinessTestPreferences());
+    await settings.setImageCropperEnabled(true);
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+
+    await tester.pumpWidget(
+      buildHarness(
+        controller: controller,
+        focusNode: focusNode,
+        mediaController: mediaController,
+        settings: settings,
+        onSend: (_) async => ChatInputSubmissionResult.rejected,
+      ),
+    );
+
+    await tester.runAsync(() async {
+      mediaController.enqueueImages(
+        [tempSource.path],
+        _config,
+        ownsSourceFile: true,
+      );
+    });
+    expect(
+      await pumpUntil(tester, () => !mediaController.hasUnreadyImages),
+      isTrue,
+    );
+    final storedCopy = mediaController.snapshotInput('').imagePaths.single;
+    expect(p.equals(storedCopy, tempSource.path), isFalse);
+
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('chat-input-image-preview:0')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Crop'));
+    // The crop is dispatched through the platform channel, so let both the
+    // real channel work and the fake clock advance until it is observed.
+    for (var i = 0; i < 200 && croppedSourcePath == null; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+
+    expect(
+      croppedSourcePath,
+      tempSource.path,
+      reason: 'the crop must edit the pristine original, not the stored copy',
+    );
+
+    debugDefaultTargetPlatformOverride = null;
+    controller.dispose();
+    focusNode.dispose();
+  });
+
+  testWidgets('裁剪入口只在支持裁剪的平台上提供', (tester) async {
+    late File source;
+    await tester.runAsync(() async {
+      source = await writeUserImage('gated_crop.png');
+    });
+    final settings = SettingsProvider(createBusinessTestPreferences());
+    await settings.setImageCropperEnabled(true);
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+
+    await tester.pumpWidget(
+      buildHarness(
+        controller: controller,
+        focusNode: focusNode,
+        mediaController: mediaController,
+        settings: settings,
+        onSend: (_) async => ChatInputSubmissionResult.rejected,
+      ),
+    );
+
+    await tester.runAsync(() async {
+      mediaController.enqueueImages(
+        [source.path],
+        _config,
+        ownsSourceFile: false,
+      );
+    });
+    expect(
+      await pumpUntil(tester, () => !mediaController.hasUnreadyImages),
+      isTrue,
+    );
+
+    final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('chat-input-image-preview:0')));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Crop'), findsOneWidget);
+
+    navigator.pop();
+    await tester.pumpAndSettle();
+    // image_cropper ships an Android/iOS implementation only, so the desktop
+    // build must not offer an action that could only fail.
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    await tester.tap(find.byKey(const ValueKey('chat-input-image-preview:0')));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Crop'), findsNothing);
+    expect(find.byTooltip('Compress Image'), findsOneWidget);
+
+    navigator.pop();
+    await tester.pumpAndSettle();
+    debugDefaultTargetPlatformOverride = null;
     controller.dispose();
     focusNode.dispose();
   });
@@ -1171,28 +1410,55 @@ void main() {
       );
 
       late File source;
+      Future<void> Function()? unlock;
       await tester.runAsync(() async {
-        final readOnlyDir = Directory('${userDir.path}/readonly');
-        await readOnlyDir.create(recursive: true);
-        source = await writeUserImage('locked_temp.png', parent: readOnlyDir);
-        await Process.run('chmod', ['0555', readOnlyDir.path]);
+        final lockedDir = Directory('${userDir.path}/readonly');
+        await lockedDir.create(recursive: true);
+        source = await writeUserImage('locked_temp.png', parent: lockedDir);
+        unlock = await makeUndeletable(source, parentToLock: lockedDir);
 
         mediaController.enqueueImages(
           [source.path],
           _config,
-          deleteSourcesAfterProcessing: true,
+          ownsSourceFile: true,
         );
       });
-      addTearDown(() async {
-        await Process.run('chmod', ['-R', '0755', userDir.path]);
-      });
+      addTearDown(() async => unlock?.call());
       expect(
         await pumpUntil(tester, () => !mediaController.hasUnreadyImages),
         isTrue,
       );
 
+      // An app-owned source is released when the image leaves the composer, so
+      // that is the moment a failing deletion has to be diagnosable. Await the
+      // delete itself: polling for the log line races it, and under load the
+      // poll used to expire while debugPrint was still patched, so the failure
+      // reached the real console instead of the captured list.
+      const deleteFailureMarker = '[ChatInputBar] Failed to delete';
+      bool loggedDeletionFailure() =>
+          logs.any((line) => line.contains(deleteFailureMarker));
+      mediaController.clearImages();
+      // The release runs from a future, so wait for it to finish while the frame
+      // advances. Polling the log alone raced it: under load the poll expired
+      // while debugPrint was still patched, so the failure reached the real
+      // console instead of the captured list (see docs/flaky-tests.md).
+      for (
+        var i = 0;
+        i < 250 && mediaController.debugHasPendingArtifactDeletes;
+        i++
+      ) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump(const Duration(milliseconds: 20));
+      }
       expect(
-        logs.any((line) => line.contains('[ChatInputBar] Failed to delete')),
+        mediaController.debugHasPendingArtifactDeletes,
+        isFalse,
+        reason: 'the released source must finish being deleted',
+      );
+      expect(
+        loggedDeletionFailure(),
         isTrue,
         reason: 'deletion failure must be diagnosable via logs',
       );
@@ -1203,7 +1469,7 @@ void main() {
 
     controller.dispose();
     focusNode.dispose();
-  }, skip: !(Platform.isMacOS || Platform.isLinux));
+  });
 
   testWidgets('压缩失败会记录日志且保留用户源文件', (tester) async {
     final logs = <String>[];
@@ -1236,7 +1502,7 @@ void main() {
         mediaController.enqueueImages(
           [source.path],
           _config,
-          deleteSourcesAfterProcessing: false,
+          ownsSourceFile: false,
         );
       });
       expect(

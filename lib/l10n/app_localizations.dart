@@ -4105,7 +4105,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupPageIosSystemBackupNote.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo\'s local data is set to be excluded from iCloud device backups. Export a backup file before changing devices or deleting the app.'**
+  /// **'Cuplivo\'s local data is set to be excluded from iCloud device backups. Export a backup file before changing devices or deleting the app.'**
   String get backupPageIosSystemBackupNote;
 
   /// No description provided for @backupPageImportFromCherryStudio.

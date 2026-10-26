@@ -368,8 +368,8 @@ void main() {
           const web = '```kelivo-web\n$source```';
           final parts = <MessagePart>[
             if (provider) const ReasoningPart('provider reasoning'),
-            const TextPart('<think>PRIVATE</think>\n\n```cuplivo-'),
-            TextPart(web.substring('```cuplivo-'.length)),
+            const TextPart('<think>PRIVATE</think>\n\n```kelivo-'),
+            TextPart(web.substring('```kelivo-'.length)),
           ];
           final msg = message(parts: parts);
           final projection = await project(msg);

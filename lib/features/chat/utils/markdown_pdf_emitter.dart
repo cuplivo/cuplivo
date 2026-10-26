@@ -1129,6 +1129,18 @@ class _PdfLayout {
             skin: card.copyWith(padTop: 0),
           ),
         ];
+      case ExportContextNode(:final text):
+        // A compression or a clear sits where it happened: a titled divider, so
+        // a reader can tell a summary section from what the model wrote.
+        return <pw.Widget>[
+          _leaf(
+            text,
+            _fauxBoldStyle(
+              _captionStyle.copyWith(fontWeight: pw.FontWeight.bold),
+            ),
+            _onBand(_asideSkin, band),
+          ),
+        ];
       case ExportToolCall(:final name, :final content):
         return <pw.Widget>[_toolCall(name, content, band)];
       case ExportImage(:final uri, :final bytes):

@@ -1,4 +1,4 @@
-import 'package:Kelivo/desktop/desktop_overlay_backdrop.dart';
+import 'package:Cuplivo/desktop/desktop_overlay_backdrop.dart';
 import 'package:flutter/material.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';

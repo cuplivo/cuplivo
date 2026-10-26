@@ -41,10 +41,7 @@ class ComposerDraftInput {
   final String? quoteLabel;
 
   bool get isEmpty =>
-      text.isEmpty &&
-      images.isEmpty &&
-      documents.isEmpty &&
-      uiContext == null;
+      text.isEmpty && images.isEmpty && documents.isEmpty && uiContext == null;
   Iterable<String> get paths sync* {
     yield* images.map((image) => image.path);
     yield* documents.map((document) => document.path);

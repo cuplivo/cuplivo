@@ -2112,7 +2112,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get backupPageIosSystemBackupNote =>
-      'Kelivo 的本地数据已设置为不参与 iCloud 系统备份。换机或卸载 App 前，请先导出备份文件。';
+      'Cuplivo 的本地数据已设置为不参与 iCloud 系统备份。换机或卸载 App 前，请先导出备份文件。';
 
   @override
   String get backupPageImportFromCherryStudio => '从 Cherry Studio 导入';
@@ -17864,7 +17864,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get backupPageIosSystemBackupNote =>
-      'Kelivo 的本地数据已设置为不参与 iCloud 系统备份。换机或卸载 App 前，请先导出备份文件。';
+      'Cuplivo 的本地数据已设置为不参与 iCloud 系统备份。换机或卸载 App 前，请先导出备份文件。';
 
   @override
   String get backupPageImportFromCherryStudio => '从 Cherry Studio 导入';
@@ -33543,7 +33543,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupPageIosSystemBackupNote =>
-      'Kelivo 的本機資料已設定為不參與 iCloud 系統備份。更換裝置或移除 App 前，請先匯出備份檔案。';
+      'Cuplivo 的本機資料已設定為不參與 iCloud 系統備份。更換裝置或移除 App 前，請先匯出備份檔案。';
 
   @override
   String get backupPageImportFromCherryStudio => '從 Cherry Studio 匯入';

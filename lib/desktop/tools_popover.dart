@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../features/mcp/widgets/mcp_server_avatar.dart';
@@ -22,6 +24,7 @@ Future<void> showDesktopToolsPopover(
   required GlobalKey anchorKey,
   required String assistantId,
   required bool supportsModelTools,
+  Conversation? conversation,
 }) async {
   final overlay = Overlay.maybeOf(context);
   if (overlay == null) return;
@@ -46,6 +49,7 @@ Future<void> showDesktopToolsPopover(
       anchorWidth: size.width,
       assistantId: assistantId,
       supportsModelTools: supportsModelTools,
+      conversation: conversation,
       onClose: () {
         try {
           entry.remove();
@@ -63,6 +67,7 @@ class _ToolsPopover extends StatefulWidget {
     required this.assistantId,
     required this.supportsModelTools,
     required this.onClose,
+    this.conversation,
   });
 
   final Rect anchorRect;
@@ -70,6 +75,7 @@ class _ToolsPopover extends StatefulWidget {
   final String assistantId;
   final bool supportsModelTools;
   final VoidCallback onClose;
+  final Conversation? conversation;
 
   @override
   State<_ToolsPopover> createState() => _ToolsPopoverState();
@@ -160,6 +166,7 @@ class _ToolsPopoverState extends State<_ToolsPopover>
                           assistantId: widget.assistantId,
                           supportsModelTools: widget.supportsModelTools,
                           onDone: _close,
+                          conversation: widget.conversation,
                         ),
                       ),
                     ),
@@ -219,10 +226,12 @@ class _ToolsContent extends StatelessWidget {
     required this.assistantId,
     required this.supportsModelTools,
     required this.onDone,
+    this.conversation,
   });
   final String assistantId;
   final bool supportsModelTools;
   final VoidCallback onDone;
+  final Conversation? conversation;
 
   @override
   Widget build(BuildContext context) {
@@ -243,7 +252,7 @@ class _ToolsContent extends StatelessWidget {
     final rows = <WidgetBuilder>[];
     // The assistant tool list can outgrow the popover's height cap, so the
     // conversation-level care entry stays pinned above it.
-    final careConversation = widget.conversation;
+    final careConversation = conversation;
     if (ProactiveCareAlarmService.isSupported && careConversation != null) {
       rows.add(
         (context) => _RowItem(
@@ -252,7 +261,7 @@ class _ToolsContent extends StatelessWidget {
           label: l10n.conversationProactiveCareTitle,
           selected: false,
           onTap: () {
-            widget.onDone();
+            onDone();
             unawaited(
               showConversationProactiveCare(
                 context,

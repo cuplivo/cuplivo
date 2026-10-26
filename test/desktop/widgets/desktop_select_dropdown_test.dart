@@ -172,9 +172,9 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
 
-    // First Down lands on Alpha, second on Beta; Enter activates Beta.
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-    await tester.pumpAndSettle();
+    // The selected option opens pre-focused, so the first Down lands on Beta
+    // and Enter activates it. (Upstream's overlay starts its keyboard cursor on
+    // the selected option; the fork's own overlay started at nothing.)
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pumpAndSettle();
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);

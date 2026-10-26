@@ -20,6 +20,7 @@ import 'export_image_capture.dart';
 import '../utils/export_image_processor.dart';
 
 import '../../../icons/lucide_adapter.dart';
+import '../../../core/services/chat/chat_service.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/message_part.dart';
 import '../../../core/models/conversation.dart';
@@ -28,7 +29,6 @@ import '../../../core/services/model_spec/model_spec_resolver.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/models/assistant.dart';
-import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/fonts/google_fonts_service.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import '../../../shared/markdown/kelivo_markdown_extensions.dart';
@@ -48,12 +48,17 @@ import '../../home/widgets/model_icon.dart';
 import '../utils/citation_index.dart';
 import '../utils/export_document.dart';
 import '../../intelligent_ui/host/ui_export_capture.dart';
+import '../../intelligent_ui/host/ui_presented_fences.dart';
+import '../../intelligent_ui/host/ui_source_selection.dart';
+import '../../intelligent_ui/text/ui_message_text.dart';
 import '../utils/markdown_pdf_emitter.dart';
 import '../utils/pdf_export_fonts.dart';
 import '../utils/pdf_export_options.dart';
 import '../utils/pdf_export_rasters.dart';
 import '../utils/thinking_tag_parser.dart';
+import '../utils/message_reasoning_source.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import '../../../core/models/context_operation.dart';
 import 'chat_message_widget.dart'
     show ChatMessageWidget, ToolUIPart, ReasoningSegment;
 
@@ -135,15 +140,19 @@ _Parsed _exportPartsFromMessage(ChatMessage message, {String? textOverride}) {
 Future<String> exportMessageBlocksForTesting(
   ChatMessage message, {
   required bool showThinkingAndToolCards,
+  UiMessageText? uiText,
+  bool markdown = false,
 }) async {
   final blocks = await exportBlocksOf(
     message,
     includeThinking: showThinkingAndToolCards,
     includeTools: showThinkingAndToolCards,
+    uiText: uiText,
+    markdown: markdown,
   );
   return renderExportBlocks(
     blocks,
-    markdown: false,
+    markdown: markdown,
     thinkingLabel: 'Thinking',
     imageLine: (image) => '![image](${image.uri})',
   );
@@ -189,7 +198,7 @@ ChatMessage messageForThinkingExport(
   ChatMessage message, {
   required bool showThinkingAndToolCards,
 }) {
-  if (message.role != 'assistant') {
+  if (message.role != 'assistant' || uiDisplayFences(message).isNotEmpty) {
     return message;
   }
   final hasReasoningPart = message.parts.any((part) => part is ReasoningPart);
@@ -228,7 +237,7 @@ List<MessagePart> _partsWithVisibleThinkSlices(
     parts,
     joined,
     ranges,
-    onVisible: (text) => next.add(TextPart(text)),
+    onVisible: (text, _, _) => next.add(TextPart(text)),
     onThinking: (_, text) {
       if (insertReasoningParts && text.isNotEmpty) {
         next.add(ReasoningPart(text));
@@ -242,12 +251,14 @@ List<MessagePart> _partsWithVisibleThinkSlices(
 class _ExportReasoningPayload {
   const _ExportReasoningPayload({
     required this.segments,
+    this.fromInlineThinking = false,
     this.contentSplitOffsets,
     this.reasoningCountAtSplit,
     this.toolCountAtSplit,
   });
 
   final List<ReasoningSegment> segments;
+  final bool fromInlineThinking;
   final List<int>? contentSplitOffsets;
   final List<int>? reasoningCountAtSplit;
   final List<int>? toolCountAtSplit;
@@ -257,6 +268,19 @@ List<ToolUIPart> _exportToolPartsForMessage(
   BuildContext context,
   ChatMessage message,
 ) {
+  if (uiDisplayFences(message).isNotEmpty) {
+    return [
+      for (final tool in uiMessageTimeline(message).tools)
+        ToolUIPart(
+          id: tool.providerId,
+          toolName: tool.toolName,
+          arguments: tool.arguments,
+          content: tool.content,
+          metadata: tool.metadata,
+          loading: tool.loading,
+        ),
+    ];
+  }
   try {
     final chatService = context.read<ChatService>();
     final events = chatService.getToolEventsForMessage(message);
@@ -288,13 +312,34 @@ _ExportReasoningPayload _exportReasoningPayloadForMessage(
   ChatMessage message, {
   required bool expandThinkingContent,
 }) {
+  if (uiDisplayFences(message).isNotEmpty) {
+    final timeline = uiMessageTimeline(message);
+    return _ExportReasoningPayload(
+      segments: [
+        for (final segment in timeline.segments)
+          ReasoningSegment(
+            text: segment.text,
+            expanded: expandThinkingContent,
+            loading: false,
+            startAt: segment.startAt,
+            finishedAt: segment.finishedAt,
+            toolStartIndex: segment.toolStartIndex,
+          ),
+      ],
+      fromInlineThinking: timeline.inlineThinking,
+      contentSplitOffsets: timeline.splits?.offsets,
+      reasoningCountAtSplit: timeline.splits?.reasoningCounts,
+      toolCountAtSplit: timeline.splits?.toolCounts,
+    );
+  }
   final segJson = (message.reasoningSegmentsJson ?? '').trim();
   var segments = <ReasoningSegment>[];
+  var fromInlineThinking = false;
   List<int>? offsets;
   List<int>? reasoningCounts;
   List<int>? toolCounts;
 
-  if (segJson.isNotEmpty) {
+  if (segJson.isNotEmpty && messageHasProviderReasoning(message)) {
     try {
       final decoded = jsonDecode(segJson);
       if (decoded is Map<String, dynamic>) {
@@ -348,6 +393,7 @@ _ExportReasoningPayload _exportReasoningPayloadForMessage(
 
   if (segments.isEmpty) {
     final thinkingData = thinkingExportDataForMessage(message);
+    fromInlineThinking = thinkingData.fromInlineThinking;
     if (thinkingData.thinkingTexts.isNotEmpty) {
       segments.addAll(
         thinkingData.thinkingTexts.map(
@@ -362,13 +408,20 @@ _ExportReasoningPayload _exportReasoningPayloadForMessage(
     }
   }
 
-  if (!message.parts.any((part) => part is ReasoningPart)) {
+  // Non-UI image preparation still converts inline spans to ordered
+  // ReasoningParts. Its timing overlays must match those split fragments.
+  // Native UI and Web cards retain original parts and provider source authority.
+  final hasStructuredReasoning = message.parts.any(
+    (part) => part is ReasoningPart,
+  );
+  if (fromInlineThinking ||
+      (!hasStructuredReasoning && uiDisplayFences(message).isEmpty)) {
     segments = _expandSegmentsByLegacyThinkFragments(
       message,
       segments,
       expandThinkingContent: expandThinkingContent,
     );
-  } else {
+  } else if (hasStructuredReasoning) {
     segments = _alignStructuredReasoningSegments(
       message,
       segments,
@@ -378,6 +431,7 @@ _ExportReasoningPayload _exportReasoningPayloadForMessage(
 
   return _ExportReasoningPayload(
     segments: segments,
+    fromInlineThinking: fromInlineThinking,
     contentSplitOffsets: offsets,
     reasoningCountAtSplit: reasoningCounts,
     toolCountAtSplit: toolCounts,
@@ -422,7 +476,7 @@ List<ReasoningSegment> _expandSegmentsByLegacyThinkFragments(
     message.parts,
     message.content,
     ranges,
-    onVisible: (_) {},
+    onVisible: (_, _, _) {},
     onThinking: (rangeIndex, text) {
       if (text.isNotEmpty) fragments.add((rangeIndex, text));
     },
@@ -515,7 +569,7 @@ List<bool> exportReasoningExpandedFlagsForTesting(
   ];
 }
 
-Future<void> _saveExportTextWithPicker(
+Future<void> saveExportTextWithPicker(
   BuildContext context, {
   required String filename,
   required String content,
@@ -660,19 +714,25 @@ Future<void> exportChatMessagesMarkdown(
     final title = (conversation.title.trim().isNotEmpty)
         ? conversation.title
         : l10n.messageExportSheetDefaultTitle;
+    // Resolve the service before the first await: the operations belong to the
+    // conversation, not the widget tree, and reading them later would take the
+    // context across an async gap.
+    final chat = context.read<ChatService>();
     final captures =
         uiCaptures ?? await captureUiExportMessages(context, messages);
-    final operations = await context.read<ChatService>().loadContextOperations(
-      conversation.id,
-    );
+    final operations = await chat.loadContextOperations(conversation.id);
     final document = await buildExportDocument(
       title: title,
       messages: captures.messages,
       uiTextByMessage: captures.projections,
       markdown: true,
       operations: operations,
-      contextLabelOf: (op, {required hidden}) =>
-          _exportContextNodeText(op, l10n, hidden: hidden, operations: operations),
+      contextLabelOf: (op, {required hidden}) => _exportContextNodeText(
+        op,
+        l10n,
+        hidden: hidden,
+        operations: operations,
+      ),
       roleNameOf: (msg) => _getRoleNameFromDependencies(
         l10n: l10n,
         settings: settings,
@@ -688,7 +748,7 @@ Future<void> exportChatMessagesMarkdown(
 
     final filename = 'chat-export-${DateTime.now().millisecondsSinceEpoch}.md';
     if (!context.mounted) return;
-    await _saveExportTextWithPicker(
+    await saveExportTextWithPicker(
       context,
       filename: filename,
       content: renderExportDocument(
@@ -815,10 +875,10 @@ Future<PdfExportResult?> exportChatMessagesPdf(
           ? conversation.title
           : l10n.messageExportSheetDefaultTitle;
 
+      final chat = context.read<ChatService>();
       final captures =
           uiCaptures ?? await captureUiExportMessages(context, messages);
-      final operations = await context.read<ChatService>()
-          .loadContextOperations(conversation.id);
+      final operations = await chat.loadContextOperations(conversation.id);
       final document = await buildExportDocument(
         title: title,
         messages: captures.messages,
@@ -957,19 +1017,25 @@ Future<void> exportChatMessagesTxt(
     final title = (conversation.title.trim().isNotEmpty)
         ? conversation.title
         : l10n.messageExportSheetDefaultTitle;
+    // Resolve the service before the first await: the operations belong to the
+    // conversation, not the widget tree, and reading them later would take the
+    // context across an async gap.
+    final chat = context.read<ChatService>();
     final captures =
         uiCaptures ?? await captureUiExportMessages(context, messages);
-    final operations = await context.read<ChatService>().loadContextOperations(
-      conversation.id,
-    );
+    final operations = await chat.loadContextOperations(conversation.id);
     final document = await buildExportDocument(
       title: title,
       messages: captures.messages,
       uiTextByMessage: captures.projections,
       markdown: false,
       operations: operations,
-      contextLabelOf: (op, {required hidden}) =>
-          _exportContextNodeText(op, l10n, hidden: hidden, operations: operations),
+      contextLabelOf: (op, {required hidden}) => _exportContextNodeText(
+        op,
+        l10n,
+        hidden: hidden,
+        operations: operations,
+      ),
       roleNameOf: (msg) => _getRoleNameFromDependencies(
         l10n: l10n,
         settings: settings,
@@ -984,7 +1050,7 @@ Future<void> exportChatMessagesTxt(
 
     final filename = 'chat-export-${DateTime.now().millisecondsSinceEpoch}.txt';
     if (!context.mounted) return;
-    await _saveExportTextWithPicker(
+    await saveExportTextWithPicker(
       context,
       filename: filename,
       content: renderExportDocument(
@@ -2559,6 +2625,30 @@ class _ExportSheetState extends State<_ExportSheet> {
   // shared widgets and helpers moved to top-level
 }
 
+@visibleForTesting
+Widget buildExportedMessageCardForTesting(
+  ChatMessage message, {
+  bool showThinkingAndToolCards = false,
+  bool expandThinkingContent = false,
+  bool conversationBubble = false,
+}) => Builder(
+  builder: (context) => conversationBubble
+      ? _ExportedBubble(
+          message: message,
+          cs: Theme.of(context).colorScheme,
+          showThinkingAndToolCards: showThinkingAndToolCards,
+          expandThinkingContent: expandThinkingContent,
+        )
+      : _ExportedMessageCard(
+          message: message,
+          title: 'Export',
+          cs: Theme.of(context).colorScheme,
+          chatFontScale: 1,
+          showThinkingAndToolCards: showThinkingAndToolCards,
+          expandThinkingContent: expandThinkingContent,
+        ),
+);
+
 class _ExportedMessageCard extends StatelessWidget {
   const _ExportedMessageCard({
     required this.message,
@@ -2594,13 +2684,16 @@ class _ExportedMessageCard extends StatelessWidget {
       message,
       showThinkingAndToolCards: showThinkingAndToolCards,
     );
-    final exportReasoningPayload = showThinkingAndToolCards && isAssistant
+    final preserveTimeline =
+        isAssistant &&
+        (showThinkingAndToolCards || uiDisplayFences(message).isNotEmpty);
+    final exportReasoningPayload = preserveTimeline
         ? _exportReasoningPayloadForMessage(
             message,
             expandThinkingContent: expandThinkingContent,
           )
         : const _ExportReasoningPayload(segments: <ReasoningSegment>[]);
-    final toolParts = showThinkingAndToolCards && isAssistant
+    final toolParts = preserveTimeline
         ? _exportToolPartsForMessage(context, message)
         : const <ToolUIPart>[];
     final assistant = context.read<AssistantProvider>().currentAssistant;
@@ -2676,14 +2769,16 @@ class _ExportedMessageCard extends StatelessWidget {
               reasoningSegments: exportReasoningPayload.segments.isEmpty
                   ? null
                   : exportReasoningPayload.segments,
+              reasoningSegmentsFromInlineThinking:
+                  exportReasoningPayload.fromInlineThinking,
               toolParts: toolParts.isEmpty ? null : toolParts,
               contentSplitOffsets: exportReasoningPayload.contentSplitOffsets,
               reasoningCountAtSplit:
                   exportReasoningPayload.reasoningCountAtSplit,
               toolCountAtSplit: exportReasoningPayload.toolCountAtSplit,
               hideStreamingIndicator: true,
-              showThinkingCards: true,
-              showToolCards: true,
+              showThinkingCards: showThinkingAndToolCards,
+              showToolCards: showThinkingAndToolCards,
             ),
             SizedBox(height: isDesktop ? 12.0 : 16.0),
             _ExportDisclaimer(isDesktop: isDesktop),
@@ -2809,13 +2904,16 @@ class _ExportedBubble extends StatelessWidget {
       message,
       showThinkingAndToolCards: showThinkingAndToolCards,
     );
-    final exportReasoningPayload = showThinkingAndToolCards && isAssistant
+    final preserveTimeline =
+        isAssistant &&
+        (showThinkingAndToolCards || uiDisplayFences(message).isNotEmpty);
+    final exportReasoningPayload = preserveTimeline
         ? _exportReasoningPayloadForMessage(
             message,
             expandThinkingContent: expandThinkingContent,
           )
         : const _ExportReasoningPayload(segments: <ReasoningSegment>[]);
-    final toolParts = showThinkingAndToolCards && isAssistant
+    final toolParts = preserveTimeline
         ? _exportToolPartsForMessage(context, message)
         : const <ToolUIPart>[];
     final assistant = context.read<AssistantProvider>().currentAssistant;
@@ -2876,13 +2974,15 @@ class _ExportedBubble extends StatelessWidget {
             reasoningSegments: exportReasoningPayload.segments.isEmpty
                 ? null
                 : exportReasoningPayload.segments,
+            reasoningSegmentsFromInlineThinking:
+                exportReasoningPayload.fromInlineThinking,
             toolParts: toolParts.isEmpty ? null : toolParts,
             contentSplitOffsets: exportReasoningPayload.contentSplitOffsets,
             reasoningCountAtSplit: exportReasoningPayload.reasoningCountAtSplit,
             toolCountAtSplit: exportReasoningPayload.toolCountAtSplit,
             hideStreamingIndicator: true,
-            showThinkingCards: true,
-            showToolCards: true,
+            showThinkingCards: showThinkingAndToolCards,
+            showToolCards: showThinkingAndToolCards,
           ),
         ),
       );

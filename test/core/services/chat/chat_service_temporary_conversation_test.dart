@@ -1274,8 +1274,14 @@ void main() {
       final corrupt = sqlite.sqlite3.open(databasePath);
       late final String originalAssetId;
       const secret = '/private/attachment-metadata';
-      final malformedPayload =
-          '{"uri":"${upload.path}","name":"live.txt","mime":["$secret"]}';
+      // Encoded, not interpolated: a Windows path carries backslashes that are
+      // not valid JSON escapes, and then the row fails as invalid_json instead
+      // of exercising the field-type check this test is about.
+      final malformedPayload = jsonEncode({
+        'uri': upload.path,
+        'name': 'live.txt',
+        'mime': [secret],
+      });
       try {
         originalAssetId =
             corrupt.select(

@@ -45,7 +45,6 @@ class AppSelectionArea extends StatefulWidget {
   /// Offers "Reply" beside the platform Copy, receiving the selection as
   /// markdown. Only a chat bubble passes one.
   final ValueChanged<String>? onReplySelection;
->>>>>>> 1d8d78971 (feat(reply): a message reply carries a quote citation, on markstream's selection (#1027))
 
   @override
   State<AppSelectionArea> createState() => _AppSelectionAreaState();
@@ -193,7 +192,9 @@ class _AppSelectionAreaState extends State<AppSelectionArea> {
           ),
         if (replyMarkdown != null && replyMarkdown.trim().isNotEmpty)
           ContextMenuButtonItem(
-            label: AppLocalizations.of(context)!.chatMessageWidgetReplySelection,
+            label: AppLocalizations.of(
+              context,
+            )!.chatMessageWidgetReplySelection,
             onPressed: () {
               region.hideToolbar();
               widget.onReplySelection!(replyMarkdown);
@@ -232,9 +233,7 @@ class _AppSelectionAreaState extends State<AppSelectionArea> {
     SelectionMarkdownMemory.instance.capture(
       owner: this,
       messageId: messageId,
-      content: [
-        for (final selection in selections) selection.content,
-      ],
+      content: [for (final selection in selections) selection.content],
     );
   }
 

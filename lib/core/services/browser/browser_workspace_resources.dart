@@ -20,7 +20,7 @@ class BrowserWorkspaceResources {
     }
     final uri = Uri.tryParse(value);
     return uri != null &&
-        uri.scheme == 'cuplivo' &&
+        uri.scheme == 'kelivo' &&
         uri.host == 'workspace' &&
         uri.userInfo.isEmpty &&
         !uri.hasPort &&
@@ -92,19 +92,19 @@ class BrowserWorkspaceScope {
     }
     return Uri.parse(
       publicUrl,
-    ).replace(scheme: android ? 'https' : 'cuplivo', host: host);
+    ).replace(scheme: android ? 'https' : 'kelivo', host: host);
   }
 
   bool owns(Uri uri) =>
       uri.host == host &&
       uri.userInfo.isEmpty &&
       !uri.hasPort &&
-      (uri.scheme == 'cuplivo' || uri.scheme == 'https');
+      (uri.scheme == 'kelivo' || uri.scheme == 'https');
 
   String publicUrl(String value) {
     final uri = Uri.tryParse(value);
     return uri != null && owns(uri)
-        ? uri.replace(scheme: 'cuplivo', host: 'workspace').toString()
+        ? uri.replace(scheme: 'kelivo', host: 'workspace').toString()
         : value;
   }
 

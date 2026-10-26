@@ -1,4 +1,4 @@
-import 'package:Kelivo/utils/unicode_sanitizer.dart';
+import 'package:Cuplivo/utils/unicode_sanitizer.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

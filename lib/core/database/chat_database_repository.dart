@@ -25,6 +25,7 @@ import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:uuid/uuid.dart';
 
 import '../models/chat_message.dart';
+import '../models/message_quote.dart';
 import '../models/context_operation.dart';
 import '../models/token_usage.dart';
 import '../models/conversation.dart';
@@ -43,7 +44,6 @@ import 'business_repository.dart';
 import 'chat_database_observer.dart';
 import 'generation_run.dart';
 import 'generation_run_commands.dart';
-import 'schema_columns.dart';
 import 'schema_migrations.dart';
 import 'gen_ui_derived_schema.dart';
 import '../services/api/stream/stream_chunk_handler.dart';
@@ -51,6 +51,7 @@ import '../services/api/providers/claude/claude_thinking_recovery.dart';
 import '../services/api/providers/claude/claude_history.dart';
 import '../services/backup/restore_durability.dart';
 import '../services/backup/restore_previous_plan.dart';
+import '../services/recycle/recycle_service.dart';
 import '../services/sync/sync_merge.dart';
 import '../services/sync/sync_models.dart';
 
@@ -90,6 +91,7 @@ enum InstalledDatabaseDisposition {
 typedef ParsedChatImportBatch = ({
   Conversation conversation,
   List<ChatMessage> messages,
+});
 
 final class LinearMessageWindowSlot {
   const LinearMessageWindowSlot({
@@ -97,11 +99,13 @@ final class LinearMessageWindowSlot {
     required this.revisionId,
     required this.versionCount,
     required this.logicalIndex,
+  });
 
   final String groupId;
   final String revisionId;
   final int versionCount;
   final int logicalIndex;
+}
 
 final class LinearMessageWindow {
   const LinearMessageWindow({
@@ -109,21 +113,30 @@ final class LinearMessageWindow {
     required this.totalSlotCount,
     required this.hasMoreBefore,
     required this.hasMoreAfter,
+  });
 
   final List<LinearMessageWindowSlot> slots;
   final int totalSlotCount;
   final bool hasMoreBefore;
   final bool hasMoreAfter;
+}
 
 typedef PersistedChatMessage = ({
+  Conversation conversation,
   ChatMessage message,
+});
 
 typedef DeletedMessagesResult = ({
+  Conversation conversation,
+  List<ChatMessage> messages,
+});
 
 typedef GenerationBeginResult = ({
+  Conversation conversation,
   ChatMessage? userMessage,
   ChatMessage assistantMessage,
   GenerationRun run,
+});
 
 class BackupMergeReport {
   const BackupMergeReport({
@@ -132,6 +145,7 @@ class BackupMergeReport {
     required this.skippedConversations,
     required this.remappedConversationIds,
     this.importedConversationIds = const <String>[],
+  });
 
   final int importedConversations;
   final int deduplicatedConversations;
@@ -142,6 +156,7 @@ class BackupMergeReport {
   final List<String> importedConversationIds;
 
   int get remappedConversations => remappedConversationIds.length;
+}
 
 class SandboxPathMigrationResult {
   const SandboxPathMigrationResult({
@@ -149,17 +164,20 @@ class SandboxPathMigrationResult {
     required this.scannedMessages,
     required this.updatedMessages,
     required this.skippedParts,
+  });
 
   final bool ran;
   final int scannedMessages;
   final int updatedMessages;
   final int skippedParts;
+}
 
 class ChatDatabaseRepository {
   ChatDatabaseRepository(
     this._db, {
     File? databaseFile,
     ChatDatabaseObserver? observer,
+    this.recycle,
   }) : _databaseFile = databaseFile?.absolute,
        _observer = observer ?? ChatDatabaseObserver.instance;
 
@@ -172,8 +190,10 @@ class ChatDatabaseRepository {
     lifetimeZone: _lifetimeZone,
   );
   late final _genUiSearch = UiSearchIndex(
+    _db,
     readMessages: getMessagesByIds,
     transaction: (action) => _writeTransaction(action),
+  );
 
   Future<void> rebuildGenUiSearchIndex() => _genUiSearch.rebuild();
 
@@ -181,19 +201,27 @@ class ChatDatabaseRepository {
       _genUiSearch.sealRevisions(ids);
 
   late final ComposerDraftStore composerDrafts = ComposerDraftStore(
+    _db,
     writeTransaction: _writeTransaction,
+  );
 
   Future<T> _writeTransaction<T>(Future<T> Function() action) =>
       genUiStates.transaction(action);
   final File? _databaseFile;
   final ChatDatabaseObserver _observer;
+
+  /// The device-local recycle bin, when this repository was opened by the
+  /// gateway. Null in tests and one-shot opens, where nothing stages.
+  final RecycleService? recycle;
   bool _messageSearchFtsReady = false;
 
   static ChatDatabaseRepository open({
     File? file,
+    ChatDatabaseObserver? observer,
   }) {
     final db = AppDatabase.open(file: file);
     return ChatDatabaseRepository(db, databaseFile: file, observer: observer);
+  }
 
   Future<GenerationRun> createGenerationRun({
     required String id,
@@ -205,11 +233,13 @@ class ChatDatabaseRepository {
     conversationId: conversationId,
     targetRevisionId: targetRevisionId,
     createdAt: createdAt,
+  );
 
   Future<GenerationRun?> getGenerationRun(String id) =>
       GenerationRunCommands(_db).get(id);
 
   Future<GenerationRun> transitionGenerationRun({
+    required String id,
     required GenerationRunState expectedState,
     required int expectedStateRevision,
     required GenerationRunState nextState,
@@ -217,27 +247,42 @@ class ChatDatabaseRepository {
     String? errorCode,
   }) => _writeTransaction(() async {
     final run = await GenerationRunCommands(_db).transition(
+      id: id,
       expectedState: expectedState,
       expectedStateRevision: expectedStateRevision,
       nextState: nextState,
       updatedAt: updatedAt,
       errorCode: errorCode,
+    );
     await _sealGenUiSearch([run.targetRevisionId]);
     return run;
+  });
 
   Future<GenerationRun> checkpointGenerationRun({
+    required String id,
+    required String targetRevisionId,
     required int checkpointSeq,
+    required DateTime updatedAt,
   }) => GenerationRunCommands(_db).checkpoint(
+    id: id,
+    targetRevisionId: targetRevisionId,
     checkpointSeq: checkpointSeq,
+    updatedAt: updatedAt,
+  );
 
   Future<GenerationRun> finalizeGenerationRun({
     required ChatMessage message,
     required List<Map<String, dynamic>> toolEvents,
     required String generationRunId,
+    required GenerationRunState expectedState,
+    required int expectedStateRevision,
     required GenerationRunState terminalState,
     int? checkpointSeq,
+    String? errorCode,
+  }) {
     if (!terminalState.isTerminal) {
       throw ArgumentError.value(terminalState, 'terminalState');
+    }
     return _observer.measure(
       ChatDatabaseOperation.commandFinalCheckpoint,
       () => _writeTransaction(() async {
@@ -245,21 +290,35 @@ class ChatDatabaseRepository {
           message,
           toolEvents,
           generationRunId: checkpointSeq == null ? null : generationRunId,
+          checkpointSeq: checkpointSeq,
+        );
+        final run = await GenerationRunCommands(_db).transition(
           id: generationRunId,
+          expectedState: expectedState,
+          expectedStateRevision: expectedStateRevision,
           nextState: terminalState,
           updatedAt: DateTime.now().toUtc(),
+          errorCode: errorCode,
+        );
+        await _sealGenUiSearch([run.targetRevisionId]);
+        return run;
       }),
+    );
+  }
 
   /// Strips a database written by a NEWER build down to the shape this build
   /// knows, so a forward-compatible backup can still be restored.
+  ///
   /// Drops tables this build does not know, drops unknown columns from tables
   /// it does know, and stamps [AppDatabase.currentSchemaVersion]. Afterwards
   /// the ordinary validators see an exact current-schema database, which is
   /// what keeps them single-version.
+  ///
   /// This only reconciles *structure*. It cannot detect a newer build changing
   /// what an existing column MEANS — that is what the manifest's
   /// `minimumReadableSchemaVersion` declaration is for. Callers must have
   /// established permission to proceed before calling this.
+  ///
   /// Operates on a staged copy; the archive itself is never touched, so the
   /// data dropped here is still present if the same backup is later restored
   /// into a build that understands it.
@@ -270,8 +329,10 @@ class ChatDatabaseRepository {
       // transiently orphan rows in another unknown table dropped later.
       database.execute('PRAGMA foreign_keys = OFF;');
       database.execute('BEGIN IMMEDIATE;');
+      try {
         for (final sql in MessageTimelineIndex.discardStatements) {
           database.execute(sql);
+        }
         GenUiDerivedSchema.discard(database);
         final presentTables = database
             .select("SELECT name FROM sqlite_master WHERE type = 'table';")
@@ -283,26 +344,40 @@ class ChatDatabaseRepository {
         for (final table in presentTables) {
           if (!currentSchemaColumns.containsKey(table)) {
             database.execute('DROP TABLE IF EXISTS "$table";');
+          }
+        }
 
         for (final entry in currentSchemaColumns.entries) {
           if (!presentTables.contains(entry.key)) continue;
           final known = entry.value.toSet();
           final actual = database
               .select('PRAGMA table_info("${entry.key}");')
+              .map((row) => row['name'])
+              .whereType<String>()
+              .toList(growable: false);
           for (final column in actual) {
             if (known.contains(column)) continue;
             // Any index over the column has to go first; SQLite refuses to
             // drop an indexed column.
             final indexes = database
                 .select('PRAGMA index_list("${entry.key}");')
+                .map((row) => row['name'])
+                .whereType<String>()
+                .toList(growable: false);
             for (final index in indexes) {
               if (index.startsWith('sqlite_autoindex_')) continue;
               final covers = database
                   .select('PRAGMA index_info("$index");')
+                  .map((row) => row['name'])
+                  .whereType<String>()
                   .contains(column);
               if (covers) database.execute('DROP INDEX IF EXISTS "$index";');
+            }
             database.execute(
               'ALTER TABLE "${entry.key}" DROP COLUMN "$column";',
+            );
+          }
+        }
 
         // This wraps the same raw connection without opening/migrating a new
         // database. All generated DDL and backfill stay inside this raw BEGIN.
@@ -312,12 +387,16 @@ class ChatDatabaseRepository {
             enableMigrations: false,
             closeUnderlyingOnClose: false,
           ),
+        );
+        try {
           await GenUiDerivedSchema.rebuild(schemaDatabase);
         } finally {
           await schemaDatabase.close();
+        }
         _validateRawSchema(database);
         if (database.select('PRAGMA foreign_key_check;').isNotEmpty) {
           throw StateError('database_forward_compat_foreign_keys');
+        }
         // Version and all derived objects commit together. A failed rebuild
         // leaves the staged snapshot at its original version and structure.
         database.userVersion = AppDatabase.currentSchemaVersion;
@@ -325,18 +404,24 @@ class ChatDatabaseRepository {
       } catch (_) {
         database.execute('ROLLBACK;');
         rethrow;
+      }
       database.execute('PRAGMA foreign_keys = ON;');
     } on sqlite.SqliteException {
       throw StateError('database_forward_compat_failed');
+    } finally {
       database.close();
+    }
     await normalizeSnapshotJournal(file);
+  }
 
   /// Suffix of the copy kept while an installed database is being upgraded.
+  ///
   /// The version is part of the name so a sweep can recognise leftovers from a
   /// crash without opening them.
   static const premigrationBackupPrefix = '.premigrate-v';
 
   /// Brings the installed database at [file] up to the current schema.
+  ///
   /// A file already at [AppDatabase.currentSchemaVersion] is validated and left
   /// untouched — this is the every-launch path and performs no writes. A file
   /// at an older published schema is copied aside, upgraded through
@@ -349,31 +434,54 @@ class ChatDatabaseRepository {
     RestoreDurability? durability,
   }) async {
     final int schemaVersion;
+    try {
       schemaVersion = SchemaMigrations.readSchemaVersion(file);
+    } on sqlite.SqliteException {
       throw StateError('database_corrupt');
+    }
 
     if (schemaVersion == AppDatabase.currentSchemaVersion) {
       final database = sqlite.sqlite3.open(
         file.absolute.path,
         mode: sqlite.OpenMode.readOnly,
+      );
+      try {
         // Deliberately validated only at the current schema; see
         // _validateRawStructure.
         _validateRawStructure(database);
+      } on sqlite.SqliteException {
+        throw StateError('database_corrupt');
+      } finally {
+        database.close();
+      }
       return (
         fromVersion: schemaVersion,
         toVersion: schemaVersion,
         upgraded: false,
+      );
+    }
 
     if (!SchemaMigrations.needsUpgrade(schemaVersion)) {
       throw StateError('database_schema_version');
+    }
 
     final resolvedDurability = durability ?? RestorePlatformDurability();
     final parent = file.absolute.parent;
     final backup = File(
       '${file.absolute.path}$premigrationBackupPrefix$schemaVersion',
+    );
 
     // Fold any WAL back in first so the copy is a self-contained database.
+    try {
+      final database = sqlite.sqlite3.open(file.absolute.path);
+      try {
         database.execute('PRAGMA wal_checkpoint(TRUNCATE);');
+      } finally {
+        database.close();
+      }
+    } on sqlite.SqliteException {
+      throw StateError('database_corrupt');
+    }
 
     if (await backup.exists()) await backup.delete();
     await file.copy(backup.path);
@@ -381,7 +489,18 @@ class ChatDatabaseRepository {
     await resolvedDurability.syncFile(backup, fullBarrier: true);
     await resolvedDurability.syncDirectory(parent, fullBarrier: true);
 
+    try {
       await SchemaMigrations.upgradeFileInPlace(file);
+      final database = sqlite.sqlite3.open(
+        file.absolute.path,
+        mode: sqlite.OpenMode.readOnly,
+      );
+      try {
+        _validateRawStructure(database);
+      } finally {
+        database.close();
+      }
+    } catch (_) {
       // The copy is deliberately LEFT BEHIND. Between deleting the database
       // family and finishing the copy back there is no usable database on
       // disk, so the copy is the only surviving good state and must outlive
@@ -391,52 +510,130 @@ class ChatDatabaseRepository {
         backup: backup,
         target: file,
         durability: resolvedDurability,
+      );
       throw StateError('database_migration_failed:$schemaVersion');
+    }
 
     await resolvedDurability.syncFile(file, fullBarrier: true);
     await backup.delete();
+    await resolvedDurability.syncDirectory(parent, fullBarrier: true);
 
+    return (
+      fromVersion: schemaVersion,
       toVersion: AppDatabase.currentSchemaVersion,
       upgraded: true,
+    );
+  }
 
   static InstalledChatDatabaseInfo inspectInstalledDatabase(
+    File file, {
     bool validateContents = false,
+  }) {
+    final database = sqlite.sqlite3.open(
+      file.absolute.path,
+      mode: sqlite.OpenMode.readOnly,
+    );
+    try {
       final schemaVersion = database.userVersion;
       if (schemaVersion > AppDatabase.currentSchemaVersion) {
         throw StateError('database_schema_too_new');
+      }
       if (validateContents) {
         _validateRawSnapshot(database);
       } else {
+        _validateRawStructure(database);
+      }
       if (schemaVersion != AppDatabase.currentSchemaVersion) {
+        throw StateError('database_schema_version');
+      }
       final identityRows = database.select(
         'SELECT value FROM chat_storage_meta_rows WHERE key = ?;',
         [ChatStorageMetaKeys.databaseIdentity],
+      );
       if (identityRows.length > 1) {
         throw StateError('database_identity_duplicate');
+      }
       final databaseId = identityRows.isEmpty
           ? null
           : identityRows.single['value'] as String?;
       if (databaseId != null && !_isUuid(databaseId)) {
         throw StateError('database_identity_invalid');
+      }
       return (schemaVersion: schemaVersion, databaseId: databaseId);
+    } on sqlite.SqliteException {
+      throw StateError('database_corrupt');
+    } finally {
+      database.close();
+    }
+  }
 
   static InstalledChatDatabaseInfo inspectUncleanInstalledDatabase(File file) {
+    final database = sqlite.sqlite3.open(
+      file.absolute.path,
+      mode: sqlite.OpenMode.readOnly,
+    );
+    try {
       final quickCheckRows = database.select('PRAGMA quick_check;');
       if (quickCheckRows.length != 1 ||
           quickCheckRows.single.values.single != 'ok') {
         throw StateError('quick_check');
+      }
+      if (database.select('PRAGMA foreign_key_check;').isNotEmpty) {
         throw StateError('foreign_key_check');
+      }
+      _validateRawStructure(database);
       if (database.userVersion != AppDatabase.currentSchemaVersion) {
+        throw StateError('database_schema_version');
+      }
+      final identityRows = database.select(
+        'SELECT value FROM chat_storage_meta_rows WHERE key = ?;',
+        [ChatStorageMetaKeys.databaseIdentity],
+      );
+      if (identityRows.length > 1) {
+        throw StateError('database_identity_duplicate');
+      }
+      final databaseId = identityRows.isEmpty
+          ? null
+          : identityRows.single['value'] as String?;
+      if (databaseId != null && !_isUuid(databaseId)) {
+        throw StateError('database_identity_invalid');
+      }
       return (schemaVersion: database.userVersion, databaseId: databaseId);
+    } on sqlite.SqliteException {
+      throw StateError('database_corrupt');
+    } finally {
+      database.close();
+    }
+  }
 
   static void assignInstalledDatabaseIdentity(File file, String databaseId) {
     if (!_isUuid(databaseId)) throw StateError('database_identity_invalid');
+    final database = sqlite.sqlite3.open(file.absolute.path);
+    try {
+      database.execute('PRAGMA foreign_keys = ON;');
       database.execute('PRAGMA synchronous = FULL;');
+      _validateRawStructure(database);
+      if (database.userVersion != AppDatabase.currentSchemaVersion) {
+        throw StateError('database_schema_version');
+      }
       final existing = database.select(
+        'SELECT value FROM chat_storage_meta_rows WHERE key = ?;',
+        [ChatStorageMetaKeys.databaseIdentity],
+      );
       if (existing.isNotEmpty && existing.single['value'] != databaseId) {
         throw StateError('database_identity_mismatch');
+      }
+      database.execute(
         'INSERT OR IGNORE INTO chat_storage_meta_rows (key, value) VALUES (?, ?);',
         [ChatStorageMetaKeys.databaseIdentity, databaseId],
+      );
+      database.execute('PRAGMA wal_checkpoint(TRUNCATE);');
+    } on sqlite.SqliteException {
+      throw StateError('database_corrupt');
+    } finally {
+      database.close();
+    }
+  }
 
   static bool _isUuid(String value) => RegExp(
     r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
@@ -448,6 +645,7 @@ class ChatDatabaseRepository {
     required File destinationFile,
     void Function(int handleAddress)? registerSourceHandle,
     Future<void> Function()? waitForSourceCloseAck,
+  }) async {
     final sourcePath = sourceFile.absolute.path;
     final destinationPath = destinationFile.absolute.path;
     if (sourcePath == destinationPath) {
@@ -455,13 +653,18 @@ class ChatDatabaseRepository {
         destinationFile.path,
         'destinationFile',
         'must differ from sourceFile',
+      );
+    }
     if (!await sourceFile.exists()) {
       throw FileSystemException('Source database does not exist', sourcePath);
+    }
 
     await destinationFile.parent.create(recursive: true);
     await _deleteDatabaseFamily(destinationFile);
 
+    try {
       final source = sqlite.sqlite3.open(sourcePath);
+      try {
         source.execute('PRAGMA busy_timeout = 30000;');
         registerSourceHandle?.call(source.handle.address);
         // VACUUM INTO does not write the source. query_only is omitted because
@@ -469,17 +672,29 @@ class ChatDatabaseRepository {
         // Parent timeout/cancel calls sqlite3_interrupt on [source.handle]
         // before isolate.kill so a stuck step can return and release WAL.
         source.execute('VACUUM INTO ?', [destinationPath]);
+      } finally {
         if (waitForSourceCloseAck != null) {
           await waitForSourceCloseAck();
+        }
         source.close();
+      }
 
       final snapshot = sqlite.sqlite3.open(destinationPath);
+      try {
         final info = _validateRawSnapshot(snapshot);
         GenUiDerivedSchema.rebuildExportIndex(snapshot);
         return info;
+      } finally {
         snapshot.close();
+      }
+    } catch (_) {
+      await _deleteDatabaseFamily(destinationFile);
+      rethrow;
+    }
+  }
 
   /// Prepares a snapshot for restore, bringing its schema to this build's.
+  ///
   /// An older published schema is migrated forward. A NEWER schema is only
   /// accepted when [allowForwardCompatible] is set — the caller establishes
   /// that from the backup manifest's compatibility declaration, or from the
@@ -488,10 +703,13 @@ class ChatDatabaseRepository {
   static Future<ChatDatabaseSnapshotInfo> prepareSnapshotForRestore(
     File snapshotFile, {
     bool allowForwardCompatible = false,
+  }) async {
     if (!await snapshotFile.exists()) {
       throw FileSystemException(
         'Snapshot database does not exist',
         snapshotFile.path,
+      );
+    }
 
     // A snapshot authored by an older build carries an older schema; bring it
     // forward before validating, because the validators only ever describe the
@@ -500,18 +718,32 @@ class ChatDatabaseRepository {
     // of this method checkpoints, switches to DELETE and deletes sidecars.
     final snapshotSchemaVersion = SchemaMigrations.readSchemaVersion(
       snapshotFile,
+    );
     if (SchemaMigrations.needsUpgrade(snapshotSchemaVersion)) {
       await SchemaMigrations.upgradeFileInPlace(snapshotFile);
     } else if (snapshotSchemaVersion > AppDatabase.currentSchemaVersion) {
       if (!allowForwardCompatible) {
+        throw StateError('database_schema_too_new');
+      }
       await normalizeForwardCompatibleSnapshot(snapshotFile);
     } else if (snapshotSchemaVersion != AppDatabase.currentSchemaVersion) {
+      throw StateError('database_schema_version');
+    }
 
     final database = sqlite.sqlite3.open(snapshotFile.absolute.path);
     late final ChatDatabaseSnapshotInfo initialInfo;
+    try {
       initialInfo = _validateRawSnapshot(database);
       // Now a post-condition: the migration above guarantees it.
       if (initialInfo.schemaVersion != AppDatabase.currentSchemaVersion) {
+        throw StateError('database_schema_version');
+      }
+      database.execute('BEGIN IMMEDIATE;');
+      try {
+        for (final sql in MessageTimelineIndex.discardStatements) {
+          database.execute(sql);
+        }
+        database.execute(
           // Terminating an abandoned stream is a real state change; stamp
           // updated_at in the same statement so LWW/sync consumers see the
           // termination instead of the stale pre-crash value. Merge
@@ -520,47 +752,86 @@ class ChatDatabaseRepository {
           'UPDATE message_rows SET is_streaming = 0, updated_at = ? '
           'WHERE is_streaming != 0;',
           [DateTime.now().toUtc().microsecondsSinceEpoch],
+        );
         database.execute('DELETE FROM chat_storage_meta_rows WHERE key = ?;', [
           ChatStorageMetaKeys.activeStreamingIds,
         ]);
+        database.execute(
           'INSERT OR REPLACE INTO chat_storage_meta_rows (key, value) '
           'VALUES (?, ?);',
           [ChatStorageMetaKeys.hiveMigrationComplete, 'true'],
+        );
+        database.execute('COMMIT;');
+      } catch (_) {
+        database.execute('ROLLBACK;');
+        rethrow;
+      }
+      database.execute('PRAGMA wal_checkpoint(TRUNCATE);');
       database.select('PRAGMA journal_mode = DELETE;');
+    } finally {
+      database.close();
+    }
 
     await _deleteDatabaseSidecars(snapshotFile);
     final reopenedInfo = await inspectPreparedSnapshot(snapshotFile);
     if (reopenedInfo != initialInfo) {
       throw StateError('snapshot_reopen_mismatch');
+    }
     return initialInfo;
+  }
 
   static Future<ChatDatabaseSnapshotInfo> inspectPreparedSnapshot(
     File snapshotFile,
   ) async {
     if (await FileSystemEntity.type(snapshotFile.path, followLinks: false) !=
         FileSystemEntityType.file) {
+      throw FileSystemException(
         'Snapshot database is not a regular file',
+        snapshotFile.path,
+      );
+    }
     await _requireNoDatabaseSidecars(snapshotFile);
 
+    final database = sqlite.sqlite3.open(
       snapshotFile.absolute.path,
+      mode: sqlite.OpenMode.readOnly,
+    );
     var inspectionCompleted = false;
+    try {
       final info = _validateRawSnapshot(database);
       if (info.schemaVersion != AppDatabase.currentSchemaVersion) {
+        throw StateError('database_schema_version');
+      }
       final streamingRows = database.select(
         'SELECT COUNT(*) AS count FROM message_rows WHERE is_streaming != 0;',
+      );
       if (streamingRows.single['count'] != 0) {
         throw StateError('database_streaming_messages');
+      }
       final activeStreamingRows = database.select(
+        'SELECT value FROM chat_storage_meta_rows WHERE key = ?;',
         [ChatStorageMetaKeys.activeStreamingIds],
+      );
       if (activeStreamingRows.isNotEmpty) {
         throw StateError('database_active_streaming_ids');
+      }
       final migrationRows = database.select(
+        'SELECT value FROM chat_storage_meta_rows WHERE key = ?;',
         [ChatStorageMetaKeys.hiveMigrationComplete],
+      );
       if (migrationRows.length != 1 ||
           migrationRows.single['value'] != 'true') {
         throw StateError('database_migration_receipt');
+      }
       inspectionCompleted = true;
+      return info;
+    } finally {
+      database.close();
       if (inspectionCompleted) {
+        await _requireNoDatabaseSidecars(snapshotFile);
+      }
+    }
+  }
 
   static Future<void> _requireNoDatabaseSidecars(File databaseFile) async {
     for (final suffix in const ['-wal', '-shm', '-journal']) {
@@ -568,6 +839,9 @@ class ChatDatabaseRepository {
       if (await FileSystemEntity.type(sidecar.path, followLinks: false) !=
           FileSystemEntityType.notFound) {
         throw StateError('database_sidecar:$suffix');
+      }
+    }
+  }
 
   static ChatDatabaseSnapshotInfo _validateRawSnapshot(
     sqlite.Database database,
@@ -576,18 +850,30 @@ class ChatDatabaseRepository {
     if (integrityRows.length != 1 ||
         integrityRows.single.values.single != 'ok') {
       throw StateError('integrity_check');
+    }
+    if (database.select('PRAGMA foreign_key_check;').isNotEmpty) {
+      throw StateError('foreign_key_check');
+    }
 
+    _validateRawStructure(database);
 
+    return (
       schemaVersion: database.userVersion,
       conversationCount: _rawTableCount(database, 'conversation_rows'),
       messageCount: _rawTableCount(database, 'message_rows'),
+    );
+  }
 
   /// Validates that [database] matches the CURRENT schema exactly.
+  ///
   /// It never validates a historical schema: callers must upgrade to
   /// [AppDatabase.currentSchemaVersion] first (see [SchemaMigrations]). Keeping
   /// this rule is what lets future migrations ship without version-aware
   /// validators.
   static void _validateRawStructure(sqlite.Database database) {
+    if (database.userVersion != AppDatabase.currentSchemaVersion) {
+      throw StateError('database_schema_version');
+    }
 
     const requiredTables = {
       'conversation_rows',
@@ -624,7 +910,10 @@ class ChatDatabaseRepository {
     };
     final tableRows = database.select(
       "SELECT name FROM sqlite_master WHERE type = 'table';",
+    );
     final tables = tableRows
+        .map((row) => row['name'])
+        .whereType<String>()
         .toSet();
     if (tables.intersection(const {
       'message_slot_rows',
@@ -633,23 +922,188 @@ class ChatDatabaseRepository {
       'conversation_state_rows',
     }).isNotEmpty) {
       throw StateError('retired_tables');
+    }
     if (!tables.containsAll(requiredTables)) {
       throw StateError('required_tables');
+    }
+    _validateRawSchema(database);
+  }
 
   /// Every table this build knows, with its exact column order.
+  ///
   /// This is the authoritative shape of [AppDatabase.currentSchemaVersion]:
   /// [_validateRawSchema] asserts a database matches it exactly, and
   /// [normalizeForwardCompatibleSnapshot] strips a newer database down to it.
   /// Keep it in step with the table DSL — see SchemaMigrations for the
   /// checklist that a schema bump has to follow.
+  static const currentSchemaColumns = <String, List<String>>{
+    'conversation_rows': [
+      'id',
+      'title',
+      'created_at',
+      'updated_at',
+      'is_pinned',
+      'assistant_id',
+      'truncate_index',
+      'version_selections_json',
+      'summary',
+      'last_summarized_message_count',
+      'chat_suggestions_json',
+      'injected_memory_hash',
+      'last_memory_extracted_order',
+      'chat_model_provider',
+      'chat_model_id',
+      'extras_json',
+    ],
+    'conversation_mcp_server_rows': ['conversation_id', 'server_id', 'ordinal'],
+    'message_rows': [
+      'id',
+      'conversation_id',
+      'role',
+      'timestamp',
+      'model_id',
+      'provider_id',
+      'total_tokens',
+      'is_streaming',
+      'reasoning_start_at',
+      'reasoning_finished_at',
+      'translation',
+      'reasoning_segments_json',
+      'group_id',
+      'version',
+      'prompt_tokens',
+      'completion_tokens',
+      'cached_tokens',
+      'duration_ms',
+      'message_order',
+      'updated_at',
+      'sender_id',
+      'extras_json',
+    ],
+    'chat_storage_meta_rows': ['key', 'value'],
+    'message_part_rows': [
+      'part_id',
+      'conversation_id',
+      'revision_id',
+      'ordinal',
+      'kind',
+      'payload',
+      'created_at',
+      'updated_at',
+    ],
+    'generation_run_rows': [
+      'id',
+      'conversation_id',
+      'target_revision_id',
+      'state',
+      'state_revision',
+      'checkpoint_seq',
+      'error_code',
+      'created_at',
+      'updated_at',
+      'terminal_at',
+    ],
+    'provider_artifact_rows': [
+      'conversation_id',
+      'revision_id',
+      'kind',
+      'payload',
+      'created_at',
+      'updated_at',
+    ],
+    'asset_rows': [
+      'id',
+      'content_hash',
+      'path',
+      'byte_size',
+      'width',
+      'height',
+      'thumbnail_path',
+      'created_at',
+      'last_referenced_at',
+      'extras_json',
+    ],
+    'message_asset_rows': [
+      'conversation_id',
+      'revision_id',
+      'asset_id',
+      'kind',
+    ],
+    'asset_gc_rows': ['asset_id', 'not_before', 'attempts', 'generation'],
+    'gc_audit_rows': ['id', 'kind', 'entity_id', 'completed_at'],
+    'asset_reference_dirty_rows': ['revision_id'],
+    'assistant_rows': ['id', 'sort_order', 'payload', 'updated_at'],
+    'provider_rows': ['provider_key', 'sort_order', 'payload', 'updated_at'],
+    'provider_group_rows': ['id', 'sort_order', 'payload', 'updated_at'],
+    'mcp_server_rows': ['id', 'sort_order', 'payload', 'updated_at'],
+    'world_book_rows': ['id', 'sort_order', 'payload', 'updated_at'],
+    'assistant_memory_rows': [
+      'id',
+      'sort_order',
+      'assistant_id',
+      'payload',
+      'updated_at',
+    ],
+    'quick_phrase_rows': ['id', 'sort_order', 'payload', 'updated_at'],
+    'search_service_rows': ['id', 'sort_order', 'payload', 'updated_at'],
+    'tts_service_rows': ['id', 'sort_order', 'payload', 'updated_at'],
+    'instruction_injection_rows': ['id', 'sort_order', 'payload', 'updated_at'],
+    'assistant_tag_rows': ['id', 'sort_order', 'payload', 'updated_at'],
+    'preference_rows': ['key', 'value', 'updated_at'],
+    'memory_entry_rows': [
+      'id',
+      'sort_order',
+      'scope',
+      'assistant_id',
+      'type',
+      'status',
+      'content',
+      'content_normalized',
+      'entry_created_at',
+      'entry_updated_at',
+      'payload',
+      'updated_at',
+    ],
+    'user_profile_field_rows': ['id', 'sort_order', 'payload', 'updated_at'],
+    'message_prompt_rows': [
+      'revision_id',
+      'conversation_id',
+      'payload',
+      'carries_memory_snapshot',
+      'created_at',
+    ],
+    'tombstone_rows': ['scope', 'entity_id', 'deleted_at', 'payload'],
+    'extension_entity_rows': [
+      'kind',
+      'id',
+      'sort_order',
+      'owner_id',
+      'payload',
+      'updated_at',
+    ],
+    'gen_ui_surface_state_rows': [
+      'revision_id',
+      'surface_key',
+      'source_hash',
+      'state_version',
+      'state_json',
+      'search_text',
+      'updated_at',
+    ],
+  };
 
   static void _validateRawSchema(sqlite.Database database) {
     const expectedColumns = currentSchemaColumns;
     for (final entry in expectedColumns.entries) {
       final tableInfo = database.select('PRAGMA table_info(${entry.key});');
       final actual = tableInfo
+          .map((row) => row['name'])
+          .whereType<String>()
+          .toList(growable: false);
       if (!_sameOrderedStrings(actual, entry.value)) {
         throw StateError('table_schema:${entry.key}');
+      }
+    }
 
     const expectedPrimaryKeys = <String, List<String>>{
       'asset_rows': ['id'],
@@ -675,7 +1129,23 @@ class ChatDatabaseRepository {
       'tombstone_rows': ['scope', 'entity_id'],
       'extension_entity_rows': ['kind', 'id'],
       'gen_ui_surface_state_rows': ['revision_id', 'surface_key'],
+    };
     const sortOrderTables = {
+      'assistant_rows',
+      'provider_rows',
+      'provider_group_rows',
+      'mcp_server_rows',
+      'world_book_rows',
+      'assistant_memory_rows',
+      'quick_phrase_rows',
+      'search_service_rows',
+      'tts_service_rows',
+      'instruction_injection_rows',
+      'assistant_tag_rows',
+      'memory_entry_rows',
+      'user_profile_field_rows',
+      'extension_entity_rows',
+    };
     for (final entry in expectedPrimaryKeys.entries) {
       final primaryRows =
           database
@@ -685,8 +1155,14 @@ class ChatDatabaseRepository {
             ..sort(
               (left, right) =>
                   (left['pk'] as int).compareTo(right['pk'] as int),
+            );
       final actual = primaryRows
+          .map((row) => row['name'])
+          .whereType<String>()
+          .toList(growable: false);
+      if (!_sameOrderedStrings(actual, entry.value)) {
         throw StateError('primary_key_schema:${entry.key}');
+      }
       if (sortOrderTables.contains(entry.key)) {
         final schemaRow = database.select(
           "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?;",
@@ -697,59 +1173,99 @@ class ChatDatabaseRepository {
             .toLowerCase();
         if (!normalizedSql.contains('check(sort_order>=0)')) {
           throw StateError('check_schema:${entry.key}');
+        }
+      }
+    }
 
     const memoryIndexName = 'idx_assistant_memories_assistant';
     final memoryIndexRows = database.select(
       'PRAGMA index_list(assistant_memory_rows);',
+    );
     final memoryIndex = memoryIndexRows.where(
       (row) => row['name'] == memoryIndexName,
+    );
     if (memoryIndex.length != 1 || memoryIndex.single['unique'] != 0) {
       throw StateError('index_schema:$memoryIndexName');
+    }
     final memoryIndexColumns = database
         .select('PRAGMA index_info($memoryIndexName);')
+        .map((row) => row['name'])
+        .whereType<String>()
+        .toList(growable: false);
     if (!_sameOrderedStrings(memoryIndexColumns, const [
       'assistant_id',
       'id',
     ])) {
+      throw StateError('index_schema:$memoryIndexName');
+    }
 
     void requireIndex({
       required String table,
       required String name,
       required List<String> columns,
+    }) {
       final indexRows = database.select('PRAGMA index_list($table);');
       final index = indexRows.where((row) => row['name'] == name);
       if (index.length != 1 || index.single['unique'] != 0) {
         throw StateError('index_schema:$name');
+      }
+      final actual = database
           .select('PRAGMA index_info($name);')
+          .map((row) => row['name'])
+          .whereType<String>()
+          .toList(growable: false);
       if (!_sameOrderedStrings(actual, columns)) {
+        throw StateError('index_schema:$name');
+      }
+    }
 
     requireIndex(
       table: 'memory_entry_rows',
       name: 'idx_memory_entries_visible',
       columns: const ['status', 'type', 'scope', 'assistant_id'],
+    );
+    requireIndex(
+      table: 'memory_entry_rows',
       name: 'idx_memory_entries_recent',
       columns: const ['status', 'type', 'entry_updated_at', 'id'],
+    );
+    requireIndex(
+      table: 'memory_entry_rows',
       name: 'idx_memory_entries_dedupe',
       columns: const ['scope', 'assistant_id', 'type', 'content_normalized'],
+    );
+    requireIndex(
       table: 'message_prompt_rows',
       name: 'idx_message_prompts_conversation_snapshot',
       columns: const ['conversation_id', 'carries_memory_snapshot'],
+    );
+    requireIndex(
       table: 'extension_entity_rows',
       name: 'idx_extension_entities_kind_order',
       columns: const ['kind', 'sort_order'],
+    );
 
     const assetIndexName = 'idx_message_assets_asset';
     final assetIndexRows = database.select(
       'PRAGMA index_list(message_asset_rows);',
+    );
     final assetIndex = assetIndexRows.where(
       (row) => row['name'] == assetIndexName,
+    );
     if (assetIndex.length != 1 || assetIndex.single['unique'] != 0) {
       throw StateError('index_schema:$assetIndexName');
+    }
     final assetIndexColumns = database
         .select('PRAGMA index_info($assetIndexName);')
+        .map((row) => row['name'])
+        .whereType<String>()
+        .toList(growable: false);
     if (!_sameOrderedStrings(assetIndexColumns, const [
       'asset_id',
       'revision_id',
+    ])) {
+      throw StateError('index_schema:$assetIndexName');
+    }
 
     final hasUniqueAssetContentHash = database
         .select('PRAGMA index_list(asset_rows);')
@@ -762,10 +1278,13 @@ class ChatDatabaseRepository {
           final columns = database.select(
             'SELECT name FROM pragma_index_info(?) ORDER BY seqno;',
             [indexName],
+          );
           return columns.length == 1 &&
               columns.single['name'] == 'content_hash';
+        });
     if (!hasUniqueAssetContentHash) {
       throw StateError('index_schema:asset_rows.content_hash');
+    }
 
     const expectedForeignKeys = <String, Set<String>>{
       'conversation_mcp_server_rows': {
@@ -774,12 +1293,15 @@ class ChatDatabaseRepository {
       'message_rows': {'conversation_id->conversation_rows.id:CASCADE'},
       'message_part_rows': {'revision_id->message_rows.id:CASCADE'},
       'generation_run_rows': {
+        'conversation_id->conversation_rows.id:CASCADE',
         'target_revision_id->message_rows.id:NO ACTION',
+      },
       'provider_artifact_rows': {'revision_id->message_rows.id:CASCADE'},
       'asset_rows': <String>{},
       'message_asset_rows': {
         'revision_id->message_rows.id:CASCADE',
         'asset_id->asset_rows.id:CASCADE',
+      },
       'asset_gc_rows': {'asset_id->asset_rows.id:CASCADE'},
       'gc_audit_rows': <String>{},
       'asset_reference_dirty_rows': {'revision_id->message_rows.id:CASCADE'},
@@ -801,36 +1323,48 @@ class ChatDatabaseRepository {
       'tombstone_rows': <String>{},
       'extension_entity_rows': <String>{},
       'gen_ui_surface_state_rows': {'revision_id->message_rows.id:CASCADE'},
+    };
     for (final entry in expectedForeignKeys.entries) {
+      final actual = database
           .select('PRAGMA foreign_key_list(${entry.key});')
           .map(
             (row) =>
                 '${row['from']}->${row['table']}.${row['to']}:'
                 '${row['on_delete']}',
+          )
+          .toSet();
       if (actual.length != entry.value.length ||
           !actual.containsAll(entry.value)) {
         throw StateError('foreign_key_schema:${entry.key}');
+      }
+    }
     GenUiDerivedSchema.validate(database);
+  }
 
   static bool _sameOrderedStrings(List<String> actual, List<String> expected) {
     if (actual.length != expected.length) return false;
     for (var i = 0; i < actual.length; i++) {
       if (actual[i] != expected[i]) return false;
+    }
     return true;
+  }
 
   static int _rawTableCount(sqlite.Database database, String table) {
     return database
             .select('SELECT COUNT(*) AS count FROM $table;')
             .single['count']
         as int;
+  }
 
   /// Puts [backup] back at [target], leaving [backup] in place until the
   /// restored database has been verified.
+  ///
   /// A crash at any point leaves [backup] intact and a re-run redoes the copy.
   /// This is what makes the pre-migration copy a real safety net rather than a
   /// second thing to lose. Note that a re-run is only free of information loss
   /// where [retireTarget] is: the default deletes, so a caller that can retry
   /// must supply one that does not.
+  ///
   /// [retireTarget] decides what happens to the database being rolled back
   /// over. It defaults to deleting it, which is right when the caller made the
   /// mess itself (a failed in-place migration, where [backup] is that same
@@ -840,16 +1374,25 @@ class ChatDatabaseRepository {
   static Future<void> restorePreMigrationBackup({
     required File backup,
     required File target,
+    RestoreDurability? durability,
     Future<void> Function(File target)? retireTarget,
+  }) async {
+    final resolvedDurability = durability ?? RestorePlatformDurability();
     final parent = target.absolute.parent;
     await (retireTarget ?? _deleteDatabaseFamily)(target);
     await backup.copy(target.absolute.path);
     await resolvedDurability.syncFile(target, fullBarrier: true);
+    await resolvedDurability.syncDirectory(parent, fullBarrier: true);
     if (classifyInstalledDatabase(target) !=
         InstalledDatabaseDisposition.usable) {
       throw StateError('database_rollback_failed');
+    }
+    await backup.delete();
+    await resolvedDurability.syncDirectory(parent, fullBarrier: true);
+  }
 
   /// What a crash-recovery sweep may do with the installed database at [file].
+  ///
   /// Deliberately total: throwing here would strand the user with a
   /// pre-migration copy nobody dares act on, so every failure mode resolves to
   /// a disposition.
@@ -863,17 +1406,26 @@ class ChatDatabaseRepository {
     final peeked = _peekSchemaVersion(file, writable: false);
     if (peeked != null && _isForeignSchema(peeked)) {
       return InstalledDatabaseDisposition.foreignSchema;
+    }
 
+    try {
+      final database = sqlite.sqlite3.open(file.absolute.path);
+      try {
         // Folds in a hot WAL, so committed data is not mistaken for damage.
+        database.execute('PRAGMA wal_checkpoint(TRUNCATE);');
         // Re-read after the checkpoint: the read-only peek above can fail
         // outright on a hot WAL, and this is the first reliable reading.
+        final schemaVersion = database.userVersion;
         if (_isForeignSchema(schemaVersion)) {
+          return InstalledDatabaseDisposition.foreignSchema;
+        }
         // 0 is a file that was created but never given a schema -- a copy
         // interrupted at the very start, not a version from elsewhere.
         if (schemaVersion == 0) return InstalledDatabaseDisposition.unusable;
         final check = database.select('PRAGMA quick_check;');
         if (check.length != 1 || check.single.values.single != 'ok') {
           return InstalledDatabaseDisposition.unusable;
+        }
         // quick_check only proves the file is physically sound; it says
         // nothing about missing tables, columns, or indexes. A migration that
         // committed but left the schema incomplete would otherwise read as
@@ -884,34 +1436,78 @@ class ChatDatabaseRepository {
         // this build's exact column set, so an older published version has to
         // wait until it has been migrated. Its copy is a duplicate of itself
         // at that point, so nothing is lost by trusting it.
+        if (schemaVersion == AppDatabase.currentSchemaVersion) {
+          try {
+            _validateRawStructure(database);
+          } catch (_) {
+            return InstalledDatabaseDisposition.unusable;
+          }
+        }
         return InstalledDatabaseDisposition.usable;
+      } finally {
+        database.close();
+      }
+    } catch (_) {
+      return InstalledDatabaseDisposition.unusable;
+    }
+  }
 
   /// A version that belongs to some other build, as opposed to damage.
+  ///
   /// 0 is excluded on purpose: it means no schema was ever written, which is
   /// an interrupted copy rather than a foreign version.
   static bool _isForeignSchema(int userVersion) =>
       userVersion != 0 && !SchemaMigrations.isPublished(userVersion);
 
   static int? _peekSchemaVersion(File file, {required bool writable}) {
+    try {
+      final database = sqlite.sqlite3.open(
+        file.absolute.path,
         mode: writable ? sqlite.OpenMode.readWrite : sqlite.OpenMode.readOnly,
+      );
+      try {
         return database.userVersion;
+      } finally {
+        database.close();
+      }
+    } catch (_) {
       return null;
+    }
+  }
 
   static Future<void> _deleteDatabaseFamily(File databaseFile) async {
     for (final suffix in const ['', '-wal', '-shm', '-journal']) {
       final file = File('${databaseFile.path}$suffix');
       if (await file.exists()) {
         await file.delete();
+      }
+    }
+  }
 
   /// Returns [databaseFile] to the shape an archived snapshot must have:
   /// journal folded in, DELETE journal mode, no sidecars.
+  ///
   /// Opening a snapshot for anything — including a schema upgrade — can leave a
   /// WAL behind, and [inspectPreparedSnapshot] rejects sidecars.
   static Future<void> normalizeSnapshotJournal(File databaseFile) async {
     final database = sqlite.sqlite3.open(databaseFile.absolute.path);
+    try {
+      database.execute('PRAGMA wal_checkpoint(TRUNCATE);');
+      database.select('PRAGMA journal_mode = DELETE;');
+    } finally {
+      database.close();
+    }
     await _deleteDatabaseSidecars(databaseFile);
+  }
 
   static Future<void> _deleteDatabaseSidecars(File databaseFile) async {
+    for (final suffix in const ['-wal', '-shm', '-journal']) {
+      final file = File('${databaseFile.path}$suffix');
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
+  }
 
   Future<void> close() async {
     await composerDrafts.flush();
@@ -919,15 +1515,19 @@ class ChatDatabaseRepository {
     composerDrafts.dispose();
     genUiStates.discardAfterCutover();
     await _db.close();
+  }
 
   Future<void> ensureReady() async {
     await _db.customSelect('SELECT 1').get();
+  }
 
   Future<ChatDatabaseConnectionContract> validateConnectionContract() async {
     final stopwatch = Stopwatch()..start();
+    try {
       Future<Object?> pragma(String name) async {
         final row = await _db.customSelect('PRAGMA $name;').getSingle();
         return row.data.values.single;
+      }
 
       final contract = ChatDatabaseConnectionContract(
         schemaVersion: await pragma('user_version') as int,
@@ -938,30 +1538,45 @@ class ChatDatabaseRepository {
         synchronous: await pragma('synchronous') as int,
         walAutoCheckpointPages: await pragma('wal_autocheckpoint') as int,
         journalSizeLimitBytes: await pragma('journal_size_limit') as int,
+      );
       if (contract.schemaVersion != AppDatabase.currentSchemaVersion) {
         throw StateError('database_connection_contract:schema_version');
+      }
       if (!contract.journalModeWal) {
         throw StateError('database_connection_contract:journal_mode');
+      }
       if (!contract.foreignKeysEnabled) {
         throw StateError('database_connection_contract:foreign_keys');
+      }
       if (contract.busyTimeoutMillis != AppDatabase.busyTimeoutMillis) {
         throw StateError('database_connection_contract:busy_timeout');
+      }
       if (contract.synchronous != AppDatabase.synchronousNormal) {
         throw StateError('database_connection_contract:synchronous');
+      }
       if (contract.walAutoCheckpointPages !=
           AppDatabase.walAutoCheckpointPages) {
         throw StateError('database_connection_contract:wal_autocheckpoint');
+      }
       if (contract.journalSizeLimitBytes != AppDatabase.journalSizeLimitBytes) {
         throw StateError('database_connection_contract:journal_size_limit');
+      }
       stopwatch.stop();
       _observer.recordConnectionContract(
         contract,
         elapsedMicros: stopwatch.elapsedMicroseconds,
+      );
       return contract;
     } catch (error) {
+      stopwatch.stop();
       _observer.recordFailure(
         operation: ChatDatabaseOperation.connectionContract,
+        elapsedMicros: stopwatch.elapsedMicroseconds,
         error: error,
+      );
+      rethrow;
+    }
+  }
 
   Future<String?> getDatabaseIdentity() async {
     final row =
@@ -970,41 +1585,56 @@ class ChatDatabaseRepository {
             ))
             .getSingleOrNull();
     return row?.value;
+  }
 
   Future<SandboxPathMigrationResult> migrateSandboxPaths({
     required int targetVersion,
     required String targetRoot,
     required String Function(String uri) rewriteUri,
     int batchSize = 360,
+  }) async {
     if (targetVersion <= 0) {
       throw ArgumentError.value(targetVersion, 'targetVersion');
+    }
     if (targetRoot.trim().isEmpty) {
       throw ArgumentError.value(targetRoot, 'targetRoot');
+    }
     if (batchSize <= 0) throw ArgumentError.value(batchSize, 'batchSize');
     return _db.transaction(() async {
       final receipt =
+          await (_db.select(_db.chatStorageMetaRows)..where(
                 (row) => row.key.equals(ChatStorageMetaKeys.sandboxPathVersion),
+              ))
+              .getSingleOrNull();
       var currentVersion = 0;
       String? currentRoot;
       if (receipt != null) {
         final Object? decoded;
+        try {
           decoded = jsonDecode(receipt.value);
         } on FormatException {
           throw StateError('sandbox_path_migration_receipt');
+        }
         if (decoded is! Map<String, dynamic> ||
             decoded.length != 2 ||
             decoded['version'] is! int ||
             decoded['targetRoot'] is! String) {
+          throw StateError('sandbox_path_migration_receipt');
+        }
         currentVersion = decoded['version'] as int;
         currentRoot = decoded['targetRoot'] as String;
+      }
       if (currentVersion > targetVersion) {
         throw StateError('sandbox_path_migration_version');
+      }
       if (currentVersion == targetVersion && currentRoot == targetRoot) {
         return const SandboxPathMigrationResult(
           ran: false,
           scannedMessages: 0,
           updatedMessages: 0,
           skippedParts: 0,
+        );
+      }
 
       var scanned = 0;
       var updated = 0;
@@ -1020,6 +1650,7 @@ class ChatDatabaseRepository {
               "WHERE kind IN ('image', 'file') AND part_id > ? "
               'ORDER BY part_id LIMIT ?;',
               variables: [Variable<int>(cursor), Variable<int>(batchSize)],
+            )
             .get();
         if (rows.isEmpty) break;
         for (final row in rows) {
@@ -1032,6 +1663,7 @@ class ChatDatabaseRepository {
             kind: kind,
             payload: payload,
             rewriteUri: rewriteUri,
+          );
           scanned += 1;
           if (rewrite.parseError case final parseError?) {
             skipped += 1;
@@ -1040,13 +1672,19 @@ class ChatDatabaseRepository {
               'Sandbox path migration skipped malformed part: '
               'revisionId=$revisionId ordinal=$ordinal kind=$kind '
               'parseError=$parseError',
+            );
+          }
           final rewritten = rewrite.payload;
           if (rewritten != payload) {
             await _db.customStatement(
               'UPDATE message_part_rows SET payload = ? WHERE part_id = ?;',
               [rewritten, partId],
+            );
             updated += 1;
+          }
           cursor = partId;
+        }
+      }
       await _db
           .into(_db.chatStorageMetaRows)
           .insertOnConflictUpdate(
@@ -1055,24 +1693,39 @@ class ChatDatabaseRepository {
               value: jsonEncode({
                 'version': targetVersion,
                 'targetRoot': targetRoot,
+              }),
+            ),
+          );
       return SandboxPathMigrationResult(
         ran: true,
         scannedMessages: scanned,
         updatedMessages: updated,
         skippedParts: skipped,
+      );
+    });
+  }
 
   ({String payload, String? parseError}) _rewriteAttachmentPartUri({
     required String kind,
     required String payload,
+    required String Function(String uri) rewriteUri,
+  }) {
     final MessagePart part;
+    try {
       part = MessagePart.fromRow(kind, payload);
     } on FormatException catch (error) {
+      return (
+        payload: payload,
         parseError: messagePartParseErrorCategory(error),
+      );
+    }
     if (part is ImagePart) {
       final nextUri = rewriteUri(part.uri);
       final nextUnavailable = _unavailableForRewrittenUri(nextUri);
       if (nextUri == part.uri && nextUnavailable == part.unavailable) {
         return (payload: payload, parseError: null);
+      }
+      return (
         payload: ImagePart(
           uri: nextUri,
           mime: part.mime,
@@ -1080,35 +1733,79 @@ class ChatDatabaseRepository {
           unavailable: nextUnavailable,
         ).encodePayload(),
         parseError: null,
+      );
+    }
     if (part is FilePart) {
+      final nextUri = rewriteUri(part.uri);
+      final nextUnavailable = _unavailableForRewrittenUri(nextUri);
+      if (nextUri == part.uri && nextUnavailable == part.unavailable) {
+        return (payload: payload, parseError: null);
+      }
+      return (
         payload: FilePart(
+          uri: nextUri,
           name: part.name,
+          mime: part.mime,
+          assetId: part.assetId,
+          unavailable: nextUnavailable,
+        ).encodePayload(),
+        parseError: null,
+      );
+    }
+    return (payload: payload, parseError: null);
+  }
 
   /// Remote/data URIs stay available; local paths use [localFileExists]
   /// (no fix→File SMB probe).
   bool _unavailableForRewrittenUri(String nextUri) {
     if (isRemoteOrDataUri(nextUri)) return false;
     return !SandboxPathResolver.localFileExists(nextUri);
+  }
 
   Future<bool> needsAssetReferenceBackfill({
     required int version,
+    required String targetRoot,
+  }) async {
+    final row =
+        await (_db.select(_db.chatStorageMetaRows)..where(
               (table) => table.key.equals(
                 ChatStorageMetaKeys.assetReferenceBackfillVersion,
+              ),
+            ))
+            .getSingleOrNull();
     if (row == null) return true;
+    try {
       final value = jsonDecode(row.value);
       return value is! Map<String, dynamic> ||
           value['version'] != version ||
           value['targetRoot'] != targetRoot;
+    } on FormatException {
+      return true;
+    }
+  }
 
   Future<void> markAssetReferenceBackfillComplete({
+    required int version,
+    required String targetRoot,
+  }) async {
+    await _db
+        .into(_db.chatStorageMetaRows)
+        .insertOnConflictUpdate(
+          ChatStorageMetaRowsCompanion.insert(
             key: ChatStorageMetaKeys.assetReferenceBackfillVersion,
             value: jsonEncode({'version': version, 'targetRoot': targetRoot}),
+          ),
+        );
+  }
 
   Future<List<ChatMessage>> getMessagesForAssetReferenceBackfill({
     required String afterMessageId,
     required bool includeLegacyCandidates,
     int limit = 360,
+  }) async {
     if (limit <= 0) return const <ChatMessage>[];
+    final rows = await _db
+        .customSelect(
           '''
           SELECT m.* FROM message_rows m
           WHERE m.id > ? AND (
@@ -1116,12 +1813,17 @@ class ChatDatabaseRepository {
               SELECT 1 FROM asset_reference_dirty_rows d
               WHERE d.revision_id = m.id
             ) OR (? AND (
+              EXISTS (
                 SELECT 1 FROM message_part_rows p
                 WHERE p.revision_id = m.id
                   AND (p.kind IN ('image', 'file')
                     OR (p.kind = 'tool_call' AND p.payload LIKE '%"previewImage"%'))
               ) OR
+              EXISTS (
                 SELECT 1 FROM message_asset_rows a WHERE a.revision_id = m.id
+              )
+            ))
+          )
           ORDER BY m.id LIMIT ?;
         ''',
           variables: [
@@ -1130,19 +1832,27 @@ class ChatDatabaseRepository {
             Variable<int>(limit),
           ],
           readsFrom: {_db.messageRows, _db.messagePartRows},
+        )
+        .get();
     return _messagesFromRowsWithParts(
       rows.map((row) => _db.messageRows.map(row.data)).toList(growable: false),
+    );
+  }
 
   Future<bool> hasPendingAssetReferenceSync() async {
     return await _db
             .customSelect('SELECT 1 FROM asset_reference_dirty_rows LIMIT 1;')
             .getSingleOrNull() !=
         null;
+  }
 
   Future<void> markMessageAssetReferencesDirty(String revisionId) async {
+    await _db.customStatement(
       'INSERT OR IGNORE INTO asset_reference_dirty_rows(revision_id) '
       'VALUES (?);',
       [revisionId],
+    );
+  }
 
   /// Bulk variant of [markMessageAssetReferencesDirty] for restore/import
   /// paths that write message rows without going through
@@ -1151,6 +1861,7 @@ class ChatDatabaseRepository {
   /// before GC may collect its files.
   Future<void> _markMessageAssetReferencesDirtyBatch(
     List<String> revisionIds,
+  ) async {
     if (revisionIds.isEmpty) return;
     const chunkSize = 200;
     for (var start = 0; start < revisionIds.length; start += chunkSize) {
@@ -1158,47 +1869,82 @@ class ChatDatabaseRepository {
           ? start + chunkSize
           : revisionIds.length;
       final chunk = revisionIds.sublist(start, end);
+      await _db.customStatement(
+        'INSERT OR IGNORE INTO asset_reference_dirty_rows(revision_id) '
         'VALUES ${List.filled(chunk.length, '(?)').join(', ')};',
         chunk,
+      );
+    }
+  }
 
   Future<void> checkpoint() async {
+    final stopwatch = Stopwatch()..start();
     int? walBytesBefore;
+    try {
       walBytesBefore = await _walBytes();
       final row = await _db
           .customSelect('PRAGMA wal_checkpoint(TRUNCATE);')
           .getSingle();
       final walBytesAfter = await _walBytes();
+      stopwatch.stop();
       _observer.record(
         ChatDatabaseObservation(
           operation: ChatDatabaseOperation.walCheckpoint,
+          elapsedMicros: stopwatch.elapsedMicroseconds,
           succeeded: true,
           walBytesBefore: walBytesBefore,
           walBytesAfter: walBytesAfter,
           checkpointBusy: row.read<int>('busy'),
           checkpointLogFrames: row.read<int>('log'),
           checkpointedFrames: row.read<int>('checkpointed'),
+        ),
+      );
+    } catch (error) {
+      stopwatch.stop();
+      _observer.recordFailure(
+        operation: ChatDatabaseOperation.walCheckpoint,
+        elapsedMicros: stopwatch.elapsedMicroseconds,
+        error: error,
+        walBytesBefore: walBytesBefore,
+      );
+      rethrow;
+    }
+  }
 
   Future<void> validateIntegrity() async {
     await _observer.measure(ChatDatabaseOperation.integrityCheck, () async {
       final integrityRows = await _db
           .customSelect('PRAGMA integrity_check')
+          .get();
       final integrityValues = integrityRows
           .expand((row) => row.data.values)
           .map((value) => value.toString())
+          .toList(growable: false);
       if (integrityValues.length != 1 || integrityValues.single != 'ok') {
+        throw StateError('integrity_check');
+      }
       final foreignKeyRows = await _db
           .customSelect('PRAGMA foreign_key_check')
+          .get();
       if (foreignKeyRows.isNotEmpty) {
+        throw StateError('foreign_key_check');
+      }
+    });
+  }
 
   Future<int?> _walBytes() async {
     final databaseFile = _databaseFile;
     if (databaseFile == null) return null;
     final wal = File('${databaseFile.path}-wal');
     if (await FileSystemEntity.type(wal.path, followLinks: false) !=
+        FileSystemEntityType.file) {
       return 0;
+    }
     return wal.length();
+  }
 
   Future<List<Conversation>> getAllConversations() async {
+    return _observer.measure(
       ChatDatabaseOperation.queryConversationList,
       () async {
         final rows =
@@ -1206,13 +1952,31 @@ class ChatDatabaseRepository {
                   (t) => OrderingTerm(
                     expression: t.updatedAt,
                     mode: OrderingMode.desc,
+                  ),
                 ]))
+                .get();
         final out = <Conversation>[];
+        for (final row in rows) {
           out.add(await _conversationFromRow(row));
+        }
         return out;
+      },
       resultCount: (rows) => rows.length,
+    );
+  }
 
   Future<List<Conversation>> getAllConversationSummaries() async {
+    return _observer.measure(
+      ChatDatabaseOperation.queryConversationList,
+      () async {
+        final rows =
+            await (_db.select(_db.conversationRows)..orderBy([
+                  (t) => OrderingTerm(
+                    expression: t.updatedAt,
+                    mode: OrderingMode.desc,
+                  ),
+                ]))
+                .get();
         // One bulk read instead of a per-conversation query; the ordinal
         // ordering is preserved by the in-Dart bucketing below.
         final mcpRows = await (_db.select(
@@ -1223,12 +1987,23 @@ class ChatDatabaseRepository {
           mcpServerIdsByConversation
               .putIfAbsent(mcpRow.conversationId, () => <String>[])
               .add(mcpRow.serverId);
+        }
+        final out = <Conversation>[];
+        for (final row in rows) {
           out.add(
             await _conversationFromRow(
               row,
               includeMessageIds: false,
               mcpServerIds:
                   mcpServerIdsByConversation[row.id] ?? const <String>[],
+            ),
+          );
+        }
+        return out;
+      },
+      resultCount: (rows) => rows.length,
+    );
+  }
 
   /// Reads only row metadata, never long message bodies or attachment content.
   /// Covers edits to old messages as well as selected versions and truncation.
@@ -1236,9 +2011,13 @@ class ChatDatabaseRepository {
     final operations = await readContextOperations(conversationId);
     final conversation = await getConversation(conversationId);
     if (conversation == null) return null;
+    final rows = await _db
+        .customSelect(
           'SELECT id, message_order, COALESCE(updated_at, timestamp) AS revision '
           'FROM message_rows WHERE conversation_id = ? ORDER BY message_order',
           variables: [Variable.withString(conversationId)],
+        )
+        .get();
     return sha256
         .convert(
           utf8.encode(
@@ -1252,8 +2031,13 @@ class ChatDatabaseRepository {
               'model': [
                 conversation.chatModelProvider,
                 conversation.chatModelId,
+              ],
               'messages': [for (final row in rows) row.data],
+            }),
+          ),
+        )
         .toString();
+  }
 
   Future<Conversation> publishScheduledMessages({
     required Conversation conversation,
@@ -1261,105 +2045,202 @@ class ChatDatabaseRepository {
     required ChatMessage response,
     required bool createConversation,
     String? expectedContextRevision,
+  }) => _writeTransaction(() async {
     final existing = await getMessage(response.id);
     if (existing != null) {
       return (await getConversation(existing.conversationId))!;
+    }
     var current = await getConversation(conversation.id);
     if (current == null) {
       if (!createConversation) throw StateError('conversation_missing');
       await putConversation(conversation);
       current = conversation;
+    }
     if (current.assistantId != conversation.assistantId) {
       throw StateError('conversation_missing');
+    }
     if (expectedContextRevision != null &&
         await scheduledContextRevision(current.id) != expectedContextRevision) {
       throw StateError('scheduled_context_changed');
+    }
     final afterInstruction = await _appendLinearMessageToConversation(
       conversation: current,
       message: instruction,
       touchUpdatedAt: true,
       selectVersion: false,
+    );
     return _appendLinearMessageToConversation(
       conversation: afterInstruction,
       message: response,
+      touchUpdatedAt: true,
+      selectVersion: false,
+    );
+  });
 
   Future<Conversation?> getConversation(String id) async {
-      ChatDatabaseOperation.queryConversation,
-        final row = await (_db.select(
-          _db.conversationRows,
-        )..where((t) => t.id.equals(id))).getSingleOrNull();
-        if (row == null) return null;
-        return _conversationFromRow(row);
-      resultCount: (conversation) => conversation == null ? 0 : 1,
+    return _observer.measure(ChatDatabaseOperation.queryConversation, () async {
+      final row = await (_db.select(
+        _db.conversationRows,
+      )..where((t) => t.id.equals(id))).getSingleOrNull();
+      if (row == null) return null;
+      return _conversationFromRow(row);
+    }, resultCount: (conversation) => conversation == null ? 0 : 1);
+  }
 
   Future<int> getMessageCount(String conversationId) async {
     return _observer.measure(ChatDatabaseOperation.queryMessageCount, () async {
       await _timelineIndex.ensureConversation(conversationId);
+      final row = await _db
+          .customSelect(
             'SELECT message_count FROM timeline_state WHERE conversation_id = ?',
             variables: [Variable<String>(conversationId)],
+          )
+          .getSingleOrNull();
       return row?.read<int>('message_count') ?? 0;
     }, resultCount: (count) => count);
+  }
 
   Future<Map<String, int>> getMessageCountsByConversation() async {
     final conversationId = _db.messageRows.conversationId;
     final count = _db.messageRows.id.count();
+    final rows =
         await (_db.selectOnly(_db.messageRows)
               ..addColumns([conversationId, count])
               ..groupBy([conversationId]))
+            .get();
     return {
       for (final row in rows) row.read(conversationId)!: row.read(count) ?? 0,
+    };
+  }
 
   Future<int> getConversationCount() async {
+    return _observer.measure(
       ChatDatabaseOperation.queryConversationCount,
+      () async {
         final count = _db.conversationRows.id.count();
         final row = await (_db.selectOnly(
+          _db.conversationRows,
         )..addColumns([count])).getSingle();
         return row.read(count) ?? 0;
+      },
       resultCount: (count) => count,
+    );
+  }
 
   Future<int> getTotalMessageCount() async {
+    return _observer.measure(
       ChatDatabaseOperation.queryTotalMessageCount,
+      () async {
+        final count = _db.messageRows.id.count();
+        final row = await (_db.selectOnly(
           _db.messageRows,
+        )..addColumns([count])).getSingle();
+        return row.read(count) ?? 0;
+      },
+      resultCount: (count) => count,
+    );
+  }
 
   Future<int> getTextPartCount() async {
+    return _observer.measure(
       ChatDatabaseOperation.queryTextPartCount,
+      () async {
         final count = _db.messagePartRows.partId.count();
+        final row =
             await (_db.selectOnly(_db.messagePartRows)
                   ..addColumns([count])
                   ..where(_db.messagePartRows.kind.equals('text')))
+                .getSingle();
+        return row.read(count) ?? 0;
+      },
+      resultCount: (count) => count,
+    );
+  }
 
   Future<int> getToolCallPartCount() async {
+    return _observer.measure(
       ChatDatabaseOperation.queryToolCallPartCount,
+      () async {
+        final count = _db.messagePartRows.partId.count();
+        final row =
+            await (_db.selectOnly(_db.messagePartRows)
+                  ..addColumns([count])
                   ..where(_db.messagePartRows.kind.equals('tool_call')))
+                .getSingle();
+        return row.read(count) ?? 0;
+      },
+      resultCount: (count) => count,
+    );
+  }
 
   Future<int> getImagePartCount() async {
+    return _observer.measure(
       ChatDatabaseOperation.queryImagePartCount,
+      () async {
+        final count = _db.messagePartRows.partId.count();
+        final row =
+            await (_db.selectOnly(_db.messagePartRows)
+                  ..addColumns([count])
                   ..where(_db.messagePartRows.kind.equals('image')))
+                .getSingle();
+        return row.read(count) ?? 0;
+      },
+      resultCount: (count) => count,
+    );
+  }
 
   Future<int> getFilePartCount() async {
+    return _observer.measure(
       ChatDatabaseOperation.queryFilePartCount,
+      () async {
+        final count = _db.messagePartRows.partId.count();
+        final row =
+            await (_db.selectOnly(_db.messagePartRows)
+                  ..addColumns([count])
                   ..where(_db.messagePartRows.kind.equals('file')))
+                .getSingle();
+        return row.read(count) ?? 0;
+      },
+      resultCount: (count) => count,
+    );
+  }
 
   /// Strictly validates every persisted attachment payload in bounded pages.
+  ///
   /// This is a migration publication guard, not a normal hydration path:
   /// malformed rows fail the migration instead of becoming [MalformedPart]s.
   Future<void> validateAttachmentPartPayloads({
     void Function(int processed, int total)? onProgress,
     @visibleForTesting void Function(int rowCount)? onMetadataWindow,
+  }) async {
     final totalRow = await _db
+        .customSelect(
           "SELECT COUNT(*) AS total FROM message_part_rows "
           "WHERE kind IN ('image', 'file');",
           readsFrom: {_db.messagePartRows},
+        )
+        .getSingle();
     final total = totalRow.read<int>('total');
     onProgress?.call(0, total);
 
     const metadataPageSize = 256;
     const payloadPageByteBudget = 2 * 1024 * 1024;
+    var cursor = 0;
     var processed = 0;
+    while (true) {
       final metadataRows = await _db
+          .customSelect(
             'SELECT part_id, LENGTH(CAST(payload AS BLOB)) AS payload_bytes '
+            'FROM message_part_rows '
+            "WHERE kind IN ('image', 'file') AND part_id > ? "
+            'ORDER BY part_id LIMIT ?;',
+            variables: [
               Variable<int>(cursor),
               const Variable<int>(metadataPageSize),
+            ],
+            readsFrom: {_db.messagePartRows},
+          )
+          .get();
       if (metadataRows.isEmpty) break;
       onMetadataWindow?.call(metadataRows.length);
 
@@ -1367,27 +2248,54 @@ class ChatDatabaseRepository {
       while (metadataIndex < metadataRows.length) {
         final partIds = <int>[];
         var selectedBytes = 0;
+        while (metadataIndex < metadataRows.length) {
           final row = metadataRows[metadataIndex];
           final payloadBytes = row.read<int>('payload_bytes');
           if (partIds.isNotEmpty &&
               selectedBytes + payloadBytes > payloadPageByteBudget) {
             break;
+          }
           partIds.add(row.read<int>('part_id'));
           selectedBytes += payloadBytes;
           metadataIndex += 1;
+        }
         final placeholders = List.filled(partIds.length, '?').join(', ');
+        final rows = await _db
+            .customSelect(
+              'SELECT part_id, revision_id, ordinal, kind, payload '
               'FROM message_part_rows WHERE part_id IN ($placeholders) '
               'ORDER BY part_id;',
               variables: [for (final partId in partIds) Variable<int>(partId)],
+              readsFrom: {_db.messagePartRows},
+            )
+            .get();
         if (rows.length != partIds.length) {
           throw StateError(
             'Migration validation failed (attachment payload page incomplete): '
             'expected=${partIds.length} actual=${rows.length}.',
+          );
+        }
+        for (final row in rows) {
+          final partId = row.read<int>('part_id');
+          final revisionId = row.read<String>('revision_id');
+          final ordinal = row.read<int>('ordinal');
+          final kind = row.read<String>('kind');
+          final payload = row.read<String>('payload');
+          try {
             MessagePart.fromRow(kind, payload);
+          } on FormatException {
+            throw StateError(
               'Migration validation failed (attachment part payload): '
               'revisionId=$revisionId ordinal=$ordinal kind=$kind.',
+            );
+          }
+          cursor = partId;
           processed += 1;
+        }
         onProgress?.call(processed, total);
+      }
+    }
+  }
 
   /// When true, the worker-isolate digest path throws before spawn so tests can
   /// assert the Drift fallback still completes validation.
@@ -1395,6 +2303,7 @@ class ChatDatabaseRepository {
   bool debugForceTextPartDigestIsolateFailureForTest = false;
 
   /// Order-independent digest of every `kind='text'` part payload.
+  ///
   /// Each row contributes `SHA-256(revision_id || NUL || payload)` XORed into a
   /// 32-byte accumulator. When a database file path is available the scan and
   /// SHA-256 work prefer a **dedicated worker isolate** (not the Drift SQL
@@ -1405,51 +2314,90 @@ class ChatDatabaseRepository {
   /// character counts (same unit for total and processed).
   Future<String> getTextPartContentDigest({
     void Function(int processedChars, int totalChars)? onProgress,
+  }) async {
+    return _observer.measure(
       ChatDatabaseOperation.queryTextPartContentDigest,
+      () async {
         final file = _databaseFile;
         if (file != null) {
           final isolateSw = Stopwatch()..start();
+          try {
             if (debugForceTextPartDigestIsolateFailureForTest) {
               throw StateError('digest_isolate_forced_failure');
+            }
             return await _computeTextPartContentDigestInIsolate(
               file.path,
               onProgress: onProgress,
+            );
+          } catch (error) {
             isolateSw.stop();
             // Infrastructure-only: digest mismatch is decided by the caller.
+            _observer.recordFailure(
               operation: ChatDatabaseOperation.queryTextPartContentDigest,
               elapsedMicros: isolateSw.elapsedMicroseconds,
+              error: error,
+            );
+          }
+        }
         return _computeTextPartContentDigestViaDrift(onProgress: onProgress);
+      },
+    );
+  }
 
   /// Drift-backed scan: SQL on the Drift worker isolate, SHA-256 on the caller.
   /// Used when no file path is available, and as fallback when the dedicated
   /// digest isolate cannot complete.
   Future<String> _computeTextPartContentDigestViaDrift({
+    void Function(int processedChars, int totalChars)? onProgress,
+  }) async {
+    final totalRow = await _db
+        .customSelect(
           "SELECT COALESCE(SUM(LENGTH(payload)), 0) AS total "
           "FROM message_part_rows WHERE kind = 'text';",
+          readsFrom: {_db.messagePartRows},
+        )
+        .getSingle();
     final totalChars = totalRow.read<int>('total');
     _emitTextPartDigestProgress(onProgress, 0, totalChars);
 
     final digest = Uint8List(32);
     const pageSize = 256;
+    var cursor = 0;
     var processedChars = 0;
+    while (true) {
+      final rows = await _db
+          .customSelect(
             'SELECT part_id, revision_id, payload, LENGTH(payload) AS '
             'payload_length FROM message_part_rows '
             "WHERE kind = 'text' AND part_id > ? "
+            'ORDER BY part_id LIMIT ?;',
             variables: [Variable<int>(cursor), const Variable<int>(pageSize)],
+            readsFrom: {_db.messagePartRows},
+          )
+          .get();
+      if (rows.isEmpty) break;
+      for (final row in rows) {
         mixTextPartContentDigest(
           digest,
           row.read<String>('revision_id'),
           row.read<String>('payload'),
+        );
         processedChars += row.read<int>('payload_length');
         cursor = row.read<int>('part_id');
+      }
       _emitTextPartDigestProgress(onProgress, processedChars, totalChars);
       if (rows.length < pageSize) break;
+    }
     return textPartContentDigestHex(digest);
+  }
 
   static Future<String> _computeTextPartContentDigestInIsolate(
     String databasePath, {
+    void Function(int processedChars, int totalChars)? onProgress,
+  }) async {
     final receivePort = ReceivePort();
     Isolate? isolate;
+    try {
       isolate = await Isolate.spawn(_textPartContentDigestIsolateMain, (
         path: databasePath,
         sendPort: receivePort.sendPort,
@@ -1457,180 +2405,337 @@ class ChatDatabaseRepository {
       await for (final message in receivePort) {
         if (message is! Map) {
           throw StateError('digest_isolate_protocol');
+        }
         final type = message['type'];
         if (type == 'progress') {
           _emitTextPartDigestProgress(
             onProgress,
             message['processed'] as int,
             message['total'] as int,
+          );
           continue;
+        }
         if (type == 'result') {
           return message['digest'] as String;
+        }
         if (type == 'error') {
+          throw StateError(
             'Migration validation digest isolate failed: '
             '${message['error']}',
+          );
+        }
+        throw StateError('digest_isolate_protocol');
+      }
       throw StateError('digest_isolate_ended');
+    } finally {
       receivePort.close();
       isolate?.kill(priority: Isolate.immediate);
+    }
+  }
 
   /// Worker entry: own read-only sqlite3 connection; never touches the UI
   /// isolate. Progress/result maps are sent back on [args.sendPort].
+  ///
   /// Progress uses SQLite `LENGTH(payload)` for both total and processed so
   /// emoji / surrogate pairs cannot push the bar past 100%.
   static void _textPartContentDigestIsolateMain(
     ({String path, SendPort sendPort}) args,
+  ) {
+    try {
+      final database = sqlite.sqlite3.open(
         args.path,
+        mode: sqlite.OpenMode.readOnly,
+      );
+      try {
         final totalChars =
+            database
                     .select(
+                      "SELECT COALESCE(SUM(LENGTH(payload)), 0) AS total "
+                      "FROM message_part_rows WHERE kind = 'text';",
+                    )
                     .single['total']
+                as int;
         args.sendPort.send({
           'type': 'progress',
           'processed': 0,
           'total': totalChars,
+        });
 
+        final digest = Uint8List(32);
+        const pageSize = 256;
+        var cursor = 0;
+        var processedChars = 0;
+        while (true) {
           final rows = database.select(
+            'SELECT part_id, revision_id, payload, LENGTH(payload) AS '
+            'payload_length FROM message_part_rows '
+            "WHERE kind = 'text' AND part_id > ? "
+            'ORDER BY part_id LIMIT ?;',
             [cursor, pageSize],
+          );
+          if (rows.isEmpty) break;
+          for (final row in rows) {
+            mixTextPartContentDigest(
+              digest,
               row['revision_id'] as String,
               row['payload'] as String,
+            );
             processedChars += row['payload_length'] as int;
             cursor = row['part_id'] as int;
+          }
+          args.sendPort.send({
+            'type': 'progress',
             'processed': processedChars,
+            'total': totalChars,
+          });
+          if (rows.length < pageSize) break;
+        }
+        args.sendPort.send({
           'type': 'result',
           'digest': textPartContentDigestHex(digest),
+        });
+      } finally {
+        database.close();
+      }
     } catch (error, stackTrace) {
       args.sendPort.send({'type': 'error', 'error': '$error\n$stackTrace'});
+    }
+  }
 
   static void _emitTextPartDigestProgress(
+    void Function(int processedChars, int totalChars)? onProgress,
     int processedChars,
     int totalChars,
+  ) {
     if (onProgress == null) return;
     final safeTotal = totalChars < 0 ? 0 : totalChars;
     final safeProcessed = processedChars.clamp(0, safeTotal);
     onProgress(safeProcessed, safeTotal);
+  }
 
   /// Mixes one text part into an order-independent 32-byte XOR digest.
   static void mixTextPartContentDigest(
     Uint8List digest,
     String revisionId,
     String payload,
+  ) {
     final hash = sha256.convert(utf8.encode('$revisionId\u0000$payload')).bytes;
     for (var i = 0; i < digest.length; i++) {
       digest[i] ^= hash[i];
+    }
+  }
 
   static String textPartContentDigestHex(Uint8List digest) {
     final buffer = StringBuffer();
     for (final byte in digest) {
       buffer.write(byte.toRadixString(16).padLeft(2, '0'));
+    }
     return buffer.toString();
+  }
 
+  @visibleForTesting
   Future<void> corruptTextPartPayloadForTest(
+    String revisionId,
+    String payload,
+  ) async {
+    await _db.customStatement(
       "UPDATE message_part_rows SET payload = ? "
       "WHERE revision_id = ? AND kind = 'text';",
       [payload, revisionId],
+    );
+  }
 
+  @visibleForTesting
   Future<void> corruptPartPayloadForTest(
+    String revisionId,
     String kind,
+    String payload,
+  ) async {
+    await _db.customStatement(
       'UPDATE message_part_rows SET payload = ? '
       'WHERE revision_id = ? AND kind = ?;',
       [payload, revisionId, kind],
+    );
+  }
 
+  @visibleForTesting
   Future<void> deleteTextPartsForTest(String revisionId) async {
+    await _db.customStatement(
       "DELETE FROM message_part_rows "
+      "WHERE revision_id = ? AND kind = 'text';",
+      [revisionId],
+    );
+  }
 
+  @visibleForTesting
   Future<void> deletePartsByKindForTest(String revisionId, String kind) async {
+    await _db.customStatement(
       'DELETE FROM message_part_rows '
       'WHERE revision_id = ? AND kind = ?',
       [revisionId, kind],
+    );
+  }
 
   Future<int> getMessageIndex(String conversationId, String messageId) async {
+    final row =
         await (_db.select(_db.messageRows)
               ..where(
                 (t) =>
                     t.conversationId.equals(conversationId) &
                     t.id.equals(messageId),
+              )
               ..limit(1))
+            .getSingleOrNull();
     return row?.messageOrder ?? -1;
+  }
 
   Future<ChatMessage?> getMessage(String messageId) async {
+    final row = await (_db.select(
+      _db.messageRows,
     )..where((t) => t.id.equals(messageId))).getSingleOrNull();
     return row == null ? null : _messageFromRowWithParts(row);
+  }
 
   Future<List<ChatMessage>> getMessagesRange(
     String conversationId, {
     required int start,
     required int limit,
+  }) async {
+    if (limit <= 0) return const <ChatMessage>[];
     final safeStart = start < 0 ? 0 : start;
     return _observer.measure(ChatDatabaseOperation.queryMessageRange, () async {
+      final rows =
+          await (_db.select(_db.messageRows)
                 ..where((t) => t.conversationId.equals(conversationId))
                 ..orderBy([(t) => OrderingTerm.asc(t.messageOrder)])
                 ..limit(limit, offset: safeStart))
+              .get();
       return _messagesFromRowsWithParts(rows);
     }, resultCount: (rows) => rows.length);
+  }
 
   /// Loads the selected linear message versions needed for model context.
+  ///
   /// Raw selection, tail limiting and part hydration share a transaction.
   /// Model requests use getEffectiveContextMessages to apply context nodes;
   /// this raw reader remains available for snapshots and original-history views.
   Future<List<ChatMessage>> getSelectedContextMessages(
+    String conversationId, {
+    required int limit,
     String? throughRevisionId,
     bool includeFollowingAssistant = false,
+  }) async {
     if (limit <= 0) return const [];
+    await _timelineIndex.ensureConversation(conversationId);
+    return _observer.measure(
       ChatDatabaseOperation.queryMessageRange,
       () => _db.transaction(() async {
         final state = await _db
+            .customSelect(
               'SELECT group_count FROM timeline_state WHERE conversation_id=?',
+              variables: [Variable<String>(conversationId)],
+            )
+            .getSingleOrNull();
         final total = state?.read<int>('group_count') ?? 0;
         if (total == 0) return <ChatMessage>[];
         QueryRow? upper;
         if (throughRevisionId != null) {
           upper = await _db
+              .customSelect(
                 'SELECT g.anchor_order,g.group_id,m.role FROM message_rows m '
                 'JOIN timeline_group_rows g ON g.conversation_id=m.conversation_id AND g.group_id=COALESCE(m.group_id,m.id) '
                 'WHERE m.conversation_id=? AND m.id=?',
+                variables: [
                   Variable<String>(conversationId),
                   Variable<String>(throughRevisionId),
+                ],
+              )
+              .getSingleOrNull();
           if (upper == null) return <ChatMessage>[];
           if (includeFollowingAssistant &&
               upper.read<String>('role') == 'user') {
             final following = await _db
+                .customSelect(
                   'SELECT g.anchor_order,g.group_id,${MessageTimelineIndex.selectedRevision('g')} AS revision_id '
                   'FROM timeline_group_rows g LEFT JOIN timeline_selection_rows s ON s.conversation_id=g.conversation_id AND s.group_id=g.group_id '
                   'WHERE g.conversation_id=? AND (g.anchor_order,g.group_id)>(?,?) '
                   'ORDER BY g.anchor_order,g.group_id LIMIT 1',
+                  variables: [
+                    Variable<String>(conversationId),
                     Variable<int>(upper.read<int>('anchor_order')),
                     Variable<String>(upper.read<String>('group_id')),
+                  ],
+                )
+                .getSingleOrNull();
             if (following != null) {
               final role = await _db
+                  .customSelect(
                     'SELECT role FROM message_rows WHERE id=?',
+                    variables: [
                       Variable<String>(following.read<String>('revision_id')),
+                    ],
+                  )
+                  .getSingle();
               if (role.read<String>('role') == 'assistant') upper = following;
+            }
+          }
+        }
         final conditions = <String>[];
         final values = <Variable<Object>>[Variable<String>(conversationId)];
         if (upper != null) {
           conditions.add('AND (g.anchor_order,g.group_id)<=(?,?)');
           values.addAll([
+            Variable<int>(upper.read<int>('anchor_order')),
+            Variable<String>(upper.read<String>('group_id')),
+          ]);
+        }
         values.add(Variable<int>(limit));
+        final rows = await _db
+            .customSelect(
               'SELECT ${MessageTimelineIndex.selectedRevision('g')} AS revision_id '
+              'FROM timeline_group_rows g LEFT JOIN timeline_selection_rows s ON s.conversation_id=g.conversation_id AND s.group_id=g.group_id '
               'WHERE g.conversation_id=? ${conditions.join(' ')} ORDER BY g.anchor_order DESC,g.group_id DESC LIMIT ?',
               variables: values,
               readsFrom: {
+                _db.messageRows,
+                _db.conversationRows,
                 _db.messagePartRows,
+              },
+            )
+            .get();
         return getMessagesByIds(
           rows.reversed.map((r) => r.read<String>('revision_id')).toList(),
+        );
+      }),
+      resultCount: (rows) => rows.length,
+    );
+  }
 
   Future<int> getMaxMessageVersionForGroup(
     String conversationId,
     String groupId,
+  ) async {
     final maxVersion = _db.messageRows.version.max();
+    final row =
+        await (_db.selectOnly(_db.messageRows)
               ..addColumns([maxVersion])
+              ..where(
                 _db.messageRows.conversationId.equals(conversationId) &
                     (_db.messageRows.groupId.equals(groupId) |
                         _db.messageRows.id.equals(groupId)),
+              ))
+            .getSingle();
     return row.read(maxVersion) ?? -1;
+  }
 
   Future<List<ChatMessage>> getSelectedMessageProjections(
+    String conversationId, {
     int summaryCharacters = 200,
+  }) async {
     final safeSummaryCharacters = summaryCharacters.clamp(0, 200);
+    final rows = await _db
+        .customSelect(
+          '''
           WITH group_rows AS (
             SELECT
               COALESCE(m.group_id, m.id) AS group_id,
@@ -1639,15 +2744,19 @@ class ChatDatabaseRepository {
             FROM message_rows m
             WHERE m.conversation_id = ?
             GROUP BY COALESCE(m.group_id, m.id)
+          ),
           selections AS (
             SELECT j.key AS group_id, CAST(j.value AS INTEGER) AS version
             FROM conversation_rows c, json_each(c.version_selections_json) j
             WHERE c.id = ?
+          ),
           ranked AS (
+            SELECT
               m.id,
               m.role,
               m.timestamp,
               m.conversation_id,
+              COALESCE(m.group_id, m.id) AS group_id,
               m.version,
               g.anchor_order,
               ROW_NUMBER() OVER (
@@ -1666,11 +2775,14 @@ class ChatDatabaseRepository {
               ON m.conversation_id = ?
              AND COALESCE(m.group_id, m.id) = g.group_id
             LEFT JOIN selections s ON s.group_id = g.group_id
+          )
+          SELECT
             ranked.id,
             ranked.role,
             (SELECT SUBSTR(concat_text.txt, 1, ?)
                FROM (
                  SELECT GROUP_CONCAT(ordered.payload, '') AS txt
+                 FROM (
                    SELECT p.payload AS payload
                    FROM message_part_rows p
                    WHERE p.revision_id = ranked.id
@@ -1687,7 +2799,20 @@ class ChatDatabaseRepository {
           FROM ranked
           WHERE ranked.version_rank = 1
           ORDER BY ranked.anchor_order, ranked.group_id;
+          ''',
+          variables: [
+            Variable<String>(conversationId),
+            Variable<String>(conversationId),
+            Variable<String>(conversationId),
             Variable<int>(safeSummaryCharacters),
+          ],
+          readsFrom: {
+            _db.conversationRows,
+            _db.messageRows,
+            _db.messagePartRows,
+          },
+        )
+        .get();
     return [
       for (final row in rows)
         ChatMessage(
@@ -1698,39 +2823,104 @@ class ChatDatabaseRepository {
           conversationId: row.read<String>('conversation_id'),
           groupId: row.read<String>('group_id'),
           version: row.read<int>('version'),
+        ),
     ];
+  }
 
   /// Searches the selected visible revision of each message group.
+  ///
   /// SQLite `LOWER` / `INSTR` only fold ASCII case. Non-ASCII case variants
   /// (for example Greek or Cyrillic) are not matched; this path does not load
   /// ICU.
   Future<List<MiniMapSearchHit>> searchMiniMapMatches(
+    String conversationId,
     String query, {
     int snippetRadius = 40,
     int snippetLength = 120,
+  }) {
+    return _observer.measure(
       ChatDatabaseOperation.querySearch,
       () => _searchMiniMapMatches(
         conversationId,
         query,
         snippetRadius: snippetRadius,
         snippetLength: snippetLength,
+      ),
+      resultCount: (rows) => rows.length,
+    );
+  }
 
   Future<List<MiniMapSearchHit>> _searchMiniMapMatches(
+    String conversationId,
+    String query, {
     required int snippetRadius,
     required int snippetLength,
+  }) async {
     final needle = query.trim().toLowerCase();
     if (needle.isEmpty) return const <MiniMapSearchHit>[];
     await _genUiSearch.ensure();
+    return _db.transaction(() async {
       final radius = snippetRadius < 0 ? 0 : snippetRadius;
       final length = miniMapSnippetLength(
         needleLength: needle.length,
+        snippetRadius: snippetRadius,
+        snippetLength: snippetLength,
+      );
+      final rows = await _db
+          .customSelect(
+            '''
+          WITH group_rows AS (
+            SELECT
+              COALESCE(m.group_id, m.id) AS group_id,
+              MIN(m.message_order) AS anchor_order,
+              MAX(m.version) AS latest_version
+            FROM message_rows m
+            WHERE m.conversation_id = ?
+            GROUP BY COALESCE(m.group_id, m.id)
+          ),
+          selections AS (
+            SELECT j.key AS group_id, CAST(j.value AS INTEGER) AS version
+            FROM conversation_rows c, json_each(c.version_selections_json) j
+            WHERE c.id = ?
+          ),
+          ranked AS (
+            SELECT
+              m.id,
+              m.role,
+              COALESCE(m.group_id, m.id) AS group_id,
+              g.anchor_order,
+              ROW_NUMBER() OVER (
+                PARTITION BY g.group_id
+                ORDER BY
+                  CASE
+                    WHEN m.version = COALESCE(s.version, g.latest_version)
+                    THEN 0 ELSE 1
+                  END,
+                  m.version DESC,
+                  m.message_order DESC,
+                  m.id DESC
+              ) AS version_rank
+            FROM group_rows g
+            JOIN message_rows m
+              ON m.conversation_id = ?
+             AND COALESCE(m.group_id, m.id) = g.group_id
+            LEFT JOIN selections s ON s.group_id = g.group_id
+          ),
           text_bodies AS (
             SELECT revision_id, GROUP_CONCAT(payload, '') AS txt
+            FROM (
               SELECT p.revision_id AS revision_id, p.payload AS payload
+              FROM message_part_rows p
               WHERE p.conversation_id = ?
+                AND p.kind = 'text'
+              ORDER BY p.revision_id, p.ordinal
+            )
             GROUP BY revision_id
+          ),
           params AS (
             SELECT ? AS needle, ? AS radius, ? AS snippet_len
+          )
+          SELECT
             ranked.id AS message_id,
             CASE WHEN ranked.role='assistant' AND INSTR(t.txt, 'kelivo-ui') > 0 THEN t.txt END AS message_content,
             (LENGTH(t.txt) - LENGTH(REPLACE(LOWER(t.txt), p.needle, '')))
@@ -1741,20 +2931,41 @@ class ChatDatabaseRepository {
               p.snippet_len
             ) AS snippet,
             MAX(1, INSTR(LOWER(t.txt), p.needle) - p.radius) AS snippet_start
+          FROM ranked
           JOIN text_bodies t ON t.revision_id = ranked.id
           CROSS JOIN params p
+          WHERE ranked.version_rank = 1
             AND ranked.role IN ('user', 'assistant')
             AND (INSTR(LOWER(t.txt), p.needle) > 0 OR EXISTS (
               SELECT 1 FROM gen_ui_surface_state_rows u WHERE u.revision_id=ranked.id
                 AND INSTR(LOWER(u.search_text), p.needle) > 0
+            ))
+          ORDER BY ranked.anchor_order, ranked.group_id;
+          ''',
+            variables: [
+              Variable<String>(conversationId),
+              Variable<String>(conversationId),
+              Variable<String>(conversationId),
+              Variable<String>(conversationId),
               Variable<String>(needle),
               Variable<int>(radius),
               Variable<int>(length),
+            ],
+            readsFrom: {
+              _db.conversationRows,
+              _db.messageRows,
+              _db.messagePartRows,
               _db.genUiSurfaceStateRows,
+            },
+          )
+          .get();
       final projections = await _searchTextForCandidates({
+        for (final row in rows)
           if (row.readNullable<String>('message_content') != null)
             row.read<String>('message_id'),
+      });
       final result = <MiniMapSearchHit>[];
+      for (final row in rows) {
         final id = row.read<String>('message_id');
         final projection = projections[id];
         if (projection == null) {
@@ -1764,48 +2975,77 @@ class ChatDatabaseRepository {
               matchCount: row.read<int>('match_count'),
               snippet: row.readNullable<String>('snippet') ?? '',
               snippetStart: row.read<int>('snippet_start') - 1,
+            ),
+          );
+          continue;
+        }
         // Match SQLite's existing ASCII case-folding without changing UTF-16
         // offsets (some Unicode lowercase mappings change string length).
         final lower = projection.text.replaceAllMapped(
           RegExp('[A-Z]'),
           (m) => m[0]!.toLowerCase(),
+        );
         final matches = RegExp(
           RegExp.escape(needle),
         ).allMatches(lower).toList();
         if (matches.isEmpty) {
           continue; // DSL-only candidates are not visible hits.
+        }
         final offset = matches.first.start;
         final from = utf16SafeTailStart(
           projection.text,
           (offset - radius).clamp(0, projection.text.length),
+        );
         final to = utf16SafeHeadEnd(
+          projection.text,
           (from + length).clamp(from, projection.text.length),
+        );
+        result.add(
+          MiniMapSearchHit(
+            messageId: id,
             matchCount: matches.length,
             snippet: projection.text.substring(from, to),
             snippetStart: from,
             searchableText: projection.text,
             matchedSurfaceKey: projection.surfaceAt(offset),
+          ),
+        );
+      }
       return result;
+    });
+  }
 
   Future<Set<String>> getMessageIdsForGroups(
+    String conversationId,
     Set<String> groupIds,
+  ) async {
     if (groupIds.isEmpty) return const <String>{};
+    final rows =
+        await (_db.selectOnly(_db.messageRows)
               ..addColumns([_db.messageRows.id])
+              ..where(
+                _db.messageRows.conversationId.equals(conversationId) &
                     (_db.messageRows.groupId.isIn(groupIds) |
                         _db.messageRows.id.isIn(groupIds)),
+              ))
+            .get();
     return {for (final row in rows) row.read(_db.messageRows.id)!};
+  }
 
   Future<LinearMessageWindow> loadLinearMessageWindow({
+    required String conversationId,
     String? beforeRevisionId,
     String? afterRevisionId,
     String? aroundRevisionId,
     bool fromStart = false,
     int limit = 40,
+  }) async {
     const empty = LinearMessageWindow(
       slots: [],
       totalSlotCount: 0,
       hasMoreBefore: false,
       hasMoreAfter: false,
+    );
     if (limit <= 0) return empty;
     final cursors = [
       beforeRevisionId,
@@ -1814,7 +3054,16 @@ class ChatDatabaseRepository {
     ].whereType<String>();
     if (cursors.length > 1 || (fromStart && cursors.isNotEmpty)) {
       throw ArgumentError('Only one linear message cursor may be supplied.');
+    }
+    await _timelineIndex.ensureConversation(conversationId);
+    return _db.transaction(() async {
+      final state = await _db
+          .customSelect(
             'SELECT group_count FROM timeline_state WHERE conversation_id = ?',
+            variables: [Variable<String>(conversationId)],
+          )
+          .getSingleOrNull();
+      final total = state?.read<int>('group_count') ?? 0;
       if (total == 0) return empty;
       Future<List<QueryRow>> readPage(
         String condition,
@@ -1822,15 +3071,21 @@ class ChatDatabaseRepository {
         bool descending,
         int size,
       ) => _db
+          .customSelect(
             'SELECT g.group_id,g.anchor_order,g.version_count,'
             '${MessageTimelineIndex.selectedRevision('g')} AS revision_id '
             'FROM timeline_group_rows g '
             'LEFT JOIN timeline_selection_rows s ON s.conversation_id=g.conversation_id AND s.group_id=g.group_id '
             'WHERE g.conversation_id = ? $condition '
             'ORDER BY g.anchor_order ${descending ? 'DESC' : 'ASC'},g.group_id ${descending ? 'DESC' : 'ASC'} LIMIT ?',
+            variables: [
+              Variable<String>(conversationId),
               ...values,
               Variable<int>(size),
+            ],
             readsFrom: {_db.messageRows, _db.conversationRows},
+          )
+          .get();
       int index = 0;
       List<QueryRow> rows;
       if (cursors.isEmpty) {
@@ -1838,19 +3093,33 @@ class ChatDatabaseRepository {
         if (!fromStart) {
           rows = rows.reversed.toList();
           index = total - rows.length;
+        }
+      } else {
         final cursor = await _db
+            .customSelect(
               'SELECT g.group_id,g.anchor_order FROM message_rows m '
+              'JOIN timeline_group_rows g ON g.conversation_id=m.conversation_id AND g.group_id=COALESCE(m.group_id,m.id) '
+              'WHERE m.conversation_id=? AND m.id=?',
+              variables: [
+                Variable<String>(conversationId),
                 Variable<String>(cursors.single),
+              ],
+            )
+            .getSingleOrNull();
         if (cursor == null) return empty;
         final cursorValues = <Variable<Object>>[
           Variable<int>(cursor.read<int>('anchor_order')),
           Variable<String>(cursor.read<String>('group_id')),
+        ];
         // Count only the suffix for the normal tail/backward-page path. This
         // never hydrates history or performs window-function ranking/sorting.
         final suffix = await _db
+            .customSelect(
               'SELECT COUNT(*) AS n FROM timeline_group_rows WHERE conversation_id=? '
               'AND (anchor_order,group_id)>(?,?)',
               variables: [Variable<String>(conversationId), ...cursorValues],
+            )
+            .getSingle();
         final cursorIndex = total - suffix.read<int>('n') - 1;
         if (aroundRevisionId != null) {
           final before = (await readPage(
@@ -1861,7 +3130,10 @@ class ChatDatabaseRepository {
           )).reversed.toList();
           final after = await readPage(
             'AND (g.anchor_order,g.group_id)>=(?,?)',
+            cursorValues,
             false,
+            limit,
+          );
           final candidates =
               <({QueryRow row, int index})>[
                 for (var i = 0; i < before.length; i++)
@@ -1871,17 +3143,31 @@ class ChatDatabaseRepository {
               ]..sort((a, b) {
                 final distance = (a.index - cursorIndex).abs().compareTo(
                   (b.index - cursorIndex).abs(),
+                );
                 return distance == 0 ? a.index.compareTo(b.index) : distance;
+              });
           final selected = candidates.take(limit).toList()
             ..sort((a, b) => a.index.compareTo(b.index));
           rows = selected.map((item) => item.row).toList();
           index = selected.first.index;
         } else if (beforeRevisionId != null) {
           rows = (await readPage(
+            'AND (g.anchor_order,g.group_id)<(?,?)',
+            cursorValues,
+            true,
+            limit,
+          )).reversed.toList();
           index = cursorIndex - rows.length;
+        } else {
           rows = await readPage(
             'AND (g.anchor_order,g.group_id)>(?,?)',
+            cursorValues,
+            false,
+            limit,
+          );
           index = cursorIndex + 1;
+        }
+      }
       if (rows.isEmpty) return empty;
       final slots = <LinearMessageWindowSlot>[
         for (var offset = 0; offset < rows.length; offset++)
@@ -1890,15 +3176,22 @@ class ChatDatabaseRepository {
             revisionId: rows[offset].read<String>('revision_id'),
             versionCount: rows[offset].read<int>('version_count'),
             logicalIndex: index + offset,
+          ),
+      ];
       return LinearMessageWindow(
         slots: slots,
         totalSlotCount: total,
         hasMoreBefore: index > 0,
         hasMoreAfter: index + slots.length < total,
+      );
+    });
+  }
 
   Future<List<ChatMessage>> getMessagesByIds(List<String> ids) async {
     if (ids.isEmpty) return const <ChatMessage>[];
+    return _observer.measure(
       ChatDatabaseOperation.queryMessagesByIds,
+      () async {
         final byId = <String, ChatMessage>{};
         // Compression can select an entire long history. Bound SQL parameters
         // and part hydration together instead of issuing one unbounded IN list.
@@ -1907,71 +3200,163 @@ class ChatDatabaseRepository {
           final batch = ids.sublist(
             offset,
             (offset + batchSize).clamp(0, ids.length),
+          );
           final rows = await (_db.select(
+            _db.messageRows,
           )..where((t) => t.id.isIn(batch))).get();
           for (final message in await _messagesFromRowsWithParts(rows)) {
             byId[message.id] = message;
+          }
+        }
+        return [
           for (final id in ids)
             if (byId[id] != null) byId[id]!,
+        ];
+      },
+      resultCount: (rows) => rows.length,
+    );
+  }
 
   Future<Map<String, int>> getFirstMessageIndicesForGroups(
+    String conversationId,
     Iterable<String> groupIds,
+  ) async {
     final ids = groupIds.where((id) => id.isNotEmpty).toSet();
     if (ids.isEmpty) return const <String, int>{};
     final group = _db.messageRows.groupId;
     final minOrder = _db.messageRows.messageOrder.min();
     final messageId = _db.messageRows.id;
+    final rows =
+        await (_db.selectOnly(_db.messageRows)
               ..addColumns([group, messageId, minOrder])
+              ..where(
+                _db.messageRows.conversationId.equals(conversationId) &
                     (group.isIn(ids) | messageId.isIn(ids)),
+              )
               ..groupBy([group, messageId]))
+            .get();
+    return {
+      for (final row in rows)
         if ((row.read(group) ?? row.read(messageId)) != null &&
             row.read(minOrder) != null)
           (row.read(group) ?? row.read(messageId))!: row.read(minOrder)!,
+    };
+  }
 
   Future<List<ChatMessage>> getMessageVersionHeaders(
+    String conversationId,
+    Iterable<String> groupIds,
+  ) async {
     final ids = groupIds.toSet();
     if (ids.isEmpty) return const [];
     final placeholders = List.filled(ids.length, '?').join(',');
+    final rows = await _db
+        .customSelect(
           'SELECT id,role,timestamp,group_id,version,message_order FROM message_rows '
           'WHERE conversation_id=? AND group_id IN ($placeholders) '
           'UNION ALL '
+          'SELECT id,role,timestamp,group_id,version,message_order FROM message_rows '
           'WHERE conversation_id=? AND group_id IS NULL AND id IN ($placeholders) '
           'ORDER BY message_order',
+          variables: [
+            Variable<String>(conversationId),
             ...ids.map(Variable<String>.new),
+            Variable<String>(conversationId),
+            ...ids.map(Variable<String>.new),
+          ],
+        )
+        .get();
+    return [
+      for (final row in rows)
+        ChatMessage(
+          id: row.read<String>('id'),
+          conversationId: conversationId,
+          role: row.read<String>('role'),
           content: '',
+          timestamp: _dateTimeFromSqlite(row.data['timestamp']),
           groupId: row.readNullable<String>('group_id'),
+          version: row.read<int>('version'),
+        ),
+    ];
+  }
 
   Future<bool> messageVersionExists(
+    String conversationId,
+    String groupId,
     int version,
+  ) async {
+    final row = await _db
+        .customSelect(
           'SELECT EXISTS(SELECT 1 FROM message_rows WHERE conversation_id=? AND group_id=? AND version=? '
           'UNION ALL SELECT 1 FROM message_rows WHERE conversation_id=? AND id=? AND group_id IS NULL AND version=?) AS found',
+          variables: [
+            Variable<String>(conversationId),
             Variable<String>(groupId),
             Variable<int>(version),
+            Variable<String>(conversationId),
+            Variable<String>(groupId),
+            Variable<int>(version),
+          ],
+        )
+        .getSingle();
     return row.read<int>('found') != 0;
+  }
 
   Future<List<ChatMessage>> getMessagesForGroups(
+    String conversationId,
+    Iterable<String> groupIds,
+  ) async {
+    final ids = groupIds.where((id) => id.isNotEmpty).toSet();
+    if (ids.isEmpty) return const <ChatMessage>[];
+    return _observer.measure(
       ChatDatabaseOperation.queryMessagesForGroups,
+      () async {
+        final rows =
+            await (_db.select(_db.messageRows)
+                  ..where(
+                    (t) =>
+                        t.conversationId.equals(conversationId) &
                         (t.groupId.isIn(ids) | t.id.isIn(ids)),
+                  )
                   ..orderBy([(t) => OrderingTerm.asc(t.messageOrder)]))
+                .get();
+        return _messagesFromRowsWithParts(rows);
+      },
+      resultCount: (rows) => rows.length,
+    );
+  }
 
   Future<List<String>> getMessageIds(String conversationId) async {
     return _observer.measure(ChatDatabaseOperation.queryMessageIds, () async {
+      final rows =
+          await (_db.selectOnly(_db.messageRows)
+                ..addColumns([_db.messageRows.id])
                 ..where(_db.messageRows.conversationId.equals(conversationId))
                 ..orderBy([OrderingTerm.asc(_db.messageRows.messageOrder)]))
+              .get();
       return rows
           .map((row) => row.read(_db.messageRows.id)!)
+          .toList(growable: false);
+    }, resultCount: (rows) => rows.length);
+  }
 
   @Deprecated('legacy/test only; rewrites the complete conversation order')
   Future<void> updateMessageOrder(
+    String conversationId,
     List<String> messageIds,
+  ) async {
     await _db.transaction(() async {
       await _rewriteMessageOrder(conversationId, messageIds);
+    });
+  }
 
   /// Searches conversations for [tokens].
+  ///
   /// [conversationId] restricts the search to one conversation and
   /// [excludeConversationId] omits one. Both are applied in SQL rather than by
   /// the caller, because the candidate `LIMIT` is global: a conversation whose
   /// matches rank below the cut would otherwise be filtered down to nothing.
+  ///
   /// When [assistantId] is non-empty, only that assistant's conversations and
   /// unowned (`assistant_id IS NULL`) chats are included. The predicate uses
   /// `idx_conversations_assistant`; NULL rows stay visible so pre-ownership
@@ -1984,17 +3369,31 @@ class ChatDatabaseRepository {
     String? conversationId,
     String? excludeConversationId,
     String? assistantId,
+  }) {
+    return _observer.measure(
+      ChatDatabaseOperation.querySearch,
       () => _searchConversationMatches(
         tokens: tokens,
         limit: limit,
         candidateMultiplier: candidateMultiplier,
         includeAllRevisions: includeAllRevisions,
+        conversationId: conversationId,
         excludeConversationId: excludeConversationId,
         assistantId: assistantId,
+      ),
+      resultCount: (rows) => rows.length,
+    );
+  }
 
   Future<List<ConversationSearchMatch>> _searchConversationMatches({
+    required List<String> tokens,
+    required int limit,
     required int candidateMultiplier,
     required bool includeAllRevisions,
+    String? conversationId,
+    String? excludeConversationId,
+    String? assistantId,
+  }) async {
     final cleanTokens = tokens
         .map((t) => t.trim().toLowerCase())
         .where((t) => t.isNotEmpty)
@@ -2002,6 +3401,8 @@ class ChatDatabaseRepository {
         .toList();
     if (cleanTokens.isEmpty || limit <= 0) return const [];
     await _ensureMessageSearchFts();
+    await _genUiSearch.ensure();
+    return _db.transaction(() async {
       final useSubstringFallback = cleanTokens.any(_requiresCjkFallback);
       String escapeLike(String value) => value
           .replaceAll(r'\', r'\\')
@@ -2012,6 +3413,8 @@ class ChatDatabaseRepository {
           {
             'pattern': '%${escapeLike(token)}%',
             'fts': '"${token.replaceAll('"', '""')}"',
+          },
+      ]);
       // Two fixed SELECTs, independent of token count. One UNION per token hits
       // SQLite's compound SELECT ceiling for an otherwise valid long query.
       final hits = useSubstringFallback
@@ -2021,9 +3424,11 @@ class ChatDatabaseRepository {
       UNION
       SELECT t.token_index, s.revision_id FROM tokens t CROSS JOIN gen_ui_surface_state_rows s
       WHERE LOWER(s.search_text) LIKE t.pattern ESCAPE '\\'
+    '''
           : '''
       SELECT t.token_index, f.revision_id FROM tokens t CROSS JOIN message_search_fts f
       WHERE f.payload MATCH t.fts
+      UNION
       SELECT t.token_index, s.revision_id FROM tokens t CROSS JOIN gen_ui_surface_search f
       JOIN gen_ui_surface_state_rows s ON s.rowid=f.rowid WHERE f.search_text MATCH t.fts
     ''';
@@ -2036,15 +3441,19 @@ class ChatDatabaseRepository {
           excludeConversationId.isNotEmpty) {
         scopeSql = 'AND c.id <> ?';
         scopeArgs.add(Variable<String>(excludeConversationId));
+      }
       if (assistantId != null && assistantId.isNotEmpty) {
         scopeSql += ' AND (c.assistant_id = ? OR c.assistant_id IS NULL)';
         scopeArgs.add(Variable<String>(assistantId));
+      }
       final candidateLimit = (limit * candidateMultiplier)
           .clamp(limit, 2000)
           .toInt();
       final query =
+          '''
       WITH selections AS (
         SELECT c.id AS conversation_id, j.key AS group_id, CAST(j.value AS INTEGER) AS selected_version
+        FROM conversation_rows c, json_each(c.version_selections_json) j
       ), visible_groups AS (
         SELECT m.conversation_id, COALESCE(m.group_id,m.id) AS group_id,
           MAX(m.version) AS max_version,
@@ -2072,9 +3481,11 @@ class ChatDatabaseRepository {
           SELECT 1 FROM token_hits h JOIN message_rows mx ON mx.id=h.revision_id
           WHERE h.token_index=t.token_index AND mx.conversation_id=c.id AND mx.role IN ('user','assistant')
             ${includeAllRevisions ? '' : 'AND EXISTS (SELECT 1 FROM visible_groups v WHERE v.conversation_id=mx.conversation_id AND v.group_id=COALESCE(mx.group_id,mx.id) AND v.selected_version=mx.version)'}
+        ))
       ) $scopeSql
       ORDER BY c.updated_at DESC, c.id, m.message_order ASC, m.id
       LIMIT ? OFFSET ?
+    ''';
       final matches = <ConversationSearchMatch>[];
       var group =
           <({ConversationSearchMatch match, Set<String> tokens, int order})>[];
@@ -2090,6 +3501,7 @@ class ChatDatabaseRepository {
           final evidence = Set<String>.unmodifiable(groupTokens);
           final selected =
               (groupHasUi ? group.where((row) => row.tokens.isNotEmpty) : group)
+                  .toList()
                 ..sort((a, b) => a.order.compareTo(b.order));
           if (selected.isEmpty &&
               titleCandidate != null &&
@@ -2097,21 +3509,27 @@ class ChatDatabaseRepository {
                 titleCandidate!.conversationTitle.toLowerCase().contains,
               )) {
             matches.add(titleCandidate!.withVerifiedTokens(evidence));
+          } else {
             matches.addAll(
               selected
                   .take(candidateLimit - matches.length)
                   .map((row) => row.match.withVerifiedTokens(evidence)),
+            );
+          }
+        }
         group = [];
         groupTokens = {};
         counts = {};
         titleCandidate = null;
         groupHasUi = false;
+      }
 
       void retain(ConversationSearchMatch match, Set<String> hits) {
         final row = (match: match, tokens: hits, order: order++);
         final capacity = candidateLimit - matches.length;
         if (group.length < capacity) {
           group.add(row);
+        } else {
           final empty = hits.isEmpty
               ? -1
               : group.lastIndexWhere((old) => old.tokens.isEmpty);
@@ -2123,15 +3541,23 @@ class ChatDatabaseRepository {
               : group.lastIndexWhere(
                   (old) => old.tokens.every(
                     (t) => (counts[t] ?? 0) > 1 || hits.contains(t),
+                  ),
+                );
           if (index < 0) return;
           for (final token in group[index].tokens) {
             final count = counts[token]! - 1;
             if (count == 0) {
               counts.remove(token);
+            } else {
               counts[token] = count;
+            }
+          }
           group[index] = row;
+        }
         for (final token in hits) {
           counts[token] = (counts[token] ?? 0) + 1;
+        }
+      }
 
       var offset = 0;
       // Raw FTS can nominate source-only symbols. Page it in bounded batches so
@@ -2139,24 +3565,38 @@ class ChatDatabaseRepository {
       // Coverage is independent of retained snippets: all visible sources
       // contribute to AND before the final bounded candidates are returned.
       while (matches.length < candidateLimit) {
+        final rows = await _db
+            .customSelect(
+              query,
+              variables: [
                 Variable<String>(tokenJson),
                 ...scopeArgs,
                 const Variable<int>(64),
                 Variable<int>(offset),
+              ],
+            )
+            .get();
         if (rows.isEmpty) {
           finishGroup();
+          break;
+        }
         offset += rows.length;
         final uiText = await _searchTextForCandidates({
+          for (final row in rows)
             if (row.readNullable<String>('message_role') == 'assistant' &&
                 (row
                         .readNullable<String>('message_content')
                         ?.contains('kelivo-ui') ??
                     false))
+              row.read<String>('message_id'),
         }, hideInternalBlocks: true);
+        for (final row in rows) {
           final conversation = row.read<String>('conversation_id');
           if (groupId != conversation) {
+            finishGroup();
             if (matches.length >= candidateLimit) break;
             groupId = conversation;
+          }
           final messageId = row.readNullable<String>('message_id');
           final projected = uiText[messageId];
           final isUi = projected?.surfaces.isNotEmpty == true;
@@ -2168,8 +3608,10 @@ class ChatDatabaseRepository {
           final title = row.read<String>('conversation_title');
           final titleHits = cleanTokens
               .where(title.toLowerCase().contains)
+              .toSet();
           final visibleHits = cleanTokens
               .where((searchable ?? '').toLowerCase().contains)
+              .toSet();
           groupTokens.addAll(titleHits);
           groupTokens.addAll(visibleHits);
           final updated = _dateTimeFromSqlite(row.read<int>('updated_at'));
@@ -2185,12 +3627,16 @@ class ChatDatabaseRepository {
             groupId: null,
             version: null,
             maxVersion: null,
+          );
           if (messageId == null || (isUi && visibleHits.isEmpty)) continue;
           final rawGroupId = row.readNullable<String>('group_id');
           final effectiveGroupId = rawGroupId ?? messageId;
           final selectedVersion = row.readNullable<int>('selected_version');
           retain(
             ConversationSearchMatch(
+              conversationId: conversation,
+              conversationTitle: title,
+              updatedAt: updated,
               versionSelections: selectedVersion == null
                   ? const {}
                   : {effectiveGroupId: selectedVersion},
@@ -2202,17 +3648,27 @@ class ChatDatabaseRepository {
               groupId: rawGroupId,
               version: row.readNullable<int>('version'),
               maxVersion: row.readNullable<int>('max_version'),
+            ),
             visibleHits,
+          );
           final publishable = groupHasUi
               ? group.where((row) => row.tokens.isNotEmpty).length
               : group.length;
           if (publishable >= candidateLimit - matches.length &&
               coversTokens()) {
+            finishGroup();
+            break;
+          }
+        }
+      }
       return matches;
+    });
+  }
 
   Future<Map<String, UiSearchText>> _searchTextForCandidates(
     Set<String> ids, {
     bool hideInternalBlocks = false,
+  }) async {
     final result = <String, UiSearchText>{};
     final values = ids.toList();
     for (var from = 0; from < values.length; from += 32) {
@@ -2221,8 +3677,14 @@ class ChatDatabaseRepository {
       final cached = await _genUiSearch.read(batch);
       for (final message in messages) {
         result[message.id] = uiSearchableText(
+          message,
           cached[message.id] ?? const {},
           ordinaryText: hideInternalBlocks ? stripHiddenSearchBlocks : null,
+        );
+      }
+    }
+    return result;
+  }
 
   Future<ChatStatsAggregate> queryStatsAggregate({
     required DateTime? rangeStart,
@@ -2230,6 +3692,7 @@ class ChatDatabaseRepository {
     required DateTime heatmapStart,
     required DateTime trendStart,
     required DateTime trendEndExclusive,
+  }) async {
     final start = rangeStart?.microsecondsSinceEpoch;
     final end = rangeEndExclusive?.microsecondsSinceEpoch;
     final rangeClause = <String>[
@@ -2240,11 +3703,16 @@ class ChatDatabaseRepository {
     final rangeVariables = <Variable>[
       if (start != null) Variable<int>(start),
       if (end != null) Variable<int>(end),
+    ];
     final conversationRangeClause = <String>[
       if (start != null) 'c.created_at >= ?',
       if (end != null) 'c.created_at < ?',
+    ].join(' AND ');
 
     final summary = await _db
+        .customSelect(
+          '''
+      SELECT
         (SELECT COUNT(*) FROM conversation_rows c
           ${conversationRangeClause.isEmpty ? '' : 'WHERE $conversationRangeClause'}) AS conversations,
         COUNT(*) AS messages,
@@ -2252,17 +3720,30 @@ class ChatDatabaseRepository {
         COALESCE(SUM(completion_tokens), 0) AS output_tokens,
         COALESCE(SUM(cached_tokens), 0) AS cached_tokens
       FROM message_rows m WHERE 1 = 1 $rangeWhere;
+    ''',
           variables: [...rangeVariables, ...rangeVariables],
+        )
+        .getSingle();
 
     final heatmapRows = await _db
+        .customSelect(
+          '''
       SELECT strftime('%Y-%m-%d', m.timestamp / 1000000.0,
           'unixepoch', 'localtime') AS day,
         COUNT(*) AS message_count
+      FROM message_rows m
       WHERE m.timestamp >= ?
       GROUP BY day ORDER BY day;
+    ''',
           variables: [Variable<int>(heatmapStart.microsecondsSinceEpoch)],
+        )
+        .get();
 
     final trendRows = await _db
+        .customSelect(
+          '''
+      SELECT strftime('%Y-%m-%d', m.timestamp / 1000000.0,
+          'unixepoch', 'localtime') AS day,
         COALESCE(NULLIF(TRIM(m.provider_id), ''), '_unknown') AS provider_id,
         COUNT(*) AS activity_count,
         COALESCE(SUM(m.prompt_tokens), 0) AS input_tokens,
@@ -2271,6 +3752,7 @@ class ChatDatabaseRepository {
         COALESCE(SUM(MAX(COALESCE(m.total_tokens, 0)
           - COALESCE(m.prompt_tokens, 0)
           - COALESCE(m.completion_tokens, 0), 0)), 0) AS uncategorized_tokens
+      FROM message_rows m
       WHERE m.timestamp >= ? AND m.timestamp < ?
         AND (NULLIF(TRIM(m.provider_id), '') IS NOT NULL
           OR COALESCE(m.prompt_tokens, 0) != 0
@@ -2278,32 +3760,45 @@ class ChatDatabaseRepository {
           OR COALESCE(m.cached_tokens, 0) != 0
           OR COALESCE(m.total_tokens, 0) != 0)
       GROUP BY day, provider_id ORDER BY day, provider_id;
+    ''',
+          variables: [
             Variable<int>(trendStart.microsecondsSinceEpoch),
             Variable<int>(trendEndExclusive.microsecondsSinceEpoch),
+          ],
+        )
+        .get();
 
     final modelRows = await _db.customSelect('''
       SELECT m.model_id AS id, NULLIF(TRIM(m.provider_id), '') AS provider_id,
         COUNT(*) AS item_count,
+        COALESCE(SUM(m.prompt_tokens), 0) AS input_tokens,
+        COALESCE(SUM(m.completion_tokens), 0) AS output_tokens,
+        COALESCE(SUM(m.cached_tokens), 0) AS cached_tokens,
         COALESCE(SUM(CAST(json_extract(m.extras_json, '\$."tokens.cacheWrite"')
           AS INTEGER)), 0) AS cache_write_tokens
+      FROM message_rows m
       WHERE NULLIF(TRIM(m.model_id), '') IS NOT NULL $rangeWhere
       GROUP BY m.model_id, NULLIF(TRIM(m.provider_id), '')
       ORDER BY item_count DESC, id, provider_id;
     ''', variables: rangeVariables).get();
     final topicRows = await _db.customSelect('''
       SELECT c.id AS id, c.title AS label, COUNT(*) AS item_count
+      FROM message_rows m
       JOIN conversation_rows c ON c.id = m.conversation_id
       WHERE 1 = 1 $rangeWhere
       GROUP BY c.id, c.title ORDER BY item_count DESC, c.id;
+    ''', variables: rangeVariables).get();
     final conversationRange = <String>[
       if (start != null) 'created_at >= ?',
       if (end != null) 'created_at < ?',
+    ].join(' AND ');
     final assistantRows = await _db.customSelect('''
       SELECT COALESCE(NULLIF(TRIM(assistant_id), ''), '_default') AS id,
         COUNT(*) AS item_count
       FROM conversation_rows
       ${conversationRange.isEmpty ? '' : 'WHERE $conversationRange'}
       GROUP BY id ORDER BY item_count DESC, id;
+    ''', variables: rangeVariables).get();
 
     return ChatStatsAggregate(
       conversations: summary.read<int>('conversations'),
@@ -2312,34 +3807,60 @@ class ChatDatabaseRepository {
         inputTokens: summary.read<int>('input_tokens'),
         outputTokens: summary.read<int>('output_tokens'),
         cachedTokens: summary.read<int>('cached_tokens'),
+      ),
       heatmap: [
         for (final row in heatmapRows)
           ChatStatsDayCount(
             day: DateTime.parse(row.read<String>('day')),
             count: row.read<int>('message_count'),
+          ),
+      ],
       trend: [
         for (final row in trendRows)
           ChatStatsTrendBucket(
+            day: DateTime.parse(row.read<String>('day')),
             providerId: row.read<String>('provider_id'),
             activityCount: row.read<int>('activity_count'),
             inputTokens: row.read<int>('input_tokens'),
             outputTokens: row.read<int>('output_tokens'),
             cachedTokens: row.read<int>('cached_tokens'),
             uncategorizedTokens: row.read<int>('uncategorized_tokens'),
+          ),
+      ],
       models: [
         for (final row in modelRows)
           ChatStatsRank(
+            id: row.read<String>('id'),
             label: row.read<String>('id'),
             count: row.read<int>('item_count'),
             providerId: row.readNullable<String>('provider_id'),
+            inputTokens: row.read<int>('input_tokens'),
+            outputTokens: row.read<int>('output_tokens'),
+            cachedTokens: row.read<int>('cached_tokens'),
             cacheWriteTokens: row.read<int>('cache_write_tokens'),
+          ),
+      ],
       assistants: [
         for (final row in assistantRows)
+          ChatStatsRank(
+            id: row.read<String>('id'),
+            label: row.read<String>('id'),
+            count: row.read<int>('item_count'),
+          ),
+      ],
       topics: [
         for (final row in topicRows)
+          ChatStatsRank(
+            id: row.read<String>('id'),
             label: row.read<String>('label'),
+            count: row.read<int>('item_count'),
+          ),
+      ],
+    );
+  }
 
   Future<void> registerAsset({
+    required String id,
     required String contentHash,
     required String path,
     required int byteSize,
@@ -2347,7 +3868,10 @@ class ChatDatabaseRepository {
     int? height,
     String? thumbnailPath,
     DateTime? createdAt,
+  }) async {
     final timestamp = (createdAt ?? DateTime.now()).microsecondsSinceEpoch;
+    await _db.customStatement(
+      '''
       INSERT INTO asset_rows(
         id, content_hash, path, byte_size, width, height, thumbnail_path,
         created_at, last_referenced_at
@@ -2359,6 +3883,7 @@ class ChatDatabaseRepository {
         width = excluded.width,
         height = excluded.height,
         thumbnail_path = excluded.thumbnail_path;
+    ''',
       [
         id,
         contentHash,
@@ -2368,36 +3893,69 @@ class ChatDatabaseRepository {
         height,
         thumbnailPath,
         timestamp,
+        timestamp,
+      ],
+    );
+  }
 
   Future<void> linkMessageAsset({
+    required String conversationId,
     required String revisionId,
     required String assetId,
+    required String kind,
+  }) async {
+    await _db.transaction(() async {
+      await _db.customStatement(
+        '''
         INSERT OR IGNORE INTO message_asset_rows(
           conversation_id, revision_id, asset_id, kind
         ) VALUES (?, ?, ?, ?);
+      ''',
         [conversationId, revisionId, assetId, kind],
+      );
+      await _db.customStatement(
         'UPDATE asset_rows SET last_referenced_at = '
         'MAX(last_referenced_at + 1, ?) WHERE id = ?;',
         [DateTime.now().microsecondsSinceEpoch, assetId],
+      );
+      await _db.customStatement(
         'DELETE FROM asset_gc_rows WHERE asset_id = ?;',
         [assetId],
+      );
+    });
+  }
 
-  /// Replaces [revisionId]'s asset references inside [conversationId] with
-  /// [assets]. The delete is scoped to the conversation: a revision id is a
-  /// global primary key, so an unscoped `WHERE revision_id = ?` would unlink a
-  /// message of that name in *any* conversation — and the sync caller feeds
-  /// this function ids that arrive from the wire.
   Future<void> replaceMessageAssetReferences({
+    required String conversationId,
+    required String revisionId,
     required List<MessageAssetRegistration> assets,
+  }) async {
+    await _db.transaction(() async {
+      await _db.customStatement(
         'DELETE FROM message_asset_rows '
         'WHERE revision_id = ? AND conversation_id = ?;',
         [revisionId, conversationId],
+      );
       final now = DateTime.now().microsecondsSinceEpoch;
       for (final asset in assets) {
+        await _db.customStatement(
+          '''
+          INSERT INTO asset_rows(
+            id, content_hash, path, byte_size, width, height, thumbnail_path,
+            created_at, last_referenced_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            path = excluded.path,
+            byte_size = excluded.byte_size,
+            width = excluded.width,
+            height = excluded.height,
             thumbnail_path = excluded.thumbnail_path,
             last_referenced_at = MAX(
               asset_rows.last_referenced_at + 1,
               excluded.last_referenced_at
+            );
+        ''',
+          [
             asset.assetId,
             asset.contentHash,
             asset.path,
@@ -2406,33 +3964,71 @@ class ChatDatabaseRepository {
             asset.height,
             asset.thumbnailPath,
             now,
+            now,
+          ],
+        );
+        await _db.customStatement(
+          '''
+          INSERT OR IGNORE INTO message_asset_rows(
+            conversation_id, revision_id, asset_id, kind
+          ) VALUES (?, ?, ?, ?);
+        ''',
           [conversationId, revisionId, asset.assetId, asset.kind],
+        );
+        await _db.customStatement(
+          'DELETE FROM asset_gc_rows WHERE asset_id = ?;',
           [asset.assetId],
+        );
+      }
+      await _db.customStatement(
         'DELETE FROM asset_reference_dirty_rows WHERE revision_id = ?;',
+        [revisionId],
+      );
+    });
+  }
 
   Future<void> unlinkMessageAsset({
+    required String revisionId,
+    required String assetId,
+  }) async {
+    await _db.customStatement(
       'DELETE FROM message_asset_rows WHERE revision_id = ? AND asset_id = ?;',
       [revisionId, assetId],
+    );
+  }
 
   Future<int> scheduleUnreferencedAssetGc({required DateTime notBefore}) async {
+    await _db.customStatement(
+      '''
       INSERT OR IGNORE INTO asset_gc_rows(
         asset_id, not_before, attempts, generation
+      )
       SELECT a.id, ?, 0, a.last_referenced_at FROM asset_rows a
+      WHERE NOT EXISTS (
         SELECT 1 FROM message_asset_rows r WHERE r.asset_id = a.id
+      );
+    ''',
       [notBefore.microsecondsSinceEpoch],
+    );
+    final row = await _db
         .customSelect('SELECT changes() AS changed;')
+        .getSingle();
     return row.read<int>('changed');
+  }
 
   Future<List<AssetGcCandidate>> claimAssetGc({
     required DateTime now,
     int limit = 50,
     @visibleForTesting int maxScan = 500,
+  }) async {
     if (limit <= 0) return const <AssetGcCandidate>[];
+    return _db.transaction(() async {
       // Page candidates with keyset pagination, then ask SQLite once per page
       // whether any dirty text references those paths (set-based instr). Never
       // pull the full dirty payload corpus into Dart.
       final ids = <String>[];
       final protectedIds = <String>[];
+      var scanned = 0;
       const pageSize = 50;
       int? cursorNotBefore;
       String? cursorAssetId;
@@ -2441,32 +4037,65 @@ class ChatDatabaseRepository {
         final List<QueryRow> dueRows;
         if (cursorNotBefore == null) {
           dueRows = await _db
+              .customSelect(
+                '''
             SELECT g.asset_id, a.path, g.not_before FROM asset_gc_rows g
             JOIN asset_rows a ON a.id = g.asset_id
             WHERE g.not_before <= ?
               AND NOT EXISTS (
                 SELECT 1 FROM message_asset_rows r
                 WHERE r.asset_id = g.asset_id
+              )
             ORDER BY g.not_before, g.asset_id
             LIMIT ?;
+          ''',
+                variables: [
                   Variable<int>(now.microsecondsSinceEpoch),
                   Variable<int>(pageSize),
+                ],
+              )
+              .get();
+        } else {
+          dueRows = await _db
+              .customSelect(
+                '''
+            SELECT g.asset_id, a.path, g.not_before FROM asset_gc_rows g
+            JOIN asset_rows a ON a.id = g.asset_id
+            WHERE g.not_before <= ?
+              AND NOT EXISTS (
+                SELECT 1 FROM message_asset_rows r
+                WHERE r.asset_id = g.asset_id
+              )
               AND (
                 g.not_before > ?
                 OR (g.not_before = ? AND g.asset_id > ?)
+              )
+            ORDER BY g.not_before, g.asset_id
+            LIMIT ?;
+          ''',
+                variables: [
+                  Variable<int>(now.microsecondsSinceEpoch),
+                  Variable<int>(cursorNotBefore),
                   Variable<int>(cursorNotBefore),
                   Variable<String>(cursorAssetId!),
+                  Variable<int>(pageSize),
+                ],
+              )
+              .get();
+        }
         if (dueRows.isEmpty) break;
 
         final page = <({String id, String path, int notBefore})>[];
         for (final row in dueRows) {
           if (scanned >= maxScan) break;
+          scanned += 1;
           final assetId = row.read<String>('asset_id');
           final path = row.read<String>('path');
           final notBefore = row.read<int>('not_before');
           cursorNotBefore = notBefore;
           cursorAssetId = assetId;
           page.add((id: assetId, path: path, notBefore: notBefore));
+        }
         if (page.isEmpty) break;
 
         final protected = await _dirtyPartProtectedAssetIds(page);
@@ -2474,38 +4103,57 @@ class ChatDatabaseRepository {
           if (ids.length >= limit) break;
           if (protected.contains(item.id)) {
             protectedIds.add(item.id);
+            continue;
+          }
           ids.add(item.id);
+        }
         if (dueRows.length < pageSize) break;
+      }
 
       if (protectedIds.isNotEmpty) {
         final deferUntil = now
             .add(const Duration(hours: 6))
             .microsecondsSinceEpoch;
         final placeholders = List.filled(protectedIds.length, '?').join(',');
+        await _db.customStatement(
           'UPDATE asset_gc_rows SET not_before = ? '
           'WHERE asset_id IN ($placeholders);',
           [deferUntil, ...protectedIds],
+        );
+      }
 
       if (ids.isEmpty) return const <AssetGcCandidate>[];
       for (final id in ids) {
+        await _db.customStatement(
           'UPDATE asset_gc_rows SET attempts = attempts + 1, '
           'generation = generation + 1 WHERE asset_id = ?;',
           [id],
+        );
+      }
       final rows = await _db.customSelect(
+        '''
             SELECT a.id, a.path, a.thumbnail_path, a.byte_size, g.generation
             FROM asset_gc_rows g JOIN asset_rows a ON a.id = g.asset_id
             WHERE a.id IN (${List.filled(ids.length, '?').join(',')})
             ORDER BY g.not_before, a.id;
+          ''',
         variables: ids.map(Variable<String>.new).toList(growable: false),
       ).get();
+      return [
+        for (final row in rows)
           AssetGcCandidate(
             assetId: row.read<String>('id'),
             path: row.read<String>('path'),
             thumbnailPath: row.readNullable<String>('thumbnail_path'),
             byteSize: row.read<int>('byte_size'),
             generation: row.read<int>('generation'),
+          ),
+      ];
+    });
+  }
 
   /// Set-based dirty-part protection for a candidate page.
+  ///
   /// A never-registered malformed attachment whose raw payload no longer
   /// contains its path (for example, a non-string `uri`) cannot be protected
   /// here and may be collected. We accept that residual loss window because a
@@ -2513,9 +4161,11 @@ class ChatDatabaseRepository {
   /// asset GC indefinitely and cause unbounded disk growth.
   Future<Set<String>> _dirtyPartProtectedAssetIds(
     List<({String id, String path, int notBefore})> page,
+  ) async {
     if (page.isEmpty) return const <String>{};
     final tuples = List.filled(page.length, '(?, ?, ?, ?, ?)').join(', ');
     final variables = <Variable<Object>>[];
+    for (final item in page) {
       final pathForm = item.path.isEmpty ? ' ' : item.path;
       final altForm = _alternateAssetPathForm(pathForm);
       final jsonPathForm = _jsonEscapedPathForm(pathForm);
@@ -2526,11 +4176,13 @@ class ChatDatabaseRepository {
         ..add(Variable<String>(altForm))
         ..add(Variable<String>(jsonPathForm))
         ..add(Variable<String>(jsonAltForm));
+    }
     final rows = await _db.customSelect('''
           WITH candidates(
             asset_id, path_form, alt_form, json_path_form, json_alt_form
           ) AS (
             VALUES $tuples
+          )
           SELECT DISTINCT c.asset_id AS asset_id
           FROM candidates c
           WHERE EXISTS (
@@ -2538,12 +4190,16 @@ class ChatDatabaseRepository {
             FROM asset_reference_dirty_rows d
             JOIN message_part_rows p ON p.revision_id = d.revision_id
             WHERE p.kind IN ('text', 'image', 'file', 'tool_call')
+              AND (
                 instr(p.payload, c.path_form) > 0
                 OR instr(p.payload, c.alt_form) > 0
                 OR instr(p.payload, c.json_path_form) > 0
                 OR instr(p.payload, c.json_alt_form) > 0
+              )
+          );
         ''', variables: variables).get();
     return {for (final row in rows) row.read<String>('asset_id')};
+  }
 
   /// Keep an active appearance asset out of the next bounded GC batch so it
   /// cannot repeatedly displace other files that are ready for collection.
@@ -2554,64 +4210,149 @@ class ChatDatabaseRepository {
     'UPDATE asset_gc_rows SET not_before = ?, generation = generation + 1 '
     'WHERE asset_id = ? AND generation = ?;',
     [notBefore.microsecondsSinceEpoch, candidate.assetId, candidate.generation],
+  );
 
   Future<bool> isAssetGcClaimStillValid(AssetGcCandidate candidate) async {
     final pathForm = candidate.path.isEmpty ? ' ' : candidate.path;
+    final altForm = _alternateAssetPathForm(pathForm);
+    final jsonPathForm = _jsonEscapedPathForm(pathForm);
+    final jsonAltForm = _jsonEscapedPathForm(altForm);
+    final row = await _db
+        .customSelect(
+          '''
           SELECT 1 AS valid FROM asset_gc_rows g
           WHERE g.asset_id = ? AND g.generation = ?
+            AND NOT EXISTS (
+              SELECT 1 FROM message_asset_rows r
+              WHERE r.asset_id = g.asset_id
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM asset_reference_dirty_rows d
+              JOIN message_part_rows p ON p.revision_id = d.revision_id
+              WHERE p.kind IN ('text', 'image', 'file', 'tool_call')
+                AND (
                   instr(p.payload, ?) > 0 OR instr(p.payload, ?) > 0
                   OR instr(p.payload, ?) > 0 OR instr(p.payload, ?) > 0
+                )
+            )
           LIMIT 1;
+        ''',
+          variables: [
             Variable<String>(candidate.assetId),
             Variable<int>(candidate.generation),
             Variable<String>(pathForm),
             Variable<String>(altForm),
             Variable<String>(jsonPathForm),
             Variable<String>(jsonAltForm),
+          ],
+        )
+        .getSingleOrNull();
     return row != null;
+  }
 
   Future<bool> completeAssetGc({
+    required String assetId,
     required int expectedGeneration,
+    required String path,
     DateTime? completedAt,
+  }) async {
     // Dirty-part protection must match either stored form. Never pass '' —
     // instr(x, '') is always true and would stall GC forever.
     final pathForm = path.isEmpty ? ' ' : path;
+    final altForm = _alternateAssetPathForm(pathForm);
+    final jsonPathForm = _jsonEscapedPathForm(pathForm);
+    final jsonAltForm = _jsonEscapedPathForm(altForm);
+    return _db.transaction(() async {
       final claim = await _db
+          .customSelect(
+            '''
+            SELECT 1 AS valid FROM asset_gc_rows g
+            WHERE g.asset_id = ? AND g.generation = ?
+              AND NOT EXISTS (
+                SELECT 1 FROM message_asset_rows r
+                WHERE r.asset_id = g.asset_id
+              )
+              AND NOT EXISTS (
+                SELECT 1 FROM asset_reference_dirty_rows d
+                JOIN message_part_rows p ON p.revision_id = d.revision_id
+                WHERE p.kind IN ('text', 'image', 'file', 'tool_call')
+                  AND (
+                    instr(p.payload, ?) > 0 OR instr(p.payload, ?) > 0
+                    OR instr(p.payload, ?) > 0 OR instr(p.payload, ?) > 0
+                  )
+              )
+            LIMIT 1;
+          ''',
+            variables: [
               Variable<String>(assetId),
               Variable<int>(expectedGeneration),
+              Variable<String>(pathForm),
+              Variable<String>(altForm),
+              Variable<String>(jsonPathForm),
+              Variable<String>(jsonAltForm),
+            ],
+          )
+          .getSingleOrNull();
       if (claim == null) return false;
       await _db.customStatement('DELETE FROM asset_rows WHERE id = ?;', [
         assetId,
+      ]);
       final changed =
           (await _db.customSelect('SELECT changes() AS changed;').getSingle())
               .read<int>('changed');
       if (changed == 0) return false;
+      await _db.customStatement(
+        '''
         INSERT INTO gc_audit_rows(kind, entity_id, completed_at)
         VALUES ('asset', ?, ?);
+      ''',
         [assetId, (completedAt ?? DateTime.now()).microsecondsSinceEpoch],
+      );
+      return true;
+    });
+  }
 
   bool _requiresCjkFallback(String token) {
     return RegExp(
       r'[\u3400-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]',
     ).hasMatch(token);
+  }
 
   Future<void> _ensureMessageSearchFts() async {
     if (_messageSearchFtsReady) return;
     final existing = await _db
+        .customSelect(
           "SELECT sql FROM sqlite_master "
           "WHERE type = 'table' AND name = 'message_search_fts';",
+        )
+        .getSingleOrNull();
     final existingSql = existing?.readNullable<String>('sql') ?? '';
     final externalContent =
         existingSql.contains("content='message_part_rows'") &&
         existingSql.contains("content_rowid='part_id'");
     if (existing != null && !externalContent) {
+      await _db.transaction(() async {
+        await _db.customStatement(
           'DROP TRIGGER IF EXISTS message_search_fts_insert;',
+        );
+        await _db.customStatement(
           'DROP TRIGGER IF EXISTS message_search_fts_delete;',
+        );
+        await _db.customStatement(
           'DROP TRIGGER IF EXISTS message_search_fts_update;',
+        );
+        await _db.customStatement(
           'DROP TRIGGER IF EXISTS message_search_fts_finalize;',
+        );
+        await _db.customStatement(
           'DROP TRIGGER IF EXISTS message_search_fts_unindex;',
+        );
+        await _db.customStatement(
           'DROP TRIGGER IF EXISTS message_search_fts_message_delete;',
+        );
         await _db.customStatement('DROP TABLE message_search_fts;');
+      });
+    }
     final needsRebuild = existing == null || !externalContent;
     await _db.customStatement('''
       CREATE VIRTUAL TABLE IF NOT EXISTS message_search_fts USING fts5(
@@ -2621,142 +4362,261 @@ class ChatDatabaseRepository {
         content='message_part_rows',
         content_rowid='part_id',
         tokenize = 'unicode61 remove_diacritics 2'
+      );
     ''');
     // Index only finalized text parts. Positive EXISTS (not NOT EXISTS) so a
     // deferred part insert that races ahead of its message_rows parent stays
     // out of the index until a later finalize/rebuild path can see is_streaming=0.
+    await _db.customStatement('''
       CREATE TRIGGER IF NOT EXISTS message_search_fts_insert
       AFTER INSERT ON message_part_rows
       WHEN new.kind = 'text'
        AND EXISTS (
          SELECT 1 FROM message_rows m
          WHERE m.id = new.revision_id AND m.is_streaming = 0
+       )
       BEGIN
         INSERT INTO message_search_fts(
           rowid, revision_id, conversation_id, payload
         ) VALUES (
           new.part_id, new.revision_id, new.conversation_id, new.payload
+        );
       END;
+    ''');
     // Symmetric with insert: only reverse-delete postings that were indexed.
     // During ON DELETE CASCADE the parent message_rows row is already gone, so
     // this WHEN fails — message_search_fts_message_delete covers that path.
+    await _db.customStatement('''
       CREATE TRIGGER IF NOT EXISTS message_search_fts_delete
       AFTER DELETE ON message_part_rows
       WHEN old.kind = 'text'
+       AND EXISTS (
+         SELECT 1 FROM message_rows m
          WHERE m.id = old.revision_id AND m.is_streaming = 0
+       )
+      BEGIN
+        INSERT INTO message_search_fts(
           message_search_fts, rowid, revision_id, conversation_id, payload
+        ) VALUES (
           'delete', old.part_id, old.revision_id, old.conversation_id,
           old.payload
+        );
+      END;
+    ''');
     // Payload updates include streaming checkpoints and sandbox path rewrites.
+    await _db.customStatement('''
       CREATE TRIGGER IF NOT EXISTS message_search_fts_update
       AFTER UPDATE OF payload, conversation_id, kind ON message_part_rows
       WHEN (old.kind = 'text' OR new.kind = 'text')
+       AND EXISTS (
+         SELECT 1 FROM message_rows m
+         WHERE m.id = new.revision_id AND m.is_streaming = 0
+       )
+      BEGIN
+        INSERT INTO message_search_fts(
+          message_search_fts, rowid, revision_id, conversation_id, payload
+        )
+        SELECT
+          'delete', old.part_id, old.revision_id, old.conversation_id,
+          old.payload
         WHERE old.kind = 'text';
+        INSERT INTO message_search_fts(
+          rowid, revision_id, conversation_id, payload
+        )
+        SELECT
+          new.part_id, new.revision_id, new.conversation_id, new.payload
         WHERE new.kind = 'text';
+      END;
+    ''');
     // Streaming checkpoints defer FTS; when is_streaming flips to 0, index the
     // text parts present at that moment. The subsequent part rewrite (if any)
     // then updates changed parts under the finalized gate.
+    await _db.customStatement('''
       CREATE TRIGGER IF NOT EXISTS message_search_fts_finalize
       AFTER UPDATE OF is_streaming ON message_rows
       WHEN old.is_streaming <> 0 AND new.is_streaming = 0
+      BEGIN
+        INSERT INTO message_search_fts(
+          rowid, revision_id, conversation_id, payload
+        )
+        SELECT
           p.part_id, p.revision_id, p.conversation_id, p.payload
+        FROM message_part_rows p
         WHERE p.revision_id = new.id AND p.kind = 'text';
+      END;
+    ''');
     // Symmetric with finalize: reopening a finished revision (0→1) must drop
     // its postings before streaming checkpoints rewrite parts under the
     // is_streaming≠0 gate that would otherwise leave orphan FTS rows.
+    await _db.customStatement('''
       CREATE TRIGGER IF NOT EXISTS message_search_fts_unindex
+      AFTER UPDATE OF is_streaming ON message_rows
       WHEN old.is_streaming = 0 AND new.is_streaming <> 0
+      BEGIN
+        INSERT INTO message_search_fts(
+          message_search_fts, rowid, revision_id, conversation_id, payload
+        )
+        SELECT
           'delete', p.part_id, p.revision_id, p.conversation_id, p.payload
+        FROM message_part_rows p
+        WHERE p.revision_id = new.id AND p.kind = 'text';
+      END;
+    ''');
     // Cascade deletes remove parts after the parent row is invisible to the
     // part DELETE trigger's EXISTS gate. Clean FTS here first, and only for
     // revisions that were eligible to be indexed (is_streaming = 0).
+    await _db.customStatement('''
       CREATE TRIGGER IF NOT EXISTS message_search_fts_message_delete
       BEFORE DELETE ON message_rows
       WHEN old.is_streaming = 0
+      BEGIN
+        INSERT INTO message_search_fts(
+          message_search_fts, rowid, revision_id, conversation_id, payload
+        )
+        SELECT
+          'delete', p.part_id, p.revision_id, p.conversation_id, p.payload
+        FROM message_part_rows p
         WHERE p.revision_id = old.id AND p.kind = 'text';
+      END;
+    ''');
     if (needsRebuild) {
+      await _db.customStatement('''
+        INSERT INTO message_search_fts(
+          rowid, revision_id, conversation_id, payload
+        )
+        SELECT
+          p.part_id, p.revision_id, p.conversation_id, p.payload
+        FROM message_part_rows p
         INNER JOIN message_rows m ON m.id = p.revision_id
         WHERE p.kind = 'text' AND m.is_streaming = 0;
+      ''');
+    }
     _messageSearchFtsReady = true;
+  }
 
   Future<void> _invalidateEmptyAcknowledgement() async {
+    final file = _databaseFile;
+    if (file != null) {
       await EmptyDatabaseRecoveryGuard.invalidate(file.parent);
+    }
+  }
 
   /// Called at the end of an explicit deletion/reset, inside its transaction.
   Future<void> _acknowledgeIntentionalEmptyState() async {
+    final file = _databaseFile;
     if (file == null) return;
     final hasData = await _db
         .customSelect(EmptyDatabasePermission.hasDataQuery)
+        .getSingle();
     if (hasData.read<int>('present') != 0) return;
     final identity = await getDatabaseIdentity();
     if (identity == null) return;
     for (final statement in EmptyDatabasePermission.invalidationTriggers) {
       await _db.customStatement(statement);
+    }
     final token = await EmptyDatabaseRecoveryGuard.recordEmptyState(
       file.parent,
       identity,
+    );
+    await _db
+        .into(_db.chatStorageMetaRows)
+        .insertOnConflictUpdate(
+          ChatStorageMetaRowsCompanion.insert(
             key: EmptyDatabasePermission.tokenKey,
             value: token,
+          ),
+        );
+  }
 
   Future<void> putConversation(Conversation conversation) async {
+    await _db.transaction(() async {
       await _invalidateEmptyAcknowledgement();
       // Existing rows keep the database-owned hash written by prompt freeze;
       // cached Conversation instances may still hold an older value.
       final updated =
           await (_db.update(
+            _db.conversationRows,
           )..where((row) => row.id.equals(conversation.id))).write(
             _conversationCompanion(
               conversation,
               injectedMemoryHash: const Value.absent(),
+            ),
+          );
       if (updated == 0) {
+        await _db
             .into(_db.conversationRows)
             .insert(_conversationCompanion(conversation));
+      }
       await _replaceMcpServers(conversation.id, conversation.mcpServerIds);
+    });
+  }
 
   /// Reads [conversationId]'s extras, applies [update], and writes the result
   /// in one transaction. [updatedAt] is bumped only when the map changes.
   Future<void> updateConversationExtras(
+    String conversationId,
     Map<String, dynamic> Function(Map<String, dynamic> current) update, {
     Conversation? expectedOwner,
+  }) {
+    return _db.transaction(() async {
+      final row = await (_db.select(
+        _db.conversationRows,
       )..where((t) => t.id.equals(conversationId))).getSingleOrNull();
       if (row == null) {
         throw StateError('conversation_not_found');
+      }
       if (expectedOwner != null &&
           row.assistantId != expectedOwner.assistantId) {
         throw StateError('context_changed');
+      }
       final current = _decodeExtrasJson(row.extrasJson);
       final next = update(Map<String, dynamic>.from(current));
       if (jsonEncode(current) == jsonEncode(next)) {
         return;
+      }
+      await (_db.update(
+        _db.conversationRows,
       )..where((t) => t.id.equals(conversationId))).write(
         ConversationRowsCompanion(
           extrasJson: Value(jsonEncode(next)),
           updatedAt: Value(DateTime.now()),
+        ),
+      );
+    });
+  }
 
   Future<Conversation?> duplicateConversation(String sourceId) async {
     await genUiStates.flush();
     return _writeTransaction(() async {
       await readContextOperations(sourceId);
       final sourceRow = await (_db.select(
+        _db.conversationRows,
       )..where((row) => row.id.equals(sourceId))).getSingleOrNull();
       if (sourceRow == null) return null;
 
       final sourceMessages =
+          await (_db.select(_db.messageRows)
                 ..where((row) => row.conversationId.equals(sourceId))
                 ..orderBy([(row) => OrderingTerm.asc(row.messageOrder)]))
+              .get();
       const uuid = Uuid();
       final targetId = uuid.v4();
       final messageIdMap = {
         for (final message in sourceMessages) message.id: uuid.v4(),
+      };
       final groupIdMap = <String, String>{};
       for (final message in sourceMessages) {
         final groupId = message.groupId ?? message.id;
         groupIdMap.putIfAbsent(
           groupId,
           () => messageIdMap[groupId] ?? uuid.v4(),
+        );
+      }
 
       final source = await _conversationFromRow(
         sourceRow,
+        includeMessageIds: false,
+      );
       final duplicatedAt = DateTime.now();
       final duplicate = source.copyWith(
         extras: ToolPermissionMode.withoutGrant(source.extras),
@@ -2765,12 +4625,19 @@ class ChatDatabaseRepository {
         updatedAt: duplicatedAt,
         messageIds: [
           for (final message in sourceMessages) messageIdMap[message.id]!,
+        ],
         versionSelections: {
           for (final entry in source.versionSelections.entries)
             groupIdMap[entry.key] ?? entry.key: entry.value,
+        },
         clearInjectedMemoryHash: true,
         lastMemoryExtractedOrder: sourceMessages.isEmpty
+            ? -1
             : sourceMessages.last.messageOrder,
+      );
+      await _invalidateEmptyAcknowledgement();
+      await _db
+          .into(_db.conversationRows)
           .insert(_conversationCompanion(duplicate));
       await _replaceMcpServers(targetId, duplicate.mcpServerIds);
       await _copyMessageRowsInto(
@@ -2778,34 +4645,51 @@ class ChatDatabaseRepository {
         messages: sourceMessages,
         messageIdMap: messageIdMap,
         groupIdMap: groupIdMap,
+      );
       await _copyContextOperations(
         sourceId: sourceId,
         targetId: targetId,
         groups: groupIdMap,
         completeHistory: true,
+      );
       return duplicate;
+    });
+  }
 
   Future<Map<String, UiRevisionTransfer>> captureGenUiTransfer(
     Iterable<String> revisionIds,
+  ) async {
+    await genUiStates.flush();
     return _writeTransaction(
       () => UiStateTransfer(_db).read(revisionIds: revisionIds),
+    );
+  }
 
   Future<void> copyGenUiTransfer({
     required Map<String, UiRevisionTransfer> sources,
     required Map<String, String> messageIdMap,
     required String targetConversationId,
+  }) => _writeTransaction(() async {
     await UiStateTransfer(_db).copy(
       sources: sources,
+      messageIdMap: messageIdMap,
       targetConversationId: targetConversationId,
+    );
     await _sealGenUiSearch(messageIdMap.values);
+  });
 
   Future<void> _copyMessageRowsInto({
+    required String targetConversationId,
     required List<MessageRow> messages,
+    required Map<String, String> messageIdMap,
     required Map<String, String> groupIdMap,
     bool resetVersions = false,
+  }) async {
     final transfer = UiStateTransfer(_db);
     final sources = await transfer.read(revisionIds: messageIdMap.keys);
+    for (final message in messages) {
       final targetMessageId = messageIdMap[message.id]!;
+      await _db
           .into(_db.messageRows)
           .insert(
             MessageRowsCompanion.insert(
@@ -2823,8 +4707,11 @@ class ChatDatabaseRepository {
               reasoningSegmentsJson: Value(message.reasoningSegmentsJson),
               groupId: Value(
                 resetVersions
+                    ? null
                     : (message.groupId == null
+                          ? null
                           : groupIdMap[message.groupId]),
+              ),
               version: Value(resetVersions ? 0 : message.version),
               promptTokens: Value(message.promptTokens),
               completionTokens: Value(message.completionTokens),
@@ -2835,35 +4722,72 @@ class ChatDatabaseRepository {
               // copy. updatedAt deliberately stays null: the copy is a fresh
               // row, so its effective updated_at is its (copied) timestamp.
               senderId: Value(message.senderId),
-              extrasJson: Value(message.extrasJson),
+              extrasJson: Value(
+                _remapCopiedMessageExtras(message.extrasJson, messageIdMap),
+              ),
+            ),
+          );
+      await _db.customStatement(
         'INSERT INTO message_part_rows '
         '(conversation_id, revision_id, ordinal, kind, payload, '
         'created_at, updated_at) '
         'SELECT ?, ?, ordinal, kind, payload, created_at, updated_at '
         'FROM message_part_rows WHERE revision_id = ?;',
         [targetConversationId, targetMessageId, message.id],
+      );
+      await _db.customStatement(
         'INSERT INTO provider_artifact_rows '
         '(conversation_id, revision_id, kind, payload, created_at, '
         'updated_at) '
         'SELECT ?, ?, kind, payload, created_at, updated_at '
         'FROM provider_artifact_rows WHERE revision_id = ?;',
+        [targetConversationId, targetMessageId, message.id],
+      );
+      await _db.customStatement(
         'INSERT INTO message_asset_rows '
         '(conversation_id, revision_id, asset_id, kind) '
         'SELECT ?, ?, asset_id, kind FROM message_asset_rows '
         'WHERE revision_id = ?;',
+        [targetConversationId, targetMessageId, message.id],
+      );
+    }
     await transfer.copy(
+      sources: sources,
+      messageIdMap: messageIdMap,
+      targetConversationId: targetConversationId,
+    );
+    await _sealGenUiSearch(messageIdMap.values);
+    await _db.customStatement(
+      'INSERT OR IGNORE INTO asset_reference_dirty_rows(revision_id) '
       'SELECT revision_id FROM message_asset_rows WHERE conversation_id = ? '
       'UNION '
       'SELECT revision_id FROM message_part_rows '
       "WHERE conversation_id = ? AND (kind IN ('image', 'file') "
       "OR (kind = 'tool_call' AND payload LIKE '%\"previewImage\"%'));",
       [targetConversationId, targetConversationId],
+    );
+  }
 
   Future<Conversation?> forkConversationWithVersions({
     required String sourceId,
+    required String targetRevisionId,
     required String title,
+    String? assistantId,
     bool preserveVersions = true,
+  }) async {
+    await genUiStates.flush();
+    return _writeTransaction(() async {
+      await readContextOperations(sourceId);
+      final sourceRow = await (_db.select(
+        _db.conversationRows,
+      )..where((row) => row.id.equals(sourceId))).getSingleOrNull();
+      if (sourceRow == null) return null;
 
+      final sourceMessages =
+          await (_db.select(_db.messageRows)
+                ..where((row) => row.conversationId.equals(sourceId))
+                ..orderBy([(row) => OrderingTerm.asc(row.messageOrder)]))
+              .get();
 
       final firstOrderByGroup = <String, int>{};
       for (final row in sourceMessages) {
@@ -2871,11 +4795,19 @@ class ChatDatabaseRepository {
         final current = firstOrderByGroup[groupId];
         if (current == null || row.messageOrder < current) {
           firstOrderByGroup[groupId] = row.messageOrder;
+        }
+      }
 
       MessageRow? target;
+      for (final row in sourceMessages) {
         if (row.id == targetRevisionId) {
           target = row;
+          break;
+        }
+      }
       if (target == null || target.conversationId != sourceId) {
+        return null;
+      }
 
       final targetGroupId = target.groupId ?? target.id;
       final anchorOrder = firstOrderByGroup[targetGroupId];
@@ -2886,17 +4818,31 @@ class ChatDatabaseRepository {
             final firstOrder = firstOrderByGroup[row.groupId ?? row.id];
             return firstOrder != null && firstOrder <= anchorOrder;
           })
+          .toList(growable: false);
 
       final selected = await _contextMetadata(sourceId);
       final selectedIds = {for (final m in selected) m.id};
       if (!preserveVersions) {
         kept = kept.where((row) => selectedIds.contains(row.id)).toList();
+      }
+      const uuid = Uuid();
+      final targetId = uuid.v4();
       final messageIdMap = {for (final message in kept) message.id: uuid.v4()};
+      final groupIdMap = <String, String>{};
       for (final message in kept) {
+        final groupId = message.groupId ?? message.id;
+        groupIdMap.putIfAbsent(
+          groupId,
           () => !preserveVersions
               ? messageIdMap[message.id]!
               : messageIdMap[groupId] ?? uuid.v4(),
+        );
+      }
 
+      final source = await _conversationFromRow(
+        sourceRow,
+        includeMessageIds: false,
+      );
       var suggestions = const <String>[];
       if (source.chatSuggestions.isNotEmpty &&
           target.role == 'assistant' &&
@@ -2905,40 +4851,81 @@ class ChatDatabaseRepository {
         final tail = await loadLinearMessageWindow(
           conversationId: sourceId,
           limit: 1,
+        );
         if (tail.slots.isNotEmpty &&
             tail.slots.single.revisionId == targetRevisionId) {
           suggestions = List<String>.of(source.chatSuggestions);
+        }
+      }
       final keptSourceGroupIds = {
         for (final row in kept) row.groupId ?? row.id,
+      };
       final selections = <String, int>{
+        for (final entry in source.versionSelections.entries)
           if (keptSourceGroupIds.contains(entry.key))
             (groupIdMap[entry.key] ?? entry.key): entry.value,
+      };
       if (preserveVersions) {
         selections[groupIdMap[targetGroupId]!] = target.version;
+      } else {
         selections.clear();
+      }
 
       final now = DateTime.now();
+      await _invalidateEmptyAcknowledgement();
+      await _db
+          .into(_db.conversationRows)
+          .insert(
+            _conversationCompanion(
               Conversation(
+                id: targetId,
                 title: title,
                 createdAt: now,
                 updatedAt: now,
+                assistantId: assistantId,
                 versionSelections: selections,
                 chatModelProvider: source.chatModelProvider,
                 chatModelId: source.chatModelId,
                 chatSuggestions: suggestions,
+                messageIds: [
                   for (final message in kept) messageIdMap[message.id]!,
+                ],
+                extras: ToolPermissionMode.withoutGrant(source.extras),
+              ),
+            ),
+          );
+      await _copyMessageRowsInto(
+        targetConversationId: targetId,
         messages: kept,
+        messageIdMap: messageIdMap,
+        groupIdMap: groupIdMap,
         resetVersions: !preserveVersions,
+      );
+      await _copyContextOperations(
+        sourceId: sourceId,
+        targetId: targetId,
+        groups: groupIdMap,
+      );
       if (preserveVersions && !selectedIds.contains(target.id)) {
         await _revokeContextForGroups(targetId, {groupIdMap[targetGroupId]!});
+      }
       final insertedRow = await (_db.select(
+        _db.conversationRows,
       )..where((row) => row.id.equals(targetId))).getSingle();
       return _conversationFromRow(insertedRow);
+    });
+  }
 
   Future<bool> moveConversationToAssistant({
+    required String conversationId,
     required String assistantId,
+    required DateTime updatedAt,
+  }) {
+    return _writeTransaction(() async {
       final activeRun =
           await (_db.select(_db.generationRunRows)
+                ..where(
+                  (row) =>
                       row.conversationId.equals(conversationId) &
                       row.state.isIn(const [
                         'preparing',
@@ -2946,49 +4933,84 @@ class ChatDatabaseRepository {
                         'streaming',
                         'waiting_tool',
                       ]),
+                )
+                ..limit(1))
+              .getSingleOrNull();
       if (activeRun != null) return false;
       await updateConversationExtras(
+        conversationId,
         ToolPermissionMode.withoutGrant,
+      );
       await (_db.delete(_db.messagePromptRows)..where(
+            (row) =>
+                row.conversationId.equals(conversationId) &
                 row.carriesMemorySnapshot.equals(true),
+          ))
           .go();
+      final updated =
+          await (_db.update(
+            _db.conversationRows,
           )..where((row) => row.id.equals(conversationId))).write(
+            ConversationRowsCompanion(
               assistantId: Value(assistantId),
               updatedAt: Value(updatedAt),
               injectedMemoryHash: const Value(null),
+            ),
+          );
       return updated != 0;
+    });
+  }
 
   Future<void> putMessage(ChatMessage message, {int? messageOrder}) async {
     final order =
         messageOrder ?? await _nextMessageOrder(message.conversationId);
     await _writeTransaction(() async {
+      await _invalidateEmptyAcknowledgement();
       // An upsert may be an update in disguise, so it bumps updated_at; a
       // fresh insert getting "updated_at = now ≈ timestamp" is harmless.
+      await _db
+          .into(_db.messageRows)
+          .insertOnConflictUpdate(
             _messageCompanion(
+              message,
               order,
             ).copyWith(updatedAt: Value(DateTime.now().toUtc())),
+          );
       await _replaceMessageParts(message);
+    });
+  }
 
   /// Returns the actual persisted parts, including a frozen UI context or its
   /// stale-source notice. The check and insert share the coordinated writer.
   Future<PersistedChatMessage> appendLinearMessageToConversation({
+    required Conversation conversation,
+    required ChatMessage message,
     bool selectVersion = false,
     bool touchUpdatedAt = true,
     UiContextSubmission? uiContext,
+  }) {
+    return _observer.measure(
       ChatDatabaseOperation.commandAppendMessage,
+      () => _writeTransaction(() async {
         final resolved = await _withUiContext(message, uiContext);
         final persisted = await _appendLinearMessageToConversation(
           conversation: conversation,
           message: resolved,
           selectVersion: selectVersion,
           touchUpdatedAt: touchUpdatedAt,
+        );
         return (conversation: persisted, message: resolved);
+      }),
+    );
+  }
 
   Future<bool> isUiContextCurrent(UiContextSource source) async {
     final message = await getMessage(source.revisionId);
     if (message == null || message.conversationId != source.conversationId) {
       return false;
+    }
     final conversation = await (_db.select(
+      _db.conversationRows,
     )..where((row) => row.id.equals(source.conversationId))).getSingleOrNull();
     if (conversation == null) return false;
     final group = message.groupId ?? message.id;
@@ -2996,113 +5018,267 @@ class ChatDatabaseRepository {
       conversation.versionSelectionsJson,
     )[group];
     final selected = await _db
+        .customSelect(
           'SELECT id FROM message_rows WHERE conversation_id=? '
           'AND COALESCE(group_id,id)=? '
           'ORDER BY CASE WHEN version=? THEN 0 ELSE 1 END,version DESC,message_order DESC LIMIT 1',
+          variables: [
             Variable<String>(source.conversationId),
             Variable<String>(group),
+            Variable<int>(version),
+          ],
+        )
+        .getSingleOrNull();
     return uiContextSourceMatches(
       source,
+      message,
       selectedRevisionId: selected?.read<String>('id'),
+    );
+  }
 
   Future<ChatMessage> _withUiContext(
+    ChatMessage message,
     UiContextSubmission? request,
+  ) async {
     if (request == null) return message;
     if (message.role != 'user') throw StateError('ui_context_requires_user');
     final source = request.attachment.source;
     final current = source != null && await isUiContextCurrent(source);
     return message.copyWith(
       parts: request.resolve(message.parts, sourceIsCurrent: current),
+    );
+  }
 
   Future<GenerationBeginResult> beginSendGeneration({
+    required Conversation conversation,
     required ChatMessage userMessage,
     required ChatMessage assistantMessage,
     required String runId,
     DraftSubmission? draftSubmission,
+    UiContextSubmission? uiContext,
+  }) {
     if (draftSubmission != null &&
         (draftSubmission.conversationId != conversation.id ||
             draftSubmission.id != userMessage.id ||
             draftSubmission.editMessageId != null)) {
       throw StateError('composer_submission_mismatch');
+    }
     _validateGenerationBeginMessages(
+      conversation: conversation,
       userMessage: userMessage,
       assistantMessage: assistantMessage,
+    );
+    return _observer.measure(
+      ChatDatabaseOperation.commandAppendMessage,
+      () => _writeTransaction(() async {
         final resolvedUser = await _withUiContext(userMessage, uiContext);
         final afterUser = await _appendLinearMessageToConversation(
+          conversation: conversation,
           message: resolvedUser,
+          selectVersion: false,
+          touchUpdatedAt: true,
+        );
+        final persisted = await _appendLinearMessageToConversation(
           conversation: afterUser,
           message: assistantMessage,
+          selectVersion: false,
+          touchUpdatedAt: true,
+        );
         final run = await GenerationRunCommands(_db).create(
           id: runId,
           conversationId: conversation.id,
           targetRevisionId: assistantMessage.id,
           createdAt: assistantMessage.timestamp,
+        );
         if (draftSubmission != null) {
           await composerDrafts.consumeInTransaction(draftSubmission);
+        }
+        return (
           conversation: persisted,
           userMessage: resolvedUser,
+          assistantMessage: assistantMessage,
           run: run,
+        );
+      }),
+    );
+  }
 
   Future<GenerationBeginResult> beginRegeneration({
+    required Conversation conversation,
+    required ChatMessage assistantMessage,
+    required String runId,
     required bool truncateFuture,
     String? expectedContextState,
+  }) {
+    _validateGenerationBeginMessages(
+      conversation: conversation,
+      assistantMessage: assistantMessage,
+    );
     if (assistantMessage.groupId == null) {
+      throw ArgumentError.value(
         assistantMessage.groupId,
         'assistantMessage.groupId',
+      );
+    }
+    return _observer.measure(
+      ChatDatabaseOperation.commandAppendMessage,
+      () => _writeTransaction(() async {
         await _assertContextState(conversation.id, expectedContextState);
         var current = conversation;
         if (truncateFuture) {
           current = await _truncateLinearMessageGroupsAfter(
+            conversation: conversation,
             anchorGroupId: assistantMessage.groupId!,
+          );
+        }
+        final persisted = await _appendLinearMessageToConversation(
+          conversation: current,
+          message: assistantMessage,
           selectVersion: true,
+          touchUpdatedAt: true,
+        );
+        final run = await GenerationRunCommands(_db).create(
+          id: runId,
+          conversationId: conversation.id,
+          targetRevisionId: assistantMessage.id,
+          createdAt: assistantMessage.timestamp,
+        );
+        return (
+          conversation: persisted,
           userMessage: null,
+          assistantMessage: assistantMessage,
+          run: run,
+        );
+      }),
+    );
+  }
 
   Future<GenerationBeginResult> beginAssistantGeneration({
+    required Conversation conversation,
+    required ChatMessage assistantMessage,
     required String anchorGroupId,
+    required String runId,
+    required bool truncateFuture,
+    String? expectedContextState,
+  }) {
+    _validateGenerationBeginMessages(
+      conversation: conversation,
+      assistantMessage: assistantMessage,
+    );
+    return _observer.measure(
+      ChatDatabaseOperation.commandAppendMessage,
+      () => _writeTransaction(() async {
+        await _assertContextState(conversation.id, expectedContextState);
+        var current = conversation;
+        if (truncateFuture) {
+          current = await _truncateLinearMessageGroupsAfter(
+            conversation: conversation,
             anchorGroupId: anchorGroupId,
+          );
+        }
+        final persisted = await _appendLinearMessageToConversation(
+          conversation: current,
+          message: assistantMessage,
+          selectVersion: false,
+          touchUpdatedAt: true,
           afterGroupId: anchorGroupId,
+        );
+        final run = await GenerationRunCommands(_db).create(
+          id: runId,
+          conversationId: conversation.id,
+          targetRevisionId: assistantMessage.id,
+          createdAt: assistantMessage.timestamp,
+        );
+        return (
+          conversation: persisted,
+          userMessage: null,
+          assistantMessage: assistantMessage,
+          run: run,
+        );
+      }),
+    );
+  }
 
   Future<Conversation> _truncateLinearMessageGroupsAfter({
+    required Conversation conversation,
+    required String anchorGroupId,
+  }) async {
+    final rows =
+        await (_db.select(_db.messageRows)
               ..where((row) => row.conversationId.equals(conversation.id))
+              ..orderBy([(row) => OrderingTerm.asc(row.messageOrder)]))
+            .get();
+    final firstOrderByGroup = <String, int>{};
+    for (final row in rows) {
+      final groupId = row.groupId ?? row.id;
+      final current = firstOrderByGroup[groupId];
+      if (current == null || row.messageOrder < current) {
+        firstOrderByGroup[groupId] = row.messageOrder;
+      }
+    }
     final anchorOrder = firstOrderByGroup[anchorGroupId];
     if (anchorOrder == null) {
       throw StateError('linear_message_group_missing');
+    }
     final trailingGroupIds = {
       for (final entry in firstOrderByGroup.entries)
         if (entry.value > anchorOrder) entry.key,
+    };
     if (trailingGroupIds.isEmpty) return conversation;
 
     final trailing = rows
         .where((row) => trailingGroupIds.contains(row.groupId ?? row.id))
+        .toList(growable: false);
     final deleted = await _deleteMessages(
+      conversationId: conversation.id,
       messageIds: trailing.map((row) => row.id).toSet(),
       versionSelectionChanges: {
         for (final groupId in trailingGroupIds) groupId: null,
+      },
+    );
     return deleted?.conversation ?? conversation;
+  }
 
   static void _validateGenerationBeginMessages({
+    required Conversation conversation,
+    ChatMessage? userMessage,
+    required ChatMessage assistantMessage,
+  }) {
     if (userMessage != null &&
         (userMessage.conversationId != conversation.id ||
             userMessage.role != 'user' ||
             userMessage.isStreaming)) {
       throw ArgumentError.value(userMessage, 'userMessage');
+    }
     if (assistantMessage.conversationId != conversation.id ||
         assistantMessage.role != 'assistant' ||
         !assistantMessage.isStreaming) {
       throw ArgumentError.value(assistantMessage, 'assistantMessage');
+    }
+  }
 
   Future<Conversation> _appendLinearMessageToConversation({
+    required Conversation conversation,
+    required ChatMessage message,
     required bool selectVersion,
     required bool touchUpdatedAt,
     String? afterGroupId,
+  }) async {
     if (message.conversationId != conversation.id) {
+      throw ArgumentError.value(
         message.conversationId,
         'message.conversationId',
         'Message and conversation IDs must match.',
+      );
+    }
+    return _writeTransaction(() async {
+      await _invalidateEmptyAcknowledgement();
       final existingRow = await (_db.select(
+        _db.conversationRows,
       )..where((row) => row.id.equals(conversation.id))).getSingleOrNull();
       if (existingRow != null && existingRow.truncateIndex >= 0) {
         await readContextOperations(conversation.id);
+      }
       final current = existingRow == null
           ? conversation
           : await _conversationFromRow(existingRow, includeMessageIds: false);
@@ -3110,24 +5286,37 @@ class ChatDatabaseRepository {
       if (selectVersion) {
         await _revokeContextForGroups(conversation.id, {
           message.groupId ?? message.id,
+        });
         selections[message.groupId ?? message.id] = message.version;
+      }
       final persisted = current.copyWith(
+        versionSelections: selections,
         truncateIndex: -1,
         updatedAt: touchUpdatedAt ? DateTime.now() : current.updatedAt,
+      );
+      await _db
+          .into(_db.conversationRows)
           .insertOnConflictUpdate(_conversationCompanion(persisted));
       if (existingRow == null) {
         await _replaceMcpServers(persisted.id, persisted.mcpServerIds);
+      }
 
       final order = afterGroupId == null
           ? await _nextMessageOrder(persisted.id)
           : await _makeMessageOrderAfterGroup(persisted.id, afterGroupId);
+      await _db
+          .into(_db.messageRows)
           .insert(_messageCompanion(message, order), mode: InsertMode.insert);
+      await _replaceMessageParts(message);
       message.hydrateStorageOrder(order);
       return persisted;
+    });
+  }
 
   Future<void> _replaceMessageParts(
     ChatMessage message, {
     List<Map<String, dynamic>>? toolEvents,
+  }) async {
     final originalMessage = message;
     // A mid-stream reasoning pause is not a reasoning removal: the checkpoint
     // snapshot still carries the pre-allocated reasoningStartAt timestamp, so
@@ -3136,8 +5325,11 @@ class ChatDatabaseRepository {
     final effectiveReasoningText =
         message.reasoningText == null && message.reasoningStartAt != null
         ? (await (_db.select(_db.messagePartRows)
+                    ..where(
+                      (row) =>
                           row.revisionId.equals(message.id) &
                           row.kind.equals('reasoning'),
+                    )
                     ..orderBy([(row) => OrderingTerm.asc(row.ordinal)]))
                   .get())
               .map((part) => part.payload)
@@ -3145,6 +5337,7 @@ class ChatDatabaseRepository {
         : null;
     if (effectiveReasoningText != null && effectiveReasoningText.isNotEmpty) {
       message = message.copyWith(reasoningText: effectiveReasoningText);
+    }
     final parts = _partsForPersistence(message, toolEvents);
     final canonical = message.copyWith(parts: parts);
     await genUiStates.reconcileSource(canonical);
@@ -3152,18 +5345,26 @@ class ChatDatabaseRepository {
       // Validate/copy before COMMIT. Publishing cannot throw after durability.
       final publishParts = originalMessage.prepareStorageParts(parts);
       genUiStates.afterCommit(publishParts);
+    }
     if (_messageHasAttachmentParts(message) ||
         parts.whereType<ToolCallPart>().any(
           (part) => part.browserPreviewImage != null,
+        )) {
       await markMessageAssetReferencesDirty(message.id);
+    }
     await (_db.delete(_db.messagePartRows)..where(
+          (row) =>
+              row.revisionId.equals(message.id) &
               row.ordinal.isBiggerOrEqualValue(parts.length),
+        ))
+        .go();
     var ordinal = 0;
     final now = DateTime.now().toUtc();
     final updatedAt = now.isBefore(message.timestamp) ? message.timestamp : now;
     await _db.batch((batch) {
       for (final part in parts) {
         batch.insert(
+          _db.messagePartRows,
           MessagePartRowsCompanion.insert(
             conversationId: message.conversationId,
             revisionId: message.id,
@@ -3171,6 +5372,8 @@ class ChatDatabaseRepository {
             kind: part.kind,
             payload: part.encodePayload(),
             createdAt: message.timestamp,
+            updatedAt: updatedAt,
+          ),
           onConflict: DoUpdate<MessagePartRows, MessagePartRow>.withExcluded(
             (old, incoming) => MessagePartRowsCompanion.custom(
               conversationId: incoming.conversationId,
@@ -3178,52 +5381,91 @@ class ChatDatabaseRepository {
               payload: incoming.payload,
               createdAt: incoming.createdAt,
               updatedAt: incoming.updatedAt,
+            ),
             target: [
               _db.messagePartRows.revisionId,
               _db.messagePartRows.ordinal,
+            ],
             where: (old, incoming) =>
                 old.kind.isNotExp(incoming.kind) |
                 old.payload.isNotExp(incoming.payload) |
                 old.conversationId.isNotExp(incoming.conversationId) |
                 old.createdAt.isNotExp(incoming.createdAt),
+          ),
+        );
+      }
+    });
     if (!message.isStreaming && UiMessageSource.of(parts).hasCandidate) {
       await _sealGenUiSearch([message.id]);
+    }
+  }
 
   Future<PersistedChatMessage?> appendMessageVersion({
     required String messageId,
     String content = '',
     List<MessagePart>? parts,
+    DraftSubmission? draftSubmission,
+    UiContextSubmission? uiContext,
+    String? expectedContextState,
+  }) {
+    return _observer.measure(
       ChatDatabaseOperation.commandAppendVersion,
       () => _appendMessageVersion(
         expectedContextState: expectedContextState,
+        messageId: messageId,
         content: content,
         parts: parts,
         draftSubmission: draftSubmission,
         uiContext: uiContext,
+      ),
+    );
+  }
 
   Future<PersistedChatMessage?> _appendMessageVersion({
+    required String messageId,
     required String content,
+    List<MessagePart>? parts,
+    DraftSubmission? draftSubmission,
+    UiContextSubmission? uiContext,
+    String? expectedContextState,
+  }) async {
+    return _writeTransaction(() async {
       final originalRow = await (_db.select(
+        _db.messageRows,
       )..where((row) => row.id.equals(messageId))).getSingleOrNull();
       if (originalRow == null) return null;
+      if (draftSubmission != null &&
           (draftSubmission.conversationId != originalRow.conversationId ||
               draftSubmission.editMessageId != messageId)) {
+        throw StateError('composer_submission_mismatch');
+      }
       final conversationRow =
           await (_db.select(_db.conversationRows)
                 ..where((row) => row.id.equals(originalRow.conversationId)))
+              .getSingleOrNull();
       if (conversationRow == null) return null;
       await _assertContextState(
         originalRow.conversationId,
         expectedContextState,
+      );
 
+      await _invalidateEmptyAcknowledgement();
       // Metadata only — body text is written via message parts.
       final groupId = originalRow.groupId ?? originalRow.id;
       await _revokeContextForGroups(originalRow.conversationId, {groupId});
+      final maxVersion = _db.messageRows.version.max();
       final maxVersionRow =
+          await (_db.selectOnly(_db.messageRows)
+                ..addColumns([maxVersion])
+                ..where(
                   _db.messageRows.conversationId.equals(
+                        originalRow.conversationId,
                       ) &
+                      (_db.messageRows.groupId.equals(groupId) |
                           (_db.messageRows.groupId.isNull() &
                               _db.messageRows.id.equals(groupId))),
+                ))
+              .getSingle();
       final nextVersion = (maxVersionRow.read(maxVersion) ?? -1) + 1;
       // Content-only append must load original parts first and keep non-text
       // attachments (ImagePart/FilePart/etc.) on the new revision, preserving
@@ -3236,6 +5478,7 @@ class ChatDatabaseRepository {
           parts ??
           ChatMessage.partsWithRedistributedText(original.parts, content);
       final message = await _withUiContext(
+        ChatMessage(
           id: draftSubmission?.id,
           role: original.role,
           parts: resolvedParts,
@@ -3250,19 +5493,36 @@ class ChatDatabaseRepository {
               : null,
           reasoningFinishedAt: preserveReasoning
               ? original.reasoningFinishedAt
+              : null,
           reasoningSegmentsJson: preserveReasoning
               ? original.reasoningSegmentsJson
+              : null,
           groupId: groupId,
           version: nextVersion,
+          // The citation is part of the user message's content identity, so a
+          // new version carries it (docs/adr/0012).
+          quote: original.quote,
+        ),
         uiContext,
+      );
       final currentConversation = await _conversationFromRow(
         conversationRow,
+        includeMessageIds: false,
+      );
       final selections = Map<String, int>.from(
         currentConversation.versionSelections,
       )..[groupId] = nextVersion;
       final conversation = currentConversation.copyWith(
+        versionSelections: selections,
+        truncateIndex: -1,
         updatedAt: DateTime.now(),
+      );
       final order = await _nextMessageOrder(conversation.id);
+      await _db
+          .into(_db.messageRows)
+          .insert(_messageCompanion(message, order), mode: InsertMode.insert);
+      await _replaceMessageParts(message);
+      message.hydrateStorageOrder(order);
       // Recovery belongs to the selected history, even after editing its text.
       // Body edits retain Claude's native response boundaries. Explicit part
       // replacements may intentionally remove thinking/tools and must not
@@ -3281,369 +5541,108 @@ class ChatDatabaseRepository {
                 artifact.payload,
                 content,
                 originalContent: original.content,
+              )
+            : null;
         if (payload != null) {
           await _upsertProviderArtifact(message.id, artifact.kind, payload);
+        }
+      }
       await (_db.update(_db.conversationRows)
             ..where((row) => row.id.equals(conversation.id)))
           .write(_conversationCompanion(conversation));
+      if (draftSubmission != null) {
+        await composerDrafts.consumeInTransaction(draftSubmission);
+      }
       return (conversation: conversation, message: message);
+    });
+  }
 
   Future<Conversation?> setSelectedVersion({
+    required String conversationId,
     required String groupId,
     required int? version,
+    String? expectedContextState,
+  }) {
+    return _observer.measure(
       ChatDatabaseOperation.commandSelectVersion,
       () => _setSelectedVersion(
+        expectedContextState: expectedContextState,
+        conversationId: conversationId,
+        groupId: groupId,
         version: version,
+      ),
+    );
+  }
 
   Future<Conversation?> _setSelectedVersion({
+    required String conversationId,
+    required String groupId,
+    required int? version,
+    String? expectedContextState,
+  }) async {
     if (groupId.isEmpty) {
       throw ArgumentError.value(groupId, 'groupId', 'must not be empty');
+    }
     if (version != null && version < 0) {
       throw ArgumentError.value(version, 'version', 'must not be negative');
+    }
+    return _db.transaction(() async {
       await _assertContextState(conversationId, expectedContextState);
       await readContextOperations(conversationId);
+      final row =
           await (_db.select(_db.conversationRows)..where(
                 (conversation) => conversation.id.equals(conversationId),
+              ))
+              .getSingleOrNull();
+      if (row == null) return null;
       final current = await _conversationFromRow(row, includeMessageIds: false);
+      final selections = Map<String, int>.from(current.versionSelections);
       if (version == null) {
         selections.remove(groupId);
+      } else {
         selections[groupId] = version;
+      }
       if (jsonEncode(selections) != jsonEncode(current.versionSelections)) {
         await _revokeContextForGroups(conversationId, {groupId});
+      }
       final conversation = current.copyWith(
+        truncateIndex: -1,
+        versionSelections: selections,
+        updatedAt: DateTime.now(),
+      );
+      await (_db.update(_db.conversationRows)
             ..where((conversation) => conversation.id.equals(conversationId)))
+          .write(_conversationCompanion(conversation));
       return conversation;
+    });
+  }
 
   Future<void> putMigrationBatch({
     required List<Conversation> conversations,
     required List<({ChatMessage message, int messageOrder})> messages,
     required Map<String, List<Map<String, dynamic>>> toolEventsByMessageId,
     required Map<String, String> geminiSignaturesByMessageId,
+  }) async {
     if (conversations.isEmpty &&
         messages.isEmpty &&
         toolEventsByMessageId.isEmpty &&
         geminiSignaturesByMessageId.isEmpty) {
+      return;
+    }
 
+    await _writeTransaction(() async {
       await _writeBackupData(
         conversations: conversations,
         messages: messages,
         toolEventsByMessageId: toolEventsByMessageId,
         geminiSignaturesByMessageId: geminiSignaturesByMessageId,
+      );
+    });
+  }
 
   /// Commits a fully parsed external import together with its business-data
   /// patch. Nothing is written unless both repositories share this exact
   /// [AppDatabase] instance.
-  // ---------------------------------------------------------------------------
-  // LAN sync (ADR-0003)
-  // Slice 1 exchanges conversation subtrees as raw row maps. Everything below
-  // speaks SQLite's own representation (µs integers, 0/1 booleans), so there is
-  // no translation layer between storage, wire and merge that could drift out
-  // of sync with the schema. Merge *decisions* live in the pure functions of
-  // `services/sync/sync_merge.dart`; this section only reads, decides and
-  // writes inside one transaction per conversation.
-
-  static const _syncConflictTargets = <String, List<String>>{
-    'conversation_rows': ['id'],
-    'conversation_mcp_server_rows': ['conversation_id', 'server_id'],
-    'message_rows': ['id'],
-
-  /// Ids per `IN (...)` batch, well under SQLite's bound-variable limit.
-  static const _syncMessageIdBatch = 200;
-
-  /// The subset of [ids] that already belongs to a conversation other than
-  /// [conversationId] — the wire rows this device must refuse to re-home.
-  Future<Set<String>> _syncForeignMessageIds(
-    Set<String> ids,
-    if (ids.isEmpty) return const {};
-    final list = ids.toList(growable: false);
-    final foreign = <String>{};
-    for (var start = 0; start < list.length; start += _syncMessageIdBatch) {
-      final end = start + _syncMessageIdBatch;
-      final batch = list.sublist(start, end > list.length ? list.length : end);
-            'SELECT id FROM message_rows WHERE conversation_id != ? '
-            'AND id IN (${List.filled(batch.length, '?').join(', ')});',
-            variables: <Variable<Object>>[
-              for (final id in batch) Variable<String>(id),
-      foreign.addAll([for (final row in rows) row.read<String>('id')]);
-    return foreign;
-
-  /// The schema version this build speaks, exchanged in the sync hello and
-  /// enforced by the symmetric version gate (ADR-0003).
-  int get syncSchemaVersion => _db.schemaVersion;
-
-  /// The registered path for a content hash, or null when this device never
-  /// registered that content. The registry is content-addressed
-  /// (`asset_rows.id = 'asset_<sha256>'`), which is what lets a blob served to
-  /// a peer be looked up by hash alone instead of by path.
-  Future<String?> assetPathForContentHash(String contentHash) async {
-    if (contentHash.isEmpty) return null;
-          'SELECT path FROM asset_rows WHERE id = ?;',
-          variables: <Variable<Object>>[Variable<String>('asset_$contentHash')],
-    return row?.read<String>('path');
-
-  /// Conversation references for manifest building.
-  Future<List<({String conversationId, int updatedAtUs})>>
-  syncConversationRefs() async {
-        .customSelect('SELECT id, updated_at FROM conversation_rows;')
-        (
-          conversationId: row.read<String>('id'),
-          updatedAtUs: row.read<int>('updated_at'),
-
-  /// Per-conversation digest input: `id:mutationUs` lines joined by newlines,
-  /// plus the message count. Aggregated in SQL so a manifest never materialises
-  /// one Dart object per message. Line order is *not* relied upon —
-  /// [digestFromDigestInput] sorts.
-  Future<List<({String conversationId, String digestInput, int messageCount})>>
-  syncMessageDigestInputs() async {
-      SELECT conversation_id, group_concat(line, char(10)) AS digest_input,
-        SELECT conversation_id,
-               id || ':' || COALESCE(updated_at, timestamp) AS line
-        FROM message_rows
-        ORDER BY conversation_id, id
-      GROUP BY conversation_id;
-    ''').get();
-          digestInput: row.read<String>('digest_input'),
-          messageCount: row.read<int>('message_count'),
-
-  Future<Map<String, dynamic>?> syncReadConversationRow(String id) async {
-          'SELECT * FROM conversation_rows WHERE id = ?;',
-          variables: [Variable.withString(id)],
-    if (rows.isEmpty) return null;
-    return Map<String, dynamic>.from(rows.first.data);
-
-  Future<List<Map<String, dynamic>>> syncReadMessageRows(
-          'SELECT * FROM message_rows WHERE conversation_id = ? '
-          'ORDER BY message_order, id;',
-    return [for (final row in rows) Map<String, dynamic>.from(row.data)];
-
-  Future<List<Map<String, dynamic>>> syncReadMessagePartRows(
-          'SELECT * FROM message_part_rows WHERE conversation_id = ? '
-          'ORDER BY revision_id, ordinal;',
-
-  Future<List<Map<String, dynamic>>> syncReadMcpServerRows(
-          'SELECT * FROM conversation_mcp_server_rows WHERE conversation_id = ? '
-          'ORDER BY ordinal;',
-
-  /// Whether a generation is currently writing to this conversation. Sync
-  /// apply yields to generation (ADR-0003).
-  Future<bool> syncConversationIsStreaming(String conversationId) async {
-          'SELECT 1 FROM message_rows '
-          'WHERE conversation_id = ? AND is_streaming != 0 LIMIT 1;',
-    return rows.isNotEmpty;
-
-  /// Applies a peer's conversation deletion using the standard tombstone path,
-  /// so a third paired device can learn about the deletion as well. Returns
-  /// false when the deletion is deferred (a generation is running).
-  Future<bool> syncApplyPeerDeletion(String conversationId) async {
-    if (await syncConversationIsStreaming(conversationId)) return false;
-    await deleteConversation(conversationId);
-
-  /// Merges one incoming conversation subtree into local state, atomically.
-  /// Row-level LWW with deviceId tiebreak, append union, order re-derivation by
-  /// (timestamp, id), and checkpoint-based deletion detection — the rules of
-  /// `sync_merge.dart`, which both peers evaluate identically. Returns the
-  /// post-merge state so the caller can build the next checkpoint.
-  Future<SyncSubtreeApplyOutcome> syncApplySubtree({
-    required SyncSubtreePayload payload,
-    required String myDeviceId,
-    required String peerDeviceId,
-    required Map<String, int> checkpointRows,
-    final conversationId = payload.conversation['id'] as String;
-      if (await syncConversationIsStreaming(conversationId)) {
-        return SyncSubtreeApplyOutcome.deferredOutcome;
-
-      final localConversation = await syncReadConversationRow(conversationId);
-      final localMessages = {
-        for (final row in await syncReadMessageRows(conversationId))
-          row['id'] as String: row,
-      // The peer's in-flight generation is not running here: never adopt its
-      // streaming flag, or the row would be stranded mid-stream on this device.
-      // A wire row is only accepted where it says it belongs, and only when
-      // its id is not already another conversation's message here. A message
-      // id is a global primary key, so an upsert whose conflict target fires
-      // would move that message into this conversation — a crafted
-      // cross-reference no honest peer can produce, since its own reader
-      // filters by conversation.
-      final labelled = {
-        for (final row in payload.messages)
-          if (row['id'] is String && row['conversation_id'] == conversationId)
-            row['id'] as String: {...row, 'is_streaming': 0},
-      final foreignIds = await _syncForeignMessageIds(
-        labelled.keys.toSet(),
-      final incomingMessages = {
-        for (final entry in labelled.entries)
-          if (!foreignIds.contains(entry.key)) entry.key: entry.value,
-
-      var conversationRowChanged = false;
-      var conversationRow = localConversation;
-      if (localConversation == null) {
-        conversationRow = Map<String, dynamic>.from(payload.conversation);
-        conversationRowChanged = true;
-        final merge = mergeConversationRow(
-          local: localConversation,
-          incoming: Map<String, dynamic>.from(payload.conversation),
-          myDeviceId: myDeviceId,
-          peerDeviceId: peerDeviceId,
-        conversationRow = Map<String, dynamic>.from(merge.winner);
-        conversationRowChanged = merge.incomingWon;
-      if (localConversation != null && conversationRowChanged) {
-        await _upsertSyncRow('conversation_rows', conversationRow);
-        await _replaceSyncMcpServers(conversationId, payload.mcpServers);
-      } else if (localConversation == null) {
-
-      final plan = mergeMessageRows(
-        local: localMessages,
-        incoming: incomingMessages,
-        checkpointRows: checkpointRows,
-
-      final finalRows = <String, Map<String, dynamic>>{...localMessages};
-      for (final id in plan.deletes) {
-        finalRows.remove(id);
-      for (final row in plan.upserts) {
-        finalRows[row['id'] as String] = row;
-      // Two devices that each regenerated the same message contribute rival
-      // rows with the same (group_id, version) and different ids — a union both
-      // rows of which the schema's unique key forbids, so the second insert
-      // would abort the apply and every later session with it. One
-      // deterministic winner per slot (identical on both peers), the rest
-      // removed here and deleted below with their parts.
-      final slotLosers = resolveVersionGroupCollisions(finalRows.values);
-      for (final id in slotLosers) {
-      final deletes = <String>{...plan.deletes, ...slotLosers};
-      final order = rederiveMessageOrder(finalRows.values);
-      var upserted = 0;
-      final upsertedIds = {
-        for (final row in plan.upserts)
-          if (finalRows.containsKey(row['id'])) row['id'] as String,
-
-      // The stored order can disagree with the re-derived one — a message
-      // appended out of timestamp order, or a conversation an earlier build
-      // left in a shifted state — and an incoming row always needs a free slot,
-      // so whether to reorder is decided before anything is touched.
-      // Kept apart from the two counter conditions below because it is the one
-      // change the counters cannot express: the caller has to reload the window
-      // for a repair that writes no content (SyncSubtreeApplyOutcome.reordered).
-      final orderDrifted = finalRows.entries.any(
-        (entry) =>
-            !upsertedIds.contains(entry.key) &&
-            (entry.value['message_order'] as num).toInt() != order[entry.key],
-      final needsReorder =
-          plan.upserts.isNotEmpty || deletes.isNotEmpty || orderDrifted;
-
-      if (needsReorder) {
-        // Phase 1: move every existing row above the final range. The shift
-        // clears both the current maximum *and* the highest final index, so no
-        // shifted row can land on a slot the final orders will use, and no
-        // shifted value can equal one that already exists — including the large
-        // values an interrupted or older apply may have left behind.
-        final maxOrder = await _syncMaxMessageOrder(conversationId);
-        if (maxOrder != null) {
-          final finalMax = finalRows.length - 1;
-          final shift = (maxOrder > finalMax ? maxOrder : finalMax) + 1;
-            'UPDATE message_rows SET message_order = message_order + ? '
-            'WHERE conversation_id = ?;',
-            [shift, conversationId],
-
-      // Phase 2: deletions (parts cascade). The checkpoint-detected ones plus
-      // the rival rows a version-group slot had to resolve.
-      // Generation runs go first: `generation_run_rows.target_revision_id` is
-      // the one child of `message_rows` the schema does not cascade (NO ACTION,
-      // deferred), so a run row left behind by the delete below fails the
-      // transaction at COMMIT with a foreign-key error (code 787) — and since
-      // the checkpoint then never advances, every later session with the peer
-      // re-plans the same apply and fails the same way. A deleted revision
-      // takes the run that produced it, exactly as `_deleteMessages` does for a
-      // local deletion.
-      if (deletes.isNotEmpty) {
-        await (_db.delete(
-          _db.generationRunRows,
-        )..where((row) => row.targetRevisionId.isIn(deletes))).go();
-        )..where((row) => row.id.isIn(deletes))).go();
-
-      // Phase 3: upserts with final order, then re-point untouched rows.
-      final partsByRevision = <String, List<Map<String, dynamic>>>{};
-      for (final part in payload.parts) {
-        final revisionId = part['revision_id'];
-        if (revisionId is! String) continue;
-        partsByRevision.putIfAbsent(revisionId, () => []).add(part);
-        final id = row['id'] as String;
-        // An incoming row that lost its version slot was removed above and is
-        // deleted in phase 2 instead of written.
-        if (!finalRows.containsKey(id)) continue;
-        upserted++;
-        await _upsertSyncRow('message_rows', {
-          ...row,
-          'message_order': order[id]!,
-          'is_streaming': 0,
-        )..where((part) => part.revisionId.equals(id))).go();
-        final parts = partsByRevision[id] ?? const <Map<String, dynamic>>[];
-          await _upsertSyncRow('message_part_rows', part, insertOnly: true);
-        // Phase 4: re-point every row that is not an upsert to its final order,
-        // unconditionally. Every row was just shifted, so a row whose stored
-        // value still equals its target is a row that has not been moved yet —
-        // skipping it would strand it above the final range and scramble the
-        // timeline.
-        for (final entry in finalRows.entries) {
-          if (upsertedIds.contains(entry.key)) continue;
-            'UPDATE message_rows SET message_order = ? WHERE id = ?;',
-            [order[entry.key]!, entry.key],
-        for (final row in finalRows.values) {
-          row['message_order'] = order[row['id'] as String];
-
-      return SyncSubtreeApplyOutcome(
-        conversationRow: conversationRow,
-        messageRows: [for (final row in finalRows.values) row],
-        upsertedMessages: upserted,
-        // A rival row a version-group slot had to resolve is a deletion too:
-        // its content lost the deterministic rule, and the report says so
-        // rather than dropping it silently.
-        deletedMessages: deletes.length,
-        conversationRowChanged: conversationRowChanged,
-        reordered: orderDrifted,
-        appliedRevisionIds: upsertedIds,
-
-  Future<int?> _syncMaxMessageOrder(String conversationId) async {
-          'SELECT MAX(message_order) AS max_order FROM message_rows '
-          variables: <Variable<Object>>[Variable<String>(conversationId)],
-    final value = row?.data['max_order'];
-    return value is num ? value.toInt() : null;
-
-  Future<void> _upsertSyncRow(
-    String table,
-    Map<String, dynamic> row, {
-    bool insertOnly = false,
-    final allColumns = currentSchemaColumns[table]!;
-    // `part_id` is an autoincrement rowid: incoming part rows are matched by
-    // their unique key (revision_id, ordinal), never by another device's id.
-    final columns = insertOnly
-        ? [
-            for (final column in allColumns)
-              if (column != 'part_id') column,
-          ]
-        : allColumns;
-    final values = [for (final column in columns) row[column]];
-    if (insertOnly && table == 'message_part_rows') {
-        'INSERT INTO message_part_rows (${columns.join(', ')}) '
-        'VALUES (${List.filled(columns.length, '?').join(', ')});',
-        values,
-    final conflictTarget = _syncConflictTargets[table]!;
-    final updates = columns
-        .where((column) => !conflictTarget.contains(column))
-        .map((column) => '$column = excluded.$column')
-        .join(', ');
-      'INSERT INTO $table (${columns.join(', ')}) '
-      'VALUES (${List.filled(columns.length, '?').join(', ')}) '
-      'ON CONFLICT(${conflictTarget.join(', ')}) DO UPDATE SET $updates;',
-
-  Future<void> _replaceSyncMcpServers(
-    List<Map<String, dynamic>> servers,
-    )..where((row) => row.conversationId.equals(conversationId))).go();
-    for (final server in servers) {
-      await _upsertSyncRow('conversation_mcp_server_rows', {
-        'conversation_id': conversationId,
-        'server_id': server['server_id'],
-        'ordinal': server['ordinal'],
-
   Future<void> commitParsedImport({
     required BusinessRepository businessRepository,
     required bool overwrite,
@@ -3651,190 +5650,348 @@ class ChatDatabaseRepository {
     required Map<String, List<ChatMessage>> messagesToAppend,
     required BusinessSnapshot Function(BusinessSnapshot current)
     transformBusiness,
+  }) async {
     if (!businessRepository.sharesDatabaseIdentity(_db)) {
       throw StateError('chat_business_database_mismatch');
+    }
     if (overwrite && messagesToAppend.isNotEmpty) {
       throw ArgumentError.value(messagesToAppend, 'messagesToAppend');
+    }
     for (final batch in conversationBatches) {
       for (final message in batch.messages) {
         if (message.conversationId != batch.conversation.id) {
+          throw ArgumentError.value(
+            message.conversationId,
+            'message.conversationId',
+          );
+        }
+      }
+    }
     for (final entry in messagesToAppend.entries) {
       for (final message in entry.value) {
         if (message.conversationId != entry.key) {
+          throw ArgumentError.value(
+            message.conversationId,
+            'message.conversationId',
+          );
+        }
+      }
+    }
 
+    await _writeTransaction(() async {
       if (overwrite) await _clearChatRows();
 
       final conversations = <Conversation>[];
       final messages = <({ChatMessage message, int messageOrder})>[];
+      for (final batch in conversationBatches) {
         conversations.add(
           batch.conversation.copyWith(
             messageIds: batch.messages
                 .map((message) => message.id)
                 .toList(growable: false),
+          ),
+        );
         for (final (messageOrder, message) in batch.messages.indexed) {
           messages.add((message: message, messageOrder: messageOrder));
+        }
+      }
+      await _writeBackupData(
+        conversations: conversations,
+        messages: messages,
         toolEventsByMessageId: const {},
         geminiSignaturesByMessageId: const {},
+      );
 
+      for (final entry in messagesToAppend.entries) {
         final current = await getConversation(entry.key);
+        if (current == null) {
           throw StateError('chat_import_conversation_missing');
+        }
         var conversation = current;
+        for (final message in entry.value) {
           conversation = await _appendLinearMessageToConversation(
+            conversation: conversation,
             message: message,
+            selectVersion: false,
             touchUpdatedAt: false,
+          );
+        }
+      }
 
       await businessRepository.transformSnapshot(
+        transformBusiness,
         writeReceipt: true,
+      );
       if (overwrite) await _acknowledgeIntentionalEmptyState();
+    });
+  }
 
   Future<void> replaceBackupData({
+    required List<Conversation> conversations,
+    required List<({ChatMessage message, int messageOrder})> messages,
+    required Map<String, List<Map<String, dynamic>>> toolEventsByMessageId,
+    required Map<String, String> geminiSignaturesByMessageId,
+  }) async {
+    await _writeTransaction(() async {
       await _clearChatRows();
+      await _writeBackupData(
+        conversations: conversations,
+        messages: messages,
+        toolEventsByMessageId: toolEventsByMessageId,
+        geminiSignaturesByMessageId: geminiSignaturesByMessageId,
+      );
       await _writeMigrationCompleteReceipt();
       await _acknowledgeIntentionalEmptyState();
+    });
+  }
 
   Future<BackupMergeReport> mergeBackupSnapshot(File snapshotFile) async {
+    if (!await snapshotFile.exists()) {
+      throw FileSystemException(
+        'Snapshot database does not exist',
+        snapshotFile.path,
+      );
+    }
 
+    await genUiStates.flush();
     var attached = false;
+    try {
       await _db.customStatement('ATTACH DATABASE ? AS merge_source;', [
+        snapshotFile.absolute.path,
+      ]);
       attached = true;
       return await _writeTransaction(() async {
         // These rows own the workspace references carried by imported chats.
         // Device-local external folder grants are deliberately excluded.
+        await _db.customStatement(
           "INSERT OR IGNORE INTO extension_entity_rows "
           "(kind, id, sort_order, owner_id, payload, updated_at) "
           "SELECT kind, id, sort_order, owner_id, payload, updated_at "
           "FROM merge_source.extension_entity_rows WHERE kind IN ('workspace', 'skill', 'composerPublishedFile');",
+        );
         final sourceRows = await _db
+            .customSelect(
               'SELECT id FROM merge_source.conversation_rows ORDER BY id;',
+            )
+            .get();
         var imported = 0;
         var deduplicated = 0;
+        var skipped = 0;
         final remapped = <String, String>{};
         final importedIds = <String>[];
 
         for (final sourceRow in sourceRows) {
           final sourceId = sourceRow.read<String>('id');
+          try {
             await _requireValidMessageOrder('merge_source', sourceId);
           } on StateError catch (error) {
             if (error.message != 'conversation_message_order') rethrow;
+            skipped += 1;
+            continue;
+          }
           final sourceFingerprint = await _conversationFingerprint(
             'merge_source',
             sourceId,
+          );
           if (sourceFingerprint == null) {
             throw StateError('merge_source_conversation');
+          }
           final existingFingerprint = await _conversationFingerprint(
             'main',
+            sourceId,
+          );
           if (existingFingerprint == sourceFingerprint) {
             deduplicated += 1;
+            continue;
+          }
 
           final sourceMessageIds = await _messageIds('merge_source', sourceId);
           final hasConversationConflict = existingFingerprint != null;
           final hasMessageConflict = await _anyMessageIdExists(
             sourceMessageIds,
+          );
           var targetId = sourceId;
           var remapWholeConversation =
               hasConversationConflict || hasMessageConflict;
           if (remapWholeConversation) {
             targetId = _deterministicMergeId(
               'conversation',
+              sourceId,
               sourceFingerprint,
+            );
             var suffix = 0;
+            while (true) {
               final candidateFingerprint = await _conversationFingerprint(
+                'main',
                 targetId,
+              );
               if (candidateFingerprint == null) break;
               if (candidateFingerprint == sourceFingerprint) {
+                deduplicated += 1;
                 remapped[sourceId] = targetId;
                 targetId = '';
+                break;
+              }
               suffix += 1;
               targetId =
                   '${_deterministicMergeId('conversation', sourceId, sourceFingerprint)}-$suffix';
+            }
             if (targetId.isEmpty) continue;
+            remapped[sourceId] = targetId;
+          }
 
           final messageIdMap = <String, String>{};
           for (final messageId in sourceMessageIds) {
             messageIdMap[messageId] = remapWholeConversation
                 ? _deterministicMergeId('message', messageId, targetId)
                 : messageId;
+          }
           await _insertMergedConversation(
+            sourceId: sourceId,
+            targetId: targetId,
+            messageIdMap: messageIdMap,
+          );
           imported += 1;
           importedIds.add(targetId);
+        }
 
         final foreignKeyFailures = await _db
             .customSelect('PRAGMA foreign_key_check;')
+            .get();
         if (foreignKeyFailures.isNotEmpty) {
+          throw StateError('foreign_key_check');
+        }
         return BackupMergeReport(
           importedConversations: imported,
           deduplicatedConversations: deduplicated,
           skippedConversations: skipped,
           remappedConversationIds: Map.unmodifiable(remapped),
           importedConversationIds: List.unmodifiable(importedIds),
+        );
+      });
+    } finally {
       if (attached) {
         await _db.customStatement('DETACH DATABASE merge_source;');
+      }
+    }
+  }
 
   /// Chats-only restore/merge: mark local attachment parts unavailable unless
   /// remote/data. Does not reuse path/hash coincidence from asset_rows.
   Future<int> recomputeAttachmentAvailabilityForConversations({
     required Iterable<String> conversationIds,
     required bool filesRestored,
+  }) async {
     final ids = conversationIds.toList(growable: false);
     if (ids.isEmpty) return 0;
+    var updated = 0;
     for (final conversationId in ids) {
       final messages = await getMessagesRange(
+        conversationId,
         start: 0,
         limit: 100000,
+      );
+      for (final message in messages) {
         final nextParts = <MessagePart>[];
         var changed = false;
         for (final part in message.parts) {
+          if (part is ImagePart) {
             final unavailable = await _unavailableForRestoredPart(
               uri: part.uri,
               filesRestored: filesRestored,
+            );
             if (unavailable != part.unavailable) changed = true;
             nextParts.add(
               ImagePart(
+                uri: part.uri,
+                mime: part.mime,
+                assetId: part.assetId,
                 unavailable: unavailable,
+              ),
+            );
           } else if (part is FilePart) {
+            final unavailable = await _unavailableForRestoredPart(
+              uri: part.uri,
+              filesRestored: filesRestored,
+            );
+            if (unavailable != part.unavailable) changed = true;
+            nextParts.add(
               FilePart(
+                uri: part.uri,
+                name: part.name,
+                mime: part.mime,
+                assetId: part.assetId,
+                unavailable: unavailable,
+              ),
+            );
+          } else {
             nextParts.add(part);
+          }
+        }
         if (!changed) continue;
         // Availability is local restore bookkeeping, not an edit of the
         // original attachment. Preserve summaries that reference this message.
         await _writeTransaction(
           () => _replaceMessageParts(message.copyWith(parts: nextParts)),
+        );
+        updated += 1;
+      }
+    }
     return updated;
+  }
 
   Future<bool> _unavailableForRestoredPart({
     required String uri,
+    required bool filesRestored,
+  }) async {
     if (isRemoteOrDataUri(uri)) return false;
     if (filesRestored) {
       return !SandboxPathResolver.localFileExists(uri);
+    }
     // Chats-only: never trust candidate asset_rows path / content_hash
     // coincidence on the target machine (same path may hold different bytes).
     // Reuse would require hashing the live target file and comparing bytes.
+    return true;
+  }
 
   /// Open [databaseFile] with raw sqlite3 and mark local attachments
   /// unavailable when [filesRestored] is false (overwrite chats-only candidate
   /// processing before publish). Avoids opening a Drift isolate inside
   /// restore staging.
+  ///
   /// Ordinary imports cannot reuse files based on path coincidence. For an
   /// explicitly selected snapshot from this device, [localSnapshotAppDataDirectory]
   /// allows rechecking managed files within that directory, including parts
   /// that the snapshot had already marked unavailable.
   static Future<int> recomputeAttachmentAvailabilityOnDatabaseFile({
     required File databaseFile,
+    required bool filesRestored,
     Directory? localSnapshotAppDataDirectory,
+  }) async {
     if (filesRestored) return 0;
     if (!await databaseFile.exists()) {
+      throw FileSystemException(
         'Candidate database does not exist',
         databaseFile.path,
+      );
+    }
     return Future<int>.sync(() {
       final db = sqlite.sqlite3.open(databaseFile.absolute.path);
+      try {
         final rows = db.select(
           "SELECT revision_id, ordinal, kind, payload "
           "FROM message_part_rows WHERE kind IN ('image', 'file');",
+        );
         final localRoot = localSnapshotAppDataDirectory?.absolute.path;
         final resolvedRoot = localSnapshotAppDataDirectory
             ?.resolveSymbolicLinksSync();
+        var updated = 0;
         final stmt = db.prepare(
+          'UPDATE message_part_rows SET payload = ? '
           'WHERE revision_id = ? AND ordinal = ?;',
+        );
+        try {
+          for (final row in rows) {
             final payload = row['payload'] as String;
             final decoded = jsonDecode(payload);
             if (decoded is! Map) continue;
@@ -3846,26 +6003,44 @@ class ChatDatabaseRepository {
             if (localRoot != null) {
               if (isRemoteOrDataUri(uri)) {
                 unavailable = false;
+              } else {
                 final local = _localSnapshotAttachment(
                   uri,
                   appDataPath: localRoot,
                   resolvedAppDataPath: resolvedRoot!,
+                );
                 restoredUri = local.uri;
                 unavailable = !local.available;
+              }
             } else if (isRemoteOrDataUri(uri)) {
+              continue;
+            }
             if ((map['unavailable'] == true) == unavailable &&
                 restoredUri == uri) {
+              continue;
+            }
             map['uri'] = restoredUri;
             map['unavailable'] = unavailable;
             stmt.execute([jsonEncode(map), row['revision_id'], row['ordinal']]);
+            updated += 1;
+          }
+        } finally {
           stmt.close();
+        }
+        return updated;
+      } finally {
         db.close();
+      }
+    });
+  }
 
   static ({String uri, bool available}) _localSnapshotAttachment(
     String uri, {
     required String appDataPath,
     required String resolvedAppDataPath,
+  }) {
     final missing = (uri: uri, available: false);
+    try {
       var raw = uri;
       if (uri.startsWith('file:')) {
         final parsed = Uri.parse(uri);
@@ -3873,13 +6048,16 @@ class ChatDatabaseRepository {
             parsed.hasQuery ||
             parsed.hasFragment) {
           return missing;
+        }
         raw = parsed.toFilePath();
+      }
       final logical = KelivoFileUri.isKelivoFileUri(uri)
           ? uri
           : KelivoFileUri.encodeFromAbsolute(raw, root: appDataPath) ??
                 KelivoFileUri.tryEncodeLegacyAbsolutePath(
                   raw,
                   allowGenericFallback: false,
+                );
       final path = logical == null
           ? raw
           : KelivoFileUri.resolveToAbsolute(logical, root: appDataPath);
@@ -3887,24 +6065,40 @@ class ChatDatabaseRepository {
       final relative = p.split(p.relative(path, from: appDataPath));
       if (relative.length < 2 ||
           !RestorePreviousAssetsPlan.rootNames.contains(relative.first)) {
+        return missing;
+      }
       final file = File(path);
       if (!file.existsSync()) return missing;
       final resolved = file.resolveSymbolicLinksSync();
       if (!p.isWithin(resolvedAppDataPath, resolved)) return missing;
       return (uri: logical ?? uri, available: true);
     } on FileSystemException {
+      return missing;
+    } on FormatException {
+      return missing;
     } on ArgumentError {
+      return missing;
+    }
+  }
 
   Future<String?> _conversationFingerprint(String schema, String id) async {
     final conversation = await _db
+        .customSelect(
           'SELECT title, created_at, updated_at, is_pinned, assistant_id, '
           'truncate_index, version_selections_json, summary, '
           'last_summarized_message_count, chat_suggestions_json '
           'FROM $schema.conversation_rows WHERE id = ?;',
           variables: [Variable<String>(id)],
+        )
+        .getSingleOrNull();
+    if (conversation == null) return null;
     final mcpRows = await _db
+        .customSelect(
           'SELECT server_id, ordinal FROM $schema.conversation_mcp_server_rows '
           'WHERE conversation_id = ? ORDER BY ordinal, server_id;',
+          variables: [Variable<String>(id)],
+        )
+        .get();
     // Message rows fingerprint everything semantic, including sender_id and
     // extras_json — a backup that differs only in who authored a message must
     // not be judged a duplicate. updated_at is deliberately excluded
@@ -3913,12 +6107,17 @@ class ChatDatabaseRepository {
     // precedent: preserved verbatim on import, but not fingerprinted, so a
     // device-local binding difference alone never duplicates a conversation.
     final messageRows = await _db
+        .customSelect(
           'SELECT id, role, timestamp, model_id, provider_id, '
           'total_tokens, is_streaming, reasoning_start_at, '
           'reasoning_finished_at, translation, reasoning_segments_json, group_id, '
           'version, prompt_tokens, completion_tokens, cached_tokens, duration_ms, '
           'message_order, sender_id, extras_json '
           'FROM $schema.message_rows WHERE conversation_id = ? '
+          'ORDER BY message_order, id;',
+          variables: [Variable<String>(id)],
+        )
+        .get();
     // Text/reasoning/tool payloads and thought signatures are fingerprinted
     // from materialized parts/artifacts; part_id, timestamps, and ordinals are
     // excluded so equal payloads hash equally across snapshots. Both load once
@@ -3928,11 +6127,15 @@ class ChatDatabaseRepository {
     // message_part_rows.conversation_id, matching the revision-keyed grouping
     // the fingerprint has always used.
     final partRows = await _db
+        .customSelect(
           'SELECT p.revision_id, p.kind, p.payload '
           'FROM $schema.message_part_rows p '
           'INNER JOIN $schema.message_rows m ON m.id = p.revision_id '
           'WHERE m.conversation_id = ? '
           'ORDER BY p.revision_id, p.ordinal;',
+          variables: [Variable<String>(id)],
+        )
+        .get();
     final partPayloads = <String, Map<String, List<String>>>{};
     // Image/file identity payloads in ordinal order (unavailable stripped).
     final attachmentPayloads = <String, List<String>>{};
@@ -3944,24 +6147,34 @@ class ChatDatabaseRepository {
         attachmentPayloads
             .putIfAbsent(revisionId, () => [])
             .add(_fingerprintAttachmentPayload(kind, payload));
+        continue;
+      }
       partPayloads
           .putIfAbsent(revisionId, () => {})
           .putIfAbsent(kind, () => [])
           .add(payload);
+    }
     final signatureRows = await _db
+        .customSelect(
           'SELECT a.revision_id, a.payload '
           'FROM $schema.provider_artifact_rows a '
           'INNER JOIN $schema.message_rows m ON m.id = a.revision_id '
           "WHERE m.conversation_id = ? AND a.kind = 'gemini_thought_signature';",
+          variables: [Variable<String>(id)],
+        )
+        .get();
     final signatures = {
       for (final row in signatureRows)
         row.read<String>('revision_id'): row.read<String>('payload'),
+    };
     final uiTransfers = await UiStateTransfer(_db).read(
       source: switch (schema) {
         'main' => UiTransferDatabase.main,
         'merge_source' => UiTransferDatabase.mergeSource,
         _ => throw ArgumentError.value(schema, 'schema'),
+      },
       conversationId: id,
+    );
     final messages = <Object?>[];
     final groupOrdinals = <String, int>{};
     for (final row in messageRows) {
@@ -3975,9 +6188,12 @@ class ChatDatabaseRepository {
         'reasoning_finished_at',
       ]) {
         data[field] = _fingerprintTimestamp(data[field]);
+      }
       final groupId = data.remove('group_id')?.toString() ?? messageId;
       data['group_ordinal'] = groupOrdinals.putIfAbsent(
+        groupId,
         () => groupOrdinals.length,
+      );
       messages.add([
         data,
         payloads?['text'],
@@ -3986,21 +6202,37 @@ class ChatDatabaseRepository {
         attachmentPayloads[messageId],
         signatures[messageId],
         if (uiTransfers[messageId]?.fingerprint case final Object ui) ui,
+      ]);
+    }
+    return sha256
+        .convert(
+          utf8.encode(
             jsonEncode([
               _normalizedConversationFingerprintData(
                 conversation.data,
                 groupOrdinals,
+              ),
               mcpRows.map((row) => row.data).toList(),
               messages,
               await _contextFingerprintData(
                 schema,
+                id,
+                groupOrdinals,
                 legacyTruncateIndex: conversation.read<int>('truncate_index'),
                 legacyUpdatedAt: const MicrosecondDateTimeConverter().fromSql(
                   conversation.read<int>('updated_at'),
+                ),
+              ),
+            ]),
+          ),
+        )
+        .toString();
+  }
 
   Map<String, Object?> _normalizedConversationFingerprintData(
     Map<String, Object?> data,
     Map<String, int> groupOrdinals,
+  ) {
     final normalized = Map<String, Object?>.from(data);
     // The equivalent clear node is included in the context fingerprint below.
     normalized['truncate_index'] = -1;
@@ -4013,13 +6245,18 @@ class ChatDatabaseRepository {
       for (final entry in decoded.entries) {
         final ordinal = groupOrdinals[entry.key];
         if (ordinal != null) selections['$ordinal'] = entry.value;
+      }
       normalized['version_selections_json'] = selections;
+    }
     return normalized;
+  }
 
   /// Attachment identity for merge fingerprints. Drops environment-state
   /// `unavailable` so the same attachment available on one device and missing
   /// on another still dedupes; keeps uri/name/mime/assetId and ordinal order.
   String _fingerprintAttachmentPayload(String kind, String payload) {
+    try {
+      final decoded = jsonDecode(payload);
       if (decoded is! Map) return jsonEncode({'kind': kind, 'raw': payload});
       final map = Map<String, Object?>.from(decoded);
       return jsonEncode({
@@ -4028,49 +6265,96 @@ class ChatDatabaseRepository {
         if (map['name'] != null) 'name': map['name'],
         if (map['mime'] != null) 'mime': map['mime'],
         if (map['assetId'] != null) 'assetId': map['assetId'],
+      });
+    } catch (_) {
       return jsonEncode({'kind': kind, 'raw': payload});
+    }
+  }
 
   Object? _fingerprintTimestamp(Object? value) {
     if (value is int) return value ~/ Duration.microsecondsPerSecond;
     if (value is num) {
       return value.toInt() ~/ Duration.microsecondsPerSecond;
+    }
     return value;
+  }
 
   Future<List<String>> _messageIds(String schema, String conversationId) async {
+    final rows = await _db
+        .customSelect(
           'SELECT id FROM $schema.message_rows WHERE conversation_id = ? '
+          'ORDER BY message_order, id;',
+          variables: [Variable<String>(conversationId)],
+        )
+        .get();
     return rows.map((row) => row.read<String>('id')).toList(growable: false);
+  }
 
   /// Message deletion intentionally preserves `message_order` gaps, so sparse
   /// orders are valid; only negative or duplicate values that bypassed the
   /// database constraints are rejected here.
   Future<void> _requireValidMessageOrder(
     String schema,
+    String conversationId,
+  ) async {
+    final rows = await _db
+        .customSelect(
           'SELECT message_order FROM $schema.message_rows '
           'WHERE conversation_id = ? ORDER BY message_order, id;',
+          variables: [Variable<String>(conversationId)],
+        )
+        .get();
     int? previous;
+    for (final row in rows) {
       final order = row.read<int>('message_order');
       if (order < 0 || (previous != null && order <= previous)) {
         throw StateError('conversation_message_order');
+      }
       previous = order;
+    }
+  }
 
   Future<bool> _anyMessageIdExists(List<String> ids) async {
+    for (final id in ids) {
+      final row = await _db
+          .customSelect(
             'SELECT 1 AS found FROM main.message_rows WHERE id = ? LIMIT 1;',
+            variables: [Variable<String>(id)],
+          )
+          .getSingleOrNull();
       if (row != null) return true;
+    }
+    return false;
+  }
 
   String _deterministicMergeId(String kind, String id, String fingerprint) {
     final digest = sha256.convert(
       utf8.encode('$kind\u0000$id\u0000$fingerprint'),
+    );
     return 'merge-${digest.toString().substring(0, 32)}';
+  }
 
   Future<void> _insertMergedConversation({
+    required String sourceId,
     required String targetId,
+    required Map<String, String> messageIdMap,
+  }) async {
+    await _invalidateEmptyAcknowledgement();
+    final transfer = UiStateTransfer(_db);
     final sources = await transfer.read(
       source: UiTransferDatabase.mergeSource,
       revisionIds: messageIdMap.keys,
+    );
     final sourceMessages = await _db
+        .customSelect(
           'SELECT id, group_id FROM merge_source.message_rows '
+          'WHERE conversation_id = ? ORDER BY message_order, id;',
           variables: [Variable<String>(sourceId)],
+        )
+        .get();
     final remapping = sourceId != targetId;
+    final groupIdMap = <String, String>{};
+    for (final row in sourceMessages) {
       // A group is keyed by COALESCE(group_id, id): the first revision keeps a
       // null group_id, later versions carry that revision's id. Remapped groups
       // must therefore follow the anchor revision's new id, otherwise the
@@ -4083,40 +6367,60 @@ class ChatDatabaseRepository {
           (remapping
               ? _deterministicMergeId('group', groupId, targetId)
               : groupId);
+    }
     final sourceConversation = await _db
+        .customSelect(
           'SELECT version_selections_json FROM merge_source.conversation_rows '
           'WHERE id = ?;',
+          variables: [Variable<String>(sourceId)],
+        )
+        .getSingle();
     final sourceSelections = _decodeStringIntMap(
       sourceConversation.read<String>('version_selections_json'),
+    );
     final targetSelections = <String, int>{};
     for (final entry in sourceSelections.entries) {
       targetSelections[groupIdMap[entry.key] ?? entry.key] = entry.value;
+    }
+    await _db.customStatement(
       'INSERT INTO main.conversation_rows '
       '(id, title, created_at, updated_at, is_pinned, assistant_id, '
+      'truncate_index, version_selections_json, summary, '
       'last_summarized_message_count, chat_suggestions_json, '
       'injected_memory_hash, last_memory_extracted_order, '
       'chat_model_provider, chat_model_id, extras_json) '
       'SELECT ?, title, created_at, updated_at, is_pinned, assistant_id, '
       'truncate_index, ?, summary, '
+      'last_summarized_message_count, chat_suggestions_json, '
       'NULL, COALESCE((SELECT MAX(message_order) '
       'FROM merge_source.message_rows WHERE conversation_id = ?), -1), '
       'chat_model_provider, chat_model_id, extras_json '
       'FROM merge_source.conversation_rows WHERE id = ?;',
       [targetId, jsonEncode(targetSelections), sourceId, sourceId],
+    );
+    await _db.customStatement(
       'INSERT INTO main.conversation_mcp_server_rows '
       '(conversation_id, server_id, ordinal) '
       'SELECT ?, server_id, ordinal FROM merge_source.conversation_mcp_server_rows '
+      'WHERE conversation_id = ?;',
       [targetId, sourceId],
+    );
     for (final entry in messageIdMap.entries) {
       final sourceMessage = sourceMessages.firstWhere(
         (row) => row.read<String>('id') == entry.key,
+      );
       final sourceGroupId = sourceMessage.data['group_id']?.toString();
       // Anchor revisions keep their null group_id so the merged rows describe
       // the same groups as the snapshot and stay fingerprint-identical.
       final targetGroupId = sourceGroupId == null
+          ? null
           : (groupIdMap[sourceGroupId] ?? sourceGroupId);
+      await _db.customStatement(
         'INSERT INTO main.message_rows '
         '(id, conversation_id, role, timestamp, model_id, provider_id, '
+        'total_tokens, is_streaming, reasoning_start_at, '
+        'reasoning_finished_at, translation, reasoning_segments_json, group_id, '
+        'version, prompt_tokens, completion_tokens, cached_tokens, duration_ms, '
         'message_order, updated_at, sender_id, extras_json) '
         'SELECT ?, ?, role, timestamp, model_id, provider_id, '
         'total_tokens, 0, reasoning_start_at, '
@@ -4129,81 +6433,166 @@ class ChatDatabaseRepository {
         'message_order, updated_at, sender_id, extras_json '
         'FROM merge_source.message_rows WHERE id = ?;',
         [entry.value, targetId, targetGroupId, entry.key],
+      );
+      await _db.customStatement(
         'INSERT INTO main.message_part_rows '
+        '(conversation_id, revision_id, ordinal, kind, payload, '
+        'created_at, updated_at) '
+        'SELECT ?, ?, ordinal, kind, payload, created_at, updated_at '
         'FROM merge_source.message_part_rows WHERE revision_id = ?;',
         [targetId, entry.value, entry.key],
+      );
+      await _db.customStatement(
         'INSERT INTO main.provider_artifact_rows '
         '(conversation_id, revision_id, kind, payload, created_at, updated_at) '
+        'SELECT ?, ?, kind, payload, created_at, updated_at '
         'FROM merge_source.provider_artifact_rows WHERE revision_id = ?;',
+        [targetId, entry.value, entry.key],
+      );
+    }
+    await transfer.copy(
+      sources: sources,
+      messageIdMap: messageIdMap,
+      targetConversationId: targetId,
+    );
+    await _sealGenUiSearch(messageIdMap.values);
     final sourceContext = await _db
+        .customSelect(
           'SELECT payload FROM merge_source.extension_entity_rows WHERE kind=? AND id=?',
+          variables: [
             Variable<String>(ContextOperation.entityKind),
             Variable<String>(sourceId),
+          ],
+        )
+        .getSingleOrNull();
     if (sourceContext != null) {
+      await _copyContextOperations(
+        sourceId: sourceId,
+        targetId: targetId,
+        groups: groupIdMap,
         sourcePayload: sourceContext.read<String>('payload'),
+        completeHistory: true,
+      );
+    }
     // Merged revisions bypass _replaceMessageParts, so queue the
     // attachment-bearing ones for the asset-reference backfill before GC can
     // treat their files as unreferenced.
+    await _db.customStatement(
+      'INSERT OR IGNORE INTO asset_reference_dirty_rows(revision_id) '
       'SELECT DISTINCT revision_id FROM main.message_part_rows '
+      "WHERE conversation_id = ? AND (kind IN ('image', 'file') "
+      "OR (kind = 'tool_call' AND payload LIKE '%\"previewImage\"%'));",
       [targetId],
+    );
+  }
 
   Future<void> _writeBackupData({
+    required List<Conversation> conversations,
+    required List<({ChatMessage message, int messageOrder})> messages,
+    required Map<String, List<Map<String, dynamic>>> toolEventsByMessageId,
+    required Map<String, String> geminiSignaturesByMessageId,
+  }) async {
     genUiStates.invalidateAfterCommit(
       conversations: {
         for (final conversation in conversations) conversation.id,
+      },
       revisions: {for (final entry in messages) entry.message.id},
+    );
     if (conversations.isNotEmpty || messages.isNotEmpty) {
+      await _invalidateEmptyAcknowledgement();
+    }
+    await _db.batch((batch) {
       for (final conversation in conversations) {
+        batch.insert(
+          _db.conversationRows,
           _conversationCompanion(conversation),
           mode: InsertMode.insertOrReplace,
+        );
         for (var i = 0; i < conversation.mcpServerIds.length; i++) {
+          batch.insert(
+            _db.conversationMcpServerRows,
             ConversationMcpServerRowsCompanion.insert(
+              conversationId: conversation.id,
               serverId: conversation.mcpServerIds[i],
               ordinal: i,
+            ),
+            mode: InsertMode.insertOrReplace,
+          );
+        }
+      }
       for (final entry in messages) {
+        batch.insert(
+          _db.messageRows,
           _messageCompanion(entry.message, entry.messageOrder),
+          mode: InsertMode.insertOrReplace,
+        );
+      }
+    });
     // Parts/artifacts are the only persistence for tool events and thought
     // signatures; the legacy tables no longer receive writes.
     final batchMessageIds = <String>{};
+    for (final entry in messages) {
       final id = entry.message.id;
       batchMessageIds.add(id);
       await _replaceMessageParts(
         entry.message,
         toolEvents: toolEventsByMessageId[id],
+      );
+    }
     for (final entry in toolEventsByMessageId.entries) {
       if (batchMessageIds.contains(entry.key)) continue;
       final message = await getMessage(entry.key);
       if (message == null) throw StateError('tool_event_message_missing');
       await _replaceMessageParts(message, toolEvents: entry.value);
+    }
     for (final entry in geminiSignaturesByMessageId.entries) {
       await _upsertGeminiThoughtSignature(entry.key, entry.value);
+    }
     // _replaceMessageParts already queues attachment-bearing revisions; the
     // bulk mark stays as cheap insurance for the asset backfill invariant.
     await _markMessageAssetReferencesDirtyBatch([
       for (final entry in messages)
         if (_messageHasAttachmentParts(entry.message)) entry.message.id,
+    ]);
+  }
 
   Future<void> updateMessage(ChatMessage message) async {
+    await _writeTransaction(() async {
       final before = await getMessage(message.id);
       if (before != null &&
           !before.isStreaming &&
           !listEquals(before.parts, message.parts)) {
         await _revokeContextForGroups(message.conversationId, {
+          message.groupId ?? message.id,
+        });
+      }
       await _updateMessageRow(message);
+      await _replaceMessageParts(message);
+    });
+  }
 
   Future<void> _updateMessageRow(ChatMessage message) async {
     final current = await (_db.select(
+      _db.messageRows,
     )..where((t) => t.id.equals(message.id))).getSingleOrNull();
     if (current == null) return;
+    await _invalidateEmptyAcknowledgement();
+    await (_db.update(
+      _db.messageRows,
     )..where((t) => t.id.equals(message.id))).write(
       _messageUpdate(message).copyWith(
         extrasJson: Value(
-          _encodeTokenExtras(
+          _encodeMessageExtras(
             current.extrasJson,
             reasoningTokens: message.reasoningTokens,
             cacheWriteTokens: message.cacheWriteTokens,
             finishUsage: message.finishUsage,
             firstTokenMs: message.firstTokenMs,
+          ),
+        ),
+      ),
+    );
+  }
 
   /// Partial-column UPDATE: only the non-null fields are written, so
   /// concurrent writers touching disjoint columns cannot clobber each other.
@@ -4214,6 +6603,7 @@ class ChatDatabaseRepository {
   Future<ChatMessage?> updateMessageFields(
     String messageId, {
     String? content,
+    List<MessagePart>? parts,
     int? totalTokens,
     bool? isStreaming,
     String? reasoningText,
@@ -4227,89 +6617,140 @@ class ChatDatabaseRepository {
     int? durationMs,
     int? reasoningTokens,
     int? cacheWriteTokens,
+  }) {
+    final companion = MessageRowsCompanion(
+      totalTokens: totalTokens != null
+          ? Value(totalTokens)
+          : const Value.absent(),
+      isStreaming: isStreaming != null
+          ? Value(isStreaming)
+          : const Value.absent(),
+      reasoningStartAt: reasoningStartAt != null
+          ? Value(reasoningStartAt)
+          : const Value.absent(),
+      reasoningFinishedAt: reasoningFinishedAt != null
+          ? Value(reasoningFinishedAt)
+          : const Value.absent(),
+      translation: translation != null
+          ? Value(translation)
+          : const Value.absent(),
+      reasoningSegmentsJson: reasoningSegmentsJson != null
+          ? Value(reasoningSegmentsJson)
+          : const Value.absent(),
+      promptTokens: promptTokens != null
+          ? Value(promptTokens)
+          : const Value.absent(),
+      completionTokens: completionTokens != null
+          ? Value(completionTokens)
+          : const Value.absent(),
+      cachedTokens: cachedTokens != null
+          ? Value(cachedTokens)
+          : const Value.absent(),
+      durationMs: durationMs != null ? Value(durationMs) : const Value.absent(),
+    );
+    return _writeTransaction(() async {
+      final current = await (_db.select(
+        _db.messageRows,
+      )..where((t) => t.id.equals(messageId))).getSingleOrNull();
+      if (current == null) return null;
       // Built inside the transaction because updated_at is floored at the
       // row's own timestamp, exactly as [_messageUpdate] floors it: the
       // effective LWW clock is COALESCE(updated_at, timestamp), and an edit on
       // this device must not lower the clock of a message authored under a
       // skewed (future) peer clock, or the peer's untouched copy would win the
       // next exchange and revert the edit on both devices.
-      final existing =
-                ..where((row) => row.id.equals(messageId))
-      if (existing == null) return null;
-      if (!existing.isStreaming && (content != null || parts != null)) {
+      final now = DateTime.now().toUtc();
+      final updatedAt = now.isBefore(current.timestamp)
+          ? current.timestamp
+          : now;
+      var write = companion.copyWith(updatedAt: Value(updatedAt));
+      if (!current.isStreaming && (content != null || parts != null)) {
         final before = await getMessage(messageId);
+        if (before != null &&
             ((content != null && content != before.content) ||
                 (parts != null && !listEquals(parts, before.parts)))) {
-          await _revokeContextForGroups(existing.conversationId, {
-            existing.groupId ?? existing.id,
-      final updatedAt = now.isBefore(existing.timestamp)
-          ? existing.timestamp
-          : now;
-      var write = MessageRowsCompanion(
-        totalTokens: totalTokens != null
-            ? Value(totalTokens)
-            : const Value.absent(),
-        isStreaming: isStreaming != null
-            ? Value(isStreaming)
-        reasoningStartAt: reasoningStartAt != null
-            ? Value(reasoningStartAt)
-        reasoningFinishedAt: reasoningFinishedAt != null
-            ? Value(reasoningFinishedAt)
-        translation: translation != null
-            ? Value(translation)
-        reasoningSegmentsJson: reasoningSegmentsJson != null
-            ? Value(reasoningSegmentsJson)
-        promptTokens: promptTokens != null
-            ? Value(promptTokens)
-        completionTokens: completionTokens != null
-            ? Value(completionTokens)
-        cachedTokens: cachedTokens != null
-            ? Value(cachedTokens)
-        durationMs: durationMs != null
-            ? Value(durationMs)
+          await _revokeContextForGroups(current.conversationId, {
+            current.groupId ?? current.id,
+          });
+        }
+      }
+      await _invalidateEmptyAcknowledgement();
       if (reasoningTokens != null || cacheWriteTokens != null) {
-        // The row was read above, inside this same transaction, so the extras
-        // merge onto the value that read saw.
-        write = write.copyWith(
-              existing.extrasJson,
+        write = companion.copyWith(
+          extrasJson: Value(
+            _encodeMessageExtras(
+              current.extrasJson,
               reasoningTokens: reasoningTokens,
               cacheWriteTokens: cacheWriteTokens,
+            ),
+          ),
+        );
+      }
+      await (_db.update(
+        _db.messageRows,
       )..where((t) => t.id.equals(messageId))).write(write);
       final updated = await getMessage(messageId);
       if (updated == null) return null;
       if (content == null && reasoningText == null && parts == null) {
         if (reasoningSegmentsJson != null) {
           await genUiStates.reconcileSource(updated);
+        }
         if ((reasoningSegmentsJson != null || isStreaming != null) &&
             UiMessageSource.of(updated.parts).hasCandidate) {
           await _genUiSearch.seal(updated);
+        }
+        return updated;
+      }
       var nextParts = updated.parts;
       if (parts != null) {
         nextParts = parts;
       } else if (content != null) {
         nextParts = ChatMessage.partsWithRedistributedText(nextParts, content);
+      }
       if (reasoningText != null) {
         nextParts = ChatMessage.partsWithReplacedReasoning(
           nextParts,
           reasoningText,
+        );
+      }
       final corrected = updated.copyWith(
         parts: nextParts,
         reasoningText: reasoningText ?? updated.reasoningText,
+      );
       await _replaceMessageParts(corrected);
       return corrected;
+    });
+  }
 
   Future<void> updateStreamingCheckpoint(
+    ChatMessage message,
     List<Map<String, dynamic>> toolEvents, {
     String? generationRunId,
+    int? checkpointSeq,
+  }) {
     if ((generationRunId == null) != (checkpointSeq == null)) {
       throw ArgumentError('generationRunId and checkpointSeq must pair');
+    }
+    return _observer.measure(
       message.isStreaming
           ? ChatDatabaseOperation.commandStreamingCheckpoint
           : ChatDatabaseOperation.commandFinalCheckpoint,
       () => _updateStreamingCheckpoint(
+        message,
+        toolEvents,
         generationRunId: generationRunId,
+        checkpointSeq: checkpointSeq,
+      ),
+    );
+  }
 
   Future<void> _updateStreamingCheckpoint(
+    ChatMessage message,
+    List<Map<String, dynamic>> toolEvents, {
+    String? generationRunId,
+    int? checkpointSeq,
+  }) async {
+    await _writeTransaction(() async {
       // Guard against a late flush resurrecting an already-finalized message.
       // A streaming snapshot (is_streaming = true) that arrives after the
       // terminal write has committed (row is_streaming = 0) must not overwrite
@@ -4317,19 +6758,48 @@ class ChatDatabaseRepository {
       // unindex it from search). Final writes carry is_streaming = false and
       // are unaffected.
       if (message.isStreaming) {
+        final existing =
+            await (_db.select(_db.messageRows)
                   ..where((row) => row.id.equals(message.id))
+                  ..limit(1))
+                .getSingleOrNull();
         if (existing != null && !existing.isStreaming) {
+          return;
+        }
+      }
       // Keep message_rows (incl. is_streaming) ahead of parts rewrite so the
       // FTS finalize trigger indexes the pre-rewrite text part correctly.
+      await _updateMessageRow(message);
       await _replaceMessageParts(message, toolEvents: toolEvents);
       if (generationRunId != null && checkpointSeq != null) {
         await GenerationRunCommands(_db).checkpoint(
+          id: generationRunId,
           targetRevisionId: message.id,
+          checkpointSeq: checkpointSeq,
+          updatedAt: DateTime.now().toUtc(),
+        );
+      }
+    });
+  }
 
+  @Deprecated('legacy/test only; rewrites the complete conversation order')
   Future<void> updateConversationMessages({
+    required Conversation conversation,
     required List<String> messageIds,
+  }) async {
+    await _db.transaction(() async {
+      await _invalidateEmptyAcknowledgement();
+      await _db
+          .into(_db.conversationRows)
+          .insertOnConflictUpdate(
+            _conversationCompanion(
               conversation.copyWith(messageIds: List<String>.of(messageIds)),
+            ),
+          );
+      await _replaceMcpServers(conversation.id, conversation.mcpServerIds);
       await _rewriteMessageOrder(conversation.id, messageIds);
+    });
+  }
 
   /// Tombstone scope recorded by [deleteConversation].
   static const tombstoneScopeConversation = 'conversation';
@@ -4340,32 +6810,70 @@ class ChatDatabaseRepository {
 
   /// Deletes [id] and records a tombstone in the same transaction so a future
   /// sync can propagate the deletion to other devices.
+  ///
   /// Bulk resets (overwrite restore, importer wipes) go through
   /// [clearAllData], which clears tombstones instead of writing them:
   /// replacing the whole local state is not a cross-device deletion intent.
   /// Draft conversations never reach this method (they are not persisted), so
   /// no tombstone is written for them.
-  Future<void> deleteConversation(String id) async {
+  ///
+  /// The whole subtree is staged into the recycle bin in the same transaction,
+  /// so the deletion stays undoable. Every deletion this device performs funnels
+  /// through here — its own UI, an assistant's cascade, and a peer's deletion —
+  /// which is why [origin] (and, for a cascade, [group]) is the only thing the
+  /// caller decides. The capture is taken inside the transaction, because what
+  /// is staged has to be what the cascade is about to remove; it is written
+  /// after it returns, so a delete never waits on the filesystem for its own
+  /// safety net.
+  Future<void> deleteConversation(
+    String id, {
+    RecycleOrigin origin = RecycleOrigin.local,
+    RecycleGroup? group,
+  }) async {
+    RecycleConversationCapture? capture;
     await composerDrafts.delete(
+      id,
       deleteConversation: () async {
+        capture = await recycle?.captureConversationDeletion(
+          id,
+          origin: origin,
+          group: group,
+        );
         genUiStates.invalidateAfterCommit(conversations: {id});
         final deleted = await (_db.delete(
+          _db.conversationRows,
         )..where((t) => t.id.equals(id))).go();
         if (deleted == 0) return;
         await (_db.delete(_db.extensionEntityRows)..where(
+              (row) =>
                   row.kind.isIn([
                     ContextOperation.entityKind,
                     'contextCompressionTask',
                   ]) &
                   row.ownerId.equals(id),
+            ))
+            .go();
+        final now = DateTime.now().toUtc();
+        await _db
             .into(_db.tombstoneRows)
+            .insertOnConflictUpdate(
               TombstoneRowsCompanion.insert(
                 scope: tombstoneScopeConversation,
                 entityId: id,
                 deletedAt: now,
+              ),
+            );
         await (_db.delete(_db.tombstoneRows)..where(
               (t) => t.deletedAt.isSmallerThanValue(
                 now.subtract(tombstoneRetention).microsecondsSinceEpoch,
+              ),
+            ))
+            .go();
+        await _acknowledgeIntentionalEmptyState();
+      },
+    );
+    if (capture case final staged?) recycle?.stageCapturedConversation(staged);
+  }
 
   /// Reads deletion tombstones, newest first, optionally filtered by [scope].
   Future<List<TombstoneRow>> readTombstones({String? scope}) {
@@ -4373,7 +6881,31 @@ class ChatDatabaseRepository {
       ..orderBy([(t) => OrderingTerm.desc(t.deletedAt)]);
     if (scope != null) {
       query.where((t) => t.scope.equals(scope));
+    }
     return query.get();
+  }
+
+  /// [messageId] as a row of [conversationId], or null when that id belongs
+  /// to another conversation or to none.
+  ///
+  /// [getMessage] is a primary-key lookup with no conversation filter, so a row
+  /// id that outlived its conversation would resolve to whichever conversation
+  /// on this device still holds it. Anything that resolves a stored reference
+  /// into content for one conversation uses this instead.
+  Future<ChatMessage?> getMessageInConversation(
+    String conversationId,
+    String messageId,
+  ) async {
+    if (conversationId.isEmpty || messageId.isEmpty) return null;
+    final row =
+        await (_db.select(_db.messageRows)..where(
+              (t) =>
+                  t.id.equals(messageId) &
+                  t.conversationId.equals(conversationId),
+            ))
+            .getSingleOrNull();
+    return row == null ? null : _messageFromRowWithParts(row);
+  }
 
   Future<void> deleteMessage(String messageId) async {
     final row = await getMessage(messageId);
@@ -4382,30 +6914,62 @@ class ChatDatabaseRepository {
       conversationId: row.conversationId,
       messageIds: {messageId},
       versionSelectionChanges: const {},
+    );
+  }
 
   Future<DeletedMessagesResult?> deleteMessages({
+    required String conversationId,
     required Set<String> messageIds,
     required Map<String, int?> versionSelectionChanges,
+    String? expectedContextState,
+  }) {
+    return _observer.measure(
       ChatDatabaseOperation.commandDeleteMessages,
+      () async {
         return _deleteMessages(
+          expectedContextState: expectedContextState,
+          conversationId: conversationId,
           messageIds: messageIds,
           versionSelectionChanges: versionSelectionChanges,
+        );
+      },
+    );
+  }
 
   Future<DeletedMessagesResult?> _deleteMessages({
+    required String conversationId,
+    required Set<String> messageIds,
+    required Map<String, int?> versionSelectionChanges,
+    String? expectedContextState,
+  }) async {
     if (messageIds.isEmpty) return null;
     for (final entry in versionSelectionChanges.entries) {
       if (entry.key.isEmpty || (entry.value != null && entry.value! < 0)) {
+        throw ArgumentError.value(
           versionSelectionChanges,
           'versionSelectionChanges',
           'Group IDs must be non-empty and versions non-negative.',
+        );
+      }
+    }
+    return _writeTransaction(() async {
+      await _assertContextState(conversationId, expectedContextState);
       final conversationRow = await (_db.select(
+        _db.conversationRows,
       )..where((row) => row.id.equals(conversationId))).getSingleOrNull();
+      if (conversationRow == null) return null;
+      final rows =
+          await (_db.select(_db.messageRows)
                 ..where((row) => row.conversationId.equals(conversationId))
+                ..orderBy([(row) => OrderingTerm.asc(row.messageOrder)]))
+              .get();
       final deletedRows = rows
           .where((row) => messageIds.contains(row.id))
+          .toList(growable: false);
       if (deletedRows.isEmpty) return null;
       if (deletedRows.length != messageIds.length) {
         throw StateError('delete_messages_not_found');
+      }
 
       // Version groups are anchored at MIN(message_order) in the timeline
       // queries, while appended revisions get end-of-conversation orders.
@@ -4418,9 +6982,11 @@ class ChatDatabaseRepository {
       // distinct groups never share an anchor row.
       final anchorRewrites = <String, int>{};
       final rowsByGroup = <String, List<MessageRow>>{};
+      for (final row in rows) {
         rowsByGroup
             .putIfAbsent(row.groupId ?? row.id, () => <MessageRow>[])
             .add(row);
+      }
       for (final group in rowsByGroup.values) {
         // `rows` is ordered by message_order, so group.first is the anchor.
         final anchor = group.first;
@@ -4429,88 +6995,168 @@ class ChatDatabaseRepository {
         for (final row in group) {
           if (!messageIds.contains(row.id)) {
             survivor = row;
+            break;
+          }
+        }
         if (survivor == null) continue;
         anchorRewrites[survivor.id] = anchor.messageOrder;
+      }
 
       final remainingRows = rows
           .where((row) => !messageIds.contains(row.id))
+          .toList(growable: false);
       final effectiveOrders = <String, int>{
         for (final row in remainingRows)
           row.id: anchorRewrites[row.id] ?? row.messageOrder,
+      };
       final orderedIds = remainingRows.map((row) => row.id).toList()
         ..sort((a, b) => effectiveOrders[a]!.compareTo(effectiveOrders[b]!));
 
       await _revokeContextForGroups(
+        conversationId,
+        {
           for (final row in deletedRows) row.groupId ?? row.id,
           ...versionSelectionChanges.keys,
+        },
         removedGroups: {
           for (final row in deletedRows)
             if (!remainingRows.any(
               (remaining) =>
                   (remaining.groupId ?? remaining.id) ==
                   (row.groupId ?? row.id),
+            ))
               row.groupId ?? row.id,
+        },
+      );
       final deletedIds = deletedRows
           .map((row) => row.id)
+          .toList(growable: false);
       genUiStates.invalidateAfterCommit(revisions: deletedIds.toSet());
+      await (_db.delete(
+        _db.generationRunRows,
       )..where((row) => row.targetRevisionId.isIn(deletedIds))).go();
+      await (_db.delete(
+        _db.providerArtifactRows,
       )..where((row) => row.revisionId.isIn(deletedIds))).go();
+      await (_db.delete(
+        _db.messageRows,
       )..where((row) => row.id.isIn(deletedIds))).go();
       for (final rewrite in anchorRewrites.entries) {
+        await (_db.update(
+          _db.messageRows,
         )..where((row) => row.id.equals(rewrite.key))).write(
           MessageRowsCompanion(
             messageOrder: Value(rewrite.value),
             updatedAt: Value(DateTime.now().toUtc()),
+          ),
+        );
+      }
+      final currentConversation = await _conversationFromRow(
+        conversationRow,
+        includeMessageIds: false,
+      );
+      final selections = Map<String, int>.from(
+        currentConversation.versionSelections,
+      );
+      for (final entry in versionSelectionChanges.entries) {
         final version = entry.value;
+        if (version == null) {
           selections.remove(entry.key);
+        } else {
           selections[entry.key] = version;
+        }
+      }
       final remainingByGroup = <String, List<MessageRow>>{};
+      for (final row in rows) {
         if (messageIds.contains(row.id)) continue;
         remainingByGroup
+            .putIfAbsent(row.groupId ?? row.id, () => <MessageRow>[])
+            .add(row);
+      }
       for (final groupId in selections.keys.toList(growable: false)) {
         final remaining = remainingByGroup[groupId];
         if (remaining == null || remaining.isEmpty) {
+          selections.remove(groupId);
+          continue;
+        }
         final selectedVersion = selections[groupId];
         if (!remaining.any((row) => row.version == selectedVersion)) {
           selections[groupId] = remaining
               .map((row) => row.version)
               .reduce((left, right) => left > right ? left : right);
+        }
+      }
+      final conversation = currentConversation.copyWith(
+        truncateIndex: -1,
         messageIds: orderedIds,
+        versionSelections: selections,
         chatSuggestions: const <String>[],
+        updatedAt: DateTime.now(),
+      );
+      await (_db.update(_db.conversationRows)
             ..where((row) => row.id.equals(conversationId)))
+          .write(_conversationCompanion(conversation));
       // Callers (ChatService.deleteMessages) only need message.id for cache
       // invalidation; body text is intentionally omitted.
+      return (
+        conversation: conversation,
         messages: [
+          for (final row in deletedRows)
+            ChatMessage(
               id: row.id,
               role: row.role,
+              content: '',
               timestamp: row.timestamp,
+              conversationId: row.conversationId,
               groupId: row.groupId,
               version: row.version,
+            ),
+        ],
+      );
+    });
+  }
 
   Future<void> clearAllData() async {
+    await _writeTransaction(() async {
+      await _clearChatRows();
+      await _acknowledgeIntentionalEmptyState();
+    });
+  }
 
   Future<void> _clearChatRows() async {
     genUiStates.invalidateAfterCommit(all: true);
+    await _db.customStatement(
       "DELETE FROM extension_entity_rows WHERE kind IN ('composerDraft','composerNewEntry','composerPrivateFile','composerPublishedFile','conversationContext','contextCompressionTask')",
+    );
     await _db.delete(_db.conversationMcpServerRows).go();
     await _db.delete(_db.messageRows).go();
     await _db.delete(_db.conversationRows).go();
     // A bulk reset replaces the whole local state; stale tombstones would
     // otherwise mark freshly imported conversations as deleted elsewhere.
     await _db.delete(_db.tombstoneRows).go();
+    await (_db.delete(
       _db.chatStorageMetaRows,
     )..where((t) => t.key.equals(ChatStorageMetaKeys.activeStreamingIds))).go();
+  }
 
   Future<List<Map<String, dynamic>>> getToolEvents(String messageId) async {
     return (await getToolEventsForMessages([messageId]))[messageId] ??
         const <Map<String, dynamic>>[];
+  }
 
   Future<Map<String, List<Map<String, dynamic>>>> getToolEventsForMessages(
     Iterable<String> messageIds,
+  ) async {
     final ids = messageIds.toSet();
+    if (ids.isEmpty) return const {};
     final partRows =
         await (_db.select(_db.messagePartRows)
+              ..where(
+                (row) =>
                     row.revisionId.isIn(ids) & row.kind.equals('tool_call'),
+              )
+              ..orderBy([(row) => OrderingTerm.asc(row.ordinal)]))
+            .get();
     final result = <String, List<Map<String, dynamic>>>{};
     for (final row in partRows) {
       final decoded = jsonDecode(row.payload);
@@ -4518,136 +7164,240 @@ class ChatDatabaseRepository {
         result
             .putIfAbsent(row.revisionId, () => <Map<String, dynamic>>[])
             .add(Map<String, dynamic>.from(decoded));
+      }
+    }
+    return result;
+  }
 
   Future<void> setToolEvents(
     String messageId,
     List<Map<String, dynamic>> events,
+  ) async {
+    await _writeTransaction(() async {
       final message = await getMessage(messageId);
+      if (message == null) throw StateError('tool_event_message_missing');
       await _replaceMessageParts(message, toolEvents: events);
+    });
+  }
 
   Future<void> deleteToolEvents(String messageId) async {
+    await _writeTransaction(() async {
+      final message = await getMessage(messageId);
       if (message != null) {
+        await _replaceMessageParts(
           message.copyWith(
             parts: [
               for (final part in message.parts)
                 if (part is! ToolCallPart) part,
+            ],
+          ),
+        );
+      }
+    });
+  }
 
   Future<String?> getGeminiThoughtSignature(String messageId) async {
     final artifacts = await getProviderArtifactsForMessages([
       messageId,
     ], 'gemini_thought_signature');
     return artifacts[messageId];
+  }
 
   /// revisionId → payload for every message among [messageIds] that carries
   /// a provider artifact of [kind].
   Future<Map<String, String>> getProviderArtifactsForMessages(
+    Iterable<String> messageIds,
+    String kind,
+  ) async {
+    final ids = messageIds.toSet();
+    if (ids.isEmpty) return const {};
+    final rows = await (_db.select(
+      _db.providerArtifactRows,
     )..where((row) => row.revisionId.isIn(ids) & row.kind.equals(kind))).get();
     return <String, String>{
+      for (final row in rows)
         if (row.payload.trim().isNotEmpty) row.revisionId: row.payload.trim(),
+    };
+  }
 
   Future<void> setProviderArtifact(
+    String messageId,
+    String kind,
+    String payload,
+  ) async {
+    await _db.transaction(() async {
       await _upsertProviderArtifact(messageId, kind, payload);
+    });
+  }
 
   static const String imageOcrArtifactKind = 'image_ocr_v1';
 
   /// Batch-load OCR artifacts for revisions.
+  ///
   /// Returns revisionId → (contentHash → OCR text).
   Future<Map<String, Map<String, String>>> getImageOcrArtifacts(
+    Iterable<String> revisionIds,
+  ) async {
     final ids = revisionIds
         .map((id) => id.trim())
         .where((id) => id.isNotEmpty)
+        .toSet();
+    if (ids.isEmpty) return const {};
+    final rows =
         await (_db.select(_db.providerArtifactRows)..where(
+              (row) =>
                   row.revisionId.isIn(ids) &
                   row.kind.equals(imageOcrArtifactKind),
+            ))
+            .get();
     final result = <String, Map<String, String>>{};
+    for (final row in rows) {
       final items = _decodeImageOcrPayload(row.payload);
       if (items.isEmpty) continue;
       result[row.revisionId] = items;
+    }
+    return result;
+  }
 
   /// Merge OCR items into the revision artifact and upsert.
   Future<void> upsertImageOcrArtifactItems({
+    required String revisionId,
     required Map<String, String> items,
+  }) async {
     final cleaned = <String, String>{
       for (final entry in items.entries)
         if (entry.key.trim().isNotEmpty && entry.value.trim().isNotEmpty)
           entry.key.trim(): entry.value.trim(),
+    };
     if (cleaned.isEmpty) return;
 
+    await _db.transaction(() async {
       final message = await (_db.select(
+        _db.messageRows,
       )..where((row) => row.id.equals(revisionId))).getSingleOrNull();
       if (message == null) {
         throw StateError('provider_artifact_revision_missing');
+      }
 
       final existingRows =
+          await (_db.select(_db.providerArtifactRows)..where(
+                (row) =>
                     row.revisionId.equals(revisionId) &
+                    row.kind.equals(imageOcrArtifactKind),
+              ))
+              .get();
       final merged = <String, String>{
         for (final row in existingRows) ..._decodeImageOcrPayload(row.payload),
         ...cleaned,
+      };
+      final now = DateTime.now().toUtc();
       final createdAt = existingRows.isNotEmpty
           ? existingRows.first.createdAt
           : message.timestamp;
       final updatedAt = now.isBefore(createdAt) ? createdAt : now;
+      await _db
           .into(_db.providerArtifactRows)
+          .insertOnConflictUpdate(
             ProviderArtifactRowsCompanion.insert(
+              conversationId: message.conversationId,
               revisionId: revisionId,
               kind: imageOcrArtifactKind,
               payload: _encodeImageOcrPayload(merged),
+              createdAt: createdAt,
+              updatedAt: updatedAt,
+            ),
+          );
+    });
+  }
 
   /// Copy still-present image OCR items from one revision to another.
   Future<void> inheritImageOcrArtifacts({
     required String fromRevisionId,
     required String toRevisionId,
     required Set<String> retainedContentHashes,
+  }) async {
     if (retainedContentHashes.isEmpty) return;
     if (fromRevisionId == toRevisionId) return;
     final source = await getImageOcrArtifacts([fromRevisionId]);
     final items = source[fromRevisionId];
     if (items == null || items.isEmpty) return;
     final inherited = <String, String>{
+      for (final entry in items.entries)
         if (retainedContentHashes.contains(entry.key) &&
             entry.value.trim().isNotEmpty)
           entry.key: entry.value.trim(),
+    };
     if (inherited.isEmpty) return;
     await upsertImageOcrArtifactItems(
       revisionId: toRevisionId,
       items: inherited,
+    );
+  }
 
   /// Look up content hashes for known asset paths.
+  ///
   /// Paths with multiple distinct content hashes are omitted so callers cannot
   /// accidentally reuse a stale hash after the file at that path changed.
   Future<Map<String, String>> getAssetContentHashesByPaths(
     Iterable<String> paths,
+  ) async {
     final normalized = paths
         .map((path) => path.trim())
         .where((path) => path.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
     if (normalized.isEmpty) return const {};
     final placeholders = List.filled(normalized.length, '?').join(', ');
+    final rows = await _db
+        .customSelect(
+          '''
           SELECT path, content_hash
           FROM asset_rows
           WHERE path IN ($placeholders)
           ORDER BY last_referenced_at DESC, created_at DESC, id DESC;
+          ''',
           variables: [for (final path in normalized) Variable<String>(path)],
+        )
+        .get();
     final hashesByPath = <String, Set<String>>{};
+    for (final row in rows) {
+      final path = row.read<String>('path');
       final hash = row.read<String>('content_hash');
       if (path.isEmpty || hash.isEmpty) continue;
       hashesByPath.putIfAbsent(path, () => <String>{}).add(hash);
+    }
+    return {
       for (final entry in hashesByPath.entries)
         if (entry.value.length == 1) entry.key: entry.value.single,
+    };
+  }
 
   /// Content hashes of image assets linked to a revision.
   Future<Set<String>> getMessageImageContentHashes(String revisionId) async {
     final id = revisionId.trim();
     if (id.isEmpty) return const {};
+    final rows = await _db
+        .customSelect(
+          '''
       SELECT a.content_hash AS content_hash
       FROM message_asset_rows m
       JOIN asset_rows a ON a.id = m.asset_id
       WHERE m.revision_id = ? AND m.kind = 'image';
+      ''',
+          variables: [Variable<String>(id)],
+        )
+        .get();
+    return {
+      for (final row in rows)
         if (row.read<String>('content_hash').trim().isNotEmpty)
           row.read<String>('content_hash').trim(),
+    };
+  }
 
   Map<String, String> _decodeImageOcrPayload(String payload) {
     final raw = payload.trim();
     if (raw.isEmpty) return const {};
+    try {
       final decoded = jsonDecode(raw);
       if (decoded is! Map) return const {};
       final itemsRaw = decoded['items'];
@@ -4658,36 +7408,87 @@ class ChatDatabaseRepository {
         final text = entry.value?.toString().trim() ?? '';
         if (hash.isEmpty || text.isEmpty) continue;
         items[hash] = text;
+      }
       return items;
+    } catch (_) {
       return const {};
+    }
+  }
 
   String _encodeImageOcrPayload(Map<String, String> items) {
     return jsonEncode({'version': 1, 'items': items});
+  }
 
   Future<void> _upsertGeminiThoughtSignature(
+    String messageId,
     String signature,
   ) =>
       _upsertProviderArtifact(messageId, 'gemini_thought_signature', signature);
 
   Future<void> _upsertProviderArtifact(
+    String messageId,
+    String kind,
+    String payload,
+  ) async {
+    final message = await (_db.select(
+      _db.messageRows,
+    )..where((row) => row.id.equals(messageId))).getSingleOrNull();
+    if (message == null) {
+      throw StateError('provider_artifact_revision_missing');
+    }
+    final now = DateTime.now().toUtc();
+    await _db
+        .into(_db.providerArtifactRows)
+        .insertOnConflictUpdate(
+          ProviderArtifactRowsCompanion.insert(
+            conversationId: message.conversationId,
             revisionId: messageId,
+            kind: kind,
+            payload: payload,
+            createdAt: message.timestamp,
             updatedAt: now.isBefore(message.timestamp)
                 ? message.timestamp
                 : now,
+          ),
+        );
+  }
 
   Future<List<String>> getActiveStreamingIds() async {
+    final rows =
         await (_db.select(_db.generationRunRows)..where(
               (row) => row.state.isIn(const [
+                'preparing',
+                'requesting',
+                'streaming',
+                'waiting_tool',
+              ]),
+            ))
+            .get();
     return rows.map((row) => row.targetRevisionId).toList(growable: false);
+  }
 
   Future<void> clearActiveStreamingIds() async {
+    await (_db.delete(
+      _db.chatStorageMetaRows,
+    )..where((t) => t.key.equals(ChatStorageMetaKeys.activeStreamingIds))).go();
+  }
 
   /// Atomically terminalizes every generation abandoned by a prior process.
   Future<int> resetStaleStreamingState() async {
+    return _writeTransaction(() async {
       final activeStates = const [
+        'preparing',
+        'requesting',
+        'streaming',
+        'waiting_tool',
+      ];
       final runs = await (_db.select(
+        _db.generationRunRows,
       )..where((row) => row.state.isIn(activeStates))).get();
+      final now = DateTime.now().toUtc();
       if (runs.isNotEmpty) {
+        await (_db.update(
+          _db.generationRunRows,
         )..where((row) => row.state.isIn(activeStates))).write(
           GenerationRunRowsCompanion(
             state: const Value('interrupted'),
@@ -4695,105 +7496,225 @@ class ChatDatabaseRepository {
             errorCode: const Value('app_restart'),
             updatedAt: Value(now),
             terminalAt: Value(now),
+          ),
+        );
         await _db.customUpdate(
           'UPDATE generation_run_rows '
           'SET state_revision = state_revision + 1 '
           "WHERE state = 'interrupted' AND terminal_at = ?;",
           variables: [Variable.withInt(now.microsecondsSinceEpoch)],
           updates: {_db.generationRunRows},
+        );
+      }
       // Clearing is_streaming fires message_search_fts_finalize, which indexes
       // the checkpointed text parts left by the abandoned stream.
+      await (_db.update(
+        _db.messageRows,
       )..where((row) => row.isStreaming.equals(true))).write(
+        MessageRowsCompanion(
+          isStreaming: const Value(false),
+          updatedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
       await clearActiveStreamingIds();
       return runs.length;
+    });
+  }
 
   Future<void> markMigrationComplete() async {
+    await _writeMigrationCompleteReceipt();
+  }
 
   Future<void> _writeMigrationCompleteReceipt() async {
+    await _db
+        .into(_db.chatStorageMetaRows)
+        .insertOnConflictUpdate(
+          ChatStorageMetaRowsCompanion.insert(
             key: ChatStorageMetaKeys.hiveMigrationComplete,
             value: 'true',
+          ),
+        );
+  }
 
   Future<bool> isMigrationComplete() async {
+    final row =
+        await (_db.select(_db.chatStorageMetaRows)..where(
               (t) => t.key.equals(ChatStorageMetaKeys.hiveMigrationComplete),
+            ))
+            .getSingleOrNull();
     return row?.value == 'true';
+  }
 
   Future<int> _nextMessageOrder(String conversationId) async {
     final maxOrder = _db.messageRows.messageOrder.max();
+    final row =
+        await (_db.selectOnly(_db.messageRows)
               ..addColumns([maxOrder])
               ..where(_db.messageRows.conversationId.equals(conversationId)))
+            .getSingle();
     return (row.read(maxOrder) ?? -1) + 1;
+  }
 
   Future<int> _makeMessageOrderAfterGroup(
+    String conversationId,
+    String groupId,
+  ) async {
+    final minOrder = _db.messageRows.messageOrder.min();
     final anchorRow =
+        await (_db.selectOnly(_db.messageRows)
               ..addColumns([minOrder])
+              ..where(
+                _db.messageRows.conversationId.equals(conversationId) &
                     (_db.messageRows.id.equals(groupId) |
                         _db.messageRows.groupId.equals(groupId)),
+              ))
+            .getSingle();
     final anchorOrder = anchorRow.read(minOrder);
+    if (anchorOrder == null) {
+      throw StateError('linear_message_group_missing');
+    }
 
     final insertionOrder = anchorOrder + 1;
     final occupied =
+        await (_db.selectOnly(_db.messageRows)
+              ..addColumns([_db.messageRows.id])
+              ..where(
+                _db.messageRows.conversationId.equals(conversationId) &
                     _db.messageRows.messageOrder.equals(insertionOrder),
+              ))
+            .getSingleOrNull();
     if (occupied == null) {
       return insertionOrder;
+    }
 
+    final maxOrder = _db.messageRows.messageOrder.max();
     final maxRow =
+        await (_db.selectOnly(_db.messageRows)
+              ..addColumns([maxOrder])
+              ..where(_db.messageRows.conversationId.equals(conversationId)))
+            .getSingle();
     final currentMaxOrder = maxRow.read(maxOrder)!;
     final temporaryOffset = currentMaxOrder + 1;
 
     // A direct +1 update can violate the immediate unique constraint depending
     // on row update order. Move the suffix above the current range first, then
     // place it at its final orders with two set-based updates.
+    await _db.customUpdate(
+      'UPDATE message_rows SET message_order = message_order + ? '
       'WHERE conversation_id = ? AND message_order > ?;',
+      variables: [
         Variable.withInt(temporaryOffset),
         Variable.withString(conversationId),
         Variable.withInt(anchorOrder),
+      ],
       updates: {_db.messageRows},
+    );
     // updated_at is bumped only here: the first statement's rows are exactly
     // the rows this one finalizes.
+    await _db.customUpdate(
       'UPDATE message_rows SET message_order = message_order - ? + 1, '
       'updated_at = ? '
+      'WHERE conversation_id = ? AND message_order > ?;',
+      variables: [
+        Variable.withInt(temporaryOffset),
         Variable.withInt(DateTime.now().toUtc().microsecondsSinceEpoch),
+        Variable.withString(conversationId),
         Variable.withInt(currentMaxOrder),
+      ],
+      updates: {_db.messageRows},
+    );
+    return insertionOrder;
+  }
 
   Future<void> _replaceMcpServers(
+    String conversationId,
     List<String> serverIds,
+  ) async {
+    await (_db.delete(
+      _db.conversationMcpServerRows,
     )..where((t) => t.conversationId.equals(conversationId))).go();
     if (serverIds.isEmpty) return;
+    await _db.batch((batch) {
       for (var i = 0; i < serverIds.length; i++) {
+        batch.insert(
+          _db.conversationMcpServerRows,
+          ConversationMcpServerRowsCompanion.insert(
+            conversationId: conversationId,
             serverId: serverIds[i],
+            ordinal: i,
+          ),
+          mode: InsertMode.insertOrReplace,
+        );
+      }
+    });
+  }
 
   Future<void> _rewriteMessageOrder(
+    String conversationId,
+    List<String> messageIds,
+  ) async {
     if (messageIds.isEmpty) return;
     if (messageIds.toSet().length != messageIds.length) {
+      throw ArgumentError.value(
         messageIds,
         'messageIds',
         'Message IDs must be unique when rewriting order.',
+      );
+    }
 
+    final maxOrder = _db.messageRows.messageOrder.max();
+    final maxRow =
+        await (_db.selectOnly(_db.messageRows)
+              ..addColumns([maxOrder])
+              ..where(_db.messageRows.conversationId.equals(conversationId)))
+            .getSingle();
     final temporaryStart = (maxRow.read(maxOrder) ?? -1) + 1;
     for (var i = 0; i < messageIds.length; i++) {
       await (_db.update(_db.messageRows)..where(
+            (t) =>
+                t.conversationId.equals(conversationId) &
                 t.id.equals(messageIds[i]),
+          ))
           .write(MessageRowsCompanion(messageOrder: Value(temporaryStart + i)));
+    }
+    for (var i = 0; i < messageIds.length; i++) {
+      await (_db.update(_db.messageRows)..where(
+            (t) =>
+                t.conversationId.equals(conversationId) &
+                t.id.equals(messageIds[i]),
+          ))
           .write(
+            MessageRowsCompanion(
               messageOrder: Value(i),
+              updatedAt: Value(DateTime.now().toUtc()),
+            ),
+          );
+    }
+  }
 
   Future<List<String>> _getMcpServerIds(String conversationId) async {
     final mcpRows =
         await (_db.select(_db.conversationMcpServerRows)
+              ..where((t) => t.conversationId.equals(conversationId))
               ..orderBy([(t) => OrderingTerm.asc(t.ordinal)]))
+            .get();
     return mcpRows.map((m) => m.serverId).toList(growable: false);
+  }
 
   Future<Conversation> _conversationFromRow(
     ConversationRow row, {
     bool includeMessageIds = true,
     List<String>? mcpServerIds,
+  }) async {
     final resolvedMcpServerIds = mcpServerIds ?? await _getMcpServerIds(row.id);
     final messageRows = includeMessageIds
         ? await (_db.select(_db.messageRows)
                 ..where((t) => t.conversationId.equals(row.id))
+                ..orderBy([(t) => OrderingTerm.asc(t.messageOrder)]))
               .get()
         : const <MessageRow>[];
     return Conversation(
+      id: row.id,
       title: row.title,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -4811,10 +7732,13 @@ class ChatDatabaseRepository {
       chatModelProvider: row.chatModelProvider,
       chatModelId: row.chatModelId,
       extras: _decodeExtrasJson(row.extrasJson),
+    );
+  }
 
   ConversationRowsCompanion _conversationCompanion(
     Conversation conversation, {
     Value<String?>? injectedMemoryHash,
+  }) {
     return ConversationRowsCompanion.insert(
       id: conversation.id,
       title: conversation.title,
@@ -4827,6 +7751,7 @@ class ChatDatabaseRepository {
       summary: Value(conversation.summary),
       lastSummarizedMessageCount: Value(
         conversation.lastSummarizedMessageCount,
+      ),
       chatSuggestionsJson: Value(jsonEncode(conversation.chatSuggestions)),
       injectedMemoryHash:
           injectedMemoryHash ?? Value(conversation.injectedMemoryHash),
@@ -4834,59 +7759,88 @@ class ChatDatabaseRepository {
       chatModelProvider: Value(conversation.chatModelProvider),
       chatModelId: Value(conversation.chatModelId),
       extrasJson: Value(jsonEncode(conversation.extras)),
+    );
+  }
 
   Future<ChatMessage> _messageFromRowWithParts(MessageRow row) async {
     return (await _messagesFromRowsWithParts([row])).single;
+  }
 
   Future<List<ChatMessage>> _messagesFromRowsWithParts(List<MessageRow> rows) =>
       _db.transaction(() async {
         if (rows.isEmpty) return const [];
         final ids = rows.map((row) => row.id).toSet();
         final parts =
+            await (_db.select(_db.messagePartRows)
                   ..where((part) => part.revisionId.isIn(ids))
                   ..orderBy([(part) => OrderingTerm.asc(part.ordinal)]))
+                .get();
         final byRevision = <String, List<MessagePartRow>>{};
+        for (final part in parts) {
           byRevision.putIfAbsent(part.revisionId, () => []).add(part);
+        }
         final runs =
+            await (_db.select(_db.generationRunRows)
                   ..where((run) => run.targetRevisionId.isIn(ids))
                   ..orderBy([
                     (run) => OrderingTerm.desc(run.createdAt),
                     (run) => OrderingTerm.desc(run.updatedAt),
                     (run) => OrderingTerm.desc(run.id),
+                  ]))
+                .get();
         final generationStates = <String, GenerationRunState>{};
         for (final run in runs) {
           generationStates.putIfAbsent(
             run.targetRevisionId,
             () => GenerationRunState.fromDatabase(run.state),
+          );
+        }
+        return [
+          for (final row in rows)
             _messageFromRow(row, authoritativeParts: byRevision[row.id])
               ..hydrateGenerationState(generationStates[row.id]),
+        ];
+      });
 
   /// Parts come only from [authoritativeParts] in ordinal order. Missing or
   /// empty parts yield empty content via the derived [ChatMessage.content].
   ChatMessage _messageFromRow(
     MessageRow row, {
     List<MessagePartRow>? authoritativeParts,
+  }) {
     final partRows = authoritativeParts ?? const <MessagePartRow>[];
     final parts = <MessagePart>[
       for (final part in partRows)
         _hydratePart(
           revisionId: part.revisionId,
           ordinal: part.ordinal,
+          kind: part.kind,
           payload: part.payload,
+        ),
+    ];
     final reasoningParts = parts.whereType<ReasoningPart>().toList(
       growable: false,
+    );
     final extras = _decodeExtrasJson(row.extrasJson);
     return ChatMessage(
+      id: row.id,
+      role: row.role,
+      parts: parts,
+      timestamp: row.timestamp,
       modelId: row.modelId,
       providerId: row.providerId,
       totalTokens: row.totalTokens,
+      conversationId: row.conversationId,
       isStreaming: row.isStreaming,
       reasoningText: reasoningParts.isEmpty
+          ? null
           : reasoningParts.map((part) => part.text).join('\n'),
       reasoningStartAt: row.reasoningStartAt,
       reasoningFinishedAt: row.reasoningFinishedAt,
       translation: row.translation,
       reasoningSegmentsJson: row.reasoningSegmentsJson,
+      groupId: row.groupId,
+      version: row.version,
       promptTokens: row.promptTokens,
       completionTokens: row.completionTokens,
       cachedTokens: row.cachedTokens,
@@ -4897,7 +7851,11 @@ class ChatDatabaseRepository {
       finishUsage: extras[_finishUsageExtraKey] is Map
           ? TokenUsage.fromJson(
               Map<String, dynamic>.from(extras[_finishUsageExtraKey] as Map),
+            )
+          : null,
+      quote: MessageQuote.decodeFromExtras(extras),
     )..hydrateStorageOrder(row.messageOrder);
+  }
 
   bool _messageHasAttachmentParts(ChatMessage message) {
     return message.parts.any(
@@ -4906,18 +7864,26 @@ class ChatDatabaseRepository {
           part is FilePart ||
           (part is ToolCallPart && part.browserPreviewImage != null) ||
           (part is MalformedPart && part.isAttachmentKind),
+    );
+  }
 
   /// Persist [message.parts] in arrival order.
+  ///
   /// [toolEvents] / [ChatMessage.reasoningText] are compatibility overlays.
   /// Empty [toolEvents] never strips [ToolCallPart]s already on the message —
   /// those cards are the write source during a server-tool gap. Extra events
   /// that do not match a part are inserted after the last tool slot.
   List<MessagePart> _partsForPersistence(
+    ChatMessage message,
+    List<Map<String, dynamic>>? toolEvents,
+  ) {
     var parts = List<MessagePart>.of(message.parts);
     if (!parts.any((part) => part is ReasoningPart)) {
       final reasoning = message.reasoningText;
       if (reasoning != null && reasoning.isNotEmpty) {
         parts = [ReasoningPart(reasoning), ...parts];
+      }
+    }
     if (toolEvents != null) {
       if (parts.any((part) => part is ToolCallPart)) {
         parts = _applyToolEventsToParts(parts, toolEvents);
@@ -4925,153 +7891,305 @@ class ChatDatabaseRepository {
         parts = [
           ...parts,
           for (final event in toolEvents) ToolCallPart(jsonEncode(event)),
+        ];
+      }
+    }
     if (parts.isEmpty) {
       return <MessagePart>[TextPart(message.content)];
+    }
     return parts;
+  }
 
   List<MessagePart> _applyToolEventsToParts(
     List<MessagePart> parts,
     List<Map<String, dynamic>> toolEvents,
+  ) {
     final partCount = parts.whereType<ToolCallPart>().length;
     if (partCount != toolEvents.length) {
+      debugPrint(
         'toolEvents/parts count mismatch: events=${toolEvents.length} '
         'parts=$partCount',
+      );
+    }
     final unused = [for (final event in toolEvents) event];
     Map<String, dynamic>? takeById(String id) {
       if (id.isEmpty) return null;
       final index = unused.indexWhere(
         (event) => (event['id'] ?? '').toString() == id,
+      );
       if (index < 0) return null;
       return unused.removeAt(index);
+    }
 
     final matchedByPart = List<Map<String, dynamic>?>.filled(
       parts.length,
       null,
+    );
     for (var i = 0; i < parts.length; i++) {
       final part = parts[i];
       if (part is! ToolCallPart) continue;
       final partId = _toolCallPartId(part) ?? '';
       if (partId.isEmpty) continue;
       matchedByPart[i] = takeById(partId);
+    }
+    for (var i = 0; i < parts.length; i++) {
+      final part = parts[i];
+      if (part is! ToolCallPart) continue;
       if ((_toolCallPartId(part) ?? '').isNotEmpty) continue;
       if (unused.isEmpty) break;
       matchedByPart[i] = unused.removeAt(0);
+    }
 
     final out = <MessagePart>[];
     var lastToolIndex = -1;
+    for (var i = 0; i < parts.length; i++) {
+      final part = parts[i];
       if (part is! ToolCallPart) {
         out.add(part);
+        continue;
+      }
       final matched = matchedByPart[i];
       if (matched != null) {
         out.add(ToolCallPart(jsonEncode(_mergeToolPayload(part, matched))));
+      } else {
+        out.add(part);
+      }
       lastToolIndex = out.length - 1;
+    }
     if (unused.isNotEmpty) {
       final extras = [
         for (final event in unused) ToolCallPart(jsonEncode(event)),
+      ];
       final insertAt = lastToolIndex >= 0 ? lastToolIndex + 1 : out.length;
       out.insertAll(insertAt, extras);
+    }
+    return out;
+  }
 
   Map<String, dynamic> _mergeToolPayload(
     ToolCallPart part,
     Map<String, dynamic> event,
+  ) {
     Map<String, dynamic> base = const <String, dynamic>{};
+    try {
       final decoded = jsonDecode(part.payloadJson);
+      if (decoded is Map) {
         base = Map<String, dynamic>.from(decoded);
+      }
     } catch (_) {}
     final merged = Map<String, dynamic>.from(base);
     for (final entry in event.entries) {
       if (_isEmptyToolOverlay(entry.value) &&
           !_isEmptyToolOverlay(base[entry.key])) {
+        continue;
+      }
       merged[entry.key] = entry.value;
+    }
     if (base['server'] == true && event['server'] != false) {
       merged['server'] = true;
+    }
     if (_isSearchToolName(merged['name'] ?? base['name'] ?? event['name'])) {
       merged['content'] = jsonEncode(
         StreamChunkHandler.mergeSearchItems(
           base['content'],
           _searchItemsOf(event['content']),
+        ),
+      );
+    }
     return merged;
+  }
 
   bool _isEmptyToolOverlay(Object? value) {
     if (value == null) return true;
     if (value is String) return value.isEmpty;
     if (value is Map) return value.isEmpty;
     if (value is List) return value.isEmpty;
+    return false;
+  }
 
   bool _isSearchToolName(Object? name) {
     final toolName = (name ?? '').toString();
     return toolName == 'search_web' || toolName == 'builtin_search';
+  }
 
   List<Map<String, dynamic>> _searchItemsOf(Object? raw) {
     final map = _asStringKeyedMap(raw);
     final items = map?['items'];
     if (items is! List) return const <Map<String, dynamic>>[];
+    return [
       for (final item in items)
         if (item is Map) Map<String, dynamic>.from(item),
+    ];
+  }
 
   Map<String, dynamic>? _asStringKeyedMap(Object? raw) {
     if (raw is Map<String, dynamic>) return raw;
     if (raw is Map) return Map<String, dynamic>.from(raw);
     if (raw is String) {
+      try {
+        final decoded = jsonDecode(raw);
         if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      } catch (_) {}
+    }
+    return null;
+  }
 
   String? _toolCallPartId(ToolCallPart part) {
+    try {
+      final decoded = jsonDecode(part.payloadJson);
+      if (decoded is Map) {
         final id = (decoded['id'] ?? '').toString();
         return id.isEmpty ? null : id;
+      }
+    } catch (_) {}
+    return null;
+  }
 
   MessagePart _hydratePart({
+    required String revisionId,
     required int ordinal,
+    required String kind,
+    required String payload,
+  }) {
+    try {
       return MessagePart.fromRow(kind, payload);
+    } on FormatException catch (error) {
       final parseError = messagePartParseErrorCategory(error);
+      debugPrint(
         'Malformed message part: revisionId=$revisionId ordinal=$ordinal '
         'kind=$kind parseError=$parseError',
+      );
       return MalformedPart(
         rawKind: kind,
         rawPayload: payload,
         parseError: parseError,
+      );
+    }
+  }
 
   DateTime _dateTimeFromSqlite(Object? value) {
     if (value is int) {
       return DateTime.fromMicrosecondsSinceEpoch(value);
+    }
+    if (value is num) {
       return DateTime.fromMicrosecondsSinceEpoch(value.toInt());
+    }
     throw StateError('Invalid SQLite DateTime value: $value.');
+  }
 
   MessageRowsCompanion _messageCompanion(
+    ChatMessage message,
     int messageOrder,
+  ) {
     return MessageRowsCompanion.insert(
       id: message.id,
+      conversationId: message.conversationId,
+      role: message.role,
+      timestamp: message.timestamp,
+      modelId: Value(message.modelId),
+      providerId: Value(message.providerId),
+      totalTokens: Value(message.totalTokens),
       isStreaming: Value(message.isStreaming),
+      reasoningStartAt: Value(message.reasoningStartAt),
+      reasoningFinishedAt: Value(message.reasoningFinishedAt),
+      translation: Value(message.translation),
+      reasoningSegmentsJson: Value(message.reasoningSegmentsJson),
       groupId: Value(message.groupId),
       version: Value(message.version),
+      promptTokens: Value(message.promptTokens),
+      completionTokens: Value(message.completionTokens),
+      cachedTokens: Value(message.cachedTokens),
+      durationMs: Value(message.durationMs),
+      extrasJson: Value(
+        _encodeMessageExtras(
           '{}',
+          quote: message.quote,
+          reasoningTokens: message.reasoningTokens,
+          cacheWriteTokens: message.cacheWriteTokens,
+          finishUsage: message.finishUsage,
+          firstTokenMs: message.firstTokenMs,
+        ),
+      ),
       messageOrder: messageOrder,
+    );
+  }
 
   MessageRowsCompanion _messageUpdate(ChatMessage message) {
+    final now = DateTime.now().toUtc();
     // Floored at the row's own timestamp, exactly as parts and provider
     // artifacts already are: the effective LWW clock is
     // COALESCE(updated_at, timestamp), so a message authored under a skewed
     // (future) peer clock must not have a local edit lower the row's clock —
     // the peer's untouched copy would then win the next exchange and revert
     // the edit on both devices.
+    final updatedAt = now.isBefore(message.timestamp) ? message.timestamp : now;
     return MessageRowsCompanion(
       // Every message UPDATE bumps updated_at so sync/LWW can see the change;
       // inserts leave it null (effective value = COALESCE(updated_at,
       // timestamp)).
+      updatedAt: Value(updatedAt),
+      totalTokens: Value(message.totalTokens),
+      isStreaming: Value(message.isStreaming),
+      reasoningStartAt: Value(message.reasoningStartAt),
+      reasoningFinishedAt: Value(message.reasoningFinishedAt),
+      translation: Value(message.translation),
+      reasoningSegmentsJson: Value(message.reasoningSegmentsJson),
+      promptTokens: Value(message.promptTokens),
+      completionTokens: Value(message.completionTokens),
+      cachedTokens: Value(message.cachedTokens),
+      durationMs: Value(message.durationMs),
+    );
+  }
 
   Map<String, int> _decodeStringIntMap(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
       if (decoded is! Map) return <String, int>{};
       return decoded.map((key, value) {
         final intValue = value is num ? value.toInt() : int.parse('$value');
         return MapEntry(key.toString(), intValue);
+      });
+    } catch (_) {
       return <String, int>{};
+    }
+  }
 
   List<String> _decodeStringList(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
       if (decoded is! List) return <String>[];
       return decoded.map((e) => e.toString()).toList(growable: false);
+    } catch (_) {
       return <String>[];
+    }
+  }
 
   Map<String, dynamic> _decodeExtrasJson(String raw) {
     return Conversation.decodeExtras(raw);
+  }
+
+  /// [extras] with a reply citation's target id rewritten for a copied
+  /// conversation, whose message rows receive new ids.
+  ///
+  /// A whole-message citation whose target is not part of the copy is dropped:
+  /// keeping the original id would leave the copy pointing at a row it does not
+  /// hold, and the pointer is all it has. A ranged citation carries its own text
+  /// and travels unchanged.
+  String _remapCopiedMessageExtras(
+    String extras,
+    Map<String, String> messageIdMap,
+  ) {
+    final decoded = Map<String, dynamic>.from(_decodeExtrasJson(extras));
+    final quote = MessageQuote.decodeFromExtras(decoded);
+    if (quote == null) return extras;
+    final remapped = quote.remapped(messageIdMap);
+    if (remapped == null) {
+      decoded.remove(MessageQuote.extrasKey);
+    } else {
+      remapped.encodeIntoExtras(decoded);
+    }
+    return jsonEncode(decoded);
+  }
 
   static const _reasoningTokensExtraKey = 'tokens.reasoning';
   static const _cacheWriteTokensExtraKey = 'tokens.cacheWrite';
@@ -5083,22 +8201,39 @@ class ChatDatabaseRepository {
     if (value is int) return value;
     if (value is num) return value.toInt();
     if (value is String) return int.tryParse(value);
+    return null;
+  }
 
-  String _encodeTokenExtras(
+  /// Merges a row's existing extras with the fields a write owns.
+  ///
+  /// The one writer of `message_rows.extras_json`, so a reply citation written
+  /// at insert and a token/timing update land in the same map without either
+  /// dropping the other: every caller passes the extras it read, not `'{}'`.
+  String _encodeMessageExtras(
     String existing, {
+    int? reasoningTokens,
+    int? cacheWriteTokens,
     TokenUsage? finishUsage,
     int? firstTokenMs,
+    MessageQuote? quote,
+  }) {
     final extras = Map<String, dynamic>.from(_decodeExtrasJson(existing));
+    quote?.encodeIntoExtras(extras);
     if (reasoningTokens != null) {
       extras[_reasoningTokensExtraKey] = reasoningTokens;
+    }
     if (cacheWriteTokens != null) {
       extras[_cacheWriteTokensExtraKey] = cacheWriteTokens;
+    }
     if (finishUsage != null) {
       extras[_finishUsageExtraKey] = finishUsage.toJson();
+    }
     if (firstTokenMs != null) {
       extras[_firstTokenMsExtraKey] = firstTokenMs;
+    }
     if (extras.isEmpty) return '{}';
     return jsonEncode(extras);
+  }
 
   // —— Memory system V1 read path (§13.3) ——
 
@@ -5108,6 +8243,8 @@ class ChatDatabaseRepository {
     () async => (
       profile: await readProfileFields(),
       memories: await queryVisibleMemories(assistantId: assistantId),
+    ),
+  );
 
   /// Visible memories for [assistantId]: `status='active'` (unless
   /// [includeArchived]) and `(scope='global' OR (scope='assistant' AND
@@ -5119,17 +8256,24 @@ class ChatDatabaseRepository {
     MemoryType? type,
     bool includeArchived = false,
     int? limit,
+  }) async {
     final clauses = <String>[_memoryVisibilitySql(assistantId)];
     final variables = <Variable<Object>>[
       ..._memoryVisibilityVariables(assistantId),
+    ];
     if (!includeArchived) {
       clauses.add("status = 'active'");
+    }
     if (type != null) {
       clauses.add('type = ?');
       variables.add(Variable<String>(MemoryEntry.typeToString(type)));
+    }
     final limitSql = limit == null ? '' : ' LIMIT ?';
     if (limit != null) {
       variables.add(Variable<int>(limit));
+    }
+    final rows = await _db
+        .customSelect(
           'SELECT payload FROM memory_entry_rows '
           'WHERE ${clauses.join(' AND ')} '
           'ORDER BY CASE WHEN scope = \'global\' THEN 0 ELSE 1 END ASC, '
@@ -5137,133 +8281,346 @@ class ChatDatabaseRepository {
           '$limitSql;',
           variables: variables,
           readsFrom: {_db.memoryEntryRows},
+        )
+        .get();
     return _memoryEntriesFromPayloadRows(
       rows,
+      assistantId: assistantId,
       dropInvisibleRelated: true,
+    );
+  }
 
   /// Counts active visible memories by [MemoryType] for [assistantId].
   Future<Map<MemoryType, int>> countVisibleMemoriesByType({
+    required String? assistantId,
+  }) async {
+    final rows = await _db
+        .customSelect(
           'SELECT type, COUNT(*) AS count FROM memory_entry_rows '
           "WHERE status = 'active' AND ${_memoryVisibilitySql(assistantId)} "
           'GROUP BY type;',
           variables: _memoryVisibilityVariables(assistantId),
+          readsFrom: {_db.memoryEntryRows},
+        )
+        .get();
     final result = <MemoryType, int>{
       for (final type in MemoryType.values) type: 0,
+    };
+    for (final row in rows) {
       final type = MemoryEntry.typeFromString(row.read<String>('type'));
       result[type] = row.read<int>('count');
+    }
+    return result;
+  }
 
   /// Search memories by pre-normalized, LIKE-escaped [tokens].
+  ///
   /// Callers must lowercase/normalize tokens and escape `%`, `_`, and `\`
   /// (e.g. via [MemoryTokenizer.escapeLike]) before passing them here.
+  ///
   /// - [matchAll] `true` (§5.9): every token must match (`AND`), ordered by
   ///   `entry_updated_at DESC, id ASC`.
   /// - [matchAll] `false` (§12.6): `hits` = count of matching tokens (`OR`),
   ///   filter `hits >= 1`, ordered by
   ///   `hits DESC, entry_updated_at DESC, id ASC`.
   Future<List<MemoryEntry>> searchMemories({
+    required String? assistantId,
+    required List<String> tokens,
+    MemoryType? type,
     bool matchAll = true,
     int limit = 10,
+  }) async {
     if (tokens.isEmpty || limit <= 0) {
       return const <MemoryEntry>[];
+    }
     if (!matchAll) {
       return _searchMemoriesMatchAny(
+        assistantId: assistantId,
+        tokens: tokens,
         type: type,
+        limit: limit,
+      );
+    }
 
     final clauses = <String>[
       "status = 'active'",
       _memoryVisibilitySql(assistantId),
+    ];
+    final variables = <Variable<Object>>[
+      ..._memoryVisibilityVariables(assistantId),
+    ];
+    if (type != null) {
+      clauses.add('type = ?');
+      variables.add(Variable<String>(MemoryEntry.typeToString(type)));
+    }
     for (final token in tokens) {
       clauses.add("content_normalized LIKE ? ESCAPE '\\'");
       variables.add(Variable<String>('%$token%'));
+    }
+    variables.add(Variable<int>(limit));
+    final rows = await _db
+        .customSelect(
+          'SELECT payload FROM memory_entry_rows '
+          'WHERE ${clauses.join(' AND ')} '
           'ORDER BY entry_updated_at DESC, id ASC '
           'LIMIT ?;',
+          variables: variables,
+          readsFrom: {_db.memoryEntryRows},
+        )
+        .get();
+    return _memoryEntriesFromPayloadRows(
+      rows,
+      assistantId: assistantId,
+      dropInvisibleRelated: true,
+    );
+  }
 
   Future<List<MemoryEntry>> _searchMemoriesMatchAny({
+    required String? assistantId,
+    required List<String> tokens,
     required MemoryType? type,
+    required int limit,
+  }) async {
     final hitParts = <String>[
       for (final _ in tokens)
         "CASE WHEN content_normalized LIKE ? ESCAPE '\\' THEN 1 ELSE 0 END",
+    ];
     final hitsExpr = hitParts.join(' + ');
 
     // Variable order must match `?` appearance: SELECT hits, then WHERE.
+    final clauses = <String>[
+      "status = 'active'",
+      _memoryVisibilitySql(assistantId),
+    ];
+    final variables = <Variable<Object>>[
       for (final token in tokens) Variable<String>('%$token%'),
+      ..._memoryVisibilityVariables(assistantId),
+    ];
+    if (type != null) {
+      clauses.add('type = ?');
+      variables.add(Variable<String>(MemoryEntry.typeToString(type)));
+    }
     clauses.add('($hitsExpr) >= 1');
+    for (final token in tokens) {
+      variables.add(Variable<String>('%$token%'));
+    }
+    variables.add(Variable<int>(limit));
 
+    final rows = await _db
+        .customSelect(
           'SELECT payload, ($hitsExpr) AS hits FROM memory_entry_rows '
+          'WHERE ${clauses.join(' AND ')} '
           'ORDER BY hits DESC, entry_updated_at DESC, id ASC '
+          'LIMIT ?;',
+          variables: variables,
+          readsFrom: {_db.memoryEntryRows},
+        )
+        .get();
+    return _memoryEntriesFromPayloadRows(
+      rows,
+      assistantId: assistantId,
+      dropInvisibleRelated: true,
+    );
+  }
 
   Future<List<MemoryEntry>> memoriesByIds(List<String> ids) async {
     if (ids.isEmpty) return const <MemoryEntry>[];
     final unique = ids.toSet().toList(growable: false);
     final placeholders = List.filled(unique.length, '?').join(',');
+    final rows = await _db
+        .customSelect(
+          'SELECT payload FROM memory_entry_rows '
           'WHERE id IN ($placeholders) '
           'ORDER BY id ASC;',
           variables: [for (final id in unique) Variable<String>(id)],
+          readsFrom: {_db.memoryEntryRows},
+        )
+        .get();
+    return _memoryEntriesFromPayloadRows(
+      rows,
       assistantId: null,
       dropInvisibleRelated: false,
+    );
+  }
 
   Future<MemoryEntry?> findExactMemory({
+    required String? assistantId,
     required MemoryType type,
     required String contentNormalized,
+  }) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT payload FROM memory_entry_rows '
           "WHERE status = 'active' "
           'AND ${_memoryVisibilitySql(assistantId)} '
           'AND type = ? '
           'AND content_normalized = ? '
           'LIMIT 1;',
+          variables: [
+            ..._memoryVisibilityVariables(assistantId),
             Variable<String>(MemoryEntry.typeToString(type)),
             Variable<String>(contentNormalized),
+          ],
+          readsFrom: {_db.memoryEntryRows},
+        )
+        .get();
+    if (rows.isEmpty) return null;
     final entries = await _memoryEntriesFromPayloadRows(
+      rows,
+      assistantId: assistantId,
+      dropInvisibleRelated: true,
+    );
     return entries.single;
+  }
 
   Future<int> countOrphanAssistantMemories() async {
+    final row = await _db
+        .customSelect(
           'SELECT COUNT(*) AS count FROM memory_entry_rows m '
           "WHERE m.scope = 'assistant' "
           'AND NOT EXISTS ('
           'SELECT 1 FROM assistant_rows a WHERE a.id = m.assistant_id'
           ');',
           readsFrom: {_db.memoryEntryRows, _db.assistantRows},
+        )
+        .getSingle();
     return row.read<int>('count');
+  }
 
   /// All memory entries across every assistant (global management UI §14.4).
   Future<List<MemoryEntry>> queryAllMemories({
+    bool includeArchived = false,
+    MemoryType? type,
+  }) async {
     final clauses = <String>[];
+    final variables = <Variable<Object>>[];
+    if (!includeArchived) {
+      clauses.add("status = 'active'");
+    }
+    if (type != null) {
+      clauses.add('type = ?');
+      variables.add(Variable<String>(MemoryEntry.typeToString(type)));
+    }
     final where = clauses.isEmpty ? '' : 'WHERE ${clauses.join(' AND ')} ';
+    final rows = await _db
+        .customSelect(
+          'SELECT payload FROM memory_entry_rows '
           '$where'
           'ORDER BY entry_updated_at DESC, id ASC;',
+          variables: variables,
+          readsFrom: {_db.memoryEntryRows},
+        )
+        .get();
+    return _memoryEntriesFromPayloadRows(
+      rows,
+      assistantId: null,
+      dropInvisibleRelated: false,
+    );
+  }
 
   /// Search across every assistant (§14.4 / §5.9 AND semantics).
   Future<List<MemoryEntry>> searchAllMemories({
+    required List<String> tokens,
+    MemoryType? type,
+    bool includeArchived = false,
+    int limit = 200,
+  }) async {
+    if (tokens.isEmpty || limit <= 0) {
+      return const <MemoryEntry>[];
+    }
+    final clauses = <String>[];
+    final variables = <Variable<Object>>[];
+    if (!includeArchived) {
+      clauses.add("status = 'active'");
+    }
+    if (type != null) {
+      clauses.add('type = ?');
+      variables.add(Variable<String>(MemoryEntry.typeToString(type)));
+    }
+    for (final token in tokens) {
+      clauses.add("content_normalized LIKE ? ESCAPE '\\'");
+      variables.add(Variable<String>('%$token%'));
+    }
+    variables.add(Variable<int>(limit));
+    final rows = await _db
+        .customSelect(
+          'SELECT payload FROM memory_entry_rows '
+          'WHERE ${clauses.join(' AND ')} '
+          'ORDER BY entry_updated_at DESC, id ASC '
+          'LIMIT ?;',
+          variables: variables,
+          readsFrom: {_db.memoryEntryRows},
+        )
+        .get();
+    return _memoryEntriesFromPayloadRows(
+      rows,
+      assistantId: null,
+      dropInvisibleRelated: false,
+    );
+  }
 
   Future<List<UserProfileField>> readProfileFields() async {
+    final rows = await _db
+        .customSelect(
           'SELECT payload FROM user_profile_field_rows '
           'ORDER BY sort_order ASC, id ASC;',
           readsFrom: {_db.userProfileFieldRows},
+        )
+        .get();
+    return [
+      for (final row in rows)
         UserProfileField.fromPayload(
           (jsonDecode(row.read<String>('payload')) as Map)
               .cast<String, dynamic>(),
+        ),
+    ];
+  }
 
   Future<MessagePromptRow?> getMessagePrompt(String revisionId) {
     return (_db.select(
       _db.messagePromptRows,
     )..where((t) => t.revisionId.equals(revisionId))).getSingleOrNull();
+  }
 
   Future<Map<String, MessagePromptRow>> getMessagePrompts(
+    Iterable<String> revisionIds,
+  ) async {
     final ids = revisionIds.toSet();
+    if (ids.isEmpty) return const {};
+    final rows = await (_db.select(
+      _db.messagePromptRows,
     )..where((row) => row.revisionId.isIn(ids))).get();
     return {for (final row in rows) row.revisionId: row};
+  }
 
   Future<void> putMessagePrompt({
+    required String revisionId,
+    required String conversationId,
+    required String payload,
     required bool carriesMemorySnapshot,
+  }) async {
+    final now = DateTime.now().toUtc();
+    await _db
         .into(_db.messagePromptRows)
+        .insertOnConflictUpdate(
           MessagePromptRowsCompanion.insert(
+            revisionId: revisionId,
+            conversationId: conversationId,
+            payload: payload,
             carriesMemorySnapshot: Value(carriesMemorySnapshot),
+            createdAt: now,
+          ),
+        );
+  }
 
   /// Freezes a message's final prompt string and, when [injectedMemoryHash] is
   /// present, advances the conversation's injected-memory hash in the same
   /// transaction.
+  ///
   /// The two writes must not be split: a crash between them leaves a hash that
   /// claims a snapshot was delivered while no message carries one, costing an
   /// extra full re-injection once self-healing notices (§8.3).
+  ///
   /// [injectedMemoryHash] is a three-state value on purpose. `Value.absent()`
   /// leaves the stored hash alone, `Value(hash)` records a freshly injected
   /// snapshot, and `Value(null)` records that the context now carries no
@@ -5272,98 +8629,641 @@ class ChatDatabaseRepository {
   /// Without that third state a later re-add of identical content would hash
   /// equal to the cleared snapshot and never be injected again.
   Future<void> freezeMessagePrompt({
+    required String revisionId,
+    required String conversationId,
+    required String payload,
+    required bool carriesMemorySnapshot,
     Value<String?> injectedMemoryHash = const Value.absent(),
+  }) {
+    return _db.transaction(() async {
       await putMessagePrompt(
+        revisionId: revisionId,
+        conversationId: conversationId,
+        payload: payload,
         carriesMemorySnapshot: carriesMemorySnapshot,
+      );
       if (injectedMemoryHash.present) {
         await setConversationInjectedMemoryHash(
+          conversationId,
           injectedMemoryHash.value,
+        );
+      }
+    });
+  }
 
   Future<bool> anyPromptCarriesMemorySnapshot(List<String> revisionIds) async {
     if (revisionIds.isEmpty) return false;
     final unique = revisionIds.toSet().toList(growable: false);
+    final placeholders = List.filled(unique.length, '?').join(',');
+    final row = await _db
+        .customSelect(
           'SELECT 1 AS hit FROM message_prompt_rows '
           'WHERE carries_memory_snapshot = 1 '
           'AND revision_id IN ($placeholders) '
+          'LIMIT 1;',
+          variables: [for (final id in unique) Variable<String>(id)],
           readsFrom: {_db.messagePromptRows},
+        )
+        .getSingleOrNull();
+    return row != null;
+  }
 
   /// The last memory snapshot hash delivered to [conversationId].
+  ///
   /// Read this rather than a cached [Conversation]: the field is written by
   /// [freezeMessagePrompt] and never loaded back into the in-memory model, so a
   /// cached copy reports the value from whenever it was constructed.
   Future<String?> getConversationInjectedMemoryHash(
+    String conversationId,
+  ) async {
+    final row = await _db
+        .customSelect(
           'SELECT injected_memory_hash FROM conversation_rows '
           'WHERE id = ? LIMIT 1;',
+          variables: [Variable<String>(conversationId)],
           readsFrom: {_db.conversationRows},
+        )
+        .getSingleOrNull();
     return row?.read<String?>('injected_memory_hash');
+  }
 
   Future<void> setConversationInjectedMemoryHash(
+    String conversationId,
     String? hash,
+  ) async {
+    await (_db.update(_db.conversationRows)
           ..where((t) => t.id.equals(conversationId)))
         .write(ConversationRowsCompanion(injectedMemoryHash: Value(hash)));
+  }
 
   Future<void> setConversationLastMemoryExtractedOrder(
+    String conversationId,
     int order,
+  ) async {
+    await (_db.update(
+      _db.conversationRows,
+    )..where((t) => t.id.equals(conversationId))).write(
       ConversationRowsCompanion(lastMemoryExtractedOrder: Value(order)),
+    );
+  }
 
   /// Clears the per-conversation model override on every conversation pointing
   /// at [providerKey] (optionally narrowed to a single [modelId]).
+  ///
   /// Called when a provider or model is deleted, so the affected conversations
   /// fall back to the assistant's model instead of pointing at something gone.
   /// Returns the number of conversations changed.
   Future<int> clearConversationModelOverrides({
     required String providerKey,
     String? modelId,
+  }) async {
     final statement = _db.update(_db.conversationRows)
+      ..where(
         (t) => modelId == null
             ? t.chatModelProvider.equals(providerKey)
             : t.chatModelProvider.equals(providerKey) &
                   t.chatModelId.equals(modelId),
+      );
     return statement.write(
       const ConversationRowsCompanion(
         chatModelProvider: Value(null),
         chatModelId: Value(null),
+      ),
+    );
+  }
 
   String _memoryVisibilitySql(String? assistantId) {
     if (assistantId == null) {
       return "scope = 'global'";
+    }
     return "(scope = 'global' OR (scope = 'assistant' AND assistant_id = ?))";
+  }
 
   List<Variable<Object>> _memoryVisibilityVariables(String? assistantId) {
     if (assistantId == null) return const <Variable<Object>>[];
     return <Variable<Object>>[Variable<String>(assistantId)];
+  }
 
   Future<List<MemoryEntry>> _memoryEntriesFromPayloadRows(
     List<QueryRow> rows, {
+    required String? assistantId,
     required bool dropInvisibleRelated,
+  }) async {
     if (rows.isEmpty) return const <MemoryEntry>[];
     final entries = <MemoryEntry>[
+      for (final row in rows)
         MemoryEntry.fromPayload(
+          (jsonDecode(row.read<String>('payload')) as Map)
+              .cast<String, dynamic>(),
+        ),
+    ];
     final related = <String>{for (final entry in entries) ...entry.relatedIds};
     if (related.isEmpty) return entries;
 
     final keep = dropInvisibleRelated
         ? await _filterRelatedIdsVisible(related, assistantId)
         : await _filterRelatedIdsExisting(related);
+    return [
       for (final entry in entries)
         () {
           final filtered = entry.relatedIds
               .where(keep.contains)
+              .toList(growable: false);
           if (filtered.length == entry.relatedIds.length) return entry;
           return entry.copyWith(relatedIds: filtered);
         }(),
+    ];
+  }
 
   Future<Set<String>> _filterRelatedIdsExisting(Set<String> ids) async {
     if (ids.isEmpty) return const <String>{};
+    final list = ids.toList(growable: false);
     final placeholders = List.filled(list.length, '?').join(',');
+    final rows = await _db
+        .customSelect(
           'SELECT id FROM memory_entry_rows WHERE id IN ($placeholders);',
           variables: [for (final id in list) Variable<String>(id)],
+          readsFrom: {_db.memoryEntryRows},
+        )
+        .get();
     return {for (final row in rows) row.read<String>('id')};
+  }
 
   Future<Set<String>> _filterRelatedIdsVisible(
+    Set<String> ids,
+    String? assistantId,
+  ) async {
+    if (ids.isEmpty) return const <String>{};
+    final list = ids.toList(growable: false);
+    final placeholders = List.filled(list.length, '?').join(',');
+    final rows = await _db
+        .customSelect(
           'SELECT id FROM memory_entry_rows '
+          "WHERE status = 'active' "
+          'AND ${_memoryVisibilitySql(assistantId)} '
           'AND id IN ($placeholders);',
+          variables: [
+            ..._memoryVisibilityVariables(assistantId),
             for (final id in list) Variable<String>(id),
+          ],
+          readsFrom: {_db.memoryEntryRows},
+        )
+        .get();
+    return {for (final row in rows) row.read<String>('id')};
+  }
+
+  /// The schema version this build speaks, exchanged in the sync hello and
+  /// enforced by the symmetric version gate (ADR-0003).
+  int get syncSchemaVersion => _db.schemaVersion;
+
+  /// The registered path for a content hash, or null when this device never
+  /// registered that content. The registry is content-addressed
+  /// (`asset_rows.id = 'asset_<sha256>'`), which is what lets a blob served to
+  /// a peer be looked up by hash alone instead of by path.
+  Future<String?> assetPathForContentHash(String contentHash) async {
+    if (contentHash.isEmpty) return null;
+    final row = await _db
+        .customSelect(
+          'SELECT path FROM asset_rows WHERE id = ?;',
+          variables: <Variable<Object>>[Variable<String>('asset_$contentHash')],
+        )
+        .getSingleOrNull();
+    return row?.read<String>('path');
+  }
+
+  /// Conversation references for manifest building.
+  Future<List<({String conversationId, int updatedAtUs})>>
+  syncConversationRefs() async {
+    final rows = await _db
+        .customSelect('SELECT id, updated_at FROM conversation_rows;')
+        .get();
+    return [
+      for (final row in rows)
+        (
+          conversationId: row.read<String>('id'),
+          updatedAtUs: row.read<int>('updated_at'),
+        ),
+    ];
+  }
+
+  /// Per-conversation digest input: `id:mutationUs` lines joined by newlines,
+  /// plus the message count. Aggregated in SQL so a manifest never materialises
+  /// one Dart object per message. Line order is *not* relied upon —
+  /// [digestFromDigestInput] sorts.
+  Future<List<({String conversationId, String digestInput, int messageCount})>>
+  syncMessageDigestInputs() async {
+    final rows = await _db.customSelect('''
+      SELECT conversation_id, group_concat(line, char(10)) AS digest_input,
+             COUNT(*) AS message_count
+      FROM (
+        SELECT conversation_id,
+               id || ':' || COALESCE(updated_at, timestamp) AS line
+        FROM message_rows
+        ORDER BY conversation_id, id
+      )
+      GROUP BY conversation_id;
+    ''').get();
+    return [
+      for (final row in rows)
+        (
+          conversationId: row.read<String>('conversation_id'),
+          digestInput: row.read<String>('digest_input'),
+          messageCount: row.read<int>('message_count'),
+        ),
+    ];
+  }
+
+  Future<Map<String, dynamic>?> syncReadConversationRow(String id) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT * FROM conversation_rows WHERE id = ?;',
+          variables: [Variable.withString(id)],
+        )
+        .get();
+    if (rows.isEmpty) return null;
+    return Map<String, dynamic>.from(rows.first.data);
+  }
+
+  Future<List<Map<String, dynamic>>> syncReadMessageRows(
+    String conversationId,
+  ) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT * FROM message_rows WHERE conversation_id = ? '
+          'ORDER BY message_order, id;',
+          variables: [Variable.withString(conversationId)],
+        )
+        .get();
+    return [for (final row in rows) Map<String, dynamic>.from(row.data)];
+  }
+
+  Future<List<Map<String, dynamic>>> syncReadMessagePartRows(
+    String conversationId,
+  ) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT * FROM message_part_rows WHERE conversation_id = ? '
+          'ORDER BY revision_id, ordinal;',
+          variables: [Variable.withString(conversationId)],
+        )
+        .get();
+    return [for (final row in rows) Map<String, dynamic>.from(row.data)];
+  }
+
+  Future<List<Map<String, dynamic>>> syncReadMcpServerRows(
+    String conversationId,
+  ) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT * FROM conversation_mcp_server_rows WHERE conversation_id = ? '
+          'ORDER BY ordinal;',
+          variables: [Variable.withString(conversationId)],
+        )
+        .get();
+    return [for (final row in rows) Map<String, dynamic>.from(row.data)];
+  }
+
+  /// Whether a generation is currently writing to this conversation. Sync
+  /// apply yields to generation (ADR-0003).
+  Future<bool> syncConversationIsStreaming(String conversationId) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT 1 FROM message_rows '
+          'WHERE conversation_id = ? AND is_streaming != 0 LIMIT 1;',
+          variables: [Variable.withString(conversationId)],
+        )
+        .get();
+    return rows.isNotEmpty;
+  }
+
+  /// Applies a peer's conversation deletion using the standard tombstone path,
+  /// so a third paired device can learn about the deletion as well. Returns
+  /// false when the deletion is deferred (a generation is running).
+  ///
+  /// The subtree is staged with [RecycleOrigin.remote]: a conversation removed
+  /// because another device removed it is exactly as recoverable as one removed
+  /// here, and the bin records which was which.
+  Future<bool> syncApplyPeerDeletion(String conversationId) async {
+    if (await syncConversationIsStreaming(conversationId)) return false;
+    await deleteConversation(conversationId, origin: RecycleOrigin.remote);
+    return true;
+  }
+
+  /// Merges one incoming conversation subtree into local state, atomically.
+  ///
+  /// Row-level LWW with deviceId tiebreak, append union, order re-derivation by
+  /// (timestamp, id), and checkpoint-based deletion detection — the rules of
+  /// `sync_merge.dart`, which both peers evaluate identically. Returns the
+  /// post-merge state so the caller can build the next checkpoint.
+  Future<SyncSubtreeApplyOutcome> syncApplySubtree({
+    required SyncSubtreePayload payload,
+    required String myDeviceId,
+    required String peerDeviceId,
+    required Map<String, int> checkpointRows,
+  }) async {
+    final conversationId = payload.conversation['id'] as String;
+    return _db.transaction(() async {
+      if (await syncConversationIsStreaming(conversationId)) {
+        return SyncSubtreeApplyOutcome.deferredOutcome;
+      }
+
+      final localConversation = await syncReadConversationRow(conversationId);
+      final localMessages = {
+        for (final row in await syncReadMessageRows(conversationId))
+          row['id'] as String: row,
+      };
+      // The peer's in-flight generation is not running here: never adopt its
+      // streaming flag, or the row would be stranded mid-stream on this device.
+      //
+      // A wire row is only accepted where it says it belongs, and only when
+      // its id is not already another conversation's message here. A message
+      // id is a global primary key, so an upsert whose conflict target fires
+      // would move that message into this conversation — a crafted
+      // cross-reference no honest peer can produce, since its own reader
+      // filters by conversation.
+      final labelled = {
+        for (final row in payload.messages)
+          if (row['id'] is String && row['conversation_id'] == conversationId)
+            row['id'] as String: {...row, 'is_streaming': 0},
+      };
+      final foreignIds = await _syncForeignMessageIds(
+        conversationId,
+        labelled.keys.toSet(),
+      );
+      final incomingMessages = {
+        for (final entry in labelled.entries)
+          if (!foreignIds.contains(entry.key)) entry.key: entry.value,
+      };
+
+      var conversationRowChanged = false;
+      var conversationRow = localConversation;
+      if (localConversation == null) {
+        conversationRow = Map<String, dynamic>.from(payload.conversation);
+        conversationRowChanged = true;
+      } else {
+        final merge = mergeConversationRow(
+          local: localConversation,
+          incoming: Map<String, dynamic>.from(payload.conversation),
+          myDeviceId: myDeviceId,
+          peerDeviceId: peerDeviceId,
+        );
+        conversationRow = Map<String, dynamic>.from(merge.winner);
+        conversationRowChanged = merge.incomingWon;
+      }
+      if (localConversation != null && conversationRowChanged) {
+        await _upsertSyncRow('conversation_rows', conversationRow);
+        await _replaceSyncMcpServers(conversationId, payload.mcpServers);
+      } else if (localConversation == null) {
+        await _upsertSyncRow('conversation_rows', conversationRow);
+        await _replaceSyncMcpServers(conversationId, payload.mcpServers);
+      }
+
+      final plan = mergeMessageRows(
+        local: localMessages,
+        incoming: incomingMessages,
+        checkpointRows: checkpointRows,
+        myDeviceId: myDeviceId,
+        peerDeviceId: peerDeviceId,
+      );
+
+      final finalRows = <String, Map<String, dynamic>>{...localMessages};
+      for (final id in plan.deletes) {
+        finalRows.remove(id);
+      }
+      for (final row in plan.upserts) {
+        finalRows[row['id'] as String] = row;
+      }
+      // Two devices that each regenerated the same message contribute rival
+      // rows with the same (group_id, version) and different ids — a union both
+      // rows of which the schema's unique key forbids, so the second insert
+      // would abort the apply and every later session with it. One
+      // deterministic winner per slot (identical on both peers), the rest
+      // removed here and deleted below with their parts.
+      final slotLosers = resolveVersionGroupCollisions(finalRows.values);
+      for (final id in slotLosers) {
+        finalRows.remove(id);
+      }
+      final deletes = <String>{...plan.deletes, ...slotLosers};
+      final order = rederiveMessageOrder(finalRows.values);
+      var upserted = 0;
+      final upsertedIds = {
+        for (final row in plan.upserts)
+          if (finalRows.containsKey(row['id'])) row['id'] as String,
+      };
+
+      // The stored order can disagree with the re-derived one — a message
+      // appended out of timestamp order, or a conversation an earlier build
+      // left in a shifted state — and an incoming row always needs a free slot,
+      // so whether to reorder is decided before anything is touched.
+      //
+      // Kept apart from the two counter conditions below because it is the one
+      // change the counters cannot express: the caller has to reload the window
+      // for a repair that writes no content (SyncSubtreeApplyOutcome.reordered).
+      final orderDrifted = finalRows.entries.any(
+        (entry) =>
+            !upsertedIds.contains(entry.key) &&
+            (entry.value['message_order'] as num).toInt() != order[entry.key],
+      );
+      final needsReorder =
+          plan.upserts.isNotEmpty || deletes.isNotEmpty || orderDrifted;
+
+      if (needsReorder) {
+        // Phase 1: move every existing row above the final range. The shift
+        // clears both the current maximum *and* the highest final index, so no
+        // shifted row can land on a slot the final orders will use, and no
+        // shifted value can equal one that already exists — including the large
+        // values an interrupted or older apply may have left behind.
+        final maxOrder = await _syncMaxMessageOrder(conversationId);
+        if (maxOrder != null) {
+          final finalMax = finalRows.length - 1;
+          final shift = (maxOrder > finalMax ? maxOrder : finalMax) + 1;
+          await _db.customStatement(
+            'UPDATE message_rows SET message_order = message_order + ? '
+            'WHERE conversation_id = ?;',
+            [shift, conversationId],
+          );
+        }
+      }
+
+      // Phase 2: deletions (parts cascade). The checkpoint-detected ones plus
+      // the rival rows a version-group slot had to resolve.
+      //
+      // Generation runs go first: `generation_run_rows.target_revision_id` is
+      // the one child of `message_rows` the schema does not cascade (NO ACTION,
+      // deferred), so a run row left behind by the delete below fails the
+      // transaction at COMMIT with a foreign-key error (code 787) — and since
+      // the checkpoint then never advances, every later session with the peer
+      // re-plans the same apply and fails the same way. A deleted revision
+      // takes the run that produced it, exactly as `_deleteMessages` does for a
+      // local deletion.
+      if (deletes.isNotEmpty) {
+        await (_db.delete(
+          _db.generationRunRows,
+        )..where((row) => row.targetRevisionId.isIn(deletes))).go();
+        await (_db.delete(
+          _db.messageRows,
+        )..where((row) => row.id.isIn(deletes))).go();
+      }
+
+      // Phase 3: upserts with final order, then re-point untouched rows.
+      final partsByRevision = <String, List<Map<String, dynamic>>>{};
+      for (final part in payload.parts) {
+        final revisionId = part['revision_id'];
+        if (revisionId is! String) continue;
+        partsByRevision.putIfAbsent(revisionId, () => []).add(part);
+      }
+      for (final row in plan.upserts) {
+        final id = row['id'] as String;
+        // An incoming row that lost its version slot was removed above and is
+        // deleted in phase 2 instead of written.
+        if (!finalRows.containsKey(id)) continue;
+        upserted++;
+        await _upsertSyncRow('message_rows', {
+          ...row,
+          'message_order': order[id]!,
+          'is_streaming': 0,
+        });
+        await (_db.delete(
+          _db.messagePartRows,
+        )..where((part) => part.revisionId.equals(id))).go();
+        final parts = partsByRevision[id] ?? const <Map<String, dynamic>>[];
+        for (final part in parts) {
+          await _upsertSyncRow('message_part_rows', part, insertOnly: true);
+        }
+      }
+      if (needsReorder) {
+        // Phase 4: re-point every row that is not an upsert to its final order,
+        // unconditionally. Every row was just shifted, so a row whose stored
+        // value still equals its target is a row that has not been moved yet —
+        // skipping it would strand it above the final range and scramble the
+        // timeline.
+        for (final entry in finalRows.entries) {
+          if (upsertedIds.contains(entry.key)) continue;
+          await _db.customStatement(
+            'UPDATE message_rows SET message_order = ? WHERE id = ?;',
+            [order[entry.key]!, entry.key],
+          );
+        }
+        for (final row in finalRows.values) {
+          row['message_order'] = order[row['id'] as String];
+        }
+      }
+
+      return SyncSubtreeApplyOutcome(
+        conversationRow: conversationRow,
+        messageRows: [for (final row in finalRows.values) row],
+        upsertedMessages: upserted,
+        // A rival row a version-group slot had to resolve is a deletion too:
+        // its content lost the deterministic rule, and the report says so
+        // rather than dropping it silently.
+        deletedMessages: deletes.length,
+        conversationRowChanged: conversationRowChanged,
+        reordered: orderDrifted,
+        appliedRevisionIds: upsertedIds,
+      );
+    });
+  }
+
+  Future<int?> _syncMaxMessageOrder(String conversationId) async {
+    final row = await _db
+        .customSelect(
+          'SELECT MAX(message_order) AS max_order FROM message_rows '
+          'WHERE conversation_id = ?;',
+          variables: <Variable<Object>>[Variable<String>(conversationId)],
+        )
+        .getSingleOrNull();
+    final value = row?.data['max_order'];
+    return value is num ? value.toInt() : null;
+  }
+
+  Future<void> _upsertSyncRow(
+    String table,
+    Map<String, dynamic> row, {
+    bool insertOnly = false,
+  }) async {
+    final allColumns = currentSchemaColumns[table]!;
+    // `part_id` is an autoincrement rowid: incoming part rows are matched by
+    // their unique key (revision_id, ordinal), never by another device's id.
+    final columns = insertOnly
+        ? [
+            for (final column in allColumns)
+              if (column != 'part_id') column,
+          ]
+        : allColumns;
+    final values = [for (final column in columns) row[column]];
+    if (insertOnly && table == 'message_part_rows') {
+      await _db.customStatement(
+        'INSERT INTO message_part_rows (${columns.join(', ')}) '
+        'VALUES (${List.filled(columns.length, '?').join(', ')});',
+        values,
+      );
+      return;
+    }
+    final conflictTarget = _syncConflictTargets[table]!;
+    final updates = columns
+        .where((column) => !conflictTarget.contains(column))
+        .map((column) => '$column = excluded.$column')
+        .join(', ');
+    await _db.customStatement(
+      'INSERT INTO $table (${columns.join(', ')}) '
+      'VALUES (${List.filled(columns.length, '?').join(', ')}) '
+      'ON CONFLICT(${conflictTarget.join(', ')}) DO UPDATE SET $updates;',
+      values,
+    );
+  }
+
+  Future<void> _replaceSyncMcpServers(
+    String conversationId,
+    List<Map<String, dynamic>> servers,
+  ) async {
+    await (_db.delete(
+      _db.conversationMcpServerRows,
+    )..where((row) => row.conversationId.equals(conversationId))).go();
+    for (final server in servers) {
+      await _upsertSyncRow('conversation_mcp_server_rows', {
+        'conversation_id': conversationId,
+        'server_id': server['server_id'],
+        'ordinal': server['ordinal'],
+      });
+    }
+  }
+
+  static const _syncConflictTargets = <String, List<String>>{
+    'conversation_rows': ['id'],
+    'conversation_mcp_server_rows': ['conversation_id', 'server_id'],
+    'message_rows': ['id'],
+  };
+
+  /// Ids per `IN (...)` batch, well under SQLite's bound-variable limit.
+  static const _syncMessageIdBatch = 200;
+
+  /// The subset of [ids] that already belongs to a conversation other than
+  /// [conversationId] — the wire rows this device must refuse to re-home.
+  Future<Set<String>> _syncForeignMessageIds(
+    String conversationId,
+    Set<String> ids,
+  ) async {
+    if (ids.isEmpty) return const {};
+    final list = ids.toList(growable: false);
+    final foreign = <String>{};
+    for (var start = 0; start < list.length; start += _syncMessageIdBatch) {
+      final end = start + _syncMessageIdBatch;
+      final batch = list.sublist(start, end > list.length ? list.length : end);
+      final rows = await _db
+          .customSelect(
+            'SELECT id FROM message_rows WHERE conversation_id != ? '
+            'AND id IN (${List.filled(batch.length, '?').join(', ')});',
+            variables: <Variable<Object>>[
+              Variable<String>(conversationId),
+              for (final id in batch) Variable<String>(id),
+            ],
+          )
+          .get();
+      foreign.addAll([for (final row in rows) row.read<String>('id')]);
+    }
+    return foreign;
+  }
+}
 
 class ConversationSearchMatch {
   const ConversationSearchMatch({
@@ -5377,8 +9277,10 @@ class ConversationSearchMatch {
     this.matchedSurfaceKey,
     this.verifiedTokens = const {},
     required this.messageRole,
+    required this.groupId,
     required this.version,
     required this.maxVersion,
+  });
 
   final String conversationId;
   final String conversationTitle;
@@ -5394,25 +9296,36 @@ class ConversationSearchMatch {
   final Set<String> verifiedTokens;
 
   ConversationSearchMatch withVerifiedTokens(Set<String> tokens) =>
+      ConversationSearchMatch(
+        conversationId: conversationId,
         conversationTitle: conversationTitle,
+        updatedAt: updatedAt,
         versionSelections: versionSelections,
+        messageId: messageId,
         messageContent: messageContent,
         searchableText: searchableText,
         matchedSurfaceKey: matchedSurfaceKey,
         messageRole: messageRole,
+        groupId: groupId,
+        version: version,
         maxVersion: maxVersion,
         verifiedTokens: tokens,
+      );
   final String? messageRole;
   final String? groupId;
   final int? version;
   final int? maxVersion;
+}
 
 class MiniMapSearchHit {
   const MiniMapSearchHit({
+    required this.messageId,
     required this.matchCount,
     required this.snippet,
     required this.snippetStart,
     this.searchableText,
+    this.matchedSurfaceKey,
+  });
 
   final String messageId;
   final int matchCount;
@@ -5420,14 +9333,23 @@ class MiniMapSearchHit {
 
   /// Offset into the independent searchable text, never a Markdown selection.
   final int snippetStart;
+  final String? searchableText;
+  final String? matchedSurfaceKey;
+}
 
 /// Grows the snippet window so the first hit is not cut mid-keyword.
+///
 /// Default radius 40 + length 120 leaves only 80 characters for the needle.
 int miniMapSnippetLength({
   required int needleLength,
+  int snippetRadius = 40,
+  int snippetLength = 120,
+}) {
+  final radius = snippetRadius < 0 ? 0 : snippetRadius;
   final length = snippetLength < 0 ? 0 : snippetLength;
   final needed = radius + needleLength;
   return length < needed ? needed : length;
+}
 
 final class ChatStatsTotals {
   const ChatStatsTotals({
@@ -5435,26 +9357,38 @@ final class ChatStatsTotals {
     required this.inputTokens,
     required this.outputTokens,
     required this.cachedTokens,
+  });
 
   final int messages;
   final int inputTokens;
   final int outputTokens;
   final int cachedTokens;
+}
 
 final class ChatStatsDayCount {
   const ChatStatsDayCount({required this.day, required this.count});
   final DateTime day;
   final int count;
+}
 
 final class ChatStatsTrendBucket {
   const ChatStatsTrendBucket({
     required this.day,
     required this.providerId,
     required this.activityCount,
+    required this.inputTokens,
+    required this.outputTokens,
+    required this.cachedTokens,
     required this.uncategorizedTokens,
+  });
+  final DateTime day;
   final String providerId;
   final int activityCount;
+  final int inputTokens;
+  final int outputTokens;
+  final int cachedTokens;
   final int uncategorizedTokens;
+}
 
 final class ChatStatsRank {
   const ChatStatsRank({
@@ -5466,10 +9400,16 @@ final class ChatStatsRank {
     this.outputTokens = 0,
     this.cachedTokens = 0,
     this.cacheWriteTokens = 0,
+  });
   final String id;
   final String label;
+  final int count;
   final String? providerId;
+  final int inputTokens;
+  final int outputTokens;
+  final int cachedTokens;
   final int cacheWriteTokens;
+}
 
 final class ChatStatsAggregate {
   const ChatStatsAggregate({
@@ -5480,6 +9420,7 @@ final class ChatStatsAggregate {
     required this.models,
     required this.assistants,
     required this.topics,
+  });
   final int conversations;
   final ChatStatsTotals totals;
   final List<ChatStatsDayCount> heatmap;
@@ -5487,6 +9428,7 @@ final class ChatStatsAggregate {
   final List<ChatStatsRank> models;
   final List<ChatStatsRank> assistants;
   final List<ChatStatsRank> topics;
+}
 
 final class AssetGcCandidate {
   const AssetGcCandidate({
@@ -5495,35 +9437,49 @@ final class AssetGcCandidate {
     required this.thumbnailPath,
     required this.byteSize,
     required this.generation,
+  });
   final String assetId;
   final String path;
   final String? thumbnailPath;
   final int byteSize;
   final int generation;
+}
 
 String _alternateAssetPathForm(String path) {
   if (KelivoFileUri.isKelivoFileUri(path)) {
     final resolved = SandboxPathResolver.fix(path);
     return resolved.isEmpty ? path : resolved;
+  }
   final canonical = SandboxPathResolver.canonicalize(path);
   return canonical.isEmpty ? path : canonical;
+}
 
 String _jsonEscapedPathForm(String path) {
   final encoded = jsonEncode(path);
   return encoded.substring(1, encoded.length - 1);
+}
 
 final class MessageAssetRegistration {
   const MessageAssetRegistration({
+    required this.assetId,
     required this.contentHash,
+    required this.path,
+    required this.byteSize,
     required this.kind,
     this.width,
     this.height,
     this.thumbnailPath,
+  });
 
+  final String assetId;
   final String contentHash;
+  final String path;
+  final int byteSize;
   final String kind;
   final int? width;
   final int? height;
+  final String? thumbnailPath;
+}
 
 class ChatStorageMetaKeys {
   ChatStorageMetaKeys._();
@@ -5534,607 +9490,4 @@ class ChatStorageMetaKeys {
   static const sandboxPathVersion = 'sandbox_path_migration_version';
   static const assetReferenceBackfillVersion =
       'asset_reference_backfill_version';
-
-import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
-
-import '../models/message_quote.dart';
-
-
-
-
-
-
-
-
-
-
-
-typedef AppendedMessageVersion = ({
-
-
-
-
-
-
-
-
-
-
-  late final ComposerDraftStore composerDrafts = ComposerDraftStore(_db);
-
-
-
-
-  }) => GenerationRunCommands(_db).transition(
-
-
-        return GenerationRunCommands(_db).transition(
-
-
-
-
-      // Only after the structure matches, so a crash mid-rewrite leaves a file
-      // still stamped with its original (rejected) version rather than a lie.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        return _validateRawSnapshot(snapshot);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                  AND p.kind IN ('image', 'file')
-
-
-
-
-
-
-
-
-
-
-  }) => _db.transaction(() async {
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  /// [messageId] as a row of [conversationId], or null when that id belongs to
-  /// another conversation or to none.
-  /// [getMessage] is a primary-key lookup with no conversation filter, so a row
-  /// id that outlived its conversation — a merge-mode backup import remaps
-  /// message ids but copies `extras_json` verbatim (see docs/adr/0012) — would
-  /// resolve to whichever conversation on this device still holds it. Anything
-  /// that resolves a stored reference into content for one conversation uses
-  /// this instead.
-  Future<ChatMessage?> getMessageInConversation(
-    if (conversationId.isEmpty || messageId.isEmpty) return null;
-        await (_db.select(_db.messageRows)..where(
-                  t.id.equals(messageId) &
-                  t.conversationId.equals(conversationId),
-
-
-  /// Version collapsing, truncate-index application, tail limiting, and part
-  /// hydration share one read transaction so a large
-  /// conversation is never materialized merely to discard its prefix. A reset
-  /// after the requested revision does not apply to that earlier turn.
-    required int truncateIndex,
-        var targetIndex = total;
-                'SELECT COUNT(*) AS n FROM timeline_group_rows WHERE conversation_id=? AND (anchor_order,group_id)>(?,?)',
-          targetIndex = total - suffix.read<int>('n') - 1;
-        if (truncateIndex > 0 &&
-            truncateIndex <= total &&
-            truncateIndex <= targetIndex) {
-          if (truncateIndex == total) return <ChatMessage>[];
-          final lower = await _db
-                'SELECT anchor_order,group_id FROM timeline_group_rows WHERE conversation_id=? ORDER BY anchor_order,group_id LIMIT 1 OFFSET ?',
-                  Variable<int>(truncateIndex),
-          conditions.add('AND (g.anchor_order,g.group_id)>=(?,?)');
-            Variable<int>(lower.read<int>('anchor_order')),
-            Variable<String>(lower.read<String>('group_id')),
-
-
-
-
-            AND INSTR(LOWER(t.txt), p.needle) > 0
-          messageId: row.read<String>('message_id'),
-
-
-
-        )..where((t) => t.id.isIn(ids))).get();
-        final messages = await _messagesFromRowsWithParts(rows);
-        final byId = <String, ChatMessage>{
-          for (final message in messages) message.id: message,
-
-
-
-
-
-
-
-
-        .map((token) => token.trim().toLowerCase())
-        .where((token) => token.isNotEmpty)
-    if (cleanTokens.isEmpty || limit <= 0) {
-      return const <ConversationSearchMatch>[];
-
-
-    final titleClauses = <String>[];
-    final existsClauses = <String>[];
-    final messageAnyClauses = <String>[];
-    final titleArgs = <Object?>[];
-    final existsArgs = <Object?>[];
-    final messageArgs = <Object?>[];
-    for (final token in cleanTokens) {
-      final pattern = '%${escapeLike(token)}%';
-      titleClauses.add('LOWER(c.title) LIKE ? ESCAPE \'\\\'');
-      titleArgs.add(pattern);
-      existsClauses.add('''
-          SELECT 1 FROM message_rows mx
-          WHERE mx.conversation_id = c.id
-            AND mx.role IN ('user', 'assistant')
-              SELECT 1 FROM message_part_rows px
-              WHERE px.revision_id = mx.id
-                AND px.kind = 'text'
-                AND LOWER(px.payload) LIKE ? ESCAPE '\\'
-            ${includeAllRevisions ? '' : 'AND EXISTS (SELECT 1 FROM visible_groups visible WHERE visible.conversation_id = mx.conversation_id AND visible.group_id = COALESCE(mx.group_id, mx.id) AND visible.selected_version = mx.version)'}
-      existsArgs.add(pattern);
-      if (useSubstringFallback) {
-        messageAnyClauses.add('''
-            WHERE px.revision_id = m.id
-        messageArgs.add(pattern);
-    final ftsQuery = cleanTokens
-        .map((token) => '"${token.replaceAll('"', '""')}"')
-        .join(' AND ');
-    if (!useSubstringFallback) {
-      messageAnyClauses.add(
-        'm.id IN (SELECT revision_id FROM message_search_fts '
-        'WHERE payload MATCH ?)',
-      messageArgs.add(ftsQuery);
-      existsClauses
-        ..clear()
-        ..add('''
-          SELECT 1 FROM message_search_fts fx
-          WHERE fx.conversation_id = c.id AND fx.payload MATCH ?
-            ${includeAllRevisions ? '' : 'AND EXISTS (SELECT 1 FROM visible_groups visible INNER JOIN message_rows selected ON selected.id = fx.revision_id WHERE visible.conversation_id = selected.conversation_id AND visible.group_id = COALESCE(selected.group_id, selected.id) AND visible.selected_version = selected.version)'}
-      existsArgs
-        ..add(ftsQuery);
-
-    // Applied alongside the match predicate so the candidate LIMIT is spent on
-    // rows the caller can actually use.
-    final scopeArgs = <String>[];
-      scopeArgs.add(conversationId);
-      scopeArgs.add(excludeConversationId);
-      scopeArgs.add(assistantId);
-
-        SELECT c.id AS conversation_id, j.key AS group_id,
-               CAST(j.value AS INTEGER) AS selected_version
-          COALESCE(
-            MAX(CASE
-              WHEN m.version = s.selected_version THEN m.version
-            END),
-            MAX(m.version)
-          ) AS selected_version
-        LEFT JOIN selections s
-          ON s.conversation_id = m.conversation_id
-         AND s.group_id = COALESCE(m.group_id, m.id)
-        GROUP BY m.conversation_id, COALESCE(m.group_id, m.id)
-        c.id AS conversation_id,
-        c.title AS conversation_title,
-        c.updated_at AS updated_at,
-        m.id AS message_id,
-          SELECT px.payload
-          FROM message_part_rows px
-          WHERE px.revision_id = m.id AND px.kind = 'text'
-          ORDER BY px.ordinal
-          LIMIT 1
-        ) AS message_content,
-        m.role AS message_role,
-        m.group_id AS group_id,
-        m.version AS version,
-        m.message_order AS message_order,
-          SELECT visible.selected_version
-          FROM visible_groups visible
-          WHERE visible.conversation_id = m.conversation_id
-            AND visible.group_id = COALESCE(m.group_id, m.id)
-        ) AS selected_version,
-          SELECT visible.max_version
-        ) AS max_version
-      LEFT JOIN message_rows m
-        ON m.conversation_id = c.id
-        AND m.role IN ('user', 'assistant')
-        AND (${messageAnyClauses.join(' OR ')})
-        ${includeAllRevisions ? '' : 'AND EXISTS (SELECT 1 FROM visible_groups visible WHERE visible.conversation_id = m.conversation_id AND visible.group_id = COALESCE(m.group_id, m.id) AND visible.selected_version = m.version)'}
-      WHERE ((${titleClauses.join(' AND ')}) OR (${existsClauses.join(' AND ')}))
-        $scopeSql
-      ORDER BY c.updated_at DESC, m.message_order ASC
-      LIMIT ?
-            ...messageArgs.map((value) => Variable<String>(value! as String)),
-            ...titleArgs.map((value) => Variable<String>(value! as String)),
-            ...existsArgs.map((value) => Variable<String>(value! as String)),
-            ...scopeArgs.map(Variable<String>.new),
-            Variable<int>(candidateLimit),
-
-        .map((row) {
-          final groupId = row.readNullable<String>('group_id');
-          final effectiveGroupId = groupId ?? messageId;
-          return ConversationSearchMatch(
-            conversationTitle: row.read<String>('conversation_title'),
-            updatedAt: _dateTimeFromSqlite(row.read<int>('updated_at')),
-            versionSelections:
-                effectiveGroupId == null || selectedVersion == null
-            messageContent: row.readNullable<String>('message_content'),
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-            WHERE p.kind IN ('text', 'image', 'file')
-
-
-
-
-
-
-
-
-    Map<String, dynamic> Function(Map<String, dynamic> current) update,
-
-  Future<Conversation?> duplicateConversation(String sourceId) {
-
-
-
-                message.groupId == null ? null : groupIdMap[message.groupId],
-                _remapCopiedMessageExtras(message.extrasJson, messageIdMap),
-      "WHERE conversation_id = ? AND kind IN ('image', 'file');",
-
-
-
-
-
-
-      final kept = sourceMessages
-
-
-
-                extras: source.extras,
-
-
-
-  Future<Conversation> appendLinearMessageToConversation({
-      () => _appendLinearMessageToConversation(
-
-          message: userMessage,
-
-
-
-
-
-
-
-
-    if (_messageHasAttachmentParts(message)) {
-
-  Future<AppendedMessageVersion?> appendMessageVersion({
-
-  Future<AppendedMessageVersion?> _appendMessageVersion({
-
-      final message = ChatMessage(
-        reasoningStartAt: preserveReasoning ? original.reasoningStartAt : null,
-        // The citation is part of the user message's content identity, so a new
-        // version carries it (docs/adr/0012).
-        quote: original.quote,
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      return await _db.transaction(() async {
-
-
-
-                ? _deterministicMergeId('message', messageId, sourceFingerprint)
-
-
-        await updateMessage(message.copyWith(parts: nextParts));
-
-
-
-
-      final groupId = data.remove('group_id')?.toString() ?? '';
-
-
-
-
-
-
-
-
-      // generation_run_rows are intentionally not copied: merged revisions
-      // are always persisted as non-streaming.
-
-
-
-          _encodeMessageExtras(
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      "DELETE FROM extension_entity_rows WHERE kind IN ('composerDraft','composerNewEntry','composerPrivateFile','composerPublishedFile')",
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  Future<List<ChatMessage>> _messagesFromRowsWithParts(
-    List<MessageRow> rows,
-        _messageFromRow(row, authoritativeParts: byRevision[row.id]),
-
-      quote: MessageQuote.decodeFromExtras(extras),
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-          quote: message.quote,
-
-
-
-
-
-
-
-  /// Merges [existing]'s extras with the fields this write owns.
-  /// The one writer of `message_rows.extras_json`, so a reply citation written
-  /// at insert and a token/timing update land in the same map without either
-  /// dropping the other: every caller passes the extras it read, not `'{}'`.
-  String _encodeMessageExtras(
-    MessageQuote? quote,
-    quote?.encodeIntoExtras(extras);
-
-  /// [extras] with a reply citation's target id rewritten for a copied
-  /// conversation, whose message rows receive new ids.
-  /// A whole-message citation whose target is not part of the copy is dropped:
-  /// keeping the original id would leave the copy pointing at a row it does not
-  /// hold, and the pointer is all it has. A ranged citation carries its own text
-  /// and travels unchanged (`MessageQuote.remapped`).
-  String _remapCopiedMessageExtras(
-    String extras,
-    Map<String, String> messageIdMap,
-    final decoded = Map<String, dynamic>.from(_decodeExtrasJson(extras));
-    final quote = MessageQuote.decodeFromExtras(decoded);
-    if (quote == null) return extras;
-    final remapped = quote.remapped(messageIdMap);
-    if (remapped == null) {
-      decoded.remove(MessageQuote.extrasKey);
-      remapped.encodeIntoExtras(decoded);
-    return jsonEncode(decoded);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+}

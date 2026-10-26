@@ -78,6 +78,29 @@ class KelivoLinkHandler implements LinkHandler {
   }
 }
 
+final _imageDimensions = RegExp(r'^(?:(\d+)(?:x(\d+))?|x(\d+))$');
+
+/// The size an image's alt text spells, or null when it spells none.
+///
+/// `WxH`, a bare `W` and a bare `H` are the three forms an alt may write, and one
+/// scan reads them for both consumers — the picture the message draws and the
+/// picture an exported page embeds — so the two cannot disagree about a size. A
+/// size is not a caption, which is why a sized alt is not printed beside the
+/// picture either.
+({double? width, double? height})? markdownImageSizeOf(String alt) {
+  final dimensions = _imageDimensions.firstMatch(alt.trim());
+  if (dimensions == null) return null;
+  double? size(String? value) {
+    final number = double.tryParse(value ?? '');
+    return number != null && number.isFinite && number > 0 ? number : null;
+  }
+
+  final width = size(dimensions[1]);
+  final height = size(dimensions[2] ?? dimensions[3]);
+  if (width == null && height == null) return null;
+  return (width: width, height: height);
+}
+
 class KelivoImageBuilder implements ImageBuilder {
   const KelivoImageBuilder();
   @override

@@ -1,4 +1,4 @@
-import 'package:Kelivo/desktop/desktop_overlay_backdrop.dart';
+import 'package:Cuplivo/desktop/desktop_overlay_backdrop.dart';
 import '../utils/message_reasoning_source.dart';
 import '../../intelligent_ui/host/ui_copy_actions.dart';
 import '../../intelligent_ui/host/ui_user_message_content.dart';

@@ -2204,7 +2204,7 @@ void main() {
       // instead of the line the composer was displaying.
       expect(controller.currentQueuedInput?.input.quoteLabel, 'quoted span');
 
-      controller.cancelQueuedMessage();
+      await controller.cancelQueuedMessage();
       expect(controller.currentQueuedInput, isNull);
     });
     expect(tester.takeException(), isNull);

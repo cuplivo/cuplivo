@@ -115,13 +115,20 @@ class BrowserService extends ChangeNotifier with WidgetsBindingObserver {
   );
   String? persistenceError;
 
-  bool get isSupported =>
-      _supported ??
-      (!kIsWeb &&
-          (Platform.isAndroid ||
-              Platform.isIOS ||
-              Platform.isMacOS ||
-              Platform.isWindows));
+  /// The platforms this build has a browser engine for. [isSupported] is the
+  /// per-instance form of the same rule — it can be overridden, which is what
+  /// the service's own tests do — but a test that mounts a real page has to ask
+  /// the platform before it does: `pr-check.yml` runs on Linux, where there is
+  /// no engine to drive and `_engine` refuses with
+  /// `browser_platform_unsupported`.
+  static bool get platformSupported =>
+      !kIsWeb &&
+      (Platform.isAndroid ||
+          Platform.isIOS ||
+          Platform.isMacOS ||
+          Platform.isWindows);
+
+  bool get isSupported => _supported ?? platformSupported;
   bool get supportsWebsiteDataClear => isSupported && !Platform.isWindows;
   bool get isInitialized => _initialized;
   List<BrowserTab> get tabs => List.unmodifiable(_tabs);

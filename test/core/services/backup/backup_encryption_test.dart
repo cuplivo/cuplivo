@@ -31,7 +31,21 @@ void main() {
     restored = File('${root.path}/restored.zip');
   });
 
-  tearDown(() => root.delete(recursive: true));
+  tearDown(() async {
+    // A cancelled derivation's isolate can hold the file it was writing for
+    // a moment after the future has completed, and Windows refuses to remove a
+    // directory that is still open (errno 32). The product path is fine; the
+    // teardown is what has to wait for the OS.
+    for (var attempt = 0; ; attempt++) {
+      try {
+        await root.delete(recursive: true);
+        return;
+      } on FileSystemException {
+        if (attempt >= 20) rethrow;
+        await Future<void>.delayed(const Duration(milliseconds: 25));
+      }
+    }
+  });
 
   test('decrypts an independent AES-GCM and PBKDF2 fixture', () async {
     await encrypted.writeAsBytes(base64Decode(_fixture));

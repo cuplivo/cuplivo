@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/shared/markdown/markdown_image_sources.dart';
-import 'package:Kelivo/core/services/backup/restore_business_lease.dart';
-import 'package:Kelivo/core/services/storage/windows_data_directory.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/shared/markdown/markdown_image_sources.dart';
+import 'package:Cuplivo/core/services/backup/restore_business_lease.dart';
+import 'package:Cuplivo/core/services/storage/windows_data_directory.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
@@ -132,11 +132,11 @@ void main() {
     expect((await storage.state).previous!.path, source.path);
     expect(
       jsonDecode(preference(target)),
-      p.join(target.path, 'avatars/me.png'),
+      p.join(target.path, 'avatars', 'me.png'),
     );
     expect(
       jsonDecode(preference(source)),
-      p.join(source.path, 'avatars/me.png'),
+      p.join(source.path, 'avatars', 'me.png'),
     );
     for (final path in [
       'avatars/me.png',
@@ -186,7 +186,9 @@ void main() {
         isTrue,
       );
       expect(
-        await File(p.join(target.path, 'upload/attachment.txt')).readAsString(),
+        await File(
+          p.join(target.path, 'upload', 'attachment.txt'),
+        ).readAsString(),
         'attachment',
       );
       await restart();
@@ -207,7 +209,7 @@ void main() {
       expect((await storage.directory).path, source.path);
       expect(
         jsonDecode(preference(source)),
-        p.join(source.path, 'avatars/me.png'),
+        p.join(source.path, 'avatars', 'me.png'),
       );
       await storage.confirmStartup();
       await storage.cleanPrevious();
@@ -232,7 +234,7 @@ void main() {
     () async {
       await storage.schedule(target);
       io.onSync = (file) async {
-        if (file.path == p.join(target.path, 'upload/attachment.txt')) {
+        if (file.path == p.join(target.path, 'upload', 'attachment.txt')) {
           throw const FileSystemException('disk full');
         }
       };
@@ -243,7 +245,9 @@ void main() {
       await restart();
       expect((await storage.directory).path, target.path);
       expect(
-        await File(p.join(target.path, 'upload/attachment.txt')).readAsString(),
+        await File(
+          p.join(target.path, 'upload', 'attachment.txt'),
+        ).readAsString(),
         'attachment',
       );
     },
@@ -354,11 +358,13 @@ void main() {
       await write('upload/attachment.txt', 'updated after move');
       await expectLater(storage.cleanPrevious(), throwsStateError);
       expect(
-        await File(p.join(source.path, 'avatars/me.png')).exists(),
+        await File(p.join(source.path, 'avatars', 'me.png')).exists(),
         isTrue,
       );
       expect(
-        await File(p.join(source.path, 'upload/attachment.txt')).readAsString(),
+        await File(
+          p.join(source.path, 'upload', 'attachment.txt'),
+        ).readAsString(),
         'updated after move',
       );
       expect((await storage.state).previous, isNotNull);
@@ -415,7 +421,7 @@ void main() {
         file: File(p.join(source.path, 'kelivo.db')),
       );
       await repository.ensureReady();
-      final oldImage = p.join(source.path, 'avatars/me.png');
+      final oldImage = p.join(source.path, 'avatars', 'me.png');
       await repository.putMigrationBatch(
         conversations: [
           Conversation(
@@ -467,7 +473,7 @@ void main() {
       try {
         await moved.ensureReady();
         final message = (await moved.getMessage('message'))!;
-        final newImage = p.join(target.path, 'avatars/me.png');
+        final newImage = p.join(target.path, 'avatars', 'me.png');
         expect(message.parts.whereType<ImagePart>().single.uri, newImage);
         expect(markdownImageSources(message.content), [newImage]);
         expect(
@@ -523,11 +529,11 @@ void main() {
       await expectLater(restart(), throwsStateError);
       expect(
         jsonDecode(preference(source)),
-        p.join(source.path, 'avatars/me.png'),
+        p.join(source.path, 'avatars', 'me.png'),
       );
       expect(
         jsonDecode(preference(target)),
-        p.join(target.path, 'avatars/me.png'),
+        p.join(target.path, 'avatars', 'me.png'),
       );
       expect((await storage.directory).path, source.path);
       io.onSync = null;
@@ -535,7 +541,7 @@ void main() {
       expect((await storage.directory).path, target.path);
       expect(
         jsonDecode(preference(target)),
-        p.join(target.path, 'avatars/me.png'),
+        p.join(target.path, 'avatars', 'me.png'),
       );
     },
   );
@@ -561,7 +567,7 @@ void main() {
     () async {
       await storage.schedule(target);
       io.onSync = (file) async {
-        if (file.path == p.join(target.path, 'upload/attachment.txt')) {
+        if (file.path == p.join(target.path, 'upload', 'attachment.txt')) {
           throw StateError('pause');
         }
       };
@@ -650,7 +656,9 @@ void main() {
       await expectLater(storage.cleanPrevious(), throwsFormatException);
       expect(await File(p.join(source.path, 'kelivo.db')).exists(), isTrue);
       expect(
-        await File(p.join(source.path, 'upload/attachment.txt')).readAsString(),
+        await File(
+          p.join(source.path, 'upload', 'attachment.txt'),
+        ).readAsString(),
         'attachment',
       );
     },
@@ -696,12 +704,12 @@ void main() {
     () async {
       await storage.schedule(target);
       io.onSync = (file) async {
-        if (file.path == p.join(target.path, 'avatars/me.png')) {
-          await File(p.join(source.path, 'upload/attachment.txt')).delete();
+        if (file.path == p.join(target.path, 'avatars', 'me.png')) {
+          await File(p.join(source.path, 'upload', 'attachment.txt')).delete();
         }
       };
       await expectLater(restart(), throwsA(isA<FileSystemException>()));
-      final partial = File(p.join(target.path, 'upload/attachment.txt'));
+      final partial = File(p.join(target.path, 'upload', 'attachment.txt'));
       expect(await partial.exists(), isTrue);
       expect(await partial.length(), 0);
       expect(await Directory(p.join(target.path, 'upload')).list().length, 1);

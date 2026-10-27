@@ -36,11 +36,17 @@ Cuplivo goes beyond chat. Models can search the web, call MCP servers, follow sk
 
 Conversations, settings and files are stored locally. Cuplivo has no account system of its own; back up to WebDAV or S3-compatible storage whenever you choose.
 
-## ✨ What's new in 4.1
+## ✨ What's new in 4.4
 
-- **Their Letter (Proactive Care)** — the assistant can write to you first. A **Roleplay** tab in assistant settings turns it on and holds both prompts and each conversation's next letter time; after every reply a silent request to the decision model fixes when the next letter is due, and when that time arrives the letter is composed from the persona, memories, world book and history and saved as an ordinary assistant message. Delivery follows what each platform can do: Android wakes the app with an exact alarm, desktop sends while the app is running, and iOS posts an arrival notification whose body is written the next time the app opens.
+- **A recycle bin** — deleting a conversation or an assistant keeps a recoverable copy under **Storage space → Recycle Bin**, with what it is, who removed it and what it costs, and one tap to bring it back. Entries are device-local (90 days, 256 MB or 1,000 entries; never synced, never in a backup), a restore outlives the peer's next sync session, and the rows a sync merge replaces and the workspace files a sync overwrites or removes are kept the same way.
+- **Workspace sync, and a rebuilt LAN Sync panel** — a workspace's record and its files now follow your paired devices, each workspace switchable on its own (linked workspaces stay local; over 2,000 files or 200 MB keeps the record and syncs no content). Each peer remembers up to twelve addresses with their own name, latency and history, and the panel shows this device, the workspaces, and one card per peer.
+- **Message replies** — reply to a whole message, or to just a selection inside an assistant reply, from the ⋯ menu or a long-press. The reply carries a one-line citation that the model receives as a `<reply-to>` prefix frozen with the rest of the turn, and desktop binds `Ctrl/Cmd+Shift+R` to reply with the selection (#1027).
+- **Chat suggestions per assistant** — an assistant can switch suggestions off on its own, so a work assistant stops spending a request after every reply while a role-play one keeps them. The default-models switch stays the master.
+- **Re-based on Kelivo `master`** — this release sits on upstream `b1702b3a9` (Flutter 3.47.6) and carries upstream's work since `v1.3.1`: the screenshot-golden suites are gone and the Linux browser checks are fixed, the data directory can be moved to another folder on Windows, iOS uses the platform's own blur, and the Live Activity extension follows the app's build version.
 
-## ✨ What's new in 4.0
+The [changelog](CHANGELOG.md) carries 4.3, 4.2 and 4.1.
+
+## ✨ Since 4.0
 
 Cuplivo 4.0 moves the whole code base onto the **Kelivo v1.3.0** baseline and re-implements Cuplivo's own features on top of it. From here on the repository re-bases on upstream's own line instead of diverging permanently, so upstream's work keeps arriving.
 
@@ -152,8 +158,9 @@ The [User Guide](https://kelivo.psycheas.top/guide) (Chinese) covers providers, 
 ### 📝 Reading and Organizing
 
 - **Rendering**: Markdown, syntax-highlighted code, LaTeX math, tables, Mermaid diagrams with PNG export, and HTML preview.
-- **Export**: save a message or a selection as Markdown, plain text or a rendered image.
+- **Export**: save a message or a selection as Markdown, plain text or a rendered image, or the whole conversation as a PDF from the share sheet (#1028).
 - **Navigation**: a minimap for long conversations, search across all conversations, pinning, and moving conversations between assistants.
+- **Links**: copy a `cuplivo://` link to a conversation, or to one message; on iOS, opening it goes straight to that conversation, scrolled to the message (#1013).
 - **Statistics**: an activity heatmap, token usage (input, output and cached), and rankings by model and assistant.
 
 ### 🎨 Appearance
@@ -168,6 +175,7 @@ The [User Guide](https://kelivo.psycheas.top/guide) (Chinese) covers providers, 
 - **Local storage**: conversations, settings and attachments stay on your device.
 - **Backup and restore**: WebDAV, S3-compatible storage, or a local file. Restore by overwriting or merging.
 - **Local copies**: automatic on-device snapshots with weekly and monthly retention. A copy is always saved before a restore.
+- **Where your data lives**: on Windows the data directory can be moved to another local folder from **Storage space**. The move happens on the next cold start, copies before it removes anything, and keeps the old folder until you clean it up.
 - **Import** from Cherry Studio and Chatbox.
 - **Diagnostics**: request logs, context logs that show exactly what was sent to the model, and a storage usage breakdown.
 
@@ -191,6 +199,7 @@ Most features work on every platform. These depend on the operating system:
 | Background generation | Notification, Live Updates, floating capsule | Extra background time, Live Activities | While Cuplivo is running |
 | Platform-specific device tools | Calendar, location, screen time | Calendar, location, weather, reminders, Health | — |
 | Global shortcut and system tray | — | — | ✓ |
+| Choosing where data lives | — | — | Movable to any local folder (Windows) |
 
 On desktop, workspace commands run with your user account's permissions and are not sandboxed. Keep command approval turned on for workspaces that contain important files.
 
@@ -218,8 +227,8 @@ Several packages are vendored under [`dependencies/`](dependencies) and referenc
 Issues and pull requests are welcome. Before opening a pull request, run the same checks as CI:
 
 ```bash
-dart format lib test
-dart analyze --fatal-infos lib test
+dart format lib test integration_test
+dart analyze --fatal-infos lib test integration_test
 flutter test
 ```
 
@@ -247,7 +256,7 @@ Full third-party notices for the sandbox components are in [`ios/sandbox/NOTICE`
 
 ## ⚠️ Note
 
-Cuplivo is a community fork of [Kelivo](https://github.com/Chevey339/kelivo), re-based on upstream from 4.0 on and currently sitting on upstream `master` at `a02ee457a` (2026-10-26) — upstream's newest tag, `v1.3.1`, is older than that. Outward-facing identity is Cuplivo; names that belong to a protocol, to persisted data or to upstream infrastructure are kept on purpose (`kelivo://` content links, `kelivo-file://` URIs, `kelivo_*` MCP tool ids, `kelivo.db` and the like), because renaming them would break imported conversations and recorded tool calls. Community: QQ group `1101061750`, [Discord](https://discord.gg/kaTf8CXG4).
+Cuplivo is a community fork of [Kelivo](https://github.com/Chevey339/kelivo), re-based on upstream from 4.0 on and currently sitting on upstream `master` at `b1702b3a9` (2026-10-26) — upstream's newest tag, `v1.3.1`, is older than that. Outward-facing identity is Cuplivo; names that belong to a protocol, to persisted data or to upstream infrastructure are kept on purpose (`kelivo://` content links, `kelivo-file://` URIs, `kelivo_*` MCP tool ids, `kelivo.db` and the like), because renaming them would break imported conversations and recorded tool calls. Community: QQ group `1101061750`, [Discord](https://discord.gg/kaTf8CXG4).
 
 ## 📄 License
 

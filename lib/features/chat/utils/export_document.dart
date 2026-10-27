@@ -172,10 +172,7 @@ Future<ExportDocument> buildExportDocument({
             if (op.anchorGroupId == ContextHistory.group(message) &&
                 contextLabelOf != null)
               ExportContextNode(
-                contextLabelOf(
-                  op,
-                  hidden: _contextNodeHidden(op, operations),
-                ),
+                contextLabelOf(op, hidden: _contextNodeHidden(op, operations)),
               ),
         ],
       ),
@@ -186,7 +183,10 @@ Future<ExportDocument> buildExportDocument({
 
 /// Whether a later, still-live clear covers [op]'s group, which is what makes an
 /// older marker read as hidden rather than active.
-bool _contextNodeHidden(ContextOperation op, List<ContextOperation> operations) {
+bool _contextNodeHidden(
+  ContextOperation op,
+  List<ContextOperation> operations,
+) {
   return operations
       .skipWhile((item) => item.id != op.id)
       .skip(1)
@@ -219,8 +219,9 @@ Future<List<ExportBlock>> exportBlocksOf(
   final thinkRanges = stripThink
       ? ThinkingTagParser.parseWithRanges(
           joinedText,
-          protectedRanges:
-              UiMessageSource.of(message.parts).protectedJoinedRanges,
+          protectedRanges: UiMessageSource.of(
+            message.parts,
+          ).protectedJoinedRanges,
         )
       : null;
   var textOffset = 0;
@@ -235,7 +236,8 @@ Future<List<ExportBlock>> exportBlocksOf(
         // the hidden ranges come from the whole message and each part is
         // sliced against them rather than parsed on its own.
         String ordinary(int from, int to) {
-          final visible = thinkRanges == null || thinkRanges.hiddenRanges.isEmpty
+          final visible =
+              thinkRanges == null || thinkRanges.hiddenRanges.isEmpty
               ? message.content.substring(from, to)
               : ThinkingTagParser.visibleSlice(
                   joinedText,
@@ -423,16 +425,24 @@ class ThinkingExportData {
   const ThinkingExportData({
     required this.cleanedContent,
     required this.thinkingTexts,
+    this.fromInlineThinking = false,
   });
 
   final String cleanedContent;
   final List<String> thinkingTexts;
+
+  /// Whether [thinkingTexts] came from inline ` thinking` tags rather than from
+  /// provider evidence, which is what decides whether segment timings have to
+  /// be split along those tags.
+  final bool fromInlineThinking;
 }
 
 /// The reasoning a message holds, however it recorded it.
 ///
-/// Structured reasoning parts come first, then the reasoning segments, then the
-/// legacy `<think>` tags, then the oldest `reasoningText` field.
+/// Provider evidence wins: structured reasoning parts first, then the persisted
+/// segments and the legacy `reasoningText` field. Only a message with no
+/// provider reasoning falls back to inline `</think>` tags, because there the
+/// tags *are* the only record of it.
 ThinkingExportData thinkingExportDataForMessage(ChatMessage message) {
   final structuredReasoning = [
     for (final part in message.parts)
@@ -446,11 +456,13 @@ ThinkingExportData thinkingExportDataForMessage(ChatMessage message) {
     );
   }
 
+  final providerReasoning = messageHasProviderReasoning(message);
   final thinkingTexts = <String>[];
   var cleanedContent = message.content.trim();
+  var fromInlineThinking = false;
 
   final segJson = (message.reasoningSegmentsJson ?? '').trim();
-  if (segJson.isNotEmpty) {
+  if (segJson.isNotEmpty && providerReasoning) {
     try {
       final decoded = jsonDecode(segJson);
       if (decoded is List) {
@@ -464,20 +476,24 @@ ThinkingExportData thinkingExportDataForMessage(ChatMessage message) {
     } catch (_) {}
   }
 
-  if (thinkingTexts.isEmpty) {
-    final parsed = ThinkingTagParser.parseWithRanges(message.content);
+  if (thinkingTexts.isEmpty && providerReasoning) {
+    final text = (message.reasoningText ?? '').trim();
+    if (text.isNotEmpty) thinkingTexts.add(text);
+  }
+  if (!providerReasoning) {
+    final parsed = ThinkingTagParser.parseWithRanges(
+      message.content,
+      protectedRanges: UiMessageSource.of(message.parts).protectedJoinedRanges,
+    );
     cleanedContent = parsed.visibleContent;
     thinkingTexts.addAll(parsed.thinkingTexts);
-  }
-
-  if (thinkingTexts.isEmpty) {
-    final rt = (message.reasoningText ?? '').trim();
-    if (rt.isNotEmpty) thinkingTexts.add(rt);
+    fromInlineThinking = parsed.hasThinking;
   }
 
   return ThinkingExportData(
     cleanedContent: cleanedContent,
     thinkingTexts: thinkingTexts,
+    fromInlineThinking: fromInlineThinking,
   );
 }
 

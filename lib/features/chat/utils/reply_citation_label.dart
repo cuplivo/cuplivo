@@ -27,9 +27,7 @@ String replyCitationLabel(
     options: markdownParserOptions(settings),
     inlineSyntaxes: kelivoMarkdownExtensions.inlineSyntaxes,
   ).parse(source);
-  final flat = toPlainText(
-    document,
-  ).replaceAll(RegExp(r'\s+'), ' ').trim();
+  final flat = toPlainText(document).replaceAll(RegExp(r'\s+'), ' ').trim();
   if (flat.length <= replyCitationLabelBudget) return flat;
   // A plain `substring` can split a surrogate pair and leave a lone surrogate
   // behind; the budget is a code-unit count like every other cut in the repo.

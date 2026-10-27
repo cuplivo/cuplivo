@@ -158,7 +158,7 @@ The [User Guide](https://kelivo.psycheas.top/guide) (Chinese) covers providers, 
 ### 📝 Reading and Organizing
 
 - **Rendering**: Markdown, syntax-highlighted code, LaTeX math, tables, Mermaid diagrams with PNG export, and HTML preview.
-- **Export**: save a message or a selection as Markdown, plain text or a rendered image.
+- **Export**: save a message or a selection as Markdown, plain text or a rendered image, or the whole conversation as a PDF from the share sheet (#1028).
 - **Navigation**: a minimap for long conversations, search across all conversations, pinning, and moving conversations between assistants.
 - **Links**: copy a `cuplivo://` link to a conversation, or to one message; on iOS, opening it goes straight to that conversation, scrolled to the message (#1013).
 - **Statistics**: an activity heatmap, token usage (input, output and cached), and rankings by model and assistant.

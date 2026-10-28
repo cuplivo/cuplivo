@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as image_lib;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
@@ -807,39 +806,6 @@ PdfColor _readableOnPaper(Color colour, PdfColor fallback) =>
     ? fallback
     : PdfColor.fromInt(colour.toARGB32() | 0xFF000000);
 
-/// The icon face a speaker's avatar disc is drawn with, read once per run.
-///
-/// The app draws its icons from a font it ships rather than from bitmaps, which is
-/// exactly what a page needs: the disc beside a message's name can carry the same
-/// glyph the screen puts in it, at vector quality, without capturing anything. The
-/// read is remembered because the file is most of a megabyte and an export is not
-/// the only thing that will ask for it.
-Uint8List? _iconFontBytes;
-bool _iconFontRead = false;
-
-Future<Uint8List?> _pdfIconFont() async {
-  if (_iconFontRead) return _iconFontBytes;
-  _iconFontRead = true;
-  try {
-    final data = await rootBundle.load(kLucideFontAsset);
-    final bytes = data.buffer.asUint8List(
-      data.offsetInBytes,
-      data.lengthInBytes,
-    );
-    // The writer opens single-face `glyf` fonts; anything else would embed a face
-    // with no glyphs rather than fail, so the check is what keeps a disc empty
-    // instead of drawing a box where the icon should be.
-    if (isPdfEmbeddableFont(bytes)) _iconFontBytes = bytes;
-  } catch (_) {
-    // A build without the icon asset simply draws the disc and nothing in it.
-  }
-  return _iconFontBytes;
-}
-
-/// Where the icon face lives in the bundle, as the icons package registers it.
-const String kLucideFontAsset =
-    'packages/lucide_icons_flutter/assets/lucide.ttf';
-
 /// Writes a PDF of [messages] where the user asks for it.
 ///
 /// The layout runs off the UI isolate — a hundred-message conversation is not a
@@ -920,8 +886,6 @@ Future<PdfExportResult?> exportChatMessagesPdf(
             appFontPath: settings.appFontLocalPath,
             codeFontPath: settings.codeFontLocalPath,
           );
-      final iconFont = await _pdfIconFont();
-
       // Formulas and diagrams are drawn here, where a widget tree exists, and the
       // layout then runs off-thread with the bitmaps in hand. A drawing that does
       // not come back is not a failure: the layout falls back to the formula's TeX
@@ -958,8 +922,6 @@ Future<PdfExportResult?> exportChatMessagesPdf(
           bodyFont: fonts.body,
           monoFont: fonts.mono,
           emojiFont: fonts.emoji,
-          iconFont: iconFont,
-          assistantIcon: Lucide.Bot.codePoint,
           rasters: rasters,
           enableMathRendering: settings.enableMathRendering,
           enableDollarLatex: settings.enableDollarLatex,

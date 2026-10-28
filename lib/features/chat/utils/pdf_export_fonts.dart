@@ -468,7 +468,7 @@ Future<_Face> _resolveBody(
     case PdfFontBuiltIn():
       return const _Face(null, PdfFontStatus(PdfFontSource.builtIn));
     case PdfFontSystemFace(:final path):
-      final face = await _faceFromPath(path, PdfFontSource.picked);
+      final face = await _bodyFaceFromPath(path, PdfFontSource.picked);
       if (face != null) return face;
     case PdfFontDownload(:final family):
       final face = await _downloadFace(
@@ -476,7 +476,7 @@ Future<_Face> _resolveBody(
         role: PdfFontRole.body,
         catalogue: catalogue,
       );
-      if (face != null) return face;
+      if (face != null && _isBodyWeight(face.bytes)) return face;
       // Nothing was asked of the network, so the row says what the check would
       // fetch rather than naming a face this resolution never had.
       if (catalogue == null) {
@@ -499,20 +499,20 @@ Future<_Face> _autoBody(
   String? appFontPath, {
   required _Catalogue? catalogue,
 }) async {
-  final picked = await _faceFromPath(appFontPath, PdfFontSource.picked);
+  final picked = await _bodyFaceFromPath(appFontPath, PdfFontSource.picked);
   if (picked != null) return picked;
 
   final system = await _firstSystemFace(_cjkFontNameHints, PdfFontRole.body);
   if (system != null) return system;
 
   final cached = await _cachedFace(PdfFontRole.body);
-  if (cached != null) return cached;
+  if (cached != null && _isBodyWeight(cached.bytes)) return cached;
 
   final downloaded = await _downloadFace(
     role: PdfFontRole.body,
     catalogue: catalogue,
   );
-  if (downloaded != null) return downloaded;
+  if (downloaded != null && _isBodyWeight(downloaded.bytes)) return downloaded;
 
   return const _Face(null, PdfFontStatus(PdfFontSource.builtIn));
 }
@@ -644,6 +644,60 @@ Future<_Face?> _faceFromPath(
   }
 }
 
+/// The lightest weight a face may declare and still set prose in.
+///
+/// Regular is 400; 300 is a Light that still holds a stem at 10.5 points, and
+/// anything under it is a page of grey smudges. The writer has no way to correct
+/// it — a stroke wide enough to thicken a hairline also fills the counters of
+/// every Han glyph it follows — so such a face is skipped, not compensated for.
+const int _minimumBodyWeight = 300;
+
+/// `usWeightClass` out of a font's own bytes, or null when it declares none.
+int? _weightOfBytes(Uint8List bytes) {
+  if (bytes.length < 12) return null;
+  final data = ByteData.sublistView(bytes);
+  final count = data.getUint16(4);
+  for (var index = 0; index < count; index++) {
+    final at = 12 + index * 16;
+    if (at + 16 > bytes.length) return null;
+    if (String.fromCharCodes(bytes.sublist(at, at + 4)) != 'OS/2') continue;
+    final offset = data.getUint32(at + 8) + 4;
+    if (offset + 2 > bytes.length) return null;
+    return data.getUint16(offset);
+  }
+  return null;
+}
+
+/// Whether [bytes] can set prose at all — see [_minimumBodyWeight].
+///
+/// The writer embeds a face's *default instance*: `pdf` reads `glyf` and never
+/// `fvar`, so a variable file that declares Thin is drawn in hairlines whatever
+/// the style says. A stroke cannot correct it — one wide enough to thicken a
+/// hairline fills the counters of every Han glyph it follows — which is why such
+/// a face is refused rather than compensated for.
+bool pdfFontSetsProse(Uint8List bytes) {
+  final weight = _weightOfBytes(bytes);
+  return weight == null || weight >= _minimumBodyWeight;
+}
+
+/// Whether [bytes] can set prose at all — see [_minimumBodyWeight].
+bool _isBodyWeight(Uint8List? bytes) =>
+    bytes == null || pdfFontSetsProse(bytes);
+
+/// [_faceFromPath] for the body role: the same file, or null when the face's
+/// default instance is too light to be read.
+///
+/// The check is on the *default instance*, which is the one the writer embeds:
+/// `pdf` reads `glyf` and never `fvar`, so a variable face whose default is
+/// declared Thin is drawn in hairlines however the style is set. Noto Sans SC's
+/// variable file is exactly that, and it is the file a picker offers as "Noto
+/// Sans SC" — which is why a page could come out unreadable while every setting
+/// on it looked right.
+Future<_Face?> _bodyFaceFromPath(String? path, PdfFontSource source) async {
+  final face = await _faceFromPath(path, source);
+  return face == null || _isBodyWeight(face.bytes) ? face : null;
+}
+
 /// One file on this machine the writer can open.
 class _SystemFace {
   const _SystemFace({
@@ -651,12 +705,22 @@ class _SystemFace {
     required this.key,
     required this.path,
     required this.colour,
+    required this.weight,
   });
 
   final String name;
   final String key;
   final String path;
   final bool colour;
+
+  /// The weight class the file declares in `OS/2`, or null when it does not.
+  ///
+  /// For a variable face this is the weight of the *default instance*, because
+  /// that is the instance the writer embeds: `pdf` reads `glyf` and never looks
+  /// at `fvar`, so a face whose default is Thin is drawn at Thin whatever the
+  /// style asked for. Noto Sans SC's variable file is one of those — it
+  /// declares 100 — which is why a page set in it comes out in hairlines.
+  final int? weight;
 }
 
 List<_SystemFace>? _systemFacesCache;
@@ -680,14 +744,15 @@ Future<List<_SystemFace>> _systemFaces() async {
     }
     for (final entry in byName.entries) {
       try {
-        final head = await _headOf(File(entry.value), 1024);
-        if (!isPdfEmbeddableFont(head)) continue;
+        final read = await _readHead(File(entry.value));
+        if (!isPdfEmbeddableFont(read.head)) continue;
         out.add(
           _SystemFace(
             name: p.basename(entry.value),
             key: entry.key,
             path: entry.value,
-            colour: pdfFontHasColourBitmaps(head),
+            colour: pdfFontHasColourBitmaps(read.head),
+            weight: read.weight,
           ),
         );
       } catch (_) {
@@ -701,32 +766,81 @@ Future<List<_SystemFace>> _systemFaces() async {
   return out;
 }
 
-Future<Uint8List> _headOf(File file, int length) async {
+/// The bytes the writer needs from a file's header, and the weight it declares.
+///
+/// One open rather than two: the table directory is in the first kilobyte, and
+/// `OS/2` — where `usWeightClass` lives — can sit anywhere after it.
+Future<({Uint8List head, int? weight})> _readHead(File file) async {
   final handle = await file.open();
   try {
-    return await handle.read(length);
+    final head = await handle.read(1024);
+    return (head: head, weight: await _weightIn(handle, head));
   } finally {
     await handle.close();
   }
 }
 
+/// `usWeightClass` out of the header's `OS/2` table, or null when it has none.
+Future<int?> _weightIn(RandomAccessFile handle, Uint8List head) async {
+  if (head.length < 12) return null;
+  final data = ByteData.sublistView(head);
+  final count = data.getUint16(4);
+  for (var index = 0; index < count; index++) {
+    final at = 12 + index * 16;
+    if (at + 16 > head.length) return null;
+    if (String.fromCharCodes(head.sublist(at, at + 4)) != 'OS/2') continue;
+    await handle.setPosition(data.getUint32(at + 8) + 4);
+    final bytes = await handle.read(2);
+    if (bytes.length < 2) return null;
+    return ByteData.sublistView(bytes).getUint16(0);
+  }
+  return null;
+}
+
 /// The first system font whose file name matches one of [hints], most desirable
-/// hint first, and among a hint's matches in enumeration order.
+/// hint first, and among a hint's matches the one closest to a regular weight.
+///
+/// The weight is not a refinement, it is the difference between a page and a
+/// blank one with grey smudges: the writer embeds a face's *default instance*,
+/// and the CJK face a machine is most likely to offer — Noto Sans SC's variable
+/// file — declares 100. Every candidate is tried when one fails to load, so the
+/// order only decides what a reader sees, never whether they see anything.
 Future<_Face?> _firstSystemFace(List<String> hints, PdfFontRole role) async {
   final faces = await _systemFaces();
   if (faces.isEmpty) return null;
   for (final hint in hints) {
-    for (final face in faces) {
-      if (!face.key.contains(hint)) continue;
-      final loaded = await _faceFromPath(
-        face.path,
-        PdfFontSource.system,
-        colour: role == PdfFontRole.emoji,
-      );
+    final matches = faces.where((face) => face.key.contains(hint)).toList();
+    if (matches.isEmpty) continue;
+    _byDeclaredWeight(matches);
+    for (final face in matches) {
+      final loaded = role == PdfFontRole.body
+          ? await _bodyFaceFromPath(face.path, PdfFontSource.system)
+          : await _faceFromPath(
+              face.path,
+              PdfFontSource.system,
+              colour: role == PdfFontRole.emoji,
+            );
       if (loaded != null) return loaded;
     }
   }
   return null;
+}
+
+/// Sorts [faces] in place: the weight closest to regular first, bare of the
+/// header a face does not have.
+///
+/// A tie between 100 and 700 is broken upwards, because a body set too heavy is
+/// still a body and a body set in hairlines is not. The name is the last key so
+/// the order is total and two runs on one machine agree.
+void _byDeclaredWeight(List<_SystemFace> faces) {
+  int distance(_SystemFace face) => ((face.weight ?? 400) - 400).abs();
+  faces.sort((a, b) {
+    final byDistance = distance(a).compareTo(distance(b));
+    if (byDistance != 0) return byDistance;
+    final heavier = (b.weight ?? 400).compareTo(a.weight ?? 400);
+    if (heavier != 0) return heavier;
+    return a.name.compareTo(b.name);
+  });
 }
 
 /// The roles a downloaded face is cached under, one file each: a face is cached

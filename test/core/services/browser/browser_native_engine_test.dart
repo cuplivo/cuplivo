@@ -20,14 +20,18 @@ import 'package:flutter_inappwebview_windows/flutter_inappwebview_windows.dart';
 
 const _androidDataUrl = 'data:text/html;charset=utf-8;base64,';
 
-/// The scheme the engine registers for workspace resources.
+/// The scheme the engine registers for workspace resources: the content
+/// namespace, `kelivo://`, not the app scheme `cuplivo://`.
 ///
-/// The fork's brand, not upstream's: `browser_native_engine.dart` registers
-/// `cuplivo`, and these cases still spelled `kelivo` after the rename — which is
-/// exactly the two that failed on CI, one on the registered-scheme list and one on
-/// a resource load the engine refused because its URL named a scheme it never
-/// registers. One spelling here, so the next rename moves one line.
-const _workspaceScheme = 'cuplivo';
+/// Two namespaces, and only one of them is registered with the OS (ADR-0001):
+/// `cuplivo://` opens the app on a conversation, while `kelivo://` addresses
+/// workspace content and is resolved in-process. The identity rename swept the
+/// engine's registry and its handler to `cuplivo` while every builder, the
+/// address validator and `BrowserWorkspaceScope.owns` stayed on `kelivo`, so a
+/// workspace page could not load at all — these cases failed on exactly that.
+/// Spelled literally here rather than derived from the product, so a rename
+/// that splits the two again fails instead of agreeing with itself.
+const _workspaceScheme = 'kelivo';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

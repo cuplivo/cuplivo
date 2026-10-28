@@ -12,6 +12,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_inappwebview_android/flutter_inappwebview_android.dart'
     show AndroidPathHandler;
 import '../../../features/browser/models/browser_models.dart';
+import '../workspace/file_link_resolver.dart';
 import 'browser_engine.dart';
 import 'browser_failure.dart';
 import 'browser_download_cookies.dart';
@@ -231,7 +232,10 @@ class NativeBrowserEngine implements BrowserEngine {
     // each WebView scroll frame.
     useHybridComposition: _usesHybridComposition,
     javaScriptEnabled: true,
-    resourceCustomSchemes: const ['cuplivo'],
+    // The workspace content namespace, not the app scheme: the pages are
+    // `kelivo://workspace/…` and that is the scheme [KelivoLink] builds, so the
+    // registry has to name the same one the handler accepts.
+    resourceCustomSchemes: const [KelivoLink.scheme],
     webViewAssetLoader: _workspaceLoader,
     useShouldOverrideUrlLoading: true,
     useOnDownloadStart: true,
@@ -1118,7 +1122,7 @@ class NativeBrowserEngine implements BrowserEngine {
     final uri = Uri.tryParse(request.url.toString());
     if (scope == null ||
         uri == null ||
-        uri.scheme != 'cuplivo' ||
+        uri.scheme != KelivoLink.scheme ||
         !scope.owns(uri) ||
         request.method != 'GET') {
       return null;

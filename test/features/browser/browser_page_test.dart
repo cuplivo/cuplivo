@@ -443,7 +443,7 @@ void main() {
     'mobile address submits a search and mounts the shared engine',
     (tester) async {
       await mount(tester, conversationId: 'chat-a');
-      expect(find.text('Kelivo'), findsOneWidget);
+      expect(find.text('Cuplivo'), findsOneWidget);
       expect(find.byKey(const ValueKey('browserAddressField')), findsNothing);
       await tester.tap(
         find.descendant(
@@ -461,7 +461,7 @@ void main() {
       expect(service.activeTab!.url, contains('q=flutter'));
       expect(service.activeTab!.ownerSessionId, 'chat-a');
       expect(find.byKey(const ValueKey('fakeNativeView')), findsOneWidget);
-      expect(find.text('Kelivo'), findsNothing);
+      expect(find.text('Cuplivo'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
@@ -524,7 +524,7 @@ void main() {
         expect(engines[selected.id], same(engine));
         expect(engine.navigations, navigations);
         expect(find.byKey(const ValueKey('fakeNativeView')), findsOneWidget);
-        expect(find.text('Kelivo'), findsNothing);
+        expect(find.text('Cuplivo'), findsNothing);
 
         // Docking must also honor the explicit handoff if global selection
         // changes while the outgoing route finishes detaching.
@@ -595,7 +595,7 @@ void main() {
       await mount(tester, conversationId: 'chat-a');
       expect(service.tabs, hasLength(1));
       expect(service.activeTab, isNull);
-      expect(find.text('Kelivo'), findsOneWidget);
+      expect(find.text('Cuplivo'), findsOneWidget);
       expect(service.liveViewCount, 0);
     },
   );
@@ -733,7 +733,7 @@ void main() {
     await mount(tester);
     expect(service.activeTab!.url, 'about:blank');
     expect(find.byKey(const ValueKey('fakeNativeView')), findsOneWidget);
-    expect(find.text('Kelivo'), findsNothing);
+    expect(find.text('Cuplivo'), findsNothing);
   });
 
   browserTestWidgets(

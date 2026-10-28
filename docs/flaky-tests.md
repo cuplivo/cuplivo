@@ -23,6 +23,7 @@ source**, or marked as **not reproduced**.
 | same two tests, second pass (2026-10-21) | the remaining exposure was not the hang order but *which side of the cancel* decided first: under full-suite load the host's 120 ms abandon timer (`killGrace` + `isolateExitDeadline`) can be starved past the isolate's 2 s hang, so the isolate's own failure message — a `BackupCancelledException` whose `isolateExited` defaults to `true` — becomes the error, and `backupIsolateStillAlive` answers "gone" while the isolate is still sleeping. Fixing the flag at the source was tried and **reverted**: claiming `isolateExited: false` from inside the isolate moves `data_sync_backup_file_test`'s "cancelling … deletes the work directory" cases to the deferred branch and breaks their contract (the workspace must be gone when the call returns). The assertion was the wrong instrument instead: it now checks the invariant pair — a live isolate keeps its workspace, and nothing may survive once it is gone |
 | §9 — the three Windows-only defect families (`workspace_file_navigation_test.dart` ×5, `markstream_adapters_test.dart` › image providers…, `file_preview_test.dart` › code preview lazily…) | none of them was a platform limit: `p.canonicalize` lower-cases the whole path on Windows, `SandboxPathResolver.fix` returned its `/`-folded *matching* form, and the paged preview legitimately holds its file open until disposed. Fixed at each layer, see **§9** |
 | §3 — `file_browser_test.dart` › new folder rename and delete through the widget, and the `finish()` budget in `home_page_controller_composer_draft_test.dart` | both surfaced once in a 2026-10-21 full-suite run and pass in isolation. A single `_reload` after a mutation is not a synchronisation point — the mutation triggers its own refresh, and two refreshes can land out of order, so the older listing overwrites the newer one; the test now reloads until the item itself is on screen. `finish()` keeps `done` as the pass condition and bounds only a hung operation, in wall-clock terms instead of 200 × 15 ms (~3 s) |
+| §15 — the sync suite's eight panel cases | two layers, both in the test: `pumpAndSettle` cannot settle while the pairing dialog's `Timer.periodic` countdown or the panel's repeating progress bar is on screen, and the teardown's `ChatService.close()` deadlocks when awaited under the fake clock. The five pumping cases now use a bounded `pumpPanel`, and all eight close their side inside `closePanel`'s `runAsync`. The file went from 106 min / 151 passed / 8 failed to **4 min 08 s / 159 passed**, and the 89-minute CI run that reported `11516 passed, 10 failed` loses its eight hangs |
 
 Verified with Dart 3.13.0 (the SDK CI pins): `dart format` clean and
 `dart analyze --fatal-infos lib test integration_test` clean over the whole project; the four
@@ -836,13 +837,13 @@ tip that has none of our code. The registry therefore stands at **70 entries** �
 cases and these two — down from 320, and the drop is upstream's, not a cleanup.
 
 
-## 15. The sync suite's panel cases never settle, and cost ten minutes each
+## 15. The sync suite's panel cases never settled, and cost ten minutes each — fixed
 
-`test/core/services/sync/sync_engine_integration_test.dart` holds 145 cases, 14 of them
-`testWidgets`. Eight of those never reach `pumpAndSettle`'s quiet state; each one then fails on the
-*widget-test deadline* rather than on an assertion, which is why the reported error names no
-expectation and why the file alone takes **106 minutes** and reports **151 passed, 8 failed**. That
-one file is the whole reason a full local suite needs two hours instead of twenty-five minutes.
+`test/core/services/sync/sync_engine_integration_test.dart` holds 159 cases, 14 of them
+`testWidgets`. Eight of those never reached `pumpAndSettle`'s quiet state; each one then failed on
+the *widget-test deadline* rather than on an assertion, which is why the reported error names no
+expectation and why the file alone took **106 minutes** and reported **151 passed, 8 failed**. That
+one file was the whole reason a full local suite needed two hours instead of twenty-five minutes.
 
 The eight: `a hand-typed code announces the device it paired with`, `a peer card says how long ago,
 and one tile per address`, `the address repair stores the bare host, like pairing does`, `the delete
@@ -850,23 +851,49 @@ gesture in the detail is what asks for the delete`, `the address detail is a she
 dialog on a desk`, `a peer card renders its outcome as chips, not one joined line`, `a settled session
 that moved nothing reads as up to date`, and `a card shows the online dot and the first-sync warning`.
 
-**They are not this re-base's damage**, and the proof is that there is nothing left to compare: the
+**They were not the re-base's damage**, and the proof is that there is nothing left to compare: the
 whole `lib/features/sync/` tree, `lib/shared/widgets/animated_progress_bar.dart` and every other
 widget those cases drive are byte-identical at `d28bc1cbb` (the old fork tip) and at the replay's tip,
 and the test file itself differs only by the pinned-SDK reformat — `git diff backup/master-d28bc1cbb
 HEAD -- lib/features/sync test/core/services/sync/sync_engine_integration_test.dart` prints 10
-insertions and 7 deletions, all of them line wrapping. The failure is a property of the fork's own
-sync UI on this machine, which is also the most likely explanation for the previous pass's
-unexplained `SyncProvider`-panel cases.
+insertions and 7 deletions, all of them line wrapping. The failure was a property of the fork's own
+sync UI, which is also the most likely explanation for the previous pass's unexplained
+`SyncProvider`-panel cases.
 
-The mechanism is worth knowing before touching them: a widget that keeps a frame scheduled keeps
-`pumpAndSettle` looping until *its* deadline (ten minutes) expires. The pairing dialog's countdown
+### Why it hung, in two layers
+
+**One: a widget that keeps a frame scheduled.** `pumpAndSettle` loops until *its* deadline (ten
+minutes) expires, and the pairing dialog never lets it settle — the countdown
 (`sync_pairing_dialogs.dart:94`) is a `Timer.periodic` that calls `setState` every second, and the
-panel's indeterminate bar (`animated_progress_bar.dart:75`) is an `AnimationController.repeat(reverse:
-true)`. Either one on screen is enough, and neither is what those cases assert on. The repair, when
-someone takes it, is bounded `pump(Duration)` loops in those eight cases (the pattern §4 counts) or
-making the two animations settle under a test's fake clock. It is not a registry entry: the entry
-would have to be true on CI too, and nothing here can show that.
+panel's indeterminate bar (`animated_progress_bar.dart:75`) is an
+`AnimationController.repeat(reverse: true)`. Either one on screen is enough, and neither is what
+those cases assert on.
+
+**Two: a teardown awaited across the fake clock.** Fixing the first layer moved the hang, it did not
+remove it: `_Side`'s stores close for real, and `ChatService.close()` waits on drift's own shutdown —
+a future the widget test's fake clock never advances. Awaiting it in the body deadlocks the case
+without failing it, and the database it leaves open is what wedged *every case after it*: those hung
+inside the next case's `_Side.start`, which is why one stuck case used to cost eight deadlines. A
+`debugPrint` bisection through the first of the eight named the exact line — the body reached
+`provider.dispose()` and never reached the `chatService.close()` after it.
+
+### The repair
+
+`pumpPanel` — a bounded `pump` loop, 20 frames of 50 ms — replaces `pumpAndSettle` in the five cases
+whose dialog never settles; `closePanel` runs the teardown inside `tester.runAsync`, so the close
+happens on the real event loop. Both live next to the test's other helpers, with the mechanism
+written down where the next reader will find it.
+
+Measured on this machine, Windows, Dart 3.13.0:
+
+| | before | after |
+| --- | --- | --- |
+| the file alone | 106 min, 151 passed, 8 failed | **4 min 08 s, 159 passed** |
+| one of the eight, alone | 10 min deadline, no assertion | 1 s, passes |
+| a full CI run | 89 min, `11516 passed, 10 failed` (8 of them these) | — |
+
+It is not a registry entry, and it never could be: an entry would have to be true on CI too, and a
+hang is a property of the test's own clock handling rather than of the platform.
 
 ## 16. Two failures in the `b1702b3a9` full run that the baseline did not cause
 

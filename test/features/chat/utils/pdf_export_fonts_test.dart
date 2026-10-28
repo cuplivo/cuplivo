@@ -40,6 +40,22 @@ void main() {
     );
   });
 
+  test('a face that declares a hairline cannot set prose', () {
+    // The writer embeds the default instance of whatever file it is handed, and
+    // Noto Sans SC's variable file declares 100 — the face a picker offers as
+    // "Noto Sans SC", and the one an export used to come out in. A page set in it
+    // reads as grey smudges, so the face is refused and the resolver falls to one
+    // that declares a weight a page can be read at.
+    expect(pdfFontSetsProse(_weightedFont(100)), isFalse);
+    expect(pdfFontSetsProse(_weightedFont(200)), isFalse);
+    expect(pdfFontSetsProse(_weightedFont(300)), isTrue);
+    expect(pdfFontSetsProse(_weightedFont(400)), isTrue);
+    expect(pdfFontSetsProse(_weightedFont(700)), isTrue);
+    // A file that declares nothing is not refused for it: the writer's own
+    // built-in face has no `OS/2` at all.
+    expect(pdfFontSetsProse(_weightedFont(null)), isTrue);
+  });
+
   test('only a Unicode-flavoured face is embedded as a Unicode one', () {
     expect(isPdfEmbeddableFont(_syntheticFont(<String>['glyf'])), isTrue);
 
@@ -283,6 +299,42 @@ class _Offering extends PdfFontResolver {
 /// decides whether the writer treats the face as Unicode.
 Uint8List _flavouredFont(String tag) =>
     Uint8List.fromList(<int>[...tag.codeUnits, 0, 0, 0, 0, 0, 0, 0, 0]);
+
+/// A single-face TrueType whose `OS/2` table declares [weight], or none at all.
+///
+/// The directory is the whole of what the weight read walks, and the table's own
+/// offset points at a six-byte body: the version word, then `usWeightClass`.
+Uint8List _weightedFont(int? weight) {
+  final tables = weight == null ? <String>['glyf'] : <String>['OS/2', 'glyf'];
+  final bodyOffset = 12 + tables.length * 16;
+  final out = <int>[
+    0, 1, 0, 0, //
+    (tables.length >> 8) & 0xFF, tables.length & 0xFF,
+    0, 0, 0, 0, 0, 0,
+  ];
+  for (final tag in tables) {
+    final offset = tag == 'OS/2' ? bodyOffset : 0;
+    final length = tag == 'OS/2' ? 6 : 0;
+    out
+      ..addAll(tag.codeUnits)
+      ..addAll(<int>[0, 0, 0, 0])
+      ..addAll(<int>[
+        (offset >> 24) & 0xFF,
+        (offset >> 16) & 0xFF,
+        (offset >> 8) & 0xFF,
+        offset & 0xFF,
+        (length >> 24) & 0xFF,
+        (length >> 16) & 0xFF,
+        (length >> 8) & 0xFF,
+        length & 0xFF,
+      ]);
+  }
+  if (weight != null) {
+    // version, xAvgCharWidth, then usWeightClass — which is at offset 4.
+    out.addAll(<int>[0, 4, 0, 0, (weight >> 8) & 0xFF, weight & 0xFF]);
+  }
+  return Uint8List.fromList(out);
+}
 
 /// A single-face TrueType header whose table directory names [tags], which is
 /// all the colour-bitmap check reads.

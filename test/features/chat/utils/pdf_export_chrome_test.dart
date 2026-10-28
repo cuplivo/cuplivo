@@ -11,11 +11,16 @@ import '../../../support/test_png.dart';
 ///
 /// The screen heads a message with a disc, a name and a timestamp, sets a
 /// reader's own messages on a tinted bubble, draws emphasis in a heavier weight
-/// and separates blocks with the app's own spacing. A page has to reach the same
-/// reading with the tools it has: one face, no bitmaps, and a flow that cannot put
-/// a decorated box around content it must be able to break. What it does instead
-/// is pinned here, because every one of those substitutions is a decision a later
-/// change could quietly undo.
+/// and separates blocks with the app's own spacing. A page cannot copy any of
+/// that: it has one face, no bitmaps, and a flow that cannot put a decorated box
+/// around content it must be able to break. What it does instead is pinned here,
+/// because every one of those substitutions is a decision a later change could
+/// quietly undo.
+///
+/// The disc and the reader's bubble are absent on purpose, and one test below
+/// pins what replaced them: every message starts on the margin the title starts
+/// on. A second pale column 10 points in was two left edges where a page has
+/// one, and the disc put a message's prose 27 points right of both.
 void main() {
   group('a speaker line', () {
     test(
@@ -36,7 +41,7 @@ void main() {
       },
     );
 
-    test('keeps an assistant\'s name and puts its time underneath', () async {
+    test('keeps an assistant\'s name and time on one line', () async {
       final drawn = await _drawn(
         blocks: <ExportBlock>[const ExportText('hello there')],
       );
@@ -44,35 +49,37 @@ void main() {
 
       expect(texts, contains('Assistant'));
       expect(texts, contains('03:04:05'));
-      // The time sits on the line below the name rather than beside it: 8.8
-      // points of name over 7.4 of time, and the pair's own 2-point gap.
-      final name = pdfWordY(drawn, 'Assistant');
-      final time = pdfWordY(drawn, '03:04:05');
-      expect(name - time, closeTo(10.9, 0.6));
+      // One line, name first: 8.8 points of name and 7.4 of time share a
+      // baseline, and the time stands off to its right. The screen stacks the
+      // pair under a disc; a page has no disc to put there, and a stack without
+      // one is two lines of furniture where a transcript spends one.
+      final name = drawn.firstWhere((line) => line.text == 'Assistant');
+      final time = drawn.firstWhere((line) => line.text == '03:04:05');
+      expect((name.y - time.y).abs(), lessThan(0.5));
+      expect(time.x, greaterThan(name.x + 20));
     });
 
-    test('draws the avatar disc for an assistant and not for a reader', () async {
-      final assistant = await _export(
+    test('starts on the margin the title starts on', () async {
+      final result = await _export(
         blocks: <ExportBlock>[const ExportText('hello there')],
       );
-      final user = await _export(
-        speaker: ExportSpeaker.user,
-        blocks: <ExportBlock>[const ExportText('hello there')],
-      );
+      final drawn = drawnPdfStrings(result.bytes);
 
-      // The disc is an ellipse: curves where the same page without it has none,
-      // filled in the accent's own 10% tint.
+      // One column for the whole page: the title, the name and the prose all
+      // start at the margin — 60 points of A4, which is a page's margin rather
+      // than a screen's.
+      expect(pdfWordX(drawn, 'Assistant'), closeTo(60, 0.6));
+      expect(pdfWordX(drawn, 'hello'), closeTo(60, 0.6));
+      // And no bubble anywhere: an assistant's message is prose, not a panel.
       expect(
-        pdfDrawingOperators(assistant.bytes)['c'] ?? 0,
-        greaterThan(pdfDrawingOperators(user.bytes)['c'] ?? 0),
+        pdfFilledRects(result.bytes).where((fill) => fill.width > 400),
+        isEmpty,
       );
-      expect(_hasColour(assistant.bytes, 0.93020, 0.93608, 0.95725), isTrue);
-      expect(_hasColour(user.bytes, 0.93020, 0.93608, 0.95725), isFalse);
     });
   });
 
   group('a reader\'s message', () {
-    test('is one tinted panel, entered at the label\'s own left edge', () async {
+    test('is set on the page\'s own axis, with no panel of its own', () async {
       final result = await _export(
         speaker: ExportSpeaker.user,
         blocks: <ExportBlock>[
@@ -82,20 +89,16 @@ void main() {
       );
       final drawn = drawnPdfStrings(result.bytes);
 
-      // The tint is the accent over paper at 7%, which is the app's own bubble.
-      expect(_hasColour(result.bytes, 0.95114, 0.95525, 0.97008), isTrue);
-      // The label and the text under it start in one column — the band's inset.
-      expect(pdfWordX(drawn, 'User'), pdfWordX(drawn, 'first'));
-
-      // One panel, not two: each block's fill is exactly as tall as the step from
-      // one block's text to the next, so the fills touch. A gap between the blocks
-      // would leave the fills the same size and the page further down.
-      final fills = pdfFilledRects(
-        result.bytes,
-      ).where((fill) => fill.width > 400).toList();
-      expect(fills, hasLength(2));
-      final step = pdfWordY(drawn, 'first') - pdfWordY(drawn, 'second');
-      expect(fills.first.height, closeTo(step, 0.1));
+      // The label and the text under it share the margin. The tint that used to
+      // mark a reader's turn is gone with it: on paper the speaker line already
+      // says who is talking, and a second pale surface 10 points in was the
+      // thing that made the column look unaligned.
+      expect(pdfWordX(drawn, 'User'), closeTo(60, 0.6));
+      expect(pdfWordX(drawn, 'first'), closeTo(60, 0.6));
+      expect(
+        pdfFilledRects(result.bytes).where((fill) => fill.width > 400),
+        isEmpty,
+      );
     });
   });
 
@@ -401,18 +404,6 @@ Future<List<({double x, double y, String text})>> _drawn({
 
 List<String> _texts(List<({double x, double y, String text})> drawn) =>
     drawn.map((line) => line.text).toList();
-
-/// Whether any fill in [bytes] is the colour [r], [g], [b] as the writer spells
-/// it. The writer trims trailing zeros, so the comparison is numeric.
-bool _hasColour(Uint8List bytes, double r, double g, double b) =>
-    RegExp(r'(-?[\d.]+) (-?[\d.]+) (-?[\d.]+) rg')
-        .allMatches(pdfStreams(bytes))
-        .any(
-          (match) =>
-              (double.parse(match.group(1)!) - r).abs() < 0.0001 &&
-              (double.parse(match.group(2)!) - g).abs() < 0.0001 &&
-              (double.parse(match.group(3)!) - b).abs() < 0.0001,
-        );
 
 Set<double> _lineWidths(Uint8List bytes) => RegExp(r'(-?[\d.]+) w\b')
     .allMatches(pdfStreams(bytes))

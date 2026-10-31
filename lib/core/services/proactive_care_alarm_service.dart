@@ -320,58 +320,57 @@ class ProactiveCareAlarmService {
     }
   }
 
-  /// Whether [assistants] can resolve the owner of every conversation whose
-  /// schedule is still in the future — the schedules a replace-all would arm. An
-  /// unloaded assistant store, or a resolver that dropped an owner, makes the
-  /// snapshot unusable for a replace-all: that conversation would silently fall
-  /// out of the payload and lose its alarm.
-  ///
-  /// The rule is deliberately the conservative one, and its cost is real: a
-  /// schedule whose owner id is genuinely gone is indistinguishable here from one
-  /// whose owner the resolver merely failed to load, so it vetoes the whole
-  /// re-arm and every other pending letter goes unarmed with it. Telling those
-  /// two apart needs the resolver's answer to say which it is (or a caller that
-  /// knows the assistant store finished loading), not a looser predicate here. A
-  /// past-due schedule is not part of this at all: the re-arm cancels those on
-  /// purpose, and [pendingForReschedule] only ever returns the future ones.
-  static bool _resolvesEveryScheduledOwner(
-    List<Conversation> conversations,
-    List<Assistant> assistants, {
-    DateTime? now,
-  }) {
-    final ownerIds = {for (final assistant in assistants) assistant.id};
-    final current = now ?? DateTime.now();
-    return !conversations.any(
-      (conversation) =>
-          conversation.assistantId != null &&
-          conversation.proactiveCareNextMessageAt?.isAfter(current) == true &&
-          !ownerIds.contains(conversation.assistantId),
-    );
-  }
-
   /// Re-arms every pending future schedule (app start, app resume, alarm
   /// permission granted, restore import). This only *consumes* the upstream
   /// re-arm API — it never owns timing itself on Android.
   ///
-  /// Every owner is a replace-all: the native registry cancels whatever the
-  /// payload omits and the in-process mirror clears and refills. A partial
-  /// snapshot would therefore cancel letters it simply cannot see, so the call
-  /// is refused outright when an owner is missing for a schedule that would
-  /// otherwise be armed, rather than arming less than the caller asked for.
+  /// Every platform's re-arm is a replace-all: the native registry cancels
+  /// whatever the payload omits and the in-process mirror clears and refills. A
+  /// partial snapshot would therefore cancel letters it simply cannot see, so
+  /// [assistantStoreLoaded] is the caller's guarantee that the owner store has
+  /// finished loading. Only under that guarantee does an unresolved owner mean
+  /// the assistant is genuinely gone; a caller that cannot make it must not
+  /// call this method.
+  ///
+  /// With it, a schedule whose owner is gone is dropped from this one payload —
+  /// and its stale native alarm is cancelled with it — rather than vetoing
+  /// every other pending letter: it can never be armed again, so it must not
+  /// hold the healthy ones hostage. Past-due schedules are not part of this at
+  /// all; [pendingForReschedule] only ever returns the future ones. Omissions
+  /// are logged, because an unarmed letter nobody can see is the failure this
+  /// guard was born from.
   static Future<void> rescheduleAll({
     required List<Conversation> conversations,
     required List<Assistant> assistants,
+    required bool assistantStoreLoaded,
   }) async {
     if (!isSupported) return;
 
-    final now = DateTime.now();
-    if (!_resolvesEveryScheduledOwner(conversations, assistants, now: now)) {
+    if (!assistantStoreLoaded) {
       debugPrint(
-        '[ProactiveCare] re-arm skipped: incomplete snapshot '
-        '(${conversations.length} conversation(s), '
-        '${assistants.length} owner(s))',
+        '[ProactiveCare] re-arm skipped: assistant store not loaded '
+        '(${conversations.length} conversation(s))',
       );
       return;
+    }
+
+    final now = DateTime.now();
+    final pending = pendingForReschedule(
+      conversations: conversations,
+      assistants: assistants,
+      now: now,
+    );
+    final futureScheduled = conversations
+        .where(
+          (conversation) =>
+              conversation.proactiveCareNextMessageAt?.isAfter(now) == true,
+        )
+        .length;
+    if (pending.length < futureScheduled) {
+      debugPrint(
+        '[ProactiveCare] re-arm omits ${futureScheduled - pending.length} '
+        'future schedule(s) with no resolvable owner or care switched off',
+      );
     }
 
     if (_isDesktopTarget) {
@@ -397,11 +396,6 @@ class ProactiveCareAlarmService {
 
     if (_isAndroidTarget) {
       try {
-        final pending = pendingForReschedule(
-          conversations: conversations,
-          assistants: assistants,
-          now: now,
-        );
         debugPrint(
           '[ProactiveCare] re-arm ${pending.length} pending letter(s)',
         );

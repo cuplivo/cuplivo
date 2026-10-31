@@ -252,6 +252,7 @@ void main() {
           ),
         ],
         assistants: [assistant()],
+        assistantStoreLoaded: true,
       );
 
       final payload =
@@ -263,44 +264,59 @@ void main() {
       ]);
     });
 
-    test('rescheduleAll refuses a snapshot with no owner assistant', () async {
-      final dueAt = now.add(const Duration(minutes: 10));
-
-      await ProactiveCareAlarmService.rescheduleAll(
-        conversations: [conversation(nextAt: dueAt)],
-        assistants: const [],
-      );
-
-      // A replace-all on a snapshot whose assistant store is unloaded would
-      // cancel the alarms it cannot see, so the whole call must be refused.
-      expect(calls.map((c) => c.method), isNot(contains('rescheduleAll')));
-    });
-
     test(
-      'rescheduleAll refuses a snapshot missing a scheduled owner',
+      'rescheduleAll refuses a snapshot while the assistant store is unloaded',
       () async {
+        // A replace-all on a store that is about to fill would cancel every
+        // alarm it cannot see, so the caller's guarantee is the refusal.
         await ProactiveCareAlarmService.rescheduleAll(
           conversations: [
-            conversation(
-              assistantId: 'a1',
-              nextAt: now.add(const Duration(minutes: 10)),
-            ),
+            conversation(nextAt: now.add(const Duration(minutes: 10))),
           ],
-          // The scheduled conversation is owned by a1; a partially loaded store
-          // would look exactly like this, and a replace-all would cancel it.
-          assistants: [assistant(id: 'a2')],
+          assistants: const [],
+          assistantStoreLoaded: false,
         );
 
         expect(calls.map((c) => c.method), isNot(contains('rescheduleAll')));
       },
     );
 
-    test('a stale schedule no longer vetoes the whole re-arm', () async {
+    test(
+      'rescheduleAll arms the healthy letters when a scheduled owner is gone',
+      () async {
+        final dueAt = now.add(const Duration(minutes: 10));
+
+        // The store is loaded, so `deleted` is genuinely gone: that schedule can
+        // never be armed again and must only drop itself. The healthy letter
+        // still has to be re-armed.
+        await ProactiveCareAlarmService.rescheduleAll(
+          conversations: [
+            conversation(assistantId: 'a1', nextAt: dueAt),
+            conversation(
+              id: 'dangling',
+              assistantId: 'deleted',
+              nextAt: now.add(const Duration(hours: 5)),
+            ),
+          ],
+          assistants: [assistant(id: 'a1')],
+          assistantStoreLoaded: true,
+        );
+
+        final payload =
+            (calls.singleWhere((c) => c.method == 'rescheduleAll').arguments
+                    as Map)['alarms']
+                as List;
+        expect(payload, [
+          {'conversationId': 'c1', 'dueAt': dueAt.millisecondsSinceEpoch},
+        ]);
+      },
+    );
+
+    test('a stale or ownerless schedule is omitted without vetoing', () async {
       final dueAt = now.add(const Duration(minutes: 10));
 
-      // Only the past-due row has a dangling owner. It can never be armed
-      // again, so it must not block the healthy pending letter (the same
-      // applies to a schedule whose owner id is gone entirely).
+      // Only the past-due row has a dangling owner, and `ownerless` has none at
+      // all. Neither can ever be armed, so neither may block the healthy one.
       await ProactiveCareAlarmService.rescheduleAll(
         conversations: [
           conversation(nextAt: dueAt),
@@ -312,6 +328,7 @@ void main() {
           conversation(id: 'ownerless', assistantId: null, nextAt: dueAt),
         ],
         assistants: [assistant()],
+        assistantStoreLoaded: true,
       );
 
       final payload =
@@ -321,6 +338,25 @@ void main() {
       expect(payload, [
         {'conversationId': 'c1', 'dueAt': dueAt.millisecondsSinceEpoch},
       ]);
+    });
+
+    test('a complete snapshot with no assistants clears the registry', () async {
+      // Loaded and empty is a real state (every assistant was deleted), not an
+      // unloaded store: no owner can be armed, so the replace-all sends nothing
+      // and the native side drops the alarms nobody can deliver.
+      await ProactiveCareAlarmService.rescheduleAll(
+        conversations: [
+          conversation(nextAt: now.add(const Duration(minutes: 10))),
+        ],
+        assistants: const [],
+        assistantStoreLoaded: true,
+      );
+
+      final payload =
+          (calls.singleWhere((c) => c.method == 'rescheduleAll').arguments
+                  as Map)['alarms']
+              as List;
+      expect(payload, isEmpty);
     });
 
     test('the exact-alarm grant the native owner reports is kept', () async {
@@ -351,6 +387,7 @@ void main() {
           conversation(nextAt: now.add(const Duration(minutes: 10))),
         ],
         assistants: [assistant()],
+        assistantStoreLoaded: true,
       );
 
       expect(ProactiveCareAlarmService.exactAlarmsPermitted, isTrue);

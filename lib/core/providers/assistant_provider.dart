@@ -26,6 +26,7 @@ class AssistantProvider extends ChangeNotifier {
   String? _currentAssistantId;
   String? _orphanedAssistantId;
   final ChatService? chatService;
+  bool _loaded = false;
 
   List<Assistant> get assistants => List.unmodifiable(_assistants);
   String? get currentAssistantId => currentAssistant?.id;
@@ -43,6 +44,13 @@ class AssistantProvider extends ChangeNotifier {
   }
 
   late final Future<void> loaded;
+
+  /// Whether [loaded] has completed. The list is either empty (before the
+  /// first load) or complete — [_load] replaces it in one synchronous swap
+  /// after the preferences await — so this is the only "not ready" state there
+  /// is. It never flips back: a reload keeps the previous complete list until
+  /// the new one is decoded.
+  bool get isLoaded => _loaded;
 
   /// Re-reads assistants after LAN sync wrote business rows outside this
   /// provider's own write path (ADR-0003 apply → reload).
@@ -115,6 +123,7 @@ class AssistantProvider extends ChangeNotifier {
     if (_currentAssistantId != null && savedValue != _currentAssistantId) {
       await preferences.setString(_currentAssistantKey, _currentAssistantId!);
     }
+    _loaded = true;
     notifyListeners();
   }
 

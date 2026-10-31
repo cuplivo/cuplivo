@@ -1455,6 +1455,9 @@ class HomePageController extends ChangeNotifier {
         await ProactiveCareAlarmService.rescheduleAll(
           conversations: _chatService.getAllConversations(),
           assistants: _context.read<AssistantProvider>().assistants,
+          // `initChat` awaited `assistantProvider.loaded` above, so an owner
+          // this list cannot resolve is genuinely gone.
+          assistantStoreLoaded: true,
         );
         // A notification-tap cold start resumed before this point and its
         // catch-up could only see an empty conversation cache. This is the

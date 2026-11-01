@@ -1185,7 +1185,7 @@ class _HomePageState extends State<HomePage>
     final settings = context.watch<SettingsProvider>();
     final suggestionConversation = conversationId == null
         ? null
-        : chat.getConversation(conversationId!);
+        : chat.getConversation(conversationId);
     final suggestionAssistant = context
         .watch<AssistantProvider>()
         .resolveConversationAssistant(suggestionConversation?.assistantId);

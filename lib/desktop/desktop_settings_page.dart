@@ -370,11 +370,11 @@ class _DesktopSettingsPageState extends State<DesktopSettingsPage> {
                         key: ValueKey('networkProxy'),
                       );
                     case _SettingsMenuItem.backup:
+                      return const DesktopBackupPane(key: ValueKey('backup'));
                     case _SettingsMenuItem.lanSync:
                       return const DesktopSyncPane(
                         key: ValueKey('lanSync'),
                       );
-                      return const DesktopBackupPane(key: ValueKey('backup'));
                     case _SettingsMenuItem.scheduledTasks:
                       return const DesktopScheduledTasksPane(
                         key: ValueKey('scheduledTasks'),

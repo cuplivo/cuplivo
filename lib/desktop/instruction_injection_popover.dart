@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 import 'package:Cuplivo/features/chat/utils/prompt_injection_selection.dart';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';

@@ -1804,7 +1804,6 @@ class _MessageListViewState extends State<MessageListView> {
       showModelIcon: widget.showModelIcon,
       showUserAvatar: widget.showUserAvatar,
       showTokenStats: widget.showTokenStats,
-      assistant: widget.assistant,
     );
     return UiPersistenceHost(
       registry: _uiRegistry,
@@ -2128,9 +2127,20 @@ class _MessageListViewState extends State<MessageListView> {
     final message = model.message;
     final r = widget.reasoning[message.id];
     final t = widget.translations[message.id];
-    final assistant = presentation.assistant;
-    final useAssistAvatar = assistant?.useAssistantAvatar == true;
-    final useAssistName = assistant?.useAssistantName == true;
+    // The reply's own author, and the two switches that decide whether it is
+    // shown by name and face. Both answers come from that same assistant: taking
+    // the switches from the selected 1:1 assistant labelled a member who never
+    // opted in, hid one who did, and made the panel disagree with the export of
+    // the same conversation (architecture.md §"头像、名字").
+    final resolvedAuthor = message.senderId == null
+        ? null
+        : widget.assistants?.getById(message.senderId!);
+    final authorGone = message.senderId != null && resolvedAuthor == null;
+    final author = resolvedAuthor ?? (authorGone ? null : widget.assistant);
+    // A deleted author keeps a name — "deleted assistant" — instead of the row
+    // silently borrowing someone else's identity.
+    final useAssistAvatar = authorGone || author?.useAssistantAvatar == true;
+    final useAssistName = authorGone || author?.useAssistantName == true;
     final gid = model.slotId;
     final availableVersions = model.availableVersions;
     final selectedVersion = model.selectedVersion;
@@ -2196,7 +2206,8 @@ class _MessageListViewState extends State<MessageListView> {
                               t: t,
                               useAssistAvatar: useAssistAvatar,
                               useAssistName: useAssistName,
-                              assistant: assistant,
+                              author: author,
+                              authorGone: authorGone,
                               gid: gid,
                               availableVersions: availableVersions,
                               selectedVersion: selectedVersion,
@@ -2214,7 +2225,8 @@ class _MessageListViewState extends State<MessageListView> {
                               t: t,
                               useAssistAvatar: useAssistAvatar,
                               useAssistName: useAssistName,
-                              assistant: assistant,
+                              author: author,
+                              authorGone: authorGone,
                               gid: gid,
                               availableVersions: availableVersions,
                               selectedVersion: selectedVersion,
@@ -2366,7 +2378,8 @@ class _MessageListViewState extends State<MessageListView> {
     required TranslationUiState? t,
     required bool useAssistAvatar,
     required bool useAssistName,
-    required dynamic assistant,
+    required dynamic author,
+    required bool authorGone,
     required String gid,
     required List<int> availableVersions,
     required int selectedVersion,
@@ -2431,7 +2444,8 @@ class _MessageListViewState extends State<MessageListView> {
             t: t,
             useAssistAvatar: useAssistAvatar,
             useAssistName: useAssistName,
-            assistant: assistant,
+            author: author,
+            authorGone: authorGone,
             gid: gid,
             availableVersions: availableVersions,
             selectedVersion: selectedVersion,
@@ -2506,7 +2520,8 @@ class _MessageListViewState extends State<MessageListView> {
     required TranslationUiState? t,
     required bool useAssistAvatar,
     required bool useAssistName,
-    required dynamic assistant,
+    required dynamic author,
+    required bool authorGone,
     required String gid,
     required List<int> availableVersions,
     required int selectedVersion,
@@ -2523,15 +2538,6 @@ class _MessageListViewState extends State<MessageListView> {
   }) {
     final currentIdx = availableVersions.indexOf(selectedVersion);
     final quoteTarget = _quoteTargetFor(message);
-    // The author of *this* reply, when the conversation has several. A reply
-    // that names a sender the roster cannot resolve belongs to an assistant
-    // that has since been deleted: falling back to the selected assistant would
-    // put its face and name on someone else's words.
-    final resolvedAuthor = message.senderId == null
-        ? null
-        : widget.assistants?.getById(message.senderId!);
-    final authorGone = message.senderId != null && resolvedAuthor == null;
-    final author = resolvedAuthor ?? (authorGone ? null : assistant);
     return ChatMessageWidget(
       message: message,
       // The reply's own author when the conversation has several; the visual
@@ -2865,14 +2871,12 @@ final class _MessagePresentation {
     required this.showModelIcon,
     required this.showUserAvatar,
     required this.showTokenStats,
-    required this.assistant,
   });
 
   final double chatFontScale;
   final bool showModelIcon;
   final bool showUserAvatar;
   final bool showTokenStats;
-  final Assistant? assistant;
 }
 
 /// Fades out and collapses a timeline slot ahead of its deletion.

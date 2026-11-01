@@ -53,9 +53,13 @@ class _GroupSettingsViewState extends State<GroupSettingsView> {
       context,
       value: group.avatar,
       anchorKey: _avatarKey,
+      // The menu stays open for seconds: apply the pick to the row as it is when
+      // it lands, so a rename typed meanwhile is not rolled back.
       onSelected: (avatar) => unawaited(
         context.read<GroupChatProvider>().update(
-          group.copyWith(avatar: avatar, clearAvatar: avatar == null),
+          group.id,
+          (current) =>
+              current.copyWith(avatar: avatar, clearAvatar: avatar == null),
         ),
       ),
     );
@@ -71,9 +75,14 @@ class _GroupSettingsViewState extends State<GroupSettingsView> {
     _nameDebounce?.cancel();
     _nameDebounce = Timer(const Duration(milliseconds: 400), () {
       final name = value.trim();
-      if (name.isEmpty || name == group.name) return;
+      if (name.isEmpty) return;
+      // 400 ms is long enough for a turn-cap tap or an avatar to land first:
+      // the rename must join the row, not replace the snapshot it was typed on.
       unawaited(
-        context.read<GroupChatProvider>().update(group.copyWith(name: name)),
+        context.read<GroupChatProvider>().update(
+          group.id,
+          (current) => current.copyWith(name: name),
+        ),
       );
     });
   }
@@ -93,8 +102,9 @@ class _GroupSettingsViewState extends State<GroupSettingsView> {
     );
     if (picked == null || picked.isEmpty || !mounted) return;
     await context.read<GroupChatProvider>().update(
-      group.copyWith(
-        memberIds: List<String>.unmodifiable({...group.memberIds, ...picked}),
+      group.id,
+      (current) => current.copyWith(
+        memberIds: List<String>.unmodifiable({...current.memberIds, ...picked}),
       ),
     );
   }
@@ -119,16 +129,18 @@ class _GroupSettingsViewState extends State<GroupSettingsView> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    // Keep the roster non-empty: the rule `GroupCreateForm` applies at creation
-    // has to hold here too, or the group can never answer again.
-    if (group.memberIds.length <= 1) return;
-    await context.read<GroupChatProvider>().update(
-      group.copyWith(
+    await context.read<GroupChatProvider>().update(group.id, (current) {
+      // Keep the roster non-empty: the rule `GroupCreateForm` applies at
+      // creation has to hold here too, or the group can never answer again. It
+      // is read from the row that is there now, because the confirmation dialog
+      // was an await.
+      if (current.memberIds.length <= 1) return current;
+      return current.copyWith(
         memberIds: List<String>.unmodifiable(
-          group.memberIds.where((id) => id != member.id),
+          current.memberIds.where((id) => id != member.id),
         ),
-      ),
-    );
+      );
+    });
   }
 
   Future<void> _delete(GroupChat group) async {
@@ -284,8 +296,12 @@ class _GroupSettingsViewState extends State<GroupSettingsView> {
           subtitle: l10n.groupChatMaxTurnsSubtitle,
           trailing: _TurnStepper(
             value: group.speakerTurnLimit,
-            onChanged: (next) =>
-                unawaited(groups.update(group.copyWith(maxSpeakerTurns: next))),
+            onChanged: (next) => unawaited(
+              groups.update(
+                group.id,
+                (current) => current.copyWith(maxSpeakerTurns: next),
+              ),
+            ),
           ),
         ),
         const SizedBox(height: 26),

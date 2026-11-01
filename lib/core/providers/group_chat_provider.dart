@@ -104,21 +104,32 @@ class GroupChatProvider extends ChangeNotifier {
     return group;
   }
 
-  Future<void> update(GroupChat group) async {
+  /// Applies [mutate] to the group **as it is now**, not to a snapshot the
+  /// caller captured earlier.
+  ///
+  /// Every edit in the settings view starts with a row it read at build or tap
+  /// time, and several of them finish after an await — a rename debounce, an
+  /// avatar dialog, a member picker. Writing the whole snapshot back let the
+  /// slower edit undo the faster one; a mutator makes the write read-modify-write
+  /// instead, so the two edits compose.
+  ///
+  /// A group that is no longer here is **not** re-added: the row can be gone
+  /// because a peer deleted it (LAN sync), and a stale write must not resurrect
+  /// it. A mutation that changes nothing is skipped, so an unchanged write does
+  /// not bump `updatedAt` and hand the row to the next sync as if it had moved.
+  Future<void> update(
+    String id,
+    GroupChat Function(GroupChat current) mutate,
+  ) async {
     await loaded;
-    final next = group.copyWith(updatedAt: DateTime.now().toUtc());
-    final index = _groups.indexWhere((item) => item.id == next.id);
-    await store.upsert(
-      kind,
-      next.id,
-      next.toJson(),
-      sortOrder: index >= 0 ? index : null,
-    );
-    if (index >= 0) {
-      _groups[index] = next;
-    } else {
-      _groups.add(next);
-    }
+    final index = _groups.indexWhere((item) => item.id == id);
+    if (index < 0) return;
+    final current = _groups[index];
+    final mutated = mutate(current);
+    if (mutated == current) return;
+    final next = mutated.copyWith(updatedAt: DateTime.now().toUtc());
+    await store.upsert(kind, id, next.toJson(), sortOrder: index);
+    _groups[index] = next;
     notifyListeners();
   }
 

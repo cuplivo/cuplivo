@@ -918,7 +918,12 @@ class ChatActions {
       assistantMessage = begin.assistantMessage;
       runId = begin.runId;
     } catch (error) {
-      onStreamError?.call(error.toString());
+      // A round that was stopped — or whose topic was deleted — is not a
+      // generation failure: the user's action already explains the outcome, and
+      // a toast about it would be the app arguing with them.
+      if (!isGroupRoundCancelled(conversation.id)) {
+        onStreamError?.call(error.toString());
+      }
       return null;
     }
     _registerGenerationRun(assistantMessage.id, runId);

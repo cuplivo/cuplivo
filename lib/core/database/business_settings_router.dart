@@ -141,6 +141,12 @@ final class BusinessKeyRegistry {
     'search_enabled_v1',
     // Models and user identity.
     'pinned_models_v1',
+    // The sidebar's mixed assistant/group order. The assistants and groups
+    // themselves are entities that sync, and their `sort_order` used to be the
+    // order a new device received; the drag order now lives in this key, so
+    // without it a paired device lists the same owners in a different order
+    // than the device it paired with.
+    'chat_owner_order_v1',
     'user_name',
     'avatar_type',
     'avatar_value',

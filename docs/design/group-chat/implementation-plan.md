@@ -67,14 +67,16 @@
 - `composer_draft_store.dart`：新会话草稿 owner 按 `group:<id>` 区分，避免群草稿串到全局会话。
 - `business_data.dart` / `backup_content_filter.dart` / `business_settings_router.dart`：
   `BusinessEntityKind.groupChat`（`group_chats_v1`）、归入 `BackupCategory.chats`、payload 校验、
-  `group_director_model_v1` + `chat_owner_order_v1` 进入偏好注册表。
+  `group_director_model_v1` + `chat_owner_order_v1` 进入偏好注册表；后者也是同步集成员，
+  接手实体 `sort_order` 原本随 LAN sync 过去的那份顺序（§4.11）。
 - `business_repository.dart`：`deleteEntity(..., group:)` 公开回收站分组。
 - `chat_actions.dart`：`sendGroupMessage` / `_runGroupRound` / `cancelGroupRound` /
   `runAssistantTurn`；`_setConversationLoading` 成为“整轮持锁 + 回合结算”的唯一收口。
 - `home_view_model.dart`：群发送分支、首条消息命名话题、轮结束排空队列、群内停止走 `cancelGroupRound`。
 - `chat_input_section.dart` / `chat_input_bar.dart`：`leading` 槽放折叠头像；群模式隐藏模型/搜索/
   推理/工具/快捷短语/学习模式，保留附件、浏览器、迷你地图、上下文管理与上下文环（两端一致）。
-- `message_list_view.dart`：`resolveAssistant(message)` 按 `senderId` 解析作者；1:1 传 null 不变。
+- `message_list_view.dart`：`_buildMessageItem` 按 `senderId` 解析作者，名字、头像与两个
+  `useAssistantName/Avatar` 开关都取自这一个结果；1:1 传 null 时仍用 `widget.assistant`。
 - `side_drawer.dart`：混合 owner 列表 + 同一拖拽顺序、群 tile（点击开最近话题/新建）、群话题过滤、
   “新建群聊”入口、群长按菜单（设置/删除）。
 - `home_page.dart`：群模式标题不显示模型胶囊、composer 传群、消息列表传 resolver。
@@ -227,6 +229,36 @@ widget 测试才能确认，留待后续。
 未验证项里修了一条：`main.dart` 把占位标题与压缩署名拆成两个 `try`——原来任一处抛异常，另一个就整个进程都空着。
 其余三条记录在案、未改：第二个写者与 dispose 挂起都依赖「同一对话两个轮次」（第 5 条已把入口补齐），
 `_titlesInFlight` 丢一次命名会在下一次轮次结束补上。
+
+### 4.11 第六遍复核
+
+第六轮 2 条，两条都是真的，都修了；3 条「未验证」里 1 条成立（顺序不再随 LAN sync 走），
+1 条被证伪（删话题期间起轮次会留下幽灵话题），1 条查完不改（`_openGroup` 绕过新建路径）。
+
+| 问题 | 修法 |
+| --- | --- |
+| 群回复的名字/头像开关读的是「选中的 1:1 助手」，不是作者本人 | 两个开关与作者名改成同一个解析结果：`_buildMessageItem` 里一次算出 `author` / `authorGone`，向下传；`_MessagePresentation.assistant` 删掉（列表不再自带一个「默认作者」）。被删掉的作者仍显示「已删除的助手」，不会借用别人的身份 |
+| 群设置写的是「点下去那一刻的整行快照」，改名与步进器互相覆盖 | `GroupChatProvider.update` 改成 `update(id, mutate)`：在**当前**行上做读-改-写；行已不存在就不再写回（陈旧编辑不会把被删的群「复活」）；空改动直接返回，不白抬 `updatedAt`。设置页 5 个入口 + `showGroupInvite` 全部改用它 |
+
+未验证项的处理：
+
+- **成立**：侧栏顺序从实体的 `sort_order` 搬到偏好 `chat_owner_order_v1` 之后，没进
+  `syncedPreferenceKeys`——实体 `sort_order` 本来是随 LAN sync 过去的，所以配对后的新设备会看到
+  另一种顺序。把它加进同步集。
+- **证伪**：删话题期间起轮次不会留下幽灵话题。`message_rows.conversation_id` 是
+  `ON DELETE CASCADE`，`PRAGMA foreign_keys` 在 `beforeOpen` 里打开、启动时还有断言
+  （`database_connection_contract:foreign_keys`）。删掉话题后，轮次要追加的这条消息必须排在它的
+  anchor 之后，而 anchor 随话题一起级联消失 → `linear_message_group_missing` 抛出 → 整个事务回滚，
+  连那次 `insertOnConflictUpdate` 也一起回滚。新增的
+  `linear_message_behavior_matrix_test` 用例把这条机制钉住（把 anchor 查找改成「找不到就给 0」时用例变红）。
+  唯一留下的改动：轮次里 `beginAssistantGeneration` 失败时，若这一轮已被取消就不再报错——Stop 和
+  删话题都不该弹 toast。
+- **查完不改**：`_openGroup` 在群没有话题时直接 `createDraftConversation` + `switchConversationAnimated`。
+  这条路径等于「打开一个已存在的空话题」：`prepareConversationSwitch` 照样取窗口、`commitConversationSwitch`
+  照样装窗口，`_switchSerial` / `_selectionEpoch` / `_exitUserMessageEdit` 也都在 `switchConversationAnimated`
+  里跑到；差的只是 `createNewConversation` 给 1:1 预置的 assistant preset messages（群话题本就没有）
+  和 `clearAllState`（点侧栏里任何一个已存在的话题同样不走）。不合并是刻意的：合并要给两个布局
+  各加一个回调，换不出任何可观察的差别。
 
 ## 5. 验证
 - `dart analyze --fatal-infos lib test integration_test` → **0 issue**。

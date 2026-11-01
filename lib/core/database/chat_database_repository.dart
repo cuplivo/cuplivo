@@ -5299,6 +5299,11 @@ class ChatDatabaseRepository {
     }
   }
 
+  /// A missing conversation row is materialised: this is how a draft becomes
+  /// real. A write that lost its row to a deletion cannot resurrect it — the
+  /// message it appends is ordered after an anchor that the deletion cascaded
+  /// away, and that lookup throws inside this transaction (see
+  /// `test/core/database/linear_message_behavior_matrix_test.dart`).
   Future<Conversation> _appendLinearMessageToConversation({
     required Conversation conversation,
     required ChatMessage message,

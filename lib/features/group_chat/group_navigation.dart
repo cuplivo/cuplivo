@@ -174,10 +174,11 @@ Future<void> showGroupInvite(BuildContext context, String groupId) async {
     candidates: candidates,
   );
   if (picked == null || picked.isEmpty || !context.mounted) return;
-  final current = groups.byId(groupId);
-  if (current == null) return;
+  // The picker is an await: the roster it must extend is the one that is there
+  // now, not the one this call started with.
   await groups.update(
-    current.copyWith(
+    groupId,
+    (current) => current.copyWith(
       memberIds: List<String>.unmodifiable({...current.memberIds, ...picked}),
     ),
   );

@@ -85,7 +85,7 @@ void main() {
       name: 'Reading club',
       memberIds: const [],
     );
-    await groups.update(groups.byId(group.id)!.copyWith(avatar: '📚'));
+    await groups.update(group.id, (current) => current.copyWith(avatar: '📚'));
 
     final assistants = AssistantProvider(
       preferences: createBusinessTestPreferences(),
@@ -153,9 +153,66 @@ void main() {
     expect(find.byIcon(Lucide.X), findsNothing);
 
     await groups.update(
-      groups.byId(group.id)!.copyWith(memberIds: [solo, second]),
+      group.id,
+      (current) => current.copyWith(memberIds: [solo, second]),
     );
     await tester.pumpAndSettle();
     expect(find.byIcon(Lucide.X), findsNWidgets(2));
+  });
+
+  testWidgets('a turn-cap tap inside the rename debounce keeps both', (
+    tester,
+  ) async {
+    final database = createBusinessTestPreferencesWithDatabase();
+    final groups = GroupChatProvider(
+      store: ExtensionEntityStore(database.database),
+    );
+    await groups.loaded;
+    final assistants = AssistantProvider(
+      preferences: createBusinessTestPreferences(),
+    );
+    await assistants.loaded;
+    final first = await assistants.addAssistant(name: 'First');
+    final second = await assistants.addAssistant(name: 'Second');
+    final group = await groups.create(
+      name: 'Reading club',
+      memberIds: [first, second],
+    );
+    expect(groups.byId(group.id)!.speakerTurnLimit, 3);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<GroupChatProvider>.value(value: groups),
+          ChangeNotifierProvider<AssistantProvider>.value(value: assistants),
+          ChangeNotifierProvider<SettingsProvider>(
+            create: (_) => SettingsProvider(createBusinessTestPreferences()),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: GroupSettingsView(groupId: group.id)),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Rename (debounced 400 ms), then lower the cap before that fires.
+    await tester.enterText(find.byType(TextField), 'Renamed club');
+    await tester.tap(find.byIcon(Lucide.Minus));
+    await tester.pump();
+    expect(groups.byId(group.id)!.speakerTurnLimit, 2);
+
+    // The pending name write now lands.
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(groups.byId(group.id)!.name, 'Renamed club');
+    expect(
+      groups.byId(group.id)!.speakerTurnLimit,
+      2,
+      reason: 'the cap the user just set must survive the rename',
+    );
   });
 }

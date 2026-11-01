@@ -145,6 +145,7 @@ class GroupDirector {
     required Set<String> spokeThisRound,
     required Assistant? Function(String? senderId) resolve,
     required int remainingTurns,
+    bool Function()? isCancelled,
   }) async {
     final model = resolveModel();
     if (model == null) return const GroupDirectorUnavailable('no_model');
@@ -171,6 +172,11 @@ class GroupDirector {
     final config = settings.getProviderConfig(model.providerKey);
     var failure = 'no_decision';
     for (var attempt = 0; attempt < attempts; attempt++) {
+      // Pressing Stop while the decision is in flight must not cost a second
+      // model call: the round is over, whatever the model is about to say.
+      if (isCancelled?.call() ?? false) {
+        return const GroupDirectorUnavailable('cancelled');
+      }
       final captured = _Captured();
       try {
         await ChatApiService.generateMessage(

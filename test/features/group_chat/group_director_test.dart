@@ -256,6 +256,39 @@ void main() {
     expect(requests, isEmpty);
   });
 
+  test('a stopped round is not asked again', () async {
+    var stopped = false;
+
+    final decision = await director().decide(
+      group: group,
+      members: members,
+      transcript: transcript,
+      spokeThisRound: const {},
+      resolve: resolve,
+      remainingTurns: 3,
+      isCancelled: () => stopped,
+    );
+    expect(decision, isA<GroupDirectorSpeak>());
+
+    // Once the user stops the round, a decision already in flight must not be
+    // retried: the round is over, whatever the model is about to say.
+    stopped = true;
+    requests.clear();
+    final afterStop = await director().decide(
+      group: group,
+      members: members,
+      transcript: transcript,
+      spokeThisRound: const {},
+      resolve: resolve,
+      remainingTurns: 3,
+      isCancelled: () => stopped,
+    );
+
+    expect(afterStop, isA<GroupDirectorUnavailable>());
+    expect((afterStop as GroupDirectorUnavailable).failure, 'cancelled');
+    expect(requests, isEmpty);
+  });
+
   test('no configured model and no global default is a normal state', () async {
     await settings.resetDirectorModel();
     await settings.resetCurrentModel();

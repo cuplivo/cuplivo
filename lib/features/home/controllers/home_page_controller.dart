@@ -71,6 +71,7 @@ import '../services/message_generation_service.dart';
 import '../services/local_tools_service.dart';
 import '../services/ask_user_interaction_service.dart';
 import '../services/ocr_service.dart';
+import '../../../core/providers/group_chat_provider.dart';
 import '../services/translation_service.dart';
 import '../services/file_upload_service.dart';
 import '../utils/chat_layout_constants.dart';
@@ -1811,7 +1812,9 @@ class HomePageController extends ChangeNotifier {
     // A group topic regenerates its round, not one reply: who answers is the
     // director's decision, so "say that again" belongs to the user message
     // that started the round. A member's reply offers no regenerate at all.
-    if (target.isGroupConversation) {
+    // A topic whose group row is gone has no director to ask, so it regenerates
+    // like an ordinary conversation.
+    if (target.isGroupConversation && _hasGroupChat(target.groupChatId)) {
       if (message.role != 'user') return;
       final success = await _viewModel.restartGroupRound(
         conversation: target,
@@ -1881,6 +1884,19 @@ class HomePageController extends ChangeNotifier {
     );
     if (success) {
       notifyListeners();
+    }
+  }
+
+  /// Whether a group row exists for [groupChatId].
+  ///
+  /// Guarded: the controller is also exercised in trees that do not provide the
+  /// group list, and there nothing can be a live group.
+  bool _hasGroupChat(String? groupChatId) {
+    if (groupChatId == null) return false;
+    try {
+      return _context.read<GroupChatProvider>().byId(groupChatId) != null;
+    } catch (_) {
+      return false;
     }
   }
 

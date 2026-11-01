@@ -860,7 +860,12 @@ class HomeViewModel extends ChangeNotifier {
 
     _chatActions.onScheduleImageSanitize = onScheduleImageSanitize;
 
-    if (conversation.isGroupConversation) {
+    // A topic whose group row is gone is not a group any more: it sends as an
+    // ordinary conversation instead of refusing every message.
+    // A topic whose group row is gone is not a group any more: it sends as an
+    // ordinary conversation instead of refusing every message.
+    if (conversation.isGroupConversation &&
+        _groupRowExists(conversation.groupChatId)) {
       return _sendGroupMessageToConversation(input, conversation);
     }
 
@@ -1004,6 +1009,20 @@ class HomeViewModel extends ChangeNotifier {
       return false;
     }
     return true;
+  }
+
+  /// Whether the group a conversation claims still exists.
+  ///
+  /// Guarded: reduced trees in tests do not provide the group list, and there
+  /// nothing can be a live group.
+  bool _groupRowExists(String? groupChatId) {
+    if (groupChatId == null) return false;
+    try {
+      return _contextProvider.read<GroupChatProvider>().byId(groupChatId) !=
+          null;
+    } catch (_) {
+      return false;
+    }
   }
 
   ChatInputData _cloneInput(ChatInputData input) {

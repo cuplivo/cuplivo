@@ -2,6 +2,8 @@ import '../../../core/models/chat_message.dart';
 import '../../../core/models/group_chat.dart';
 import '../../../core/models/message_part.dart';
 import '../../../core/models/assistant.dart';
+import '../../../core/providers/assistant_provider.dart';
+import '../../../core/services/chat/chat_service.dart';
 import '../../chat/utils/thinking_tag_parser.dart';
 
 /// How a group conversation is turned into model input.
@@ -200,9 +202,37 @@ class GroupTranscript {
     Assistant? Function(String? senderId) resolve,
   ) {
     return (message) => message.role == 'assistant'
-        ? '[${speakerName(message.senderId, resolve)}]: '
-              '${publicText(message)}'
+        ? '[${speakerLabel(message, resolve)}]: ${publicText(message)}'
         : 'User: ${message.content}';
+  }
+
+  /// The name a one-line transcript entry is written under.
+  static String speakerLabel(
+    ChatMessage message,
+    Assistant? Function(String? senderId) resolve,
+  ) => message.role == 'assistant'
+      ? speakerName(message.senderId, resolve)
+      : 'User';
+
+  /// The label each line of the context-compression source carries.
+  ///
+  /// A summary is what the next speakers read instead of the turns it replaced,
+  /// so a group topic must name the member who wrote each reply: one "Assistant"
+  /// for every voice makes a member read its own words as a peer's.
+  static String Function(ChatMessage message) compressionLabel({
+    required ChatService chat,
+    required AssistantProvider assistants,
+  }) {
+    return (message) {
+      final conversation = chat.getConversation(message.conversationId);
+      if (conversation == null || !conversation.isGroupConversation) {
+        return message.role == 'assistant' ? 'Assistant' : 'User';
+      }
+      return speakerLabel(
+        message,
+        (senderId) => senderId == null ? null : assistants.getById(senderId),
+      );
+    };
   }
 
   /// Whether a message is an empty assistant placeholder that must not count as

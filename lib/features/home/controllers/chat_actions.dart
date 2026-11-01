@@ -268,9 +268,11 @@ class ChatActions {
         .map((c) => c.id)
         .toList();
     for (final id in conversationIds) {
-      if (actions._hasActiveGeneration(id)) {
-        await actions.cancelGroupRound(id);
-      }
+      // Marked whether or not a generation is running right now: between two
+      // speakers a round holds no stream and no active message, so a guard
+      // keyed on "is generating" cannot see it, and the loop would go on to ask
+      // the next speaker for a conversation whose rows are already gone.
+      await actions.cancelGroupRound(id);
     }
   }
 
@@ -622,7 +624,12 @@ class ChatActions {
       return ChatActionResult.error('not_a_user_message');
     }
     if (members.isEmpty) return ChatActionResult.error('group_has_no_members');
-    if (isSendInFlight(conversation.id) ||
+    // One writer per conversation. A round hands its claim to the loading flag
+    // (`_claimGroupRound`), which `isSendInFlight` does not see, so restarting
+    // during a round would run a second loop over the same conversation and the
+    // two would overwrite each other's turn waiter.
+    if (_roundLoadingConversations.contains(conversation.id) ||
+        isSendInFlight(conversation.id) ||
         chatService.contextCompression.blocksSending(conversation.id)) {
       return ChatActionResult.inFlight();
     }
@@ -742,6 +749,9 @@ class ChatActions {
           spokeThisRound: spokeThisRound,
           resolve: resolveAssistant,
           remainingTurns: remaining,
+          // Stop is the user's answer for this round: a decision still in
+          // flight must not be retried after it lands.
+          isCancelled: () => isGroupRoundCancelled(conversation.id),
         );
         if (isGroupRoundCancelled(conversation.id)) break;
 

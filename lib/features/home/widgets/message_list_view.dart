@@ -2525,6 +2525,9 @@ class _MessageListViewState extends State<MessageListView> {
     final author = resolvedAuthor ?? (authorGone ? null : assistant);
     return ChatMessageWidget(
       message: message,
+      // The reply's own author when the conversation has several; the visual
+      // regex pass needs the same answer the panel shows.
+      author: author,
       onReply: widget.onReplyMessage == null || message.isStreaming
           ? null
           : () => widget.onReplyMessage!(message),

@@ -202,6 +202,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
   String? _cachedSidebarRowsAssistantId;
   String? _cachedSidebarRowsGroupChatId;
   List<String>? _cachedSidebarRowsAssistantIds;
+  List<String>? _cachedSidebarRowsGroupIds;
   List<_SidebarRow>? _cachedSidebarRows;
 
   bool _selectionMode = false;
@@ -820,11 +821,17 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
   }
 
   Future<void> _moveSelected() async {
+    final chatService = context.read<ChatService>();
+    // A group topic belongs to its group: the picker cannot move it, and
+    // offering the action for a group-only selection would do nothing at all.
     final ids = _selectedConversationIds
-        .where((id) => !widget.loadingConversationIds.contains(id))
+        .where(
+          (id) =>
+              !widget.loadingConversationIds.contains(id) &&
+              chatService.getConversation(id)?.groupChatId == null,
+        )
         .toList(growable: false);
     if (ids.isEmpty) return;
-    final chatService = context.read<ChatService>();
     final currentId = chatService.currentConversationId;
     final movingCurrent = currentId != null && ids.contains(currentId);
     final currentBeforeAssistantId = currentId == null
@@ -1484,13 +1491,18 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
   }) {
     final assistants = context.read<AssistantProvider>();
     final assistantIds = assistants.assistants.map((a) => a.id).toList();
+    final groups = context.read<GroupChatProvider>();
+    // Which groups exist decides whether a topic is filed under its group or
+    // shown as an ordinary conversation, so it belongs in the memo key.
+    final groupIds = groups.groups.map((group) => group.id).toList();
     if (_cachedSidebarRows != null &&
         _cachedSidebarRowsRevision == revision &&
         _cachedSidebarRowsInitialized == initialized &&
         _cachedSidebarRowsQuery == query &&
         _cachedSidebarRowsAssistantId == assistantId &&
         _cachedSidebarRowsGroupChatId == groupChatId &&
-        listEquals(_cachedSidebarRowsAssistantIds, assistantIds)) {
+        listEquals(_cachedSidebarRowsAssistantIds, assistantIds) &&
+        listEquals(_cachedSidebarRowsGroupIds, groupIds)) {
       return _cachedSidebarRows!;
     }
     SideDrawer.debugSidebarRowsComputeCount++;
@@ -1499,6 +1511,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
       assistantId: assistantId,
       groupChatId: groupChatId,
       assistants: assistants,
+      groups: groups,
       query: query,
     );
     _cachedSidebarRows = rows;
@@ -1508,6 +1521,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     _cachedSidebarRowsAssistantId = assistantId;
     _cachedSidebarRowsGroupChatId = groupChatId;
     _cachedSidebarRowsAssistantIds = assistantIds;
+    _cachedSidebarRowsGroupIds = groupIds;
     return rows;
   }
 
@@ -1516,6 +1530,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     required String? assistantId,
     required String? groupChatId,
     required AssistantProvider assistants,
+    required GroupChatProvider groups,
     required String query,
   }) {
     final q = query.trim().toLowerCase();
@@ -1532,7 +1547,12 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
       if (groupChatId != null) {
         if (c.groupChatId != groupChatId) continue;
       } else {
-        if (c.groupChatId != null) continue;
+        // A topic whose group row is gone has no group list to live in, so it is
+        // shown — and answered — as an ordinary conversation instead of
+        // disappearing from every list.
+        if (c.groupChatId != null && groups.byId(c.groupChatId) != null) {
+          continue;
+        }
         if (c.assistantId != null &&
             resolvedOwnerIds.putIfAbsent(
                   c.assistantId!,
@@ -1559,7 +1579,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
       }
     }
     pinned.sort((a, b) => b.created.compareTo(a.created));
-    final groups = _groupByDate(rest);
+    final dateGroups = _groupByDate(rest);
 
     final rows = <_SidebarRow>[];
     if (pinned.isNotEmpty) {
@@ -1574,7 +1594,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
         );
       }
     }
-    for (final group in groups) {
+    for (final group in dateGroups) {
       rows.add(
         _SidebarHeaderRow(
           kind: _SidebarHeaderKind.date,

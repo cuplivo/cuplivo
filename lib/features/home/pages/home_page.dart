@@ -1110,13 +1110,13 @@ class _HomePageState extends State<HomePage>
     );
     final assistants = context.watch<AssistantProvider>();
     return MessageListView(
-      // A group conversation resolves each reply's own author; a 1:1 chat has
-      // exactly one, and passes null so nothing changes there.
-      resolveAssistant: currentGroup == null
+      // A reply that carries an author resolves it, whatever kind of
+      // conversation this is: a group member, or a topic whose group row is
+      // gone. A message without a senderId has no author of its own and falls
+      // back to the conversation's assistant, so a 1:1 chat is unchanged.
+      resolveAssistant: (message) => message.senderId == null
           ? null
-          : (message) => message.senderId == null
-                ? null
-                : assistants.getById(message.senderId!),
+          : assistants.getById(message.senderId!),
       contextTask: compression,
       contextTaskRevision: compression == null
           ? null

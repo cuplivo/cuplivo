@@ -291,6 +291,13 @@ class ChatService extends ChangeNotifier {
   /// Optional extras merged into brand-new conversations (not restores).
   Map<String, dynamic> Function(String? assistantId)? newConversationExtras;
 
+  /// Names the speaker of each line in the context-compression source.
+  ///
+  /// A group topic sets it so a summary keeps its voices apart instead of
+  /// merging every member into one "Assistant"; a 1:1 conversation leaves it
+  /// null and the plain role words are used.
+  String Function(ChatMessage message)? compressionLabelOf;
+
   Map<String, dynamic> _extrasForNewConversation(
     String? assistantId, {
     String? groupChatId,

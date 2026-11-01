@@ -1248,6 +1248,12 @@ class ChatMessageWidget extends StatefulWidget {
   final bool useAssistantName;
   final String? assistantName;
   final String? assistantAvatar; // path/url/emoji; null => use initial
+
+  /// The assistant this message belongs to when several share one conversation.
+  ///
+  /// A group topic has no conversation assistant, and each reply has its own
+  /// author; the visual regex pass reads this one, not the conversation's.
+  final Assistant? author;
   final bool showUserAvatar;
   final bool showTokenStats;
   final VoidCallback? onRegenerate;
@@ -1329,6 +1335,7 @@ class ChatMessageWidget extends StatefulWidget {
     this.useAssistantName = false,
     this.assistantName,
     this.assistantAvatar,
+    this.author,
     this.showUserAvatar = true,
     this.showTokenStats = true,
     this.onRegenerate,
@@ -1619,6 +1626,9 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
   }
 
   Assistant? _assistantForMessage() {
+    // One member's regexes must not run over another member's words.
+    final author = widget.author;
+    if (author != null) return author;
     try {
       final chat = context.read<ChatService>();
       final convo = chat.getConversation(widget.message.conversationId);

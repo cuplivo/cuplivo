@@ -2741,6 +2741,14 @@ class ChatService extends ChangeNotifier {
 
   /// Re-arms every pending letter alarm after a bulk restore/import replaced
   /// conversation rows (the extras hook does not run for repo-level writes).
+  ///
+  /// A loaded store is not the same as a store matching the rows just written:
+  /// a bulk restore reinstalls assistants in a later step and the importers ask
+  /// for an app restart. So this call arms what the current store can resolve;
+  /// an owner it cannot see yet is dropped from this one payload and re-armed
+  /// by the startup re-arm after that restart, which is the authoritative one.
+  /// Refusing the whole call here would cost the letters whose owner does
+  /// resolve.
   void _rescheduleProactiveCareAlarms() {
     if (!ProactiveCareAlarmService.isSupported) return;
     final resolver = proactiveCareAssistantResolver;
@@ -2757,6 +2765,8 @@ class ChatService extends ChangeNotifier {
       ProactiveCareAlarmService.rescheduleAll(
         conversations: conversations,
         assistants: assistants,
+        assistantStoreLoaded:
+            proactiveCareAssistantStoreLoaded?.call() ?? false,
       ).catchError((Object e) {
         debugPrint('[ProactiveCare] post-restore reschedule failed: $e');
       }),
@@ -3151,6 +3161,12 @@ class ChatService extends ChangeNotifier {
   /// Resolves the owner assistant for proactive-care alarm syncing. Wired at
   /// startup (main.dart) because ChatService has no AssistantProvider.
   Assistant? Function(String assistantId)? proactiveCareAssistantResolver;
+
+  /// Whether the store behind [proactiveCareAssistantResolver] has finished
+  /// loading. Wired at startup beside it: a post-restore re-arm can run before
+  /// that store is ready, and treating "not loaded" as "owner gone" would drop
+  /// letters that are still pending.
+  bool Function()? proactiveCareAssistantStoreLoaded;
 
   void _syncProactiveCareAlarm(String conversationId) {
     if (!ProactiveCareAlarmService.isSupported) return;

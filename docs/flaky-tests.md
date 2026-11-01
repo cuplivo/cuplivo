@@ -915,3 +915,31 @@ other two were new, and neither is the baseline's:
 
 Both were paid for on the spot rather than carried as known failures: an entry that names a case which
 passes on the next run is worse than none, because the next pass reads it as evidence.
+
+## 17. The `60e032b59` baseline: the desktop-chrome drag, and 72 Kotlin cases that assert POSIX paths
+
+The replay onto `60e032b59` ended its full run at **8 718 passed, 69 skipped, 72 failed**, and the 72
+split into exactly three groups — no case outside them:
+
+| class | cases | evidence |
+|---|---|---|
+| embedded browser engine | 63 | the §13/§14 class unchanged: `UnimplementedError: addDevToolsProtocolEventListener is not implemented on the current platform` from `NativeBrowserEngine._installWindowsDialogs`, which runs only when `Platform.isWindows`. |
+| `home_selection_back_test.dart` › selection survives cancelled exports and deletion, then exits on back (6: three window sizes × macOS/Windows) | 6 | new in this pass, proved by a control run at upstream's own tip `60e032b59` in a clean worktree: **3 passed, 6 failed**, the same split, the same assertion. `window_manager` 0.5.2's `startDragging` opens with `if (Platform.isWindows && await isFullScreen()) return;`, the test's method-channel mock answers `null`, and the typed `Future<bool>` await throws before `startDragging` is ever invoked — the recorded calls are `['isMaximized', 'isFullScreen']`. §11 records the same mechanism for `browser_desktop_layout_test`. |
+| `storage_image_usage_test.dart` › classifies rendered Markdown images…, `browser_page_card_test.dart` › completed preview loads its saved file… | 2 | the two §14 entries, unchanged; both files are byte-identical to the pre-rebase tip. |
+
+`backup_encryption_test`'s six cases fail only inside the full run and pass alone (**23 passed**), the
+§16 shape: an isolate still holds its temporary directory for a few milliseconds after cancellation and
+Windows will not remove an open directory. They were not registered, for §16's reason.
+
+The Android side needed its own look. `:app:testDebugUnitTest` runs **324 tests, 72 failed** — one
+class again, and the failure message is the proof: these are the fork's workspace/proot cases, whose
+assertions compare guest paths like `/nativelib/libproot_exec.so` and `/data/rootfs` against strings the
+JVM built from `File`, and on Windows those come back as `D:\nativelib\libproot_exec.so` and
+`D:\data\rootfs`. A leading `/` is a drive-relative path to a Windows JVM, so the golden comparison
+cannot match by construction. CI compiles the Android unit tests on the same runner, and there the
+spelling is the file's own.
+
+One more Windows-only failure was repaired rather than registered: `FileSaveEngineHandoffTest.kt`
+referenced `CuplivoApplication`, but the class — and the manifest that installs it — is
+`KelivoApplication` at this baseline, so `:app:testDebugUnitTest` did not even compile. The sweep is
+where it came from: a persisted platform name is not a brand string.

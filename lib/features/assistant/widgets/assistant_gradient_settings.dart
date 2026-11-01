@@ -1,8 +1,21 @@
 part of '../pages/assistant_settings_edit_page.dart';
 
 class AssistantGradientSettings extends StatefulWidget {
-  const AssistantGradientSettings({super.key, required this.assistant});
+  const AssistantGradientSettings({
+    super.key,
+    required this.assistant,
+    this.horizontalPadding = 12,
+    this.showIcon = true,
+  });
   final Assistant assistant;
+
+  /// The mobile tab puts this card inside a [SectionCard]; the desktop pane
+  /// already pads the whole section, so it passes zero and keeps the 20 px
+  /// gutter every neighbouring row uses.
+  final double horizontalPadding;
+
+  /// Desktop rows are label-only; the mobile card leads each row with an icon.
+  final bool showIcon;
 
   @override
   State<AssistantGradientSettings> createState() =>
@@ -83,6 +96,8 @@ class _AssistantGradientSettingsState extends State<AssistantGradientSettings> {
             icon: Lucide.Sparkles,
             label: l10n.assistantEditGradientBackgroundTitle,
             value: widget.assistant.useGradientBackground,
+            horizontalPadding: widget.horizontalPadding,
+            showIcon: widget.showIcon,
             onChanged: (value) {
               final provider = context.read<AssistantProvider>();
               final current = provider.getById(widget.assistant.id);
@@ -95,16 +110,27 @@ class _AssistantGradientSettingsState extends State<AssistantGradientSettings> {
           ),
         ),
         if (widget.assistant.useGradientBackground) ...[
-          _iosDivider(context),
+          _iosDivider(
+            context,
+            indent: widget.horizontalPadding + (widget.showIcon ? 42 : 0),
+            endIndent: widget.horizontalPadding,
+          ),
           _iosSwitchRow(
             context,
             icon: Lucide.Camera,
             label: l10n.assistantEditGradientStaticTitle,
             value: !animated,
+            horizontalPadding: widget.horizontalPadding,
+            showIcon: widget.showIcon,
             onChanged: _setStatic,
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(60, 0, 12, 4),
+            padding: EdgeInsets.fromLTRB(
+              widget.horizontalPadding + (widget.showIcon ? 48 : 0),
+              0,
+              widget.horizontalPadding,
+              4,
+            ),
             child: Text(
               l10n.assistantEditGradientStaticDescription,
               style: TextStyle(
@@ -114,7 +140,12 @@ class _AssistantGradientSettingsState extends State<AssistantGradientSettings> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+            padding: EdgeInsets.fromLTRB(
+              widget.horizontalPadding,
+              8,
+              widget.horizontalPadding,
+              0,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

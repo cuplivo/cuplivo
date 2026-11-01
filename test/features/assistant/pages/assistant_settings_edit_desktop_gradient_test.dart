@@ -17,6 +17,7 @@ import 'package:path/path.dart' as p;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:provider/provider.dart';
+import 'package:syncfusion_flutter_sliders/sliders.dart';
 
 import '../../../support/business_test_harness.dart';
 import '../../../support/temp_directory_cleanup.dart';
@@ -147,6 +148,14 @@ void main() {
     final toggle = find.descendant(of: row, matching: find.byType(IosSwitch));
     expect(tester.widget<IosSwitch>(toggle).value, isTrue);
     expect(find.text('Static mode'), findsOneWidget);
+    // The desktop pane has one gutter: the mobile card's own inset would put
+    // this row 12 px to the right of the section title and every sibling row.
+    final gutter = tester.getTopLeft(find.text('Chat Background')).dx;
+    expect(tester.getTopLeft(row).dx, gutter);
+    expect(tester.getTopLeft(find.text('Gradient background')).dx, gutter);
+    expect(tester.getTopLeft(find.text('Static mode')).dx, gutter);
+    expect(tester.getTopLeft(find.text('Preview')).dx, gutter);
+    expect(tester.getTopLeft(find.byType(SfSlider).first).dx, gutter);
     // An image can never replace the gradient while the gradient owns the
     // background, so its picker must not compete with this row.
     expect(find.text('Choose Image'), findsNothing);

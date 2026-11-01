@@ -1280,13 +1280,17 @@ class _TactileIconButtonState extends State<_TactileIconButton> {
   }
 }
 
-Widget _iosDivider(BuildContext context) {
+Widget _iosDivider(
+  BuildContext context, {
+  double indent = 54,
+  double endIndent = 12,
+}) {
   final cs = Theme.of(context).colorScheme;
   return Divider(
     height: 6,
     thickness: 0.6,
-    indent: 54,
-    endIndent: 12,
+    indent: indent,
+    endIndent: endIndent,
     color: cs.outlineVariant.withValues(alpha: 0.18),
   );
 }
@@ -1497,11 +1501,13 @@ Widget _iosSwitchRow(
   required ValueChanged<bool> onChanged,
   String? subtitle,
   String? tip,
+  double horizontalPadding = 12,
+  bool showIcon = true,
 }) {
   final cs = Theme.of(context).colorScheme;
   return Padding(
     padding: EdgeInsets.symmetric(
-      horizontal: 12,
+      horizontal: horizontalPadding,
       vertical: subtitle == null ? 4 : 8,
     ),
     child: Row(
@@ -1517,11 +1523,13 @@ Widget _iosSwitchRow(
                 builder: (c) {
                   return Row(
                     children: [
-                      SizedBox(
-                        width: 36,
-                        child: Icon(icon, size: 20, color: c),
-                      ),
-                      const SizedBox(width: 12),
+                      if (showIcon) ...[
+                        SizedBox(
+                          width: 36,
+                          child: Icon(icon, size: 20, color: c),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
                       Expanded(
                         child: subtitle == null
                             ? Text(
@@ -2677,7 +2685,14 @@ class _DesktopAssistantBasicPaneState
                     ),
                   ),
                   const SizedBox(height: 8),
-                  AssistantGradientSettings(assistant: a),
+                  AssistantGradientSettings(
+                    assistant: a,
+                    // The pane already pads the section by 20; the desktop
+                    // rows are label-only, so keep every control on that
+                    // gutter instead of the mobile card's inset.
+                    horizontalPadding: 0,
+                    showIcon: false,
+                  ),
                   if (!a.useGradientBackground) ...[
                     const SizedBox(height: 8),
                     if ((a.background ?? '').isEmpty) ...[

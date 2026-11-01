@@ -240,10 +240,14 @@ String buildCompressContextContent(
 String? conversationLineForCompression(
   ChatMessage message, {
   required String Function(int) quoteMarker,
+  String Function(ChatMessage message)? labelOf,
 }) {
   final content = message.quotedContent(quoteMarker);
   if (content.trim().isEmpty) return null;
-  return '${message.role == "assistant" ? "Assistant" : "User"}: $content';
+  final label =
+      labelOf?.call(message) ??
+      (message.role == 'assistant' ? 'Assistant' : 'User');
+  return '$label: $content';
 }
 
 /// Incremental start/recent window. Walks messages and stops at [maxChars]
@@ -253,6 +257,7 @@ String buildBoundedConversationText(
   required CompressContextLimitMode mode,
   required int maxChars,
   required String Function(int) quoteMarker,
+  String Function(ChatMessage message)? labelOf,
 }) {
   if (maxChars <= 0) return '';
   if (mode == CompressContextLimitMode.recent) {
@@ -338,6 +343,7 @@ List<String> chunkMessagesForCompression(
   List<ChatMessage> messages, {
   required int maxChars,
   required String Function(int) quoteMarker,
+  String Function(ChatMessage message)? labelOf,
 }) {
   if (maxChars <= 0) return const <String>[];
   final chunks = <String>[];
@@ -353,6 +359,7 @@ List<String> chunkMessagesForCompression(
     final line = conversationLineForCompression(
       message,
       quoteMarker: quoteMarker,
+      labelOf: labelOf,
     );
     if (line == null) continue;
     if (line.length > maxChars) {
@@ -412,6 +419,7 @@ List<String> buildCompressRequestContents(
   CompressContextOptions options, {
   int safeRequestChars = CompressContextOptions.safeRequestChars,
   required String Function(int) quoteMarker,
+  String Function(ChatMessage message)? labelOf,
 }) {
   if (options.mode == CompressContextLimitMode.start ||
       options.mode == CompressContextLimitMode.recent) {
@@ -421,6 +429,7 @@ List<String> buildCompressRequestContents(
       mode: options.mode,
       maxChars: maxChars,
       quoteMarker: quoteMarker,
+      labelOf: labelOf,
     );
     if (bounded.trim().isEmpty) return const <String>[];
     if (bounded.length <= safeRequestChars) return [bounded];
@@ -430,6 +439,7 @@ List<String> buildCompressRequestContents(
     messages,
     maxChars: safeRequestChars,
     quoteMarker: quoteMarker,
+    labelOf: labelOf,
   );
 }
 

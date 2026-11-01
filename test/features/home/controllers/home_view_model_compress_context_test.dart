@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/message_part.dart';
-import 'package:Cuplivo/core/utils/token_estimator.dart';
 import 'package:Cuplivo/features/home/controllers/home_view_model.dart';
 import 'package:Cuplivo/utils/mcp_structured_image.dart';
 
@@ -525,7 +524,9 @@ void main() {
       // The joined reference the incremental window must agree with: roles plus
       // bodies, blank-content messages dropped.
       final joined = messages
-          .map(conversationLineForCompression)
+          .map((message) =>
+              conversationLineForCompression(message, quoteMarker: (i) => '[$i]'),
+          )
           .whereType<String>()
           .join('\n\n');
 
@@ -534,6 +535,7 @@ void main() {
           messages,
           mode: CompressContextLimitMode.start,
           maxChars: 6000,
+          quoteMarker: (index) => '[$index]',
         ),
         buildCompressContextContent(joined, options),
       );
@@ -553,7 +555,9 @@ void main() {
       // The joined reference the incremental window must agree with: roles plus
       // bodies, blank-content messages dropped.
       final joined = messages
-          .map(conversationLineForCompression)
+          .map((message) =>
+              conversationLineForCompression(message, quoteMarker: (i) => '[$i]'),
+          )
           .whereType<String>()
           .join('\n\n');
 
@@ -562,6 +566,7 @@ void main() {
           messages,
           mode: CompressContextLimitMode.recent,
           maxChars: 6000,
+          quoteMarker: (index) => '[$index]',
         ),
         buildCompressContextContent(joined, options),
       );
@@ -581,6 +586,7 @@ void main() {
         messages,
         mode: CompressContextLimitMode.start,
         maxChars: 6000,
+        quoteMarker: (index) => '[$index]',
       );
       expect(start.length, lessThanOrEqualTo(6000));
       expect(start, contains('block-0'));
@@ -590,6 +596,7 @@ void main() {
         messages,
         mode: CompressContextLimitMode.recent,
         maxChars: 6000,
+        quoteMarker: (index) => '[$index]',
       );
       expect(recent.length, lessThanOrEqualTo(6000));
       expect(recent, contains('block-199'));
@@ -605,7 +612,9 @@ void main() {
         _message(id: 'u2', role: 'user', content: 'ccc'),
       ];
 
-      final chunks = chunkMessagesForCompression(messages, maxChars: 20);
+      final chunks = chunkMessagesForCompression(messages, maxChars: 20,
+        quoteMarker: (index) => '[$index]',
+      );
 
       expect(chunks, hasLength(greaterThan(1)));
       expect(chunks.every((chunk) => chunk.length <= 20), isTrue);
@@ -618,9 +627,14 @@ void main() {
       final messages = [
         _message(id: 'u1', role: 'user', content: 'aa$emoji${'b' * 30}'),
       ];
-      final line = conversationLineForCompression(messages.single)!;
+      final line = conversationLineForCompression(
+        messages.single,
+        quoteMarker: (index) => '[$index]',
+      )!;
 
-      final chunks = chunkMessagesForCompression(messages, maxChars: 9);
+      final chunks = chunkMessagesForCompression(messages, maxChars: 9,
+        quoteMarker: (index) => '[$index]',
+      );
 
       expect(chunks, hasLength(greaterThan(1)));
       expect(chunks.join(), line);
@@ -642,6 +656,7 @@ void main() {
         messages,
         const CompressContextOptions(mode: CompressContextLimitMode.unlimited),
         safeRequestChars: 50,
+        quoteMarker: (index) => '[$index]',
       );
 
       expect(chunks, hasLength(greaterThan(1)));
@@ -663,6 +678,7 @@ void main() {
           keepUserMessages: 1,
         ),
         safeRequestChars: 50,
+        quoteMarker: (index) => '[$index]',
       );
 
       expect(chunks, hasLength(greaterThan(1)));

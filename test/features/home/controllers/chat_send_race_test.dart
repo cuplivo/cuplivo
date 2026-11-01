@@ -104,6 +104,7 @@ class _GatedChatService extends ChatService {
     bool selectVersion = false,
     String? temporaryAfterGroupId,
     UiContextSubmission? uiContext,
+    String? senderId,
   }) async {
     if (content == 'preset question' && presetHold != null) {
       presetConversationId = conversationId;
@@ -138,6 +139,7 @@ class _GatedChatService extends ChatService {
     required String anchorGroupId,
     required bool truncateFuture,
     String? expectedContextState,
+    String? senderId,
   }) async {
     regenerationEntered = true;
     await regenerationHold?.future;
@@ -147,6 +149,7 @@ class _GatedChatService extends ChatService {
       providerId: providerId,
       anchorGroupId: anchorGroupId,
       truncateFuture: truncateFuture,
+      senderId: senderId,
     );
   }
 
@@ -1617,7 +1620,6 @@ void main() {
             assistantId: 'missing-assistant',
           );
           await controller.debugViewModel.switchConversation(conversation.id);
-          await assistantProvider.reorderAssistants(1, 0);
           expect(assistantProvider.currentAssistantId, 'recovery-a');
           final display = getModelDisplayInfo(
             settings,

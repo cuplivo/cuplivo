@@ -314,6 +314,12 @@ void main() {
                       'installedAt': '2026-09-08T00:00:00Z',
                       'updatedAt': '2026-09-08T00:00:00Z',
                     },
+                    if (kind == BusinessEntityKind.groupChat) ...{
+                      'name': 'Panel',
+                      'memberIds': <String>['assistant-a'],
+                      'createdAt': '2026-09-08T00:00:00Z',
+                      'updatedAt': '2026-09-08T00:00:00Z',
+                    },
                     'opaque': kind.name,
                   },
               ]),

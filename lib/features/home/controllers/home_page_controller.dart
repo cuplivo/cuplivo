@@ -71,6 +71,7 @@ import '../services/message_generation_service.dart';
 import '../services/local_tools_service.dart';
 import '../services/ask_user_interaction_service.dart';
 import '../services/ocr_service.dart';
+import '../../../core/providers/group_chat_provider.dart';
 import '../services/translation_service.dart';
 import '../services/file_upload_service.dart';
 import '../utils/chat_layout_constants.dart';
@@ -957,6 +958,18 @@ class HomePageController extends ChangeNotifier {
           message: l10n.homePagePleaseSelectModel,
           type: NotificationType.warning,
         );
+      } else if (warning == 'group_unavailable') {
+        showAppSnackBar(
+          _context,
+          message: l10n.groupChatUnavailableWarning,
+          type: NotificationType.warning,
+        );
+      } else if (warning == 'group_director_fallback') {
+        showAppSnackBar(
+          _context,
+          message: l10n.groupChatDirectorFallbackWarning,
+          type: NotificationType.warning,
+        );
       }
     };
     _viewModel.onScrollToBottom = () {
@@ -1797,6 +1810,22 @@ class HomePageController extends ChangeNotifier {
     bool? allowImagesApiRouting,
   }) async {
     if (currentConversation == null) return;
+    final target = _chatService.getConversation(message.conversationId);
+    if (target == null) return;
+    // A group topic regenerates its round, not one reply: who answers is the
+    // director's decision, so "say that again" belongs to the user message
+    // that started the round. A member's reply offers no regenerate at all.
+    // A topic whose group row is gone has no director to ask, so it regenerates
+    // like an ordinary conversation.
+    if (target.isGroupConversation && _hasGroupChat(target.groupChatId)) {
+      if (message.role != 'user') return;
+      final success = await _viewModel.restartGroupRound(
+        conversation: target,
+        userMessage: message,
+      );
+      if (success) notifyListeners();
+      return;
+    }
     final projected = await _chatService.loadSelectedMessageProjections(
       message.conversationId,
     );
@@ -1861,6 +1890,28 @@ class HomePageController extends ChangeNotifier {
     }
   }
 
+  /// Whether a group row exists for [groupChatId].
+  ///
+  /// Guarded: the controller is also exercised in trees that do not provide the
+  /// group list, and there nothing can be a live group.
+  bool _hasGroupChat(String? groupChatId) =>
+      _groupChatExists(groupChatId) == true;
+
+  /// Whether [groupChatId] names a live group, or null when this tree has no
+  /// group list at all and the answer cannot be known.
+  ///
+  /// The difference matters where the claim is *carried* rather than acted on: a
+  /// reduced host must keep the topic where it is, while a real host has to stop
+  /// a topic from following a group that is gone.
+  bool? _groupChatExists(String? groupChatId) {
+    if (groupChatId == null) return false;
+    try {
+      return _context.read<GroupChatProvider>().byId(groupChatId) != null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> submitRecoveredAskUserAnswer(
     ChatMessage message,
     ToolUIPart part,
@@ -1869,6 +1920,10 @@ class HomePageController extends ChangeNotifier {
     final conversation = currentConversation;
     if (conversation == null ||
         _viewModel.isConversationSendInFlight(conversation.id) ||
+        // A round writing into this topic already owns its send path; answering
+        // a card from an earlier turn would start a second writer and abandon
+        // the turn the round is in the middle of.
+        _viewModel.isGroupRoundLoading(conversation.id) ||
         _chatService.contextCompression.blocksSending(conversation.id)) {
       return;
     }
@@ -2023,10 +2078,22 @@ class HomePageController extends ChangeNotifier {
 
   Future<Conversation?> createNewConversationAnimated({
     bool preserveDraft = false,
+    String? groupChatId,
   }) async {
     // Cancel any in-flight conversation switch fetch.
     final serial = ++_switchSerial;
     final assistantId = _context.read<AssistantProvider>().currentAssistantId;
+    // A group topic has no assistant. "New" inside one means a new topic of
+    // that group; without this, the fallback assistant became the owner and the
+    // app silently left the group for a 1:1 chat.
+    // Inherit the group only while its row still exists: a topic whose group is
+    // gone is an ordinary conversation, and "+" must not mint another topic
+    // tagged with the dead group.
+    final inheritedGroupChatId = currentConversation?.groupChatId;
+    final inheritedGroupIsLive =
+        _groupChatExists(inheritedGroupChatId) != false;
+    final resolvedGroupChatId =
+        groupChatId ?? (inheritedGroupIsLive ? inheritedGroupChatId : null);
     _warmupSerial++;
     _selectionEpoch++;
     try {
@@ -2044,7 +2111,8 @@ class HomePageController extends ChangeNotifier {
     if (!_context.mounted || serial != _switchSerial) return null;
     final conversation = await _createNewConversation(
       preserveDraft: preserveDraft,
-      assistantId: assistantId,
+      assistantId: resolvedGroupChatId == null ? assistantId : null,
+      groupChatId: resolvedGroupChatId,
     );
     if (conversation == null ||
         !_context.mounted ||
@@ -2072,6 +2140,7 @@ class HomePageController extends ChangeNotifier {
   Future<Conversation?> _createNewConversation({
     bool preserveDraft = false,
     String? assistantId,
+    String? groupChatId,
   }) async {
     if (_composerDrafts == null) {
       _exitUserMessageEdit(clearDraft: !preserveDraft);
@@ -2080,6 +2149,7 @@ class HomePageController extends ChangeNotifier {
     final previousId = currentConversation?.id;
     final conversation = await _viewModel.createNewConversation(
       assistantId: assistantId,
+      groupChatId: groupChatId,
     );
     if (conversation == null || currentConversation?.id != conversation.id) {
       return conversation;

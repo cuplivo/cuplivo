@@ -7,6 +7,7 @@ import '../../../core/models/compress_context_options.dart';
 import '../../../core/models/context_operation.dart';
 import '../../../core/models/context_compression_task.dart';
 import '../../../core/providers/settings_provider.dart';
+import '../../../core/services/chat/chat_service.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/utils/token_estimator.dart';
 import '../../../icons/lucide_adapter.dart';
@@ -121,6 +122,13 @@ class _CompressContextOptionsDialogState
   Future<void> _refreshEstimate() async {
     final revision = ++_estimateRevision;
     final options = _options();
+    // Read before the first await: the estimate must label lines the same way
+    // the run will, and the context does not survive the gap. A host without a
+    // chat service (a preview harness) falls back to the plain role words.
+    String Function(ChatMessage)? labelOf;
+    try {
+      labelOf = context.read<ChatService>().compressionLabelOf;
+    } catch (_) {}
     final selection = selectCompressionHistory(
       widget.messages,
       widget.operations,
@@ -133,7 +141,11 @@ class _CompressContextOptionsDialogState
             _includeAttachments,
           ) ??
           selection.input;
-      final chunks = buildCompressRequestContents(input, options);
+      final chunks = buildCompressRequestContents(
+        input,
+        options,
+        labelOf: labelOf,
+      );
       final inputTokens = chunks.fold<int>(
         0,
         (sum, text) => sum + estimateTokens(text),

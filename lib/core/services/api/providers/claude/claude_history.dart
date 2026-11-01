@@ -5,6 +5,7 @@ import '../../../../utils/multimodal_input_utils.dart';
 import '../../../../../utils/sandbox_path_resolver.dart';
 import '../../../../../utils/utf16_safe_cut.dart';
 import '../../chat_api_helpers.dart';
+import '../../message_authorship.dart';
 import '../../native_input_attachments.dart';
 import '../../tool_result_content.dart';
 import 'claude_container.dart';
@@ -224,6 +225,7 @@ class ClaudeHistory {
     // model drew is what the user's next question is about. Such images wait
     // here and open the following user message, so the model still sees them.
     final carriedImages = <Map<String, dynamic>>[];
+    final lastUserIndex = lastHumanUserIndex(messages);
     _ReplayedTurn? turn;
 
     /// A result is sent only once the call it answers has been: the API
@@ -407,7 +409,7 @@ class ClaudeHistory {
         await _plainMessage(
           m,
           role,
-          isLast: i == messages.lastIndexWhere((m) => m['role'] == 'user'),
+          isLast: i == lastUserIndex,
           carriedImages: carriedImages,
         ),
       );

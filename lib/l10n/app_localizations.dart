@@ -208,17 +208,23 @@ abstract class AppLocalizations {
   /// **'Appearance, behavior, and interaction preferences'**
   String get settingsPageDisplaySubtitle;
 
-  /// No description provided for @settingsPageAssistant.
+  /// No description provided for @settingsPageChatOwners.
   ///
   /// In en, this message translates to:
-  /// **'Assistant'**
-  String get settingsPageAssistant;
+  /// **'Assistants and groups'**
+  String get settingsPageChatOwners;
 
-  /// No description provided for @settingsPageAssistantSubtitle.
+  /// No description provided for @settingsPageChatOwnersCreate.
   ///
   /// In en, this message translates to:
-  /// **'Default assistant and style'**
-  String get settingsPageAssistantSubtitle;
+  /// **'Create'**
+  String get settingsPageChatOwnersCreate;
+
+  /// No description provided for @chatOwnerCreateAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'New assistant'**
+  String get chatOwnerCreateAssistant;
 
   /// No description provided for @settingsPageModelsServicesSection.
   ///
@@ -2836,12 +2842,6 @@ abstract class AppLocalizations {
   /// **'Use global default'**
   String get assistantEditModelUseGlobalDefault;
 
-  /// No description provided for @assistantSettingsPageTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Assistant Settings'**
-  String get assistantSettingsPageTitle;
-
   /// No description provided for @assistantSettingsCopyButton.
   ///
   /// In en, this message translates to:
@@ -2895,12 +2895,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Save'**
   String get assistantSettingsAddSheetSave;
-
-  /// No description provided for @desktopAssistantsListTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Assistants'**
-  String get desktopAssistantsListTitle;
 
   /// No description provided for @desktopSidebarTabAssistants.
   ///
@@ -19545,6 +19539,12 @@ abstract class AppLocalizations {
   /// **'Configuration'**
   String get recycleBinKindConfig;
 
+  /// No description provided for @recycleBinKindGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Group'**
+  String get recycleBinKindGroup;
+
   /// No description provided for @recycleBinOriginLocal.
   ///
   /// In en, this message translates to:
@@ -19646,6 +19646,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Assistants'**
   String get recycleBinFilterAssistants;
+
+  /// No description provided for @recycleBinFilterGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'Groups'**
+  String get recycleBinFilterGroups;
 
   /// No description provided for @recycleBinFilterSettings.
   ///
@@ -29219,6 +29225,204 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancelling keeps any files already copied to the destination. You can inspect and remove that partial copy yourself.'**
   String get dataDirectoryCancelHint;
+
+  /// No description provided for @groupChatTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Group chat'**
+  String get groupChatTitle;
+
+  /// No description provided for @groupChatCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'New group chat'**
+  String get groupChatCreate;
+
+  /// No description provided for @groupChatCreateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick at least one assistant'**
+  String get groupChatCreateHint;
+
+  /// No description provided for @groupChatNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Group name'**
+  String get groupChatNameHint;
+
+  /// No description provided for @groupChatChangeAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Change group avatar'**
+  String get groupChatChangeAvatar;
+
+  /// No description provided for @groupChatMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Members'**
+  String get groupChatMembers;
+
+  /// No description provided for @groupChatMembersEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No members yet'**
+  String get groupChatMembersEmpty;
+
+  /// No description provided for @groupChatInvite.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite assistants'**
+  String get groupChatInvite;
+
+  /// No description provided for @groupChatNoAssistantToInvite.
+  ///
+  /// In en, this message translates to:
+  /// **'Every assistant is already in this group'**
+  String get groupChatNoAssistantToInvite;
+
+  /// No description provided for @groupChatSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get groupChatSave;
+
+  /// No description provided for @groupChatCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get groupChatCancel;
+
+  /// No description provided for @groupChatSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Group settings'**
+  String get groupChatSettingsTitle;
+
+  /// No description provided for @groupChatBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get groupChatBack;
+
+  /// No description provided for @groupChatOrchestration.
+  ///
+  /// In en, this message translates to:
+  /// **'Who speaks'**
+  String get groupChatOrchestration;
+
+  /// No description provided for @groupChatDirectorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Director model'**
+  String get groupChatDirectorTitle;
+
+  /// No description provided for @groupChatDirectorSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The model that picks who speaks next. A fast, low-cost model is the right choice.'**
+  String get groupChatDirectorSubtitle;
+
+  /// No description provided for @groupChatDirectorFollowDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Follows default model'**
+  String get groupChatDirectorFollowDefault;
+
+  /// No description provided for @groupChatMaxTurnsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Replies per round'**
+  String get groupChatMaxTurnsTitle;
+
+  /// No description provided for @groupChatMaxTurnsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How many members may reply to one message'**
+  String get groupChatMaxTurnsSubtitle;
+
+  /// No description provided for @groupChatRemoveMember.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get groupChatRemoveMember;
+
+  /// No description provided for @groupChatRemoveMemberTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove assistant'**
+  String get groupChatRemoveMemberTitle;
+
+  /// No description provided for @groupChatRemoveMemberContent.
+  ///
+  /// In en, this message translates to:
+  /// **'This assistant will no longer take part in this group.'**
+  String get groupChatRemoveMemberContent;
+
+  /// No description provided for @groupChatDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete group chat'**
+  String get groupChatDelete;
+
+  /// No description provided for @groupChatDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this group chat?'**
+  String get groupChatDeleteTitle;
+
+  /// No description provided for @groupChatDeleteContent.
+  ///
+  /// In en, this message translates to:
+  /// **'The group and all of its topics move to the recycle bin together.'**
+  String get groupChatDeleteContent;
+
+  /// No description provided for @groupChatDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Group chat moved to the recycle bin'**
+  String get groupChatDeleted;
+
+  /// No description provided for @groupChatUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This group chat\'s settings are not available. Restore it from the recycle bin.'**
+  String get groupChatUnavailable;
+
+  /// No description provided for @groupChatNewTopic.
+  ///
+  /// In en, this message translates to:
+  /// **'New topic'**
+  String get groupChatNewTopic;
+
+  /// No description provided for @groupChatRemovedMember.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted assistant'**
+  String get groupChatRemovedMember;
+
+  /// No description provided for @groupChatDirectorFallbackWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'The director model is unavailable, so the first member replied once. Check the default model settings.'**
+  String get groupChatDirectorFallbackWarning;
+
+  /// No description provided for @groupChatUnavailableWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This group chat has no available members.'**
+  String get groupChatUnavailableWarning;
+
+  /// No description provided for @defaultModelPageDirectorModelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Director model'**
+  String get defaultModelPageDirectorModelTitle;
+
+  /// No description provided for @defaultModelPageDirectorModelSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Picks who speaks next in a group chat. A fast, low-cost model is the best fit.'**
+  String get defaultModelPageDirectorModelSubtitle;
 }
 
 class _AppLocalizationsDelegate

@@ -18,10 +18,12 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/message_part.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/assistant_regex.dart';
+import '../../../core/providers/assistant_provider.dart';
 import '../../../utils/assistant_regex.dart';
 import '../../../shared/widgets/ios_checkbox.dart';
 import '../../../shared/widgets/selection_scroll_container.dart';
@@ -191,6 +193,7 @@ class MessageListView extends StatefulWidget {
     this.showUserAvatar = true,
     this.showTokenStats = false,
     this.assistant,
+    this.assistants,
   });
 
   final ScrollController scrollController;
@@ -326,6 +329,20 @@ class MessageListView extends StatefulWidget {
   final bool showUserAvatar;
   final bool showTokenStats;
   final Assistant? assistant;
+
+  /// The roster a reply's author is resolved from, so one conversation can
+  /// hold several speakers: an old reply keeps the face and name it was written
+  /// with even after the current assistant changes — or after its author is
+  /// deleted.
+  ///
+  /// Null in a 1:1 chat, where [assistant] is the only possible author.
+  ///
+  /// A provider rather than a callback on purpose: the metric guard in
+  /// [didUpdateWidget] compares this by identity, so a callback allocated in
+  /// the host's build would never match the previous one and every rebuild
+  /// would take the full `invalidateAllExtents()` path instead of the
+  /// incremental append/remove one.
+  final AssistantProvider? assistants;
 
   @visibleForTesting
   static const Key windowSkeletonKey = ValueKey<String>(
@@ -1357,7 +1374,8 @@ class _MessageListViewState extends State<MessageListView> {
         oldWidget.showBrowserPageCards != widget.showBrowserPageCards ||
         oldWidget.collapsedCodeLines != widget.collapsedCodeLines ||
         oldWidget.wrapCodeBlocks != widget.wrapCodeBlocks ||
-        !identical(oldWidget.assistant, widget.assistant);
+        !identical(oldWidget.assistant, widget.assistant) ||
+        !identical(oldWidget.assistants, widget.assistants);
     if (metricInputsChanged) {
       controller.invalidateAllExtents();
       return;
@@ -1786,7 +1804,6 @@ class _MessageListViewState extends State<MessageListView> {
       showModelIcon: widget.showModelIcon,
       showUserAvatar: widget.showUserAvatar,
       showTokenStats: widget.showTokenStats,
-      assistant: widget.assistant,
     );
     return UiPersistenceHost(
       registry: _uiRegistry,
@@ -2110,9 +2127,20 @@ class _MessageListViewState extends State<MessageListView> {
     final message = model.message;
     final r = widget.reasoning[message.id];
     final t = widget.translations[message.id];
-    final assistant = presentation.assistant;
-    final useAssistAvatar = assistant?.useAssistantAvatar == true;
-    final useAssistName = assistant?.useAssistantName == true;
+    // The reply's own author, and the two switches that decide whether it is
+    // shown by name and face. Both answers come from that same assistant: taking
+    // the switches from the selected 1:1 assistant labelled a member who never
+    // opted in, hid one who did, and made the panel disagree with the export of
+    // the same conversation (architecture.md §"头像、名字").
+    final resolvedAuthor = message.senderId == null
+        ? null
+        : widget.assistants?.getById(message.senderId!);
+    final authorGone = message.senderId != null && resolvedAuthor == null;
+    final author = resolvedAuthor ?? (authorGone ? null : widget.assistant);
+    // A deleted author keeps a name — "deleted assistant" — instead of the row
+    // silently borrowing someone else's identity.
+    final useAssistAvatar = authorGone || author?.useAssistantAvatar == true;
+    final useAssistName = authorGone || author?.useAssistantName == true;
     final gid = model.slotId;
     final availableVersions = model.availableVersions;
     final selectedVersion = model.selectedVersion;
@@ -2178,7 +2206,8 @@ class _MessageListViewState extends State<MessageListView> {
                               t: t,
                               useAssistAvatar: useAssistAvatar,
                               useAssistName: useAssistName,
-                              assistant: assistant,
+                              author: author,
+                              authorGone: authorGone,
                               gid: gid,
                               availableVersions: availableVersions,
                               selectedVersion: selectedVersion,
@@ -2196,7 +2225,8 @@ class _MessageListViewState extends State<MessageListView> {
                               t: t,
                               useAssistAvatar: useAssistAvatar,
                               useAssistName: useAssistName,
-                              assistant: assistant,
+                              author: author,
+                              authorGone: authorGone,
                               gid: gid,
                               availableVersions: availableVersions,
                               selectedVersion: selectedVersion,
@@ -2348,7 +2378,8 @@ class _MessageListViewState extends State<MessageListView> {
     required TranslationUiState? t,
     required bool useAssistAvatar,
     required bool useAssistName,
-    required dynamic assistant,
+    required dynamic author,
+    required bool authorGone,
     required String gid,
     required List<int> availableVersions,
     required int selectedVersion,
@@ -2413,7 +2444,8 @@ class _MessageListViewState extends State<MessageListView> {
             t: t,
             useAssistAvatar: useAssistAvatar,
             useAssistName: useAssistName,
-            assistant: assistant,
+            author: author,
+            authorGone: authorGone,
             gid: gid,
             availableVersions: availableVersions,
             selectedVersion: selectedVersion,
@@ -2488,7 +2520,8 @@ class _MessageListViewState extends State<MessageListView> {
     required TranslationUiState? t,
     required bool useAssistAvatar,
     required bool useAssistName,
-    required dynamic assistant,
+    required dynamic author,
+    required bool authorGone,
     required String gid,
     required List<int> availableVersions,
     required int selectedVersion,
@@ -2507,6 +2540,9 @@ class _MessageListViewState extends State<MessageListView> {
     final quoteTarget = _quoteTargetFor(message);
     return ChatMessageWidget(
       message: message,
+      // The reply's own author when the conversation has several; the visual
+      // regex pass needs the same answer the panel shows.
+      author: author,
       onReply: widget.onReplyMessage == null || message.isStreaming
           ? null
           : () => widget.onReplyMessage!(message),
@@ -2548,9 +2584,11 @@ class _MessageListViewState extends State<MessageListView> {
       useAssistantAvatar: useAssistAvatar && message.role == 'assistant',
       useAssistantName: useAssistName && message.role == 'assistant',
       assistantName: (useAssistAvatar || useAssistName)
-          ? (assistant?.name ?? 'Assistant')
+          ? (authorGone
+                ? AppLocalizations.of(context)!.groupChatRemovedMember
+                : (author?.name ?? 'Assistant'))
           : null,
-      assistantAvatar: useAssistAvatar ? (assistant?.avatar ?? '') : null,
+      assistantAvatar: useAssistAvatar ? (author?.avatar ?? '') : null,
       showUserAvatar: presentation.showUserAvatar,
       showTokenStats: presentation.showTokenStats,
       hideStreamingIndicator:
@@ -2579,11 +2617,14 @@ class _MessageListViewState extends State<MessageListView> {
               t != null)
           ? () => widget.onToggleTranslation?.call(message.id)
           : null,
-      onRegenerate: message.role == 'assistant'
-          ? () => widget.onRegenerateMessage?.call(message)
+      // Null means "this conversation offers no such action", which must not
+      // become a closure that silently does nothing: the row hides the button.
+      onRegenerate:
+          message.role == 'assistant' && widget.onRegenerateMessage != null
+          ? () => widget.onRegenerateMessage!(message)
           : null,
-      onResend: message.role == 'user'
-          ? () => widget.onResendMessage?.call(message)
+      onResend: message.role == 'user' && widget.onResendMessage != null
+          ? () => widget.onResendMessage!(message)
           : null,
       onTranslate: message.role == 'assistant'
           ? () => widget.onTranslateMessage?.call(message)
@@ -2830,14 +2871,12 @@ final class _MessagePresentation {
     required this.showModelIcon,
     required this.showUserAvatar,
     required this.showTokenStats,
-    required this.assistant,
   });
 
   final double chatFontScale;
   final bool showModelIcon;
   final bool showUserAvatar;
   final bool showTokenStats;
-  final Assistant? assistant;
 }
 
 /// Fades out and collapses a timeline slot ahead of its deletion.

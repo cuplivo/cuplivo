@@ -64,3 +64,19 @@ BusinessPreferences createBusinessTestPreferences({
   final database = AppDatabase(NativeDatabase.memory());
   return BusinessPreferences(BusinessRepository(database));
 }
+
+/// [createBusinessTestPreferences] plus the database behind it, for providers
+/// that need both: a group chat store sits on the same database its preferences
+/// do, so a drawer test that must provide one needs the handle.
+({AppDatabase database, BusinessPreferences preferences})
+createBusinessTestPreferencesWithDatabase({
+  Map<String, Object> localInitial = const <String, Object>{},
+}) {
+  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+  SharedPreferences.setMockInitialValues(localInitial);
+  final database = AppDatabase(NativeDatabase.memory());
+  return (
+    database: database,
+    preferences: BusinessPreferences(BusinessRepository(database)),
+  );
+}

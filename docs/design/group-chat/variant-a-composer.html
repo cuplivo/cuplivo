@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>方案 A 修订 · 输入框与助手弹窗</title>
+<style>
+  :root {
+    --paper: #f4f1ea;
+    --ink: #1d1c1a;
+    --muted: #6f6b63;
+    --faint: #9b958b;
+    --card: #fffdf8;
+    --accent: #0f6b5c;
+    --accent-soft: rgba(15,107,92,.09);
+    --amber: #a9672d;
+    --line: rgba(29,28,26,.09);
+    --shadow: 0 18px 48px rgba(50,42,30,.14), 0 2px 6px rgba(50,42,30,.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .sheet { max-width: 1180px; margin: 0 auto; padding: 40px 28px 64px; }
+  .eyebrow {
+    font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700;
+  }
+  h1 { font-size: 30px; line-height: 1.18; margin: 10px 0 10px; letter-spacing: -.02em; }
+  .lede { font-size: 14px; line-height: 1.65; color: var(--muted); margin: 0; max-width: 720px; }
+  .stage {
+    display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 36px;
+    align-items: start; margin-top: 34px;
+  }
+  .stage > *, .stack { min-width: 0; }
+  .desk-wrap { min-width: 0; }
+  .caption {
+    display: flex; align-items: baseline; gap: 10px; margin: 0 0 10px;
+    font-size: 12px; color: var(--muted);
+  }
+  .caption b { color: var(--ink); font-size: 12px; letter-spacing: .02em; }
+  .panel {
+    background: rgba(255,253,248,.55); border: 1px solid var(--line);
+    border-radius: 20px; padding: 14px; box-shadow: 0 1px 0 rgba(255,255,255,.6) inset;
+  }
+  .stack { display: grid; gap: 26px; }
+
+  /* shared composer */
+  .composer {
+    background: #f7f5ef; border-radius: 18px; padding: 10px;
+    border: 1px solid var(--line);
+  }
+  .input-shell {
+    background: #fffdf8; border: 1px solid rgba(29,28,26,.10);
+    border-radius: 17px; padding: 9px 10px 7px;
+    box-shadow: 0 4px 14px rgba(50,42,30,.06);
+  }
+  .attachments { display: flex; gap: 6px; margin-bottom: 7px; }
+  .thumb {
+    width: 38px; height: 38px; border-radius: 9px; position: relative;
+    background: linear-gradient(145deg, #cfd8c4, #93a486);
+  }
+  .thumb.file { background: #eee8db; display: grid; place-items: center; color: #7a6a52; }
+  .thumb.file svg { width: 16px; height: 16px; }
+  .thumb .x {
+    position: absolute; top: -5px; right: -5px; width: 14px; height: 14px;
+    border-radius: 50%; background: #3b3833; color: #fff; font-size: 8px;
+    display: grid; place-items: center; border: 1.5px solid #fffdf8;
+  }
+  .inputline {
+    display: flex; align-items: center; min-height: 24px; font-size: 12.5px;
+    color: #a39c91; padding: 0 2px;
+  }
+  .cursor {
+    display: inline-block; width: 1.5px; height: 15px; background: var(--accent);
+    margin-left: 1px; animation: blink 1.2s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  .toolbar {
+    display: flex; align-items: center; gap: 1px; margin-top: 7px; color: #5c574f;
+  }
+  .tool {
+    width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center;
+    flex: none;
+  }
+  .tool svg { width: 16px; height: 16px; }
+  .tool.soft { background: var(--accent-soft); color: var(--accent); }
+  .member-stack { display: flex; align-items: center; flex: none; margin-right: 5px; }
+  .member-stack .avatar {
+    width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid #f7f5ef;
+    margin-left: -5px; font-size: 8px; font-weight: 750; color: #fff;
+    display: grid; place-items: center; cursor: pointer;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.22);
+  }
+  .member-stack .avatar:first-child { margin-left: 0; }
+  .member-stack .avatar.lin { background: linear-gradient(145deg,#51744a,#33502e); }
+  .member-stack .avatar.lan { background: linear-gradient(145deg,#8a5b83,#5d3a58); }
+  .member-stack .avatar.qi { background: linear-gradient(145deg,#4e6f8f,#304b66); }
+  .member-stack .avatar.zhou { background: linear-gradient(145deg,#a1764d,#6c4b2e); }
+  .member-stack .add {
+    width: 20px; height: 20px; border-radius: 50%; margin-left: 1px;
+    border: 1px dashed rgba(15,107,92,.45); color: var(--accent);
+    display: grid; place-items: center; background: #f7f5ef; cursor: pointer;
+  }
+  .member-stack .add svg { width: 10px; height: 10px; }
+  .ctx-ring { margin-left: auto; display: flex; align-items: center; }
+  .ring {
+    width: 23px; height: 23px; border-radius: 50%;
+    background: conic-gradient(var(--accent) 0 214deg, rgba(29,28,26,.12) 214deg 360deg);
+    display: grid; place-items: center;
+  }
+  .ring::after { content: ""; width: 16px; height: 16px; border-radius: 50%; background: #f7f5ef; }
+  .send {
+    width: 33px; height: 33px; border-radius: 50%; background: var(--accent);
+    color: #fff; display: grid; place-items: center; margin-left: 4px; flex: none;
+    box-shadow: 0 5px 12px rgba(15,107,92,.25);
+  }
+  .send svg { width: 16px; height: 16px; }
+
+  /* phone crop */
+  .phone {
+    width: 340px; border-radius: 32px; border: 7px solid #242321;
+    background: #f7f5ef; overflow: hidden; box-shadow: var(--shadow);
+  }
+  .phone.crop { height: 324px; display: flex; flex-direction: column; }
+  .phone.sheetphone { height: 470px; position: relative; }
+  .crop-head {
+    height: 42px; flex: none; display: flex; align-items: center; gap: 8px;
+    padding: 0 12px; border-bottom: 1px solid var(--line);
+  }
+  .crop-head .g-av {
+    width: 26px; height: 26px; border-radius: 9px; background: linear-gradient(145deg,#146b5e,#0c4e45);
+    color: #fff; font-size: 10px; font-weight: 750; display: grid; place-items: center;
+    position: relative;
+  }
+  .g-av i {
+    position: absolute; right: -4px; bottom: -4px; width: 11px; height: 11px;
+    border-radius: 50%; border: 1.5px solid #f7f5ef; background: #d8a15c;
+    color: #3b2a16; display: grid; place-items: center;
+  }
+  .g-av i svg { width: 6px; height: 6px; }
+  .crop-head h2 { margin: 0; font-size: 13px; font-weight: 650; }
+  .crop-chat {
+    flex: 1; min-height: 0; padding: 10px 12px 0; display: flex; flex-direction: column;
+    gap: 10px; overflow: hidden;
+    mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 14px), transparent 100%);
+  }
+  .mini-msg { display: flex; gap: 7px; align-items: flex-start; }
+  .mini-msg.me { justify-content: flex-end; }
+  .mini-av {
+    width: 22px; height: 22px; border-radius: 8px; flex: none; display: grid;
+    place-items: center; font-size: 8px; font-weight: 750; color: #fff;
+  }
+  .mini-av.lin { background: linear-gradient(145deg,#51744a,#33502e); }
+  .mini-av.lan { background: linear-gradient(145deg,#8a5b83,#5d3a58); }
+  .mini-bubble {
+    max-width: 210px; background: #fffdf8; border: 1px solid rgba(29,28,26,.07);
+    border-radius: 4px 13px 13px 13px; padding: 7px 9px; font-size: 10.5px;
+    line-height: 1.5; color: #2c2a26;
+  }
+  .mini-bubble.user {
+    background: #11695b; color: #fff; border-color: transparent;
+    border-radius: 13px 4px 13px 13px;
+  }
+  .mini-name { font-size: 8.5px; color: var(--faint); margin: 0 0 2px 3px; }
+  .crop-composer { flex: none; padding: 0 9px 9px; }
+  .phone.crop .composer { padding: 8px; }
+  .phone.crop .tool { width: 25px; height: 25px; }
+  .phone.crop .tool svg { width: 15px; height: 15px; }
+  .phone.crop .member-stack .avatar { width: 20px; height: 20px; }
+  .phone.crop .send { width: 31px; height: 31px; }
+  .phone.crop .ring { width: 21px; height: 21px; }
+  .phone.crop .ring::after { width: 15px; height: 15px; }
+
+  /* dim + sheet */
+  .dim {
+    position: absolute; inset: 0; background: rgba(20,19,17,.36);
+    backdrop-filter: blur(1px);
+  }
+  .sheetcard {
+    position: absolute; left: 0; right: 0; bottom: 0; background: #fbf9f3;
+    border-radius: 22px 22px 0 0; padding: 9px 12px 14px;
+    box-shadow: 0 -18px 40px rgba(20,19,17,.18);
+  }
+  .grabber {
+    width: 34px; height: 4px; border-radius: 4px; background: rgba(29,28,26,.18);
+    margin: 0 auto 12px;
+  }
+  .quick-head { display: flex; align-items: center; gap: 10px; padding: 0 3px 10px; }
+  .quick-head .avatar {
+    width: 38px; height: 38px; border-radius: 12px; color: #fff; display: grid;
+    place-items: center; font-size: 14px; font-weight: 750; flex: none;
+  }
+  .quick-head .avatar.lin { background: linear-gradient(145deg,#51744a,#33502e); }
+  .quick-head h3 { margin: 0; font-size: 15px; font-weight: 650; }
+  .quick-head p { margin: 3px 0 0; font-size: 10.5px; color: var(--muted); }
+  .quick-head .close {
+    margin-left: auto; width: 28px; height: 28px; border-radius: 50%;
+    background: rgba(29,28,26,.06); display: grid; place-items: center;
+    color: #6f6b63;
+  }
+  .quick-head .close svg { width: 14px; height: 14px; }
+  .rows { border-top: 1px solid var(--line); }
+  .row {
+    display: flex; align-items: center; gap: 9px; padding: 10px 3px;
+    border-bottom: 1px solid var(--line); font-size: 12px;
+  }
+  .row .k { width: 64px; flex: none; color: var(--muted); font-size: 11px; }
+  .row .v { flex: 1; min-width: 0; }
+  .row .v b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .v span { display: block; margin-top: 2px; font-size: 9.5px; color: var(--faint); }
+  .row .chev { color: #a8a197; flex: none; }
+  .row .chev svg { width: 15px; height: 15px; }
+  .prompt-preview {
+    margin: 9px 3px 0; padding: 8px 9px; border-radius: 10px;
+    background: rgba(29,28,26,.045); font-size: 10.5px; line-height: 1.55;
+    color: #5f5a52; max-height: 46px; overflow: hidden;
+  }
+  .quick-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .btn {
+    height: 38px; border-radius: 12px; display: flex; align-items: center;
+    justify-content: center; font-size: 12px; font-weight: 650; flex: 1;
+  }
+  .btn.primary { background: var(--accent); color: #fff; box-shadow: 0 5px 14px rgba(15,107,92,.22); }
+  .btn.ghost { background: rgba(29,28,26,.055); color: #4d4942; }
+  .btn.danger { flex: 0 0 auto; padding: 0 12px; color: #a33b2e; background: rgba(163,59,46,.07); }
+
+  /* desktop composer */
+  .desk-wrap {
+    position: relative; background: #f7f5ef; border-radius: 18px;
+    border: 1px solid var(--line); padding: 18px 22px 14px; min-height: 420px;
+    display: flex; flex-direction: column; justify-content: flex-end;
+  }
+  .desk-bgline {
+    height: 54px; border-radius: 12px; background: rgba(29,28,26,.035);
+    margin-bottom: 10px; width: 62%;
+  }
+  .desk-bgline.me { margin-left: auto; width: 46%; background: rgba(15,107,92,.08); }
+  .desk-composer {
+    width: 100%; max-width: 700px; margin: 16px auto 0; align-self: center;
+  }
+  .desk-composer .composer { background: transparent; border: 0; padding: 0; }
+  .desk-wrap .member-stack .avatar { width: 26px; height: 26px; font-size: 10px; margin-left: -6px; }
+  .desk-wrap .member-stack .add { width: 24px; height: 24px; margin-left: 2px; }
+  .desk-wrap .member-stack .add svg { width: 12px; height: 12px; }
+  .desk-wrap .tool { width: 32px; height: 32px; }
+  .desk-wrap .tool svg { width: 18px; height: 18px; }
+  .desk-wrap .send { width: 37px; height: 37px; }
+  .desk-wrap .ring { width: 26px; height: 26px; }
+  .desk-wrap .ring::after { width: 18px; height: 18px; }
+  .popover {
+    position: absolute; left: 44px; bottom: 120px; width: 304px; z-index: 4;
+    background: #fbf9f3; border-radius: 16px; border: 1px solid rgba(29,28,26,.10);
+    box-shadow: 0 22px 50px rgba(40,34,24,.22), 0 2px 6px rgba(40,34,24,.08);
+    padding: 12px 12px 11px;
+  }
+  .popover::after {
+    content: ""; position: absolute; left: 26px; bottom: -7px; width: 13px; height: 13px;
+    background: #fbf9f3; border-right: 1px solid rgba(29,28,26,.10);
+    border-bottom: 1px solid rgba(29,28,26,.10); transform: rotate(45deg);
+  }
+  .popover .quick-head .avatar { width: 32px; height: 32px; font-size: 12px; border-radius: 10px; }
+  .popover .quick-head h3 { font-size: 13.5px; }
+  .popover .row { padding: 8px 3px; }
+  .popover .quick-actions { margin-top: 10px; }
+  .popover .btn { height: 34px; font-size: 11px; }
+
+  /* group settings card */
+  .settings-card {
+    background: #fbf9f3; border: 1px solid var(--line); border-radius: 18px;
+    padding: 16px 16px 12px; box-shadow: var(--shadow);
+  }
+  .settings-card h3 { margin: 0 0 2px; font-size: 14px; }
+  .settings-card .sub { margin: 0 0 12px; font-size: 10.5px; color: var(--faint); }
+  .setting-row {
+    display: flex; align-items: center; gap: 10px; padding: 11px 0;
+    border-top: 1px solid var(--line);
+  }
+  .setting-row .label { flex: 1; }
+  .setting-row .label b { display: block; font-size: 12px; font-weight: 600; }
+  .setting-row .label span { display: block; margin-top: 3px; font-size: 10px; color: var(--faint); line-height: 1.45; }
+  .value-chip {
+    display: flex; align-items: center; gap: 5px; padding: 5px 8px;
+    border-radius: 9px; background: rgba(29,28,26,.05); font-size: 10.5px;
+    color: #4d4942; white-space: nowrap;
+  }
+  .value-chip svg { width: 13px; height: 13px; color: #7c766c; }
+  .stepper { display: flex; align-items: center; gap: 1px; border-radius: 9px; overflow: hidden; background: rgba(29,28,26,.05); }
+  .stepper span { width: 26px; height: 26px; display: grid; place-items: center; font-size: 15px; color: #5d574f; }
+  .stepper b { min-width: 22px; text-align: center; font-size: 12px; }
+  .setting-note {
+    margin: 10px 0 0; padding: 8px 10px; border-radius: 10px;
+    background: rgba(169,103,45,.08); color: #7d4c20; font-size: 10.5px;
+    line-height: 1.5;
+  }
+
+  .notes {
+    margin-top: 40px; display: grid; grid-template-columns: repeat(3, minmax(0,1fr));
+    gap: 18px;
+  }
+  .note {
+    background: rgba(255,253,248,.62); border: 1px solid var(--line);
+    border-radius: 16px; padding: 16px;
+  }
+  .note h3 { margin: 0 0 6px; font-size: 12px; }
+  .note p { margin: 0; font-size: 11.5px; line-height: 1.6; color: var(--muted); }
+  .note kbd {
+    font: inherit; font-size: 10px; background: var(--accent-soft);
+    color: var(--accent); padding: 1px 5px; border-radius: 5px;
+  }
+  @media (max-width: 980px) {
+    .stage { grid-template-columns: 1fr; }
+    .phone { margin: 0 auto; }
+    .notes { grid-template-columns: 1fr; }
+    .popover { left: 12px; bottom: 96px; width: 290px; }
+  }
+  @media (max-width: 420px) {
+    .sheet { padding: 24px 14px 48px; }
+    h1 { font-size: 23px; }
+    .phone { width: 100%; }
+    .panel { padding: 10px; }
+    .desk-wrap { padding: 16px 12px 12px; }
+    .desk-wrap .tool { width: 24px; height: 24px; }
+    .desk-wrap .tool svg { width: 14px; height: 14px; }
+    .desk-wrap .member-stack .avatar { width: 19px; height: 19px; }
+    .desk-wrap .member-stack .add { width: 18px; height: 18px; }
+    .desk-wrap .send { width: 29px; height: 29px; }
+    .desk-wrap .ring { width: 20px; height: 20px; }
+    .desk-wrap .ring::after { width: 14px; height: 14px; }
+    .popover { left: 12px; width: 286px; }
+  }
+</style>
+</head>
+<body>
+<main class="sheet">
+  <header>
+    <div class="eyebrow">Cuplivo · 群聊 v4 · 输入框与助手弹窗</div>
+    <h1>输入框只多一组头像，点开就是编辑</h1>
+    <p class="lede">成员入口在输入框左下角：点哪个头像，就弹出那个助手的快速编辑。模型、系统提示和完整设置都在这里，不离开当前对话。邀请成员和群设置各走各的入口。</p>
+  </header>
+
+  <section class="stage">
+    <div class="stack">
+      <div>
+        <p class="caption"><b>手机 · 输入框</b><span>头像在左下角，工具行仍是一整行</span></p>
+        <div class="phone crop">
+          <div class="crop-head">
+            <div class="g-av">读<i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></i></div>
+            <h2>读书会</h2>
+          </div>
+          <div class="crop-chat">
+            <div class="mini-msg me"><div class="mini-bubble user">这周读第三章，谁来带一下？</div></div>
+            <div class="mini-msg"><div class="mini-av lin">林</div><div><div class="mini-name">林深</div><div class="mini-bubble">我来。先抛一个问题：如果共同想象失效，现代社会最先崩的是哪一层？</div></div></div>
+            <div class="mini-msg"><div class="mini-av lan">岚</div><div><div class="mini-name">阿岚</div><div class="mini-bubble">我补一个反例：货币是最纯粹的互信实验。</div></div></div>
+          </div>
+          <div class="crop-composer">
+            <div class="composer">
+              <div class="input-shell">
+                <div class="attachments">
+                  <div class="thumb"><span class="x">×</span></div>
+                  <div class="thumb file"><span class="x">×</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg></div>
+                </div>
+                <div class="inputline">发消息，或粘贴图片…<span class="cursor"></span></div>
+                <div class="toolbar">
+                  <div class="member-stack" aria-label="群成员，点按编辑助手">
+                    <div class="avatar lin">林</div><div class="avatar lan">岚</div><div class="avatar qi">祁</div><div class="avatar zhou">周</div>
+                    <div class="add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+                  </div>
+                  <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m21.4 11.6-8.4 8.4a6 6 0 0 1-8.5-8.5l8.4-8.4a4 4 0 0 1 5.7 5.7l-8.5 8.4a2 2 0 0 1-2.8-2.8l8.4-8.4"/></svg></div>
+                  <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></div>
+                  <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="m19 6-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></div>
+                  <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3Z"/><path d="M9 3v15M15 6v15"/></svg></div>
+                  <div class="ctx-ring"><div class="ring"></div></div>
+                  <div class="send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p class="caption"><b>手机 · 点头像</b><span>快速编辑，不离开对话</span></p>
+        <div class="phone sheetphone">
+          <div class="crop-head">
+            <div class="g-av">读<i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></i></div>
+            <h2>读书会</h2>
+          </div>
+          <div class="crop-chat" style="position:absolute;inset:43px 0 0;">
+            <div class="mini-msg me"><div class="mini-bubble user">这周读第三章，谁来带一下？</div></div>
+            <div class="mini-msg"><div class="mini-av lin">林</div><div><div class="mini-name">林深</div><div class="mini-bubble">我来。先抛一个问题：如果共同想象失效，现代社会最先崩的是哪一层？</div></div></div>
+            <div class="mini-msg"><div class="mini-av lan">岚</div><div><div class="mini-name">阿岚</div><div class="mini-bubble">我补一个反例：货币是最纯粹的互信实验。</div></div></div>
+          </div>
+          <div class="dim"></div>
+          <div class="sheetcard">
+            <div class="grabber"></div>
+            <div class="quick-head">
+              <div class="avatar lin">林</div>
+              <div><h3>林深</h3><p>Anthropic</p></div>
+              <div class="close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></div>
+            </div>
+            <div class="rows">
+              <div class="row">
+                <div class="k">模型</div>
+                <div class="v"><b>Claude Opus 4.1</b><span>Anthropic</span></div>
+                <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg></div>
+              </div>
+              <div class="row">
+                <div class="k">系统提示</div>
+                <div class="v"><b>你是一位擅长提问的读书会主持</b><span>在群聊中优先拆解概念，再邀请其他人补充</span></div>
+                <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg></div>
+              </div>
+            </div>
+            <div class="quick-actions">
+              <div class="btn primary">编辑助手</div>
+              <div class="btn danger">移出群聊</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div>
+        <p class="caption"><b>桌面 · 输入框与浮层</b><span>同一个弹窗，锚在头像上方</span></p>
+        <div class="desk-wrap">
+          <div class="desk-bgline"></div>
+          <div class="desk-bgline me"></div>
+          <div class="desk-composer">
+            <div class="composer">
+              <div class="input-shell">
+                <div class="inputline">发消息，或粘贴图片…<span class="cursor"></span></div>
+                <div class="toolbar">
+                  <div class="member-stack" aria-label="群成员，点按编辑助手">
+                    <div class="avatar lin">林</div><div class="avatar lan">岚</div><div class="avatar qi">祁</div><div class="avatar zhou">周</div>
+                    <div class="add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+                  </div>
+                  <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m21.4 11.6-8.4 8.4a6 6 0 0 1-8.5-8.5l8.4-8.4a4 4 0 0 1 5.7 5.7l-8.5 8.4a2 2 0 0 1-2.8-2.8l8.4-8.4"/></svg></div>
+                  <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></div>
+                  <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="m19 6-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></div>
+                  <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3Z"/><path d="M9 3v15M15 6v15"/></svg></div>
+                  <div class="ctx-ring"><div class="ring" style="background:conic-gradient(#0f6b5c 0 214deg, rgba(29,28,26,.12) 214deg 360deg)"></div></div>
+                  <div class="send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="popover">
+            <div class="quick-head">
+              <div class="avatar lin">林</div>
+              <div><h3>林深</h3><p>Anthropic</p></div>
+              <div class="close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></div>
+            </div>
+            <div class="rows">
+              <div class="row">
+                <div class="k">模型</div>
+                <div class="v"><b>Claude Opus 4.1</b><span>Anthropic</span></div>
+                <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg></div>
+              </div>
+              <div class="row">
+                <div class="k">系统提示</div>
+                <div class="v"><b>你是一位擅长提问的读书会主持</b><span>优先拆解概念，再邀请其他人补充</span></div>
+                <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg></div>
+              </div>
+            </div>
+            <div class="quick-actions">
+              <div class="btn primary">编辑助手</div>
+              <div class="btn danger">移出群聊</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p class="caption"><b>群设置 · 编排</b><span>导演只在这里出现，预算由每轮上限限制</span></p>
+        <div class="settings-card">
+          <h3>编排</h3>
+          <p class="sub">决定谁来接话，以及一轮最多几条回复</p>
+          <div class="setting-row">
+            <div class="label"><b>导演模型</b><span>只用于选择发言者，不写正文</span></div>
+            <div class="value-chip">默认模型<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg></div>
+          </div>
+          <div class="setting-row">
+            <div class="label"><b>每轮最多发言</b><span>到上限后不再调用导演</span></div>
+            <div class="stepper"><span>−</span><b>3</b><span>＋</span></div>
+          </div>
+          <p class="setting-note">导演只负责选人。默认 3 条，到上限即停；费用由这个数字约束，不随群成员数上涨。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="notes">
+    <div class="note">
+      <h3>头像就是入口</h3>
+      <p>点某个头像只打开那个助手的快速编辑，不切换页面、不丢失输入。完整设置仍在“编辑助手”里，路径和 1:1 一致。</p>
+    </div>
+    <div class="note">
+      <h3>邀请和设置不挤进工具行</h3>
+      <p>“＋”邀请成员，头像浮层负责移出；群设置走标题栏菜单。工具行只保留附件入口、浏览器、上下文和迷你地图；拍照与相册在附件入口展开，粘贴由输入框直接接收。</p>
+    </div>
+    <div class="note">
+      <h3>导演不在聊天页露面</h3>
+      <p>它只在群设置的“编排”里出现，配合每轮发言上限。这样既不会在群名旁制造一个隐形角色，也不用靠常驻提示语提醒成本。</p>
+    </div>
+  </section>
+</main>
+</body>
+</html>

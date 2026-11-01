@@ -254,18 +254,71 @@ class ChatService extends ChangeNotifier {
     }
   }
 
-  // Localized default title for new conversations; set by UI on startup.
+  /// The placeholder a conversation gets when the service creates one outside
+  /// the UI (a temporary chat, a scheduled run). The UI refreshes it with the
+  /// current language on startup.
   String _defaultConversationTitle = 'New Chat';
+
+  /// Titles that mean "nothing has named this yet", in every language the app
+  /// ships; see [setPlaceholderTitles].
+  Set<String> _placeholderTitles = const <String>{'New Chat', 'New topic'};
+
+  /// The placeholder a new conversation carries until something names it.
+  String get defaultConversationTitle => _defaultConversationTitle;
+
+  /// [titles] holds every localized placeholder — the conversation one and the
+  /// group-topic one, for every language the app can run in.
+  ///
+  /// A conversation keeps the title it was created with and the user can switch
+  /// language without restarting, so matching the current locale alone would
+  /// stop naming a chat created before the switch. "The title is some known
+  /// placeholder" is the property that actually holds.
+  void setPlaceholderTitles({
+    required String conversation,
+    required Set<String> titles,
+  }) {
+    if (conversation.trim().isNotEmpty) {
+      _defaultConversationTitle = conversation.trim();
+    }
+    if (titles.isNotEmpty) {
+      _placeholderTitles = <String>{
+        for (final title in titles)
+          if (title.trim().isNotEmpty) title.trim(),
+        _defaultConversationTitle,
+      };
+    }
+  }
+
+  /// Whether [title] is still a placeholder, i.e. nothing has named this
+  /// conversation yet.
+  bool isPlaceholderTitle(String title) {
+    final trimmed = title.trim();
+    return trimmed.isEmpty || _placeholderTitles.contains(trimmed);
+  }
 
   /// Optional extras merged into brand-new conversations (not restores).
   Map<String, dynamic> Function(String? assistantId)? newConversationExtras;
 
-  Map<String, dynamic> _extrasForNewConversation(String? assistantId) {
+  /// Names the speaker of each line in the context-compression source.
+  ///
+  /// A group topic sets it so a summary keeps its voices apart instead of
+  /// merging every member into one "Assistant"; a 1:1 conversation leaves it
+  /// null and the plain role words are used.
+  String Function(ChatMessage message)? compressionLabelOf;
+
+  Map<String, dynamic> _extrasForNewConversation(
+    String? assistantId, {
+    String? groupChatId,
+  }) {
     final extras = newConversationExtras?.call(assistantId);
-    if (extras == null || extras.isEmpty) {
+    final merged = <String, dynamic>{
+      ...?extras,
+      if (groupChatId != null) Conversation.groupChatIdKey: groupChatId,
+    };
+    if (merged.isEmpty) {
       return const <String, dynamic>{};
     }
-    return ToolPermissionMode.withoutGrant(extras);
+    return ToolPermissionMode.withoutGrant(merged);
   }
 
   Future<void> _copyConversationSettingsFrom(
@@ -285,11 +338,6 @@ class ChatService extends ChangeNotifier {
         }),
       );
     });
-  }
-
-  void setDefaultConversationTitle(String title) {
-    if (title.trim().isEmpty) return;
-    _defaultConversationTitle = title.trim();
   }
 
   bool _initialized = false;
@@ -1378,7 +1426,16 @@ class ChatService extends ChangeNotifier {
   /// honoring the conversation's logical truncateIndex) identically on both
   /// paths: served from the cache when the conversation is fully cached,
   /// otherwise paged from the selected logical timeline.
-  Future<String> generateTitleSource(String conversationId) async {
+  ///
+  /// [line] renders one message for the model. A 1:1 chat leaves it out and
+  /// gets the `User:`/`Assistant:` lines it always had; a group topic passes
+  /// its own renderer, because which member said what is part of the content
+  /// (and because that renderer lives in the feature layer, which this service
+  /// must not depend on).
+  Future<String> generateTitleSource(
+    String conversationId, {
+    String Function(ChatMessage message)? line,
+  }) async {
     if (!_initialized) return '';
     if (_conversationForMessages(conversationId) == null) return '';
     final truncateIndex = getContextStartIndex(conversationId);
@@ -1407,13 +1464,14 @@ class ChatService extends ChangeNotifier {
       );
     }
 
+    final render =
+        line ??
+        (ChatMessage message) =>
+            '${message.role == 'assistant' ? 'Assistant' : 'User'}: '
+            '${message.content}';
     final joined = source
         .where((message) => message.content.isNotEmpty)
-        .map(
-          (message) =>
-              '${message.role == 'assistant' ? 'Assistant' : 'User'}: '
-              '${message.content}',
-        )
+        .map(render)
         .join('\n\n');
     return joined.length > _titleSourceMaxChars
         ? joined.substring(0, _titleSourceMaxChars)
@@ -1939,15 +1997,20 @@ class ChatService extends ChangeNotifier {
   Future<Conversation> createConversation({
     String? title,
     String? assistantId,
+    String? groupChatId,
     bool activate = true,
   }) async {
     if (!_initialized) await init();
     if (activate) _discardTemporaryConversation(_currentConversationId);
 
+    // A group conversation has no owning assistant: the speaker is chosen per
+    // message, so the owner column stays empty exactly as it does for a global
+    // conversation, and only `extras` links it to its group.
+    final ownerId = groupChatId == null ? assistantId : null;
     final conversation = Conversation(
       title: title ?? _defaultConversationTitle,
-      assistantId: assistantId,
-      extras: _extrasForNewConversation(assistantId),
+      assistantId: ownerId,
+      extras: _extrasForNewConversation(ownerId, groupChatId: groupChatId),
     );
 
     await _saveConversation(conversation);
@@ -1983,14 +2046,16 @@ class ChatService extends ChangeNotifier {
   Future<Conversation> createDraftConversation({
     String? title,
     String? assistantId,
+    String? groupChatId,
     bool temporary = false,
     bool reuseNewEntry = false,
   }) async {
     if (!_initialized) await init();
     _discardTemporaryConversation(_currentConversationId);
+    final ownerId = groupChatId == null ? assistantId : null;
     final existing = temporary || !reuseNewEntry
         ? null
-        : _repo.composerDrafts.newEntry(assistantId);
+        : _repo.composerDrafts.newEntry(ownerId, groupChatId: groupChatId);
     if (existing != null) {
       final restored = _conversationsCache[existing.id] ?? existing;
       if (!_conversationsCache.containsKey(restored.id)) {
@@ -2002,8 +2067,8 @@ class ChatService extends ChangeNotifier {
     }
     final conversation = Conversation(
       title: title ?? _defaultConversationTitle,
-      assistantId: assistantId,
-      extras: _extrasForNewConversation(assistantId),
+      assistantId: ownerId,
+      extras: _extrasForNewConversation(ownerId, groupChatId: groupChatId),
     );
     _draftConversations[conversation.id] = conversation;
     if (!temporary && reuseNewEntry) {
@@ -2166,6 +2231,55 @@ class ChatService extends ChangeNotifier {
 
     var deleted = false;
     for (final id in _repo.composerDrafts.newEntriesForAssistant(targetId)) {
+      if (!draftConversationIds.contains(id) &&
+          !persistedConversationIds.contains(id)) {
+        await _repo.composerDrafts.delete(id);
+        deleted = true;
+      }
+    }
+    for (final conversationId in draftConversationIds) {
+      deleted = await _deleteDraftConversation(conversationId) || deleted;
+    }
+    for (final conversationId in persistedConversationIds) {
+      deleted =
+          await _deletePersistedConversation(
+            conversationId,
+            bump: false,
+            group: group,
+          ) ||
+          deleted;
+    }
+
+    if (!deleted) return;
+    await _cleanupOrphanUploads();
+    _bumpConversationListRevision();
+    notifyListeners();
+  }
+
+  /// Deletes every conversation a group chat owns, as part of deleting that
+  /// group. Mirrors [deleteConversationsForAssistant], including the [group]
+  /// stamped on each staged conversation so the bin shows the group row and its
+  /// topics as the one act they were.
+  Future<void> deleteConversationsForGroup(
+    String groupChatId, {
+    RecycleGroup? group,
+  }) async {
+    if (!_initialized) await init();
+
+    final targetId = groupChatId.trim();
+    if (targetId.isEmpty) return;
+
+    final persistedConversationIds = _conversationsCache.values
+        .where((conversation) => conversation.groupChatId == targetId)
+        .map((conversation) => conversation.id)
+        .toList(growable: false);
+    final draftConversationIds = _draftConversations.values
+        .where((conversation) => conversation.groupChatId == targetId)
+        .map((conversation) => conversation.id)
+        .toList(growable: false);
+
+    var deleted = false;
+    for (final id in _repo.composerDrafts.newEntriesForGroup(targetId)) {
       if (!draftConversationIds.contains(id) &&
           !persistedConversationIds.contains(id)) {
         await _repo.composerDrafts.delete(id);
@@ -3297,6 +3411,7 @@ class ChatService extends ChangeNotifier {
     String? temporaryAfterGroupId,
     UiContextSubmission? uiContext,
     MessageQuote? quote,
+    String? senderId,
   }) async {
     if (!_initialized) await init();
 
@@ -3336,6 +3451,7 @@ class ChatService extends ChangeNotifier {
       version: version,
       // The citation travels with the row it is attached to (docs/adr/0012).
       quote: quote,
+      senderId: senderId,
     );
 
     if (_discardedTemporaryConversationIds.contains(conversationId)) {
@@ -3458,6 +3574,62 @@ class ChatService extends ChangeNotifier {
     return result;
   }
 
+  /// Appends one user turn, without the reply it would normally start.
+  ///
+  /// Group conversations need this: the user message must be visible before the
+  /// round decides who answers it, and there may be several replies to one user
+  /// turn. Returns the persisted message so the caller can publish it.
+  Future<ChatMessage> beginUserMessage({
+    required String conversationId,
+    required List<MessagePart> userParts,
+    DraftSubmission? draftSubmission,
+    UiContextSubmission? uiContext,
+    MessageQuote? quote,
+  }) async {
+    if (!_initialized) await init();
+    if (isTemporaryConversation(conversationId)) {
+      throw StateError('temporary_generation_is_not_persisted');
+    }
+    if (draftSubmission != null && getConversation(conversationId) == null) {
+      throw StateError('conversation_missing');
+    }
+    final conversation =
+        _conversationsCache[conversationId] ??
+        _draftConversations[conversationId] ??
+        Conversation(id: conversationId, title: _defaultConversationTitle);
+    final userMessage = ChatMessage(
+      id: draftSubmission?.id,
+      role: 'user',
+      parts: userParts,
+      conversationId: conversationId,
+      quote: quote,
+    );
+    final result = await _repo.beginUserMessage(
+      conversation: conversation,
+      userMessage: userMessage,
+      draftSubmission: draftSubmission,
+      uiContext: uiContext,
+    );
+    final published = result.userMessage;
+    _draftConversations.remove(conversationId);
+    _conversationsCache[conversationId] = result.conversation;
+    if (_messageCanOwnAssets(published)) {
+      await _synchronizeMessageAssetsBestEffort(published);
+    }
+    _messageCounts[conversationId] = await _repo.getMessageCount(
+      conversationId,
+    );
+    final order = _messageOrderIds[conversationId];
+    if (order != null && !order.contains(published.id)) order.add(published.id);
+    _messagesCache.putIfAbsent(conversationId, () => []).add(published);
+    _touchMessageCache(conversationId);
+    _bumpConversationListRevision();
+    _bumpContextRevision(conversationId);
+    await loadContextOperations(conversationId, refresh: true);
+    notifyListeners();
+    return published;
+  }
+
   Future<GenerationBeginResult> beginRegeneration({
     required String conversationId,
     required String modelId,
@@ -3466,6 +3638,7 @@ class ChatService extends ChangeNotifier {
     required int version,
     required bool truncateFuture,
     String? expectedContextState,
+    String? senderId,
   }) async {
     if (!_initialized) await init();
     if (isTemporaryConversation(conversationId)) {
@@ -3482,6 +3655,7 @@ class ChatService extends ChangeNotifier {
       isStreaming: true,
       groupId: groupId,
       version: version,
+      senderId: senderId,
     );
     final result = await _repo.beginRegeneration(
       expectedContextState: expectedContextState,
@@ -3506,6 +3680,7 @@ class ChatService extends ChangeNotifier {
     required String anchorGroupId,
     required bool truncateFuture,
     String? expectedContextState,
+    String? senderId,
   }) async {
     if (!_initialized) await init();
     if (isTemporaryConversation(conversationId)) {
@@ -3520,6 +3695,7 @@ class ChatService extends ChangeNotifier {
       modelId: modelId,
       providerId: providerId,
       isStreaming: true,
+      senderId: senderId,
     );
     final result = await _repo.beginAssistantGeneration(
       expectedContextState: expectedContextState,
@@ -4948,6 +5124,12 @@ class ChatService extends ChangeNotifier {
     bool notify = true,
   }) async {
     if (!_initialized) await init();
+    // A group topic belongs to its group, not to an assistant: writing an
+    // assistantId onto it would leave it in the group while claiming an owner.
+    final existing =
+        _draftConversations[conversationId] ??
+        _conversationsCache[conversationId];
+    if (existing != null && existing.isGroupConversation) return false;
     if (_draftConversations.containsKey(conversationId)) {
       final draft = _draftConversations[conversationId]!;
       if (draft.assistantId == assistantId) {

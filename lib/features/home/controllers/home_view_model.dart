@@ -619,7 +619,7 @@ class HomeViewModel extends ChangeNotifier {
       await ProactiveCareAlarmService.rescheduleAll(
         conversations: conversations,
         assistants: assistantsProvider.assistants,
-        assistantStoreLoaded: true,
+        assistantStoreLoaded: assistantsProvider.isLoaded,
       );
     } catch (e, st) {
       FlutterLogger.log(

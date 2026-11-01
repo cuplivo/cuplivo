@@ -46,10 +46,10 @@ class AssistantProvider extends ChangeNotifier {
   late final Future<void> loaded;
 
   /// Whether [loaded] has completed. The list is either empty (before the
-  /// first load) or complete — [_load] replaces it in one synchronous swap
-  /// after the preferences await — so this is the only "not ready" state there
-  /// is. It never flips back: a reload keeps the previous complete list until
-  /// the new one is decoded.
+  /// first load) or complete — [_load] decodes first and replaces it in one
+  /// synchronous swap — so this is the only "not ready" state there is. It
+  /// never flips back: a reload keeps the previous complete list until the new
+  /// one decodes, and a failed decode leaves it untouched.
   bool get isLoaded => _loaded;
 
   /// Re-reads assistants after LAN sync wrote business rows outside this
@@ -65,9 +65,14 @@ class AssistantProvider extends ChangeNotifier {
     }
     final raw = preferences.getString(_assistantsKey);
     if (raw != null && raw.isNotEmpty) {
+      // Decode before touching the list. `_decodeAssistants` can throw (a
+      // payload this build rejects), and clearing first would leave an empty
+      // list behind an `isLoaded` that a previous load already set — the one
+      // state the proactive-care re-arm must never read as "no owners left".
+      final decoded = _decodeAssistants(raw);
       _assistants
         ..clear()
-        ..addAll(_decodeAssistants(raw));
+        ..addAll(decoded);
       // Fix any sandboxed local paths (avatars/backgrounds) imported from other platforms
       bool changed = false;
       for (int i = 0; i < _assistants.length; i++) {

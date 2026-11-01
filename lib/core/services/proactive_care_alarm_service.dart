@@ -330,7 +330,9 @@ class ProactiveCareAlarmService {
   /// [assistantStoreLoaded] is the caller's guarantee that the owner store has
   /// finished loading. Only under that guarantee does an unresolved owner mean
   /// the assistant is genuinely gone; a caller that cannot make it must not
-  /// call this method.
+  /// call this method. The conversation list is assumed to be the complete
+  /// store as well — this call cannot detect a half-loaded chat cache, and that
+  /// cache is empty or fully loaded by construction (ADR-0006).
   ///
   /// With it, a schedule whose owner is gone is dropped from this one payload —
   /// and its stale native alarm is cancelled with it — rather than vetoing

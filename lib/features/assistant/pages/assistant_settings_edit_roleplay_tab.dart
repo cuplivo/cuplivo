@@ -267,7 +267,7 @@ class _AssistantSettingsEditRoleplayTabState
         await ProactiveCareAlarmService.rescheduleAll(
           conversations: chatService.getAllConversations(),
           assistants: assistants.assistants,
-          assistantStoreLoaded: true,
+          assistantStoreLoaded: assistants.isLoaded,
         );
       });
 

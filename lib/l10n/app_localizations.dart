@@ -208,23 +208,17 @@ abstract class AppLocalizations {
   /// **'Appearance, behavior, and interaction preferences'**
   String get settingsPageDisplaySubtitle;
 
-  /// No description provided for @settingsPageChatOwners.
+  /// No description provided for @settingsPageAssistant.
   ///
   /// In en, this message translates to:
-  /// **'Assistants and groups'**
-  String get settingsPageChatOwners;
+  /// **'Assistant'**
+  String get settingsPageAssistant;
 
-  /// No description provided for @settingsPageChatOwnersCreate.
+  /// No description provided for @settingsPageAssistantSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Create'**
-  String get settingsPageChatOwnersCreate;
-
-  /// No description provided for @chatOwnerCreateAssistant.
-  ///
-  /// In en, this message translates to:
-  /// **'New assistant'**
-  String get chatOwnerCreateAssistant;
+  /// **'Default assistant and style'**
+  String get settingsPageAssistantSubtitle;
 
   /// No description provided for @settingsPageModelsServicesSection.
   ///
@@ -2842,6 +2836,12 @@ abstract class AppLocalizations {
   /// **'Use global default'**
   String get assistantEditModelUseGlobalDefault;
 
+  /// No description provided for @assistantSettingsPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant Settings'**
+  String get assistantSettingsPageTitle;
+
   /// No description provided for @assistantSettingsCopyButton.
   ///
   /// In en, this message translates to:
@@ -2895,6 +2895,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Save'**
   String get assistantSettingsAddSheetSave;
+
+  /// No description provided for @desktopAssistantsListTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistants'**
+  String get desktopAssistantsListTitle;
 
   /// No description provided for @desktopSidebarTabAssistants.
   ///
@@ -3385,7 +3391,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoveryResetButton.
   ///
   /// In en, this message translates to:
-  /// **'Reset data'**
+  /// **'Start with an empty chat list'**
   String get startupRecoveryResetButton;
 
   /// No description provided for @startupRecoveryBusy.
@@ -3421,19 +3427,19 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoveryResetDialogTitle.
   ///
   /// In en, this message translates to:
-  /// **'Reset all data?'**
+  /// **'Start with an empty chat list?'**
   String get startupRecoveryResetDialogTitle;
 
   /// No description provided for @startupRecoveryResetDialogContent.
   ///
   /// In en, this message translates to:
-  /// **'Start with a new empty database? The current database, its journals and existing copies will be retained for recovery.'**
+  /// **'This will not recover your previous chats. Cuplivo will keep the current database and existing copies, and start a new empty chat list. To get your chats back, cancel and choose a local copy.'**
   String get startupRecoveryResetDialogContent;
 
   /// No description provided for @startupRecoveryResetDialogConfirm.
   ///
   /// In en, this message translates to:
-  /// **'Reset and restart'**
+  /// **'Keep copies and start fresh'**
   String get startupRecoveryResetDialogConfirm;
 
   /// No description provided for @startupRecoveryResetDialogCancel.
@@ -3565,7 +3571,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoverySectionDataBody.
   ///
   /// In en, this message translates to:
-  /// **'Nothing has been deleted. Save a copy somewhere safe before trying anything below.'**
+  /// **'You can also export the remaining data and keep it somewhere safe before continuing.'**
   String get startupRecoverySectionDataBody;
 
   /// No description provided for @startupRecoveryExportSavedTo.
@@ -3619,7 +3625,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoveryDangerZone.
   ///
   /// In en, this message translates to:
-  /// **'Danger zone'**
+  /// **'Other options'**
   String get startupRecoveryDangerZone;
 
   /// No description provided for @startupRecoveryDangerBody.
@@ -3631,7 +3637,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoveryResetAcknowledge.
   ///
   /// In en, this message translates to:
-  /// **'I want to start with a new empty database.'**
+  /// **'I choose to continue with an empty chat list without recovering my chats now.'**
   String get startupRecoveryResetAcknowledge;
 
   /// No description provided for @startupDatabaseUpdateRequiredTitle.
@@ -19539,12 +19545,6 @@ abstract class AppLocalizations {
   /// **'Configuration'**
   String get recycleBinKindConfig;
 
-  /// No description provided for @recycleBinKindGroup.
-  ///
-  /// In en, this message translates to:
-  /// **'Group'**
-  String get recycleBinKindGroup;
-
   /// No description provided for @recycleBinOriginLocal.
   ///
   /// In en, this message translates to:
@@ -19646,12 +19646,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Assistants'**
   String get recycleBinFilterAssistants;
-
-  /// No description provided for @recycleBinFilterGroups.
-  ///
-  /// In en, this message translates to:
-  /// **'Groups'**
-  String get recycleBinFilterGroups;
 
   /// No description provided for @recycleBinFilterSettings.
   ///
@@ -21324,7 +21318,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoverySnapshotTitle.
   ///
   /// In en, this message translates to:
-  /// **'Restore from a database snapshot'**
+  /// **'Recover from a local copy'**
   String get startupRecoverySnapshotTitle;
 
   /// No description provided for @startupRecoverySnapshotBody.
@@ -21342,7 +21336,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoverySnapshotButton.
   ///
   /// In en, this message translates to:
-  /// **'Choose a snapshot'**
+  /// **'Choose a copy to recover'**
   String get startupRecoverySnapshotButton;
 
   /// No description provided for @startupRecoverySnapshotConfirm.
@@ -22116,7 +22110,7 @@ abstract class AppLocalizations {
   /// No description provided for @oauthModelsHint.
   ///
   /// In en, this message translates to:
-  /// **'Available models are synced from your account.'**
+  /// **'Available models are synced from your account. Choose which models appear in the model picker. Your choices are kept when syncing or signing in again.'**
   String get oauthModelsHint;
 
   /// No description provided for @oauthNoModels.
@@ -25077,7 +25071,7 @@ abstract class AppLocalizations {
   /// No description provided for @searchServicesPageWebFetchFooter.
   ///
   /// In en, this message translates to:
-  /// **'With web search on, the model can also read full pages. When the search service can\'t read pages, local reading is used, which can\'t handle pages that need JavaScript or block bots.'**
+  /// **'With web search on, the model can also read full pages. When the search service can\'t read pages, local reading is used, which can\'t handle pages that need JavaScript or block bots.\n\nIf you use the page reader configured here, disable the built-in @cuplivo/fetch in Settings → MCP to avoid overlapping tools. The page reader configured here will still work.'**
   String get searchServicesPageWebFetchFooter;
 
   /// No description provided for @searchServicesPageWebFetchSupported.
@@ -25623,13 +25617,13 @@ abstract class AppLocalizations {
   /// No description provided for @recoveryKeepCurrent.
   ///
   /// In en, this message translates to:
-  /// **'Keep current data and continue'**
+  /// **'Continue with an empty chat list'**
   String get recoveryKeepCurrent;
 
   /// No description provided for @recoveryKeepCurrentConfirm.
   ///
   /// In en, this message translates to:
-  /// **'Continue with the current empty database? Previous copies will remain available for recovery later.'**
+  /// **'This continues without recovering your previous chats. The current chat list will stay empty; old copies will be kept. If you want your chats back, cancel and choose a local copy.'**
   String get recoveryKeepCurrentConfirm;
 
   /// No description provided for @recoverySearchingCopies.
@@ -25713,7 +25707,7 @@ abstract class AppLocalizations {
   /// No description provided for @recoveryStorageInsufficientSpaceBody.
   ///
   /// In en, this message translates to:
-  /// **'There is not enough free space to keep the original database and create its verified internal copy. Existing data and snapshots are unchanged. Free some space, then retry.'**
+  /// **'There is not enough storage to safely prepare your data. Free space in system settings, then reopen Cuplivo or recheck the copies below. Keep Cuplivo installed and leave its data and local copies in place.'**
   String get recoveryStorageInsufficientSpaceBody;
 
   /// No description provided for @migrationFreshStartTitle.
@@ -25803,13 +25797,13 @@ abstract class AppLocalizations {
   /// No description provided for @backupEncryptionOnHint.
   ///
   /// In en, this message translates to:
-  /// **'Backups are encrypted while this page stays open.'**
+  /// **'Backups are encrypted. Enter the password again after restarting the app.'**
   String get backupEncryptionOnHint;
 
   /// No description provided for @backupEncryptionPasswordHint.
   ///
   /// In en, this message translates to:
-  /// **'Keep this password safe. If you lose it, the backup cannot be restored. It is kept only while this page is open.'**
+  /// **'Keep this password safe. If you lose it, the backup cannot be restored. It is kept in memory until you exit the app.'**
   String get backupEncryptionPasswordHint;
 
   /// No description provided for @backupEncryptionPassword.
@@ -29225,6 +29219,924 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancelling keeps any files already copied to the destination. You can inspect and remove that partial copy yourself.'**
   String get dataDirectoryCancelHint;
+
+  /// No description provided for @assistantCopyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy assistant'**
+  String get assistantCopyTitle;
+
+  /// No description provided for @assistantCopyDefaultHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose what to copy, or copy everything.'**
+  String get assistantCopyDefaultHint;
+
+  /// No description provided for @assistantCopyConfiguration.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant configuration'**
+  String get assistantCopyConfiguration;
+
+  /// No description provided for @assistantCopyConfigurationHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Always included: name, avatar, prompts, model, parameters, and preset messages.'**
+  String get assistantCopyConfigurationHint;
+
+  /// No description provided for @assistantCopyMemories.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant memories'**
+  String get assistantCopyMemories;
+
+  /// No description provided for @assistantCopyMemoriesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Includes current and legacy memories, preserving archived status. Global memories remain shared.'**
+  String get assistantCopyMemoriesHint;
+
+  /// No description provided for @assistantCopyChooseMemories.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose memories'**
+  String get assistantCopyChooseMemories;
+
+  /// No description provided for @assistantCopyChooseEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose entries'**
+  String get assistantCopyChooseEntries;
+
+  /// No description provided for @assistantCopyPhrasesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy this assistant’s phrases. Global phrases remain shared.'**
+  String get assistantCopyPhrasesHint;
+
+  /// No description provided for @assistantCopyBindingsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'These options reuse existing resources; workspace files are not copied. Unselected world books and injections use global defaults.'**
+  String get assistantCopyBindingsHint;
+
+  /// No description provided for @assistantCopyWorldBooks.
+  ///
+  /// In en, this message translates to:
+  /// **'World book bindings'**
+  String get assistantCopyWorldBooks;
+
+  /// No description provided for @assistantCopySkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Skill selection'**
+  String get assistantCopySkills;
+
+  /// No description provided for @assistantCopyTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool and search settings'**
+  String get assistantCopyTools;
+
+  /// No description provided for @assistantCopyWorkspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Default workspace binding'**
+  String get assistantCopyWorkspace;
+
+  /// No description provided for @assistantCopyAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy everything'**
+  String get assistantCopyAll;
+
+  /// No description provided for @assistantCopyInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Copying…'**
+  String get assistantCopyInProgress;
+
+  /// No description provided for @assistantCopyFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not copy the assistant. Your original data is unchanged. Please try again.'**
+  String get assistantCopyFailed;
+
+  /// No description provided for @assistantCopyMemoryLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load memories. Please try again.'**
+  String get assistantCopyMemoryLoadFailed;
+
+  /// No description provided for @assistantCopyRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get assistantCopyRetry;
+
+  /// No description provided for @assistantCopyNoMemories.
+  ///
+  /// In en, this message translates to:
+  /// **'This assistant has no personal memories to copy.'**
+  String get assistantCopyNoMemories;
+
+  /// No description provided for @assistantCopySelectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select all memories'**
+  String get assistantCopySelectAll;
+
+  /// No description provided for @assistantConversationMcpTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow per-conversation MCP'**
+  String get assistantConversationMcpTitle;
+
+  /// No description provided for @assistantConversationMcpHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Let conversations choose their own MCP servers. Conversations use the assistant’s selection until customized.'**
+  String get assistantConversationMcpHint;
+
+  /// No description provided for @mcpSelectionInherited.
+  ///
+  /// In en, this message translates to:
+  /// **'Following assistant'**
+  String get mcpSelectionInherited;
+
+  /// No description provided for @mcpSelectionCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom for this chat'**
+  String get mcpSelectionCustom;
+
+  /// No description provided for @mcpInheritAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Use assistant settings'**
+  String get mcpInheritAssistant;
+
+  /// No description provided for @displaySettingsPageUseLegacyInlineCodeStyleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Legacy inline code style'**
+  String get displaySettingsPageUseLegacyInlineCodeStyleTitle;
+
+  /// No description provided for @displaySettingsPageUseLegacyInlineCodeStyleSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use a lighter background, a thin border, and more line spacing for inline code.'**
+  String get displaySettingsPageUseLegacyInlineCodeStyleSubtitle;
+
+  /// No description provided for @asrServicesElevenLabsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scribe segmented transcription'**
+  String get asrServicesElevenLabsSubtitle;
+
+  /// No description provided for @asrServicesRecognitionModeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Recognition mode'**
+  String get asrServicesRecognitionModeLabel;
+
+  /// No description provided for @asrServicesRealtimeMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Real-time'**
+  String get asrServicesRealtimeMode;
+
+  /// No description provided for @asrServicesRecordedMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded audio'**
+  String get asrServicesRecordedMode;
+
+  /// No description provided for @asrServicesQwenAudioSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Real-time or recorded audio transcription'**
+  String get asrServicesQwenAudioSubtitle;
+
+  /// No description provided for @asrServicesQwenTokenPlanHint.
+  ///
+  /// In en, this message translates to:
+  /// **'For Token Plan, choose Recorded audio, enter token-plan as the Workspace ID, and select the region for your key.'**
+  String get asrServicesQwenTokenPlanHint;
+
+  /// No description provided for @asrServicesEndpointOverrideLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom endpoint (optional)'**
+  String get asrServicesEndpointOverrideLabel;
+
+  /// No description provided for @asrServicesWorkspaceIdInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a workspace ID, not a URL.'**
+  String get asrServicesWorkspaceIdInvalid;
+
+  /// No description provided for @asrServicesWebSocketEndpointInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a complete ws:// or wss:// endpoint without credentials or a fragment.'**
+  String get asrServicesWebSocketEndpointInvalid;
+
+  /// No description provided for @asrServicesHttpEndpointInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a complete http:// or https:// endpoint without credentials or a fragment.'**
+  String get asrServicesHttpEndpointInvalid;
+
+  /// No description provided for @oauthDnsError.
+  ///
+  /// In en, this message translates to:
+  /// **'DNS lookup failed. Check your network or proxy DNS settings.'**
+  String get oauthDnsError;
+
+  /// No description provided for @oauthTlsError.
+  ///
+  /// In en, this message translates to:
+  /// **'The TLS connection failed. Check the certificates used by your network or proxy.'**
+  String get oauthTlsError;
+
+  /// No description provided for @oauthProxyError.
+  ///
+  /// In en, this message translates to:
+  /// **'The proxy connection failed. Check your proxy address and authentication settings.'**
+  String get oauthProxyError;
+
+  /// No description provided for @oauthConnectionError.
+  ///
+  /// In en, this message translates to:
+  /// **'The connection failed or was interrupted. Check your network or proxy settings.'**
+  String get oauthConnectionError;
+
+  /// No description provided for @oauthConnectionTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting to the server timed out. Check your network or proxy settings.'**
+  String get oauthConnectionTimeout;
+
+  /// No description provided for @oauthSendTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending the request timed out. Check your network and try again.'**
+  String get oauthSendTimeout;
+
+  /// No description provided for @oauthReceiveTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the server response timed out. Please try again.'**
+  String get oauthReceiveTimeout;
+
+  /// No description provided for @oauthRequestTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'The request timed out. Check your network or proxy settings and try again.'**
+  String get oauthRequestTimeout;
+
+  /// No description provided for @oauthFailureStage.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed at: {stage}'**
+  String oauthFailureStage(String stage);
+
+  /// No description provided for @oauthStageRequestDeviceCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Requesting a device code'**
+  String get oauthStageRequestDeviceCode;
+
+  /// No description provided for @oauthStageWaitDeviceAuthorization.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for device authorization'**
+  String get oauthStageWaitDeviceAuthorization;
+
+  /// No description provided for @oauthStagePrepareBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing browser sign-in'**
+  String get oauthStagePrepareBrowser;
+
+  /// No description provided for @oauthStageBrowserAuthorization.
+  ///
+  /// In en, this message translates to:
+  /// **'Browser authorization and callback'**
+  String get oauthStageBrowserAuthorization;
+
+  /// No description provided for @oauthStageExchangeToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Exchanging the authorization code'**
+  String get oauthStageExchangeToken;
+
+  /// No description provided for @oauthStageRefreshToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Refreshing the login token'**
+  String get oauthStageRefreshToken;
+
+  /// No description provided for @oauthMonthlyTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly total'**
+  String get oauthMonthlyTotal;
+
+  /// No description provided for @oauthMonthlyCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly code'**
+  String get oauthMonthlyCode;
+
+  /// No description provided for @oauthSpendCap.
+  ///
+  /// In en, this message translates to:
+  /// **'Credit spend cap'**
+  String get oauthSpendCap;
+
+  /// No description provided for @oauthOnDemand.
+  ///
+  /// In en, this message translates to:
+  /// **'On-demand quota'**
+  String get oauthOnDemand;
+
+  /// No description provided for @oauthQuotaAdvisory.
+  ///
+  /// In en, this message translates to:
+  /// **'For reference only: active weekly credits make this monthly limit uncertain.'**
+  String get oauthQuotaAdvisory;
+
+  /// No description provided for @oauthCreditsValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} credits'**
+  String oauthCreditsValue(String value);
+
+  /// No description provided for @oauthRemainingValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Remaining {value}'**
+  String oauthRemainingValue(String value);
+
+  /// No description provided for @providerDetailPageBaseUrlExample.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. {url}'**
+  String providerDetailPageBaseUrlExample(String url);
+
+  /// No description provided for @providerDetailPageApiKeyExample.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. sk-…'**
+  String get providerDetailPageApiKeyExample;
+
+  /// No description provided for @providerDetailPageRequestUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Request URL'**
+  String get providerDetailPageRequestUrlLabel;
+
+  /// No description provided for @providerDetailPageUrlWillAppendVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'No version in URL; {v} will be added when you leave the field'**
+  String providerDetailPageUrlWillAppendVersion(String v);
+
+  /// No description provided for @providerDetailPageUrlAppendedVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {v} automatically'**
+  String providerDetailPageUrlAppendedVersion(String v);
+
+  /// No description provided for @providerDetailPageUrlTrimmedSlash.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed trailing /'**
+  String get providerDetailPageUrlTrimmedSlash;
+
+  /// No description provided for @providerDetailPageUrlMovedPath.
+  ///
+  /// In en, this message translates to:
+  /// **'Full endpoint detected; {path} moved to API Path'**
+  String providerDetailPageUrlMovedPath(String path);
+
+  /// No description provided for @providerDetailPageUrlEmptyError.
+  ///
+  /// In en, this message translates to:
+  /// **'Required to send requests'**
+  String get providerDetailPageUrlEmptyError;
+
+  /// No description provided for @providerDetailPageUrlInvalidError.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid URL; must start with http:// or https://'**
+  String get providerDetailPageUrlInvalidError;
+
+  /// No description provided for @providerDetailPageRestoreDefaultTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore default'**
+  String get providerDetailPageRestoreDefaultTooltip;
+
+  /// No description provided for @providerDetailPageClearTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get providerDetailPageClearTooltip;
+
+  /// No description provided for @providerDetailPageTestSuccessWithLatency.
+  ///
+  /// In en, this message translates to:
+  /// **'Success · {ms} ms'**
+  String providerDetailPageTestSuccessWithLatency(String ms);
+
+  /// No description provided for @providerDetailPageTestFailedWithCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed · {code}'**
+  String providerDetailPageTestFailedWithCode(String code);
+
+  /// No description provided for @providerDetailPageTestHintMissingVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'The URL may be missing a version; try {url}'**
+  String providerDetailPageTestHintMissingVersion(String url);
+
+  /// No description provided for @providerAutoVersionAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {v} automatically'**
+  String providerAutoVersionAdded(String v);
+
+  /// No description provided for @providerUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get providerUndo;
+
+  /// No description provided for @sidePanelToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle side panel'**
+  String get sidePanelToggle;
+
+  /// No description provided for @sidePanelFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Files'**
+  String get sidePanelFiles;
+
+  /// No description provided for @sidePanelTopics.
+  ///
+  /// In en, this message translates to:
+  /// **'Topics'**
+  String get sidePanelTopics;
+
+  /// No description provided for @sidePanelExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand panel'**
+  String get sidePanelExpand;
+
+  /// No description provided for @sidePanelCollapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit expanded'**
+  String get sidePanelCollapse;
+
+  /// No description provided for @sidePanelAllTabs.
+  ///
+  /// In en, this message translates to:
+  /// **'All tabs'**
+  String get sidePanelAllTabs;
+
+  /// No description provided for @sidePanelMoreTabs.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more'**
+  String sidePanelMoreTabs(int count);
+
+  /// No description provided for @sidePanelSearchTabs.
+  ///
+  /// In en, this message translates to:
+  /// **'Search tabs'**
+  String get sidePanelSearchTabs;
+
+  /// No description provided for @sidePanelOpenFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Open file…'**
+  String get sidePanelOpenFile;
+
+  /// No description provided for @sidePanelCloseOthers.
+  ///
+  /// In en, this message translates to:
+  /// **'Close other tabs'**
+  String get sidePanelCloseOthers;
+
+  /// No description provided for @sidePanelCloseRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Close tabs to the right'**
+  String get sidePanelCloseRight;
+
+  /// No description provided for @sidePanelReopenTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Reopen closed tab'**
+  String get sidePanelReopenTab;
+
+  /// No description provided for @sidePanelPinned.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned · can’t close'**
+  String get sidePanelPinned;
+
+  /// No description provided for @sidePanelMoveTopicsLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Move topics back to the left…'**
+  String get sidePanelMoveTopicsLeft;
+
+  /// No description provided for @sidePanelPinnedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Topics stay pinned while on the right. Change it in Settings › Display › Topic position.'**
+  String get sidePanelPinnedHint;
+
+  /// No description provided for @sidePanelEvictedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Page unloaded'**
+  String get sidePanelEvictedTitle;
+
+  /// No description provided for @sidePanelEvictedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Unloaded in the background to save memory (up to {count} background pages are kept). Reload to continue browsing.'**
+  String sidePanelEvictedBody(int count);
+
+  /// No description provided for @sidePanelEvictedTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Unloaded · reload to continue'**
+  String get sidePanelEvictedTooltip;
+
+  /// No description provided for @sidePanelFileMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'File unavailable'**
+  String get sidePanelFileMissing;
+
+  /// No description provided for @sidePanelFileMissingBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{path} was deleted or moved.'**
+  String sidePanelFileMissingBody(String path);
+
+  /// No description provided for @sidePanelRelocate.
+  ///
+  /// In en, this message translates to:
+  /// **'Find again'**
+  String get sidePanelRelocate;
+
+  /// No description provided for @sidePanelBackgroundIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Running in “{topic}”'**
+  String sidePanelBackgroundIn(String topic);
+
+  /// No description provided for @sidePanelWidth.
+  ///
+  /// In en, this message translates to:
+  /// **'{px}px'**
+  String sidePanelWidth(int px);
+
+  /// No description provided for @sidePanelWidthMax.
+  ///
+  /// In en, this message translates to:
+  /// **'max'**
+  String get sidePanelWidthMax;
+
+  /// No description provided for @sidePanelWidthMin.
+  ///
+  /// In en, this message translates to:
+  /// **'min'**
+  String get sidePanelWidthMin;
+
+  /// No description provided for @sidePanelRecentFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent outputs and attachments'**
+  String get sidePanelRecentFiles;
+
+  /// No description provided for @sidePanelOpenExternalUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Open URL in system browser…'**
+  String get sidePanelOpenExternalUrl;
+
+  /// No description provided for @sidePanelWebPages.
+  ///
+  /// In en, this message translates to:
+  /// **'Web pages'**
+  String get sidePanelWebPages;
+
+  /// No description provided for @hotkeyToggleSidePanel.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle side panel'**
+  String get hotkeyToggleSidePanel;
+
+  /// No description provided for @hotkeySidePanelNewWeb.
+  ///
+  /// In en, this message translates to:
+  /// **'New web tab'**
+  String get hotkeySidePanelNewWeb;
+
+  /// No description provided for @hotkeySidePanelFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Show files'**
+  String get hotkeySidePanelFiles;
+
+  /// No description provided for @hotkeySidePanelExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand side panel'**
+  String get hotkeySidePanelExpand;
+
+  /// No description provided for @hotkeySidePanelReopenTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Reopen closed tab'**
+  String get hotkeySidePanelReopenTab;
+
+  /// No description provided for @hotkeySidePanelNextTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Next panel tab'**
+  String get hotkeySidePanelNextTab;
+
+  /// No description provided for @hotkeySidePanelPreviousTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous panel tab'**
+  String get hotkeySidePanelPreviousTab;
+
+  /// No description provided for @hotkeySidePanelAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus web address'**
+  String get hotkeySidePanelAddress;
+
+  /// No description provided for @hotkeySidePanelFocus.
+  ///
+  /// In en, this message translates to:
+  /// **'Cycle chat and panel focus'**
+  String get hotkeySidePanelFocus;
+
+  /// No description provided for @selectionQuote.
+  ///
+  /// In en, this message translates to:
+  /// **'Quote'**
+  String get selectionQuote;
+
+  /// Numbered quote reference in sent, copied, and exported messages
+  ///
+  /// In en, this message translates to:
+  /// **'[Quote {index}]'**
+  String selectionQuoteMarker(int index);
+
+  /// No description provided for @selectionTranslate.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate'**
+  String get selectionTranslate;
+
+  /// No description provided for @selectionAiTranslateIos.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Translate'**
+  String get selectionAiTranslateIos;
+
+  /// No description provided for @selectionCopyMarkdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy as Markdown'**
+  String get selectionCopyMarkdown;
+
+  /// No description provided for @selectionCopyRich.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy rich text'**
+  String get selectionCopyRich;
+
+  /// No description provided for @quoteJumpToSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Jump to source'**
+  String get quoteJumpToSource;
+
+  /// No description provided for @quoteRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove quote'**
+  String get quoteRemove;
+
+  /// No description provided for @quoteDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'Already quoted'**
+  String get quoteDuplicate;
+
+  /// No description provided for @quoteLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to 10 quotes per message'**
+  String get quoteLimit;
+
+  /// No description provided for @quoteLocated.
+  ///
+  /// In en, this message translates to:
+  /// **'Jumped to quoted text'**
+  String get quoteLocated;
+
+  /// No description provided for @quoteSourceMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Source no longer exists'**
+  String get quoteSourceMissing;
+
+  /// No description provided for @selectionRegenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Regenerate'**
+  String get selectionRegenerate;
+
+  /// No description provided for @translating.
+  ///
+  /// In en, this message translates to:
+  /// **'Translating…'**
+  String get translating;
+
+  /// No description provided for @retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retry;
+
+  /// No description provided for @recoveryGuideTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Let’s recover your chats'**
+  String get recoveryGuideTitle;
+
+  /// No description provided for @recoveryGuideBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Cuplivo paused loading your data. We’ll look for local copies so you can choose what to recover. Existing files will be kept.'**
+  String get recoveryGuideBody;
+
+  /// No description provided for @recoverySpaceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Some free space is needed'**
+  String get recoverySpaceTitle;
+
+  /// No description provided for @recoveryChecksNeedSpace.
+  ///
+  /// In en, this message translates to:
+  /// **'Local copies were found, but there is not enough space to check them. This does not mean they are damaged. Free some space, then check again.'**
+  String get recoveryChecksNeedSpace;
+
+  /// No description provided for @recoveryChecksUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Some local copies could not be checked yet. Their files are still available. Check again, or export your data for help.'**
+  String get recoveryChecksUnavailable;
+
+  /// No description provided for @recoveryRecheckCopies.
+  ///
+  /// In en, this message translates to:
+  /// **'Check local copies again'**
+  String get recoveryRecheckCopies;
+
+  /// No description provided for @recoveryCopyPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy preview'**
+  String get recoveryCopyPreview;
+
+  /// No description provided for @recoveryRestoreRetryBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The restore could not be completed. The selected copy has been kept. Check local copies again or reopen Cuplivo to continue.'**
+  String get recoveryRestoreRetryBody;
+
+  /// No description provided for @recoverySpaceAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Last check: {available} available; at least {required} of free space is needed to prepare your data safely.'**
+  String recoverySpaceAmount(String required, String available);
+
+  /// No description provided for @recoveryCopiesNeedUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Some copies were made by a newer version of Cuplivo. Update Cuplivo before restoring them. These copies have been kept.'**
+  String get recoveryCopiesNeedUpdate;
+
+  /// No description provided for @imageContextTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Image context'**
+  String get imageContextTitle;
+
+  /// No description provided for @imageContextAutomatic.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage history images automatically'**
+  String get imageContextAutomatic;
+
+  /// No description provided for @imageContextDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep user attachments longer; retire old tool screenshots in batches. Pins keep images in their original messages and may change the cached prefix. Add again places a new attachment in the composer. The preview uses saved files; pending OCR, remote files and provider limits are checked when sending.'**
+  String get imageContextDescription;
+
+  /// No description provided for @imageContextIncluded.
+  ///
+  /// In en, this message translates to:
+  /// **'Included'**
+  String get imageContextIncluded;
+
+  /// No description provided for @imageContextOmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Omitted'**
+  String get imageContextOmitted;
+
+  /// No description provided for @imageContextPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin image'**
+  String get imageContextPin;
+
+  /// No description provided for @imageContextUnpin.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin image'**
+  String get imageContextUnpin;
+
+  /// No description provided for @imageContextAttachAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to composer again'**
+  String get imageContextAttachAgain;
+
+  /// No description provided for @imageContextEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No images in the current context'**
+  String get imageContextEmpty;
+
+  /// No description provided for @imageContextUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This image is unavailable in the current context.'**
+  String get imageContextUnavailable;
+
+  /// No description provided for @settingsPageChatOwners.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistants and groups'**
+  String get settingsPageChatOwners;
+
+  /// No description provided for @settingsPageChatOwnersCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get settingsPageChatOwnersCreate;
+
+  /// No description provided for @chatOwnerCreateAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'New assistant'**
+  String get chatOwnerCreateAssistant;
+
+  /// No description provided for @recycleBinKindGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Group'**
+  String get recycleBinKindGroup;
+
+  /// No description provided for @recycleBinFilterGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'Groups'**
+  String get recycleBinFilterGroups;
 
   /// No description provided for @groupChatTitle.
   ///

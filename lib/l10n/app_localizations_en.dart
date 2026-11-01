@@ -74,13 +74,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Appearance, behavior, and interaction preferences';
 
   @override
-  String get settingsPageChatOwners => 'Assistants and groups';
+  String get settingsPageAssistant => 'Assistant';
 
   @override
-  String get settingsPageChatOwnersCreate => 'Create';
-
-  @override
-  String get chatOwnerCreateAssistant => 'New assistant';
+  String get settingsPageAssistantSubtitle => 'Default assistant and style';
 
   @override
   String get settingsPageModelsServicesSection => 'Models & Services';
@@ -1489,6 +1486,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get assistantEditModelUseGlobalDefault => 'Use global default';
 
   @override
+  String get assistantSettingsPageTitle => 'Assistant Settings';
+
+  @override
   String get assistantSettingsCopyButton => 'Copy';
 
   @override
@@ -1514,6 +1514,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get assistantSettingsAddSheetSave => 'Save';
+
+  @override
+  String get desktopAssistantsListTitle => 'Assistants';
 
   @override
   String get desktopSidebarTabAssistants => 'Assistants';
@@ -1776,7 +1779,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get startupRecoveryExportButton => 'Export a copy of my data';
 
   @override
-  String get startupRecoveryResetButton => 'Reset data';
+  String get startupRecoveryResetButton => 'Start with an empty chat list';
 
   @override
   String get startupRecoveryBusy => 'Working…';
@@ -1797,14 +1800,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'Reset failed. Fully close Cuplivo, then open it again.';
 
   @override
-  String get startupRecoveryResetDialogTitle => 'Reset all data?';
+  String get startupRecoveryResetDialogTitle =>
+      'Start with an empty chat list?';
 
   @override
   String get startupRecoveryResetDialogContent =>
-      'Start with a new empty database? The current database, its journals and existing copies will be retained for recovery.';
+      'This will not recover your previous chats. Cuplivo will keep the current database and existing copies, and start a new empty chat list. To get your chats back, cancel and choose a local copy.';
 
   @override
-  String get startupRecoveryResetDialogConfirm => 'Reset and restart';
+  String get startupRecoveryResetDialogConfirm => 'Keep copies and start fresh';
 
   @override
   String get startupRecoveryResetDialogCancel => 'Cancel';
@@ -1877,7 +1881,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get startupRecoverySectionDataBody =>
-      'Nothing has been deleted. Save a copy somewhere safe before trying anything below.';
+      'You can also export the remaining data and keep it somewhere safe before continuing.';
 
   @override
   String startupRecoveryExportSavedTo(String path) {
@@ -1912,7 +1916,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'The integrity check could not run.';
 
   @override
-  String get startupRecoveryDangerZone => 'Danger zone';
+  String get startupRecoveryDangerZone => 'Other options';
 
   @override
   String get startupRecoveryDangerBody =>
@@ -1920,7 +1924,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get startupRecoveryResetAcknowledge =>
-      'I want to start with a new empty database.';
+      'I choose to continue with an empty chat list without recovering my chats now.';
 
   @override
   String get startupDatabaseUpdateRequiredTitle => 'Update Cuplivo to continue';
@@ -10892,9 +10896,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recycleBinKindConfig => 'Configuration';
 
   @override
-  String get recycleBinKindGroup => 'Group';
-
-  @override
   String get recycleBinOriginLocal => 'Deleted here';
 
   @override
@@ -10950,9 +10951,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recycleBinFilterAssistants => 'Assistants';
-
-  @override
-  String get recycleBinFilterGroups => 'Groups';
 
   @override
   String get recycleBinFilterSettings => 'Settings';
@@ -11894,7 +11892,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mcpImportConfirm => 'Import';
 
   @override
-  String get startupRecoverySnapshotTitle => 'Restore from a database snapshot';
+  String get startupRecoverySnapshotTitle => 'Recover from a local copy';
 
   @override
   String get startupRecoverySnapshotBody =>
@@ -11905,7 +11903,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'No database snapshots were found on this device. Export your data before trying other recovery actions.';
 
   @override
-  String get startupRecoverySnapshotButton => 'Choose a snapshot';
+  String get startupRecoverySnapshotButton => 'Choose a copy to recover';
 
   @override
   String startupRecoverySnapshotConfirm(String when) {
@@ -12343,7 +12341,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get oauthModelsHint =>
-      'Available models are synced from your account.';
+      'Available models are synced from your account. Choose which models appear in the model picker. Your choices are kept when syncing or signing in again.';
 
   @override
   String get oauthNoModels => 'Sync models to start chatting';
@@ -14126,7 +14124,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchServicesPageWebFetchFooter =>
-      'With web search on, the model can also read full pages. When the search service can\'t read pages, local reading is used, which can\'t handle pages that need JavaScript or block bots.';
+      'With web search on, the model can also read full pages. When the search service can\'t read pages, local reading is used, which can\'t handle pages that need JavaScript or block bots.\n\nIf you use the page reader configured here, disable the built-in @cuplivo/fetch in Settings → MCP to avoid overlapping tools. The page reader configured here will still work.';
 
   @override
   String get searchServicesPageWebFetchSupported => 'Can read web pages';
@@ -14444,11 +14442,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'The current database has no conversations, but previous copies were found. Cuplivo has paused startup so you can recover a copy or explicitly keep the current data. Nothing will be overwritten automatically.';
 
   @override
-  String get recoveryKeepCurrent => 'Keep current data and continue';
+  String get recoveryKeepCurrent => 'Continue with an empty chat list';
 
   @override
   String get recoveryKeepCurrentConfirm =>
-      'Continue with the current empty database? Previous copies will remain available for recovery later.';
+      'This continues without recovering your previous chats. The current chat list will stay empty; old copies will be kept. If you want your chats back, cancel and choose a local copy.';
 
   @override
   String get recoverySearchingCopies =>
@@ -14503,7 +14501,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recoveryStorageInsufficientSpaceBody =>
-      'There is not enough free space to keep the original database and create its verified internal copy. Existing data and snapshots are unchanged. Free some space, then retry.';
+      'There is not enough storage to safely prepare your data. Free space in system settings, then reopen Cuplivo or recheck the copies below. Keep Cuplivo installed and leave its data and local copies in place.';
 
   @override
   String get migrationFreshStartTitle => 'Fresh start is ready';
@@ -14559,11 +14557,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupEncryptionOnHint =>
-      'Backups are encrypted while this page stays open.';
+      'Backups are encrypted. Enter the password again after restarting the app.';
 
   @override
   String get backupEncryptionPasswordHint =>
-      'Keep this password safe. If you lose it, the backup cannot be restored. It is kept only while this page is open.';
+      'Keep this password safe. If you lose it, the backup cannot be restored. It is kept in memory until you exit the app.';
 
   @override
   String get backupEncryptionPassword => 'Password';
@@ -16615,6 +16613,537 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get dataDirectoryCancelHint =>
       'Cancelling keeps any files already copied to the destination. You can inspect and remove that partial copy yourself.';
+
+  @override
+  String get assistantCopyTitle => 'Copy assistant';
+
+  @override
+  String get assistantCopyDefaultHint =>
+      'Choose what to copy, or copy everything.';
+
+  @override
+  String get assistantCopyConfiguration => 'Assistant configuration';
+
+  @override
+  String get assistantCopyConfigurationHint =>
+      'Always included: name, avatar, prompts, model, parameters, and preset messages.';
+
+  @override
+  String get assistantCopyMemories => 'Assistant memories';
+
+  @override
+  String get assistantCopyMemoriesHint =>
+      'Includes current and legacy memories, preserving archived status. Global memories remain shared.';
+
+  @override
+  String get assistantCopyChooseMemories => 'Choose memories';
+
+  @override
+  String get assistantCopyChooseEntries => 'Choose entries';
+
+  @override
+  String get assistantCopyPhrasesHint =>
+      'Copy this assistant’s phrases. Global phrases remain shared.';
+
+  @override
+  String get assistantCopyBindingsHint =>
+      'These options reuse existing resources; workspace files are not copied. Unselected world books and injections use global defaults.';
+
+  @override
+  String get assistantCopyWorldBooks => 'World book bindings';
+
+  @override
+  String get assistantCopySkills => 'Skill selection';
+
+  @override
+  String get assistantCopyTools => 'Tool and search settings';
+
+  @override
+  String get assistantCopyWorkspace => 'Default workspace binding';
+
+  @override
+  String get assistantCopyAll => 'Copy everything';
+
+  @override
+  String get assistantCopyInProgress => 'Copying…';
+
+  @override
+  String get assistantCopyFailed =>
+      'Could not copy the assistant. Your original data is unchanged. Please try again.';
+
+  @override
+  String get assistantCopyMemoryLoadFailed =>
+      'Could not load memories. Please try again.';
+
+  @override
+  String get assistantCopyRetry => 'Retry';
+
+  @override
+  String get assistantCopyNoMemories =>
+      'This assistant has no personal memories to copy.';
+
+  @override
+  String get assistantCopySelectAll => 'Select all memories';
+
+  @override
+  String get assistantConversationMcpTitle => 'Allow per-conversation MCP';
+
+  @override
+  String get assistantConversationMcpHint =>
+      'Let conversations choose their own MCP servers. Conversations use the assistant’s selection until customized.';
+
+  @override
+  String get mcpSelectionInherited => 'Following assistant';
+
+  @override
+  String get mcpSelectionCustom => 'Custom for this chat';
+
+  @override
+  String get mcpInheritAssistant => 'Use assistant settings';
+
+  @override
+  String get displaySettingsPageUseLegacyInlineCodeStyleTitle =>
+      'Legacy inline code style';
+
+  @override
+  String get displaySettingsPageUseLegacyInlineCodeStyleSubtitle =>
+      'Use a lighter background, a thin border, and more line spacing for inline code.';
+
+  @override
+  String get asrServicesElevenLabsSubtitle => 'Scribe segmented transcription';
+
+  @override
+  String get asrServicesRecognitionModeLabel => 'Recognition mode';
+
+  @override
+  String get asrServicesRealtimeMode => 'Real-time';
+
+  @override
+  String get asrServicesRecordedMode => 'Recorded audio';
+
+  @override
+  String get asrServicesQwenAudioSubtitle =>
+      'Real-time or recorded audio transcription';
+
+  @override
+  String get asrServicesQwenTokenPlanHint =>
+      'For Token Plan, choose Recorded audio, enter token-plan as the Workspace ID, and select the region for your key.';
+
+  @override
+  String get asrServicesEndpointOverrideLabel => 'Custom endpoint (optional)';
+
+  @override
+  String get asrServicesWorkspaceIdInvalid =>
+      'Enter a workspace ID, not a URL.';
+
+  @override
+  String get asrServicesWebSocketEndpointInvalid =>
+      'Enter a complete ws:// or wss:// endpoint without credentials or a fragment.';
+
+  @override
+  String get asrServicesHttpEndpointInvalid =>
+      'Enter a complete http:// or https:// endpoint without credentials or a fragment.';
+
+  @override
+  String get oauthDnsError =>
+      'DNS lookup failed. Check your network or proxy DNS settings.';
+
+  @override
+  String get oauthTlsError =>
+      'The TLS connection failed. Check the certificates used by your network or proxy.';
+
+  @override
+  String get oauthProxyError =>
+      'The proxy connection failed. Check your proxy address and authentication settings.';
+
+  @override
+  String get oauthConnectionError =>
+      'The connection failed or was interrupted. Check your network or proxy settings.';
+
+  @override
+  String get oauthConnectionTimeout =>
+      'Connecting to the server timed out. Check your network or proxy settings.';
+
+  @override
+  String get oauthSendTimeout =>
+      'Sending the request timed out. Check your network and try again.';
+
+  @override
+  String get oauthReceiveTimeout =>
+      'Waiting for the server response timed out. Please try again.';
+
+  @override
+  String get oauthRequestTimeout =>
+      'The request timed out. Check your network or proxy settings and try again.';
+
+  @override
+  String oauthFailureStage(String stage) {
+    return 'Failed at: $stage';
+  }
+
+  @override
+  String get oauthStageRequestDeviceCode => 'Requesting a device code';
+
+  @override
+  String get oauthStageWaitDeviceAuthorization =>
+      'Waiting for device authorization';
+
+  @override
+  String get oauthStagePrepareBrowser => 'Preparing browser sign-in';
+
+  @override
+  String get oauthStageBrowserAuthorization =>
+      'Browser authorization and callback';
+
+  @override
+  String get oauthStageExchangeToken => 'Exchanging the authorization code';
+
+  @override
+  String get oauthStageRefreshToken => 'Refreshing the login token';
+
+  @override
+  String get oauthMonthlyTotal => 'Monthly total';
+
+  @override
+  String get oauthMonthlyCode => 'Monthly code';
+
+  @override
+  String get oauthSpendCap => 'Credit spend cap';
+
+  @override
+  String get oauthOnDemand => 'On-demand quota';
+
+  @override
+  String get oauthQuotaAdvisory =>
+      'For reference only: active weekly credits make this monthly limit uncertain.';
+
+  @override
+  String oauthCreditsValue(String value) {
+    return '$value credits';
+  }
+
+  @override
+  String oauthRemainingValue(String value) {
+    return 'Remaining $value';
+  }
+
+  @override
+  String providerDetailPageBaseUrlExample(String url) {
+    return 'e.g. $url';
+  }
+
+  @override
+  String get providerDetailPageApiKeyExample => 'e.g. sk-…';
+
+  @override
+  String get providerDetailPageRequestUrlLabel => 'Request URL';
+
+  @override
+  String providerDetailPageUrlWillAppendVersion(String v) {
+    return 'No version in URL; $v will be added when you leave the field';
+  }
+
+  @override
+  String providerDetailPageUrlAppendedVersion(String v) {
+    return 'Added $v automatically';
+  }
+
+  @override
+  String get providerDetailPageUrlTrimmedSlash => 'Removed trailing /';
+
+  @override
+  String providerDetailPageUrlMovedPath(String path) {
+    return 'Full endpoint detected; $path moved to API Path';
+  }
+
+  @override
+  String get providerDetailPageUrlEmptyError => 'Required to send requests';
+
+  @override
+  String get providerDetailPageUrlInvalidError =>
+      'Invalid URL; must start with http:// or https://';
+
+  @override
+  String get providerDetailPageRestoreDefaultTooltip => 'Restore default';
+
+  @override
+  String get providerDetailPageClearTooltip => 'Clear';
+
+  @override
+  String providerDetailPageTestSuccessWithLatency(String ms) {
+    return 'Success · $ms ms';
+  }
+
+  @override
+  String providerDetailPageTestFailedWithCode(String code) {
+    return 'Failed · $code';
+  }
+
+  @override
+  String providerDetailPageTestHintMissingVersion(String url) {
+    return 'The URL may be missing a version; try $url';
+  }
+
+  @override
+  String providerAutoVersionAdded(String v) {
+    return 'Added $v automatically';
+  }
+
+  @override
+  String get providerUndo => 'Undo';
+
+  @override
+  String get sidePanelToggle => 'Toggle side panel';
+
+  @override
+  String get sidePanelFiles => 'Files';
+
+  @override
+  String get sidePanelTopics => 'Topics';
+
+  @override
+  String get sidePanelExpand => 'Expand panel';
+
+  @override
+  String get sidePanelCollapse => 'Exit expanded';
+
+  @override
+  String get sidePanelAllTabs => 'All tabs';
+
+  @override
+  String sidePanelMoreTabs(int count) {
+    return '$count more';
+  }
+
+  @override
+  String get sidePanelSearchTabs => 'Search tabs';
+
+  @override
+  String get sidePanelOpenFile => 'Open file…';
+
+  @override
+  String get sidePanelCloseOthers => 'Close other tabs';
+
+  @override
+  String get sidePanelCloseRight => 'Close tabs to the right';
+
+  @override
+  String get sidePanelReopenTab => 'Reopen closed tab';
+
+  @override
+  String get sidePanelPinned => 'Pinned · can’t close';
+
+  @override
+  String get sidePanelMoveTopicsLeft => 'Move topics back to the left…';
+
+  @override
+  String get sidePanelPinnedHint =>
+      'Topics stay pinned while on the right. Change it in Settings › Display › Topic position.';
+
+  @override
+  String get sidePanelEvictedTitle => 'Page unloaded';
+
+  @override
+  String sidePanelEvictedBody(int count) {
+    return 'Unloaded in the background to save memory (up to $count background pages are kept). Reload to continue browsing.';
+  }
+
+  @override
+  String get sidePanelEvictedTooltip => 'Unloaded · reload to continue';
+
+  @override
+  String get sidePanelFileMissing => 'File unavailable';
+
+  @override
+  String sidePanelFileMissingBody(String path) {
+    return '$path was deleted or moved.';
+  }
+
+  @override
+  String get sidePanelRelocate => 'Find again';
+
+  @override
+  String sidePanelBackgroundIn(String topic) {
+    return 'Running in “$topic”';
+  }
+
+  @override
+  String sidePanelWidth(int px) {
+    return '${px}px';
+  }
+
+  @override
+  String get sidePanelWidthMax => 'max';
+
+  @override
+  String get sidePanelWidthMin => 'min';
+
+  @override
+  String get sidePanelRecentFiles => 'Recent outputs and attachments';
+
+  @override
+  String get sidePanelOpenExternalUrl => 'Open URL in system browser…';
+
+  @override
+  String get sidePanelWebPages => 'Web pages';
+
+  @override
+  String get hotkeyToggleSidePanel => 'Toggle side panel';
+
+  @override
+  String get hotkeySidePanelNewWeb => 'New web tab';
+
+  @override
+  String get hotkeySidePanelFiles => 'Show files';
+
+  @override
+  String get hotkeySidePanelExpand => 'Expand side panel';
+
+  @override
+  String get hotkeySidePanelReopenTab => 'Reopen closed tab';
+
+  @override
+  String get hotkeySidePanelNextTab => 'Next panel tab';
+
+  @override
+  String get hotkeySidePanelPreviousTab => 'Previous panel tab';
+
+  @override
+  String get hotkeySidePanelAddress => 'Focus web address';
+
+  @override
+  String get hotkeySidePanelFocus => 'Cycle chat and panel focus';
+
+  @override
+  String get selectionQuote => 'Quote';
+
+  @override
+  String selectionQuoteMarker(int index) {
+    return '[Quote $index]';
+  }
+
+  @override
+  String get selectionTranslate => 'Translate';
+
+  @override
+  String get selectionAiTranslateIos => 'AI Translate';
+
+  @override
+  String get selectionCopyMarkdown => 'Copy as Markdown';
+
+  @override
+  String get selectionCopyRich => 'Copy rich text';
+
+  @override
+  String get quoteJumpToSource => 'Jump to source';
+
+  @override
+  String get quoteRemove => 'Remove quote';
+
+  @override
+  String get quoteDuplicate => 'Already quoted';
+
+  @override
+  String get quoteLimit => 'Up to 10 quotes per message';
+
+  @override
+  String get quoteLocated => 'Jumped to quoted text';
+
+  @override
+  String get quoteSourceMissing => 'Source no longer exists';
+
+  @override
+  String get selectionRegenerate => 'Regenerate';
+
+  @override
+  String get translating => 'Translating…';
+
+  @override
+  String get retry => 'Retry';
+
+  @override
+  String get recoveryGuideTitle => 'Let’s recover your chats';
+
+  @override
+  String get recoveryGuideBody =>
+      'Cuplivo paused loading your data. We’ll look for local copies so you can choose what to recover. Existing files will be kept.';
+
+  @override
+  String get recoverySpaceTitle => 'Some free space is needed';
+
+  @override
+  String get recoveryChecksNeedSpace =>
+      'Local copies were found, but there is not enough space to check them. This does not mean they are damaged. Free some space, then check again.';
+
+  @override
+  String get recoveryChecksUnavailable =>
+      'Some local copies could not be checked yet. Their files are still available. Check again, or export your data for help.';
+
+  @override
+  String get recoveryRecheckCopies => 'Check local copies again';
+
+  @override
+  String get recoveryCopyPreview => 'Copy preview';
+
+  @override
+  String get recoveryRestoreRetryBody =>
+      'The restore could not be completed. The selected copy has been kept. Check local copies again or reopen Cuplivo to continue.';
+
+  @override
+  String recoverySpaceAmount(String required, String available) {
+    return 'Last check: $available available; at least $required of free space is needed to prepare your data safely.';
+  }
+
+  @override
+  String get recoveryCopiesNeedUpdate =>
+      'Some copies were made by a newer version of Cuplivo. Update Cuplivo before restoring them. These copies have been kept.';
+
+  @override
+  String get imageContextTitle => 'Image context';
+
+  @override
+  String get imageContextAutomatic => 'Manage history images automatically';
+
+  @override
+  String get imageContextDescription =>
+      'Keep user attachments longer; retire old tool screenshots in batches. Pins keep images in their original messages and may change the cached prefix. Add again places a new attachment in the composer. The preview uses saved files; pending OCR, remote files and provider limits are checked when sending.';
+
+  @override
+  String get imageContextIncluded => 'Included';
+
+  @override
+  String get imageContextOmitted => 'Omitted';
+
+  @override
+  String get imageContextPin => 'Pin image';
+
+  @override
+  String get imageContextUnpin => 'Unpin image';
+
+  @override
+  String get imageContextAttachAgain => 'Add to composer again';
+
+  @override
+  String get imageContextEmpty => 'No images in the current context';
+
+  @override
+  String get imageContextUnavailable =>
+      'This image is unavailable in the current context.';
+
+  @override
+  String get settingsPageChatOwners => 'Assistants and groups';
+
+  @override
+  String get settingsPageChatOwnersCreate => 'Create';
+
+  @override
+  String get chatOwnerCreateAssistant => 'New assistant';
+
+  @override
+  String get recycleBinKindGroup => 'Group';
+
+  @override
+  String get recycleBinFilterGroups => 'Groups';
 
   @override
   String get groupChatTitle => 'Group chat';

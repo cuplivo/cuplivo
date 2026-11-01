@@ -18,6 +18,7 @@ import '../../../model_spec/model_spec_resolver.dart';
 import '../../../model_spec/vendor_defaults.dart';
 import '../../builtin_tools.dart';
 import '../../chat_api_helpers.dart';
+import '../../message_authorship.dart';
 import '../../native_input_attachments.dart';
 import '../../tool_result_content.dart';
 import '../../generation/tool_loop_runner.dart';
@@ -185,15 +186,10 @@ Stream<StreamChunk> sendOpenAIStream(
       addResponsesBuiltInTool(tool);
     }
     // Collect assistant images to attach to the last user message.
-    // Use last *user* index so tool follow-ups still receive stashed media.
+    // Use the last *human* turn so tool follow-ups still receive stashed media
+    // while a group peer's turn never becomes the attachment anchor.
     final List<String> lastAssistantImageUrls = <String>[];
-    int lastResponsesUserIndex = -1;
-    for (int i = messages.length - 1; i >= 0; i--) {
-      if ((messages[i]['role'] ?? '').toString() == 'user') {
-        lastResponsesUserIndex = i;
-        break;
-      }
-    }
+    final lastResponsesUserIndex = lastHumanUserIndex(messages);
     for (int i = 0; i < messages.length; i++) {
       final m = messages[i];
       final originalContent = m['content'];

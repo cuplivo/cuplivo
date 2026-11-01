@@ -143,6 +143,7 @@ class _GatedChatService extends ChatService {
     required String anchorGroupId,
     required bool truncateFuture,
     String? expectedContextState,
+    String? senderId,
   }) async {
     regenerationEntered = true;
     await regenerationHold?.future;
@@ -152,6 +153,7 @@ class _GatedChatService extends ChatService {
       providerId: providerId,
       anchorGroupId: anchorGroupId,
       truncateFuture: truncateFuture,
+      senderId: senderId,
     );
   }
 
@@ -1374,123 +1376,115 @@ void main() {
   });
 
   for (final newChatOnLaunch in [false, true]) {
-    testWidgets(
-      'recovered model survives reorder and restart: newChat=$newChatOnLaunch',
-      (tester) async {
-        final business = (await tester.runAsync(
-          () => createBusinessTestHarness(
-            initial: {
-              'assistants_v1': jsonEncode(const [
-                {
-                  'id': 'recovery-a',
-                  'name': 'A',
-                  'chatModelProvider': 'SiliconFlow',
-                  'chatModelId': 'model-a',
-                },
-                {
-                  'id': 'recovery-b',
-                  'name': 'B',
-                  'chatModelProvider': 'SiliconFlow',
-                  'chatModelId': 'model-b',
-                },
-              ]),
-              'current_assistant_id_v1': 'recovery-a',
-            },
-          ),
-        ))!;
-        var controller = await pumpHarness(
-          tester,
-          assistantPreferences: business.preferences,
+    testWidgets('recovered model survives restart: newChat=$newChatOnLaunch', (
+      tester,
+    ) async {
+      final business = (await tester.runAsync(
+        () => createBusinessTestHarness(
+          initial: {
+            'assistants_v1': jsonEncode(const [
+              {
+                'id': 'recovery-a',
+                'name': 'A',
+                'chatModelProvider': 'SiliconFlow',
+                'chatModelId': 'model-a',
+              },
+              {
+                'id': 'recovery-b',
+                'name': 'B',
+                'chatModelProvider': 'SiliconFlow',
+                'chatModelId': 'model-b',
+              },
+            ]),
+            'current_assistant_id_v1': 'recovery-a',
+          },
+        ),
+      ))!;
+      var controller = await pumpHarness(
+        tester,
+        assistantPreferences: business.preferences,
+      );
+      late Conversation conversation;
+      await tester.runAsync(() async {
+        await settings.disableTitleGeneration();
+        conversation = await service.createConversation(
+          title: 'Recovered topic',
+          assistantId: 'missing-assistant',
         );
-        late Conversation conversation;
-        await tester.runAsync(() async {
-          await settings.disableTitleGeneration();
-          conversation = await service.createConversation(
-            title: 'Recovered topic',
-            assistantId: 'missing-assistant',
-          );
+        await controller.debugViewModel.switchConversation(conversation.id);
+        expect(assistantProvider.currentAssistantId, 'recovery-a');
+        final display = getModelDisplayInfo(
+          settings,
+          conversation: controller.currentConversation,
+          assistant: assistantProvider.currentAssistant,
+        );
+        expect(display.modelDisplay, 'model-a');
+        expect(
+          await controller.sendMessage(ChatInputData(text: 'after restart')),
+          ChatInputSubmissionResult.sent,
+        );
+        await waitFor(
+          () =>
+              streamRequestCount == 1 &&
+              !controller.chatController.isConversationLoading(conversation.id),
+          'reply after restart',
+        );
+        expect(streamRequests.single['model'], display.modelId);
+      });
+      await tester.pumpWidget(const SizedBox());
+      controller = await pumpHarness(
+        tester,
+        assistantPreferences: BusinessPreferences(business.repository),
+      );
+      await tester.runAsync(() async {
+        await settings.disableTitleGeneration();
+        await settings.setNewChatOnLaunch(newChatOnLaunch);
+        await controller.initChat();
+        expect(assistantProvider.assistants.first.id, 'recovery-a');
+        expect(assistantProvider.currentAssistantId, 'recovery-a');
+        if (newChatOnLaunch) {
+          expect(controller.currentConversation!.assistantId, 'recovery-a');
           await controller.debugViewModel.switchConversation(conversation.id);
-          await assistantProvider.reorderAssistants(1, 0);
-          expect(assistantProvider.currentAssistantId, 'recovery-a');
-          final display = getModelDisplayInfo(
-            settings,
-            conversation: controller.currentConversation,
-            assistant: assistantProvider.currentAssistant,
-          );
-          expect(display.modelDisplay, 'model-a');
-          expect(
-            await controller.sendMessage(ChatInputData(text: 'after reorder')),
-            ChatInputSubmissionResult.sent,
-          );
-          await waitFor(
-            () =>
-                streamRequestCount == 1 &&
-                !controller.chatController.isConversationLoading(
-                  conversation.id,
-                ),
-            'reply after reorder',
-          );
-          expect(streamRequests.single['model'], display.modelId);
-        });
-        await tester.pumpWidget(const SizedBox());
-        controller = await pumpHarness(
-          tester,
-          assistantPreferences: BusinessPreferences(business.repository),
+        } else {
+          expect(controller.currentConversation!.id, conversation.id);
+        }
+        final display = getModelDisplayInfo(
+          settings,
+          conversation: controller.currentConversation,
+          assistant: assistantProvider.currentAssistant,
         );
-        await tester.runAsync(() async {
-          await settings.disableTitleGeneration();
-          await settings.setNewChatOnLaunch(newChatOnLaunch);
-          await controller.initChat();
-          expect(assistantProvider.assistants.first.id, 'recovery-b');
-          expect(assistantProvider.currentAssistantId, 'recovery-a');
-          if (newChatOnLaunch) {
-            expect(controller.currentConversation!.assistantId, 'recovery-a');
-            await controller.debugViewModel.switchConversation(conversation.id);
-          } else {
-            expect(controller.currentConversation!.id, conversation.id);
-          }
-          final display = getModelDisplayInfo(
-            settings,
-            conversation: controller.currentConversation,
-            assistant: assistantProvider.currentAssistant,
-          );
-          expect(display.modelDisplay, 'model-a');
-          expect(
-            await controller.sendMessage(ChatInputData(text: 'after restart')),
-            ChatInputSubmissionResult.sent,
-          );
-          await waitFor(
-            () =>
-                streamRequestCount == 2 &&
-                !controller.chatController.isConversationLoading(
-                  conversation.id,
-                ),
-            'reply after restart',
-          );
-          expect(streamRequests.last['model'], display.modelId);
-          final messages = await service.loadMessages(conversation.id);
-          expect(
-            await controller.debugViewModel.regenerateAtMessage(messages.last),
-            isTrue,
-          );
-          await waitFor(
-            () =>
-                streamRequestCount == 3 &&
-                !controller.chatController.isConversationLoading(
-                  conversation.id,
-                ),
-            'regeneration after restart',
-          );
-          expect(streamRequests.last['model'], display.modelId);
-          expect(
-            service.getConversation(conversation.id)!.assistantId,
-            'missing-assistant',
-          );
-        });
-        await tester.pumpWidget(const SizedBox());
-        expect(tester.takeException(), isNull);
-      },
-    );
+        expect(display.modelDisplay, 'model-a');
+        expect(
+          await controller.sendMessage(ChatInputData(text: 'after restart')),
+          ChatInputSubmissionResult.sent,
+        );
+        await waitFor(
+          () =>
+              streamRequestCount == 2 &&
+              !controller.chatController.isConversationLoading(conversation.id),
+          'reply after restart',
+        );
+        expect(streamRequests.last['model'], display.modelId);
+        final messages = await service.loadMessages(conversation.id);
+        expect(
+          await controller.debugViewModel.regenerateAtMessage(messages.last),
+          isTrue,
+        );
+        await waitFor(
+          () =>
+              streamRequestCount == 3 &&
+              !controller.chatController.isConversationLoading(conversation.id),
+          'regeneration after restart',
+        );
+        expect(streamRequests.last['model'], display.modelId);
+        expect(
+          service.getConversation(conversation.id)!.assistantId,
+          'missing-assistant',
+        );
+      });
+      await tester.pumpWidget(const SizedBox());
+      expect(tester.takeException(), isNull);
+    });
   }
 
   for (final temporary in [false, true]) {

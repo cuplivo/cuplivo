@@ -14,6 +14,7 @@ import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/api/providers/claude/claude_container.dart';
 import 'package:Cuplivo/core/services/api/providers/claude/claude_history.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/api/message_authorship.dart';
 import 'package:Cuplivo/core/services/api/providers/google/gemini_thought_signature.dart';
 import 'package:Cuplivo/core/utils/multimodal_input_utils.dart';
 import 'package:Cuplivo/features/home/services/message_builder_service.dart';
@@ -57,6 +58,7 @@ ChatMessage _message({
   required String content,
   String? reasoningText,
   String? groupId,
+  String? senderId,
   int version = 0,
 }) {
   return ChatMessage(
@@ -66,6 +68,7 @@ ChatMessage _message({
     conversationId: 'conversation-1',
     reasoningText: reasoningText,
     groupId: groupId,
+    senderId: senderId,
     version: version,
   );
 }
@@ -1261,6 +1264,46 @@ void main() {
       expect(
         apiMessages.any(
           (message) => message.containsKey(multimodalInternalRevisionIdKey),
+        ),
+        isFalse,
+      );
+    });
+
+    test('群成员的 turn 带 marker 且不占用用户的 revision id', () {
+      final service = MessageBuilderService(
+        chatService: _FakeChatService({}),
+        contextProvider: _FakeBuildContext(),
+      );
+
+      final apiMessages = service.buildApiMessages(
+        messages: [
+          _message(id: 'u1', role: 'user', content: 'plan the week'),
+          _message(
+            id: 'p1',
+            role: 'user',
+            content: '<group_message from="Bob">\nTuesday\n</group_message>',
+            senderId: 'a2',
+          ),
+        ],
+        versionSelections: const {},
+        currentConversation: Conversation(title: 'test'),
+      );
+
+      // The user's own turn keeps the revision id every edit path relies on.
+      expect(
+        apiMessages.first[MessageBuilderService.internalRevisionIdKey],
+        'u1',
+      );
+      expect(apiMessages.first.containsKey(groupPeerSenderKey), isFalse);
+
+      // A peer's turn is a user message that is not the user's: marked, and
+      // deliberately without a revision id so "the last user message" still
+      // means the human's own turn.
+      expect(apiMessages.last['role'], 'user');
+      expect(apiMessages.last[groupPeerSenderKey], 'a2');
+      expect(
+        apiMessages.last.containsKey(
+          MessageBuilderService.internalRevisionIdKey,
         ),
         isFalse,
       );

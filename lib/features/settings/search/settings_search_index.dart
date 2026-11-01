@@ -64,7 +64,7 @@ extension SettingsSearchDestinationDetails on SettingsSearchDestination {
       l.displaySettingsPageHapticsSettingsTitle,
     SettingsSearchDestination.background => l.backgroundSettingsTitle,
     SettingsSearchDestination.phoneControl => l.phoneControlTitle,
-    SettingsSearchDestination.assistant => l.settingsPageAssistant,
+    SettingsSearchDestination.assistant => l.settingsPageChatOwners,
     SettingsSearchDestination.providers => l.settingsPageProviders,
     SettingsSearchDestination.defaultModel => l.settingsPageDefaultModel,
     SettingsSearchDestination.search => l.settingsPageSearch,
@@ -343,10 +343,10 @@ class SettingsSearchIndex {
     add(
       'assistant',
       SettingsSearchDestination.assistant,
-      (l) => l.settingsPageAssistant,
+      (l) => l.settingsPageChatOwners,
       page: true,
       keywords:
-          'assistant system prompt temperature top p 人设 人設 系统提示词 系統提示詞 助手',
+          'assistant system prompt temperature top p 人设 人設 系统提示词 系統提示詞 助手 群聊 群組 group',
     );
     add(
       'providers',

@@ -158,9 +158,13 @@ void main() {
     Conversation conversation({
       String id = 'c1',
       String? assistantId = 'a1',
+      bool? enabledOverride,
       DateTime? nextAt,
     }) {
       var conv = Conversation(id: id, title: 'Chat', assistantId: assistantId);
+      if (enabledOverride != null) {
+        conv = conv.setProactiveCareEnabledOverride(enabledOverride);
+      }
       if (nextAt != null) {
         conv = conv.setProactiveCareNextMessageAt(nextAt);
       }
@@ -357,6 +361,37 @@ void main() {
                   as Map)['alarms']
               as List;
       expect(payload, isEmpty);
+    });
+
+    test('the omission log names each reason, not one count', () async {
+      final previous = debugPrint;
+      final logs = <String>[];
+      debugPrint = (message, {wrapWidth}) {
+        if (message != null) logs.add(message);
+      };
+      addTearDown(() => debugPrint = previous);
+      final dueAt = now.add(const Duration(minutes: 10));
+
+      await ProactiveCareAlarmService.rescheduleAll(
+        conversations: [
+          conversation(nextAt: dueAt),
+          conversation(id: 'off', enabledOverride: false, nextAt: dueAt),
+          conversation(id: 'gone', assistantId: 'deleted', nextAt: dueAt),
+          conversation(id: 'ownerless', assistantId: null, nextAt: dueAt),
+        ],
+        assistants: [assistant()],
+        assistantStoreLoaded: true,
+      );
+
+      // A deliberate "off" and a dead owner are different states; one summary
+      // that calls both "no resolvable owner" cannot be acted on.
+      expect(
+        logs,
+        contains(
+          '[ProactiveCare] re-arm omits 3 future schedule(s): '
+          '1 no owner, 1 owner assistant gone, 1 care switched off',
+        ),
+      );
     });
 
     test('the exact-alarm grant the native owner reports is kept', () async {

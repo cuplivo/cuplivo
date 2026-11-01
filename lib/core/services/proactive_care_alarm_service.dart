@@ -142,6 +142,23 @@ class ProactiveCareAlarmService {
     now: now,
   );
 
+  /// Why the re-arm dropped future schedules, in the order the reasons are
+  /// declared. Each count is one reason, so a deliberate "off" never reads as a
+  /// dead letter.
+  static String _omittedSummary(
+    Map<ProactiveCareScheduleOmission, int> omitted,
+  ) {
+    String label(ProactiveCareScheduleOmission reason) => switch (reason) {
+      ProactiveCareScheduleOmission.ownerless => 'no owner',
+      ProactiveCareScheduleOmission.ownerGone => 'owner assistant gone',
+      ProactiveCareScheduleOmission.switchedOff => 'care switched off',
+    };
+    return [
+      for (final reason in ProactiveCareScheduleOmission.values)
+        if (omitted[reason] case final count?) '$count ${label(reason)}',
+    ].join(', ');
+  }
+
   /// Installs the fire handler and marks the Dart side ready. Every fire is
   /// forwarded to [onFire]; once it settles (success or failure) the native
   /// scheduled run is completed so the foreground service can stop.
@@ -357,21 +374,16 @@ class ProactiveCareAlarmService {
     }
 
     final now = DateTime.now();
-    final pending = pendingForReschedule(
+    final plan = ProactiveCareConversationPolicy.plan(
       conversations: conversations,
       assistants: assistants,
       now: now,
     );
-    final futureScheduled = conversations
-        .where(
-          (conversation) =>
-              conversation.proactiveCareNextMessageAt?.isAfter(now) == true,
-        )
-        .length;
-    if (pending.length < futureScheduled) {
+    final pending = plan.pending;
+    if (plan.omitted.isNotEmpty) {
       debugPrint(
-        '[ProactiveCare] re-arm omits ${futureScheduled - pending.length} '
-        'future schedule(s) with no resolvable owner or care switched off',
+        '[ProactiveCare] re-arm omits ${plan.omittedCount} future '
+        'schedule(s): ${_omittedSummary(plan.omitted)}',
       );
     }
 

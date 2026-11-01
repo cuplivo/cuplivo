@@ -1,5 +1,21 @@
 # Changelog
 
+## [4.5.0] - 2026-11-01
+
+### Added
+
+- **Multi-assistant group chat**: a director decides which model speaks, so several assistants talk to each other (#1052 by @cup113)
+
+### Changed
+
+- The 「Assistants」 settings page is now 「Assistants & Group Chats」 (#1052 by @cup113)
+
+### Fixed
+
+- PDF export polish: weight, colours, the reasoning panel and code blocks all render properly in the export (#1045 by @cup113)
+- The desktop assistant's gradient-background switch was missing: a gradient LAN sync carried over from a phone could not be turned off on a PC; the desktop assistant dialog has the full gradient settings again (#1053 by @cup113)
+- Their Letter could stop altogether because of one ownerless letter: a future-dated letter whose owner assistant is gone no longer vetoes the re-arm of every other pending letter (#1051 by @cup113)
+
 ## [4.4.0] - 2026-10-27
 
 ### Added

@@ -1217,8 +1217,11 @@ class _HomePageState extends State<HomePage>
       onVersionChange: (groupId, version) async {
         await _controller.setSelectedVersion(groupId, version);
       },
-      onRegenerateMessage: (message) =>
-          _controller.regenerateAtMessage(message),
+      // Inside a group the round, not a reply, is what gets regenerated: the
+      // member replies carry no regenerate of their own.
+      onRegenerateMessage: currentGroup == null
+          ? (message) => _controller.regenerateAtMessage(message)
+          : null,
       onResendMessage: (message) => _controller.regenerateAtMessage(message),
       onTranslateMessage: (message) => _controller.translateMessage(message),
       onEditMessage: (message) => _controller.editMessage(message),

@@ -963,6 +963,49 @@ class HomeViewModel extends ChangeNotifier {
     return true;
   }
 
+  /// Re-asks the question [userMessage] already asked, in a group topic.
+  ///
+  /// Regeneration in a group means the round, not the reply — see
+  /// [ChatActions.restartGroupRound]. A group that lost its row or its members
+  /// is read-only here, the same way it is for a send.
+  Future<bool> restartGroupRound({
+    required Conversation conversation,
+    required ChatMessage userMessage,
+  }) async {
+    final group = _contextProvider.read<GroupChatProvider>().byId(
+      conversation.groupChatId,
+    );
+    final assistants = _contextProvider.read<AssistantProvider>();
+    final members = <Assistant>[];
+    if (group != null) {
+      for (final id in group.memberIds) {
+        final assistant = assistants.getById(id);
+        if (assistant != null) members.add(assistant);
+      }
+    }
+    if (group == null || members.isEmpty) {
+      onWarning?.call('group_unavailable');
+      return false;
+    }
+    onHapticFeedback?.call();
+    final result = await _chatActions.restartGroupRound(
+      conversation: conversation,
+      group: group,
+      members: members,
+      userMessage: userMessage,
+    );
+    if (!result.success) {
+      if (result.errorMessage == 'in_flight') return false;
+      if (result.errorMessage == 'group_has_no_members') {
+        onWarning?.call('group_unavailable');
+      } else if (result.errorMessage != 'not_a_user_message') {
+        onError?.call(result.errorMessage ?? 'unknown_error');
+      }
+      return false;
+    }
+    return true;
+  }
+
   ChatInputData _cloneInput(ChatInputData input) {
     return ChatInputData(
       text: input.text,

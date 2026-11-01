@@ -2181,22 +2181,23 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      SizedBox(
-                        width: 28,
-                        height: 28,
-                        child: Center(
-                          child: IosIconButton(
-                            size: 16,
-                            padding: EdgeInsets.all(4),
-                            icon: Lucide.RefreshCw,
-                            color: cs.onSurface.withValues(alpha: 0.9),
-                            onTap: widget.onResend == null
-                                ? null
-                                : () => _confirmRegeneration(widget.onResend!),
+                      if (widget.onResend != null) ...[
+                        const SizedBox(width: 6),
+                        SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: Center(
+                            child: IosIconButton(
+                              size: 16,
+                              padding: EdgeInsets.all(4),
+                              icon: Lucide.RefreshCw,
+                              color: cs.onSurface.withValues(alpha: 0.9),
+                              onTap: () =>
+                                  _confirmRegeneration(widget.onResend!),
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                       const SizedBox(width: 6),
                       if (widget.onEdit != null) ...[
                         SizedBox(
@@ -3659,24 +3660,24 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 6),
-                          SizedBox(
-                            width: 28,
-                            height: 28,
-                            child: Center(
-                              child: IosIconButton(
-                                size: 16,
-                                padding: EdgeInsets.all(4),
-                                icon: Lucide.RefreshCw,
-                                color: cs.onSurface.withValues(alpha: 0.9),
-                                onTap: widget.onRegenerate == null
-                                    ? null
-                                    : () => _confirmRegeneration(
-                                        widget.onRegenerate!,
-                                      ),
+                          if (widget.onRegenerate != null) ...[
+                            const SizedBox(width: 6),
+                            SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: Center(
+                                child: IosIconButton(
+                                  size: 16,
+                                  padding: EdgeInsets.all(4),
+                                  icon: Lucide.RefreshCw,
+                                  color: cs.onSurface.withValues(alpha: 0.9),
+                                  onTap: () => _confirmRegeneration(
+                                    widget.onRegenerate!,
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                           const SizedBox(width: 6),
                           Consumer<TtsProvider>(
                             builder: (context, tts, _) {

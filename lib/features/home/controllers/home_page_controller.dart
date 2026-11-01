@@ -1806,6 +1806,20 @@ class HomePageController extends ChangeNotifier {
     bool? allowImagesApiRouting,
   }) async {
     if (currentConversation == null) return;
+    final target = _chatService.getConversation(message.conversationId);
+    if (target == null) return;
+    // A group topic regenerates its round, not one reply: who answers is the
+    // director's decision, so "say that again" belongs to the user message
+    // that started the round. A member's reply offers no regenerate at all.
+    if (target.isGroupConversation) {
+      if (message.role != 'user') return;
+      final success = await _viewModel.restartGroupRound(
+        conversation: target,
+        userMessage: message,
+      );
+      if (success) notifyListeners();
+      return;
+    }
     final projected = await _chatService.loadSelectedMessageProjections(
       message.conversationId,
     );

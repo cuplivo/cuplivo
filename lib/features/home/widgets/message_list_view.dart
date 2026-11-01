@@ -2599,11 +2599,14 @@ class _MessageListViewState extends State<MessageListView> {
               t != null)
           ? () => widget.onToggleTranslation?.call(message.id)
           : null,
-      onRegenerate: message.role == 'assistant'
-          ? () => widget.onRegenerateMessage?.call(message)
+      // Null means "this conversation offers no such action", which must not
+      // become a closure that silently does nothing: the row hides the button.
+      onRegenerate:
+          message.role == 'assistant' && widget.onRegenerateMessage != null
+          ? () => widget.onRegenerateMessage!(message)
           : null,
-      onResend: message.role == 'user'
-          ? () => widget.onResendMessage?.call(message)
+      onResend: message.role == 'user' && widget.onResendMessage != null
+          ? () => widget.onResendMessage!(message)
           : null,
       onTranslate: message.role == 'assistant'
           ? () => widget.onTranslateMessage?.call(message)

@@ -583,11 +583,7 @@ class ChatActions {
       return ChatActionResult.error(error.toString());
     }
 
-    _cancelledGroupRounds.remove(conversation.id);
-    _roundLoadingConversations.add(conversation.id);
-    _setConversationLoading(conversation.id, true);
-    // The loading guard now owns re-entry exclusion for this conversation.
-    _sendInFlightClaims.remove(conversation.id);
+    _claimGroupRound(conversation.id);
 
     if (await chatController.appendPersistedTailMessages([userMessage])) {
       viewModel.restoreMessageUiState();
@@ -597,6 +593,96 @@ class ChatActions {
       onSendPairAppended?.call();
     }
 
+    _startGroupRound(
+      conversation: conversation,
+      group: group,
+      members: members,
+      userMessage: userMessage,
+      onGenerationStarted: onGenerationStarted,
+    );
+    return ChatActionResult.success(userMessage);
+  }
+
+  /// Re-asks the question [userMessage] already asked.
+  ///
+  /// The round is the unit of "say that again" in a group: every reply after
+  /// this message answers it, so they are dropped together and the director
+  /// decides who answers the same question again. Regenerating one reply
+  /// instead would leave the rest answering text that no longer exists, and
+  /// would give a single member's version group a more recent, authorless
+  /// revision.
+  Future<ChatActionResult> restartGroupRound({
+    required Conversation conversation,
+    required GroupChat group,
+    required List<Assistant> members,
+    required ChatMessage userMessage,
+    ValueChanged<String>? onGenerationStarted,
+  }) async {
+    if (userMessage.role != 'user') {
+      return ChatActionResult.error('not_a_user_message');
+    }
+    if (members.isEmpty) return ChatActionResult.error('group_has_no_members');
+    if (isSendInFlight(conversation.id) ||
+        chatService.contextCompression.blocksSending(conversation.id)) {
+      return ChatActionResult.inFlight();
+    }
+    final claimToken = ++_sendInFlightClaimSerial;
+    _sendInFlightClaims[conversation.id] = claimToken;
+    try {
+      await cancelStreaming(conversation);
+      final messages = await chatController.messagesForCompleteHistoryContext(
+        conversation,
+      );
+      final idx = messages.indexWhere(
+        (message) => message.id == userMessage.id,
+      );
+      if (idx < 0) return ChatActionResult.error('message_not_found');
+      final removed = await messageGenerationService.removeTrailingMessages(
+        messages: messages,
+        lastKeep: idx,
+        targetGroupId: null,
+      );
+      if (removed.isNotEmpty) {
+        await chatController.refreshTimelineAfterMutation(
+          removedRevisionIds: removed.toSet(),
+        );
+        viewModel.restoreMessageUiState();
+        onMessagesChanged?.call();
+      }
+      _claimGroupRound(conversation.id);
+      _startGroupRound(
+        conversation: conversation,
+        group: group,
+        members: members,
+        userMessage: userMessage,
+        onGenerationStarted: onGenerationStarted,
+      );
+      return ChatActionResult.success(userMessage);
+    } finally {
+      if (_sendInFlightClaims[conversation.id] == claimToken) {
+        _sendInFlightClaims.remove(conversation.id);
+      }
+    }
+  }
+
+  /// Holds the conversation for a whole round: the loading flag is what makes
+  /// a second send queue instead of interleaving, and it stays raised until the
+  /// round has finished, failed or been cancelled.
+  void _claimGroupRound(String conversationId) {
+    _cancelledGroupRounds.remove(conversationId);
+    _roundLoadingConversations.add(conversationId);
+    _setConversationLoading(conversationId, true);
+    // The loading guard now owns re-entry exclusion for this conversation.
+    _sendInFlightClaims.remove(conversationId);
+  }
+
+  void _startGroupRound({
+    required Conversation conversation,
+    required GroupChat group,
+    required List<Assistant> members,
+    required ChatMessage userMessage,
+    ValueChanged<String>? onGenerationStarted,
+  }) {
     unawaited(
       _runGroupRound(
         conversation: conversation,
@@ -611,7 +697,6 @@ class ChatActions {
         onGroupRoundFinished?.call(conversation.id);
       }),
     );
-    return ChatActionResult.success(userMessage);
   }
 
   /// One round: the director picks a speaker, that speaker answers, repeat.

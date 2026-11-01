@@ -118,7 +118,7 @@
 
 | 问题 | 处置 | 落地 |
 | --- | --- | --- |
-| 群话题里按 ↻ 会写出**没有作者**的回复，模型用的是当前选中的助手 | 待定（§4.6.1） | 未动 |
+| 群话题里按 ↻ 会写出**没有作者**的回复，模型用的是当前选中的助手 | 修 | 群里的重来以**一轮**为单位：用户消息的 ↻ 删掉这条之后的整轮回复并重跑 `_runGroupRound`（`ChatActions.restartGroupRound`，与发送共用 `_claimGroupRound` / `_startGroupRound`）；助手回复不再提供 ↻（`onRegenerateMessage` 在群里传 null，null 现在等于「不显示」而不是「点了没反应」） |
 | 群的第一条话题永远叫「新话题」，标题模型从不接手 | 修 | 占位标题收口到 `ChatService.isPlaceholderTitle`（会话占位 + 话题占位），启动时 `setPlaceholderTitles` 一次注入；侧栏与 composer 两条新建路径都用 `groupTopicTitle`；`_maybeGenerateTitleFor` 只问这一个谓词 |
 | 未分组段拖拽跨过一个打了标签的行会丢 | 修 | 两段合成一个 `buildReorderableSection`：索引一律是本段索引，全部走 `reorderWithin`；旧的「全局 index + 段内 delta」算法删除 |
 | 提示词邀请导演重复选人，runner 又拒绝 | 修 | 提示词改为「每位成员每轮最多一次，全员发过言就 `end_turn`」；轮次上限按 `min(maxSpeakerTurns, 成员数)` 夹紧；`_decode` 的拒绝留作兜底 |
@@ -126,7 +126,7 @@
 | 被删掉的成员回复显示成当前助手的头像与名字 | 修 | 只有消息**没有**作者时才回退到会话助手；有作者但解析不到 → `groupChatRemovedMember` |
 | 群话题参与记忆整理 / 会话摘要 / follow-up suggestions | 修 | 四处入口按 `convo.isGroupConversation` 直接返回（proactive care 本来就已排除） |
 | 群话题的「移动到」把 `assistantId` 写到群话题上 | 修 | 菜单项对群话题隐藏；`_moveConversationToAssistantInternal` 加不变量守卫：群话题永远不写 owner |
-| 轮次循环与导演没有测试 | 待定（§4.6.1） | 未动 |
+| 导演没有测试 | 修 | `test/features/group_chat/group_director_test.dart`（8 条）：选中、已发言者标记与剩余轮数、未知 id、重复选人（重试一次后放弃）、`end_turn`、`turn_limit`、无工具模型、无模型；用本地 HTTP 服务回 `tool_calls`，与标题测试同一套骨架 |
 | 「默认模型」Proactive care 卡片上方双倍间距 | 修 | 删掉重复的 `SizedBox(height: 16)` |
 
 另有一条复核列在「待确认」、但按结构应当先修的：`runAssistantTurn` 的 waiter 原本注册在
@@ -138,12 +138,13 @@ widget 测试才能确认，留待后续。
 
 #### 4.6.1 留到后续
 
-- **群话题里的单条重发**：一条消息的 ↻ 在群里只有一个自洽的含义——「从这位作者重跑这一轮，
-  丢掉这一轮剩下的回复」。那其实是「重来一轮」，不是逐条重发；按逐条实现要复制一轮的
-  转写整形与锚点逻辑。先记录，不半做。
-- **轮次循环与导演的测试**：导演走 `ChatApiService.generateMessage`，测试要伪造一个返回
-  `tool_calls` 的本地 HTTP 服务（标题测试已有同样的骨架）；轮次循环还需要 fake 生成服务。
-  单独一轮做，不塞进这条已验收的 PR。
+- **轮次循环本身的测试**：导演已经能单独测（本地 HTTP 服务回 `tool_calls`），但
+  `_runGroupRound` 需要一个 fake 生成服务才能驱动整轮（流式回复、取消、fallback 的衔接）。
+  这条路同样会覆盖 4.6 新增的「重来一轮」——它复用同一个循环，目前只有 analyzer 与手测。
+- **群设置名字防抖**：输入名字后 400ms 内改「每轮最多发言」，旧 `group` 会把轮数写回去。
+  需要一次 widget 测试才能确认，不盲改。
+- **批量「移动到」里的群话题**：菜单项已经对群话题隐藏，服务层也会拒绝写入，但全选后批量
+  移动仍会把群话题放进选择集合再被跳过，计数里看不出来。留待批量操作那一版统一处理。
 
 ## 5. 验证
 - `dart analyze --fatal-infos lib test integration_test` → **0 issue**。

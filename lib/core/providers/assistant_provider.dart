@@ -672,7 +672,6 @@ class AssistantProvider extends ChangeNotifier {
     await _persist();
   }
 
-
   Future<void> reorderAssistantRegex({
     required String assistantId,
     required int oldIndex,

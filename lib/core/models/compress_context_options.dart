@@ -240,7 +240,8 @@ String buildCompressContextContent(
 String _speakerLabelOf(
   ChatMessage message,
   String Function(ChatMessage message)? labelOf,
-) => labelOf?.call(message) ??
+) =>
+    labelOf?.call(message) ??
     (message.role == 'assistant' ? 'Assistant' : 'User');
 
 String? conversationLineForCompression(

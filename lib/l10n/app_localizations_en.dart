@@ -74,10 +74,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Appearance, behavior, and interaction preferences';
 
   @override
-  String get settingsPageAssistant => 'Assistant';
+  String get settingsPageChatOwners => 'Assistants and groups';
 
   @override
-  String get settingsPageAssistantSubtitle => 'Default assistant and style';
+  String get settingsPageChatOwnersCreate => 'Create';
+
+  @override
+  String get chatOwnerCreateAssistant => 'New assistant';
 
   @override
   String get settingsPageModelsServicesSection => 'Models & Services';
@@ -1486,9 +1489,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get assistantEditModelUseGlobalDefault => 'Use global default';
 
   @override
-  String get assistantSettingsPageTitle => 'Assistant Settings';
-
-  @override
   String get assistantSettingsCopyButton => 'Copy';
 
   @override
@@ -1514,9 +1514,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get assistantSettingsAddSheetSave => 'Save';
-
-  @override
-  String get desktopAssistantsListTitle => 'Assistants';
 
   @override
   String get desktopSidebarTabAssistants => 'Assistants';
@@ -10895,6 +10892,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recycleBinKindConfig => 'Configuration';
 
   @override
+  String get recycleBinKindGroup => 'Group';
+
+  @override
   String get recycleBinOriginLocal => 'Deleted here';
 
   @override
@@ -10950,6 +10950,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recycleBinFilterAssistants => 'Assistants';
+
+  @override
+  String get recycleBinFilterGroups => 'Groups';
 
   @override
   String get recycleBinFilterSettings => 'Settings';
@@ -16612,4 +16615,112 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get dataDirectoryCancelHint =>
       'Cancelling keeps any files already copied to the destination. You can inspect and remove that partial copy yourself.';
+
+  @override
+  String get groupChatTitle => 'Group chat';
+
+  @override
+  String get groupChatCreate => 'New group chat';
+
+  @override
+  String get groupChatCreateHint => 'Pick at least one assistant';
+
+  @override
+  String get groupChatNameHint => 'Group name';
+
+  @override
+  String get groupChatChangeAvatar => 'Change group avatar';
+
+  @override
+  String get groupChatMembers => 'Members';
+
+  @override
+  String get groupChatMembersEmpty => 'No members yet';
+
+  @override
+  String get groupChatInvite => 'Invite assistants';
+
+  @override
+  String get groupChatNoAssistantToInvite =>
+      'Every assistant is already in this group';
+
+  @override
+  String get groupChatSave => 'Save';
+
+  @override
+  String get groupChatCancel => 'Cancel';
+
+  @override
+  String get groupChatSettingsTitle => 'Group settings';
+
+  @override
+  String get groupChatBack => 'Back';
+
+  @override
+  String get groupChatOrchestration => 'Who speaks';
+
+  @override
+  String get groupChatDirectorTitle => 'Director model';
+
+  @override
+  String get groupChatDirectorSubtitle =>
+      'The model that picks who speaks next. A fast, low-cost model is the right choice.';
+
+  @override
+  String get groupChatDirectorFollowDefault => 'Follows default model';
+
+  @override
+  String get groupChatMaxTurnsTitle => 'Replies per round';
+
+  @override
+  String get groupChatMaxTurnsSubtitle =>
+      'How many members may reply to one message';
+
+  @override
+  String get groupChatRemoveMember => 'Remove';
+
+  @override
+  String get groupChatRemoveMemberTitle => 'Remove assistant';
+
+  @override
+  String get groupChatRemoveMemberContent =>
+      'This assistant will no longer take part in this group.';
+
+  @override
+  String get groupChatDelete => 'Delete group chat';
+
+  @override
+  String get groupChatDeleteTitle => 'Delete this group chat?';
+
+  @override
+  String get groupChatDeleteContent =>
+      'The group and all of its topics move to the recycle bin together.';
+
+  @override
+  String get groupChatDeleted => 'Group chat moved to the recycle bin';
+
+  @override
+  String get groupChatUnavailable =>
+      'This group chat\'s settings are not available. Restore it from the recycle bin.';
+
+  @override
+  String get groupChatNewTopic => 'New topic';
+
+  @override
+  String get groupChatRemovedMember => 'Deleted assistant';
+
+  @override
+  String get groupChatDirectorFallbackWarning =>
+      'The director model is unavailable, so the first member replied once. Check the default model settings.';
+
+  @override
+  String get groupChatUnavailableWarning =>
+      'This group chat has no available members.';
+
+  @override
+  String get defaultModelPageDirectorModelTitle => 'Director model';
+
+  @override
+  String get defaultModelPageDirectorModelSubtitle =>
+      'Picks who speaks next in a group chat. A fast, low-cost model is the best fit.';
 }

@@ -15,6 +15,7 @@ import '../../../../utils/mcp_structured_image.dart';
 import '../../../../utils/sandbox_path_resolver.dart';
 import '../builtin_tools.dart';
 import '../chat_api_helpers.dart';
+import '../message_authorship.dart';
 import '../native_input_attachments.dart';
 import '../tool_result_content.dart';
 import '../../model_spec/model_spec_resolver.dart';
@@ -375,6 +376,7 @@ Stream<StreamChunk> sendGoogleStream(
     // Extract system messages into systemInstruction (Google Gemini API best practice)
     String systemPrompt = '';
     final contents = <Map<String, dynamic>>[];
+    final lastUserIndex = lastHumanUserIndex(messages);
     for (int i = 0; i < messages.length; i++) {
       final msg = messages[i];
       final roleRaw = (msg['role'] ?? 'user').toString();
@@ -413,7 +415,7 @@ Stream<StreamChunk> sendGoogleStream(
         if (parts.isNotEmpty) contents.add({'role': 'model', 'parts': parts});
         continue;
       }
-      final isLast = i == messages.lastIndexWhere((m) => m['role'] == 'user');
+      final isLast = i == lastUserIndex;
       final parts = <Map<String, dynamic>>[];
       parts.addAll(
         await NativeInputAttachments(
@@ -853,6 +855,7 @@ Stream<StreamChunk> sendGoogleStream(
   // Extract system messages into systemInstruction (Google Gemini API best practice)
   String systemPrompt = '';
   final contents = <Map<String, dynamic>>[];
+  final lastUserIndex = lastHumanUserIndex(messages);
   for (int i = 0; i < messages.length; i++) {
     final msg = messages[i];
     final roleRaw = (msg['role'] ?? 'user').toString();
@@ -889,7 +892,7 @@ Stream<StreamChunk> sendGoogleStream(
       if (parts.isNotEmpty) contents.add({'role': 'model', 'parts': parts});
       continue;
     }
-    final isLast = i == messages.lastIndexWhere((m) => m['role'] == 'user');
+    final isLast = i == lastUserIndex;
     final parts = <Map<String, dynamic>>[];
     parts.addAll(
       await NativeInputAttachments(

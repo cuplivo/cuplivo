@@ -237,9 +237,23 @@ String buildCompressContextContent(
   };
 }
 
-String? conversationLineForCompression(ChatMessage message) {
+/// The label a one-line transcript entry is written under.
+///
+/// A caller that knows who spoke (a group topic) passes [labelOf]; everything
+/// else keeps the plain role words.
+String _compressionLabel(
+  ChatMessage message,
+  String Function(ChatMessage message)? labelOf,
+) =>
+    labelOf?.call(message) ??
+    (message.role == 'assistant' ? 'Assistant' : 'User');
+
+String? conversationLineForCompression(
+  ChatMessage message, {
+  String Function(ChatMessage message)? labelOf,
+}) {
   if (message.content.trim().isEmpty) return null;
-  return '${message.role == "assistant" ? "Assistant" : "User"}: ${message.content}';
+  return '${_compressionLabel(message, labelOf)}: ${message.content}';
 }
 
 /// Incremental start/recent window. Walks messages and stops at [maxChars]
@@ -248,22 +262,32 @@ String buildBoundedConversationText(
   List<ChatMessage> messages, {
   required CompressContextLimitMode mode,
   required int maxChars,
+  String Function(ChatMessage message)? labelOf,
 }) {
   if (maxChars <= 0) return '';
   if (mode == CompressContextLimitMode.recent) {
-    return _buildRecentBoundedConversationText(messages, maxChars);
+    return _buildRecentBoundedConversationText(
+      messages,
+      maxChars,
+      labelOf: labelOf,
+    );
   }
-  return _buildStartBoundedConversationText(messages, maxChars);
+  return _buildStartBoundedConversationText(
+    messages,
+    maxChars,
+    labelOf: labelOf,
+  );
 }
 
 String _buildStartBoundedConversationText(
   List<ChatMessage> messages,
-  int maxChars,
-) {
+  int maxChars, {
+  String Function(ChatMessage message)? labelOf,
+}) {
   final buf = StringBuffer();
   for (final message in messages) {
     if (message.content.trim().isEmpty) continue;
-    final prefix = message.role == 'assistant' ? 'Assistant: ' : 'User: ';
+    final prefix = '${_compressionLabel(message, labelOf)}: ';
     final sep = buf.isEmpty ? '' : '\n\n';
     final remaining = maxChars - buf.length;
     if (remaining <= 0) break;
@@ -286,14 +310,15 @@ String _buildStartBoundedConversationText(
 
 String _buildRecentBoundedConversationText(
   List<ChatMessage> messages,
-  int maxChars,
-) {
+  int maxChars, {
+  String Function(ChatMessage message)? labelOf,
+}) {
   final parts = <String>[];
   var used = 0;
   for (var i = messages.length - 1; i >= 0; i--) {
     final message = messages[i];
     if (message.content.trim().isEmpty) continue;
-    final prefix = message.role == 'assistant' ? 'Assistant: ' : 'User: ';
+    final prefix = '${_compressionLabel(message, labelOf)}: ';
     final sepLen = parts.isEmpty ? 0 : 2;
     final remaining = maxChars - used - sepLen;
     if (remaining <= 0) break;
@@ -328,6 +353,7 @@ String _utf16SafeTailOfPrefixed(String prefix, String content, int maxChars) {
 List<String> chunkMessagesForCompression(
   List<ChatMessage> messages, {
   required int maxChars,
+  String Function(ChatMessage message)? labelOf,
 }) {
   if (maxChars <= 0) return const <String>[];
   final chunks = <String>[];
@@ -340,7 +366,7 @@ List<String> chunkMessagesForCompression(
   }
 
   for (final message in messages) {
-    final line = conversationLineForCompression(message);
+    final line = conversationLineForCompression(message, labelOf: labelOf);
     if (line == null) continue;
     if (line.length > maxChars) {
       flush();
@@ -398,6 +424,7 @@ List<String> buildCompressRequestContents(
   List<ChatMessage> messages,
   CompressContextOptions options, {
   int safeRequestChars = CompressContextOptions.safeRequestChars,
+  String Function(ChatMessage message)? labelOf,
 }) {
   if (options.mode == CompressContextLimitMode.start ||
       options.mode == CompressContextLimitMode.recent) {
@@ -406,12 +433,17 @@ List<String> buildCompressRequestContents(
       messages,
       mode: options.mode,
       maxChars: maxChars,
+      labelOf: labelOf,
     );
     if (bounded.trim().isEmpty) return const <String>[];
     if (bounded.length <= safeRequestChars) return [bounded];
     return splitUtf16SafeChunks(bounded, safeRequestChars);
   }
-  return chunkMessagesForCompression(messages, maxChars: safeRequestChars);
+  return chunkMessagesForCompression(
+    messages,
+    maxChars: safeRequestChars,
+    labelOf: labelOf,
+  );
 }
 
 /// Index where the kept (verbatim) region starts: the position of the

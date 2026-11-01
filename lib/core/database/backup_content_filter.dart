@@ -28,6 +28,10 @@ final class BackupContentFilter {
         key == 'user_profile_fields_v1') {
       return BackupCategory.memories;
     }
+    // A group chat is chat structure, not an assistant: it rides with the
+    // conversations it owns, so restoring a backup that has the chats but not
+    // the groups would leave every group conversation read-only.
+    if (key.startsWith('group_chats_')) return BackupCategory.chats;
     if (key.startsWith('skills_')) return BackupCategory.skills;
     if (key.startsWith('workspaces_')) return BackupCategory.workspaces;
     if (key.startsWith('quick_phrases_')) return BackupCategory.quickPhrases;

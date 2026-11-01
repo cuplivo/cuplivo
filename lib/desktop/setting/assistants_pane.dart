@@ -6,7 +6,22 @@ class _DesktopAssistantsBody extends StatelessWidget {
   const _DesktopAssistantsBody({super.key});
   @override
   Widget build(BuildContext context) {
-    final assistants = context.watch<AssistantProvider>().assistants;
+    final assistants = {
+      for (final assistant in context.watch<AssistantProvider>().assistants)
+        assistant.id: assistant,
+    };
+    final groups = {
+      for (final group in context.watch<GroupChatProvider>().groups)
+        group.id: group,
+    };
+    // One row per owner, in the same order the sidebar drags.
+    final rows = [
+      for (final owner in context.watch<ChatOwnersProvider>().owners)
+        if (owner.isGroup
+            ? groups.containsKey(owner.id)
+            : assistants.containsKey(owner.id))
+          owner,
+    ];
     final cs = Theme.of(context).colorScheme;
     return Container(
       alignment: Alignment.topCenter,
@@ -24,9 +39,7 @@ class _DesktopAssistantsBody extends StatelessWidget {
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          AppLocalizations.of(
-                            context,
-                          )!.desktopAssistantsListTitle,
+                          AppLocalizations.of(context)!.settingsPageChatOwners,
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: AppFontWeights.regular,
@@ -35,7 +48,7 @@ class _DesktopAssistantsBody extends StatelessWidget {
                         ),
                       ),
                     ),
-                    _AddAssistantButton(),
+                    _AddOwnerButton(),
                   ],
                 ),
               ),
@@ -48,9 +61,9 @@ class _DesktopAssistantsBody extends StatelessWidget {
                   child: ReorderableListView.builder(
                     buildDefaultDragHandles: false,
                     padding: EdgeInsets.zero,
-                    itemCount: assistants.length,
+                    itemCount: rows.length,
                     onReorderItem: (oldIndex, newIndex) async {
-                      await context.read<AssistantProvider>().reorderAssistants(
+                      await context.read<ChatOwnersProvider>().reorder(
                         oldIndex,
                         newIndex,
                       );
@@ -76,20 +89,26 @@ class _DesktopAssistantsBody extends StatelessWidget {
                       );
                     },
                     itemBuilder: (context, index) {
-                      final item = assistants[index];
+                      final owner = rows[index];
+                      final group = owner.isGroup ? groups[owner.id] : null;
                       return KeyedSubtree(
-                        key: ValueKey('desktop-assistant-${item.id}'),
+                        key: ValueKey('desktop-owner-${owner.key}'),
                         child: Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: ReorderableDragStartListener(
                             index: index,
-                            child: _DesktopAssistantCard(
-                              item: item,
-                              onTap: () => showAssistantDesktopDialog(
-                                context,
-                                assistantId: item.id,
-                              ),
-                            ),
+                            child: group != null
+                                ? _DesktopGroupCard(
+                                    group: group,
+                                    assistants: assistants,
+                                  )
+                                : _DesktopAssistantCard(
+                                    item: assistants[owner.id]!,
+                                    onTap: () => showAssistantDesktopDialog(
+                                      context,
+                                      assistantId: owner.id,
+                                    ),
+                                  ),
                           ),
                         ),
                       );
@@ -105,12 +124,13 @@ class _DesktopAssistantsBody extends StatelessWidget {
   }
 }
 
-class _AddAssistantButton extends StatefulWidget {
+class _AddOwnerButton extends StatefulWidget {
   @override
-  State<_AddAssistantButton> createState() => _AddAssistantButtonState();
+  State<_AddOwnerButton> createState() => _AddOwnerButtonState();
 }
 
-class _AddAssistantButtonState extends State<_AddAssistantButton> {
+class _AddOwnerButtonState extends State<_AddOwnerButton> {
+  final _key = GlobalKey();
   bool _hover = false;
   @override
   Widget build(BuildContext context) {
@@ -124,14 +144,24 @@ class _AddAssistantButtonState extends State<_AddAssistantButton> {
       onExit: (_) => setState(() => _hover = false),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
+        key: _key,
         onTap: () async {
-          final assistantProvider = context.read<AssistantProvider>();
-          final name = await _showAddAssistantDesktopDialog(context);
-          if (name == null || name.trim().isEmpty) return;
-          if (!context.mounted) return;
-          await assistantProvider.addAssistant(
-            name: name.trim(),
-            context: context,
+          final l10n = AppLocalizations.of(context)!;
+          await showAdaptiveActionMenu(
+            context,
+            anchorKey: _key,
+            items: [
+              ActionSheetItem(
+                icon: lucide.Lucide.UserPlus,
+                label: l10n.chatOwnerCreateAssistant,
+                onTap: () => _createAssistant(context),
+              ),
+              ActionSheetItem(
+                icon: lucide.Lucide.Users,
+                label: l10n.groupChatCreate,
+                onTap: () => _createGroup(context),
+              ),
+            ],
           );
         },
         child: Container(
@@ -144,6 +174,20 @@ class _AddAssistantButtonState extends State<_AddAssistantButton> {
         ),
       ),
     );
+  }
+
+  Future<void> _createAssistant(BuildContext context) async {
+    final assistantProvider = context.read<AssistantProvider>();
+    final name = await _showAddAssistantDesktopDialog(context);
+    if (name == null || name.trim().isEmpty) return;
+    if (!context.mounted) return;
+    await assistantProvider.addAssistant(name: name.trim(), context: context);
+  }
+
+  Future<void> _createGroup(BuildContext context) async {
+    final group = await showGroupCreate(context);
+    if (group == null || !context.mounted) return;
+    await showGroupSettings(context, group.id);
   }
 }
 
@@ -520,6 +564,92 @@ class _DeskIosButtonState extends State<_DeskIosButton> {
                 fontWeight: AppFontWeights.semibold,
                 fontSize: widget.dense ? 13 : 14,
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopGroupCard extends StatefulWidget {
+  const _DesktopGroupCard({required this.group, required this.assistants});
+  final GroupChat group;
+  final Map<String, Assistant> assistants;
+  @override
+  State<_DesktopGroupCard> createState() => _DesktopGroupCardState();
+}
+
+class _DesktopGroupCardState extends State<_DesktopGroupCard> {
+  bool _hover = false;
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final baseBg = context.appColors.surfaceCard;
+    final borderColor = _hover
+        ? cs.primary.withValues(alpha: isDark ? 0.35 : 0.45)
+        : cs.outlineVariant.withValues(alpha: isDark ? 0.12 : 0.08);
+    final separator = Localizations.localeOf(context).languageCode == 'zh'
+        ? '、'
+        : ', ';
+    final names = [
+      for (final id in widget.group.memberIds)
+        (widget.assistants[id]?.name ?? '').trim().isEmpty
+            ? id
+            : widget.assistants[id]!.name.trim(),
+    ];
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      cursor: SystemMouseCursors.click,
+      child: _CardPress(
+        onTap: () => showGroupSettings(context, widget.group.id),
+        pressedScale: 1.0,
+        builder: (pressed, overlay) => Container(
+          decoration: BoxDecoration(
+            color: Color.alphaBlend(overlay, baseBg),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: borderColor, width: 1.0),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                GroupAvatar(group: widget.group, size: 48),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.group.name.isEmpty
+                            ? l10n.groupChatTitle
+                            : widget.group.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: AppFontWeights.emphasis,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        names.join(separator),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: cs.onSurface.withValues(alpha: 0.7),
+                          height: 1.25,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ),

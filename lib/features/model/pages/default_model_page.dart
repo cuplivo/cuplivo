@@ -276,6 +276,29 @@ class DefaultModelPage extends StatelessWidget {
               }
             },
           ),
+          const SizedBox(height: 16),
+          _ModelCard(
+            icon: Lucide.Users,
+            title: l10n.defaultModelPageDirectorModelTitle,
+            subtitle: l10n.defaultModelPageDirectorModelSubtitle,
+            modelProvider: settings.directorModelProvider,
+            modelId: settings.directorModelId,
+            fallbackProvider: settings.currentModelProvider,
+            fallbackModelId: settings.currentModelId,
+            onReset: () async {
+              await settings.resetDirectorModel();
+            },
+            onPick: () async {
+              final sel = await showModelSelectorWithCurrentChatFallback(
+                context,
+                initialProviderKey: settings.directorModelProvider,
+                initialModelId: settings.directorModelId,
+              );
+              if (sel != null) {
+                await settings.setDirectorModel(sel.providerKey, sel.modelId);
+              }
+            },
+          ),
         ],
       ),
     );

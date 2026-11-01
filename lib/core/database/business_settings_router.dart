@@ -73,6 +73,10 @@ final class BusinessKeyRegistry {
     'suggestion_insert_on_tap_only_v1',
     'compress_model_v1',
     'compress_prompt_v1',
+    // Which model runs a group chat's speaker selection: generation
+    // configuration like the rest of this block, so a new device runs a group
+    // the same way this one does.
+    'group_director_model_v1',
     // The rest of the compress page: the thinking toggle every other feature
     // already synced, plus the limit mode, the keep-last-user-messages count and
     // the char budget — the model and the prompt alone leave a new device
@@ -137,6 +141,12 @@ final class BusinessKeyRegistry {
     'search_enabled_v1',
     // Models and user identity.
     'pinned_models_v1',
+    // The sidebar's mixed assistant/group order. The assistants and groups
+    // themselves are entities that sync, and their `sort_order` used to be the
+    // order a new device received; the drag order now lives in this key, so
+    // without it a paired device lists the same owners in a different order
+    // than the device it paired with.
+    'chat_owner_order_v1',
     'user_name',
     'avatar_type',
     'avatar_value',
@@ -173,6 +183,11 @@ final class BusinessKeyRegistry {
     'current_assistant_id_v1',
     'orphaned_conversations_assistant_id_v1',
     'proactive_care_decision_model_v1',
+    'group_director_model_v1',
+    // The sidebar's mixed assistant/group order. Carried by backup and restore
+    // like any other presentation preference; the membership it names is
+    // reconciled against what actually exists on load.
+    'chat_owner_order_v1',
     'selected_model_v1',
     'per_chat_model_enabled_v1',
     'pinned_models_v1',
@@ -912,6 +927,19 @@ final class BusinessSettingsRouter {
           requiredStrings: const {'id', 'source', 'installedAt', 'updatedAt'},
           booleans: const {'enabled'},
           numbers: const {'useCount'},
+        );
+        return;
+      case BusinessEntityKind.groupChat:
+        // Same shape as a workspace or a skill: an opaque payload that this
+        // router must not interpret, only type-check, so a malformed row is
+        // refused at the import boundary instead of at first use.
+        _validateKnownFields(
+          kind,
+          payload,
+          requiredStrings: const {'id', 'name', 'createdAt', 'updatedAt'},
+          strings: const {'avatar'},
+          numbers: const {'v', 'maxSpeakerTurns'},
+          stringLists: const {'memberIds'},
         );
         return;
       case BusinessEntityKind.userProfileField:

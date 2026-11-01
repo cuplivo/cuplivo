@@ -98,9 +98,18 @@ final class BusinessRepository {
     );
   }
 
-  Future<void> deleteEntity(BusinessEntityKind kind, String id) async {
+  /// Deletes one entity row, staging it into the recycle bin first.
+  ///
+  /// [group] lets a caller that is performing one deletion event — a group chat
+  /// taking its row and its conversations with it — stage this row under the
+  /// same group, so the bin shows one act instead of a stray row beside it.
+  Future<void> deleteEntity(
+    BusinessEntityKind kind,
+    String id, {
+    RecycleGroup? group,
+  }) async {
     if (id.isEmpty) return;
-    await _deleteEntity(kind, id);
+    await _deleteEntity(kind, id, group: group);
   }
 
   Future<Object?> getPreference(String key) async {

@@ -41,6 +41,7 @@ import '../../../core/services/workspace/workspace_tools_service.dart';
 import '../../../core/providers/instruction_injection_provider.dart';
 import '../../../core/providers/world_book_provider.dart';
 import '../../../core/services/api/builtin_tools.dart';
+import '../../../core/services/api/message_authorship.dart';
 import '../../../core/services/api/providers/claude/claude_container.dart';
 import '../../../core/services/api/providers/claude/claude_history.dart';
 import '../../../core/services/api/providers/claude/claude_thinking_recovery.dart';
@@ -549,7 +550,12 @@ class MessageBuilderService {
       final role = m.role == 'assistant' ? 'assistant' : 'user';
       final message = <String, dynamic>{'role': role, 'content': content};
       if (role == 'user') {
-        if (ContextOperation.isSummary(m)) {
+        if (m.senderId != null) {
+          // A group peer's turn travels as `user` but is not the user's own
+          // words: no revision id (nothing to edit, re-freeze or regex), and
+          // the marker keeps "the last user message" pointing at the human.
+          message[groupPeerSenderKey] = m.senderId;
+        } else if (ContextOperation.isSummary(m)) {
           message['_contextSummary'] = true;
         } else {
           message[internalRevisionIdKey] = m.id;

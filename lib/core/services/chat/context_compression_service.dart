@@ -241,6 +241,7 @@ class ContextCompressionService extends ChangeNotifier {
         textMessages,
         task.options,
         safeRequestChars: budget,
+        labelOf: chat.compressionLabelOf,
       );
       if (chunks.isEmpty) throw StateError('no_messages');
       final inputTokens = chunks.fold<int>(

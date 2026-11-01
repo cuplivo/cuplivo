@@ -76,20 +76,23 @@ class _AssistantGradientSettingsState extends State<AssistantGradientSettings> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _iosSwitchRow(
-          context,
-          icon: Lucide.Sparkles,
-          label: l10n.assistantEditGradientBackgroundTitle,
-          value: widget.assistant.useGradientBackground,
-          onChanged: (value) {
-            final provider = context.read<AssistantProvider>();
-            final current = provider.getById(widget.assistant.id);
-            if (current != null) {
-              provider.updateAssistant(
-                current.copyWith(useGradientBackground: value),
-              );
-            }
-          },
+        KeyedSubtree(
+          key: _gradientBackgroundSwitchKey,
+          child: _iosSwitchRow(
+            context,
+            icon: Lucide.Sparkles,
+            label: l10n.assistantEditGradientBackgroundTitle,
+            value: widget.assistant.useGradientBackground,
+            onChanged: (value) {
+              final provider = context.read<AssistantProvider>();
+              final current = provider.getById(widget.assistant.id);
+              if (current != null) {
+                provider.updateAssistant(
+                  current.copyWith(useGradientBackground: value),
+                );
+              }
+            },
+          ),
         ),
         if (widget.assistant.useGradientBackground) ...[
           _iosDivider(context),

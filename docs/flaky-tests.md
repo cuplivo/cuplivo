@@ -943,3 +943,16 @@ One more Windows-only failure was repaired rather than registered: `FileSaveEngi
 referenced `CuplivoApplication`, but the class — and the manifest that installs it — is
 `KelivoApplication` at this baseline, so `:app:testDebugUnitTest` did not even compile. The sweep is
 where it came from: a persisted platform name is not a brand string.
+
+The first full run after the landing ended at **12 248 passed, 72 skipped, 79 failed**. Beyond the 71
+registered above, eight were left, and five of them were **the fork's own suite failing at its own
+tip**, not this pass's doing — a control worktree at `523d1275d` reproduces each with the same
+assertion (22 passed, 4 failed over the three files tried):
+
+| case | what it is |
+|---|---|
+| `android_ime_selection_test` › IME Shift arrows…, ordinary arrows…, vertical selection… (3) | the selection collapses where a range is expected, so a Shift+arrow never extends on this host; `lib/shared/text_input/android_ime_selection.dart` and its test are byte-identical to `523d1275d`. |
+| `conversation_files_panel_test` › panel file callbacks preserve workspace HTML navigation | the callback list differs at its first element — the path spelling the panel reports. Byte-identical to `523d1275d`. |
+| `message_more_sheet_test` › a settled message offers Reply (and its streaming twin) | the sheet has not carried a Reply row since the utility moved to the message menu, at either tip. The two cases are **deleted** here: the entry they name does not exist in the sheet they open, and the streaming twin had become vacuous (it asserts the absence of something already absent). |
+| `translate_language_catalog_test` › codes… and effectiveTranslateLanguage… (2) | **repaired, not registered**: ADR-0014 pins sixteen codes, the sheet had six of them (pt, ru, ar, hi, th, vi) commented out at `523d1275d`, and the test was right. Uncommenting them makes both cases pass and gives the app the catalog the ADR describes. |
+| `restore_failure_space_test` › newer database copies guide an app update… | **repaired, not registered**: the test looked for "Update Kelivo before restoring them" while the shipped string has said Cuplivo since the fork's own rename — the fork rebranded the copy and forgot the test. |

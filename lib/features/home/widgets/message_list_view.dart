@@ -2656,8 +2656,6 @@ class _MessageListViewState extends State<MessageListView> {
           await widget.onDeleteAllVersions?.call(message, widget.byGroup);
         } else if (action == MessageMoreAction.edit) {
           widget.onEditMessage?.call(message);
-        } else if (action == MessageMoreAction.reply) {
-          widget.onReplyMessage?.call(message);
         } else if (action == MessageMoreAction.fork) {
           await widget.onForkConversation?.call(message);
         } else if (action == MessageMoreAction.selectMessages) {

@@ -32,14 +32,18 @@ Future<String?> showAssistantMoveSelector(
       defaultTargetPlatform == TargetPlatform.windows ||
       defaultTargetPlatform == TargetPlatform.linux;
   final ap = context.read<AssistantProvider>();
-  // The order the user dragged into place, not the creation order the
-  // assistant list happens to hold.
-  final owned = context.read<ChatOwnersProvider>().inOwnerOrder(
-    ap.assistants,
-    (assistant) => ChatOwner.assistant(assistant.id).key,
-  );
+  // The order the user dragged into place, not the creation order the assistant
+  // list happens to hold. The order is a nicety: a host that does not provide
+  // one (an embedded picker, a widget test) still gets a usable list.
+  var owned = List<Assistant>.of(ap.assistants);
+  try {
+    owned = context.read<ChatOwnersProvider>().inOwnerOrder(
+      ap.assistants,
+      (assistant) => ChatOwner.assistant(assistant.id).key,
+    );
+  } catch (_) {}
   final List<Assistant> assistants = excludeAssistantId == null
-      ? List.of(owned)
+      ? owned
       : owned.where((a) => a.id != excludeAssistantId).toList();
 
   if (!isDesktop) {

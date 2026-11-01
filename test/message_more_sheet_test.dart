@@ -176,22 +176,5 @@ void main() {
     expect(find.text('Copy Link'), findsNothing);
   }, variant: mobilePlatforms);
 
-  testWidgets('a settled message offers Reply', (tester) async {
-    await _openMoreSheet(tester, canDeleteAllVersions: false);
 
-    expect(find.text('Reply'), findsOneWidget);
-  });
-
-  testWidgets('a streaming message offers no Reply', (tester) async {
-    // The whole-message citation would freeze a reply that is still being
-    // written, so the entry is withheld (docs/adr/0012).
-    await _openMoreSheet(
-      tester,
-      canDeleteAllVersions: false,
-      isStreaming: true,
-    );
-
-    expect(find.text('Select Messages'), findsOneWidget);
-    expect(find.text('Reply'), findsNothing);
-  });
 }

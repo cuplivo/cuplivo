@@ -153,6 +153,14 @@ class ChatMessage extends HiveObject {
   /// it — there is no flow that removes a reply from a message that has one.
   final MessageQuote? quote;
 
+  /// Which assistant wrote this reply, when the conversation has more than one.
+  ///
+  /// Null means "the conversation's own assistant" — the only possible author
+  /// in a 1:1 chat. A group conversation is the one place it is populated, and
+  /// it is part of the message's content identity: re-generating a reply keeps
+  /// the same author, so [copyWith] never clears it.
+  final String? senderId;
+
   TokenUsage get tokenUsage => TokenUsage(
     promptTokens: promptTokens,
     completionTokens: completionTokens,
@@ -189,6 +197,7 @@ class ChatMessage extends HiveObject {
     this.cacheWriteTokens,
     this.finishUsage,
     this.quote,
+    this.senderId,
   }) : _parts = List<MessagePart>.unmodifiable(
          parts ?? <MessagePart>[TextPart(content ?? '')],
        ),
@@ -346,6 +355,7 @@ class ChatMessage extends HiveObject {
     int? cacheWriteTokens,
     TokenUsage? finishUsage,
     MessageQuote? quote,
+    String? senderId,
   }) {
     final List<MessagePart>? nextParts;
     if (parts != null) {
@@ -382,6 +392,7 @@ class ChatMessage extends HiveObject {
         cacheWriteTokens: cacheWriteTokens ?? this.cacheWriteTokens,
         finishUsage: finishUsage ?? this.finishUsage,
         quote: quote ?? this.quote,
+        senderId: senderId ?? this.senderId,
       )
       .._storageOrder = (id == null || id == this.id) ? _storageOrder : null
       .._generationState = (id == null || id == this.id)
@@ -426,6 +437,7 @@ class ChatMessage extends HiveObject {
       'cacheWriteTokens': cacheWriteTokens,
       if (finishUsage != null) 'finishUsage': finishUsage!.toJson(),
       if (quote != null) 'quote': quote!.toJson(),
+      if (senderId != null) 'senderId': senderId,
     };
   }
 
@@ -488,6 +500,9 @@ class ChatMessage extends HiveObject {
             )
           : null,
       quote: MessageQuote.tryParse(json['quote']),
+      senderId: (json['senderId'] as String?)?.trim().isNotEmpty == true
+          ? json['senderId'] as String
+          : null,
     );
   }
 }

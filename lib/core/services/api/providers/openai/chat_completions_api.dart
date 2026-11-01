@@ -12,6 +12,7 @@ import '../../../../providers/settings_provider.dart';
 import '../../../../utils/multimodal_input_utils.dart';
 import '../../../../../utils/sandbox_path_resolver.dart';
 import '../../chat_api_helpers.dart';
+import '../../message_authorship.dart';
 import '../../builtin_tools.dart';
 import '../../native_input_attachments.dart';
 import '../../tool_result_content.dart';
@@ -278,15 +279,10 @@ Future<List<Map<String, dynamic>>> buildOpenAIChatCompletionMessages(
       BuiltInToolsHelper.isOpenRouterProvider(nativeInputs.config);
   // Assistant turns cannot carry image_url/video_url; stash for the last user
   // message (same pattern as Responses shouldAttachAssistantImage).
-  // Use last *user* index — not array-tail — so tool follow-ups that append
-  // assistant tool_calls / tool results still receive stashed assistant media.
-  int lastUserIndex = -1;
-  for (int i = messages.length - 1; i >= 0; i--) {
-    if ((messages[i]['role'] ?? '').toString() == 'user') {
-      lastUserIndex = i;
-      break;
-    }
-  }
+  // Use the last *human* turn — not the array tail, and not a group peer's turn
+  // — so tool follow-ups still receive stashed assistant media while a group
+  // chat keeps its images on the user's own message.
+  final lastUserIndex = lastHumanUserIndex(messages);
   final pendingAssistantMediaUrls = <String>[];
   final pendingToolImageParts = <Map<String, dynamic>>[];
   void flushToolImages() {
@@ -350,6 +346,7 @@ Future<List<Map<String, dynamic>>> buildOpenAIChatCompletionMessages(
     outMsg.remove(multimodalInternalLiteralTextKey);
     outMsg.remove(multimodalInternalDocumentPathsKey);
     outMsg.remove(multimodalInternalRevisionIdKey);
+    outMsg.remove(groupPeerSenderKey);
     outMsg.remove(multimodalInternalClaudeContainerKey);
     outMsg.remove(multimodalInternalClaudeTurnKey);
     outMsg.remove(multimodalInternalClaudeThinkingRecoveryKey);

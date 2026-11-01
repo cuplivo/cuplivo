@@ -707,6 +707,30 @@ class MessageGenerationService {
     );
   }
 
+  /// Create the user turn of a group conversation.
+  ///
+  /// The authoring [assistant] is only the member whose model rules decide how
+  /// text and attachments are prepared (regexes, image routing); it is not "the
+  /// assistant being asked", because a group round picks speakers afterwards.
+  Future<ChatMessage> beginGroupUserMessage({
+    required String conversationId,
+    required ChatInputData input,
+    required Assistant authoringAssistant,
+  }) {
+    return buildPersistedUserMessageParts(
+      input,
+      assistant: authoringAssistant,
+    ).then(
+      (parts) => chatService.beginUserMessage(
+        conversationId: conversationId,
+        userParts: parts,
+        draftSubmission: input.draftSubmission,
+        uiContext: _uiContext(input),
+        quote: input.quote,
+      ),
+    );
+  }
+
   Future<({ChatMessage assistantMessage, String? runId})> beginRegeneration({
     required String conversationId,
     required String modelId,
@@ -715,6 +739,7 @@ class MessageGenerationService {
     required int version,
     required bool truncateFuture,
     String? expectedContextState,
+    String? senderId,
   }) async {
     if (chatService.isTemporaryConversation(conversationId)) {
       final assistantMessage = await createAssistantPlaceholder(
@@ -734,6 +759,7 @@ class MessageGenerationService {
       groupId: groupId,
       version: version,
       truncateFuture: truncateFuture,
+      senderId: senderId,
     );
     return (assistantMessage: result.assistantMessage, runId: result.run.id);
   }
@@ -746,6 +772,7 @@ class MessageGenerationService {
     required String anchorGroupId,
     required bool truncateFuture,
     String? expectedContextState,
+    String? senderId,
   }) async {
     if (chatService.isTemporaryConversation(conversationId)) {
       final assistantMessage = await createAssistantPlaceholder(
@@ -763,6 +790,7 @@ class MessageGenerationService {
       providerId: providerKey,
       anchorGroupId: anchorGroupId,
       truncateFuture: truncateFuture,
+      senderId: senderId,
     );
     return (assistantMessage: result.assistantMessage, runId: result.run.id);
   }

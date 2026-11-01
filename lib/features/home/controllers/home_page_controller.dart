@@ -957,6 +957,18 @@ class HomePageController extends ChangeNotifier {
           message: l10n.homePagePleaseSelectModel,
           type: NotificationType.warning,
         );
+      } else if (warning == 'group_unavailable') {
+        showAppSnackBar(
+          _context,
+          message: l10n.groupChatUnavailableWarning,
+          type: NotificationType.warning,
+        );
+      } else if (warning == 'group_director_fallback') {
+        showAppSnackBar(
+          _context,
+          message: l10n.groupChatDirectorFallbackWarning,
+          type: NotificationType.warning,
+        );
       }
     };
     _viewModel.onScrollToBottom = () {
@@ -2020,10 +2032,15 @@ class HomePageController extends ChangeNotifier {
 
   Future<Conversation?> createNewConversationAnimated({
     bool preserveDraft = false,
+    String? groupChatId,
   }) async {
     // Cancel any in-flight conversation switch fetch.
     final serial = ++_switchSerial;
     final assistantId = _context.read<AssistantProvider>().currentAssistantId;
+    // A group topic has no assistant. "New" inside one means a new topic of
+    // that group; without this, the fallback assistant became the owner and the
+    // app silently left the group for a 1:1 chat.
+    final resolvedGroupChatId = groupChatId ?? currentConversation?.groupChatId;
     _warmupSerial++;
     _selectionEpoch++;
     try {
@@ -2041,7 +2058,8 @@ class HomePageController extends ChangeNotifier {
     if (!_context.mounted || serial != _switchSerial) return null;
     final conversation = await _createNewConversation(
       preserveDraft: preserveDraft,
-      assistantId: assistantId,
+      assistantId: resolvedGroupChatId == null ? assistantId : null,
+      groupChatId: resolvedGroupChatId,
     );
     if (conversation == null ||
         !_context.mounted ||
@@ -2069,6 +2087,7 @@ class HomePageController extends ChangeNotifier {
   Future<Conversation?> _createNewConversation({
     bool preserveDraft = false,
     String? assistantId,
+    String? groupChatId,
   }) async {
     if (_composerDrafts == null) {
       _exitUserMessageEdit(clearDraft: !preserveDraft);
@@ -2077,6 +2096,7 @@ class HomePageController extends ChangeNotifier {
     final previousId = currentConversation?.id;
     final conversation = await _viewModel.createNewConversation(
       assistantId: assistantId,
+      groupChatId: groupChatId,
     );
     if (conversation == null || currentConversation?.id != conversation.id) {
       return conversation;

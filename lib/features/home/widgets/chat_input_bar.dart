@@ -761,6 +761,10 @@ class ChatInputBar extends StatefulWidget {
     this.onToggleOcr,
     this.conversationId,
     this.sendButtonTooltip,
+    this.leading,
+    this.onTapLeading,
+    this.leadingTooltip,
+    this.leadingExtent = 30,
     this.backgroundImageActive = false,
     this.inputBackgroundOpacityLight =
         SettingsProvider.defaultChatInputBackgroundOpacityLight,
@@ -833,6 +837,16 @@ class ChatInputBar extends StatefulWidget {
   final String? chatModelProviderKey;
   final String? chatModelId;
   final String? sendButtonTooltip;
+
+  /// Replaces the model-select slot at the start of the composer.
+  ///
+  /// A group chat has no single model to show, so that slot carries the member
+  /// cluster instead: the one control that says who is in this room.
+  final Widget? leading;
+  final VoidCallback? onTapLeading;
+  final String? leadingTooltip;
+  final double leadingExtent;
+
   final bool backgroundImageActive;
   final double inputBackgroundOpacityLight;
   final double inputBackgroundOpacityDark;
@@ -3554,25 +3568,60 @@ class _ChatInputBarState extends State<ChatInputBar>
       builder: (context, constraints) {
         final List<_OverflowAction> actions = [];
 
-        // Model select (always present; can be hidden if overflow)
-        actions.add(
-          _OverflowAction(
-            width: (widget.modelIcon != null) ? modelButtonW : normalButtonW,
-            builder: () => _CompactIconButton(
-              tooltip: l10n.chatInputBarSelectModelTooltip,
-              icon: Lucide.Boxes,
-              modelIcon: true,
-              onTap: lockTap(widget.onSelectModel),
-              onLongPress: lockTap(widget.onLongPressSelectModel),
-              child: widget.modelIcon,
+        // Model select (always present; can be hidden if overflow). A group
+        // replaces it with the member cluster, which is the same "who am I
+        // talking with" slot.
+        if (widget.leading != null) {
+          actions.add(
+            _OverflowAction(
+              width: widget.leadingExtent,
+              builder: () => Tooltip(
+                message: widget.leadingTooltip ?? '',
+                waitDuration: const Duration(milliseconds: 350),
+                child: Semantics(
+                  button: true,
+                  label: widget.leadingTooltip,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: lockTap(widget.onTapLeading),
+                    child: SizedBox(
+                      height: 30,
+                      width: widget.leadingExtent,
+                      child: Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: widget.leading,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              menu: DesktopContextMenuItem(
+                icon: Lucide.Users,
+                label: widget.leadingTooltip ?? '',
+                onTap: lockTap(widget.onTapLeading),
+              ),
             ),
-            menu: DesktopContextMenuItem(
-              icon: Lucide.Boxes,
-              label: l10n.chatInputBarSelectModelTooltip,
-              onTap: lockTap(widget.onSelectModel),
+          );
+        } else {
+          actions.add(
+            _OverflowAction(
+              width: (widget.modelIcon != null) ? modelButtonW : normalButtonW,
+              builder: () => _CompactIconButton(
+                tooltip: l10n.chatInputBarSelectModelTooltip,
+                icon: Lucide.Boxes,
+                modelIcon: true,
+                onTap: lockTap(widget.onSelectModel),
+                onLongPress: lockTap(widget.onLongPressSelectModel),
+                child: widget.modelIcon,
+              ),
+              menu: DesktopContextMenuItem(
+                icon: Lucide.Boxes,
+                label: l10n.chatInputBarSelectModelTooltip,
+                onTap: lockTap(widget.onSelectModel),
+              ),
             ),
-          ),
-        );
+          );
+        }
 
         // Search button (stateful icon depending on provider config)
         final settings = context.watch<SettingsProvider>();

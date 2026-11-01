@@ -6,6 +6,12 @@ import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../home/controllers/chat_actions.dart';
 import '../../../core/models/assistant.dart';
+import '../../../core/models/group_chat.dart';
+import '../../../core/providers/chat_owners_provider.dart';
+import '../../../core/providers/group_chat_provider.dart';
+import '../../../shared/widgets/action_sheet.dart';
+import '../../group_chat/group_navigation.dart';
+import '../../group_chat/widgets/group_member_list.dart';
 import 'dart:io' show File;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'assistant_settings_edit_page.dart';
@@ -17,15 +23,36 @@ import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
-class AssistantSettingsPage extends StatelessWidget {
-  const AssistantSettingsPage({super.key});
+/// Settings › 助手与群聊: assistants and groups in one list, in one order.
+///
+/// The sidebar and this page share [ChatOwnersProvider], so a drag here moves
+/// the same row there. They also share one "+": assistants used to be created
+/// here and groups in the sidebar, which is why reordering felt arbitrary.
+class ChatOwnerSettingsPage extends StatelessWidget {
+  const ChatOwnerSettingsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
 
-    final assistants = context.watch<AssistantProvider>().assistants;
+    final assistants = {
+      for (final assistant in context.watch<AssistantProvider>().assistants)
+        assistant.id: assistant,
+    };
+    final groups = {
+      for (final group in context.watch<GroupChatProvider>().groups)
+        group.id: group,
+    };
+    // The order provider reconciles with the live sources, so a row whose
+    // owner is gone is skipped rather than rendered as a hole.
+    final rows = [
+      for (final owner in context.watch<ChatOwnersProvider>().owners)
+        if (owner.isGroup
+            ? groups.containsKey(owner.id)
+            : assistants.containsKey(owner.id))
+          owner,
+    ];
 
     return Scaffold(
       appBar: AppBar(
@@ -38,29 +65,15 @@ class AssistantSettingsPage extends StatelessWidget {
             onTap: () => Navigator.of(context).maybePop(),
           ),
         ),
-        title: Text(l10n.assistantSettingsPageTitle),
+        title: Text(l10n.settingsPageChatOwners),
         actions: [
           Tooltip(
-            message: l10n.assistantSettingsAddSheetSave,
+            message: l10n.settingsPageChatOwnersCreate,
             child: _TactileIconButton(
               icon: Lucide.Plus,
               color: cs.onSurface,
               size: 22,
-              onTap: () async {
-                final assistantProvider = context.read<AssistantProvider>();
-                final name = await _showAddAssistantSheet(context);
-                if (!context.mounted || name == null) return;
-                final id = await assistantProvider.addAssistant(
-                  name: name.trim(),
-                  context: context,
-                );
-                if (!context.mounted) return;
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => AssistantSettingsEditPage(assistantId: id),
-                  ),
-                );
-              },
+              onTap: () => _showCreateMenu(context),
             ),
           ),
           const SizedBox(width: 8),
@@ -68,11 +81,9 @@ class AssistantSettingsPage extends StatelessWidget {
       ),
       body: ReorderableListView.builder(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 100),
-        itemCount: assistants.length,
+        itemCount: rows.length,
         onReorderItem: (oldIndex, newIndex) async {
-          // Immediately update UI for smooth experience
-          final assistantProvider = context.read<AssistantProvider>();
-          await assistantProvider.reorderAssistants(oldIndex, newIndex);
+          await context.read<ChatOwnersProvider>().reorder(oldIndex, newIndex);
         },
         proxyDecorator: (child, index, animation) {
           return AnimatedBuilder(
@@ -93,20 +104,64 @@ class AssistantSettingsPage extends StatelessWidget {
           );
         },
         itemBuilder: (context, index) {
-          final item = assistants[index];
+          final owner = rows[index];
+          final group = owner.isGroup ? groups[owner.id] : null;
           return KeyedSubtree(
-            key: ValueKey('reorder-assistant-${item.id}'),
+            key: ValueKey('owner-${owner.key}'),
             child: ReorderableDelayedDragStartListener(
               index: index,
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 10),
-                child: _AssistantCard(item: item),
+                child: group != null
+                    ? _GroupCard(group: group, assistants: assistants)
+                    : _AssistantCard(item: assistants[owner.id]!),
               ),
             ),
           );
         },
       ),
     );
+  }
+
+  Future<void> _showCreateMenu(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    await showAdaptiveActionMenu(
+      context,
+      items: [
+        ActionSheetItem(
+          icon: Lucide.UserPlus,
+          label: l10n.chatOwnerCreateAssistant,
+          onTap: () => _createAssistant(context),
+        ),
+        ActionSheetItem(
+          icon: Lucide.Users,
+          label: l10n.groupChatCreate,
+          onTap: () => _createGroup(context),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _createAssistant(BuildContext context) async {
+    final assistantProvider = context.read<AssistantProvider>();
+    final navigator = Navigator.of(context);
+    final name = await _showAddAssistantSheet(context);
+    if (name == null || !context.mounted) return;
+    final id = await assistantProvider.addAssistant(
+      name: name.trim(),
+      context: context,
+    );
+    await navigator.push(
+      MaterialPageRoute(
+        builder: (_) => AssistantSettingsEditPage(assistantId: id),
+      ),
+    );
+  }
+
+  Future<void> _createGroup(BuildContext context) async {
+    final group = await showGroupCreate(context);
+    if (group == null || !context.mounted) return;
+    await showGroupSettings(context, group.id);
   }
 }
 
@@ -325,8 +380,83 @@ class _AssistantCard extends StatelessWidget {
   }
 }
 
-// --- iOS-style tactile helpers ---
+class _GroupCard extends StatelessWidget {
+  const _GroupCard({required this.group, required this.assistants});
 
+  final GroupChat group;
+  final Map<String, Assistant> assistants;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final baseBg = context.appColors.surfaceCard;
+    final separator = Localizations.localeOf(context).languageCode == 'zh'
+        ? '、'
+        : ', ';
+    final names = [
+      for (final id in group.memberIds)
+        (assistants[id]?.name ?? '').trim().isEmpty
+            ? id
+            : assistants[id]!.name.trim(),
+    ];
+
+    return _TactileCard(
+      onTap: () => showGroupSettings(context, group.id),
+      builder: (pressed, overlay) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Color.alphaBlend(overlay, baseBg),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: cs.outlineVariant.withValues(alpha: isDark ? 0.12 : 0.08),
+              width: 0.8,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                GroupAvatar(group: group, size: 44),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        group.name.isEmpty ? l10n.groupChatTitle : group.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: AppFontWeights.emphasis,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        names.join(separator),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: cs.onSurface.withValues(alpha: 0.7),
+                          height: 1.25,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// --- iOS-style tactile helpers ---
 class _TactileIconButton extends StatefulWidget {
   const _TactileIconButton({
     required this.icon,

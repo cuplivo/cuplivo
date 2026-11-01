@@ -191,6 +191,7 @@ class MessageListView extends StatefulWidget {
     this.showUserAvatar = true,
     this.showTokenStats = false,
     this.assistant,
+    this.resolveAssistant,
   });
 
   final ScrollController scrollController;
@@ -326,6 +327,14 @@ class MessageListView extends StatefulWidget {
   final bool showUserAvatar;
   final bool showTokenStats;
   final Assistant? assistant;
+
+  /// Per-message author, for a conversation that has more than one.
+  ///
+  /// Null in a 1:1 chat, where [assistant] is the only possible author. A group
+  /// conversation passes a resolver keyed on [ChatMessage.senderId], so an old
+  /// reply keeps the face and name it was written with even after the current
+  /// assistant changes — or after its author is deleted.
+  final Assistant? Function(ChatMessage message)? resolveAssistant;
 
   @visibleForTesting
   static const Key windowSkeletonKey = ValueKey<String>(
@@ -1357,7 +1366,8 @@ class _MessageListViewState extends State<MessageListView> {
         oldWidget.showBrowserPageCards != widget.showBrowserPageCards ||
         oldWidget.collapsedCodeLines != widget.collapsedCodeLines ||
         oldWidget.wrapCodeBlocks != widget.wrapCodeBlocks ||
-        !identical(oldWidget.assistant, widget.assistant);
+        !identical(oldWidget.assistant, widget.assistant) ||
+        !identical(oldWidget.resolveAssistant, widget.resolveAssistant);
     if (metricInputsChanged) {
       controller.invalidateAllExtents();
       return;
@@ -2505,6 +2515,8 @@ class _MessageListViewState extends State<MessageListView> {
   }) {
     final currentIdx = availableVersions.indexOf(selectedVersion);
     final quoteTarget = _quoteTargetFor(message);
+    // The author of *this* reply, when the conversation has several.
+    final author = widget.resolveAssistant?.call(message) ?? assistant;
     return ChatMessageWidget(
       message: message,
       onReply: widget.onReplyMessage == null || message.isStreaming
@@ -2548,9 +2560,9 @@ class _MessageListViewState extends State<MessageListView> {
       useAssistantAvatar: useAssistAvatar && message.role == 'assistant',
       useAssistantName: useAssistName && message.role == 'assistant',
       assistantName: (useAssistAvatar || useAssistName)
-          ? (assistant?.name ?? 'Assistant')
+          ? (author?.name ?? 'Assistant')
           : null,
-      assistantAvatar: useAssistAvatar ? (assistant?.avatar ?? '') : null,
+      assistantAvatar: useAssistAvatar ? (author?.avatar ?? '') : null,
       showUserAvatar: presentation.showUserAvatar,
       showTokenStats: presentation.showTokenStats,
       hideStreamingIndicator:

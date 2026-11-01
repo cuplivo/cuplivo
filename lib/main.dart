@@ -50,6 +50,8 @@ import 'core/providers/s3_backup_provider.dart';
 import 'core/providers/backup_reminder_provider.dart';
 import 'core/providers/hotkey_provider.dart';
 import 'core/providers/workspace_provider.dart';
+import 'core/providers/group_chat_provider.dart';
+import 'core/providers/chat_owners_provider.dart';
 import 'core/services/workspace/workspace_binding_actions.dart';
 import 'core/providers/environment_provider.dart';
 import 'features/workspace/pages/environment_page.dart';
@@ -180,6 +182,11 @@ void _wireSyncReloaders(BuildContext ctx) {
     // the peer's workspaces would sit in SQLite unseen until the next launch.
     reloader.register(
       () => ctx.read<WorkspaceProvider>().reloadAfterExternalChange(),
+    );
+    // Group chats are entity rows too, and their list is cached and parsed the
+    // same way: a peer's new group would otherwise be invisible until relaunch.
+    reloader.register(
+      () => ctx.read<GroupChatProvider>().reloadAfterExternalChange(),
     );
   } catch (error) {
     debugPrint('Failed to wire sync reloaders: $error');
@@ -953,6 +960,20 @@ class MyApp extends StatelessWidget {
           create: (ctx) => WorkspaceProvider(
             store: ctx.read<ExtensionEntityStore>(),
             assistants: ctx.read<AssistantProvider>(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) => GroupChatProvider(
+            store: ctx.read<ExtensionEntityStore>(),
+            chatService: ctx.read<ChatService>(),
+            businessRepository: ctx.read<BusinessRepository>(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) => ChatOwnersProvider(
+            assistants: ctx.read<AssistantProvider>(),
+            groups: ctx.read<GroupChatProvider>(),
+            preferences: businessPreferences,
           ),
         ),
         ChangeNotifierProvider(

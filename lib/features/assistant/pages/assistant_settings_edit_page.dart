@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import '../../../core/services/chat/prompt_transformer.dart';
 import '../../../core/services/memory/memory_prompts.dart';
@@ -47,7 +46,6 @@ import '../../settings/pages/memory_settings_page.dart';
 import '../../settings/widgets/memory_ui.dart';
 import '../../../shared/widgets/tip_icon.dart';
 import '../../../core/services/haptics.dart';
-import '../../../desktop/desktop_context_menu.dart';
 import '../../../desktop/setting/memory_dialogs.dart';
 import '../../../desktop/widgets/desktop_select_dropdown.dart';
 import '../../home/services/local_tool_toggle.dart';
@@ -56,12 +54,11 @@ import '../../../core/models/health_data_type.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/responsive/screen_type_helper.dart';
-import '../../../shared/widgets/emoji_picker_dialog.dart';
-import '../../../shared/widgets/emoji_text.dart';
 import '../../../shared/widgets/ios_form_text_field.dart';
 import '../../../shared/widgets/ios_settings_rows.dart';
 import '../../../shared/widgets/ios_switch.dart';
 import '../../../shared/widgets/ios_tactile.dart';
+import '../../../shared/widgets/avatar_menu.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../theme/design_tokens.dart';
@@ -2797,291 +2794,16 @@ class _DesktopAssistantBasicPaneState
     BuildContext context,
     Assistant a,
   ) async {
-    final l10n = AppLocalizations.of(context)!;
     final assistantProvider = context.read<AssistantProvider>();
-    await showDesktopAnchoredMenu(
+    await showAvatarMenu(
       context,
+      value: a.avatar,
       anchorKey: _avatarKey,
-      items: [
-        DesktopContextMenuItem(
-          icon: Lucide.User,
-          label: l10n.desktopAvatarMenuUseEmoji,
-          onTap: () async {
-            final emoji = await showEmojiPickerDialog(
-              context,
-              title: l10n.assistantEditEmojiDialogTitle,
-              hintText: l10n.assistantEditEmojiDialogHint,
-            );
-            if (emoji != null && emoji.isNotEmpty) {
-              await assistantProvider.updateAssistant(
-                a.copyWith(avatar: emoji),
-              );
-            }
-          },
-        ),
-        DesktopContextMenuItem(
-          icon: Lucide.Image,
-          label: l10n.desktopAvatarMenuChangeFromImage,
-          onTap: () async {
-            try {
-              final res = await FilePicker.platform.pickFiles(
-                allowMultiple: false,
-                withData: false,
-                type: FileType.custom,
-                allowedExtensions: const [
-                  'png',
-                  'jpg',
-                  'jpeg',
-                  'gif',
-                  'webp',
-                  'heic',
-                  'heif',
-                ],
-              );
-              final f = (res != null && res.files.isNotEmpty)
-                  ? res.files.first
-                  : null;
-              final path = f?.path;
-              if (path != null && path.isNotEmpty) {
-                await assistantProvider.updateAssistant(
-                  a.copyWith(avatar: path),
-                );
-              }
-            } catch (_) {}
-          },
-        ),
-        DesktopContextMenuItem(
-          icon: Lucide.Link,
-          label: l10n.assistantEditAvatarEnterLink,
-          onTap: () async {
-            await _inputAvatarUrl(context, a);
-          },
-        ),
-        DesktopContextMenuItem(
-          svgAsset: 'assets/icons/tencent-qq.svg',
-          label: l10n.assistantEditAvatarImportQQ,
-          onTap: () async {
-            await _inputQQAvatar(context, a);
-          },
-        ),
-        DesktopContextMenuItem(
-          icon: Lucide.RotateCw,
-          label: l10n.desktopAvatarMenuReset,
-          onTap: () async {
-            await context.read<AssistantProvider>().updateAssistant(
-              a.copyWith(clearAvatar: true),
-            );
-          },
-        ),
-      ],
-      offset: const Offset(0, 8),
-    );
-  }
-
-  Future<void> _inputAvatarUrl(BuildContext context, Assistant a) async {
-    final l10n = AppLocalizations.of(context)!;
-    final cs = Theme.of(context).colorScheme;
-    final assistantProvider = context.read<AssistantProvider>();
-    final controller = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          backgroundColor: context.overlaySurface,
-          title: Text(l10n.assistantEditImageUrlDialogTitle),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: InputDecoration(
-              hintText: l10n.assistantEditImageUrlDialogHint,
-              filled: true,
-              fillColor: ctx.appColors.surfaceFill,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.transparent),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.transparent),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: cs.primary.withValues(alpha: 0.4),
-                ),
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text(l10n.assistantEditImageUrlDialogCancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: Text(l10n.assistantEditImageUrlDialogSave),
-            ),
-          ],
+      onSelected: (avatar) async {
+        await assistantProvider.updateAssistant(
+          a.copyWith(avatar: avatar, clearAvatar: avatar == null),
         );
       },
     );
-    if (ok == true) {
-      final url = controller.text.trim();
-      if (url.isNotEmpty) {
-        await assistantProvider.updateAssistant(a.copyWith(avatar: url));
-      }
-    }
-  }
-
-  Future<void> _inputQQAvatar(BuildContext context, Assistant a) async {
-    final l10n = AppLocalizations.of(context)!;
-    final assistantProvider = context.read<AssistantProvider>();
-    final controller = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        final cs = Theme.of(ctx).colorScheme;
-        String value = '';
-        bool valid(String s) => RegExp(r'^[0-9]{5,12}$').hasMatch(s.trim());
-        String randomQQ() {
-          final lengths = <int>[5, 6, 7, 8, 9, 10, 11];
-          final weights = <int>[1, 20, 80, 100, 500, 5000, 80];
-          final total = weights.fold<int>(0, (a, b) => a + b);
-          final rnd = math.Random();
-          int roll = rnd.nextInt(total) + 1;
-          int chosenLen = lengths.last;
-          int acc = 0;
-          for (int i = 0; i < lengths.length; i++) {
-            acc += weights[i];
-            if (roll <= acc) {
-              chosenLen = lengths[i];
-              break;
-            }
-          }
-          final sb = StringBuffer();
-          final firstGroups = <List<int>>[
-            [1, 2],
-            [3, 4],
-            [5, 6, 7, 8],
-            [9],
-          ];
-          final firstWeights = <int>[128, 4, 2, 1];
-          final firstTotal = firstWeights.fold<int>(0, (a, b) => a + b);
-          int r2 = rnd.nextInt(firstTotal) + 1;
-          int idx = 0;
-          int a2 = 0;
-          for (int i = 0; i < firstGroups.length; i++) {
-            a2 += firstWeights[i];
-            if (r2 <= a2) {
-              idx = i;
-              break;
-            }
-          }
-          final group = firstGroups[idx];
-          sb.write(group[rnd.nextInt(group.length)]);
-          for (int i = 1; i < chosenLen; i++) {
-            sb.write(rnd.nextInt(10));
-          }
-          return sb.toString();
-        }
-
-        return StatefulBuilder(
-          builder: (ctx, setLocal) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              backgroundColor: context.overlaySurface,
-              title: Text(l10n.assistantEditQQAvatarDialogTitle),
-              content: TextField(
-                controller: controller,
-                autofocus: true,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  hintText: l10n.assistantEditQQAvatarDialogHint,
-                  filled: true,
-                  fillColor: ctx.appColors.surfaceFill,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.transparent),
-                  ),
-                  enabledBorder: const OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                    borderSide: BorderSide(color: Colors.transparent),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: cs.primary.withValues(alpha: 0.4),
-                    ),
-                  ),
-                ),
-                onChanged: (v) => setLocal(() => value = v),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () async {
-                    const int maxTries = 20;
-                    bool applied = false;
-                    for (int i = 0; i < maxTries; i++) {
-                      final qq = randomQQ();
-                      final url =
-                          'https://q2.qlogo.cn/headimg_dl?dst_uin=$qq&spec=100';
-                      try {
-                        final resp = await http
-                            .get(Uri.parse(url))
-                            .timeout(const Duration(seconds: 5));
-                        if (resp.statusCode == 200 &&
-                            resp.bodyBytes.isNotEmpty) {
-                          await assistantProvider.updateAssistant(
-                            a.copyWith(avatar: url),
-                          );
-                          applied = true;
-                          break;
-                        }
-                      } catch (_) {}
-                    }
-                    if (applied) {
-                      if (!ctx.mounted) return;
-                      if (Navigator.of(ctx).canPop()) {
-                        Navigator.of(ctx).pop(false);
-                      }
-                    } else {
-                      if (!context.mounted) return;
-                      showAppSnackBar(
-                        context,
-                        message: l10n.assistantEditQQAvatarFailedMessage,
-                        type: NotificationType.error,
-                      );
-                    }
-                  },
-                  child: Text(l10n.assistantEditQQAvatarRandomButton),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(false),
-                  child: Text(l10n.assistantEditQQAvatarDialogCancel),
-                ),
-                TextButton(
-                  onPressed: valid(value)
-                      ? () => Navigator.of(ctx).pop(true)
-                      : null,
-                  child: Text(l10n.assistantEditQQAvatarDialogSave),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-    if (ok == true) {
-      final qq = controller.text.trim();
-      if (qq.isNotEmpty) {
-        final url = 'https://q2.qlogo.cn/headimg_dl?dst_uin=$qq&spec=100';
-        await assistantProvider.updateAssistant(a.copyWith(avatar: url));
-      }
-    }
   }
 }

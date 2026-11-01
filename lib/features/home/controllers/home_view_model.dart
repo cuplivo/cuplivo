@@ -10,6 +10,7 @@ import '../../../core/models/compress_context_options.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/services/chat/context_compression_service.dart';
 import '../../../core/providers/assistant_provider.dart';
+import '../../../core/providers/group_chat_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../core/database/business_preferences.dart';
@@ -28,6 +29,7 @@ import '../../../core/services/notification_service.dart';
 import '../../../core/services/world_book_store.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../chat/widgets/chat_message_widget.dart' show ToolUIPart;
+import '../../group_chat/services/group_transcript.dart';
 import '../services/context_usage_service.dart';
 import '../services/context_assembly.dart';
 import '../services/message_builder_service.dart';
@@ -144,6 +146,18 @@ class HomeViewModel extends ChangeNotifier {
     _chatActions.onAssistantMessageFinished = _onAssistantMessageFinished;
     _chatActions.onFileProcessingStarted = _onFileProcessingStarted;
     _chatActions.onFileProcessingFinished = _onFileProcessingFinished;
+    _chatActions.onGroupRoundFinished = (conversationId) {
+      // The round released the loading guard; whatever the user sent while it
+      // ran is no longer blocked by it.
+      notifyListeners();
+      unawaited(_drainQueuedInputIfReady(conversationId));
+      // A topic is named once, from what the round actually said. Every later
+      // round finds a real title and costs nothing.
+      _onMaybeGenerateTitle(conversationId);
+    };
+    _chatActions.onGroupDirectorFallback = (conversationId) {
+      onWarning?.call('group_director_fallback');
+    };
     _chatService.contextCompression.isConversationBusy = _isConversationBusy;
     _chatService.contextCompression.isInputPaused =
         _pausedQueuedInputs.contains;
@@ -188,6 +202,10 @@ class HomeViewModel extends ChangeNotifier {
   final Set<String> _drainingQueuedInputs = {};
   final Set<String> _pausedQueuedInputs = {};
   final Map<String, String> _compressionStates = {};
+
+  /// Conversations whose title request is in flight, so two finishes in a row
+  /// produce one rename instead of two.
+  final Set<String> _titlesInFlight = {};
 
   ContextCompressionTask? get currentCompressionTask =>
       currentConversation == null
@@ -838,6 +856,10 @@ class HomeViewModel extends ChangeNotifier {
 
     _chatActions.onScheduleImageSanitize = onScheduleImageSanitize;
 
+    if (conversation.isGroupConversation) {
+      return _sendGroupMessageToConversation(input, conversation);
+    }
+
     final sourceAssistant = _contextProvider
         .read<AssistantProvider>()
         .resolveConversationAssistant(conversation.assistantId);
@@ -875,6 +897,65 @@ class HomeViewModel extends ChangeNotifier {
       return false;
     }
 
+    return true;
+  }
+
+  /// Send into a group conversation: one user turn, then a round of replies.
+  ///
+  /// Deliberately the same shape as the 1:1 branch above — the same draft
+  /// submission bookkeeping, the same queued-send outcome — because from the
+  /// composer's side a group send is a send, not a different feature.
+  Future<bool> _sendGroupMessageToConversation(
+    ChatInputData input,
+    Conversation conversation,
+  ) async {
+    final group = _contextProvider.read<GroupChatProvider>().byId(
+      conversation.groupChatId,
+    );
+    final assistants = _contextProvider.read<AssistantProvider>();
+    final members = <Assistant>[];
+    if (group != null) {
+      for (final id in group.memberIds) {
+        final assistant = assistants.getById(id);
+        if (assistant != null) members.add(assistant);
+      }
+    }
+    if (group == null || members.isEmpty) {
+      // The group row is missing (deleted, or restored without its group) or
+      // every member is gone: the conversation is read-only, and a send would
+      // create a user message nothing could answer.
+      onWarning?.call('group_unavailable');
+      return false;
+    }
+    await _clearSuggestionsFor(conversation.id);
+    onHapticFeedback?.call();
+
+    final result = await _chatActions.sendGroupMessage(
+      input: input,
+      conversation: conversation,
+      group: group,
+      members: members,
+    );
+
+    if (input.draftSubmission != null &&
+        _chatService.composerDrafts != null &&
+        await _chatService.composerDrafts!.wasSubmitted(
+          input.draftSubmission!.id,
+        )) {
+      await _chatService.composerDrafts!.finishSubmission(
+        input.draftSubmission!,
+      );
+      return true;
+    }
+    if (!result.success) {
+      if (result.errorMessage == 'in_flight') return false;
+      if (result.errorMessage == 'group_has_no_members') {
+        onWarning?.call('group_unavailable');
+      } else if (result.errorMessage != 'empty_input') {
+        onError?.call(result.errorMessage ?? 'unknown_error');
+      }
+      return false;
+    }
     return true;
   }
 
@@ -1016,8 +1097,17 @@ class HomeViewModel extends ChangeNotifier {
 
   /// Cancel the active streaming.
   Future<void> cancelStreaming() async {
-    final id = currentConversation?.id;
-    await _chatActions.cancelStreaming(currentConversation);
+    final conversation = currentConversation;
+    final id = conversation?.id;
+    if (conversation != null && conversation.isGroupConversation) {
+      // Stop the round, not just the speaker: the loop is what would otherwise
+      // start the next one.
+      await _chatActions.cancelGroupRound(conversation.id);
+      _chatService.contextCompression.resumeIfReady(conversation.id);
+      unawaited(_drainQueuedInputIfReady(conversation.id));
+      return;
+    }
+    await _chatActions.cancelStreaming(conversation);
     if (id != null) {
       _chatService.contextCompression.resumeIfReady(id);
       unawaited(_drainQueuedInputIfReady(id));
@@ -1451,7 +1541,13 @@ class HomeViewModel extends ChangeNotifier {
 
   /// Returns this request's new or reused entry even if navigation changes
   /// while its preset messages are being persisted.
-  Future<Conversation?> createNewConversation({String? assistantId}) async {
+  ///
+  /// [groupChatId] creates a topic of that group instead of a 1:1 chat; a group
+  /// topic has no owning assistant, so preset messages are not injected.
+  Future<Conversation?> createNewConversation({
+    String? assistantId,
+    String? groupChatId,
+  }) async {
     // Flush current conversation progress before creating new
     await _chatActions.flushConversationProgress(currentConversation);
     if (!_contextProvider.mounted) return null;
@@ -1467,15 +1563,18 @@ class HomeViewModel extends ChangeNotifier {
       return null;
     }
     if (!_contextProvider.mounted) return null;
-    final targetAssistantId = assistantId ?? ap.currentAssistantId;
+    final targetAssistantId = groupChatId == null
+        ? (assistantId ?? ap.currentAssistantId)
+        : null;
     final a = ap.getById(targetAssistantId ?? '');
 
     final existingEntryId = _chatService.composerDrafts
-        ?.newEntry(targetAssistantId)
+        ?.newEntry(targetAssistantId, groupChatId: groupChatId)
         ?.id;
     final conversation = await _chatService.createDraftConversation(
       title: getTitleForLocale(_contextProvider),
       assistantId: targetAssistantId,
+      groupChatId: groupChatId,
       reuseNewEntry: true,
     );
 
@@ -1497,7 +1596,9 @@ class HomeViewModel extends ChangeNotifier {
 
     // Inject assistant preset messages into new conversation (ordered)
     try {
-      final presets = ap.getPresetMessagesForAssistant(a?.id);
+      final presets = groupChatId == null
+          ? ap.getPresetMessagesForAssistant(a?.id)
+          : const <Map<String, dynamic>>[];
       if (presets.isNotEmpty && currentConversation != null) {
         final injected = <ChatMessage>[];
         for (final pm in presets) {
@@ -1872,59 +1973,76 @@ class HomeViewModel extends ChangeNotifier {
 
     final settings = _contextProvider.read<SettingsProvider>();
     if (!settings.isTitleGenerationEnabled) return;
-
-    final assistantProvider = _contextProvider.read<AssistantProvider>();
-
-    // Get assistant for this conversation
-    final assistant = assistantProvider.resolveConversationAssistant(
-      convo.assistantId,
-    );
-    final chatModel = resolveChatModel(
-      settings,
-      conversation: convo,
-      assistant: assistant,
-    );
-    final provKey = settings.titleModelProvider ?? chatModel.providerKey;
-    final mdlId = settings.titleModelId ?? chatModel.modelId;
-    if (provKey == null || mdlId == null) return;
-    final cfg = settings.getProviderConfig(provKey);
-    final reasoning = settings.titleGenerationReasoningFor(assistant);
-    final locale = Localizations.localeOf(_contextProvider).toLanguageTag();
-
-    // Build content from messages (shared with the side drawer title path;
-    // both cache and paging paths collect the same ~3000-char tail window)
-    final content = await _chatService.generateTitleSource(convo.id);
-
-    String prompt = settings.titlePrompt
-        .replaceAll('{locale}', locale)
-        .replaceAll('{content}', content);
+    // One title request per conversation at a time: two rounds that finish
+    // back to back must not race two renames over each other.
+    if (!_titlesInFlight.add(conversationId)) return;
 
     try {
-      final title = (await ChatApiService.generateText(
-        conversationId: convo.id,
-        config: cfg,
-        modelId: mdlId,
-        prompt: prompt,
-        reasoning: reasoning,
-        skipImageParsing: true,
-      )).trim();
-      if (title.isNotEmpty) {
-        await _chatService.renameConversation(convo.id, title);
-        if (currentConversation?.id == convo.id) {
-          _chatController.updateCurrentConversation(
-            _chatService.getConversation(convo.id),
-          );
-          notifyListeners();
-        }
-      } else {
-        onBackgroundTaskError?.call(BackgroundTaskKind.title, 'empty_response');
-      }
-    } catch (e) {
-      FlutterLogger.log(
-        '[TitleGen] Generation failed: $e',
-        tag: 'HomeViewModel',
+      final assistantProvider = _contextProvider.read<AssistantProvider>();
+      // A group topic has no conversation assistant — asking for one would
+      // resolve whichever assistant the user happens to have selected.
+      final assistant = convo.isGroupConversation
+          ? null
+          : assistantProvider.resolveConversationAssistant(convo.assistantId);
+      final model = resolveTitleModel(
+        settings,
+        conversation: convo,
+        assistant: assistant,
       );
-      onBackgroundTaskError?.call(BackgroundTaskKind.title, e);
+      final provKey = model.providerKey;
+      final mdlId = model.modelId;
+      if (provKey == null || mdlId == null) return;
+      final cfg = settings.getProviderConfig(provKey);
+      final reasoning = settings.titleGenerationReasoningFor(assistant);
+      final locale = Localizations.localeOf(_contextProvider).toLanguageTag();
+
+      // Build content from messages (shared with the side drawer title path;
+      // both cache and paging paths collect the same ~3000-char tail window)
+      final content = await _chatService.generateTitleSource(
+        convo.id,
+        line: convo.isGroupConversation
+            ? GroupTranscript.titleLine(
+                (id) => id == null ? null : assistantProvider.getById(id),
+              )
+            : null,
+      );
+
+      String prompt = settings.titlePrompt
+          .replaceAll('{locale}', locale)
+          .replaceAll('{content}', content);
+
+      try {
+        final title = (await ChatApiService.generateText(
+          conversationId: convo.id,
+          config: cfg,
+          modelId: mdlId,
+          prompt: prompt,
+          reasoning: reasoning,
+          skipImageParsing: true,
+        )).trim();
+        if (title.isNotEmpty) {
+          await _chatService.renameConversation(convo.id, title);
+          if (currentConversation?.id == convo.id) {
+            _chatController.updateCurrentConversation(
+              _chatService.getConversation(convo.id),
+            );
+            notifyListeners();
+          }
+        } else {
+          onBackgroundTaskError?.call(
+            BackgroundTaskKind.title,
+            'empty_response',
+          );
+        }
+      } catch (e) {
+        FlutterLogger.log(
+          '[TitleGen] Generation failed: $e',
+          tag: 'HomeViewModel',
+        );
+        onBackgroundTaskError?.call(BackgroundTaskKind.title, e);
+      }
+    } finally {
+      _titlesInFlight.remove(conversationId);
     }
   }
 

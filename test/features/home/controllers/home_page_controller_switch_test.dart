@@ -31,9 +31,13 @@ class _PageRequest {
 }
 
 class _ControlledChatService extends ChatService {
-  _ControlledChatService(this._messagesByConversation);
+  _ControlledChatService(
+    this._messagesByConversation, {
+    Map<String, String>? groupOf,
+  }) : _groupOf = groupOf ?? const <String, String>{};
 
   final Map<String, List<ChatMessage>> _messagesByConversation;
+  final Map<String, String> _groupOf;
   final Map<String, Conversation> _draftConversations =
       <String, Conversation>{};
   final List<_PageRequest> pageRequests = <_PageRequest>[];
@@ -112,6 +116,10 @@ class _ControlledChatService extends ChatService {
       id: id,
       title: 'Conversation $id',
       messageIds: messages.map((message) => message.id).toList(),
+      extras: {
+        if (_groupOf[id] case final groupId?)
+          Conversation.groupChatIdKey: groupId,
+      },
     );
   }
 
@@ -119,12 +127,16 @@ class _ControlledChatService extends ChatService {
   Future<Conversation> createDraftConversation({
     String? title,
     String? assistantId,
+    String? groupChatId,
     bool temporary = false,
     bool reuseNewEntry = false,
   }) async {
     final conversation = Conversation(
       title: title ?? 'Draft',
       assistantId: assistantId,
+      extras: {
+        if (groupChatId != null) Conversation.groupChatIdKey: groupChatId,
+      },
     );
     _draftConversations[conversation.id] = conversation;
     _messagesByConversation[conversation.id] = <ChatMessage>[];
@@ -1000,6 +1012,31 @@ void main() {
         expect(controller.selecting, isTrue);
         expect(controller.selectedItems, selectedBefore);
         expect(controller.selectionMode, ChatSelectionMode.delete);
+      });
+    });
+
+    testWidgets('a new chat inside a group stays in that group', (
+      tester,
+    ) async {
+      await runAsMobile(() async {
+        final service = _ControlledChatService(
+          {
+            'conv-g': [_message('conv-g', 0)],
+          },
+          groupOf: {'conv-g': 'g1'},
+        );
+        final controller = await pumpHarness(tester, service);
+        await switchAndSettle(tester, controller, service, 'conv-g');
+        expect(controller.currentConversation?.groupChatId, 'g1');
+
+        final future = controller.createNewConversationAnimated();
+        await pumpUntilDone(tester, [future]);
+
+        // A group topic has no assistant; opening a 1:1 chat instead would
+        // silently leave the group for whichever assistant was current.
+        expect(controller.currentConversation?.groupChatId, 'g1');
+        expect(controller.currentConversation?.assistantId, isNull);
+        expect(controller.currentConversation?.id, isNot('conv-g'));
       });
     });
 

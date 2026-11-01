@@ -5103,6 +5103,48 @@ class ChatDatabaseRepository {
     );
   }
 
+  /// Appends one user turn and nothing else.
+  ///
+  /// A group conversation's reply is chosen after the user message is already
+  /// visible (the round asks who speaks next), so it cannot use
+  /// [beginSendGeneration]: that method's contract is "one user turn plus the
+  /// reply it is already waiting for".
+  Future<({Conversation conversation, ChatMessage userMessage})>
+  beginUserMessage({
+    required Conversation conversation,
+    required ChatMessage userMessage,
+    DraftSubmission? draftSubmission,
+    UiContextSubmission? uiContext,
+  }) {
+    if (draftSubmission != null &&
+        (draftSubmission.conversationId != conversation.id ||
+            draftSubmission.id != userMessage.id ||
+            draftSubmission.editMessageId != null)) {
+      throw StateError('composer_submission_mismatch');
+    }
+    if (userMessage.conversationId != conversation.id ||
+        userMessage.role != 'user' ||
+        userMessage.isStreaming) {
+      throw ArgumentError.value(userMessage, 'userMessage');
+    }
+    return _observer.measure(
+      ChatDatabaseOperation.commandAppendMessage,
+      () => _writeTransaction(() async {
+        final resolvedUser = await _withUiContext(userMessage, uiContext);
+        final persisted = await _appendLinearMessageToConversation(
+          conversation: conversation,
+          message: resolvedUser,
+          selectVersion: false,
+          touchUpdatedAt: true,
+        );
+        if (draftSubmission != null) {
+          await composerDrafts.consumeInTransaction(draftSubmission);
+        }
+        return (conversation: persisted, userMessage: resolvedUser);
+      }),
+    );
+  }
+
   Future<GenerationBeginResult> beginRegeneration({
     required Conversation conversation,
     required ChatMessage assistantMessage,
@@ -7854,6 +7896,7 @@ class ChatDatabaseRepository {
             )
           : null,
       quote: MessageQuote.decodeFromExtras(extras),
+      senderId: row.senderId,
     )..hydrateStorageOrder(row.messageOrder);
   }
 
@@ -8111,6 +8154,7 @@ class ChatDatabaseRepository {
         ),
       ),
       messageOrder: messageOrder,
+      senderId: Value(message.senderId),
     );
   }
 
@@ -8138,6 +8182,7 @@ class ChatDatabaseRepository {
       completionTokens: Value(message.completionTokens),
       cachedTokens: Value(message.cachedTokens),
       durationMs: Value(message.durationMs),
+      senderId: Value(message.senderId),
     );
   }
 

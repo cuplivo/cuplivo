@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>管理页 · 该叫什么</title>
+<style>
+  :root {
+    --paper: #f4f1ea; --ink: #1d1c1a; --muted: #6f6b63; --faint: #9b958b;
+    --accent: #0f6b5c; --accent-soft: rgba(15,107,92,.09);
+    --line: rgba(29,28,26,.09); --card: #fbf9f3;
+    --shadow: 0 14px 36px rgba(50,42,30,.13), 0 2px 6px rgba(50,42,30,.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .sheet { max-width: 1060px; margin: 0 auto; padding: 38px 26px 64px; }
+  .eyebrow { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  h1 { font-size: 27px; margin: 10px 0 10px; letter-spacing: -.02em; }
+  .lede { font-size: 13.5px; line-height: 1.65; color: var(--muted); margin: 0; max-width: 700px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; margin-top: 30px; }
+  .pane {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    padding: 18px 18px 20px; box-shadow: var(--shadow);
+  }
+  .pane h2 { font-size: 15px; margin: 0 0 4px; }
+  .pane .why { font-size: 12px; color: var(--muted); margin: 0 0 16px; line-height: 1.55; }
+  .label { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin: 14px 0 7px; }
+
+  /* settings nav slice */
+  .nav { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #f7f5ef; }
+  .nav div { padding: 8px 12px; font-size: 13px; border-top: 1px solid var(--line); color: var(--muted); }
+  .nav div:first-child { border-top: none; }
+  .nav div.on { background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+
+  /* page head */
+  .head {
+    display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+    border: 1px solid var(--line); border-radius: 10px; background: #f7f5ef;
+    font-size: 14px; font-weight: 650;
+  }
+  .head .back { color: var(--accent); display: grid; place-items: center; }
+  .head svg { width: 15px; height: 15px; }
+  .head .spacer { flex: 1; }
+  .head .plus { color: var(--accent); display: grid; place-items: center; }
+
+  .row {
+    display: flex; align-items: center; gap: 11px; border: 1px solid var(--line);
+    border-radius: 12px; padding: 9px 10px; margin-top: 8px; background: var(--card);
+  }
+  .av {
+    width: 36px; height: 36px; flex: none; border-radius: 50%; display: grid;
+    place-items: center; font-size: 18px; background: linear-gradient(150deg,#e9e3d2,#d8cfb9);
+    border: 1px solid rgba(29,28,26,.07);
+  }
+  .av.cluster { background: #f0ece1; display: flex; align-items: center; justify-content: center; }
+  .av.cluster i {
+    width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid var(--card);
+    display: grid; place-items: center; font-style: normal; font-size: 8px;
+    background: #cfd8cd; margin-left: -5px;
+  }
+  .av.cluster i:first-child { margin-left: 0; }
+  .row .txt { flex: 1; min-width: 0; }
+  .row .nm { font-size: 13.5px; font-weight: 650; }
+  .row .sub { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+  .row .handle { color: var(--faint); display: grid; place-items: center; }
+  .row .handle svg { width: 14px; height: 14px; }
+
+  .menu { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--card); margin-top: 8px; }
+  .menu div { padding: 9px 12px; font-size: 13px; border-top: 1px solid var(--line); }
+  .menu div:first-child { border-top: none; }
+  .menu small { color: var(--faint); font-size: 11px; margin-left: 8px; }
+
+  .verdict { margin-top: 30px; font-size: 12.5px; line-height: 1.65; color: var(--muted); }
+  .verdict h4 { margin: 0 0 6px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); }
+  .verdict ul { margin: 0; padding-left: 18px; }
+  @media (max-width: 860px) { .pair { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="eyebrow">管理页 · 命名</div>
+  <h1>这一页叫什么</h1>
+  <p class="lede">
+    结构按你选的走：助手与群聊同列、同一份顺序、一个 + 新建。剩下的只有名字——
+    “管理”说的是动作，列表里装的是人和群，所以读起来别扭。两个候选都按同一版式排好，
+    正文、菜单、行内容完全一样，只有这一处词不同。
+  </p>
+
+  <div class="pair">
+    <!-- A -->
+    <section class="pane">
+      <h2>A · 聊天对象</h2>
+      <p class="why">按“你跟谁聊”命名，一个词覆盖助手和群；比“管理”具体，比复合词短。</p>
+
+      <div class="label">设置侧栏</div>
+      <div class="nav">
+        <div>外观</div><div>模型</div><div class="on">聊天对象</div><div>记忆</div><div>同步</div>
+      </div>
+
+      <div class="label">页面</div>
+      <div class="head">
+        <span class="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></span>
+        <span>聊天对象</span><span class="spacer"></span>
+        <span class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></span>
+      </div>
+      <div class="row">
+        <span class="av">🧪</span>
+        <div class="txt"><div class="nm">STEM Mentor v5</div><div class="sub">你是一位苛刻的审稿人</div></div>
+        <span class="handle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg></span>
+      </div>
+      <div class="row">
+        <span class="av cluster"><i>🧪</i><i>🏛</i><i>✍️</i></span>
+        <div class="txt"><div class="nm">论文评审组</div><div class="sub">STEM Mentor v5、苏格拉底、编辑</div></div>
+        <span class="handle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg></span>
+      </div>
+
+      <div class="label">+ 展开</div>
+      <div class="menu">
+        <div>新建助手<small>一个人设</small></div>
+        <div>新建群聊<small>群名 + 首批成员</small></div>
+      </div>
+    </section>
+
+    <!-- B -->
+    <section class="pane">
+      <h2>B · 助手与群聊</h2>
+      <p class="why">把两样东西直接写在名字上，不会有人误会这一页只装助手；代价是四个字，侧栏里最长的一项。</p>
+
+      <div class="label">设置侧栏</div>
+      <div class="nav">
+        <div>外观</div><div>模型</div><div class="on">助手与群聊</div><div>记忆</div><div>同步</div>
+      </div>
+
+      <div class="label">页面</div>
+      <div class="head">
+        <span class="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></span>
+        <span>助手与群聊</span><span class="spacer"></span>
+        <span class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></span>
+      </div>
+      <div class="row">
+        <span class="av">🧪</span>
+        <div class="txt"><div class="nm">STEM Mentor v5</div><div class="sub">你是一位苛刻的审稿人</div></div>
+        <span class="handle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg></span>
+      </div>
+      <div class="row">
+        <span class="av cluster"><i>🧪</i><i>🏛</i><i>✍️</i></span>
+        <div class="txt"><div class="nm">论文评审组</div><div class="sub">STEM Mentor v5、苏格拉底、编辑</div></div>
+        <span class="handle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg></span>
+      </div>
+
+      <div class="label">+ 展开</div>
+      <div class="menu">
+        <div>新建助手<small>一个人设</small></div>
+        <div>新建群聊<small>群名 + 首批成员</small></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="verdict">
+    <h4>两边的代价</h4>
+    <ul>
+      <li>A 用一个新词，第一次见到需要一秒才能确认“哦，助手也在这里”；以后每加一种对象（比如一个角色扮演场景）都要回答“算不算聊天对象”。</li>
+      <li>B 名字自己解释自己，不用猜；但侧栏里“助手与群聊”比“外观”“模型”长出一截，手机端设置页那一行会更挤。</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

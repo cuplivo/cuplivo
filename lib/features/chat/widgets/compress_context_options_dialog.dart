@@ -7,6 +7,7 @@ import '../../../core/models/compress_context_options.dart';
 import '../../../core/models/context_operation.dart';
 import '../../../core/models/context_compression_task.dart';
 import '../../../core/providers/settings_provider.dart';
+import '../../../core/services/chat/chat_service.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/utils/token_estimator.dart';
 import '../../../icons/lucide_adapter.dart';

@@ -400,7 +400,6 @@ class _DesktopSettingsPageState extends State<DesktopSettingsPage> {
                   }
                 }(),
               ),
-||||||| .scratch/st-base.tmp
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [

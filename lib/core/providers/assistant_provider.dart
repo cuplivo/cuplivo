@@ -29,7 +29,6 @@ class AssistantProvider extends ChangeNotifier {
   String? _orphanedAssistantId;
   final ChatService? chatService;
   bool _isLoaded = false;
-)
 
   List<Assistant> get assistants => List.unmodifiable(_assistants);
   String? get currentAssistantId => currentAssistant?.id;
@@ -53,7 +52,7 @@ class AssistantProvider extends ChangeNotifier {
   /// synchronous swap — so this is the only "not ready" state there is. It
   /// never flips back: a reload keeps the previous complete list until the new
   /// one decodes, and a failed decode leaves it untouched.
-  bool get isLoaded => _loaded;
+  bool get isLoaded => _isLoaded;
 
   /// Re-reads assistants after LAN sync wrote business rows outside this
   /// provider's own write path (ADR-0003 apply → reload).
@@ -132,7 +131,6 @@ class AssistantProvider extends ChangeNotifier {
       await preferences.setString(_currentAssistantKey, _currentAssistantId!);
     }
     _isLoaded = true;
-)
     notifyListeners();
   }
 
@@ -225,20 +223,6 @@ class AssistantProvider extends ChangeNotifier {
     final src = File(fixed);
     if (!await src.exists()) return rawPath;
 
-    final dir = isAvatar
-        ? await AppDirectories.getAvatarsDirectory()
-        : await AppDirectories.getImagesDirectory();
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
-    }
-    String ext = '';
-    final dot = fixed.lastIndexOf('.');
-    if (dot != -1 && dot < fixed.length - 1) {
-      ext = fixed.substring(dot + 1).toLowerCase();
-      if (ext.length > 6) ext = 'jpg';
-    } else {
-      ext = 'jpg';
-||||||| .scratch/st-base.tmp
     try {
       final dir = isAvatar
           ? await AppDirectories.getAvatarsDirectory()
@@ -258,18 +242,12 @@ class AssistantProvider extends ChangeNotifier {
       final dest = File(
         '${dir.path}/${prefix}_${newId}_${DateTime.now().millisecondsSinceEpoch}.$ext',
       );
+      createdFiles.add(dest);
       await src.copy(dest.path);
       return SandboxPathResolver.canonicalStorage(dest.path);
     } catch (_) {
       return rawPath;
     }
-    final prefix = isAvatar ? 'assistant' : 'background';
-    final dest = File(
-      '${dir.path}/${prefix}_${newId}_${DateTime.now().millisecondsSinceEpoch}.$ext',
-    );
-    createdFiles.add(dest);
-    await src.copy(dest.path);
-    return SandboxPathResolver.canonicalStorage(dest.path);
   }
 
   Future<String?> _copyLocalAssetToManagedDirectory(

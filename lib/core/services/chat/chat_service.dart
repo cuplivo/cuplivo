@@ -51,6 +51,7 @@ import '../../../utils/app_directories.dart';
 import '../mcp/mcp_image_snapshot.dart';
 import '../storage/storage_image_usage.dart';
 import '../storage/attachment_file_lock.dart';
+import '../recycle/recycle_service.dart';
 
 part 'chat_context_operations.dart';
 part 'chat_image_context.dart';
@@ -2200,11 +2201,12 @@ class ChatService extends ChangeNotifier {
   Future<bool> _deletePersistedConversation(
     String id, {
     bool bump = true,
+    RecycleGroup? group,
   }) async {
     final conversation = _conversationsCache[id];
     if (conversation == null) return false;
 
-    await _repo.deleteConversation(id);
+    await _repo.deleteConversation(id, group: group);
     _conversationsCache.remove(id);
     // Stop any deferred/in-flight order backfill before clearing caches so a
     // late getMessageIds cannot resurrect order/count for a deleted id.
@@ -2239,7 +2241,10 @@ class ChatService extends ChangeNotifier {
     return true;
   }
 
-  Future<void> deleteConversationsForAssistant(String assistantId) async {
+  Future<void> deleteConversationsForAssistant(
+    String assistantId, {
+    RecycleGroup? group,
+  }) async {
     if (!_initialized) await init();
 
     final targetId = assistantId.trim();
@@ -2267,7 +2272,11 @@ class ChatService extends ChangeNotifier {
     }
     for (final conversationId in persistedConversationIds) {
       deleted =
-          await _deletePersistedConversation(conversationId, bump: false) ||
+          await _deletePersistedConversation(
+            conversationId,
+            bump: false,
+            group: group,
+          ) ||
           deleted;
     }
 

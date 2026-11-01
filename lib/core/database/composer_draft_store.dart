@@ -765,10 +765,6 @@ class ComposerDraftStore extends ChangeNotifier {
       allowImagesApiRouting: input.allowImagesApiRouting,
       uiContext: input.uiContext,
       draftSubmission: submission,
-      // The submitted quotes are part of what was submitted: this rebuild is
-      // the send path's last stop before the row, so dropping them here costs
-      // the chip and the model's quoted text both.
-      quotes: input.quotes,
     );
   }
 

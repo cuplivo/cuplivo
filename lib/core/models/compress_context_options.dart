@@ -1,11 +1,9 @@
 import 'dart:convert';
 
-import '../utils/token_estimator.dart';
 import '../../utils/mcp_structured_image.dart';
 import '../../utils/utf16_safe_cut.dart';
 import 'chat_message.dart';
 import 'context_operation.dart';
-import 'message_part.dart';
 import 'message_part.dart';
 
 enum CompressContextLimitMode { start, recent, unlimited, keepRecent }

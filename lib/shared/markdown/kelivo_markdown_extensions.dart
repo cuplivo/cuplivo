@@ -18,6 +18,16 @@ import 'markdown_actions.dart';
 import 'link_image_handlers.dart';
 import 'math_adapter.dart';
 
+Map<String, String> markdownAlertLabels(AppLocalizations l10n) =>
+    <String, String>{
+      'note': l10n.markdownNoteLabel,
+      'tip': l10n.markdownTipLabel,
+      'important': l10n.markdownImportantLabel,
+      'warning': l10n.markdownWarningLabel,
+      'caution': l10n.markdownCautionLabel,
+      'danger': l10n.markdownDangerLabel,
+    };
+
 /// The inline grammar the parser needs, exported on its own because a consumer
 /// with no widget tree — the PDF export parses inside a background isolate —
 /// still has to read the same syntax the message does.

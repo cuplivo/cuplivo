@@ -907,7 +907,6 @@ Future<void> exportChatMessagesMarkdown(
   final chat = context.read<ChatService>();
   final userProvider = context.read<UserProvider>();
   final assistants = context.read<AssistantProvider>();
-  final assistant = assistants.currentAssistant;
   final thinkingLabel = l10n.messageExportThinkingContentLabel;
   final timeFormatter = DateFormat(
     l10n.messageExportSheetDateTimeWithSecondsPattern,
@@ -1022,7 +1021,6 @@ Future<void> exportChatMessagesTxt(
   final chat = context.read<ChatService>();
   final userProvider = context.read<UserProvider>();
   final assistants = context.read<AssistantProvider>();
-  final assistant = assistants.currentAssistant;
   final thinkingLabel = l10n.messageExportThinkingContentLabel;
   final timeFormatter = DateFormat(
     l10n.messageExportSheetDateTimeWithSecondsPattern,

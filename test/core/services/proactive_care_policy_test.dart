@@ -96,6 +96,56 @@ void main() {
     expect(result.single.expectedAt, due.proactiveCareNextMessageAt);
   });
 
+  test('plan classifies each dropped future schedule by reason', () {
+    final dueAt = now.add(const Duration(minutes: 10));
+    final plan = ProactiveCareConversationPolicy.plan(
+      conversations: [
+        conversation(id: 'due').setProactiveCareNextMessageAt(dueAt),
+        conversation(id: 'off')
+            .setProactiveCareEnabledOverride(false)
+            .setProactiveCareNextMessageAt(dueAt),
+        conversation(
+          id: 'gone',
+          assistantId: 'deleted',
+        ).setProactiveCareNextMessageAt(dueAt),
+        conversation(
+          id: 'ownerless',
+          assistantId: null,
+        ).setProactiveCareNextMessageAt(dueAt),
+        conversation(id: 'past').setProactiveCareNextMessageAt(
+          now.subtract(const Duration(minutes: 1)),
+        ),
+      ],
+      assistants: [assistant()],
+      now: now,
+    );
+
+    expect(plan.pending.map((target) => target.conversation.id), ['due']);
+    expect(plan.omitted, {
+      ProactiveCareScheduleOmission.ownerless: 1,
+      ProactiveCareScheduleOmission.ownerGone: 1,
+      ProactiveCareScheduleOmission.switchedOff: 1,
+    });
+    expect(plan.omittedCount, 3);
+  });
+
+  test('a switched-off assistant is an omission, not a gone owner', () {
+    final dueAt = now.add(const Duration(minutes: 10));
+    final plan = ProactiveCareConversationPolicy.plan(
+      conversations: [
+        conversation(
+          id: 'quiet',
+          assistantId: 'a2',
+        ).setProactiveCareNextMessageAt(dueAt),
+      ],
+      assistants: [assistant(id: 'a2', enabled: false)],
+      now: now,
+    );
+
+    expect(plan.pending, isEmpty);
+    expect(plan.omitted, {ProactiveCareScheduleOmission.switchedOff: 1});
+  });
+
   test('extras-backed state round-trips through setters', () {
     final at = now.add(const Duration(hours: 3));
     final conv = conversation()

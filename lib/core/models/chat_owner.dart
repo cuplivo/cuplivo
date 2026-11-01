@@ -21,21 +21,6 @@ class ChatOwner {
     ChatOwnerKind.group => 'group:$id',
   };
 
-  static ChatOwner? tryParse(String key) {
-    final separator = key.indexOf(':');
-    if (separator <= 0) return null;
-    final id = key.substring(separator + 1);
-    if (id.isEmpty) return null;
-    switch (key.substring(0, separator)) {
-      case 'assistant':
-        return ChatOwner.assistant(id);
-      case 'group':
-        return ChatOwner.group(id);
-      default:
-        return null;
-    }
-  }
-
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

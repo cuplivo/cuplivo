@@ -1642,7 +1642,7 @@ class HomeViewModel extends ChangeNotifier {
     final conversation = await _chatService.createDraftConversation(
       title: groupChatId == null
           ? getTitleForLocale(_contextProvider)
-          : _chatService.groupTopicTitle,
+          : AppLocalizations.of(_contextProvider)!.groupChatNewTopic,
       assistantId: targetAssistantId,
       groupChatId: groupChatId,
       reuseNewEntry: true,

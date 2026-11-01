@@ -1,6 +1,5 @@
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/group_chat.dart';
-import '../../../core/models/message_part.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
@@ -234,12 +233,4 @@ class GroupTranscript {
       );
     };
   }
-
-  /// Whether a message is an empty assistant placeholder that must not count as
-  /// part of the public transcript.
-  static bool isBlankAssistantTurn(ChatMessage message) =>
-      message.role == 'assistant' &&
-      !message.isStreaming &&
-      publicText(message).isEmpty &&
-      !message.parts.any((part) => part is ImagePart || part is FilePart);
 }

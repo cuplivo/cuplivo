@@ -221,9 +221,16 @@ class ChatActions {
     String? expectedMessageId,
   }) async {
     final actions = _current;
-    if (actions == null || !actions._hasActiveGeneration(conversationId)) {
+    if (actions == null) return;
+    if (expectedMessageId == null &&
+        actions.isGroupRoundLoading(conversationId)) {
+      // A round holds no stream between speakers, so "is generating" cannot see
+      // it: deleting the topic has to stop the loop, or the director is asked
+      // for a next speaker whose conversation no longer exists.
+      await actions.cancelGroupRound(conversationId);
       return;
     }
+    if (!actions._hasActiveGeneration(conversationId)) return;
     if (expectedMessageId != null &&
         actions.activeStreamingMessageId(conversationId) != expectedMessageId) {
       return;
@@ -365,6 +372,13 @@ class ChatActions {
         if (ctx.generationRunId != null &&
             _generationCheckpointCursors[ctx.assistantMessage.id]?.runId !=
                 ctx.generationRunId) {
+          return;
+        }
+        // Cancel from the notification means cancel the round: stopping only the
+        // stream would let the loop pick the next speaker and keep talking after
+        // the user pressed Cancel.
+        if (isGroupRoundLoading(conversationId)) {
+          await cancelGroupRound(conversationId);
           return;
         }
         await cancelStreamingById(conversationId);
@@ -573,6 +587,10 @@ class ChatActions {
     if (members.isEmpty) return ChatActionResult.error('group_has_no_members');
     final claimToken = ++_sendInFlightClaimSerial;
     if (isSendInFlight(conversation.id) ||
+        // The round hands its claim to the loading flag, which `isSendInFlight`
+        // does not see: reading it is what keeps this entry point at parity with
+        // the other two writers.
+        isGroupRoundLoading(conversation.id) ||
         chatService.contextCompression.blocksSending(conversation.id)) {
       return ChatActionResult.inFlight();
     }

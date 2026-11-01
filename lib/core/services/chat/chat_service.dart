@@ -254,38 +254,46 @@ class ChatService extends ChangeNotifier {
     }
   }
 
-  // Localized placeholder titles; set by the UI on startup.
+  /// The placeholder a conversation gets when the service creates one outside
+  /// the UI (a temporary chat, a scheduled run). The UI refreshes it with the
+  /// current language on startup.
   String _defaultConversationTitle = 'New Chat';
-  String _groupTopicTitle = 'New topic';
+
+  /// Titles that mean "nothing has named this yet", in every language the app
+  /// ships; see [setPlaceholderTitles].
+  Set<String> _placeholderTitles = const <String>{'New Chat', 'New topic'};
 
   /// The placeholder a new conversation carries until something names it.
   String get defaultConversationTitle => _defaultConversationTitle;
 
-  /// The placeholder a group topic carries: a topic is named after its first
-  /// user message once the round that answers it has finished.
-  String get groupTopicTitle => _groupTopicTitle;
-
+  /// [titles] holds every localized placeholder — the conversation one and the
+  /// group-topic one, for every language the app can run in.
+  ///
+  /// A conversation keeps the title it was created with and the user can switch
+  /// language without restarting, so matching the current locale alone would
+  /// stop naming a chat created before the switch. "The title is some known
+  /// placeholder" is the property that actually holds.
   void setPlaceholderTitles({
     required String conversation,
-    required String groupTopic,
+    required Set<String> titles,
   }) {
     if (conversation.trim().isNotEmpty) {
       _defaultConversationTitle = conversation.trim();
     }
-    if (groupTopic.trim().isNotEmpty) _groupTopicTitle = groupTopic.trim();
+    if (titles.isNotEmpty) {
+      _placeholderTitles = <String>{
+        for (final title in titles)
+          if (title.trim().isNotEmpty) title.trim(),
+        _defaultConversationTitle,
+      };
+    }
   }
 
   /// Whether [title] is still a placeholder, i.e. nothing has named this
   /// conversation yet.
-  ///
-  /// One predicate for every auto-naming path: they ask this instead of
-  /// comparing against a single hard-coded string, so a group topic — titled
-  /// `新话题` rather than `新对话` — is still renamed after its first turn.
   bool isPlaceholderTitle(String title) {
     final trimmed = title.trim();
-    return trimmed.isEmpty ||
-        trimmed == _defaultConversationTitle ||
-        trimmed == _groupTopicTitle;
+    return trimmed.isEmpty || _placeholderTitles.contains(trimmed);
   }
 
   /// Optional extras merged into brand-new conversations (not restores).

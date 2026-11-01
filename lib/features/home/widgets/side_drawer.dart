@@ -4217,7 +4217,9 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     final conversation =
         recent ??
         await chat.createDraftConversation(
-          title: chat.groupTopicTitle,
+          // Read live: a topic created after a language switch is titled in the
+          // language the user is looking at.
+          title: AppLocalizations.of(context)!.groupChatNewTopic,
           groupChatId: group.id,
           reuseNewEntry: true,
         );

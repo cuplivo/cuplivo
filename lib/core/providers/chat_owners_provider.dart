@@ -42,9 +42,6 @@ class ChatOwnersProvider extends ChangeNotifier {
   /// Every existing owner, in the user's order.
   List<ChatOwner> get owners => _owners;
 
-  List<ChatOwner> get groupOwners =>
-      _owners.where((owner) => owner.isGroup).toList(growable: false);
-
   /// The part of the list that sits under no tag header: untagged assistants
   /// plus every group, in order. Tag headers stay assistant-only, which is why
   /// groups land here rather than inventing a tag of their own.

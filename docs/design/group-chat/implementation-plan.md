@@ -211,6 +211,23 @@ widget 测试才能确认，留待后续。
 `_messageUpdate` 的 `senderId` 归一；设置页「+」在桌面端什么都不弹——补 `anchorKey`
 （桌面布局也推这个页面，所以按钮是可达的死按钮）。剩一条「首启时顺序先写空」会自愈，不动。
 
+### 4.10 第五遍复核
+
+第五轮 6 条：4 条真缺陷（1、2、4、5），1 条是数字算错（3），1 条是陈旧列表 + 死代码（6）。全部修掉。
+
+| 问题 | 修法 |
+| --- | --- |
+| 切换语言后新建的 1:1 不再自动命名 | 占位标题从「启动时抓的两个字符串」换成「所有语言的所有占位标题集合」（`localizedPlaceholderTitles()`），判据变成「这个标题是某个已知占位」；群话题的创建标题也改读当前 l10n，不再用冻结值 |
+| 通知栏取消只停一个 speaker，群继续说话 | 后台任务取消时，轮次持有 loading 就走 `cancelGroupRound`，否则只停流 |
+| 群话题里上下文占用按「选中助手」的模型算 | 群话题隐藏该入口，与同一个 composer 里 reasoning / search 的处理一致：一个话题没有单一模型可测 |
+| 删单个群话题不停止轮次（还会弹 `conversation_missing`） | `cancelActiveGenerationFor` 先看轮次占用，有就 `cancelGroupRound` 再返回 |
+| `sendGroupMessage` 不读轮次占用 | 补上判据，与 `restartGroupRound`、`continueAssistantMessageAfterToolAnswer` 一致 |
+| 成员面板显示快照；三个公开成员没人引用 | 面板改成 `Consumer2` 读活的群与成员；删掉 `GroupTranscript.isBlankAssistantTurn`、`ChatOwner.tryParse`、`ChatOwnersProvider.groupOwners` |
+
+未验证项里修了一条：`main.dart` 把占位标题与压缩署名拆成两个 `try`——原来任一处抛异常，另一个就整个进程都空着。
+其余三条记录在案、未改：第二个写者与 dispose 挂起都依赖「同一对话两个轮次」（第 5 条已把入口补齐），
+`_titlesInFlight` 丢一次命名会在下一次轮次结束补上。
+
 ## 5. 验证
 - `dart analyze --fatal-infos lib test integration_test` → **0 issue**。
 - 新增测试（14 + 22 = 36 条，全绿）：

@@ -33,26 +33,48 @@ Future<void> showGroupMembers(BuildContext context, String groupId) async {
   void invite() => unawaited(showGroupInvite(context, groupId));
   void settings() => unawaited(showGroupSettings(context, groupId));
 
+  // The roster can change while this is open — the gear leads to the settings
+  // page that invites and removes members — so the body re-reads the group and
+  // its members instead of closing over a snapshot taken before it was shown.
+  Widget membersBody(BuildContext bodyContext) {
+    return Consumer2<GroupChatProvider, AssistantProvider>(
+      builder: (consumerContext, liveGroups, _, _) {
+        final live = liveGroups.byId(groupId) ?? group;
+        return GroupMemberList(
+          group: live,
+          members: _membersOf(consumerContext, live),
+          onInvite: invite,
+          onOpenSettings: settings,
+          onClose: () => Navigator.of(bodyContext).pop(),
+        );
+      },
+    );
+  }
+
   if (_isDesktop) {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
-        final members = _membersOf(dialogContext, group);
-        return AlertDialog(
-          title: Text(group.name.isEmpty ? l10n.groupChatTitle : group.name),
-          contentPadding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-          content: SizedBox(
-            width: 360,
-            child: SingleChildScrollView(
-              child: GroupMemberList(
-                group: group,
-                members: members,
-                onInvite: invite,
-                onOpenSettings: settings,
-                onClose: () => Navigator.of(dialogContext).pop(),
+        return Consumer2<GroupChatProvider, AssistantProvider>(
+          builder: (consumerContext, liveGroups, _, _) {
+            final live = liveGroups.byId(groupId) ?? group;
+            return AlertDialog(
+              title: Text(live.name.isEmpty ? l10n.groupChatTitle : live.name),
+              contentPadding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+              content: SizedBox(
+                width: 360,
+                child: SingleChildScrollView(
+                  child: GroupMemberList(
+                    group: live,
+                    members: _membersOf(consumerContext, live),
+                    onInvite: invite,
+                    onOpenSettings: settings,
+                    onClose: () => Navigator.of(dialogContext).pop(),
+                  ),
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
@@ -64,19 +86,10 @@ Future<void> showGroupMembers(BuildContext context, String groupId) async {
     title: group.name.isEmpty ? l10n.groupChatTitle : group.name,
     partialHeightFactor: 0.55,
     builder: (sheetContext, scrollController) {
-      final members = _membersOf(sheetContext, group);
       return ListView(
         controller: scrollController,
         padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
-        children: [
-          GroupMemberList(
-            group: group,
-            members: members,
-            onInvite: invite,
-            onOpenSettings: settings,
-            onClose: () => Navigator.of(sheetContext).pop(),
-          ),
-        ],
+        children: [membersBody(sheetContext)],
       );
     },
   );

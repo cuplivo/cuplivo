@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart'
 import 'dart:async';
 import 'dart:ui' show AppExitResponse;
 import 'l10n/app_localizations.dart';
+import 'features/chat/utils/placeholder_titles.dart';
 import 'features/group_chat/services/group_transcript.dart';
 import 'features/home/pages/home_page.dart';
 import 'features/migration/hive_to_sqlite_migration_page.dart';
@@ -1307,14 +1308,18 @@ class MyApp extends StatelessWidget {
                       try {
                         ctx.read<AssistantProvider>().ensureDefaults(ctx);
                       } catch (_) {}
+                      // Separate tries: a failure in one must not leave the
+                      // other unset for the rest of the process.
                       try {
                         final l10n = AppLocalizations.of(ctx)!;
-                        final chat = ctx.read<ChatService>();
-                        chat.setPlaceholderTitles(
+                        ctx.read<ChatService>().setPlaceholderTitles(
                           conversation:
                               l10n.chatServiceDefaultConversationTitle,
-                          groupTopic: l10n.groupChatNewTopic,
+                          titles: localizedPlaceholderTitles(),
                         );
+                      } catch (_) {}
+                      try {
+                        final chat = ctx.read<ChatService>();
                         // A group's summary must keep its voices apart.
                         chat.compressionLabelOf =
                             GroupTranscript.compressionLabel(

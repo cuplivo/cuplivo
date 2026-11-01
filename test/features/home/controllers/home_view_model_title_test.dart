@@ -15,6 +15,7 @@ import 'package:Cuplivo/core/providers/mcp_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/core/services/mcp/mcp_tool_service.dart';
+import 'package:Cuplivo/features/chat/utils/placeholder_titles.dart';
 import 'package:Cuplivo/features/home/controllers/home_page_controller.dart';
 import 'package:Cuplivo/features/home/controllers/scroll_controller.dart';
 import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
@@ -278,6 +279,33 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a title in another language is still a placeholder', (
+    tester,
+  ) async {
+    final controller = await pumpHarness(tester);
+    await tester.runAsync(() async {
+      // What the app does on startup: every shipped locale's placeholder, not
+      // the one the process happens to have started in. A user who switches
+      // EN→ZH keeps creating `新话题` topics, and the naming gate has to keep
+      // recognising them.
+      chatService.setPlaceholderTitles(
+        conversation: 'New Chat',
+        titles: localizedPlaceholderTitles(),
+      );
+      final convo = await chatService.createConversation(
+        title: '新话题',
+        groupChatId: 'g1',
+      );
+      await seedTwoTurnGroupConversation(convo.id);
+
+      await controller.debugViewModel.debugMaybeGenerateTitleFor(convo.id);
+
+      expect(chatService.getConversation(convo.id)!.title, 'Dark mode chat');
+      await tester.pumpWidget(const SizedBox());
+    });
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a group topic is titled by the director model', (tester) async {
     final controller = await pumpHarness(tester);
     await tester.runAsync(() async {
@@ -285,7 +313,7 @@ void main() {
       // The placeholder a topic actually carries. While it was not one of the
       // names the gate recognised, a topic kept `新话题` for its whole life.
       final convo = await chatService.createConversation(
-        title: chatService.groupTopicTitle,
+        title: 'New topic',
         groupChatId: 'g1',
       );
       await seedTwoTurnGroupConversation(convo.id);

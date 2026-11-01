@@ -1436,9 +1436,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assistantEditModelUseGlobalDefault => '使用全局默认';
 
   @override
-  String get assistantSettingsPageTitle => '助手设置';
-
-  @override
   String get assistantSettingsCopyButton => '复制';
 
   @override
@@ -17289,9 +17286,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get assistantEditModelUseGlobalDefault => '使用全局默认';
 
   @override
-  String get assistantSettingsPageTitle => '助手设置';
-
-  @override
   String get assistantSettingsCopyButton => '复制';
 
   @override
@@ -33066,9 +33060,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get assistantEditModelUseGlobalDefault => '使用全域預設';
-
-  @override
-  String get assistantSettingsPageTitle => '助理設定';
 
   @override
   String get assistantSettingsCopyButton => '複製';

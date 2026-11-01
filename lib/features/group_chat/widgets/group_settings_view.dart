@@ -119,6 +119,9 @@ class _GroupSettingsViewState extends State<GroupSettingsView> {
       ),
     );
     if (confirmed != true || !mounted) return;
+    // Keep the roster non-empty: the rule `GroupCreateForm` applies at creation
+    // has to hold here too, or the group can never answer again.
+    if (group.memberIds.length <= 1) return;
     await context.read<GroupChatProvider>().update(
       group.copyWith(
         memberIds: List<String>.unmodifiable(
@@ -235,12 +238,18 @@ class _GroupSettingsViewState extends State<GroupSettingsView> {
           _SettingRow(
             leading: AssistantAvatar(assistant: member, size: 30),
             label: member.name.trim().isEmpty ? member.id : member.name,
-            onTap: () => _removeMemberConfirm(member),
-            trailing: Icon(
-              Lucide.X,
-              size: 16,
-              color: cs.onSurface.withValues(alpha: 0.4),
-            ),
+            // With one member left there is nobody to remove it for, so the
+            // row does not offer the action.
+            onTap: members.length > 1
+                ? () => _removeMemberConfirm(member)
+                : null,
+            trailing: members.length > 1
+                ? Icon(
+                    Lucide.X,
+                    size: 16,
+                    color: cs.onSurface.withValues(alpha: 0.4),
+                  )
+                : null,
           ),
         _SettingRow(
           leading: _CircleIcon(icon: Lucide.UserPlus, color: cs.primary),

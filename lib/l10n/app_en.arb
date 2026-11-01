@@ -602,7 +602,6 @@
     }
   },
   "assistantEditModelUseGlobalDefault": "Use global default",
-  "assistantSettingsPageTitle": "Assistant Settings",
   "assistantSettingsCopyButton": "Copy",
   "assistantSettingsCopySuccess": "Assistant copied",
   "assistantSettingsCopySuffix": "Copy",

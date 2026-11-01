@@ -2842,12 +2842,6 @@ abstract class AppLocalizations {
   /// **'Use global default'**
   String get assistantEditModelUseGlobalDefault;
 
-  /// No description provided for @assistantSettingsPageTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Assistant Settings'**
-  String get assistantSettingsPageTitle;
-
   /// No description provided for @assistantSettingsCopyButton.
   ///
   /// In en, this message translates to:

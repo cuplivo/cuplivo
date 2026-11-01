@@ -357,6 +357,10 @@ class HomeViewModel extends ChangeNotifier {
   /// Whether send/regenerate or cancellation teardown owns [conversationId].
   bool isConversationSendInFlight(String conversationId) =>
       _chatActions.isSendInFlight(conversationId);
+
+  /// Whether a whole round owns [conversationId]'s loading flag.
+  bool isGroupRoundLoading(String conversationId) =>
+      _chatActions.isGroupRoundLoading(conversationId);
   Map<String, StreamSubscription<dynamic>> get conversationStreams =>
       _chatController.conversationStreams;
 
@@ -860,8 +864,6 @@ class HomeViewModel extends ChangeNotifier {
 
     _chatActions.onScheduleImageSanitize = onScheduleImageSanitize;
 
-    // A topic whose group row is gone is not a group any more: it sends as an
-    // ordinary conversation instead of refusing every message.
     // A topic whose group row is gone is not a group any more: it sends as an
     // ordinary conversation instead of refusing every message.
     if (conversation.isGroupConversation &&

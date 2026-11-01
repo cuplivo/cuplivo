@@ -4,6 +4,7 @@ import 'package:Cuplivo/core/providers/group_chat_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/features/group_chat/widgets/group_member_list.dart';
 import 'package:Cuplivo/features/group_chat/widgets/group_settings_view.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/shared/widgets/emoji_text.dart';
 import 'package:flutter/material.dart';
@@ -112,5 +113,49 @@ void main() {
 
     expect(find.byType(EmojiText), findsWidgets);
     expect(find.byType(GroupAvatar), findsOneWidget);
+  });
+
+  testWidgets('the last member cannot be removed', (tester) async {
+    final database = createBusinessTestPreferencesWithDatabase();
+    final groups = GroupChatProvider(
+      store: ExtensionEntityStore(database.database),
+    );
+    await groups.loaded;
+    final assistants = AssistantProvider(
+      preferences: createBusinessTestPreferences(),
+    );
+    await assistants.loaded;
+    final solo = await assistants.addAssistant(name: 'Solo');
+    final second = await assistants.addAssistant(name: 'Second');
+    final group = await groups.create(name: 'Reading club', memberIds: [solo]);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<GroupChatProvider>.value(value: groups),
+          ChangeNotifierProvider<AssistantProvider>.value(value: assistants),
+          ChangeNotifierProvider<SettingsProvider>(
+            create: (_) => SettingsProvider(createBusinessTestPreferences()),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: GroupSettingsView(groupId: group.id)),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Solo'), findsOneWidget);
+    // No removal affordance while one member is keeping the group alive.
+    expect(find.byIcon(Lucide.X), findsNothing);
+
+    await groups.update(
+      groups.byId(group.id)!.copyWith(memberIds: [solo, second]),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Lucide.X), findsNWidgets(2));
   });
 }

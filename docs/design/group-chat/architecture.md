@@ -271,7 +271,7 @@ desktop: showDialog(GroupMemberList)          // 不用 bottom sheet
 1. **schema 版本不变**：`AppDatabase.currentSchemaVersion == 5`；群聊只用 `extension_entity_rows`、`conversation_rows.extras_json`、`message_rows.sender_id`。
 2. **群会话的 `assistant_id` 永远是 null**；群归属只由 `extras['groupChat.id']` 决定。
 3. **群聊助手消息的 `senderId` 永远非空**；插入时写入，更新不丢。读取时 `senderId` 解析不到助手 → 显示“已离开的助手”，不崩溃、不 fallback 到当前助手。
-4. **一个群至少有 1 个成员**；删除最后一个成员要么拒绝，要么同时删除群。选择拒绝（与“至少一个助手”一致）。
+4. **一个群至少有 1 个成员**；只剩一个成员时设置页不提供移除，`_removeMember` 也拒绝（与“至少一个助手”一致）。群本身可以删。
 5. **Director 不产生消息行**，不写 conversation extras，不参与备份。
 6. **群聊会话不出现在任何助手的话题列表**；`assistantId == null` 的普通全局会话行为不变。
 7. **一轮只有一个写者**：发送/重发/重新生成都走同一个 conversation claim；director 循环里不会并发两个 speaker。

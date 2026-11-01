@@ -136,6 +136,14 @@
 群设置里名字输入框的 400ms 防抖仍可能用旧的 `group` 覆盖 `maxSpeakerTurns`：需要一次
 widget 测试才能确认，留待后续。
 
+#### 4.6.1 留到后续
+
+- **轮次循环本身的测试**：导演已经能单独测（本地 HTTP 服务回 `tool_calls`），但
+  `_runGroupRound` 需要一个 fake 生成服务才能驱动整轮（流式回复、取消、fallback 的衔接）。
+  这条路同样会覆盖 4.6 新增的「重来一轮」——它复用同一个循环，目前只有 analyzer 与手测。
+- **群设置名字防抖**：输入名字后 400ms 内改「每轮最多发言」，旧 `group` 会把轮数写回去。
+  需要一次 widget 测试才能确认，不盲改。
+
 ### 4.7 第二遍复核
 
 第二轮复核给 9 条，全部复现；这一轮修 7 条，两条记录在 §4.7.1。
@@ -163,15 +171,28 @@ widget 测试才能确认，留待后续。
   `GroupChat.deletedAt` 与 90 天扫描（§7）仍未实现，作为后续；`architecture.md` §10 的
   「提示群已删除」也还没做。
 
-#### 4.6.1 留到后续
+### 4.8 第三遍复核
 
-- **轮次循环本身的测试**：导演已经能单独测（本地 HTTP 服务回 `tool_calls`），但
-  `_runGroupRound` 需要一个 fake 生成服务才能驱动整轮（流式回复、取消、fallback 的衔接）。
-  这条路同样会覆盖 4.6 新增的「重来一轮」——它复用同一个循环，目前只有 analyzer 与手测。
-- **群设置名字防抖**：输入名字后 400ms 内改「每轮最多发言」，旧 `group` 会把轮数写回去。
-  需要一次 widget 测试才能确认，不盲改。
-- **批量「移动到」里的群话题**：菜单项已经对群话题隐藏，服务层也会拒绝写入，但全选后批量
-  移动仍会把群话题放进选择集合再被跳过，计数里看不出来。留待批量操作那一版统一处理。
+第三轮复核给 10 条，全部复现并修掉；另有 2 条“未验证但形状如此”的挂起路径一并封了口。
+
+| 问题 | 修法 |
+| --- | --- |
+| 内联 `resolveAssistant` 闭包让消息列表每次重建都走全量重测 | 列表不再收回调，直接收 `AssistantProvider`：同一实例跨帧稳定，度量守卫按身份比较。宿主 build 里新建的闭包天生不 `identical`，把正确性做进参数类型，而不是靠调用方自觉 |
+| 侧栏删群后页面停在空会话，下一次按键落到新建的 1:1 | 删前取该群的话题 id 与下一个会话，删后 toast + 走 `_handlePostDeleteNavigation` |
+| 最后一个成员能被移除 | 只剩一人时设置页不渲染 ✕，`_removeMember` 同时拒绝（不只靠 UI） |
+| 补答旧 ask-user 卡片会顶掉轮次里正在生成的回合 | 卡片入口认 `isGroupRoundLoading`；`continueAssistantMessageAfterToolAnswer` 同样加判据——轮次把 claim 交给了 loading 标志，只看 `isSendInFlight` 看不见它 |
+| 群话题列表里批量“移动到”什么都不做 | 选择里没有可移动会话时，批量条不渲染“移动到”（单条菜单早已隐藏） |
+| Stop 落在 speaker 准备阶段仍会生成整条回复 | `beginAssistantGeneration` 之前再查一次 `isGroupRoundCancelled`；此时还没有占位行，直接返回 null |
+| 用户离开话题后导演看不到前面发言的正文 | 回合结束后 `_messages` 里找不到就回库读（`loadMessagesByIds`），不再把空占位当发言 |
+| 孤儿话题里按“+”又造一个挂着死群的新话题 | 继承来的 `groupChatId` 先确认群还在；显式传入的不受影响 |
+| 删群再从回收站还原，侧栏位置跑到最后 | 顺序表保留“暂时不存在”的 key（墓碑），只从 `_owners` 里隐藏；显式拖动才压缩掉墓碑 |
+| 杂物：重复注释、无引用的 `assistantSettingsPageTitle`、无引用的 `GroupChat.isEmpty`、r2 文档的孤儿话题承诺 | 注释去重；ARB 键四处删除并重生成；`isEmpty` 删除；`architecture-r2.md` 改成与实际一致的“按普通会话继续用” |
+
+另外两条挂起路径：`generate()` 里所有会抛的语句移进 `try`（`unawaited` 会让 waiter 永久挂起）；
+`sendGroupMessage` 落库失败会归还轮次 claim（否则 loading 一直举着，Stop 也清不掉）。
+
+已知未改，记录在案：`_openGroup` 取最新**已落库**话题、忽略未发送草稿；群删除时草稿话题按设计
+丢弃、不进回收站（`architecture-r2.md` 已写明）。
 
 ## 5. 验证
 - `dart analyze --fatal-infos lib test integration_test` → **0 issue**。

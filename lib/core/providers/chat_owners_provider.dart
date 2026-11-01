@@ -14,8 +14,9 @@ import 'group_chat_provider.dart';
 /// `group:<id>`), so it rides the ordinary preference channel — backup, restore
 /// and LAN sync — without a new table. Membership is not stored: the sources are
 /// the authority for *what exists*, and this provider only remembers *where*.
-/// A key whose assistant or group is gone is dropped, and a newly created one is
-/// appended, so the two can never drift into disagreeing.
+/// A key whose assistant or group is gone keeps its slot (so a restore returns
+/// it to where it was) but is not listed, and a newly created one is appended,
+/// so the two can never drift into disagreeing about what the sidebar shows.
 class ChatOwnersProvider extends ChangeNotifier {
   ChatOwnersProvider({
     required this.assistants,
@@ -98,17 +99,28 @@ class ChatOwnersProvider extends ChangeNotifier {
       for (final group in groups.groups)
         ChatOwner.group(group.id).key: ChatOwner.group(group.id),
     };
+    // A key whose owner is gone keeps its slot instead of being dropped: an
+    // owner deleted into the bin and restored later must come back where it
+    // was, not at the end of the sidebar. These tombstones are compacted away
+    // by the next explicit drag, which rewrites the order from what is visible.
+    final previousOwnerKeys = [for (final owner in _owners) owner.key];
+    final nextKeys = <String>[];
     final next = <ChatOwner>[];
     final seen = <String>{};
     for (final key in _order) {
+      if (!seen.add(key)) continue;
+      nextKeys.add(key);
       final owner = available.remove(key);
-      if (owner != null && seen.add(key)) next.add(owner);
+      if (owner != null) next.add(owner);
     }
     for (final owner in available.values) {
-      if (seen.add(owner.key)) next.add(owner);
+      if (!seen.add(owner.key)) continue;
+      nextKeys.add(owner.key);
+      next.add(owner);
     }
-    final nextKeys = [for (final owner in next) owner.key];
-    final changed = !listEquals(_order, nextKeys);
+    final changed =
+        !listEquals(_order, nextKeys) ||
+        !listEquals(previousOwnerKeys, [for (final owner in next) owner.key]);
     _order
       ..clear()
       ..addAll(nextKeys);

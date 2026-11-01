@@ -1114,9 +1114,7 @@ class _HomePageState extends State<HomePage>
       // conversation this is: a group member, or a topic whose group row is
       // gone. A message without a senderId has no author of its own and falls
       // back to the conversation's assistant, so a 1:1 chat is unchanged.
-      resolveAssistant: (message) => message.senderId == null
-          ? null
-          : assistants.getById(message.senderId!),
+      assistants: assistants,
       contextTask: compression,
       contextTaskRevision: compression == null
           ? null

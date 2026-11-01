@@ -23,6 +23,7 @@ import '../../../core/models/chat_message.dart';
 import '../../../core/models/message_part.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/assistant_regex.dart';
+import '../../../core/providers/assistant_provider.dart';
 import '../../../utils/assistant_regex.dart';
 import '../../../shared/widgets/ios_checkbox.dart';
 import '../../../shared/widgets/selection_scroll_container.dart';
@@ -192,7 +193,7 @@ class MessageListView extends StatefulWidget {
     this.showUserAvatar = true,
     this.showTokenStats = false,
     this.assistant,
-    this.resolveAssistant,
+    this.assistants,
   });
 
   final ScrollController scrollController;
@@ -335,7 +336,15 @@ class MessageListView extends StatefulWidget {
   /// conversation passes a resolver keyed on [ChatMessage.senderId], so an old
   /// reply keeps the face and name it was written with even after the current
   /// assistant changes — or after its author is deleted.
-  final Assistant? Function(ChatMessage message)? resolveAssistant;
+  /// The roster a reply's author is resolved from, so one conversation can
+  /// hold several speakers.
+  ///
+  /// A provider rather than a callback on purpose: the metric guard in
+  /// [didUpdateWidget] compares this by identity, so a callback allocated in
+  /// the host's build would never match the previous one and every rebuild
+  /// would take the full `invalidateAllExtents()` path instead of the
+  /// incremental append/remove one.
+  final AssistantProvider? assistants;
 
   @visibleForTesting
   static const Key windowSkeletonKey = ValueKey<String>(
@@ -1368,7 +1377,7 @@ class _MessageListViewState extends State<MessageListView> {
         oldWidget.collapsedCodeLines != widget.collapsedCodeLines ||
         oldWidget.wrapCodeBlocks != widget.wrapCodeBlocks ||
         !identical(oldWidget.assistant, widget.assistant) ||
-        !identical(oldWidget.resolveAssistant, widget.resolveAssistant);
+        !identical(oldWidget.assistants, widget.assistants);
     if (metricInputsChanged) {
       controller.invalidateAllExtents();
       return;
@@ -2520,7 +2529,9 @@ class _MessageListViewState extends State<MessageListView> {
     // that names a sender the roster cannot resolve belongs to an assistant
     // that has since been deleted: falling back to the selected assistant would
     // put its face and name on someone else's words.
-    final resolvedAuthor = widget.resolveAssistant?.call(message);
+    final resolvedAuthor = message.senderId == null
+        ? null
+        : widget.assistants?.getById(message.senderId!);
     final authorGone = message.senderId != null && resolvedAuthor == null;
     final author = resolvedAuthor ?? (authorGone ? null : assistant);
     return ChatMessageWidget(

@@ -1489,9 +1489,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get assistantEditModelUseGlobalDefault => 'Use global default';
 
   @override
-  String get assistantSettingsPageTitle => 'Assistant Settings';
-
-  @override
   String get assistantSettingsCopyButton => 'Copy';
 
   @override

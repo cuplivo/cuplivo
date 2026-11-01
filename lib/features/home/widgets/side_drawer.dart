@@ -1758,6 +1758,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     }
     var allVisibleSelected = false;
     var allSelectedPinned = false;
+    var allSelectedMovable = false;
     if (_selectionMode) {
       final selectionRows = _sidebarRowsFor(
         revision: chatServiceForSelection.conversationListRevision,
@@ -1780,6 +1781,12 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
             (id) =>
                 chatServiceForSelection.getConversation(id)?.isPinned == true,
           );
+      // A group topic belongs to its group and cannot move. Inside a group's
+      // pane that is every row, so the action is not offered at all.
+      allSelectedMovable = _selectedConversationIds.any(
+        (id) =>
+            chatServiceForSelection.getConversation(id)?.groupChatId == null,
+      );
     }
 
     // Avatar renderer: emoji / url / file / default initial
@@ -2909,6 +2916,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                         ),
                         selectedCount: _selectedConversationIds.length,
                         allSelectedPinned: allSelectedPinned,
+                        canMove: allSelectedMovable,
                         onPin: () {
                           _pinSelected();
                         },
@@ -4335,7 +4343,31 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
       ),
     );
     if (confirmed != true || !mounted) return;
+    // The group takes its topics with it, so the page has to end up somewhere:
+    // the current topic's id is cleared by the cascade, and without this the
+    // composer silently starts a new 1:1 on the next keystroke.
+    final chatService = context.read<ChatService>();
+    final topicIds = <String>{
+      for (final conversation in chatService.getAllConversations())
+        if (conversation.groupChatId == group.id) conversation.id,
+    };
+    final deletingCurrent =
+        chatService.currentConversationId != null &&
+        topicIds.contains(chatService.currentConversationId);
+    final nextId = _nextRecentConversationExcluding(chatService, topicIds);
     await deleteGroupChat(context, group.id);
+    if (!mounted) return;
+    showAppSnackBar(
+      context,
+      message: l10n.groupChatDeleted,
+      type: NotificationType.success,
+      duration: const Duration(seconds: 3),
+    );
+    _handlePostDeleteNavigation(
+      chatService: chatService,
+      deletingCurrent: deletingCurrent,
+      nextConversationId: nextId,
+    );
   }
 
   // Build conversations list area, optionally including the update banner.

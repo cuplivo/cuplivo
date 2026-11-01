@@ -140,4 +140,44 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect([for (final owner in owners.owners) owner.id], [b, c]);
   });
+
+  test('a restored owner comes back to its old slot', () async {
+    final harness = await createBusinessTestHarness();
+    addTearDown(harness.close);
+
+    final assistants = AssistantProvider(preferences: harness.preferences);
+    await assistants.loaded;
+    final a = await assistants.addAssistant(name: 'A');
+    final b = await assistants.addAssistant(name: 'B');
+    final groups = GroupChatProvider(
+      store: ExtensionEntityStore(harness.database),
+    );
+    await groups.loaded;
+    final g = await groups.create(name: 'G', memberIds: [a, b]);
+    final owners = ChatOwnersProvider(
+      assistants: assistants,
+      groups: groups,
+      preferences: harness.preferences,
+    );
+    await owners.loaded;
+    await owners.reorder(2, 1);
+    expect([for (final owner in owners.owners) owner.id], [a, g.id, b]);
+
+    await groups.delete(g.id);
+    await Future<void>.delayed(Duration.zero);
+    // Hidden from the sidebar, but its slot is remembered instead of being
+    // rewritten out of the order.
+    expect([for (final owner in owners.owners) owner.id], [a, b]);
+
+    // The same group id comes back (a restore writes the entity row again).
+    await groups.store.upsert(
+      GroupChatProvider.kind,
+      g.id,
+      g.toJson(),
+      sortOrder: 0,
+    );
+    await groups.reloadAfterExternalChange();
+    await Future<void>.delayed(Duration.zero);
+    expect([for (final owner in owners.owners) owner.id], [a, g.id, b]);
+  });
 }

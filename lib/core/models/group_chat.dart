@@ -39,8 +39,6 @@ class GroupChat {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  bool get isEmpty => memberIds.isEmpty;
-
   int get speakerTurnLimit =>
       maxSpeakerTurns.clamp(minSpeakerTurns, maxSpeakerTurnsLimit);
 

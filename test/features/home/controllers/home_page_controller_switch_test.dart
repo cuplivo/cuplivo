@@ -7,11 +7,13 @@ import 'package:provider/provider.dart';
 
 import '../../../support/business_test_harness.dart';
 import 'package:Cuplivo/core/database/composer_draft_store.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/models/composer_draft.dart';
 import 'package:Cuplivo/core/models/chat_input_data.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/group_chat_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/core/services/notification_service.dart';
@@ -271,8 +273,9 @@ void main() {
 
   Future<HomePageController> pumpHarness(
     WidgetTester tester,
-    _ControlledChatService service,
-  ) async {
+    _ControlledChatService service, {
+    GroupChatProvider? groups,
+  }) async {
     HomePageController? controller;
     await tester.pumpWidget(
       MultiProvider(
@@ -285,6 +288,8 @@ void main() {
             create: (_) =>
                 AssistantProvider(preferences: createBusinessTestPreferences()),
           ),
+          if (groups != null)
+            ChangeNotifierProvider<GroupChatProvider>.value(value: groups),
         ],
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -1037,6 +1042,36 @@ void main() {
         expect(controller.currentConversation?.groupChatId, 'g1');
         expect(controller.currentConversation?.assistantId, isNull);
         expect(controller.currentConversation?.id, isNot('conv-g'));
+      });
+    });
+
+    testWidgets('a new chat in a topic whose group is gone starts a 1:1', (
+      tester,
+    ) async {
+      await runAsMobile(() async {
+        final service = _ControlledChatService(
+          {
+            'conv-g': [_message('conv-g', 0)],
+          },
+          groupOf: {'conv-g': 'g1'},
+        );
+        final groups = GroupChatProvider(
+          store: ExtensionEntityStore(
+            createBusinessTestPreferencesWithDatabase().database,
+          ),
+        );
+        await groups.loaded;
+        final controller = await pumpHarness(tester, service, groups: groups);
+        await switchAndSettle(tester, controller, service, 'conv-g');
+        expect(controller.currentConversation?.groupChatId, 'g1');
+
+        final future = controller.createNewConversationAnimated();
+        await pumpUntilDone(tester, [future]);
+
+        // The group row is gone, so the topic is an ordinary conversation:
+        // carrying its id over would mint another topic tagged with the dead
+        // group, and it would silently rejoin the group if that came back.
+        expect(controller.currentConversation?.groupChatId, isNull);
       });
     });
 

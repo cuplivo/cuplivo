@@ -547,6 +547,14 @@ class ChatActions {
   bool isGroupRoundCancelled(String conversationId) =>
       _cancelledGroupRounds.contains(conversationId);
 
+  /// Whether a whole round holds [conversationId]'s loading flag.
+  ///
+  /// The round hands its send claim to the loading flag, so this is the only
+  /// thing that can tell "a round is writing here" apart from "the user is
+  /// typing". Anything that would start a second writer has to read it.
+  bool isGroupRoundLoading(String conversationId) =>
+      _roundLoadingConversations.contains(conversationId);
+
   /// Send one user message into a group conversation and start a round.
   ///
   /// Matches [sendMessage]'s contract: the user message and the first speaker's
@@ -586,13 +594,20 @@ class ChatActions {
     }
 
     _claimGroupRound(conversation.id);
-
-    if (await chatController.appendPersistedTailMessages([userMessage])) {
-      viewModel.restoreMessageUiState();
-    }
-    onMessagesChanged?.call();
-    if (chatController.currentConversation?.id == conversation.id) {
-      onSendPairAppended?.call();
+    try {
+      if (await chatController.appendPersistedTailMessages([userMessage])) {
+        viewModel.restoreMessageUiState();
+      }
+      onMessagesChanged?.call();
+      if (chatController.currentConversation?.id == conversation.id) {
+        onSendPairAppended?.call();
+      }
+    } catch (error) {
+      // The round claim is raised by now: a failed append has to give it back,
+      // or every later send queues behind a round that never started.
+      _roundLoadingConversations.remove(conversation.id);
+      _setConversationLoading(conversation.id, false);
+      return ChatActionResult.error(error.toString());
     }
 
     _startGroupRound(
@@ -862,6 +877,11 @@ class ChatActions {
       includeFollowingAssistant: true,
     );
 
+    // Stop can land inside the two reads above. Without this check the turn
+    // would create a placeholder and generate a whole reply after the round was
+    // stopped, because nothing is streaming yet for Stop to cancel.
+    if (isGroupRoundCancelled(conversation.id)) return null;
+
     late final ChatMessage assistantMessage;
     String? runId;
     try {
@@ -920,19 +940,22 @@ class ChatActions {
     );
 
     Future<void> generate() async {
-      final supportsReasoning = _isReasoningModel(providerKey, modelId);
-      final enableReasoning =
-          supportsReasoning &&
-          _isReasoningEnabled(
-            _selectedReasoning(
-              settings: settings,
-              providerKey: providerKey,
-              modelId: modelId,
-              assistant: speaker,
-            ),
-          );
-      _bindFileProcessingCallbacks();
       try {
+        // Everything that can throw belongs inside the try: the caller only
+        // `unawaited` this, so a throw before the first await would escape and
+        // leave this turn's waiter pending for the rest of the round.
+        _bindFileProcessingCallbacks();
+        final supportsReasoning = _isReasoningModel(providerKey, modelId);
+        final enableReasoning =
+            supportsReasoning &&
+            _isReasoningEnabled(
+              _selectedReasoning(
+                settings: settings,
+                providerKey: providerKey,
+                modelId: modelId,
+                assistant: speaker,
+              ),
+            );
         await messageGenerationService.initializeReasoningState(
           messageId: assistantMessage.id,
           enableReasoning: enableReasoning,
@@ -1011,7 +1034,19 @@ class ChatActions {
     final index = messages.indexWhere(
       (message) => message.id == assistantMessage.id,
     );
-    return index < 0 ? assistantMessage : messages[index];
+    if (index >= 0) return messages[index];
+    // `_messages` is whatever the page shows, and the user may have left this
+    // topic mid-round. Reading the row back keeps this speaker's text in the
+    // director's transcript instead of the empty placeholder.
+    try {
+      final persisted = await chatService.loadMessagesByIds([
+        assistantMessage.id,
+      ]);
+      if (persisted.isNotEmpty) return persisted.first;
+    } catch (_) {
+      // A temporary conversation has no row to read back; the snapshot stands.
+    }
+    return assistantMessage;
   }
 
   List<Map<String, dynamic>> _copyToolEvents(String messageId) {
@@ -2359,6 +2394,7 @@ class ChatActions {
   }) async {
     final compression = chatService.contextCompression.taskFor(conversation.id);
     if (isSendInFlight(conversation.id) ||
+        isGroupRoundLoading(conversation.id) ||
         (compression != null &&
             compression.active &&
             compression.phase != CompressionPhase.waiting)) {

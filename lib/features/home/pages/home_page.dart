@@ -1198,9 +1198,9 @@ class _HomePageState extends State<HomePage>
           ? (chat.getConversation(conversationId)?.chatSuggestions ?? const [])
           : const [],
     );
-    final currentGroup = context
-        .watch<GroupChatProvider>()
-        .forConversation(_controller.currentConversation);
+    final currentGroup = context.watch<GroupChatProvider>().forConversation(
+      _controller.currentConversation,
+    );
     return MessageListView(
       contextTask: compression,
       contextTaskRevision: compression == null

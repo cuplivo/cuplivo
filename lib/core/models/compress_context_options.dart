@@ -478,7 +478,8 @@ List<ChatMessage> selectKeepRecentMessages(
 ) {
   final start = keepRecentStartIndex(messages, keepUserMessages);
   if (start == null) return const <ChatMessage>[];
-  if (start == 0) return messages.skipWhile(ContextOperation.isSummary).toList();
+  if (start == 0)
+    return messages.skipWhile(ContextOperation.isSummary).toList();
   return messages.sublist(start);
 }
 
@@ -697,6 +698,7 @@ List<String> _toolResultImageUris(Map<String, dynamic> event) {
     readMcpResultMetadata(metadata.cast<String, dynamic>()),
   );
 }
+
 /// What one compression costs before and after, in tokens.
 class CompressContextSplit {
   const CompressContextSplit({

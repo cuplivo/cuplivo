@@ -137,7 +137,6 @@ Future<void> showPdfExportDialog(
   }
 }
 
-
 /// Lays the selected messages out as a PDF page.
 ///
 /// The fork's own funnel (page palette, per-message document blocks, raster
@@ -164,7 +163,8 @@ Future<PdfExportResult?> exportChatMessagesPdf(
         )
       : Theme.of(context).colorScheme;
   final chat = context.read<ChatService>();
-  final captures = uiCaptures ?? await captureUiExportMessages(context, messages);
+  final captures =
+      uiCaptures ?? await captureUiExportMessages(context, messages);
   final operations = await chat.loadContextOperations(conversation.id);
   final title = conversation.title.trim().isNotEmpty
       ? conversation.title
@@ -178,7 +178,8 @@ Future<PdfExportResult?> exportChatMessagesPdf(
     formatTime: DateFormat(
       l10n.messageExportSheetDateTimeWithSecondsPattern,
     ).format,
-    includeThinking: choice.showThinkingAndToolCards && choice.expandThinkingContent,
+    includeThinking:
+        choice.showThinkingAndToolCards && choice.expandThinkingContent,
     includeTools: choice.showThinkingAndToolCards,
     uiTextByMessage: captures.projections,
     operations: operations,

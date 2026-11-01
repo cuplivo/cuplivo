@@ -43,7 +43,6 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
   bool _translating = false;
   late final String _requestId = 'desktop-translate-${identityHashCode(this)}';
 
-
   /// The target language the dropdown shows; the persisted choice wins and the
   /// locale's own language is the fallback (see [effectiveTranslateLanguage]).
   LanguageOption? _targetLang;
@@ -90,7 +89,6 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
       _modelId = modelId;
     });
   }
-
 
   Future<void> _pickModel() async {
     if (_translating) return; // avoid switching mid-stream

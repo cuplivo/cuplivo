@@ -22,7 +22,18 @@ import 'export_document.dart';
 // the chat draws with.
 const PdfColor _ink = PdfColor.fromInt(0xFF1F2328);
 const PdfColor _ruleInk = PdfColor.fromInt(0xFFD8DEE4);
-const PdfColor _blockFill = PdfColor.fromInt(0xFFF6F8FA);
+
+/// The fills, as one ladder rather than one grey used everywhere.
+///
+/// A page carries at most three surfaces: paper, a panel, and a code fence. When
+/// they are all `#F6F8FA` a fence inside a panel has no edge, and a reasoning
+/// section two pages long paints half the sheet the same grey as everything
+/// else. The steps are 5–7 levels apart — enough to read at arm's length and to
+/// survive a print, small enough that the page is still paper.
+const PdfColor _blockFill = PdfColor.fromInt(0xFFF0F3F6);
+const PdfColor _panelFill = PdfColor.fromInt(0xFFF4F7FA);
+const PdfColor _codeFill = PdfColor.fromInt(0xFFE7EDF2);
+
 const PdfColor _quoteRuleInk = PdfColor.fromInt(0xFFC4CCD4);
 const PdfColor _quoteInk = PdfColor.fromInt(0xFF454F59);
 
@@ -50,11 +61,19 @@ PdfColor _overWhite(PdfColor colour, double amount) => PdfColor(
   colour.blue * amount + (1 - amount),
 );
 
-const double _marginTop = 40;
-const double _marginBottom = 42;
-const double _marginHorizontal = 46;
+/// The page's margins, in points.
+///
+/// They are a page's, not a screen's: 60 points is 21 mm, which is what a
+/// printed report uses and what the chat surface does not — at 46 the column
+/// ran 503 points wide, about 48 Han characters at this size, and the sheet
+/// read as a web page someone printed. The bottom margin is the largest of the
+/// three, which is the one asymmetry every book keeps: a leaf with a smaller
+/// foot than head looks like it is sliding off the page.
+const double _marginTop = 54;
+const double _marginBottom = 66;
+const double _marginHorizontal = 60;
 
-/// A4 with a 46pt margin on each side.
+/// A4 with a 60pt margin on each side.
 final double _contentWidth = PdfPageFormat.a4.width - 2 * _marginHorizontal;
 
 /// What one page offers, before the header and footer take their share.
@@ -115,34 +134,24 @@ const double _taskDotSize = 10 * _pageScale;
 /// The speaker line above a message, at the screen's own proportions.
 ///
 /// The renderer heads a message with a 32-point disc and a 13-point name over an
-/// 11-point timestamp, both in a lighter ink than the prose. The page draws the
-/// same structure at its own scale, and draws the disc *filled* rather than
-/// painted: the picture behind it is per message, and a page has no bitmap to
-/// fetch — see [PdfExportRequest.assistantIcon].
-const double _avatarSize = 32 * _pageScale;
-const double _avatarGlyphSize = 18 * _pageScale;
-const double _avatarGap = 8 * _pageScale;
+/// 11-point timestamp, both in a lighter ink than the prose. A page keeps the
+/// name and the time and drops the disc: it is a pale 22-point blob per message
+/// on a sheet that has no pictures, and it is what put a message's text 27
+/// points to the right of the margin — with the banded reader, the page had
+/// four left edges and the margin was one of them. The name and the time share
+/// a line, which is how a transcript heads a turn.
 const double _speakerNameSize = 13 * _pageScale;
 const double _speakerTimeSize = 11 * _pageScale;
 
-/// How far the timestamp sits under the name it belongs to, in points.
-///
-/// The screen lets the two line boxes touch; on paper they read as one block, so
-/// the page gives the pair a little air.
-const double _speakerTimeGap = 2;
+/// How far the timestamp stands off the name on that line, in points.
+const double _speakerTimeGap = 6;
 
 /// How far a message's body sits under its speaker line, in points.
 const double _speakerBottom = 8 * _pageScale;
 
-/// The tint a reader's own messages are set on, and the disc's own fill.
+/// The tint the speaker line — and nothing else — is drawn at.
 const double _speakerNameAlpha = 0.70;
 const double _speakerTimeAlpha = 0.50;
-const double _avatarFillAlpha = 0.10;
-const double _userBandAlpha = 0.07;
-
-/// How far a user band insets its text, and pads above and below it.
-const double _userBandInset = 10;
-const double _userBandPad = 4;
 
 /// The document header's own rhythm, and a message's.
 ///
@@ -286,8 +295,6 @@ class PdfExportRequest {
     this.bodyFont,
     this.monoFont,
     this.emojiFont,
-    this.iconFont,
-    this.assistantIcon,
     this.images = const <String, Uint8List>{},
     this.rasters = const <String, PdfRaster>{},
     this.enableMathRendering = true,
@@ -342,16 +349,6 @@ class PdfExportRequest {
   /// writer looks for an emoji's bitmap on the fallback chain of the style that
   /// could not draw the rune, and never on the style's own font.
   final Uint8List? emojiFont;
-
-  /// The icon face a speaker's avatar disc is drawn with, and the glyph in it.
-  ///
-  /// The screen shows a model's icon or an assistant's own picture here, which is
-  /// a bitmap that varies per message; a page draws the *structure* instead — the
-  /// same disc the app falls back to — out of the icon font the app already
-  /// ships. The codepoint is a number rather than an `IconData` so that this
-  /// library stays free of the widget layer it runs without.
-  final Uint8List? iconFont;
-  final int? assistantIcon;
 
   /// Picture bytes by URI, for pictures the caller already holds.
   final Map<String, Uint8List> images;
@@ -412,8 +409,7 @@ Future<PdfExportResult> buildConversationPdf(PdfExportRequest request) async {
   final pw.Font? body = _font(request.bodyFont);
   final pw.Font? mono = _font(request.monoFont) ?? body;
   final pw.Font? emoji = _font(request.emojiFont);
-  final pw.Font? icon = _font(request.iconFont);
-  final layout = _PdfLayout(request, body: body, mono: mono, icon: icon);
+  final layout = _PdfLayout(request, body: body, mono: mono);
   await layout.prepare();
 
   final document = pw.Document(title: request.title, author: 'Cuplivo');
@@ -708,6 +704,7 @@ class _BlockSkin {
     this.padBottom = 0,
     this.fill,
     this.rule,
+    this.outline,
     this.radius = 0,
   });
 
@@ -728,9 +725,17 @@ class _BlockSkin {
   /// A left rule, drawn when the block is quoted.
   final PdfColor? rule;
 
+  /// A hairline around the fill, drawn when a block has to read as a surface of
+  /// its own — a code fence inside a reasoning panel is the only one.
+  ///
+  /// It is a field of its own rather than a mode of [rule] because the writer
+  /// refuses a rounded corner beside a one-sided border (see [wrap]): a fence
+  /// wants both the hairline and the small radius.
+  final PdfColor? outline;
+
   final double radius;
 
-  bool get _decorated => fill != null || rule != null;
+  bool get _decorated => fill != null || rule != null || outline != null;
 
   /// How much width a block inside this one may use.
   ///
@@ -752,6 +757,7 @@ class _BlockSkin {
     double? padBottom,
     PdfColor? fill,
     PdfColor? rule,
+    PdfColor? outline,
     double? radius,
   }) => _BlockSkin(
     indent: indent ?? this.indent,
@@ -762,6 +768,7 @@ class _BlockSkin {
     padBottom: padBottom ?? this.padBottom,
     fill: fill ?? this.fill,
     rule: rule ?? this.rule,
+    outline: outline ?? this.outline,
     radius: radius ?? this.radius,
   );
 
@@ -811,9 +818,11 @@ class _BlockSkin {
       ),
       decoration: pw.BoxDecoration(
         color: fill,
-        border: rule == null
+        border: rule != null
+            ? pw.Border(left: pw.BorderSide(color: rule!, width: 2))
+            : outline == null
             ? null
-            : pw.Border(left: pw.BorderSide(color: rule!, width: 2)),
+            : pw.Border.all(color: outline!, width: 0.5),
         borderRadius: rule != null || radius == 0
             ? null
             : pw.BorderRadius.all(pw.Radius.circular(radius)),
@@ -889,14 +898,11 @@ class _CappedCell extends pw.SingleChildWidget {
 }
 
 class _PdfLayout {
-  _PdfLayout(this.request, {required this.body, required this.mono, this.icon});
+  _PdfLayout(this.request, {required this.body, required this.mono});
 
   final PdfExportRequest request;
   final pw.Font? body;
   final pw.Font? mono;
-
-  /// The face a speaker's avatar glyph is drawn from.
-  final pw.Font? icon;
 
   /// The walked bodies, one per markdown block, keyed by the block itself: a
   /// prepare pass resolves pictures from them and the layout then reuses them
@@ -932,16 +938,30 @@ class _PdfLayout {
   /// one, and a printed page that airy wastes a fifth of its length.
   static const _BlockSkin _plainSkin = _BlockSkin(bottom: _paragraphGap);
 
-  /// A card: reasoning, or a tool call.
+  /// A card: a tool call, a callout, a details band.
   static const _BlockSkin _cardSkin = _BlockSkin(
-    indent: 8,
-    trailing: 8,
-    top: 2,
-    bottom: 3,
-    padTop: 3,
-    padBottom: 0,
+    indent: 10,
+    trailing: 10,
+    top: 4,
+    bottom: 4,
+    padTop: 6,
+    padBottom: 6,
     fill: _blockFill,
-    radius: 4,
+    radius: 3,
+  );
+
+  /// A reasoning section: one panel, not one card per paragraph.
+  ///
+  /// The blocks carry no gap and no corner of their own — a filled block's
+  /// spacing sits *inside* its fill — so consecutive fills touch and the section
+  /// reads as one column. A radius here would draw a rounded end on each of the
+  /// sixteen blocks a page of reasoning holds, and a 2-point sliver of paper
+  /// between each pair, which is a barcode rather than a panel.
+  static const _BlockSkin _panelSkin = _BlockSkin(
+    indent: 10,
+    trailing: 10,
+    padBottom: _paragraphGap,
+    fill: _panelFill,
   );
 
   /// A picture, a diagram or a table: set a little apart from the prose.
@@ -970,6 +990,18 @@ class _PdfLayout {
   );
   pw.TextStyle get _bodyBold =>
       _fauxBoldStyle(_bodyStyle.copyWith(fontWeight: pw.FontWeight.bold));
+
+  /// Reasoning is a second voice: a point under the answer, and a shade lighter.
+  ///
+  /// The screen draws it in the same size as the answer because it is a
+  /// disclosure a reader opens deliberately; a page cannot collapse it, so the
+  /// only thing that tells a skimming reader what the model was muttering from
+  /// what it said is the size and the ink.
+  pw.TextStyle get _reasoningStyle => pw.TextStyle(
+    fontSize: kPdfBodyFontSize - 1,
+    color: _overWhite(_ink, 0.85),
+    lineSpacing: (kPdfBodyFontSize - 1) * 0.6 - 1.6,
+  );
   pw.TextStyle get _monoStyle => pw.TextStyle(
     fontSize: 9,
     color: _ink,
@@ -1069,7 +1101,6 @@ class _PdfLayout {
     for (var index = 0; index < request.messages.length; index++) {
       final message = request.messages[index];
       _citations = message.citationIndex;
-      final band = message.speaker == ExportSpeaker.user ? _userBand : null;
       if (index > 0) {
         widgets.add(
           pw.Divider(
@@ -1081,52 +1112,38 @@ class _PdfLayout {
       }
       widgets.add(_speaker(message));
       for (final block in message.blocks) {
-        widgets.addAll(_block(block, band));
+        widgets.addAll(_block(block));
       }
     }
     return widgets;
   }
 
-  /// The panel a reader's own messages are set on.
+  /// One message's block, at the page's own left edge.
   ///
-  /// The screen draws them in a bubble: a tinted, rounded box aligned to the right
-  /// edge. A page draws a full-width tint instead, and the reason is
-  /// [_BlockSkin]'s: a decorated container around content that can run past a page
-  /// is the unbreakable box this writer loops on, so the tint is per block and the
-  /// blocks carry no gap of their own — their fill touches, and the panel is
-  /// continuous until the page breaks or the message ends.
-  ///
-  /// It is therefore square-ended: rounding belongs to a box, and there is no box.
-  _BlockSkin get _userBand => _BlockSkin(
-    indent: _userBandInset,
-    trailing: _userBandInset,
-    padTop: _userBandPad,
-    padBottom: _userBandPad,
-    fill: _overWhite(request.accent, _userBandAlpha),
-  );
-
-  List<pw.Widget> _block(ExportBlock block, _BlockSkin? band) {
+  /// Every block starts where the title and the prose start. The reader's own
+  /// messages used to sit on a full-width tint of their own and the assistant's
+  /// on nothing, which is a screen's way of saying who is talking; on paper the
+  /// speaker line already says it, and a second pale column 10 points in was
+  /// two left edges where the page should have one.
+  List<pw.Widget> _block(ExportBlock block) {
     switch (block) {
       case ExportText(:final text):
-        return _blocksOf(
-          _documentFor(block, text).children,
-          skin: band ?? _plainSkin,
-        );
+        return _blocksOf(_documentFor(block, text).children, skin: _plainSkin);
       case ExportReasoning(:final text):
-        // The card is drawn per block rather than around a column of them, so
+        // The panel is drawn per block rather than around a column of them, so
         // its body stays paginatable (see [_BlockSkin]).
-        final card = _onBand(_cardSkin, band);
         return <pw.Widget>[
           _leaf(
             request.thinkingLabel,
             _fauxBoldStyle(
               _captionStyle.copyWith(fontWeight: pw.FontWeight.bold),
             ),
-            card.copyWith(bottom: 0),
+            _panelSkin.copyWith(padTop: 6, padBottom: 4),
           ),
           ..._blocksOf(
             _documentFor(block, text).children,
-            skin: card.copyWith(padTop: 0),
+            skin: _panelSkin,
+            textStyle: _reasoningStyle,
           ),
         ];
       case ExportContextNode(:final text):
@@ -1138,48 +1155,47 @@ class _PdfLayout {
             _fauxBoldStyle(
               _captionStyle.copyWith(fontWeight: pw.FontWeight.bold),
             ),
-            _onBand(_asideSkin, band),
+            _asideSkin,
           ),
         ];
       case ExportToolCall(:final name, :final content):
-        return <pw.Widget>[_toolCall(name, content, band)];
+        return <pw.Widget>[_toolCall(name, content)];
       case ExportImage(:final uri, :final bytes):
-        return _pictureBlock(uri, bytes, skin: _onBand(_asideSkin, band));
+        return _pictureBlock(uri, bytes, skin: _asideSkin);
       case ExportFile(:final name, :final mime):
         return <pw.Widget>[
-          _leaf(
-            '- $name ($mime)',
-            _captionStyle,
-            _onBand(const _BlockSkin(bottom: 2), band),
-          ),
+          _leaf('- $name ($mime)', _captionStyle, const _BlockSkin(bottom: 2)),
         ];
     }
   }
 
-  /// [skin] as one block of [band]'s panel, or [skin] itself outside one.
+  /// [skin] as one block inside [panel], or [skin] itself when there is none.
   ///
-  /// A block that brings its own fill — a code surface, a reasoning card — keeps
-  /// it; a block that brings none takes the band's. What is always taken from the
-  /// band is the *gap*: a filled block's spacing sits inside its fill, so a block
-  /// that stood apart would cut a white stripe across the panel.
-  _BlockSkin _onBand(_BlockSkin skin, _BlockSkin? band) {
-    if (band == null) return skin;
+  /// The one caller is a callout's body, which is laid out inside the callout's
+  /// own card: the body keeps the card's fill and takes its inset, because a gap
+  /// between the two would cut a stripe of paper across the card.
+  _BlockSkin _onBand(_BlockSkin skin, _BlockSkin? panel) {
+    if (panel == null) return skin;
     return skin.copyWith(
-      indent: skin.indent + band.indent,
-      trailing: skin.trailing + band.trailing,
+      indent: skin.indent + panel.indent,
+      trailing: skin.trailing + panel.trailing,
       top: 0,
-      padTop: band.padTop,
-      padBottom: band.padBottom,
-      fill: skin.fill ?? band.fill,
+      padTop: panel.padTop,
+      padBottom: panel.padBottom,
+      fill: skin.fill ?? panel.fill,
     );
   }
 
   /// The speaker line above a message's blocks.
   ///
-  /// The screen puts a 32-point disc beside a two-line stack — the name, then the
-  /// time under it — and draws both in an ink lighter than the prose, because the
-  /// header is furniture rather than something anyone said. The page does the
-  /// same, with two differences the page forces:
+  /// One line: the name, then the time, both in an ink lighter than the prose,
+  /// because the header is furniture rather than something anyone said. The
+  /// screen stacks them under a disc, and the page used to copy that; but a page
+  /// has no picture to put in a disc, and what an empty one did to the column —
+  /// a 22-point circle and a gap in front of every single message — was the
+  /// reason a message's text started 27 points right of the margin.
+  ///
+  /// Two things the page forces:
   ///
   /// * A reader's own messages carry no timestamp. The archive is a record of what
   ///   was said, and the one message whose arrival time a reader already knows is
@@ -1188,85 +1204,38 @@ class _PdfLayout {
   ///   rather than with the profile's name — see [PdfExportRequest.userLabel].
   pw.Widget _speaker(ExportMessage message) {
     final isUser = message.speaker == ExportSpeaker.user;
-    final stack = pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: <pw.Widget>[
-        pw.Text(
-          isUser ? request.userLabel : message.roleName,
-          maxLines: 1,
-          // The writer has no ellipsis: a name too long for its line is cut
-          // rather than folded, which is what a header of one line means.
-          overflow: pw.TextOverflow.clip,
-          style: pw.TextStyle(
-            fontSize: _speakerNameSize,
-            color: _overWhite(_ink, _speakerNameAlpha),
-          ),
-        ),
-        if (!isUser && message.time.isNotEmpty)
-          pw.Padding(
-            padding: const pw.EdgeInsets.only(top: _speakerTimeGap),
+    final time = isUser ? '' : message.time;
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: _speakerBottom),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.end,
+        children: <pw.Widget>[
+          pw.Flexible(
             child: pw.Text(
-              message.time,
+              isUser ? request.userLabel : message.roleName,
+              maxLines: 1,
+              // The writer has no ellipsis: a name too long for its line is cut
+              // rather than folded, which is what a header of one line means.
+              overflow: pw.TextOverflow.clip,
+              style: pw.TextStyle(
+                fontSize: _speakerNameSize,
+                color: _overWhite(_ink, _speakerNameAlpha),
+              ),
+            ),
+          ),
+          if (time.isNotEmpty) ...<pw.Widget>[
+            pw.SizedBox(width: _speakerTimeGap),
+            pw.Text(
+              time,
               maxLines: 1,
               style: pw.TextStyle(
                 fontSize: _speakerTimeSize,
                 color: _overWhite(_ink, _speakerTimeAlpha),
               ),
             ),
-          ),
-      ],
-    );
-    // A user's message is answered by the band under it — see [_userBand] — so its
-    // header needs no mark of its own; an assistant's is the page's only other
-    // left edge, and the disc is what says so at a glance.
-    return pw.Container(
-      margin: const pw.EdgeInsets.only(bottom: _speakerBottom),
-      child: isUser
-          // The label lines up with the text of the band under it, so the two
-          // read as one block rather than as a label beside a panel.
-          ? pw.Padding(
-              padding: const pw.EdgeInsets.only(left: _userBandInset),
-              child: stack,
-            )
-          : pw.Row(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: <pw.Widget>[
-                _avatarDisc(),
-                pw.SizedBox(width: _avatarGap),
-                pw.Expanded(child: stack),
-              ],
-            ),
-    );
-  }
-
-  /// The disc beside an assistant's name, with the one glyph the page can draw.
-  ///
-  /// The screen fills it with the model's own icon or the assistant's picture,
-  /// which is a bitmap that would have to be captured per message; a page draws
-  /// the structure out of the icon face the app already ships instead. A caller
-  /// that could not hand one over gets the disc alone, which still reads as the
-  /// avatar slot rather than as a missing image.
-  pw.Widget _avatarDisc() {
-    final icon = this.icon;
-    final code = request.assistantIcon;
-    return pw.Container(
-      width: _avatarSize,
-      height: _avatarSize,
-      alignment: pw.Alignment.center,
-      decoration: pw.BoxDecoration(
-        color: _overWhite(request.accent, _avatarFillAlpha),
-        shape: pw.BoxShape.circle,
+          ],
+        ],
       ),
-      child: icon == null || code == null
-          ? null
-          : pw.Text(
-              String.fromCharCode(code),
-              style: pw.TextStyle(
-                font: icon,
-                fontSize: _avatarGlyphSize,
-                color: request.accent,
-              ),
-            ),
     );
   }
 
@@ -1274,7 +1243,7 @@ class _PdfLayout {
   ///
   /// One leaf rather than a name and a body stacked in a column, because tool
   /// output is exactly the text that grows past a page.
-  pw.Widget _toolCall(String name, String content, _BlockSkin? band) {
+  pw.Widget _toolCall(String name, String content) {
     final label = name.isEmpty ? '[tool]' : '[$name]';
     final body = content.trim();
     return _richText(<pw.InlineSpan>[
@@ -1283,7 +1252,7 @@ class _PdfLayout {
         style: _monoStyle.copyWith(fontWeight: pw.FontWeight.bold),
       ),
       if (body.isNotEmpty) pw.TextSpan(text: '\n$body', style: _monoStyle),
-    ], _onBand(_cardSkin, band));
+    ], _cardSkin);
   }
 
   List<pw.Widget> _pictureBlock(
@@ -1573,13 +1542,17 @@ class _PdfLayout {
         if (word == null) return null;
         if (x + word > width) {
           final room = width - x;
-          final fits = room > 0
-              ? _fittingPrefix(span, text.substring(start, at), room)
+          final candidate = text.substring(start, at);
+          // Only a run with a Chinese character in it may be filled into the room
+          // left on the line. The writer treats such a run as one word — it has no
+          // space to break at — so without this the rest of the line is wasted and
+          // the run starts a line of its own. A Latin word is moved whole instead:
+          // there is nothing to gain by filling a piece of it and everything to
+          // lose, since `node_modules` split into `node` / `_modules` reads as a
+          // typo rather than as a break.
+          final fits = room > 0 && candidate.runes.any(_isWideRune)
+              ? _fittingPrefix(span, candidate, room)
               : '';
-          // Room is left on the line, so the word may be filled into it — this is
-          // the one thing the writer will not do with a Chinese run, and without
-          // it the room is wasted and the run starts a line of its own. The cut is
-          // moved off a word's middle by [_legalCut] like any other.
           if (fits.isNotEmpty) {
             return _legalCut(spans, index, start + fits.length);
           }
@@ -2172,14 +2145,21 @@ class _PdfLayout {
   /// The skin a code body wears: filled and inset, underneath whatever group it
   /// already sits in.
   _BlockSkin _codeSurface(_BlockSkin skin) => skin.copyWith(
-    indent: skin.indent + 7,
-    trailing: 7,
-    top: 4,
+    indent: skin.indent + 8,
+    trailing: 8,
+    // No gap above: every block already ends with the paragraph gap, and a fence
+    // that also carries one is spaced twice over. Below is where a fence needs
+    // the room its fill does not give it.
+    top: 0,
     bottom: 4,
     padTop: 6,
     padBottom: 6,
-    fill: skin.fill ?? _blockFill,
-    radius: skin.radius == 0 ? 4 : skin.radius,
+    // A fence is the darkest of the page's three surfaces, and the only one with
+    // a hairline: inside a reasoning panel — which is a fill of its own — a tone
+    // alone is a difference of 7 levels, and the code read as prose in a box.
+    fill: _codeFill,
+    outline: _ruleInk,
+    radius: 3,
   );
 
   /// One drawing, scaled down when it is wider or taller than the page allows —
@@ -2773,11 +2753,24 @@ TextAlign _textAlignOf(TableAlignment alignment) => switch (alignment) {
 ///
 /// A break belongs between words, never inside one: the writer moves a word whole
 /// and so does this layout, which is why a cut that lands between two of these is
-/// moved back to the start of the word.
+/// moved back to the start of the word. The underscore is one of these: an
+/// identifier's halves are not two words, and `node` / `_modules` on a printed
+/// line reads as a typo.
 bool _isWordRune(int rune) =>
     (rune >= 0x30 && rune <= 0x39) || // 0-9
     (rune >= 0x41 && rune <= 0x5a) || // A-Z
-    (rune >= 0x61 && rune <= 0x7a); // a-z
+    (rune >= 0x61 && rune <= 0x7a) || // a-z
+    rune == 0x5f; // _
+
+/// Whether [rune] belongs to a run the writer cannot break at all.
+///
+/// A Chinese sentence arrives as one word with no spaces, so a line that cannot
+/// take it whole would leave the run to start a line of its own. These are the
+/// runes the layout may fill into the room a line has left.
+bool _isWideRune(int rune) =>
+    (rune >= 0x2e80 && rune <= 0x9fff) ||
+    (rune >= 0xf900 && rune <= 0xfaff) ||
+    (rune >= 0x20000 && rune <= 0x3ffff);
 
 /// Whether [rune] is a space the writer's tokenizer splits on.
 bool _isSpaceRune(int rune) =>

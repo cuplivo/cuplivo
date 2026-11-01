@@ -524,8 +524,11 @@ void main() {
       // The joined reference the incremental window must agree with: roles plus
       // bodies, blank-content messages dropped.
       final joined = messages
-          .map((message) =>
-              conversationLineForCompression(message, quoteMarker: (i) => '[$i]'),
+          .map(
+            (message) => conversationLineForCompression(
+              message,
+              quoteMarker: (i) => '[$i]',
+            ),
           )
           .whereType<String>()
           .join('\n\n');
@@ -555,8 +558,11 @@ void main() {
       // The joined reference the incremental window must agree with: roles plus
       // bodies, blank-content messages dropped.
       final joined = messages
-          .map((message) =>
-              conversationLineForCompression(message, quoteMarker: (i) => '[$i]'),
+          .map(
+            (message) => conversationLineForCompression(
+              message,
+              quoteMarker: (i) => '[$i]',
+            ),
           )
           .whereType<String>()
           .join('\n\n');
@@ -612,7 +618,9 @@ void main() {
         _message(id: 'u2', role: 'user', content: 'ccc'),
       ];
 
-      final chunks = chunkMessagesForCompression(messages, maxChars: 20,
+      final chunks = chunkMessagesForCompression(
+        messages,
+        maxChars: 20,
         quoteMarker: (index) => '[$index]',
       );
 
@@ -632,7 +640,9 @@ void main() {
         quoteMarker: (index) => '[$index]',
       )!;
 
-      final chunks = chunkMessagesForCompression(messages, maxChars: 9,
+      final chunks = chunkMessagesForCompression(
+        messages,
+        maxChars: 9,
         quoteMarker: (index) => '[$index]',
       );
 

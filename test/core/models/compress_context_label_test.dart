@@ -36,12 +36,22 @@ void main() {
       : 'User';
 
   test('a reply with no labeller is an anonymous Assistant', () {
-    expect(conversationLineForCompression(messages[1], quoteMarker: (index) => '[$index]',), 'Assistant: I am.');
+    expect(
+      conversationLineForCompression(
+        messages[1],
+        quoteMarker: (index) => '[$index]',
+      ),
+      'Assistant: I am.',
+    );
   });
 
   test('the labeller names each speaker', () {
     expect(
-      conversationLineForCompression(messages[1], quoteMarker: (index) => '[$index]', labelOf: labelOf),
+      conversationLineForCompression(
+        messages[1],
+        quoteMarker: (index) => '[$index]',
+        labelOf: labelOf,
+      ),
       'Alice: I am.',
     );
   });

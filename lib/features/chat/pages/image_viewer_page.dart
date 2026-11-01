@@ -1947,7 +1947,8 @@ class _ImageViewerPageState extends State<ImageViewerPage>
         return;
       }
 
-      final defaultName = 'cuplivo-${DateTime.now().millisecondsSinceEpoch}$ext';
+      final defaultName =
+          'cuplivo-${DateTime.now().millisecondsSinceEpoch}$ext';
       final allowed = [ext.replaceFirst('.', '').toLowerCase()];
       String? savePath = await FilePicker.platform.saveFile(
         dialogTitle: l10n.imageViewerPageSaveButton,

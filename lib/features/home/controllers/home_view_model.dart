@@ -2308,6 +2308,25 @@ class HomeViewModel extends ChangeNotifier {
 
   final Map<String, Object> _suggestionRequests = {};
 
+  /// The suggestions the composer may show: the current conversation's list,
+  /// gated the same way generation is (global master, per-assistant opt-out).
+  List<String> get visibleChatSuggestions {
+    final conversation = currentConversation;
+    if (conversation == null) return const <String>[];
+    final settings = _contextProvider.read<SettingsProvider>();
+    final assistant = _contextProvider
+        .read<AssistantProvider>()
+        .resolveConversationAssistant(conversation.assistantId);
+    if (!settings.isSuggestionGenerationAllowedFor(assistant)) {
+      return const <String>[];
+    }
+    return conversation.chatSuggestions;
+  }
+
+  /// Test entry point: runs one suggestion pass for [conversationId].
+  Future<void> debugMaybeGenerateSuggestionsFor(String conversationId) =>
+      _maybeGenerateSuggestionsFor(conversationId);
+
   Future<void> _clearSuggestionsFor(String conversationId) async {
     _suggestionRequests.remove(conversationId);
     final convo = _chatService.getConversation(conversationId);

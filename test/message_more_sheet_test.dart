@@ -2,15 +2,22 @@ import 'support/business_test_harness.dart';
 import 'package:provider/provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/features/chat/widgets/message_more_sheet.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 
-ChatMessage _message({String id = 'message-1'}) {
+const mobilePlatforms = TargetPlatformVariant({
+  TargetPlatform.android,
+  TargetPlatform.iOS,
+});
+
+ChatMessage _message({String id = 'message-1', bool isStreaming = false}) {
   return ChatMessage(
     id: id,
+    isStreaming: isStreaming,
     role: 'assistant',
     content: 'hello',
     conversationId: 'conversation-1',
@@ -23,6 +30,7 @@ Future<void> _openMoreSheet(
   bool canCreateBranch = true,
   ValueChanged<MessageMoreAction?>? onSelected,
   String messageId = 'message-1',
+  bool isStreaming = false,
 }) async {
   await tester.pumpWidget(
     ChangeNotifierProvider(
@@ -42,7 +50,7 @@ Future<void> _openMoreSheet(
                 onPressed: () {
                   showMessageMoreSheet(
                     context,
-                    _message(id: messageId),
+                    _message(id: messageId, isStreaming: isStreaming),
                     canDeleteAllVersions: canDeleteAllVersions,
                     canCreateBranch: canCreateBranch,
                   ).then((action) => onSelected?.call(action));

@@ -88,11 +88,11 @@ class _RecordingResolver extends FileLinkResolver {
   _RecordingResolver(WorkspaceProvider workspaces)
     : super(workspaces: workspaces);
 
-  final calls = <({CuplivoLink link, String conversationId})>[];
+  final calls = <({KelivoLink link, String conversationId})>[];
 
   @override
   Future<FileSystemEntity?> resolveToHostEntry(
-    CuplivoLink link, {
+    KelivoLink link, {
     required String conversationId,
     required WorkspaceBinding binding,
   }) async {
@@ -373,7 +373,7 @@ void main() {
       expect(resolver.calls, isEmpty);
     } else {
       expect(previews, isEmpty);
-      expect(resolver.calls.single.link.kind, CuplivoLinkKind.workspaceFile);
+      expect(resolver.calls.single.link.kind, KelivoLinkKind.workspaceFile);
       expect(resolver.calls.single.link.relativePath, 'page.HTML');
       expect(resolver.calls.single.conversationId, id);
     }

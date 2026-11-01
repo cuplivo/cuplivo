@@ -3465,6 +3465,7 @@ class ChatService extends ChangeNotifier {
     bool selectVersion = false,
     String? temporaryAfterGroupId,
     UiContextSubmission? uiContext,
+    String? senderId,
   }) => _serializeConversationPublication(conversationId, () async {
     if (!_initialized) await init();
 
@@ -3503,6 +3504,7 @@ class ChatService extends ChangeNotifier {
       reasoningFinishedAt: reasoningFinishedAt,
       groupId: groupId,
       version: version,
+      senderId: senderId,
     );
 
     if (_discardedTemporaryConversationIds.contains(conversationId)) {

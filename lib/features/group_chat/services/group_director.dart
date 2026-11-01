@@ -280,8 +280,10 @@ class GroupDirector {
         'the conversation should wait for the user.',
       )
       ..writeln(
-        'Never pick a member marked "already_replied" unless no other member '
-        'could plausibly answer. At most $remainingTurns more '
+        'A member replies at most once per round. Never pick a member marked '
+        '"already_replied": when every member has replied, or when none of the '
+        'remaining members could answer, call "$endTurnTool" instead. At most '
+        '$remainingTurns more '
         '${remainingTurns == 1 ? 'reply remains' : 'replies remain'} in this '
         'round.',
       )

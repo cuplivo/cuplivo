@@ -87,7 +87,7 @@ visibleInTopics(c, owner) =
   │
   ├─ 单飞 claim：同一 conversation 只允许一轮
   ├─ 创建 user message（不创建 assistant 占位）
-  ├─ 追加到 timeline；若标题仍是默认标题，用首行文本截断作标题
+  ├─ 追加到 timeline；整轮结束后若标题仍是占位标题，交给标题模型命名
   │
   ├─ loop speakerTurns < group.maxSpeakerTurns:
   │    ├─ 取消/离开？→ 退出 loop
@@ -130,7 +130,7 @@ runAssistantTurn({conversation, anchor, speaker, append, senderId}):
 
 - `maxSpeakerTurns` 是**用户一条消息触发的助手消息数**，不是全群上限。
 - `speakerTurns` 只在成功创建一个助手占位后自增，避免 director 连续返回同一个无效 id 时无限循环。
-- 同一轮里 director 可以选同一个助手两次，但不鼓励；不强制，保持 v3 的灵活性。
+- 同一轮里每位成员最多发言一次：director 不会被邀请选一个已经说过话的人，全员发过言就 `end_turn`。轮次上限按 `min(maxSpeakerTurns, 成员数)` 夹紧，不向 director 许诺兑不了的轮数。
 - `anchor` 初始为用户消息；后续为上一名助手的消息。若该消息没有 `groupId`（不会发生，消息构造器总会填），用 `id`。
 
 ## 3. Director

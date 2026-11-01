@@ -473,6 +473,10 @@ class HomeViewModel extends ChangeNotifier {
       if (settings.legacyMemoryMode) return;
       final convo = _chatService.getConversation(conversationId);
       if (convo == null) return;
+      // A group topic has no owner: filing a round's messages as one
+      // assistant's memory would replay a whole group in that assistant's 1:1
+      // prompts.
+      if (convo.isGroupConversation) return;
       final assistantProvider = _contextProvider.read<AssistantProvider>();
       final assistant = assistantProvider.resolveConversationAssistant(
         convo.assistantId,
@@ -1572,7 +1576,9 @@ class HomeViewModel extends ChangeNotifier {
         ?.newEntry(targetAssistantId, groupChatId: groupChatId)
         ?.id;
     final conversation = await _chatService.createDraftConversation(
-      title: getTitleForLocale(_contextProvider),
+      title: groupChatId == null
+          ? getTitleForLocale(_contextProvider)
+          : _chatService.groupTopicTitle,
       assistantId: targetAssistantId,
       groupChatId: groupChatId,
       reuseNewEntry: true,
@@ -1965,11 +1971,9 @@ class HomeViewModel extends ChangeNotifier {
   }) async {
     final convo = _chatService.getConversation(conversationId);
     if (convo == null) return;
-    if (!force &&
-        convo.title.isNotEmpty &&
-        convo.title != getTitleForLocale(_contextProvider)) {
-      return;
-    }
+    // An untitled conversation and a placeholder-titled one (including a group
+    // topic's `新话题`) are both unnamed, and both get named here.
+    if (!force && !_chatService.isPlaceholderTitle(convo.title)) return;
 
     final settings = _contextProvider.read<SettingsProvider>();
     if (!settings.isTitleGenerationEnabled) return;
@@ -2065,6 +2069,9 @@ class HomeViewModel extends ChangeNotifier {
     if (convo == null) return;
     // Summaries only feed past-conversation search; temporary chats are never searchable.
     if (_chatService.isTemporaryConversation(convo.id)) return;
+    // Same reason as memory: the summary would be filed under whichever
+    // assistant happens to be selected, for a conversation it does not own.
+    if (convo.isGroupConversation) return;
 
     final settings = _contextProvider.read<SettingsProvider>();
     if (!_chatService.isMessageCountKnown(conversationId)) return;
@@ -2256,7 +2263,9 @@ class HomeViewModel extends ChangeNotifier {
   /// assistant governs, so both resolve the owner here.
   List<String> get visibleChatSuggestions {
     final convo = currentConversation;
-    if (convo == null || convo.chatSuggestions.isEmpty) {
+    if (convo == null ||
+        convo.isGroupConversation ||
+        convo.chatSuggestions.isEmpty) {
       return const <String>[];
     }
     final allowed = _suggestionsAllowedFor(
@@ -2283,6 +2292,10 @@ class HomeViewModel extends ChangeNotifier {
   Future<void> _maybeGenerateSuggestionsFor(String conversationId) async {
     final convo = _chatService.getConversation(conversationId);
     if (convo == null) return;
+    // A group decides who answers, not an assistant-scoped hint: the generator
+    // would resolve the selected assistant and write its suggestions into a
+    // conversation that assistant does not own.
+    if (convo.isGroupConversation) return;
 
     final settings = _contextProvider.read<SettingsProvider>();
 

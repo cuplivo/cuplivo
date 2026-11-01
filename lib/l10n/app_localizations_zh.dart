@@ -15840,6 +15840,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get groupChatNewTopic => '新话题';
 
   @override
+  String get groupChatRemovedMember => '已删除的助手';
+
+  @override
   String get groupChatDirectorFallbackWarning =>
       '导演模型不可用，已由首位成员回复一次。请检查默认模型设置。';
 
@@ -31614,6 +31617,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get groupChatNewTopic => '新话题';
+
+  @override
+  String get groupChatRemovedMember => '已删除的助手';
 
   @override
   String get groupChatDirectorFallbackWarning =>
@@ -47471,6 +47477,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get groupChatNewTopic => '新話題';
+
+  @override
+  String get groupChatRemovedMember => '已刪除的助手';
 
   @override
   String get groupChatDirectorFallbackWarning =>

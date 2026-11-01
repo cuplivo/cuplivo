@@ -29388,6 +29388,12 @@ abstract class AppLocalizations {
   /// **'New topic'**
   String get groupChatNewTopic;
 
+  /// No description provided for @groupChatRemovedMember.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted assistant'**
+  String get groupChatRemovedMember;
+
   /// No description provided for @groupChatDirectorFallbackWarning.
   ///
   /// In en, this message translates to:

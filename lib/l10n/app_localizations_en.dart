@@ -16704,6 +16704,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get groupChatNewTopic => 'New topic';
 
   @override
+  String get groupChatRemovedMember => 'Deleted assistant';
+
+  @override
   String get groupChatDirectorFallbackWarning =>
       'The director model is unavailable, so the first member replied once. Check the default model settings.';
 

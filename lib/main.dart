@@ -1307,10 +1307,11 @@ class MyApp extends StatelessWidget {
                         ctx.read<AssistantProvider>().ensureDefaults(ctx);
                       } catch (_) {}
                       try {
-                        ctx.read<ChatService>().setDefaultConversationTitle(
-                          AppLocalizations.of(
-                            ctx,
-                          )!.chatServiceDefaultConversationTitle,
+                        final l10n = AppLocalizations.of(ctx)!;
+                        ctx.read<ChatService>().setPlaceholderTitles(
+                          conversation:
+                              l10n.chatServiceDefaultConversationTitle,
+                          groupTopic: l10n.groupChatNewTopic,
                         );
                       } catch (_) {}
                       try {

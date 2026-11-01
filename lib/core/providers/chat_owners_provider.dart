@@ -52,6 +52,27 @@ class ChatOwnersProvider extends ChangeNotifier {
       if (owner.isGroup || !taggedAssistantIds.contains(owner.id)) owner,
   ];
 
+  /// [items] in the user's drag order, with anything the order does not know
+  /// yet left at its tail.
+  ///
+  /// A picker that lists one kind of owner reads this instead of its source
+  /// list, so a drag in the sidebar or in settings is the same order in every
+  /// surface that lists owners.
+  List<T> inOwnerOrder<T>(Iterable<T> items, String Function(T item) keyOf) {
+    final rank = <String, int>{
+      for (var i = 0; i < _owners.length; i++) _owners[i].key: i,
+    };
+    final indexed = <({int rank, int index, T item})>[
+      for (final (index, item) in items.indexed)
+        (rank: rank[keyOf(item)] ?? 1 << 20, index: index, item: item),
+    ];
+    indexed.sort((a, b) {
+      final byRank = a.rank.compareTo(b.rank);
+      return byRank != 0 ? byRank : a.index.compareTo(b.index);
+    });
+    return [for (final entry in indexed) entry.item];
+  }
+
   Future<void> _load() async {
     final stored = preferences.getStringList(preferenceKey);
     if (stored != null) {

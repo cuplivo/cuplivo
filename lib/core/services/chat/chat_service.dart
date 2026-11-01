@@ -254,14 +254,39 @@ class ChatService extends ChangeNotifier {
     }
   }
 
-  // Localized default title for new conversations; set by UI on startup.
+  // Localized placeholder titles; set by the UI on startup.
   String _defaultConversationTitle = 'New Chat';
+  String _groupTopicTitle = 'New topic';
 
-  /// The placeholder title a conversation carries until something names it.
-  ///
-  /// Read by callers that set a title themselves when they know a better one
-  /// (a group topic is named after its first user message).
+  /// The placeholder a new conversation carries until something names it.
   String get defaultConversationTitle => _defaultConversationTitle;
+
+  /// The placeholder a group topic carries: a topic is named after its first
+  /// user message once the round that answers it has finished.
+  String get groupTopicTitle => _groupTopicTitle;
+
+  void setPlaceholderTitles({
+    required String conversation,
+    required String groupTopic,
+  }) {
+    if (conversation.trim().isNotEmpty) {
+      _defaultConversationTitle = conversation.trim();
+    }
+    if (groupTopic.trim().isNotEmpty) _groupTopicTitle = groupTopic.trim();
+  }
+
+  /// Whether [title] is still a placeholder, i.e. nothing has named this
+  /// conversation yet.
+  ///
+  /// One predicate for every auto-naming path: they ask this instead of
+  /// comparing against a single hard-coded string, so a group topic — titled
+  /// `新话题` rather than `新对话` — is still renamed after its first turn.
+  bool isPlaceholderTitle(String title) {
+    final trimmed = title.trim();
+    return trimmed.isEmpty ||
+        trimmed == _defaultConversationTitle ||
+        trimmed == _groupTopicTitle;
+  }
 
   /// Optional extras merged into brand-new conversations (not restores).
   Map<String, dynamic> Function(String? assistantId)? newConversationExtras;
@@ -298,11 +323,6 @@ class ChatService extends ChangeNotifier {
         }),
       );
     });
-  }
-
-  void setDefaultConversationTitle(String title) {
-    if (title.trim().isEmpty) return;
-    _defaultConversationTitle = title.trim();
   }
 
   bool _initialized = false;
@@ -5073,6 +5093,12 @@ class ChatService extends ChangeNotifier {
     bool notify = true,
   }) async {
     if (!_initialized) await init();
+    // A group topic belongs to its group, not to an assistant: writing an
+    // assistantId onto it would leave it in the group while claiming an owner.
+    final existing =
+        _draftConversations[conversationId] ??
+        _conversationsCache[conversationId];
+    if (existing != null && existing.isGroupConversation) return false;
     if (_draftConversations.containsKey(conversationId)) {
       final draft = _draftConversations[conversationId]!;
       if (draft.assistantId == assistantId) {

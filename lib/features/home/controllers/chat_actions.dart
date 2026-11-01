@@ -641,9 +641,15 @@ class ChatActions {
           if (message.id != userMessage.id) message,
         userMessage,
       ];
-      for (var turn = 0; turn < group.speakerTurnLimit; turn++) {
+      // One reply per member per round, so a configured limit above the member
+      // count could never be reached: clamping here keeps the number the
+      // director is told about truthful.
+      final turnLimit = group.speakerTurnLimit < members.length
+          ? group.speakerTurnLimit
+          : members.length;
+      for (var turn = 0; turn < turnLimit; turn++) {
         if (isGroupRoundCancelled(conversation.id)) break;
-        final remaining = group.speakerTurnLimit - turn;
+        final remaining = turnLimit - turn;
         final decision = await director.decide(
           group: group,
           members: members,
@@ -783,6 +789,12 @@ class ChatActions {
     streamController.markStreamingStarted(assistantMessage.id);
     onGenerationStarted?.call(assistantMessage.id);
 
+    // Registered before the awaited read below, not after it: a stop that lands
+    // inside that read settles a waiter that already exists instead of finding
+    // none and leaving this turn's `await waiter.future` pending forever.
+    final waiter = Completer<void>();
+    _turnWaiters[conversation.id] = waiter;
+
     final versionSelections =
         chatController.currentConversation?.id == conversation.id
         ? _versionSelections
@@ -795,9 +807,6 @@ class ChatActions {
       viewModel.restoreMessageUiState();
     }
     onMessagesChanged?.call();
-
-    final waiter = Completer<void>();
-    _turnWaiters[conversation.id] = waiter;
 
     final flattened = GroupTranscript.forSpeaker(
       [

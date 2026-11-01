@@ -282,8 +282,10 @@ void main() {
     final controller = await pumpHarness(tester);
     await tester.runAsync(() async {
       await settings.setDirectorModel('SiliconFlow', 'director-model');
+      // The placeholder a topic actually carries. While it was not one of the
+      // names the gate recognised, a topic kept `新话题` for its whole life.
       final convo = await chatService.createConversation(
-        title: 'New Chat',
+        title: chatService.groupTopicTitle,
         groupChatId: 'g1',
       );
       await seedTwoTurnGroupConversation(convo.id);

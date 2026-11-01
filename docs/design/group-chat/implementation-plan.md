@@ -112,6 +112,39 @@
 命名再走一轮（`variant-manage-page-naming.html`，选 B）：这一页叫「助手与群聊」，
 `settingsPageChatOwners` 替换 `settingsPageAssistant`，`desktopAssistantsListTitle` 一并退场。
 
+### 4.6 复核后的修复
+
+独立复核给出 10 条问题 + 3 条待确认，按「数据不变量 / 产品选择」分开处理。
+
+| 问题 | 处置 | 落地 |
+| --- | --- | --- |
+| 群话题里按 ↻ 会写出**没有作者**的回复，模型用的是当前选中的助手 | 待定（§4.6.1） | 未动 |
+| 群的第一条话题永远叫「新话题」，标题模型从不接手 | 修 | 占位标题收口到 `ChatService.isPlaceholderTitle`（会话占位 + 话题占位），启动时 `setPlaceholderTitles` 一次注入；侧栏与 composer 两条新建路径都用 `groupTopicTitle`；`_maybeGenerateTitleFor` 只问这一个谓词 |
+| 未分组段拖拽跨过一个打了标签的行会丢 | 修 | 两段合成一个 `buildReorderableSection`：索引一律是本段索引，全部走 `reorderWithin`；旧的「全局 index + 段内 delta」算法删除 |
+| 提示词邀请导演重复选人，runner 又拒绝 | 修 | 提示词改为「每位成员每轮最多一次，全员发过言就 `end_turn`」；轮次上限按 `min(maxSpeakerTurns, 成员数)` 夹紧；`_decode` 的拒绝留作兜底 |
+| 选人列表不再跟随用户的拖拽顺序 | 修 | `ChatOwnersProvider.inOwnerOrder`，共享「移动到」sheet 与定时任务编辑器 |
+| 被删掉的成员回复显示成当前助手的头像与名字 | 修 | 只有消息**没有**作者时才回退到会话助手；有作者但解析不到 → `groupChatRemovedMember` |
+| 群话题参与记忆整理 / 会话摘要 / follow-up suggestions | 修 | 四处入口按 `convo.isGroupConversation` 直接返回（proactive care 本来就已排除） |
+| 群话题的「移动到」把 `assistantId` 写到群话题上 | 修 | 菜单项对群话题隐藏；`_moveConversationToAssistantInternal` 加不变量守卫：群话题永远不写 owner |
+| 轮次循环与导演没有测试 | 待定（§4.6.1） | 未动 |
+| 「默认模型」Proactive care 卡片上方双倍间距 | 修 | 删掉重复的 `SizedBox(height: 16)` |
+
+另有一条复核列在「待确认」、但按结构应当先修的：`runAssistantTurn` 的 waiter 原本注册在
+`openAroundPersistedMessage`（一次 await 的读）之后，取消落在这个窗口里没有 waiter 可 settle，
+`await waiter.future` 会一直挂着——注册提前到 `_activeAssistantMessages.put` 之后。
+
+群设置里名字输入框的 400ms 防抖仍可能用旧的 `group` 覆盖 `maxSpeakerTurns`：需要一次
+widget 测试才能确认，留待后续。
+
+#### 4.6.1 留到后续
+
+- **群话题里的单条重发**：一条消息的 ↻ 在群里只有一个自洽的含义——「从这位作者重跑这一轮，
+  丢掉这一轮剩下的回复」。那其实是「重来一轮」，不是逐条重发；按逐条实现要复制一轮的
+  转写整形与锚点逻辑。先记录，不半做。
+- **轮次循环与导演的测试**：导演走 `ChatApiService.generateMessage`，测试要伪造一个返回
+  `tool_calls` 的本地 HTTP 服务（标题测试已有同样的骨架）；轮次循环还需要 fake 生成服务。
+  单独一轮做，不塞进这条已验收的 PR。
+
 ## 5. 验证
 - `dart analyze --fatal-infos lib test integration_test` → **0 issue**。
 - 新增测试（14 + 22 = 36 条，全绿）：

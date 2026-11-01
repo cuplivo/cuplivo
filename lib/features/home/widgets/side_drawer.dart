@@ -283,6 +283,8 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
         .read<SettingsProvider>()
         .isTitleGenerationEnabled;
     final isPinned = chat.isPinned;
+    final isGroupTopic =
+        chatService.getConversation(chat.id)?.isGroupConversation ?? false;
     final isDesktop =
         defaultTargetPlatform == TargetPlatform.macOS ||
         defaultTargetPlatform == TargetPlatform.windows ||
@@ -344,61 +346,66 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                 );
               },
             ),
-          DesktopContextMenuItem(
-            icon: Lucide.Shuffle,
-            label: l10n.sideDrawerMenuMoveTo,
-            onTap: () async {
-              if (widget.loadingConversationIds.contains(chat.id)) return;
-              final conv = chatService.getConversation(chat.id);
-              final movingCurrent =
-                  chatService.currentConversationId == chat.id;
-              final keepSidebarOpenOnTopicTap = context
-                  .read<SettingsProvider>()
-                  .keepSidebarOpenOnTopicTap;
-              // Pre-compute next recent conversation for current assistant
-              String? nextId;
-              try {
-                final ap = context.read<AssistantProvider>();
-                final currentAid = ap.currentAssistantId;
-                if (currentAid != null) {
-                  final all = chatService.getAllConversations();
-                  final candidates =
-                      all
-                          .where(
-                            (c) =>
-                                c.assistantId == currentAid && c.id != chat.id,
-                          )
-                          .toList()
-                        ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-                  if (candidates.isNotEmpty) nextId = candidates.first.id;
-                }
-              } catch (_) {}
-              final targetId = await showAssistantMoveSelector(
-                context,
-                excludeAssistantId: conv?.assistantId,
-              );
-              if (!mounted) return;
-              if (targetId != null) {
-                final moved = await chatService.moveConversationToAssistant(
-                  conversationId: chat.id,
-                  assistantId: targetId,
+          // A group topic has no assistant to move to: it belongs to its group,
+          // and giving it an owner would leave it in the group while claiming
+          // one.
+          if (!isGroupTopic)
+            DesktopContextMenuItem(
+              icon: Lucide.Shuffle,
+              label: l10n.sideDrawerMenuMoveTo,
+              onTap: () async {
+                if (widget.loadingConversationIds.contains(chat.id)) return;
+                final conv = chatService.getConversation(chat.id);
+                final movingCurrent =
+                    chatService.currentConversationId == chat.id;
+                final keepSidebarOpenOnTopicTap = context
+                    .read<SettingsProvider>()
+                    .keepSidebarOpenOnTopicTap;
+                // Pre-compute next recent conversation for current assistant
+                String? nextId;
+                try {
+                  final ap = context.read<AssistantProvider>();
+                  final currentAid = ap.currentAssistantId;
+                  if (currentAid != null) {
+                    final all = chatService.getAllConversations();
+                    final candidates =
+                        all
+                            .where(
+                              (c) =>
+                                  c.assistantId == currentAid &&
+                                  c.id != chat.id,
+                            )
+                            .toList()
+                          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+                    if (candidates.isNotEmpty) nextId = candidates.first.id;
+                  }
+                } catch (_) {}
+                final targetId = await showAssistantMoveSelector(
+                  context,
+                  excludeAssistantId: conv?.assistantId,
                 );
-                if (!mounted || !moved) return;
-                if (movingCurrent ||
-                    chatService.currentConversationId == null) {
-                  final closeDrawer = !keepSidebarOpenOnTopicTap;
-                  if (nextId != null) {
-                    widget.onSelectConversation?.call(
-                      nextId,
-                      closeDrawer: closeDrawer,
-                    );
-                  } else {
-                    widget.onNewConversation?.call(closeDrawer: closeDrawer);
+                if (!mounted) return;
+                if (targetId != null) {
+                  final moved = await chatService.moveConversationToAssistant(
+                    conversationId: chat.id,
+                    assistantId: targetId,
+                  );
+                  if (!mounted || !moved) return;
+                  if (movingCurrent ||
+                      chatService.currentConversationId == null) {
+                    final closeDrawer = !keepSidebarOpenOnTopicTap;
+                    if (nextId != null) {
+                      widget.onSelectConversation?.call(
+                        nextId,
+                        closeDrawer: closeDrawer,
+                      );
+                    } else {
+                      widget.onNewConversation?.call(closeDrawer: closeDrawer);
+                    }
                   }
                 }
-              }
-            },
-          ),
+              },
+            ),
           DesktopContextMenuItem(
             icon: Lucide.Trash2,
             label: l10n.sideDrawerMenuDelete,
@@ -561,72 +568,73 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                           );
                         },
                       ),
-                    row(
-                      icon: Lucide.Shuffle,
-                      label: l10n.sideDrawerMenuMoveTo,
-                      action: () async {
-                        if (widget.loadingConversationIds.contains(chat.id)) {
-                          return;
-                        }
-                        final conv = chatService.getConversation(chat.id);
-                        final movingCurrent =
-                            chatService.currentConversationId == chat.id;
-                        // Pre-compute next recent conversation for current assistant
-                        String? nextId;
-                        try {
-                          final ap = context.read<AssistantProvider>();
-                          final currentAid = ap.currentAssistantId;
-                          if (currentAid != null) {
-                            final all = chatService.getAllConversations();
-                            final candidates =
-                                all
-                                    .where(
-                                      (c) =>
-                                          c.assistantId == currentAid &&
-                                          c.id != chat.id,
-                                    )
-                                    .toList()
-                                  ..sort(
-                                    (a, b) =>
-                                        b.updatedAt.compareTo(a.updatedAt),
-                                  );
-                            if (candidates.isNotEmpty) {
-                              nextId = candidates.first.id;
+                    if (!isGroupTopic)
+                      row(
+                        icon: Lucide.Shuffle,
+                        label: l10n.sideDrawerMenuMoveTo,
+                        action: () async {
+                          if (widget.loadingConversationIds.contains(chat.id)) {
+                            return;
+                          }
+                          final conv = chatService.getConversation(chat.id);
+                          final movingCurrent =
+                              chatService.currentConversationId == chat.id;
+                          // Pre-compute next recent conversation for current assistant
+                          String? nextId;
+                          try {
+                            final ap = context.read<AssistantProvider>();
+                            final currentAid = ap.currentAssistantId;
+                            if (currentAid != null) {
+                              final all = chatService.getAllConversations();
+                              final candidates =
+                                  all
+                                      .where(
+                                        (c) =>
+                                            c.assistantId == currentAid &&
+                                            c.id != chat.id,
+                                      )
+                                      .toList()
+                                    ..sort(
+                                      (a, b) =>
+                                          b.updatedAt.compareTo(a.updatedAt),
+                                    );
+                              if (candidates.isNotEmpty) {
+                                nextId = candidates.first.id;
+                              }
+                            }
+                          } catch (_) {}
+                          final keepSidebarOpenOnTopicTap = context
+                              .read<SettingsProvider>()
+                              .keepSidebarOpenOnTopicTap;
+                          final targetId = await showAssistantMoveSelector(
+                            context,
+                            excludeAssistantId: conv?.assistantId,
+                          );
+                          if (!mounted) return;
+                          if (targetId != null) {
+                            final moved = await chatService
+                                .moveConversationToAssistant(
+                                  conversationId: chat.id,
+                                  assistantId: targetId,
+                                );
+                            if (!mounted || !moved) return;
+                            if (movingCurrent ||
+                                chatService.currentConversationId == null) {
+                              final closeDrawer = !keepSidebarOpenOnTopicTap;
+                              if (nextId != null) {
+                                widget.onSelectConversation?.call(
+                                  nextId,
+                                  closeDrawer: closeDrawer,
+                                );
+                              } else {
+                                widget.onNewConversation?.call(
+                                  closeDrawer: closeDrawer,
+                                );
+                              }
                             }
                           }
-                        } catch (_) {}
-                        final keepSidebarOpenOnTopicTap = context
-                            .read<SettingsProvider>()
-                            .keepSidebarOpenOnTopicTap;
-                        final targetId = await showAssistantMoveSelector(
-                          context,
-                          excludeAssistantId: conv?.assistantId,
-                        );
-                        if (!mounted) return;
-                        if (targetId != null) {
-                          final moved = await chatService
-                              .moveConversationToAssistant(
-                                conversationId: chat.id,
-                                assistantId: targetId,
-                              );
-                          if (!mounted || !moved) return;
-                          if (movingCurrent ||
-                              chatService.currentConversationId == null) {
-                            final closeDrawer = !keepSidebarOpenOnTopicTap;
-                            if (nextId != null) {
-                              widget.onSelectConversation?.call(
-                                nextId,
-                                closeDrawer: closeDrawer,
-                              );
-                            } else {
-                              widget.onNewConversation?.call(
-                                closeDrawer: closeDrawer,
-                              );
-                            }
-                          }
-                        }
-                      },
-                    ),
+                        },
+                      ),
                     row(
                       icon: Lucide.Trash,
                       label: l10n.sideDrawerMenuDelete,
@@ -4057,66 +4065,21 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     // Desktop: enable drag-reorder within each group; Mobile/tablet: keep static list
     final bool enableReorder = _isDesktop;
 
-    Widget buildReorderableOwners(List<Object> list) {
-      if (!enableReorder) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: list.map(buildOwnerTile).toList(),
-        );
-      }
-      return ReorderableListView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        buildDefaultDragHandles: false,
-        proxyDecorator: (child, index, animation) {
-          return AnimatedBuilder(
-            animation: animation,
-            builder: (context, _) {
-              return ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Material(type: MaterialType.transparency, child: child),
-              );
-            },
-          );
-        },
-        onReorderItem: (oldIndex, newIndex) async {
-          try {
-            final movingOwner = list[oldIndex];
-            final movingKey = movingOwner is GroupChat
-                ? ChatOwner.group(movingOwner.id)
-                : ChatOwner.assistant((movingOwner as Assistant).id);
-            final targetIndex = owners.owners.indexOf(movingKey);
-            if (targetIndex < 0) return;
-            final delta = newIndex - oldIndex;
-            await owners.reorder(targetIndex, targetIndex + delta);
-          } catch (_) {}
-        },
-        itemCount: list.length,
-        itemBuilder: (ctx, index) {
-          final owner = list[index];
-          final key = owner is GroupChat
-              ? 'group-${owner.id}'
-              : 'assistant-${(owner as Assistant).id}';
-          return KeyedSubtree(
-            key: ValueKey(key),
-            child: ReorderableDragStartListener(
-              index: index,
-              enabled: enableReorder,
-              child: buildOwnerTile(owner),
-            ),
-          );
-        },
-      );
-    }
-
-    Widget buildReorderable(
-      List<Assistant> list, {
-      required List<String> subsetIds,
+    // One reorder surface for every section — the untagged list (assistants and
+    // groups together) and each tag (assistants only). A drag moves an item
+    // inside the section that shows it, so the indices are section indices, and
+    // `reorderWithin` maps them back onto the shared order without moving any
+    // row the section cannot see.
+    Widget buildReorderableSection<T>(
+      List<T> list, {
+      required ChatOwner Function(T item) ownerOf,
+      required String Function(T item) widgetKeyOf,
+      required Widget Function(T item) tileOf,
     }) {
       if (!enableReorder) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: list.map(buildTile).toList(),
+          children: list.map(tileOf).toList(),
         );
       }
       return ReorderableListView.builder(
@@ -4138,7 +4101,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
         onReorderItem: (oldIndex, newIndex) async {
           try {
             await context.read<ChatOwnersProvider>().reorderWithin(
-              keys: {for (final id in subsetIds) ChatOwner.assistant(id).key},
+              keys: {for (final item in list) ownerOf(item).key},
               oldIndex: oldIndex,
               newIndex: newIndex,
             );
@@ -4146,14 +4109,13 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
         },
         itemCount: list.length,
         itemBuilder: (ctx, index) {
-          final a = list[index];
-          final tile = buildTile(a);
+          final item = list[index];
           return KeyedSubtree(
-            key: ValueKey('assistant-${a.id}'),
+            key: ValueKey(widgetKeyOf(item)),
             child: ReorderableDragStartListener(
               index: index,
               enabled: enableReorder,
-              child: tile,
+              child: tileOf(item),
             ),
           );
         },
@@ -4165,7 +4127,17 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (ungrouped.isNotEmpty) buildReorderableOwners(ungrouped),
+          if (ungrouped.isNotEmpty)
+            buildReorderableSection<Object>(
+              ungrouped,
+              ownerOf: (owner) => owner is GroupChat
+                  ? ChatOwner.group(owner.id)
+                  : ChatOwner.assistant((owner as Assistant).id),
+              widgetKeyOf: (owner) => owner is GroupChat
+                  ? 'group-${owner.id}'
+                  : 'assistant-${(owner as Assistant).id}',
+              tileOf: buildOwnerTile,
+            ),
           for (final t in tags)
             if ((groupedByTag[t.id] ?? const <Assistant>[]).isNotEmpty) ...[
               const SizedBox(height: 4),
@@ -4180,11 +4152,11 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                 alignment: Alignment.topCenter,
                 child: tp.isCollapsed(t.id)
                     ? const SizedBox.shrink()
-                    : buildReorderable(
+                    : buildReorderableSection<Assistant>(
                         groupedByTag[t.id]!,
-                        subsetIds: (groupedByTag[t.id] ?? const <Assistant>[])
-                            .map((a) => a.id)
-                            .toList(),
+                        ownerOf: (a) => ChatOwner.assistant(a.id),
+                        widgetKeyOf: (a) => 'assistant-${a.id}',
+                        tileOf: buildTile,
                       ),
               ),
             ],
@@ -4217,7 +4189,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     final conversation =
         recent ??
         await chat.createDraftConversation(
-          title: AppLocalizations.of(context)!.groupChatNewTopic,
+          title: chat.groupTopicTitle,
           groupChatId: group.id,
           reuseNewEntry: true,
         );

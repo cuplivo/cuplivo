@@ -6141,6 +6141,7 @@
   "groupChatDeleted": "群聊已移入回收站",
   "groupChatUnavailable": "找不到此群聊的設定，請到回收站還原。",
   "groupChatNewTopic": "新話題",
+  "groupChatRemovedMember": "已刪除的助手",
   "groupChatDirectorFallbackWarning": "導演模型無法使用，已由首位成員回覆一次。請檢查預設模型設定。",
   "groupChatUnavailableWarning": "此群聊沒有可用的成員。",
   "defaultModelPageDirectorModelTitle": "導演模型",

@@ -18,6 +18,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/message_part.dart';
 import '../../../core/models/assistant.dart';
@@ -2515,8 +2516,13 @@ class _MessageListViewState extends State<MessageListView> {
   }) {
     final currentIdx = availableVersions.indexOf(selectedVersion);
     final quoteTarget = _quoteTargetFor(message);
-    // The author of *this* reply, when the conversation has several.
-    final author = widget.resolveAssistant?.call(message) ?? assistant;
+    // The author of *this* reply, when the conversation has several. A reply
+    // that names a sender the roster cannot resolve belongs to an assistant
+    // that has since been deleted: falling back to the selected assistant would
+    // put its face and name on someone else's words.
+    final resolvedAuthor = widget.resolveAssistant?.call(message);
+    final authorGone = message.senderId != null && resolvedAuthor == null;
+    final author = resolvedAuthor ?? (authorGone ? null : assistant);
     return ChatMessageWidget(
       message: message,
       onReply: widget.onReplyMessage == null || message.isStreaming
@@ -2560,7 +2566,9 @@ class _MessageListViewState extends State<MessageListView> {
       useAssistantAvatar: useAssistAvatar && message.role == 'assistant',
       useAssistantName: useAssistName && message.role == 'assistant',
       assistantName: (useAssistAvatar || useAssistName)
-          ? (author?.name ?? 'Assistant')
+          ? (authorGone
+                ? AppLocalizations.of(context)!.groupChatRemovedMember
+                : (author?.name ?? 'Assistant'))
           : null,
       assistantAvatar: useAssistAvatar ? (author?.avatar ?? '') : null,
       showUserAvatar: presentation.showUserAvatar,

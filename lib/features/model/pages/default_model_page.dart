@@ -251,7 +251,6 @@ class DefaultModelPage extends StatelessWidget {
             configAction: () => showOcrPromptSheet(context),
           ),
           const SizedBox(height: 16),
-          const SizedBox(height: 16),
           _ModelCard(
             icon: Lucide.HeartPulse,
             title: l10n.defaultModelPageProactiveCareModelTitle,

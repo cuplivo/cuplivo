@@ -237,6 +237,7 @@ flutter:
   assets:
     - assets/icons/
     - assets/app_icon.png
+    - assets/app_icon_about.png
     - assets/app_icon.ico
     - assets/icon_mac.png
     - assets/mermaid.min.js

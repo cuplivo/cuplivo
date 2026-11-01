@@ -2374,7 +2374,12 @@ class HomeViewModel extends ChangeNotifier {
     final prompt = settings.suggestionPrompt;
     bool isCurrent() =>
         identical(_suggestionRequests[conversationId], request) &&
-        settings.isSuggestionGenerationAllowedFor(assistant) &&
+        // Re-resolved rather than reusing the snapshot read above: an opt-out
+        // that lands while the request is in flight must discard the reply, and
+        // the snapshot still says "allowed".
+        settings.isSuggestionGenerationAllowedFor(
+          assistantProvider.resolveConversationAssistant(convo.assistantId),
+        ) &&
         settings.suggestionPrompt == prompt &&
         _chatService.getConversation(conversationId) != null &&
         _chatService.getContextStartIndex(conversationId) == truncateIndex;

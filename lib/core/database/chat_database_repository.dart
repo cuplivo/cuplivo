@@ -5517,6 +5517,7 @@ class ChatDatabaseRepository {
               : null,
           groupId: groupId,
           version: nextVersion,
+          senderId: original.senderId,
         ),
         uiContext,
       );
@@ -5834,7 +5835,7 @@ class ChatDatabaseRepository {
   /// false when the deletion is deferred (a generation is running).
   Future<bool> syncApplyPeerDeletion(String conversationId) async {
     if (await syncConversationIsStreaming(conversationId)) return false;
-    await deleteConversation(conversationId);
+    await deleteConversation(conversationId, origin: RecycleOrigin.remote);
     return true;
   }
 
@@ -7397,6 +7398,7 @@ class ChatDatabaseRepository {
               (row) =>
                   row.kind.isIn([
                     ContextOperation.entityKind,
+                    ImageContextSettings.entityKind,
                     'contextCompressionTask',
                   ]) &
                   row.ownerId.equals(id),
@@ -8369,6 +8371,7 @@ class ChatDatabaseRepository {
       reasoningSegmentsJson: row.reasoningSegmentsJson,
       groupId: row.groupId,
       version: row.version,
+      senderId: row.senderId,
       promptTokens: row.promptTokens,
       completionTokens: row.completionTokens,
       cachedTokens: row.cachedTokens,

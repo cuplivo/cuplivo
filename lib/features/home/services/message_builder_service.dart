@@ -16,7 +16,6 @@ import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/context_operation.dart';
 import '../../../core/models/message_part.dart';
-import '../../../core/models/message_quote.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/models/world_book.dart';
 import '../../../core/models/conversation_prompt_settings.dart';
@@ -1544,7 +1543,7 @@ class MessageBuilderService {
         var content = PromptTransformer.applyMessageTemplate(
           templ,
           role: 'user',
-          message: citedBody,
+          message: processedBody,
           now: now,
         );
         if (assistant?.appendCurrentTimeToUserMessage == true) {

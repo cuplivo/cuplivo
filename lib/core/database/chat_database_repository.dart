@@ -7166,24 +7166,6 @@ class ChatDatabaseRepository {
     int? reasoningTokens,
     int? cacheWriteTokens,
   }) {
-Future<ChatMessage?> updateMessageFields(
-    String messageId, {
-    String? content,
-    List<MessagePart>? parts,
-    int? totalTokens,
-    bool? isStreaming,
-    String? reasoningText,
-    DateTime? reasoningStartAt,
-    DateTime? reasoningFinishedAt,
-    String? translation,
-    String? reasoningSegmentsJson,
-    int? promptTokens,
-    int? completionTokens,
-    int? cachedTokens,
-    int? durationMs,
-    int? reasoningTokens,
-    int? cacheWriteTokens,
-  }) {
     return _writeTransaction(() async {
       // Built inside the transaction because updated_at is floored at the
       // row's own timestamp, exactly as [_messageUpdate] floors it: the
@@ -7207,92 +7189,6 @@ Future<ChatMessage?> updateMessageFields(
           });
         }
       }
-      await _invalidateEmptyAcknowledgement();
-      final now = DateTime.now().toUtc();
-      final updatedAt = now.isBefore(existing.timestamp)
-          ? existing.timestamp
-          : now;
-      var write = MessageRowsCompanion(
-        updatedAt: Value(updatedAt),
-        totalTokens: totalTokens != null
-            ? Value(totalTokens)
-            : const Value.absent(),
-        isStreaming: isStreaming != null
-            ? Value(isStreaming)
-            : const Value.absent(),
-        reasoningStartAt: reasoningStartAt != null
-            ? Value(reasoningStartAt)
-            : const Value.absent(),
-        reasoningFinishedAt: reasoningFinishedAt != null
-            ? Value(reasoningFinishedAt)
-            : const Value.absent(),
-        translation: translation != null
-            ? Value(translation)
-            : const Value.absent(),
-        reasoningSegmentsJson: reasoningSegmentsJson != null
-            ? Value(reasoningSegmentsJson)
-            : const Value.absent(),
-        promptTokens: promptTokens != null
-            ? Value(promptTokens)
-            : const Value.absent(),
-        completionTokens: completionTokens != null
-            ? Value(completionTokens)
-            : const Value.absent(),
-        cachedTokens: cachedTokens != null
-            ? Value(cachedTokens)
-            : const Value.absent(),
-        durationMs: durationMs != null
-            ? Value(durationMs)
-            : const Value.absent(),
-      );
-      if (reasoningTokens != null || cacheWriteTokens != null) {
-        // The row was read above, inside this same transaction, so the extras
-        // merge onto the value that read saw.
-        write = write.copyWith(
-          extrasJson: Value(
-            _encodeTokenExtras(
-              existing.extrasJson,
-              reasoningTokens: reasoningTokens,
-              cacheWriteTokens: cacheWriteTokens,
-            ),
-          ),
-        );
-      }
-      await (_db.update(
-        _db.messageRows,
-      )..where((t) => t.id.equals(messageId))).write(write);
-      final updated = await getMessage(messageId);
-      if (updated == null) return null;
-      if (content == null && reasoningText == null && parts == null) {
-        if (reasoningSegmentsJson != null) {
-          await genUiStates.reconcileSource(updated);
-        }
-        if ((reasoningSegmentsJson != null || isStreaming != null) &&
-            UiMessageSource.of(updated.parts).hasCandidate) {
-          await _genUiSearch.seal(updated);
-        }
-        return updated;
-      }
-      var nextParts = updated.parts;
-      if (parts != null) {
-        nextParts = parts;
-      } else if (content != null) {
-        nextParts = ChatMessage.partsWithRedistributedText(nextParts, content);
-      }
-      if (reasoningText != null) {
-        nextParts = ChatMessage.partsWithReplacedReasoning(
-          nextParts,
-          reasoningText,
-        );
-      }
-      final corrected = updated.copyWith(
-        parts: nextParts,
-        reasoningText: reasoningText ?? updated.reasoningText,
-      );
-      await _replaceMessageParts(corrected);
-      return corrected;
-    });
-  }
       await _invalidateEmptyAcknowledgement();
       final now = DateTime.now().toUtc();
       final updatedAt = now.isBefore(existing.timestamp)

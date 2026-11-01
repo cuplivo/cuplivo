@@ -137,7 +137,11 @@ class _GroupSettingsViewState extends State<GroupSettingsView> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.groupChatDeleteTitle),
-        content: Text(l10n.groupChatDeleteContent),
+        // A topic that was never sent lives only in the composer, so it cannot
+        // be staged: say so instead of promising it back.
+        content: Text(
+          '${l10n.groupChatDeleteContent}\n\n${l10n.composerDraftDeleteNotice}',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),

@@ -10892,6 +10892,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recycleBinKindConfig => 'Configuration';
 
   @override
+  String get recycleBinKindGroup => 'Group';
+
+  @override
   String get recycleBinOriginLocal => 'Deleted here';
 
   @override
@@ -10947,6 +10950,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recycleBinFilterAssistants => 'Assistants';
+
+  @override
+  String get recycleBinFilterGroups => 'Groups';
 
   @override
   String get recycleBinFilterSettings => 'Settings';

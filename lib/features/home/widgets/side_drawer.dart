@@ -4326,7 +4326,11 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.groupChatDeleteTitle),
-        content: Text(l10n.groupChatDeleteContent),
+        // An unsent topic is composer-only and cannot be staged: the dialog has
+        // to say so rather than promise the bin for it.
+        content: Text(
+          '${l10n.groupChatDeleteContent}\n\n${l10n.composerDraftDeleteNotice}',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),

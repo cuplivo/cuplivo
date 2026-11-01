@@ -194,6 +194,23 @@ widget 测试才能确认，留待后续。
 已知未改，记录在案：`_openGroup` 取最新**已落库**话题、忽略未发送草稿；群删除时草稿话题按设计
 丢弃、不进回收站（`architecture-r2.md` 已写明）。
 
+### 4.9 第四遍复核
+
+第四轮给 6 条，全部复现并修掉；复核自己标了「未验证」的 4 条里，3 条确认成立，一并修了。
+
+| 问题 | 修法 |
+| --- | --- |
+| 删掉的群在回收站里被归到「设置」、标签是「配置」 | 回收站补 `groupChat` 这一 kind：标签「群聊」、图标、独立的「群聊」筛选页；「设置」页显式排除它。详情页那份重复的 switch 一起补 |
+| 导演决定期间按 Stop，loading 要等到模型回答（最多 20s） | 导演请求用会话 id 注册 `requestId`：Stop 走 `cancelStreamingById` → `ChatApiService.cancelRequest(cid)` 直接掐断请求；catch 里认取消并立刻返回 `cancelled` |
+| 编辑群成员的回复会写出一条 `sender_id = NULL` 的新版本 | `_appendMessageVersion` 带上原作者 `senderId`；`_messageUpdate` 改成「快照没有作者就不写这一列」，让擦除在结构上不可能 |
+| 群删除对话框承诺回收站，未发送的草稿话题却被直接丢掉 | 对话框补上 1:1 已有的 `composerDraftDeleteNotice`——草稿只存在于 composer，无法入回收站，所以是改承诺而不是改行为；两个入口都补 |
+| 导演重试发的是逐字节相同的请求 | 第二次尝试追加一轮 user 提醒（只许用工具、可用 id 列表），与设计稿 `architecture.md` §5 一致；`temperature: 0` 下这才算第二次机会 |
+| `MessageListView.assistants` 上叠了两段文档注释 | 删掉描述已被移除的回调的那一段 |
+
+复核标「未验证」的三条也修了：导演的泛化 `catch` 不再吞掉已经捕获的决定（原来的 `break` 会跳过处理块）；
+`_messageUpdate` 的 `senderId` 归一；设置页「+」在桌面端什么都不弹——补 `anchorKey`
+（桌面布局也推这个页面，所以按钮是可达的死按钮）。剩一条「首启时顺序先写空」会自愈，不动。
+
 ## 5. 验证
 - `dart analyze --fatal-infos lib test integration_test` → **0 issue**。
 - 新增测试（14 + 22 = 36 条，全绿）：

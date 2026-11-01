@@ -330,14 +330,12 @@ class MessageListView extends StatefulWidget {
   final bool showTokenStats;
   final Assistant? assistant;
 
-  /// Per-message author, for a conversation that has more than one.
-  ///
-  /// Null in a 1:1 chat, where [assistant] is the only possible author. A group
-  /// conversation passes a resolver keyed on [ChatMessage.senderId], so an old
-  /// reply keeps the face and name it was written with even after the current
-  /// assistant changes — or after its author is deleted.
   /// The roster a reply's author is resolved from, so one conversation can
-  /// hold several speakers.
+  /// hold several speakers: an old reply keeps the face and name it was written
+  /// with even after the current assistant changes — or after its author is
+  /// deleted.
+  ///
+  /// Null in a 1:1 chat, where [assistant] is the only possible author.
   ///
   /// A provider rather than a callback on purpose: the metric guard in
   /// [didUpdateWidget] compares this by identity, so a callback allocated in

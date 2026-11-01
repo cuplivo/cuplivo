@@ -765,8 +765,12 @@ class ChatActions {
           resolve: resolveAssistant,
           remainingTurns: remaining,
           // Stop is the user's answer for this round: a decision still in
-          // flight must not be retried after it lands.
+          // flight must not be retried after it lands…
           isCancelled: () => isGroupRoundCancelled(conversation.id),
+          // …and the request itself is registered under the conversation, so
+          // Stop aborts it instead of leaving the round loading for up to the
+          // decision timeout.
+          requestId: conversation.id,
         );
         if (isGroupRoundCancelled(conversation.id)) break;
 

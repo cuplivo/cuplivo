@@ -10429,6 +10429,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get recycleBinKindConfig => '配置';
 
   @override
+  String get recycleBinKindGroup => '群聊';
+
+  @override
   String get recycleBinOriginLocal => '本机删除';
 
   @override
@@ -10478,6 +10481,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get recycleBinFilterAssistants => '助手';
+
+  @override
+  String get recycleBinFilterGroups => '群聊';
 
   @override
   String get recycleBinFilterSettings => '设置';
@@ -26205,6 +26211,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get recycleBinKindConfig => '配置';
 
   @override
+  String get recycleBinKindGroup => '群聊';
+
+  @override
   String get recycleBinOriginLocal => '本机删除';
 
   @override
@@ -26254,6 +26263,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get recycleBinFilterAssistants => '助手';
+
+  @override
+  String get recycleBinFilterGroups => '群聊';
 
   @override
   String get recycleBinFilterSettings => '设置';
@@ -42056,6 +42068,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get recycleBinKindConfig => '設定';
 
   @override
+  String get recycleBinKindGroup => '群聊';
+
+  @override
   String get recycleBinOriginLocal => '本機刪除';
 
   @override
@@ -42105,6 +42120,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get recycleBinFilterAssistants => '助手';
+
+  @override
+  String get recycleBinFilterGroups => '群聊';
 
   @override
   String get recycleBinFilterSettings => '設定';

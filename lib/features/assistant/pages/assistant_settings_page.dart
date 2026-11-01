@@ -28,8 +28,18 @@ import 'package:Cuplivo/theme/app_semantic_colors.dart';
 /// The sidebar and this page share [ChatOwnersProvider], so a drag here moves
 /// the same row there. They also share one "+": assistants used to be created
 /// here and groups in the sidebar, which is why reordering felt arbitrary.
-class ChatOwnerSettingsPage extends StatelessWidget {
+class ChatOwnerSettingsPage extends StatefulWidget {
   const ChatOwnerSettingsPage({super.key});
+
+  @override
+  State<ChatOwnerSettingsPage> createState() => _ChatOwnerSettingsPageState();
+}
+
+class _ChatOwnerSettingsPageState extends State<ChatOwnerSettingsPage> {
+  /// Anchors the "+" menu on desktop. A menu asked for with neither a pointer
+  /// position nor a key is not shown at all there, which is what this page's
+  /// only create affordance would otherwise be.
+  final GlobalKey _createMenuAnchor = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
@@ -67,13 +77,16 @@ class ChatOwnerSettingsPage extends StatelessWidget {
         ),
         title: Text(l10n.settingsPageChatOwners),
         actions: [
-          Tooltip(
-            message: l10n.settingsPageChatOwnersCreate,
-            child: _TactileIconButton(
-              icon: Lucide.Plus,
-              color: cs.onSurface,
-              size: 22,
-              onTap: () => _showCreateMenu(context),
+          KeyedSubtree(
+            key: _createMenuAnchor,
+            child: Tooltip(
+              message: l10n.settingsPageChatOwnersCreate,
+              child: _TactileIconButton(
+                icon: Lucide.Plus,
+                color: cs.onSurface,
+                size: 22,
+                onTap: () => _showCreateMenu(context),
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -127,6 +140,7 @@ class ChatOwnerSettingsPage extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     await showAdaptiveActionMenu(
       context,
+      anchorKey: _createMenuAnchor,
       items: [
         ActionSheetItem(
           icon: Lucide.UserPlus,

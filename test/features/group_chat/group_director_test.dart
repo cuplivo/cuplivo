@@ -25,6 +25,10 @@ void main() {
   late String toolName;
   late Map<String, dynamic> toolArgs;
 
+  /// When true the fake model answers in prose instead of calling a tool, which
+  /// is what the retry exists for.
+  late bool plainText;
+
   final members = [
     Assistant(id: 'a', name: 'A'),
     Assistant(id: 'b', name: 'B'),
@@ -62,6 +66,7 @@ void main() {
     requests.clear();
     toolName = GroupDirector.selectSpeakerTool;
     toolArgs = const {'assistant_id': 'b'};
+    plainText = false;
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((request) async {
       final body =
@@ -70,6 +75,25 @@ void main() {
       requests.add(body);
       request.response.statusCode = HttpStatus.ok;
       request.response.headers.contentType = ContentType.json;
+      final message = plainText
+          ? <String, dynamic>{
+              'role': 'assistant',
+              'content': 'B should answer next.',
+            }
+          : <String, dynamic>{
+              'role': 'assistant',
+              'content': null,
+              'tool_calls': [
+                {
+                  'id': 'call-1',
+                  'type': 'function',
+                  'function': {
+                    'name': toolName,
+                    'arguments': jsonEncode(toolArgs),
+                  },
+                },
+              ],
+            };
       request.response.write(
         jsonEncode({
           'id': 'completion-1',
@@ -77,21 +101,8 @@ void main() {
           'choices': [
             {
               'index': 0,
-              'message': {
-                'role': 'assistant',
-                'content': null,
-                'tool_calls': [
-                  {
-                    'id': 'call-1',
-                    'type': 'function',
-                    'function': {
-                      'name': toolName,
-                      'arguments': jsonEncode(toolArgs),
-                    },
-                  },
-                ],
-              },
-              'finish_reason': 'tool_calls',
+              'message': message,
+              'finish_reason': plainText ? 'stop' : 'tool_calls',
             },
           ],
           'usage': {
@@ -216,6 +227,31 @@ void main() {
       expect(requests, hasLength(GroupDirector.attempts));
     },
   );
+
+  test('a text answer is retried with the rule and the ids restated', () async {
+    plainText = true;
+
+    final decision = await decide();
+
+    expect(decision, isA<GroupDirectorUnavailable>());
+    expect((decision as GroupDirectorUnavailable).failure, 'no_decision');
+    expect(requests, hasLength(GroupDirector.attempts));
+
+    final first = (requests[0]['messages'] as List).cast<Map>();
+    final second = (requests[1]['messages'] as List).cast<Map>();
+    // The second attempt is a different request: the same question plus the
+    // one thing the first answer missed. At `temperature: 0` an unchanged
+    // request would be a byte-identical repeat, not a second chance.
+    expect(second.length, first.length + 1);
+    final reminder = second.last;
+    expect(reminder['role'], 'user');
+    expect(reminder['content'], contains(GroupDirector.selectSpeakerTool));
+    expect(reminder['content'], contains('a, b, c'));
+    expect(
+      first.map((message) => message['content']),
+      isNot(contains(reminder['content'])),
+    );
+  });
 
   test('end_turn ends the round', () async {
     toolName = GroupDirector.endTurnTool;

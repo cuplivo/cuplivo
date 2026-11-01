@@ -197,6 +197,26 @@ void main() {
       expect((await repository.getMessage('m1'))?.senderId, 'a1');
     });
 
+    test('an edit version keeps the author', () async {
+      await repository.appendLinearMessageToConversation(
+        conversation: conversation(),
+        message: reply(id: 'm1', senderId: 'a1'),
+      );
+      // Editing a reply is a new revision of the same words from the same
+      // member: an authorless revision would be re-attributed to whichever
+      // assistant is selected when it is shown.
+      final appended = await repository.appendMessageVersion(
+        messageId: 'm1',
+        content: 'hello, edited',
+      );
+      expect(appended, isNotNull);
+      expect(appended!.message.senderId, 'a1');
+      expect(
+        (await repository.getMessage(appended.message.id))?.senderId,
+        'a1',
+      );
+    });
+
     test('a copied conversation keeps every author', () async {
       await repository.appendLinearMessageToConversation(
         conversation: conversation(),

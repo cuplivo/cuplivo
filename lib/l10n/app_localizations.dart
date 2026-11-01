@@ -19539,6 +19539,12 @@ abstract class AppLocalizations {
   /// **'Configuration'**
   String get recycleBinKindConfig;
 
+  /// No description provided for @recycleBinKindGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Group'**
+  String get recycleBinKindGroup;
+
   /// No description provided for @recycleBinOriginLocal.
   ///
   /// In en, this message translates to:
@@ -19640,6 +19646,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Assistants'**
   String get recycleBinFilterAssistants;
+
+  /// No description provided for @recycleBinFilterGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'Groups'**
+  String get recycleBinFilterGroups;
 
   /// No description provided for @recycleBinFilterSettings.
   ///

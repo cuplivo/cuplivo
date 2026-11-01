@@ -5541,6 +5541,10 @@ class ChatDatabaseRepository {
               : null,
           groupId: groupId,
           version: nextVersion,
+          // A new revision is the same reply said differently: its author has
+          // to come with it, or the edit turns a member's words into the
+          // current assistant's.
+          senderId: original.senderId,
           // The citation is part of the user message's content identity, so a
           // new version carries it (docs/adr/0012).
           quote: original.quote,
@@ -8182,7 +8186,11 @@ class ChatDatabaseRepository {
       completionTokens: Value(message.completionTokens),
       cachedTokens: Value(message.cachedTokens),
       durationMs: Value(message.durationMs),
-      senderId: Value(message.senderId),
+      // A snapshot without an author must not erase one: the column is written
+      // only when the caller carries an id.
+      senderId: message.senderId == null
+          ? const Value.absent()
+          : Value(message.senderId),
     );
   }
 

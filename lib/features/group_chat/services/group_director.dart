@@ -138,6 +138,10 @@ class GroupDirector {
 
   /// One decision. Returns [GroupDirectorUnavailable] rather than throwing: a
   /// director that cannot answer is a normal state, not an error.
+  ///
+  /// [requestId] is the round's cancellation key — the same id the conversation
+  /// uses for Stop — so a request already in flight is aborted instead of being
+  /// waited out for [decisionTimeout].
   Future<GroupDirectorDecision> decide({
     required GroupChat group,
     required List<Assistant> members,
@@ -146,6 +150,7 @@ class GroupDirector {
     required Assistant? Function(String? senderId) resolve,
     required int remainingTurns,
     bool Function()? isCancelled,
+    String? requestId,
   }) async {
     final model = resolveModel();
     if (model == null) return const GroupDirectorUnavailable('no_model');
@@ -170,6 +175,13 @@ class GroupDirector {
       maxChars: _maxTranscriptChars,
     );
     final config = settings.getProviderConfig(model.providerKey);
+    final systemPrompt = _systemPrompt(
+      group: group,
+      roster: roster,
+      spokeThisRound: spokeThisRound,
+      remainingTurns: remainingTurns,
+    );
+    final historyPayload = _historyPayload(history);
     var failure = 'no_decision';
     for (var attempt = 0; attempt < attempts; attempt++) {
       // Pressing Stop while the decision is in flight must not cost a second
@@ -182,17 +194,15 @@ class GroupDirector {
         await ChatApiService.generateMessage(
           config: config,
           modelId: model.modelId,
+          // The retry has to be a different request: an answer without a tool
+          // call is met with the rule and the ids restated. Without that turn,
+          // `temperature: 0` makes the second attempt a byte-identical repeat of
+          // the first, which is not a second chance.
           messages: [
-            {
-              'role': 'system',
-              'content': _systemPrompt(
-                group: group,
-                roster: roster,
-                spokeThisRound: spokeThisRound,
-                remainingTurns: remainingTurns,
-              ),
-            },
-            {'role': 'user', 'content': _historyPayload(history)},
+            {'role': 'system', 'content': systemPrompt},
+            {'role': 'user', 'content': historyPayload},
+            if (attempt > 0)
+              {'role': 'user', 'content': _retryReminder(roster)},
           ],
           temperature: 0,
           maxTokens: 400,
@@ -209,16 +219,23 @@ class GroupDirector {
           builtInSearchOnly: true,
           skipImageParsing: true,
           allowImagesApiRouting: false,
+          // Registered under the conversation, so Stop cancels this request the
+          // way it cancels a speaker's stream.
+          requestId: requestId,
         ).timeout(decisionTimeout);
       } on _DirectorDecided {
         // Expected: the handler threw to stop the request after deciding.
       } on TimeoutException {
         failure = 'timeout';
       } catch (error) {
+        // A cancel is the round ending, not a failure worth retrying.
+        if (isCancelled?.call() ?? false) {
+          return const GroupDirectorUnavailable('cancelled');
+        }
         failure = 'failed';
-        if (captured.decision != null) break;
         // A thrown handler may surface as a request error; a captured decision
-        // still wins.
+        // still wins, so fall through to the checks below rather than breaking
+        // out with `failure` and throwing a good answer away.
       }
       final decision = captured.decision;
       if (decision is GroupDirectorSpeak) {
@@ -237,6 +254,15 @@ class GroupDirector {
       if (failure == 'timeout') break;
     }
     return GroupDirectorUnavailable(failure);
+  }
+
+  /// The one thing the second attempt adds: the rule the first answer missed
+  /// and the ids it may name.
+  String _retryReminder(List<Map<String, dynamic>> roster) {
+    final ids = [for (final entry in roster) entry['assistant_id'] as String];
+    return 'Your previous answer did not call a tool. Answer only by calling '
+        '"$selectSpeakerTool" or "$endTurnTool" with JSON arguments. Valid '
+        'assistant_id values: ${ids.join(', ')}.';
   }
 
   GroupDirectorDecision _decode(

@@ -106,6 +106,12 @@ import '../theme/custom_theme.dart';
 import '../features/settings/widgets/custom_theme_widgets.dart';
 import '../features/settings/pages/message_style_settings_page.dart';
 import '../shared/widgets/tip_icon.dart';
+import '../core/models/group_chat.dart';
+import '../core/providers/group_chat_provider.dart';
+import '../core/providers/chat_owners_provider.dart';
+import '../features/group_chat/widgets/group_member_list.dart';
+import '../features/group_chat/group_navigation.dart';
+import '../shared/widgets/action_sheet.dart';
 
 part 'setting/assistants_pane.dart';
 part 'setting/providers_pane.dart';
@@ -400,124 +406,11 @@ class _DesktopSettingsPageState extends State<DesktopSettingsPage> {
                   }
                 }(),
               ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _SettingsMenu(
-                  width: menuWidth,
-                  selected: _selected,
-                  onSearch: _openSearch,
-                  onSelect: (it) => setState(() {
-                    _selected = it;
-                    _searchTarget = null;
-                  }),
-                ),
-                VerticalDivider(
-                  width: 1,
-                  thickness: 0.5,
-                  color: cs.outlineVariant.withValues(alpha: 0.12),
-                ),
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    switchInCurve: Curves.easeOutCubic,
-                    child: () {
-                      switch (_selected) {
-                        case _SettingsMenuItem.display:
-                          return SettingsSearchTarget(
-                            key: ValueKey(('display', _searchNavigation)),
-                            label:
-                                _searchTarget?.targetLabel ??
-                                switch (_searchTarget?.destination) {
-                                  SettingsSearchDestination.messageStyle =>
-                                    l10n.messageStyleSettingsPageTitle,
-                                  SettingsSearchDestination.autoRetry =>
-                                    l10n.settingsPageAutoRetry,
-                                  _ => null,
-                                },
-                            child: const _DisplaySettingsBody(),
-                          );
-                        case _SettingsMenuItem.assistant:
-                          return const _DesktopAssistantsBody(
-                            key: ValueKey('assistants'),
-                          );
-                        case _SettingsMenuItem.providers:
-                          return _DesktopProvidersBody(
-                            key: const ValueKey('providers'),
-                            initialSelectedKey: widget.initialProviderKey,
-                          );
-                        case _SettingsMenuItem.defaultModel:
-                          return const DesktopDefaultModelPane(
-                            key: ValueKey('defaultModel'),
-                          );
-                        case _SettingsMenuItem.search:
-                          return const DesktopSearchServicesPane(
-                            key: ValueKey('search'),
-                          );
-                        case _SettingsMenuItem.toolSchemas:
-                          return const DesktopToolSchemasPane(
-                            key: ValueKey('toolSchemas'),
-                          );
-                        case _SettingsMenuItem.mcp:
-                          return const DesktopMcpPane(key: ValueKey('mcp'));
-                        case _SettingsMenuItem.workspace:
-                          return const DesktopWorkspacePane(
-                            key: ValueKey('workspace'),
-                          );
-                        case _SettingsMenuItem.skills:
-                          return const DesktopSkillsSettingsPane(
-                            key: ValueKey('skills'),
-                          );
-                        case _SettingsMenuItem.networkProxy:
-                          return const DesktopNetworkProxyPane(
-                            key: ValueKey('networkProxy'),
-                          );
-                        case _SettingsMenuItem.backup:
-                          return const DesktopBackupPane(
-                            key: ValueKey('backup'),
-                          );
-                        case _SettingsMenuItem.scheduledTasks:
-                          return const DesktopScheduledTasksPane(
-                            key: ValueKey('scheduledTasks'),
-                          );
-                        case _SettingsMenuItem.hotkeys:
-                          return const DesktopHotkeysPane(
-                            key: ValueKey('hotkeys'),
-                          );
-                        case _SettingsMenuItem.quickPhrases:
-                          return const DesktopQuickPhrasesPane(
-                            key: ValueKey('quickPhrases'),
-                          );
-                        case _SettingsMenuItem.instructionInjection:
-                          return const DesktopInstructionInjectionPane(
-                            key: ValueKey('instructionInjection'),
-                          );
-                        case _SettingsMenuItem.worldBook:
-                          return const DesktopWorldBookPane(
-                            key: ValueKey('worldBook'),
-                          );
-                        case _SettingsMenuItem.memory:
-                          return const DesktopMemorySettingsPane(
-                            key: ValueKey('memory'),
-                          );
-                        case _SettingsMenuItem.tts:
-                          return const DesktopTtsServicesPane(
-                            key: ValueKey('tts'),
-                          );
-                        case _SettingsMenuItem.stats:
-                          return const DesktopStatsPane(key: ValueKey('stats'));
-                        case _SettingsMenuItem.about:
-                          return const DesktopAboutPane(key: ValueKey('about'));
-                      }
-                    }(),
-                  ),
-                ),
-              ],
             ),
           ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
   }
 }
 

@@ -23,6 +23,7 @@ import '../features/settings/widgets/language_select_sheet.dart'
         TranslateLanguageActionRow,
         effectiveTranslateLanguage,
         showTranslateLanguageManager,
+        supportedLanguages,
         translateLanguageDisplayName,
         visibleTranslateLanguages;
 import 'widgets/desktop_select_dropdown.dart';
@@ -46,6 +47,18 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
   late final String _requestId = 'desktop-translate-${identityHashCode(this)}';
 
   List<DesktopSelectOption<String>>? _cachedLanguageOptions;
+
+  /// The target language the dropdown shows; the persisted choice wins and the
+  /// locale's own language is the fallback (see [effectiveTranslateLanguage]).
+  LanguageOption? _targetLang;
+
+  void _onLanguageChanged(LanguageOption? value) {
+    if (value == null) return;
+    setState(() => _targetLang = value);
+    unawaited(
+      context.read<SettingsProvider>().setTranslateTargetLang(value.code),
+    );
+  }
   Set<String>? _cachedOptionsCodes;
   String? _cachedOptionsLocale;
 

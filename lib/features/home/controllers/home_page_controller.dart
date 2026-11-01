@@ -1112,9 +1112,11 @@ class HomePageController extends ChangeNotifier {
           exitGlobalSearchMode(clearQuery: true);
           break;
         case ChatAction.copySelectionMarkdown:
-          // The bus fires this from the desktop hotkey, but no surface in the
-          // replayed tree owns a "copy the current selection as Markdown"
-          // handler yet; the case exists so the switch is exhaustive.
+          // The bus fires these from the desktop hotkeys, but no surface in the
+          // replayed tree owns the handlers yet (the reply flow left with the
+          // quote rewrite); the cases exist so the switch is exhaustive.
+          break;
+        case ChatAction.replySelection:
           break;
       }
     });

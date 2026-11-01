@@ -88,7 +88,10 @@ class ProactiveCareConversationPolicy {
       if (nextAt == null || !nextAt.isAfter(current)) continue;
       if (conversation.assistantId case final String assistantId) {
         if (assistantsById[assistantId] case final Assistant assistant) {
-          if (isEffectivelyEnabled(conversation, assistant)) {
+          // The lookup already proves ownership, so `isEligible` failing here
+          // can only be the care switch; routing through it keeps this pass on
+          // the one eligibility rule the rest of the app reads.
+          if (isEligible(conversation, assistant)) {
             pending.add(
               ProactiveCareConversationTarget(
                 conversation: conversation,

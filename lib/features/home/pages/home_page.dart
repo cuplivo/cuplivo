@@ -34,6 +34,8 @@ import '../../../theme/design_tokens.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/model_spec/model_spec_resolver.dart';
 import '../../../core/providers/assistant_provider.dart';
+import '../../../core/providers/group_chat_provider.dart';
+import '../../group_chat/group_navigation.dart';
 import '../../../core/providers/quick_phrase_provider.dart';
 import '../../../core/providers/instruction_injection_provider.dart';
 import '../../../core/providers/world_book_provider.dart';
@@ -766,8 +768,8 @@ class _HomePageState extends State<HomePage>
     return _buildMobileLayout(
       context,
       title: title,
-      providerName: modelInfo.providerName,
-      modelDisplay: modelInfo.modelDisplay,
+      providerName: isGroup ? null : modelInfo.providerName,
+      modelDisplay: isGroup ? null : modelInfo.modelDisplay,
       cs: cs,
     );
   }
@@ -1284,8 +1286,11 @@ class _HomePageState extends State<HomePage>
       onVersionChange: (groupId, version) async {
         await _controller.setSelectedVersion(groupId, version);
       },
-      onRegenerateMessage: (message) =>
-          _controller.regenerateAtMessage(message),
+      // Inside a group the round, not a reply, is what gets regenerated: the
+      // member replies carry no regenerate of their own.
+      onRegenerateMessage: currentGroup == null
+          ? (message) => _controller.regenerateAtMessage(message)
+          : null,
       onResendMessage: (message) => _controller.regenerateAtMessage(message),
       onTranslateMessage: (message) => _controller.translateMessage(message),
       onEditMessage: (message) => _controller.editMessage(message),
@@ -1331,7 +1336,14 @@ class _HomePageState extends State<HomePage>
       conversation: conversation,
       assistant: context.watch<AssistantProvider>().currentAssistant,
     );
+    final group = context.watch<GroupChatProvider>().forConversation(
+      conversation,
+    );
     return ChatInputSection(
+      group: group,
+      onOpenGroupMembers: group == null
+          ? null
+          : () => showGroupMembers(context, group.id),
       inputBarKey: _inputBarKey,
       chatModelProviderKey: chatModel.providerKey,
       chatModelId: chatModel.modelId,

@@ -551,7 +551,7 @@ class _SettingsMenu extends StatelessWidget {
       (
         _SettingsMenuItem.assistant,
         lucide.Lucide.Bot,
-        l10n.settingsPageAssistant,
+        l10n.settingsPageChatOwners,
       ),
       (
         _SettingsMenuItem.defaultModel,

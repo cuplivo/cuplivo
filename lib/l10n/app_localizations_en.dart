@@ -74,10 +74,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Appearance, behavior, and interaction preferences';
 
   @override
-  String get settingsPageAssistant => 'Assistant';
+  String get settingsPageChatOwners => 'Assistants and groups';
 
   @override
-  String get settingsPageAssistantSubtitle => 'Default assistant and style';
+  String get settingsPageChatOwnersCreate => 'Create';
+
+  @override
+  String get chatOwnerCreateAssistant => 'New assistant';
 
   @override
   String get settingsPageModelsServicesSection => 'Models & Services';
@@ -1486,9 +1489,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get assistantEditModelUseGlobalDefault => 'Use global default';
 
   @override
-  String get assistantSettingsPageTitle => 'Assistant Settings';
-
-  @override
   String get assistantSettingsCopyButton => 'Copy';
 
   @override
@@ -1514,9 +1514,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get assistantSettingsAddSheetSave => 'Save';
-
-  @override
-  String get desktopAssistantsListTitle => 'Assistants';
 
   @override
   String get desktopSidebarTabAssistants => 'Assistants';
@@ -10930,6 +10927,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recycleBinKindConfig => 'Configuration';
 
   @override
+  String get recycleBinKindGroup => 'Group';
+
+  @override
   String get recycleBinOriginLocal => 'Deleted here';
 
   @override
@@ -10985,6 +10985,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recycleBinFilterAssistants => 'Assistants';
+
+  @override
+  String get recycleBinFilterGroups => 'Groups';
 
   @override
   String get recycleBinFilterSettings => 'Settings';

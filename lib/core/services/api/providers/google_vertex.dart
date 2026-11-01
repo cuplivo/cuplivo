@@ -15,6 +15,7 @@ import '../../../../utils/mcp_structured_image.dart';
 import '../../../../utils/sandbox_path_resolver.dart';
 import '../builtin_tools.dart';
 import '../chat_api_helpers.dart';
+import '../message_authorship.dart';
 import '../native_input_attachments.dart';
 import '../tool_result_content.dart';
 import '../../model_spec/model_spec_resolver.dart';
@@ -204,11 +205,11 @@ Stream<StreamChunk> sendGoogleVertexClaudeStream({
       .spec(config, modelId)
       .input
       .contains(Modality.image);
+  final lastUserIndex = lastHumanUserIndex(nonSystemMessages);
   final initialMessages = <Map<String, dynamic>>[];
   for (int i = 0; i < nonSystemMessages.length; i++) {
-    final m = nonSystemMessages[i];
-    final isLast =
-        i == nonSystemMessages.lastIndexWhere((m) => m['role'] == 'user');
+    final m = nonSystemMessages[i]..remove(groupPeerSenderKey);
+    final isLast = i == lastUserIndex;
     final roleName = (m['role'] ?? 'user').toString();
     final raw = (m['content'] ?? '').toString();
     if (roleName == 'tool') {

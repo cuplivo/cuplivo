@@ -237,6 +237,12 @@ String buildCompressContextContent(
   };
 }
 
+String _speakerLabelOf(
+  ChatMessage message,
+  String Function(ChatMessage message)? labelOf,
+) => labelOf?.call(message) ??
+    (message.role == 'assistant' ? 'Assistant' : 'User');
+
 String? conversationLineForCompression(
   ChatMessage message, {
   required String Function(int) quoteMarker,
@@ -244,10 +250,7 @@ String? conversationLineForCompression(
 }) {
   final content = message.quotedContent(quoteMarker);
   if (content.trim().isEmpty) return null;
-  final label =
-      labelOf?.call(message) ??
-      (message.role == 'assistant' ? 'Assistant' : 'User');
-  return '$label: $content';
+  return '${_speakerLabelOf(message, labelOf)}: $content';
 }
 
 /// Incremental start/recent window. Walks messages and stops at [maxChars]
@@ -261,21 +264,32 @@ String buildBoundedConversationText(
 }) {
   if (maxChars <= 0) return '';
   if (mode == CompressContextLimitMode.recent) {
-    return _buildRecentBoundedConversationText(messages, maxChars, quoteMarker);
+    return _buildRecentBoundedConversationText(
+      messages,
+      maxChars,
+      quoteMarker,
+      labelOf,
+    );
   }
-  return _buildStartBoundedConversationText(messages, maxChars, quoteMarker);
+  return _buildStartBoundedConversationText(
+    messages,
+    maxChars,
+    quoteMarker,
+    labelOf,
+  );
 }
 
 String _buildStartBoundedConversationText(
   List<ChatMessage> messages,
   int maxChars,
   String Function(int) quoteMarker,
+  String Function(ChatMessage message)? labelOf,
 ) {
   final buf = StringBuffer();
   for (final message in messages) {
     final body = message.quotedContent(quoteMarker);
     if (body.trim().isEmpty) continue;
-    final prefix = message.role == 'assistant' ? 'Assistant: ' : 'User: ';
+    final prefix = '${_speakerLabelOf(message, labelOf)}: ';
     final sep = buf.isEmpty ? '' : '\n\n';
     final remaining = maxChars - buf.length;
     if (remaining <= 0) break;
@@ -300,6 +314,7 @@ String _buildRecentBoundedConversationText(
   List<ChatMessage> messages,
   int maxChars,
   String Function(int) quoteMarker,
+  String Function(ChatMessage message)? labelOf,
 ) {
   final parts = <String>[];
   var used = 0;
@@ -307,7 +322,7 @@ String _buildRecentBoundedConversationText(
     final message = messages[i];
     final body = message.quotedContent(quoteMarker);
     if (body.trim().isEmpty) continue;
-    final prefix = message.role == 'assistant' ? 'Assistant: ' : 'User: ';
+    final prefix = '${_speakerLabelOf(message, labelOf)}: ';
     final sepLen = parts.isEmpty ? 0 : 2;
     final remaining = maxChars - used - sepLen;
     if (remaining <= 0) break;
@@ -478,8 +493,9 @@ List<ChatMessage> selectKeepRecentMessages(
 ) {
   final start = keepRecentStartIndex(messages, keepUserMessages);
   if (start == null) return const <ChatMessage>[];
-  if (start == 0)
+  if (start == 0) {
     return messages.skipWhile(ContextOperation.isSummary).toList();
+  }
   return messages.sublist(start);
 }
 

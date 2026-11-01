@@ -1620,6 +1620,7 @@ void main() {
             assistantId: 'missing-assistant',
           );
           await controller.debugViewModel.switchConversation(conversation.id);
+          await assistantProvider.reorderAssistants(1, 0);
           expect(assistantProvider.currentAssistantId, 'recovery-a');
           final display = getModelDisplayInfo(
             settings,

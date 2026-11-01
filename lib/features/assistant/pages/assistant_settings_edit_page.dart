@@ -1280,13 +1280,17 @@ class _TactileIconButtonState extends State<_TactileIconButton> {
   }
 }
 
-Widget _iosDivider(BuildContext context) {
+Widget _iosDivider(
+  BuildContext context, {
+  double indent = 54,
+  double endIndent = 12,
+}) {
   final cs = Theme.of(context).colorScheme;
   return Divider(
     height: 6,
     thickness: 0.6,
-    indent: 54,
-    endIndent: 12,
+    indent: indent,
+    endIndent: endIndent,
     color: cs.outlineVariant.withValues(alpha: 0.18),
   );
 }
@@ -1483,6 +1487,12 @@ const ValueKey<String> _chatSuggestionsSwitchKey = ValueKey<String>(
   'assistantEditChatSuggestionsSwitch',
 );
 
+/// Identifies the per-assistant gradient-background row in both the mobile tab
+/// and the desktop dialog, so either layout can be reached by the same key.
+const ValueKey<String> _gradientBackgroundSwitchKey = ValueKey<String>(
+  'assistantEditGradientBackgroundSwitch',
+);
+
 Widget _iosSwitchRow(
   BuildContext context, {
   required IconData icon,
@@ -1491,11 +1501,13 @@ Widget _iosSwitchRow(
   required ValueChanged<bool> onChanged,
   String? subtitle,
   String? tip,
+  double horizontalPadding = 12,
+  bool showIcon = true,
 }) {
   final cs = Theme.of(context).colorScheme;
   return Padding(
     padding: EdgeInsets.symmetric(
-      horizontal: 12,
+      horizontal: horizontalPadding,
       vertical: subtitle == null ? 4 : 8,
     ),
     child: Row(
@@ -1511,11 +1523,13 @@ Widget _iosSwitchRow(
                 builder: (c) {
                   return Row(
                     children: [
-                      SizedBox(
-                        width: 36,
-                        child: Icon(icon, size: 20, color: c),
-                      ),
-                      const SizedBox(width: 12),
+                      if (showIcon) ...[
+                        SizedBox(
+                          width: 36,
+                          child: Icon(icon, size: 20, color: c),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
                       Expanded(
                         child: subtitle == null
                             ? Text(
@@ -2671,101 +2685,114 @@ class _DesktopAssistantBasicPaneState
                     ),
                   ),
                   const SizedBox(height: 8),
-                  if ((a.background ?? '').isEmpty) ...[
-                    MouseRegion(
-                      onEnter: (_) => setState(() => _hoverBgChooser = true),
-                      onExit: (_) => setState(() => _hoverBgChooser = false),
-                      child: _TactileRow(
-                        onTap: () => _pickBackground(context, a),
-                        pressedScale: 0.98,
-                        builder: (pressed) {
-                          final base = context.appColors.surfaceFill;
-                          final pressOv = cs.onSurface.withValues(
-                            alpha: isDark ? 0.06 : 0.05,
-                          );
-                          final hoverOv = cs.onSurface.withValues(
-                            alpha: isDark ? 0.04 : 0.04,
-                          );
-                          final bg = pressed
-                              ? Color.alphaBlend(pressOv, base)
-                              : (_hoverBgChooser
-                                    ? Color.alphaBlend(hoverOv, base)
-                                    : base);
-                          final iconColor = cs.onSurface.withValues(
-                            alpha: 0.75,
-                          );
-                          final textColor = cs.onSurface.withValues(alpha: 0.9);
-                          return AnimatedContainer(
-                            duration: const Duration(milliseconds: 160),
-                            curve: Curves.easeOutCubic,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: bg,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: cs.outlineVariant.withValues(
-                                  alpha: 0.35,
+                  AssistantGradientSettings(
+                    assistant: a,
+                    // The pane already pads the section by 20; the desktop
+                    // rows are label-only, so keep every control on that
+                    // gutter instead of the mobile card's inset.
+                    horizontalPadding: 0,
+                    showIcon: false,
+                  ),
+                  if (!a.useGradientBackground) ...[
+                    const SizedBox(height: 8),
+                    if ((a.background ?? '').isEmpty) ...[
+                      MouseRegion(
+                        onEnter: (_) => setState(() => _hoverBgChooser = true),
+                        onExit: (_) => setState(() => _hoverBgChooser = false),
+                        child: _TactileRow(
+                          onTap: () => _pickBackground(context, a),
+                          pressedScale: 0.98,
+                          builder: (pressed) {
+                            final base = context.appColors.surfaceFill;
+                            final pressOv = cs.onSurface.withValues(
+                              alpha: isDark ? 0.06 : 0.05,
+                            );
+                            final hoverOv = cs.onSurface.withValues(
+                              alpha: isDark ? 0.04 : 0.04,
+                            );
+                            final bg = pressed
+                                ? Color.alphaBlend(pressOv, base)
+                                : (_hoverBgChooser
+                                      ? Color.alphaBlend(hoverOv, base)
+                                      : base);
+                            final iconColor = cs.onSurface.withValues(
+                              alpha: 0.75,
+                            );
+                            final textColor = cs.onSurface.withValues(
+                              alpha: 0.9,
+                            );
+                            return AnimatedContainer(
+                              duration: const Duration(milliseconds: 160),
+                              curve: Curves.easeOutCubic,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: bg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: cs.outlineVariant.withValues(
+                                    alpha: 0.35,
+                                  ),
                                 ),
                               ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 2.0),
-                                  child: Icon(
-                                    Icons.image,
-                                    size: 18,
-                                    color: iconColor,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 2.0),
+                                    child: Icon(
+                                      Icons.image,
+                                      size: 18,
+                                      color: iconColor,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  l10n.assistantEditChooseImageButton,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: AppFontWeights.semibold,
-                                    color: textColor,
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    l10n.assistantEditChooseImageButton,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: AppFontWeights.semibold,
+                                      color: textColor,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
+                                ],
+                              ),
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                  ] else ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _IosButton(
-                            label: l10n.assistantEditChooseImageButton,
-                            icon: Icons.image,
-                            onTap: () => _pickBackground(context, a),
+                    ] else ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _IosButton(
+                              label: l10n.assistantEditChooseImageButton,
+                              icon: Icons.image,
+                              onTap: () => _pickBackground(context, a),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _IosButton(
-                            label: l10n.assistantEditClearButton,
-                            icon: Lucide.X,
-                            onTap: () => context
-                                .read<AssistantProvider>()
-                                .updateAssistant(
-                                  a.copyWith(clearBackground: true),
-                                ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _IosButton(
+                              label: l10n.assistantEditClearButton,
+                              icon: Lucide.X,
+                              onTap: () => context
+                                  .read<AssistantProvider>()
+                                  .updateAssistant(
+                                    a.copyWith(clearBackground: true),
+                                  ),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: _BackgroundPreview(path: a.background!),
-                    ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: _BackgroundPreview(path: a.background!),
+                      ),
+                    ],
                   ],
                 ],
               ),

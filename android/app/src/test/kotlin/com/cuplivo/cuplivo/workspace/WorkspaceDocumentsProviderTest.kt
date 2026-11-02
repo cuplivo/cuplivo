@@ -1,5 +1,6 @@
 package com.cuplivo.cuplivo.workspace
 
+import com.cuplivo.cuplivo.PosixHost
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ProviderInfo
@@ -326,6 +327,7 @@ class WorkspaceDocumentsProviderTest {
 
     @Test
     fun hidesEscapingSymlinksWhileAllowingInternalLinks() {
+        PosixHost.assumeFileSystem()
         val root = workspace()
         File(root, "ok.txt").writeText("ok")
         Files.createSymbolicLink(File(root, "private").toPath(), appData.toPath())
@@ -336,6 +338,7 @@ class WorkspaceDocumentsProviderTest {
 
     @Test
     fun refusesRedirectedWorkspaceRoots() {
+        PosixHost.assumeFileSystem()
         val root = workspace()
         root.delete()
         Files.createSymbolicLink(root.toPath(), appData.toPath())

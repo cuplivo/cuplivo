@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:Kelivo/core/services/browser/browser_workspace_app.dart';
-import 'package:Kelivo/core/services/browser/browser_workspace_resources.dart';
+import 'package:Cuplivo/core/services/browser/browser_workspace_app.dart';
+import 'package:Cuplivo/core/services/browser/browser_workspace_resources.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

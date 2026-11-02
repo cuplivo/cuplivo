@@ -286,7 +286,6 @@ class NativeBrowserEngine implements BrowserEngine {
     // `kelivo://workspace/…` and that is the scheme [KelivoLink] builds, so the
     // registry has to name the same one the handler accepts.
     resourceCustomSchemes: const [KelivoLink.scheme],
-)
     webViewAssetLoader: _workspaceLoader,
     useShouldOverrideUrlLoading: true,
     useOnDownloadStart: true,

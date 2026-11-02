@@ -4,7 +4,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/services/workspace/workspace_app_storage.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_app_storage.dart';
 
 Future<void> main() async {
   final directory = await Directory.systemTemp.createTemp(

@@ -175,6 +175,4 @@ void main() {
     expect(find.text('Select Messages'), findsOneWidget);
     expect(find.text('Copy Link'), findsNothing);
   }, variant: mobilePlatforms);
-
-
 }

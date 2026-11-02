@@ -1,5 +1,6 @@
 package com.cuplivo.cuplivo.workspace
 
+import com.cuplivo.cuplivo.PosixHost
 import android.os.Looper
 import io.flutter.plugin.common.EventChannel
 import org.junit.Assert.*
@@ -23,6 +24,7 @@ class ExecShutdownTest {
     @get:Rule val temporary = TemporaryFolder()
 
     @Test fun failedStopStillReportsTimeoutAndRemainsTrackedForCleanup() {
+        PosixHost.assumeShell()
         val events = WorkspaceEvents()
         val exit = AtomicReference<Map<*, *>>()
         events.onListen(null, object : EventChannel.EventSink {

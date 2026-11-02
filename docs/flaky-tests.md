@@ -915,3 +915,59 @@ other two were new, and neither is the baseline's:
 
 Both were paid for on the spot rather than carried as known failures: an entry that names a case which
 passes on the next run is worse than none, because the next pass reads it as evidence.
+
+## 17. The `60e032b59` baseline: 75 Windows failures, four mechanisms, and 72 Android cases CI never ran
+
+The landing's first full run ended at **12 250 passed, 72 skipped, 75 failed**. The first draft of this
+section grouped them by surface ("browser engine", "desktop drag", "two §14 entries") and blamed the
+platform for each. Two of those three attributions were wrong, and the fourth group was not Windows
+business at all. What the 75 actually were:
+
+| cases | what it was | repair |
+|---|---|---|
+| 63 `browser_native_engine_test` | **the test's own fake platform interface.** `NativeBrowserEngine._onCreated` calls `addDevToolsProtocolEventListener` only under `Platform.isWindows` (`browser_native_engine.dart:387`) and `_initialize` awaits the resulting future (`:345`); the fake `_Controller` overrode a dozen methods but not that one, so the platform interface's default `UnimplementedError` failed engine creation before any assertion ran. Linux never reaches the branch, which is why CI could not see it. | the fake now records the listener and answers `callDevToolsProtocolMethod` |
+| 6 `home_selection_back_test` | `window_manager` 0.5.2 probes `isFullScreen` at the head of `startDragging` on Windows; the mock channel answered `null` and the typed `Future<bool>` await threw before the invoke. | answer `false`, the repair §10 already records for `macos_window_drag_area_test` |
+| 1 `storage_image_usage_test` | **not** the classifier, which the earlier draft blamed. A probe printing both strings showed `entry.path` and the fixture's `File.path` differ only in the last separator — `StorageImagesFixture.file` builds `File('${root.path}/$path')`, so the listing's native spelling and the fixture's literal disagree. | `p.equals` instead of `==`, the §9a-2 shape |
+| 1 `browser_page_card_test` | the teardown deleted the snapshot directory while `FileImage`'s `ImmutableBuffer.fromFilePath` still held the file mapped; Windows refuses to unlink a mapped file (`errno 32`) where Linux does not. A probe named the locked entry (`images\mcp_img_<uuid>.png`), which is what ruled out the preview downloader and the snapshot writer. | evict the image cache, delete deepest-first, assert the mapped snapshot is the only file left |
+| 3 `android_ime_selection_test` | the cases never declared `TargetPlatformVariant.only(TargetPlatform.android)`, so `AndroidImeSelection.install()` returned before registering the handler; and even with the variant a Windows host's legacy raw-key bridge reports the host's data class, not `RawKeyEventDataAndroid`, which is the only class the guard accepts. | variant declared on all four, `skip: !androidKeyData` on the three extension cases — the suite still runs on ubuntu |
+| 1 `conversation_files_panel_test` | the panel hands back its own canonical spelling of the host path (lowercased where the filesystem is case-insensitive) while the expectation was `p.join(root, …)`. | `p.equals` |
+
+Final state: **12 322 passed, 75 skipped, 0 failed** — and 75 is not a regression, it is the three IME
+cases plus the 72 that were already skipped.
+
+The first full run *after* those repairs ended at 12 321 passed, 75 skipped, **1 failed**, in a case
+none of the above touched: `migration_app_test`'s "mobile retry does not export an already saved backup
+again". That is the fifth mechanism, and the one most likely to come back:
+
+| case | what it was | repair |
+|---|---|---|
+| 1 `migration_app_test` | the failed stage renders the retry button before the page is ready to accept it: the widget is built with `onRetry: _busy ? null : _retry` and `_busy` clears only after `await _deleteTemporaryBackup()`, which is real file IO. The test waited for the retry **icon** with 20 × 50 ms of *fake* time, so it could hand back a rendered-but-disabled button and `retryButton.onTap!()` threw on the null. | wait for a *tappable* button: `_waitForEnabledButton` tolerates a missing icon and runs on the 15 s real-time deadline `_waitUntil` already uses |
+
+Proved by injecting `await Future<void>.delayed(const Duration(seconds: 2))` between the delete and the
+`_busy` reset: the old wait reproduced the null-check failure 1/1, the new one passed, and the
+injection was reverted byte-exact (sha256 `bd1ee7de…`).
+
+The Android suite needed its own look, and the first thing it taught is that `pr-check.yml` runs **no
+Gradle task at all** — the earlier claim in this section that CI compiles these tests was wrong. So
+`:app:testDebugUnitTest` is a local gate, and it stood at **324 run, 72 failed**:
+
+| cases | what it was | repair |
+|---|---|---|
+| 50 `OAuthLifecycleTest` | the fixture still spelled upstream's callback scheme, `psyche.kelivo://mcp-oauth-callback/…`, while the manifest registers `com.cuplivo.cuplivo` and `OAuthHandler.CALLBACK_SCHEME` matches it. **A protocol string the identity sweep missed, and it fails on every host** — not a Windows failure at all. | the fixture uses the registered scheme; the `EXTRA_REDIRECT_SCHEME` expectation now derives from it |
+| 4 `ProotArgvTest` | the argv carries host-absolute paths, so a `/nativelib/libproot_exec.so` golden and a `-r /rootfs` literal are POSIX claims: on a Windows JVM `/nativelib` is drive-relative and `File(...).absolutePath` returns `D:\…`. | golden, working directory, `PROOT_LOADER`, `TMPDIR` and `-r` all derived from the same `File`s |
+| 17 across `EnvironmentDirectoryCleanerTest`, `RootfsInfoTest`, `RootfsCertificatesTest`, `TarPathEscapeTest`, `WorkspaceDirectoryPathsTest`, `WorkspaceDocumentsProviderTest`, `WorkspaceDirectoryAccessTest`, `ExecShutdownTest`, `MountWriteGuardsTest`, `ProotArgvTest` | these fixtures *are* the Android filesystem: they create symlinks, set `r-x` modes, execute `/bin/sh`, and spell `/storage/My Notes` as an absolute host path. None of those primitives exists on Windows. | `PosixHost.assumeFileSystem()` / `assumeShell()` at the head of each case: skipped on Windows, unchanged on POSIX |
+| 1 `IncomingShareHandlerTest` | the private-root guard compared with `startsWith("$privateRoot/")` — a `/` frozen into the rule — so a `file:` URI into the app's own data directory was accepted on Windows. | `File.separator`, which is identical on Android and correct on every host |
+
+Three lessons worth carrying into the next re-base:
+
+- **A control run proves the failure is not yours; it does not prove the mechanism.** The 63 browser
+  cases and the `storage_image_usage` case were each reproduced at a baseline tip and each given a
+  platform explanation here, and both explanations were wrong. Print the actual values before writing
+  the entry.
+- **A suite CI never runs is a suite that rots.** The Android tests had been drifting since the fork's
+  own rebrand — 50 cases against a scheme the app no longer registers — and nothing was going to say so.
+- **A wait on fake time cannot cover real file IO.** `pump(Duration)` advances the clock, not the
+  filesystem, so a fixed number of pumps is a wait on nothing: the widget's own `await` completes on
+  the real event loop, outside the test's count. Wait on the state the test is about to use — the
+  button being enabled — rather than on a proxy for it (the icon), and give that wait a real-time
+  deadline.

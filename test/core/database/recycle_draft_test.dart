@@ -75,7 +75,6 @@ void main() {
       String id = 'c1',
       required String text,
       List<String> imagePaths = const <String>[],
-      String? quoteLabel,
     }) async {
       final draft = ComposerDraft(
         conversationId: id,
@@ -83,7 +82,6 @@ void main() {
         compose: ComposerDraftInput(
           text: text,
           images: [for (final path in imagePaths) DraftImage(path: path)],
-          quoteLabel: quoteLabel,
         ),
       );
       await database.customStatement(
@@ -118,7 +116,6 @@ void main() {
       await seedDraft(
         text: 'half a thought',
         imagePaths: [keptImage.path, '${directory.path}/gone.png'],
-        quoteLabel: 'the line being quoted',
       );
 
       await repository.deleteConversation('c1');
@@ -135,7 +132,6 @@ void main() {
       final restored = await readDraftRow();
       expect(restored, isNotNull);
       expect(restored!.compose.text, 'half a thought');
-      expect(restored.compose.quoteLabel, 'the line being quoted');
       expect(restored.compose.images.map((image) => image.path), [
         keptImage.path,
       ], reason: 'a file the delete removed is not restored as a broken chip');

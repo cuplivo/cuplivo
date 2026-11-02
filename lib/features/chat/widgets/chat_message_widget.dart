@@ -2947,8 +2947,6 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
               ? 'assistant_${widget.message.id}'
               : 'assistant_${widget.message.id}_$contentKey',
         ),
-        messageId: widget.message.id,
-        onReplySelection: widget.onReplySelection,
         child: DefaultTextStyle.merge(
           style: TextStyle(fontSize: baseAssistant, height: 1.5),
           child: assistantContent,

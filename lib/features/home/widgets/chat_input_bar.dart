@@ -529,11 +529,7 @@ class _NativeComposerOwner extends ChangeNotifier {
               data.bytes!,
             );
           } else if (data.paths.isNotEmpty) {
-            target.enqueueImages(
-              data.paths,
-              compression,
-              ownsSourceFile: true,
-            );
+            target.enqueueImages(data.paths, compression, ownsSourceFile: true);
           } else if (data.text case final text? when text.isNotEmpty) {
             await _registerText(target, text, asFile, threshold);
           }
@@ -587,11 +583,7 @@ class _NativeComposerOwner extends ChangeNotifier {
     try {
       await file.writeAsBytes(bytes, flush: true);
       if (!target.isValid) return;
-      target.enqueueImages(
-        [file.path],
-        compression,
-        ownsSourceFile: true,
-      );
+      target.enqueueImages([file.path], compression, ownsSourceFile: true);
       registered = true;
     } finally {
       if (!registered) await ComposerClipboard.discard(file);

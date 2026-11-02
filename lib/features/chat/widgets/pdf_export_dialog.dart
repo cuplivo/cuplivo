@@ -17,8 +17,15 @@ import '../../../theme/app_semantic_colors.dart';
 import '../utils/markdown_pdf_emitter.dart';
 import '../utils/pdf_export_fonts.dart';
 import '../utils/pdf_export_options.dart';
-import 'message_export_sheet.dart';
 import 'pdf_font_picker.dart';
+import 'package:flutter/foundation.dart' show compute;
+import 'package:pdf/pdf.dart' show PdfColor;
+import 'package:provider/provider.dart';
+import '../../../core/providers/settings_provider.dart';
+import '../../intelligent_ui/host/ui_export_capture.dart';
+import 'package:intl/intl.dart';
+import '../../../core/services/chat/chat_service.dart';
+import '../utils/export_document.dart';
 
 /// Runs one export and answers with what it produced, or null when the user
 /// closed the save dialog.
@@ -128,6 +135,81 @@ Future<void> showPdfExportDialog(
     // dialog that is simply being dismissed owns the last reference.
     catalogue.release();
   }
+}
+
+/// Lays the selected messages out as a PDF page.
+///
+/// The fork's own funnel (page palette, per-message document blocks, raster
+/// pre-pass) did not survive the re-base; this is the path the emitter alone
+/// can serve: the same [PdfExportRequest] the layout takes, built from the
+/// messages the caller selected. A PDF is a light page whatever the theme is,
+/// so a dark theme contributes a light scheme derived from its seed.
+Future<PdfExportResult?> exportChatMessagesPdf(
+  BuildContext context, {
+  required Conversation conversation,
+  required List<ChatMessage> messages,
+  UiExportCapture? uiCaptures,
+  PdfExportOptions? options,
+  GoogleFontsService? googleFonts,
+  PdfFontResolver? resolver,
+}) async {
+  final l10n = AppLocalizations.of(context)!;
+  final settings = context.read<SettingsProvider>();
+  final choice = options ?? pdfExportSessionOptions;
+  final scheme = Theme.of(context).colorScheme.brightness == Brightness.dark
+      ? ColorScheme.fromSeed(
+          seedColor: Theme.of(context).colorScheme.primary,
+          brightness: Brightness.light,
+        )
+      : Theme.of(context).colorScheme;
+  final chat = context.read<ChatService>();
+  final captures =
+      uiCaptures ?? await captureUiExportMessages(context, messages);
+  final operations = await chat.loadContextOperations(conversation.id);
+  final title = conversation.title.trim().isNotEmpty
+      ? conversation.title
+      : l10n.messageExportSheetDefaultTitle;
+  final document = await buildExportDocument(
+    title: title,
+    messages: captures.messages,
+    roleNameOf: (message) => message.role == 'user'
+        ? l10n.messageExportSheetUser
+        : l10n.messageExportSheetAssistant,
+    formatTime: DateFormat(
+      l10n.messageExportSheetDateTimeWithSecondsPattern,
+    ).format,
+    includeThinking:
+        choice.showThinkingAndToolCards && choice.expandThinkingContent,
+    includeTools: choice.showThinkingAndToolCards,
+    uiTextByMessage: captures.projections,
+    operations: operations,
+    readImageBytes: readExportImageBytes,
+  );
+  if (!context.mounted) return null;
+  final fonts = await (resolver ?? PdfFontResolver(googleFonts: googleFonts))
+      .resolve(
+        body: choice.body,
+        mono: choice.mono,
+        emoji: choice.emoji,
+        appFontPath: settings.appFontLocalPath,
+        codeFontPath: settings.codeFontLocalPath,
+      );
+  return compute(
+    buildConversationPdf,
+    PdfExportRequest(
+      title: document.title,
+      messages: document.messages,
+      thinkingLabel: l10n.messageExportThinkingContentLabel,
+      accent: PdfColor.fromInt(scheme.primary.toARGB32()),
+      muted: PdfColor.fromInt(scheme.onSurfaceVariant.toARGB32()),
+      userLabel: l10n.messageExportSheetUser,
+      bodyFont: fonts.body,
+      monoFont: fonts.mono,
+      emojiFont: fonts.emoji,
+      enableMathRendering: settings.enableMathRendering,
+      enableDollarLatex: settings.enableDollarLatex,
+    ),
+  );
 }
 
 Future<PdfExportResult?> _runExport(

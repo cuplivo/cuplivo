@@ -12,7 +12,9 @@ import 'package:Cuplivo/core/services/api/chat_api_service.dart';
 
 void main() {
   test('explicit keys and multi-key selection take precedence', () {
-    final config = ProviderConfig.defaultsFor('TestProvider').copyWith(apiKey: 'user-key');
+    final config = ProviderConfig.defaultsFor(
+      'TestProvider',
+    ).copyWith(apiKey: 'user-key');
     expect(effectiveApiKey(config), 'user-key');
     final multiKey = config.copyWith(
       multiKeyEnabled: true,

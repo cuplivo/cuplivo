@@ -406,13 +406,10 @@ void main() {
       );
     });
     await tester.pump();
-    for (
-      var i = 0;
-      i < 20 && find.byIcon(Lucide.RotateCcw).evaluate().isEmpty;
-      i++
-    ) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
+    // The failed stage renders the retry button before `_busy` clears: the page
+    // clears it only after the temporary backup is deleted, which is real file
+    // IO, so waiting on the icon alone hands back a disabled button.
+    await _waitForEnabledButton(tester, Lucide.RotateCcw);
 
     expect(service.backupCalls, 1);
     expect(saveCalls, 1);
@@ -500,11 +497,16 @@ GestureDetector _buttonForIcon(WidgetTester tester, IconData icon) {
 }
 
 Future<void> _waitForEnabledButton(WidgetTester tester, IconData icon) async {
-  for (var i = 0; i < 100; i++) {
+  // Same real-time budget as _waitUntil, and for the same reason: the wait
+  // covers real file IO, so a quiet machine enables the button in one turn
+  // where a full parallel suite takes noticeably longer.
+  final deadline = DateTime.now().add(const Duration(seconds: 15));
+  while (DateTime.now().isBefore(deadline)) {
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 10)),
     );
     await tester.pump(const Duration(milliseconds: 50));
+    if (find.byIcon(icon).evaluate().isEmpty) continue;
     if (_buttonForIcon(tester, icon).onTap != null) return;
   }
   expect(_buttonForIcon(tester, icon).onTap, isNotNull);

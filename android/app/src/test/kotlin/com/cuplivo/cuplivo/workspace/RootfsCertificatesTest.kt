@@ -1,5 +1,6 @@
 package com.cuplivo.cuplivo.workspace
 
+import com.cuplivo.cuplivo.PosixHost
 import java.io.File
 import java.nio.file.Files
 import java.security.cert.CertificateFactory
@@ -38,6 +39,7 @@ class RootfsCertificatesTest {
 
     @Test(expected = IllegalArgumentException::class)
     fun symlinkCannotWriteOutsideRootfs() {
+        PosixHost.assumeFileSystem()
         val root = tmp.newFolder("rootfs")
         val outside = tmp.newFolder("outside")
         Files.createSymbolicLink(File(root, "etc").toPath(), outside.toPath())

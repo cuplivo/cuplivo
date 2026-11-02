@@ -1,5 +1,6 @@
 package com.cuplivo.cuplivo.workspace
 
+import com.cuplivo.cuplivo.PosixHost
 import android.Manifest
 import android.app.Activity
 import android.content.Intent
@@ -59,6 +60,7 @@ class WorkspaceDirectoryAccessTest {
     }
 
     @Test fun persistedGrantRestoresOriginalFolderAndRevocationFailsClosed() {
+        PosixHost.assumeFileSystem()
         val root = temporary.newFolder("shared")
         ShadowEnvironment.setExternalStorageDirectory(root.toPath())
         val folder = File(root, "Documents/My Vault").apply { mkdirs() }

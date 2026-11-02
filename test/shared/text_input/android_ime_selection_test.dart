@@ -2,12 +2,19 @@
 // engine's synthesized Shift up. No TextEditingValue selection is injected.
 // ignore_for_file: deprecated_member_use
 
+import 'dart:io' show Platform;
 import 'dart:ui' as ui;
 
 import 'package:Cuplivo/shared/text_input/android_ime_selection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+/// `AndroidImeSelection` only acts on the Android raw-key data class, which a
+/// Windows test host never produces — its legacy bridge reports the host data
+/// instead — so the extension cases below cannot run there. `pr-check.yml` runs
+/// this suite on ubuntu, where they pass.
+final bool androidKeyData = !Platform.isWindows;
 
 void main() {
   final binding = TestWidgetsFlutterBinding.ensureInitialized();
@@ -139,7 +146,7 @@ void main() {
     expect(state.cutEnabled, isTrue);
     expect(HardwareKeyboard.instance.isShiftPressed, isFalse);
     await tester.pumpWidget(const SizedBox());
-  });
+  }, skip: !androidKeyData);
 
   testWidgets('vertical selection follows wrapped visual lines', (
     tester,
@@ -153,7 +160,7 @@ void main() {
     await arrow(LogicalKeyboardKey.arrowUp);
     expect(controller.selection, const TextSelection.collapsed(offset: 0));
     await tester.pumpWidget(const SizedBox());
-  });
+  }, skip: !androidKeyData);
 
   testWidgets('ordinary arrows remain ordinary after selection mode ends', (
     tester,
@@ -168,7 +175,7 @@ void main() {
     expect(controller.selection.isCollapsed, isTrue);
     expect(HardwareKeyboard.instance.logicalKeysPressed, isEmpty);
     await tester.pumpWidget(const SizedBox());
-  });
+  }, skip: !androidKeyData);
 
   testWidgets('does not reinterpret physical devices with missing modifiers', (
     tester,

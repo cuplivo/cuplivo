@@ -42,7 +42,7 @@ import java.util.concurrent.atomic.AtomicReference
 @Config(
     sdk = [35],
     manifest = Config.NONE,
-    application = CuplivoApplication::class,
+    application = KelivoApplication::class,
     shadows = [FileSaveEngineHandoffTest.NativeBoundary::class, FileSaveEngineHandoffTest.Loader::class],
 )
 class FileSaveEngineHandoffTest {
@@ -115,7 +115,7 @@ class FileSaveEngineHandoffTest {
     }
 
     @After fun tearDown() {
-        val application = activities.firstOrNull()?.get()?.application as? CuplivoApplication
+        val application = activities.firstOrNull()?.get()?.application as? KelivoApplication
         activities.reversed().forEach { it.destroy() }
         if (application?.hasEngine == true) application.engine.destroy()
         FlutterInjector.reset()
@@ -154,9 +154,9 @@ class FileSaveEngineHandoffTest {
     @Test fun replacementActivityCanSaveAfterPreviousActivityIsDestroyed() {
         val previous = createActivity()
         assertSavePickerWorks(previous.get())
-        val engine = (previous.get().application as CuplivoApplication).engine
+        val engine = (previous.get().application as KelivoApplication).engine
         val replacement = createActivity()
-        assertSame(engine, (replacement.get().application as CuplivoApplication).engine)
+        assertSame(engine, (replacement.get().application as KelivoApplication).engine)
         assertSavePickerWorks(replacement.get())
 
         previous.destroy()
@@ -208,12 +208,12 @@ class FileSaveEngineHandoffTest {
 
     @Test fun activityCanSaveWhenReopenedOnTheRetainedEngine() {
         val previous = createActivity()
-        val engine = (previous.get().application as CuplivoApplication).engine
+        val engine = (previous.get().application as KelivoApplication).engine
         previous.destroy()
         activities.remove(previous)
 
         val replacement = createActivity()
-        assertSame(engine, (replacement.get().application as CuplivoApplication).engine)
+        assertSame(engine, (replacement.get().application as KelivoApplication).engine)
         assertSavePickerWorks(replacement.get())
     }
 

@@ -3,9 +3,9 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/services/workspace/workspace_app_storage.dart';
-import 'package:Kelivo/core/services/workspace/workspace_file_coordinator.dart';
-import 'package:Kelivo/core/services/workspace/workspace_paths.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_app_storage.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_file_coordinator.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_paths.dart';
 
 import '../../../support/workspace_test_access.dart';
 

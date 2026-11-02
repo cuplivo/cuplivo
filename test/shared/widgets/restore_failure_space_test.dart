@@ -126,7 +126,7 @@ void main() {
       );
       await helpers.settleDiagnostics(tester);
       expect(
-        find.textContaining('Update Kelivo before restoring them'),
+        find.textContaining('Update Cuplivo before restoring them'),
         findsOneWidget,
       );
       expect(find.textContaining('validation failed'), findsNothing);

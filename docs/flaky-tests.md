@@ -971,3 +971,74 @@ Three lessons worth carrying into the next re-base:
   the real event loop, outside the test's count. Wait on the state the test is about to use — the
   button being enabled — rather than on a proxy for it (the icon), and give that wait a real-time
   deadline.
+
+## 18. The `4a7da9b6f` baseline: twelve commits, six conflict stops, and three wounds of the replay's own making
+
+Upstream moved twelve commits (`60e032b59..4a7da9b6f`, 78 files, +4 678 / −355) and published
+`v1.3.3` and `v1.3.4` in the same window. `v1.3.2` is `b1702b3a9` — the *previous* baseline — so
+upstream's tags now track `master`, which retires the "its tags are older than ours, so master is the
+live line" reasoning that had justified following `master` in the first place. The fork follows
+`master` because upstream releases from it, and `AGENTS.md` says so now.
+
+**The forecast was right about files and wrong about units.** Before the replay, the 78 incoming files
+were intersected with the fork's 2 026: 36 overlap, and the ranking within them (browser engine +442,
+`main.dart` +49, the chat repository +10/−5, the ARBs, `file_browser.dart` +98) predicted the shape
+correctly. What it over-predicted was *stops*: 25 of the 42 units were said to be at risk, and 6
+actually needed a hand:
+
+| unit | what stopped it |
+|---|---|
+| `371283109` identity | 21 blocks: four ARBs, three generated l10n files, six import lists, the engine's scheme literal, the workspace host |
+| `0dde91463` rebuild | `message_generation_protocol_test.dart` as a whole-file conflict; upstream's 65-line delta is the side to keep |
+| `a3114c3ac` #1046 | the engine's `resourceCustomSchemes` hunk, already resolved to its final shape |
+| `399132306` group-chat | the ARBs, where upstream's 18 new keys sit in the same region as the unit's 38 |
+| `ea264ffc0` release | `pubspec.yaml`'s version line (`4.5.0+8` wins) |
+| `06510326d` l10n regen | the three generated files, resolved by regenerating rather than merging |
+
+Everything else — including `main.dart`'s browser-workspace wiring against the fork's own startup
+block, and the chat repository's +614/−206 rewrite — auto-merged. The identity unit is why: it rewrites
+whole files, so an upstream edit inside one of them is *absorbed* by the fork's side rather than
+conflicting with it. Overlap rank over-predicts stops by roughly 4×.
+
+**Three things the forecast got wrong in the fork's favour.** Upstream's `keepOpen` selection-menu fix
+and its two new Android cases did *not* need porting to `com/cuplivo/cuplivo/`: git's rename detection
+carried the modification across the identity unit's rename, so the fix arrived with the file. The
+browser-engine test fake needed no rework — `dart analyze` was clean and all 65 cases passed. And none
+of the six new Windows-facing test files (`windows_explorer_test`, `browser_workspace_app_test`,
+`workspace_app_storage_test`, the two integration tests, the `.cpp` under `test/native/` that no
+harness in this tree compiles) failed for a platform reason.
+
+**The wounds, all of them the replay's own:**
+
+| symptom | cause | repair |
+|---|---|---|
+| 6 files still importing `package:Kelivo/` | the identity sweep renames what existed at `60e032b59`; files the twelve new commits *add* never pass through it | rename them in a tail commit, then `dart analyze` — the runbook's §"Damage the replay left" row, third time |
+| `browser_native_engine.dart` unparsable, 90 analyzer errors | the identity hunk ends at `resourceCustomSchemes`, and upstream's new block arguments (`blockNetworkLoads`, `useShouldInterceptRequest`, `contentBlockers`) pushed the constructor's closing `)` *outside* the hunk. "Ours plus theirs" therefore kept a `)` that upstream's code no longer has | delete the one line |
+| `message_generation_protocol_test.dart` began with a line of a test body | the identity conflict on that file was a whole-file block; the resolution helper kept "lines theirs has that ours lacks" by prefixing them, which for a whole-file block puts a body line above the imports | restore upstream's file with only the package rename applied |
+| `browser_workspace_app_test` failed: host not `.kelivo.invalid` | the identity sweep branded `ws-<digest>.kelivo.invalid`, which was harmless while it matched nothing outside its own builder. `4a7da9b6f` coupled it to `isInternalHost`'s regex and to a new test assertion — a half-branded origin, the same trap as the `kelivo` scheme | revert the host to `kelivo`; `git grep cuplivo.invalid` prints nothing |
+| two `backup_encryption_test` cases timed out at 30 s | pure-Dart pointycastle over megabyte vectors: 39 s and 19 s measured alone, so the package default expires as soon as the rest of the suite competes for the CPU | `@Timeout(Duration(minutes: 2))` on the file |
+| `mcp_provider_remote_session_test` lost its teardown | the §4 entry, unmasked now that the local registry is empty: a client still reading when the case ends makes the mock server's forced close raise `Connection closed while receiving data` | tolerate `HttpException`/`SocketException` in the harness's `close()` — a registry entry replaced by the repair it stood in for |
+
+Two lessons, both about resolutions rather than about upstream:
+
+- **A whole-file conflict block is not a list to prepend to.** The helper that merged import lists
+  across the identity unit assumed the block was a list of imports; on one file it was the entire
+  file, and "add what ours lacks" put a statement above `import 'dart:convert'`. `dart analyze` is
+  what caught it — nine thousand passing tests would not have, because the file's own cases had
+  already been skipped by the parse error.
+- **A hunk boundary is not a semantic boundary.** Git split the settings literal where the *old*
+  text ended, which was one argument before upstream's new block began. Resolving "ours + theirs"
+  inside that boundary produced a file that read correctly and compiled as nonsense.
+
+**The three full runs**, in order, against a tree that only ever gained the repairs above:
+
+| run | duration | result | what failed |
+|---|---|---|---|
+| 1 | 23 m 33 s | 12 363 passed, 75 skipped, **3 failed** | the pseudo-host (1), the crypto vectors timing out at 30 s (2) |
+| 2 | 24 m 13 s | 12 365 passed, 75 skipped, **1 failed** | the MCP harness's teardown (the §4 entry) |
+| 3 | 34 m 31 s | **12 366 passed, 75 skipped, 0 failed** | nothing |
+
+The third run is the slowest of the three and still clean, which is the point: both remaining failures
+were load-shaped, and both are now repaired rather than registered.
+
+

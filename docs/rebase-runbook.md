@@ -652,7 +652,7 @@ each item is a fact about the merge, not about a feature):
 | `SandboxPathResolver.canonicalStorage` gone, 12 analyzer errors | the union above kept `dedupeKey` and `_nativeForIo` but the merge body was the *old* resolver | restore `canonicalStorage` from the fork tip |
 | `tools_popover.dart` did not compile (`widget.` in a `StatelessWidget`) | the care block was written for the stateful popover and upstream turned `_ToolsContent` stateless | take it as a field, and thread `conversation` from the entry point |
 | 48 generated files committed in unit 1 | `git add -A` in a rebase whose tree held `test/goldens/failures/` and vendored plugin build products from earlier runs | untrack both, extend `.gitignore`, and never `git add -A` without a marker and ignore check |
-| the browser workspace feature threw `FormatException: Use a relative workspace PNG path` on every platform (7 + 1 cases) | the identity sweep renamed `uri.scheme == 'kelivo'` to `'cuplivo'` in `browser_workspace_resources.dart` while the file's own producers kept the protected `kelivo://`. A half-renamed protocol is worse than an unrenamed one: the *feature* is dead, and only the upstream test suite said so | revert the four scheme comparisons to `kelivo`; keep the branded pseudo-host and staging prefix, which are per-run |
+| the browser workspace feature threw `FormatException: Use a relative workspace PNG path` on every platform (7 + 1 cases) | the identity sweep renamed `uri.scheme == 'kelivo'` to `'cuplivo'` in `browser_workspace_resources.dart` while the file's own producers kept the protected `kelivo://`. A half-renamed protocol is worse than an unrenamed one: the *feature* is dead, and only the upstream test suite said so | revert the four scheme comparisons to `kelivo`; keep the staging prefix, which is per-run. The branded pseudo-host looked per-run too and was kept — the next baseline showed why that is the wrong test (see the `4a7da9b6f` replay below) |
 | 14 `package:Kelivo/` imports in the newest baseline's four Windows data-directory test files | `b1702b3a9` adds the feature and its tests in one commit, so the files arrive after the sweep has run | rename them in a tail commit of their own, and re-run `dart analyze` |
 | 27 committed blobs carried CRLF where both the old fork and upstream hold LF | a resolution step wrote them through a Windows text path, which no gate reads | convert them back in one mechanical commit; `git diff --ignore-cr-at-eol` reduces `settings_provider.dart` from 6 885 deleted / 6 960 added to 27 / 102, and prints nothing for the staged set |
 | 13 deterministic failures in six files, none of them load | `b1702b3a9` moved `BrowserStore` onto `AppDirectories`, seeded a new provider (`KelivoIN`), made `cancelQueuedMessage` a `Future`, and shipped its data-directory tests from a run that only happens on POSIX | three path spellings joined per segment, `p.equals` in a durability double, a basename filter, one fake path provider, the provider list, one `await`, and a key found by its tail instead of by a spelling the fixture cannot reproduce |
@@ -678,3 +678,35 @@ Measured on Windows against the committed lock, in the order the runbook prescri
 | `flutter build windows --debug` | `\ Built build\windows\x64\runner\Debug\cuplivo.exe` (205 s) |
 | identity | `git grep -c Kelivo master -- lib/l10n` prints nothing; no `package:Kelivo` outside this document |
 | ancestry | `git merge-base --is-ancestor 4671dbe48 HEAD` holds; no tag points at the tip; `pubspec.yaml` says `4.3.0+6` at the replay tip, and the release commit after it moves to `4.4.0+7` |
+
+### The `4a7da9b6f` replay
+
+Twelve upstream commits, 78 files, +4 678 / −355; 42 units replayed; **six stops**, against a forecast
+of 25 (see §18 of `docs/flaky-tests.md` for why overlap rank over-predicts: the identity unit rewrites
+whole files, so upstream edits inside them are absorbed instead of conflicting). Three tail commits,
+none of them folded back:
+
+| commit | what it carries |
+|---|---|
+| `a29d043ac` | the incoming side's `package:Kelivo/` in six files, the stray `)` a split hunk left in the browser engine, and the protocol test restored to upstream's file plus the rename |
+| `5619d84aa` | the workspace pseudo-host back to `kelivo` (upstream's `isInternalHost` and its new test both require it), and the crypto vectors' 2-minute timeout |
+| `bce8b656f` | the MCP harness's teardown tolerating the client it outran — §4's oldest registry entry, repaired instead of registered |
+
+The gates on this tip:
+
+| gate | result |
+| --- | --- |
+| `dart analyze --fatal-infos lib test integration_test` | No issues found (two runs: before and after the tail repairs) |
+| `flutter gen-l10n` | idempotent at the tip, and re-run *inside* the l10n-regen unit so that commit kept real content instead of becoming empty |
+| `dart format --output=none --set-exit-if-changed` (pinned Dart 3.13.0) | `0 changed` of 2 515 |
+| `:app:testDebugUnitTest` | BUILD SUCCESSFUL (6 m 2 s) |
+| `flutter test` | see the tail of `docs/flaky-tests.md` §18 — three runs, and the two that failed did so on the crypto vectors' timeout and the MCP teardown, both now repaired |
+| identity | `git grep -l 'package:Kelivo/'` matches only this document; `git grep -c Kelivo -- lib/l10n` prints nothing; `git grep cuplivo.invalid` prints nothing |
+| ancestry | `git merge-base --is-ancestor 4a7da9b6f HEAD` holds; 45 commits above the baseline (42 units + 3 repairs); `pubspec.yaml` still says `4.5.0+8` |
+
+**Two rules this replay adds.** A whole-file conflict block must not be resolved by prefixing "lines
+theirs has that ours lacks" — on `message_generation_protocol_test.dart` that put a statement above
+`import 'dart:convert'`, and only `dart analyze` said so. And a hunk boundary is not a semantic
+boundary: the identity hunk on the settings literal ended one argument before upstream's new block
+began, so "ours + theirs" kept a `)` that upstream's code no longer has.
+

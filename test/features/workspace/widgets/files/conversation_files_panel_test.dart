@@ -364,7 +364,11 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(FileBrowser.itemKey('note.md')));
     await tester.pump();
-    expect(previews, [(p.join(root, 'note.md'), 'workspace')]);
+    expect(previews, hasLength(1));
+    expect(previews.single.$2, 'workspace');
+    // The panel hands over its own resolved spelling of the host path, which is
+    // canonical (lowercased) where the filesystem is case-insensitive.
+    expect(p.equals(previews.single.$1, p.join(root, 'note.md')), isTrue);
     expect(resolver.calls, isEmpty);
     previews.clear();
     await tester.tap(find.byKey(FileBrowser.itemKey('page.HTML')));

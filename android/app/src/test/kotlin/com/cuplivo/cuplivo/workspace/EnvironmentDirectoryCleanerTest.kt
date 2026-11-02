@@ -1,5 +1,6 @@
 package com.cuplivo.cuplivo.workspace
 
+import com.cuplivo.cuplivo.PosixHost
 import org.junit.Assert.*
 import org.junit.Assume.assumeFalse
 import org.junit.Rule
@@ -15,6 +16,7 @@ class EnvironmentDirectoryCleanerTest {
     @get:Rule val temporary = TemporaryFolder()
 
     @Test fun repairsNestedDirectoriesBeforeTraversal() {
+        PosixHost.assumeFileSystem()
         val root = temporary.newFolder("previous-rootfs")
         val parent = File(root, "locked").apply { mkdir() }
         val child = File(parent, "unreadable").apply { mkdir() }
@@ -40,6 +42,7 @@ class EnvironmentDirectoryCleanerTest {
     }
 
     @Test fun unlinksSymlinksWithoutChangingTheirTargets() {
+        PosixHost.assumeFileSystem()
         val root = temporary.newFolder("rootfs")
         val outside = temporary.newFolder("outside")
         val payload = File(outside, "keep").apply { writeText("keep contents") }
@@ -64,6 +67,7 @@ class EnvironmentDirectoryCleanerTest {
     }
 
     @Test fun handlesMissingPathsAndRootSymlinks() {
+        PosixHost.assumeFileSystem()
         val outside = temporary.newFolder("outside")
         val payload = File(outside, "keep").apply { writeText("keep") }
         val root = File(temporary.root, "previous-rootfs")
@@ -79,6 +83,7 @@ class EnvironmentDirectoryCleanerTest {
     }
 
     @Test fun reportsFailureInsteadOfClaimingAnUnremovedDirectoryWasDeleted() {
+        PosixHost.assumeFileSystem()
         val parent = temporary.newFolder("parent")
         val root = File(parent, "rootfs").apply { mkdir() }
         try {

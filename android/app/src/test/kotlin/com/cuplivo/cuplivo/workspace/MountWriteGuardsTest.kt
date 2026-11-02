@@ -1,5 +1,6 @@
 package com.cuplivo.cuplivo.workspace
 
+import com.cuplivo.cuplivo.PosixHost
 import java.io.File
 import java.util.concurrent.TimeUnit
 import org.junit.Assert.*
@@ -19,6 +20,7 @@ class MountWriteGuardsTest {
     }
 
     @Test fun commonCommandsRejectReadonlyPathsAndWritableCommandsStillRun() {
+        PosixHost.assumeShell()
         val locked = temporary.newFolder("My Notes").canonicalFile
         val writable = temporary.newFolder("writable").canonicalFile
         val original = File(locked, "original").apply { writeText("hello") }

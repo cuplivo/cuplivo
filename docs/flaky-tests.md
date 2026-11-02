@@ -916,43 +916,58 @@ other two were new, and neither is the baseline's:
 Both were paid for on the spot rather than carried as known failures: an entry that names a case which
 passes on the next run is worse than none, because the next pass reads it as evidence.
 
-## 17. The `60e032b59` baseline: the desktop-chrome drag, and 72 Kotlin cases that assert POSIX paths
+## 17. The `60e032b59` baseline: 75 Windows failures, four mechanisms, and 72 Android cases CI never ran
 
-The replay onto `60e032b59` ended its full run at **8 718 passed, 69 skipped, 72 failed**, and the 72
-split into exactly three groups — no case outside them:
+The landing's first full run ended at **12 250 passed, 72 skipped, 75 failed**. The first draft of this
+section grouped them by surface ("browser engine", "desktop drag", "two §14 entries") and blamed the
+platform for each. Two of those three attributions were wrong, and the fourth group was not Windows
+business at all. What the 75 actually were:
 
-| class | cases | evidence |
+| cases | what it was | repair |
 |---|---|---|
-| embedded browser engine | 63 | the §13/§14 class unchanged: `UnimplementedError: addDevToolsProtocolEventListener is not implemented on the current platform` from `NativeBrowserEngine._installWindowsDialogs`, which runs only when `Platform.isWindows`. |
-| `home_selection_back_test.dart` › selection survives cancelled exports and deletion, then exits on back (6: three window sizes × macOS/Windows) | 6 | new in this pass, proved by a control run at upstream's own tip `60e032b59` in a clean worktree: **3 passed, 6 failed**, the same split, the same assertion. `window_manager` 0.5.2's `startDragging` opens with `if (Platform.isWindows && await isFullScreen()) return;`, the test's method-channel mock answers `null`, and the typed `Future<bool>` await throws before `startDragging` is ever invoked — the recorded calls are `['isMaximized', 'isFullScreen']`. §11 records the same mechanism for `browser_desktop_layout_test`. |
-| `storage_image_usage_test.dart` › classifies rendered Markdown images…, `browser_page_card_test.dart` › completed preview loads its saved file… | 2 | the two §14 entries, unchanged; both files are byte-identical to the pre-rebase tip. |
+| 63 `browser_native_engine_test` | **the test's own fake platform interface.** `NativeBrowserEngine._onCreated` calls `addDevToolsProtocolEventListener` only under `Platform.isWindows` (`browser_native_engine.dart:387`) and `_initialize` awaits the resulting future (`:345`); the fake `_Controller` overrode a dozen methods but not that one, so the platform interface's default `UnimplementedError` failed engine creation before any assertion ran. Linux never reaches the branch, which is why CI could not see it. | the fake now records the listener and answers `callDevToolsProtocolMethod` |
+| 6 `home_selection_back_test` | `window_manager` 0.5.2 probes `isFullScreen` at the head of `startDragging` on Windows; the mock channel answered `null` and the typed `Future<bool>` await threw before the invoke. | answer `false`, the repair §10 already records for `macos_window_drag_area_test` |
+| 1 `storage_image_usage_test` | **not** the classifier, which the earlier draft blamed. A probe printing both strings showed `entry.path` and the fixture's `File.path` differ only in the last separator — `StorageImagesFixture.file` builds `File('${root.path}/$path')`, so the listing's native spelling and the fixture's literal disagree. | `p.equals` instead of `==`, the §9a-2 shape |
+| 1 `browser_page_card_test` | the teardown deleted the snapshot directory while `FileImage`'s `ImmutableBuffer.fromFilePath` still held the file mapped; Windows refuses to unlink a mapped file (`errno 32`) where Linux does not. A probe named the locked entry (`images\mcp_img_<uuid>.png`), which is what ruled out the preview downloader and the snapshot writer. | evict the image cache, delete deepest-first, assert the mapped snapshot is the only file left |
+| 3 `android_ime_selection_test` | the cases never declared `TargetPlatformVariant.only(TargetPlatform.android)`, so `AndroidImeSelection.install()` returned before registering the handler; and even with the variant a Windows host's legacy raw-key bridge reports the host's data class, not `RawKeyEventDataAndroid`, which is the only class the guard accepts. | variant declared on all four, `skip: !androidKeyData` on the three extension cases — the suite still runs on ubuntu |
+| 1 `conversation_files_panel_test` | the panel hands back its own canonical spelling of the host path (lowercased where the filesystem is case-insensitive) while the expectation was `p.join(root, …)`. | `p.equals` |
 
-`backup_encryption_test`'s six cases fail only inside the full run and pass alone (**23 passed**), the
-§16 shape: an isolate still holds its temporary directory for a few milliseconds after cancellation and
-Windows will not remove an open directory. They were not registered, for §16's reason.
+Final state: **12 322 passed, 75 skipped, 0 failed** — and 75 is not a regression, it is the three IME
+cases plus the 72 that were already skipped.
 
-The Android side needed its own look. `:app:testDebugUnitTest` runs **324 tests, 72 failed** — one
-class again, and the failure message is the proof: these are the fork's workspace/proot cases, whose
-assertions compare guest paths like `/nativelib/libproot_exec.so` and `/data/rootfs` against strings the
-JVM built from `File`, and on Windows those come back as `D:\nativelib\libproot_exec.so` and
-`D:\data\rootfs`. A leading `/` is a drive-relative path to a Windows JVM, so the golden comparison
-cannot match by construction. CI compiles the Android unit tests on the same runner, and there the
-spelling is the file's own.
+The first full run *after* those repairs ended at 12 321 passed, 75 skipped, **1 failed**, in a case
+none of the above touched: `migration_app_test`'s "mobile retry does not export an already saved backup
+again". That is the fifth mechanism, and the one most likely to come back:
 
-One more Windows-only failure was repaired rather than registered: `FileSaveEngineHandoffTest.kt`
-referenced `CuplivoApplication`, but the class — and the manifest that installs it — is
-`KelivoApplication` at this baseline, so `:app:testDebugUnitTest` did not even compile. The sweep is
-where it came from: a persisted platform name is not a brand string.
+| case | what it was | repair |
+|---|---|---|
+| 1 `migration_app_test` | the failed stage renders the retry button before the page is ready to accept it: the widget is built with `onRetry: _busy ? null : _retry` and `_busy` clears only after `await _deleteTemporaryBackup()`, which is real file IO. The test waited for the retry **icon** with 20 × 50 ms of *fake* time, so it could hand back a rendered-but-disabled button and `retryButton.onTap!()` threw on the null. | wait for a *tappable* button: `_waitForEnabledButton` tolerates a missing icon and runs on the 15 s real-time deadline `_waitUntil` already uses |
 
-The first full run after the landing ended at **12 248 passed, 72 skipped, 79 failed**. Beyond the 71
-registered above, eight were left, and five of them were **the fork's own suite failing at its own
-tip**, not this pass's doing — a control worktree at `523d1275d` reproduces each with the same
-assertion (22 passed, 4 failed over the three files tried):
+Proved by injecting `await Future<void>.delayed(const Duration(seconds: 2))` between the delete and the
+`_busy` reset: the old wait reproduced the null-check failure 1/1, the new one passed, and the
+injection was reverted byte-exact (sha256 `bd1ee7de…`).
 
-| case | what it is |
-|---|---|
-| `android_ime_selection_test` › IME Shift arrows…, ordinary arrows…, vertical selection… (3) | the selection collapses where a range is expected, so a Shift+arrow never extends on this host; `lib/shared/text_input/android_ime_selection.dart` and its test are byte-identical to `523d1275d`. |
-| `conversation_files_panel_test` › panel file callbacks preserve workspace HTML navigation | the callback list differs at its first element — the path spelling the panel reports. Byte-identical to `523d1275d`. |
-| `message_more_sheet_test` › a settled message offers Reply (and its streaming twin) | the sheet has not carried a Reply row since the utility moved to the message menu, at either tip. The two cases are **deleted** here: the entry they name does not exist in the sheet they open, and the streaming twin had become vacuous (it asserts the absence of something already absent). |
-| `translate_language_catalog_test` › codes… and effectiveTranslateLanguage… (2) | **repaired, not registered**: ADR-0014 pins sixteen codes, the sheet had six of them (pt, ru, ar, hi, th, vi) commented out at `523d1275d`, and the test was right. Uncommenting them makes both cases pass and gives the app the catalog the ADR describes. |
-| `restore_failure_space_test` › newer database copies guide an app update… | **repaired, not registered**: the test looked for "Update Kelivo before restoring them" while the shipped string has said Cuplivo since the fork's own rename — the fork rebranded the copy and forgot the test. |
+The Android suite needed its own look, and the first thing it taught is that `pr-check.yml` runs **no
+Gradle task at all** — the earlier claim in this section that CI compiles these tests was wrong. So
+`:app:testDebugUnitTest` is a local gate, and it stood at **324 run, 72 failed**:
+
+| cases | what it was | repair |
+|---|---|---|
+| 50 `OAuthLifecycleTest` | the fixture still spelled upstream's callback scheme, `psyche.kelivo://mcp-oauth-callback/…`, while the manifest registers `com.cuplivo.cuplivo` and `OAuthHandler.CALLBACK_SCHEME` matches it. **A protocol string the identity sweep missed, and it fails on every host** — not a Windows failure at all. | the fixture uses the registered scheme; the `EXTRA_REDIRECT_SCHEME` expectation now derives from it |
+| 4 `ProotArgvTest` | the argv carries host-absolute paths, so a `/nativelib/libproot_exec.so` golden and a `-r /rootfs` literal are POSIX claims: on a Windows JVM `/nativelib` is drive-relative and `File(...).absolutePath` returns `D:\…`. | golden, working directory, `PROOT_LOADER`, `TMPDIR` and `-r` all derived from the same `File`s |
+| 17 across `EnvironmentDirectoryCleanerTest`, `RootfsInfoTest`, `RootfsCertificatesTest`, `TarPathEscapeTest`, `WorkspaceDirectoryPathsTest`, `WorkspaceDocumentsProviderTest`, `WorkspaceDirectoryAccessTest`, `ExecShutdownTest`, `MountWriteGuardsTest`, `ProotArgvTest` | these fixtures *are* the Android filesystem: they create symlinks, set `r-x` modes, execute `/bin/sh`, and spell `/storage/My Notes` as an absolute host path. None of those primitives exists on Windows. | `PosixHost.assumeFileSystem()` / `assumeShell()` at the head of each case: skipped on Windows, unchanged on POSIX |
+| 1 `IncomingShareHandlerTest` | the private-root guard compared with `startsWith("$privateRoot/")` — a `/` frozen into the rule — so a `file:` URI into the app's own data directory was accepted on Windows. | `File.separator`, which is identical on Android and correct on every host |
+
+Three lessons worth carrying into the next re-base:
+
+- **A control run proves the failure is not yours; it does not prove the mechanism.** The 63 browser
+  cases and the `storage_image_usage` case were each reproduced at a baseline tip and each given a
+  platform explanation here, and both explanations were wrong. Print the actual values before writing
+  the entry.
+- **A suite CI never runs is a suite that rots.** The Android tests had been drifting since the fork's
+  own rebrand — 50 cases against a scheme the app no longer registers — and nothing was going to say so.
+- **A wait on fake time cannot cover real file IO.** `pump(Duration)` advances the clock, not the
+  filesystem, so a fixed number of pumps is a wait on nothing: the widget's own `await` completes on
+  the real event loop, outside the test's count. Wait on the state the test is about to use — the
+  button being enabled — rather than on a proxy for it (the icon), and give that wait a real-time
+  deadline.

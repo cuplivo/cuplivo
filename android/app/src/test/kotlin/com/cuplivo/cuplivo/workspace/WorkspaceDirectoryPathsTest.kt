@@ -1,5 +1,6 @@
 package com.cuplivo.cuplivo.workspace
 
+import com.cuplivo.cuplivo.PosixHost
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -11,6 +12,7 @@ class WorkspaceDirectoryPathsTest {
     @get:Rule val temporary = TemporaryFolder()
 
     @Test fun resolvesUnicodeSpacesAndVolumeRoot() {
+        PosixHost.assumeFileSystem()
         val root = temporary.newFolder("volume")
         assertEquals(File(root, "Documents/我的笔记 Vault").canonicalFile,
             WorkspaceDirectoryPaths.resolve(root, "primary:Documents/我的笔记 Vault"))

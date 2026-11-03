@@ -554,5 +554,94 @@ void main() {
 
       scheduler.dispose();
     });
+
+    test('a refused arrival notification asks for the grant', () async {
+      var rearmed = 0;
+      Future<void> rearm() async {
+        rearmed++;
+      }
+
+      // Nothing armed yet: nothing to ask about.
+      expect(
+        await ProactiveCareAlarmService.ensureIosArrivalPermission(
+          rearm: rearm,
+        ),
+        isFalse,
+      );
+      expect(scheduledCalls, isEmpty);
+      expect(rearmed, 0);
+
+      // The adapter refuses the arm (no authorization) and grants on request.
+      messenger.setMockMethodCallHandler(scheduledChannel, (call) async {
+        scheduledCalls.add(call);
+        return call.method == 'permission';
+      });
+      await ProactiveCareAlarmService.sync(
+        conversation: conversation(nextAt: now.add(const Duration(minutes: 5))),
+        assistant: assistant(),
+      );
+
+      expect(ProactiveCareAlarmService.iosArrivalAccepted, isFalse);
+      expect(
+        await ProactiveCareAlarmService.ensureIosArrivalPermission(
+          rearm: rearm,
+        ),
+        isTrue,
+      );
+      expect(scheduledCalls.map((call) => call.method), contains('permission'));
+      // The refused arm cannot be trusted: the letters are armed again with the
+      // grant in hand, or they would wait for an unrelated re-arm to notify.
+      expect(rearmed, 1);
+    });
+
+    test('an accepted arrival notification asks for nothing', () async {
+      var rearmed = 0;
+      Future<void> rearm() async {
+        rearmed++;
+      }
+
+      messenger.setMockMethodCallHandler(scheduledChannel, (call) async {
+        scheduledCalls.add(call);
+        return true;
+      });
+      await ProactiveCareAlarmService.sync(
+        conversation: conversation(nextAt: now.add(const Duration(minutes: 5))),
+        assistant: assistant(),
+      );
+
+      expect(ProactiveCareAlarmService.iosArrivalAccepted, isTrue);
+      expect(
+        await ProactiveCareAlarmService.ensureIosArrivalPermission(
+          rearm: rearm,
+        ),
+        isTrue,
+      );
+      expect(
+        scheduledCalls.where((call) => call.method == 'permission'),
+        isEmpty,
+      );
+      expect(rearmed, 0);
+    });
+
+    test('switching care on asks for the grant and re-arms', () async {
+      var rearmed = 0;
+      Future<void> rearm() async {
+        rearmed++;
+      }
+
+      messenger.setMockMethodCallHandler(scheduledChannel, (call) async {
+        scheduledCalls.add(call);
+        return true;
+      });
+
+      expect(
+        await ProactiveCareAlarmService.requestIosNotificationPermission(
+          rearm: rearm,
+        ),
+        isTrue,
+      );
+      expect(scheduledCalls.single.method, 'permission');
+      expect(rearmed, 1);
+    });
   });
 }

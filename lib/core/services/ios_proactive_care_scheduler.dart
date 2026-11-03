@@ -61,6 +61,38 @@ class IosProactiveCareScheduler {
   @visibleForTesting
   Map<String, DateTime> get schedules => Map.unmodifiable(_schedules);
 
+  /// Whether this process holds any arrival notification. The grant request
+  /// asks it before treating a refusal as worth a dialog: an arm that never
+  /// ran has nothing to refuse. `schedules` stays the test-facing view.
+  bool get hasSchedules => _schedules.isNotEmpty;
+
+  /// Whether the last arrival-notification arm was accepted, or null when this
+  /// process never armed one. `false` covers a missing notification grant and
+  /// the adapter's full 60-request queue alike (ADR-0006 decision 15).
+  bool? get arrivalAccepted => _arrivalAccepted;
+  bool? _arrivalAccepted;
+
+  /// Asks iOS for notification authorization.
+  ///
+  /// The arrival notification is the only carrier a suspended app has, and the
+  /// adapter refuses to register one without a grant (`schedule` returns
+  /// `false`). Nothing else in the app requests that grant on care's behalf —
+  /// the scheduled-tasks page does, but a care user never has to open it — so
+  /// before this existed a care user who had never used scheduled tasks could
+  /// not be notified at all. The caller owns the moment: a user gesture
+  /// (switching care on) or a start that armed letters and had them refused.
+  Future<bool> requestPermission() async {
+    if (!_isIos()) return false;
+    try {
+      final granted = await _channel.invokeMethod<bool>('permission') ?? false;
+      debugPrint('[IosProactiveCare] permission granted: $granted');
+      return granted;
+    } catch (e) {
+      debugPrint('[IosProactiveCare] permission request failed: $e');
+      return false;
+    }
+  }
+
   Future<void> attach(
     Future<void> Function(String conversationId, DateTime expectedAt) onFire,
   ) async {}
@@ -169,7 +201,9 @@ class IosProactiveCareScheduler {
           '[IosProactiveCare] arrival notification refused for $conversationId',
         );
       }
+      _arrivalAccepted = accepted;
     } catch (e) {
+      _arrivalAccepted = false;
       debugPrint('[IosProactiveCare] schedule notification failed: $e');
     }
   }

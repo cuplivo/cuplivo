@@ -107,6 +107,51 @@ class ProactiveCareAlarmService {
     _inProcessScheduler = scheduler;
   }
 
+  /// Whether this build runs the iOS branch (read from `defaultTargetPlatform`
+  /// so tests can target it off-device).
+  static bool get isIosTarget => _isIOSTarget;
+
+  /// iOS: whether the last arrival-notification arm was accepted, or null when
+  /// this process never armed one. Diagnostic mirror, like
+  /// [exactAlarmsPermitted].
+  static bool? get iosArrivalAccepted => _iosScheduler?.arrivalAccepted;
+
+  /// iOS: ask for notification authorization now, and re-arm the letters once
+  /// it is granted. Callers own the moment — switching care on is a user
+  /// gesture, which is when iOS wants to be asked.
+  ///
+  /// [rearm] is not optional bookkeeping: the arm that reveals a missing grant
+  /// was refused, and the adapter will not register an arrival notification
+  /// without authorization, so a grant alone leaves the letters with no
+  /// notification until the next unrelated re-arm.
+  static Future<bool> requestIosNotificationPermission({
+    required Future<void> Function() rearm,
+  }) async {
+    if (!_isIOSTarget) return false;
+    return _requestIosGrant(rearm);
+  }
+
+  /// iOS: the grant care needs, asked for at the one moment it is knowable and
+  /// useful — this process armed at least one arrival notification and the
+  /// adapter refused it (no grant, or a full queue). Returns true when a grant
+  /// is now held. No-op on every other platform, and before an arm has run.
+  static Future<bool> ensureIosArrivalPermission({
+    required Future<void> Function() rearm,
+  }) async {
+    if (!_isIOSTarget) return false;
+    final scheduler = _iosScheduler;
+    if (scheduler == null || !scheduler.hasSchedules) return false;
+    if (scheduler.arrivalAccepted == true) return true;
+    return _requestIosGrant(rearm);
+  }
+
+  /// The one place a granted authorization turns back into armed letters.
+  static Future<bool> _requestIosGrant(Future<void> Function() rearm) async {
+    final granted = await _ensureIosScheduler().requestPermission();
+    if (granted) await rearm();
+    return granted;
+  }
+
   /// Android only: whether the system lets this app schedule exact alarms, as
   /// reported by the native owner (the same fact Kelivo's scheduled-task
   /// surface reports). Null until the native side has answered.

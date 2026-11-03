@@ -1,6 +1,6 @@
 # ADR-0006: The proactive-care trigger contract
 
-**Status:** Accepted (2026-10)
+**Status:** Accepted (2026-10); decisions 1, 13 and 15 revised 2026-11 for the #1007 residual
 **Deciders:** cuplivo
 **Issue:** #1007
 
@@ -64,13 +64,34 @@ contract rather than a porting gap: the 1 s foreground cadence (Kelivo's desktop
 poll at 1 Hz) and the arrival notification's second identity (`ScheduledTaskNotifications` only
 removes pending requests, which is the right behaviour for `prepared: false` letters).
 
+### The residual report (4.4)
+
+The fix above made the trigger fire and the letter durable, but the field report did not end. On
+Android the letter "only comes out right after I send a message"; on iOS the arrival notification
+stopped appearing while the letter still showed up after waiting on the page. Each is the *other
+half* of a deviation this contract had accepted:
+
+- **Delivery latency was bought with process protection.** Decision 13 handed a backgrounded fire
+  straight to the live Dart isolate without `beginScheduledRun`. The listener existed, so the
+  hand-off was immediate — but nothing kept that process running. Android freezes cached apps and
+  suspends their network, so the model request parked and the letter was written whenever the
+  process was next unfrozen, which is a user action: sending a message. The generation had no
+  deadline either, so the stalled delivery never failed, never retried, and never told anyone.
+- **iOS never asked for the grant its only carrier needs.** Nothing outside the scheduled-tasks
+  page requested notification authorization, and care's pane has no permission row there. A user
+  who never opened that page therefore had every arrival notification refused (`schedule` returns
+  `false` without authorization) while the letter itself kept arriving through the in-app executor
+  and the start/resume catch-up — exactly "no notification, but the letter is there when I open
+  it".
+
 ## Decisions
 
-1. **A fire always ends in one of two states.** `careFirePlan(ready, foreground)` yields
-   `Direct` only while the app owns the foreground (live channel listener, no notification
-   flash), and `Service` otherwise (the same `beginScheduledRun` contract a scheduled task
-   uses). There is deliberately no third state: a held fire with neither owner has no listener
-   and no recovery.
+1. **A fire always ends in one of two states.** `careFirePlan(ready)` yields `Direct` while Dart
+   has a live channel listener and `Service` otherwise (the same `beginScheduledRun` contract a
+   scheduled task uses). There is deliberately no third state: a held fire with neither owner has
+   no listener and no recovery. (The original signature also took `foreground`; decision 13
+   removed it, and the carrier question it was standing in for now lives in decision 13's
+   revision.)
 2. **Both plans arm the watchdog.** A handoff that never completes is reclaimed by `finish(id)`
    instead of parking the conversation forever.
 3. **In-flight before consumption.** `fire()` returns early while another delivery for the same
@@ -188,11 +209,18 @@ removes pending requests, which is the right behaviour for `prepared: false` let
     keeps its foreground/service hold for the `Service` plan, whose whole purpose is that no
     listener exists yet. A direct hand-off is not silent either: the persisted letter posts its own
     notification. `configure` resets `ready` and clears `dispatched`, because a recreated engine has
-    no listener until it answers again and any previous engine's hand-offs were lost with it. Note
-    the deliberate trade-off: a `Direct` hand-off while backgrounded runs in the live process
-    without starting a foreground service, trading foreground-service process protection for
-    immediate delivery latency without triggering `BackgroundRuntime.beginScheduledRun`'s
-    collateral `stopAll`.
+    no listener until it answers again and any previous engine's hand-offs were lost with it.
+    **Revised (2026-11, #1007 residual):** the trade-off this decision originally took — a
+    backgrounded `Direct` hand-off running without a foreground service, "trading process
+    protection for latency" — is exactly what the field then reported, because a cached process is
+    frozen and its network suspended mid-request, so the letter surfaced only when the user did
+    something that unfroze the app. The plan decides *who dispatches*; whether a fire takes the
+    carrier is now a separate question (`careNeedsCarrier`): a fire that is not in the foreground
+    calls `beginScheduledRun` before it dispatches, so the generation runs under the same
+    foreground service and wake lock Kelivo's own scheduled runs take, and `finish(id)` ends that
+    run. Latency is unchanged — the hand-off does not wait for the service — and the only
+    remaining exposure is the pre-existing `beginScheduledRun` → `stopAll` blast radius on a
+    failed service start, which this contract already records as deferred.
 14. **`dispatched` is a cross-drain delivery record bounded by `inFlight`.** `dispatchToChannel`
     checks `val bridge = channel ?: return`, invokes `fire` for each `inFlight` id not yet in
     `dispatched`, adds the id to `dispatched` after invoking, and prunes stale entries with
@@ -202,10 +230,31 @@ removes pending requests, which is the right behaviour for `prepared: false` let
     delivery record and re-firing it before its model round trip finishes. Pinned by
     `ProactiveCareAlarmsTest.laterDrainsDoNotReFireAnAlreadyDispatchedInFlightLetter` (run it
     deliberately — see the verification note below) plus `ProactiveCareFirePlanTest`.
-15. **A refused arrival notification is logged.** `ScheduledTaskNotifications.schedule` returns
-    `false` when notifications are not authorized or the adapter's 60-request queue is full;
-    `IosProactiveCareScheduler` logs the refusal with the `[IosProactiveCare]` tag so a silent
-    refusal is visible in diagnostics.
+15. **A refused arrival notification is logged, and the grant is asked for where it can be.**
+    `ScheduledTaskNotifications.schedule` returns `false` when notifications are not authorized or
+    the adapter's 60-request queue is full; `IosProactiveCareScheduler` logs the refusal with the
+    `[IosProactiveCare]` tag and records it on the scheduler (`arrivalAccepted`), because a silent
+    refusal is otherwise indistinguishable from a scheduled letter. **Revised (2026-11, #1007
+    residual):** logging alone left the iOS user unable to receive anything — the app only ever
+    requested the notification grant from the scheduled-tasks page, which a care user never has to
+    open, so care's arrival notification could be refused forever. Care now owns that request, from
+    the two moments that can own it: switching care on asks for it (a user gesture,
+    `requestIosNotificationPermission`), and a start whose re-arm refused at least one arrival
+    notification asks once (`ensureIosArrivalPermission`). A grant is only half the fix: the arm
+    that revealed the missing grant was itself refused, so both paths arm the letters again
+    afterwards (`rescheduleAll`), through one helper (`_requestIosGrant`) — otherwise the
+    notification would not exist until an unrelated re-arm. iOS shows the dialog once; a user who
+    denied it is not asked again, and the refusal keeps being logged.
+16. **A letter's generation has a deadline.** `ProactiveCareMessageFlow.letterTimeout` (default
+    5 minutes) bounds the care request. Without it, a request the platform stalled stays in flight
+    for as long as the OS parks it, and the letter is then persisted at an arbitrary later moment —
+    the same report, read as "the letter only comes out right after I send a message". Failing at
+    the deadline answers the delivery, raises the failure notification, and lets the native side
+    end its scheduled run on time. The value must stay below the Android alarm's own 10-minute
+    `LIMIT_MS`: past that point the native side has already released the occurrence, so the carrier
+    no longer covers a Dart side still working on it. The abandoned HTTP request is not cancelled —
+    `_defaultCareSender` has no cancellation hook on this path — it is ignored, at the cost of one
+    wasted completion.
 
 ## Consequences
 
@@ -223,6 +272,20 @@ removes pending requests, which is the right behaviour for `prepared: false` let
   lost, cleared by the OEM, or never scheduled for lack of the grant is delivered by the next
   resume instead of within a second — the same guarantee, and the same limit, Kelivo's own Android
   scheduled tasks work under.
+- A backgrounded Android delivery now costs a scheduled run: `beginScheduledRun` posts the same
+  foreground notification a scheduled task posts, holds a wake lock and keeps the process out of
+  the freezer while the letter is generated, and `finish(id)` ends it. A foreground delivery is
+  unchanged (no run, no notification). The `fire` log line carries `carrier=` so a report can tell
+  the two apart.
+- `letterTimeout` is the only bound on a letter's model round trip; it must stay below
+  `ProactiveCareAlarms.LIMIT_MS` (10 minutes). A delivery that hits it is a *failure* — the
+  schedule is consumed and the failure notification is raised, exactly like any other failed
+  generation. Re-arming on timeout was rejected: it would retry a broken model every five minutes
+  forever.
+- iOS care owns its notification grant: switching care on asks for it, and a start whose re-arm
+  refused an arrival notification asks once (`ensureIosArrivalPermission`). The refusal is
+  recorded on the scheduler (`arrivalAccepted`) and logged, so "care is on, the notification is
+  not" is diagnosable from logcat instead of looking like a scheduling bug.
 - iOS keeps the arrival notification: the in-app executor covers "the app is alive", the
   notification covers "the app is suspended or dead" and the start/resume catch-up still writes
   the letter. The two cannot double-deliver, because both paths claim the same persisted

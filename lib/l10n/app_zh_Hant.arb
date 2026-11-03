@@ -4214,6 +4214,8 @@
   "backgroundInterrupted": "背景生成已中斷，請開啟對話繼續。",
   "backgroundRequesting": "正在請求",
   "backgroundGenerating": "正在生成回覆",
+  "backgroundCareLetter": "正在寫信",
+  "backgroundCareWorking": "正在準備來信",
   "backgroundThinking": "正在思考",
   "backgroundToolRunning": "正在執行工具",
   "backgroundRetrying": "等待重試",

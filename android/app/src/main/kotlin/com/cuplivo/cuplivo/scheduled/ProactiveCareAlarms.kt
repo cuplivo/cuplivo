@@ -48,7 +48,9 @@ internal fun careFirePlan(ready: Boolean): CareFirePlan =
  * when the process is next unfrozen — the "the letter only comes out right
  * after I send a message" report. Kelivo's own Android scheduled tasks never
  * have that hole, because every run takes `beginScheduledRun`; care's `Direct`
- * plan used to dispatch without one, trading that protection for latency.
+ * plan used to dispatch without one, trading that protection for latency. A
+ * background fire now takes that carrier through `beginCareRun`, which also
+ * tells the background runtime what its notification is describing.
  *
  * A foreground fire needs no carrier (the app is visible and active), and the
  * `Service` plan always needs one (the service is what creates a listener).
@@ -80,7 +82,7 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
     private val due = mutableMapOf<String, Long>()
     private val inFlight = mutableMapOf<String, Long>()
     private val dispatched = mutableSetOf<String>()
-    /** Fires that began a scheduled run — every background fire and every `Service` plan. */
+    /** Fires that began a care run — every background fire and every `Service` plan. */
     private val serviceRuns = mutableSetOf<String>()
     private val deadlines = mutableMapOf<String, Runnable>()
     private var channel: MethodChannel? = null
@@ -234,7 +236,7 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
                 // is what warms it.
                 if (!app.hasEngine) app.backgroundRuntime.setForeground(false)
                 serviceRuns.add(id)
-                app.backgroundRuntime.beginScheduledRun(RUN_PREFIX + id)
+                app.backgroundRuntime.beginCareRun(RUN_PREFIX + id)
             }
             when (plan) {
                 // The engine owns a live channel listener (`ready`): dispatch
@@ -304,7 +306,7 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
             // End the carrier this fire took, and only that one: a fire that
             // began no run must not touch accounting that belongs to another.
             if (serviceRuns.remove(id)) {
-                app.backgroundRuntime.endScheduledRun(RUN_PREFIX + id)
+                app.backgroundRuntime.endCareRun(RUN_PREFIX + id)
             }
             // An occurrence that arrived while this delivery was in flight kept
             // its registry entry but lost its one-shot alarm (the system

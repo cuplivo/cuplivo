@@ -22,6 +22,7 @@ import '../../../core/services/logging/flutter_logger.dart';
 import '../../../core/services/model_spec/model_spec_resolver.dart';
 import '../../../core/services/memory/memory_pipeline.dart';
 import '../../../core/services/memory/memory_trace.dart';
+import '../../../core/services/mobile_background.dart';
 import '../../../core/services/proactive_care_alarm_service.dart';
 import '../../../core/services/proactive_care_conversation_policy.dart';
 import '../../../core/services/proactive_care_message_flow.dart';
@@ -536,8 +537,14 @@ class HomeViewModel extends ChangeNotifier {
     ),
     // A letter is inserted silently, outside the streaming path: reload the
     // timeline as soon as it is durable, before the next-time decision call.
-    onLetterPersisted: (conversationId) =>
-        _refreshCurrentConversationAfterCare({conversationId}),
+    // The same moment ends the background task that stood for the letter.
+    onLetterPersisted: (conversationId) async {
+      await _refreshCurrentConversationAfterCare({conversationId});
+      await _finishCareLetterTask(
+        conversationId,
+        BackgroundTaskOutcome.completed,
+      );
+    },
   );
 
   String? _proactiveCareL10n(String? Function(AppLocalizations) pick) {
@@ -694,30 +701,131 @@ class HomeViewModel extends ChangeNotifier {
   }) async {
     if (!ProactiveCareAlarmService.isSupported) return false;
     debugPrint('[ProactiveCare] deliver $conversationId @ $expectedAt');
+    // Everything the delivery needs from its context is read before the task
+    // start crosses an async gap.
+    final flow = _proactiveCareFlow();
+    final assistants = _contextProvider.read<AssistantProvider>().assistants;
+    final userNickname = _contextProvider.read<UserProvider>().name;
+    final carePromptFallback = _proactiveCarePromptFallback;
+    final decisionPromptFallback = _proactiveCareDecisionPromptFallback;
+    final failureNotificationBody = _proactiveCareFailureBody;
+    final notificationId = NotificationService.proactiveCareIdFor(
+      conversationId,
+    );
+    await _startCareLetterTask(conversationId);
     try {
-      final flow = _proactiveCareFlow();
       final outcome = await flow.runSchedule(
         conversationId: conversationId,
         expectedAt: expectedAt,
-        assistants: _contextProvider.read<AssistantProvider>().assistants,
-        userNickname: _contextProvider.read<UserProvider>().name,
-        carePromptFallback: _proactiveCarePromptFallback,
-        decisionPromptFallback: _proactiveCareDecisionPromptFallback,
-        failureNotificationBody: _proactiveCareFailureBody,
-        notificationId: NotificationService.proactiveCareIdFor(conversationId),
+        assistants: assistants,
+        userNickname: userNickname,
+        carePromptFallback: carePromptFallback,
+        decisionPromptFallback: decisionPromptFallback,
+        failureNotificationBody: failureNotificationBody,
+        notificationId: notificationId,
       );
       if (outcome == null) {
         debugPrint('[ProactiveCare] nothing to deliver for $conversationId');
+        await _finishCareLetterTask(
+          conversationId,
+          BackgroundTaskOutcome.cancelled,
+        );
         return false;
       }
+      // A successful letter already ended its background task, and the failure
+      // path raises only the failure notification.
+      await _finishCareLetterTask(
+        conversationId,
+        outcome.successful
+            ? BackgroundTaskOutcome.completed
+            : BackgroundTaskOutcome.failed,
+      );
       // A successful letter already reloaded the timeline in the flow.
       return outcome.successful;
     } catch (e, st) {
+      await _finishCareLetterTask(conversationId, BackgroundTaskOutcome.failed);
       FlutterLogger.log(
         '[ProactiveCare] alarm delivery failed: $e\n$st',
         tag: 'HomeViewModel',
       );
       return false;
+    }
+  }
+
+  /// Background tasks standing for letters an alarm is delivering right now,
+  /// keyed by conversation. A letter written while the app is backgrounded is
+  /// one of the app's background tasks: the foreground-service notification
+  /// names the assistant instead of a generic "working", the task counts on
+  /// the background page, and it ends when the letter is durable. A foreground
+  /// letter takes none: it is visible as it runs and is not background work.
+  final Map<String, String> _careLetterTasks = {};
+
+  Future<void> _startCareLetterTask(String conversationId) async {
+    final background = MobileBackgroundCoordinator.instance;
+    if (background.platform != TargetPlatform.android) return;
+    if (background.isForeground) return;
+    if (_careLetterTasks.containsKey(conversationId)) return;
+    final conversation = _chatService.getConversation(conversationId);
+    if (conversation == null) return;
+    final assistantId = conversation.assistantId;
+    final assistant = assistantId == null
+        ? null
+        : _contextProvider.read<AssistantProvider>().getById(assistantId);
+    if (assistant == null) return;
+    if (!ProactiveCareConversationPolicy.isEligible(conversation, assistant)) {
+      return;
+    }
+    final name = assistant.name.trim();
+    final title = name.isNotEmpty
+        ? name
+        : (conversation.title.trim().isNotEmpty
+              ? conversation.title.trim()
+              : (_proactiveCareL10n((l10n) => l10n.backgroundTaskTitle) ??
+                    'Cuplivo'));
+    final id = 'care:$conversationId:${DateTime.now().millisecondsSinceEpoch}';
+    _careLetterTasks[conversationId] = id;
+    try {
+      await background.start(
+        id: id,
+        conversationId: conversationId,
+        title: title,
+        detail: _proactiveCareL10n((l10n) => l10n.backgroundCareLetter),
+        // The stop action already stops the delivery's foreground service and
+        // the letter request has no abort handle, so it can only drop the task
+        // record; the outcome of the request itself is left to the flow.
+        cancel: () => _finishCareLetterTask(
+          conversationId,
+          BackgroundTaskOutcome.cancelled,
+        ),
+      );
+    } catch (e, st) {
+      _careLetterTasks.remove(conversationId);
+      FlutterLogger.log(
+        '[ProactiveCare] care task start failed: $e\n$st',
+        tag: 'HomeViewModel',
+      );
+    }
+  }
+
+  Future<void> _finishCareLetterTask(
+    String conversationId,
+    BackgroundTaskOutcome outcome,
+  ) async {
+    final id = _careLetterTasks.remove(conversationId);
+    if (id == null) return;
+    try {
+      // The flow posts the letter (or failure) notification itself; a
+      // chat-completion notification here would announce the same event twice.
+      await MobileBackgroundCoordinator.instance.finish(
+        id,
+        outcome,
+        resultPersisted: false,
+      );
+    } catch (e, st) {
+      FlutterLogger.log(
+        '[ProactiveCare] care task finish failed: $e\n$st',
+        tag: 'HomeViewModel',
+      );
     }
   }
 

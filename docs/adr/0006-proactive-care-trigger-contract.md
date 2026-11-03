@@ -256,6 +256,22 @@ half* of a deviation this contract had accepted:
     `_defaultCareSender` has no cancellation hook on this path — it is ignored, at the cost of one
     wasted completion.
 
+17. **A backgrounded letter is one of the app's background tasks.** The carrier keeps the process
+    alive, but a notification titled with the app's name and a generic "working" line says nothing
+    about what is running; in the field it read as a "处理中" popup that never stopped counting after
+    the letter arrived. A backgrounded alarm delivery therefore registers a real
+    `MobileBackgroundCoordinator` task (`care:<conversationId>:<startedAt>`) before it starts the
+    flow: the assistant's name is its title, `backgroundCareLetter` is its line, it counts on the
+    background page, and it ends the moment the letter is durable (`onLetterPersisted`) — before the
+    trailing decision call. Foreground deliveries register none (they are not background work), and
+    the task is Android-only, because only Android has the foreground-service notification it
+    describes. The run outlives the task for that decision call, so the notification names the
+    leftover state instead of falling back to the generic line: `careOnly` in `buildNotification`
+    shows `careWorking` and drops the chronometer when no task is left. A task's explicit `detail`
+    may replace its chat-phase text, which is what lets a task be a letter and not only a
+    generation. `resultPersisted: false` keeps the task's end from posting a second
+    chat-completion notification for a letter that already has one.
+
 ## Consequences
 
 - The five `[ProactiveCare]` log lines now describe a whole delivery: `alarm arm` → `native fire`
@@ -272,11 +288,13 @@ half* of a deviation this contract had accepted:
   lost, cleared by the OEM, or never scheduled for lack of the grant is delivered by the next
   resume instead of within a second — the same guarantee, and the same limit, Kelivo's own Android
   scheduled tasks work under.
-- A backgrounded Android delivery now costs a scheduled run: `beginScheduledRun` posts the same
-  foreground notification a scheduled task posts, holds a wake lock and keeps the process out of
-  the freezer while the letter is generated, and `finish(id)` ends it. A foreground delivery is
-  unchanged (no run, no notification). The `fire` log line carries `carrier=` so a report can tell
-  the two apart.
+- A backgrounded Android delivery now costs a scheduled run: `beginCareRun` holds a wake lock and
+  keeps the process out of the freezer while the letter is generated, and `finish(id)` ends it. Its
+  notification is the app's ordinary background-task notification, carrying the letter as the task
+  that is running (assistant name and `backgroundCareLetter`, with the task's chronometer) and
+  falling back to `careWorking` without a chronometer while only the trailing decision call
+  remains. A foreground delivery is unchanged (no run, no task, no notification). The `fire` log
+  line carries `carrier=` so a report can tell the two apart.
 - `letterTimeout` is the only bound on a letter's model round trip; it must stay below
   `ProactiveCareAlarms.LIMIT_MS` (10 minutes). A delivery that hits it is a *failure* — the
   schedule is consumed and the failure notification is raised, exactly like any other failed

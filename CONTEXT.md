@@ -1055,57 +1055,20 @@ contradicts one of them is a bug, not a preference.
   alone, so the mapping has nothing to prefer by.
 - Reasoning text is 净化复制 but has no Markdown 复制: what it displays is not a 匹配源.
 
-## Message reply (消息回复) — ADR-0012
+## Message reply (消息回复) — withdrawn, ADR-0012
 
-- **Reply (回复)**: the user's own message answers a message it names — QQ-style. Never a thread, never
-  a tree, never a role change. Two forms: **整条引用** (the whole target message, resolved live from its
-  row id) and **范围引用** (a span the user selected, carried as its own text).
-- **Quote (引用)**: the citation a 回复 stores — `{id, text?}`. `text` is the quoted span as **raw
-  markdown**, exactly what the Markdown 复制 mapping re-emits for that selection; `text == null` means
-  整条引用. It is deliberately **offset-free**: v3 stored half-open ranges into the target's markdown and
-  re-located them with a subsequence matcher, and ADR-0007 decision 5 deleted that matcher, so a
-  citation here is a snapshot rather than a pointer into text that may have moved.
-- **`<reply-to>` citation (引文)**: the model-facing form of a Quote — a user body whose citation
-  resolves becomes `<reply-to>{markdown}</reply-to>` ahead of its own text. It is folded in **before**
-  the prompt is assembled, so it freezes into `message_prompt_rows` with the rest of the turn: what was
-  sent stays what is replayed, and the prompt cache keeps its prefix. An unresolvable target contributes
-  nothing at all — the stub a reader sees is UI language, never model language.
-- **Citation chip (引用栏)**: the one-line citation above a bubble's content, and the preview row the
-  composer shows while the reply is pending. Its text is the citation in the IR's *display space* — the
-  same walk the bubble itself rendered with, derived once per citation rather than once per build (the
-  timeline rebuilds on every stream publish). A 范围引用 is self-sufficient (it shows its own text even
-  after its target is gone; the target only feeds the tap that jumps to it), while an 整条引用 shows the
-  target it resolved or 桩文案 when none resolves at all. 解析按**消息槽**而不是被引的那一版：时间线每组只留
-  选中版，切版、重生成、编辑重发都会换掉它，于是槽当前显示的那一版为它历史上所有 id 作答——和「目标被编辑后引用栏
-  显示新文本」是同一条规则。解析到了但渲染为空的引用（纯图片消息、只有工具调用的回答）显示「回复」/Reply 而不是桩
-  文案：消息就在那里并且可点，说「不可用」是假话，这也正是 composer 预览行的回落。
-- **Quote target (引文目标)**: the message a Quote names. It is resolved from the request's own stream,
-  then the conversation cache, then the database — that last step scoped to the conversation the
-  citation is sent in, because a row id means something only inside its own conversation; with no
-  conversation to scope it to, the step is skipped. For display it resolves against the window on screen
-  alone, by 消息槽 — the revision the slot shows now answers for a revision a switch moved off — and
-  anything outside that window renders the stub. A **copied conversation** (fork, duplicate) remaps its
-  citations onto the copy's own rows, drops an 整条引用 whose target the copy does not hold, and keeps a
-  范围引用 exactly as it stands, because its own text *is* the citation. A **merge-mode import** keeps
-  `extras_json` verbatim (the conversation fingerprint hashes it, and a repeated merge dedupes on it),
-  so an 整条引用 it carries resolves to nothing — same outcome as a dropped one, and never a row of
-  another conversation.
-- **Naming boundary**: 「引用」 in the UI means a search citation (「引用来源」, 「引用 (共 N 条)」), so the
-  menu item reads 「回复」 / "Reply" while the domain term — and every identifier in the code — is
-  **Quote**. The text-level 「引用粘贴」 (selection → `> …` into the composer) is a separate v3 feature
-  that was **not** carried over.
-
-### Relationships
-
-- A 回复 exists only on a user-originated message, and it is part of that message's content identity: a
-  new version of the row carries it, and a copy of the conversation remaps it.
-- A Quote needs no schema version: it rides `message_rows.extras_json` under `reply.quote`, beside the
-  `tokens.*` / `timing.*` side channel, so 整条引用 and 范围引用 arrive with the message row on LAN sync
-  and in a backup.
-- The whole-message entry is withheld while its target is still streaming (the citation would freeze a
-  reply that is still being written); the 范围引用 entry stays, because its text was captured by value.
-- A citation neither creates nor preserves a conversation: a 整条引用 whose target is gone shows the stub
-  and sends no 引文, and nothing else changes.
+- **Not carried.** 4.4 shipped a QQ-style reply: a user message named the message it answered, stored
+  `{id, text?}` in `message_rows.extras_json` under `reply.quote`, and sent it to the model as a
+  `<reply-to>` prefix frozen into `message_prompt_rows`. The rewrite that produced the next baseline
+  lost the implementation while keeping its docs and its hooks, and the line has since adopted
+  upstream's own in-app quotes instead (`7dd9b4e7d`, inside the `4a7da9b6f` baseline): a selection
+  becomes a quote chip in the composer, rides `extras_json` under `quotes`, renders in the sent
+  message, and taps back to its source. One quoting model answers the need; there is no 回复 feature
+  and no `<reply-to>` injection in this line. [ADR-0012](docs/adr/0012-message-reply-quote.md) is
+  withdrawn and records what the reply was, why it cannot be copied from v3, and why it is not coming
+  back.
+- **Naming**: 「引用」 belongs to upstream's quote (and to search citations); 「回复」 is not a feature
+  name in this line.
 
 ## PDF export (PDF 导出) — ADR-0013
 

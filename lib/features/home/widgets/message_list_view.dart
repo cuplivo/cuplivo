@@ -63,16 +63,6 @@ typedef OnSelectMessages =
     void Function(int messageIndex, List<ChatMessage> messages);
 typedef OnSpeakMessage = Future<void> Function(ChatMessage message);
 typedef OnSuggestionTap = void Function(String suggestion);
-
-/// Starts a whole-message reply to [message] (docs/adr/0012).
-typedef OnReplyMessage = void Function(ChatMessage message);
-
-/// Starts a ranged reply from [selected]'s markdown, in [message].
-typedef OnReplySelectionMessage =
-    void Function(ChatMessage message, String selectedMarkdown);
-
-/// Jumps to the message a reply cites.
-typedef OnQuoteTap = void Function(String messageId);
 typedef OnRecoveredAskUserAnswer =
     Future<void> Function(
       ChatMessage message,
@@ -158,9 +148,6 @@ class MessageListView extends StatefulWidget {
     this.onForkConversation,
     this.onSelectMessages,
     this.onSpeakMessage,
-    this.onReplyMessage,
-    this.onReplySelectionMessage,
-    this.onQuoteTap,
     this.suggestions = const <String>[],
     this.onSuggestionTap,
     this.onRecoveredAskUserAnswer,
@@ -263,9 +250,6 @@ class MessageListView extends StatefulWidget {
   final OnForkConversation? onForkConversation;
   final OnSelectMessages? onSelectMessages;
   final OnSpeakMessage? onSpeakMessage;
-  final OnReplyMessage? onReplyMessage;
-  final OnReplySelectionMessage? onReplySelectionMessage;
-  final OnQuoteTap? onQuoteTap;
   final List<String> suggestions;
 
   /// A compact action that scrolls after the last message, outside its content.
@@ -2515,12 +2499,6 @@ class _MessageListViewState extends State<MessageListView> {
       // The reply's own author when the conversation has several; the visual
       // regex pass needs the same answer the panel shows.
       author: author,
-      onReply: widget.onReplyMessage == null || message.isStreaming
-          ? null
-          : () => widget.onReplyMessage!(message),
-      onReplySelection: widget.onReplySelectionMessage == null
-          ? null
-          : (selected) => widget.onReplySelectionMessage!(message, selected),
       enableStreamingTextMotion: enableStreamingTextMotion,
       versionIndex: currentIdx < 0 ? selectedIdx : currentIdx,
       versionCount: total > 0 ? total : 1,

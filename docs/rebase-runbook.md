@@ -41,15 +41,14 @@ every fold below names the crossings it accepts.
 | 7 | `fix: re-port input focus retention on app resume (#1012)` | the desktop hotkey plus the composer it focuses |
 | 8 | `feat(chat): copy a conversation or message link (#1013)` | **plus `#1034` folded in** (Android deep links): iOS and Android links are one unit. Accepts one crossing on `test/message_more_sheet_test.dart` (`#1027`) |
 | 9 | `feat(chat): weigh the compression readout in tokens, tool results included (#1026)` | ADR-0011 |
-| 10 | `feat(reply): a message reply carries a quote citation (#1027)` | ADR-0012 |
-| 11 | `feat(export): a PDF laid out from markstream's tree, no WebView and no second renderer (#1028)` | ADR-0013 |
-| 12 | `feat(translate): user-managed target languages incl. Bengali (#1039)` | ADR-0014 |
-| 13 | `feat(suggestions): a chat-suggestions switch per assistant (#1040)` | — |
-| 14 | `feat(recycle): a recycle bin for deletions, losing merges and workspace files (#1035)` | ADR-0016 |
-| 15 | `fix: the new baseline's suite, fixtures and preference keys` | the landing repair: the two tests the baseline reshaped (`0bb6bc952`), the Windows-only assumptions the suite still carried (`6f4252bf5`), the non-nullable selection-toolbar items (`8407fbc88`), the migration retry's 1 s poll budget (`e4b111e31`), the browser cases the platform cannot run and the golden fixtures generated on the CI image (`71b0afa17`, `724affebc`), the two pre-rename ARB messages upstream still ships (`379fd2b35`), and the MCP presentation key the sync registry owed (`5efd382ff`). Not folded into unit 2, its natural home: the repairs touch test files units 3-14 own, so folding would mean replaying the whole series |
-| 16 | `chore(deps): the lock and the release wiring the gates run against` | `00d9c4580` (the seeded `pubspec.lock` every gate now runs against), `f75363461`'s `.gitignore` line for golden failures, and `515e807e2` — the notarization signs `cuplivo.app` and `Cuplivo_macos_*.dmg`, and `docs/homebrew/kelivo.rb` is deleted (rule 15) |
-| 17 | `docs(rebase): the invariants and the 199647a5d record` | `docs(agents)` `2eda72787` folded in, then `76993e753`, `956bec9fe`, `81271f940`, `e362f75bf`, `779452761`, `78436c40b`, `ea19c6cc1`, plus the document hunks of `f75363461` and `724affebc` |
-| 18 | `style: reformat the files the 3.47.6 formatter lays out differently` | re-derived at the tip (rule 10); never replayed, and never folded into a content unit — a mixed unit could be neither dropped nor re-derived. **Last on purpose**: the series tip is the reformat, which is what makes the `<old-master>~1` cut in the procedure correct again |
+| 10 | `feat(export): a PDF laid out from markstream's tree, no WebView and no second renderer (#1028)` | ADR-0013 |
+| 11 | `feat(translate): user-managed target languages incl. Bengali (#1039)` | ADR-0014 |
+| 12 | `feat(suggestions): a chat-suggestions switch per assistant (#1040)` | — |
+| 13 | `feat(recycle): a recycle bin for deletions, losing merges and workspace files (#1035)` | ADR-0016 |
+| 14 | `fix: the new baseline's suite, fixtures and preference keys` | the landing repair: the two tests the baseline reshaped (`0bb6bc952`), the Windows-only assumptions the suite still carried (`6f4252bf5`), the non-nullable selection-toolbar items (`8407fbc88`), the migration retry's 1 s poll budget (`e4b111e31`), the browser cases the platform cannot run and the golden fixtures generated on the CI image (`71b0afa17`, `724affebc`), the two pre-rename ARB messages upstream still ships (`379fd2b35`), and the MCP presentation key the sync registry owed (`5efd382ff`). Not folded into unit 2, its natural home: the repairs touch test files units 3-13 own, so folding would mean replaying the whole series |
+| 15 | `chore(deps): the lock and the release wiring the gates run against` | `00d9c4580` (the seeded `pubspec.lock` every gate now runs against), `f75363461`'s `.gitignore` line for golden failures, and `515e807e2` — the notarization signs `cuplivo.app` and `Cuplivo_macos_*.dmg`, and `docs/homebrew/kelivo.rb` is deleted (rule 15) |
+| 16 | `docs(rebase): the invariants and the 199647a5d record` | `docs(agents)` `2eda72787` folded in, then `76993e753`, `956bec9fe`, `81271f940`, `e362f75bf`, `779452761`, `78436c40b`, `ea19c6cc1`, plus the document hunks of `f75363461` and `724affebc` |
+| 17 | `style: reformat the files the 3.47.6 formatter lays out differently` | re-derived at the tip (rule 10); never replayed, and never folded into a content unit — a mixed unit could be neither dropped nor re-derived. **Last on purpose**: the series tip is the reformat, which is what makes the `<old-master>~1` cut in the procedure correct again |
 
 The tail is no longer a run of one-commit chores: the l10n cleanup and every test/CI repair now belong
 to unit 2, and the content carry, the CI collapse, the release-notes step and the runbook itself belong
@@ -88,6 +87,14 @@ Units from earlier series that are **gone, and must not come back**:
   (`707772844` sits in the baseline), so `tool/fetch_proot.sh` and `tool/proot_checksums.txt` are
   upstream's files now and no Cuplivo commit touches them. Re-adding the unit would fight upstream's own
   tooling — the same case as the `await` gate fix (rule 7).
+- **The message-reply unit (`#1027`) is retired.** 4.4 shipped it (`aa290f6fc`), but the rewrite that
+  produced this baseline replayed the unit as a shell — its docs, its hooks, and 24k lines of committed
+  `.merge`/`.rej` conflict scrap, with no implementation — and deleted the unit's tests in the same pass
+  (`c7fea7e5c`), so the suite could not notice. Upstream's own selection quotes (`7dd9b4e7d`, inside the
+  `4a7da9b6f` baseline) cover the same need, so the line keeps those and the reply is **not** replayed.
+  `docs/adr/0012-message-reply-quote.md` is withdrawn and `lib/l10n`, the hotkey table and the message
+  menus no longer carry its strings or hooks. Do not re-add the unit; a re-base that does would reintroduce
+  a second quoting model beside upstream's.
 - **There is no release unit.** A re-base is not a release: no version bump, no new tag, no
   changelog section, no release dispatch. `pubspec.yaml` keeps the version line the old tip had
   (`4.3.0+6` for the 4.3 line) while taking upstream's dependency changes — but the *content carry* is

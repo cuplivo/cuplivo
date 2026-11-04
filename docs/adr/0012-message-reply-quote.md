@@ -1,7 +1,21 @@
 # ADR-0012: Message reply — a Quote citation and the `<reply-to>` context injection
 
-**Status:** Accepted (2026-10)
+**Status:** Withdrawn (2026-11-04) — superseded by upstream's in-app quotes
 **Deciders:** cuplivo
+
+> **Why withdrawn.** This design was implemented on the 4.4 line (`aa290f6fc`, shipped in 4.4.0 and
+> 4.5.0), but the rewrite that produced the next baseline replayed the unit as a shell — docs, hooks,
+> and a committed pile of `.merge`/`.rej` conflict scrap, with no implementation — and deleted the
+> unit's tests in the same pass (`c7fea7e5c`), so nothing that stayed green could have caught the loss.
+> Meanwhile upstream shipped its own selection quotes (`7dd9b4e7d`, inside the `4a7da9b6f` baseline): a
+> selection becomes a quote chip in the composer, persists in `message_rows.extras_json` under
+> `quotes`, renders in the sent bubble, and taps back to its source. Both designs answer the same user
+> need — "my message is about *that* passage" — so this line keeps upstream's, one quoting model,
+> maintained by the people who ship the renderer, instead of re-porting a second one beside it.
+>
+> The design below is left as the record of what was decided and why it cannot simply be copied from
+> v3. It is not a description of the code: **do not re-add the reply unit on the next re-base**, and
+> do not resurrect `reply.quote`, `ChatMessage.quote`, or the `<reply-to>` injection.
 
 ## Context
 

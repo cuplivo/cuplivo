@@ -275,6 +275,13 @@ issue #1065 的两条症状是同一次「群话题没有 owner」的误用，�
 `home_page_controller_switch_test.dart` 的「a chat opened for an assistant leaves the group topic」、
 `side_drawer_conversation_list_test.dart` 的「choosing an assistant asks for a chat that assistant owns」。
 
+真机（Android 模拟器）另有一条 `integration_test/group_chat_switch_assistant_test.dart`：启动真实
+`app.main()`，把当前助手的流光打开，建一个群（含它和一个没有历史的助手），从抽屉打开群话题，
+再选另一个助手。断言都落在屏幕上——群话题里没有 `ChatGradientBackground`、`backgroundActive` 为
+false；切换后新会话 `groupChatId` 为 null、`assistantId` 为被选助手，且流光回来了（所以「没有流光」
+不可能是整体失效）。该用例在模拟器上通过；把 `createNewConversationAnimated` 的 `assistantId`
+判据去掉后，它在「等 1:1 打开」处超时失败——它确实咬得住这个缺陷。
+
 ## 5. 验证
 - `dart analyze --fatal-infos lib test integration_test` → **0 issue**。
 - 新增测试（14 + 22 = 36 条，全绿）：

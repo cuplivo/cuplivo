@@ -566,6 +566,14 @@ final class BusinessKeyRegistry {
       KeyPolicy.backupOnly,
       PolicyReason.deviceViewState,
     ),
+    'display_chat_input_background_opacity_dark_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_chat_input_background_opacity_light_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
     'display_chat_message_background_style_v1': KeyRule(
       KeyPolicy.backupOnly,
       PolicyReason.deviceViewState,
@@ -854,7 +862,6 @@ final class BusinessKeyRegistry {
       KeyPolicy.backupOnly,
       PolicyReason.deviceViewState,
     ),
-
     // backupOnly — this device's panel geometry
     'desktop_right_sidebar_width_v1': KeyRule(
       KeyPolicy.backupOnly,

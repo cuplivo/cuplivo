@@ -313,24 +313,32 @@ void main() {
     );
 
     final keyPattern = RegExp(r'^[a-z][a-z0-9_]*_v\d+$');
+    // The argument is not always one name: `setChatInputBackgroundOpacity`
+    // writes `setDouble(brightness == Brightness.dark ? keyA : keyB, v)`, and a
+    // one-name capture missed both keys until the debug assert fired on them in
+    // CI. Every token of the argument is resolved instead.
     final writePattern = RegExp(
       r"[A-Za-z_][\w.]*\s*\.\s*"
       r'(?:setBool|setInt|setDouble|setString|setStringList)'
-      r"\(\s*([A-Za-z_]\w*|'[^']*')\s*,",
+      r"\(\s*([^,()]+?)\s*,",
     );
+    final tokenPattern = RegExp(r"'([^']*)'|([A-Za-z_]\w*)");
     final written = <String, String>{};
     for (final entry in sources.entries) {
       for (final match in writePattern.allMatches(entry.value)) {
-        final argument = match.group(1)!;
         final candidates = <String>[];
-        if (argument.startsWith("'")) {
-          candidates.add(argument.substring(1, argument.length - 1));
-        } else {
-          final local = constantsByFile[entry.key]![argument];
+        for (final token in tokenPattern.allMatches(match.group(1)!)) {
+          final literal = token.group(1);
+          if (literal != null) {
+            candidates.add(literal);
+            continue;
+          }
+          final name = token.group(2)!;
+          final local = constantsByFile[entry.key]![name];
           if (local != null) candidates.add(local);
-          final shared = sharedConstants[argument];
+          final shared = sharedConstants[name];
           if (shared != null) candidates.add(shared);
-          final viaGetter = getterKeys[argument];
+          final viaGetter = getterKeys[name];
           if (viaGetter != null) candidates.addAll(viaGetter);
         }
         for (final key in candidates) {

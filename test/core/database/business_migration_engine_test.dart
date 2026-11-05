@@ -273,7 +273,8 @@ void main() {
 
   test('routes a complete registered business snapshot without loss', () async {
     final source = <String, Object?>{
-      for (final key in BusinessKeyRegistry.preferenceKeys) key: 'value:$key',
+      for (final key in BusinessKeyRegistry.rules.keys)
+        if (BusinessKeyRegistry.isStoredInBusinessData(key)) key: 'value:$key',
       for (final kind in BusinessEntityKind.values)
         kind.sourceKey: kind == BusinessEntityKind.provider
             ? jsonEncode({

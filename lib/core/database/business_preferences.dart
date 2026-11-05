@@ -22,6 +22,10 @@ final class BusinessPreferences {
 
   static const _providersOrderKey = 'providers_order_v1';
 
+  /// The name shape of a preference key the app itself owns. The registry's
+  /// writer scan uses the same convention, so the two guards cover one set.
+  static final _appPreferenceKeyPattern = RegExp(r'^[a-z][a-z0-9_]*_v\d+$');
+
   final BusinessRepository _repository;
   Map<String, Object> _values = <String, Object>{};
   final Map<BusinessEntityKind, Map<String, _SyntheticEntityIdentity>>
@@ -206,6 +210,18 @@ final class BusinessPreferences {
         final kind = _entityKindForKey(entry.key);
         if (kind == null) {
           _validatePreferenceKey(entry.key);
+          // The registry table is the authority for what a preference key is. A
+          // key written without a row is stored and backed up but silently
+          // never synced — the defect class that produced #1018, #1054 and
+          // #1062. CI's writer scan catches it in review; this catches it in the
+          // build that introduces it. Scoped to the app's own `_vN` convention,
+          // so a key from outside the app (a plugin, a restored artifact) is
+          // stored and fail-closed instead of crashing a debug build.
+          assert(
+            BusinessKeyRegistry.ruleFor(entry.key) != null ||
+                !_appPreferenceKeyPattern.hasMatch(entry.key),
+            'Unregistered preference key: ${entry.key}',
+          );
           preferenceUpdates[entry.key] = entry.value;
         } else {
           kinds.add(kind);
@@ -362,9 +378,8 @@ final class BusinessPreferences {
   }
 
   static void _validatePreferenceKey(String key) {
-    final disposition = BusinessKeyRegistry.classify(key);
-    if (disposition == BusinessKeyDisposition.localOnly ||
-        disposition == BusinessKeyDisposition.discarded) {
+    if (BusinessKeyRegistry.isPlatformOnly(key) ||
+        BusinessKeyRegistry.isDiscarded(key)) {
       throw ArgumentError.value(key, 'key', 'Not a business preference');
     }
   }

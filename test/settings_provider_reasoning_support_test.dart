@@ -1,4 +1,5 @@
 import "support/business_test_harness.dart";
+
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -423,12 +424,8 @@ void main() {
         'OpenAI::gpt-5.1': {'level': 'medium', 'budgetTokens': 16000},
       });
       expect(
-        BusinessKeyRegistry.classify('reasoning_choice_by_model_v1'),
-        BusinessKeyDisposition.preference,
-      );
-      expect(
-        BusinessKeyRegistry.preferenceKeys,
-        contains('reasoning_choice_by_model_v1'),
+        BusinessKeyRegistry.policyOf('reasoning_choice_by_model_v1'),
+        KeyPolicy.backupOnly,
       );
 
       final reloaded = SettingsProvider(harness.preferences);

@@ -5,412 +5,1353 @@ import 'package:crypto/crypto.dart';
 import '../models/assistant.dart';
 import 'business_data.dart';
 
-enum BusinessKeyDisposition {
-  entity,
-  providerOrder,
-  preference,
-  syncedPreference,
-  localOnly,
+/// What a key does: where it lives, and what carries it.
+///
+/// The four *stored* classes are the four sets this registry used to keep by
+/// hand, plus the class the old design hid in a second list
+/// (`BackupPortability.devicePreferenceKeys`): a business preference this device
+/// keeps to itself.
+enum KeyPolicy {
+  /// A business preference that rides LAN sync and a travelling backup.
+  synced,
+
+  /// A business preference that rides a backup but never a pairing.
+  backupOnly,
+
+  /// A business preference stored on this device and carried nowhere: the
+  /// portability layer strips it from a backup that travels.
+  deviceLocal,
+
+  /// A platform preference. It never enters the business store at all, so it can
+  /// ride neither a backup nor a pairing.
+  platformOnly,
+
+  /// A legacy key the app only reads in order to drop it.
   discarded,
-  unknownPreference,
+}
+
+/// Why a key has its policy — a closed list on purpose.
+///
+/// This registry's defects were all a prose comment that turned out to be wrong,
+/// missing, or attached to the wrong key. Prose cannot be checked by CI, and a
+/// reason that cannot be checked is how "backed up, never synced" stayed
+/// indistinguishable from "deliberately local" for 109 keys.
+enum PolicyReason {
+  /// Ownership and order for an entity kind whose rows travel: which provider
+  /// belongs to which group, which world books an assistant enables.
+  syncCompanionOfEntity,
+
+  /// Configuration a new device should arrive with (ADR-0003 decision 6).
+  newDeviceConfiguration,
+
+  /// What this device is showing: collapsed sets, open panels, the last tab.
+  deviceViewState,
+
+  /// Window and panel geometry.
+  windowGeometry,
+
+  /// Where this device is looking in a session.
+  sessionPosition,
+
+  /// An OS or hardware feature, or a fallback for one.
+  platformCapability,
+
+  /// This device's network path, and its patience with it.
+  networkEnvironment,
+
+  /// Runtime state and diagnostics: logs, counters, cached readings, recovery
+  /// hints.
+  runtimeDiagnostics,
+
+  /// A schedule or a run stamp of this device (snapshots, reminders, tasks).
+  deviceScheduleState,
+
+  /// A location on this device's filesystem.
+  deviceStoragePath,
+
+  /// Bookkeeping from an older data shape.
+  legacyBookkeeping,
+
+  /// No recorded reason.
+  ///
+  /// A key here is device-local *today* because nobody wrote down why, not
+  /// because the new-device test says it stays. That is the state the old
+  /// registry could not distinguish from a deliberate exclusion; it is now an
+  /// explicit list a test pins, so it can only shrink.
+  notYetReviewed,
+}
+
+final class KeyRule {
+  const KeyRule(this.policy, this.reason, [this.note = '']);
+
+  final KeyPolicy policy;
+  final PolicyReason reason;
+
+  /// For the reader only. Never an input to a test or to a decision: the reason
+  /// enum is what CI can check.
+  final String note;
 }
 
 final class BusinessKeyRegistry {
   BusinessKeyRegistry._();
 
-  static const localOnlyKeys = <String>{
-    'window_width_v1',
-    'window_height_v1',
-    'window_pos_x_v1',
-    'window_pos_y_v1',
-    'window_physical_pos_x_v1',
-    'window_physical_pos_y_v1',
-    'window_maximized_v1',
-    'linux_hide_title_bar_v1',
-    'desktop_hotkeys_commands_v1',
-    'desktop_hotkeys_enabled_v1',
-    'display_chat_font_scale_v1',
-    'ios_native_selection_menu_enabled_v1',
-    'flutter_log_enabled_v1',
-    'model_catalog_auto_update_v1',
-  };
+  /// Not a stored key: [BusinessSettingsRouter.exportSnapshot] projects the
+  /// provider order from the provider rows' `sort_order`, and the runtime view is
+  /// republished from those rows, so the order travels with the rows themselves
+  /// (ADR-0003 slice 2; the entity digest covers the position since slice 8). It
+  /// has no policy row because it has no row.
+  static const providerOrderKey = 'providers_order_v1';
 
-  /// Business preferences a brand-new device wants to arrive with the pairing
-  /// (ADR-0003 decision 6). Membership follows the new-device test: business
-  /// configuration yes; window geometry, proxies, platform flags, fonts and
-  /// session-position keys no. This set is the single authority for what LAN
-  /// sync carries — keys outside it never ride sync, so adding a key here is
-  /// the whole act of making it sync.
+  static bool isProviderOrder(String key) => key == providerOrderKey;
+
+  /// One row per key the app can write. This table is the whole authority: a key
+  /// outside it is fail-closed — never synced, never treated as a business
+  /// preference — and, in a debug build, a bug: the writer scan in
+  /// `business_key_registry_sync_test.dart` fails on it.
   ///
-  /// Strictly a subset of [preferenceKeys]: a synced key is still an ordinary
-  /// business preference to every non-sync consumer (backup merge, restore,
-  /// the runtime view).
-  static const syncedPreferenceKeys = <String>{
-    // Theme and language.
-    'theme_mode_v1',
-    'theme_palette_v1',
-    // A custom palette is *named* by 'theme_palette_v1' ('custom') and
-    // *defined* by these two. Syncing the name without the definitions lands a
-    // new device on a palette id it cannot resolve: main.dart falls back to the
-    // default palette while the settings page still shows the custom one as
-    // selected, with an empty theme list.
-    'custom_themes_v1',
-    'custom_theme_selected_v1',
-    'use_dynamic_color_v1',
-    'app_locale_v1',
-    // Generation configuration: models, prompts and thinking toggles.
-    'title_model_v1',
-    'title_generation_enabled_v1',
-    'title_prompt_v1',
-    'title_generation_thinking_enabled_v1',
-    'summary_model_v1',
-    'summary_prompt_v1',
-    'summary_generation_thinking_enabled_v1',
-    'suggestion_model_v1',
-    'suggestion_generation_enabled_v1',
-    'suggestion_prompt_v1',
-    'suggestion_generation_thinking_enabled_v1',
-    'suggestion_insert_on_tap_only_v1',
-    'compress_model_v1',
-    'compress_prompt_v1',
-    // Which model runs a group chat's speaker selection: generation
-    // configuration like the rest of this block, so a new device runs a group
-    // the same way this one does.
-    'group_director_model_v1',
-    // The rest of the compress page: the thinking toggle every other feature
-    // already synced, plus the limit mode, the keep-last-user-messages count and
-    // the char budget — the model and the prompt alone leave a new device
-    // compressing by different rules.
-    'compress_generation_thinking_enabled_v1',
-    'compress_limit_mode_v1',
-    'compress_keep_user_messages_v1',
-    'compress_max_chars_v1',
-    'translate_model_v1',
-    'translate_prompt_v1',
-    'translate_target_lang_v1',
-    // The visible set is the same user configuration as the target it belongs
-    // to. Without it a new device receives a target language it is not allowed
-    // to show and silently falls back to its own locale language.
-    'translate_visible_languages_v1',
-    'translate_generation_thinking_enabled_v1',
-    'ocr_model_v1',
-    'ocr_prompt_v1',
-    'ocr_enabled_v1',
-    'ocr_generation_thinking_enabled_v1',
-    // No 'thinking_budget_v1': the baseline retires the global thinking budget
-    // in favour of per-model reasoning configuration, so the key is not an
-    // ordinary business preference any more and nothing writes it.
-    // Memory configuration. The prompts below ride sync, and so must the rest of
-    // the feature: a new device cannot run auto-organize at all without the
-    // model, and the injection cap belongs to the same settings page. The
-    // migration batch size rides too — legacy memories themselves sync, so a new
-    // device runs that migration as well. Only tracing (a diagnostics runtime
-    // flag) stays device-local.
-    'memory_model_v1',
-    'memory_model_thinking_enabled_v1',
-    'memory_legacy_mode_v1',
-    'memory_injection_max_items_v1',
-    'memory_migration_batch_size_v1',
-    // The prompts themselves (wording only — tracing state stays local).
-    'memory_prompt_lang_v1',
-    'memory_legacy_prompt_zh_v1',
-    'memory_legacy_prompt_en_v1',
-    'memory_rules_prompt_zh_v1',
-    'memory_rules_prompt_en_v1',
-    'memory_gate_prompt_zh_v1',
-    'memory_gate_prompt_en_v1',
-    'memory_extract_prompt_zh_v1',
-    'memory_extract_prompt_en_v1',
-    'memory_smart_add_prompt_zh_v1',
-    'memory_smart_add_prompt_en_v1',
-    'memory_smart_add_batch_prompt_zh_v1',
-    'memory_smart_add_batch_prompt_en_v1',
-    'memory_profile_distill_prompt_zh_v1',
-    'memory_profile_distill_prompt_en_v1',
-    'memory_migrate_prompt_zh_v1',
-    'memory_migrate_prompt_en_v1',
-    // Service configuration.
-    'asr_services_v1',
-    // 'tts_selected_service_id_v1' already rides sync; the ASR twin did not.
-    'asr_selected_service_id_v1',
-    'tts_speech_rate_v1',
-    'tts_pitch_v1',
-    'tts_selected_service_id_v1',
-    'search_common_v1',
-    'search_selected_v1',
-    'search_enabled_v1',
-    // Models and user identity.
-    'pinned_models_v1',
-    // The sidebar's mixed assistant/group order. The assistants and groups
-    // themselves are entities that sync, and their `sort_order` used to be the
-    // order a new device received; the drag order now lives in this key, so
-    // without it a paired device lists the same owners in a different order
-    // than the device it paired with.
-    'chat_owner_order_v1',
-    'user_name',
-    'avatar_type',
-    'avatar_value',
-    // Backup configuration (state such as the last-backup stamp stays local).
-    'webdav_config_v1',
-    's3_config_v1',
-    'backup_reminder_enabled_v1',
-    'backup_reminder_interval_days_v1',
-    'backup_reminder_minutes_of_day_v1',
-    // Style and tool overrides.
-    'chat_bubble_style_overrides_v1',
-    'tool_schema_overrides_v1',
-    // MCP organization. The servers are entities that sync, so the metadata that
-    // organizes them must ride too: the groups, the per-server group and icon,
-    // and the collapsed set. Without it a new device shows every paired server
-    // ungrouped while the device it paired with still has its layout.
-    // 'mcp_request_timeout_ms_v1' deliberately stays out — it describes this
-    // device's patience with its own network, not the MCP setup.
-    'mcp_presentation_v1',
+  /// Rows are grouped by policy and then by reason, so "what does sync do with
+  /// this family" is one section rather than a search.
+  static const rules = <String, KeyRule>{
+    // synced — the ownership and order of a synced entity
+    'assistant_tag_map_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.syncCompanionOfEntity,
+      'assistantId → tagId. The tags and the assistants are rows that travel; the assignment between them is this key.',
+    ),
+    'chat_owner_order_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.syncCompanionOfEntity,
+      'The sidebar\'s mixed assistant/group order. The owners are rows, but their own sort_order no longer carries this order.',
+    ),
+    'instruction_injections_active_ids_by_assistant_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.syncCompanionOfEntity,
+      'assistantId → the injection ids that assistant has enabled. \'__global__\' is the default row.',
+    ),
+    'mcp_presentation_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.syncCompanionOfEntity,
+      'MCP groups, each server\'s group and icon, and the collapsed set. The collapsed set rides because the ownership half is co-stored in this one blob — the single carve-out from "view state stays home".',
+    ),
+    'provider_group_map_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.syncCompanionOfEntity,
+      'providerKey → groupId. The groups and the providers are rows that travel; the assignment between them is this key.',
+    ),
+    'provider_ungrouped_position_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.syncCompanionOfEntity,
+      'Where the synthetic "ungrouped" bucket sits in the group order. A group\'s own order travels in its row\'s sort_order; without this the bucket lands wherever the receiving device defaults.',
+    ),
+    'world_books_active_ids_by_assistant_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.syncCompanionOfEntity,
+      'assistantId → the world book ids that assistant has enabled. \'__global__\' is the default row.',
+    ),
+
+    // synced — configuration a new device wants as its own
+    'app_locale_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'asr_selected_service_id_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'asr_services_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'avatar_type': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'avatar_value': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'backup_reminder_enabled_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'backup_reminder_interval_days_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'backup_reminder_minutes_of_day_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'chat_bubble_style_overrides_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'compress_generation_thinking_enabled_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'compress_keep_user_messages_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'compress_limit_mode_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'compress_max_chars_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'compress_model_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'compress_prompt_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'custom_theme_selected_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+      'Half of the definition behind theme_palette_v1 = \'custom\'; see custom_themes_v1.',
+    ),
+    'custom_themes_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+      'A custom palette is *named* by theme_palette_v1 (\'custom\') and *defined* by this and custom_theme_selected_v1. A name without the definition lands a new device on a palette it cannot resolve.',
+    ),
+    'group_director_model_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_extract_prompt_en_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_extract_prompt_zh_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_gate_prompt_en_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_gate_prompt_zh_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_injection_max_items_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_legacy_mode_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_legacy_prompt_en_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_legacy_prompt_zh_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_migrate_prompt_en_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_migrate_prompt_zh_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_migration_batch_size_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_model_thinking_enabled_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_model_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_profile_distill_prompt_en_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_profile_distill_prompt_zh_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_prompt_lang_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_rules_prompt_en_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_rules_prompt_zh_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_smart_add_batch_prompt_en_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_smart_add_batch_prompt_zh_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_smart_add_prompt_en_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'memory_smart_add_prompt_zh_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'ocr_enabled_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'ocr_generation_thinking_enabled_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'ocr_model_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'ocr_prompt_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'pinned_models_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    's3_config_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'search_common_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'search_enabled_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'search_selected_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'suggestion_generation_enabled_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'suggestion_generation_thinking_enabled_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'suggestion_insert_on_tap_only_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'suggestion_model_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'suggestion_prompt_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'summary_generation_thinking_enabled_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'summary_model_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'summary_prompt_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'theme_mode_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'theme_palette_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'title_generation_enabled_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'title_generation_thinking_enabled_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'title_model_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'title_prompt_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'tool_schema_overrides_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'translate_generation_thinking_enabled_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'translate_model_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'translate_prompt_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'translate_target_lang_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'translate_visible_languages_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'tts_pitch_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'tts_selected_service_id_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'tts_speech_rate_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'use_dynamic_color_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+    'user_name': KeyRule(KeyPolicy.synced, PolicyReason.newDeviceConfiguration),
+    'webdav_config_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
+
+    // deviceLocal — a schedule or run stamp of this device
+    'desktop_scheduled_tasks_v1': KeyRule(
+      KeyPolicy.deviceLocal,
+      PolicyReason.deviceScheduleState,
+      'Scheduled tasks run on this device\'s clock; the portability layer strips them from a backup that travels.',
+    ),
+    'scheduled_task_results_v1': KeyRule(
+      KeyPolicy.deviceLocal,
+      PolicyReason.deviceScheduleState,
+      'Run stamps for the tasks above.',
+    ),
+
+    // deviceLocal — a fact about this device's sandbox
+    'environment_proot_options_v1': KeyRule(
+      KeyPolicy.deviceLocal,
+      PolicyReason.platformCapability,
+      'How this device runs PRoot.',
+    ),
+    'environment_state_v1': KeyRule(
+      KeyPolicy.deviceLocal,
+      PolicyReason.platformCapability,
+    ),
+
+    // deviceLocal — runtime state and diagnostics
+    'environment_disk_usage_v1': KeyRule(
+      KeyPolicy.deviceLocal,
+      PolicyReason.runtimeDiagnostics,
+    ),
+
+    // deviceLocal — a location on this device's filesystem
+    'environment_rootfs_selection_v1': KeyRule(
+      KeyPolicy.deviceLocal,
+      PolicyReason.deviceStoragePath,
+      'A path on this device, and the portability layer strips it from a backup that travels.',
+    ),
+
+    // deviceLocal — no recorded reason
+    'backup_encryption_enabled_v1': KeyRule(
+      KeyPolicy.deviceLocal,
+      PolicyReason.notYetReviewed,
+      'Stripped from a travelling backup by the portability layer. Whether that is deliberate or an oversight was never recorded — the reason says so instead of inventing one.',
+    ),
+
+    // backupOnly — how this device shows things
+    'assistant_tag_collapsed_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'desktop_right_sidebar_open_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'desktop_side_panel_last_kind_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'desktop_side_panel_open_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'desktop_side_panel_tabs_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'desktop_sidebar_open_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'desktop_topic_position_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'desktop_workspace_bar_open_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_app_font_family_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_app_font_is_google_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_app_font_local_alias_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_assistant_bubble_fit_content_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_assistant_bubble_split_paragraphs_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_auto_collapse_code_block_lines_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_auto_collapse_code_block_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_auto_collapse_thinking_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_auto_scroll_enabled_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_chat_background_mask_strength_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_chat_message_background_style_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_chat_tools_expanded_groups_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_code_font_family_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_code_font_is_google_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_code_font_local_alias_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_collapse_long_user_message_chars_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_collapse_long_user_messages_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_collapse_thinking_steps_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_desktop_auto_switch_topics_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_desktop_message_nav_buttons_mode_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_desktop_minimize_to_tray_on_close_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_desktop_show_tray_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_enable_assistant_markdown_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_enable_dollar_latex_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_enable_math_rendering_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_enable_reasoning_markdown_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_enable_user_markdown_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_enter_to_send_on_mobile_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_haptics_global_enabled_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_haptics_ios_switch_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_haptics_on_card_tap_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_haptics_on_drawer_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_haptics_on_generate_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_haptics_on_list_item_tap_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_hide_tool_result_images_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_keep_assistant_list_expanded_on_sidebar_close_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_keep_screen_on_during_generation_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_keep_sidebar_open_on_assistant_tap_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_keep_sidebar_open_on_topic_tap_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_long_paste_as_file_threshold_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_long_paste_as_file_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_mobile_code_block_wrap_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_mobile_message_nav_buttons_mode_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_new_chat_after_delete_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_new_chat_on_assistant_switch_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_new_chat_on_launch_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_regenerate_delete_trailing_messages_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_app_updates_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_browser_page_cards_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_chat_list_date_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_genui_header_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_message_nav_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_model_icon_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_model_name_timestamp_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_model_name_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_model_timestamp_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_produced_files_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_provider_in_chat_message_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_provider_in_model_capsule_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_reasoning_level_badge_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_regenerate_confirm_dialog_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_thinking_cards_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_token_stats_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_tool_cards_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_tool_result_summary_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_total_tokens_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_user_avatar_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_user_message_actions_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_user_name_timestamp_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_user_name_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_show_user_timestamp_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_use_layered_sheet_tiles_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_use_layered_surfaces_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_use_legacy_inline_code_style_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_use_new_assistant_avatar_ux_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_use_pure_background_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'instruction_injection_group_collapsed_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'mobile_assistant_detail_outline_enabled_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'mobile_assistant_edit_tab_hidden_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'mobile_assistant_edit_tab_order_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'provider_group_collapsed_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'world_books_collapsed_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
+
+    // backupOnly — this device's panel geometry
+    'desktop_right_sidebar_width_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.windowGeometry,
+    ),
+    'desktop_side_panel_width_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.windowGeometry,
+    ),
+    'desktop_sidebar_width_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.windowGeometry,
+    ),
+
+    // backupOnly — where this device is looking in a session
+    'current_assistant_id_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.sessionPosition,
+    ),
+    'selected_model_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.sessionPosition,
+    ),
+
+    // backupOnly — a platform feature or fallback
+    'android_background_chat_mode_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.platformCapability,
+    ),
+    'desktop_send_shortcut_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.platformCapability,
+    ),
+    'environment_privacy_mode_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.platformCapability,
+    ),
+    'environment_variables_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.platformCapability,
+    ),
+    'ios_background_generation_enabled_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.platformCapability,
+    ),
+    'ios_background_notifications_enabled_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.platformCapability,
+    ),
+    'ios_background_task_refresh_enabled_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.platformCapability,
+    ),
+    'ios_live_activity_enabled_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.platformCapability,
+    ),
+    'mobile_background_settings_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.platformCapability,
+    ),
+    'tts_engine_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.platformCapability,
+    ),
+    'tts_language_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.platformCapability,
+    ),
+    'tts_selected_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.platformCapability,
+    ),
+
+    // backupOnly — this device's network path and its patience
+    'environment_mirrors_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.networkEnvironment,
+    ),
+    'global_proxy_bypass_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.networkEnvironment,
+    ),
+    'global_proxy_enabled_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.networkEnvironment,
+    ),
+    'global_proxy_host_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.networkEnvironment,
+    ),
+    'global_proxy_password_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.networkEnvironment,
+    ),
+    'global_proxy_port_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.networkEnvironment,
+    ),
+    'global_proxy_type_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.networkEnvironment,
+    ),
+    'global_proxy_username_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.networkEnvironment,
+    ),
+    'mcp_request_timeout_ms_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.networkEnvironment,
+      'Describes this device\'s patience with its own network, not the MCP setup — which is why MCP\'s presentation syncs and this does not.',
+    ),
+    'search_auto_test_on_launch_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.networkEnvironment,
+    ),
+
+    // backupOnly — runtime state and diagnostics
+    'app_launch_count_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.runtimeDiagnostics,
+    ),
+    'context_log_enabled_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.runtimeDiagnostics,
+    ),
+    'log_auto_delete_days_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.runtimeDiagnostics,
+    ),
+    'log_elide_large_payloads_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.runtimeDiagnostics,
+    ),
+    'log_max_size_mb_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.runtimeDiagnostics,
+    ),
+    'log_save_output_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.runtimeDiagnostics,
+    ),
+    'memory_trace_enabled_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.runtimeDiagnostics,
+    ),
+    'orphaned_conversations_assistant_id_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.runtimeDiagnostics,
+    ),
+    'request_log_enabled_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.runtimeDiagnostics,
+    ),
+
+    // backupOnly — a schedule or run stamp of this device
+    'backup_reminder_enabled_at_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceScheduleState,
+    ),
+    'backup_reminder_last_backup_at_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceScheduleState,
+    ),
+    'local_snapshot_announce_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceScheduleState,
+    ),
+    'local_snapshot_enabled_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceScheduleState,
+    ),
+    'local_snapshot_failure_streak_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceScheduleState,
+    ),
+    'local_snapshot_fingerprint_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceScheduleState,
+    ),
+    'local_snapshot_first_observed_at_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceScheduleState,
+    ),
+    'local_snapshot_interval_days_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceScheduleState,
+    ),
+    'local_snapshot_keep_monthly_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceScheduleState,
+    ),
+    'local_snapshot_keep_recent_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceScheduleState,
+    ),
+    'local_snapshot_keep_weekly_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceScheduleState,
+    ),
+    'local_snapshot_last_failure_at_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceScheduleState,
+    ),
+    'local_snapshot_last_failure_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceScheduleState,
+    ),
+    'local_snapshot_last_skip_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceScheduleState,
+    ),
+    'local_snapshot_last_success_at_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceScheduleState,
+    ),
+    'local_snapshot_max_total_bytes_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceScheduleState,
+    ),
+
+    // backupOnly — a location on this device's filesystem
+    'display_app_font_local_path_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceStoragePath,
+    ),
+    'display_code_font_local_path_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceStoragePath,
+    ),
+
+    // backupOnly — bookkeeping from an older data shape
+    'desktop_side_panel_migrated_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.legacyBookkeeping,
+    ),
+
+    // backupOnly — no recorded reason
+    'chat_bubble_style_overrides_user_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+    'chat_edit_assistant_keep_thinking_tool_cards_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+    'chat_fork_keep_message_versions_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+    'image_compress_custom_quality_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+    'image_compress_transparent_enabled_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+    'image_compression_mode_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+    'image_cropper_enabled_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+    'image_upload_quality_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+    'learning_mode_enabled_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+    'learning_mode_prompt_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+    'manual_compress_format_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+    'manual_compress_max_long_edge_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+    'manual_compress_quality_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+    'memory_full_injection_types_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+    'per_chat_model_enabled_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+    'proactive_care_decision_model_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+    'reasoning_choice_by_model_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+    'search_web_fetch_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+    'send_markdown_image_links_as_images_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+    'tts_auto_play_assistant_replies_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+    'tts_cache_network_audio_for_replay_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+    'tts_text_selection_mode_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+    ),
+
+    // platformOnly — this device's window geometry
+    'window_height_v1': KeyRule(
+      KeyPolicy.platformOnly,
+      PolicyReason.windowGeometry,
+    ),
+    'window_maximized_v1': KeyRule(
+      KeyPolicy.platformOnly,
+      PolicyReason.windowGeometry,
+    ),
+    'window_physical_pos_x_v1': KeyRule(
+      KeyPolicy.platformOnly,
+      PolicyReason.windowGeometry,
+    ),
+    'window_physical_pos_y_v1': KeyRule(
+      KeyPolicy.platformOnly,
+      PolicyReason.windowGeometry,
+    ),
+    'window_pos_x_v1': KeyRule(
+      KeyPolicy.platformOnly,
+      PolicyReason.windowGeometry,
+    ),
+    'window_pos_y_v1': KeyRule(
+      KeyPolicy.platformOnly,
+      PolicyReason.windowGeometry,
+    ),
+    'window_width_v1': KeyRule(
+      KeyPolicy.platformOnly,
+      PolicyReason.windowGeometry,
+    ),
+
+    // platformOnly — how this device shows things
+    'display_chat_font_scale_v1': KeyRule(
+      KeyPolicy.platformOnly,
+      PolicyReason.deviceViewState,
+    ),
+
+    // platformOnly — a platform feature or fallback
+    'desktop_hotkeys_commands_v1': KeyRule(
+      KeyPolicy.platformOnly,
+      PolicyReason.platformCapability,
+    ),
+    'desktop_hotkeys_enabled_v1': KeyRule(
+      KeyPolicy.platformOnly,
+      PolicyReason.platformCapability,
+    ),
+    'ios_native_selection_menu_enabled_v1': KeyRule(
+      KeyPolicy.platformOnly,
+      PolicyReason.platformCapability,
+    ),
+    'linux_hide_title_bar_v1': KeyRule(
+      KeyPolicy.platformOnly,
+      PolicyReason.platformCapability,
+    ),
+
+    // platformOnly — runtime state and diagnostics
+    'flutter_log_enabled_v1': KeyRule(
+      KeyPolicy.platformOnly,
+      PolicyReason.runtimeDiagnostics,
+    ),
+
+    // platformOnly — this device's network path
+    'model_catalog_auto_update_v1': KeyRule(
+      KeyPolicy.platformOnly,
+      PolicyReason.networkEnvironment,
+    ),
+
+    // discarded — read only to drop it
+    'chat_titles_map': KeyRule(
+      KeyPolicy.discarded,
+      PolicyReason.legacyBookkeeping,
+    ),
+    'instruction_injections_active_id_v1': KeyRule(
+      KeyPolicy.discarded,
+      PolicyReason.legacyBookkeeping,
+    ),
+    'instruction_injections_active_ids_v1': KeyRule(
+      KeyPolicy.discarded,
+      PolicyReason.legacyBookkeeping,
+    ),
+    'migrations_version_v1': KeyRule(
+      KeyPolicy.discarded,
+      PolicyReason.legacyBookkeeping,
+    ),
+    'pinned_chat_ids': KeyRule(
+      KeyPolicy.discarded,
+      PolicyReason.legacyBookkeeping,
+    ),
+    'provider_configs_backup_v1': KeyRule(
+      KeyPolicy.discarded,
+      PolicyReason.legacyBookkeeping,
+    ),
   };
 
-  static const discardedKeys = <String>{
-    'pinned_chat_ids',
-    'chat_titles_map',
-    'instruction_injections_active_id_v1',
-    'instruction_injections_active_ids_v1',
-    'migrations_version_v1',
-    'provider_configs_backup_v1',
+  /// Which preference keys organize which entity kind.
+  ///
+  /// A kind whose rows travel must not reach a new device as an unorganized
+  /// pile: groups, tags and per-assistant selections are only meaningful beside
+  /// the rows they name. The test walks [BusinessEntityKind.values], so a new
+  /// kind must add a row — empty when it needs no companion — and every
+  /// companion listed here must be `synced`.
+  static const companionKeys = <BusinessEntityKind, Set<String>>{
+    BusinessEntityKind.assistant: {
+      'assistant_tag_map_v1',
+      'chat_owner_order_v1',
+      'instruction_injections_active_ids_by_assistant_v1',
+      'world_books_active_ids_by_assistant_v1',
+    },
+    BusinessEntityKind.provider: {'provider_group_map_v1'},
+    BusinessEntityKind.providerGroup: {
+      'provider_group_map_v1',
+      'provider_ungrouped_position_v1',
+    },
+    BusinessEntityKind.mcpServer: {'mcp_presentation_v1'},
+    BusinessEntityKind.worldBook: {'world_books_active_ids_by_assistant_v1'},
+    BusinessEntityKind.assistantMemory: {},
+    BusinessEntityKind.quickPhrase: {},
+    BusinessEntityKind.searchService: {},
+    BusinessEntityKind.ttsService: {},
+    BusinessEntityKind.instructionInjection: {
+      'instruction_injections_active_ids_by_assistant_v1',
+    },
+    BusinessEntityKind.assistantTag: {'assistant_tag_map_v1'},
+    BusinessEntityKind.memoryEntry: {},
+    BusinessEntityKind.workspace: {},
+    BusinessEntityKind.skill: {},
+    BusinessEntityKind.groupChat: {'chat_owner_order_v1'},
+    BusinessEntityKind.userProfileField: {},
   };
 
-  static const preferenceKeys = <String>{
-    'desktop_scheduled_tasks_v1',
-    'scheduled_task_results_v1',
-    'current_assistant_id_v1',
-    'orphaned_conversations_assistant_id_v1',
-    'proactive_care_decision_model_v1',
-    'group_director_model_v1',
-    // The sidebar's mixed assistant/group order. Carried by backup and restore
-    // like any other presentation preference; the membership it names is
-    // reconciled against what actually exists on load.
-    'chat_owner_order_v1',
-    'selected_model_v1',
-    'per_chat_model_enabled_v1',
-    'pinned_models_v1',
-    'provider_group_map_v1',
-    'provider_group_collapsed_v1',
-    'provider_ungrouped_position_v1',
-    'assistant_tag_map_v1',
-    'assistant_tag_collapsed_v1',
-    'instruction_injections_active_ids_by_assistant_v1',
-    'instruction_injection_group_collapsed_v1',
-    'world_books_active_ids_by_assistant_v1',
-    'world_books_collapsed_v1',
-    'search_common_v1',
-    'search_selected_v1',
-    'search_enabled_v1',
-    'search_auto_test_on_launch_v1',
-    'search_web_fetch_v1',
-    'tts_selected_v1',
-    'tts_selected_service_id_v1',
-    'tts_auto_play_assistant_replies_v1',
-    'tts_text_selection_mode_v1',
-    'tts_speech_rate_v1',
-    'tts_pitch_v1',
-    'tts_engine_v1',
-    'tts_language_v1',
-    'tts_cache_network_audio_for_replay_v1',
-    'asr_services_v1',
-    'asr_selected_service_id_v1',
-    'webdav_config_v1',
-    's3_config_v1',
-    'backup_encryption_enabled_v1',
-    'backup_reminder_enabled_v1',
-    'backup_reminder_interval_days_v1',
-    'backup_reminder_minutes_of_day_v1',
-    'backup_reminder_enabled_at_v1',
-    'backup_reminder_last_backup_at_v1',
-    // Local (on-device) snapshots. Ordinary business preferences like the
-    // remote-backup config above, so a snapshot taken on this device
-    // round-trips them; deliberately *not* synced (they describe this device's
-    // own schedule and retention), and the run stamps below are state about
-    // this device's runs rather than configuration.
-    'local_snapshot_enabled_v1',
-    'local_snapshot_interval_days_v1',
-    'local_snapshot_keep_recent_v1',
-    'local_snapshot_keep_weekly_v1',
-    'local_snapshot_keep_monthly_v1',
-    'local_snapshot_max_total_bytes_v1',
-    'local_snapshot_announce_v1',
-    'local_snapshot_last_success_at_v1',
-    'local_snapshot_last_failure_at_v1',
-    'local_snapshot_last_failure_v1',
-    'local_snapshot_last_skip_v1',
-    'local_snapshot_failure_streak_v1',
-    'local_snapshot_fingerprint_v1',
-    'local_snapshot_first_observed_at_v1',
-    'user_name',
-    'avatar_type',
-    'avatar_value',
-    'theme_mode_v1',
-    'theme_palette_v1',
-    'custom_themes_v1',
-    'custom_theme_selected_v1',
-    'use_dynamic_color_v1',
-    'app_locale_v1',
-    'title_model_v1',
-    'title_generation_enabled_v1',
-    'title_prompt_v1',
-    'title_generation_thinking_enabled_v1',
-    'summary_generation_thinking_enabled_v1',
-    'suggestion_generation_thinking_enabled_v1',
-    'compress_generation_thinking_enabled_v1',
-    'translate_generation_thinking_enabled_v1',
-    'ocr_generation_thinking_enabled_v1',
-    'translate_model_v1',
-    'translate_prompt_v1',
-    'translate_target_lang_v1',
-    'translate_visible_languages_v1',
-    'ocr_model_v1',
-    'ocr_prompt_v1',
-    'ocr_enabled_v1',
-    'summary_model_v1',
-    'summary_prompt_v1',
-    'suggestion_model_v1',
-    'suggestion_generation_enabled_v1',
-    'suggestion_prompt_v1',
-    'suggestion_insert_on_tap_only_v1',
-    'compress_model_v1',
-    'compress_prompt_v1',
-    'compress_limit_mode_v1',
-    'compress_keep_user_messages_v1',
-    'compress_max_chars_v1',
-    'reasoning_choice_by_model_v1',
-    'image_cropper_enabled_v1',
-    'image_upload_quality_v1',
-    'image_compress_custom_quality_v1',
-    'image_compress_transparent_enabled_v1',
-    // The other half of the same settings page: upload/compression behaviour and
-    // the manual editor's last-used parameters.
-    'image_compression_mode_v1',
-    'manual_compress_format_v1',
-    'manual_compress_quality_v1',
-    'manual_compress_max_long_edge_v1',
-    'send_markdown_image_links_as_images_v1',
-    'desktop_topic_position_v1',
-    'desktop_right_sidebar_open_v1',
-    'desktop_sidebar_width_v1',
-    'desktop_sidebar_open_v1',
-    'desktop_right_sidebar_width_v1',
-    'desktop_side_panel_open_v1',
-    'desktop_side_panel_width_v1',
-    'desktop_side_panel_last_kind_v1',
-    'desktop_side_panel_tabs_v1',
-    'desktop_side_panel_migrated_v1',
-    'desktop_workspace_bar_open_v1',
-    'desktop_send_shortcut_v1',
-    'android_background_chat_mode_v1',
-    'ios_background_generation_enabled_v1',
-    'ios_background_task_refresh_enabled_v1',
-    'ios_live_activity_enabled_v1',
-    'ios_background_notifications_enabled_v1',
-    'display_app_font_family_v1',
-    'display_code_font_family_v1',
-    'display_app_font_is_google_v1',
-    'display_code_font_is_google_v1',
-    'display_app_font_local_path_v1',
-    'display_code_font_local_path_v1',
-    'display_app_font_local_alias_v1',
-    'display_code_font_local_alias_v1',
-    'global_proxy_enabled_v1',
-    'global_proxy_type_v1',
-    'global_proxy_host_v1',
-    'global_proxy_port_v1',
-    'global_proxy_username_v1',
-    'global_proxy_password_v1',
-    'global_proxy_bypass_v1',
-    'request_log_enabled_v1',
-    'log_save_output_v1',
-    'log_auto_delete_days_v1',
-    'log_max_size_mb_v1',
-    // Diagnostics logging: local by nature (they describe this device's log
-    // files and how much of them is written).
-    'context_log_enabled_v1',
-    'log_elide_large_payloads_v1',
-    'app_launch_count_v1',
-    'mcp_request_timeout_ms_v1',
-    'mcp_presentation_v1',
-    'learning_mode_enabled_v1',
-    'learning_mode_prompt_v1',
-    'mobile_assistant_edit_tab_order_v1',
-    'mobile_assistant_edit_tab_hidden_v1',
-    'mobile_assistant_detail_outline_enabled_v1',
-    'mobile_background_settings_v1',
-    'memory_model_v1',
-    'memory_model_thinking_enabled_v1',
-    'memory_prompt_lang_v1',
-    'memory_trace_enabled_v1',
-    'memory_legacy_mode_v1',
-    'memory_legacy_prompt_zh_v1',
-    'memory_legacy_prompt_en_v1',
-    'memory_rules_prompt_zh_v1',
-    'memory_rules_prompt_en_v1',
-    'memory_gate_prompt_zh_v1',
-    'memory_gate_prompt_en_v1',
-    'memory_extract_prompt_zh_v1',
-    'memory_extract_prompt_en_v1',
-    'memory_smart_add_prompt_zh_v1',
-    'memory_smart_add_prompt_en_v1',
-    'memory_smart_add_batch_prompt_zh_v1',
-    'memory_smart_add_batch_prompt_en_v1',
-    'memory_profile_distill_prompt_zh_v1',
-    'memory_profile_distill_prompt_en_v1',
-    'memory_migrate_prompt_zh_v1',
-    'memory_migrate_prompt_en_v1',
-    'memory_migration_batch_size_v1',
-    'memory_full_injection_types_v1',
-    'memory_injection_max_items_v1',
-    // Chat editing behaviour: ordinary business preferences, device-local in
-    // practice like the display_* presentation family.
-    'chat_fork_keep_message_versions_v1',
-    'chat_edit_assistant_keep_thinking_tool_cards_v1',
-    'chat_bubble_style_overrides_v1',
-    'chat_bubble_style_overrides_user_v1',
-    'tool_schema_overrides_v1',
-    'environment_state_v1',
-    'environment_mirrors_v1',
-    'environment_variables_v1',
-    'environment_privacy_mode_v1',
-    // Where this device keeps its rootfs and how it runs PRoot. Device state
-    // that happens to live in the preference store: BackupPortability strips it
-    // from a backup that travels (`devicePreferenceKeys`), which is why it is an
-    // ordinary preference here rather than localOnly.
-    'environment_rootfs_selection_v1',
-    'environment_proot_options_v1',
-    'environment_disk_usage_v1',
+  static KeyRule? ruleFor(String key) => rules[key];
+
+  static KeyPolicy? policyOf(String key) => rules[key]?.policy;
+
+  /// Whether LAN sync carries this key (ADR-0003 decision 6).
+  static bool isSynced(String key) => policyOf(key) == KeyPolicy.synced;
+
+  static bool isDeviceLocal(String key) =>
+      policyOf(key) == KeyPolicy.deviceLocal;
+
+  /// Whether the key lives in the business store (`preference_rows`) at all: a
+  /// platform preference does not, and a discarded key is only read to be
+  /// dropped.
+  static bool isStoredInBusinessData(String key) => switch (policyOf(key)) {
+    KeyPolicy.synced || KeyPolicy.backupOnly || KeyPolicy.deviceLocal => true,
+    _ => false,
   };
 
-  static BusinessKeyDisposition classify(String key) {
-    if (BusinessEntityKind.values.any((kind) => kind.sourceKey == key)) {
-      return BusinessKeyDisposition.entity;
+  /// A platform preference, or one of the restore progress markers — those are
+  /// minted per run, so they are a prefix family rather than table rows.
+  static bool isPlatformOnly(String key) =>
+      policyOf(key) == KeyPolicy.platformOnly || key.startsWith(_restorePrefix);
+
+  static bool isDiscarded(String key) => policyOf(key) == KeyPolicy.discarded;
+
+  /// The entity kind whose rows this source key names, or null when the key is
+  /// not an entity at all.
+  static BusinessEntityKind? entityKindFor(String key) {
+    for (final kind in BusinessEntityKind.values) {
+      if (kind.sourceKey == key) return kind;
     }
-    if (key == 'providers_order_v1') {
-      return BusinessKeyDisposition.providerOrder;
-    }
-    if (localOnlyKeys.contains(key) || key.startsWith('restore_')) {
-      return BusinessKeyDisposition.localOnly;
-    }
-    if (discardedKeys.contains(key)) {
-      return BusinessKeyDisposition.discarded;
-    }
-    if (syncedPreferenceKeys.contains(key)) {
-      return BusinessKeyDisposition.syncedPreference;
-    }
-    if (preferenceKeys.contains(key) || key.startsWith('display_')) {
-      return BusinessKeyDisposition.preference;
-    }
-    return BusinessKeyDisposition.unknownPreference;
+    return null;
   }
+
+  static const _restorePrefix = 'restore_';
 }
 
 final class BusinessSettingsRouter {
   BusinessSettingsRouter._();
 
-  static const _providerOrderKey = 'providers_order_v1';
+  static const _providerOrderKey = BusinessKeyRegistry.providerOrderKey;
   // Storage-only row for an ordered key that has no persisted config. The
   // invalid `enabled` type prevents collision with a routed Provider payload.
   static const _providerOrderOnlyPayload =
@@ -468,11 +1409,14 @@ final class BusinessSettingsRouter {
 
     final preferences = <String, Object>{};
     for (final entry in normalized.entries) {
-      final disposition = BusinessKeyRegistry.classify(entry.key);
-      if (disposition == BusinessKeyDisposition.entity ||
-          disposition == BusinessKeyDisposition.localOnly ||
-          disposition == BusinessKeyDisposition.discarded ||
-          entry.key == _providerOrderKey) {
+      // Entities, the provider-order projection and the keys that live outside
+      // business data never become preferences here; a key the table does not
+      // know is still routed, exactly as it was before the table existed, but it
+      // never syncs.
+      if (BusinessKeyRegistry.entityKindFor(entry.key) != null ||
+          BusinessKeyRegistry.isProviderOrder(entry.key) ||
+          BusinessKeyRegistry.isPlatformOnly(entry.key) ||
+          BusinessKeyRegistry.isDiscarded(entry.key)) {
         continue;
       }
       final value = entry.value;

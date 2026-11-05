@@ -1329,6 +1329,46 @@ void main() {
       });
     });
 
+    testWidgets('a chat opened for an assistant leaves the group topic', (
+      tester,
+    ) async {
+      await runAsMobile(() async {
+        // The group is live, so "+" would inherit it: only the named owner can
+        // say the request meant a 1:1 instead.
+        final groups = GroupChatProvider(
+          store: ExtensionEntityStore(
+            createBusinessTestPreferencesWithDatabase().database,
+          ),
+        );
+        await groups.loaded;
+        final group = await groups.create(
+          name: 'Reading',
+          memberIds: const ['reader'],
+        );
+        final service = _ControlledChatService(
+          {
+            'conv-g': [_message('conv-g', 0)],
+          },
+          groupOf: {'conv-g': group.id},
+        );
+        final controller = await pumpHarness(tester, service, groups: groups);
+        await switchAndSettle(tester, controller, service, 'conv-g');
+        expect(controller.currentConversation?.groupChatId, group.id);
+
+        final future = controller.createNewConversationAnimated(
+          assistantId: 'assistant-b',
+        );
+        await pumpUntilDone(tester, [future]);
+
+        // Staying in the group here is what left the page on the group and hid
+        // every chat of the assistant that had just been chosen: the topics
+        // list follows the open conversation's group.
+        expect(controller.currentConversation?.groupChatId, isNull);
+        expect(controller.currentConversation?.assistantId, 'assistant-b');
+        expect(controller.currentConversation?.id, isNot('conv-g'));
+      });
+    });
+
     testWidgets('a new chat in a topic whose group is gone starts a 1:1', (
       tester,
     ) async {

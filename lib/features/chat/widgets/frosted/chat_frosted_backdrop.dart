@@ -6,7 +6,9 @@ import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/providers/assistant_provider.dart';
+import '../../../../core/providers/group_chat_provider.dart';
 import '../../../../core/providers/settings_provider.dart';
+import '../../../../core/services/chat/chat_service.dart';
 import '../../../../utils/sandbox_path_resolver.dart';
 import '../chat_gradient_background.dart';
 
@@ -94,6 +96,12 @@ class ChatBackdropSpec {
   ///
   /// Lifted from [HomePage]'s `_assistantBackgroundActive` so "has wallpaper"
   /// is decided in one place.
+  ///
+  /// A group topic has no owning assistant, so it shows neither: the wallpaper
+  /// and the gradient belong to a *selected* assistant, and carrying them into
+  /// a group made entering one look like the background had failed to close.
+  /// The chat's own backdrop widget decided this a second time; both ask here
+  /// now.
   static ChatBackdropSpec resolve(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
@@ -102,20 +110,36 @@ class ChatBackdropSpec {
     final size = MediaQuery.sizeOf(context);
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
-    final backgroundRaw = context.select<AssistantProvider, String>(
-      (p) => (p.currentAssistant?.background ?? '').trim(),
+    // Both providers are optional: previews and tests render this spec without
+    // chat state, and there nothing can be a group topic.
+    final openGroupChatId = context.select<ChatService?, String?>(
+      (chat) =>
+          chat?.getConversation(chat.currentConversationId ?? '')?.groupChatId,
     );
-    final useGradientBackground = context.select<AssistantProvider, bool>(
-      (p) => p.currentAssistant?.useGradientBackground ?? false,
+    final groupTopic = context.select<GroupChatProvider?, bool>(
+      (groups) => groups?.byId(openGroupChatId) != null,
     );
+    final assistantBackdrop = openGroupChatId == null || !groupTopic;
+    final backgroundRaw = assistantBackdrop
+        ? context.select<AssistantProvider, String>(
+            (p) => (p.currentAssistant?.background ?? '').trim(),
+          )
+        : '';
+    final useGradientBackground =
+        assistantBackdrop &&
+        context.select<AssistantProvider, bool>(
+          (p) => p.currentAssistant?.useGradientBackground ?? false,
+        );
     final gradientOptions = context
         .select<AssistantProvider, (bool, double, double, double)>(
-          (p) => (
-            p.currentAssistant?.gradientBackgroundAnimated ?? true,
-            p.currentAssistant?.gradientBackgroundOffsetX ?? 0,
-            p.currentAssistant?.gradientBackgroundOffsetY ?? 0,
-            p.currentAssistant?.gradientBackgroundPhase ?? 0,
-          ),
+          (p) => assistantBackdrop
+              ? (
+                  p.currentAssistant?.gradientBackgroundAnimated ?? true,
+                  p.currentAssistant?.gradientBackgroundOffsetX ?? 0,
+                  p.currentAssistant?.gradientBackgroundOffsetY ?? 0,
+                  p.currentAssistant?.gradientBackgroundPhase ?? 0,
+                )
+              : (false, 0.0, 0.0, 0.0),
         );
     final maskStrength = context.select<SettingsProvider, double>(
       (s) => s.chatBackgroundMaskStrength,

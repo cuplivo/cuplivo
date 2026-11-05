@@ -95,7 +95,12 @@ class SideDrawer extends StatefulWidget {
   final String assistantName;
   final FutureOr<void> Function(String id, {bool closeDrawer})?
   onSelectConversation;
-  final FutureOr<void> Function({bool closeDrawer})? onNewConversation;
+
+  /// Starts a chat. [assistantId] names the owner when the caller is opening a
+  /// chat *for* an assistant (switching assistants); without it the new chat
+  /// stays in the group of the topic on screen.
+  final FutureOr<void> Function({bool closeDrawer, String? assistantId})?
+  onNewConversation;
   final ValueNotifier<int>? closePickerTicker;
   final Set<String> loadingConversationIds;
   final bool
@@ -3170,8 +3175,14 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     if (!mounted) return;
     final forceNewChat =
         sp.newChatOnAssistantSwitch && widget.onNewConversation != null;
+    // Whichever branch runs, the chat that opens belongs to this assistant: a
+    // group topic has no owner, so asking for a new chat there answered with
+    // another topic of the same group and the page never left it.
     if (forceNewChat) {
-      widget.onNewConversation?.call(closeDrawer: closeDrawer);
+      widget.onNewConversation?.call(
+        closeDrawer: closeDrawer,
+        assistantId: assistant.id,
+      );
     } else {
       // Jump to the most recent conversation for this assistant if any,
       // otherwise create a new conversation.
@@ -3194,11 +3205,17 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
             closeDrawer: closeDrawer,
           );
         } else {
-          widget.onNewConversation?.call(closeDrawer: closeDrawer);
+          widget.onNewConversation?.call(
+            closeDrawer: closeDrawer,
+            assistantId: assistant.id,
+          );
         }
       } catch (_) {
         // Fallback: new conversation on any error
-        widget.onNewConversation?.call(closeDrawer: closeDrawer);
+        widget.onNewConversation?.call(
+          closeDrawer: closeDrawer,
+          assistantId: assistant.id,
+        );
       }
     }
     if (closeDrawer) {

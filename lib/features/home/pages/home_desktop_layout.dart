@@ -87,7 +87,7 @@ class HomeDesktopScaffold extends StatelessWidget {
   // Callbacks
   final VoidCallback onToggleSidebar;
   final void Function(String id) onSelectConversation;
-  final VoidCallback onNewConversation;
+  final void Function({String? assistantId}) onNewConversation;
   final Future<void> Function() onCreateNewConversation;
   final Future<void> Function() onToggleTemporaryConversation;
   final VoidCallback onSelectModel;
@@ -260,7 +260,8 @@ class HomeDesktopScaffold extends StatelessWidget {
         ChatActionBus.instance.fire(ChatAction.exitGlobalSearch);
       },
       onOpenGlobalSearchResult: onOpenGlobalSearchResult,
-      onNewConversation: ({closeDrawer = true}) => onNewConversation(),
+      onNewConversation: ({closeDrawer = true, assistantId}) =>
+          onNewConversation(assistantId: assistantId),
       onSelectConversation: (id, {closeDrawer = true}) =>
           onSelectConversation(id),
     );
@@ -285,7 +286,8 @@ class HomeDesktopScaffold extends StatelessWidget {
     onOpenGlobalSearchResult: (_, _, _) async {},
     onSelectConversation: (id, {closeDrawer = true}) =>
         onSelectConversation(id),
-    onNewConversation: ({closeDrawer = true}) => onNewConversation(),
+    onNewConversation: ({closeDrawer = true, assistantId}) =>
+        onNewConversation(assistantId: assistantId),
   );
 
   String _getAssistantName(BuildContext context) {

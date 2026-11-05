@@ -105,9 +105,7 @@ Widget _viewerApp({
   required List<String> images,
   int initialIndex = 0,
   Map<String, ImageProvider> imageProviders = const <String, ImageProvider>{},
-  bool draftMode = false,
-  VoidCallback? onCrop,
-  VoidCallback? onCompress,
+  DraftImageActions? Function(int index)? draftActions,
   Size size = const Size(390, 844),
 }) {
   return MediaQuery(
@@ -119,9 +117,7 @@ Widget _viewerApp({
         images: images,
         initialIndex: initialIndex,
         imageProviders: imageProviders,
-        draftMode: draftMode,
-        onCrop: onCrop,
-        onCompress: onCompress,
+        draftActions: draftActions,
       ),
     ),
   );
@@ -196,9 +192,10 @@ void main() {
     await tester.pumpWidget(
       _viewerApp(
         images: const [_transparentPngDataUrl],
-        draftMode: true,
-        onCrop: () => crops++,
-        onCompress: () => compresses++,
+        draftActions: (index) => DraftImageActions(
+          onCrop: () => crops++,
+          onCompress: () => compresses++,
+        ),
       ),
     );
     await tester.pump();
@@ -210,6 +207,71 @@ void main() {
     await tester.tap(find.byTooltip('Compress Image'));
     expect(crops, 1);
     expect(compresses, 1);
+  });
+
+  testWidgets('draft actions belong to the page they are tapped on', (
+    tester,
+  ) async {
+    const secondImage =
+        'data:image/png;base64,'
+        'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mP8z8Dwn4GB'
+        'gYGBgAEABP8CBAEwQ2EAAAAASUVORK5CYII=';
+    final tapped = <String>[];
+
+    await tester.pumpWidget(
+      _viewerApp(
+        images: const [_transparentPngDataUrl, secondImage],
+        // Only the second image can be compressed, so the bar has to be rebuilt
+        // on paging rather than built once for the image that opened it.
+        draftActions: (index) => DraftImageActions(
+          onCrop: () => tapped.add('crop:$index'),
+          onCompress: index == 1 ? () => tapped.add('compress:$index') : null,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byTooltip('Compress Image'), findsNothing);
+
+    await tester.tap(find.byTooltip('Next Image'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2/2'), findsOneWidget);
+    expect(find.byTooltip('Compress Image'), findsOneWidget);
+    await tester.tap(find.byTooltip('Crop'));
+    await tester.tap(find.byTooltip('Compress Image'));
+
+    expect(tapped, ['crop:1', 'compress:1']);
+  });
+
+  testWidgets('draft page with no actions hides the bar entirely', (
+    tester,
+  ) async {
+    const secondImage =
+        'data:image/png;base64,'
+        'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mP8z8Dwn4GB'
+        'gYGBgAEABP8CBAEwQ2EAAAAASUVORK5CYII=';
+
+    await tester.pumpWidget(
+      _viewerApp(
+        images: const [secondImage, secondImage],
+        draftActions: (index) => index == 0
+            ? DraftImageActions(onCrop: () {})
+            : const DraftImageActions(),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byTooltip('Crop'), findsOneWidget);
+    // A page that offers nothing must not fall back to the display actions.
+    expect(find.byTooltip('Save Image'), findsNothing);
+    expect(find.byTooltip('Share Image'), findsNothing);
+
+    await tester.tap(find.byTooltip('Next Image'));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Crop'), findsNothing);
+    expect(find.byTooltip('Save Image'), findsNothing);
   });
 
   testWidgets('ImageViewerPage uses a preloaded provider for the first frame', (
@@ -552,6 +614,46 @@ void main() {
     expect(afterThreeRight.transform.storage[0].abs(), lessThan(0.001));
     expect(afterThreeRight.transform.storage[1], moreOrLessEquals(1));
   });
+
+  testWidgets(
+    'ImageViewerPage compact pages with a button for each direction that exists',
+    (tester) async {
+      const secondImage =
+          'data:image/png;base64,'
+          'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mP8z8Dwn4GB'
+          'gYGBgAEABP8CBAEwQ2EAAAAASUVORK5CYII=';
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      _setTestViewSize(tester, _mobileSize);
+      try {
+        await tester.pumpWidget(
+          _viewerApp(
+            images: const [_transparentPngDataUrl, secondImage],
+            size: _mobileSize,
+          ),
+        );
+        await tester.pump();
+
+        expect(find.text('1/2'), findsOneWidget);
+        // Nowhere to go back to on the first page, and a phone has no room for
+        // a second permanent glass circle over the picture.
+        expect(find.byTooltip('Previous Image'), findsNothing);
+        expect(find.byTooltip('Next Image'), findsOneWidget);
+
+        await tester.tap(find.byTooltip('Next Image'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('2/2'), findsOneWidget);
+        expect(find.byTooltip('Previous Image'), findsOneWidget);
+        expect(find.byTooltip('Next Image'), findsNothing);
+
+        await tester.tap(find.byTooltip('Previous Image'));
+        await tester.pumpAndSettle();
+        expect(find.text('1/2'), findsOneWidget);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
 
   testWidgets(
     'ImageViewerPage wide layout exposes navigation and zoom actions',

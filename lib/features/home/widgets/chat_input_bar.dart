@@ -634,6 +634,12 @@ class _NativeComposerOwner extends ChangeNotifier {
 
 enum _DraftPreviewAction { crop, compress }
 
+/// What the preview was dismissed with: the action, and the page it was taken
+/// on. The page travels with the action because the preview now shows the whole
+/// draft: without it the composer would edit whichever image was tapped to
+/// open the preview rather than the one the user was looking at.
+typedef _DraftPreviewResult = ({_DraftPreviewAction action, int index});
+
 class _DraftImage {
   _DraftImage({required this.id, required this.path, this.cropSourcePath});
 
@@ -1618,50 +1624,86 @@ class _ChatInputBarState extends State<ChatInputBar>
     return File(image.path).existsSync() ? image.path : null;
   }
 
+  /// What the preview may offer for [image]: the same rules the per-image
+  /// editors apply, so a page never shows a button for work it could not do.
+  ({bool crop, bool compress}) _draftPreviewActions(
+    _DraftImage image,
+    SettingsProvider settings,
+  ) {
+    return (
+      // image_cropper ships an Android and an iOS implementation only, so on
+      // desktop the action could do nothing but fail: it is not offered at all.
+      crop:
+          PlatformUtils.isMobileTarget &&
+          settings.imageCropperEnabled &&
+          _cropSourceOf(image) != null,
+      compress:
+          !isRemoteOrDataUri(image.path) &&
+          settings.imageCompressionMode == ImageCompressionMode.manual &&
+          !_failedImageIds.contains(image.id),
+    );
+  }
+
   Future<void> _openDraftImagePreview(int idx) async {
     if (idx < 0 || idx >= _images.length) return;
     final image = _images[idx];
     if (_editingImageIds.contains(image.id)) return;
-    final local = !isRemoteOrDataUri(image.path);
     final settings = context.read<SettingsProvider>();
-    // image_cropper ships an Android and an iOS implementation only, so on
-    // desktop the action could do nothing but fail: it is not offered at all.
-    final canCrop =
-        PlatformUtils.isMobileTarget &&
-        settings.imageCropperEnabled &&
-        _cropSourceOf(image) != null;
-    final canCompress =
-        local &&
-        settings.imageCompressionMode == ImageCompressionMode.manual &&
-        !_failedImageIds.contains(image.id);
-    _previewingImageIds.add(image.id);
+    // Snapshot the draft: the paths to show, the ids to come back through, and
+    // what each page may offer. A pass that finishes while the preview is open
+    // must not move the image under the user, nor change which one an action
+    // lands on.
+    final ids = [for (final draft in _images) draft.id];
+    final paths = [for (final draft in _images) draft.path];
+    final actions = [
+      for (final draft in _images) _draftPreviewActions(draft, settings),
+    ];
     final navigator = Navigator.of(context);
-    _DraftPreviewAction? action;
+    _DraftPreviewResult? result;
+    // Every image on screen is protected, not only the one that was tapped:
+    // paging onto an image whose pass finishes meanwhile must not land on a
+    // file the pass released.
+    _previewingImageIds.addAll(ids);
     try {
-      action = await navigator.push<_DraftPreviewAction>(
+      result = await navigator.push<_DraftPreviewResult>(
         MaterialPageRoute(
           builder: (_) => ImageViewerPage(
-            images: [image.path],
-            draftMode: true,
-            onCrop: canCrop
-                ? () => navigator.pop(_DraftPreviewAction.crop)
-                : null,
-            onCompress: canCompress
-                ? () => navigator.pop(_DraftPreviewAction.compress)
-                : null,
+            images: paths,
+            initialIndex: idx,
+            draftActions: (index) {
+              if (index < 0 || index >= actions.length) return null;
+              final available = actions[index];
+              return DraftImageActions(
+                onCrop: available.crop
+                    ? () => navigator.pop<_DraftPreviewResult>((
+                        action: _DraftPreviewAction.crop,
+                        index: index,
+                      ))
+                    : null,
+                onCompress: available.compress
+                    ? () => navigator.pop<_DraftPreviewResult>((
+                        action: _DraftPreviewAction.compress,
+                        index: index,
+                      ))
+                    : null,
+              );
+            },
           ),
         ),
       );
     } finally {
-      _previewingImageIds.remove(image.id);
-      _releasePreviewSources(image.id);
+      _previewingImageIds.removeAll(ids);
+      for (final id in ids) {
+        _releasePreviewSources(id);
+      }
     }
-    if (!mounted) return;
-    final currentIdx = _images.indexWhere((item) => item.id == image.id);
+    if (!mounted || result == null) return;
+    final id = ids[result.index];
+    final currentIdx = _images.indexWhere((item) => item.id == id);
     if (currentIdx < 0) return;
-    if (action == _DraftPreviewAction.crop) {
-      await _cropDraftImage(image.id);
-    } else if (action == _DraftPreviewAction.compress) {
+    if (result.action == _DraftPreviewAction.crop) {
+      await _cropDraftImage(id);
+    } else {
       await _openCompressEditor(currentIdx);
     }
   }

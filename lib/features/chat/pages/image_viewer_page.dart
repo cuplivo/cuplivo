@@ -280,25 +280,40 @@ int imageViewerDebugSizeListenerCount(State<ImageViewerPage> state) {
   return (state as _ImageViewerPageState).debugLiveImageSizeListenerCount;
 }
 
+/// What the composer can do with one draft image, as the preview shows it.
+///
+/// Built per page rather than per preview: a source that is not a local file
+/// has no crop, an image whose pass failed has no compress, so the same draft
+/// offers different actions as the user pages through it. A null action is a
+/// button that is not drawn at all — never a dead one.
+@immutable
+class DraftImageActions {
+  const DraftImageActions({this.onCrop, this.onCompress});
+
+  final VoidCallback? onCrop;
+  final VoidCallback? onCompress;
+
+  bool get isEmpty => onCrop == null && onCompress == null;
+}
+
 class ImageViewerPage extends StatefulWidget {
   const ImageViewerPage({
     super.key,
     required this.images,
     this.initialIndex = 0,
     this.imageProviders = const <String, ImageProvider>{},
-    this.draftMode = false,
-    this.onCrop,
-    this.onCompress,
+    this.draftActions,
   });
 
   final List<String> images; // local paths, http urls, or data urls
   final int initialIndex;
   final Map<String, ImageProvider> imageProviders;
 
-  /// Draft actions return to the composer; display-only transforms are hidden.
-  final bool draftMode;
-  final VoidCallback? onCrop;
-  final VoidCallback? onCompress;
+  /// Composer actions for the page at [index], or null on a page that offers
+  /// none. A non-null callback makes this a draft preview: the composer's
+  /// actions replace the display ones, and the page it reports is the image
+  /// the action applies to.
+  final DraftImageActions? Function(int index)? draftActions;
 
   @override
   State<ImageViewerPage> createState() => _ImageViewerPageState();
@@ -1434,8 +1449,12 @@ class _ImageViewerPageState extends State<ImageViewerPage>
                   widget.images.length,
                 ),
               ),
-              if (_hasMultipleImages && !compact)
-                _buildDesktopPageArrows(context, opacity: chromeOpacity),
+              if (_hasMultipleImages)
+                _buildPageArrows(
+                  context,
+                  opacity: chromeOpacity,
+                  compact: compact,
+                ),
               _buildActionChrome(
                 context,
                 compact: compact,
@@ -1701,11 +1720,18 @@ class _ImageViewerPageState extends State<ImageViewerPage>
     );
   }
 
-  Widget _buildDesktopPageArrows(
+  Widget _buildPageArrows(
     BuildContext context, {
     required double opacity,
+    required bool compact,
   }) {
     final l10n = AppLocalizations.of(context)!;
+    // A phone lays these on a full-bleed picture, so they shrink and hug the
+    // edge to leave the image readable. A direction with no page beyond it is
+    // dropped there rather than left as a second permanent circle over the
+    // photo; the desktop keeps it dimmed, where it costs nothing.
+    final size = compact ? 42.0 : 52.0;
+    final inset = compact ? 10.0 : 24.0;
     return IgnorePointer(
       ignoring: opacity <= 0.01,
       child: AnimatedOpacity(
@@ -1714,32 +1740,34 @@ class _ImageViewerPageState extends State<ImageViewerPage>
         opacity: opacity.toDouble(),
         child: Stack(
           children: [
-            Positioned(
-              left: 24,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: _GlassCircleButton(
-                  label: l10n.imageViewerPagePreviousButton,
-                  icon: Lucide.ChevronLeft,
-                  onTap: _canGoPrevious ? _showPrevious : null,
-                  size: 52,
+            if (_canGoPrevious || !compact)
+              Positioned(
+                left: inset,
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  child: _GlassCircleButton(
+                    label: l10n.imageViewerPagePreviousButton,
+                    icon: Lucide.ChevronLeft,
+                    onTap: _canGoPrevious ? _showPrevious : null,
+                    size: size,
+                  ),
                 ),
               ),
-            ),
-            Positioned(
-              right: 24,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: _GlassCircleButton(
-                  label: l10n.imageViewerPageNextButton,
-                  icon: Lucide.ChevronRight,
-                  onTap: _canGoNext ? _showNext : null,
-                  size: 52,
+            if (_canGoNext || !compact)
+              Positioned(
+                right: inset,
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  child: _GlassCircleButton(
+                    label: l10n.imageViewerPageNextButton,
+                    icon: Lucide.ChevronRight,
+                    onTap: _canGoNext ? _showNext : null,
+                    size: size,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
@@ -1752,26 +1780,26 @@ class _ImageViewerPageState extends State<ImageViewerPage>
     required double bottomInset,
     required double opacity,
   }) {
-    if (!_hasImages ||
-        (widget.draftMode &&
-            widget.onCrop == null &&
-            widget.onCompress == null)) {
+    if (!_hasImages) return const SizedBox.shrink();
+    final draft =
+        widget.draftActions?.call(_index) ?? const DraftImageActions();
+    if (widget.draftActions != null && draft.isEmpty) {
       return const SizedBox.shrink();
     }
     final l10n = AppLocalizations.of(context)!;
     final actions = <Widget>[
-      if (widget.draftMode) ...[
-        if (widget.onCrop != null)
+      if (widget.draftActions != null) ...[
+        if (draft.onCrop != null)
           _GlassCircleButton(
             label: l10n.draftImageCropAction,
             icon: Lucide.Crop,
-            onTap: widget.onCrop,
+            onTap: draft.onCrop,
           ),
-        if (widget.onCompress != null)
+        if (draft.onCompress != null)
           _GlassCircleButton(
             label: l10n.compressEditorTitle,
             icon: Lucide.ImageDown,
-            onTap: widget.onCompress,
+            onTap: draft.onCompress,
           ),
       ] else ...[
         _GlassCircleButton(

@@ -1388,6 +1388,84 @@ void main() {
     focusNode.dispose();
   });
 
+  testWidgets('草稿预览翻页后裁剪作用于当前那张', (tester) async {
+    const cropperChannel = MethodChannel('plugins.hunghd.vn/image_cropper');
+    final messenger = tester.binding.defaultBinaryMessenger;
+    late File firstSource;
+    late File secondSource;
+    late File croppedOutput;
+    String? croppedSourcePath;
+    await tester.runAsync(() async {
+      firstSource = await writeUserImage('pasted_first.png');
+      secondSource = await writeUserImage('pasted_second.png');
+      croppedOutput = await writeUserImage('cropper_output_second.png');
+    });
+    messenger.setMockMethodCallHandler(cropperChannel, (call) async {
+      if (call.method != 'cropImage') return null;
+      croppedSourcePath = (call.arguments as Map)['source_path'] as String?;
+      return croppedOutput.path;
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(cropperChannel, null));
+
+    final settings = SettingsProvider(createBusinessTestPreferences());
+    await settings.setImageCropperEnabled(true);
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+
+    await tester.pumpWidget(
+      buildHarness(
+        controller: controller,
+        focusNode: focusNode,
+        mediaController: mediaController,
+        settings: settings,
+        onSend: (_) async => ChatInputSubmissionResult.rejected,
+      ),
+    );
+
+    await tester.runAsync(() async {
+      mediaController.enqueueImages(
+        [firstSource.path, secondSource.path],
+        _config,
+        ownsSourceFile: true,
+      );
+    });
+    expect(
+      await pumpUntil(tester, () => !mediaController.hasUnreadyImages),
+      isTrue,
+    );
+    expect(mediaController.snapshotInput('').imagePaths, hasLength(2));
+
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('chat-input-image-preview:0')));
+    await tester.pumpAndSettle();
+
+    // The preview opens the whole draft, not the chip that was tapped.
+    expect(find.text('1/2'), findsOneWidget);
+    await tester.tap(find.byTooltip('Next Image'));
+    await tester.pumpAndSettle();
+    expect(find.text('2/2'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Crop'));
+    for (var i = 0; i < 200 && croppedSourcePath == null; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+
+    expect(
+      croppedSourcePath,
+      secondSource.path,
+      reason: 'the crop must edit the page the user was looking at',
+    );
+
+    debugDefaultTargetPlatformOverride = null;
+    controller.dispose();
+    focusNode.dispose();
+  });
+
   testWidgets('裁剪入口只在支持裁剪的平台上提供', (tester) async {
     late File source;
     await tester.runAsync(() async {

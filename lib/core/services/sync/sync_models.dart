@@ -1075,6 +1075,19 @@ class SyncApplyAck {
   /// nothing for it and the sender must not record it as peer-seen.
   final Set<String> deferredSkills;
 
+  /// Business rows the responder *holds* after this push: everything it was sent
+  /// minus what its apply dropped as unstorable here — a kind or a key this
+  /// build does not sync, or a row its own rules keep out of sync.
+  ///
+  /// This is the receipt the initiator's checkpoint may trust. The
+  /// acknowledgement is otherwise blind to per-key rejection (a dropped row and
+  /// a stored one are the same `applied` count), and a peer that dropped a row
+  /// silently would make the *next* session read its absence as a deletion and
+  /// remove the sender's own value — the #1062 backslide. Absent means "no
+  /// receipt": an older build does not send this list, and the initiator then
+  /// falls back to the peer's manifest and re-offers the row instead.
+  final Set<String> businessAccepted;
+
   /// Workspace files the responder planned to fetch and could not land —
   /// because it could not dial the initiator back, or because the transfer
   /// failed. The initiator pushes exactly these before the fetch beat, so the
@@ -1099,6 +1112,7 @@ class SyncApplyAck {
     this.deferred = const {},
     this.businessDeferred = false,
     this.deferredSkills = const {},
+    this.businessAccepted = const {},
     this.workspaceRequests = const [],
     this.blobRequests = const [],
   });
@@ -1109,6 +1123,8 @@ class SyncApplyAck {
     if (businessDeferred) 'businessDeferred': true,
     if (deferredSkills.isNotEmpty)
       'deferredSkills': deferredSkills.toList(growable: false),
+    if (businessAccepted.isNotEmpty)
+      'businessAccepted': businessAccepted.toList(growable: false),
     if (workspaceRequests.isNotEmpty)
       'workspaceRequests': [
         for (final request in workspaceRequests) request.toJson(),
@@ -1126,6 +1142,12 @@ class SyncApplyAck {
     deferredSkills: {
       for (final id in (json['deferredSkills'] as List? ?? const []))
         id.toString(),
+    },
+    // An older peer omits the list; an unreadable one leaves it empty, which is
+    // the fail-closed reading: no receipt, so nothing is recorded as agreed.
+    businessAccepted: {
+      for (final key in (json['businessAccepted'] as List? ?? const []))
+        key.toString(),
     },
     workspaceRequests: _requestsFromJson(json['workspaceRequests']),
     blobRequests: _blobRequestsFromJson(json['blobRequests']),
@@ -1476,6 +1498,19 @@ class SyncBusinessApplyOutcome {
   final int entityRowsLost;
   final int preferencesLost;
 
+  /// The rows this apply leaves this device holding, as `syncBusinessKey`
+  /// strings — the payload's rows minus the ones it dropped as unstorable here
+  /// (an unknown kind, a key this build does not sync, a row its own rules keep
+  /// out of sync).
+  ///
+  /// A row that *lost* its LWW comparison is in the set: the key exists here,
+  /// carrying this device's value, and "the peer holds this key" is exactly what
+  /// the sender's checkpoint needs to know. This set is the receipt the
+  /// responder sends back in [SyncApplyAck.businessAccepted]; without it the
+  /// sender can only see its own copy leave and, one session later, read the
+  /// peer's silence as a deletion.
+  final Set<String> acceptedKeys;
+
   const SyncBusinessApplyOutcome({
     this.deferred = false,
     this.entityRowsWritten = 0,
@@ -1485,6 +1520,7 @@ class SyncBusinessApplyOutcome {
     this.changed = false,
     this.entityRowsLost = 0,
     this.preferencesLost = 0,
+    this.acceptedKeys = const {},
   });
 
   static const deferredOutcome = SyncBusinessApplyOutcome(deferred: true);

@@ -276,6 +276,65 @@ class _CountingCheckpointPlane extends SyncDataPlane {
   }
 }
 
+/// A data plane that behaves like the *previous* build for a named set of
+/// preference keys: it never advertises them (its manifest filter drops them,
+/// exactly as `BusinessKeyRegistry.isSynced` does there) and it drops them at
+/// apply instead of storing them. Everything else is the real plane.
+///
+/// This is the only way one process can host "this build" and "the build
+/// before it" at once: the sync face is a static table, so the asymmetry has to
+/// be expressed on the plane.
+class _LegacyPeerPlane extends SyncDataPlane {
+  _LegacyPeerPlane({
+    required super.repository,
+    required super.chatService,
+    required super.businessRepository,
+    super.businessPreferences,
+    super.skillDirectories,
+    super.workspaceContent,
+    required super.blobPathResolver,
+    required this.hides,
+  });
+
+  /// The keys this "older build" neither advertises nor accepts.
+  final Set<String> hides;
+
+  @override
+  Future<SyncManifest> buildManifest() async {
+    final manifest = await super.buildManifest();
+    return SyncManifest(
+      manifest.conversations,
+      entities: manifest.entities,
+      preferences: {
+        for (final entry in manifest.preferences.entries)
+          if (!hides.contains(entry.key)) entry.key: entry.value,
+      },
+    );
+  }
+
+  @override
+  Future<SyncBusinessApplyOutcome> applyBusiness(
+    SyncBusinessPayload payload, {
+    required String myDeviceId,
+    required String peerDeviceId,
+  }) {
+    // `continue`, not a deferral: the older build's apply silently skips a key
+    // it does not sync, and reports success.
+    final filtered = SyncBusinessPayload(
+      entities: payload.entities,
+      preferences: [
+        for (final row in payload.preferences)
+          if (!hides.contains(row['key'])) row,
+      ],
+    );
+    return super.applyBusiness(
+      filtered,
+      myDeviceId: myDeviceId,
+      peerDeviceId: peerDeviceId,
+    );
+  }
+}
+
 /// Pumps [frames] frames of [step]: what a panel that never settles needs.
 ///
 /// `pumpAndSettle` waits for a frame-free quiet, and the pairing dialog never
@@ -528,6 +587,7 @@ class _Side {
     List<SyncBlobEntry>? craftedBlobs,
     List<Map<String, dynamic>> Function()? craftedRows,
     bool countCheckpointReads = false,
+    Set<String> legacyPeerKeys = const {},
   }) async {
     dir = Directory('${root.path}/$label');
     await dir.create(recursive: true);
@@ -637,6 +697,17 @@ class _Side {
             skillDirectories: skillDirectories,
             workspaceContent: workspaceContent,
             blobPathResolver: resolveBlob,
+          )
+        : legacyPeerKeys.isNotEmpty
+        ? _LegacyPeerPlane(
+            repository: repository,
+            chatService: chatService,
+            businessRepository: businessRepository,
+            businessPreferences: businessPreferences,
+            skillDirectories: skillDirectories,
+            workspaceContent: workspaceContent,
+            blobPathResolver: resolveBlob,
+            hides: legacyPeerKeys,
           )
         : SyncDataPlane(
             repository: repository,
@@ -4990,6 +5061,81 @@ void main() {
     expect(second.entityRows, 0);
     expect(second.preferenceRows, 0);
   });
+
+  test(
+    'a key an older peer cannot accept is re-sent, never read as a deletion',
+    () async {
+      // The window every user has after one device updates: the newer build
+      // advertises the organization keys (#1062), the older one neither
+      // advertises them nor stores them, and its acknowledgement says nothing
+      // about the refusal — it reports deferrals, never per-key rejections.
+      const key = 'provider_group_map_v1';
+      const value = '{"p1":"group-1"}';
+      final a = _Side('a', withRecycle: true);
+      final b = _Side('b');
+      await a.start(root);
+      await b.start(root, legacyPeerKeys: {key});
+      sides.addAll([a, b]);
+      await pairSides(a, b);
+      final bin = a.recycle!;
+
+      await a.businessPreferences.setString(key, value);
+
+      // Session 1: sent, and dropped on the older build's apply.
+      final first = await a.engine.syncWithPeer(await a.peer(b));
+      expect(first.success, isTrue, reason: first.summary);
+      expect(
+        b.businessPreferences.getString(key),
+        isNull,
+        reason: 'the older build drops a key it does not sync, and still acks',
+      );
+
+      // Session 2: the row was never confirmed, so it is offered again. This is
+      // the session that used to delete it from this device.
+      final second = await a.engine.syncWithPeer(await a.peer(b));
+      expect(second.success, isTrue, reason: second.summary);
+      expect(
+        second.preferenceRows,
+        greaterThanOrEqualTo(1),
+        reason: 'an unconfirmed row is re-offended, not withdrawn',
+      );
+      expect(
+        a.businessPreferences.getString(key),
+        value,
+        reason: 'the peer never took the row, so its absence is not a deletion',
+      );
+      expect(
+        (await a.store.loadCheckpoint(b.identity.deviceId)).preferences,
+        isNot(contains(key)),
+        reason:
+            'no agreement is recorded for a row the peer does not advertise',
+      );
+      await bin.settle();
+      expect(
+        (await bin.list()).where(
+          (entry) => entry.type == RecycleEntryType.preference,
+        ),
+        isEmpty,
+        reason: 'nothing was deleted on this device',
+      );
+
+      // The peer updates. Its next hello advertises the key it now stores, the
+      // plan becomes `none`, and the agreement is recorded from there on.
+      (b.dataPlane as _LegacyPeerPlane).hides.clear();
+      final third = await a.engine.syncWithPeer(await a.peer(b));
+      expect(third.success, isTrue, reason: third.summary);
+      expect(b.businessPreferences.getString(key), value);
+
+      final fourth = await a.engine.syncWithPeer(await a.peer(b));
+      expect(fourth.success, isTrue, reason: fourth.summary);
+      expect(fourth.preferenceRows, 0);
+      expect(
+        (await a.store.loadCheckpoint(b.identity.deviceId)).preferences,
+        contains(key),
+        reason: 'the peer advertises it, so this is state both sides hold',
+      );
+    },
+  );
 
   test(
     'a workspace record reaches the peer and a linked folder never leaves',

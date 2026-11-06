@@ -1,0 +1,76 @@
+# ADR-0017: A backup written for Kelivo — the export names its reader
+
+**Status:** Accepted (2026-11-06)
+**Deciders:** cuplivo
+
+## Context
+
+A backup is a *claim about the reader*. Two maps in the archive are keyed by business entity:
+`settings.json` and the manifest's `businessEntityRowIds`, and a reader meeting a source key it has no
+kind for does not ignore it — `BusinessSettingsRouter._rowIdsByKind` throws
+`FormatException(entry.key)` on the first unknown key, inside the business-restore step, **after**
+every compatibility check on the archive has passed.
+
+The group-chat unit (`5136e617b`, #1052) added `BusinessEntityKind.groupChat`, and
+`exportSnapshotWithRowIds` writes a key for every kind, so every backup since carries
+`"group_chats_v1": []` — the empty list is not the problem; the key is. Nothing on the compatibility
+axes moved with it, so nothing declined the archive on the way in: archive format stayed 3 and
+`AppDatabase.currentSchemaVersion` stayed 5, which is exactly what Kelivo v1.3.4 (`4a7da9b6f`) reads as
+*its own*. The result was that **no Cuplivo backup could be restored into Kelivo, including for a user
+who had never created a group**, and the failure surfaced as a `FormatException` part-way through a
+restore rather than as a refusal.
+
+Two mechanisms existed for exactly this and neither covers it:
+
+- `_minimumReadableFormatVersion` / `SchemaMigrations.minimumReadableSchemaVersion` are declarations a
+  *newer* archive makes about older readers, and they are only consulted when the reader is older and
+  the structure is strippable. Here the reader saw the format as current.
+- `_stripUnknownManifestKeys` drops unknown manifest **keys**, never unknown **values inside a known
+  key** — and `businessEntityRowIds` is a known key.
+
+Every restore test in this tree is Cuplivo reading Cuplivo, so the reverse direction had no gate at
+all: `flutter test` stays entirely green while the archive is unusable.
+
+## Decisions
+
+1. **The export has a target, and the target is data.** `BackupTarget.cuplivo` writes every kind in
+   the current format. `BackupTarget.kelivoV1_3_4` writes only the kinds, categories and archive
+   format frozen in `KelivoVocabulary.v1_3_4` — one constant per release, never edited in place,
+   generated from that release's own tree (`business_data.dart`, `backup_scope.dart`).
+
+2. **One list decides what is unreadable, and three call sites read it.**
+   `unreadableEntitySourceKeys(target)` is the difference between `BusinessEntityKind.values` and the
+   target's vocabulary; the settings export strips those keys from both halves of the archive, and
+   `BackupPortability.sanitizeDatabase` drops their rows and the conversation link that points at them.
+   A stripped key with a surviving row would be an archive contradicting its own manifest.
+
+3. **The archive format moves to 4 and declares 4, but this build still reads 2 and 3.** The default
+   export must be *refused early* by an older reader rather than fail part-way. Format 3 stays readable
+   because a Kelivo-target archive is written in 3 — refusing it would make a backup this build just
+   produced unreadable to itself. The numbers live in `BackupArchiveFormat` because
+   `RestoreBundleStaging` restates them for the staged candidate; a bump that touched one side would
+   have this build reject its own archives. The staging candidate's resumable formats are derived from
+   the same place, so a restore interrupted across an upgrade still resumes.
+
+4. **The vocabulary is pinned by a test, not by a comment.**
+   `test/core/database/kelivo_vocabulary_test.dart` refuses a `BusinessEntityKind` that is neither in
+   the pinned vocabulary nor in `unreadableKindDispositions`, so a new kind — the next #1052 — cannot
+   ship without someone writing down what a Kelivo user loses.
+
+5. **Group chats do not travel backwards, and that is said out loud.** A group has no Kelivo
+   equivalent; its rows and the `groupChat.id` link leave with the archive, while the conversations
+   remain as ordinary chats. A reader that tolerates an unknown entity key is upstream's change to
+   make, not ours — a fork cannot patch the reader it is leaving for.
+
+## Consequences
+
+- A user taking their data back to Kelivo gets a working archive, minus group structure. Ordinary
+  backups are unaffected.
+- A build older than this one, including earlier Cuplivo versions, refuses a **new** backup with
+  `manifest_version` instead of failing mid-restore. That is the intended trade and belongs in the
+  changelog.
+- Adding a business kind now costs a disposition line: in the vocabulary if the release knows it,
+  otherwise a sentence about what the older reader loses. This is the check that makes the
+  rebase-runbook's rule 17 mechanical.
+- Pinning a later Kelivo release means adding a constant next to `v1_3_4` and re-generating it from
+  that tag — never editing the old one, or archives already written change meaning.

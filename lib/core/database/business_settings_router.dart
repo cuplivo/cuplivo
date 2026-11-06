@@ -1107,6 +1107,17 @@ final class BusinessKeyRegistry {
     ),
 
     // backupOnly — no recorded reason
+    // Found by making the writer scan exhaustive (review of #1068): it used to
+    // read only `_vN`-shaped names, so this key passed both guards unseen. It is
+    // backed up today, which is what `backupOnly` says, and whether a paired
+    // device should get it has never been decided — which is what
+    // `notYetReviewed` says instead of inventing a reason.
+    'auto_retry_options': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.notYetReviewed,
+      'API retry attempts and backoff, set on the provider settings page. The '
+      'new-device test would probably accept it; nobody has decided.',
+    ),
     'chat_bubble_style_overrides_user_v1': KeyRule(
       KeyPolicy.backupOnly,
       PolicyReason.notYetReviewed,

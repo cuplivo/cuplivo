@@ -236,6 +236,7 @@ void main() {
       (rule) => rule.reason == PolicyReason.notYetReviewed,
     ).toList()..sort();
     expect(unreviewed, <String>[
+      'auto_retry_options',
       'backup_encryption_enabled_v1',
       'chat_bubble_style_overrides_user_v1',
       'chat_edit_assistant_keep_thinking_tool_cards_v1',
@@ -292,6 +293,27 @@ void main() {
       }
     }
 
+    // A key can also be an entity's *source key*:
+    // `static final String _profileKey = BusinessEntityKind.userProfileField.sourceKey`
+    // (`memory_repository.dart`) writes the profile blob through this same store.
+    // Resolved from the enum rather than from source, so the scan can name it.
+    final entitySourceKeyPattern = RegExp(
+      r'(?:static\s+(?:final|const)|final|const)\s+(?:String\s+)?(\w+)\s*=\s*'
+      r'BusinessEntityKind\.(\w+)\.sourceKey',
+    );
+    final entitySourceKeys = {
+      for (final kind in BusinessEntityKind.values) kind.name: kind.sourceKey,
+    };
+    final entityConstantsByFile = <String, Map<String, String>>{};
+    for (final entry in sources.entries) {
+      final local = <String, String>{};
+      for (final match in entitySourceKeyPattern.allMatches(entry.value)) {
+        final sourceKey = entitySourceKeys[match.group(2)!];
+        if (sourceKey != null) local[match.group(1)!] = sourceKey;
+      }
+      entityConstantsByFile[entry.key] = local;
+    }
+
     // One-hop getter resolution: `String get storageKey => _itemsKey;` in the
     // subclass file, with `_itemsKey` a constant in that same file.
     final getterPattern = RegExp(
@@ -303,6 +325,11 @@ void main() {
         final resolved =
             match.group(2) ?? constantsByFile[entry.key]![match.group(3)!];
         if (resolved == null) continue;
+        // A getter can also be a *derived* value — `image_context.dart`'s
+        // `key => '$messageId|$slot|$imageIndex'` — and treating that as a key
+        // made any write whose argument happens to be called `key` look like a
+        // writer of it. Only a getter that resolves to something static is one.
+        if (resolved.contains(r'$')) continue;
         getterKeys.putIfAbsent(match.group(1)!, () => <String>{}).add(resolved);
       }
     }
@@ -312,14 +339,24 @@ void main() {
       reason: 'the getter hop is what makes a JsonBlobStore write visible',
     );
 
-    // The registry's own pattern, not a copy of it: the debug assert in
-    // `BusinessPreferences.setMany` asks the same definition, so the two guards
-    // cannot drift into covering different sets.
-    final keyPattern = BusinessKeyRegistry.appKeyPattern;
+    // This scan is the exhaustive guard, so it does not filter by
+    // `BusinessKeyRegistry.appKeyPattern`: that convention is narrower than the
+    // app's real vocabulary. `user_name`, `avatar_type` and `avatar_value` are
+    // synced and version-less, `auto_retry_options` was backed up and
+    // version-less, and a scan that reads only `_vN` names cannot see any of
+    // them — which is how the last one stayed outside the table while both
+    // guards reported it clean (review of #1068). The debug assert in
+    // `BusinessPreferences.setMany` keeps the narrower pattern on purpose: at
+    // runtime it cannot tell an app key from a plugin's, so it must fail closed
+    // for anything it does not recognise. Exhaustiveness is this test's job.
+    //
     // The argument is not always one name: `setChatInputBackgroundOpacity`
     // writes `setDouble(brightness == Brightness.dark ? keyA : keyB, v)`, and a
     // one-name capture missed both keys until the debug assert fired on them in
-    // CI. Every token of the argument is resolved instead.
+    // CI. Every token of the argument is resolved instead, `'${_prefix}name'` is
+    // expanded from the const the interpolation names (`desktop_side_panel_*`
+    // writes five keys that way), and an argument nothing can resolve is a
+    // failure rather than a silent pass.
     final writePattern = RegExp(
       r"[A-Za-z_][\w.]*\s*\.\s*"
       r'(?:setBool|setInt|setDouble|setString|setStringList)'
@@ -327,25 +364,35 @@ void main() {
     );
     final tokenPattern = RegExp(r"'([^']*)'|([A-Za-z_]\w*)");
     final written = <String, String>{};
+    final unresolved = <String>{};
     for (final entry in sources.entries) {
+      final fileConstants = constantsByFile[entry.key]!;
       for (final match in writePattern.allMatches(entry.value)) {
         final candidates = <String>[];
         for (final token in tokenPattern.allMatches(match.group(1)!)) {
           final literal = token.group(1);
           if (literal != null) {
-            candidates.add(literal);
+            final expanded = _expandInterpolations(literal, fileConstants);
+            if (expanded != null) candidates.add(expanded);
             continue;
           }
           final name = token.group(2)!;
-          final local = constantsByFile[entry.key]![name];
+          final local = fileConstants[name];
           if (local != null) candidates.add(local);
+          final entitySourceKey = entityConstantsByFile[entry.key]?[name];
+          if (entitySourceKey != null) candidates.add(entitySourceKey);
           final shared = sharedConstants[name];
           if (shared != null) candidates.add(shared);
           final viaGetter = getterKeys[name];
           if (viaGetter != null) candidates.addAll(viaGetter);
         }
+        if (candidates.isEmpty && match.group(1)!.contains("'")) {
+          // A literal argument nothing here could name is a hole in this guard:
+          // an identifier is not (the caller holds that key), but a string the
+          // scan sees and cannot read means the check silently skipped a writer.
+          unresolved.add('${match.group(1)!.trim()} (${entry.key})');
+        }
         for (final key in candidates) {
-          if (!keyPattern.hasMatch(key)) continue;
           written.putIfAbsent(key, () => entry.key);
         }
       }
@@ -364,7 +411,23 @@ void main() {
         'custom_themes_v1',
         'local_snapshot_enabled_v1',
         'desktop_scheduled_tasks_v1',
+        // One key per shape the filter used to hide: version-less AND backed up
+        // (`auto_retry_options`, the one that was missing from the table), and
+        // built by interpolation (`'${_prefix}open_v1'`), which the scan now
+        // expands from the const it names.
+        'auto_retry_options',
+        'desktop_side_panel_open_v1',
       ]),
+    );
+
+    // Pinned, not ignored: an argument built at runtime cannot be checked, so a
+    // new one has to be looked at and added here on purpose.
+    expect(
+      unresolved.toList()..sort(),
+      <String>[],
+      reason:
+          'Every literal a setter is handed must resolve to a key the table can '
+          'check. A dynamic one means the guard stopped seeing that writer.',
     );
 
     final unclassified = [
@@ -389,3 +452,27 @@ bool _isClassified(String key) =>
     BusinessKeyRegistry.entityKindFor(key) != null ||
     BusinessKeyRegistry.isProviderOrder(key) ||
     BusinessKeyRegistry.isPlatformOnly(key);
+
+/// A key literal with its same-file `'${name}'` interpolations substituted, or
+/// null when the argument is built at runtime.
+///
+/// `desktop_side_panel_controller.dart` writes five keys as
+/// `'${_prefix}open_v1'`, where `_prefix` is a `static const` in the same file.
+/// Reading the literal verbatim yields `${_prefix}open_v1`, which is not a key
+/// and matches no pattern, so the whole family used to be skipped in silence.
+/// Anything still carrying a `$` after the substitution is dynamic — a value, or
+/// a key no scan can name — and is reported separately rather than dropped.
+String? _expandInterpolations(
+  String literal,
+  Map<String, String> fileConstants,
+) {
+  if (!literal.contains(r'$')) return literal;
+  const unreadable = '\u0000';
+  final replaced = literal.replaceAllMapped(
+    RegExp(r'\$\{(\w+)\}'),
+    (match) => fileConstants[match.group(1)!] ?? unreadable,
+  );
+  return replaced.contains(r'$') || replaced.contains(unreadable)
+      ? null
+      : replaced;
+}

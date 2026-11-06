@@ -13,6 +13,7 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/api/chat_api_service.dart';
 import 'package:Cuplivo/core/services/api/providers/openai/chat_completions_api.dart';
+import 'package:Cuplivo/core/services/model_catalog/model_catalog_service.dart';
 import 'package:Cuplivo/core/models/model_spec.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/message_part.dart';
@@ -318,6 +319,27 @@ void main() {
     originalPaths = PathProviderPlatform.instance;
     PathProviderPlatform.instance = FakePathProviderPlatform(imageRoot.path);
     SandboxPathResolver.debugSetDirs(docsDir: imageRoot.path);
+    // A request body carries the resolved model spec — for Gemini the
+    // generationConfig's maxOutputTokens is `spec.maxOutput`
+    // (google_common.dart:610, :1091). Resolution memoises on
+    // ModelCatalogService.version (model_spec_resolver.dart:122-148), and
+    // `lookup` starts the async catalog load the first time it finds no
+    // snapshot (model_catalog_service.dart:277-280), bumping that version when
+    // it lands (:528). A load finishing between the two sendMessageStream calls
+    // a test compares hands the second call a different spec — gemini's
+    // maxOutput goes from null to 65536 — so the cross-call body equality
+    // assertions flake whenever CI load puts the load in that window. Awaiting
+    // the load here, before any test resolves a spec, pins the version for the
+    // rest of the file: nothing here calls refresh(), so every call in every
+    // test resolves the same spec. It belongs in setUp rather than setUpAll
+    // because the load reaches the app support directory through path_provider,
+    // and the fake above only exists per test.
+    await ModelCatalogService.instance.ensureLoaded();
+    expect(
+      ModelCatalogService.instance.isLoaded,
+      isTrue,
+      reason: 'a spec resolved before the catalog loads would change mid-test',
+    );
   });
   tearDown(() async {
     PathProviderPlatform.instance = originalPaths;

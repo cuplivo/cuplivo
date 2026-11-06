@@ -3,7 +3,6 @@ import 'dart:io' show File;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/providers/assistant_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import 'chat_gradient_background.dart';
@@ -37,11 +36,14 @@ class ChatAssistantBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final assistant = context.watch<AssistantProvider>().currentAssistant;
-    if (assistant?.useGradientBackground ?? false) {
+    // The frosted backdrop resolves this spec too, and an overlay copy that
+    // read the assistant model by itself is how a group topic kept painting the
+    // previous assistant's wallpaper (and a gradient the host had not stood up).
+    final spec = ChatBackdropSpec.resolve(context);
+    if (spec.useGradientBackground) {
       return ChatGradientBackground(pinned: pinnedToBackdrop);
     }
-    final wallpaper = _buildWallpaper(context, assistant?.background);
+    final wallpaper = _buildWallpaper(context, spec.backgroundRaw);
     if (!pinnedToBackdrop) return wallpaper;
 
     final scope = ChatFrostedBackdropScope.maybeOf(context)!;

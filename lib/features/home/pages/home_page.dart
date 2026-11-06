@@ -808,8 +808,10 @@ class _HomePageState extends State<HomePage>
         await _controller.createNewConversationAnimated();
       },
       onOpenMiniMap: _openMiniMap,
-      onCreateNewConversation: () async {
-        await _controller.createNewConversationAnimated();
+      onCreateNewConversation: ({String? assistantId}) async {
+        await _controller.createNewConversationAnimated(
+          assistantId: assistantId,
+        );
         if (mounted) {
           _controller.forceScrollToBottomSoon(animate: false);
         }
@@ -941,9 +943,11 @@ class _HomePageState extends State<HomePage>
         _controller.closeCompactSidebar();
         _controller.switchConversationAnimated(id);
       },
-      onNewConversation: () async {
+      onNewConversation: ({String? assistantId}) async {
         _controller.closeCompactSidebar();
-        await _controller.createNewConversationAnimated();
+        await _controller.createNewConversationAnimated(
+          assistantId: assistantId,
+        );
       },
       onCreateNewConversation: () async {
         await _controller.createNewConversationAnimated();

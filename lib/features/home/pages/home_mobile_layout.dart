@@ -67,7 +67,7 @@ class HomeMobileScaffold extends StatelessWidget {
   final void Function(String id) onSelectConversation;
   final VoidCallback onNewConversation;
   final VoidCallback onOpenMiniMap;
-  final Future<void> Function() onCreateNewConversation;
+  final Future<void> Function({String? assistantId}) onCreateNewConversation;
   final Future<void> Function() onToggleTemporaryConversation;
   final VoidCallback onSelectModel;
   final bool canToggleTemporaryConversation;
@@ -120,8 +120,8 @@ class HomeMobileScaffold extends StatelessWidget {
           onSelectConversation(id);
           if (closeDrawer) drawerController.close();
         },
-        onNewConversation: ({closeDrawer = true}) async {
-          await onCreateNewConversation();
+        onNewConversation: ({closeDrawer = true, assistantId}) async {
+          await onCreateNewConversation(assistantId: assistantId);
           if (closeDrawer) drawerController.close();
         },
       ),

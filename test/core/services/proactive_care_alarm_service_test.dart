@@ -31,6 +31,7 @@ void main() {
     ProactiveCareAlarmService.setInProcessSchedulerForTesting(null);
     ProactiveCareAlarmService.setDesktopSchedulerForTesting(null);
     ProactiveCareAlarmService.resetExactAlarmStatusForTesting();
+    ProactiveCareAlarmService.resetFireHandlerForTesting();
     debugDefaultTargetPlatformOverride = null;
     messenger.setMockMethodCallHandler(alarmChannel, null);
   });
@@ -200,6 +201,46 @@ void main() {
       await pumpEventQueue();
 
       expect(fired, ['c1']);
+      expect(calls.map((c) => c.method), contains('done'));
+    });
+
+    test('the entrypoint answers ready before the UI attaches', () async {
+      await ProactiveCareAlarmService.installFireHandler();
+      expect(calls.where((c) => c.method == 'ready'), hasLength(1));
+
+      // The dead-process engine answers the handshake here, so the native owner
+      // dispatches while the app is still starting and no handler exists yet.
+      await native('fire', {
+        'conversationId': 'c1',
+        'dueAt': now.millisecondsSinceEpoch,
+      });
+      await pumpEventQueue();
+
+      expect(ProactiveCareAlarmService.pendingFireCount, 1);
+      // Held, not dropped and not completed: the native run keeps the process
+      // alive until the delivery it stands for has an owner.
+      expect(calls.map((c) => c.method), isNot(contains('done')));
+    });
+
+    test('attach drains the fire the entrypoint was holding', () async {
+      await ProactiveCareAlarmService.installFireHandler();
+      await native('fire', {
+        'conversationId': 'c1',
+        'dueAt': now.millisecondsSinceEpoch,
+      });
+      await pumpEventQueue();
+
+      final fired = <String>[];
+      await ProactiveCareAlarmService.attach((
+        conversationId,
+        expectedAt,
+      ) async {
+        fired.add(conversationId);
+      });
+      await pumpEventQueue();
+
+      expect(fired, ['c1']);
+      expect(ProactiveCareAlarmService.pendingFireCount, 0);
       expect(calls.map((c) => c.method), contains('done'));
     });
 

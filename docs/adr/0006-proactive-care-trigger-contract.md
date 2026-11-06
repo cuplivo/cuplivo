@@ -272,11 +272,27 @@ half* of a deviation this contract had accepted:
     generation. `resultPersisted: false` keeps the task's end from posting a second
     chat-completion notification for a letter that already has one.
 
+18. **The native handshake is answered by the entrypoint, not by the home page.** A fire reaches Dart
+    only through a live channel listener, and native `dispatchPending` hands a fire over only after
+    Dart answered `ready`. That answer used to be sent from the tail of `HomePageController.initChat`,
+    so a killed process — woken by the alarm's foreground service, which boots the whole app — had to
+    finish its entire UI startup before the fire could move at all, and a fire that waited past the
+    native deadline was released to the next resume. `main()` therefore calls
+    `ProactiveCareAlarmService.installFireHandler()` right after the binding and the logger, which
+    installs the listener and answers `ready` as soon as the isolate runs. A fire that arrives before
+    the home page attaches its delivery handler is queued, not dropped: the native run stays open
+    (no `done` ack), and `attach` drains the queue in arrival order with `unawaited` delivery, so the
+    hand-off depends on the entrypoint while the letter still runs on the provider stack. The queue
+    is the second half of the same guarantee: `ready` early would otherwise turn "no listener yet"
+    into a lost fire instead of a parked one.
+
 ## Consequences
 
-- The five `[ProactiveCare]` log lines now describe a whole delivery: `alarm arm` → `native fire`
-  (on desktop/iOS, or the in-process timer) → `deliver` → `claim lost`/letter → `finish`. A future
-  report can be pinned from logcat without guessing.
+- The `[ProactiveCare]` log lines now describe a whole delivery: `alarm arm` → `native fire`
+  (on desktop/iOS, or the in-process timer) → `deliver` → `claim lost`/letter → `finish`. On Android
+  a dead-process delivery adds `native handshake ready` (the entrypoint answered), then either
+  `native fire` (the home page was already attached) or `fire queued` → `fire drained` (it was
+  not). A future report can be pinned from logcat without guessing.
 - Two triggers can race for one schedule; the atomic claim makes that a no-op for the loser, so
   the extra trigger costs one extra channel round-trip at most.
 - `ProactiveCareAlarmService` now branches on `defaultTargetPlatform` (the tree's
@@ -287,7 +303,9 @@ half* of a deviation this contract had accepted:
   never completes is released by the deadline (logged and recorded), and a letter whose alarm was
   lost, cleared by the OEM, or never scheduled for lack of the grant is delivered by the next
   resume instead of within a second — the same guarantee, and the same limit, Kelivo's own Android
-  scheduled tasks work under.
+  scheduled tasks work under. The hand-off itself no longer waits for the home page: the entrypoint
+  answers `ready` and holds the fire until the delivery handler attaches, so the deadline only
+  bounds a boot that never reaches the handler at all.
 - A backgrounded Android delivery now costs a scheduled run: `beginCareRun` holds a wake lock and
   keeps the process out of the freezer while the letter is generated, and `finish(id)` ends it. Its
   notification is the app's ordinary background-task notification, carrying the letter as the task

@@ -327,6 +327,12 @@ Future<void> main() async {
         } catch (_) {}
       }
       FlutterLogger.installGlobalHandlers();
+      // A letter alarm that wakes a killed process boots this whole entrypoint
+      // under the foreground service. Answer the native handshake here, before
+      // the database/restore startup, so the fire is handed over as soon as the
+      // isolate runs and waits in the service (not in the native deadline) for
+      // the home page to attach its delivery handler.
+      unawaited(ProactiveCareAlarmService.installFireHandler());
       // The Linux runner starts hidden so decorations can be restored first.
       // Show before the restore gate so progress and failure screens stay visible.
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.linux) {

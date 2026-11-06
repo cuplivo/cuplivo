@@ -763,8 +763,9 @@ class HomeViewModel extends ChangeNotifier {
   Future<void> _startCareLetterTask(String conversationId) async {
     final background = MobileBackgroundCoordinator.instance;
     if (background.platform != TargetPlatform.android) return;
-    if (background.isForeground) return;
-    if (_careLetterTasks.containsKey(conversationId)) return;
+    // Everything the task needs from the context is read before the coordinator
+    // await: the caller is the delivery itself, and a task that cannot be
+    // started must never keep the letter from being written.
     final conversation = _chatService.getConversation(conversationId);
     if (conversation == null) return;
     final assistantId = conversation.assistantId;
@@ -775,21 +776,32 @@ class HomeViewModel extends ChangeNotifier {
     if (!ProactiveCareConversationPolicy.isEligible(conversation, assistant)) {
       return;
     }
+    final fallbackTitle =
+        _proactiveCareL10n((l10n) => l10n.backgroundTaskTitle) ?? 'Cuplivo';
+    final detail = _proactiveCareL10n((l10n) => l10n.backgroundCareLetter);
     final name = assistant.name.trim();
     final title = name.isNotEmpty
         ? name
         : (conversation.title.trim().isNotEmpty
               ? conversation.title.trim()
-              : (_proactiveCareL10n((l10n) => l10n.backgroundTaskTitle) ??
-                    'Cuplivo'));
-    final id = 'care:$conversationId:${DateTime.now().millisecondsSinceEpoch}';
-    _careLetterTasks[conversationId] = id;
+              : fallbackTitle);
     try {
+      // The coordinator only learns the process's lifecycle state when it
+      // initializes, and its `foreground` flag defaults to true so a pre-init
+      // read claims the app is in front. A killed process boots a headless
+      // engine whose lifecycle is `detached`, and the letter that woke it is
+      // exactly the one that must take a task, so ask before deciding.
+      await background.initialize();
+      if (background.isForeground) return;
+      if (_careLetterTasks.containsKey(conversationId)) return;
+      final id =
+          'care:$conversationId:${DateTime.now().millisecondsSinceEpoch}';
+      _careLetterTasks[conversationId] = id;
       await background.start(
         id: id,
         conversationId: conversationId,
         title: title,
-        detail: _proactiveCareL10n((l10n) => l10n.backgroundCareLetter),
+        detail: detail,
         // The stop action already stops the delivery's foreground service and
         // the letter request has no abort handle, so it can only drop the task
         // record; the outcome of the request itself is left to the flow.
@@ -801,7 +813,7 @@ class HomeViewModel extends ChangeNotifier {
     } catch (e, st) {
       _careLetterTasks.remove(conversationId);
       FlutterLogger.log(
-        '[ProactiveCare] care task start failed: $e\n$st',
+        '[ProactiveCare] care task skipped: $e\n$st',
         tag: 'HomeViewModel',
       );
     }

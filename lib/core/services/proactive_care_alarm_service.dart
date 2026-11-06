@@ -232,34 +232,108 @@ class ProactiveCareAlarmService {
       // Android consumes the native exact alarm only: Kelivo's own Android
       // scheduled tasks have no in-app executor either, so care must not add a
       // second trigger (and a permanent 1 s poll) of its own.
-      _channel.setMethodCallHandler((call) async {
-        if (call.method != 'fire') return null;
-        final args = Map<Object?, Object?>.from(call.arguments as Map);
-        final conversationId = args['conversationId'];
-        final dueAtMillis = args['dueAt'];
-        if (conversationId is! String || dueAtMillis is! int) {
-          debugPrint('[ProactiveCare] invalid fire payload: $args');
-          return null;
-        }
-        final expectedAt = DateTime.fromMillisecondsSinceEpoch(dueAtMillis);
+      await installFireHandler();
+      _fireHandler = onFire;
+      final queued = List.of(_pendingFires);
+      _pendingFires.clear();
+      for (final fire in queued) {
         debugPrint(
-          '[ProactiveCare] native fire: $conversationId @ $expectedAt',
+          '[ProactiveCare] fire drained to the handler: '
+          '${fire.conversationId} @ ${fire.expectedAt}',
         );
-        try {
-          await onFire(conversationId, expectedAt);
-        } catch (e, st) {
-          debugPrint('[ProactiveCare] fire handling failed: $e\n$st');
-        } finally {
-          await _completeRun(conversationId);
-        }
-        return null;
-      });
-      try {
-        await _channel.invokeMethod<void>('ready');
-      } catch (e) {
-        debugPrint('[ProactiveCare] ready failed: $e');
+        // Not awaited: this runs on the app's startup path, and a letter is a
+        // model round trip. The native run stays open until its `done` ack.
+        unawaited(_runFire(onFire, fire.conversationId, fire.expectedAt));
       }
     }
+  }
+
+  /// Fires the native owner handed over before the app's delivery handler was
+  /// attached. A fire only arrives this early when a killed process is woken by
+  /// its letter alarm: the foreground service boots the whole app, and the
+  /// hand-off must not be lost while that boot finishes.
+  static final List<({String conversationId, DateTime expectedAt})>
+  _pendingFires = [];
+
+  static Future<void> Function(String conversationId, DateTime expectedAt)?
+  _fireHandler;
+  static bool _fireHandlerInstalled = false;
+
+  /// Answers the native `ready` handshake from the Dart entrypoint.
+  ///
+  /// The native owner dispatches a fire only to a listener that said `ready`,
+  /// and the listener used to be installed at the end of the home page's
+  /// startup. A letter that wakes a dead process therefore waited for the whole
+  /// UI, and a fire that waited too long was released by the native deadline —
+  /// leaving the letter to the next resume, which is the "killed app never
+  /// gets its letter" report. Calling this from `main()` answers the handshake
+  /// as soon as the isolate runs; fires that arrive before [attach] are queued
+  /// and handed to the first handler that attaches, so the hand-off depends on
+  /// the entrypoint rather than on the UI finishing its start.
+  static Future<void> installFireHandler() async {
+    if (!isSupported || !_isAndroidTarget || _fireHandlerInstalled) return;
+    _fireHandlerInstalled = true;
+    _channel.setMethodCallHandler(_handleAndroidCall);
+    try {
+      await _channel.invokeMethod<void>('ready');
+      debugPrint('[ProactiveCare] native handshake ready');
+    } catch (e) {
+      debugPrint('[ProactiveCare] ready failed: $e');
+    }
+  }
+
+  static Future<Object?> _handleAndroidCall(MethodCall call) async {
+    if (call.method != 'fire') return null;
+    final args = Map<Object?, Object?>.from(call.arguments as Map);
+    final conversationId = args['conversationId'];
+    final dueAtMillis = args['dueAt'];
+    if (conversationId is! String || dueAtMillis is! int) {
+      debugPrint('[ProactiveCare] invalid fire payload: $args');
+      return null;
+    }
+    final expectedAt = DateTime.fromMillisecondsSinceEpoch(dueAtMillis);
+    debugPrint('[ProactiveCare] native fire: $conversationId @ $expectedAt');
+    final handler = _fireHandler;
+    if (handler == null) {
+      _pendingFires.add((
+        conversationId: conversationId,
+        expectedAt: expectedAt,
+      ));
+      debugPrint(
+        '[ProactiveCare] fire queued for the delivery handler: $conversationId',
+      );
+      return null;
+    }
+    await _runFire(handler, conversationId, expectedAt);
+    return null;
+  }
+
+  static Future<void> _runFire(
+    Future<void> Function(String conversationId, DateTime expectedAt) handler,
+    String conversationId,
+    DateTime expectedAt,
+  ) async {
+    try {
+      await handler(conversationId, expectedAt);
+    } catch (e, st) {
+      debugPrint('[ProactiveCare] fire handling failed: $e\n$st');
+    } finally {
+      await _completeRun(conversationId);
+    }
+  }
+
+  /// Fires held for a handler that has not attached yet, in arrival order.
+  @visibleForTesting
+  static int get pendingFireCount => _pendingFires.length;
+
+  /// Drops the Android listener and any fire it was holding. Tests need this
+  /// because the listener is process-wide state.
+  @visibleForTesting
+  static void resetFireHandlerForTesting() {
+    _fireHandler = null;
+    _pendingFires.clear();
+    _fireHandlerInstalled = false;
+    _channel.setMethodCallHandler(null);
   }
 
   static Future<void> detach() async {
@@ -274,6 +348,9 @@ class ProactiveCareAlarmService {
       await _iosScheduler!.detach();
     }
     if (_isAndroidTarget) {
+      _fireHandler = null;
+      _pendingFires.clear();
+      _fireHandlerInstalled = false;
       try {
         _channel.setMethodCallHandler(null);
       } catch (_) {}

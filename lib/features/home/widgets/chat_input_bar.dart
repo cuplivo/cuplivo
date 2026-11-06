@@ -3660,91 +3660,94 @@ class _ChatInputBarState extends State<ChatInputBar>
           return BrandAssets.assetForName(svc.name);
         })();
 
-        // Search button
-        actions.add(
-          _OverflowAction(
-            width: normalButtonW,
-            builder: () {
-              // Not enabled at all -> default globe
-              if (!appSearchEnabled && !builtinSearchActive) {
+        // A group has no per-conversation search switch, so the caller passes no
+        // handler: an action with nothing to do is not an action.
+        if (widget.onOpenSearch != null) {
+          actions.add(
+            _OverflowAction(
+              width: normalButtonW,
+              builder: () {
+                // Not enabled at all -> default globe
+                if (!appSearchEnabled && !builtinSearchActive) {
+                  return _CompactIconButton(
+                    tooltip: l10n.chatInputBarOnlineSearchTooltip,
+                    icon: Lucide.Globe,
+                    active: false,
+                    onTap: lockTap(widget.onOpenSearch),
+                  );
+                }
+                // Built-in search -> magnifier icon in theme color
+                if (builtinSearchActive) {
+                  return _CompactIconButton(
+                    tooltip: l10n.chatInputBarOnlineSearchTooltip,
+                    icon: Lucide.Search,
+                    active: true,
+                    onTap: lockTap(widget.onOpenSearch),
+                  );
+                }
+                // External provider search -> brand icon
                 return _CompactIconButton(
                   tooltip: l10n.chatInputBarOnlineSearchTooltip,
                   icon: Lucide.Globe,
-                  active: false,
-                  onTap: lockTap(widget.onOpenSearch),
-                );
-              }
-              // Built-in search -> magnifier icon in theme color
-              if (builtinSearchActive) {
-                return _CompactIconButton(
-                  tooltip: l10n.chatInputBarOnlineSearchTooltip,
-                  icon: Lucide.Search,
                   active: true,
                   onTap: lockTap(widget.onOpenSearch),
-                );
-              }
-              // External provider search -> brand icon
-              return _CompactIconButton(
-                tooltip: l10n.chatInputBarOnlineSearchTooltip,
-                icon: Lucide.Globe,
-                active: true,
-                onTap: lockTap(widget.onOpenSearch),
-                childBuilder: (c) {
-                  final asset = brandAsset;
-                  if (asset != null) {
-                    if (asset.endsWith('.svg')) {
-                      return SvgPicture.asset(
-                        asset,
-                        width: 20,
-                        height: 20,
-                        colorFilter: ColorFilter.mode(c, BlendMode.srcIn),
-                      );
+                  childBuilder: (c) {
+                    final asset = brandAsset;
+                    if (asset != null) {
+                      if (asset.endsWith('.svg')) {
+                        return SvgPicture.asset(
+                          asset,
+                          width: 20,
+                          height: 20,
+                          colorFilter: ColorFilter.mode(c, BlendMode.srcIn),
+                        );
+                      } else {
+                        return Image.asset(
+                          asset,
+                          width: 20,
+                          height: 20,
+                          color: c,
+                          colorBlendMode: BlendMode.srcIn,
+                        );
+                      }
                     } else {
-                      return Image.asset(
-                        asset,
-                        width: 20,
-                        height: 20,
-                        color: c,
-                        colorBlendMode: BlendMode.srcIn,
-                      );
+                      return Icon(Lucide.Globe, size: 20, color: c);
                     }
-                  } else {
-                    return Icon(Lucide.Globe, size: 20, color: c);
-                  }
-                },
-              );
-            },
-            menu: () {
-              // Prefer vector icon if brandAsset is svg, otherwise pick reasonable default
-              if (!appSearchEnabled && !builtinSearchActive) {
+                  },
+                );
+              },
+              menu: () {
+                // Prefer vector icon if brandAsset is svg, otherwise pick reasonable default
+                if (!appSearchEnabled && !builtinSearchActive) {
+                  return DesktopContextMenuItem(
+                    icon: Lucide.Globe,
+                    label: l10n.chatInputBarOnlineSearchTooltip,
+                    onTap: lockTap(widget.onOpenSearch),
+                  );
+                }
+                if (builtinSearchActive) {
+                  return DesktopContextMenuItem(
+                    icon: Lucide.Search,
+                    label: l10n.chatInputBarOnlineSearchTooltip,
+                    onTap: lockTap(widget.onOpenSearch),
+                  );
+                }
+                if (brandAsset != null && brandAsset.endsWith('.svg')) {
+                  return DesktopContextMenuItem(
+                    svgAsset: brandAsset,
+                    label: l10n.chatInputBarOnlineSearchTooltip,
+                    onTap: lockTap(widget.onOpenSearch),
+                  );
+                }
                 return DesktopContextMenuItem(
                   icon: Lucide.Globe,
                   label: l10n.chatInputBarOnlineSearchTooltip,
                   onTap: lockTap(widget.onOpenSearch),
                 );
-              }
-              if (builtinSearchActive) {
-                return DesktopContextMenuItem(
-                  icon: Lucide.Search,
-                  label: l10n.chatInputBarOnlineSearchTooltip,
-                  onTap: lockTap(widget.onOpenSearch),
-                );
-              }
-              if (brandAsset != null && brandAsset.endsWith('.svg')) {
-                return DesktopContextMenuItem(
-                  svgAsset: brandAsset,
-                  label: l10n.chatInputBarOnlineSearchTooltip,
-                  onTap: lockTap(widget.onOpenSearch),
-                );
-              }
-              return DesktopContextMenuItem(
-                icon: Lucide.Globe,
-                label: l10n.chatInputBarOnlineSearchTooltip,
-                onTap: lockTap(widget.onOpenSearch),
-              );
-            }(),
-          ),
-        );
+              }(),
+            ),
+          );
+        }
 
         if (widget.supportsReasoning) {
           final request = widget.reasoning ?? ReasoningRequest.auto;

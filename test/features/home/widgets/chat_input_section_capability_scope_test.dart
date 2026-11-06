@@ -75,6 +75,7 @@ void main() {
     bool desktopTools = false,
     double composerWidth = 800,
     VoidCallback? openBrowser,
+    VoidCallback? openSearch,
   }) async {
     final settings = settingsOverride ?? SettingsProvider(preferences);
     final inputBarKey = GlobalKey();
@@ -123,6 +124,9 @@ void main() {
                   isReasoningEnabled: (request) =>
                       request.level != ReasoningLevel.off,
                   onOpenBrowser: desktopTools ? openBrowser ?? () {} : null,
+                  // An action with no handler is not drawn, so a fixture that
+                  // wants the search slot has to say what it opens.
+                  onOpenSearch: openSearch,
                   onOpenTools: desktopTools
                       ? () => showDesktopToolsPopover(
                           context,
@@ -235,6 +239,7 @@ void main() {
         desktopTools: true,
         composerWidth: 220,
         openBrowser: () => opened = true,
+        openSearch: () {},
       );
       expect(find.byTooltip('Tools'), findsNothing);
       await tester.tap(find.byTooltip('Add'));

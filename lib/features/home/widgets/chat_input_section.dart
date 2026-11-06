@@ -220,10 +220,13 @@ class ChatInputSection extends StatelessWidget {
     if (showWorkspaceButton || showEnvChip) {
       workspaceBound = _isWorkspaceBound(context);
     }
-    // Attachments, the browser, the mini map and context management belong to
-    // the conversation, not to a model: a group keeps every one of them, on both
-    // layouts, which is exactly what the 1:1 tablet layout already does.
-    final conversationTools = isTablet || isGroup;
+    // The left action bar carries the conversation's tools where there is room
+    // for them — the wide layouts. A phone keeps that slot for identity alone
+    // (the model in a 1:1 chat, the member cluster in a group) and puts the same
+    // actions in the composer's + panel, with the mini map also in the top bar.
+    // A group used to force them into the phone's bar as well, which overflowed
+    // at 360dp and left a second "+" beside the panel's own.
+    final leftBarTools = isTablet;
 
     final bar = ChatInputBar(
       key: inputBarKey,
@@ -300,17 +303,12 @@ class ChatInputSection extends StatelessWidget {
                 settings.ocrModelId != null),
       ocrActive: settings.ocrEnabled,
       onToggleOcr: isGroup ? null : onToggleOcr,
-      // Tablet-specific parameters
-      showMiniMapButton: isGroup ? true : isTablet,
-      onOpenMiniMap: conversationTools ? onOpenMiniMap : null,
-      onPickCamera: conversationTools
-          ? (isDesktop ? null : onPickCamera)
-          : null,
-      onPickPhotos: conversationTools
-          ? (isDesktop ? null : onPickPhotos)
-          : null,
-      onUploadFiles: conversationTools ? onUploadFiles : null,
-      onOpenBrowser: conversationTools ? onOpenBrowser : null,
+      showMiniMapButton: leftBarTools,
+      onOpenMiniMap: leftBarTools ? onOpenMiniMap : null,
+      onPickCamera: leftBarTools ? (isDesktop ? null : onPickCamera) : null,
+      onPickPhotos: leftBarTools ? (isDesktop ? null : onPickPhotos) : null,
+      onUploadFiles: leftBarTools ? onUploadFiles : null,
+      onOpenBrowser: leftBarTools ? onOpenBrowser : null,
       onToggleLearningMode: isGroup || !isTablet ? null : onToggleLearningMode,
       onOpenWorldBook: hasWorldBooks && !isGroup ? onOpenWorldBook : null,
       onLongPressLearning: isGroup || !isTablet ? null : onLongPressLearning,
@@ -323,8 +321,8 @@ class ChatInputSection extends StatelessWidget {
           isTablet &&
           _isPromptSelectionActive(context, a, PromptSelectionKind.worldBook),
       showMoreButton: !isTablet,
-      onClearContext: conversationTools ? onClearContext : null,
-      onCompressContext: conversationTools ? onCompressContext : null,
+      onClearContext: leftBarTools ? onClearContext : null,
+      onCompressContext: leftBarTools ? onCompressContext : null,
       backgroundImageActive: backgroundImageActive,
       inputBackgroundOpacityLight: settings.chatInputBackgroundOpacityLight,
       inputBackgroundOpacityDark: settings.chatInputBackgroundOpacityDark,

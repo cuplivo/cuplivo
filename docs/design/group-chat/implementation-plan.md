@@ -243,8 +243,9 @@ widget 测试才能确认，留待后续。
 未验证项的处理：
 
 - **成立**：侧栏顺序从实体的 `sort_order` 搬到偏好 `chat_owner_order_v1` 之后，没进
-  `syncedPreferenceKeys`——实体 `sort_order` 本来是随 LAN sync 过去的，所以配对后的新设备会看到
-  另一种顺序。把它加进同步集。
+  同步面（当时是 `syncedPreferenceKeys` 这份集合，#1068 之后是
+  `BusinessKeyRegistry.rules` 里 `KeyPolicy.synced` 的一行）——实体 `sort_order` 本来是随 LAN sync
+  过去的，所以配对后的新设备会看到另一种顺序。把它加进同步集。
 - **证伪**：删话题期间起轮次不会留下幽灵话题。`message_rows.conversation_id` 是
   `ON DELETE CASCADE`，`PRAGMA foreign_keys` 在 `beforeOpen` 里打开、启动时还有断言
   （`database_connection_contract:foreign_keys`）。删掉话题后，轮次要追加的这条消息必须排在它的

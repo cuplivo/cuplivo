@@ -197,8 +197,13 @@ reader does not "fix" the inconsistency.
 
 ## Tests that pin it
 
-1. **Partition.** Every key written through a preference setter (getter-resolved)
-   is in the table; `restore_*` is the only dynamic family.
+1. **Partition.** Every key a preference setter is handed is in the table —
+   resolved through literals, same-file consts, one-hop getters, interpolations
+   (`'${_prefix}open_v1'`) and `BusinessEntityKind.<kind>.sourceKey`. The scan
+   deliberately does not filter by `appKeyPattern`: that convention cannot see
+   `user_name`, `avatar_type`, `avatar_value` or `auto_retry_options`, and the
+   last of those stayed outside the table for exactly that reason (review of
+   #1068). `restore_*` is the only dynamic family.
 2. **Membership pin.** The synced set is asserted as a literal list: 82 keys.
    A change to the wire face is a deliberate edit, not a count.
 3. **Companion.** Exhaustive over kinds; companions synced.
@@ -208,8 +213,10 @@ reader does not "fix" the inconsistency.
 5. **Reason hygiene.** Every reason value used; no companion reason on an
    unsynced row.
 6. **Behaviour.** `business_repository_sync_test.dart` applies a batch carrying
-   the five keys and asserts the rows land and the panels read them back through
-   the registered reloaders (`lib/main.dart:144`).
+   the five keys and asserts the rows land and that `getPreference` reads them
+   back. The reloaders that refresh the panels are wired in `lib/main.dart:144` —
+   Settings, Tag, WorldBook and InstructionInjection, the four that own these
+   keys — and no test covers that wiring.
 7. **Receipt.** `sync_engine_integration_test.dart` hosts the previous build on
    one side (`_LegacyPeerPlane`: the key is neither advertised nor accepted),
    syncs twice and asserts the row survives here, that the bin is empty, and that
@@ -237,7 +244,7 @@ Each guard is shown to fail against the violation it guards before it lands.
 - MCP's collapsed set keeps riding inside a blob that has to sync, so the rule
   is "value state stays local, except where ownership is co-stored". One
   carve-out, documented, forever — unless the blob is split.
-- The table is 278 rows of review surface. That is the price of the middle state
+- The table is 279 rows of review surface. That is the price of the middle state
   disappearing; the alternative is the state coming back.
 
 ## Implementation notes (2026-11-05)
@@ -251,7 +258,7 @@ what the repository turned out to hold:
    even by a travelling backup. Folding them into `backupOnly` would have been a
    lie and would have put them into backups. They are `deviceLocal`, the list is
    now derived from the table, and the class is the fifth value.
-2. **The table has 278 rows, not 206.** The `display_*` family (81 keys) was
+2. **The table has 279 rows, not 206.** The `display_*` family (81 keys) was
    classified by a prefix fallback rather than by a list, and they are written to
    the business store. The prefix is now a *test* (`display_*` ⇒ not synced) and
    the rows are explicit: `backupOnly` / `deviceViewState`.
@@ -259,7 +266,7 @@ what the repository turned out to hold:
    covers local snapshots and scheduled tasks) and `droppedLegacy` became
    `legacyBookkeeping` (it also covers a live migration marker). One value was
    added: `notYetReviewed`, see 4.
-4. **`notYetReviewed` exists, with 23 keys.** When every row had to name a
+4. **`notYetReviewed` exists, with 24 keys.** When every row had to name a
    reason, 23 keys had none that was true: image compression settings, the chat
    editing toggles, the per-user bubble style, learning mode, the care decision
    model. They are configuration the new-device test would likely *accept*, and
@@ -267,6 +274,10 @@ what the repository turned out to hold:
    quality setting is exactly the defect this refactor removes, so the table says
    `notYetReviewed` and a test pins the list: it can only shrink, by deciding.
    The 109-key middle state is therefore 86 reasoned rows plus 23 named ones.
+   The 24th, `auto_retry_options`, arrived a different way: the writer scan used
+   to read only `_vN`-shaped names, so a key the two hand-written sets had never
+   listed either was invisible to every guard at once (review of #1068).
+   Widening the scan is what found it.
 5. **The discovery gate is scoped.** The debug assert in
    `BusinessPreferences.setMany` fires for app-shaped keys (`…_vN`) only, so a
    foreign key — a plugin's, a restored artifact's — is still stored and

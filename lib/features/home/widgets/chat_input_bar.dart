@@ -7,7 +7,8 @@ import 'package:Cuplivo/features/chat/widgets/tool_permission_widgets.dart';
 import '../services/composer_clipboard.dart';
 import 'package:Cuplivo/shared/text_input/message_editing_controller.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, listEquals;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, listEquals, visibleForTesting;
 import 'package:flutter/rendering.dart';
 import '../../../core/services/incoming_share_service.dart';
 import 'composer_attachment_card.dart';
@@ -354,6 +355,14 @@ class ChatInputBarController {
   /// including the log line a failing deletion emits.
   @visibleForTesting
   bool get debugHasPendingArtifactDeletes => _pendingArtifactDeletes.isNotEmpty;
+
+  /// How many draft images the open preview is keeping alive.
+  ///
+  /// Test-only. Zero when no preview is open; every image on screen counts, not
+  /// only the one the preview was opened on, because paging can land on any of
+  /// them while a pass finishes behind the preview.
+  @visibleForTesting
+  int get debugPreviewingImageCount => _state?._previewingImageIds.length ?? 0;
 
   /// Whether every long paste this controller started has finished writing, and
   /// released its file if the draft no longer wanted it.
@@ -1723,7 +1732,16 @@ class _ChatInputBarState extends State<ChatInputBar>
       // Resolved again here: the pass may have replaced the stored copy since
       // the preview was opened, and the pristine original may be gone.
       final sourcePath = _cropSourceOf(image);
-      if (sourcePath == null) return;
+      if (sourcePath == null) {
+        // The page was offered a Crop the source no longer supports; say so
+        // rather than turning the tap into a no-op.
+        showAppSnackBar(
+          context,
+          message: AppLocalizations.of(context)!.draftImageCropFailed,
+          type: NotificationType.error,
+        );
+        return;
+      }
       final l10n = AppLocalizations.of(context)!;
       final cs = Theme.of(context).colorScheme;
       cropped = await ImageCropper().cropImage(
@@ -1783,7 +1801,16 @@ class _ChatInputBarState extends State<ChatInputBar>
     // A remote or data: path has no local bytes to decode, preview or
     // re-encode, so the editor is not offered for it.
     if (isRemoteOrDataUri(image.path)) return;
-    if (_failedImageIds.contains(image.id)) return;
+    if (_failedImageIds.contains(image.id)) {
+      // The preview snapshotted this page before its pass failed, so the button
+      // is still on screen; answer the tap instead of dropping it on the floor.
+      showAppSnackBar(
+        context,
+        message: AppLocalizations.of(context)!.compressEditorDecodeFailed,
+        type: NotificationType.error,
+      );
+      return;
+    }
     final result = await showImageCompressEditor(
       context,
       imagePath: image.path,

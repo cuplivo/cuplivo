@@ -4,8 +4,10 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -27,6 +29,23 @@ import 'package:Cuplivo/theme/app_font_weights.dart';
 const int kMaxViewerDecodeEdge = 4096;
 @visibleForTesting
 const int kMaxViewerDecodePixels = 12 * 1024 * 1024;
+
+/// How much more downward than sideways a drag has to be before the picture
+/// follows it as a dismiss, and how far / how fast a sideways drag has to
+/// travel to become a page turn on its own.
+@visibleForTesting
+const double kViewerDragVerticalBias = 1.4;
+
+@visibleForTesting
+const double kViewerSwipeDistance = 60;
+
+@visibleForTesting
+const double kViewerSwipeVelocity = 300;
+
+/// A phone page indicator stops being readable past this many dots; the
+/// counter in the top bar still reports the position.
+@visibleForTesting
+const int kMaxViewerPageDots = 12;
 
 @visibleForTesting
 ({int width, int height}) computeViewerDecodePixels({
@@ -337,6 +356,12 @@ class _ImageViewerPageState extends State<ImageViewerPage>
   double _dragDy = 0.0; // current vertical drag offset
   double _bgOpacity = 1.0; // background dim opacity (0..1)
   bool _dragActive = false; // only when zoom ~ 1.0
+  int? _dragPointer; // the one finger that owns the dismiss drag
+  Offset? _dragStart; // where that finger went down
+  double _pageAtDragStart = 0.0; // scroll position when the finger landed
+  VelocityTracker _dragVelocity = VelocityTracker.withKind(
+    PointerDeviceKind.touch,
+  );
   double _animFrom = 0.0; // for restore animation
   Offset? _lastDoubleTapPos; // focal point for double-tap zoom
   Offset? _lastTapPos; // local tap point for desktop image/background split
@@ -954,15 +979,50 @@ class _ImageViewerPageState extends State<ImageViewerPage>
     return (s >= 0.98 && s <= 1.02);
   }
 
-  void _handleVerticalDragStart(DragStartDetails d) {
-    _dragActive = _canDragDismiss();
-    if (!_dragActive) return;
-    _restoreCtrl.stop();
+  // The dismiss drag is tracked from raw pointer travel rather than a drag
+  // recognizer: a recognizer claims the gesture as soon as its own axis passes
+  // the slop and can never give it back, so a swipe that started a few pixels
+  // downward was consumed as a dismiss even when the finger then travelled
+  // sideways. Here the picture follows the finger only while the travel is
+  // downward-dominant, and the release decides which gesture it was; a sideways
+  // drag the PageView did not carry still turns the page.
+
+  void _handlePointerDown(PointerDownEvent event) {
+    if (_dragPointer != null) return; // one finger owns the dismiss
+    _dragPointer = event.pointer;
+    _dragStart = event.position;
+    _pageAtDragStart = _controller.page ?? _index.toDouble();
+    _dragActive = false;
+    _dragVelocity = VelocityTracker.withKind(PointerDeviceKind.touch)
+      ..addPosition(event.timeStamp, event.position);
   }
 
-  void _handleVerticalDragUpdate(DragUpdateDetails d) {
-    if (!_dragActive) return;
-    final dy = d.delta.dy;
+  void _handlePointerMove(PointerMoveEvent event) {
+    if (event.pointer != _dragPointer) return;
+    _dragVelocity.addPosition(event.timeStamp, event.position);
+    final start = _dragStart;
+    if (start == null || !_canDragDismiss()) return;
+    final travelled = event.position - start;
+    final downward =
+        travelled.dy > 0 &&
+        travelled.dy >= travelled.dx.abs() * kViewerDragVerticalBias;
+    if (!downward) {
+      // The finger left the dismiss axis; hand the picture back and let the
+      // release decide whether this was a page turn.
+      _dragActive = false;
+      if (_dragDy > 0) {
+        setState(() {
+          _dragDy = 0;
+          _bgOpacity = 1;
+        });
+      }
+      return;
+    }
+    if (!_dragActive) {
+      _dragActive = true;
+      _restoreCtrl.stop();
+    }
+    final dy = event.delta.dy;
     if (dy <= 0 && _dragDy <= 0) return; // only handle downward
     setState(() {
       _dragDy = math.max(0.0, _dragDy + dy);
@@ -970,17 +1030,56 @@ class _ImageViewerPageState extends State<ImageViewerPage>
     });
   }
 
-  void _handleVerticalDragEnd(DragEndDetails d) {
-    if (!_dragActive) return;
-    _dragActive = false;
-    final v = d.primaryVelocity ?? 0.0; // positive when swiping down
-    const double dismissDistance = 140.0;
-    const double dismissVelocity = 900.0;
-    if (_dragDy > dismissDistance || v > dismissVelocity) {
-      Navigator.of(context).maybePop();
-      return;
+  void _handlePointerUp(PointerUpEvent event) {
+    if (event.pointer != _dragPointer) return;
+    final v = _dragVelocity.getVelocity().pixelsPerSecond;
+    final start = _dragStart;
+    final travelled = start == null ? Offset.zero : event.position - start;
+    final dismissing = _dragActive && _dragDy > 0;
+    final pageBefore = _pageAtDragStart;
+    _endPointerDrag();
+
+    if (_canDragDismiss() &&
+        travelled.dx.abs() >= kViewerSwipeDistance &&
+        travelled.dx.abs() > travelled.dy.abs()) {
+      // A sideways drag normally pages through the PageView itself; it only
+      // lands here when the page never moved, which is what a thumb that
+      // started downward used to produce.
+      final moved = ((_controller.page ?? pageBefore) - pageBefore).abs();
+      if (moved < 0.15) {
+        if (travelled.dx < 0 || v.dx < -kViewerSwipeVelocity) {
+          _showNext();
+        } else if (travelled.dx > 0 || v.dx > kViewerSwipeVelocity) {
+          _showPrevious();
+        }
+      }
     }
-    // animate back
+
+    if (dismissing) {
+      const double dismissDistance = 140.0;
+      const double dismissVelocity = 900.0;
+      if (_dragDy > dismissDistance || v.dy > dismissVelocity) {
+        Navigator.of(context).maybePop();
+        return;
+      }
+      _settleDragBack();
+    }
+  }
+
+  void _handlePointerCancel(PointerCancelEvent event) {
+    if (event.pointer != _dragPointer) return;
+    final settle = _dragActive && _dragDy > 0;
+    _endPointerDrag();
+    if (settle) _settleDragBack();
+  }
+
+  void _endPointerDrag() {
+    _dragPointer = null;
+    _dragStart = null;
+    _dragActive = false;
+  }
+
+  void _settleDragBack() {
     _animFrom = _dragDy;
     _restoreCtrl
       ..reset()
@@ -1449,12 +1548,14 @@ class _ImageViewerPageState extends State<ImageViewerPage>
                   widget.images.length,
                 ),
               ),
-              if (_hasMultipleImages)
+              if (_hasMultipleImages && _isDesktop)
                 _buildPageArrows(
                   context,
                   opacity: chromeOpacity,
                   compact: compact,
                 ),
+              if (_hasMultipleImages && !_isDesktop)
+                _buildPageDots(context, bottomInset: media.padding.bottom),
               _buildActionChrome(
                 context,
                 compact: compact,
@@ -1469,15 +1570,13 @@ class _ImageViewerPageState extends State<ImageViewerPage>
   }
 
   Widget _buildPagedImageStage(BuildContext context) {
-    return GestureDetector(
+    final l10n = AppLocalizations.of(context)!;
+    final stage = Listener(
       behavior: HitTestBehavior.translucent,
-      onVerticalDragStart: _currentImageZoomed
-          ? null
-          : _handleVerticalDragStart,
-      onVerticalDragUpdate: _currentImageZoomed
-          ? null
-          : _handleVerticalDragUpdate,
-      onVerticalDragEnd: _currentImageZoomed ? null : _handleVerticalDragEnd,
+      onPointerDown: _handlePointerDown,
+      onPointerMove: _handlePointerMove,
+      onPointerUp: _handlePointerUp,
+      onPointerCancel: _handlePointerCancel,
       child: PageView.builder(
         key: const ValueKey('image-viewer-page-view'),
         controller: _controller,
@@ -1495,6 +1594,21 @@ class _ImageViewerPageState extends State<ImageViewerPage>
         },
         itemBuilder: _buildImagePage,
       ),
+    );
+    // Paging is a path gesture, so a reader that cannot swipe gets named
+    // commands for it instead of being left with only the swipe.
+    return Semantics(
+      key: const ValueKey('image-viewer-paging-actions'),
+      container: true,
+      customSemanticsActions: {
+        if (_canGoPrevious)
+          CustomSemanticsAction(label: l10n.imageViewerPagePreviousButton):
+              _showPrevious,
+        if (_canGoNext)
+          CustomSemanticsAction(label: l10n.imageViewerPageNextButton):
+              _showNext,
+      },
+      child: stage,
     );
   }
 
@@ -1726,10 +1840,10 @@ class _ImageViewerPageState extends State<ImageViewerPage>
     required bool compact,
   }) {
     final l10n = AppLocalizations.of(context)!;
-    // A phone lays these on a full-bleed picture, so they shrink and hug the
-    // edge to leave the image readable. A direction with no page beyond it is
-    // dropped there rather than left as a second permanent circle over the
-    // photo; the desktop keeps it dimmed, where it costs nothing.
+    // Desktop only: a mouse cannot drag a PageView (Flutter's default drag
+    // devices are touch-like), so on a desktop window the arrows are the only
+    // pointer path between pages. A narrow window shrinks them; a touch device
+    // gets the dots below instead, where they cannot sit on the picture.
     final size = compact ? 42.0 : 52.0;
     final inset = compact ? 10.0 : 24.0;
     return IgnorePointer(
@@ -1765,6 +1879,65 @@ class _ImageViewerPageState extends State<ImageViewerPage>
                     icon: Lucide.ChevronRight,
                     onTap: _canGoNext ? _showNext : null,
                     size: size,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// The touch-platform page indicator: one dot per page, the current one
+  /// stretched into a pill. Each dot is also a button, so paging does not
+  /// depend on a path gesture alone, and the row sits above the action panel
+  /// instead of over the picture.
+  Widget _buildPageDots(BuildContext context, {required double bottomInset}) {
+    final count = widget.images.length;
+    if (count < 2 || count > kMaxViewerPageDots) {
+      return const SizedBox.shrink();
+    }
+    final l10n = AppLocalizations.of(context)!;
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: math.max(bottomInset, 12) + 74,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOutCubic,
+        opacity: _chromeVisible ? 1 : 0,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (var i = 0; i < count; i++)
+              Semantics(
+                button: true,
+                selected: i == _index,
+                label: l10n.imageViewerPageCounter(i + 1, count),
+                child: GestureDetector(
+                  key: ValueKey('image-viewer-page-dot-$i'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _goToIndex(i),
+                  child: SizedBox(
+                    width: 26,
+                    height: 30,
+                    child: Center(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 160),
+                        curve: Curves.easeOutCubic,
+                        width: i == _index ? 16 : 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(
+                            alpha: i == _index ? 0.95 : 0.45,
+                          ),
+                          borderRadius: BorderRadius.circular(3),
+                          boxShadow: const [
+                            BoxShadow(color: Color(0x40000000), blurRadius: 2),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),

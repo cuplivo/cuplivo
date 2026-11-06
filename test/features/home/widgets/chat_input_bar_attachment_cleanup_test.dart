@@ -1443,7 +1443,7 @@ void main() {
 
     // The preview opens the whole draft, not the chip that was tapped.
     expect(find.text('1/2'), findsOneWidget);
-    await tester.tap(find.byTooltip('Next Image'));
+    await tester.tap(find.byKey(const ValueKey('image-viewer-page-dot-1')));
     await tester.pumpAndSettle();
     expect(find.text('2/2'), findsOneWidget);
 
@@ -1462,6 +1462,56 @@ void main() {
     );
 
     debugDefaultTargetPlatformOverride = null;
+    controller.dispose();
+    focusNode.dispose();
+  });
+
+  testWidgets('草稿预览打开时整组图片都受保护', (tester) async {
+    late File first;
+    late File second;
+    await tester.runAsync(() async {
+      first = await writeUserImage('preview_first.png');
+      second = await writeUserImage('preview_second.png');
+    });
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+
+    await tester.pumpWidget(
+      buildHarness(
+        controller: controller,
+        focusNode: focusNode,
+        mediaController: mediaController,
+        onSend: (_) async => ChatInputSubmissionResult.rejected,
+      ),
+    );
+
+    await tester.runAsync(() async {
+      mediaController.enqueueImages(
+        [first.path, second.path],
+        _config,
+        ownsSourceFile: true,
+      );
+    });
+    expect(
+      await pumpUntil(tester, () => !mediaController.hasUnreadyImages),
+      isTrue,
+    );
+
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('chat-input-image-preview:0')));
+    await tester.pumpAndSettle();
+    expect(find.text('1/2'), findsOneWidget);
+
+    // Paging can land on the second image while a pass for it finishes behind
+    // the preview, so every image on screen is protected, not only the tapped
+    // one. Reverting to `add(ids[idx])` makes this 1.
+    expect(mediaController.debugPreviewingImageCount, 2);
+
+    await tester.tap(find.byTooltip('Close preview'));
+    await tester.pumpAndSettle();
+    expect(mediaController.debugPreviewingImageCount, 0);
+
     controller.dispose();
     focusNode.dispose();
   });

@@ -2,10 +2,13 @@ import 'dart:convert';
 
 import 'app_database.dart';
 import '../models/backup_scope.dart';
+import '../models/backup_target.dart';
+import '../models/conversation.dart';
 import 'backup_content_filter.dart';
 import 'business_data.dart';
 import 'business_repository.dart';
 import 'business_settings_router.dart';
+import 'kelivo_vocabulary.dart';
 
 /// Device state stays in SQLite at runtime, but must not travel in a backup.
 final class BackupPortability {
@@ -89,9 +92,17 @@ final class BackupPortability {
 
   /// Only call on a temporary database, never the live database. This also
   /// handles old backups whose raw SQLite payload still has device-only rows.
+  ///
+  /// [target] decides which business kinds the archive may still name. A backup
+  /// written for a Kelivo release drops every kind that release has no word for,
+  /// because the settings export already dropped those keys — leaving the rows
+  /// would make the archive contradict its own manifest, and leaving the
+  /// conversation link would land chats that point at an entity the reader will
+  /// never have.
   static Future<void> sanitizeDatabase(
     AppDatabase database, {
     BackupScope scope = const BackupScope(),
+    BackupTarget target = BackupTarget.cuplivo,
   }) async {
     // Erase removed payloads from SQLite cells as well as its logical rows.
     await database.customStatement('PRAGMA secure_delete = ON;');
@@ -103,6 +114,7 @@ final class BackupPortability {
       await database.customStatement(
         "DELETE FROM extension_entity_rows WHERE kind IN ('externalMounts', 'composerDraft', 'composerNewEntry', 'composerShareReceipt', 'composerPrivateFile');",
       );
+      await _dropUnreadableKinds(database, target);
       // Chat history remains readable, but imported chats cannot inherit a
       // directory grant or silently authorize shell execution on this device.
       await database.customStatement('''
@@ -124,5 +136,43 @@ final class BackupPortability {
             OR json_type(extras_json, '\$."tools.permission_mode"') IS NOT NULL);
       ''');
     });
+  }
+
+  /// Removes the rows, and the conversation links, of every kind [target] cannot
+  /// read.
+  ///
+  /// The two halves belong together: an entity row without its settings key is an
+  /// archive that contradicts itself, and a conversation naming a group that did
+  /// not travel is a link the reader would have to guess about. Only extension
+  /// kinds are handled here, which is why
+  /// `test/core/database/kelivo_vocabulary_test.dart` refuses a disposition for a
+  /// kind that is not one.
+  static Future<void> _dropUnreadableKinds(
+    AppDatabase database,
+    BackupTarget target,
+  ) async {
+    final unreadable = unreadableEntitySourceKeys(target);
+    if (unreadable.isEmpty) return;
+    final extensionKinds = <String>[
+      for (final kind in BusinessEntityKind.values)
+        if (unreadable.contains(kind.sourceKey) && kind.extensionKind != null)
+          kind.extensionKind!,
+    ];
+    if (extensionKinds.isNotEmpty) {
+      final placeholders = List.filled(extensionKinds.length, '?').join(', ');
+      await database.customStatement(
+        'DELETE FROM extension_entity_rows WHERE kind IN ($placeholders);',
+        extensionKinds,
+      );
+    }
+    if (!target.knowsSourceKey(BusinessEntityKind.groupChat.sourceKey)) {
+      final path = '\$."${Conversation.groupChatIdKey}"';
+      await database.customStatement(
+        'UPDATE conversation_rows '
+        "SET extras_json = json_remove(extras_json, '$path') "
+        'WHERE json_valid(extras_json) '
+        "AND json_type(extras_json, '$path') IS NOT NULL;",
+      );
+    }
   }
 }

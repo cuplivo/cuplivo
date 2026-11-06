@@ -172,8 +172,18 @@ reader does not "fix" the inconsistency.
    (`business_repository.dart:840` then `:903`), so the same batch is complete.
 3. **An older peer ignores the key.** The read and apply paths are
    registry-filtered, so a device on an older build neither advertises nor
-   accepts it: one-way transfer until both are updated, no protocol bump, no
-   corruption.
+   accepts it: one-way transfer until both are updated, no protocol bump. The
+   push acknowledgement counts rows, it does not name them — a row the peer
+   dropped and a row it stored are the same `success` — so the checkpoint now
+   records an agreement only on a receipt: the responder names the rows it holds
+   (`businessAccepted`, an additive ack field an older peer omits) or its own
+   manifest advertises them (`sync_engine.dart`, `_advanceBusinessCheckpoint`).
+   A row with neither receipt is offered again every session; nothing is deleted
+   here on the strength of the peer's silence. This paragraph was wrong when it
+   was written: the receipt was the acknowledgement's `success` alone, so the
+   *second* session read "the peer lacks a row I agreed to" as a deletion and
+   removed the value from the updated device. Found in review of #1068,
+   reproduced end to end, and pinned by the integration test named for it.
 4. **Reason rot.** A free-text `note` cannot be a reason. The enum is the reason;
    a test asserts every value has at least one key (no dead buckets) and that
    `syncCompanionOfEntity` appears only on `synced` rows.
@@ -200,6 +210,12 @@ reader does not "fix" the inconsistency.
 6. **Behaviour.** `business_repository_sync_test.dart` applies a batch carrying
    the five keys and asserts the rows land and the panels read them back through
    the registered reloaders (`lib/main.dart:144`).
+7. **Receipt.** `sync_engine_integration_test.dart` hosts the previous build on
+   one side (`_LegacyPeerPlane`: the key is neither advertised nor accepted),
+   syncs twice and asserts the row survives here, that the bin is empty, and that
+   no agreement was recorded — then stops hiding the key and asserts the pair
+   converges in two more sessions. Reverting the guard makes the first of those
+   assertions fail.
 
 Each guard is shown to fail against the violation it guards before it lands.
 
@@ -221,12 +237,12 @@ Each guard is shown to fail against the violation it guards before it lands.
 - MCP's collapsed set keeps riding inside a blob that has to sync, so the rule
   is "value state stays local, except where ownership is co-stored". One
   carve-out, documented, forever — unless the blob is split.
-- The table is 206 rows of review surface. That is the price of the middle state
+- The table is 278 rows of review surface. That is the price of the middle state
   disappearing; the alternative is the state coming back.
 
 ## Implementation notes (2026-11-05)
 
-The code differs from the design above in five places, each a consequence of
+The code differs from the design above in six places, each a consequence of
 what the repository turned out to hold:
 
 1. **Five policies, not four.** `BackupPortability.devicePreferenceKeys` was a
@@ -235,7 +251,7 @@ what the repository turned out to hold:
    even by a travelling backup. Folding them into `backupOnly` would have been a
    lie and would have put them into backups. They are `deviceLocal`, the list is
    now derived from the table, and the class is the fifth value.
-2. **The table has 276 rows, not 206.** The `display_*` family (70 keys) was
+2. **The table has 278 rows, not 206.** The `display_*` family (81 keys) was
    classified by a prefix fallback rather than by a list, and they are written to
    the business store. The prefix is now a *test* (`display_*` ⇒ not synced) and
    the rows are explicit: `backupOnly` / `deviceViewState`.
@@ -250,11 +266,28 @@ what the repository turned out to hold:
    they have never been decided. Inventing "platformCapability" for an image
    quality setting is exactly the defect this refactor removes, so the table says
    `notYetReviewed` and a test pins the list: it can only shrink, by deciding.
-   The 109-key middle state is therefore 90 reasoned rows plus 23 named ones.
+   The 109-key middle state is therefore 86 reasoned rows plus 23 named ones.
 5. **The discovery gate is scoped.** The debug assert in
    `BusinessPreferences.setMany` fires for app-shaped keys (`…_vN`) only, so a
    foreign key — a plugin's, a restored artifact's — is still stored and
-   fail-closed instead of crashing a debug build.
+   fail-closed instead of crashing a debug build. The name pattern itself is one
+   definition (`BusinessKeyRegistry.appKeyPattern`), read by that assert and by
+   the writer scan, so widening the convention cannot leave one guard blind to
+   what the other enforces.
+6. **An agreement needs a receipt.** Found in review of #1068: the checkpoint
+   advanced an `iSend` on the strength of the push acknowledgement, which counts
+   rows but cannot say which ones the peer refused — an older build skips a key
+   it does not sync at apply and answers success. The next session then found the
+   row absent on the peer and planned `iDelete`, deleting the user's groups, tags
+   and book bindings from the *updated* device (staged in the recycle bin, and
+   absent from the session report, so silent). The acknowledgement now names the
+   rows the responder holds (`businessAccepted`: `SyncApplyAck` gains one
+   optional field, no protocol bump — an older peer omits it, which reads as "no
+   receipt"), and a row the peer's own manifest advertises counts too, which
+   covers a row it already had. A row with neither receipt is offered again next
+   session instead of being withdrawn. This is a rule about the *plan*, not about
+   the five keys: any future synced key or entity kind faces the same
+   older-peer window.
 
 What the code settles that the design did not spell out: `classify()` and
 `BusinessKeyDisposition` are gone, and the seven call sites ask one predicate

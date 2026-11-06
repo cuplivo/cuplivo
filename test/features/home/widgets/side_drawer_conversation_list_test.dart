@@ -180,6 +180,8 @@ void main() {
     SettingsProvider? settingsProvider,
     FutureOr<void> Function(String id, {bool closeDrawer})?
     onSelectConversation,
+    FutureOr<void> Function({bool closeDrawer, String? assistantId})?
+    onNewConversation,
   }) async {
     tester.view.physicalSize = mobileDrawer == null
         ? const Size(1200, 900)
@@ -216,7 +218,7 @@ void main() {
                   onSelectConversation: (id) => onSelectConversation?.call(id),
                   onNewConversation: () {},
                   onOpenMiniMap: () {},
-                  onCreateNewConversation: () async {},
+                  onCreateNewConversation: ({String? assistantId}) async {},
                   onToggleTemporaryConversation: () async {},
                   onSelectModel: () {},
                   canToggleTemporaryConversation: false,
@@ -241,6 +243,7 @@ void main() {
                   globalSearchQuery: globalSearchQuery,
                   showBottomBar: false,
                   onSelectConversation: onSelectConversation,
+                  onNewConversation: onNewConversation,
                 ),
               ),
       );
@@ -1075,5 +1078,61 @@ void main() {
     } finally {
       debugDefaultTargetPlatformOverride = null;
     }
+  });
+
+  testWidgets('choosing an assistant asks for a chat that assistant owns', (
+    tester,
+  ) async {
+    // A bare "new conversation" inside a group topic means another topic of
+    // that group, so switching assistants had to say whose chat it wanted:
+    // without it the page stayed on the group and the chosen assistant's chats
+    // stayed hidden behind the group's topic list.
+    await asDesktop(() async {
+      final service = createService();
+      late SettingsProvider settings;
+      late AssistantProvider assistants;
+      await tester.runAsync(() async {
+        await service.init();
+        settings = SettingsProvider(createBusinessTestPreferences());
+        await settings.loaded;
+        assistants = AssistantProvider(
+          preferences: createBusinessTestPreferences(),
+        );
+        await assistants.loaded;
+        // No history, so the drawer cannot just open one of its conversations.
+        await assistants.addAssistant(name: 'Reader');
+      });
+      final target = assistants.assistants.single;
+      String? requestedAssistantId;
+
+      await pumpDrawer(
+        tester,
+        service,
+        desktopAssistantsOnly: true,
+        assistantProvider: assistants,
+        settingsProvider: settings,
+        onNewConversation: ({closeDrawer = true, assistantId}) {
+          requestedAssistantId = assistantId;
+        },
+      );
+
+      await tester.tap(find.text('Reader'));
+      // Selecting an assistant persists the choice before it asks for a chat.
+      // That write runs on a real SQLite executor, so it only settles while
+      // runAsync holds the real event loop; pump() then drains the resumption
+      // it queued in the fake one.
+      for (var i = 0; i < 20 && requestedAssistantId == null; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pump();
+      }
+      await tester.pumpAndSettle();
+
+      expect(assistants.currentAssistantId, target.id);
+      expect(requestedAssistantId, target.id);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
   });
 }

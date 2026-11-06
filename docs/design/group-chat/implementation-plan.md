@@ -260,6 +260,51 @@ widget 测试才能确认，留待后续。
   和 `clearAllState`（点侧栏里任何一个已存在的话题同样不走）。不合并是刻意的：合并要给两个布局
   各加一个回调，换不出任何可观察的差别。
 
+### 4.12 第七遍复核（#1065 群聊 ↔ 助手切换）
+
+issue #1065 的两条症状是同一次「群话题没有 owner」的误用，各自落在一个把 owner 猜出来的地方。
+
+| 问题 | 修法 |
+| --- | --- |
+| 从助手切到群聊后「流光」不关闭 | 背景只看 `AssistantProvider.currentAssistant`：群话题的 `assistantId` 恒为 null，`resolveConversationAssistant(null)` 只是回落到「当前选中的助手」，于是群的页面上留着上一个助手的壁纸与流光。`ChatBackdropSpec.resolve` 补一条「当前会话属于一个活着的群」：群话题既没有壁纸也没有流光，孤儿话题按普通会话降级、背景照旧；`ChatAssistantBackground` 删掉自己那份同样的判断改读同一个 spec——两份判断里后一份单独生效时，overlay 会去读一个已被拆掉的 `_GradientScope`（`artwork!` 为 null） |
+| 从群聊切到任意助手后页面与会话列表都不动 | 切助手走「新建对话」，而 `createNewConversationAnimated` 无条件继承当前会话的 `groupChatId`（#1052 给群话题里「+」留的规则），于是「助手 B 的新对话」变成同一个群的新话题；侧栏话题列表又从当前会话反推群过滤（`currentGroupChatId`），B 的会话因此全被滤掉。新建路径加显式 `assistantId`：指名 owner 时不继承群，不指名时行为不变（群话题里「+」仍开同群新话题、孤儿话题仍降级为 1:1）。抽屉三个出口（强制新聊 / 该助手无历史 / 异常兜底）都带上目标助手 id |
+
+三条新用例都注入验证过会变红（群话题恢复成有背景、去掉 `assistantId` 判据、抽屉不传 `assistantId`），
+回退后逐字节一致：
+`test/features/chat/widgets/frosted/chat_backdrop_group_topic_test.dart`（4 条，含「群已删除 → 背景回来」的反向对照）、
+`home_page_controller_switch_test.dart` 的「a chat opened for an assistant leaves the group topic」、
+`side_drawer_conversation_list_test.dart` 的「choosing an assistant asks for a chat that assistant owns」。
+
+真机（Android 模拟器）另有一条 `integration_test/group_chat_switch_assistant_test.dart`：启动真实
+`app.main()`，把当前助手的流光打开，建一个群（含它和一个没有历史的助手），从抽屉打开群话题，
+再选另一个助手。断言都落在屏幕上——群话题里没有 `ChatGradientBackground`、`backgroundActive` 为
+false；切换后新会话 `groupChatId` 为 null、`assistantId` 为被选助手，且流光回来了（所以「没有流光」
+不可能是整体失效）。该用例在模拟器上通过；把 `createNewConversationAnimated` 的 `assistantId`
+判据去掉后，它在「等 1:1 打开」处超时失败——它确实咬得住这个缺陷。
+
+#### 4.12.1 复核后的补正
+
+复核把三处接缝挑了出来，另有一处机制成立但此前无人验证：
+
+- **冷启动首帧**（新增用例 + 修一行）。`GroupChatProvider` 在构造里起 `_load()`，`byId` 在它完成前
+  恒为 null，而 `initChat` 只等 `assistants.loaded` 与 `_chatService.init()`。于是恢复到群话题的头
+  几帧里，`ChatBackdropSpec` 会判成「不是群」，画上上一个助手的壁纸与流光，等群列表回来再撤掉。
+  真机集成测试看不见这一点，因为它先 `await groups.loaded` 再断言。`initChat` 现在一并等
+  `groups.loaded`（一次表读；`_load` 自己吞异常、必定完成）。用例
+  `home_page_cold_start_group_test.dart` 把一个 `listByKind` 被闸住的 store 交给 provider，断言闸
+  开之前 `ChatService.currentConversationId` 不得指向群话题；去掉那行 `groups.loaded` 即变红。
+- **桌面端转发**（新增用例）。`HomeDesktopScaffold` 把抽屉回调转给 page 的两处闭包此前只有类型检查：
+  `assistantId` 是可选参数，闭包丢掉它照样编译、全部用例照样绿，而 #1065 的报告环境正是 Windows。
+  用例 `home_desktop_assistant_switch_test.dart` 挂起真实 `HomeDesktopScaffold`（用
+  `appBarOverride` 避开动作栏），取出它建好的 `SideDrawer`，直接调用它拿到的
+  `onNewConversation(assistantId: …)`，断言该 id 原样到达 page；把闭包改成不转发即变红。
+- **判定的唯一实现**。`ChatBackdropSpec.resolve` 不再自己拼 `byId(groupChatId) != null`，改用
+  `GroupChatProvider.forConversation`：群是否还活着这条规则此前在抽屉列表、抽屉点击和背景里各写
+  一遍，正是 #1052 / #1065 同一类漂移。
+- **设置页气泡预览**（只写清楚，不改行为）。预览把 `ChatAssistantBackground` 铺在当前会话上，所以
+  群话题下它会没有壁纸与毛玻璃。这是对的——预览的是「现在这个聊天长什么样」，不是「某个助手的抽象
+  样子」；但此前代码里读不出来，现已写进 `resolve` 的文档注释。
+
 ## 5. 验证
 - `dart analyze --fatal-infos lib test integration_test` → **0 issue**。
 - 新增测试（14 + 22 = 36 条，全绿）：

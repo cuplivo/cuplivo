@@ -1354,9 +1354,20 @@ class HomePageController extends ChangeNotifier {
   Future<void> initChat() async {
     final prefs = _context.read<SettingsProvider>();
     final assistantProvider = _context.read<AssistantProvider>();
+    // Absent only in harnesses that mount no group store; the app always has
+    // one.
+    final groups = _context.read<GroupChatProvider?>();
     try {
-      // The two startups are independent of each other.
-      await Future.wait([assistantProvider.loaded, _chatService.init()]);
+      // The startups are independent of each other, except for the group list:
+      // a topic inside a group paints no assistant wallpaper or gradient, and
+      // restoring one before that list is read puts the previous assistant's
+      // artwork behind it for a frame. It is one table read, and it is what
+      // makes "the open chat's backdrop" answerable from the first frame.
+      await Future.wait([
+        assistantProvider.loaded,
+        _chatService.init(),
+        if (groups != null) groups.loaded,
+      ]);
       if (prefs.newChatOnLaunch) {
         await _createNewConversation();
       } else {
@@ -2035,25 +2046,42 @@ class HomePageController extends ChangeNotifier {
     } catch (_) {}
   }
 
+  /// Starts a chat.
+  ///
+  /// [groupChatId] opens a topic of that group and [assistantId] a 1:1 owned by
+  /// that assistant. With neither, "+" keeps the context it was pressed in.
   Future<Conversation?> createNewConversationAnimated({
     bool preserveDraft = false,
     String? groupChatId,
+    String? assistantId,
   }) async {
     // Cancel any in-flight conversation switch fetch.
     final serial = ++_switchSerial;
     _cancelMessageJump();
-    final assistantId = _context.read<AssistantProvider>().currentAssistantId;
+    final selectedAssistantId = _context
+        .read<AssistantProvider>()
+        .currentAssistantId;
     // A group topic has no assistant. "New" inside one means a new topic of
     // that group; without this, the fallback assistant became the owner and the
     // app silently left the group for a 1:1 chat.
     // Inherit the group only while its row still exists: a topic whose group is
     // gone is an ordinary conversation, and "+" must not mint another topic
     // tagged with the dead group.
-    final inheritedGroupChatId = currentConversation?.groupChatId;
+    //
+    // A named owner is the opposite intent: switching to an assistant while a
+    // group topic is open asks for *that assistant's* chat, and inheriting the
+    // group answered with another topic of the same group — the page, and the
+    // topic list that follows it, never left the group.
+    final inheritedGroupChatId = assistantId == null
+        ? currentConversation?.groupChatId
+        : null;
     final inheritedGroupIsLive =
         _groupChatExists(inheritedGroupChatId) != false;
     final resolvedGroupChatId =
         groupChatId ?? (inheritedGroupIsLive ? inheritedGroupChatId : null);
+    final resolvedAssistantId = resolvedGroupChatId == null
+        ? (assistantId ?? selectedAssistantId)
+        : null;
     _warmupSerial++;
     _selectionEpoch++;
     try {
@@ -2071,7 +2099,7 @@ class HomePageController extends ChangeNotifier {
     if (!_context.mounted || serial != _switchSerial) return null;
     final conversation = await _createNewConversation(
       preserveDraft: preserveDraft,
-      assistantId: resolvedGroupChatId == null ? assistantId : null,
+      assistantId: resolvedAssistantId,
       groupChatId: resolvedGroupChatId,
     );
     if (conversation == null ||

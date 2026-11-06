@@ -226,20 +226,12 @@ void main() {
     // should look on any device, so a new device wants it. The per-user overlay
     // stays device-local, like the other per-user presentation keys.
     expect(
-      BusinessKeyRegistry.classify('chat_bubble_style_overrides_v1'),
-      BusinessKeyDisposition.syncedPreference,
+      BusinessKeyRegistry.isSynced('chat_bubble_style_overrides_v1'),
+      isTrue,
     );
     expect(
-      BusinessKeyRegistry.syncedPreferenceKeys,
-      contains('chat_bubble_style_overrides_v1'),
-    );
-    expect(
-      BusinessKeyRegistry.classify('chat_bubble_style_overrides_user_v1'),
-      BusinessKeyDisposition.preference,
-    );
-    expect(
-      BusinessKeyRegistry.preferenceKeys,
-      contains('chat_bubble_style_overrides_user_v1'),
+      BusinessKeyRegistry.policyOf('chat_bubble_style_overrides_user_v1'),
+      KeyPolicy.backupOnly,
     );
   });
 }

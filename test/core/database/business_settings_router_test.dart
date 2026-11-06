@@ -20,61 +20,44 @@ Map<String, Object?> _completeEntityRowIds({
 
 void main() {
   group('BusinessSettingsRouter', () {
-    test(
-      'registry distinguishes entity, preference, local and discarded keys',
-      () {
-        expect(
-          BusinessKeyRegistry.classify('assistants_v1'),
-          BusinessKeyDisposition.entity,
-        );
-        // Synced preferences are still business preferences; they just also
-        // ride LAN sync (ADR-0003 decision 6).
-        expect(
-          BusinessKeyRegistry.classify('theme_mode_v1'),
-          BusinessKeyDisposition.syncedPreference,
-        );
-        expect(
-          BusinessKeyRegistry.classify('asr_services_v1'),
-          BusinessKeyDisposition.syncedPreference,
-        );
-        expect(
-          BusinessKeyRegistry.classify('tts_selected_service_id_v1'),
-          BusinessKeyDisposition.syncedPreference,
-        );
-        expect(
-          BusinessKeyRegistry.classify('providers_order_v1'),
-          BusinessKeyDisposition.providerOrder,
-        );
-        expect(
-          BusinessKeyRegistry.classify('mobile_assistant_edit_tab_order_v1'),
-          BusinessKeyDisposition.preference,
-        );
-        expect(
-          BusinessKeyRegistry.classify('current_assistant_id_v1'),
-          BusinessKeyDisposition.preference,
-        );
-        expect(
-          BusinessKeyRegistry.classify('flutter_log_enabled_v1'),
-          BusinessKeyDisposition.localOnly,
-        );
-        expect(
-          BusinessKeyRegistry.classify('linux_hide_title_bar_v1'),
-          BusinessKeyDisposition.localOnly,
-        );
-        expect(
-          BusinessKeyRegistry.classify('pinned_chat_ids'),
-          BusinessKeyDisposition.discarded,
-        );
-        expect(
-          BusinessKeyRegistry.classify('plugin_future_key_v1'),
-          BusinessKeyDisposition.unknownPreference,
-        );
-        expect(
-          BusinessKeyRegistry.classify('reasoning_choice_by_model_v1'),
-          BusinessKeyDisposition.preference,
-        );
-      },
-    );
+    test('the registry answers the questions the router asks', () {
+      expect(
+        BusinessKeyRegistry.entityKindFor('assistants_v1'),
+        BusinessEntityKind.assistant,
+      );
+      // A synced preference is still an ordinary business preference; it just
+      // also rides LAN sync (ADR-0003 decision 6).
+      expect(BusinessKeyRegistry.isSynced('theme_mode_v1'), isTrue);
+      expect(BusinessKeyRegistry.isSynced('asr_services_v1'), isTrue);
+      expect(
+        BusinessKeyRegistry.isSynced('tts_selected_service_id_v1'),
+        isTrue,
+      );
+      expect(BusinessKeyRegistry.isProviderOrder('providers_order_v1'), isTrue);
+      expect(
+        BusinessKeyRegistry.policyOf('mobile_assistant_edit_tab_order_v1'),
+        KeyPolicy.backupOnly,
+      );
+      expect(
+        BusinessKeyRegistry.policyOf('current_assistant_id_v1'),
+        KeyPolicy.backupOnly,
+      );
+      expect(
+        BusinessKeyRegistry.isPlatformOnly('flutter_log_enabled_v1'),
+        isTrue,
+      );
+      expect(
+        BusinessKeyRegistry.isPlatformOnly('linux_hide_title_bar_v1'),
+        isTrue,
+      );
+      expect(BusinessKeyRegistry.isDiscarded('pinned_chat_ids'), isTrue);
+      expect(BusinessKeyRegistry.ruleFor('plugin_future_key_v1'), isNull);
+      expect(BusinessKeyRegistry.isSynced('plugin_future_key_v1'), isFalse);
+      expect(
+        BusinessKeyRegistry.policyOf('reasoning_choice_by_model_v1'),
+        KeyPolicy.backupOnly,
+      );
+    });
 
     test(
       'routes and exports canonical settings without losing credentials',

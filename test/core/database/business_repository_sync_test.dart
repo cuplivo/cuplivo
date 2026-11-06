@@ -229,6 +229,55 @@ void main() {
     );
   });
 
+  test('the organization keys travel to a peer (#1054, #1062)', () async {
+    // Both issues are the same defect: the definition travelled and the
+    // assignment did not, so a paired device showed every provider ungrouped and
+    // every assistant with nothing enabled. Membership is what carries it, and
+    // this test is the behaviour behind the registry pin.
+    const keys = <String, String>{
+      'provider_group_map_v1': '{"provider-a":"group-1"}',
+      'assistant_tag_map_v1': '{"assistant-a":"tag-1"}',
+      'instruction_injections_active_ids_by_assistant_v1':
+          '{"assistant-a":["injection-1"]}',
+      'world_books_active_ids_by_assistant_v1': '{"assistant-a":["book-1"]}',
+      'provider_ungrouped_position_v1': '2',
+    };
+    for (final entry in keys.entries) {
+      await preferences.setString(entry.key, entry.value);
+    }
+    expect(
+      (await repository.syncPreferenceRefs()).map((ref) => ref.key),
+      containsAll(keys.keys),
+      reason: 'the manifest has to advertise them before a peer can ask',
+    );
+
+    // The fetch side: a peer naming them is served exactly the stored values.
+    final rows = await repository.syncReadPreferenceRows(keys.keys.toSet());
+    expect(rows.map((row) => row['key']), containsAll(keys.keys));
+    for (final row in rows) {
+      expect(jsonDecode(row['value'] as String), keys[row['key']]);
+    }
+
+    // The apply side: a peer may write them back, which is the half that used to
+    // be refused because the key was not a synced preference.
+    final applied = await repository.syncApplyBusinessRows(
+      entities: const {},
+      preferences: [
+        for (final row in rows)
+          {
+            ...row,
+            'updated_at': DateTime.now().toUtc().microsecondsSinceEpoch + 1000,
+          },
+      ],
+      myDeviceId: 'me',
+      peerDeviceId: 'peer',
+    );
+    expect(applied.preferencesWritten, keys.length);
+    for (final entry in keys.entries) {
+      expect(await repository.getPreference(entry.key), entry.value);
+    }
+  });
+
   test('unknown kinds and rows without an id are inert', () async {
     final outcome = await repository.syncApplyBusinessRows(
       entities: {

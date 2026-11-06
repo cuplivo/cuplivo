@@ -273,12 +273,8 @@ void main() {
       // LAN sync and backup both read the registry rather than the writer, so
       // an unregistered key would be written and then silently never travel.
       expect(
-        BusinessKeyRegistry.classify('translate_visible_languages_v1'),
-        BusinessKeyDisposition.syncedPreference,
-      );
-      expect(
-        BusinessKeyRegistry.preferenceKeys,
-        contains('translate_visible_languages_v1'),
+        BusinessKeyRegistry.isSynced('translate_visible_languages_v1'),
+        isTrue,
       );
     });
   });

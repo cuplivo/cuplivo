@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Backups Kelivo can read**: 「Backup target」 gains a Kelivo 1.3.4 option, which writes an archive that release can import. Group chats do not travel — their conversations stay as ordinary chats — and the option says so
+
+### Changed
+
+- The backup archive format moved from 3 to 4: an older build now refuses a new backup with a clear version error instead of failing part-way through a restore
+
+### Fixed
+
+- **A Cuplivo backup could not be imported into Kelivo at all**: the archive listed the `group_chats_v1` entity, which Kelivo 1.3.4 rejects outright — even for a user who never created a group
+
 ### Removed
 
 - **Message replies**: the QQ-style citation and its `<reply-to>` context injection are removed. Upstream's own in-app quotes answer the same need — select text, quote it into the composer, tap a quote to jump back to its source — so the app carries one quoting model instead of two ([ADR-0012](docs/adr/0012-message-reply-quote.md))

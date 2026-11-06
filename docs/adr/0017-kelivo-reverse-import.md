@@ -62,6 +62,16 @@ all: `flutter test` stays entirely green while the archive is unusable.
    remain as ordinary chats. A reader that tolerates an unknown entity key is upstream's change to
    make, not ours — a fork cannot patch the reader it is leaving for.
 
+6. **The target is a standing choice in the backup settings, not a question asked at export time.**
+   It lives beside 「Backup scope」 and rides both provider configs (`WebDavConfig`, `S3Config`),
+   because the WebDAV and S3 uploads never open a sheet and would otherwise write for the wrong
+   reader — an S3 provider that carried the scope but not the target is exactly that bug. The cost is
+   stated once, inside the picker, in the user's terms: 「可在 Kelivo 中导入，但会丢失群聊数据」. No
+   banner: the rule that a standing choice applies to *every* later backup is recorded here and in the
+   changelog, not repeated on the page. `prepareBackupFileFromDatabase` and the local-snapshot path
+   never consult the target; both rebuild an archive this build owns, and a lowered target there would
+   silently drop data a rollback depends on.
+
 ## Consequences
 
 - A user taking their data back to Kelivo gets a working archive, minus group structure. Ordinary

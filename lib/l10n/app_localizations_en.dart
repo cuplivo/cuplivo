@@ -1640,6 +1640,23 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get backupPageTargetTitle => 'Backup target';
+
+  @override
+  String get backupPageTargetCuplivo => 'Cuplivo';
+
+  @override
+  String get backupPageTargetCuplivoNote =>
+      'Everything this version can restore, group chats included';
+
+  @override
+  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+
+  @override
+  String get backupPageTargetKelivoNote =>
+      'Imports into Kelivo, but group chats are lost';
+
+  @override
   String get backupPageBackupManagementDescription =>
       'Choose what to back up and import. Applies to local, WebDAV and S3 backups. Unselected content stays unchanged on import. Skills and workspaces include their own files.';
 

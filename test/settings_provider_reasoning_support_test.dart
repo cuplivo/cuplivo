@@ -1,5 +1,3 @@
-import "support/business_test_harness.dart";
-
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +8,8 @@ import 'package:Cuplivo/core/models/model_spec.dart';
 import 'package:Cuplivo/core/models/reasoning_request.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/model_spec/model_defaults_guesser.dart';
+
+import 'support/business_test_harness.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

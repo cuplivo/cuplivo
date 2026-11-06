@@ -312,7 +312,10 @@ void main() {
       reason: 'the getter hop is what makes a JsonBlobStore write visible',
     );
 
-    final keyPattern = RegExp(r'^[a-z][a-z0-9_]*_v\d+$');
+    // The registry's own pattern, not a copy of it: the debug assert in
+    // `BusinessPreferences.setMany` asks the same definition, so the two guards
+    // cannot drift into covering different sets.
+    final keyPattern = BusinessKeyRegistry.appKeyPattern;
     // The argument is not always one name: `setChatInputBackgroundOpacity`
     // writes `setDouble(brightness == Brightness.dark ? keyA : keyB, v)`, and a
     // one-name capture missed both keys until the debug assert fired on them in

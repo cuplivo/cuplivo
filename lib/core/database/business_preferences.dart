@@ -22,10 +22,6 @@ final class BusinessPreferences {
 
   static const _providersOrderKey = 'providers_order_v1';
 
-  /// The name shape of a preference key the app itself owns. The registry's
-  /// writer scan uses the same convention, so the two guards cover one set.
-  static final _appPreferenceKeyPattern = RegExp(r'^[a-z][a-z0-9_]*_v\d+$');
-
   final BusinessRepository _repository;
   Map<String, Object> _values = <String, Object>{};
   final Map<BusinessEntityKind, Map<String, _SyntheticEntityIdentity>>
@@ -219,7 +215,7 @@ final class BusinessPreferences {
           // stored and fail-closed instead of crashing a debug build.
           assert(
             BusinessKeyRegistry.ruleFor(entry.key) != null ||
-                !_appPreferenceKeyPattern.hasMatch(entry.key),
+                !BusinessKeyRegistry.appKeyPattern.hasMatch(entry.key),
             'Unregistered preference key: ${entry.key}',
           );
           preferenceUpdates[entry.key] = entry.value;

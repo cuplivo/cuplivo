@@ -104,6 +104,13 @@ final class BusinessKeyRegistry {
 
   static bool isProviderOrder(String key) => key == providerOrderKey;
 
+  /// The name shape of a preference key the app itself owns: `…_vN`.
+  ///
+  /// One definition, two guards — the `setMany` debug assert and the writer scan
+  /// in `business_key_registry_sync_test.dart` both read this, so widening the
+  /// convention cannot leave one of them blind to what the other enforces.
+  static final appKeyPattern = RegExp(r'^[a-z][a-z0-9_]*_v\d+$');
+
   /// One row per key the app can write. This table is the whole authority: a key
   /// outside it is fail-closed — never synced, never treated as a business
   /// preference — and, in a debug build, a bug: the writer scan in
@@ -1328,12 +1335,23 @@ final class BusinessKeyRegistry {
   static bool isDeviceLocal(String key) =>
       policyOf(key) == KeyPolicy.deviceLocal;
 
-  /// Whether the key lives in the business store (`preference_rows`) at all: a
-  /// platform preference does not, and a discarded key is only read to be
-  /// dropped.
-  static bool isStoredInBusinessData(String key) => switch (policyOf(key)) {
-    KeyPolicy.synced || KeyPolicy.backupOnly || KeyPolicy.deviceLocal => true,
-    _ => false,
+  /// Whether the table registers this key as one that lives in the business
+  /// store (`preference_rows`): a platform preference does not, and a discarded
+  /// key is only read to be dropped.
+  ///
+  /// **False means unregistered, not unstorable.** The router still stores a key
+  /// the table does not know — it is routed into preferences and only kept out
+  /// of sync (see `normalizeAndRoute`) — so a restore/import guard asking "may
+  /// this key be in `preference_rows`" must not use this predicate, or it drops
+  /// every key a newer build introduced.
+  static bool isRegisteredInBusinessStore(String key) =>
+      _storedPolicies.contains(policyOf(key));
+
+  /// The policies whose keys are rows in the business store.
+  static const _storedPolicies = {
+    KeyPolicy.synced,
+    KeyPolicy.backupOnly,
+    KeyPolicy.deviceLocal,
   };
 
   /// A platform preference, or one of the restore progress markers — those are

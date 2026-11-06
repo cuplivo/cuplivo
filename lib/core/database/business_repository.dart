@@ -720,8 +720,7 @@ WHERE id IN ($placeholders);
         .get();
     return [
       for (final row in rows)
-        if (BusinessKeyRegistry.classify(row.read<String>('key')) ==
-            BusinessKeyDisposition.syncedPreference)
+        if (BusinessKeyRegistry.isSynced(row.read<String>('key')))
           (
             key: row.read<String>('key'),
             updatedAtUs: row.read<int>('updated_at'),
@@ -796,13 +795,7 @@ WHERE id IN ($placeholders);
   Future<List<Map<String, dynamic>>> syncReadPreferenceRows(
     Set<String> keys,
   ) async {
-    final synced = keys
-        .where(
-          (key) =>
-              BusinessKeyRegistry.classify(key) ==
-              BusinessKeyDisposition.syncedPreference,
-        )
-        .toSet();
+    final synced = keys.where(BusinessKeyRegistry.isSynced).toSet();
     if (synced.isEmpty) return const [];
     final rows = <Map<String, dynamic>>[];
     for (final batch in _batched(synced)) {
@@ -836,6 +829,7 @@ WHERE id IN ($placeholders);
     var entityRowsLost = 0;
     var preferencesWritten = 0;
     var preferencesLost = 0;
+    final acceptedKeys = <String>{};
     await _database.transaction(() async {
       for (final entry in entities.entries) {
         final kind = syncKindForWire(entry.key);
@@ -857,14 +851,23 @@ WHERE id IN ($placeholders);
           // table's primary key is (kind, id), so the conflict target grows.
           if (kind.extensionKind != null) row['kind'] = kind.extensionKind;
           final local = await _syncEntityRow(kind, id);
+          // The same rule on the *local* half: a row this device does not offer
+          // is not one a peer may overwrite either. Only the local payload says
+          // whether the user's linked folder sits at this id, and the incoming
+          // payload never will — so without this check a peer that guessed (or
+          // learned) the id could replace the user's link with a managed
+          // workspace.
+          //
+          // The two skips above are the *only* way this device refuses a row, so
+          // past them it ends the apply holding the key — written just below, or
+          // kept because its own copy won the comparison. That is the receipt
+          // the sender's checkpoint is allowed to trust (`SyncApplyAck`
+          // `businessAccepted`); a row dropped here is not in it.
+          if (local != null && _syncSkipsRow(kind, id, local.payload)) {
+            continue;
+          }
+          acceptedKeys.add(syncBusinessKey(entry.key, id));
           if (local != null) {
-            // The same rule on the *local* half: a row this device does not
-            // offer is not one a peer may overwrite either. Only the local
-            // payload says whether the user's linked folder sits at this id,
-            // and the incoming payload never will — so without this check a
-            // peer that guessed (or learned) the id could replace the user's
-            // link with a managed workspace.
-            if (_syncSkipsRow(kind, id, local.payload)) continue;
             if (!incomingBusinessRowWins(
               localUpdatedAtUs: local.updatedAtUs,
               incomingUpdatedAtUs: incomingAt,
@@ -906,10 +909,12 @@ WHERE id IN ($placeholders);
         final incomingAt = (row['updated_at'] as num?)?.toInt();
         if (key is! String || value is! String || incomingAt == null) continue;
         // A peer must not make this device hold a key it never syncs.
-        if (BusinessKeyRegistry.classify(key) !=
-            BusinessKeyDisposition.syncedPreference) {
+        if (!BusinessKeyRegistry.isSynced(key)) {
           continue;
         }
+        // Past that guard the row stays here either way, so the sender may
+        // record the key as peer-held (see the entity loop above).
+        acceptedKeys.add(syncBusinessKey(kSyncPreferenceWire, key));
         final local = await _syncPreferenceRow(key);
         if (local != null) {
           if (!incomingBusinessRowWins(
@@ -946,6 +951,7 @@ WHERE id IN ($placeholders);
       changed: entityRowsWritten > 0 || preferencesWritten > 0,
       entityRowsLost: entityRowsLost,
       preferencesLost: preferencesLost,
+      acceptedKeys: acceptedKeys,
     );
   }
 
@@ -1000,10 +1006,7 @@ WHERE id IN ($placeholders);
   /// reason as [syncDeleteEntity].
   Future<bool> syncDeletePreference(String key) async {
     if (key.isEmpty) return false;
-    if (BusinessKeyRegistry.classify(key) !=
-        BusinessKeyDisposition.syncedPreference) {
-      return false;
-    }
+    if (!BusinessKeyRegistry.isSynced(key)) return false;
     await recycle?.stagePreferenceRow(
       key,
       origin: RecycleOrigin.remote,

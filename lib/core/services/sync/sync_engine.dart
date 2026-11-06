@@ -1085,6 +1085,11 @@ class SyncEngine implements SyncServerHandler {
       var peerDeferred = const <String>{};
       var peerBusinessDeferred = false;
       var peerDeferredSkills = const <String>{};
+      // The rows the responder says it holds from this push. The receipt for an
+      // `iSend`: a peer that dropped a row (a key its build does not sync) names
+      // it in neither this list nor its next manifest, so nothing here records
+      // an agreement the peer never took.
+      var peerAcceptedBusiness = const <String>{};
       // The push beat always runs, even with nothing to push. It is where the
       // responder executes its own blob pull — including the retries its
       // checkpoint still owes — and skipping it would both lose that retry and
@@ -1121,6 +1126,7 @@ class SyncEngine implements SyncServerHandler {
       peerDeferred = ack.deferred;
       peerBusinessDeferred = ack.businessDeferred;
       peerDeferredSkills = ack.deferredSkills;
+      peerAcceptedBusiness = ack.businessAccepted;
 
       // Files the responder could not fetch for itself (slice 23). It asked for
       // them in the acknowledgement, and this connection is the direction the
@@ -1350,6 +1356,8 @@ class SyncEngine implements SyncServerHandler {
         receivedKeys: receivedBusiness,
         deletedKeys: deletedBusiness,
         failedDeleteKeys: failedBusinessDeletes,
+        peerAdvertisedKeys: _manifestKeys(peerHello.manifest),
+        peerAcceptedKeys: peerAcceptedBusiness,
         applyDeferred: businessOutcome.deferred,
         peerApplyDeferred: peerBusinessDeferred,
         // A skill whose body never landed was stripped on the peer, so the
@@ -1809,6 +1817,11 @@ class SyncEngine implements SyncServerHandler {
           if (entry.value.deferred) entry.key,
       },
       businessDeferred: session.businessOutcome?.deferred ?? false,
+      // What this device holds from the push. The initiator's checkpoint treats
+      // this as the receipt for a row it sent: the apply is otherwise blind to
+      // per-key rejection, and a row dropped here would look, one session later,
+      // exactly like a row the initiator deleted.
+      businessAccepted: session.businessOutcome?.acceptedKeys ?? const {},
       deferredSkills: deferredSkills,
       // Files this side wanted and could not take: the initiator pushes them
       // over the connection it already holds, which is the direction that is
@@ -2034,6 +2047,11 @@ class SyncEngine implements SyncServerHandler {
       receivedKeys: dataPlane.businessKeysOf(session.receivedBusiness),
       deletedKeys: deletedBusiness,
       failedDeleteKeys: failedBusinessDeletes,
+      peerAdvertisedKeys: _manifestKeys(session.initiatorHello.manifest),
+      // The initiator never acknowledges the fetch response, so this beat's
+      // sends have no receipt at all — `sendsConfirmed: false` already keeps
+      // their entries where they are.
+      peerAcceptedKeys: const {},
       applyDeferred: session.businessOutcome?.deferred ?? false,
       peerApplyDeferred: session.initiatorHello.unappliedBusiness,
       // The fetch response is not acknowledged: this beat's sends stay
@@ -2514,6 +2532,15 @@ class SyncEngine implements SyncServerHandler {
     ];
   }
 
+  /// Every row a manifest advertises, as [syncBusinessKey] strings: the
+  /// evidence that a row the peer *lacks* is one it could have taken.
+  static Set<String> _manifestKeys(SyncManifest manifest) => {
+    for (final entry in manifest.entities.entries)
+      for (final id in entry.value.keys) syncBusinessKey(entry.key, id),
+    for (final key in manifest.preferences.keys)
+      syncBusinessKey(kSyncPreferenceWire, key),
+  };
+
   /// Advances the business half of the checkpoint. The rule mirrors
   /// conversations: an entry moves to the current shared state (read back from
   /// local, which *is* the shared state once the exchange succeeded) only when
@@ -2521,6 +2548,20 @@ class SyncEngine implements SyncServerHandler {
   /// deferred — here or, per the push acknowledgement, on the peer — keeps its
   /// previous entry so the next session retries it. A row gone on both sides
   /// drops its entry.
+  ///
+  /// **A row this device sent counts as agreed only on a receipt.** The
+  /// acknowledgement's counts are blind to per-key rejection: a peer on an older
+  /// build drops a key it does not sync at apply and answers success
+  /// (`business_repository.dart`: `if (!BusinessKeyRegistry.isSynced(key))
+  /// continue;`). Recording that as agreement is what let the *second* session
+  /// read the peer's silence as a deletion and remove the value here — the row
+  /// was absent there because it never arrived, not because anyone deleted it.
+  /// There are two honest receipts and either will do: the acknowledgement names
+  /// the rows the peer now holds ([peerAcceptedKeys], same session), and the
+  /// peer's manifest advertises them ([peerAdvertisedKeys], from the session
+  /// after it stores them). Until one of them names the row this device keeps
+  /// offering it — idempotent, and the plan turns into `none` on its own once
+  /// the peer can take it.
   Future<SyncCheckpoint> _advanceBusinessCheckpoint({
     required SyncCheckpoint previous,
     required List<SyncBusinessPlanItem> plan,
@@ -2528,6 +2569,8 @@ class SyncEngine implements SyncServerHandler {
     required Set<String> receivedKeys,
     required Set<String> deletedKeys,
     required Set<String> failedDeleteKeys,
+    required Set<String> peerAdvertisedKeys,
+    required Set<String> peerAcceptedKeys,
     required bool applyDeferred,
     bool peerApplyDeferred = false,
     bool sendsConfirmed = true,
@@ -2550,6 +2593,12 @@ class SyncEngine implements SyncServerHandler {
       final prior = item.kindWire == kSyncPreferenceWire
           ? preferences[item.id]
           : entities[item.kindWire]?[item.id];
+      // Two receipts, either enough: the acknowledgement of *this* push names
+      // the rows the peer now holds, and the peer's manifest covers a row it
+      // already had (and every session an older build answers with no list at
+      // all). Neither names a row the peer dropped.
+      final peerHoldsRow =
+          peerAcceptedKeys.contains(key) || peerAdvertisedKeys.contains(key);
 
       Future<void> setFromLocal() async {
         final entry = await dataPlane.checkpointBusinessFromLocal(
@@ -2598,6 +2647,7 @@ class SyncEngine implements SyncServerHandler {
         case SyncConvAction.iSend:
           if (sendsConfirmed &&
               sentKeys.contains(key) &&
+              peerHoldsRow &&
               !peerApplyDeferred &&
               !peerDeferredKeys.contains(key)) {
             await setFromLocal();

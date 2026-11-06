@@ -60,9 +60,12 @@ user-managed, persisted preference.
 ## Consequences
 
 - The preference is an ordinary business key, so it must be registered where the
-  business store decides membership: `BusinessKeyRegistry.preferenceKeys` (the
-  source-scanning test fails on an unclassified writer) **and**
-  `syncedPreferenceKeys`, next to the `translate_target_lang_v1` it belongs to.
+  business store decides membership: one row in `BusinessKeyRegistry.rules` with
+  `KeyPolicy.synced` (#1068 replaced the old
+  `preferenceKeys`/`syncedPreferenceKeys` sets with that table), next to
+  `translate_target_lang_v1`, which is the row it belongs to. The source-scanning
+  test fails on an unclassified writer, and the `setMany` debug assert does the
+  same at the key's first write.
   A new device that received a target language without the visible set could not
   show it and would silently fall back to its own locale. Backup needs no
   further edit: it carries every non-device preference row. Absent-key backups

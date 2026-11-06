@@ -1354,9 +1354,20 @@ class HomePageController extends ChangeNotifier {
   Future<void> initChat() async {
     final prefs = _context.read<SettingsProvider>();
     final assistantProvider = _context.read<AssistantProvider>();
+    // Absent only in harnesses that mount no group store; the app always has
+    // one.
+    final groups = _context.read<GroupChatProvider?>();
     try {
-      // The two startups are independent of each other.
-      await Future.wait([assistantProvider.loaded, _chatService.init()]);
+      // The startups are independent of each other, except for the group list:
+      // a topic inside a group paints no assistant wallpaper or gradient, and
+      // restoring one before that list is read puts the previous assistant's
+      // artwork behind it for a frame. It is one table read, and it is what
+      // makes "the open chat's backdrop" answerable from the first frame.
+      await Future.wait([
+        assistantProvider.loaded,
+        _chatService.init(),
+        if (groups != null) groups.loaded,
+      ]);
       if (prefs.newChatOnLaunch) {
         await _createNewConversation();
       } else {

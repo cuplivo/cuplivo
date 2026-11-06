@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/models/conversation.dart';
 import '../../../../core/providers/assistant_provider.dart';
 import '../../../../core/providers/group_chat_provider.dart';
 import '../../../../core/providers/settings_provider.dart';
@@ -102,6 +103,13 @@ class ChatBackdropSpec {
   /// a group made entering one look like the background had failed to close.
   /// The chat's own backdrop widget decided this a second time; both ask here
   /// now.
+  ///
+  /// The question this answers is "what does the chat that is open look like",
+  /// not "what does the selected assistant look like" — the two differ exactly
+  /// on a group topic. That is why the settings page's bubble preview, which
+  /// paints [ChatAssistantBackground] over the open conversation like the chat
+  /// does, goes flat while a group topic is open: it is previewing the chat the
+  /// user would see, not an assistant in the abstract.
   static ChatBackdropSpec resolve(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
@@ -112,14 +120,16 @@ class ChatBackdropSpec {
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
     // Both providers are optional: previews and tests render this spec without
     // chat state, and there nothing can be a group topic.
-    final openGroupChatId = context.select<ChatService?, String?>(
-      (chat) =>
-          chat?.getConversation(chat.currentConversationId ?? '')?.groupChatId,
+    final openConversation = context.select<ChatService?, Conversation?>(
+      (chat) => chat?.getConversation(chat.currentConversationId ?? ''),
     );
+    // `forConversation` is the one statement of "this conversation is still in
+    // a live group". A topic whose group row is gone is listed as an ordinary
+    // conversation, so it has to paint like one too.
     final groupTopic = context.select<GroupChatProvider?, bool>(
-      (groups) => groups?.byId(openGroupChatId) != null,
+      (groups) => groups?.forConversation(openConversation) != null,
     );
-    final assistantBackdrop = openGroupChatId == null || !groupTopic;
+    final assistantBackdrop = !groupTopic;
     final backgroundRaw = assistantBackdrop
         ? context.select<AssistantProvider, String>(
             (p) => (p.currentAssistant?.background ?? '').trim(),

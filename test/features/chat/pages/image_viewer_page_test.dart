@@ -18,6 +18,14 @@ const _widePngDataUrl =
     'iVBORw0KGgoAAAANSUhEUgAAABQAAAAKCAYAAAC0VX7mAAAAF0lEQVR4nGP4z8Dw'
     'n5qYYdTAUQOHo4EAf0SOgJVcF6MAAAAASUVORK5CYII=';
 
+// 30x90 (1:3) — a photo tall enough to fill the picture box on any layout,
+// which is the case the dots used to sit on top of.
+const _tallPngDataUrl =
+    'data:image/png;base64,'
+    'iVBORw0KGgoAAAANSUhEUgAAAB4AAABaCAIAAAAgm3GPAAAAN0lEQVR42u3MsQ0A'
+    'AAjAoP7/tF6hEwkzTR1JrVar1Wq1Wq1Wq9VqtVqtVqvVarVarVar1Wr1R7057YIL'
+    'zGKH+QAAAABJRU5ErkJggg==';
+
 const _transparentPngBytes = <int>[
   0x89,
   0x50,
@@ -635,8 +643,8 @@ void main() {
         await tester.pump();
 
         expect(find.text('1/2'), findsOneWidget);
-        // A phone pages by swiping. The dots are the tappable alternative and
-        // they sit above the action panel, so nothing new covers the photo.
+        // A phone pages by swiping. The dots are the tappable alternative, and
+        // they live inside the action panel -- the one band that is not photo.
         expect(find.byTooltip('Previous Image'), findsNothing);
         expect(find.byTooltip('Next Image'), findsNothing);
         expect(
@@ -660,6 +668,134 @@ void main() {
       }
     },
   );
+
+  // The review of the dots measured what a phone-only test could not: the strip
+  // was placed with a literal that only matched the compact panel, and it
+  // covered the photo whenever the photo filled its box. Both are geometry, so
+  // both are asserted as geometry, on every touch layout.
+  for (final (size, label) in const <(Size, String)>[
+    (Size(390, 844), 'phone portrait'),
+    (Size(844, 390), 'phone landscape'),
+    (Size(1024, 768), 'tablet'),
+  ]) {
+    testWidgets('bottom chrome stays off the picture — $label', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      _setTestViewSize(tester, size);
+      try {
+        await tester.pumpWidget(
+          _viewerApp(
+            images: const [_tallPngDataUrl, _widePngDataUrl],
+            size: size,
+          ),
+        );
+        await tester.pump();
+
+        final picture = tester.getRect(_displayTransformFinder(0));
+        final panel = tester.getRect(
+          find.byKey(const ValueKey('image-viewer-bottom-chrome')),
+        );
+        final dots = tester.getRect(
+          find.byKey(const ValueKey('image-viewer-dots-row')),
+        );
+        final button = tester.getRect(find.byTooltip('Save Image'));
+        printOnFailure('picture=$picture panel=$panel dots=$dots $button');
+
+        // The picture stops above the panel, so nothing is drawn on the photo.
+        expect(picture.bottom, lessThanOrEqualTo(panel.top));
+        // The strip is inside the panel and clears its buttons.
+        expect(panel.overlaps(dots), isTrue);
+        expect(dots.bottom, lessThanOrEqualTo(button.top));
+        expect(dots.left, greaterThanOrEqualTo(panel.left));
+        expect(dots.right, lessThanOrEqualTo(panel.right));
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+  }
+
+  testWidgets('a mouse drag over the picture does not turn the page', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    _setTestViewSize(tester, _desktopSize);
+    try {
+      await tester.pumpWidget(
+        _viewerApp(
+          images: const [_transparentPngDataUrl, _widePngDataUrl],
+          size: _desktopSize,
+        ),
+      );
+      await tester.pump();
+      expect(find.text('1/2'), findsOneWidget);
+
+      final stage = find.byKey(const ValueKey('image-viewer-page-view'));
+      final mouse = await tester.startGesture(
+        tester.getCenter(stage),
+        kind: PointerDeviceKind.mouse,
+      );
+      for (var i = 0; i < 4; i++) {
+        await mouse.moveBy(const Offset(-40, 0));
+        await tester.pump();
+      }
+      await mouse.up();
+      await tester.pumpAndSettle();
+
+      // A mouse is not a swipe: the arrows are the desktop's pointer path, and
+      // the PageView itself never accepted this pointer either.
+      expect(find.text('1/2'), findsOneWidget);
+
+      // Control: the same travel with a finger does turn the page.
+      await tester.fling(stage, const Offset(-400, 0), 1200);
+      await tester.pumpAndSettle();
+      expect(find.text('2/2'), findsOneWidget);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('a long batch keeps a reachable dot for every page', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    _setTestViewSize(tester, _mobileSize);
+    try {
+      final images = List<String>.generate(20, (i) => 'memory://dot-$i');
+      final providers = <String, ImageProvider>{
+        for (final src in images)
+          src: MemoryImage(Uint8List.fromList(_transparentPngBytes)),
+      };
+      await tester.pumpWidget(
+        _viewerApp(
+          images: images,
+          imageProviders: providers,
+          size: _mobileSize,
+        ),
+      );
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      // Past twelve images the strip used to vanish, leaving the swipe as the
+      // only way to page on a phone.
+      expect(
+        find.byKey(const ValueKey('image-viewer-page-dot-19')),
+        findsOneWidget,
+      );
+      final panel = tester.getRect(
+        find.byKey(const ValueKey('image-viewer-bottom-chrome')),
+      );
+      final dots = tester.getRect(
+        find.byKey(const ValueKey('image-viewer-dots-row')),
+      );
+      expect(dots.right, lessThanOrEqualTo(panel.right + 0.5));
+      expect(dots.width, lessThanOrEqualTo(panel.width + 0.5));
+
+      await tester.tap(find.byKey(const ValueKey('image-viewer-page-dot-19')));
+      await tester.pumpAndSettle();
+      expect(find.text('20/20'), findsOneWidget);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 
   testWidgets(
     'ImageViewerPage keeps a swipe that starts off-axis a page turn',

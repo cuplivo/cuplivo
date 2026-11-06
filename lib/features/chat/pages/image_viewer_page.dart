@@ -31,21 +31,34 @@ const int kMaxViewerDecodeEdge = 4096;
 const int kMaxViewerDecodePixels = 12 * 1024 * 1024;
 
 /// How much more downward than sideways a drag has to be before the picture
-/// follows it as a dismiss, and how far / how fast a sideways drag has to
-/// travel to become a page turn on its own.
+/// follows it as a dismiss, and how far a sideways drag has to travel to become
+/// a page turn on its own.
 @visibleForTesting
 const double kViewerDragVerticalBias = 1.4;
 
 @visibleForTesting
 const double kViewerSwipeDistance = 60;
 
-@visibleForTesting
-const double kViewerSwipeVelocity = 300;
+/// One button in the bottom panel, and therefore the height of its button row.
+const double kViewerActionButtonSize = 48;
 
-/// A phone page indicator stops being readable past this many dots; the
-/// counter in the top bar still reports the position.
-@visibleForTesting
-const int kMaxViewerPageDots = 12;
+/// Clearance between the bottom panel and the picture above it.
+const double kViewerChromeGap = 12;
+
+/// One page-dot cell: the tap target. The width shrinks when a batch has more
+/// pages than the strip has room for, so the strip never overflows the panel.
+const double kViewerDotCellWidth = 26;
+const double kViewerDotCellHeight = 30;
+
+/// Where the bottom chrome sits, how tall it is, and how much room the picture
+/// above it has to leave. Built once per layout in `_bottomChromeMetrics`.
+typedef _BottomChrome = ({
+  double pad,
+  double dotsGap,
+  double panelBottom,
+  double pictureGutter,
+  double dotsMaxWidth,
+});
 
 @visibleForTesting
 ({int width, int height}) computeViewerDecodePixels({
@@ -359,6 +372,7 @@ class _ImageViewerPageState extends State<ImageViewerPage>
   int? _dragPointer; // the one finger that owns the dismiss drag
   Offset? _dragStart; // where that finger went down
   double _pageAtDragStart = 0.0; // scroll position when the finger landed
+  PointerDeviceKind? _dragKind; // what kind of pointer owns the drag
   VelocityTracker _dragVelocity = VelocityTracker.withKind(
     PointerDeviceKind.touch,
   );
@@ -990,10 +1004,11 @@ class _ImageViewerPageState extends State<ImageViewerPage>
   void _handlePointerDown(PointerDownEvent event) {
     if (_dragPointer != null) return; // one finger owns the dismiss
     _dragPointer = event.pointer;
+    _dragKind = event.kind;
     _dragStart = event.position;
     _pageAtDragStart = _controller.page ?? _index.toDouble();
     _dragActive = false;
-    _dragVelocity = VelocityTracker.withKind(PointerDeviceKind.touch)
+    _dragVelocity = VelocityTracker.withKind(event.kind)
       ..addPosition(event.timeStamp, event.position);
   }
 
@@ -1034,22 +1049,30 @@ class _ImageViewerPageState extends State<ImageViewerPage>
     if (event.pointer != _dragPointer) return;
     final v = _dragVelocity.getVelocity().pixelsPerSecond;
     final start = _dragStart;
+    final kind = _dragKind;
     final travelled = start == null ? Offset.zero : event.position - start;
     final dismissing = _dragActive && _dragDy > 0;
     final pageBefore = _pageAtDragStart;
     _endPointerDrag();
 
-    if (_canDragDismiss() &&
+    // This page turn exists for a swipe the PageView was allowed to take and
+    // did not -- a thumb that started downward, so the vertical dismiss owned
+    // the gesture arena until it gave up. A mouse is not a swipe: the PageView
+    // rejects it outright, and on a desktop window the arrows are the pointer
+    // path between pages. Asking the same scroll configuration the PageView
+    // obeys is what keeps the two in step.
+    final swipeKind =
+        kind != null &&
+        ScrollConfiguration.of(context).dragDevices.contains(kind) &&
+        _canDragDismiss();
+    if (swipeKind &&
         travelled.dx.abs() >= kViewerSwipeDistance &&
         travelled.dx.abs() > travelled.dy.abs()) {
-      // A sideways drag normally pages through the PageView itself; it only
-      // lands here when the page never moved, which is what a thumb that
-      // started downward used to produce.
       final moved = ((_controller.page ?? pageBefore) - pageBefore).abs();
       if (moved < 0.15) {
-        if (travelled.dx < 0 || v.dx < -kViewerSwipeVelocity) {
+        if (travelled.dx < 0) {
           _showNext();
-        } else if (travelled.dx > 0 || v.dx > kViewerSwipeVelocity) {
+        } else {
           _showPrevious();
         }
       }
@@ -1075,6 +1098,7 @@ class _ImageViewerPageState extends State<ImageViewerPage>
 
   void _endPointerDrag() {
     _dragPointer = null;
+    _dragKind = null;
     _dragStart = null;
     _dragActive = false;
   }
@@ -1513,6 +1537,18 @@ class _ImageViewerPageState extends State<ImageViewerPage>
     final topInset =
         media.padding.top + (_isDesktop && Platform.isMacOS ? 22 : 0);
     final chromeOpacity = _chromeVisible ? _bgOpacity.clamp(0.0, 1.0) : 0.0;
+    final showDots = _hasMultipleImages && !_isDesktop;
+    final draft =
+        widget.draftActions?.call(_index) ?? const DraftImageActions();
+    final showActions =
+        _hasImages && (widget.draftActions == null || !draft.isEmpty);
+    final chrome = _bottomChromeMetrics(
+      size: size,
+      compact: compact,
+      showDots: showDots,
+      showActions: showActions,
+      bottomInset: media.padding.bottom,
+    );
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -1538,7 +1574,11 @@ class _ImageViewerPageState extends State<ImageViewerPage>
                   ),
                 ),
               ),
-              if (_hasImages) _buildPagedImageStage(context),
+              if (_hasImages)
+                _buildPagedImageStage(
+                  context,
+                  bottomGutter: chrome.pictureGutter,
+                ),
               _buildTopBar(
                 context,
                 topInset: topInset,
@@ -1554,12 +1594,13 @@ class _ImageViewerPageState extends State<ImageViewerPage>
                   opacity: chromeOpacity,
                   compact: compact,
                 ),
-              if (_hasMultipleImages && !_isDesktop)
-                _buildPageDots(context, bottomInset: media.padding.bottom),
-              _buildActionChrome(
+              _buildBottomChrome(
                 context,
+                chrome: chrome,
+                draft: draft,
                 compact: compact,
-                bottomInset: media.padding.bottom,
+                showDots: showDots,
+                showActions: showActions,
                 opacity: chromeOpacity,
               ),
             ],
@@ -1569,7 +1610,10 @@ class _ImageViewerPageState extends State<ImageViewerPage>
     );
   }
 
-  Widget _buildPagedImageStage(BuildContext context) {
+  Widget _buildPagedImageStage(
+    BuildContext context, {
+    required double bottomGutter,
+  }) {
     final l10n = AppLocalizations.of(context)!;
     final stage = Listener(
       behavior: HitTestBehavior.translucent,
@@ -1592,7 +1636,8 @@ class _ImageViewerPageState extends State<ImageViewerPage>
             _resetDragState();
           });
         },
-        itemBuilder: _buildImagePage,
+        itemBuilder: (context, i) =>
+            _buildImagePage(context, i, bottomGutter: bottomGutter),
       ),
     );
     // Paging is a path gesture, so a reader that cannot swipe gets named
@@ -1612,7 +1657,11 @@ class _ImageViewerPageState extends State<ImageViewerPage>
     );
   }
 
-  Widget _buildImagePage(BuildContext context, int i) {
+  Widget _buildImagePage(
+    BuildContext context,
+    int i, {
+    required double bottomGutter,
+  }) {
     final l10n = AppLocalizations.of(context)!;
     final src = widget.images[i];
     final translateY = (i == _index) ? _dragDy : 0.0;
@@ -1624,9 +1673,11 @@ class _ImageViewerPageState extends State<ImageViewerPage>
       builder: (context, constraints) {
         final pageSize = Size(constraints.maxWidth, constraints.maxHeight);
         final compact = constraints.maxWidth < 700;
+        // The gutter is the bottom chrome's own height plus clearance, so the
+        // picture stops above the panel instead of running under it.
         final padding = compact
-            ? const EdgeInsets.symmetric(vertical: 82)
-            : const EdgeInsets.fromLTRB(92, 82, 92, 106);
+            ? EdgeInsets.only(top: 82, bottom: bottomGutter)
+            : EdgeInsets.fromLTRB(92, 82, 92, bottomGutter);
         final availableSize = Size(
           math.max(0.0, pageSize.width - padding.horizontal),
           math.max(0.0, pageSize.height - padding.vertical),
@@ -1841,9 +1892,10 @@ class _ImageViewerPageState extends State<ImageViewerPage>
   }) {
     final l10n = AppLocalizations.of(context)!;
     // Desktop only: a mouse cannot drag a PageView (Flutter's default drag
-    // devices are touch-like), so on a desktop window the arrows are the only
-    // pointer path between pages. A narrow window shrinks them; a touch device
-    // gets the dots below instead, where they cannot sit on the picture.
+    // devices are touch-like) and the release-time page turn is limited to
+    // those same kinds, so on a desktop window the arrows are the only pointer
+    // path between pages. A narrow window shrinks them; a touch device pages by
+    // swiping and by the dot strip inside the action panel.
     final size = compact ? 42.0 : 52.0;
     final inset = compact ? 10.0 : 24.0;
     return IgnorePointer(
@@ -1888,77 +1940,135 @@ class _ImageViewerPageState extends State<ImageViewerPage>
     );
   }
 
-  /// The touch-platform page indicator: one dot per page, the current one
-  /// stretched into a pill. Each dot is also a button, so paging does not
-  /// depend on a path gesture alone, and the row sits above the action panel
-  /// instead of over the picture.
-  Widget _buildPageDots(BuildContext context, {required double bottomInset}) {
-    final count = widget.images.length;
-    if (count < 2 || count > kMaxViewerPageDots) {
-      return const SizedBox.shrink();
-    }
-    final l10n = AppLocalizations.of(context)!;
+  /// The bottom chrome's geometry, decided in one place. The panel's height is
+  /// computed from the same numbers its own widget uses, and the picture's
+  /// bottom gutter is that height plus clearance, so the picture can never
+  /// extend under the panel -- which is what put the page dots on the photo.
+  _BottomChrome _bottomChromeMetrics({
+    required Size size,
+    required bool compact,
+    required bool showDots,
+    required bool showActions,
+    required double bottomInset,
+  }) {
+    final pad = compact ? 8.0 : 10.0;
+    final dotsGap = (showDots && showActions) ? (compact ? 6.0 : 8.0) : 0.0;
+    final dotsRow = showDots ? kViewerDotCellHeight : 0.0;
+    final buttonRow = showActions ? kViewerActionButtonSize : 0.0;
+    final hasPanel = showDots || showActions;
+    final height = hasPanel ? pad * 2 + dotsRow + dotsGap + buttonRow : 0.0;
+    final panelBottom = hasPanel
+        ? math.max(bottomInset, 12.0) + (compact ? 10.0 : 18.0)
+        : 0.0;
+    return (
+      pad: pad,
+      dotsGap: dotsGap,
+      panelBottom: panelBottom,
+      pictureGutter:
+          (hasPanel ? panelBottom + height : math.max(bottomInset, 12.0)) +
+          kViewerChromeGap,
+      dotsMaxWidth: math.max(0.0, size.width - 32.0 - pad * 2),
+    );
+  }
+
+  Widget _buildBottomChrome(
+    BuildContext context, {
+    required _BottomChrome chrome,
+    required DraftImageActions draft,
+    required bool compact,
+    required bool showDots,
+    required bool showActions,
+    required double opacity,
+  }) {
+    if (!showDots && !showActions) return const SizedBox.shrink();
     return Positioned(
-      left: 0,
-      right: 0,
-      bottom: math.max(bottomInset, 12) + 74,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 160),
-        curve: Curves.easeOutCubic,
-        opacity: _chromeVisible ? 1 : 0,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            for (var i = 0; i < count; i++)
-              Semantics(
-                button: true,
-                selected: i == _index,
-                label: l10n.imageViewerPageCounter(i + 1, count),
-                child: GestureDetector(
-                  key: ValueKey('image-viewer-page-dot-$i'),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => _goToIndex(i),
-                  child: SizedBox(
-                    width: 26,
-                    height: 30,
-                    child: Center(
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 160),
-                        curve: Curves.easeOutCubic,
-                        width: i == _index ? 16 : 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(
-                            alpha: i == _index ? 0.95 : 0.45,
-                          ),
-                          borderRadius: BorderRadius.circular(3),
-                          boxShadow: const [
-                            BoxShadow(color: Color(0x40000000), blurRadius: 2),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+      left: 16,
+      right: 16,
+      bottom: chrome.panelBottom,
+      child: IgnorePointer(
+        ignoring: opacity <= 0.01,
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOutCubic,
+          opacity: opacity.toDouble(),
+          child: Center(
+            child: _GlassPanel(
+              key: const ValueKey('image-viewer-bottom-chrome'),
+              padding: EdgeInsets.all(chrome.pad),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (showDots)
+                    _buildDotsRow(context, maxWidth: chrome.dotsMaxWidth),
+                  if (showDots && showActions) SizedBox(height: chrome.dotsGap),
+                  if (showActions)
+                    _buildActionRow(context, draft: draft, compact: compact),
+                ],
               ),
-          ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildActionChrome(
+  /// The touch-platform page indicator: one dot per page, the current one
+  /// stretched into a pill. Each dot is also a button, so paging does not
+  /// depend on a path gesture alone. It lives inside the bottom panel, which is
+  /// the one band of the screen that is not the picture.
+  Widget _buildDotsRow(BuildContext context, {required double maxWidth}) {
+    final l10n = AppLocalizations.of(context)!;
+    final count = widget.images.length;
+    // A batch with more pages than the strip has room for shrinks the cells
+    // instead of dropping the strip: paging must not fall back to the swipe
+    // alone just because a draft holds thirteen images.
+    final cellWidth = count == 0
+        ? kViewerDotCellWidth
+        : math.min(kViewerDotCellWidth, maxWidth / count);
+    final dotWidth = math.max(1.0, math.min(6.0, cellWidth - 1));
+    final pillWidth = math.max(dotWidth, math.min(16.0, cellWidth - 1));
+    return Row(
+      key: const ValueKey('image-viewer-dots-row'),
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (var i = 0; i < count; i++)
+          Semantics(
+            button: true,
+            selected: i == _index,
+            label: l10n.imageViewerPageCounter(i + 1, count),
+            child: GestureDetector(
+              key: ValueKey('image-viewer-page-dot-$i'),
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _goToIndex(i),
+              child: SizedBox(
+                width: cellWidth,
+                height: kViewerDotCellHeight,
+                child: Center(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    curve: Curves.easeOutCubic,
+                    width: i == _index ? pillWidth : dotWidth,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(
+                        alpha: i == _index ? 0.95 : 0.45,
+                      ),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildActionRow(
     BuildContext context, {
+    required DraftImageActions draft,
     required bool compact,
-    required double bottomInset,
-    required double opacity,
   }) {
-    if (!_hasImages) return const SizedBox.shrink();
-    final draft =
-        widget.draftActions?.call(_index) ?? const DraftImageActions();
-    if (widget.draftActions != null && draft.isEmpty) {
-      return const SizedBox.shrink();
-    }
     final l10n = AppLocalizations.of(context)!;
     final actions = <Widget>[
       if (widget.draftActions != null) ...[
@@ -2035,40 +2145,21 @@ class _ImageViewerPageState extends State<ImageViewerPage>
         ),
       ],
     ];
-
-    return Positioned(
-      left: 16,
-      right: 16,
-      bottom: math.max(bottomInset, 12) + (compact ? 10 : 18),
-      child: IgnorePointer(
-        ignoring: opacity <= 0.01,
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOutCubic,
-          opacity: opacity.toDouble(),
-          child: Center(
-            child: _GlassPanel(
-              padding: EdgeInsets.all(compact ? 8 : 10),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                physics: compact
-                    ? const BouncingScrollPhysics()
-                    : const NeverScrollableScrollPhysics(),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: actions
-                      .expand((child) sync* {
-                        if (child != actions.first) {
-                          yield SizedBox(width: compact ? 8 : 10);
-                        }
-                        yield child;
-                      })
-                      .toList(growable: false),
-                ),
-              ),
-            ),
-          ),
-        ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: compact
+          ? const BouncingScrollPhysics()
+          : const NeverScrollableScrollPhysics(),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: actions
+            .expand((child) sync* {
+              if (child != actions.first) {
+                yield SizedBox(width: compact ? 8 : 10);
+              }
+              yield child;
+            })
+            .toList(growable: false),
       ),
     );
   }
@@ -2385,7 +2476,7 @@ class _GlassCircleButton extends StatefulWidget {
     required this.icon,
     this.onTap,
     this.loading = false,
-    this.size = 48,
+    this.size = kViewerActionButtonSize,
   });
 
   final String label;
@@ -2494,7 +2585,7 @@ class _GlassCircleButtonState extends State<_GlassCircleButton> {
 }
 
 class _GlassPanel extends StatelessWidget {
-  const _GlassPanel({required this.child, required this.padding});
+  const _GlassPanel({super.key, required this.child, required this.padding});
 
   final Widget child;
   final EdgeInsetsGeometry padding;

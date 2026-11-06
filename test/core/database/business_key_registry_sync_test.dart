@@ -269,11 +269,17 @@ void main() {
     // getter (`JsonBlobStore.writeAll` writes `setString(storageKey, …)`, which is
     // how desktop_scheduled_tasks_v1 once slipped through).
     final sources = <String, String>{};
-    for (final entity in Directory('lib').listSync(recursive: true)) {
-      if (entity is! File || !entity.path.endsWith('.dart')) continue;
-      final path = entity.path.replaceAll(r'\', '/');
+    // Sorted: `listSync` returns filesystem order, and the same scan has to give
+    // the same answer on every machine — an unsorted walk is what made an
+    // earlier version of this test green on Windows and red on Linux CI.
+    final paths = [
+      for (final entity in Directory('lib').listSync(recursive: true))
+        if (entity is File && entity.path.endsWith('.dart'))
+          entity.path.replaceAll(r'\', '/'),
+    ]..sort();
+    for (final path in paths) {
       if (path.contains('/l10n/') || path.endsWith('.g.dart')) continue;
-      sources[path] = entity.readAsStringSync();
+      sources[path] = File(path).readAsStringSync();
     }
     expect(sources, isNotEmpty, reason: 'run this test from the package root');
 
@@ -281,15 +287,39 @@ void main() {
       r"const\s+(?:String\s+)?(\w+)\s*=\s*'([^']+)'",
     );
     final constantsByFile = <String, Map<String, String>>{};
-    final sharedConstants = <String, String>{};
     for (final entry in sources.entries) {
       final local = <String, String>{};
       for (final match in constantPattern.allMatches(entry.value)) {
         local[match.group(1)!] = match.group(2)!;
       }
       constantsByFile[entry.key] = local;
-      for (final constant in local.entries) {
-        sharedConstants.putIfAbsent(constant.key, () => constant.value);
+    }
+
+    // `Class.staticConst` — `ScheduledTaskStore.preferenceKey` in `main.dart` —
+    // resolves through the class that declares it. A bare name is read from its
+    // own file only: `key` is a JS snippet's name in one file and a closure
+    // parameter in another, and resolving a bare name across every file made
+    // this scan depend on directory listing order — green on Windows, red on
+    // Linux CI, where a different file won the lookup (review of #1068).
+    final classHeaderPattern = RegExp(r'^class\s+(\w+)', multiLine: true);
+    final qualifiedArgumentPattern = RegExp(
+      r'^([A-Za-z_]\w*)\.([A-Za-z_]\w*)$',
+    );
+    final staticConstants = <String, Map<String, String>>{};
+    for (final entry in sources.entries) {
+      final headers = [
+        for (final match in classHeaderPattern.allMatches(entry.value))
+          (name: match.group(1)!, at: match.start),
+      ];
+      if (headers.isEmpty) continue;
+      for (final match in constantPattern.allMatches(entry.value)) {
+        String? owner;
+        for (final header in headers) {
+          if (header.at < match.start) owner = header.name;
+        }
+        if (owner == null) continue;
+        (staticConstants[owner] ??= <String, String>{})[match.group(1)!] = match
+            .group(2)!;
       }
     }
 
@@ -368,8 +398,15 @@ void main() {
     for (final entry in sources.entries) {
       final fileConstants = constantsByFile[entry.key]!;
       for (final match in writePattern.allMatches(entry.value)) {
+        final argument = match.group(1)!;
         final candidates = <String>[];
-        for (final token in tokenPattern.allMatches(match.group(1)!)) {
+        final qualified = qualifiedArgumentPattern.firstMatch(argument);
+        if (qualified != null) {
+          final staticValue =
+              staticConstants[qualified.group(1)!]?[qualified.group(2)!];
+          if (staticValue != null) candidates.add(staticValue);
+        }
+        for (final token in tokenPattern.allMatches(argument)) {
           final literal = token.group(1);
           if (literal != null) {
             final expanded = _expandInterpolations(literal, fileConstants);
@@ -381,16 +418,14 @@ void main() {
           if (local != null) candidates.add(local);
           final entitySourceKey = entityConstantsByFile[entry.key]?[name];
           if (entitySourceKey != null) candidates.add(entitySourceKey);
-          final shared = sharedConstants[name];
-          if (shared != null) candidates.add(shared);
           final viaGetter = getterKeys[name];
           if (viaGetter != null) candidates.addAll(viaGetter);
         }
-        if (candidates.isEmpty && match.group(1)!.contains("'")) {
-          // A literal argument nothing here could name is a hole in this guard:
-          // an identifier is not (the caller holds that key), but a string the
-          // scan sees and cannot read means the check silently skipped a writer.
-          unresolved.add('${match.group(1)!.trim()} (${entry.key})');
+        if (candidates.isEmpty) {
+          // Every write the scan cannot name is listed, not skipped: an
+          // identifier here is a parameter or a value the caller supplies, and
+          // the list below pins the ones that exist so a new one is looked at.
+          unresolved.add('$argument (${entry.key})');
         }
         for (final key in candidates) {
           written.putIfAbsent(key, () => entry.key);
@@ -420,15 +455,20 @@ void main() {
       ]),
     );
 
-    // Pinned, not ignored: an argument built at runtime cannot be checked, so a
-    // new one has to be looked at and added here on purpose.
-    expect(
-      unresolved.toList()..sort(),
-      <String>[],
-      reason:
-          'Every literal a setter is handed must resolve to a key the table can '
-          'check. A dynamic one means the guard stopped seeing that writer.',
-    );
+    // Pinned, not ignored: a write whose key argument the scan cannot name is
+    // listed so a new one is seen. Both entries are parameters, and both keys
+    // are accounted for elsewhere:
+    //
+    // - `_setDate(key, …)` in the backup reminder is called with
+    //   `backup_reminder_enabled_at_v1` / `backup_reminder_last_backup_at_v1`,
+    //   both rows in the table;
+    // - `prefs.setInt(key, …)` in `main.dart` is `SharedPreferences`, not the
+    //   business store: its key is `restore_archive_prune_cold_starts_v1`, which
+    //   never travels anywhere.
+    expect(unresolved.toList()..sort(), <String>[
+      'key (lib/core/providers/backup_reminder_provider.dart)',
+      'key (lib/main.dart)',
+    ]);
 
     final unclassified = [
       for (final key in written.keys)

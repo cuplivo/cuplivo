@@ -198,12 +198,15 @@ reader does not "fix" the inconsistency.
 ## Tests that pin it
 
 1. **Partition.** Every key a preference setter is handed is in the table —
-   resolved through literals, same-file consts, one-hop getters, interpolations
-   (`'${_prefix}open_v1'`) and `BusinessEntityKind.<kind>.sourceKey`. The scan
-   deliberately does not filter by `appKeyPattern`: that convention cannot see
-   `user_name`, `avatar_type`, `avatar_value` or `auto_retry_options`, and the
-   last of those stayed outside the table for exactly that reason (review of
-   #1068). `restore_*` is the only dynamic family.
+   resolved through literals, same-file consts, `Class.staticConst`, one-hop
+   getters (cross-file, all values of the name, so the answer does not depend on
+   walk order), interpolations (`'${_prefix}open_v1'`) and
+   `BusinessEntityKind.<kind>.sourceKey`. Writes the scan still cannot name are
+   pinned in the test, not skipped. The scan deliberately does not filter by
+   `appKeyPattern`: that convention cannot see `user_name`, `avatar_type`,
+   `avatar_value` or `auto_retry_options`, and the last of those stayed outside
+   the table for exactly that reason (review of #1068). `restore_*` is the only
+   dynamic family.
 2. **Membership pin.** The synced set is asserted as a literal list: 82 keys.
    A change to the wire face is a deliberate edit, not a count.
 3. **Companion.** Exhaustive over kinds; companions synced.

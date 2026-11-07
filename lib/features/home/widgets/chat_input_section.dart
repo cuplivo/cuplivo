@@ -167,7 +167,9 @@ class ChatInputSection extends StatelessWidget {
   /// A group has no single model, no single assistant prompt and no per-chat
   /// search switch: the composer keeps what belongs to the *conversation*
   /// (attachments, browser, mini map, context management and its ring) and drops
-  /// what belongs to one assistant, so both layouts mean the same thing.
+  /// what belongs to one assistant. This field decides what a group *has*, never
+  /// where it goes: every action a group keeps is offered in the same place the
+  /// 1:1 composer offers it.
   final GroupChat? group;
   final VoidCallback? onOpenGroupMembers;
 
@@ -220,12 +222,14 @@ class ChatInputSection extends StatelessWidget {
     if (showWorkspaceButton || showEnvChip) {
       workspaceBound = _isWorkspaceBound(context);
     }
-    // The left action bar carries the conversation's tools where there is room
-    // for them — the wide layouts. A phone keeps that slot for identity alone
-    // (the model in a 1:1 chat, the member cluster in a group) and puts the same
-    // actions in the composer's + panel, with the mini map also in the top bar.
-    // A group used to force them into the phone's bar as well, which overflowed
-    // at 360dp and left a second "+" beside the panel's own.
+    // Where the conversation's tools go. The wide layouts have room for them in
+    // the left action bar; a phone does not, so it offers them in the composer's
+    // + panel instead, and keeps the mini map in the top bar where it always
+    // was. This decision covers these tools and nothing else: search, reasoning,
+    // the tools button and quick phrases stay in that bar on every layout.
+    // A group used to force the tools into the phone's bar as well, which pushed
+    // the row past its width and made the bar's overflow button sit beside the
+    // panel's own "+".
     final leftBarTools = isTablet;
 
     final bar = ChatInputBar(

@@ -242,7 +242,9 @@ void main() {
         openSearch: () {},
       );
       expect(find.byTooltip('Tools'), findsNothing);
-      await tester.tap(find.byTooltip('Add'));
+      // The bar's overflow is not the tools panel's "+": it reaches the actions
+      // that did not fit, so it has its own tooltip.
+      await tester.tap(find.byTooltip('More actions'));
       await tester.pumpAndSettle();
       expect(find.text('Open browser'), findsOneWidget);
       await tester.tap(find.text('Open browser'));

@@ -1159,6 +1159,7 @@
   "chatInputBarMcpServersTooltip": "MCP服务器",
   "chatInputBarToolsTooltip": "工具",
   "chatInputBarMoreTooltip": "更多",
+  "chatInputBarOverflowTooltip": "更多操作",
   "chatInputBarVoiceInputTooltip": "语音输入",
   "chatInputBarVoiceCancelTooltip": "取消录音",
   "chatInputBarVoiceStopTooltip": "停止并转为文字",

@@ -4105,9 +4105,13 @@ class _ChatInputBarState extends State<ChatInputBar>
           children.add(
             Container(
               key: _leftOverflowAnchorKey,
+              // Not a second "+": a phone draws the tools panel's own "+" in the
+              // same row, and two buttons wearing the same glyph and the same
+              // tooltip read as one control twice. This one reaches the actions
+              // that did not fit.
               child: _CompactIconButton(
-                tooltip: l10n.chatInputBarMoreTooltip,
-                icon: Lucide.Plus,
+                tooltip: l10n.chatInputBarOverflowTooltip,
+                icon: Lucide.Ellipsis,
                 onTap: () {
                   showDesktopAnchoredMenu(
                     context,

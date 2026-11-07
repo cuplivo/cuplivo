@@ -3315,6 +3315,45 @@ void main() {
       );
     });
 
+    test('refuses a format that declares a scope but carries none', () async {
+      // Spelled "equals the format this build writes", this check covered format
+      // 3 only while 3 *was* current: moving to 4 would have left every backup
+      // written before this release unvalidated, and an absent block reads as
+      // *everything included* — environment variables included.
+      const invalidScopes = <String, Object>{
+        'empty': <String, Object>{},
+        'nonbool': <String, Object>{'chats': 'yes'},
+      };
+      for (final format in BackupArchiveFormat.declaresScope) {
+        for (final invalid in invalidScopes.entries) {
+          final zipFile = await _createSqliteBackupFixture(
+            root: root,
+            prefix: 'scope_${format}_${invalid.key}',
+            settings: const {},
+            formatVersionOverride: format,
+            extraManifestFields: {'scope': invalid.value},
+          );
+          await expectLater(
+            DataSync(
+              businessRepository: businessRepository,
+              chatService: ChatService(),
+            ).restoreFromLocalFile(zipFile, _withoutAssets),
+            throwsA(
+              isA<FormatException>().having(
+                (e) => e.message,
+                'message',
+                'manifest_scope',
+              ),
+            ),
+            reason: 'format $format declares a scope block',
+          );
+        }
+      }
+      // Format 2 predates the block and stays tolerated; every other test in
+      // this file restores a format-2 fixture without one.
+      expect(BackupArchiveFormat.declaresScope, isNot(contains(2)));
+    });
+
     test('every backup this build writes declares its readers', () async {
       // Without this the whole mechanism is inert: a future build has nothing
       // to check against and must refuse today's archives.

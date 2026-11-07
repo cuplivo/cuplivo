@@ -2429,8 +2429,10 @@ class DataSync {
       'formatVersion': formatVersion,
       // An older archive speaks for itself, so it declares its own version as
       // the floor. Only the format this build writes can promise more than it
-      // is, and [_minimumReadableFormatVersion] is that promise.
-      backupMinimumReadableFormatKey: formatVersion >= _backupFormatVersion
+      // is, and [_minimumReadableFormatVersion] is that promise -- a format
+      // newer than ours is one we have never parsed, so the floor it can claim
+      // is itself.
+      backupMinimumReadableFormatKey: formatVersion == _backupFormatVersion
           ? _minimumReadableFormatVersion
           : formatVersion,
       'payloadKind': includeChats ? 'sqlite' : 'settings-only',
@@ -2503,7 +2505,11 @@ class DataSync {
       throw const FormatException('manifest_fields');
     }
     final businessEntityRowIds = _parseBusinessEntityRowIds(manifest);
-    if (manifest['formatVersion'] == _backupFormatVersion) {
+    // Every format that declares a scope block, not just the one this build
+    // writes: spelled the other way, the check moved off format 3 — the format
+    // of every backup written before this release — the moment current became
+    // 4, and a block that is absent reads as *everything included*.
+    if (BackupArchiveFormat.declaresScope.contains(manifest['formatVersion'])) {
       final declaredScope = manifest['scope'];
       if (declaredScope is! Map ||
           BackupCategory.values.any(

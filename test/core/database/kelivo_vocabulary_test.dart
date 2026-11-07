@@ -4,6 +4,7 @@ import 'package:Cuplivo/core/database/business_data.dart';
 import 'package:Cuplivo/core/database/kelivo_vocabulary.dart';
 import 'package:Cuplivo/core/models/backup_scope.dart';
 import 'package:Cuplivo/core/models/backup_target.dart';
+import 'package:Cuplivo/core/services/backup/backup_archive_format.dart';
 
 /// Holds the reverse-import contract still true.
 ///
@@ -62,6 +63,25 @@ void main() {
       );
     },
   );
+
+  test('a pinned release reads no format this build cannot write', () {
+    // Rule 17 has the next person pin a vocabulary per Kelivo release. A
+    // release *ahead* of us would have the export stamp an archive with a
+    // format this build cannot produce and declare a readability floor for a
+    // format it has never parsed — and the forward-compatibility path would
+    // then accept that archive as one of its own.
+    for (final target in BackupTarget.values) {
+      final vocabulary = target.vocabulary;
+      if (vocabulary == null) continue;
+      expect(
+        vocabulary.archiveFormatVersion,
+        lessThanOrEqualTo(BackupArchiveFormat.current),
+        reason:
+            '${target.name} declares archive format '
+            '${vocabulary.archiveFormatVersion}, which this build cannot write.',
+      );
+    }
+  });
 
   test('the backup scope names only categories the pinned release declares', () {
     final declared = {

@@ -23,4 +23,21 @@ final class BackupArchiveFormat {
   /// so refusing it would make a backup this build produced for a Kelivo user
   /// unreadable to the build that produced it.
   static const legacyReadable = <int>{2, 3};
+
+  /// The last format whose manifest carries no `scope` block to validate.
+  static const scopeLess = 2;
+
+  /// Formats whose manifest carries a full `scope` block, so a missing or
+  /// partial one is a refusal.
+  ///
+  /// Derived, never restated: the check that reads this used to be spelled
+  /// "equals the format this build writes", which covered format 3 only while 3
+  /// *was* current and silently stopped covering it — the format of every
+  /// backup written before the bump — the day [current] became 4. An absent
+  /// block then reads as *everything included*, which restores categories no
+  /// archive claimed to hold.
+  static final Set<int> declaresScope = {
+    ...legacyReadable,
+    current,
+  }.difference({scopeLess});
 }

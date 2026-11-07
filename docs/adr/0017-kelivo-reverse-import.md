@@ -52,6 +52,15 @@ all: `flutter test` stays entirely green while the archive is unusable.
    have this build reject its own archives. The staging candidate's resumable formats are derived from
    the same place, so a restore interrupted across an upgrade still resumes.
 
+   The manifest `scope` block is validated for every format that *declares* one
+   (`BackupArchiveFormat.declaresScope`), never for "the format this build writes": keyed on the
+   current number, that check silently left format 3 — the format of every backup written before this
+   release — the moment the number moved to 4, and a block that is absent reads as *everything
+   included*. Same for the readability floor the export declares: only the format this build writes
+   may promise a lower floor than itself, so a target whose format is newer than `BackupArchiveFormat
+   .current` is refused by the pin test rather than stamped with a promise about a parser that does
+   not exist here.
+
 4. **The vocabulary is pinned by a test, not by a comment.**
    `test/core/database/kelivo_vocabulary_test.dart` refuses a `BusinessEntityKind` that is neither in
    the pinned vocabulary nor in `unreadableKindDispositions`, so a new kind — the next #1052 — cannot

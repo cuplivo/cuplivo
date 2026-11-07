@@ -17,14 +17,10 @@
 /// `test/core/database/kelivo_vocabulary_test.dart` hold the line.
 final class KelivoVocabulary {
   const KelivoVocabulary._({
-    required this.release,
     required this.archiveFormatVersion,
     required this.entitySourceKeys,
     required this.categories,
   });
-
-  /// The release this record describes, as its own version string.
-  final String release;
 
   /// The newest archive format that release reads.
   final int archiveFormatVersion;
@@ -37,12 +33,9 @@ final class KelivoVocabulary {
 
   bool knowsSourceKey(String key) => entitySourceKeys.contains(key);
 
-  bool knowsCategory(String name) => categories.contains(name);
-
   /// Kelivo v1.3.4 (`4a7da9b6f`, 2026-11-02): the baseline this line sits on,
   /// and the release a Cuplivo user would go back to.
   static const v1_3_4 = KelivoVocabulary._(
-    release: '1.3.4',
     archiveFormatVersion: 3,
     entitySourceKeys: {
       'assistants_v1',
@@ -100,8 +93,6 @@ enum BackupTarget {
   final KelivoVocabulary? vocabulary;
 
   bool knowsSourceKey(String key) => vocabulary?.knowsSourceKey(key) ?? true;
-
-  bool knowsCategory(String name) => vocabulary?.knowsCategory(name) ?? true;
 
   static BackupTarget? fromName(Object? name) {
     for (final target in values) {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:Cuplivo/core/database/app_database.dart';
@@ -423,6 +424,76 @@ void main() {
     expect(second, isNull);
     final messages = await chatService.loadMessages(conversation.id);
     expect(messages.where((m) => m.role == 'assistant').length, 1);
+  });
+
+  test('a stalled letter fails at the deadline', () async {
+    final dueAt = DateTime.now().subtract(const Duration(minutes: 5));
+    final assistant = Assistant(
+      id: 'a',
+      name: 'A',
+      chatModelProvider: 'openai',
+      chatModelId: 'gpt-test',
+      enableProactiveCare: true,
+      proactiveCarePrompt: '问候我',
+    );
+    final conversation = await seededConversation(assistant, dueAt);
+    final stalled = Completer<String>();
+    var decisionCalls = 0;
+    final flow = ProactiveCareMessageFlow(
+      chatService: chatService,
+      settings: settings,
+      letterTimeout: const Duration(milliseconds: 20),
+      careSender:
+          ({
+            required config,
+            required modelId,
+            required messages,
+            reasoning = ReasoningRequest.auto,
+            topP,
+            maxTokens,
+            conversationId,
+          }) => stalled.future,
+      decisionSender:
+          ({
+            required config,
+            required modelId,
+            required messages,
+            required tools,
+            onToolCall,
+            reasoning = ReasoningRequest.auto,
+            topP,
+            maxTokens,
+            requestId,
+            conversationId,
+          }) async {
+            decisionCalls++;
+            return null;
+          },
+    );
+
+    final delivery = await flow.runSchedule(
+      conversationId: conversation.id,
+      expectedAt: dueAt,
+      assistants: [assistant],
+      userNickname: 'User',
+    );
+
+    expect(delivery, isNotNull);
+    expect(delivery!.successful, isFalse);
+    // The claim was consumed, so the stalled letter is not silently retried.
+    final remaining = chatService.getConversation(conversation.id);
+    expect(remaining!.proactiveCareNextMessageAt, isNull);
+    // Nothing was written and the trailing decision never ran.
+    final letters = await chatService.loadMessages(conversation.id);
+    expect(letters.where((m) => m.role == 'assistant'), isEmpty);
+    expect(decisionCalls, 0);
+
+    // A request that answers after the deadline must not resurrect the letter:
+    // `Future.timeout` ignores its result.
+    stalled.complete('late letter');
+    await Future<void>.delayed(Duration.zero);
+    final lettersLater = await chatService.loadMessages(conversation.id);
+    expect(lettersLater.where((m) => m.role == 'assistant'), isEmpty);
   });
 
   test(

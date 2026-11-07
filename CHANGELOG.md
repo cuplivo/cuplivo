@@ -13,6 +13,7 @@
 ### Fixed
 
 - **A Cuplivo backup could not be imported into Kelivo at all**: the archive listed the `group_chats_v1` entity, which Kelivo 1.3.4 rejects outright — even for a user who never created a group
+- **Markdown image**: paste, import or drop Markdown and get one clean picture out of it — no conversation title, no model name, no timestamp. The sheet is drawn by the app's own Markdown renderer at the export's own width, the type size inside the picture is yours to pick (small / standard / large), and the desktop keeps the source beside the result while letting that source pane step aside when you only want to read it
 
 ### Removed
 

@@ -112,6 +112,7 @@ class ProactiveCareMessageFlow {
     ProactiveCareCareSender? careSender,
     this.onLetterPersisted,
     this.decisionTimeout = const Duration(seconds: 45),
+    this.letterTimeout = const Duration(minutes: 5),
   }) : decisionSender = decisionSender ?? _defaultDecisionSender,
        careSender = careSender ?? _defaultCareSender;
 
@@ -131,6 +132,24 @@ class ProactiveCareMessageFlow {
   final Future<void> Function(String conversationId)? onLetterPersisted;
 
   final Duration decisionTimeout;
+
+  /// Deadline for one letter's generation (pipeline ②).
+  ///
+  /// A care request is a full model round trip that runs while the app may be
+  /// backgrounded, and it has no streaming UI to abandon it by hand. Without a
+  /// deadline a request that the platform stalled (a frozen process, a
+  /// suspended socket) stays in flight for as long as the OS parks it, and the
+  /// letter is then persisted at an arbitrary later moment — the field report
+  /// read as "the letter only comes out right after I send a message", because
+  /// sending one is what unfroze the process. Failing at the deadline instead
+  /// answers the delivery, raises the failure notification and lets the native
+  /// side end its scheduled run on time.
+  ///
+  /// Must stay below the Android alarm's own 10-minute delivery deadline
+  /// (`ProactiveCareAlarms.LIMIT_MS`): the native side releases a fire that
+  /// never answers, and a Dart side still waiting past that point would keep
+  /// working on a delivery the carrier no longer covers.
+  final Duration letterTimeout;
 
   static Future<dynamic> _defaultDecisionSender({
     required ProviderConfig config,
@@ -608,12 +627,25 @@ class ProactiveCareMessageFlow {
         carePrompt: carePrompt,
         now: DateTime.now(),
       );
-      reply = await requestCareReply(
+      final pendingReply = requestCareReply(
         config: model.config,
         modelId: model.modelId,
         assistant: assistant,
         apiMessages: apiMessages,
         conversationId: claimed.id,
+      );
+      reply = await pendingReply.timeout(
+        letterTimeout,
+        onTimeout: () {
+          // Abandon the request: its result, if it ever lands, is ignored by
+          // `Future.timeout`. The failure path below posts the notification and
+          // the native side ends the run, instead of the letter surfacing hours
+          // later, out of order.
+          debugPrint(
+            '[ProactiveCare] Care reply timed out after $letterTimeout',
+          );
+          return '';
+        },
       );
     } catch (e) {
       debugPrint('[ProactiveCare] Care reply failed: $e');

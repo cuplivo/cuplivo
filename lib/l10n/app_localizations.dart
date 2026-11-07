@@ -2074,6 +2074,120 @@ abstract class AppLocalizations {
   /// **'Storage'**
   String get desktopNavStorageTooltip;
 
+  /// No description provided for @toolsMenuTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Tools'**
+  String get toolsMenuTooltip;
+
+  /// No description provided for @markdownExportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Markdown image'**
+  String get markdownExportTitle;
+
+  /// No description provided for @markdownExportEditTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get markdownExportEditTab;
+
+  /// No description provided for @markdownExportPreviewTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get markdownExportPreviewTab;
+
+  /// No description provided for @markdownExportHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste Markdown, or import a .md file'**
+  String get markdownExportHint;
+
+  /// No description provided for @markdownExportPreviewEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to preview yet'**
+  String get markdownExportPreviewEmpty;
+
+  /// No description provided for @markdownExportImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get markdownExportImport;
+
+  /// No description provided for @markdownExportPaste.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste'**
+  String get markdownExportPaste;
+
+  /// No description provided for @markdownExportTextSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Text size'**
+  String get markdownExportTextSize;
+
+  /// No description provided for @markdownExportTextSizeSmall.
+  ///
+  /// In en, this message translates to:
+  /// **'Small'**
+  String get markdownExportTextSizeSmall;
+
+  /// No description provided for @markdownExportTextSizeStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get markdownExportTextSizeStandard;
+
+  /// No description provided for @markdownExportTextSizeLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Large'**
+  String get markdownExportTextSizeLarge;
+
+  /// No description provided for @markdownExportHideSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide source'**
+  String get markdownExportHideSource;
+
+  /// No description provided for @markdownExportShowSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Show source'**
+  String get markdownExportShowSource;
+
+  /// No description provided for @markdownExportExportImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Export image'**
+  String get markdownExportExportImage;
+
+  /// No description provided for @markdownExportDropHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop to import Markdown'**
+  String get markdownExportDropHint;
+
+  /// No description provided for @markdownExportUnsupportedFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Only Markdown text files are supported'**
+  String get markdownExportUnsupportedFile;
+
+  /// No description provided for @markdownExportReadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'This file could not be read'**
+  String get markdownExportReadFailed;
+
+  /// No description provided for @markdownExportNothingToPaste.
+  ///
+  /// In en, this message translates to:
+  /// **'The clipboard has nothing this tool can use'**
+  String get markdownExportNothingToPaste;
+
   /// No description provided for @desktopNavGlobalSearchTooltip.
   ///
   /// In en, this message translates to:
@@ -20768,6 +20882,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Generating reply'**
   String get backgroundGenerating;
+
+  /// No description provided for @backgroundCareLetter.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing a letter'**
+  String get backgroundCareLetter;
+
+  /// No description provided for @backgroundCareWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing your letter'**
+  String get backgroundCareWorking;
 
   /// No description provided for @backgroundThinking.
   ///

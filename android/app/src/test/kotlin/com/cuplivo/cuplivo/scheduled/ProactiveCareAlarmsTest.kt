@@ -100,7 +100,13 @@ class ProactiveCareAlarmsTest {
         val fire = messenger.fired().single()
         assertEquals("c1", (fire.arguments as Map<*, *>)["conversationId"])
         assertEquals(dueAt, dueAtOf(fire))
-        // No service run: the direct hand-off never starts one.
+        // Immediate is not protected: the hand-off runs a model round trip, and
+        // a cached process is frozen mid-request unless the fire takes the same
+        // run a scheduled task takes. That gap is what surfaced a backgrounded
+        // letter only after the user sent a message.
+        assertTrue(app.backgroundRuntime.hasScheduledRuns)
+        // Dart's ack ends the run, so no foreground service outlives the letter.
+        messenger.call("done", mapOf("conversationId" to "c1"))
         assertFalse(app.backgroundRuntime.hasScheduledRuns)
         // And the occurrence is consumed exactly once.
         assertNull(prefs.getAll()["alarm:c1"])

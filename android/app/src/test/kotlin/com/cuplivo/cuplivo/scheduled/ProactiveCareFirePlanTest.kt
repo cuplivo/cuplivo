@@ -24,3 +24,32 @@ class ProactiveCareFirePlanTest {
         assertEquals(CareFirePlan.Service, careFirePlan(ready = false))
     }
 }
+
+/**
+ * The carrier is orthogonal to the plan: it says whether the *process* is kept
+ * alive while the letter is generated, and the plan says who dispatches it.
+ *
+ * The cell that used to be missing is `background + Direct`. It dispatched
+ * (the listener existed) but took no run, so the model round trip ran in a
+ * cached process that Android freezes and whose network it suspends. The letter
+ * was generated whenever the process was next unfrozen — in the field, right
+ * after the user sent a message.
+ */
+class ProactiveCareCarrierTest {
+    @Test fun aForegroundDirectHandOffNeedsNoCarrier() {
+        // The Activity is in front: the process is already active.
+        assertEquals(false, careNeedsCarrier(foreground = true, plan = CareFirePlan.Direct))
+    }
+
+    @Test fun aBackgroundDirectHandOffTakesTheCarrier() {
+        // The regression: a live listener is not process protection.
+        assertEquals(true, careNeedsCarrier(foreground = false, plan = CareFirePlan.Direct))
+    }
+
+    @Test fun theServicePlanAlwaysTakesTheCarrier() {
+        // `dispatchPending` waits for a service: a fresh channel needs the run
+        // whether or not the Activity happens to be in front.
+        assertEquals(true, careNeedsCarrier(foreground = true, plan = CareFirePlan.Service))
+        assertEquals(true, careNeedsCarrier(foreground = false, plan = CareFirePlan.Service))
+    }
+}

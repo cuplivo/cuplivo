@@ -1038,6 +1038,63 @@ class AppLocalizationsZh extends AppLocalizations {
   String get desktopNavStorageTooltip => '存储';
 
   @override
+  String get toolsMenuTooltip => '工具';
+
+  @override
+  String get markdownExportTitle => 'Markdown 出图';
+
+  @override
+  String get markdownExportEditTab => '编辑';
+
+  @override
+  String get markdownExportPreviewTab => '预览';
+
+  @override
+  String get markdownExportHint => '粘贴 Markdown，或导入 .md 文件';
+
+  @override
+  String get markdownExportPreviewEmpty => '还没有可以预览的内容';
+
+  @override
+  String get markdownExportImport => '导入文件';
+
+  @override
+  String get markdownExportPaste => '粘贴';
+
+  @override
+  String get markdownExportTextSize => '字号';
+
+  @override
+  String get markdownExportTextSizeSmall => '小';
+
+  @override
+  String get markdownExportTextSizeStandard => '标准';
+
+  @override
+  String get markdownExportTextSizeLarge => '大';
+
+  @override
+  String get markdownExportHideSource => '收起源码';
+
+  @override
+  String get markdownExportShowSource => '显示源码';
+
+  @override
+  String get markdownExportExportImage => '导出图片';
+
+  @override
+  String get markdownExportDropHint => '松开以导入 Markdown';
+
+  @override
+  String get markdownExportUnsupportedFile => '只支持 Markdown 文本文件';
+
+  @override
+  String get markdownExportReadFailed => '无法读取这个文件';
+
+  @override
+  String get markdownExportNothingToPaste => '剪贴板里没有可用的内容';
+
+  @override
   String get desktopNavGlobalSearchTooltip => '全局搜索';
 
   @override
@@ -11087,6 +11144,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backgroundGenerating => '正在生成回复';
 
   @override
+  String get backgroundCareLetter => '正在写信';
+
+  @override
+  String get backgroundCareWorking => '正在准备来信';
+
+  @override
   String get backgroundThinking => '正在思考';
 
   @override
@@ -17444,6 +17507,63 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get desktopNavStorageTooltip => '存储';
+
+  @override
+  String get toolsMenuTooltip => '工具';
+
+  @override
+  String get markdownExportTitle => 'Markdown 出图';
+
+  @override
+  String get markdownExportEditTab => '编辑';
+
+  @override
+  String get markdownExportPreviewTab => '预览';
+
+  @override
+  String get markdownExportHint => '粘贴 Markdown，或导入 .md 文件';
+
+  @override
+  String get markdownExportPreviewEmpty => '还没有可以预览的内容';
+
+  @override
+  String get markdownExportImport => '导入文件';
+
+  @override
+  String get markdownExportPaste => '粘贴';
+
+  @override
+  String get markdownExportTextSize => '字号';
+
+  @override
+  String get markdownExportTextSizeSmall => '小';
+
+  @override
+  String get markdownExportTextSizeStandard => '标准';
+
+  @override
+  String get markdownExportTextSizeLarge => '大';
+
+  @override
+  String get markdownExportHideSource => '收起源码';
+
+  @override
+  String get markdownExportShowSource => '显示源码';
+
+  @override
+  String get markdownExportExportImage => '导出图片';
+
+  @override
+  String get markdownExportDropHint => '松开以导入 Markdown';
+
+  @override
+  String get markdownExportUnsupportedFile => '只支持 Markdown 文本文件';
+
+  @override
+  String get markdownExportReadFailed => '无法读取这个文件';
+
+  @override
+  String get markdownExportNothingToPaste => '剪贴板里没有可用的内容';
 
   @override
   String get desktopNavGlobalSearchTooltip => '全局搜索';
@@ -27421,6 +27541,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backgroundGenerating => '正在生成回复';
 
   @override
+  String get backgroundCareLetter => '正在写信';
+
+  @override
+  String get backgroundCareWorking => '正在准备来信';
+
+  @override
   String get backgroundThinking => '正在思考';
 
   @override
@@ -33708,6 +33834,63 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get desktopNavStorageTooltip => '儲存';
+
+  @override
+  String get toolsMenuTooltip => '工具';
+
+  @override
+  String get markdownExportTitle => 'Markdown 出圖';
+
+  @override
+  String get markdownExportEditTab => '編輯';
+
+  @override
+  String get markdownExportPreviewTab => '預覽';
+
+  @override
+  String get markdownExportHint => '貼上 Markdown，或匯入 .md 檔案';
+
+  @override
+  String get markdownExportPreviewEmpty => '還沒有可以預覽的內容';
+
+  @override
+  String get markdownExportImport => '匯入檔案';
+
+  @override
+  String get markdownExportPaste => '貼上';
+
+  @override
+  String get markdownExportTextSize => '字級';
+
+  @override
+  String get markdownExportTextSizeSmall => '小';
+
+  @override
+  String get markdownExportTextSizeStandard => '標準';
+
+  @override
+  String get markdownExportTextSizeLarge => '大';
+
+  @override
+  String get markdownExportHideSource => '收起源碼';
+
+  @override
+  String get markdownExportShowSource => '顯示源碼';
+
+  @override
+  String get markdownExportExportImage => '匯出圖片';
+
+  @override
+  String get markdownExportDropHint => '放開以匯入 Markdown';
+
+  @override
+  String get markdownExportUnsupportedFile => '僅支援 Markdown 文字檔';
+
+  @override
+  String get markdownExportReadFailed => '無法讀取這個檔案';
+
+  @override
+  String get markdownExportNothingToPaste => '剪貼簿裡沒有可用的內容';
 
   @override
   String get desktopNavGlobalSearchTooltip => '全域搜尋';
@@ -43759,6 +43942,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backgroundGenerating => '正在生成回覆';
+
+  @override
+  String get backgroundCareLetter => '正在寫信';
+
+  @override
+  String get backgroundCareWorking => '正在準備來信';
 
   @override
   String get backgroundThinking => '正在思考';

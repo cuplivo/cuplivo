@@ -1080,6 +1080,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get markdownExportShowSource => '显示源码';
 
   @override
+  String get markdownExportReducedResolution => '文档较长，已降低分辨率以保证仍然是一张图';
+
+  @override
   String get markdownExportExportImage => '导出图片';
 
   @override
@@ -17560,6 +17563,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get markdownExportShowSource => '显示源码';
 
   @override
+  String get markdownExportReducedResolution => '文档较长，已降低分辨率以保证仍然是一张图';
+
+  @override
   String get markdownExportExportImage => '导出图片';
 
   @override
@@ -33894,6 +33900,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get markdownExportShowSource => '顯示源碼';
+
+  @override
+  String get markdownExportReducedResolution => '文件較長，已降低解析度以保證仍然是一張圖';
 
   @override
   String get markdownExportExportImage => '匯出圖片';

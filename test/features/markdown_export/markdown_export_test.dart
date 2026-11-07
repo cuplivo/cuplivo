@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +8,8 @@ import 'package:Cuplivo/features/chat/widgets/export_image_capture.dart';
 import 'package:Cuplivo/features/markdown_export/models/markdown_export_input.dart';
 import 'package:Cuplivo/features/markdown_export/models/markdown_export_mode.dart';
 import 'package:Cuplivo/features/markdown_export/models/markdown_export_text_size.dart';
+import 'package:Cuplivo/features/markdown_export/pages/markdown_export_page.dart';
+import 'package:Cuplivo/features/markdown_export/services/markdown_export_image.dart';
 import 'package:Cuplivo/features/markdown_export/widgets/markdown_export_actions.dart';
 import 'package:Cuplivo/features/markdown_export/widgets/markdown_export_desktop_layout.dart';
 import 'package:Cuplivo/features/markdown_export/widgets/markdown_export_document.dart';
@@ -50,6 +53,31 @@ void main() {
     expect(desktopExportLogicalWidth, greaterThan(mobileExportLogicalWidth));
   });
 
+  group('exportRatioWithinBudget', () {
+    const budget = markdownExportMaxPixels;
+
+    test('keeps the requested ratio while the sheet fits', () {
+      // 720 × 3000 at 3× is 19.4 MP.
+      expect(exportRatioWithinBudget(const Size(720, 3000), 3, budget), 3);
+    });
+
+    test('falls back to the largest whole ratio that fits', () {
+      // 720 × 4000 at 3× is 25.9 MP, at 2× 11.5 MP.
+      expect(exportRatioWithinBudget(const Size(720, 4000), 3, budget), 2);
+      // 720 × 20000 at 2× is still 57.6 MP, at 1× 14.4 MP.
+      expect(exportRatioWithinBudget(const Size(720, 20000), 3, budget), 1);
+    });
+
+    test('refuses only when even 1× cannot fit', () {
+      expect(
+        exportRatioWithinBudget(const Size(720, 60000), 3, budget),
+        isNull,
+      );
+      // No budget means no ceiling, which is what the message path passes.
+      expect(exportRatioWithinBudget(const Size(720, 60000), 3, null), 3);
+    });
+  });
+
   late SettingsProvider settings;
   setUp(() async {
     settings = SettingsProvider(createBusinessTestPreferences());
@@ -60,11 +88,13 @@ void main() {
   Widget mobileLayout({
     required TextEditingController controller,
     required ValueChanged<MarkdownExportMode> onModeChanged,
-    required VoidCallback? onExport,
+    required VoidCallback onExport,
+    String? previewSource,
   }) {
     return Scaffold(
       body: MarkdownExportMobileLayout(
         controller: controller,
+        previewSource: previewSource ?? controller.text,
         mode: MarkdownExportMode.edit,
         onModeChanged: onModeChanged,
         onImport: () {},
@@ -107,26 +137,47 @@ void main() {
     expect(exports, 1);
   });
 
-  testWidgets('an empty source leaves the export action inert', (tester) async {
+  testWidgets('nothing to export leaves the primary action inert', (
+    tester,
+  ) async {
     final controller = TextEditingController();
     addTearDown(controller.dispose);
+    var exports = 0;
     await tester.pumpWidget(
       _host(
         settings,
-        mobileLayout(
-          controller: controller,
-          onModeChanged: (_) {},
-          onExport: null,
+        Scaffold(
+          body: Center(
+            child: MarkdownExportSubmitButton(
+              controller: controller,
+              onTap: () => exports++,
+            ),
+          ),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    // The page hands the layout a null action while there is nothing to export;
-    // tapping it must not start a capture.
+    // This is the rule itself, not a caller handing over a null: an empty (or
+    // whitespace-only) source disables the pill, and tapping it does nothing.
+    VoidCallback? pillAction() => tester
+        .widget<MarkdownExportButton>(find.byType(MarkdownExportButton))
+        .onTap;
+    expect(pillAction(), isNull);
     await tester.tap(find.text('Export image'));
     await tester.pump();
-    expect(tester.takeException(), isNull);
+    expect(exports, 0);
+
+    controller.text = '   \n\t ';
+    await tester.pump();
+    expect(pillAction(), isNull);
+
+    controller.text = '## 周会纪要';
+    await tester.pump();
+    expect(pillAction(), isNotNull);
+    await tester.tap(find.text('Export image'));
+    await tester.pump();
+    expect(exports, 1);
   });
 
   testWidgets('the preview renders the document, not its source', (
@@ -173,9 +224,11 @@ void main() {
     bool sourceCollapsed = false,
     VoidCallback? onToggleSource,
     VoidCallback? onExport,
+    String? previewSource,
   }) {
     return MarkdownExportDesktopLayout(
       controller: controller,
+      previewSource: previewSource ?? controller.text,
       onImport: () {},
       onPaste: () {},
       onTextSize: () {},
@@ -324,5 +377,48 @@ void main() {
 
     expect(large.width, standard.width);
     expect(large.height, greaterThan(standard.height));
+  });
+
+  testWidgets('a caret move does not redraw the sheet, a burst redraws once', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1440, 900);
+    addTearDown(tester.view.reset);
+    try {
+      await tester.pumpWidget(
+        _host(settings, const Scaffold(body: MarkdownExportPage())),
+      );
+      await tester.pumpAndSettle();
+
+      final controller = tester
+          .widget<TextField>(find.byType(TextField))
+          .controller!;
+      controller.text = '## Weekly summary\n\n${'A sentence. ' * 40}';
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      final builds = MarkdownExportPreview.debugSheetBuilds;
+
+      // Five caret moves. The text is identical every time, so the sheet must
+      // not be built again: moving the cursor is not an edit.
+      for (var i = 0; i < 5; i++) {
+        controller.selection = TextSelection.collapsed(offset: i + 1);
+        await tester.pump();
+      }
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(MarkdownExportPreview.debugSheetBuilds, builds);
+
+      // A burst of keystrokes settles into exactly one redraw, after it stops.
+      for (final text in ['a', 'ab', 'abc', 'abcd']) {
+        controller.text = text;
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(MarkdownExportPreview.debugSheetBuilds, builds);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(MarkdownExportPreview.debugSheetBuilds, builds + 1);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 }

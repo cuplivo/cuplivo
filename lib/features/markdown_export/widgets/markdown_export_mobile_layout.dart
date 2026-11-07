@@ -15,6 +15,7 @@ class MarkdownExportMobileLayout extends StatelessWidget {
   const MarkdownExportMobileLayout({
     super.key,
     required this.controller,
+    required this.previewSource,
     required this.mode,
     required this.onModeChanged,
     required this.onImport,
@@ -26,11 +27,15 @@ class MarkdownExportMobileLayout extends StatelessWidget {
   });
 
   final TextEditingController controller;
+
+  /// What the preview draws. It trails [controller] by the page's settle delay,
+  /// so typing does not re-render the sheet on every keystroke.
+  final String previewSource;
   final MarkdownExportMode mode;
   final ValueChanged<MarkdownExportMode> onModeChanged;
   final VoidCallback onImport;
   final VoidCallback onPaste;
-  final VoidCallback? onExport;
+  final VoidCallback onExport;
   final bool busy;
   final double documentWidth;
   final double textScale;
@@ -69,7 +74,7 @@ class MarkdownExportMobileLayout extends StatelessWidget {
                       hint: l10n.markdownExportHint,
                     )
                   : MarkdownExportPreview(
-                      source: controller.text,
+                      source: previewSource,
                       documentWidth: documentWidth,
                       emptyHint: l10n.markdownExportPreviewEmpty,
                       textScale: textScale,
@@ -92,8 +97,8 @@ class MarkdownExportMobileLayout extends StatelessWidget {
                   onTap: onPaste,
                 ),
                 const Spacer(),
-                MarkdownExportButton(
-                  label: l10n.markdownExportExportImage,
+                MarkdownExportSubmitButton(
+                  controller: controller,
                   onTap: onExport,
                   busy: busy,
                 ),

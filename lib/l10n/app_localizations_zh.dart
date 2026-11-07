@@ -1642,6 +1642,21 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get backupPageTargetTitle => '备份目标';
+
+  @override
+  String get backupPageTargetCuplivo => 'Cuplivo';
+
+  @override
+  String get backupPageTargetCuplivoNote => '当前版本可恢复的全部内容，含群聊';
+
+  @override
+  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+
+  @override
+  String get backupPageTargetKelivoNote => '可在 Kelivo 中导入，但会丢失群聊数据';
+
+  @override
   String get backupPageBackupManagementDescription =>
       '选择备份和导入的内容，适用于本地、WebDAV 和 S3。导入时保留未选中的内容。技能和工作区包含各自的文件。';
 
@@ -18107,6 +18122,21 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
+  String get backupPageTargetTitle => '备份目标';
+
+  @override
+  String get backupPageTargetCuplivo => 'Cuplivo';
+
+  @override
+  String get backupPageTargetCuplivoNote => '当前版本可恢复的全部内容，含群聊';
+
+  @override
+  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+
+  @override
+  String get backupPageTargetKelivoNote => '可在 Kelivo 中导入，但会丢失群聊数据';
+
+  @override
   String get backupPageBackupManagementDescription =>
       '选择备份和导入的内容，适用于本地、WebDAV 和 S3。导入时保留未选中的内容。技能和工作区包含各自的文件。';
 
@@ -34426,6 +34456,21 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String backupPageScopeSelectedCount(int selected, int total) {
     return '$selected/$total';
   }
+
+  @override
+  String get backupPageTargetTitle => '備份目標';
+
+  @override
+  String get backupPageTargetCuplivo => 'Cuplivo';
+
+  @override
+  String get backupPageTargetCuplivoNote => '當前版本可還原的全部內容，含群聊';
+
+  @override
+  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+
+  @override
+  String get backupPageTargetKelivoNote => '可在 Kelivo 中匯入，但會丟失群聊資料';
 
   @override
   String get backupPageBackupManagementDescription =>

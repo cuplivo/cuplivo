@@ -37,6 +37,28 @@ internal fun careFirePlan(ready: Boolean): CareFirePlan =
     if (ready) CareFirePlan.Direct else CareFirePlan.Service
 
 /**
+ * Whether a fire must also take the scheduled-run carrier — the foreground
+ * service and its wake lock — before it hands the letter to Dart.
+ *
+ * The plan above only decides *who* dispatches; it says nothing about whether
+ * the process lives long enough to finish. A letter's generation is a model
+ * round trip in the Dart isolate, and once the Activity is no longer in front
+ * nothing else keeps that process running: Android freezes cached apps and
+ * suspends their network, so the request parks and the letter surfaces only
+ * when the process is next unfrozen — the "the letter only comes out right
+ * after I send a message" report. Kelivo's own Android scheduled tasks never
+ * have that hole, because every run takes `beginScheduledRun`; care's `Direct`
+ * plan used to dispatch without one, trading that protection for latency. A
+ * background fire now takes that carrier through `beginCareRun`, which also
+ * tells the background runtime what its notification is describing.
+ *
+ * A foreground fire needs no carrier (the app is visible and active), and the
+ * `Service` plan always needs one (the service is what creates a listener).
+ */
+internal fun careNeedsCarrier(foreground: Boolean, plan: CareFirePlan): Boolean =
+    !foreground || plan == CareFirePlan.Service
+
+/**
  * Native owner of the proactive-care ("Ta的来信") letter alarms.
  *
  * One-shot exact alarms keyed by conversation id, mirroring the
@@ -60,7 +82,7 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
     private val due = mutableMapOf<String, Long>()
     private val inFlight = mutableMapOf<String, Long>()
     private val dispatched = mutableSetOf<String>()
-    /** Fires that actually began a foreground-service run (`Service` plan). */
+    /** Fires that began a care run — every background fire and every `Service` plan. */
     private val serviceRuns = mutableSetOf<String>()
     private val deadlines = mutableMapOf<String, Runnable>()
     private var channel: MethodChannel? = null
@@ -200,23 +222,32 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
         deadlines[id] = timeout
         main.postDelayed(timeout, LIMIT_MS)
         val plan = careFirePlan(ready)
-        Log.i(TAG, "fire $id due=$dueAt plan=$plan")
+        val carrier = careNeedsCarrier(app.backgroundRuntime.foreground, plan)
+        Log.i(TAG, "fire $id due=$dueAt plan=$plan carrier=$carrier")
         try {
+            if (carrier) {
+                // Take the same carrier a scheduled task takes before handing
+                // the letter over: the generation is a model round trip, and a
+                // backgrounded process without the service is frozen mid-request
+                // (`careNeedsCarrier`). The dispatch below stays immediate either
+                // way — the carrier costs no latency.
+                //
+                // A headless engine is not "foreground" by definition; the run
+                // is what warms it.
+                if (!app.hasEngine) app.backgroundRuntime.setForeground(false)
+                serviceRuns.add(id)
+                app.backgroundRuntime.beginCareRun(RUN_PREFIX + id)
+            }
             when (plan) {
                 // The engine owns a live channel listener (`ready`): dispatch
-                // without the foreground-service dance, whatever the Activity's
+                // without waiting for the service, whatever the Activity's
                 // lifecycle state is.
                 CareFirePlan.Direct -> dispatchToChannel()
 
-                CareFirePlan.Service -> {
-                    // The service posts its foreground notification before
-                    // warming Flutter, and is the only owner that guarantees
-                    // the channel gets a listener.
-                    if (!app.hasEngine) app.backgroundRuntime.setForeground(false)
-                    serviceRuns.add(id)
-                    app.backgroundRuntime.beginScheduledRun(RUN_PREFIX + id)
-                    dispatchPending()
-                }
+                // No listener yet: the service posts its foreground
+                // notification before warming Flutter, and is the only owner
+                // that guarantees the channel gets one.
+                CareFirePlan.Service -> dispatchPending()
             }
         } catch (error: RuntimeException) {
             // Keep the fire parked: the next foreground dispatch
@@ -272,11 +303,10 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
         if (inFlight.remove(id) != null) {
             dispatched.remove(id)
             Log.i(TAG, "finish $id")
-            // Only the Service plan began a scheduled run; a foreground fire
-            // never did, and ending one it never started would touch
-            // accounting that belongs to another run.
+            // End the carrier this fire took, and only that one: a fire that
+            // began no run must not touch accounting that belongs to another.
             if (serviceRuns.remove(id)) {
-                app.backgroundRuntime.endScheduledRun(RUN_PREFIX + id)
+                app.backgroundRuntime.endCareRun(RUN_PREFIX + id)
             }
             // An occurrence that arrived while this delivery was in flight kept
             // its registry entry but lost its one-shot alarm (the system

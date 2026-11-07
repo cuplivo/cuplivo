@@ -1446,6 +1446,21 @@ class HomePageController extends ChangeNotifier {
           assistants: assistantProvider.assistants,
           assistantStoreLoaded: assistantProvider.isLoaded,
         );
+        // iOS: the arrival notification is the only carrier a suspended app
+        // has, and the adapter refuses to register one without a notification
+        // grant. This is the first moment the re-arm above has spoken, so it is
+        // the first moment "an arm was refused" is knowable — ask once, then
+        // arm the letters again with the grant in hand. Not awaited: the dialog
+        // belongs to the system and must not hold up the first frame.
+        unawaited(
+          ProactiveCareAlarmService.ensureIosArrivalPermission(
+            rearm: () => ProactiveCareAlarmService.rescheduleAll(
+              conversations: _chatService.getAllConversations(),
+              assistants: assistantProvider.assistants,
+              assistantStoreLoaded: assistantProvider.isLoaded,
+            ),
+          ),
+        );
         // A notification-tap cold start resumed before this point and its
         // catch-up could only see an empty conversation cache. This is the
         // first moment it can see a schedule, and the re-arm just ran above,

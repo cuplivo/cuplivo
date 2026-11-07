@@ -200,5 +200,66 @@ void main() {
 
       scheduler.dispose();
     });
+
+    test('requestPermission asks the shared channel for the grant', () async {
+      final scheduler = createScheduler();
+
+      expect(await scheduler.requestPermission(), isTrue);
+      expect(calls.single.method, 'permission');
+
+      scheduler.dispose();
+    });
+
+    test('requestPermission is a no-op off iOS', () async {
+      final scheduler = IosProactiveCareScheduler(
+        channel: channel,
+        now: () => currentTime,
+        isIos: () => false,
+      );
+
+      expect(await scheduler.requestPermission(), isFalse);
+      expect(calls, isEmpty);
+
+      scheduler.dispose();
+    });
+
+    test('a refused arm is recorded', () async {
+      // No authorization: the adapter answers `false` and never registers.
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            calls.add(call);
+            return call.method == 'schedule' ? false : true;
+          });
+      final scheduler = createScheduler();
+
+      expect(scheduler.arrivalAccepted, isNull);
+      await scheduler.sync(
+        conversation: conversation(
+          id: 'c1',
+          nextAt: currentTime.add(const Duration(minutes: 10)),
+        ),
+        assistant: assistant(),
+      );
+
+      expect(scheduler.arrivalAccepted, isFalse);
+
+      scheduler.dispose();
+    });
+
+    test('an accepted arm records that no grant request is needed', () async {
+      final scheduler = createScheduler();
+
+      await scheduler.sync(
+        conversation: conversation(
+          id: 'c1',
+          nextAt: currentTime.add(const Duration(minutes: 10)),
+        ),
+        assistant: assistant(),
+      );
+
+      expect(scheduler.arrivalAccepted, isTrue);
+
+      scheduler.dispose();
+    });
   });
 }

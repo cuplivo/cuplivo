@@ -5222,6 +5222,8 @@
   "backgroundInterrupted": "Background generation was interrupted. Open the chat to continue.",
   "backgroundRequesting": "Connecting",
   "backgroundGenerating": "Generating reply",
+  "backgroundCareLetter": "Writing a letter",
+  "backgroundCareWorking": "Preparing your letter",
   "backgroundThinking": "Thinking",
   "backgroundToolRunning": "Running tool",
   "backgroundRetrying": "Waiting to retry",

@@ -20739,6 +20739,18 @@ abstract class AppLocalizations {
   /// **'Generating reply'**
   String get backgroundGenerating;
 
+  /// No description provided for @backgroundCareLetter.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing a letter'**
+  String get backgroundCareLetter;
+
+  /// No description provided for @backgroundCareWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing your letter'**
+  String get backgroundCareWorking;
+
   /// No description provided for @backgroundThinking.
   ///
   /// In en, this message translates to:

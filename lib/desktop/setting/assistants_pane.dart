@@ -29,11 +29,19 @@ class _DesktopAssistantsBody extends StatelessWidget {
     final canSeparate = groups.isNotEmpty;
     final separated =
         canSeparate && context.watch<SettingsProvider>().separateChatOwners;
+    // Each section is one kind read through the shared projection, so the two
+    // halves cannot disagree with the mixed list about where a row goes.
     final assistantRows = separated
-        ? _assistantsInOrder(owners, assistants)
+        ? owners.inOwnerOrder(
+            assistants.values,
+            (assistant) => ChatOwner.assistant(assistant.id).key,
+          )
         : const <Assistant>[];
     final groupRows = separated
-        ? _groupsInOrder(owners, groups)
+        ? owners.inOwnerOrder(
+            groups.values,
+            (group) => ChatOwner.group(group.id).key,
+          )
         : const <GroupChat>[];
     final assistantKeys = {
       for (final assistant in assistantRows)
@@ -90,73 +98,88 @@ class _DesktopAssistantsBody extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor.withValues(alpha: 0.0),
                   ),
-                  child: ListView(
-                    padding: EdgeInsets.zero,
-                    children: [
-                      if (canSeparate) ...[
-                        const _DesktopSeparateOwnersRow(),
-                        const SizedBox(height: 12),
-                      ],
-                      if (separated) ...[
-                        ChatOwnerSectionHeader(
-                          title: AppLocalizations.of(
-                            context,
-                          )!.chatOwnersSectionAssistants,
-                        ),
-                        _ownerSection<Assistant>(
-                          context,
-                          assistantRows,
-                          keyPrefix: 'desktop-assistant',
-                          itemKeyOf: (assistant) =>
-                              ChatOwner.assistant(assistant.id).key,
-                          itemBuilder: (assistant) => _DesktopAssistantCard(
-                            item: assistant,
-                            onTap: () => showAssistantDesktopDialog(
-                              context,
-                              assistantId: assistant.id,
+                  // One scrollable for the pane, one reorderable sliver per
+                  // section — see the mobile page: nested reorderables each own
+                  // the scrollable the drag looks for, and auto-scroll refuses
+                  // one whose physics reject user offsets.
+                  child: CustomScrollView(
+                    slivers: [
+                      SliverMainAxisGroup(
+                        slivers: [
+                          if (canSeparate) ...[
+                            const SliverToBoxAdapter(
+                              child: _DesktopSeparateOwnersRow(),
                             ),
-                          ),
-                          onReorder: (oldIndex, newIndex) =>
-                              owners.reorderWithin(
-                                keys: assistantKeys,
-                                oldIndex: oldIndex,
-                                newIndex: newIndex,
+                            const SliverToBoxAdapter(
+                              child: SizedBox(height: 12),
+                            ),
+                          ],
+                          if (separated) ...[
+                            SliverToBoxAdapter(
+                              child: ChatOwnerSectionHeader(
+                                title: AppLocalizations.of(
+                                  context,
+                                )!.chatOwnersSectionAssistants,
                               ),
-                        ),
-                        if (groupRows.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          ChatOwnerSectionHeader(
-                            title: AppLocalizations.of(
-                              context,
-                            )!.chatOwnersSectionGroups,
-                          ),
-                          _ownerSection<GroupChat>(
-                            context,
-                            groupRows,
-                            keyPrefix: 'desktop-group',
-                            itemKeyOf: (group) => ChatOwner.group(group.id).key,
-                            itemBuilder: (group) => _DesktopGroupCard(
-                              group: group,
-                              assistants: assistants,
                             ),
-                            onReorder: (oldIndex, newIndex) =>
-                                owners.reorderWithin(
-                                  keys: groupKeys,
-                                  oldIndex: oldIndex,
-                                  newIndex: newIndex,
+                            _ownerSliver<Assistant>(
+                              assistantRows,
+                              keyPrefix: 'desktop-assistant',
+                              itemKeyOf: (assistant) =>
+                                  ChatOwner.assistant(assistant.id).key,
+                              itemBuilder: (assistant) => _DesktopAssistantCard(
+                                item: assistant,
+                                onTap: () => showAssistantDesktopDialog(
+                                  context,
+                                  assistantId: assistant.id,
                                 ),
-                          ),
+                              ),
+                              onReorder: (oldIndex, newIndex) =>
+                                  owners.reorderWithin(
+                                    keys: assistantKeys,
+                                    oldIndex: oldIndex,
+                                    newIndex: newIndex,
+                                  ),
+                            ),
+                            if (groupRows.isNotEmpty) ...[
+                              const SliverToBoxAdapter(
+                                child: SizedBox(height: 12),
+                              ),
+                              SliverToBoxAdapter(
+                                child: ChatOwnerSectionHeader(
+                                  title: AppLocalizations.of(
+                                    context,
+                                  )!.chatOwnersSectionGroups,
+                                ),
+                              ),
+                              _ownerSliver<GroupChat>(
+                                groupRows,
+                                keyPrefix: 'desktop-group',
+                                itemKeyOf: (group) =>
+                                    ChatOwner.group(group.id).key,
+                                itemBuilder: (group) => _DesktopGroupCard(
+                                  group: group,
+                                  assistants: assistants,
+                                ),
+                                onReorder: (oldIndex, newIndex) =>
+                                    owners.reorderWithin(
+                                      keys: groupKeys,
+                                      oldIndex: oldIndex,
+                                      newIndex: newIndex,
+                                    ),
+                              ),
+                            ],
+                          ] else
+                            _ownerSliver<ChatOwner>(
+                              rows,
+                              keyPrefix: 'desktop-owner',
+                              itemKeyOf: (owner) => owner.key,
+                              itemBuilder: cardFor,
+                              onReorder: (oldIndex, newIndex) =>
+                                  owners.reorder(oldIndex, newIndex),
+                            ),
                         ],
-                      ] else
-                        _ownerSection<ChatOwner>(
-                          context,
-                          rows,
-                          keyPrefix: 'desktop-owner',
-                          itemKeyOf: (owner) => owner.key,
-                          itemBuilder: cardFor,
-                          onReorder: (oldIndex, newIndex) =>
-                              owners.reorder(oldIndex, newIndex),
-                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -168,45 +191,21 @@ class _DesktopAssistantsBody extends StatelessWidget {
     );
   }
 
-  static List<Assistant> _assistantsInOrder(
-    ChatOwnersProvider owners,
-    Map<String, Assistant> assistants,
-  ) {
-    final ordered = <Assistant>[];
-    for (final owner in owners.ownersOfKind(isGroup: false)) {
-      final assistant = assistants[owner.id];
-      if (assistant != null) ordered.add(assistant);
-    }
-    return ordered;
-  }
-
-  static List<GroupChat> _groupsInOrder(
-    ChatOwnersProvider owners,
-    Map<String, GroupChat> groups,
-  ) {
-    final ordered = <GroupChat>[];
-    for (final owner in owners.ownersOfKind(isGroup: true)) {
-      final group = groups[owner.id];
-      if (group != null) ordered.add(group);
-    }
-    return ordered;
-  }
-
   /// One run of rows that drags as a unit. A mixed list passes the whole-order
   /// drag; a section passes [ChatOwnersProvider.reorderWithin] on the keys it
   /// shows, so a drag inside it never moves a row the section cannot see.
-  Widget _ownerSection<T>(
-    BuildContext context,
+  ///
+  /// A sliver rather than a `ReorderableListView`, so the pane keeps the one
+  /// scrollable a drag can auto-scroll, and the indices handed to [onReorder]
+  /// stay local to this section.
+  Widget _ownerSliver<T>(
     List<T> items, {
     required String keyPrefix,
     required String Function(T item) itemKeyOf,
     required Widget Function(T item) itemBuilder,
     required void Function(int oldIndex, int newIndex) onReorder,
   }) {
-    return ReorderableListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      buildDefaultDragHandles: false,
+    return SliverReorderableList(
       proxyDecorator: _desktopOwnerDragProxy,
       itemCount: items.length,
       onReorderItem: onReorder,

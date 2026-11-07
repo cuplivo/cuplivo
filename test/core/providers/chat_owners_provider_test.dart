@@ -141,7 +141,7 @@ void main() {
     expect([for (final owner in owners.owners) owner.id], [b, c]);
   });
 
-  test('reading the owners by kind keeps the shared order', () async {
+  test('each kind reads the shared order through the one projection', () async {
     final harness = await createBusinessTestHarness();
     addTearDown(harness.close);
 
@@ -168,10 +168,18 @@ void main() {
     await owners.reorder(3, 1);
     List<String> whole() => [for (final owner in owners.owners) owner.id];
     List<String> assistantsOnly() => [
-      for (final owner in owners.ownersOfKind(isGroup: false)) owner.id,
+      for (final assistant in owners.inOwnerOrder(
+        assistants.assistants,
+        (a) => ChatOwner.assistant(a.id).key,
+      ))
+        assistant.id,
     ];
     List<String> groupsOnly() => [
-      for (final owner in owners.ownersOfKind(isGroup: true)) owner.id,
+      for (final group in owners.inOwnerOrder(
+        groups.groups,
+        (g) => ChatOwner.group(g.id).key,
+      ))
+        group.id,
     ];
     List<int> groupPositions() => [
       for (var i = 0; i < owners.owners.length; i++)

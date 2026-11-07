@@ -74,11 +74,19 @@ class _ChatOwnerSettingsPageState extends State<ChatOwnerSettingsPage> {
             : assistants.containsKey(owner.id))
           owner,
     ];
+    // Each section is one kind read through the shared projection, so the two
+    // halves cannot disagree with the mixed list about where a row goes.
     final assistantRows = separated
-        ? assistantsInOrder(owners, assistants)
+        ? owners.inOwnerOrder(
+            assistants.values,
+            (assistant) => ChatOwner.assistant(assistant.id).key,
+          )
         : const <Assistant>[];
     final groupRows = separated
-        ? groupsInOrder(owners, groups)
+        ? owners.inOwnerOrder(
+            groups.values,
+            (group) => ChatOwner.group(group.id).key,
+          )
         : const <GroupChat>[];
     final assistantKeys = {
       for (final assistant in assistantRows)
@@ -123,75 +131,71 @@ class _ChatOwnerSettingsPageState extends State<ChatOwnerSettingsPage> {
           const SizedBox(width: 8),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 100),
-        children: [
-          if (canSeparate) ...[
-            const _SeparateOwnersRow(),
-            const SizedBox(height: 6),
-          ],
-          if (separated) ...[
-            ChatOwnerSectionHeader(title: l10n.chatOwnersSectionAssistants),
-            _OwnerSection<Assistant>(
-              items: assistantRows,
-              itemKeyOf: (assistant) => ChatOwner.assistant(assistant.id).key,
-              itemBuilder: (assistant) => _AssistantCard(item: assistant),
-              onReorder: (oldIndex, newIndex) => owners.reorderWithin(
-                keys: assistantKeys,
-                oldIndex: oldIndex,
-                newIndex: newIndex,
-              ),
+      // One scrollable for the whole page, one reorderable sliver per section.
+      // Nested `ReorderableListView`s with `shrinkWrap` would each own the
+      // scrollable the drag looks for, and auto-scroll refuses a scrollable
+      // whose physics reject user offsets — so a row could never be dragged
+      // past the fold.
+      body: CustomScrollView(
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 100),
+            sliver: SliverMainAxisGroup(
+              slivers: [
+                if (canSeparate) ...[
+                  const SliverToBoxAdapter(child: _SeparateOwnersRow()),
+                  const SliverToBoxAdapter(child: SizedBox(height: 6)),
+                ],
+                if (separated) ...[
+                  SliverToBoxAdapter(
+                    child: ChatOwnerSectionHeader(
+                      title: l10n.chatOwnersSectionAssistants,
+                    ),
+                  ),
+                  _OwnerSliver<Assistant>(
+                    items: assistantRows,
+                    itemKeyOf: (assistant) =>
+                        ChatOwner.assistant(assistant.id).key,
+                    itemBuilder: (assistant) => _AssistantCard(item: assistant),
+                    onReorder: (oldIndex, newIndex) => owners.reorderWithin(
+                      keys: assistantKeys,
+                      oldIndex: oldIndex,
+                      newIndex: newIndex,
+                    ),
+                  ),
+                  if (groupRows.isNotEmpty) ...[
+                    const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                    SliverToBoxAdapter(
+                      child: ChatOwnerSectionHeader(
+                        title: l10n.chatOwnersSectionGroups,
+                      ),
+                    ),
+                    _OwnerSliver<GroupChat>(
+                      items: groupRows,
+                      itemKeyOf: (group) => ChatOwner.group(group.id).key,
+                      itemBuilder: (group) =>
+                          _GroupCard(group: group, assistants: assistants),
+                      onReorder: (oldIndex, newIndex) => owners.reorderWithin(
+                        keys: groupKeys,
+                        oldIndex: oldIndex,
+                        newIndex: newIndex,
+                      ),
+                    ),
+                  ],
+                ] else
+                  _OwnerSliver<ChatOwner>(
+                    items: rows,
+                    itemKeyOf: (owner) => owner.key,
+                    itemBuilder: cardFor,
+                    onReorder: (oldIndex, newIndex) =>
+                        owners.reorder(oldIndex, newIndex),
+                  ),
+              ],
             ),
-            if (groupRows.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              ChatOwnerSectionHeader(title: l10n.chatOwnersSectionGroups),
-              _OwnerSection<GroupChat>(
-                items: groupRows,
-                itemKeyOf: (group) => ChatOwner.group(group.id).key,
-                itemBuilder: (group) =>
-                    _GroupCard(group: group, assistants: assistants),
-                onReorder: (oldIndex, newIndex) => owners.reorderWithin(
-                  keys: groupKeys,
-                  oldIndex: oldIndex,
-                  newIndex: newIndex,
-                ),
-              ),
-            ],
-          ] else
-            _OwnerSection<ChatOwner>(
-              items: rows,
-              itemKeyOf: (owner) => owner.key,
-              itemBuilder: cardFor,
-              onReorder: (oldIndex, newIndex) =>
-                  owners.reorder(oldIndex, newIndex),
-            ),
+          ),
         ],
       ),
     );
-  }
-
-  List<Assistant> assistantsInOrder(
-    ChatOwnersProvider owners,
-    Map<String, Assistant> assistants,
-  ) {
-    final ordered = <Assistant>[];
-    for (final owner in owners.ownersOfKind(isGroup: false)) {
-      final assistant = assistants[owner.id];
-      if (assistant != null) ordered.add(assistant);
-    }
-    return ordered;
-  }
-
-  List<GroupChat> groupsInOrder(
-    ChatOwnersProvider owners,
-    Map<String, GroupChat> groups,
-  ) {
-    final ordered = <GroupChat>[];
-    for (final owner in owners.ownersOfKind(isGroup: true)) {
-      final group = groups[owner.id];
-      if (group != null) ordered.add(group);
-    }
-    return ordered;
   }
 
   Future<void> _showCreateMenu(BuildContext context) async {
@@ -240,8 +244,12 @@ class _ChatOwnerSettingsPageState extends State<ChatOwnerSettingsPage> {
 /// One run of rows that drags as a unit. A mixed list passes the whole-order
 /// drag; a section passes [ChatOwnersProvider.reorderWithin] on the keys it
 /// shows, so a drag inside it never moves a row the section cannot see.
-class _OwnerSection<T> extends StatelessWidget {
-  const _OwnerSection({
+///
+/// A sliver rather than a `ReorderableListView`: the page owns the one
+/// scrollable, so a drag near the edge scrolls the page, and the indices
+/// handed to [onReorder] stay local to this section.
+class _OwnerSliver<T> extends StatelessWidget {
+  const _OwnerSliver({
     required this.items,
     required this.itemKeyOf,
     required this.itemBuilder,
@@ -255,10 +263,7 @@ class _OwnerSection<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ReorderableListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      buildDefaultDragHandles: false,
+    return SliverReorderableList(
       proxyDecorator: _ownerDragProxy,
       itemCount: items.length,
       onReorderItem: onReorder,

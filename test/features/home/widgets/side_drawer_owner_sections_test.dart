@@ -132,6 +132,14 @@ void main() {
       expect(top('Work'), lessThan(top('Beta')));
       expect(top('Beta'), lessThan(top('Groups')));
       expect(top('Groups'), lessThan(top('Gamma')));
+
+      // Under 「助手」 the tag is a child, and it has to look like one: drawn in
+      // the same type as the section header it would read as a third section
+      // rather than as the assistants it files away.
+      final sectionStyle = tester.widget<Text>(find.text('Assistants')).style!;
+      final tagStyle = tester.widget<Text>(find.text('Work')).style!;
+      expect(tagStyle.fontSize, lessThan(sectionStyle.fontSize!));
+      expect(tagStyle.color!.a, lessThan(sectionStyle.color!.a));
     });
   });
 
@@ -147,6 +155,11 @@ void main() {
       expect(find.text('Work'), findsOneWidget);
       double top(String text) => tester.getTopLeft(find.text(text)).dy;
       expect(top('Gamma'), lessThan(top('Work')));
+
+      // With no parent section above it, a tag is a top-level section of its own
+      // and keeps its own size — the subordinate style belongs to the split only.
+      final tagStyle = tester.widget<Text>(find.text('Work')).style!;
+      expect(tagStyle.fontSize, 13.5);
     });
   });
 }

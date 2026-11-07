@@ -15,16 +15,19 @@ class ChatOwnerSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
-      child: Text(
-        title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 13.5,
-          fontWeight: AppFontWeights.emphasis,
-          color: Theme.of(context).colorScheme.onSurface,
+    return Semantics(
+      header: true,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+        child: Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 13.5,
+            fontWeight: AppFontWeights.emphasis,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
         ),
       ),
     );

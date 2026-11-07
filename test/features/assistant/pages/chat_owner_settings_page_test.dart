@@ -6,11 +6,20 @@ import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/features/assistant/pages/assistant_settings_page.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/shared/widgets/ios_switch.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import '../../../support/business_test_harness.dart';
+
+/// `Alpha` and `Beta` for the two-row cases, then `A02`… for a list long enough
+/// to need scrolling.
+String assistantName(int index) => switch (index) {
+  0 => 'Alpha',
+  1 => 'Beta',
+  _ => 'A${index.toString().padLeft(2, '0')}',
+};
 
 /// Settings › Assistants and groups: one switch decides whether the page (and
 /// the sidebar) show the two kinds as sections or as one mixed list.
@@ -20,6 +29,8 @@ void main() {
   Future<SettingsProvider> pumpPage(
     WidgetTester tester, {
     required bool withGroup,
+    int assistantCount = 2,
+    bool separated = false,
   }) async {
     tester.view.physicalSize = const Size(420, 900);
     tester.view.devicePixelRatio = 1.0;
@@ -40,14 +51,16 @@ void main() {
       settings = SettingsProvider(createBusinessTestPreferences());
       assistants = AssistantProvider(preferences: business.preferences);
       await assistants.loaded;
-      final alpha = await assistants.addAssistant(name: 'Alpha');
-      final beta = await assistants.addAssistant(name: 'Beta');
+      final ids = <String>[];
+      for (var i = 0; i < assistantCount; i++) {
+        ids.add(await assistants.addAssistant(name: assistantName(i)));
+      }
       groups = GroupChatProvider(
         store: ExtensionEntityStore(business.database),
       );
       await groups.loaded;
       if (withGroup) {
-        await groups.create(name: 'Gamma', memberIds: [alpha, beta]);
+        await groups.create(name: 'Gamma', memberIds: [ids.first, ids.last]);
       }
       owners = ChatOwnersProvider(
         assistants: assistants,
@@ -56,6 +69,7 @@ void main() {
       );
       await owners.loaded;
       await settings.loaded;
+      if (separated) await settings.setSeparateChatOwners(true);
     });
 
     await tester.pumpWidget(
@@ -121,5 +135,52 @@ void main() {
     expect(find.text('Assistants'), findsNothing);
     expect(find.text('Groups'), findsNothing);
     expect(find.text('Alpha'), findsOneWidget);
+  });
+
+  testWidgets('a row dragged to the edge scrolls the page, not its section', (
+    tester,
+  ) async {
+    await pumpPage(
+      tester,
+      withGroup: true,
+      assistantCount: 25,
+      separated: true,
+    );
+
+    // The page must own the only scrollable. Give each section its own
+    // `ReorderableListView` and a drag auto-scrolls *that* one — and Flutter
+    // refuses a scrollable whose physics reject user offsets — so a row can
+    // only be dropped inside the window it started in.
+    final scrollable = tester.state<ScrollableState>(
+      find.byType(Scrollable).first,
+    );
+    scrollable.position.jumpTo(scrollable.position.maxScrollExtent);
+    await tester.pumpAndSettle();
+    final double before = scrollable.position.pixels;
+    expect(before, greaterThan(0), reason: 'the page needs to be scrolled');
+
+    // Long-press the group — the last row — then hold it at the top edge.
+    final drag = await tester.startGesture(
+      tester.getCenter(find.text('Gamma')),
+    );
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+    await drag.moveBy(const Offset(0, -20));
+    await tester.pump();
+    await drag.moveTo(const Offset(200, 70));
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    final double during = scrollable.position.pixels;
+    await drag.up();
+    await tester.pumpAndSettle();
+
+    expect(
+      before - during,
+      greaterThan(0),
+      reason: 'a drag held at the top edge must scroll the page towards it',
+    );
+    // The structural half of the same property: one scrollable, so a nested
+    // reorderable cannot come back unnoticed.
+    expect(find.byType(Scrollable), findsOneWidget);
   });
 }

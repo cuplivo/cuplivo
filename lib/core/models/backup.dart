@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'backup_scope.dart';
 export 'backup_scope.dart';
+import 'backup_target.dart';
+export 'backup_target.dart';
 
 enum RestoreMode {
   overwrite, // 覆盖所选内容，保留未选内容
@@ -16,6 +18,10 @@ class WebDavConfig {
   final String userAgent;
   final BackupScope scope;
 
+  /// Which build the archive is written for. An export option like [scope],
+  /// living here so both providers carry it.
+  final BackupTarget target;
+
   const WebDavConfig({
     this.url = '',
     this.username = '',
@@ -23,6 +29,7 @@ class WebDavConfig {
     this.path = 'kelivo_backups',
     this.userAgent = '',
     this.scope = const BackupScope(),
+    this.target = BackupTarget.cuplivo,
   });
 
   WebDavConfig copyWith({
@@ -32,6 +39,7 @@ class WebDavConfig {
     String? path,
     String? userAgent,
     BackupScope? scope,
+    BackupTarget? target,
   }) {
     return WebDavConfig(
       url: url ?? this.url,
@@ -40,6 +48,7 @@ class WebDavConfig {
       path: path ?? this.path,
       userAgent: userAgent ?? this.userAgent,
       scope: scope ?? this.scope,
+      target: target ?? this.target,
     );
   }
 
@@ -50,6 +59,7 @@ class WebDavConfig {
     'path': path,
     'userAgent': userAgent,
     'scope': scope.toJson(),
+    'target': target.name,
   };
 
   static WebDavConfig fromJson(Map<String, dynamic> json) {
@@ -62,6 +72,9 @@ class WebDavConfig {
           : 'kelivo_backups',
       userAgent: (json['userAgent'] as String?) ?? '',
       scope: BackupScope.fromJson(json['scope']),
+      // A config written before the target existed means this build, which is
+      // also what an unrecognised name falls back to.
+      target: BackupTarget.fromName(json['target']) ?? BackupTarget.cuplivo,
     );
   }
 
@@ -92,6 +105,9 @@ class S3Config {
   final String userAgent;
   final BackupScope scope;
 
+  /// Which build the archive is written for; see [WebDavConfig.target].
+  final BackupTarget target;
+
   const S3Config({
     this.endpoint = '',
     this.region = 'us-east-1',
@@ -103,6 +119,7 @@ class S3Config {
     this.pathStyle = true,
     this.userAgent = '',
     this.scope = const BackupScope(),
+    this.target = BackupTarget.cuplivo,
   });
 
   S3Config copyWith({
@@ -116,6 +133,7 @@ class S3Config {
     bool? pathStyle,
     String? userAgent,
     BackupScope? scope,
+    BackupTarget? target,
   }) {
     return S3Config(
       endpoint: endpoint ?? this.endpoint,
@@ -128,6 +146,7 @@ class S3Config {
       pathStyle: pathStyle ?? this.pathStyle,
       userAgent: userAgent ?? this.userAgent,
       scope: scope ?? this.scope,
+      target: target ?? this.target,
     );
   }
 
@@ -142,6 +161,7 @@ class S3Config {
     'pathStyle': pathStyle,
     'userAgent': userAgent,
     'scope': scope.toJson(),
+    'target': target.name,
   };
 
   static S3Config fromJson(Map<String, dynamic> json) {
@@ -160,6 +180,7 @@ class S3Config {
       pathStyle: json['pathStyle'] as bool? ?? true,
       userAgent: (json['userAgent'] as String?) ?? '',
       scope: BackupScope.fromJson(json['scope']),
+      target: BackupTarget.fromName(json['target']) ?? BackupTarget.cuplivo,
     );
   }
 

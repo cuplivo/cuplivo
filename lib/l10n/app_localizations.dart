@@ -3256,6 +3256,36 @@ abstract class AppLocalizations {
   /// **'{selected}/{total}'**
   String backupPageScopeSelectedCount(int selected, int total);
 
+  /// No description provided for @backupPageTargetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup target'**
+  String get backupPageTargetTitle;
+
+  /// No description provided for @backupPageTargetCuplivo.
+  ///
+  /// In en, this message translates to:
+  /// **'Cuplivo'**
+  String get backupPageTargetCuplivo;
+
+  /// No description provided for @backupPageTargetCuplivoNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything this version can restore, group chats included'**
+  String get backupPageTargetCuplivoNote;
+
+  /// No description provided for @backupPageTargetKelivo.
+  ///
+  /// In en, this message translates to:
+  /// **'Kelivo 1.3.4'**
+  String get backupPageTargetKelivo;
+
+  /// No description provided for @backupPageTargetKelivoNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Imports into Kelivo, but group chats are lost'**
+  String get backupPageTargetKelivoNote;
+
   /// No description provided for @backupPageBackupManagementDescription.
   ///
   /// In en, this message translates to:

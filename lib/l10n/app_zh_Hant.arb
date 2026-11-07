@@ -557,6 +557,11 @@
       }
     }
   },
+  "backupPageTargetTitle": "備份目標",
+  "backupPageTargetCuplivo": "Cuplivo",
+  "backupPageTargetCuplivoNote": "當前版本可還原的全部內容，含群聊",
+  "backupPageTargetKelivo": "Kelivo 1.3.4",
+  "backupPageTargetKelivoNote": "可在 Kelivo 中匯入，但會丟失群聊資料",
   "backupPageBackupManagementDescription": "選擇備份和匯入的內容，適用於本機、WebDAV 和 S3。匯入時保留未選取的內容。技能和工作區包含各自的檔案。",
   "backupPageAssistantsLabel": "助手",
   "backupPageProvidersLabel": "供應商",

@@ -729,6 +729,12 @@ final class BusinessKeyRegistry {
       KeyPolicy.backupOnly,
       PolicyReason.deviceViewState,
     ),
+    'display_separate_chat_owners_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+      'How this device draws the owner list: one mixed assistant/group list, '
+      'or assistants and group chats as two sections.',
+    ),
     'display_show_app_updates_v1': KeyRule(
       KeyPolicy.backupOnly,
       PolicyReason.deviceViewState,

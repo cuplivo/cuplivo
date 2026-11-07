@@ -53,9 +53,13 @@ class ChatOwnersProvider extends ChangeNotifier {
   /// [items] in the user's drag order, with anything the order does not know
   /// yet left at its tail.
   ///
-  /// A picker that lists one kind of owner reads this instead of its source
-  /// list, so a drag in the sidebar or in settings is the same order in every
-  /// surface that lists owners.
+  /// This is the one projection every surface that lists owners reads: the
+  /// sidebar's untagged section and its tag sections, both settings panes, and
+  /// the assistant picker. A surface showing one kind of owner passes that
+  /// kind's items, so a section of assistants, a section of group chats and the
+  /// mixed list all place the same row in the same relative position, and a
+  /// created row that the order has not reconciled yet still appears — at the
+  /// tail, in source order, instead of vanishing until the next frame.
   List<T> inOwnerOrder<T>(Iterable<T> items, String Function(T item) keyOf) {
     final rank = <String, int>{
       for (var i = 0; i < _owners.length; i++) _owners[i].key: i,

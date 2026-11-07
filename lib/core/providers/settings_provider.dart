@@ -275,6 +275,8 @@ class SettingsProvider extends ChangeNotifier {
       'display_keep_sidebar_open_on_topic_tap_v1';
   static const String _displayKeepAssistantListExpandedOnSidebarCloseKey =
       'display_keep_assistant_list_expanded_on_sidebar_close_v1';
+  static const String _displaySeparateChatOwnersKey =
+      'display_separate_chat_owners_v1';
   static const String _displayNewChatOnAssistantSwitchKey =
       'display_new_chat_on_assistant_switch_v1';
   static const String _displayNewChatOnLaunchKey =
@@ -1136,6 +1138,7 @@ class SettingsProvider extends ChangeNotifier {
     _keepAssistantListExpandedOnSidebarClose =
         prefs.getBool(_displayKeepAssistantListExpandedOnSidebarCloseKey) ??
         false;
+    _separateChatOwners = prefs.getBool(_displaySeparateChatOwnersKey) ?? false;
     _requestLogEnabled = prefs.getBool(_requestLogEnabledKey) ?? true;
     await RequestLogger.setEnabled(_requestLogEnabled);
     _contextLogEnabled = prefs.getBool(_contextLogEnabledKey) ?? true;
@@ -5857,6 +5860,18 @@ Requirements:
     await prefs.setBool(_displayKeepAssistantListExpandedOnSidebarCloseKey, v);
   }
 
+  // Display: assistants and groups as two sections instead of one mixed list.
+  // The sidebar and Settings › Assistants and groups read this one value.
+  bool _separateChatOwners = false;
+  bool get separateChatOwners => _separateChatOwners;
+  Future<void> setSeparateChatOwners(bool v) async {
+    if (_separateChatOwners == v) return;
+    _separateChatOwners = v;
+    notifyListeners();
+    final prefs = _preferences;
+    await prefs.setBool(_displaySeparateChatOwnersKey, v);
+  }
+
   // Network: request logging (debug)
   bool _requestLogEnabled = true;
   bool get requestLogEnabled => _requestLogEnabled;
@@ -6178,6 +6193,7 @@ Requirements:
     copy._keepSidebarOpenOnTopicTap = _keepSidebarOpenOnTopicTap;
     copy._keepAssistantListExpandedOnSidebarClose =
         _keepAssistantListExpandedOnSidebarClose;
+    copy._separateChatOwners = _separateChatOwners;
     copy._requestLogEnabled = _requestLogEnabled;
     copy._contextLogEnabled = _contextLogEnabled;
     copy._flutterLogEnabled = _flutterLogEnabled;

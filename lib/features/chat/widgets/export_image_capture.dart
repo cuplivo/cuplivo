@@ -37,6 +37,21 @@ void checkExportPixelBudget(Size size, double ratio, int? maxPixels) {
 const double maxExportFullCaptureDimension = 15360;
 const double maxExportSliceHeight = 4096;
 
+/// Every full-surface export uses the same logical width and raster ratio, so a
+/// picture of a message and a picture of a pasted document agree about type size
+/// and stroke weight. Two callers depend on the agreement, so it lives here
+/// rather than beside either of them.
+const double desktopExportLogicalWidth = 720;
+const double mobileExportLogicalWidth = 480;
+const double exportImagePixelRatio = 3;
+
+({double width, double pixelRatio}) exportRenderConfig({
+  required bool isDesktop,
+}) => (
+  width: isDesktop ? desktopExportLogicalWidth : mobileExportLogicalWidth,
+  pixelRatio: exportImagePixelRatio,
+);
+
 double exportSliceLogicalHeight(double ratio) =>
     math.max(1, (maxExportSliceHeight / ratio).floor()).toDouble();
 

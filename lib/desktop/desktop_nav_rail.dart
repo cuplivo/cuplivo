@@ -8,6 +8,7 @@ import '../core/providers/settings_provider.dart';
 import 'user_profile_dialog.dart';
 import '../icons/lucide_adapter.dart' as lucide;
 import '../utils/sandbox_path_resolver.dart';
+import '../shared/navigation/app_tools.dart';
 import '../theme/app_font_weights.dart';
 import 'widgets/desktop_pane_surface.dart';
 
@@ -19,17 +20,19 @@ class DesktopNavRail extends StatelessWidget {
     this.globalSearchActive = false,
     required this.onTapChat,
     required this.onTapGlobalSearch,
-    required this.onTapTranslate,
-    required this.onTapStorage,
+    required this.onSelectTab,
     required this.onTapSettings,
   });
 
-  final int activeIndex; // 0=Chat, 1=Translate, 2=Storage, 3=Settings
+  /// 0 = chat, 1 = translate, 2 = storage, 3 = settings, 4 = Markdown image.
+  final int activeIndex;
   final bool globalSearchActive;
   final VoidCallback onTapChat;
   final VoidCallback onTapGlobalSearch;
-  final VoidCallback onTapTranslate;
-  final VoidCallback onTapStorage;
+
+  /// Switches to a tool's own tab. Every tool gets its own rail button, so this
+  /// is one tap, not a menu.
+  final ValueChanged<int> onSelectTab;
   final VoidCallback onTapSettings;
 
   static const double width = 64.0;
@@ -42,8 +45,6 @@ class DesktopNavRail extends StatelessWidget {
     final double topGap = isMac ? 36.0 : 8.0;
     final isChatActive = activeIndex == 0 && !globalSearchActive;
     final isGlobalSearchActive = globalSearchActive;
-    final isTranslateActive = activeIndex == 1;
-    final isStorageActive = activeIndex == 2;
     final isSettingsActive = activeIndex == 3;
 
     return SizedBox(
@@ -72,23 +73,21 @@ class DesktopNavRail extends StatelessWidget {
               iconColor: isGlobalSearchActive ? cs.primary : null,
             ),
             const SizedBox(height: 8),
-            _CircleAction(
-              tooltip: l10n.desktopNavTranslateTooltip,
-              icon: lucide.Lucide.Languages,
-              onTap: onTapTranslate,
-              size: 40,
-              iconSize: 18,
-              iconColor: isTranslateActive ? cs.primary : null,
-            ),
-            const SizedBox(height: 8),
-            _CircleAction(
-              tooltip: l10n.desktopNavStorageTooltip,
-              icon: lucide.Lucide.Folder,
-              onTap: onTapStorage,
-              size: 40,
-              iconSize: 18,
-              iconColor: isStorageActive ? cs.primary : null,
-            ),
+            // One button per tool: the rail has the room, and a user who came
+            // for Translate should not have to open a menu first.
+            for (final tool in AppTool.values) ...[
+              _CircleAction(
+                tooltip: tool.label(l10n),
+                icon: tool.icon,
+                onTap: () => onSelectTab(_tabIndexFor(tool)),
+                size: 40,
+                iconSize: 18,
+                iconColor: activeIndex == _tabIndexFor(tool)
+                    ? cs.primary
+                    : null,
+              ),
+              const SizedBox(height: 8),
+            ],
             const Spacer(),
             _ThemeCycleButton(),
             const SizedBox(height: 8),
@@ -276,6 +275,14 @@ class _HoverCircleState extends State<_HoverCircle> {
     );
   }
 }
+
+/// Desktop tab per tool. Kept beside the rail because it is the tab shell's
+/// ordering, not a property of the tool itself.
+int _tabIndexFor(AppTool tool) => switch (tool) {
+  AppTool.translate => 1,
+  AppTool.storage => 2,
+  AppTool.markdownImage => 4,
+};
 
 class _ThemeCycleButton extends StatefulWidget {
   @override

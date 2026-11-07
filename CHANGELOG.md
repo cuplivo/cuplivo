@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Markdown image**: paste, import or drop Markdown and get one clean picture out of it — no conversation title, no model name, no timestamp. The sheet is drawn by the app's own Markdown renderer at the export's own width, the type size inside the picture is yours to pick (small / standard / large), and the desktop keeps the source beside the result while letting that source pane step aside when you only want to read it
+
 ### Removed
 
 - **Message replies**: the QQ-style citation and its `<reply-to>` context injection are removed. Upstream's own in-app quotes answer the same need — select text, quote it into the composer, tap a quote to jump back to its source — so the app carries one quoting model instead of two ([ADR-0012](docs/adr/0012-message-reply-quote.md))

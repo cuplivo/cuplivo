@@ -98,24 +98,14 @@ class GroupMemberCluster extends StatelessWidget {
     }
     if (layers.isEmpty) {
       // Every member is gone because their assistants were deleted. The group
-      // still needs a face and a way into its member list, so it wears the same
-      // neutral glyph the group's own avatar falls back to.
+      // still needs a face and a way into its member list.
       layers.add(
         Positioned(
           left: 0,
           top: 0,
           child: _Ring(
             color: isDark ? cs.surface : cs.surfaceContainerHighest,
-            child: Container(
-              width: size,
-              height: size,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: cs.primary.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Lucide.Users, size: size * 0.5, color: cs.primary),
-            ),
+            child: GroupEmptyFace(size: size),
           ),
         ),
       );
@@ -132,6 +122,33 @@ class GroupMemberCluster extends StatelessWidget {
           child: Stack(clipBehavior: Clip.none, children: layers),
         ),
       ),
+    );
+  }
+}
+
+/// The face a group wears when every member's assistant is gone: the group glyph
+/// in the theme's primary colour.
+///
+/// Both places that draw a group's identity use it — this cluster and
+/// [GroupAvatar] — so retinting or resizing that face happens once, and the
+/// composer cannot end up disagreeing with the sidebar about the same group.
+class GroupEmptyFace extends StatelessWidget {
+  const GroupEmptyFace({super.key, required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: cs.primary.withValues(alpha: 0.12),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(Lucide.Users, size: size * 0.5, color: cs.primary),
     );
   }
 }

@@ -3170,7 +3170,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatInputBarToolsTooltip => '工具';
 
   @override
-  String get chatInputBarMoreTooltip => '更多';
+  String get chatInputBarMoreTooltip => '添加';
 
   @override
   String get chatInputBarOverflowTooltip => '更多操作';
@@ -19566,7 +19566,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get chatInputBarToolsTooltip => '工具';
 
   @override
-  String get chatInputBarMoreTooltip => '更多';
+  String get chatInputBarMoreTooltip => '添加';
 
   @override
   String get chatInputBarOverflowTooltip => '更多操作';
@@ -35818,7 +35818,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get chatInputBarToolsTooltip => '工具';
 
   @override
-  String get chatInputBarMoreTooltip => '更多';
+  String get chatInputBarMoreTooltip => '添加';
 
   @override
   String get chatInputBarOverflowTooltip => '更多操作';

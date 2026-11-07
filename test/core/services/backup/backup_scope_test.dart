@@ -726,6 +726,36 @@ void main() {
     },
   );
 
+  test('the separate-owners switch survives a backup and a restore', () async {
+    // `display_separate_chat_owners_v1` is `backupOnly` in the router: which
+    // layout this device draws is its own choice and never rides a pairing, but
+    // a backup still carries it to the next install. The registry test only pins
+    // that classification; this is the write → backup → restore behind it, on
+    // the two entry points that do it: the settings payload a backup stores, and
+    // the write a restore performs.
+    const key = 'display_separate_chat_owners_v1';
+    final sourcePreferences = BusinessPreferences(sourceRepository);
+    await sourcePreferences.load();
+    await sourcePreferences.setBool(key, true);
+
+    final backupPayload = await BusinessRestoreService(
+      sourceRepository,
+    ).exportSettings();
+    expect(
+      backupPayload[key],
+      isTrue,
+      reason: 'a backup carries the choice, so the export must hold it',
+    );
+
+    expect(
+      await targetRepository.getPreference(key),
+      isNull,
+      reason: 'the target must not already agree by accident',
+    );
+    await BusinessRestoreService(targetRepository).overwrite(backupPayload);
+    expect(await targetRepository.getPreference(key), isTrue);
+  });
+
   test('cancelled staging releases the business write fence', () async {
     final backup = await exporter.prepareBackupFile(const WebDavConfig());
     final preferences = BusinessPreferences(targetRepository);

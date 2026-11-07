@@ -43,23 +43,57 @@ class _MarkdownExportPageState extends State<MarkdownExportPage> {
   bool _sourceCollapsed = false;
   bool _exporting = false;
 
+  /// What the preview draws, and the text the last notification carried.
+  ///
+  /// A caret move notifies the controller without changing a character, so the
+  /// two have to be compared with [_notifiedText]: comparing against what is on
+  /// screen would read every caret move as an edit — while a redraw is pending
+  /// it looks different — and push that redraw back each time.
+  String _previewSource = '';
+  String _notifiedText = '';
+  Timer? _previewSettled;
+
+  /// How long typing has to pause before the sheet is redrawn: imperceptible to
+  /// a reader, longer than the gap between keystrokes in a burst.
+  static const _previewSettleDelay = Duration(milliseconds: 180);
+
   bool get _isDesktop => PlatformUtils.isDesktopTarget;
-  bool get _hasContent => _controller.text.trim().isNotEmpty;
 
   @override
   void initState() {
     super.initState();
-    _controller.addListener(_rebuilt);
+    _controller.addListener(_onSourceChanged);
   }
 
   @override
   void dispose() {
-    _controller.removeListener(_rebuilt);
+    _previewSettled?.cancel();
+    _controller.removeListener(_onSourceChanged);
     _controller.dispose();
     super.dispose();
   }
 
-  void _rebuilt() => setState(() {});
+  void _onSourceChanged() {
+    // Selection-only changes reach here too, and they are not edits: nothing to
+    // schedule, and nothing to postpone.
+    final text = _controller.text;
+    if (text == _notifiedText) return;
+    _notifiedText = text;
+    if (text == _previewSource) {
+      // Edited back to what is already on screen.
+      _previewSettled?.cancel();
+      _previewSettled = null;
+      return;
+    }
+    _previewSettled?.cancel();
+    _previewSettled = Timer(_previewSettleDelay, _settlePreview);
+  }
+
+  void _settlePreview() {
+    _previewSettled = null;
+    if (!mounted) return;
+    setState(() => _previewSource = _controller.text);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,27 +101,30 @@ class _MarkdownExportPageState extends State<MarkdownExportPage> {
     // The export width is fixed by the platform, not by the window: a narrow
     // desktop window still produces the same-size picture.
     final documentWidth = exportRenderConfig(isDesktop: _isDesktop).width;
-    final onExport = _hasContent && !_exporting
-        ? () => unawaited(_export())
-        : null;
 
     if (_isDesktop) {
+      final layout = MarkdownExportDesktopLayout(
+        controller: _controller,
+        previewSource: _previewSource,
+        onImport: () => unawaited(_importFile()),
+        onPaste: () => unawaited(_paste()),
+        onTextSize: () => unawaited(_openTextSizeMenu()),
+        textSizeAnchor: _textSizeAnchor,
+        sourceCollapsed: _sourceCollapsed,
+        onToggleSource: () =>
+            setState(() => _sourceCollapsed = !_sourceCollapsed),
+        onExport: _startExport,
+        busy: _exporting,
+        documentWidth: documentWidth,
+        textScale: _textSize.scale,
+      );
+      // The drop target stays mounted even when another desktop tab is on
+      // screen: taking it out of the tree would rebuild this page around it,
+      // and `desktop_drop` hands a drop to every registered target anyway. It
+      // asks the shell whether it is visible when a drop actually arrives.
       return MarkdownExportDropTarget(
         onPaths: (paths) => unawaited(_acceptDrop(paths)),
-        child: MarkdownExportDesktopLayout(
-          controller: _controller,
-          onImport: () => unawaited(_importFile()),
-          onPaste: () => unawaited(_paste()),
-          onTextSize: () => unawaited(_openTextSizeMenu()),
-          textSizeAnchor: _textSizeAnchor,
-          sourceCollapsed: _sourceCollapsed,
-          onToggleSource: () =>
-              setState(() => _sourceCollapsed = !_sourceCollapsed),
-          onExport: onExport,
-          busy: _exporting,
-          documentWidth: documentWidth,
-          textScale: _textSize.scale,
-        ),
+        child: layout,
       );
     }
     return Scaffold(
@@ -119,11 +156,12 @@ class _MarkdownExportPageState extends State<MarkdownExportPage> {
         top: false,
         child: MarkdownExportMobileLayout(
           controller: _controller,
+          previewSource: _previewSource,
           mode: _mode,
           onModeChanged: (mode) => setState(() => _mode = mode),
           onImport: () => unawaited(_importFile()),
           onPaste: () => unawaited(_paste()),
-          onExport: onExport,
+          onExport: _startExport,
           busy: _exporting,
           documentWidth: documentWidth,
           textScale: _textSize.scale,
@@ -161,6 +199,11 @@ class _MarkdownExportPageState extends State<MarkdownExportPage> {
       text: text,
       selection: TextSelection.collapsed(offset: text.length),
     );
+    // A file or a paste arrives whole, so show it now instead of after the
+    // settle window that exists for typing.
+    _previewSettled?.cancel();
+    _previewSettled = null;
+    setState(() => _previewSource = text);
   }
 
   Future<void> _importFile() async {
@@ -229,8 +272,10 @@ class _MarkdownExportPageState extends State<MarkdownExportPage> {
     _report(AppLocalizations.of(context)!.markdownExportUnsupportedFile);
   }
 
+  void _startExport() => unawaited(_export());
+
   Future<void> _export() async {
-    if (!_hasContent || _exporting) return;
+    if (_controller.text.trim().isEmpty || _exporting) return;
     final l10n = AppLocalizations.of(context)!;
     final source = _controller.text;
     setState(() => _exporting = true);
@@ -254,6 +299,9 @@ class _MarkdownExportPageState extends State<MarkdownExportPage> {
     }
     final result = exported;
     if (result == null || !mounted) return;
+    if (result.reducedResolution) {
+      _report(l10n.markdownExportReducedResolution);
+    }
     await showImagePreviewSheet(
       context,
       file: result.file,

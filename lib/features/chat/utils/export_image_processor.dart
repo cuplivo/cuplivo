@@ -27,9 +27,17 @@ class ExportImagePreview {
 }
 
 class ProcessedExportImage {
-  const ProcessedExportImage(this.pngBytes, this.preview);
+  const ProcessedExportImage(
+    this.pngBytes,
+    this.preview, {
+    this.appliedRatio = 0,
+  });
   final Uint8List pngBytes;
   final ExportImagePreview? preview;
+
+  /// The raster ratio the capture actually used. Below the requested one when
+  /// the picture was scaled down to fit a pixel budget; 0 when not reported.
+  final double appliedRatio;
 }
 
 class ExportImageProcessingRequest {

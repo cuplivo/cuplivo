@@ -1505,6 +1505,7 @@
   "chatInputBarMcpServersTooltip": "MCP Servers",
   "chatInputBarToolsTooltip": "Tools",
   "chatInputBarMoreTooltip": "Add",
+  "chatInputBarOverflowTooltip": "More actions",
   "chatInputBarVoiceInputTooltip": "Voice input",
   "chatInputBarVoiceCancelTooltip": "Discard recording",
   "chatInputBarVoiceStopTooltip": "Stop and transcribe to input",

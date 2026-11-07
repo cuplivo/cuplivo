@@ -16350,6 +16350,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsPageChatOwnersCreate => '新建';
 
   @override
+  String get chatOwnersSeparate => '分别显示';
+
+  @override
+  String get chatOwnersSectionAssistants => '助手';
+
+  @override
+  String get chatOwnersSectionGroups => '群聊';
+
+  @override
   String get chatOwnerCreateAssistant => '新建助手';
 
   @override
@@ -32660,6 +32669,15 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get settingsPageChatOwnersCreate => '新建';
+
+  @override
+  String get chatOwnersSeparate => '分别显示';
+
+  @override
+  String get chatOwnersSectionAssistants => '助手';
+
+  @override
+  String get chatOwnersSectionGroups => '群聊';
 
   @override
   String get chatOwnerCreateAssistant => '新建助手';
@@ -49053,6 +49071,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get settingsPageChatOwnersCreate => '新增';
+
+  @override
+  String get chatOwnersSeparate => '分別顯示';
+
+  @override
+  String get chatOwnersSectionAssistants => '助手';
+
+  @override
+  String get chatOwnersSectionGroups => '群聊';
 
   @override
   String get chatOwnerCreateAssistant => '新增助手';

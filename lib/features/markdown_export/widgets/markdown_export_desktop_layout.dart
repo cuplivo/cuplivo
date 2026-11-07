@@ -14,6 +14,7 @@ class MarkdownExportDesktopLayout extends StatelessWidget {
   const MarkdownExportDesktopLayout({
     super.key,
     required this.controller,
+    required this.previewSource,
     required this.onImport,
     required this.onPaste,
     required this.onTextSize,
@@ -27,6 +28,10 @@ class MarkdownExportDesktopLayout extends StatelessWidget {
   });
 
   final TextEditingController controller;
+
+  /// What the preview draws. It trails [controller] by the page's settle delay,
+  /// so typing does not re-render the sheet on every keystroke.
+  final String previewSource;
   final VoidCallback onImport;
   final VoidCallback onPaste;
   final VoidCallback onTextSize;
@@ -37,7 +42,7 @@ class MarkdownExportDesktopLayout extends StatelessWidget {
   /// Whether the source pane is out of the way, leaving the sheet alone.
   final bool sourceCollapsed;
   final VoidCallback onToggleSource;
-  final VoidCallback? onExport;
+  final VoidCallback onExport;
   final bool busy;
   final double documentWidth;
   final double textScale;
@@ -90,8 +95,8 @@ class MarkdownExportDesktopLayout extends StatelessWidget {
                           : l10n.markdownExportHideSource,
                       onTap: onToggleSource,
                     ),
-                    MarkdownExportButton(
-                      label: l10n.markdownExportExportImage,
+                    MarkdownExportSubmitButton(
+                      controller: controller,
                       onTap: onExport,
                       busy: busy,
                     ),
@@ -110,7 +115,7 @@ class MarkdownExportDesktopLayout extends StatelessWidget {
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       final preview = MarkdownExportPreview(
-                        source: controller.text,
+                        source: previewSource,
                         documentWidth: documentWidth,
                         emptyHint: l10n.markdownExportPreviewEmpty,
                         textScale: textScale,

@@ -23,6 +23,7 @@ import 'package:flutter/services.dart'
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:provider/provider.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../desktop/desktop_tab.dart';
 import '../../../main.dart';
 import '../../../shared/widgets/interactive_drawer.dart';
 import '../../../shared/widgets/visible_route_theme.dart';
@@ -1626,6 +1627,11 @@ class _HomePageState extends State<HomePage>
 
   Widget _wrapWithDropTarget(Widget child) {
     if (!_controller.isDesktopPlatform) return child;
+    // A hidden desktop tab is still built and laid out at the visible tab's
+    // rect, and desktop_drop hands every drop to every registered target. A
+    // file dropped on another tab would otherwise land in this composer as
+    // well as wherever the user aimed it.
+    if (!DesktopTabVisibility.of(context)) return child;
     return DropTarget(
       onDragEntered: (_) {
         _controller.setDragHovering(true);

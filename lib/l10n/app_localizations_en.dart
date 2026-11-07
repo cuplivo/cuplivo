@@ -1119,6 +1119,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get markdownExportShowSource => 'Show source';
 
   @override
+  String get markdownExportReducedResolution =>
+      'Long document: drawn at a lower resolution so it still fits one picture';
+
+  @override
   String get markdownExportExportImage => 'Export image';
 
   @override

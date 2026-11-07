@@ -10,6 +10,12 @@
 
 - **Message replies**: the QQ-style citation and its `<reply-to>` context injection are removed. Upstream's own in-app quotes answer the same need — select text, quote it into the composer, tap a quote to jump back to its source — so the app carries one quoting model instead of two ([ADR-0012](docs/adr/0012-message-reply-quote.md))
 
+### Fixed
+
+- A file dropped on a desktop tab stays on that tab: a tab that is not on screen no longer registers a drop target, so the chat composer behind it cannot swallow the file, and it no longer keeps the keyboard focus either
+- A long pasted document still becomes one picture: past the pixel budget the sheet is drawn at a smaller whole ratio instead of failing, and the page says when that happened
+- The Markdown image preview draws Mermaid diagrams the way the exported file does, redraws the sheet once per pause in typing rather than on every keystroke and caret move, and the desktop rail no longer keeps its own copy of the tab order
+
 ## [4.5.0] - 2026-11-01
 
 ### Added

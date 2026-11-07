@@ -9,8 +9,18 @@ import '../../chat/widgets/export_image_capture.dart';
 import '../widgets/markdown_export_document.dart';
 
 /// The finished PNG and the downscaled copy the preview sheet can show without
-/// decoding the full-size file.
-typedef MarkdownExportImage = ({File file, ExportImagePreview? preview});
+/// decoding the full-size file. [reducedResolution] is true when the sheet was
+/// too tall for the requested ratio and was drawn smaller to fit one picture.
+typedef MarkdownExportImage = ({
+  File file,
+  ExportImagePreview? preview,
+  bool reducedResolution,
+});
+
+/// The most one export of a pasted document may allocate. A 24 MP RGBA
+/// composite is about 96 MB, plus one decoded 4096-px slice while stitching;
+/// past that a phone, not the export, is what fails.
+const int markdownExportMaxPixels = 24 * 1000 * 1000;
 
 /// Renders [source] at the export's own width and raster ratio, writes the PNG
 /// to a temporary file, and returns it. `null` means the page went away while
@@ -40,10 +50,10 @@ Future<MarkdownExportImage?> renderMarkdownExportImage(
     // Capture still produces the picture; the diagram degrades to code.
   }
   if (!context.mounted) return null;
-  // No pixel ceiling, deliberately: a long document exports as one tall picture
-  // exactly as a long message does. The capture slices it at 4096 px and the
-  // stitcher reassembles the slices, so the only bound is what the device can
-  // allocate — a smaller type size is how a user keeps a picture within reach.
+  // The input here is a file of any length, so this path states a ceiling where
+  // the message path does not: past [markdownExportMaxPixels] the sheet is
+  // drawn at the largest whole ratio that fits rather than refused, because a
+  // long document still has to become a picture.
   final processed = await captureExportWidget(
     context,
     MarkdownExportDocument(
@@ -54,6 +64,8 @@ Future<MarkdownExportImage?> renderMarkdownExportImage(
     theme: Theme.of(context),
     width: config.width,
     pixelRatio: config.pixelRatio,
+    maxPixels: markdownExportMaxPixels,
+    shrinkToPixels: true,
     onProgress: onProgress,
   );
   onProgress?.call(const ExportImageProgress(ExportImageStage.saving));
@@ -62,5 +74,9 @@ Future<MarkdownExportImage?> renderMarkdownExportImage(
     '${directory.path}/markdown-export-${DateTime.now().microsecondsSinceEpoch}.png',
   );
   await file.writeAsBytes(processed.pngBytes, flush: true);
-  return (file: file, preview: processed.preview);
+  return (
+    file: file,
+    preview: processed.preview,
+    reducedResolution: processed.appliedRatio < config.pixelRatio,
+  );
 }

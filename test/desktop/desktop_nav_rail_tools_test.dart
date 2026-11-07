@@ -5,7 +5,9 @@ import 'package:provider/provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/providers/user_provider.dart';
 import 'package:Cuplivo/desktop/desktop_nav_rail.dart';
+import 'package:Cuplivo/desktop/desktop_tab.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/navigation/app_tools.dart';
 
 import '../support/business_test_harness.dart';
 
@@ -20,7 +22,7 @@ void main() {
     addTearDown(user.dispose);
     await settings.loaded;
 
-    final selected = <int>[];
+    final selected = <AppTool>[];
     await tester.pumpWidget(
       MultiProvider(
         providers: [
@@ -35,11 +37,11 @@ void main() {
             body: Row(
               children: [
                 DesktopNavRail(
-                  activeIndex: 0,
+                  activeTab: DesktopTab.chat,
                   globalSearchActive: false,
                   onTapChat: () {},
                   onTapGlobalSearch: () {},
-                  onSelectTab: selected.add,
+                  onSelectTool: selected.add,
                   onTapSettings: () {},
                 ),
               ],
@@ -56,8 +58,11 @@ void main() {
     expect(find.byTooltip('Storage'), findsOneWidget);
     expect(find.byTooltip('Markdown image'), findsOneWidget);
 
+    // The rail names the tool; the shell owns the tab order. A number here is
+    // what used to drift from the stack.
     await tester.tap(find.byTooltip('Markdown image'));
     await tester.pumpAndSettle();
-    expect(selected, [4]);
+    expect(selected, [AppTool.markdownImage]);
+    expect(desktopTabForTool(AppTool.markdownImage), DesktopTab.markdownImage);
   });
 }

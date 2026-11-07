@@ -2158,6 +2158,12 @@ abstract class AppLocalizations {
   /// **'Show source'**
   String get markdownExportShowSource;
 
+  /// No description provided for @markdownExportReducedResolution.
+  ///
+  /// In en, this message translates to:
+  /// **'Long document: drawn at a lower resolution so it still fits one picture'**
+  String get markdownExportReducedResolution;
+
   /// No description provided for @markdownExportExportImage.
   ///
   /// In en, this message translates to:

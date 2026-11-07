@@ -1775,6 +1775,23 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
+  String get backupPageTargetTitle => 'Yedek hedefi';
+
+  @override
+  String get backupPageTargetCuplivo => 'Cuplivo';
+
+  @override
+  String get backupPageTargetCuplivoNote =>
+      'Bu sürümün geri yükleyebildiği her şey, grup sohbetleri dahil';
+
+  @override
+  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+
+  @override
+  String get backupPageTargetKelivoNote =>
+      'Kelivo\'ya aktarılabilir, ancak grup sohbetleri kaybolur';
+
+  @override
   String get backupPageBackupManagementDescription =>
       'Neyin yedekleneceğini ve içe aktarılacağını seçin. Yerel, WebDAV ve S3 yedekleri için geçerlidir. Seçilmeyen içerik içe aktarmada değişmeden kalır. Beceriler ve çalışma alanları kendi dosyalarını içerir.';
 

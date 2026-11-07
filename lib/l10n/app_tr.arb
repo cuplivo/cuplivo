@@ -5311,5 +5311,10 @@
   "toolsMenuTooltip": "Araçlar",
   "chatOwnersSeparate": "Ayrı göster",
   "chatOwnersSectionAssistants": "Asistanlar",
-  "chatOwnersSectionGroups": "Gruplar"
+  "chatOwnersSectionGroups": "Gruplar",
+  "backupPageTargetCuplivo": "Cuplivo",
+  "backupPageTargetCuplivoNote": "Bu sürümün geri yükleyebildiği her şey, grup sohbetleri dahil",
+  "backupPageTargetKelivo": "Kelivo 1.3.4",
+  "backupPageTargetKelivoNote": "Kelivo'ya aktarılabilir, ancak grup sohbetleri kaybolur",
+  "backupPageTargetTitle": "Yedek hedefi"
 }

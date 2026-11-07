@@ -293,6 +293,52 @@ Units from earlier series that are **gone, and must not come back**:
     committed, the workflow then deleted. A fixture that fails on every platform is not a platform
     failure to register; it is a fixture that was never generated where it runs.
 
+17. **Every re-base re-verifies that a backup still goes *back* into Kelivo, because no gate here
+    reads our data with an older build's vocabulary.** Every restore test in this tree is Cuplivo
+    reading Cuplivo, so a field the fork adds round-trips perfectly and breaks only once the archive
+    reaches Kelivo. The group-chat unit (`5136e617b`, `#1052`) is the case this rule exists for: it
+    added `BusinessEntityKind.groupChat` (`sourceKey: 'group_chats_v1'`), and
+    `exportSnapshotWithRowIds` writes a key for *every* kind, so every backup since carries
+    `"group_chats_v1": []` in the manifest's `businessEntityRowIds` — the list is empty and does not
+    save it, because the key is what the older reader rejects. Kelivo v1.3.4 reads that archive as
+    **its own**: the unit moved neither the archive format (`_backupFormatVersion` 3) nor the schema
+    (`AppDatabase.currentSchemaVersion` 5), so no compatibility decision is raised and nothing is
+    stripped. The restore then dies inside the business step, in
+    `BusinessSettingsRouter._rowIdsByKind`, whose first loop throws on a source key it has no kind
+    for — `FormatException('group_chats_v1')`, after every check that exists has already passed.
+    `_stripUnknownManifestKeys` cannot help even in principle:
+    `businessEntityRowIds` is a *known* manifest key, so the whole map is carried through verbatim,
+    and nothing inspects a known key's *contents* for a vocabulary the reader does not have.
+
+    So the export's vocabulary is a reader contract, not private storage. Four surfaces carry it, and
+    they do not fail alike — which is why each addition is a decision recorded in its unit's message
+    rather than an assumption:
+    - an added `BusinessEntityKind` reaches both the manifest and `settings.json`, and an unknown
+      `sourceKey` is **fatal** (`_rowIdsByKind`, above) — this is the one shape that has actually
+      broken the reverse import;
+    - an added `BackupCategory` reaches `manifest['scope']`, and is tolerated, because a reader only
+      looks for its own categories;
+    - an added key inside `settings.json` is tolerated while its value is a `String`, `bool`, `num`
+      or `List<String>` (`BackupSettingsValidator.validateValue`) — and note that a value it *would*
+      reject fails the same archive in our own build too, so this axis is the one the gates do see;
+    - an added `conversation.extras` key is opaque to the reader (and a group conversation's null
+      `assistantId` is legal upstream), so it rides along as baggage, not as a break.
+
+    Per re-base, after the gates: `test/core/database/kelivo_vocabulary_test.dart` is the mechanical
+    check — it refuses a `BusinessEntityKind` that is neither in the pinned vocabulary nor in
+    `unreadableKindDispositions`, so a new kind cannot ship without someone writing down what a Kelivo
+    user loses. Pinning a *newer* Kelivo release is the other half: add a constant to
+    `lib/core/models/backup_target.dart` generated from that tag (`git show <kelivo-tag>:lib/core/database/business_data.dart`
+    and `.../lib/core/models/backup_scope.dart`) beside `v1_3_4` rather than editing it, and check the
+    reader at that tag — `_rowIdsByKind`, `BackupScope.fromJson` and
+    `BackupSettingsValidator.validateValue` — before trusting the pin. The end-to-end proof is still a
+    restore of a backup taken from the rebased tree into the last released Kelivo build; no local test
+    can stand in for it, and its tell is that `flutter test` is entirely green while the archive is
+    unusable. What to *do* about a new kind stays a decision of its own — a narrower export for archives
+    Kelivo may read ([ADR-0017](adr/0017-kelivo-reverse-import.md) is the first one), a format-version
+    bump that makes the refusal loud and early, or nothing because the kind is tolerated — and this rule
+    asks only that the re-base knows which one the tree currently does.
+
 ## The CI rule
 
 `.github/workflows/release.yml` is the only build workflow. Upstream publishes one workflow per
@@ -352,6 +398,11 @@ flutter gen-l10n && git status --short -- lib/l10n      # must be empty
 dart analyze --fatal-infos lib test integration_test
 dart format --output=none --set-exit-if-changed lib test integration_test
 flutter test                                            # only the registered known failures
+
+# the reverse direction, which none of the gates above can see (rule 17)
+flutter test test/core/database/kelivo_vocabulary_test.dart
+#   every added sourceKey/category is a Kelivo-side reader break until its disposition is decided,
+#   and the end-to-end proof is a restore of this tree's backup into the last released Kelivo build
 
 # land
 git branch -f master rebase/onto-<new-baseline>

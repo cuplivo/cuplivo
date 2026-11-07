@@ -802,6 +802,26 @@
     },
     "description": "Counter showing selected versus total backup categories, e.g. 3/12, with {selected} and {total} placeholders."
   },
+  "backupPageTargetTitle": "Backup target",
+  "@backupPageTargetTitle": {
+    "description": "Section header on the backup page for choosing which app the backup file is written for."
+  },
+  "backupPageTargetCuplivo": "Cuplivo",
+  "@backupPageTargetCuplivo": {
+    "description": "Name of the Cuplivo backup format, listed as one of the backup targets."
+  },
+  "backupPageTargetCuplivoNote": "Everything this version can restore, group chats included",
+  "@backupPageTargetCuplivoNote": {
+    "description": "Description under the Cuplivo backup target saying it carries everything this version can restore, group chats included."
+  },
+  "backupPageTargetKelivo": "Kelivo 1.3.4",
+  "@backupPageTargetKelivo": {
+    "description": "Name of the Kelivo 1.3.4 backup format, listed as one of the backup targets."
+  },
+  "backupPageTargetKelivoNote": "Imports into Kelivo, but group chats are lost",
+  "@backupPageTargetKelivoNote": {
+    "description": "Description under the Kelivo backup target warning that importing it into Kelivo loses group chats."
+  },
   "backupPageBackupManagementDescription": "Choose what to back up and import. Applies to local, WebDAV and S3 backups. Unselected content stays unchanged on import. Skills and workspaces include their own files.",
   "backupPageAssistantsLabel": "Assistants",
   "backupPageProvidersLabel": "Providers",

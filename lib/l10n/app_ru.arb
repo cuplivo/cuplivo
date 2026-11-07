@@ -5311,5 +5311,10 @@
   "toolsMenuTooltip": "Инструменты",
   "chatOwnersSeparate": "Показывать отдельно",
   "chatOwnersSectionAssistants": "Ассистенты",
-  "chatOwnersSectionGroups": "Группы"
+  "chatOwnersSectionGroups": "Группы",
+  "backupPageTargetCuplivo": "Cuplivo",
+  "backupPageTargetCuplivoNote": "Всё, что эта версия умеет восстанавливать, включая групповые чаты",
+  "backupPageTargetKelivo": "Kelivo 1.3.4",
+  "backupPageTargetKelivoNote": "Импортируется в Kelivo, но групповые чаты теряются",
+  "backupPageTargetTitle": "Цель резервной копии"
 }

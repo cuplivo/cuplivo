@@ -24,6 +24,7 @@ import 'package:Cuplivo/core/database/business_repository.dart';
 import 'package:Cuplivo/core/database/business_restore_service.dart';
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
 import 'package:Cuplivo/core/database/schema_migrations.dart';
+import 'package:Cuplivo/core/services/backup/backup_archive_format.dart';
 import 'package:Cuplivo/core/models/backup.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
@@ -2995,7 +2996,7 @@ void main() {
             jsonDecode(utf8.decode(manifestEntry!.readBytes()!))
                 as Map<String, dynamic>;
         expect(manifest['format'], 'kelivo-backup');
-        expect(manifest['formatVersion'], 3);
+        expect(manifest['formatVersion'], BackupArchiveFormat.current);
         expect(manifest['payloadKind'], 'sqlite');
         expect(manifest['includeChats'], isTrue);
         expect(manifest['appVersion'], '1.0.0-test+1');
@@ -3258,7 +3259,9 @@ void main() {
         root: root,
         prefix: 'forward_format_only',
         settings: const {},
-        formatVersionOverride: 4,
+        // "Newer" is derived, not restated: this case is about a format one
+        // step ahead of what this build writes, whatever that number is.
+        formatVersionOverride: BackupArchiveFormat.current + 1,
         minimumReadableFormatOverride: 2,
         extraEntries: const {'stickers/future.bin': 'ignorable'},
         extraManifestFields: const {'futureTopLevel': 'ignored'},
@@ -3280,7 +3283,7 @@ void main() {
               as Map<String, dynamic>;
       // Reduced to this build's format, so the staged candidate is an ordinary
       // one that the single-version validators accept unchanged.
-      expect(candidateManifest['formatVersion'], 3);
+      expect(candidateManifest['formatVersion'], BackupArchiveFormat.current);
       expect(candidateManifest.keys, isNot(contains('futureTopLevel')));
       expect(
         candidateManifest.keys,
@@ -3298,7 +3301,7 @@ void main() {
         root: root,
         prefix: 'forward_format_undeclared',
         settings: const {},
-        formatVersionOverride: 4,
+        formatVersionOverride: BackupArchiveFormat.current + 1,
       );
 
       await expectLater(
@@ -3321,8 +3324,8 @@ void main() {
         root: root,
         prefix: 'forward_format_too_new',
         settings: const {},
-        formatVersionOverride: 4,
-        minimumReadableFormatOverride: 4,
+        formatVersionOverride: BackupArchiveFormat.current + 1,
+        minimumReadableFormatOverride: BackupArchiveFormat.current + 1,
       );
 
       await expectLater(
@@ -3338,6 +3341,45 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('refuses a format that declares a scope but carries none', () async {
+      // Spelled "equals the format this build writes", this check covered format
+      // 3 only while 3 *was* current: moving to 4 would have left every backup
+      // written before this release unvalidated, and an absent block reads as
+      // *everything included* — environment variables included.
+      const invalidScopes = <String, Object>{
+        'empty': <String, Object>{},
+        'nonbool': <String, Object>{'chats': 'yes'},
+      };
+      for (final format in BackupArchiveFormat.declaresScope) {
+        for (final invalid in invalidScopes.entries) {
+          final zipFile = await _createSqliteBackupFixture(
+            root: root,
+            prefix: 'scope_${format}_${invalid.key}',
+            settings: const {},
+            formatVersionOverride: format,
+            extraManifestFields: {'scope': invalid.value},
+          );
+          await expectLater(
+            DataSync(
+              businessRepository: businessRepository,
+              chatService: ChatService(),
+            ).restoreFromLocalFile(zipFile, _withoutAssets),
+            throwsA(
+              isA<FormatException>().having(
+                (e) => e.message,
+                'message',
+                'manifest_scope',
+              ),
+            ),
+            reason: 'format $format declares a scope block',
+          );
+        }
+      }
+      // Format 2 predates the block and stays tolerated; every other test in
+      // this file restores a format-2 fixture without one.
+      expect(BackupArchiveFormat.declaresScope, isNot(contains(2)));
     });
 
     test('every backup this build writes declares its readers', () async {
@@ -3356,8 +3398,11 @@ void main() {
               )
               as Map<String, dynamic>;
 
-      expect(manifest['formatVersion'], 3);
-      expect(manifest['minimumReadableFormatVersion'], 3);
+      expect(manifest['formatVersion'], BackupArchiveFormat.current);
+      expect(
+        manifest['minimumReadableFormatVersion'],
+        BackupArchiveFormat.minimumReadable,
+      );
       expect(
         manifest['minimumReadableFormatVersion'],
         lessThanOrEqualTo(manifest['formatVersion'] as int),
@@ -3366,6 +3411,73 @@ void main() {
             'build we are unreadable',
       );
     });
+
+    test('a Kelivo-target export names no entity key that release lacks', () async {
+      // The reverse direction, which every other test in this tree leaves out:
+      // Cuplivo restores its own archives, so a key the fork adds round-trips
+      // perfectly and only breaks on the older reader. Kelivo v1.3.4 throws
+      // FormatException on `group_chats_v1` in its row-id routing, after every
+      // compatibility check on the archive has passed.
+      final forThisBuild = await DataSync.exportBusinessSettingsFrom(
+        businessRepository,
+      );
+      final forKelivo = await DataSync.exportBusinessSettingsFrom(
+        businessRepository,
+        target: BackupTarget.kelivoV1_3_4,
+      );
+
+      // The guard is only a guard if the key is really there without it.
+      expect(forThisBuild.entityRowIds.keys, contains('group_chats_v1'));
+      expect(
+        jsonDecode(forThisBuild.settingsJson) as Map<String, dynamic>,
+        contains('group_chats_v1'),
+      );
+
+      expect(forKelivo.entityRowIds.keys, isNot(contains('group_chats_v1')));
+      expect(
+        (jsonDecode(forKelivo.settingsJson) as Map<String, dynamic>).keys,
+        isNot(contains('group_chats_v1')),
+      );
+      // Narrower, not emptier: everything that release knows still travels, and
+      // no key outside its vocabulary is written.
+      expect(forKelivo.entityRowIds.keys, contains('assistants_v1'));
+      expect(
+        forKelivo.entityRowIds.keys.toSet().difference(
+          KelivoVocabulary.v1_3_4.entitySourceKeys,
+        ),
+        isEmpty,
+      );
+    });
+
+    test(
+      'a Kelivo-target archive declares the format that release reads',
+      () async {
+        final zipFile =
+            await DataSync(
+              businessRepository: businessRepository,
+              chatService: ChatService(),
+            ).exportToFile(
+              _withoutChatsOrAssets.copyWith(target: BackupTarget.kelivoV1_3_4),
+            );
+        final archive = ZipDecoder().decodeBytes(await zipFile.readAsBytes());
+        final manifest =
+            jsonDecode(
+                  utf8.decode(
+                    archive.findFile('manifest.json')!.content as List<int>,
+                  ),
+                )
+                as Map<String, dynamic>;
+
+        expect(manifest['formatVersion'], 3);
+        expect(manifest['minimumReadableFormatVersion'], 3);
+        // Readable by this build too: a backup it produced must never be one it
+        // refuses.
+        expect(
+          BackupArchiveFormat.legacyReadable,
+          contains(manifest['formatVersion']),
+        );
+      },
+    );
 
     test('accepts a newer settings-only backup with unknown entries', () async {
       // A settings-only backup carries no database block at all, so a
@@ -3382,7 +3494,7 @@ void main() {
       await manifestFile.writeAsString(
         jsonEncode({
           'format': 'kelivo-backup',
-          'formatVersion': 4,
+          'formatVersion': BackupArchiveFormat.current + 1,
           'minimumReadableFormatVersion': 2,
           'payloadKind': 'settings-only',
           'createdAtUtc': '2026-07-09T00:00:00.000Z',
@@ -4177,7 +4289,7 @@ void main() {
         await manifestFile.writeAsString(
           jsonEncode({
             'format': 'kelivo-backup',
-            'formatVersion': 4,
+            'formatVersion': BackupArchiveFormat.current + 1,
             'payloadKind': 'settings-only',
             'createdAtUtc': '2026-07-09T00:00:00.000Z',
             'appVersion': 'future',

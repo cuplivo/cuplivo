@@ -5488,5 +5488,10 @@
   "groupChatDirectorFallbackWarning": "導演模型無法使用，已由首位成員回覆一次。請檢查預設模型設定。",
   "groupChatUnavailableWarning": "此群聊沒有可用的成員。",
   "defaultModelPageDirectorModelTitle": "導演模型",
-  "defaultModelPageDirectorModelSubtitle": "決定群聊中下一位發言者，建議選擇快速且低成本的模型"
+  "defaultModelPageDirectorModelSubtitle": "決定群聊中下一位發言者，建議選擇快速且低成本的模型",
+  "backupPageTargetTitle": "備份目標",
+  "backupPageTargetCuplivo": "Cuplivo",
+  "backupPageTargetCuplivoNote": "當前版本可還原的全部內容，含群聊",
+  "backupPageTargetKelivo": "Kelivo 1.3.4",
+  "backupPageTargetKelivoNote": "可在 Kelivo 中匯入，但會丟失群聊資料"
 }

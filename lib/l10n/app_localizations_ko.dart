@@ -1730,6 +1730,21 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
+  String get backupPageTargetTitle => '백업 대상';
+
+  @override
+  String get backupPageTargetCuplivo => 'Cuplivo';
+
+  @override
+  String get backupPageTargetCuplivoNote => '이 버전에서 복원할 수 있는 모든 항목(그룹 채팅 포함)';
+
+  @override
+  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+
+  @override
+  String get backupPageTargetKelivoNote => 'Kelivo로 가져올 수 있지만 그룹 채팅은 사라져요';
+
+  @override
   String get backupPageBackupManagementDescription =>
       '백업 및 가져올 내용을 선택하세요. 로컬, WebDAV 및 S3 백업에 적용됩니다. 선택하지 않은 내용은 가져오기 시 변경되지 않습니다. 스킬과 작업 공간은 각자의 파일을 포함합니다.';
 

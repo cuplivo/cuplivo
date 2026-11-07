@@ -2,10 +2,12 @@ import 'dart:convert';
 
 import 'app_database.dart';
 import '../models/backup_scope.dart';
+import '../models/backup_target.dart';
 import 'backup_content_filter.dart';
 import 'business_data.dart';
 import 'business_repository.dart';
 import 'business_settings_router.dart';
+import 'kelivo_vocabulary.dart';
 
 /// Device state stays in SQLite at runtime, but must not travel in a backup.
 final class BackupPortability {
@@ -89,9 +91,17 @@ final class BackupPortability {
 
   /// Only call on a temporary database, never the live database. This also
   /// handles old backups whose raw SQLite payload still has device-only rows.
+  ///
+  /// [target] decides which business kinds the archive may still name. A backup
+  /// written for a Kelivo release drops every kind that release has no word for,
+  /// because the settings export already dropped those keys — leaving the rows
+  /// would make the archive contradict its own manifest, and leaving the
+  /// conversation link would land chats that point at an entity the reader will
+  /// never have.
   static Future<void> sanitizeDatabase(
     AppDatabase database, {
     BackupScope scope = const BackupScope(),
+    BackupTarget target = BackupTarget.cuplivo,
   }) async {
     // Erase removed payloads from SQLite cells as well as its logical rows.
     await database.customStatement('PRAGMA secure_delete = ON;');
@@ -103,6 +113,7 @@ final class BackupPortability {
       await database.customStatement(
         "DELETE FROM extension_entity_rows WHERE kind IN ('externalMounts', 'composerDraft', 'composerNewEntry', 'composerShareReceipt', 'composerPrivateFile');",
       );
+      await _dropUnreadableKinds(database, target);
       // Chat history remains readable, but imported chats cannot inherit a
       // directory grant or silently authorize shell execution on this device.
       await database.customStatement('''
@@ -124,5 +135,48 @@ final class BackupPortability {
             OR json_type(extras_json, '\$."tools.permission_mode"') IS NOT NULL);
       ''');
     });
+  }
+
+  /// Takes every kind [target] cannot read out of the archive: its rows, and
+  /// every conversation link that points at them.
+  ///
+  /// The halves belong together — an entity row without its settings key is an
+  /// archive that contradicts itself, and so is a conversation naming a row that
+  /// did not travel. Both halves are derived from [unreadableKindDispositions]
+  /// rather than spelled out per kind here, so a kind added to that table leaves
+  /// everywhere at once; a kind the table says nothing about, or one with no
+  /// extension storage to drop, throws instead of being half-stripped.
+  static Future<void> _dropUnreadableKinds(
+    AppDatabase database,
+    BackupTarget target,
+  ) async {
+    final unreadable = unreadableEntitySourceKeys(target);
+    if (unreadable.isEmpty) return;
+    final kinds = [
+      for (final kind in BusinessEntityKind.values)
+        if (unreadable.contains(kind.sourceKey)) kind,
+    ];
+    final extensionKinds = [
+      for (final kind in kinds) droppableExtensionKind(kind),
+    ];
+    final placeholders = List.filled(extensionKinds.length, '?').join(', ');
+    await database.customStatement(
+      'DELETE FROM extension_entity_rows WHERE kind IN ($placeholders);',
+      extensionKinds,
+    );
+    final links = conversationLinksToStrip(kinds);
+    if (links.isEmpty) return;
+    // Each path is a JSON path in Dart and a SQL string literal in the
+    // statement, so it is quoted once for itself and once for SQLite.
+    final paths = [for (final link in links) '\$."$link"'];
+    final removals = [for (final path in paths) "'$path'"].join(', ');
+    final touched = [
+      for (final path in paths) "json_type(extras_json, '$path') IS NOT NULL",
+    ].join(' OR ');
+    await database.customStatement(
+      'UPDATE conversation_rows '
+      'SET extras_json = json_remove(extras_json, $removals) '
+      'WHERE json_valid(extras_json) AND ($touched);',
+    );
   }
 }

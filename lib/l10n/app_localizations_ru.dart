@@ -1797,6 +1797,23 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get backupPageTargetTitle => 'Цель резервной копии';
+
+  @override
+  String get backupPageTargetCuplivo => 'Cuplivo';
+
+  @override
+  String get backupPageTargetCuplivoNote =>
+      'Всё, что эта версия умеет восстанавливать, включая групповые чаты';
+
+  @override
+  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+
+  @override
+  String get backupPageTargetKelivoNote =>
+      'Импортируется в Kelivo, но групповые чаты теряются';
+
+  @override
   String get backupPageBackupManagementDescription =>
       'Выберите, что копировать и импортировать. Применяется к локальным, WebDAV и S3 резервным копиям. Невыбранное содержимое при импорте остаётся без изменений. Навыки и рабочие области включают собственные файлы.';
 

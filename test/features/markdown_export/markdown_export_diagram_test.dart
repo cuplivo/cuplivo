@@ -50,11 +50,12 @@ void main() {
     MermaidImageCache.clear();
   });
 
-  Widget host(Widget child) {
+  Widget host(Widget child, {ThemeData? theme}) {
     return ChangeNotifierProvider<SettingsProvider>.value(
       value: settings,
       child: MaterialApp(
         locale: const Locale('en'),
+        theme: theme,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
@@ -64,7 +65,7 @@ void main() {
     );
   }
 
-  Widget preview({double textScale = 1}) {
+  Widget preview({double textScale = 1, ThemeData? theme}) {
     return host(
       MarkdownExportPreview(
         source: _markdown,
@@ -72,6 +73,7 @@ void main() {
         emptyHint: 'Nothing to preview yet',
         textScale: textScale,
       ),
+      theme: theme,
     );
   }
 
@@ -92,17 +94,19 @@ void main() {
     }
   }
 
-  /// The key the export asks for, for the theme on screen.
-  String cacheKey() {
+  /// The key the export asks for, for [scheme].
+  String cacheKey(ColorScheme scheme) {
     return diagramImageCacheKey(
       _diagramCode,
-      false,
-      buildThemeVarsFromColorScheme(
-        Theme.of(hostKey.currentContext!).colorScheme,
-      ),
+      scheme.brightness == Brightness.dark,
+      buildThemeVarsFromColorScheme(scheme),
       isSvg: false,
     );
   }
+
+  /// The key for the palette currently on screen.
+  String screenCacheKey() =>
+      cacheKey(Theme.of(hostKey.currentContext!).colorScheme);
 
   String renderedText(WidgetTester tester) {
     return tester
@@ -120,11 +124,41 @@ void main() {
     await settleWarm(tester);
 
     expect(
-      MermaidImageCache.get(cacheKey()),
+      MermaidImageCache.get(screenCacheKey()),
       isNotNull,
       reason: 'the preview must warm the cache, not wait for an export',
     );
     // Drawn on the same tree: no second build of the page is needed to see it.
+    expect(find.byType(Image), findsWidgets);
+    expect(renderedText(tester).contains('A-->B'), isFalse);
+  });
+
+  testWidgets('a theme change warms the diagrams again for the new palette', (
+    tester,
+  ) async {
+    installRenderer();
+    final blue = ThemeData(
+      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1E5BFF)),
+    );
+    final red = ThemeData(
+      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFB3261E)),
+    );
+
+    await tester.pumpWidget(preview(theme: blue));
+    await settleWarm(tester);
+    expect(MermaidImageCache.get(cacheKey(blue.colorScheme)), isNotNull);
+
+    // The bitmap is keyed on the palette, so the new theme starts cold. The
+    // text did not change, and a preview that remembers "this text was warmed"
+    // would fall back to drawing the diagram's source.
+    await tester.pumpWidget(preview(theme: red));
+    await settleWarm(tester);
+
+    expect(
+      MermaidImageCache.get(cacheKey(red.colorScheme)),
+      isNotNull,
+      reason: 'the new palette needs its own bitmaps',
+    );
     expect(find.byType(Image), findsWidgets);
     expect(renderedText(tester).contains('A-->B'), isFalse);
   });
@@ -138,7 +172,7 @@ void main() {
 
     await tester.pumpWidget(preview());
     await settleWarm(tester);
-    expect(MermaidImageCache.get(cacheKey()), isNull);
+    expect(MermaidImageCache.get(screenCacheKey()), isNull);
     // The source is what the sheet honestly shows when there is no bitmap.
     expect(renderedText(tester).contains('A-->B'), isTrue);
 
@@ -147,7 +181,7 @@ void main() {
     await tester.pumpWidget(preview(textScale: 1.1));
     await settleWarm(tester);
 
-    expect(MermaidImageCache.get(cacheKey()), isNotNull);
+    expect(MermaidImageCache.get(screenCacheKey()), isNotNull);
     expect(find.byType(Image), findsWidgets);
     expect(renderedText(tester).contains('A-->B'), isFalse);
   });

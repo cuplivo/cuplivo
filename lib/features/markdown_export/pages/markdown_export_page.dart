@@ -43,10 +43,14 @@ class _MarkdownExportPageState extends State<MarkdownExportPage> {
   bool _sourceCollapsed = false;
   bool _exporting = false;
 
-  /// What the preview draws. It trails the editor by one settle window, and a
-  /// caret move — which notifies the controller without changing a character —
-  /// leaves it alone entirely.
+  /// What the preview draws, and the text the last notification carried.
+  ///
+  /// A caret move notifies the controller without changing a character, so the
+  /// two have to be compared with [_notifiedText]: comparing against what is on
+  /// screen would read every caret move as an edit — while a redraw is pending
+  /// it looks different — and push that redraw back each time.
   String _previewSource = '';
+  String _notifiedText = '';
   Timer? _previewSettled;
 
   /// How long typing has to pause before the sheet is redrawn: imperceptible to
@@ -70,9 +74,13 @@ class _MarkdownExportPageState extends State<MarkdownExportPage> {
   }
 
   void _onSourceChanged() {
-    // Selection-only changes reach here too. Nothing to draw means nothing to
-    // schedule, which is what keeps arrow keys off the renderer.
-    if (_controller.text == _previewSource) {
+    // Selection-only changes reach here too, and they are not edits: nothing to
+    // schedule, and nothing to postpone.
+    final text = _controller.text;
+    if (text == _notifiedText) return;
+    _notifiedText = text;
+    if (text == _previewSource) {
+      // Edited back to what is already on screen.
       _previewSettled?.cancel();
       _previewSettled = null;
       return;

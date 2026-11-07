@@ -35,15 +35,17 @@ class MarkdownExportPreview extends StatefulWidget {
 }
 
 class _MarkdownExportPreviewState extends State<MarkdownExportPreview> {
-  /// The source whose diagrams this sheet has already drawn from the bitmap
-  /// cache. Left `null` when an attempt does not fill the cache, so a later
-  /// build tries again rather than leaving the screen behind the file.
-  String? _warmedSource;
   bool _warming = false;
 
   /// Bumped once the cache is usable, so the sheet is rebuilt from scratch and
   /// its diagram reads the bitmap instead of the source it drew first.
   int _sheetEpoch = 0;
+
+  /// The diagram codes of the current text, kept beside the text they came
+  /// from: a theme change rebuilds this widget without touching the text, and
+  /// re-parsing it then would be work for nothing.
+  String? _codesFor;
+  List<DiagramCode> _codes = const [];
 
   @override
   Widget build(BuildContext context) {
@@ -112,14 +114,15 @@ class _MarkdownExportPreviewState extends State<MarkdownExportPreview> {
   /// is cold. The export warms the cache before it captures, so the preview has
   /// to warm it the same way — otherwise the screen shows source for a picture
   /// the file renders as a diagram.
+  ///
+  /// "Already warm" is answered by the cache, not by remembering which text was
+  /// warmed: the cache is keyed on the diagram *and the palette*, so a theme
+  /// change makes every entry cold again without the text changing at all.
   void _warmDiagrams() {
+    if (_warming || widget.source.trim().isEmpty) return;
+    final codes = _diagramCodes(widget.source);
+    if (codes.isEmpty || _codesCached(codes)) return;
     final source = widget.source;
-    if (_warming || _warmedSource == source || source.trim().isEmpty) return;
-    final codes = extractDiagramCodes(source);
-    if (codes.isEmpty) {
-      _warmedSource = source;
-      return;
-    }
     // The render inserts an overlay entry, which cannot happen while a frame is
     // being built.
     _warming = true;
@@ -130,11 +133,19 @@ class _MarkdownExportPreviewState extends State<MarkdownExportPreview> {
         _warming = false;
         return;
       }
-      unawaited(_renderDiagrams(source, codes));
+      unawaited(_renderDiagrams(codes));
     });
   }
 
-  Future<void> _renderDiagrams(String source, List<DiagramCode> codes) async {
+  List<DiagramCode> _diagramCodes(String source) {
+    if (_codesFor != source) {
+      _codesFor = source;
+      _codes = extractDiagramCodes(source);
+    }
+    return _codes;
+  }
+
+  Future<void> _renderDiagrams(List<DiagramCode> codes) async {
     try {
       await preRenderDiagramCodesForExport(context, codes);
     } catch (_) {
@@ -143,17 +154,10 @@ class _MarkdownExportPreviewState extends State<MarkdownExportPreview> {
     } finally {
       _warming = false;
     }
-    if (!mounted) return;
-    if (!_codesCached(codes)) {
-      // Nothing landed. Forget the attempt: the export will try again, and if
-      // it succeeds the screen must not be left showing the diagram's source.
-      _warmedSource = null;
-      return;
-    }
-    setState(() {
-      _warmedSource = source;
-      _sheetEpoch++;
-    });
+    // Nothing landed: no rebuild, and the next build asks the cache again, so
+    // the export and the screen cannot stay disagreeing for good.
+    if (!mounted || !_codesCached(codes)) return;
+    setState(() => _sheetEpoch++);
   }
 
   bool _codesCached(List<DiagramCode> codes) {

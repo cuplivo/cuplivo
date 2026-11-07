@@ -3,6 +3,12 @@
 // whether it is visible. Each target therefore asks, per event, whether it is
 // the tab being looked at — and it stays mounted, because taking it out of the
 // tree would rebuild the page around it on every tab switch.
+//
+// Every drop here names a file that really exists and is really readable: a
+// path that fails to load leaves the editor empty with or without the guard, so
+// asserting on it would prove nothing.
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -21,6 +27,8 @@ import '../../support/business_test_harness.dart';
 const MethodChannel _channel = MethodChannel('desktop_drop');
 const MethodCodec _codec = StandardMethodCodec();
 
+const _fileBody = '# Dropped\n\nA sentence from a real file.\n';
+
 Future<void> _send(String method, Object? arguments) async {
   await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .handlePlatformMessage(
@@ -28,11 +36,6 @@ Future<void> _send(String method, Object? arguments) async {
         _codec.encodeMethodCall(MethodCall(method, arguments)),
         (_) {},
       );
-}
-
-Future<void> _drop(String path) async {
-  await _send('entered', <double>[100, 100]);
-  await _send('performOperation', <String>[path]);
 }
 
 /// Runs [body] as a Windows desktop, which is the shell that keeps every tab
@@ -49,12 +52,25 @@ Future<void> _onWindows(Future<void> Function() body) async {
 
 void main() {
   late SettingsProvider settings;
+  late Directory tempDir;
+  late String realPath;
 
   setUp(() async {
     settings = SettingsProvider(createBusinessTestPreferences());
     await settings.loaded;
+    tempDir = await Directory.systemTemp.createTemp('markdown-drop');
+    final file = File('${tempDir.path}/notes.md');
+    await file.writeAsString(_fileBody);
+    realPath = file.path;
   });
-  tearDown(() => settings.dispose());
+  tearDown(() async {
+    settings.dispose();
+    try {
+      await tempDir.delete(recursive: true);
+    } on FileSystemException {
+      // Windows can still hold the file for a moment; the OS cleans its temp.
+    }
+  });
 
   Widget host(Widget child) {
     return ChangeNotifierProvider<SettingsProvider>.value(
@@ -83,6 +99,42 @@ void main() {
     );
   }
 
+  String editorText(WidgetTester tester) {
+    return tester
+        .widget<TextField>(find.byType(TextField, skipOffstage: false))
+        .controller!
+        .text;
+  }
+
+  /// Drops [realPath] and lets the page's real file read finish. The read is
+  /// real IO whose continuation lands on the fake clock's microtask queue, so
+  /// the two have to be interleaved: real time for the read, a frame for the
+  /// result.
+  Future<void> dropAndLoad(WidgetTester tester) async {
+    await _send('entered', <double>[100, 100]);
+    await _send('performOperation', <String>[realPath]);
+    for (var i = 0; i < 6; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('the tab on screen takes the file', (tester) async {
+    await _onWindows(() async {
+      await tester.pumpWidget(host(shell(toolVisible: true)));
+      await tester.pumpAndSettle();
+
+      await dropAndLoad(tester);
+
+      // The proof that a drop *is* observable: without the guard removed, an
+      // identical drop below would land here too.
+      expect(editorText(tester), contains('Dropped'));
+    });
+  });
+
   testWidgets('a hidden tab ignores a drop instead of taking the file', (
     tester,
   ) async {
@@ -96,17 +148,15 @@ void main() {
         findsOneWidget,
       );
 
-      await _drop('C:/notes.md');
-      await tester.pumpAndSettle();
+      await dropAndLoad(tester);
 
-      final editor = tester.widget<TextField>(
-        find.byType(TextField, skipOffstage: false),
-      );
-      expect(editor.controller!.text, isEmpty);
+      expect(editorText(tester), isEmpty);
     });
   });
 
-  testWidgets('the tab on screen takes the file', (tester) async {
+  testWidgets('the target itself takes the file when it is on screen', (
+    tester,
+  ) async {
     await _onWindows(() async {
       final dropped = <List<String>>[];
       await tester.pumpWidget(
@@ -122,11 +172,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await _drop('C:/notes.md');
+      await _send('entered', <double>[100, 100]);
+      await _send('performOperation', <String>[realPath]);
       await tester.pumpAndSettle();
 
       expect(dropped, [
-        ['C:/notes.md'],
+        [realPath],
       ]);
     });
   });
@@ -150,19 +201,22 @@ void main() {
 
       await tester.pumpWidget(target(visible: true));
       await tester.pumpAndSettle();
-      await _drop('C:/first.md');
+      await _send('entered', <double>[100, 100]);
+      await _send('performOperation', <String>[realPath]);
       await tester.pumpAndSettle();
       expect(dropped, hasLength(1));
 
       await tester.pumpWidget(target(visible: false));
       await tester.pumpAndSettle();
-      await _drop('C:/second.md');
+      await _send('entered', <double>[100, 100]);
+      await _send('performOperation', <String>[realPath]);
       await tester.pumpAndSettle();
       expect(dropped, hasLength(1), reason: 'a hidden tab must not take it');
 
       await tester.pumpWidget(target(visible: true));
       await tester.pumpAndSettle();
-      await _drop('C:/third.md');
+      await _send('entered', <double>[100, 100]);
+      await _send('performOperation', <String>[realPath]);
       await tester.pumpAndSettle();
       expect(dropped, hasLength(2));
     });
@@ -187,13 +241,7 @@ void main() {
 
       // Hiding a tab must not rebuild the page behind it, and must not tear it
       // down: the editor keeps what was typed and the sheet is not drawn again.
-      expect(
-        tester
-            .widget<TextField>(find.byType(TextField, skipOffstage: false))
-            .controller!
-            .text,
-        '## kept while hidden',
-      );
+      expect(editorText(tester), '## kept while hidden');
       expect(MarkdownExportPreview.debugSheetBuilds, sheetBuilds);
     });
   });

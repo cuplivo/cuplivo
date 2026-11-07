@@ -421,4 +421,37 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     }
   });
+
+  testWidgets('a caret move never postpones a pending redraw', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1440, 900);
+    addTearDown(tester.view.reset);
+    try {
+      await tester.pumpWidget(
+        _host(settings, const Scaffold(body: MarkdownExportPage())),
+      );
+      await tester.pumpAndSettle();
+      final controller = tester
+          .widget<TextField>(find.byType(TextField))
+          .controller!;
+      final builds = MarkdownExportPreview.debugSheetBuilds;
+
+      controller.text = '## Weekly summary';
+      await tester.pump(const Duration(milliseconds: 60));
+      // Caret moves inside the settle window are not edits, so they must not
+      // restart it — holding an arrow key would otherwise keep the sheet stale
+      // for as long as the key repeats.
+      controller.selection = const TextSelection.collapsed(offset: 3);
+      await tester.pump(const Duration(milliseconds: 60));
+      controller.selection = const TextSelection.collapsed(offset: 5);
+      await tester.pump(const Duration(milliseconds: 90));
+
+      // 210 ms after the edit: past the 180 ms settle, which the caret moves
+      // did not push back.
+      expect(MarkdownExportPreview.debugSheetBuilds, builds + 1);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 }

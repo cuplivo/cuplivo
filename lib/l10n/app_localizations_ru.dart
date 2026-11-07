@@ -1795,6 +1795,23 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get backupPageTargetTitle => 'Backup target';
+
+  @override
+  String get backupPageTargetCuplivo => 'Cuplivo';
+
+  @override
+  String get backupPageTargetCuplivoNote =>
+      'Everything this version can restore, group chats included';
+
+  @override
+  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+
+  @override
+  String get backupPageTargetKelivoNote =>
+      'Imports into Kelivo, but group chats are lost';
+
+  @override
   String get backupPageBackupManagementDescription =>
       'Выберите, что копировать и импортировать. Применяется к локальным, WebDAV и S3 резервным копиям. Невыбранное содержимое при импорте остаётся без изменений. Навыки и рабочие области включают собственные файлы.';
 
@@ -18399,6 +18416,15 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get settingsPageChatOwnersCreate => 'Create';
+
+  @override
+  String get chatOwnersSeparate => 'Show separately';
+
+  @override
+  String get chatOwnersSectionAssistants => 'Assistants';
+
+  @override
+  String get chatOwnersSectionGroups => 'Groups';
 
   @override
   String get chatOwnerCreateAssistant => 'New assistant';

@@ -29,6 +29,7 @@ import '../../features/backup/widgets/backup_progress_dialog.dart';
 import '../../features/backup/backup_restart_dialog.dart';
 import '../../features/backup/widgets/backup_reminder_helpers.dart';
 import '../../features/backup/widgets/backup_scope_tile.dart';
+import '../../features/backup/widgets/backup_target_tile.dart';
 import '../../features/backup/widgets/backup_encryption_tile.dart';
 import '../../features/backup/widgets/storage_migration_notice_button.dart';
 import '../../features/backup/pages/local_snapshots_page.dart';
@@ -60,6 +61,7 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
   late TextEditingController _webDavUserAgent;
   late TextEditingController _s3UserAgent;
   BackupScope _scope = const BackupScope();
+  BackupTarget _target = BackupTarget.cuplivo;
   bool _s3PathStyle = true;
   bool _remoteBackupDialogActive = false;
 
@@ -74,6 +76,7 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
     _path = TextEditingController(text: cfg.path);
     _webDavUserAgent = TextEditingController(text: cfg.userAgent);
     _scope = cfg.scope;
+    _target = cfg.target;
 
     final s3 = settings.s3Config;
     _s3Endpoint = TextEditingController(text: s3.endpoint);
@@ -113,6 +116,7 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
       path: _path.text.trim().isEmpty ? 'kelivo_backups' : _path.text.trim(),
       userAgent: _webDavUserAgent.text.trim(),
       scope: _scope,
+      target: _target,
     );
   }
 
@@ -131,6 +135,7 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
     String? path,
     String? userAgent,
     BackupScope? scope,
+    BackupTarget? target,
   }) async {
     final settings = context.read<SettingsProvider>();
     final backupProvider = context.read<BackupProvider>();
@@ -143,6 +148,7 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
           (_path.text.trim().isEmpty ? 'kelivo_backups' : _path.text.trim()),
       userAgent: userAgent ?? _webDavUserAgent.text.trim(),
       scope: scope ?? _scope,
+      target: target ?? _target,
     );
     await settings.setWebDavConfig(cfg);
     backupProvider.updateConfig(cfg);
@@ -164,6 +170,7 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
       pathStyle: _s3PathStyle,
       userAgent: _s3UserAgent.text.trim(),
       scope: _scope,
+      target: _target,
     );
   }
 
@@ -186,6 +193,7 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
     bool? pathStyle,
     String? userAgent,
     BackupScope? scope,
+    BackupTarget? target,
   }) async {
     final settings = context.read<SettingsProvider>();
     final s3BackupProvider = context.read<S3BackupProvider>();
@@ -206,6 +214,7 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
       pathStyle: pathStyle ?? _s3PathStyle,
       userAgent: userAgent ?? _s3UserAgent.text.trim(),
       scope: scope ?? _scope,
+      target: target ?? _target,
     );
     await settings.setS3Config(cfg);
     s3BackupProvider.updateConfig(cfg);
@@ -341,6 +350,18 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
                               await _applyPartial(scope: scope);
                               if (!mounted) return;
                               await _applyS3Partial(scope: scope);
+                            },
+                    ),
+                    BackupTargetTile(
+                      desktop: true,
+                      target: _target,
+                      onChanged: busy
+                          ? null
+                          : (target) async {
+                              setState(() => _target = target);
+                              await _applyPartial(target: target);
+                              if (!mounted) return;
+                              await _applyS3Partial(target: target);
                             },
                     ),
                     BackupEncryptionTile(

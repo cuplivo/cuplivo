@@ -5,11 +5,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:Cuplivo/core/database/app_database.dart';
 import 'package:Cuplivo/core/database/backup_portability.dart';
+import 'package:Cuplivo/core/database/business_data.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/database/business_repository.dart';
 import 'package:Cuplivo/core/database/business_restore_service.dart';
 import 'package:Cuplivo/core/database/business_settings_router.dart';
 import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/models/backup_target.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/services/backup/data_sync.dart';
 
 Map<String, Object> _workspace(String id, {bool linked = false}) => {
@@ -19,6 +22,20 @@ Map<String, Object> _workspace(String id, {bool linked = false}) => {
   'hostPath': '/source/$id',
   'lastUsedAt': '2026-09-11T00:00:00Z',
 };
+
+/// Every conversation's `extras_json`, decoded, keyed by conversation id.
+Future<Map<String, Map<String, dynamic>>> _conversationExtras(
+  AppDatabase database,
+) async {
+  final rows = await database
+      .customSelect('SELECT id, extras_json FROM conversation_rows')
+      .get();
+  return {
+    for (final row in rows)
+      row.read<String>('id'):
+          jsonDecode(row.read<String>('extras_json')) as Map<String, dynamic>,
+  };
+}
 
 void main() {
   late AppDatabase database;
@@ -157,4 +174,71 @@ void main() {
       }
     },
   );
+
+  test(
+    'a Kelivo-target sanitization drops the group rows and their chat links',
+    () async {
+      // The database half of a Kelivo-target archive. `_dropUnreadableKinds`
+      // removes the rows of a kind that release has no name for *and* the
+      // conversation link that points at them: half a repair would leave an
+      // archive whose manifest names a kind its own database no longer carries.
+      final kind = BusinessEntityKind.groupChat.extensionKind!;
+      await store.upsert(kind, 'g1', {
+        'id': 'g1',
+        'name': 'topic',
+        'members': ['a1', 'a2'],
+      });
+      for (final row in <(String, Map<String, Object?>)>[
+        (
+          'c-group',
+          {Conversation.groupChatIdKey: 'g1', 'other.feature': 'keep'},
+        ),
+        ('c-plain', {'other.feature': 'keep'}),
+      ]) {
+        await database.customStatement(
+          'INSERT INTO conversation_rows '
+          '(id, title, created_at, updated_at, extras_json) VALUES (?, ?, 0, 0, ?)',
+          [row.$1, row.$1, jsonEncode(row.$2)],
+        );
+      }
+
+      await BackupPortability.sanitizeDatabase(
+        database,
+        target: BackupTarget.kelivoV1_3_4,
+      );
+
+      expect(await store.get(kind, 'g1'), isNull);
+      final extras = await _conversationExtras(database);
+      for (final id in ['c-group', 'c-plain']) {
+        // Narrowed, not emptied: an unrelated extras key survives, and so does
+        // the conversation that lost its group.
+        expect(extras[id], {'other.feature': 'keep'}, reason: id);
+      }
+    },
+  );
+
+  test('the default target keeps the group and the link to it', () async {
+    final kind = BusinessEntityKind.groupChat.extensionKind!;
+    await store.upsert(kind, 'g1', {'id': 'g1', 'name': 'topic'});
+    await database.customStatement(
+      'INSERT INTO conversation_rows '
+      '(id, title, created_at, updated_at, extras_json) VALUES (?, ?, 0, 0, ?)',
+      [
+        'c-group',
+        'c-group',
+        jsonEncode({Conversation.groupChatIdKey: 'g1'}),
+      ],
+    );
+
+    await BackupPortability.sanitizeDatabase(database);
+
+    // The guard is only a guard if the state it removes really is there.
+    expect(await store.get(kind, 'g1'), isNotNull);
+    expect(
+      (await _conversationExtras(
+        database,
+      ))['c-group']![Conversation.groupChatIdKey],
+      'g1',
+    );
+  });
 }

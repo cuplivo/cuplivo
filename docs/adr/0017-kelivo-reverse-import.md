@@ -42,7 +42,13 @@ all: `flutter test` stays entirely green while the archive is unusable.
    `unreadableEntitySourceKeys(target)` is the difference between `BusinessEntityKind.values` and the
    target's vocabulary; the settings export strips those keys from both halves of the archive, and
    `BackupPortability.sanitizeDatabase` drops their rows and the conversation link that points at them.
-   A stripped key with a surviving row would be an archive contradicting its own manifest.
+   A stripped key with a surviving row would be an archive contradicting its own manifest. Both halves
+   of the database repair are derived from `unreadableKindDispositions` — the row storage from the
+   kind's `extensionKind`, the link from the entry's declared `conversationLink` — so a kind leaves the
+   archive everywhere at once instead of at the call sites someone remembered to update. A kind with no
+   extension storage, or one the table says nothing about, throws rather than being half-stripped: the
+   prose rule that a table-backed kind needs its own handling is now a `StateError`, because a
+   half-repair is invisible once it ships.
 
 3. **The archive format moves to 4 and declares 4, but this build still reads 2 and 3.** The default
    export must be *refused early* by an older reader rather than fail part-way. Format 3 stays readable

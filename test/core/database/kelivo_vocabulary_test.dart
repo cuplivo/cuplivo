@@ -4,6 +4,7 @@ import 'package:Cuplivo/core/database/business_data.dart';
 import 'package:Cuplivo/core/database/kelivo_vocabulary.dart';
 import 'package:Cuplivo/core/models/backup_scope.dart';
 import 'package:Cuplivo/core/models/backup_target.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/services/backup/backup_archive_format.dart';
 
 /// Holds the reverse-import contract still true.
@@ -35,17 +36,37 @@ void main() {
     );
   });
 
-  test('an unreadable kind is an extension kind, so its rows can be dropped', () {
+  test('every unreadable kind can actually be dropped', () {
     // The sanitizer removes unreadable kinds from `extension_entity_rows`. A kind
     // stored in its own table would instead leave a table the older reader
-    // rejects structurally, which is a different repair than this one.
+    // rejects structurally, which is a different repair than this one — so the
+    // sanitizer refuses such a kind instead of silently keeping its rows.
     final unreadable = unreadableEntitySourceKeys(BackupTarget.kelivoV1_3_4);
-    final extensionKinds = <String>{
+    for (final kind in BusinessEntityKind.values) {
+      if (!unreadable.contains(kind.sourceKey)) continue;
+      expect(droppableExtensionKind(kind), kind.extensionKind);
+    }
+    final tableBacked = BusinessEntityKind.values.firstWhere(
+      (kind) => kind.extensionKind == null,
+    );
+    expect(() => droppableExtensionKind(tableBacked), throwsStateError);
+  });
+
+  test('the link strip follows the table, not one hardcoded kind', () {
+    final unreadable = unreadableEntitySourceKeys(BackupTarget.kelivoV1_3_4);
+    final dropped = [
       for (final kind in BusinessEntityKind.values)
-        if (unreadable.contains(kind.sourceKey) && kind.extensionKind != null)
-          kind.sourceKey,
-    };
-    expect(extensionKinds, unreadable);
+        if (unreadable.contains(kind.sourceKey)) kind,
+    ];
+    expect(conversationLinksToStrip(dropped), [Conversation.groupChatIdKey]);
+
+    // A kind the table says nothing about is refused rather than answered with
+    // an empty list: its rows and its settings key would leave while every chat
+    // kept pointing at them.
+    expect(
+      () => conversationLinksToStrip([BusinessEntityKind.assistant]),
+      throwsStateError,
+    );
   });
 
   test(

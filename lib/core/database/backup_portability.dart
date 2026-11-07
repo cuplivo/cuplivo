@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'app_database.dart';
 import '../models/backup_scope.dart';
 import '../models/backup_target.dart';
-import '../models/conversation.dart';
 import 'backup_content_filter.dart';
 import 'business_data.dart';
 import 'business_repository.dart';
@@ -138,41 +137,46 @@ final class BackupPortability {
     });
   }
 
-  /// Removes the rows, and the conversation links, of every kind [target] cannot
-  /// read.
+  /// Takes every kind [target] cannot read out of the archive: its rows, and
+  /// every conversation link that points at them.
   ///
-  /// The two halves belong together: an entity row without its settings key is an
-  /// archive that contradicts itself, and a conversation naming a group that did
-  /// not travel is a link the reader would have to guess about. Only extension
-  /// kinds are handled here, which is why
-  /// `test/core/database/kelivo_vocabulary_test.dart` refuses a disposition for a
-  /// kind that is not one.
+  /// The halves belong together — an entity row without its settings key is an
+  /// archive that contradicts itself, and so is a conversation naming a row that
+  /// did not travel. Both halves are derived from [unreadableKindDispositions]
+  /// rather than spelled out per kind here, so a kind added to that table leaves
+  /// everywhere at once; a kind the table says nothing about, or one with no
+  /// extension storage to drop, throws instead of being half-stripped.
   static Future<void> _dropUnreadableKinds(
     AppDatabase database,
     BackupTarget target,
   ) async {
     final unreadable = unreadableEntitySourceKeys(target);
     if (unreadable.isEmpty) return;
-    final extensionKinds = <String>[
+    final kinds = [
       for (final kind in BusinessEntityKind.values)
-        if (unreadable.contains(kind.sourceKey) && kind.extensionKind != null)
-          kind.extensionKind!,
+        if (unreadable.contains(kind.sourceKey)) kind,
     ];
-    if (extensionKinds.isNotEmpty) {
-      final placeholders = List.filled(extensionKinds.length, '?').join(', ');
-      await database.customStatement(
-        'DELETE FROM extension_entity_rows WHERE kind IN ($placeholders);',
-        extensionKinds,
-      );
-    }
-    if (!target.knowsSourceKey(BusinessEntityKind.groupChat.sourceKey)) {
-      final path = '\$."${Conversation.groupChatIdKey}"';
-      await database.customStatement(
-        'UPDATE conversation_rows '
-        "SET extras_json = json_remove(extras_json, '$path') "
-        'WHERE json_valid(extras_json) '
-        "AND json_type(extras_json, '$path') IS NOT NULL;",
-      );
-    }
+    final extensionKinds = [
+      for (final kind in kinds) droppableExtensionKind(kind),
+    ];
+    final placeholders = List.filled(extensionKinds.length, '?').join(', ');
+    await database.customStatement(
+      'DELETE FROM extension_entity_rows WHERE kind IN ($placeholders);',
+      extensionKinds,
+    );
+    final links = conversationLinksToStrip(kinds);
+    if (links.isEmpty) return;
+    // Each path is a JSON path in Dart and a SQL string literal in the
+    // statement, so it is quoted once for itself and once for SQLite.
+    final paths = [for (final link in links) '\$."$link"'];
+    final removals = [for (final path in paths) "'$path'"].join(', ');
+    final touched = [
+      for (final path in paths) "json_type(extras_json, '$path') IS NOT NULL",
+    ].join(' OR ');
+    await database.customStatement(
+      'UPDATE conversation_rows '
+      'SET extras_json = json_remove(extras_json, $removals) '
+      'WHERE json_valid(extras_json) AND ($touched);',
+    );
   }
 }

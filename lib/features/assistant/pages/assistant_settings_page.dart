@@ -6,16 +6,19 @@ import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../home/controllers/chat_actions.dart';
 import '../../../core/models/assistant.dart';
+import '../../../core/models/chat_owner.dart';
 import '../../../core/models/group_chat.dart';
 import '../../../core/providers/chat_owners_provider.dart';
 import '../../../core/providers/group_chat_provider.dart';
 import '../../../shared/widgets/action_sheet.dart';
+import '../../../shared/widgets/ios_switch.dart';
 import '../../group_chat/group_navigation.dart';
 import '../../group_chat/widgets/group_member_list.dart';
 import 'dart:io' show File;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'assistant_settings_edit_page.dart';
 import '../widgets/assistant_copy_dialog.dart';
+import '../widgets/chat_owner_section_header.dart';
 import '../../../utils/avatar_cache.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import '../../../core/services/haptics.dart';
@@ -55,15 +58,42 @@ class _ChatOwnerSettingsPageState extends State<ChatOwnerSettingsPage> {
       for (final group in context.watch<GroupChatProvider>().groups)
         group.id: group,
     };
+    final owners = context.watch<ChatOwnersProvider>();
+    // One switch, two layouts. The row only changes anything once there is a
+    // group to separate from the assistants, so it waits for the first one; the
+    // setting itself is kept either way.
+    final canSeparate = groups.isNotEmpty;
+    final separated =
+        canSeparate && context.watch<SettingsProvider>().separateChatOwners;
     // The order provider reconciles with the live sources, so a row whose
     // owner is gone is skipped rather than rendered as a hole.
     final rows = [
-      for (final owner in context.watch<ChatOwnersProvider>().owners)
+      for (final owner in owners.owners)
         if (owner.isGroup
             ? groups.containsKey(owner.id)
             : assistants.containsKey(owner.id))
           owner,
     ];
+    final assistantRows = separated
+        ? assistantsInOrder(owners, assistants)
+        : const <Assistant>[];
+    final groupRows = separated
+        ? groupsInOrder(owners, groups)
+        : const <GroupChat>[];
+    final assistantKeys = {
+      for (final assistant in assistantRows)
+        ChatOwner.assistant(assistant.id).key,
+    };
+    final groupKeys = {
+      for (final group in groupRows) ChatOwner.group(group.id).key,
+    };
+
+    Widget cardFor(ChatOwner owner) {
+      final group = owner.isGroup ? groups[owner.id] : null;
+      return group != null
+          ? _GroupCard(group: group, assistants: assistants)
+          : _AssistantCard(item: assistants[owner.id]!);
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -93,48 +123,75 @@ class _ChatOwnerSettingsPageState extends State<ChatOwnerSettingsPage> {
           const SizedBox(width: 8),
         ],
       ),
-      body: ReorderableListView.builder(
+      body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 100),
-        itemCount: rows.length,
-        onReorderItem: (oldIndex, newIndex) async {
-          await context.read<ChatOwnersProvider>().reorder(oldIndex, newIndex);
-        },
-        proxyDecorator: (child, index, animation) {
-          return AnimatedBuilder(
-            animation: animation,
-            builder: (context, _) {
-              final t = Curves.easeOutBack.transform(animation.value);
-              return Transform.scale(
-                scale: 0.98 + 0.02 * t,
-                child: Material(
-                  elevation: 0, // remove drag shadow
-                  shadowColor: Colors.transparent,
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(14),
-                  child: child,
-                ),
-              );
-            },
-          );
-        },
-        itemBuilder: (context, index) {
-          final owner = rows[index];
-          final group = owner.isGroup ? groups[owner.id] : null;
-          return KeyedSubtree(
-            key: ValueKey('owner-${owner.key}'),
-            child: ReorderableDelayedDragStartListener(
-              index: index,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: group != null
-                    ? _GroupCard(group: group, assistants: assistants)
-                    : _AssistantCard(item: assistants[owner.id]!),
+        children: [
+          if (canSeparate) ...[
+            const _SeparateOwnersRow(),
+            const SizedBox(height: 6),
+          ],
+          if (separated) ...[
+            ChatOwnerSectionHeader(title: l10n.chatOwnersSectionAssistants),
+            _OwnerSection<Assistant>(
+              items: assistantRows,
+              itemKeyOf: (assistant) => ChatOwner.assistant(assistant.id).key,
+              itemBuilder: (assistant) => _AssistantCard(item: assistant),
+              onReorder: (oldIndex, newIndex) => owners.reorderWithin(
+                keys: assistantKeys,
+                oldIndex: oldIndex,
+                newIndex: newIndex,
               ),
             ),
-          );
-        },
+            if (groupRows.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              ChatOwnerSectionHeader(title: l10n.chatOwnersSectionGroups),
+              _OwnerSection<GroupChat>(
+                items: groupRows,
+                itemKeyOf: (group) => ChatOwner.group(group.id).key,
+                itemBuilder: (group) =>
+                    _GroupCard(group: group, assistants: assistants),
+                onReorder: (oldIndex, newIndex) => owners.reorderWithin(
+                  keys: groupKeys,
+                  oldIndex: oldIndex,
+                  newIndex: newIndex,
+                ),
+              ),
+            ],
+          ] else
+            _OwnerSection<ChatOwner>(
+              items: rows,
+              itemKeyOf: (owner) => owner.key,
+              itemBuilder: cardFor,
+              onReorder: (oldIndex, newIndex) =>
+                  owners.reorder(oldIndex, newIndex),
+            ),
+        ],
       ),
     );
+  }
+
+  List<Assistant> assistantsInOrder(
+    ChatOwnersProvider owners,
+    Map<String, Assistant> assistants,
+  ) {
+    final ordered = <Assistant>[];
+    for (final owner in owners.ownersOfKind(isGroup: false)) {
+      final assistant = assistants[owner.id];
+      if (assistant != null) ordered.add(assistant);
+    }
+    return ordered;
+  }
+
+  List<GroupChat> groupsInOrder(
+    ChatOwnersProvider owners,
+    Map<String, GroupChat> groups,
+  ) {
+    final ordered = <GroupChat>[];
+    for (final owner in owners.ownersOfKind(isGroup: true)) {
+      final group = groups[owner.id];
+      if (group != null) ordered.add(group);
+    }
+    return ordered;
   }
 
   Future<void> _showCreateMenu(BuildContext context) async {
@@ -178,6 +235,111 @@ class _ChatOwnerSettingsPageState extends State<ChatOwnerSettingsPage> {
     if (group == null || !context.mounted) return;
     await showGroupSettings(context, group.id);
   }
+}
+
+/// One run of rows that drags as a unit. A mixed list passes the whole-order
+/// drag; a section passes [ChatOwnersProvider.reorderWithin] on the keys it
+/// shows, so a drag inside it never moves a row the section cannot see.
+class _OwnerSection<T> extends StatelessWidget {
+  const _OwnerSection({
+    required this.items,
+    required this.itemKeyOf,
+    required this.itemBuilder,
+    required this.onReorder,
+  });
+
+  final List<T> items;
+  final String Function(T item) itemKeyOf;
+  final Widget Function(T item) itemBuilder;
+  final void Function(int oldIndex, int newIndex) onReorder;
+
+  @override
+  Widget build(BuildContext context) {
+    return ReorderableListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      buildDefaultDragHandles: false,
+      proxyDecorator: _ownerDragProxy,
+      itemCount: items.length,
+      onReorderItem: onReorder,
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return KeyedSubtree(
+          key: ValueKey(itemKeyOf(item)),
+          child: ReorderableDelayedDragStartListener(
+            index: index,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: itemBuilder(item),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// The switch that decides whether both this page and the sidebar show
+/// assistants and group chats as two sections. One value in settings, so the
+/// two surfaces can never disagree about the layout.
+class _SeparateOwnersRow extends StatelessWidget {
+  const _SeparateOwnersRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final separated = context.watch<SettingsProvider>().separateChatOwners;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 2, 6, 2),
+      decoration: BoxDecoration(
+        color: context.appColors.surfaceCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: isDark ? 0.12 : 0.08),
+          width: 0.8,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              l10n.chatOwnersSeparate,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 15, fontWeight: AppFontWeights.medium),
+            ),
+          ),
+          IosSwitch(
+            value: separated,
+            semanticLabel: l10n.chatOwnersSeparate,
+            onChanged: (value) =>
+                context.read<SettingsProvider>().setSeparateChatOwners(value),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Widget _ownerDragProxy(Widget child, int index, Animation<double> animation) {
+  return AnimatedBuilder(
+    animation: animation,
+    builder: (context, _) {
+      final t = Curves.easeOutBack.transform(animation.value);
+      return Transform.scale(
+        scale: 0.98 + 0.02 * t,
+        child: Material(
+          elevation: 0, // remove drag shadow
+          shadowColor: Colors.transparent,
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          child: child,
+        ),
+      );
+    },
+  );
 }
 
 class _AssistantCard extends StatelessWidget {

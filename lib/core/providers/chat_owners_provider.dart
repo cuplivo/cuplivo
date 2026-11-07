@@ -50,6 +50,16 @@ class ChatOwnersProvider extends ChangeNotifier {
       if (owner.isGroup || !taggedAssistantIds.contains(owner.id)) owner,
   ];
 
+  /// The part of the list that is one kind of owner, in the user's order.
+  ///
+  /// A surface that shows assistants and groups as separate sections reads
+  /// this instead of filtering [owners] for itself, so every such surface
+  /// agrees about which rows belong to which section and where.
+  List<ChatOwner> ownersOfKind({required bool isGroup}) => [
+    for (final owner in _owners)
+      if (owner.isGroup == isGroup) owner,
+  ];
+
   /// [items] in the user's drag order, with anything the order does not know
   /// yet left at its tail.
   ///

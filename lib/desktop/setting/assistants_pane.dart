@@ -14,14 +14,46 @@ class _DesktopAssistantsBody extends StatelessWidget {
       for (final group in context.watch<GroupChatProvider>().groups)
         group.id: group,
     };
+    final owners = context.watch<ChatOwnersProvider>();
     // One row per owner, in the same order the sidebar drags.
     final rows = [
-      for (final owner in context.watch<ChatOwnersProvider>().owners)
+      for (final owner in owners.owners)
         if (owner.isGroup
             ? groups.containsKey(owner.id)
             : assistants.containsKey(owner.id))
           owner,
     ];
+    // The switch the mobile page carries, drawn here too: the two surfaces edit
+    // one value, so they cannot disagree about the layout. The row waits for the
+    // first group, because before that there is nothing to separate.
+    final canSeparate = groups.isNotEmpty;
+    final separated =
+        canSeparate && context.watch<SettingsProvider>().separateChatOwners;
+    final assistantRows = separated
+        ? _assistantsInOrder(owners, assistants)
+        : const <Assistant>[];
+    final groupRows = separated
+        ? _groupsInOrder(owners, groups)
+        : const <GroupChat>[];
+    final assistantKeys = {
+      for (final assistant in assistantRows)
+        ChatOwner.assistant(assistant.id).key,
+    };
+    final groupKeys = {
+      for (final group in groupRows) ChatOwner.group(group.id).key,
+    };
+
+    Widget cardFor(ChatOwner owner) {
+      final group = owner.isGroup ? groups[owner.id] : null;
+      return group != null
+          ? _DesktopGroupCard(group: group, assistants: assistants)
+          : _DesktopAssistantCard(
+              item: assistants[owner.id]!,
+              onTap: () =>
+                  showAssistantDesktopDialog(context, assistantId: owner.id),
+            );
+    }
+
     final cs = Theme.of(context).colorScheme;
     return Container(
       alignment: Alignment.topCenter,
@@ -58,67 +90,207 @@ class _DesktopAssistantsBody extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor.withValues(alpha: 0.0),
                   ),
-                  child: ReorderableListView.builder(
-                    buildDefaultDragHandles: false,
+                  child: ListView(
                     padding: EdgeInsets.zero,
-                    itemCount: rows.length,
-                    onReorderItem: (oldIndex, newIndex) async {
-                      await context.read<ChatOwnersProvider>().reorder(
-                        oldIndex,
-                        newIndex,
-                      );
-                    },
-                    proxyDecorator: (child, index, animation) {
-                      return AnimatedBuilder(
-                        animation: animation,
-                        builder: (context, _) {
-                          final t = Curves.easeOutCubic.transform(
-                            animation.value,
-                          );
-                          return Transform.scale(
-                            scale: 0.98 + 0.02 * t,
-                            child: Material(
-                              elevation: 0,
-                              shadowColor: Colors.transparent,
-                              color: Colors.transparent,
-                              borderRadius: BorderRadius.circular(18),
-                              child: child,
-                            ),
-                          );
-                        },
-                      );
-                    },
-                    itemBuilder: (context, index) {
-                      final owner = rows[index];
-                      final group = owner.isGroup ? groups[owner.id] : null;
-                      return KeyedSubtree(
-                        key: ValueKey('desktop-owner-${owner.key}'),
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: ReorderableDragStartListener(
-                            index: index,
-                            child: group != null
-                                ? _DesktopGroupCard(
-                                    group: group,
-                                    assistants: assistants,
-                                  )
-                                : _DesktopAssistantCard(
-                                    item: assistants[owner.id]!,
-                                    onTap: () => showAssistantDesktopDialog(
-                                      context,
-                                      assistantId: owner.id,
-                                    ),
-                                  ),
-                          ),
+                    children: [
+                      if (canSeparate) ...[
+                        const _DesktopSeparateOwnersRow(),
+                        const SizedBox(height: 12),
+                      ],
+                      if (separated) ...[
+                        ChatOwnerSectionHeader(
+                          title: AppLocalizations.of(
+                            context,
+                          )!.chatOwnersSectionAssistants,
                         ),
-                      );
-                    },
+                        _ownerSection<Assistant>(
+                          context,
+                          assistantRows,
+                          keyPrefix: 'desktop-assistant',
+                          itemKeyOf: (assistant) =>
+                              ChatOwner.assistant(assistant.id).key,
+                          itemBuilder: (assistant) => _DesktopAssistantCard(
+                            item: assistant,
+                            onTap: () => showAssistantDesktopDialog(
+                              context,
+                              assistantId: assistant.id,
+                            ),
+                          ),
+                          onReorder: (oldIndex, newIndex) =>
+                              owners.reorderWithin(
+                                keys: assistantKeys,
+                                oldIndex: oldIndex,
+                                newIndex: newIndex,
+                              ),
+                        ),
+                        if (groupRows.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          ChatOwnerSectionHeader(
+                            title: AppLocalizations.of(
+                              context,
+                            )!.chatOwnersSectionGroups,
+                          ),
+                          _ownerSection<GroupChat>(
+                            context,
+                            groupRows,
+                            keyPrefix: 'desktop-group',
+                            itemKeyOf: (group) => ChatOwner.group(group.id).key,
+                            itemBuilder: (group) => _DesktopGroupCard(
+                              group: group,
+                              assistants: assistants,
+                            ),
+                            onReorder: (oldIndex, newIndex) =>
+                                owners.reorderWithin(
+                                  keys: groupKeys,
+                                  oldIndex: oldIndex,
+                                  newIndex: newIndex,
+                                ),
+                          ),
+                        ],
+                      ] else
+                        _ownerSection<ChatOwner>(
+                          context,
+                          rows,
+                          keyPrefix: 'desktop-owner',
+                          itemKeyOf: (owner) => owner.key,
+                          itemBuilder: cardFor,
+                          onReorder: (oldIndex, newIndex) =>
+                              owners.reorder(oldIndex, newIndex),
+                        ),
+                    ],
                   ),
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  static List<Assistant> _assistantsInOrder(
+    ChatOwnersProvider owners,
+    Map<String, Assistant> assistants,
+  ) {
+    final ordered = <Assistant>[];
+    for (final owner in owners.ownersOfKind(isGroup: false)) {
+      final assistant = assistants[owner.id];
+      if (assistant != null) ordered.add(assistant);
+    }
+    return ordered;
+  }
+
+  static List<GroupChat> _groupsInOrder(
+    ChatOwnersProvider owners,
+    Map<String, GroupChat> groups,
+  ) {
+    final ordered = <GroupChat>[];
+    for (final owner in owners.ownersOfKind(isGroup: true)) {
+      final group = groups[owner.id];
+      if (group != null) ordered.add(group);
+    }
+    return ordered;
+  }
+
+  /// One run of rows that drags as a unit. A mixed list passes the whole-order
+  /// drag; a section passes [ChatOwnersProvider.reorderWithin] on the keys it
+  /// shows, so a drag inside it never moves a row the section cannot see.
+  Widget _ownerSection<T>(
+    BuildContext context,
+    List<T> items, {
+    required String keyPrefix,
+    required String Function(T item) itemKeyOf,
+    required Widget Function(T item) itemBuilder,
+    required void Function(int oldIndex, int newIndex) onReorder,
+  }) {
+    return ReorderableListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      buildDefaultDragHandles: false,
+      proxyDecorator: _desktopOwnerDragProxy,
+      itemCount: items.length,
+      onReorderItem: onReorder,
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return KeyedSubtree(
+          key: ValueKey('$keyPrefix-${itemKeyOf(item)}'),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: ReorderableDragStartListener(
+              index: index,
+              child: itemBuilder(item),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+Widget _desktopOwnerDragProxy(
+  Widget child,
+  int index,
+  Animation<double> animation,
+) {
+  return AnimatedBuilder(
+    animation: animation,
+    builder: (context, _) {
+      final t = Curves.easeOutCubic.transform(animation.value);
+      return Transform.scale(
+        scale: 0.98 + 0.02 * t,
+        child: Material(
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(18),
+          child: child,
+        ),
+      );
+    },
+  );
+}
+
+/// The desktop half of the one switch: same setting, same words.
+class _DesktopSeparateOwnersRow extends StatelessWidget {
+  const _DesktopSeparateOwnersRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final separated = context.watch<SettingsProvider>().separateChatOwners;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
+      decoration: BoxDecoration(
+        color: context.appColors.surfaceCard,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: isDark ? 0.12 : 0.08),
+          width: 1.0,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              l10n.chatOwnersSeparate,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: AppFontWeights.medium,
+                color: cs.onSurface,
+              ),
+            ),
+          ),
+          IosSwitch(
+            value: separated,
+            semanticLabel: l10n.chatOwnersSeparate,
+            onChanged: (value) =>
+                context.read<SettingsProvider>().setSeparateChatOwners(value),
+          ),
+        ],
       ),
     );
   }

@@ -54,6 +54,7 @@ import '../../../shared/widgets/emoji_text.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../core/providers/tag_provider.dart';
 import '../../assistant/widgets/assistant_select_sheet.dart';
+import '../../assistant/widgets/chat_owner_section_header.dart';
 import '../../../desktop/hotkeys/sidebar_tab_bus.dart';
 import '../../../desktop/desktop_settings_navigation_bus.dart';
 import 'dart:async';
@@ -4173,22 +4174,53 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
       );
     }
 
+    // The same switch the settings page carries: assistants and group chats as
+    // two sections, or the one mixed list this sidebar has always shown. The
+    // order stays shared either way — a section drag moves only the rows it
+    // shows, exactly like a tag section does.
+    final separated =
+        context.watch<SettingsProvider>().separateChatOwners &&
+        groups.groups.isNotEmpty;
+    final ungroupedAssistants = separated
+        ? [
+            for (final owner in ungrouped)
+              if (owner is Assistant) owner,
+          ]
+        : const <Object>[];
+    final ungroupedGroups = separated
+        ? [
+            for (final owner in ungrouped)
+              if (owner is GroupChat) owner,
+          ]
+        : const <Object>[];
+    final hasTaggedAssistants = groupedByTag.values.any(
+      (list) => list.isNotEmpty,
+    );
+
+    Widget buildOwnerSection(List<Object> sectionOwners) =>
+        buildReorderableSection<Object>(
+          sectionOwners,
+          ownerOf: (owner) => owner is GroupChat
+              ? ChatOwner.group(owner.id)
+              : ChatOwner.assistant((owner as Assistant).id),
+          widgetKeyOf: (owner) => owner is GroupChat
+              ? 'group-${owner.id}'
+              : 'assistant-${(owner as Assistant).id}',
+          tileOf: buildOwnerTile,
+        );
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(6, 6, 6, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (ungrouped.isNotEmpty)
-            buildReorderableSection<Object>(
-              ungrouped,
-              ownerOf: (owner) => owner is GroupChat
-                  ? ChatOwner.group(owner.id)
-                  : ChatOwner.assistant((owner as Assistant).id),
-              widgetKeyOf: (owner) => owner is GroupChat
-                  ? 'group-${owner.id}'
-                  : 'assistant-${(owner as Assistant).id}',
-              tileOf: buildOwnerTile,
-            ),
+          if (separated) ...[
+            if (ungroupedAssistants.isNotEmpty || hasTaggedAssistants)
+              ChatOwnerSectionHeader(title: l10n.chatOwnersSectionAssistants),
+            if (ungroupedAssistants.isNotEmpty)
+              buildOwnerSection(ungroupedAssistants),
+          ] else if (ungrouped.isNotEmpty)
+            buildOwnerSection(ungrouped),
           for (final t in tags)
             if ((groupedByTag[t.id] ?? const <Assistant>[]).isNotEmpty) ...[
               const SizedBox(height: 4),
@@ -4211,6 +4243,11 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                       ),
               ),
             ],
+          if (separated && ungroupedGroups.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            ChatOwnerSectionHeader(title: l10n.chatOwnersSectionGroups),
+            buildOwnerSection(ungroupedGroups),
+          ],
         ],
       ),
     );

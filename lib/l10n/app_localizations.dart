@@ -30186,6 +30186,24 @@ abstract class AppLocalizations {
   /// **'Create'**
   String get settingsPageChatOwnersCreate;
 
+  /// No description provided for @chatOwnersSeparate.
+  ///
+  /// In en, this message translates to:
+  /// **'Show separately'**
+  String get chatOwnersSeparate;
+
+  /// No description provided for @chatOwnersSectionAssistants.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistants'**
+  String get chatOwnersSectionAssistants;
+
+  /// No description provided for @chatOwnersSectionGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'Groups'**
+  String get chatOwnersSectionGroups;
+
   /// No description provided for @chatOwnerCreateAssistant.
   ///
   /// In en, this message translates to:

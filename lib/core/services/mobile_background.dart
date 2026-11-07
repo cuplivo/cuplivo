@@ -31,6 +31,7 @@ class _BackgroundTask {
     required this.cancel,
     required this.startedAt,
     required this.scheduled,
+    this.detail,
     this.scheduledNotify = true,
     this.scheduledPreview = true,
   });
@@ -41,6 +42,10 @@ class _BackgroundTask {
   final Future<void> Function() cancel;
   final DateTime startedAt;
   final bool scheduled;
+
+  /// Replaces the phase-derived line for work whose phase is not chat
+  /// generation, such as a proactive-care letter. Null keeps the phase text.
+  final String? detail;
   final bool scheduledNotify, scheduledPreview;
   BackgroundTaskPhase phase = BackgroundTaskPhase.requesting;
   String toolName = '';
@@ -160,6 +165,7 @@ class MobileBackgroundCoordinator extends ChangeNotifier
     required String conversationId,
     required String title,
     required Future<void> Function() cancel,
+    String? detail,
     bool scheduled = false,
     bool scheduledNotify = true,
     bool scheduledPreview = true,
@@ -172,6 +178,7 @@ class MobileBackgroundCoordinator extends ChangeNotifier
       cancel: cancel,
       startedAt: DateTime.now(),
       scheduled: scheduled,
+      detail: detail,
       scheduledNotify: scheduledNotify,
       scheduledPreview: scheduledPreview,
     );
@@ -275,7 +282,8 @@ class MobileBackgroundCoordinator extends ChangeNotifier
           : task.title,
       'detail': _settings.privacyMode
           ? (_l10n?.backgroundWorking ?? 'Working')
-          : '${detail ?? task.phase.name}${task.phase == BackgroundTaskPhase.tool && task.toolName.isNotEmpty ? ': ${task.toolName}' : ''}',
+          : task.detail ??
+                '${detail ?? task.phase.name}${task.phase == BackgroundTaskPhase.tool && task.toolName.isNotEmpty ? ': ${task.toolName}' : ''}',
       'tokens': _settings.privacyMode ? 0 : task.tokens,
       'startedAt': task.startedAt.millisecondsSinceEpoch,
     };
@@ -303,6 +311,7 @@ class MobileBackgroundCoordinator extends ChangeNotifier
       'open': _l10n?.backgroundOpenChat ?? 'Open chat',
       'close': _l10n?.commonClose ?? 'Close',
       'completed': _l10n?.backgroundCompleted ?? 'Generation complete',
+      'careWorking': _l10n?.backgroundCareWorking ?? 'Preparing your letter',
       'stale': _l10n?.backgroundStale ?? 'Open Cuplivo to check the task.',
     },
   };

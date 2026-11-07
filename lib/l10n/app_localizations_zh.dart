@@ -11072,6 +11072,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backgroundGenerating => '正在生成回复';
 
   @override
+  String get backgroundCareLetter => '正在写信';
+
+  @override
+  String get backgroundCareWorking => '正在准备来信';
+
+  @override
   String get backgroundThinking => '正在思考';
 
   @override
@@ -27389,6 +27395,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get backgroundGenerating => '正在生成回复';
+
+  @override
+  String get backgroundCareLetter => '正在写信';
+
+  @override
+  String get backgroundCareWorking => '正在准备来信';
 
   @override
   String get backgroundThinking => '正在思考';
@@ -43714,6 +43726,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backgroundGenerating => '正在生成回覆';
+
+  @override
+  String get backgroundCareLetter => '正在寫信';
+
+  @override
+  String get backgroundCareWorking => '正在準備來信';
 
   @override
   String get backgroundThinking => '正在思考';

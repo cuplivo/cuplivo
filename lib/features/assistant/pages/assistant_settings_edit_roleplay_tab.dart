@@ -179,8 +179,24 @@ class _AssistantSettingsEditRoleplayTabState
   }
 
   Future<void> _onProactiveCareChanged(Assistant a, bool enabled) async {
-    await context.read<AssistantProvider>().updateAssistant(
-      a.copyWith(enableProactiveCare: enabled),
+    final assistants = context.read<AssistantProvider>();
+    await assistants.updateAssistant(a.copyWith(enableProactiveCare: enabled));
+    if (!enabled || !ProactiveCareAlarmService.isIosTarget) return;
+    // iOS: switching care on is the user gesture for the notification grant it
+    // needs. Without it the arrival notification — the only carrier a suspended
+    // app has — is refused, and nothing else in the app asks on care's behalf.
+    // The re-arm is the same one the exact-alarm row performs: the switch
+    // itself already ran one, and it was refused for lack of the grant.
+    if (!mounted) return;
+    final chatService = context.read<ChatService>();
+    await assistants.loaded;
+    if (!mounted) return;
+    await ProactiveCareAlarmService.requestIosNotificationPermission(
+      rearm: () => ProactiveCareAlarmService.rescheduleAll(
+        conversations: chatService.getAllConversations(),
+        assistants: assistants.assistants,
+        assistantStoreLoaded: assistants.isLoaded,
+      ),
     );
   }
 

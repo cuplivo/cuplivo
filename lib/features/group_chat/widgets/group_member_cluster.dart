@@ -11,6 +11,10 @@ import '../../home/widgets/assistant_avatar.dart';
 /// One tap opens the member list — not a per-avatar action and not a model
 /// picker. A group has no single model, so the slot a 1:1 chat spends on "which
 /// model am I talking to" is spent here on "who is in this room".
+///
+/// There is no trailing "invite" circle. Inviting is the first row of the
+/// member list, and a plus drawn inside a target that opens a list promises an
+/// action it does not have.
 class GroupMemberCluster extends StatelessWidget {
   const GroupMemberCluster({
     super.key,
@@ -30,10 +34,10 @@ class GroupMemberCluster extends StatelessWidget {
   }
 
   static int _layersFor(int memberCount) {
-    if (memberCount <= 0) return 1; // the invite circle alone
+    if (memberCount <= 0) return 1; // the group glyph alone
     final avatars = memberCount > 4 ? 3 : memberCount;
     final overflow = memberCount > 4 ? 1 : 0;
-    return avatars + overflow + 1;
+    return avatars + overflow;
   }
 
   final List<Assistant> members;
@@ -92,29 +96,20 @@ class GroupMemberCluster extends StatelessWidget {
         ),
       );
     }
-    layers.add(
-      Positioned(
-        left: leftFor(index),
-        top: 0,
-        child: _Ring(
-          color: isDark ? cs.surface : cs.surfaceContainerHighest,
-          child: Container(
-            width: size,
-            height: size,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Lucide.Plus,
-              size: 12,
-              color: cs.primary.withValues(alpha: 0.9),
-            ),
+    if (layers.isEmpty) {
+      // Every member is gone because their assistants were deleted. The group
+      // still needs a face and a way into its member list.
+      layers.add(
+        Positioned(
+          left: 0,
+          top: 0,
+          child: _Ring(
+            color: isDark ? cs.surface : cs.surfaceContainerHighest,
+            child: GroupEmptyFace(size: size),
           ),
         ),
-      ),
-    );
+      );
+    }
 
     return Semantics(
       button: onTap != null,
@@ -127,6 +122,33 @@ class GroupMemberCluster extends StatelessWidget {
           child: Stack(clipBehavior: Clip.none, children: layers),
         ),
       ),
+    );
+  }
+}
+
+/// The face a group wears when every member's assistant is gone: the group glyph
+/// in the theme's primary colour.
+///
+/// Both places that draw a group's identity use it — this cluster and
+/// [GroupAvatar] — so retinting or resizing that face happens once, and the
+/// composer cannot end up disagreeing with the sidebar about the same group.
+class GroupEmptyFace extends StatelessWidget {
+  const GroupEmptyFace({super.key, required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: cs.primary.withValues(alpha: 0.12),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(Lucide.Users, size: size * 0.5, color: cs.primary),
     );
   }
 }

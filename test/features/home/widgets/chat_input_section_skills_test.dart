@@ -211,7 +211,7 @@ void main() {
       expect(find.byTooltip('Skills'), findsNothing);
       final context = tester.element(find.byType(ChatInputBar));
       final l10n = AppLocalizations.of(context)!;
-      await tester.tap(find.byTooltip(l10n.chatInputBarMoreTooltip).first);
+      await tester.tap(find.byTooltip(l10n.chatInputBarOverflowTooltip));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Skills'));
       await tester.pumpAndSettle();

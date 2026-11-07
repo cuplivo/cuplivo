@@ -446,22 +446,11 @@ class GroupAvatar extends StatelessWidget {
       final assistant = assistants.getById(id);
       if (assistant != null) members.add(assistant);
     }
-    final Widget cluster;
-    if (members.isEmpty) {
-      final cs = Theme.of(context).colorScheme;
-      cluster = Container(
-        width: size,
-        height: size,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: cs.primary.withValues(alpha: 0.12),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(Lucide.Users, size: size * 0.5, color: cs.primary),
-      );
-    } else {
-      cluster = GroupMemberCluster(members: members, size: size * 0.72);
-    }
+    // An empty group wears the same face the composer's cluster draws for it:
+    // one rule, so the two cannot drift.
+    final Widget cluster = members.isEmpty
+        ? GroupEmptyFace(size: size)
+        : GroupMemberCluster(members: members, size: size * 0.72);
     return AvatarValue(value: group.avatar, size: size, fallback: cluster);
   }
 }

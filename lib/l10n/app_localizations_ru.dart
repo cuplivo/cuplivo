@@ -18412,6 +18412,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get settingsPageChatOwnersCreate => 'Создать';
 
   @override
+  String get chatOwnersSeparate => 'Показывать отдельно';
+
+  @override
+  String get chatOwnersSectionAssistants => 'Ассистенты';
+
+  @override
+  String get chatOwnersSectionGroups => 'Группы';
+
+  @override
   String get chatOwnerCreateAssistant => 'Новый ассистент';
 
   @override

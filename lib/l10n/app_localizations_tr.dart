@@ -18204,6 +18204,15 @@ class AppLocalizationsTr extends AppLocalizations {
   String get settingsPageChatOwnersCreate => 'Oluştur';
 
   @override
+  String get chatOwnersSeparate => 'Ayrı göster';
+
+  @override
+  String get chatOwnersSectionAssistants => 'Asistanlar';
+
+  @override
+  String get chatOwnersSectionGroups => 'Gruplar';
+
+  @override
   String get chatOwnerCreateAssistant => 'Yeni asistan';
 
   @override

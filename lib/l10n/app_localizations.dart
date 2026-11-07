@@ -31770,6 +31770,24 @@ abstract class AppLocalizations {
   /// **'Create'**
   String get settingsPageChatOwnersCreate;
 
+  /// Switch label for showing assistants and group chats as two separate lists.
+  ///
+  /// In en, this message translates to:
+  /// **'Show separately'**
+  String get chatOwnersSeparate;
+
+  /// Section header above the list of assistants.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistants'**
+  String get chatOwnersSectionAssistants;
+
+  /// Section header above the list of group chats.
+  ///
+  /// In en, this message translates to:
+  /// **'Groups'**
+  String get chatOwnersSectionGroups;
+
   /// Menu item that starts creating a new assistant.
   ///
   /// In en, this message translates to:

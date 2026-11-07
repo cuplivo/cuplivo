@@ -5308,5 +5308,8 @@
   "markdownExportTextSizeStandard": "Стандартный",
   "markdownExportTitle": "Markdown в изображение",
   "markdownExportUnsupportedFile": "Поддерживаются только текстовые файлы Markdown",
-  "toolsMenuTooltip": "Инструменты"
+  "toolsMenuTooltip": "Инструменты",
+  "chatOwnersSeparate": "Показывать отдельно",
+  "chatOwnersSectionAssistants": "Ассистенты",
+  "chatOwnersSectionGroups": "Группы"
 }

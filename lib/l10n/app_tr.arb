@@ -5308,5 +5308,8 @@
   "markdownExportTextSizeStandard": "Standart",
   "markdownExportTitle": "Markdown görseli",
   "markdownExportUnsupportedFile": "Yalnızca Markdown metin dosyaları desteklenir",
-  "toolsMenuTooltip": "Araçlar"
+  "toolsMenuTooltip": "Araçlar",
+  "chatOwnersSeparate": "Ayrı göster",
+  "chatOwnersSectionAssistants": "Asistanlar",
+  "chatOwnersSectionGroups": "Gruplar"
 }

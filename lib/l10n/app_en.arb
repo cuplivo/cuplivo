@@ -23376,6 +23376,18 @@
   "@settingsPageChatOwnersCreate": {
     "description": "Tooltip of the plus button that creates a new assistant or group chat."
   },
+  "chatOwnersSeparate": "Show separately",
+  "@chatOwnersSeparate": {
+    "description": "Switch label for showing assistants and group chats as two separate lists."
+  },
+  "chatOwnersSectionAssistants": "Assistants",
+  "@chatOwnersSectionAssistants": {
+    "description": "Section header above the list of assistants."
+  },
+  "chatOwnersSectionGroups": "Groups",
+  "@chatOwnersSectionGroups": {
+    "description": "Section header above the list of group chats."
+  },
   "chatOwnerCreateAssistant": "New assistant",
   "@chatOwnerCreateAssistant": {
     "description": "Menu item that starts creating a new assistant."

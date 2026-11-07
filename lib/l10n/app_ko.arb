@@ -5308,5 +5308,8 @@
   "markdownExportTextSizeStandard": "보통",
   "markdownExportTitle": "Markdown 이미지",
   "markdownExportUnsupportedFile": "Markdown 텍스트 파일만 지원해요",
-  "toolsMenuTooltip": "도구"
+  "toolsMenuTooltip": "도구",
+  "chatOwnersSeparate": "따로 표시",
+  "chatOwnersSectionAssistants": "어시스턴트",
+  "chatOwnersSectionGroups": "그룹"
 }

@@ -17546,6 +17546,15 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingsPageChatOwnersCreate => '만들기';
 
   @override
+  String get chatOwnersSeparate => '따로 표시';
+
+  @override
+  String get chatOwnersSectionAssistants => '어시스턴트';
+
+  @override
+  String get chatOwnersSectionGroups => '그룹';
+
+  @override
   String get chatOwnerCreateAssistant => '새 어시스턴트';
 
   @override

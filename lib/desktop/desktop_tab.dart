@@ -22,7 +22,7 @@ DesktopTab desktopTabForTool(AppTool tool) => switch (tool) {
 /// `IndexedStack` builds every tab, and a hidden tab is laid out at the visible
 /// tab's rect. Widgets that answer a process-wide event rather than a pointer —
 /// `desktop_drop` broadcasts every drop to every registered target without
-/// asking whether it is visible — read this instead of assuming they are shown.
+/// asking whether it is visible — ask this before acting.
 class DesktopTabVisibility extends InheritedWidget {
   const DesktopTabVisibility({
     super.key,
@@ -32,14 +32,18 @@ class DesktopTabVisibility extends InheritedWidget {
 
   final bool visible;
 
-  /// True outside the desktop shell: a page opened as its own route is the only
-  /// thing on screen, and the phone shell hides its tabs instead of stacking
-  /// them.
-  static bool of(BuildContext context) {
-    final scope = context
-        .dependOnInheritedWidgetOfExactType<DesktopTabVisibility>();
-    return scope?.visible ?? true;
-  }
+  /// The answer right now, deliberately **without** registering a dependency.
+  ///
+  /// It is asked from event handlers, not from `build`: a page that depended on
+  /// this flag would be rebuilt on every tab switch — including when it is the
+  /// page being hidden — and so would the sub-tree inside it. The flag decides
+  /// whether an event is acted on, and nothing about how the page looks.
+  static bool read(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<DesktopTabVisibility>()?.visible ??
+      // Outside the desktop shell: a page opened as its own route is the only
+      // thing on screen, and the phone shell hides its tabs instead of stacking
+      // them.
+      true;
 
   @override
   bool updateShouldNotify(DesktopTabVisibility oldWidget) =>

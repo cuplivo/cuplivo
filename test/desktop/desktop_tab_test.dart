@@ -5,20 +5,29 @@ import 'package:Cuplivo/desktop/desktop_tab.dart';
 import 'package:Cuplivo/shared/navigation/app_tools.dart';
 
 void main() {
-  test('every tool owns exactly one tab', () {
-    final tabs = AppTool.values.map(desktopTabForTool).toList();
-    expect(tabs.toSet().length, AppTool.values.length);
+  test('the tab order is what other code indexes into', () {
+    // The shell builds its stack from this enum, so `indexOf` *is* a page's
+    // position — and `initialTabIndex` is still handed a number from outside
+    // the shell (the model sheet passes 3 for Settings). Reordering this list
+    // silently sends the stack and that deep link somewhere else, so the order
+    // is asserted rather than assumed.
+    expect(DesktopTab.values, const [
+      DesktopTab.chat,
+      DesktopTab.translate,
+      DesktopTab.storage,
+      DesktopTab.settings,
+      DesktopTab.markdownImage,
+    ]);
+    expect(DesktopTab.values[3], DesktopTab.settings);
   });
 
-  test('a tool tab index is its position in the stack', () {
-    // The shell builds its stack from DesktopTab.values, so the order of that
-    // enum *is* the order of the pages: a tool's index cannot drift from where
-    // its page sits.
-    expect(DesktopTab.values.indexOf(DesktopTab.chat), 0);
+  test('every tool has its own tab, and it is a tool tab', () {
+    final tabs = AppTool.values.map(desktopTabForTool).toList();
+    // Two tools sharing a tab would send both to the same page.
+    expect(tabs.toSet().length, AppTool.values.length);
     for (final tool in AppTool.values) {
-      final tab = desktopTabForTool(tool);
-      expect(DesktopTab.values.indexOf(tab), isNonNegative);
-      expect(DesktopTab.values[DesktopTab.values.indexOf(tab)], tab);
+      expect(desktopTabForTool(tool), isNot(DesktopTab.chat));
+      expect(desktopTabForTool(tool), isNot(DesktopTab.settings));
     }
   });
 
@@ -31,12 +40,12 @@ void main() {
       MaterialApp(
         home: Builder(
           builder: (context) {
-            outside = DesktopTabVisibility.of(context);
+            outside = DesktopTabVisibility.read(context);
             return DesktopTabVisibility(
               visible: false,
               child: Builder(
                 builder: (context) {
-                  inside = DesktopTabVisibility.of(context);
+                  inside = DesktopTabVisibility.read(context);
                   return const SizedBox();
                 },
               ),
@@ -52,10 +61,11 @@ void main() {
     expect(inside, isFalse);
   });
 
-  testWidgets('turning a hidden tab visible notifies what depends on it', (
+  testWidgets('reading the flag never makes a page depend on it', (
     tester,
   ) async {
-    var visible = false;
+    _Reader.builds = 0;
+    var visible = true;
     late StateSetter setVisible;
     await tester.pumpWidget(
       MaterialApp(
@@ -64,32 +74,30 @@ void main() {
             setVisible = setState;
             return DesktopTabVisibility(
               visible: visible,
-              // Constant, so the probe is only rebuilt when the inherited
-              // value actually changes — which is the thing being asserted.
-              child: const _VisibilityProbe(),
+              // Constant, so a rebuild could only come from a dependency.
+              child: const _Reader(),
             );
           },
         ),
       ),
     );
-    expect(_VisibilityProbe.builds, 1);
-    expect(_VisibilityProbe.seen, isFalse);
+    expect(_Reader.seen, isTrue);
+    expect(_Reader.builds, 1);
 
-    setVisible(() => visible = true);
+    // Switching tabs must not rebuild the pages being switched between — the
+    // flag answers events, it is not a build input. Reading it with
+    // `dependOnInheritedWidgetOfExactType` is what made every tab change
+    // re-render the export sheet, including the one being hidden.
+    setVisible(() => visible = false);
     await tester.pump();
-    expect(_VisibilityProbe.seen, isTrue);
-    expect(_VisibilityProbe.builds, 2);
-
-    // The same answer again must not churn the subtree.
-    setVisible(() => visible = true);
-    await tester.pump();
-    expect(_VisibilityProbe.builds, 2);
+    expect(_Reader.builds, 1);
   });
 }
 
-/// Reads the scope so a change to it rebuilds this widget and nothing else.
-class _VisibilityProbe extends StatelessWidget {
-  const _VisibilityProbe();
+/// Reads the flag without subscribing, and counts the builds that must not
+/// happen because of it.
+class _Reader extends StatelessWidget {
+  const _Reader();
 
   static int builds = 0;
   static bool seen = false;
@@ -97,7 +105,7 @@ class _VisibilityProbe extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     builds++;
-    seen = DesktopTabVisibility.of(context);
+    seen = DesktopTabVisibility.read(context);
     return const SizedBox();
   }
 }

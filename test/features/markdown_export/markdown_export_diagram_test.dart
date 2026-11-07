@@ -41,8 +41,14 @@ void main() {
   setUp(() async {
     settings = SettingsProvider(createBusinessTestPreferences());
     await settings.loaded;
+    debugDiagramExportViewFactory = null;
+    MermaidImageCache.clear();
   });
-  tearDown(() => settings.dispose());
+  tearDown(() {
+    settings.dispose();
+    debugDiagramExportViewFactory = null;
+    MermaidImageCache.clear();
+  });
 
   Widget host(Widget child) {
     return ChangeNotifierProvider<SettingsProvider>.value(
@@ -58,64 +64,91 @@ void main() {
     );
   }
 
-  Widget preview() {
+  Widget preview({double textScale = 1}) {
     return host(
-      const MarkdownExportPreview(
+      MarkdownExportPreview(
         source: _markdown,
         documentWidth: desktopExportLogicalWidth,
         emptyHint: 'Nothing to preview yet',
+        textScale: textScale,
       ),
     );
   }
 
-  testWidgets('the preview warms the diagram cache the export reads', (
-    tester,
-  ) async {
-    MermaidImageCache.clear();
-    addTearDown(MermaidImageCache.clear);
-    addTearDown(() => debugDiagramExportViewFactory = null);
+  void installRenderer() {
     debugDiagramExportViewFactory = (diagram) => MermaidViewHandle(
       widget: const SizedBox(),
       exportPng: () async => true,
       exportPngBytes: () async => base64Decode(_pixelPng),
     );
+  }
 
-    await tester.pumpWidget(preview());
-    // One frame to build, then the offscreen render the preview starts itself:
-    // that render awaits an overlay frame and a bitmap, so give it several.
+  /// Frames for the offscreen render the preview starts itself: it awaits an
+  /// overlay, a bitmap and its own retry window.
+  Future<void> settleWarm(WidgetTester tester) async {
     await tester.pump();
-    for (var i = 0; i < 8; i++) {
+    for (var i = 0; i < 12; i++) {
       await tester.pump(const Duration(milliseconds: 200));
     }
+  }
 
-    // The key the export will ask for, for this theme.
-    final themeVars = buildThemeVarsFromColorScheme(
-      Theme.of(hostKey.currentContext!).colorScheme,
-    );
-    final key = diagramImageCacheKey(
+  /// The key the export asks for, for the theme on screen.
+  String cacheKey() {
+    return diagramImageCacheKey(
       _diagramCode,
       false,
-      themeVars,
+      buildThemeVarsFromColorScheme(
+        Theme.of(hostKey.currentContext!).colorScheme,
+      ),
       isSvg: false,
     );
-    expect(
-      MermaidImageCache.get(key),
-      isNotNull,
-      reason: 'the preview must warm the cache, not wait for an export',
-    );
+  }
 
-    // With that cache warm the sheet draws the diagram rather than its code —
-    // the picture the export produces.
-    await tester.pumpWidget(const SizedBox());
-    await tester.pumpAndSettle();
-    await tester.pumpWidget(preview());
-    await tester.pumpAndSettle();
-
-    expect(find.byType(Image), findsWidgets);
-    final rendered = tester
+  String renderedText(WidgetTester tester) {
+    return tester
         .widgetList<RichText>(find.byType(RichText))
         .map((text) => text.text.toPlainText())
         .join('\n');
-    expect(rendered.contains('A-->B'), isFalse);
+  }
+
+  testWidgets('the preview warms the cache and draws the diagram in place', (
+    tester,
+  ) async {
+    installRenderer();
+
+    await tester.pumpWidget(preview());
+    await settleWarm(tester);
+
+    expect(
+      MermaidImageCache.get(cacheKey()),
+      isNotNull,
+      reason: 'the preview must warm the cache, not wait for an export',
+    );
+    // Drawn on the same tree: no second build of the page is needed to see it.
+    expect(find.byType(Image), findsWidgets);
+    expect(renderedText(tester).contains('A-->B'), isFalse);
+  });
+
+  testWidgets('a warm that filled nothing is retried by the next build', (
+    tester,
+  ) async {
+    // A renderer that never yields a bitmap: the helper gives up without
+    // saying so, which is the case that used to stick for good.
+    debugDiagramExportViewFactory = (diagram) => null;
+
+    await tester.pumpWidget(preview());
+    await settleWarm(tester);
+    expect(MermaidImageCache.get(cacheKey()), isNull);
+    // The source is what the sheet honestly shows when there is no bitmap.
+    expect(renderedText(tester).contains('A-->B'), isTrue);
+
+    // Any later build — here a type-size change — tries once more.
+    installRenderer();
+    await tester.pumpWidget(preview(textScale: 1.1));
+    await settleWarm(tester);
+
+    expect(MermaidImageCache.get(cacheKey()), isNotNull);
+    expect(find.byType(Image), findsWidgets);
+    expect(renderedText(tester).contains('A-->B'), isFalse);
   });
 }

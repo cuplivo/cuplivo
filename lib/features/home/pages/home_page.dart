@@ -1627,20 +1627,21 @@ class _HomePageState extends State<HomePage>
 
   Widget _wrapWithDropTarget(Widget child) {
     if (!_controller.isDesktopPlatform) return child;
-    // A hidden desktop tab is still built and laid out at the visible tab's
-    // rect, and desktop_drop hands every drop to every registered target. A
-    // file dropped on another tab would otherwise land in this composer as
-    // well as wherever the user aimed it.
-    if (!DesktopTabVisibility.of(context)) return child;
+    // The target stays mounted while another desktop tab is on screen: taking
+    // it out of the tree would rebuild this page around it, and desktop_drop
+    // hands every drop to every registered target anyway. What it must not do
+    // is act — the flag is read per event, never as a build dependency.
+    bool onScreen() => DesktopTabVisibility.read(context);
     return DropTarget(
       onDragEntered: (_) {
-        _controller.setDragHovering(true);
+        if (onScreen()) _controller.setDragHovering(true);
       },
       onDragExited: (_) {
         _controller.setDragHovering(false);
       },
       onDragDone: (details) async {
         _controller.setDragHovering(false);
+        if (!onScreen()) return;
         try {
           final files = details.files;
           await _controller.onFilesDroppedDesktop(files);

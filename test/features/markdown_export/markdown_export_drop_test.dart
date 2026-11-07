@@ -1,8 +1,8 @@
 // A desktop tab is built and laid out even when it is not the one on screen,
 // and desktop_drop hands every drop to every registered target without asking
-// whether it is visible. The guard is the mount: a hidden tab does not register
-// a drop target at all.
-import 'package:desktop_drop/desktop_drop.dart';
+// whether it is visible. Each target therefore asks, per event, whether it is
+// the tab being looked at — and it stays mounted, because taking it out of the
+// tree would rebuild the page around it on every tab switch.
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,6 +12,8 @@ import 'package:provider/provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/desktop/desktop_tab.dart';
 import 'package:Cuplivo/features/markdown_export/pages/markdown_export_page.dart';
+import 'package:Cuplivo/features/markdown_export/widgets/markdown_export_drop_target.dart';
+import 'package:Cuplivo/features/markdown_export/widgets/markdown_export_preview.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 
 import '../../support/business_test_harness.dart';
@@ -26,6 +28,11 @@ Future<void> _send(String method, Object? arguments) async {
         _codec.encodeMethodCall(MethodCall(method, arguments)),
         (_) {},
       );
+}
+
+Future<void> _drop(String path) async {
+  await _send('entered', <double>[100, 100]);
+  await _send('performOperation', <String>[path]);
 }
 
 /// Runs [body] as a Windows desktop, which is the shell that keeps every tab
@@ -61,8 +68,8 @@ void main() {
     );
   }
 
-  /// The shell's shape: the chat page first, the tool second, one of them on
-  /// screen. Both are laid out at the same rect by `IndexedStack`.
+  /// The shell's shape: one page first, the tool second, one of them on screen.
+  /// Both are laid out at the same rect by `IndexedStack`.
   Widget shell({required bool toolVisible}) {
     return IndexedStack(
       index: toolVisible ? 1 : 0,
@@ -76,19 +83,20 @@ void main() {
     );
   }
 
-  testWidgets('a hidden tab registers no drop target and takes no file', (
+  testWidgets('a hidden tab ignores a drop instead of taking the file', (
     tester,
   ) async {
     await _onWindows(() async {
       await tester.pumpWidget(host(shell(toolVisible: false)));
       await tester.pumpAndSettle();
       // `skipOffstage: false` is the whole point: the shell keeps the hidden
-      // tab in the tree, so a finder that skips offstage would prove nothing.
-      expect(find.byType(DropTarget, skipOffstage: false), findsNothing);
+      // tab built, so a finder that skips offstage would prove nothing.
+      expect(
+        find.byType(MarkdownExportDropTarget, skipOffstage: false),
+        findsOneWidget,
+      );
 
-      // The event that used to reach the hidden tool.
-      await _send('entered', <double>[100, 100]);
-      await _send('performOperation', <String>['C:/notes.md']);
+      await _drop('C:/notes.md');
       await tester.pumpAndSettle();
 
       final editor = tester.widget<TextField>(
@@ -98,32 +106,95 @@ void main() {
     });
   });
 
-  testWidgets('the tab on screen does register one', (tester) async {
+  testWidgets('the tab on screen takes the file', (tester) async {
     await _onWindows(() async {
-      await tester.pumpWidget(host(shell(toolVisible: true)));
+      final dropped = <List<String>>[];
+      await tester.pumpWidget(
+        host(
+          DesktopTabVisibility(
+            visible: true,
+            child: MarkdownExportDropTarget(
+              onPaths: dropped.add,
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
-      expect(find.byType(DropTarget, skipOffstage: false), findsOneWidget);
+      await _drop('C:/notes.md');
+      await tester.pumpAndSettle();
+
+      expect(dropped, [
+        ['C:/notes.md'],
+      ]);
     });
   });
 
-  testWidgets('switching away removes it, switching back restores it', (
+  testWidgets('hiding it afterwards stops the drop, showing it starts again', (
+    tester,
+  ) async {
+    await _onWindows(() async {
+      final dropped = <List<String>>[];
+      Widget target({required bool visible}) {
+        return host(
+          DesktopTabVisibility(
+            visible: visible,
+            child: MarkdownExportDropTarget(
+              onPaths: dropped.add,
+              child: const SizedBox.expand(),
+            ),
+          ),
+        );
+      }
+
+      await tester.pumpWidget(target(visible: true));
+      await tester.pumpAndSettle();
+      await _drop('C:/first.md');
+      await tester.pumpAndSettle();
+      expect(dropped, hasLength(1));
+
+      await tester.pumpWidget(target(visible: false));
+      await tester.pumpAndSettle();
+      await _drop('C:/second.md');
+      await tester.pumpAndSettle();
+      expect(dropped, hasLength(1), reason: 'a hidden tab must not take it');
+
+      await tester.pumpWidget(target(visible: true));
+      await tester.pumpAndSettle();
+      await _drop('C:/third.md');
+      await tester.pumpAndSettle();
+      expect(dropped, hasLength(2));
+    });
+  });
+
+  testWidgets('a tab keeps its page, and its sheet, while it is hidden', (
     tester,
   ) async {
     await _onWindows(() async {
       await tester.pumpWidget(host(shell(toolVisible: true)));
       await tester.pumpAndSettle();
-      expect(find.byType(DropTarget, skipOffstage: false), findsOneWidget);
 
-      // Rebuilding with the tool hidden is what the shell does on every tab
-      // change: the same subtree, a different visibility.
+      final field = tester.widget<TextField>(
+        find.byType(TextField, skipOffstage: false),
+      );
+      field.controller!.text = '## kept while hidden';
+      await tester.pump(const Duration(milliseconds: 400));
+      final sheetBuilds = MarkdownExportPreview.debugSheetBuilds;
+
       await tester.pumpWidget(host(shell(toolVisible: false)));
       await tester.pumpAndSettle();
-      expect(find.byType(DropTarget, skipOffstage: false), findsNothing);
 
-      await tester.pumpWidget(host(shell(toolVisible: true)));
-      await tester.pumpAndSettle();
-      expect(find.byType(DropTarget, skipOffstage: false), findsOneWidget);
+      // Hiding a tab must not rebuild the page behind it, and must not tear it
+      // down: the editor keeps what was typed and the sheet is not drawn again.
+      expect(
+        tester
+            .widget<TextField>(find.byType(TextField, skipOffstage: false))
+            .controller!
+            .text,
+        '## kept while hidden',
+      );
+      expect(MarkdownExportPreview.debugSheetBuilds, sheetBuilds);
     });
   });
 }

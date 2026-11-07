@@ -1,6 +1,7 @@
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 
+import '../../../desktop/desktop_tab.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_font_weights.dart';
 
@@ -26,6 +27,13 @@ class MarkdownExportDropTarget extends StatefulWidget {
 class _MarkdownExportDropTargetState extends State<MarkdownExportDropTarget> {
   bool _hovering = false;
 
+  /// This target stays mounted while another desktop tab is on screen — taking
+  /// it out of the tree would rebuild the page around it — so it asks, at the
+  /// moment an event arrives, whether it is the tab being looked at. The shell
+  /// keeps every tab laid out at the same rect, and `desktop_drop` hands a drop
+  /// to every registered target.
+  bool get _onScreen => DesktopTabVisibility.read(context);
+
   void _setHovering(bool value) {
     if (_hovering == value) return;
     setState(() => _hovering = value);
@@ -35,10 +43,13 @@ class _MarkdownExportDropTargetState extends State<MarkdownExportDropTarget> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return DropTarget(
-      onDragEntered: (_) => _setHovering(true),
+      onDragEntered: (_) {
+        if (_onScreen) _setHovering(true);
+      },
       onDragExited: (_) => _setHovering(false),
       onDragDone: (details) {
         _setHovering(false);
+        if (!_onScreen) return;
         widget.onPaths([for (final file in details.files) file.path]);
       },
       child: Stack(

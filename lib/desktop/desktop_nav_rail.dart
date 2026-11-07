@@ -278,8 +278,6 @@ class _HoverCircleState extends State<_HoverCircle> {
   }
 }
 
-/// Desktop tab per tool is not the rail's business: the shell builds its stack
-/// from [DesktopTab], so the mapping lives beside it.
 class _ThemeCycleButton extends StatefulWidget {
   @override
   State<_ThemeCycleButton> createState() => _ThemeCycleButtonState();

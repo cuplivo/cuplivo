@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../icons/lucide_adapter.dart';
-import '../../../desktop/desktop_tab.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/action_sheet.dart';
 import '../../../shared/widgets/ios_tactile.dart';
@@ -111,11 +110,10 @@ class _MarkdownExportPageState extends State<MarkdownExportPage> {
         documentWidth: documentWidth,
         textScale: _textSize.scale,
       );
-      // Another desktop tab is on screen. This one is still built and laid out
-      // at the same rect, and desktop_drop hands a drop to every registered
-      // target without asking whether it is visible, so a file dropped on
-      // another tab would load here too.
-      if (!DesktopTabVisibility.of(context)) return layout;
+      // The drop target stays mounted even when another desktop tab is on
+      // screen: taking it out of the tree would rebuild this page around it,
+      // and `desktop_drop` hands a drop to every registered target anyway. It
+      // asks the shell whether it is visible when a drop actually arrives.
       return MarkdownExportDropTarget(
         onPaths: (paths) => unawaited(_acceptDrop(paths)),
         child: layout,

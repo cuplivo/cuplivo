@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../icons/lucide_adapter.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../theme/app_semantic_colors.dart';
@@ -42,6 +43,37 @@ class MarkdownExportActionChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The primary action wired to the source: it listens to the controller itself
+/// so the rest of the page does not rebuild on every keystroke, and it answers
+/// the first character rather than waiting for the preview to catch up.
+class MarkdownExportSubmitButton extends StatelessWidget {
+  const MarkdownExportSubmitButton({
+    super.key,
+    required this.controller,
+    required this.onTap,
+    this.busy = false,
+  });
+
+  final TextEditingController controller;
+
+  /// Runs only when the source has something in it.
+  final VoidCallback onTap;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: controller,
+      builder: (context, value, _) => MarkdownExportButton(
+        label: l10n.markdownExportExportImage,
+        onTap: value.text.trim().isEmpty || busy ? null : onTap,
+        busy: busy,
       ),
     );
   }

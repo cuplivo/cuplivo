@@ -279,6 +279,7 @@
   "markdownExportTextSizeLarge": "大",
   "markdownExportHideSource": "收起源码",
   "markdownExportShowSource": "显示源码",
+  "markdownExportReducedResolution": "文档较长，已降低分辨率以保证仍然是一张图",
   "markdownExportExportImage": "导出图片",
   "markdownExportDropHint": "松开以导入 Markdown",
   "markdownExportUnsupportedFile": "只支持 Markdown 文本文件",

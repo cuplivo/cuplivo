@@ -9,6 +9,7 @@ import 'user_profile_dialog.dart';
 import '../icons/lucide_adapter.dart' as lucide;
 import '../utils/sandbox_path_resolver.dart';
 import '../shared/navigation/app_tools.dart';
+import 'desktop_tab.dart';
 import '../theme/app_font_weights.dart';
 import 'widgets/desktop_pane_surface.dart';
 
@@ -16,23 +17,24 @@ import 'widgets/desktop_pane_surface.dart';
 class DesktopNavRail extends StatelessWidget {
   const DesktopNavRail({
     super.key,
-    required this.activeIndex,
+    required this.activeTab,
     this.globalSearchActive = false,
     required this.onTapChat,
     required this.onTapGlobalSearch,
-    required this.onSelectTab,
+    required this.onSelectTool,
     required this.onTapSettings,
   });
 
-  /// 0 = chat, 1 = translate, 2 = storage, 3 = settings, 4 = Markdown image.
-  final int activeIndex;
+  /// The tab on screen. The rail names tabs, not numbers: the shell owns the
+  /// stack, so it owns the order too.
+  final DesktopTab activeTab;
   final bool globalSearchActive;
   final VoidCallback onTapChat;
   final VoidCallback onTapGlobalSearch;
 
-  /// Switches to a tool's own tab. Every tool gets its own rail button, so this
-  /// is one tap, not a menu.
-  final ValueChanged<int> onSelectTab;
+  /// Opens a tool's own tab. Every tool gets its own rail button, so this is
+  /// one tap, not a menu.
+  final ValueChanged<AppTool> onSelectTool;
   final VoidCallback onTapSettings;
 
   static const double width = 64.0;
@@ -43,9 +45,9 @@ class DesktopNavRail extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final isMac = Platform.isMacOS;
     final double topGap = isMac ? 36.0 : 8.0;
-    final isChatActive = activeIndex == 0 && !globalSearchActive;
+    final isChatActive = activeTab == DesktopTab.chat && !globalSearchActive;
     final isGlobalSearchActive = globalSearchActive;
-    final isSettingsActive = activeIndex == 3;
+    final isSettingsActive = activeTab == DesktopTab.settings;
 
     return SizedBox(
       width: width,
@@ -79,10 +81,10 @@ class DesktopNavRail extends StatelessWidget {
               _CircleAction(
                 tooltip: tool.label(l10n),
                 icon: tool.icon,
-                onTap: () => onSelectTab(_tabIndexFor(tool)),
+                onTap: () => onSelectTool(tool),
                 size: 40,
                 iconSize: 18,
-                iconColor: activeIndex == _tabIndexFor(tool)
+                iconColor: activeTab == desktopTabForTool(tool)
                     ? cs.primary
                     : null,
               ),
@@ -275,14 +277,6 @@ class _HoverCircleState extends State<_HoverCircle> {
     );
   }
 }
-
-/// Desktop tab per tool. Kept beside the rail because it is the tab shell's
-/// ordering, not a property of the tool itself.
-int _tabIndexFor(AppTool tool) => switch (tool) {
-  AppTool.translate => 1,
-  AppTool.storage => 2,
-  AppTool.markdownImage => 4,
-};
 
 class _ThemeCycleButton extends StatefulWidget {
   @override

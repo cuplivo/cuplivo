@@ -11,6 +11,7 @@ import '../shared/widgets/ios_tactile.dart';
 import '../icons/lucide_adapter.dart';
 import 'desktop_settings_page.dart';
 import 'desktop_translate_page.dart';
+import '../features/markdown_export/pages/markdown_export_page.dart';
 import '../features/settings/pages/storage_space_page.dart';
 import '../l10n/app_localizations.dart';
 import 'package:window_manager/window_manager.dart';
@@ -32,7 +33,8 @@ class DesktopHomePage extends StatefulWidget {
     this.initialProviderKey,
   });
 
-  final int? initialTabIndex; // 0=Chat,1=Translate,2=Storage,3=Settings
+  final int?
+  initialTabIndex; // 0=Chat,1=Translate,2=Storage,3=Settings,4=Markdown image
   final String? initialProviderKey;
 
   @override
@@ -40,7 +42,8 @@ class DesktopHomePage extends StatefulWidget {
 }
 
 class _DesktopHomePageState extends State<DesktopHomePage> {
-  int _tabIndex = 0; // 0=Chat, 1=Translate, 2=Storage, 3=Settings
+  int _tabIndex =
+      0; // 0=Chat, 1=Translate, 2=Storage, 3=Settings, 4=Markdown image
   bool _storageVisited = false;
   bool _navigationOpen = false;
   bool _globalSearchActive = false;
@@ -53,7 +56,7 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
   void initState() {
     super.initState();
     if (widget.initialTabIndex != null) {
-      _tabIndex = widget.initialTabIndex!.clamp(0, 3);
+      _tabIndex = widget.initialTabIndex!.clamp(0, 4);
     }
     _storageVisited = _tabIndex == 2;
     _conversationOpenSub = NotificationService.conversationTaps.listen((_) {
@@ -301,6 +304,9 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
                                 key: const ValueKey('settings_page'),
                                 initialProviderKey: widget.initialProviderKey,
                               ),
+                              const MarkdownExportPage(
+                                key: ValueKey('markdown_export_page'),
+                              ),
                             ],
                           ),
                         ),
@@ -332,8 +338,7 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
                         globalSearchActive: _globalSearchActive,
                         onTapChat: () => _selectTab(0),
                         onTapGlobalSearch: () => _selectTab(0, search: true),
-                        onTapTranslate: () => _selectTab(1),
-                        onTapStorage: () => _selectTab(2),
+                        onSelectTab: _selectTab,
                         onTapSettings: () => _selectTab(3),
                       ),
                     ),

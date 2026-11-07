@@ -6202,6 +6202,12 @@ abstract class AppLocalizations {
   /// **'Add'**
   String get chatInputBarMoreTooltip;
 
+  /// No description provided for @chatInputBarOverflowTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'More actions'**
+  String get chatInputBarOverflowTooltip;
+
   /// No description provided for @chatInputBarVoiceInputTooltip.
   ///
   /// In en, this message translates to:

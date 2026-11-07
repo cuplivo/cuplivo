@@ -2,8 +2,10 @@ import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/group_chat.dart';
 import 'package:Cuplivo/features/group_chat/widgets/group_member_cluster.dart';
 import 'package:Cuplivo/features/group_chat/widgets/group_member_list.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/features/home/widgets/assistant_avatar.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -32,9 +34,16 @@ void main() {
     updatedAt: DateTime.utc(2026),
   );
 
-  Widget host(Widget child) => ChangeNotifierProvider(
-    // The tactile card reads the haptics preference on tap.
-    create: (_) => SettingsProvider(createBusinessTestPreferences()),
+  Widget host(Widget child, {AssistantProvider? assistants}) => MultiProvider(
+    providers: [
+      // The tactile card reads the haptics preference on tap.
+      ChangeNotifierProvider(
+        create: (_) => SettingsProvider(createBusinessTestPreferences()),
+      ),
+      // Only the group avatar needs assistants resolved; the cluster is handed
+      // its members directly.
+      if (assistants != null) ChangeNotifierProvider.value(value: assistants),
+    ],
     child: MaterialApp(
       locale: const Locale('en'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -45,10 +54,9 @@ void main() {
 
   group('cluster', () {
     test('its extent grows with the members it folds in', () {
-      expect(
-        GroupMemberCluster.extentFor(0),
-        lessThan(GroupMemberCluster.extentFor(1)),
-      );
+      // An empty group wears one glyph, so it takes the same single slot as one
+      // member: no trailing invite circle is reserved.
+      expect(GroupMemberCluster.extentFor(0), GroupMemberCluster.extentFor(1));
       expect(
         GroupMemberCluster.extentFor(1),
         lessThan(GroupMemberCluster.extentFor(3)),
@@ -66,13 +74,20 @@ void main() {
         host(GroupMemberCluster(members: members, onTap: () => taps++)),
       );
       expect(find.byType(AssistantAvatar), findsNWidgets(3));
-      // Two different points of the stack — the left-most face and the invite
-      // circle — are the same control.
+      // Two different points of the stack — the left-most face and the last one
+      // — are the same control.
       final box = tester.getRect(find.byType(GroupMemberCluster));
       await tester.tapAt(box.centerLeft + const Offset(4, 0));
       expect(taps, 1);
       await tester.tapAt(box.center);
       expect(taps, 2);
+    });
+
+    testWidgets('a populated cluster draws no plus of its own', (tester) async {
+      // The stack opens the member list; inviting is the first row there. A plus
+      // here would promise an action this target does not have.
+      await tester.pumpWidget(host(GroupMemberCluster(members: members)));
+      expect(find.byIcon(Lucide.Plus), findsNothing);
     });
 
     testWidgets('more than four members fold into a count', (tester) async {
@@ -82,9 +97,34 @@ void main() {
       expect(find.byType(AssistantAvatar), findsNWidgets(3));
     });
 
-    testWidgets('an empty group is only the invite circle', (tester) async {
+    testWidgets('an empty group wears the group glyph, not an invite plus', (
+      tester,
+    ) async {
       await tester.pumpWidget(host(const GroupMemberCluster(members: [])));
       expect(find.byType(AssistantAvatar), findsNothing);
+      expect(find.byIcon(Lucide.Users), findsOneWidget);
+      expect(find.byIcon(Lucide.Plus), findsNothing);
+    });
+
+    testWidgets('an empty group wears one face, drawn from one rule', (
+      tester,
+    ) async {
+      // The composer's cluster and the sidebar's avatar are two views of the same
+      // group, and both hand the empty case to [GroupEmptyFace]: retinting or
+      // resizing it cannot leave the two disagreeing.
+      await tester.pumpWidget(host(const GroupMemberCluster(members: [])));
+      expect(find.byType(GroupEmptyFace), findsOneWidget);
+
+      await tester.pumpWidget(
+        host(
+          GroupAvatar(group: panel(const [])),
+          assistants: AssistantProvider(
+            preferences: createBusinessTestPreferences(),
+          ),
+        ),
+      );
+      expect(find.byType(GroupEmptyFace), findsOneWidget);
+      expect(find.byIcon(Lucide.Users), findsOneWidget);
     });
   });
 

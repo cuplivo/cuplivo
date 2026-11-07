@@ -55,6 +55,7 @@ import '../../../shared/widgets/emoji_text.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../core/providers/tag_provider.dart';
 import '../../assistant/widgets/assistant_select_sheet.dart';
+import '../../assistant/widgets/chat_owner_section_header.dart';
 import '../../../desktop/hotkeys/sidebar_tab_bus.dart';
 import '../../../desktop/desktop_settings_navigation_bus.dart';
 import 'dart:async';
@@ -4038,43 +4039,27 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
           if (tp.tagOfAssistant(assistant.id) == tag.id) assistant.id,
     };
     // Assistants and groups share one order; tags only ever file assistants
-    // away, so every group sits in the ungrouped part of that order.
-    final visibleIds = {for (final a in assistants) a.id};
-    final mixed = <String, Object>{
-      for (final assistant in assistants) 'a:${assistant.id}': assistant,
-      for (final group in visibleGroups) 'g:${group.id}': group,
-    };
-    final orderedKeys = <String>[
-      for (final owner in owners.owners)
-        if (mixed.containsKey('${owner.isGroup ? 'g' : 'a'}:${owner.id}') &&
-            (owner.isGroup || !taggedIds.contains(owner.id)))
-          '${owner.isGroup ? 'g' : 'a'}:${owner.id}',
-    ];
-    // Anything the order provider has not reconciled yet still renders, so a
-    // just-created group never needs a second frame to appear.
-    for (final key in mixed.keys) {
-      if (!orderedKeys.contains(key)) orderedKeys.add(key);
-    }
-    final ungrouped = <Object>[
-      for (final key in orderedKeys)
-        if (key.startsWith('g:') || visibleIds.contains(key.substring(2)))
-          if (!(key.startsWith('a:') && taggedIds.contains(key.substring(2))))
-            mixed[key]!,
-    ];
-
-    // Every section — the untagged list and each tag — reads its order from the
-    // one owner order, so a drag anywhere means the same thing.
-    final ownerRank = <String, int>{
-      for (var i = 0; i < owners.owners.length; i++) owners.owners[i].key: i,
-    };
-    int rankOf(Assistant a) =>
-        ownerRank[ChatOwner.assistant(a.id).key] ?? 1 << 20;
+    // away, so every group sits in the ungrouped part of that order. The
+    // untagged section and each tag section both read that order through the
+    // provider's one projection, so a drag anywhere means the same thing, and a
+    // row the order has not reconciled yet still renders at the tail.
+    final ungrouped = owners.inOwnerOrder<Object>(
+      [
+        for (final assistant in assistants)
+          if (!taggedIds.contains(assistant.id)) assistant,
+        for (final group in visibleGroups) group,
+      ],
+      (owner) => owner is GroupChat
+          ? ChatOwner.group(owner.id).key
+          : ChatOwner.assistant((owner as Assistant).id).key,
+    );
 
     final groupedByTag = <String, List<Assistant>>{};
     for (final t in tags) {
-      final list =
-          assistants.where((a) => tp.tagOfAssistant(a.id) == t.id).toList()
-            ..sort((a, b) => rankOf(a).compareTo(rankOf(b)));
+      final list = owners.inOwnerOrder(
+        assistants.where((a) => tp.tagOfAssistant(a.id) == t.id),
+        (a) => ChatOwner.assistant(a.id).key,
+      );
       if (list.isNotEmpty) groupedByTag[t.id] = list;
     }
 
@@ -4176,22 +4161,53 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
       );
     }
 
+    // The same switch the settings page carries: assistants and group chats as
+    // two sections, or the one mixed list this sidebar has always shown. The
+    // order stays shared either way — a section drag moves only the rows it
+    // shows, exactly like a tag section does.
+    final separated =
+        context.watch<SettingsProvider>().separateChatOwners &&
+        groups.groups.isNotEmpty;
+    final ungroupedAssistants = separated
+        ? [
+            for (final owner in ungrouped)
+              if (owner is Assistant) owner,
+          ]
+        : const <Object>[];
+    final ungroupedGroups = separated
+        ? [
+            for (final owner in ungrouped)
+              if (owner is GroupChat) owner,
+          ]
+        : const <Object>[];
+    final hasTaggedAssistants = groupedByTag.values.any(
+      (list) => list.isNotEmpty,
+    );
+
+    Widget buildOwnerSection(List<Object> sectionOwners) =>
+        buildReorderableSection<Object>(
+          sectionOwners,
+          ownerOf: (owner) => owner is GroupChat
+              ? ChatOwner.group(owner.id)
+              : ChatOwner.assistant((owner as Assistant).id),
+          widgetKeyOf: (owner) => owner is GroupChat
+              ? 'group-${owner.id}'
+              : 'assistant-${(owner as Assistant).id}',
+          tileOf: buildOwnerTile,
+        );
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(6, 6, 6, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (ungrouped.isNotEmpty)
-            buildReorderableSection<Object>(
-              ungrouped,
-              ownerOf: (owner) => owner is GroupChat
-                  ? ChatOwner.group(owner.id)
-                  : ChatOwner.assistant((owner as Assistant).id),
-              widgetKeyOf: (owner) => owner is GroupChat
-                  ? 'group-${owner.id}'
-                  : 'assistant-${(owner as Assistant).id}',
-              tileOf: buildOwnerTile,
-            ),
+          if (separated) ...[
+            if (ungroupedAssistants.isNotEmpty || hasTaggedAssistants)
+              ChatOwnerSectionHeader(title: l10n.chatOwnersSectionAssistants),
+            if (ungroupedAssistants.isNotEmpty)
+              buildOwnerSection(ungroupedAssistants),
+          ] else if (ungrouped.isNotEmpty)
+            buildOwnerSection(ungrouped),
           for (final t in tags)
             if ((groupedByTag[t.id] ?? const <Assistant>[]).isNotEmpty) ...[
               const SizedBox(height: 4),
@@ -4199,6 +4215,9 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                 title: t.name,
                 collapsed: tp.isCollapsed(t.id),
                 onToggle: () => tp.toggleCollapsed(t.id),
+                // With the sections split, a tag hangs under 「助手」; without
+                // them it is a top-level section of its own.
+                subordinate: separated,
               ),
               AnimatedSize(
                 duration: const Duration(milliseconds: 260),
@@ -4214,6 +4233,11 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                       ),
               ),
             ],
+          if (separated && ungroupedGroups.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            ChatOwnerSectionHeader(title: l10n.chatOwnersSectionGroups),
+            buildOwnerSection(ungroupedGroups),
+          ],
         ],
       ),
     );
@@ -4980,46 +5004,59 @@ class _GroupHeader extends StatelessWidget {
     required this.title,
     required this.collapsed,
     required this.onToggle,
+    this.subordinate = false,
   });
   final String title;
   final bool collapsed;
   final VoidCallback onToggle;
 
+  /// Drawn under the 「助手」 section rather than as a sibling of it. A tag files
+  /// assistants away, so when the sidebar splits assistants from group chats the
+  /// tag is a child of the assistant section; the same type as the parent header
+  /// would read as a third section instead.
+  final bool subordinate;
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final textBase = cs.onSurface;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onToggle,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Row(
-          children: [
-            AnimatedRotation(
-              turns: collapsed ? 0.0 : 0.25, // right -> down
-              duration: const Duration(milliseconds: 260),
-              curve: Curves.easeOutCubic,
-              child: Icon(
-                Lucide.ChevronRight,
-                size: 16,
-                color: textBase.withValues(alpha: 0.7),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: AppFontWeights.emphasis,
-                  color: textBase,
+    return Semantics(
+      header: true,
+      button: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onToggle,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(subordinate ? 20 : 8, 6, 8, 6),
+          child: Row(
+            children: [
+              AnimatedRotation(
+                turns: collapsed ? 0.0 : 0.25, // right -> down
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
+                child: Icon(
+                  Lucide.ChevronRight,
+                  size: subordinate ? 14 : 16,
+                  color: textBase.withValues(alpha: 0.7),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: subordinate ? 12.5 : 13.5,
+                    fontWeight: AppFontWeights.emphasis,
+                    color: subordinate
+                        ? textBase.withValues(alpha: 0.72)
+                        : textBase,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -8,6 +8,7 @@ import '../core/providers/settings_provider.dart';
 import '../core/services/api/reasoning/reasoning_level_options.dart';
 import '../core/services/model_spec/model_spec_resolver.dart';
 import '../features/chat/widgets/reasoning_level_sheet.dart';
+import '../features/group_chat/widgets/group_member_strip.dart';
 import '../icons/lucide_adapter.dart';
 import '../icons/reasoning_icons.dart';
 import '../l10n/app_localizations.dart';
@@ -20,6 +21,7 @@ Future<void> showDesktopReasoningLevelPopover(
   required ProviderConfig config,
   required String modelId,
   Assistant? assistant,
+  List<Assistant>? members,
 }) async {
   final keyContext = anchorKey.currentContext;
   if (keyContext == null) return;
@@ -39,14 +41,95 @@ Future<void> showDesktopReasoningLevelPopover(
     context,
     anchorRect: anchorRect,
     width: (size.width - 16).clamp(260.0, 720.0),
-    builder: (ctx, handle) => _ReasoningContent(
-      onDone: handle.close,
-      onSuspendedChanged: handle.setSuspended,
-      config: config,
-      modelId: modelId,
-      assistant: assistant,
-    ),
+    builder: (ctx, handle) {
+      final roster = members;
+      if (roster != null && roster.length > 1) {
+        return _GroupReasoningPopover(
+          members: roster,
+          initialId: assistant?.id,
+          onDone: handle.close,
+          onSuspendedChanged: handle.setSuspended,
+        );
+      }
+      return _ReasoningContent(
+        onDone: handle.close,
+        onSuspendedChanged: handle.setSuspended,
+        config: config,
+        modelId: modelId,
+        assistant: assistant,
+      );
+    },
   );
+}
+
+/// The popover, scoped to one member of a group: the strip picks whose level
+/// the tiles below commit, and each member resolves its own model.
+class _GroupReasoningPopover extends StatefulWidget {
+  const _GroupReasoningPopover({
+    required this.members,
+    required this.onDone,
+    required this.onSuspendedChanged,
+    this.initialId,
+  });
+
+  final List<Assistant> members;
+  final String? initialId;
+  final Future<void> Function() onDone;
+  final ValueChanged<bool> onSuspendedChanged;
+
+  @override
+  State<_GroupReasoningPopover> createState() => _GroupReasoningPopoverState();
+}
+
+class _GroupReasoningPopoverState extends State<_GroupReasoningPopover> {
+  late String _selectedId = widget.initialId ?? widget.members.first.id;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final settings = context.watch<SettingsProvider>();
+    final byId = {for (final member in widget.members) member.id: member};
+    final member = byId[_selectedId] ?? widget.members.first;
+    final providerKey =
+        member.chatModelProvider ?? settings.currentModelProvider;
+    final modelId = member.chatModelId ?? settings.currentModelId;
+    final hasModel = providerKey != null && (modelId ?? '').isNotEmpty;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+          child: GroupMemberStrip(
+            members: widget.members,
+            selectedId: member.id,
+            onSelect: (picked) => setState(() => _selectedId = picked.id),
+          ),
+        ),
+        if (hasModel)
+          _ReasoningContent(
+            onDone: widget.onDone,
+            onSuspendedChanged: widget.onSuspendedChanged,
+            config: settings.getProviderConfig(providerKey),
+            modelId: modelId!,
+            assistant: member,
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Text(
+              l10n.reasoningLevelNoReasoning,
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.62),
+                decoration: TextDecoration.none,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 class _ReasoningContent extends StatelessWidget {

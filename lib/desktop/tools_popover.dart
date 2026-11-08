@@ -18,6 +18,8 @@ import '../core/services/chat/chat_service.dart';
 import '../features/chat/utils/ensure_conversation.dart';
 import '../features/home/services/local_tool_labels.dart';
 import '../features/home/services/local_tool_toggle.dart';
+import '../core/models/assistant.dart';
+import '../features/group_chat/widgets/group_member_strip.dart';
 import 'package:Cuplivo/theme/app_font_weights.dart';
 import '../theme/design_tokens.dart';
 import 'desktop_overlay_backdrop.dart';
@@ -28,6 +30,7 @@ Future<void> showDesktopToolsPopover(
   required String assistantId,
   String? conversationId,
   required bool supportsModelTools,
+  List<Assistant>? members,
 }) async {
   if (context
           .read<AssistantProvider>()
@@ -65,6 +68,7 @@ Future<void> showDesktopToolsPopover(
       assistantId: assistantId,
       conversationId: conversationId,
       supportsModelTools: supportsModelTools,
+      members: members,
       onClose: () {
         try {
           entry.remove();
@@ -83,7 +87,11 @@ class _ToolsPopover extends StatefulWidget {
     required this.conversationId,
     required this.supportsModelTools,
     required this.onClose,
+    this.members,
   });
+
+  /// Non-null in a group chat: the roster whose member the strip selects.
+  final List<Assistant>? members;
 
   final Rect anchorRect;
   final double anchorWidth;
@@ -102,6 +110,26 @@ class _ToolsPopoverState extends State<_ToolsPopover>
   late final Animation<double> _fadeIn;
   Offset _offset = const Offset(0, 0.12);
   bool _closing = false;
+
+  /// Which member a group popover is editing.
+  String? _selectedId;
+
+  String get _targetId {
+    final members = widget.members;
+    if (members == null || members.isEmpty) return widget.assistantId;
+    final id = _selectedId ?? widget.assistantId;
+    return members.any((member) => member.id == id) ? id : members.first.id;
+  }
+
+  Widget? get _memberStrip {
+    final members = widget.members;
+    if (members == null || members.length < 2) return null;
+    return GroupMemberStrip(
+      members: members,
+      selectedId: _targetId,
+      onSelect: (member) => setState(() => _selectedId = member.id),
+    );
+  }
 
   @override
   void initState() {
@@ -181,9 +209,10 @@ class _ToolsPopoverState extends State<_ToolsPopover>
                           top: Radius.circular(14),
                         ),
                         child: _ToolsContent(
-                          assistantId: widget.assistantId,
+                          assistantId: _targetId,
                           conversationId: widget.conversationId,
                           supportsModelTools: widget.supportsModelTools,
+                          header: _memberStrip,
                           onDone: _close,
                         ),
                       ),
@@ -245,11 +274,15 @@ class _ToolsContent extends StatelessWidget {
     required this.conversationId,
     required this.supportsModelTools,
     required this.onDone,
+    this.header,
   });
   final String assistantId;
   final String? conversationId;
   final bool supportsModelTools;
   final VoidCallback onDone;
+
+  /// Rendered above the rows; a group puts its member strip here.
+  final Widget? header;
 
   @override
   Widget build(BuildContext context) {
@@ -417,18 +450,28 @@ class _ToolsContent extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxHeight: 420),
-        child: ListView.builder(
-          shrinkWrap: true,
-          addRepaintBoundaries: false,
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
-          itemCount: rows.length,
-          itemBuilder: (context, index) => Padding(
-            padding: const EdgeInsets.only(bottom: 1),
-            child: rows[index](context),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (header != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+              child: header,
+            ),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 420),
+            child: ListView.builder(
+              shrinkWrap: true,
+              addRepaintBoundaries: false,
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
+              itemCount: rows.length,
+              itemBuilder: (context, index) => Padding(
+                padding: const EdgeInsets.only(bottom: 1),
+                child: rows[index](context),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

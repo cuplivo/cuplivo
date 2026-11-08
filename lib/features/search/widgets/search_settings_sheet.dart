@@ -15,14 +15,23 @@ import '../../../core/services/haptics.dart';
 import '../../../theme/app_font_weights.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import '../../../shared/widgets/section_card.dart';
+import '../../../core/models/assistant.dart';
+import '../../group_chat/widgets/group_member_strip.dart';
 
 /// [chatModelProviderKey]/[chatModelId] carry the model the chat actually
 /// sends with, resolved by the caller (conversation override -> assistant ->
 /// global default), so built-in-search support is judged against it.
+///
+/// [members] is non-null in a group chat: the sheet then edits the member its
+/// strip selects instead of the assistant the composer happens to be on, and
+/// [chatModelProviderKey]/[chatModelId] must be left null — each member's own
+/// model decides what the sheet can offer.
 Future<void> showSearchSettingsSheet(
   BuildContext context, {
   String? chatModelProviderKey,
   String? chatModelId,
+  List<Assistant>? members,
+  String? initialAssistantId,
 }) async {
   await showModalBottomSheet(
     context: context,
@@ -31,15 +40,116 @@ Future<void> showSearchSettingsSheet(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (ctx) => _SearchSettingsSheet(
-      chatModelProviderKey: chatModelProviderKey,
-      chatModelId: chatModelId,
-    ),
+    builder: (ctx) {
+      final roster = members;
+      if (roster == null || roster.isEmpty) {
+        return _SearchSettingsSheet(
+          chatModelProviderKey: chatModelProviderKey,
+          chatModelId: chatModelId,
+        );
+      }
+      final initial = roster.any((m) => m.id == initialAssistantId)
+          ? initialAssistantId!
+          : roster.first.id;
+      return _GroupSearchSheetHost(
+        members: roster,
+        initialAssistantId: initial,
+        chatModelProviderKey: chatModelProviderKey,
+        chatModelId: chatModelId,
+      );
+    },
   );
 }
 
+/// Owns which member the sheet is editing; the sheet itself stays stateless so
+/// the 1:1 path is untouched.
+class _GroupSearchSheetHost extends StatefulWidget {
+  const _GroupSearchSheetHost({
+    required this.members,
+    required this.initialAssistantId,
+    this.chatModelProviderKey,
+    this.chatModelId,
+  });
+
+  final List<Assistant> members;
+  final String initialAssistantId;
+  final String? chatModelProviderKey;
+  final String? chatModelId;
+
+  @override
+  State<_GroupSearchSheetHost> createState() => _GroupSearchSheetHostState();
+}
+
+class _GroupSearchSheetHostState extends State<_GroupSearchSheetHost> {
+  late String _selectedId = widget.initialAssistantId;
+
+  @override
+  Widget build(BuildContext context) {
+    final ap = context.watch<AssistantProvider>();
+    final byId = {for (final member in widget.members) member.id: member};
+    final target = byId[_selectedId] ?? widget.members.first;
+    return _SearchSettingsSheet(
+      target: target,
+      chatModelProviderKey: widget.chatModelProviderKey,
+      chatModelId: widget.chatModelId,
+      header: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: GroupMemberStrip(
+          members: widget.members,
+          selectedId: target.id,
+          onSelect: (member) => setState(() => _selectedId = member.id),
+          valueBuilder: (member) => _memberSearchValue(context, ap, member),
+        ),
+      ),
+    );
+  }
+
+  /// What one member currently searches through: the service's name when it is
+  /// the external one, a magnifier when the model searches by itself, and
+  /// nothing when the member does not search at all.
+  Widget? _memberSearchValue(
+    BuildContext context,
+    AssistantProvider ap,
+    Assistant member,
+  ) {
+    final settings = context.watch<SettingsProvider>();
+    final providerKey =
+        member.chatModelProvider ?? settings.currentModelProvider;
+    final modelId = member.chatModelId ?? settings.currentModelId;
+    if (providerKey != null && (modelId ?? '').isNotEmpty) {
+      final cfg = settings.getProviderConfig(providerKey);
+      if (BuiltInToolsHelper.isBuiltInSearchEnabled(
+        cfg: cfg,
+        modelId: modelId!,
+      )) {
+        return const Icon(Lucide.Search, size: 14);
+      }
+    }
+    if (!member.searchEnabled) return null;
+    final services = settings.searchServices;
+    if (services.isEmpty) return null;
+    final selected = settings.searchServiceSelected.clamp(
+      0,
+      services.length - 1,
+    );
+    return Text(SearchService.getService(services[selected]).name);
+  }
+}
+
 class _SearchSettingsSheet extends StatelessWidget {
-  const _SearchSettingsSheet({this.chatModelProviderKey, this.chatModelId});
+  const _SearchSettingsSheet({
+    this.target,
+    this.header,
+    this.chatModelProviderKey,
+    this.chatModelId,
+  });
+
+  /// The assistant this sheet writes to. Null means the current one, which is
+  /// what the 1:1 composer means.
+  final Assistant? target;
+
+  /// Rendered above the title; the group host puts the member strip here.
+  final Widget? header;
 
   final String? chatModelProviderKey;
   final String? chatModelId;
@@ -47,6 +157,21 @@ class _SearchSettingsSheet extends StatelessWidget {
   String _nameOf(BuildContext context, SearchServiceOptions s) {
     final svc = SearchService.getService(s);
     return svc.name;
+  }
+
+  /// Writes the external switch to [a] when the sheet has a target (a group
+  /// member) and to the current assistant otherwise (the 1:1 composer).
+  Future<void> _setExternalSearch(
+    AssistantProvider ap,
+    Assistant? a,
+    bool enabled,
+  ) async {
+    final id = a?.id;
+    if (id == null) {
+      await ap.setSearchEnabledForCurrentAssistant(enabled);
+      return;
+    }
+    await ap.setSearchEnabled(id, enabled);
   }
 
   Future<void> _setBuiltInSearchEnabled({
@@ -107,13 +232,13 @@ class _SearchSettingsSheet extends StatelessWidget {
     final settingsNotifier = context.read<SettingsProvider>();
     final ap = context.watch<AssistantProvider>();
     final assistantNotifier = context.read<AssistantProvider>();
-    final a = ap.currentAssistant;
+    final a = target ?? ap.currentAssistant;
     final services = settings.searchServices;
     final selected = settings.searchServiceSelected.clamp(
       0,
       services.isNotEmpty ? services.length - 1 : 0,
     );
-    final enabled = ap.currentSearchEnabled;
+    final enabled = a?.searchEnabled ?? false;
 
     // Determine if current selected model supports built-in search
     final providerKey =
@@ -158,7 +283,7 @@ class _SearchSettingsSheet extends StatelessWidget {
           enabled: false,
         );
       }
-      await assistantNotifier.setSearchEnabledForCurrentAssistant(value);
+      await _setExternalSearch(assistantNotifier, a, value);
     }
 
     final maxHeight = MediaQuery.of(context).size.height * 0.8;
@@ -173,6 +298,7 @@ class _SearchSettingsSheet extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (header != null) header!,
                 // Drag handle
                 Center(
                   child: Container(
@@ -220,8 +346,11 @@ class _SearchSettingsSheet extends StatelessWidget {
                             enabled: v,
                           );
                           if (v) {
-                            await assistantNotifier
-                                .setSearchEnabledForCurrentAssistant(false);
+                            await _setExternalSearch(
+                              assistantNotifier,
+                              a,
+                              false,
+                            );
                           }
                         },
                         padding: const EdgeInsets.symmetric(
@@ -262,10 +391,11 @@ class _SearchSettingsSheet extends StatelessWidget {
                                   enabled: v,
                                 );
                                 if (v) {
-                                  await assistantNotifier
-                                      .setSearchEnabledForCurrentAssistant(
-                                        false,
-                                      );
+                                  await _setExternalSearch(
+                                    assistantNotifier,
+                                    a,
+                                    false,
+                                  );
                                 }
                               },
                             ),

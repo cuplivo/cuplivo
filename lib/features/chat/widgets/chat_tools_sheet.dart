@@ -26,6 +26,7 @@ import 'package:Cuplivo/theme/app_font_weights.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 import 'tools_sheet_row.dart';
+import '../../group_chat/widgets/group_member_strip.dart';
 import '../../mcp/widgets/mcp_server_avatar.dart';
 import '../../mcp/utils/mcp_tool_groups.dart';
 
@@ -36,6 +37,7 @@ Future<void> showChatToolsSheet(
   BuildContext context, {
   required String assistantId,
   String? conversationId,
+  List<Assistant>? members,
 }) async {
   if (context
           .read<AssistantProvider>()
@@ -59,6 +61,7 @@ Future<void> showChatToolsSheet(
     builder: (sheetContext) => ChatToolsSheet(
       assistantId: assistantId,
       conversationId: conversationId,
+      members: members,
       onClose: () => Navigator.of(sheetContext).maybePop(),
     ),
   );
@@ -70,11 +73,17 @@ class ChatToolsSheet extends StatefulWidget {
     required this.assistantId,
     this.conversationId,
     this.onClose,
+    this.members,
   });
 
   final String assistantId;
   final String? conversationId;
   final VoidCallback? onClose;
+
+  /// Non-null in a group chat: the roster whose member the strip selects. The
+  /// three groups below then edit that member's tools, not the composer's
+  /// current assistant.
+  final List<Assistant>? members;
 
   static const Key localGroupKey = ValueKey<String>('chat-tools-group-local');
   static const Key mcpGroupKey = ValueKey<String>('chat-tools-group-mcp');
@@ -107,6 +116,17 @@ class _ChatToolsSheetState extends State<ChatToolsSheet> {
   late final BusinessPreferences _preferences = context
       .read<BusinessPreferences>();
   late final Set<_ToolsGroupId> _expanded = _readExpanded();
+
+  String? _selectedId;
+
+  /// The member these groups write to: the strip's selection in a group, and
+  /// the assistant the composer is on otherwise.
+  String get _targetId {
+    final members = widget.members;
+    if (members == null || members.isEmpty) return widget.assistantId;
+    final id = _selectedId ?? widget.assistantId;
+    return members.any((member) => member.id == id) ? id : members.first.id;
+  }
 
   Set<_ToolsGroupId> _readExpanded() {
     final stored = _preferences.getStringList(_expandedGroupsKey);
@@ -166,6 +186,15 @@ class _ChatToolsSheetState extends State<ChatToolsSheet> {
               ),
             ),
             const SizedBox(height: 4),
+            if (widget.members case final members? when members.length > 1)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: GroupMemberStrip(
+                  members: members,
+                  selectedId: _targetId,
+                  onSelect: (member) => setState(() => _selectedId = member.id),
+                ),
+              ),
             Flexible(
               child: AnimatedSize(
                 duration: const Duration(milliseconds: 200),
@@ -181,20 +210,20 @@ class _ChatToolsSheetState extends State<ChatToolsSheet> {
                         slivers: [
                           SliverToBoxAdapter(
                             child: _LocalToolsGroup(
-                              assistantId: widget.assistantId,
+                              assistantId: _targetId,
                               expanded: _expanded.contains(_ToolsGroupId.local),
                               onToggle: () => _toggleGroup(_ToolsGroupId.local),
                             ),
                           ),
                           _McpGroup(
-                            assistantId: widget.assistantId,
+                            assistantId: _targetId,
                             conversationId: widget.conversationId,
                             expanded: _expanded.contains(_ToolsGroupId.mcp),
                             onToggle: () => _toggleGroup(_ToolsGroupId.mcp),
                           ),
                           SliverToBoxAdapter(
                             child: _WorkspaceGroup(
-                              assistantId: widget.assistantId,
+                              assistantId: _targetId,
                               conversationId: widget.conversationId,
                               expanded: _expanded.contains(
                                 _ToolsGroupId.workspace,

@@ -63,6 +63,9 @@ import '../../chat/utils/ensure_conversation.dart';
 import '../../chat/widgets/context_management_sheet.dart';
 import '../../chat/widgets/reasoning_level_sheet.dart';
 import '../../search/widgets/search_settings_sheet.dart';
+import '../../group_chat/widgets/group_reasoning_sheet.dart';
+import '../../../core/models/assistant.dart';
+import '../../../core/models/group_chat.dart';
 import '../../chat/widgets/frosted/chat_frosted_backdrop.dart';
 import '../../chat/widgets/chat_assistant_background.dart';
 import '../../model/widgets/model_select_sheet.dart';
@@ -1298,6 +1301,10 @@ class _HomePageState extends State<HomePage>
       showUserAvatar: settings.showUserAvatar,
       showTokenStats: settings.showTokenStats,
       assistant: assistant,
+      // Who wrote each reply: a group topic names its speaker on every message,
+      // and without the roster the list resolves no author and labels every
+      // member reply "deleted assistant".
+      assistants: context.watch<AssistantProvider>(),
       onVersionChange: (groupId, version) async {
         await _controller.setSelectedVersion(groupId, version);
       },
@@ -1417,6 +1424,10 @@ class _HomePageState extends State<HomePage>
       onOpenTools: () {
         final a = context.read<AssistantProvider>().currentAssistant;
         if (a == null) return;
+        final toolsGroup = _currentGroup();
+        final toolsMembers = toolsGroup == null
+            ? null
+            : _membersOfGroup(toolsGroup);
         if (PlatformUtils.isDesktop) {
           showDesktopToolsPopover(
             context,
@@ -1430,6 +1441,7 @@ class _HomePageState extends State<HomePage>
                   chatModel.providerKey!,
                   chatModel.modelId!,
                 ),
+            members: toolsMembers,
           );
         } else {
           _controller.dismissKeyboard();
@@ -1437,6 +1449,7 @@ class _HomePageState extends State<HomePage>
             context,
             assistantId: a.id,
             conversationId: _controller.currentConversation?.id,
+            members: toolsMembers,
           );
         }
       },
@@ -1697,7 +1710,44 @@ class _HomePageState extends State<HomePage>
         assistant: context.read<AssistantProvider>().currentAssistant,
       );
 
+  /// The roster of [group], resolved to live assistants. Members whose
+  /// assistant was deleted are skipped, exactly as the composer skips them.
+  List<Assistant> _membersOfGroup(GroupChat group) {
+    final ap = context.read<AssistantProvider>();
+    return [
+      for (final id in group.memberIds)
+        if (ap.getById(id) case final assistant?) assistant,
+    ];
+  }
+
+  GroupChat? _currentGroup() => context
+      .read<GroupChatProvider>()
+      .forConversation(_controller.currentConversation);
+
   void _openSearchSettings() {
+    final group = _currentGroup();
+    if (group != null) {
+      final members = _membersOfGroup(group);
+      if (members.isEmpty) return;
+      if (PlatformUtils.isDesktop) {
+        // The popover resolves each member's own model once it has the roster;
+        // the composer's model keys are deliberately left out for a group.
+        showDesktopSearchProviderPopover(
+          context,
+          anchorKey: _inputBarKey,
+          members: members,
+        );
+      } else {
+        showSearchSettingsSheet(
+          context,
+          members: members,
+          initialAssistantId: context
+              .read<AssistantProvider>()
+              .currentAssistantId,
+        );
+      }
+      return;
+    }
     final model = _resolvedChatModel();
     if (PlatformUtils.isDesktop) {
       showDesktopSearchProviderPopover(
@@ -1735,6 +1785,36 @@ class _HomePageState extends State<HomePage>
   }
 
   Future<void> _openReasoningSettings() async {
+    final group = _currentGroup();
+    if (group != null) {
+      final members = _membersOfGroup(group);
+      if (members.isEmpty) return;
+      final current = context.read<AssistantProvider>().currentAssistant;
+      if (PlatformUtils.isDesktop) {
+        // The popover resolves each member's own model once it has the roster;
+        // the composer's model is only what it falls back to.
+        final settings = context.read<SettingsProvider>();
+        final model = _resolvedChatModel();
+        final providerKey = model.providerKey ?? settings.currentModelProvider;
+        final modelId = model.modelId ?? settings.currentModelId;
+        if (providerKey == null || modelId == null) return;
+        await showDesktopReasoningLevelPopover(
+          context,
+          anchorKey: _inputBarKey,
+          config: settings.getProviderConfig(providerKey),
+          modelId: modelId,
+          assistant: current,
+          members: members,
+        );
+      } else {
+        await showGroupReasoningSheet(
+          context,
+          members: members,
+          initialAssistantId: current?.id,
+        );
+      }
+      return;
+    }
     final model = _resolvedChatModel();
     final providerKey = model.providerKey;
     final modelId = model.modelId;
@@ -1850,6 +1930,8 @@ class _HomePageState extends State<HomePage>
   void _toggleTools() async {
     _controller.dismissKeyboard();
     final assistantId = context.read<AssistantProvider>().currentAssistantId;
+    final group = _currentGroup();
+    final members = group == null ? null : _membersOfGroup(group);
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1882,6 +1964,7 @@ class _HomePageState extends State<HomePage>
                 },
                 assistantId: assistantId,
                 conversationId: _controller.currentConversation?.id,
+                members: members,
                 onClose: () => Navigator.of(ctx).maybePop(),
               ),
             );

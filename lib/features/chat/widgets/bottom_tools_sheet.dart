@@ -1,4 +1,5 @@
 import '../utils/prompt_injection_selection.dart';
+import '../../group_chat/widgets/group_member_strip.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -47,6 +48,7 @@ class BottomToolsSheet extends StatelessWidget {
     this.assistantId,
     this.conversationId,
     this.onClose,
+    this.members,
   });
 
   final VoidCallback? onCamera;
@@ -57,6 +59,11 @@ class BottomToolsSheet extends StatelessWidget {
   final String? assistantId;
   final String? conversationId;
   final VoidCallback? onClose;
+
+  /// Non-null in a group chat: the roster the panel's assistant-scoped rows
+  /// (skills, instruction injection, world book) edit. Without it those rows
+  /// keep following [assistantId], which is what a 1:1 chat means.
+  final List<Assistant>? members;
 
   @override
   Widget build(BuildContext context) {
@@ -169,6 +176,7 @@ class BottomToolsSheet extends StatelessWidget {
                       assistantId: assistantId,
                       conversationId: conversationId,
                       onClose: onClose,
+                      members: members,
                     ),
                   ],
                 ),
@@ -231,12 +239,14 @@ class _LearningAndClearSection extends StatefulWidget {
     this.assistantId,
     this.conversationId,
     this.onClose,
+    this.members,
   });
   final VoidCallback? onClear;
   final String? clearLabel;
   final String? assistantId;
   final String? conversationId;
   final VoidCallback? onClose;
+  final List<Assistant>? members;
 
   @override
   State<_LearningAndClearSection> createState() =>
@@ -245,6 +255,7 @@ class _LearningAndClearSection extends StatefulWidget {
 
 class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
   String? _promptConversationId;
+  String? _selectedAssistantId;
 
   Future<String?> _promptScopeId() async {
     if (_assistant()?.allowConversationPromptInjection != true) return null;
@@ -270,12 +281,27 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
   Assistant? _assistant({bool listen = false}) {
     try {
       final provider = Provider.of<AssistantProvider>(context, listen: listen);
+      final members = widget.members;
+      if (members != null && members.isNotEmpty) {
+        final id = _selectedAssistantId ?? members.first.id;
+        return provider.getById(id) ?? members.first;
+      }
       final id = widget.assistantId;
       if (id != null) return provider.getById(id);
       return provider.currentAssistant;
     } catch (_) {
       return null;
     }
+  }
+
+  /// The assistant the three assistant-scoped rows write to: the member the
+  /// strip selects in a group, and [widget.assistantId] otherwise.
+  String? get _targetAssistantId {
+    final members = widget.members;
+    if (members != null && members.isNotEmpty) {
+      return _selectedAssistantId ?? members.first.id;
+    }
+    return widget.assistantId;
   }
 
   Future<void> _openSessionSkills() async {
@@ -334,7 +360,7 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
         : promptSelectionIds(
             context,
             kind: kind,
-            assistantId: widget.assistantId,
+            assistantId: _targetAssistantId,
             conversationId: scoped ? scopeId : null,
           ).toSet();
     final activeWorldBookIds = activeIds(PromptSelectionKind.worldBook);
@@ -370,6 +396,15 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (widget.members case final members? when members.length > 1) ...[
+          GroupMemberStrip(
+            members: members,
+            selectedId: _targetAssistantId ?? members.first.id,
+            onSelect: (member) =>
+                setState(() => _selectedAssistantId = member.id),
+          ),
+          const SizedBox(height: 10),
+        ],
         ToolsSheetRow(
           key: sessionSkillsKey,
           icon: Lucide.WandSparkles,
@@ -398,7 +433,7 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
             if (!context.mounted || (scoped && scopeId == null)) return;
             await showInstructionInjectionSheet(
               context,
-              assistantId: widget.assistantId,
+              assistantId: _targetAssistantId,
               conversationId: scopeId,
             );
           },
@@ -432,7 +467,7 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
               if (!context.mounted || (scoped && scopeId == null)) return;
               await showWorldBookSheet(
                 context,
-                assistantId: widget.assistantId,
+                assistantId: _targetAssistantId,
                 conversationId: scopeId,
               );
             },

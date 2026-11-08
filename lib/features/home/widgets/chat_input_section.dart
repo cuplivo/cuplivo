@@ -29,6 +29,7 @@ import 'chat_input_bar.dart';
 import 'model_icon.dart';
 import '../../../core/models/group_chat.dart';
 import '../../group_chat/widgets/group_member_cluster.dart';
+import '../../group_chat/models/group_quick_entries.dart';
 import '../../../l10n/app_localizations.dart';
 
 /// Callback for checking if a model supports tool calling.
@@ -170,6 +171,13 @@ class ChatInputSection extends StatelessWidget {
   /// what belongs to one assistant. This field decides what a group *has*, never
   /// where it goes: every action a group keeps is offered in the same place the
   /// 1:1 composer offers it.
+  ///
+  /// The search and reasoning entries are the exception that keeps the 1:1
+  /// rule instead of the group one: both already belong to the assistant the
+  /// composer is *on* rather than to the conversation, so a group offers them
+  /// and they read and write that assistant — the same one a 1:1 chat would.
+  /// A group's reply is sent by its speaker, so the button states what the
+  /// composer's assistant has, not what the round will do for every member.
   final GroupChat? group;
   final VoidCallback? onOpenGroupMembers;
 
@@ -188,16 +196,42 @@ class ChatInputSection extends StatelessWidget {
         for (final id in group.memberIds)
           if (ap.getById(id) case final assistant?) assistant,
     ];
+    // A group has no single model, so the two composed entries report the
+    // roster instead of one assistant's value: uniform members show their own
+    // value, disagreeing members show the neutral glyph.
+    final groupSearch = isGroup
+        ? resolveGroupSearch(settings: settings, members: groupMembers)
+        : null;
+    final groupReasoning = isGroup
+        ? resolveGroupReasoning(
+            settings: settings,
+            members: groupMembers,
+            supportsReasoning: isReasoningModel,
+          )
+        : null;
 
     // A group sends each reply with its speaker's own model, so there is no
     // single model to report or to reason about here.
     final pk = isGroup ? null : chatModelProviderKey;
     final mid = isGroup ? null : chatModelId;
+    // The model the search and reasoning entries speak for. Those two belong to
+    // the composer's current assistant in both layouts, so they resolve through
+    // the model a 1:1 chat would use — a group included.
+    final entryProviderKey = chatModelProviderKey;
+    final entryModelId = chatModelId;
     final supportsModelTools =
         pk != null && mid != null && isToolModel(pk, mid);
-    final selectedReasoning = _selectedReasoning(settings, a, pk, mid);
-    final reasoningSpec = (pk != null && mid != null)
-        ? ModelSpecResolver.instance.spec(settings.getProviderConfig(pk), mid)
+    final selectedReasoning = _selectedReasoning(
+      settings,
+      a,
+      entryProviderKey,
+      entryModelId,
+    );
+    final reasoningSpec = (entryProviderKey != null && entryModelId != null)
+        ? ModelSpecResolver.instance.spec(
+            settings.getProviderConfig(entryProviderKey),
+            entryModelId,
+          )
         : null;
     final effectiveReasoning = reasoningSpec == null
         ? selectedReasoning
@@ -270,17 +304,26 @@ class ChatInputSection extends StatelessWidget {
       controller: inputController,
       mediaController: mediaController,
       asrProvider: asr,
-      onConfigureReasoning: isGroup ? null : onConfigureReasoning,
+      onConfigureReasoning: onConfigureReasoning,
       onOpenContextUsage: onOpenContextUsage,
-      reasoningActive: isReasoningEnabled(effectiveReasoning),
-      reasoning: effectiveReasoning,
-      reasoningCustomBudget: reasoningSpec != null
+      reasoningActive:
+          groupReasoning?.anyActive ?? isReasoningEnabled(effectiveReasoning),
+      reasoning: groupReasoning != null
+          ? groupReasoning.request
+          : effectiveReasoning,
+      reasoningCustomBudget: groupReasoning != null
+          ? false
+          : reasoningSpec != null
           ? isCustomBudgetSelection(reasoningSpec, selectedReasoning)
           : false,
-      supportsReasoning: (pk != null && mid != null)
-          ? isReasoningModel(pk, mid)
+      supportsReasoning: groupReasoning != null
+          ? groupReasoning.anySupported
+          : (entryProviderKey != null && entryModelId != null)
+          ? isReasoningModel(entryProviderKey, entryModelId)
           : false,
-      onOpenSearch: isGroup ? null : onOpenSearch,
+      groupSearch: groupSearch,
+      groupReasoning: groupReasoning,
+      onOpenSearch: onOpenSearch,
       onSend: onSend,
       loading: isLoading,
       sendButtonTooltip: sendButtonTooltip,
@@ -291,12 +334,18 @@ class ChatInputSection extends StatelessWidget {
       queuedPaused: queuedPaused,
       onCancelQueuedInput: onCancelQueuedInput,
       onExpandedChanged: onExpandedChanged,
-      showToolsButton: supportsModelTools,
-      toolsActive:
-          supportsModelTools && _isToolsActive(context, a, workspaceBound),
-      showQuickPhraseButton: !isGroup && _hasQuickPhrases(context, a),
-      onQuickPhrase: isGroup ? null : onQuickPhrase,
-      onLongPressQuickPhrase: isGroup ? null : onLongPressQuickPhrase,
+      showToolsButton: isGroup ? true : supportsModelTools,
+      toolsActive: isGroup
+          ? _groupToolsActive(context, groupMembers, workspaceBound)
+          : supportsModelTools && _isToolsActive(context, a, workspaceBound),
+      // The quick-phrase list is a union, so a group offers the entry as soon as
+      // any member has a phrase — and never in a "lit" state, exactly as the
+      // 1:1 entry behaves.
+      showQuickPhraseButton: isGroup
+          ? _groupHasQuickPhrases(context, groupMembers)
+          : _hasQuickPhrases(context, a),
+      onQuickPhrase: onQuickPhrase,
+      onLongPressQuickPhrase: onLongPressQuickPhrase,
       // OCR button: show on desktop for mobile layout, always check settings for tablet layout
       showOcrButton: isGroup
           ? false
@@ -472,5 +521,36 @@ class ChatInputSection extends StatelessWidget {
         ? quickPhraseProvider.getForAssistant(a.id).length
         : 0;
     return (globalCount + assistantCount) > 0;
+  }
+
+  /// Union over the roster: the quick-phrase entry exists when any member
+  /// offers one, global phrases included.
+  bool _groupHasQuickPhrases(BuildContext context, List<Assistant> members) {
+    final quickPhraseProvider = context.watch<QuickPhraseProvider>();
+    if (quickPhraseProvider.globalPhrases.isNotEmpty) return true;
+    return members.any(
+      (member) => quickPhraseProvider.getForAssistant(member.id).isNotEmpty,
+    );
+  }
+
+  /// Any member that brings tools of its own: local tools, or an MCP server
+  /// that is actually connected. A bound workspace stays a conversation-level
+  /// fact and counts for the whole group.
+  bool _groupToolsActive(
+    BuildContext context,
+    List<Assistant> members,
+    bool workspaceBound,
+  ) {
+    if (workspaceBound) return true;
+    final connected = context.watch<McpProvider>().connectedServers;
+    for (final member in members) {
+      if (member.localToolIds.isNotEmpty) return true;
+      final selected = member.mcpServerIds;
+      if (selected.isNotEmpty &&
+          connected.any((s) => selected.contains(s.id))) {
+        return true;
+      }
+    }
+    return false;
   }
 }

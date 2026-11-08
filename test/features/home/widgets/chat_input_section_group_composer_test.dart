@@ -38,8 +38,18 @@ void main() {
       await preferences.setString(
         'assistants_v1',
         Assistant.encodeList([
-          Assistant(id: 'a1', name: 'Alice'),
-          Assistant(id: 'a2', name: 'Bob'),
+          Assistant(
+            id: 'a1',
+            name: 'Alice',
+            chatModelProvider: 'openai',
+            chatModelId: 'gpt-4o',
+          ),
+          Assistant(
+            id: 'a2',
+            name: 'Bob',
+            chatModelProvider: 'openai',
+            chatModelId: 'gpt-4o',
+          ),
         ]),
       );
       await preferences.setString('current_assistant_id_v1', 'a1');
@@ -62,6 +72,11 @@ void main() {
     required AssistantProvider assistants,
     required bool isTablet,
     double width = 360,
+    String? chatModelProviderKey,
+    String? chatModelId,
+    bool reasoningModel = false,
+    VoidCallback? onOpenSearch,
+    VoidCallback? onConfigureReasoning,
   }) async {
     tester.view.physicalSize = Size(width, 800);
     tester.view.devicePixelRatio = 1;
@@ -113,8 +128,12 @@ void main() {
                   mediaController: ChatInputBarController(),
                   isTablet: isTablet,
                   isLoading: false,
+                  chatModelProviderKey: chatModelProviderKey,
+                  chatModelId: chatModelId,
+                  onOpenSearch: onOpenSearch,
+                  onConfigureReasoning: onConfigureReasoning,
                   isToolModel: (_, _) => true,
-                  isReasoningModel: (_, _) => false,
+                  isReasoningModel: (_, _) => reasoningModel,
                   isReasoningEnabled: (_) => false,
                   conversationId: 'c1',
                   onPickCamera: () {},
@@ -163,9 +182,66 @@ void main() {
       tester.element(find.byType(ChatInputBar)),
     )!;
     expect(find.byTooltip(l10n.chatInputBarMoreTooltip), findsOneWidget);
-    // A group has no per-conversation search switch, so the globe is not drawn
-    // dead either.
+    // This caller wired no search handler, so no globe is drawn: an action with
+    // nothing to do is not an action.
     expect(find.byTooltip(l10n.chatInputBarOnlineSearchTooltip), findsNothing);
+  });
+
+  testWidgets('a group composer offers search and reasoning like a 1:1 chat', (
+    tester,
+  ) async {
+    final assistants = await loadAssistants(tester);
+    final bar = await pumpGroupComposer(
+      tester,
+      assistants: assistants,
+      isTablet: false,
+      chatModelProviderKey: 'openai',
+      chatModelId: 'gpt-4o',
+      reasoningModel: true,
+      onOpenSearch: () {},
+      onConfigureReasoning: () {},
+    );
+
+    // Both entries belong to the assistant the composer is on rather than to
+    // the conversation, so a group offers them through the same handlers a 1:1
+    // chat uses — and therefore through the same read and write path.
+    expect(bar.onOpenSearch, isNotNull);
+    expect(bar.onConfigureReasoning, isNotNull);
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(ChatInputBar)),
+    )!;
+    expect(
+      find.byTooltip(l10n.chatInputBarOnlineSearchTooltip),
+      findsOneWidget,
+    );
+    expect(
+      find.byTooltip(l10n.chatInputBarReasoningStrengthTooltip),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('a group hides reasoning when the composer model cannot reason', (
+    tester,
+  ) async {
+    final assistants = await loadAssistants(tester);
+    await pumpGroupComposer(
+      tester,
+      assistants: assistants,
+      isTablet: false,
+      chatModelProviderKey: 'openai',
+      chatModelId: 'gpt-4o',
+      reasoningModel: false,
+      onOpenSearch: () {},
+      onConfigureReasoning: () {},
+    );
+
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(ChatInputBar)),
+    )!;
+    expect(
+      find.byTooltip(l10n.chatInputBarReasoningStrengthTooltip),
+      findsNothing,
+    );
   });
 
   testWidgets('a group tablet still keeps the conversation tools in the bar', (

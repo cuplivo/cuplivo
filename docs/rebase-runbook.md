@@ -179,8 +179,9 @@ Units from earlier series that are **gone, and must not come back**:
    The whitelist is only a policy until something greps for it, and the sweep is what breaks it: a
    blind `Kelivo` → `Cuplivo` pass over the identity unit's file list rewrote the persisted snapshot
    prefix in `test/shared/widgets/restore_failure_screen_test.dart` to `cuplivo-snapshot-…`, which no
-   production code reads — `recovery_file_discovery.dart` matches `^(?:kelivo-snapshot-|kelivo_backup_)`
-   — so the archive silently stopped being discovered and the failure surfaced two layers away as
+   production code reads — `recovery_file_discovery.dart` matches
+   `^(?:kelivo-snapshot-|kelivo_backup_|cuplivo_backup_)` — so the archive silently stopped being
+   discovered and the failure surfaced two layers away as
    "validation failed". After the sweep, grep the tree for every entry in this list, not for the brand
    tokens; a name the app persists is exactly the case where a passing analyzer proves nothing.
 
@@ -338,6 +339,22 @@ Units from earlier series that are **gone, and must not come back**:
     Kelivo may read ([ADR-0017](adr/0017-kelivo-reverse-import.md) is the first one), a format-version
     bump that makes the refusal loud and early, or nothing because the kind is tolerated — and this rule
     asks only that the re-base knows which one the tree currently does.
+18. **A built-in removal the identity unit only *claims* is a standing gate, not one commit.**
+    `87f613717`'s message says the built-in `KelivoIN` provider lost its seeding, defaults, prefill,
+    migration and free token; the tree deleted the token and kept the seeding, and the next baseline
+    (`b1702b3a9`) re-seeded the provider because "restore the provider list" reads as routine
+    baseline repair. `79696e6f6` then turned the three `'kelivoin'` key comparisons back on,
+    reactivating upstream's whole behaviour on a host an earlier sweep had already made dead. The
+    lesson is not "delete it again": a claim in a commit message is carried by nothing, so the
+    removal has to live in a check that the next replay runs. `test/core/providers/kelivoin_removal_test.dart`
+    is that check — one case per reachable state (fresh install, upstream's retired free backend, the
+    dead host this fork wrote, a real config on upstream's own host, the v4.5.0 OpenAI shell), the
+    same standing role `test/core/database/kelivo_vocabulary_test.dart` has for the backup vocabulary
+    (rule 17). Two things it does **not** forbid: a persisted `KelivoIN` config reappearing as an
+    ordinary dynamic provider (that is the user's data, and it is editable and deletable), and the
+    provider list gaining upstream's newest built-ins — but re-adding `KelivoIN` to
+    `_builtInProviderKeysInOrder`, or restoring its seeding, defaults, prefill or UI special cases, is
+    the boundary coming back ([ADR-0018](adr/0018-remove-built-in-kelivoin.md)).
 
 ## The CI rule
 

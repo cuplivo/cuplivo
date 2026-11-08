@@ -150,7 +150,6 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
     final l10n = AppLocalizations.of(context)!;
     bool isUserAdded(String key) {
       const fixed = {
-        'KelivoIN',
         'OpenAI',
         'Gemini',
         'SiliconFlow',
@@ -841,8 +840,7 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
         // Top iOS-style section card for key settings
         SectionCard(
           children: [
-            if (widget.keyName.toLowerCase() != 'kelivoin')
-              _providerKindRow(context),
+            _providerKindRow(context),
             _providerGroupRow(context, groupName: groupName),
             _iosRow(
               context,
@@ -1097,13 +1095,11 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
           label: l10n.providerDetailPageNameLabel,
           controller: _nameCtrl,
           hint: widget.displayName,
-          enabled: widget.keyName.toLowerCase() != 'kelivoin',
           onChanged: (_) => _save(),
         ),
         const SizedBox(height: 12),
         if (!(_kind == ProviderKind.google && _vertexAI)) ...[
-          if (widget.keyName.toLowerCase() != 'kelivoin' &&
-              !_multiKeyEnabled) ...[
+          if (!_multiKeyEnabled) ...[
             _inputRow(
               context,
               label: l10n.multiKeyPageKey,
@@ -1135,13 +1131,10 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
             onDetachedUndo: (bare, replaced) =>
                 undoSavedProviderUrl(sp, widget.keyName, bare, replaced),
             restoreDefault: SettingsProvider.isBuiltInProvider(widget.keyName),
-            enabled: widget.keyName.toLowerCase() != 'kelivoin',
             onCommit: _applyBaseUrlCommit,
           ),
         ],
-        if (_kind == ProviderKind.openai &&
-            widget.keyName.toLowerCase() != 'kelivoin' &&
-            !_useResp) ...[
+        if (_kind == ProviderKind.openai && !_useResp) ...[
           const SizedBox(height: 12),
           _inputRow(
             context,

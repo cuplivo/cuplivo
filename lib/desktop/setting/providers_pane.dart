@@ -1643,7 +1643,6 @@ class _DesktopProviderDetailPaneState extends State<DesktopProviderDetailPane> {
                   editor: _baseEditor!,
                   config: cfg,
                   desktop: true,
-                  enabled: widget.providerKey.toLowerCase() != 'kelivoin',
                   onDetachedUndo: (bare, replaced) =>
                       undoSavedProviderUrl(sp, cfg.id, bare, replaced),
                   restoreDefault: SettingsProvider.isBuiltInProvider(
@@ -1916,7 +1915,6 @@ class _DesktopProviderDetailPaneState extends State<DesktopProviderDetailPane> {
                     enabled: !const [
                       'openai',
                       'tensdaq',
-                      'kelivoin',
                     ].contains(widget.providerKey.toLowerCase()),
                     hint: '/chat/completions',
                     onSubmitted: (_) => _saveApiPath(),

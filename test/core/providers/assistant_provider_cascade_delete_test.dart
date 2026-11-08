@@ -94,11 +94,12 @@ void main() {
   }
 
   test(
-    'retiring KelivoIN clears assistant and conversation model overrides',
+    'retiring a provider config clears assistant and conversation model overrides',
     () async {
       SharedPreferences.setMockInitialValues({'flutter_log_enabled_v1': false});
       final chatService = createService();
       await chatService.init();
+      const retiredKey = 'retired-provider';
       final assistants = await _createLoadedAssistantProvider(
         session: session,
         chatService: chatService,
@@ -106,8 +107,8 @@ void main() {
           {
             'id': 'assistant-delete',
             'name': 'Retired model',
-            'chatModelProvider': 'KelivoIN',
-            'chatModelId': 'mistral',
+            'chatModelProvider': retiredKey,
+            'chatModelId': 'retired-model',
           },
           {
             'id': 'assistant-keep',
@@ -122,8 +123,8 @@ void main() {
       );
       await chatService.setConversationModel(
         retiredChat.id,
-        providerKey: 'KelivoIN',
-        modelId: 'qwen-coder',
+        providerKey: retiredKey,
+        modelId: 'retired-model',
       );
       final keptChat = await chatService.createConversation(title: 'Keep');
       await chatService.setConversationModel(
@@ -131,14 +132,14 @@ void main() {
         providerKey: 'OpenAI',
         modelId: 'gpt-4o',
       );
-      final retired = ProviderConfig.defaultsFor('KelivoIN').copyWith(
-        baseUrl: 'https://text.pollinations.ai/openai',
-        apiKey: 'cuplivo',
-        models: ['mistral', 'qwen-coder'],
+      final retired = ProviderConfig.defaultsFor(retiredKey).copyWith(
+        baseUrl: 'https://retired.test/v1',
+        apiKey: 'user-key',
+        models: ['retired-model'],
       );
       await session.preferences.setString(
         'provider_configs_v1',
-        jsonEncode({'KelivoIN': retired.toJson()}),
+        jsonEncode({retiredKey: retired.toJson()}),
       );
       final settings = SettingsProvider(
         session.preferences,
@@ -146,12 +147,17 @@ void main() {
       );
       await settings.loaded;
 
+      // The two halves a retirement runs, in the order that keeps a removed
+      // config from being read back as an empty default: references first.
+      await assistants.clearModelSelectionsForProvider(retiredKey);
+      await settings.removeProviderConfig(retiredKey);
+
+      expect(settings.providerConfigs.containsKey(retiredKey), isFalse);
       expect(assistants.assistants[0].chatModelProvider, isNull);
       expect(assistants.assistants[0].chatModelId, isNull);
       expect(assistants.assistants[1].chatModelId, 'gpt-4o');
       expect(chatService.getConversation(retiredChat.id)!.chatModelId, isNull);
       expect(chatService.getConversation(keptChat.id)!.chatModelId, 'gpt-4o');
-      expect(settings.getProviderConfig('KelivoIN').models, contains('auto'));
 
       final reloadedSession = await harness.open();
       final reloadedAssistants = AssistantProvider(

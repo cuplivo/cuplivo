@@ -13,18 +13,20 @@ brought it back — and brought it back half-repaired:
 
 | commit | what shipped |
 | --- | --- |
-| `b1702b3a9` (the 4.4 baseline) | upstream re-seeds the provider; `docs/rebase-runbook.md` treats "restore the provider list" as a routine baseline repair, so the fork boundary quietly left the tree |
+| `b1702b3a9` (the 4.4 baseline, a version bump) | the tree it pins carries upstream's own seeding, its default host `api.psycheas.top` and the obfuscated free token (`_kelivoPayload` in `api_key_manager.dart`); `docs/rebase-runbook.md` treats "restore the provider list" as a routine baseline repair, so the fork boundary quietly left the tree |
 | `87f613717` (the 4.3 re-base, identity unit) | the message says seeding, defaults, prefill, migration and token were all removed; the tree deleted **only** the token, and still seeded the config — and swept upstream's `api.psycheas.top` into `api.cuplivoas.top` |
-| `c04deb38a` (the v4.5.0 release) | three key comparisons were swept to `'cuplivoin'`, which matches nothing: the landed shape was a disabled shell on `api.openai.com` with no models |
-| `79696e6f6` (11-02) | the three comparisons were changed back to `'kelivoin'`, reactivating upstream's whole behaviour — on the dead host the rename had already written |
+| `c04deb38a` (the v4.5.0 release) | exactly three key comparisons were swept to `'cuplivoin'` (`_defaultBase`, `defaultEnabled`, the prefill condition), which match nothing: the landed shape was a disabled shell on `api.openai.com` with no models |
+| `79696e6f6` (11-02, "the KelivoIN key is not a brand string") | the three comparisons were changed back to `'kelivoin'`, reactivating upstream's whole behaviour — on the dead host the rename had already written |
 
-Measured on this line: `api.cuplivoas.top` has no DNS record at all (OS resolver and `1.1.1.1`), and
-`api.psycheas.top` resolves but the free credential that made it usable was deleted at `87f613717`
-(`api_key_manager.dart` has no `_kelivoPayload`, `effectiveKeyForProvider` returns the user's own key
-or nothing). A config that reached the provider therefore sent `Bearer ` with an empty key. And no
-reachable state could be repaired from the UI: `provider_detail_page.dart` locked name, API key, base
-URL and chat path for that key and hid the type row, `providers_page.dart` listed it as a fixed row,
-and `isUserAdded` was false, so it could not be deleted either.
+Verified against this repository on 2026-11-08: `Resolve-DnsName` answers "DNS name does not exist" for
+`api.cuplivoas.top` and `cuplivoas.top` against both the system resolver and `1.1.1.1`, while
+`api.psycheas.top` resolves to `104.21.27.59` / `172.67.169.6`; `git grep _kelivoPayload lib/` returns
+nothing, and `ApiKeyManager.effectiveKeyForProvider` (`lib/core/services/api_key_manager.dart:19`)
+returns only the multi-key selection or `provider.apiKey`. So a config on upstream's host could no
+longer authenticate and one on ours could not resolve. And no reachable state could be repaired from
+the UI: `provider_detail_page.dart` locked name, API key, base URL and chat path for that key and hid
+the type row, `providers_page.dart` listed it as a fixed row, and `isUserAdded` was false, so it could
+not be deleted either.
 
 ## Decisions
 
@@ -90,8 +92,11 @@ and `isUserAdded` was false, so it could not be deleted either.
 
 ## Consequences
 
-- A persisted `KelivoIN` becomes a dynamic provider on the first launch after upgrading, so it moves
-  to the end of the provider list once. That is expected, not a defect.
+- A persisted `KelivoIN` becomes a dynamic provider, and this change does not move it: `providers_order_v1`
+  decides its place. A recorded position is kept (measured: seeded `[OpenAI, KelivoIN, Tensdaq, Gemini]`,
+  still at index 1), and a key the order does not name is appended by the preference layer directly after
+  the recorded entries, with the remaining built-ins following it — so even that state is not the visual
+  tail. `test/core/providers/kelivoin_removal_test.dart` pins the recorded-position case.
 - `SettingsProvider.isBuiltInProvider('KelivoIN')` is false, which is what turns on the delete button,
   re-enables the base URL field and restores the provider-kind row in the detail page; "restore
   default" is off, as for any user-added provider.

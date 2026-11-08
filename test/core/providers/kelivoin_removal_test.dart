@@ -293,6 +293,30 @@ void main() {
     expect(await _persistedProviderKeys(harness), contains(_retiredKey));
   });
 
+  test(
+    'a recorded list position survives the provider becoming dynamic',
+    () async {
+      SharedPreferences.setMockInitialValues({'flutter_log_enabled_v1': false});
+      await _seedProviderConfigs(session, {
+        _retiredKey: _configFor(
+          _retiredKey,
+          baseUrl: 'https://api.psycheas.top/v1',
+        ).copyWith(apiKey: 'user-key'),
+      });
+      await session.preferences.setStringList('providers_order_v1', [
+        'OpenAI',
+        _retiredKey,
+        'Tensdaq',
+      ]);
+
+      final settings = SettingsProvider(session.preferences);
+      await settings.loaded;
+
+      // Being dynamic is not a reordering: the saved order wins.
+      expect(settings.providersOrder.indexOf(_retiredKey), 1);
+    },
+  );
+
   test('the v4.5.0 OpenAI shell is kept and is no longer built-in', () async {
     SharedPreferences.setMockInitialValues({'flutter_log_enabled_v1': false});
     await _seedProviderConfigs(session, {

@@ -86,7 +86,7 @@ ADR-0001（L79-80）本来就是这么写的。
 
 | 被改的规则 | 所有调用点 | 变成什么 |
 | --- | --- | --- |
-| `_builtInProviderKeysInOrder` / `isBuiltInProvider` | `provider_detail_page`（删除按钮、`restoreDefault`）、`providers_pane`、`_cleanupProviderOrderAndGrouping:2399` | 持久化的 `KelivoIN` 归入动态尾部：**首次升级后它会在列表里移到末尾一次**，这是预期，写进 PR body |
+| `_builtInProviderKeysInOrder` / `isBuiltInProvider` | `provider_detail_page`（删除按钮、`restoreDefault`）、`providers_pane`、`_cleanupProviderOrderAndGrouping:2399` | 持久化的 `KelivoIN` 成为动态供应商；列表位置由 `providers_order_v1` 决定：记过的保持原位，没记过的由偏好层追加在已记录条目之后（其余内建供应商跟随其后）——**不存在「首次升级后移到末尾」**，原说法已被探针与测试证伪 |
 | `ProviderConfig.defaultsFor('KelivoIN')` | 新建供应商、reset、两个测试 | 变成一个普通 openai 配置（base `api.openai.com`、models 空、enabled false）。B.3 的测试钉住「它不再是那个预填配置」 |
 | `defaultEnabled` / `_defaultBase` | `defaultsFor` 内部 | 不再识别该 key，行为与任意自建 provider 相同 |
 
@@ -321,6 +321,11 @@ flutter gen-l10n                               # 本次不动 ARB，必须是幂
 4. **新增 `BackupTarget.cuplivo => 'cuplivo_backup_'` 之后，本地快照的临时工作目录名仍是
    `cuplivo_backup_*`**，§4.2 已说明该变化对用户不可见（最终文件名由 `LocalSnapshotPaths.fileNameFor`
    决定为 `kelivo-snapshot-<stamp>.zip`）。
+5. **「首次升级后必移到列表末尾」被评审探针与后续测试证伪。** 位置由 `providers_order_v1` 决定：
+   记过的保持原位（种子 `[OpenAI, KelivoIN, Tensdaq, Gemini]` 时仍是 index 1）；没记过时是偏好层
+   把 config 追加到已记录条目之后（写 `provider_configs_v1` 这类实体写入会整体归一化 order），
+   其余内建供应商跟随其后——所以连那个状态也不是视觉末尾。ADR-0018 的 Consequences 已按实测改写，
+   `kelivoin_removal_test.dart` 钉住「记录过的位置不变」这一条。
 
 ### 未做
 

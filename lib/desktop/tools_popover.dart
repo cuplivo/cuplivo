@@ -12,6 +12,8 @@ import '../icons/lucide_adapter.dart';
 import '../l10n/app_localizations.dart';
 import '../core/providers/mcp_provider.dart';
 import '../core/providers/assistant_provider.dart';
+import '../core/providers/settings_provider.dart';
+import '../core/services/model_spec/model_spec_resolver.dart';
 import '../core/models/conversation.dart';
 import '../core/models/conversation_mcp_settings.dart';
 import '../core/services/chat/chat_service.dart';
@@ -212,6 +214,7 @@ class _ToolsPopoverState extends State<_ToolsPopover>
                           assistantId: _targetId,
                           conversationId: widget.conversationId,
                           supportsModelTools: widget.supportsModelTools,
+                          supportsToolsFromAssistant: widget.members != null,
                           header: _memberStrip,
                           onDone: _close,
                         ),
@@ -275,6 +278,7 @@ class _ToolsContent extends StatelessWidget {
     required this.supportsModelTools,
     required this.onDone,
     this.header,
+    this.supportsToolsFromAssistant = false,
   });
   final String assistantId;
   final String? conversationId;
@@ -284,6 +288,24 @@ class _ToolsContent extends StatelessWidget {
   /// Rendered above the rows; a group puts its member strip here.
   final Widget? header;
 
+  /// The same rule the composer applies to a model: one that cannot call tools
+  /// offers none.
+  bool _supportsTools(SettingsProvider settings, Assistant member) {
+    final providerKey =
+        member.chatModelProvider ?? settings.currentModelProvider;
+    final modelId = member.chatModelId ?? settings.currentModelId;
+    if (providerKey == null || (modelId ?? '').isEmpty) return false;
+    return ModelSpecResolver.instance
+        .spec(settings.getProviderConfig(providerKey), modelId!)
+        .supportsTool;
+  }
+
+  /// Judge tool support by the selected assistant's own model instead of
+  /// [supportsModelTools], which the caller resolved for the composer's model.
+  /// A group's members each send with their own model, so the composer's
+  /// capability says nothing about the member the strip is showing.
+  final bool supportsToolsFromAssistant;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -292,6 +314,9 @@ class _ToolsContent extends StatelessWidget {
     final ap = context.watch<AssistantProvider>();
     final a = ap.getById(assistantId);
     if (a == null) return const SizedBox.shrink();
+    final toolsAllowed = supportsToolsFromAssistant
+        ? _supportsTools(context.watch<SettingsProvider>(), a)
+        : supportsModelTools;
     final conversationScoped = a.allowConversationMcp && conversationId != null;
     final conversation = conversationScoped
         ? context.select<ChatService, Conversation?>(
@@ -313,9 +338,9 @@ class _ToolsContent extends StatelessWidget {
       return ap.updateAssistant(a.copyWith(mcpServerIds: ids!));
     }
 
-    final groups = [if (supportsModelTools) ...mcpToolGroups(mcp)];
+    final groups = [if (toolsAllowed) ...mcpToolGroups(mcp)];
 
-    final localToolIds = supportsModelTools
+    final localToolIds = toolsAllowed
         ? availableLocalToolIds()
         : const <String>[];
     final enabledLocalTools = a.localToolIds.toSet();
@@ -377,7 +402,7 @@ class _ToolsContent extends StatelessWidget {
       }
     }
 
-    if (groups.isNotEmpty || (supportsModelTools && conversationScoped)) {
+    if (groups.isNotEmpty || (toolsAllowed && conversationScoped)) {
       rows.add(
         (context) => _SectionLabel(
           text: conversationScoped

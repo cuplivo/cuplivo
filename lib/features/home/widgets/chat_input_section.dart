@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/conversation_mcp_settings.dart';
+import '../../../core/models/conversation.dart';
 import '../../../core/services/api/reasoning/reasoning_level_options.dart';
 import '../../../core/services/api/reasoning/reasoning_dialects.dart';
 import '../../../core/services/api/reasoning/reasoning_selection.dart';
@@ -534,8 +535,9 @@ class ChatInputSection extends StatelessWidget {
   }
 
   /// Any member that brings tools of its own: local tools, or an MCP server
-  /// that is actually connected. A bound workspace stays a conversation-level
-  /// fact and counts for the whole group.
+  /// that is actually connected. The conversation's own MCP override counts for
+  /// every member that allows it (a group panel can set it), so this reads the
+  /// same rule [\_isToolsActive] reads rather than only the member's defaults.
   bool _groupToolsActive(
     BuildContext context,
     List<Assistant> members,
@@ -543,9 +545,17 @@ class ChatInputSection extends StatelessWidget {
   ) {
     if (workspaceBound) return true;
     final connected = context.watch<McpProvider>().connectedServers;
+    final conversation = conversationId == null
+        ? null
+        : context.select<ChatService?, Conversation?>(
+            (chat) => chat?.getConversation(conversationId!),
+          );
     for (final member in members) {
       if (member.localToolIds.isNotEmpty) return true;
-      final selected = member.mcpServerIds;
+      final selected = ConversationMcpSettings.effectiveServerIds(
+        member,
+        conversation,
+      );
       if (selected.isNotEmpty &&
           connected.any((s) => selected.contains(s.id))) {
         return true;

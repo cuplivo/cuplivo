@@ -72,6 +72,12 @@ class _GroupReasoningPickerState extends State<_GroupReasoningPicker> {
           ),
         ),
         const SizedBox(height: 12),
+        // What one of these picks commits is the model-level reasoning memory
+        // (`commitReasoningChoice`), exactly what the 1:1 composer writes — not
+        // the assistant record. Two members on the same provider+model share
+        // that memory, so both chips change together; the strip reads each
+        // member's own resolution, which is why it shows that happening instead
+        // of pretending the level is stored per assistant.
         if (hasModel)
           ReasoningLevelPicker(
             config: settings.getProviderConfig(providerKey),

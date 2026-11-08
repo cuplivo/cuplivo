@@ -2097,12 +2097,26 @@ class _HomePageState extends State<HomePage>
   Future<void> _showQuickPhraseMenu() async {
     final assistant = context.read<AssistantProvider>().currentAssistant;
     final quickPhraseProvider = context.read<QuickPhraseProvider>();
-    final globalPhrases = quickPhraseProvider.globalPhrases;
-    final assistantPhrases = assistant != null
-        ? quickPhraseProvider.getForAssistant(assistant.id)
-        : <QuickPhrase>[];
+    // In a group the entry exists because any member has a phrase, so the menu
+    // must be built from that same union: the composer's "current assistant" is
+    // not necessarily a member, and it is not who the button speaks for.
+    final group = _currentGroup();
+    final owners = <Assistant>[
+      if (group != null)
+        ..._membersOfGroup(group)
+      else if (assistant != null)
+        assistant,
+    ];
 
-    final allAvailable = [...globalPhrases, ...assistantPhrases];
+    final seen = <String>{};
+    final allAvailable = <QuickPhrase>[
+      for (final phrase in [
+        ...quickPhraseProvider.globalPhrases,
+        for (final owner in owners)
+          ...quickPhraseProvider.getForAssistant(owner.id),
+      ])
+        if (seen.add(phrase.content)) phrase,
+    ];
     if (allAvailable.isEmpty) return;
 
     final RenderBox? inputBox =

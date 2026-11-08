@@ -86,8 +86,18 @@ class _GroupSearchSheetHostState extends State<_GroupSearchSheetHost> {
   @override
   Widget build(BuildContext context) {
     final ap = context.watch<AssistantProvider>();
-    final byId = {for (final member in widget.members) member.id: member};
-    final target = byId[_selectedId] ?? widget.members.first;
+    // Read the roster back from the provider on every build: the list handed in
+    // at push time is a snapshot, and a switch fed by it would keep showing the
+    // value from when the sheet opened — a controlled switch stuck "off" sends
+    // `true` forever, so a member's external search could never be turned off
+    // again from here.
+    final roster = [
+      for (final member in widget.members) ap.getById(member.id) ?? member,
+    ];
+    final target = roster.firstWhere(
+      (member) => member.id == _selectedId,
+      orElse: () => roster.first,
+    );
     return _SearchSettingsSheet(
       target: target,
       chatModelProviderKey: widget.chatModelProviderKey,
@@ -95,10 +105,10 @@ class _GroupSearchSheetHostState extends State<_GroupSearchSheetHost> {
       header: Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: GroupMemberStrip(
-          members: widget.members,
+          members: roster,
           selectedId: target.id,
           onSelect: (member) => setState(() => _selectedId = member.id),
-          valueBuilder: (member) => _memberSearchValue(context, ap, member),
+          valueBuilder: (member) => _memberSearchValue(context, member),
         ),
       ),
     );
@@ -107,11 +117,7 @@ class _GroupSearchSheetHostState extends State<_GroupSearchSheetHost> {
   /// What one member currently searches through: the service's name when it is
   /// the external one, a magnifier when the model searches by itself, and
   /// nothing when the member does not search at all.
-  Widget? _memberSearchValue(
-    BuildContext context,
-    AssistantProvider ap,
-    Assistant member,
-  ) {
+  Widget? _memberSearchValue(BuildContext context, Assistant member) {
     final settings = context.watch<SettingsProvider>();
     final providerKey =
         member.chatModelProvider ?? settings.currentModelProvider;

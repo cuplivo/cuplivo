@@ -92,8 +92,11 @@ not be deleted either.
 
 ## Consequences
 
-- A persisted `KelivoIN` becomes a dynamic provider on the first launch after upgrading, so it moves
-  to the end of the provider list once. That is expected, not a defect.
+- A persisted `KelivoIN` becomes a dynamic provider, and this change does not move it: `providers_order_v1`
+  decides its place. A recorded position is kept (measured: seeded `[OpenAI, KelivoIN, Tensdaq, Gemini]`,
+  still at index 1), and a key the order does not name is appended by the preference layer directly after
+  the recorded entries, with the remaining built-ins following it — so even that state is not the visual
+  tail. `test/core/providers/kelivoin_removal_test.dart` pins the recorded-position case.
 - `SettingsProvider.isBuiltInProvider('KelivoIN')` is false, which is what turns on the delete button,
   re-enables the base URL field and restores the provider-kind row in the detail page; "restore
   default" is off, as for any user-added provider.

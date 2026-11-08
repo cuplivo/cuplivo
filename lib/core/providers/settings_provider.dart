@@ -1572,6 +1572,8 @@ class SettingsProvider extends ChangeNotifier {
       await prefs.setString(_providerConfigsKey, jsonEncode(seededConfigs));
     }
 
+    await _retireDeadBuiltInProviderConfig();
+
     // kick off a one-time connectivity test for services (exclude local Bing)
     if (_searchAutoTestOnLaunch) {
       _initSearchConnectivityTests();
@@ -1596,6 +1598,49 @@ class SettingsProvider extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  /// Hosts an earlier build of this fork wrote into the retired built-in
+  /// provider.
+  ///
+  /// Both are our mistakes, never a user's choice: `pollinations.ai` is the free
+  /// backend upstream retired, and `api.cuplivoas.top` is what an identity sweep
+  /// made of upstream's own host — a domain with no records at all. A config
+  /// pointing at either can never answer, so it leaves together with every
+  /// assistant and conversation reference to it.
+  ///
+  /// The key stays spelled `KelivoIN`: it is a persisted provider key, not a
+  /// brand string, and a sweep that rewrites it makes this repair match nothing
+  /// (see `79696e6f6`).
+  static const List<String> _retiredProviderHosts = [
+    'pollinations.ai',
+    'api.cuplivoas.top',
+  ];
+
+  static bool _isRetiredProviderHost(String? host) {
+    if (host == null || host.isEmpty) return false;
+    return _retiredProviderHosts.any(
+      (retired) => host == retired || host.endsWith('.$retired'),
+    );
+  }
+
+  /// Drops the built-in provider config when it points at a host that cannot
+  /// answer, and every selection that names it.
+  ///
+  /// Decided from the persisted state on every load rather than from a one-shot
+  /// flag, so the rule stays idempotent and a restored backup meets it again.
+  /// A config on any other host is a user's choice and is left alone — including
+  /// upstream's own free-service host, which is external infrastructure this
+  /// fork has no business deleting.
+  Future<void> _retireDeadBuiltInProviderConfig() async {
+    final config = _providerConfigs['KelivoIN'];
+    if (config == null) return;
+    final host = Uri.tryParse(config.baseUrl)?.host.toLowerCase();
+    if (!_isRetiredProviderHost(host)) return;
+    // Selections first: a config removed while an assistant still names it
+    // comes back as an empty default on the next read.
+    await onProviderModelsRetired?.call('KelivoIN');
+    await removeProviderConfig('KelivoIN');
   }
 
   Future<void> setGlobalProxyEnabled(bool v) async {

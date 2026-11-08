@@ -22,6 +22,7 @@ import '../features/home/services/local_tool_labels.dart';
 import '../features/home/services/local_tool_toggle.dart';
 import '../core/models/assistant.dart';
 import '../features/group_chat/widgets/group_member_strip.dart';
+import '../features/home/utils/model_display_helper.dart';
 import 'package:Cuplivo/theme/app_font_weights.dart';
 import '../theme/design_tokens.dart';
 import 'desktop_overlay_backdrop.dart';
@@ -291,9 +292,9 @@ class _ToolsContent extends StatelessWidget {
   /// The same rule the composer applies to a model: one that cannot call tools
   /// offers none.
   bool _supportsTools(SettingsProvider settings, Assistant member) {
-    final providerKey =
-        member.chatModelProvider ?? settings.currentModelProvider;
-    final modelId = member.chatModelId ?? settings.currentModelId;
+    final model = resolveChatModel(settings, assistant: member);
+    final providerKey = model.providerKey;
+    final modelId = model.modelId;
     if (providerKey == null || (modelId ?? '').isEmpty) return false;
     return ModelSpecResolver.instance
         .spec(settings.getProviderConfig(providerKey), modelId!)

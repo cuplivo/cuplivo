@@ -17,6 +17,7 @@ import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import '../../../shared/widgets/section_card.dart';
 import '../../../core/models/assistant.dart';
 import '../../group_chat/widgets/group_member_strip.dart';
+import '../../home/utils/model_display_helper.dart';
 
 /// [chatModelProviderKey]/[chatModelId] carry the model the chat actually
 /// sends with, resolved by the caller (conversation override -> assistant ->
@@ -119,9 +120,9 @@ class _GroupSearchSheetHostState extends State<_GroupSearchSheetHost> {
   /// nothing when the member does not search at all.
   Widget? _memberSearchValue(BuildContext context, Assistant member) {
     final settings = context.watch<SettingsProvider>();
-    final providerKey =
-        member.chatModelProvider ?? settings.currentModelProvider;
-    final modelId = member.chatModelId ?? settings.currentModelId;
+    final model = resolveChatModel(settings, assistant: member);
+    final providerKey = model.providerKey;
+    final modelId = model.modelId;
     if (providerKey != null && (modelId ?? '').isNotEmpty) {
       final cfg = settings.getProviderConfig(providerKey);
       if (BuiltInToolsHelper.isBuiltInSearchEnabled(
@@ -304,7 +305,6 @@ class _SearchSettingsSheet extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (header != null) header!,
                 // Drag handle
                 Center(
                   child: Container(
@@ -328,6 +328,9 @@ class _SearchSettingsSheet extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
+                // The roster strip, on the same footing as the other panels':
+                // below the handle and the title, above what it scopes.
+                if (header != null) header!,
                 // Built-in search toggle
                 if (cfg != null &&
                     supportsBuiltInSearch &&

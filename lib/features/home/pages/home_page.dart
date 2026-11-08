@@ -758,23 +758,24 @@ class _HomePageState extends State<HomePage>
     _controller.setCompactDesktopLayout(
       desktop && width < AppBreakpoints.tablet,
     );
-    if (desktop || width >= AppBreakpoints.tablet) {
-      return _buildTabletLayout(
-        context,
-        title: title,
-        providerName: modelInfo.providerName,
-        modelDisplay: modelInfo.modelDisplay,
-        cs: cs,
-      );
-    }
-
     // A group topic has no single model to name, so the header carries only the
-    // topic title.
+    // topic title — on every layout. The capsule is the desktop/tablet model
+    // picker, and picking one there would pin a topic whose replies come from
+    // the roster.
     final isGroup =
         context.watch<GroupChatProvider>().forConversation(
           _controller.currentConversation,
         ) !=
         null;
+    if (desktop || width >= AppBreakpoints.tablet) {
+      return _buildTabletLayout(
+        context,
+        title: title,
+        providerName: isGroup ? null : modelInfo.providerName,
+        modelDisplay: isGroup ? null : modelInfo.modelDisplay,
+        cs: cs,
+      );
+    }
 
     return _buildMobileLayout(
       context,
@@ -1791,20 +1792,15 @@ class _HomePageState extends State<HomePage>
       if (members.isEmpty) return;
       final current = context.read<AssistantProvider>().currentAssistant;
       if (PlatformUtils.isDesktop) {
-        // The popover resolves each member's own model once it has the roster;
-        // the composer's model is only what it falls back to.
-        final settings = context.read<SettingsProvider>();
-        final model = _resolvedChatModel();
-        final providerKey = model.providerKey ?? settings.currentModelProvider;
-        final modelId = model.modelId ?? settings.currentModelId;
-        if (providerKey == null || modelId == null) return;
-        await showDesktopReasoningLevelPopover(
+        // No model check here: the popover names no model of its own, it reads
+        // each member's once the strip selects one. A group whose members all
+        // have models therefore opens even when the composer's own assistant
+        // has none — the mobile sheet has always behaved that way.
+        await showDesktopGroupReasoningPopover(
           context,
           anchorKey: _inputBarKey,
-          config: settings.getProviderConfig(providerKey),
-          modelId: modelId,
-          assistant: current,
           members: members,
+          initialAssistantId: current?.id,
         );
       } else {
         await showGroupReasoningSheet(

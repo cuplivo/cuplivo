@@ -8,6 +8,7 @@ import '../../../core/services/api/reasoning/reasoning_selection.dart';
 import '../../../core/services/model_spec/model_spec_resolver.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../chat/widgets/reasoning_level_sheet.dart';
+import '../../home/utils/model_display_helper.dart';
 import 'group_member_strip.dart';
 
 /// The reasoning picker, scoped to one member of a group.
@@ -54,9 +55,9 @@ class _GroupReasoningPickerState extends State<_GroupReasoningPicker> {
     final settings = context.watch<SettingsProvider>();
     final byId = {for (final member in widget.members) member.id: member};
     final member = byId[_selectedId] ?? widget.members.first;
-    final providerKey =
-        member.chatModelProvider ?? settings.currentModelProvider;
-    final modelId = member.chatModelId ?? settings.currentModelId;
+    final model = resolveChatModel(settings, assistant: member);
+    final providerKey = model.providerKey;
+    final modelId = model.modelId;
     final hasModel = providerKey != null && (modelId ?? '').isNotEmpty;
 
     return Column(
@@ -107,9 +108,9 @@ class _GroupReasoningPickerState extends State<_GroupReasoningPicker> {
     AppLocalizations l10n,
     Assistant member,
   ) {
-    final providerKey =
-        member.chatModelProvider ?? settings.currentModelProvider;
-    final modelId = member.chatModelId ?? settings.currentModelId;
+    final model = resolveChatModel(settings, assistant: member);
+    final providerKey = model.providerKey;
+    final modelId = model.modelId;
     if (providerKey == null || (modelId ?? '').isEmpty) return null;
     final config = settings.getProviderConfig(providerKey);
     if (!ModelSpecResolver.instance.spec(config, modelId!).supportsReasoning) {

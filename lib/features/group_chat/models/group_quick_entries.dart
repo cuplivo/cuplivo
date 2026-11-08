@@ -51,7 +51,14 @@ class GroupReasoningEntry {
   /// member can, mirroring the 1:1 rule.
   final bool anySupported;
 
-  /// At least one member will actually reason this round.
+  /// At least one member will actually reason this round: its model can, and
+  /// its level is not off.
+  ///
+  /// Both halves are needed. A model that cannot reason carries no preference,
+  /// so [selectReasoningRequest] hands it the spec's default — `auto`, never
+  /// `off` — and testing the level alone would report a round as reasoning
+  /// when every capable member is switched off. This is the pair a group round
+  /// checks before each turn (`supportsReasoning && isReasoningEnabled(...)`).
   final bool anyActive;
 
   /// Every member resolves to the same request.
@@ -153,7 +160,9 @@ GroupReasoningEntry resolveGroupReasoning({
   );
   return GroupReasoningEntry(
     anySupported: states.any((state) => state.supported),
-    anyActive: states.any((state) => state.request.level != ReasoningLevel.off),
+    anyActive: states.any(
+      (state) => state.supported && state.request.level != ReasoningLevel.off,
+    ),
     uniform: uniform,
     request: uniform ? first.request : null,
   );

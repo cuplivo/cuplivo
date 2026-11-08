@@ -26,6 +26,7 @@ import '../../../core/services/skills/skills_service.dart';
 import '../../../features/workspace/widgets/environment/environment_status_chip.dart';
 import '../../../features/workspace/workspace_navigation.dart';
 import '../../../theme/design_tokens.dart';
+import '../utils/model_display_helper.dart';
 import 'chat_input_bar.dart';
 import 'model_icon.dart';
 import '../../../core/models/group_chat.dart';
@@ -173,12 +174,12 @@ class ChatInputSection extends StatelessWidget {
   /// where it goes: every action a group keeps is offered in the same place the
   /// 1:1 composer offers it.
   ///
-  /// The search and reasoning entries are the exception that keeps the 1:1
-  /// rule instead of the group one: both already belong to the assistant the
-  /// composer is *on* rather than to the conversation, so a group offers them
-  /// and they read and write that assistant — the same one a 1:1 chat would.
-  /// A group's reply is sent by its speaker, so the button states what the
-  /// composer's assistant has, not what the round will do for every member.
+  /// The search and reasoning entries follow the roster for the same reason
+  /// [group] exists: a group's reply is sent by its speaker, so an entry reports
+  /// what the members have. Uniform members show their shared value, members
+  /// that disagree show the neutral glyph, and each panel edits one member at a
+  /// time — writing through the same 1:1 call it makes for a single assistant
+  /// (the member's own search switch; the model-level reasoning level).
   final GroupChat? group;
   final VoidCallback? onOpenGroupMembers;
 
@@ -215,11 +216,11 @@ class ChatInputSection extends StatelessWidget {
     // single model to report or to reason about here.
     final pk = isGroup ? null : chatModelProviderKey;
     final mid = isGroup ? null : chatModelId;
-    // The model the search and reasoning entries speak for. Those two belong to
-    // the composer's current assistant in both layouts, so they resolve through
-    // the model a 1:1 chat would use — a group included.
-    final entryProviderKey = chatModelProviderKey;
-    final entryModelId = chatModelId;
+    // The model the 1:1 entries speak for: the one this chat sends with. A
+    // group reports its roster instead, so these stay null there and nothing
+    // derived from them is handed to the bar.
+    final entryProviderKey = isGroup ? null : chatModelProviderKey;
+    final entryModelId = isGroup ? null : chatModelId;
     final supportsModelTools =
         pk != null && mid != null && isToolModel(pk, mid);
     final selectedReasoning = _selectedReasoning(
@@ -534,16 +535,18 @@ class ChatInputSection extends StatelessWidget {
     );
   }
 
-  /// Any member that brings tools of its own: local tools, or an MCP server
-  /// that is actually connected. The conversation's own MCP override counts for
-  /// every member that allows it (a group panel can set it), so this reads the
-  /// same rule [\_isToolsActive] reads rather than only the member's defaults.
+  /// Any member that both brings tools and can call them. Both halves are the
+  /// 1:1 rule ([supportsModelTools] `&&` [\_isToolsActive]): a model that cannot
+  /// call tools offers none, so configuration alone must not light the entry.
+  /// A group judges it per member, because each reply is written by its
+  /// speaker's own model — and the panel then lists that member's tools.
   bool _groupToolsActive(
     BuildContext context,
     List<Assistant> members,
     bool workspaceBound,
   ) {
     if (workspaceBound) return true;
+    final settings = context.watch<SettingsProvider>();
     final connected = context.watch<McpProvider>().connectedServers;
     final conversation = conversationId == null
         ? null
@@ -551,6 +554,11 @@ class ChatInputSection extends StatelessWidget {
             (chat) => chat?.getConversation(conversationId!),
           );
     for (final member in members) {
+      final model = resolveChatModel(settings, assistant: member);
+      final providerKey = model.providerKey;
+      final modelId = model.modelId;
+      if (providerKey == null || (modelId ?? '').isEmpty) continue;
+      if (!isToolModel(providerKey, modelId!)) continue;
       if (member.localToolIds.isNotEmpty) return true;
       final selected = ConversationMcpSettings.effectiveServerIds(
         member,

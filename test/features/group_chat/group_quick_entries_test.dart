@@ -146,6 +146,25 @@ void main() {
       );
 
       expect(entry.anySupported, isFalse);
+      // A model that cannot reason still resolves to the spec default (`auto`),
+      // which is not off — so the level alone would call this round active.
+      expect(entry.anyActive, isFalse);
+    });
+
+    test('a capable member switched off does not make the round active', () {
+      final entry = resolveGroupReasoning(
+        settings: settings,
+        members: [
+          member('a', model: 'o3', reasoning: ReasoningRequest.off),
+          // Cannot reason at all, so it carries the spec default rather than an
+          // explicit off.
+          member('b'),
+        ],
+        supportsReasoning: (_, modelId) => modelId == 'o3',
+      );
+
+      expect(entry.anySupported, isTrue);
+      expect(entry.anyActive, isFalse);
     });
   });
 }

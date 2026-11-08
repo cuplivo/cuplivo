@@ -9,25 +9,67 @@ import '../core/services/api/reasoning/reasoning_level_options.dart';
 import '../core/services/model_spec/model_spec_resolver.dart';
 import '../features/chat/widgets/reasoning_level_sheet.dart';
 import '../features/group_chat/widgets/group_member_strip.dart';
+import '../features/home/utils/model_display_helper.dart';
 import '../icons/lucide_adapter.dart';
 import '../icons/reasoning_icons.dart';
 import '../l10n/app_localizations.dart';
 import '../shared/dialogs/reasoning_budget_custom_dialog.dart';
 import 'desktop_glass_popover.dart';
 
+/// The 1:1 popover: one model, whose level the tiles below commit.
 Future<void> showDesktopReasoningLevelPopover(
   BuildContext context, {
   required GlobalKey anchorKey,
   required ProviderConfig config,
   required String modelId,
   Assistant? assistant,
-  List<Assistant>? members,
-}) async {
+}) {
+  return _showReasoningPopover(
+    context,
+    anchorKey: anchorKey,
+    build: (handle) => _ReasoningContent(
+      onDone: handle.close,
+      onSuspendedChanged: handle.setSuspended,
+      config: config,
+      modelId: modelId,
+      assistant: assistant,
+    ),
+  );
+}
+
+/// The group's popover, scoped to one member at a time: every member resolves
+/// its own model, so the group needs nothing but the roster — which is why it
+/// takes no model of its own.
+Future<void> showDesktopGroupReasoningPopover(
+  BuildContext context, {
+  required GlobalKey anchorKey,
+  required List<Assistant> members,
+  String? initialAssistantId,
+}) {
+  return _showReasoningPopover(
+    context,
+    anchorKey: anchorKey,
+    build: (handle) => _GroupReasoningPopover(
+      members: members,
+      initialId: initialAssistantId,
+      onDone: handle.close,
+      onSuspendedChanged: handle.setSuspended,
+    ),
+  );
+}
+
+/// Anchors [build]'s popover above [anchorKey], or does nothing when the anchor
+/// is already gone.
+Future<void> _showReasoningPopover(
+  BuildContext context, {
+  required GlobalKey anchorKey,
+  required Widget Function(DesktopGlassPopoverHandle handle) build,
+}) {
   final keyContext = anchorKey.currentContext;
-  if (keyContext == null) return;
+  if (keyContext == null) return Future.value();
 
   final box = keyContext.findRenderObject() as RenderBox?;
-  if (box == null) return;
+  if (box == null) return Future.value();
   final offset = box.localToGlobal(Offset.zero);
   final size = box.size;
   final anchorRect = Rect.fromLTWH(
@@ -41,24 +83,7 @@ Future<void> showDesktopReasoningLevelPopover(
     context,
     anchorRect: anchorRect,
     width: (size.width - 16).clamp(260.0, 720.0),
-    builder: (ctx, handle) {
-      final roster = members;
-      if (roster != null && roster.length > 1) {
-        return _GroupReasoningPopover(
-          members: roster,
-          initialId: assistant?.id,
-          onDone: handle.close,
-          onSuspendedChanged: handle.setSuspended,
-        );
-      }
-      return _ReasoningContent(
-        onDone: handle.close,
-        onSuspendedChanged: handle.setSuspended,
-        config: config,
-        modelId: modelId,
-        assistant: assistant,
-      );
-    },
+    builder: (ctx, handle) => build(handle),
   );
 }
 
@@ -90,9 +115,9 @@ class _GroupReasoningPopoverState extends State<_GroupReasoningPopover> {
     final settings = context.watch<SettingsProvider>();
     final byId = {for (final member in widget.members) member.id: member};
     final member = byId[_selectedId] ?? widget.members.first;
-    final providerKey =
-        member.chatModelProvider ?? settings.currentModelProvider;
-    final modelId = member.chatModelId ?? settings.currentModelId;
+    final model = resolveChatModel(settings, assistant: member);
+    final providerKey = model.providerKey;
+    final modelId = model.modelId;
     final hasModel = providerKey != null && (modelId ?? '').isNotEmpty;
     return Column(
       mainAxisSize: MainAxisSize.min,

@@ -92,6 +92,101 @@ void main() {
     });
   });
 
+  group('tools entry', () {
+    const withLocalTools = Assistant(
+      id: 'a',
+      name: 'a',
+      chatModelProvider: 'openai',
+      chatModelId: 'gpt-4o',
+      localToolIds: ['current_time'],
+    );
+    const withMcp = Assistant(
+      id: 'b',
+      name: 'b',
+      chatModelProvider: 'openai',
+      chatModelId: 'gpt-4o',
+      mcpServerIds: ['srv'],
+    );
+    bool allModelsCallTools(String providerKey, String modelId) => true;
+    bool noModelCallsTools(String providerKey, String modelId) => false;
+
+    test('a bound workspace does not light it for models that cannot use it', () {
+      final active = resolveGroupToolsActive(
+        settings: settings,
+        members: [withLocalTools, withMcp],
+        workspaceBound: true,
+        supportsTools: noModelCallsTools,
+        connectedServerIds: const ['srv'],
+      );
+
+      // The capability gate comes first: a workspace, a local tool switch and an
+      // MCP selection are three ways of *having* tools.
+      expect(active, isFalse);
+    });
+
+    test('a bound workspace lights it once a model can call tools', () {
+      final active = resolveGroupToolsActive(
+        settings: settings,
+        members: [withLocalTools],
+        workspaceBound: true,
+        supportsTools: allModelsCallTools,
+        connectedServerIds: const <String>[],
+      );
+
+      expect(active, isTrue);
+    });
+
+    test('local tools and a connected MCP server light it on their own', () {
+      expect(
+        resolveGroupToolsActive(
+          settings: settings,
+          members: [withLocalTools],
+          workspaceBound: false,
+          supportsTools: allModelsCallTools,
+          connectedServerIds: const <String>[],
+        ),
+        isTrue,
+      );
+      expect(
+        resolveGroupToolsActive(
+          settings: settings,
+          members: [withMcp],
+          workspaceBound: false,
+          supportsTools: allModelsCallTools,
+          connectedServerIds: const ['srv'],
+        ),
+        isTrue,
+      );
+      // A server that is not connected is not a tool the member can offer.
+      expect(
+        resolveGroupToolsActive(
+          settings: settings,
+          members: [withMcp],
+          workspaceBound: false,
+          supportsTools: allModelsCallTools,
+          connectedServerIds: const <String>[],
+        ),
+        isFalse,
+      );
+    });
+
+    test('a roster with nothing to offer is not lit', () {
+      expect(
+        resolveGroupToolsActive(
+          settings: settings,
+          members: const [
+            Assistant(id: 'x', name: 'x'),
+            Assistant(id: 'y', name: 'y'),
+          ],
+          workspaceBound: false,
+          supportsTools: allModelsCallTools,
+          connectedServerIds: const ['srv'],
+        ),
+        isFalse,
+      );
+    });
+  });
+
   group('reasoning entry', () {
     test('members on the same level are uniform', () {
       final entry = resolveGroupReasoning(

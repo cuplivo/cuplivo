@@ -320,6 +320,21 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
     );
   }
 
+  /// Proactive care is arranged for the conversation's own assistant, which a
+  /// group topic does not carry — the row would open nothing there. A
+  /// conversation that does not exist yet is created on tap, so it still counts
+  /// as available.
+  bool _careSpeaksForTheConversation() {
+    final id = _promptConversationId ?? widget.conversationId;
+    if (id == null) return true;
+    try {
+      final conversation = context.read<ChatService>().getConversation(id);
+      return conversation != null && conversation.assistantId != null;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> _openProactiveCare() async {
     Haptics.light();
     final assistant = _assistant();
@@ -487,6 +502,19 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
             ),
           ),
         ],
+        // The strip scopes the three rows above it and nothing else: below this
+        // line the rows belong to the conversation, not to the selected member.
+        if (widget.members case final members? when members.length > 1) ...[
+          const SizedBox(height: 10),
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.08),
+          ),
+          const SizedBox(height: 2),
+        ],
         if (hasOcrModel) ...[
           const SizedBox(height: 8),
           ToolsSheetRow(
@@ -514,7 +542,8 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
           trailing: chevron,
         ),
         if (ProactiveCareAlarmService.isSupported &&
-            _assistant(listen: true) != null) ...[
+            _assistant(listen: true) != null &&
+            _careSpeaksForTheConversation()) ...[
           const SizedBox(height: 8),
           ToolsSheetRow(
             key: const ValueKey<String>('bottom-tools-proactive-care'),

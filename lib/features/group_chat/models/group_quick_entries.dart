@@ -1,4 +1,6 @@
 import '../../../core/models/assistant.dart';
+import '../../../core/models/conversation.dart';
+import '../../../core/models/conversation_mcp_settings.dart';
 import '../../../core/models/model_spec.dart';
 import '../../../core/models/reasoning_request.dart';
 import '../../../core/providers/settings_provider.dart';
@@ -166,6 +168,41 @@ GroupReasoningEntry resolveGroupReasoning({
     uniform: uniform,
     request: uniform ? first.request : null,
   );
+}
+
+/// Whether a group offers the tools entry: some member both brings tools and
+/// can call them.
+///
+/// The capability test comes first, exactly as the 1:1 composer writes
+/// `supportsModelTools && _isToolsActive(...)`: a model that cannot call tools
+/// is offered none, so a bound workspace, a local tool switch or an MCP
+/// selection must not light the entry on its own — those are three ways of
+/// *having* tools, not of being able to use them. [conversation] carries a group
+/// panel's own MCP override, which applies to every member that allows it.
+bool resolveGroupToolsActive({
+  required SettingsProvider settings,
+  required List<Assistant> members,
+  required bool workspaceBound,
+  required bool Function(String providerKey, String modelId) supportsTools,
+  required Iterable<String> connectedServerIds,
+  Conversation? conversation,
+}) {
+  final connected = connectedServerIds.toSet();
+  for (final member in members) {
+    final model = resolveChatModel(settings, assistant: member);
+    final providerKey = model.providerKey;
+    final modelId = model.modelId;
+    if (providerKey == null || (modelId ?? '').isEmpty) continue;
+    if (!supportsTools(providerKey, modelId!)) continue;
+    if (workspaceBound) return true;
+    if (member.localToolIds.isNotEmpty) return true;
+    final selected = ConversationMcpSettings.effectiveServerIds(
+      member,
+      conversation,
+    );
+    if (selected.any(connected.contains)) return true;
+  }
+  return false;
 }
 
 /// The external service the composer's search entry names, resolved the same

@@ -26,7 +26,6 @@ import '../../../core/services/skills/skills_service.dart';
 import '../../../features/workspace/widgets/environment/environment_status_chip.dart';
 import '../../../features/workspace/workspace_navigation.dart';
 import '../../../theme/design_tokens.dart';
-import '../utils/model_display_helper.dart';
 import 'chat_input_bar.dart';
 import 'model_icon.dart';
 import '../../../core/models/group_chat.dart';
@@ -212,28 +211,17 @@ class ChatInputSection extends StatelessWidget {
           )
         : null;
 
-    // A group sends each reply with its speaker's own model, so there is no
-    // single model to report or to reason about here.
+    // The model this chat sends with, and what the 1:1 search, reasoning and
+    // tools entries speak for. A group sends with each speaker's own model and
+    // reports its roster instead, so these stay null there and nothing derived
+    // from them is handed to the bar.
     final pk = isGroup ? null : chatModelProviderKey;
     final mid = isGroup ? null : chatModelId;
-    // The model the 1:1 entries speak for: the one this chat sends with. A
-    // group reports its roster instead, so these stay null there and nothing
-    // derived from them is handed to the bar.
-    final entryProviderKey = isGroup ? null : chatModelProviderKey;
-    final entryModelId = isGroup ? null : chatModelId;
     final supportsModelTools =
         pk != null && mid != null && isToolModel(pk, mid);
-    final selectedReasoning = _selectedReasoning(
-      settings,
-      a,
-      entryProviderKey,
-      entryModelId,
-    );
-    final reasoningSpec = (entryProviderKey != null && entryModelId != null)
-        ? ModelSpecResolver.instance.spec(
-            settings.getProviderConfig(entryProviderKey),
-            entryModelId,
-          )
+    final selectedReasoning = _selectedReasoning(settings, a, pk, mid);
+    final reasoningSpec = (pk != null && mid != null)
+        ? ModelSpecResolver.instance.spec(settings.getProviderConfig(pk), mid)
         : null;
     final effectiveReasoning = reasoningSpec == null
         ? selectedReasoning
@@ -320,8 +308,8 @@ class ChatInputSection extends StatelessWidget {
           : false,
       supportsReasoning: groupReasoning != null
           ? groupReasoning.anySupported
-          : (entryProviderKey != null && entryModelId != null)
-          ? isReasoningModel(entryProviderKey, entryModelId)
+          : (pk != null && mid != null)
+          ? isReasoningModel(pk, mid)
           : false,
       groupSearch: groupSearch,
       groupReasoning: groupReasoning,
@@ -535,17 +523,14 @@ class ChatInputSection extends StatelessWidget {
     );
   }
 
-  /// Any member that both brings tools and can call them. Both halves are the
-  /// 1:1 rule ([supportsModelTools] `&&` [\_isToolsActive]): a model that cannot
-  /// call tools offers none, so configuration alone must not light the entry.
-  /// A group judges it per member, because each reply is written by its
-  /// speaker's own model — and the panel then lists that member's tools.
+  /// Any member that both brings tools and can call them; [resolveGroupToolsActive]
+  /// holds the rule, because the capability gate has to come before the
+  /// workspace binding as well as before the configuration.
   bool _groupToolsActive(
     BuildContext context,
     List<Assistant> members,
     bool workspaceBound,
   ) {
-    if (workspaceBound) return true;
     final settings = context.watch<SettingsProvider>();
     final connected = context.watch<McpProvider>().connectedServers;
     final conversation = conversationId == null
@@ -553,22 +538,13 @@ class ChatInputSection extends StatelessWidget {
         : context.select<ChatService?, Conversation?>(
             (chat) => chat?.getConversation(conversationId!),
           );
-    for (final member in members) {
-      final model = resolveChatModel(settings, assistant: member);
-      final providerKey = model.providerKey;
-      final modelId = model.modelId;
-      if (providerKey == null || (modelId ?? '').isEmpty) continue;
-      if (!isToolModel(providerKey, modelId!)) continue;
-      if (member.localToolIds.isNotEmpty) return true;
-      final selected = ConversationMcpSettings.effectiveServerIds(
-        member,
-        conversation,
-      );
-      if (selected.isNotEmpty &&
-          connected.any((s) => selected.contains(s.id))) {
-        return true;
-      }
-    }
-    return false;
+    return resolveGroupToolsActive(
+      settings: settings,
+      members: members,
+      workspaceBound: workspaceBound,
+      supportsTools: isToolModel,
+      connectedServerIds: [for (final server in connected) server.id],
+      conversation: conversation,
+    );
   }
 }

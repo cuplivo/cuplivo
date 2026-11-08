@@ -354,7 +354,11 @@ class _ToolsContent extends StatelessWidget {
         : context.select<ChatService, Conversation?>(
             (chat) => chat.getConversation(conversationId!),
           );
-    if (ProactiveCareAlarmService.isSupported && careConversation != null) {
+    // A group topic carries no assistant, and care speaks for the
+    // conversation's own one — the row would open nothing.
+    if (ProactiveCareAlarmService.isSupported &&
+        careConversation != null &&
+        careConversation.assistantId != null) {
       rows.add(
         (context) => _RowItem(
           key: const ValueKey<String>('desktop-tools-proactive-care'),

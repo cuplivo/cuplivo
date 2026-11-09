@@ -1418,9 +1418,10 @@ class SyncEngine implements SyncServerHandler {
         deletedSkills: deletedSkillIds,
         localHashes: await dataPlane.skillDirHashes(),
       );
-      await store.saveCheckpoint(
+      await store.saveCheckpointUnlessReplaced(
         peer.deviceId,
-        SyncCheckpoint(
+        epochAtHello: myEpoch,
+        checkpoint: SyncCheckpoint(
           next.conversations,
           entities: nextBusiness.entities,
           preferences: nextBusiness.preferences,
@@ -1633,6 +1634,7 @@ class SyncEngine implements SyncServerHandler {
       ),
       myManifest: myManifest,
       checkpoint: checkpoint,
+      epochAtHello: myEpoch,
       startedAt: now(),
       myHosts: _myHosts,
       initiatorHost: remoteAddress,
@@ -2175,9 +2177,10 @@ class SyncEngine implements SyncServerHandler {
       skillHashes: responseSkillHashes,
       workspaceFiles: advertised.tables,
     );
-    await store.saveCheckpoint(
+    await store.saveCheckpointUnlessReplaced(
       peerDeviceId,
-      SyncCheckpoint(
+      epochAtHello: session.epochAtHello,
+      checkpoint: SyncCheckpoint(
         next.conversations,
         entities: nextBusiness.entities,
         preferences: nextBusiness.preferences,
@@ -4060,6 +4063,7 @@ class _ResponderSession {
     required this.skillPlan,
     required this.myManifest,
     required this.checkpoint,
+    required this.epochAtHello,
     required this.startedAt,
     required this.myHosts,
     this.initiatorHost,
@@ -4077,6 +4081,12 @@ class _ResponderSession {
   /// and the response batch are both read from it.
   final SyncManifest myManifest;
   final SyncCheckpoint checkpoint;
+
+  /// This device's data epoch as the session read it, before any beat ran. The
+  /// closing save compares it against the epoch on disk: a replacement that
+  /// landed mid-session must not be overwritten by this session's `previous`
+  /// (see [SyncStore.saveCheckpointUnlessReplaced]).
+  final int epochAtHello;
   final DateTime startedAt;
 
   /// The address the initiator connected from, as this listener saw it: with

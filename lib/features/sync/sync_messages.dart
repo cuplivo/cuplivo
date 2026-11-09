@@ -197,6 +197,7 @@ String syncReportMessage(AppLocalizations l10n, SyncSessionReport report) {
     upserted: report.messagesUpserted,
     deleted: report.messagesDeleted,
     deletedConversations: report.conversationsDeletedLocally,
+    deletedBlocked: report.deletedBlocked,
     deferred: report.deferred,
     entityRows: report.entityRows,
     preferenceRows: report.preferenceRows,
@@ -224,6 +225,7 @@ String _syncCountsMessage(
   required int upserted,
   required int deleted,
   required int deletedConversations,
+  int deletedBlocked = 0,
   required int deferred,
   required int entityRows,
   required int preferenceRows,
@@ -249,6 +251,9 @@ String _syncCountsMessage(
     if (deleted > 0) l10n.lanSyncReportMessagesDeleted(deleted),
     if (deletedConversations > 0)
       l10n.lanSyncReportConversationsDeleted(deletedConversations),
+    // A deletion that did not run because the local copy changed: the row is
+    // still here, and this is the only place that can say why.
+    if (deletedBlocked > 0) l10n.lanSyncReportDeletesBlocked(deletedBlocked),
     if (entityRows > 0) l10n.lanSyncReportEntities(entityRows),
     if (preferenceRows > 0) l10n.lanSyncReportPreferences(preferenceRows),
     if (blobsMoved > 0) l10n.lanSyncReportBlobs(blobsMoved),

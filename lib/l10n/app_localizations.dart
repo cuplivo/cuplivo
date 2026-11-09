@@ -23682,6 +23682,12 @@ abstract class AppLocalizations {
   /// **'{count} workspace folders kept (switch off)'**
   String lanSyncReportWorkspacesKept(Object count);
 
+  /// No description provided for @lanSyncReportDeletesBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} deletions skipped (the local copy changed)'**
+  String lanSyncReportDeletesBlocked(Object count);
+
   /// No description provided for @lanSyncReportRowsLost.
   ///
   /// In en, this message translates to:

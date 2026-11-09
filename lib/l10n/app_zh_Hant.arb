@@ -4723,6 +4723,7 @@
   "lanSyncReportWorkspaceMissing": "{count} 個工作區檔案未能套用",
   "lanSyncReportWorkspacesOmitted": "{count} 個工作區未同步檔案",
   "lanSyncReportWorkspacesKept": "已保留 {count} 個工作區資料夾（開關已關閉）",
+  "lanSyncReportDeletesBlocked": "{count} 項刪除已略過（本機內容已變更）",
   "lanSyncReportRowsLost": "{n} 條本地記錄被對端更新的版本覆蓋（可在回收站還原）",
   "lanSyncReportClockSkew": "兩台設備的時鐘相差約 {n} 分鐘，請校準設備時鐘後重新同步",
   "lanSyncReportUnreachable": "同步失敗：無法連線到對方裝置。它可能已離線或換了網路——重新掃描它的二維碼，或在卡片上修改位址。",

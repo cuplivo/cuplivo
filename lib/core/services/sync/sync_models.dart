@@ -620,6 +620,19 @@ class SyncPeerReport {
   final int upsertedMessages;
   final int deletedMessages;
   final int deletedConversations;
+
+  /// Deletions this device planned and then did not execute, because the local
+  /// copy had changed since the plan was computed.
+  ///
+  /// An edit beats a delete, and that rule is applied twice: once at the walk
+  /// that planned the deletion, and again at the moment the deletion would run.
+  /// This counts the times the second answer was different. It exists because
+  /// nothing else on the card would: the row is still here, and "still here" is
+  /// indistinguishable from "there was nothing to delete". The file face has
+  /// carried the same fact as `workspaceFilesMissing` since slice 18, and
+  /// `workspaceFoldersKept` set the precedent for a rare protection earning its
+  /// own number.
+  final int deletedBlocked;
   final int deferred;
 
   /// Business rows exchanged in either direction (entities + preferences).
@@ -690,6 +703,7 @@ class SyncPeerReport {
     this.upsertedMessages = 0,
     this.deletedMessages = 0,
     this.deletedConversations = 0,
+    this.deletedBlocked = 0,
     this.deferred = 0,
     this.entityRows = 0,
     this.preferenceRows = 0,
@@ -719,6 +733,7 @@ class SyncPeerReport {
     'upserted': upsertedMessages,
     'deleted': deletedMessages,
     'deletedConversations': deletedConversations,
+    'deletedBlocked': deletedBlocked,
     'deferred': deferred,
     'entityRows': entityRows,
     'preferenceRows': preferenceRows,
@@ -748,6 +763,7 @@ class SyncPeerReport {
     upsertedMessages: (json['upserted'] as num?)?.toInt() ?? 0,
     deletedMessages: (json['deleted'] as num?)?.toInt() ?? 0,
     deletedConversations: (json['deletedConversations'] as num?)?.toInt() ?? 0,
+    deletedBlocked: (json['deletedBlocked'] as num?)?.toInt() ?? 0,
     deferred: (json['deferred'] as num?)?.toInt() ?? 0,
     entityRows: (json['entityRows'] as num?)?.toInt() ?? 0,
     preferenceRows: (json['preferenceRows'] as num?)?.toInt() ?? 0,

@@ -5847,6 +5847,7 @@
   "lanSyncReportWorkspaceMissing": "{count} workspace files could not be applied",
   "lanSyncReportWorkspacesOmitted": "{count} workspaces not syncing files",
   "lanSyncReportWorkspacesKept": "{count} workspace folders kept (switch off)",
+  "lanSyncReportDeletesBlocked": "{count} deletions skipped (the local copy changed)",
   "lanSyncReportRowsLost": "{n} local rows replaced by newer versions on the peer (recoverable in the recycle bin)",
   "lanSyncReportClockSkew": "Clocks differ by ~{n} min — fix the device clock, then sync again",
   "lanSyncReportUnreachable": "Sync failed: the other device could not be reached. It may be offline or on another network — rescan its QR code, or edit its address on the card.",

@@ -13312,6 +13312,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportDeletesBlocked(Object count) {
+    return '$count deletions skipped (the local copy changed)';
+  }
+
+  @override
   String lanSyncReportRowsLost(Object n) {
     return '$n local rows replaced by newer versions on the peer (recoverable in the recycle bin)';
   }

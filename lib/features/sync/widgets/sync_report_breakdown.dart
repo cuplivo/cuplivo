@@ -239,6 +239,12 @@ class _SuccessBreakdown extends StatelessWidget {
           Lucide.Folder,
           l10n.lanSyncReportWorkspacesKept(report.workspaceFoldersKept),
         ),
+      // A deletion the local edit beat: the row the peer deleted is still here,
+      // because the user wrote into it after the plan was computed. This row is
+      // the whole reason the count exists — nothing else on the card can tell
+      // "held back" apart from "there was nothing to delete".
+      if (report.deletedBlocked > 0)
+        (Lucide.Trash, l10n.lanSyncReportDeletesBlocked(report.deletedBlocked)),
       if (report.deferred > 0)
         (Lucide.Hourglass, l10n.lanSyncReportDeferred(report.deferred)),
       if (report.clockSkewMs != null)

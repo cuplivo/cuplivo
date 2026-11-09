@@ -23046,6 +23046,10 @@
   "@lanSyncReportWorkspacesKept": {
     "description": "Sync report count of workspace folders kept on this device because their switch is off; count is that number."
   },
+  "lanSyncReportDeletesBlocked": "{count} deletions skipped (the local copy changed)",
+  "@lanSyncReportDeletesBlocked": {
+    "description": "Sync report count of deletions this device skipped because its own copy had changed since the two devices last agreed; count is that number."
+  },
   "lanSyncReportRowsLost": "{n} local rows replaced by newer versions on the peer (recoverable in the recycle bin)",
   "@lanSyncReportRowsLost": {
     "description": "Sync report count of local records replaced by newer versions from the other device, noting they can be recovered from the recycle bin; n is that count."

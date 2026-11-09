@@ -17918,6 +17918,11 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportDeletesBlocked(Object count) {
+    return '$count deletions skipped (the local copy changed)';
+  }
+
+  @override
   String lanSyncReportRowsLost(Object n) {
     return '$n yerel kayıt, eşteki daha yeni sürümlerle değiştirildi (geri dönüşüm kutusundan kurtarılabilir)';
   }

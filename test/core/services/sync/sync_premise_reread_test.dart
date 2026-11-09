@@ -23,6 +23,8 @@ import 'package:Cuplivo/core/database/app_database.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/database/business_repository.dart';
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/core/services/sync/sync_data_plane.dart';
 import 'package:Cuplivo/core/services/sync/sync_engine.dart';
@@ -73,7 +75,7 @@ class _Side {
   /// Runs once, at the one moment a session has packed its business rows and
   /// has not yet advanced the checkpoint for them — the window in which a user
   /// edit is invisible to the payload that is already on its way.
-  Future<void> Function()? editAfterBusinessRead;
+  Future<void> Function()? editAfterPlan;
 
   Future<void> start(Directory root) async {
     dir = Directory('${root.path}/$label');
@@ -135,9 +137,9 @@ class _PremisePlane extends SyncDataPlane {
       entityIds: entityIds,
       preferenceKeys: preferenceKeys,
     );
-    final edit = side.editAfterBusinessRead;
+    final edit = side.editAfterPlan;
     if (edit != null) {
-      side.editAfterBusinessRead = null;
+      side.editAfterPlan = null;
       await edit();
     }
     return read;
@@ -164,6 +166,37 @@ Future<String> _storedDigest(_Side side, String key) async {
     key,
   })).single;
   return businessContentDigest(row['value'] as String);
+}
+
+/// A conversation on [side] with one message per entry in [contents].
+Future<void> _seedConversation(
+  _Side side, {
+  required String id,
+  required List<String> contents,
+}) async {
+  final messages = [
+    for (final (index, content) in contents.indexed)
+      ChatMessage(
+        id: '$id-m$index',
+        conversationId: id,
+        role: index.isEven ? 'user' : 'assistant',
+        content: content,
+      ),
+  ];
+  await side.repository.putMigrationBatch(
+    conversations: [
+      Conversation(
+        id: id,
+        title: id,
+      ).copyWith(messageIds: [for (final message in messages) message.id]),
+    ],
+    messages: [
+      for (final (index, message) in messages.indexed)
+        (message: message, messageOrder: index),
+    ],
+    toolEventsByMessageId: const {},
+    geminiSignaturesByMessageId: const {},
+  );
 }
 
 void main() {
@@ -212,7 +245,7 @@ void main() {
         // The edit lands after the push read the row and before the checkpoint
         // describes it: the row that travelled is 'sent-value', the row that is
         // here is 'edited-value'.
-        a.editAfterBusinessRead = () =>
+        a.editAfterPlan = () =>
             a.businessPreferences.setString('user_name', 'edited-value');
 
         final first = await a.engine.syncWithPeer(await a.peer(b));
@@ -252,6 +285,71 @@ void main() {
           'edited-value',
           reason: "the peer's older row must not replace the local edit",
         );
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+
+    test(
+      'a conversation deletion does not run on a copy written since the plan',
+      () async {
+        final (:a, :b) = await pair();
+        await _seedConversation(a, id: 'conv-1', contents: ['hello']);
+        // The two sides agree on it, so a checkpoint entry exists.
+        final agreed = await a.engine.syncWithPeer(await a.peer(b));
+        expect(agreed.success, isTrue, reason: agreed.summary);
+
+        // The peer removes its copy: the next plan is a deletion of ours.
+        await b.repository.deleteConversation('conv-1');
+
+        // The write lands after the plan was computed and before the deletion
+        // loop reaches it: a message the user typed while the session ran, which
+        // is the same shape as a rename to the plan's delete branch (an edit
+        // beats a delete) and changes the digest as well as the row clock.
+        a.editAfterPlan = () => _seedConversation(
+          a,
+          id: 'conv-1',
+          contents: ['hello', 'written while the session ran'],
+        );
+
+        final report = await a.engine.syncWithPeer(await a.peer(b));
+        expect(report.success, isTrue, reason: report.summary);
+        expect(
+          await a.repository.syncReadConversationRow('conv-1'),
+          isNotNull,
+          reason:
+              'an edit beats the deletion, and this one was made after it '
+              'was planned',
+        );
+        expect(
+          report.deletedBlocked,
+          1,
+          reason: 'the skip has to be visible: the row is still here',
+        );
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+
+    test(
+      'a business deletion does not run on a row written since the plan',
+      () async {
+        final (:a, :b) = await pair();
+        await a.businessPreferences.setString('user_name', 'agreed');
+        final agreed = await a.engine.syncWithPeer(await a.peer(b));
+        expect(agreed.success, isTrue, reason: agreed.summary);
+
+        await b.businessRepository.syncDeletePreference('user_name');
+
+        a.editAfterPlan = () =>
+            a.businessPreferences.setString('user_name', 'written-now');
+
+        final report = await a.engine.syncWithPeer(await a.peer(b));
+        expect(report.success, isTrue, reason: report.summary);
+        expect(
+          await _preferenceValue(a, 'user_name'),
+          'written-now',
+          reason: 'the row the user just wrote into must survive the deletion',
+        );
+        expect(report.deletedBlocked, 1);
       },
       timeout: const Timeout(Duration(minutes: 2)),
     );

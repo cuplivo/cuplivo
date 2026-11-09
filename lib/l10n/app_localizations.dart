@@ -31290,6 +31290,12 @@ abstract class AppLocalizations {
   /// **'{count} workspace folders kept (switch off)'**
   String lanSyncReportWorkspacesKept(Object count);
 
+  /// Sync report count of deletions this device skipped because its own copy had changed since the two devices last agreed; count is that number.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} deletions skipped (the local copy changed)'**
+  String lanSyncReportDeletesBlocked(Object count);
+
   /// Sync report count of local records replaced by newer versions from the other device, noting they can be recovered from the recycle bin; n is that count.
   ///
   /// In en, this message translates to:

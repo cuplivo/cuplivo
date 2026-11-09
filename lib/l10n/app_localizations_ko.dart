@@ -17271,6 +17271,11 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportDeletesBlocked(Object count) {
+    return '$count deletions skipped (the local copy changed)';
+  }
+
+  @override
   String lanSyncReportRowsLost(Object n) {
     return '상대 기기의 최신 버전으로 대체된 로컬 기록 $n개(휴지통에서 복원 가능)';
   }

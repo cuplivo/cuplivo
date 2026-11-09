@@ -18122,6 +18122,11 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportDeletesBlocked(Object count) {
+    return '$count deletions skipped (the local copy changed)';
+  }
+
+  @override
   String lanSyncReportRowsLost(Object n) {
     return 'Заменено более новыми записями с другого устройства: $n (можно вернуть в корзине)';
   }

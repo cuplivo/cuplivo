@@ -16892,6 +16892,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportDeletesBlocked(Object count) {
+    return '$count 项删除已略过（本机内容已变更）';
+  }
+
+  @override
   String lanSyncReportRowsLost(Object n) {
     return '$n 条本地记录被对端更新的版本覆盖（可在回收站恢复）';
   }
@@ -34183,6 +34188,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String lanSyncReportWorkspacesKept(Object count) {
     return '已保留 $count 个工作区文件夹（开关已关闭）';
+  }
+
+  @override
+  String lanSyncReportDeletesBlocked(Object count) {
+    return '$count 项删除已略过（本机内容已变更）';
   }
 
   @override
@@ -51484,6 +51494,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String lanSyncReportWorkspacesKept(Object count) {
     return '已保留 $count 個工作區資料夾（開關已關閉）';
+  }
+
+  @override
+  String lanSyncReportDeletesBlocked(Object count) {
+    return '$count 項刪除已略過（本機內容已變更）';
   }
 
   @override

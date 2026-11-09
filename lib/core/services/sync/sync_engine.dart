@@ -84,6 +84,12 @@ class SyncSessionReport {
   final int deferred;
   final int conversationsDeletedLocally;
 
+  /// Deletions that were planned and then not executed, because the local copy
+  /// had changed since the plan was computed. Nothing else on the card can say
+  /// so: the row is still here, which looks exactly like "there was nothing to
+  /// delete".
+  final int deletedBlocked;
+
   /// Business rows exchanged in either direction (entities + preferences).
   /// One number per face: the card says how much business state moved, and the
   /// per-row detail lives in the logs.
@@ -145,6 +151,7 @@ class SyncSessionReport {
     this.messagesDeleted = 0,
     this.deferred = 0,
     this.conversationsDeletedLocally = 0,
+    this.deletedBlocked = 0,
     this.entityRows = 0,
     this.preferenceRows = 0,
     this.entityRowsReceived = 0,
@@ -174,6 +181,7 @@ class SyncSessionReport {
     upsertedMessages: messagesUpserted,
     deletedMessages: messagesDeleted,
     deletedConversations: conversationsDeletedLocally,
+    deletedBlocked: deletedBlocked,
     deferred: deferred,
     entityRows: entityRows,
     preferenceRows: preferenceRows,
@@ -1313,8 +1321,21 @@ class SyncEngine implements SyncServerHandler {
 
       final deleted = <String>{};
       final failedDeletes = <String>{};
+      final blockedDeletes = <String>{};
       for (final item in plan) {
         if (item.action != SyncConvAction.iDelete) continue;
+        if (!await _conversationDeletionStillStands(
+          item.conversationId,
+          previous,
+          peerHello.deletedConversations,
+        )) {
+          // Booked as a deletion that did not happen, so the checkpoint keeps
+          // the entry it read, and counted on its own so the card can say why
+          // the row is still here.
+          blockedDeletes.add(item.conversationId);
+          failedDeletes.add(item.conversationId);
+          continue;
+        }
         final ok = await dataPlane.deleteConversation(item.conversationId);
         (ok ? deleted : failedDeletes).add(item.conversationId);
       }
@@ -1322,11 +1343,21 @@ class SyncEngine implements SyncServerHandler {
 
       final deletedBusiness = <String>{};
       final failedBusinessDeletes = <String>{};
+      final blockedBusinessDeletes = <String>{};
       final deletedSkillIds = <String>{};
       var keptWorkspaceFolders = 0;
       for (final item in businessPlan) {
         if (item.action != SyncConvAction.iDelete) continue;
         final key = syncBusinessKey(item.kindWire, item.id);
+        if (!await _businessDeletionStillStands(
+          item.kindWire,
+          item.id,
+          previous,
+        )) {
+          blockedBusinessDeletes.add(key);
+          failedBusinessDeletes.add(key);
+          continue;
+        }
         final outcome = await dataPlane.deleteBusinessRow(
           item.kindWire,
           item.id,
@@ -1411,6 +1442,7 @@ class SyncEngine implements SyncServerHandler {
           outcomes: outcomes.values,
           deferred: skippedSends.length + missingIncoming.length,
           deletedLocally: deleted.length,
+          deletedBlocked: blockedDeletes.length + blockedBusinessDeletes.length,
           business: outgoingBusiness,
           receivedBusiness: applicableBusiness,
           appliedBusiness: businessOutcome,
@@ -2000,8 +2032,18 @@ class SyncEngine implements SyncServerHandler {
 
     final deleted = <String>{};
     final failedDeletes = <String>{};
+    final blockedDeletes = <String>{};
     for (final item in session.plan) {
       if (item.action != SyncConvAction.iDelete) continue;
+      if (!await _conversationDeletionStillStands(
+        item.conversationId,
+        session.checkpoint,
+        session.initiatorHello.deletedConversations,
+      )) {
+        blockedDeletes.add(item.conversationId);
+        failedDeletes.add(item.conversationId);
+        continue;
+      }
       final ok = await dataPlane.deleteConversation(item.conversationId);
       (ok ? deleted : failedDeletes).add(item.conversationId);
     }
@@ -2009,11 +2051,21 @@ class SyncEngine implements SyncServerHandler {
 
     final deletedBusiness = <String>{};
     final failedBusinessDeletes = <String>{};
+    final blockedBusinessDeletes = <String>{};
     final deletedSkillIds = <String>{};
     var keptWorkspaceFolders = 0;
     for (final item in session.businessPlan) {
       if (item.action != SyncConvAction.iDelete) continue;
       final key = syncBusinessKey(item.kindWire, item.id);
+      if (!await _businessDeletionStillStands(
+        item.kindWire,
+        item.id,
+        session.checkpoint,
+      )) {
+        blockedBusinessDeletes.add(key);
+        failedBusinessDeletes.add(key);
+        continue;
+      }
       final outcome = await dataPlane.deleteBusinessRow(item.kindWire, item.id);
       (outcome.removed ? deletedBusiness : failedBusinessDeletes).add(key);
       if (outcome.folderKept) keptWorkspaceFolders++;
@@ -2150,6 +2202,7 @@ class SyncEngine implements SyncServerHandler {
       outcomes: session.outcomes.values,
       deferred: skipped.length + missing.length,
       deletedLocally: deleted.length,
+      deletedBlocked: blockedDeletes.length + blockedBusinessDeletes.length,
       business: businessRead.payload,
       receivedBusiness: session.receivedBusiness,
       appliedBusiness: session.businessOutcome,
@@ -2499,6 +2552,85 @@ class SyncEngine implements SyncServerHandler {
       clock: mine.updatedAtUs,
       agreedClock: announced.updatedAtUs,
     );
+  }
+
+  /// Whether a planned conversation deletion still describes the copy it would
+  /// delete, asked again at the moment the deletion runs.
+  ///
+  /// The plan's verdict was computed from the manifest walk, and the deletion
+  /// executes beats later — after an apply and a push. Two thirds of the premise
+  /// travel and may not be re-read: the peer's manifest arrived with this
+  /// session's hello, and the checkpoint was read from disk at its start. The
+  /// remaining third is exactly the thing that can move underneath, so the local
+  /// copy is read again here and the same function is asked the same question.
+  ///
+  /// An answer that is no longer `iDelete` means an edit has beaten the deletion
+  /// here just as it would have beaten it at walk time
+  /// ([SyncConvAction.iDelete] is only reachable through
+  /// [copyWrittenSinceAgreement] answering "unchanged"), and deleting the copy
+  /// the user just wrote into would destroy the only version of it.
+  Future<bool> _conversationDeletionStillStands(
+    String conversationId,
+    SyncCheckpoint checkpoint,
+    Map<String, SyncAnnouncedDeletion> announced,
+  ) async {
+    final mine = await dataPlane.checkpointFromLocal(conversationId);
+    // Already gone: there is no copy for an edit to protect, and the deletion
+    // is the no-op it was before this re-read existed.
+    if (mine == null) return true;
+    // An announced deletion states its own premise, so it is re-asked against
+    // that one: the version the peer says it deleted, which travelled in this
+    // session's hello. The checkpoint is not that premise and often has no entry
+    // here at all — a row this device pushed is only recorded once the peer's
+    // manifest shows it, so a deletion announced *of* such a row would otherwise
+    // be blocked for having nothing to agree with.
+    final announcement = announced[conversationId];
+    if (announcement != null) {
+      return !copyWrittenSinceAgreement(
+        digest: mine.digest,
+        agreedDigest: announcement.digest,
+        clock: mine.updatedAtUs,
+        agreedClock: announcement.updatedAtUs,
+      );
+    }
+    final agreed = checkpoint.conversations[conversationId];
+    return planRowSync(
+          mineDigest: mine.digest,
+          // Carried, never re-read: the peer's manifest named no such conversation,
+          // which is the whole of what made this a deletion.
+          peerDigest: null,
+          checkpointDigest: agreed?.digest,
+          mineClock: mine.updatedAtUs,
+          checkpointClock: agreed?.updatedAtUs,
+        ) ==
+        SyncConvAction.iDelete;
+  }
+
+  /// The business-row face of [_conversationDeletionStillStands], with the same
+  /// premise split: the peer's absence and the agreement are carried, the row is
+  /// read here.
+  ///
+  /// A skill's digest covers its body directory, so the row's re-read is the
+  /// body's too: a skill whose files changed under a planned deletion is an edit
+  /// and the deletion does not run.
+  Future<bool> _businessDeletionStillStands(
+    String kindWire,
+    String id,
+    SyncCheckpoint checkpoint,
+  ) async {
+    final mine = await dataPlane.checkpointBusinessFromLocal(kindWire, id);
+    if (mine == null) return true;
+    final agreed = kindWire == kSyncPreferenceWire
+        ? checkpoint.preferences[id]
+        : checkpoint.entities[kindWire]?[id];
+    return planRowSync(
+          mineDigest: mine.digest,
+          peerDigest: null,
+          checkpointDigest: agreed?.digest,
+          mineClock: mine.updatedAtUs,
+          checkpointClock: agreed?.updatedAtUs,
+        ) ==
+        SyncConvAction.iDelete;
   }
 
   /// Business rows a peer's deferred apply makes ambiguous. A row that peer
@@ -3527,6 +3659,7 @@ class SyncEngine implements SyncServerHandler {
     required Iterable<SyncSubtreeApplyOutcome> outcomes,
     required int deferred,
     required int deletedLocally,
+    int deletedBlocked = 0,
     SyncBusinessPayload business = const SyncBusinessPayload(),
     SyncBusinessPayload receivedBusiness = const SyncBusinessPayload(),
     SyncBusinessApplyOutcome? appliedBusiness,
@@ -3601,6 +3734,7 @@ class SyncEngine implements SyncServerHandler {
       if (upserted > 0) '+$upserted msgs',
       if (deleted > 0) '-$deleted msgs',
       if (deletedLocally > 0) '-$deletedLocally convs',
+      if (deletedBlocked > 0) '$deletedBlocked deletes blocked',
       if (entityRows > 0) 'entities $entityRows',
       if (preferenceRows > 0) 'prefs $preferenceRows',
       if (blobsMoved > 0) 'blobs $blobsMoved ($blobBytes B)',
@@ -3636,6 +3770,7 @@ class SyncEngine implements SyncServerHandler {
       messagesDeleted: deleted,
       deferred: deferred,
       conversationsDeletedLocally: deletedLocally,
+      deletedBlocked: deletedBlocked,
       entityRows: entityRows,
       preferenceRows: preferenceRows,
       entityRowsReceived: entityRowsReceived,

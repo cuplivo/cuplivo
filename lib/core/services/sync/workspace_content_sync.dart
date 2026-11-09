@@ -367,6 +367,7 @@ class WorkspaceContentSync {
     var filesRemoved = 0;
     var filesReplaced = 0;
     var filesMissing = 0;
+    var switchedOff = 0;
     final unlanded = <String, Map<String, WorkspaceFileStamp>>{};
     final replacedUnlanded = <String>{};
 
@@ -377,6 +378,22 @@ class WorkspaceContentSync {
       // a workspace this device is not sharing is one whose files must not
       // move in either direction.
       if (peerTable == null || !snapshot.shared) continue;
+      // The switch is read again at this workspace's turn. `shared` is the
+      // walk's photograph of it, and the switch is the one part of that state a
+      // user can move while the session is open — so a workspace turned off now
+      // moves nothing, in either direction, and its ledger entry is left where
+      // it was (the `live` carry below keeps it) so turning it back on resumes
+      // from the same place instead of re-downloading the lot.
+      //
+      // One read per workspace is the choke point, not one per file:
+      // [acceptPushed] re-reads it for a file arriving over the other direction,
+      // and `SyncDataPlane.deleteBusinessRow` for the folder a peer-driven row
+      // deletion would take. Those are the only writes this face performs, and
+      // all three ask the same question from the store.
+      if ((await disabledWorkspaceIds()).contains(snapshot.id)) {
+        switchedOff++;
+        continue;
+      }
       final baseline = ledger[snapshot.id] ?? const <String, SyncAgreedFile>{};
       final plan = planWorkspaceContent(
         mine: snapshot.index.files,
@@ -467,7 +484,7 @@ class WorkspaceContentSync {
       if (current != null && current.isNotEmpty) next[id] = current;
     }
 
-    var omitted = 0;
+    var omitted = switchedOff;
     for (final snapshot in mine) {
       if (!snapshot.shared) omitted++;
     }

@@ -17572,6 +17572,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get recycleBinKindWorkspaceFile => 'Файл рабочей области';
 
   @override
+  String get recycleBinKindSkill => 'Навык';
+
+  @override
   String get recycleBinKindConfig => 'Конфигурация';
 
   @override

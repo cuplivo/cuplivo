@@ -30414,6 +30414,12 @@ abstract class AppLocalizations {
   /// **'Workspace file'**
   String get recycleBinKindWorkspaceFile;
 
+  /// Kind label on a recycle-bin entry that is a skill — an installed skill's folder of files, deleted as one item.
+  ///
+  /// In en, this message translates to:
+  /// **'Skill'**
+  String get recycleBinKindSkill;
+
   /// Fallback kind label for a recycle-bin entry whose stored type is not otherwise recognised.
   ///
   /// In en, this message translates to:

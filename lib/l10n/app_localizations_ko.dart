@@ -16739,6 +16739,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get recycleBinKindWorkspaceFile => '작업 공간 파일';
 
   @override
+  String get recycleBinKindSkill => '스킬';
+
+  @override
   String get recycleBinKindConfig => '구성';
 
   @override

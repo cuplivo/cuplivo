@@ -54,6 +54,22 @@ String _backup3ListResultXml() {
 </ListBucketResult>''';
 }
 
+String _bothPrefixesListResultXml() {
+  return '''<?xml version="1.0" encoding="UTF-8"?>
+<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+  <Contents>
+    <Key>kelivo_backups/kelivo_backup_2026-04-22T10-11-12.123456.zip</Key>
+    <LastModified>2026-04-22T10:11:12.123Z</LastModified>
+    <Size>128</Size>
+  </Contents>
+  <Contents>
+    <Key>kelivo_backups/cuplivo_backup_2026-04-21T08-00-00.123456.zip</Key>
+    <LastModified>2026-04-21T08:00:00.123Z</LastModified>
+    <Size>96</Size>
+  </Contents>
+</ListBucketResult>''';
+}
+
 String _emptyListResultXml() {
   return '''<?xml version="1.0" encoding="UTF-8"?>
 <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
@@ -242,6 +258,54 @@ void main() {
         expect(items.map((e) => e.displayName).toList(), [
           'kelivo_backup_2026-04-20T09-00-00.123456.zip',
         ]);
+      },
+    );
+
+    test(
+      'listObjects lists both archive namings, filtered by extension alone',
+      () async {
+        // A cloud folder holds whatever the writers of several versions put
+        // there. The listing decides by extension, so a backup named for either
+        // reader stays visible — a user must not lose sight of a file they can
+        // still restore.
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        addTearDown(() async {
+          await server.close(force: true);
+        });
+
+        server.listen((request) async {
+          if (request.method == 'GET' &&
+              request.uri.path ==
+                  '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json') {
+            request.response.statusCode = HttpStatus.ok;
+            request.response.headers.contentType = ContentType.json;
+            request.response.write(_manifestJson());
+          } else if (request.method == 'GET' &&
+              request.uri.path == '/backup-bucket') {
+            request.response.statusCode = HttpStatus.ok;
+            request.response.headers.contentType = ContentType(
+              'application',
+              'xml',
+              charset: 'utf-8',
+            );
+            request.response.write(_bothPrefixesListResultXml());
+          } else if (request.method == 'PUT' &&
+              request.uri.path ==
+                  '/backup-bucket/kelivo_backups/.kelivo_backups_manifest.json') {
+            await request.drain<void>();
+            request.response.statusCode = HttpStatus.ok;
+          } else {
+            request.response.statusCode = HttpStatus.notFound;
+          }
+          await request.response.close();
+        });
+
+        final items = await const S3BackupClient().listObjects(_config(server));
+
+        expect(items.map((e) => e.displayName).toSet(), {
+          'kelivo_backup_2026-04-22T10-11-12.123456.zip',
+          'cuplivo_backup_2026-04-21T08-00-00.123456.zip',
+        });
       },
     );
 

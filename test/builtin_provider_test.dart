@@ -41,6 +41,14 @@ void main() {
     }
   });
 
+  test('KelivoIN is not a built-in provider and ships no free models', () {
+    expect(SettingsProvider.isBuiltInProvider('KelivoIN'), isFalse);
+    final config = ProviderConfig.defaultsFor('KelivoIN');
+    expect(config.models, isEmpty);
+    expect(config.modelOverrides, isEmpty);
+    expect(config.baseUrl, isNot('https://api.cuplivoas.top/v1'));
+  });
+
   test(
     'auto sends tools and OpenAI reasoning controls on chat requests',
     () async {

@@ -89,32 +89,31 @@ void main() {
     expect(reloaded.providersOrder.take(2), <String>['Gemini', 'OpenAI']);
   });
 
-
   test(
-    'keeps current KelivoIN customizations and other custom endpoints',
+    'keeps current custom provider customizations and other custom endpoints',
     () async {
       for (final baseUrl in [
-        'https://api.psycheas.top/v1',
+        'https://api.example.test/v1',
         'https://custom.test/v1',
       ]) {
         final customized = ProviderConfig.defaultsFor(
-          'KelivoIN',
+          'TestProvider',
         ).copyWith(baseUrl: baseUrl, models: ['auto'], enabled: false);
         await repository.replaceSnapshot(
           BusinessSettingsRouter.normalizeAndRoute({
             'provider_configs_v1': jsonEncode({
-              'KelivoIN': customized.toJson(),
+              'TestProvider': customized.toJson(),
             }),
-            'selected_model_v1': 'KelivoIN::auto',
+            'selected_model_v1': 'TestProvider::auto',
           }),
         );
         final settings = SettingsProvider(BusinessPreferences(repository));
         await settings.loaded;
         expect(
-          settings.getProviderConfig('KelivoIN').toJson(),
+          settings.getProviderConfig('TestProvider').toJson(),
           customized.toJson(),
         );
-        expect(settings.currentModelKey, 'KelivoIN::auto');
+        expect(settings.currentModelKey, 'TestProvider::auto');
       }
     },
   );
@@ -127,7 +126,6 @@ void main() {
         'OpenAI',
         'SiliconFlow',
         'OpenRouter',
-        'KelivoIN',
         'Tensdaq',
         'DeepSeek',
         'AIhubmix',

@@ -38,6 +38,10 @@ contradicts one of them is a bug, not a preference.
   - `KelivoOpenURL` — the OSC 1337 marker the guest shell emits and the terminal strips.
   - `kelivo_backups`, `kelivo.db`, `kelivo.restore-*`, `.kelivo_restore`, `kelivo-schedule`,
     `kelivo_background` and other persisted keys/format ids.
+  - Backup archive names are not legacy but reader-facing: a writer names the file for its target
+    (`cuplivo_backup_*` for this build, `kelivo_backup_*` for Kelivo 1.3.4), and every reader accepts
+    both, so a file from either version is still discovered, reclaimed and restorable. The local
+    snapshot prefix `kelivo-snapshot-` is untouched — older builds' recovery reads it.
   - `kelivo.psycheas.top`, `search.psycheas.top`, `afdian.com/a/kelivo`, `kelivo-helper` — external
     infrastructure Cuplivo does not control.
   - `KelivoImageSettingsMapper` and "Kelivo backup" interop terms — they describe the upstream

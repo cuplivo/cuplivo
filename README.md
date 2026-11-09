@@ -36,14 +36,15 @@ Cuplivo goes beyond chat. Models can search the web, call MCP servers, follow sk
 
 Conversations, settings and files are stored locally. Cuplivo has no account system of its own; back up to WebDAV or S3-compatible storage whenever you choose.
 
-## ✨ What's new in 4.5
+## ✨ What's new in 4.6
 
-- **Group chats with several assistants** — a group is a set of assistant members plus a list of topics, and a director picks who speaks each round. Every member sees the roster and its own turns; what the other members said arrives as user-side context, so the model never answers its own name. A group topic is an ordinary conversation: named once when the round ends, and ↻ reruns the whole round instead of one reply. A deleted group goes to the recycle bin like any conversation.
-- **Assistants and group chats in one list** — the settings page manages both, with a single drag order shared with the sidebar; the old 「New Group Chat」 row at the footer is gone.
-- **A readable PDF export** — the export no longer embeds the thinnest weight of a CJK face, and its margins, column, code blocks and reasoning panel are laid out again (#1045).
-- **The desktop gradient switch, and letters that all fire** — the desktop assistant dialog has its gradient-background control back (#1053), and one letter whose owner was deleted no longer stops every other pending letter from being re-armed (#1051).
+- **Markdown as a picture** — paste, import or drop Markdown and get its preview and the exported image from Kelivo's own renderer: on desktop and mobile, from the same tools entry as translation.
+- **Assistants and group chats, shown apart** — one setting splits the sidebar and Settings › Assistants and group chats into two sections, without touching the drag order they share.
+- **A group chat's composer, in full** — search, reasoning, tools, quick phrases, skills, instruction injection and world book reach a group topic, controlled per member and reported for the whole roster.
+- **Backups Kelivo can read** — the export names its reader: a Kelivo-compatible target Kelivo 1.3.4 can import, with file names that follow the target.
+- **A new upstream baseline** — re-based on Kelivo v1.3.4: the desktop sidebar, a compact desktop layout, image-context management, and upstream's own select-text quoting and translation.
 
-The [changelog](CHANGELOG.md) carries 4.4, 4.3 and 4.2.
+The [changelog](CHANGELOG.md) carries 4.5, 4.4, 4.3 and 4.2.
 
 ## ✨ Since 4.0
 

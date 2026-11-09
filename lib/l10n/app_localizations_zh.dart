@@ -16888,7 +16888,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String lanSyncReportWorkspacesKept(Object count) {
-    return '已保留 $count 个工作区文件夹（开关已关闭）';
+    return '已保留 $count 个工作区文件夹（开关已关闭或含未同步文件）';
   }
 
   @override
@@ -34187,7 +34187,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String lanSyncReportWorkspacesKept(Object count) {
-    return '已保留 $count 个工作区文件夹（开关已关闭）';
+    return '已保留 $count 个工作区文件夹（开关已关闭或含未同步文件）';
   }
 
   @override
@@ -51493,7 +51493,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String lanSyncReportWorkspacesKept(Object count) {
-    return '已保留 $count 個工作區資料夾（開關已關閉）';
+    return '已保留 $count 個工作區資料夾（開關已關閉或含未同步檔案）';
   }
 
   @override

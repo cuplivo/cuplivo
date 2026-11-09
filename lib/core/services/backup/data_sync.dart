@@ -359,15 +359,20 @@ class DataSync {
   /// just replaced. A row the archive does not carry is then absent here while
   /// the peer still holds the agreed version, and that is exactly the shape the
   /// plan reads as `peerDeletes`: this device would order the peer to delete a
-  /// row nobody deleted here. Clearing the checkpoints turns the same absence
+  /// row nobody deleted here. Clearing the row entries turns the same absence
   /// into `peerSends`, and the epoch bump is what tells the peer that a missing
   /// row was never deleted — the two halves of one announcement, which is why
   /// they are one call.
   ///
+  /// Only the row half of each checkpoint goes: these paths leave conversations
+  /// exactly as they were, and a conversation this device deleted but has not
+  /// announced is derived from its own entry — see
+  /// [SyncStore.resetRowFaceForBulkReplacement].
+  ///
   /// The caller runs it inside the replacement's non-cancellable commit region,
   /// so a cancelled restore cannot bump an epoch for a history that survives.
-  Future<void> _announceBulkReplacement() async {
-    await SyncStore.resetForBulkReplacement(
+  Future<void> _announceRowReplacement() async {
+    await SyncStore.resetRowFaceForBulkReplacement(
       await AppDirectories.getSyncDirectory(),
     );
   }
@@ -3597,7 +3602,7 @@ class DataSync {
             );
             // The row face was replaced wholesale, so the pair is owed the
             // announcement a replaced database makes.
-            await _announceBulkReplacement();
+            await _announceRowReplacement();
             return;
           }
           final appDataPath = (await AppDirectories.getAppDataDirectory()).path;
@@ -3871,7 +3876,7 @@ class DataSync {
       // mode means the legacy archive replaced chats and/or the whole business
       // row face in place — the same bulk replacement, announced the same way.
       if (mode == RestoreMode.overwrite) {
-        await _announceBulkReplacement();
+        await _announceRowReplacement();
       }
     } catch (error) {
       restoreError = error;

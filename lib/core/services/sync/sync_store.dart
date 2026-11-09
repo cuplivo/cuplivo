@@ -277,6 +277,78 @@ class SyncStore {
     await store.writeDataEpoch(await store.readDataEpoch() + 1);
   }
 
+  /// The same hook for a replacement that only replaces *rows*.
+  ///
+  /// A settings-only overwrite (and the legacy archive's overwrite) replaces the
+  /// business row face and the directories anchored on it — skills, workspaces —
+  /// and nothing else: it never touches conversations. So the row entries
+  /// describe rows this device no longer has and must go, while the conversation
+  /// entries describe conversations nobody replaced and must stay.
+  ///
+  /// The second half is not bookkeeping. A conversation this device deleted but
+  /// has not announced is *derived* from its own checkpoint entry
+  /// (`SyncEngine._deletionsToAnnounce` walks `checkpoint.conversations`), so
+  /// dropping the entry drops the announcement, and the next session reads the
+  /// peer's copy as the only one left and downloads the deleted chat back.
+  /// Deleting a chat and then restoring a settings-only backup would therefore
+  /// resurrect it on the next round.
+  ///
+  /// [resetForBulkReplacement] has no such half to protect: a replaced database
+  /// replaces the conversations too, which is why these are two hooks rather than
+  /// one switch.
+  static Future<void> resetRowFaceForBulkReplacement(Directory root) async {
+    final store = SyncStore(root);
+    await store._dropRowEntriesKeepingConversations();
+    await store.writeDataEpoch(await store.readDataEpoch() + 1);
+  }
+
+  /// Clears every per-peer checkpoint's row half, in place.
+  ///
+  /// Rewritten one file at a time rather than deleted, so each entry that
+  /// survives keeps its own identity: the peer's epoch, the conversations, the
+  /// blobs still owed, and what this device could not apply last session.
+  Future<void> _dropRowEntriesKeepingConversations() async {
+    if (!await _checkpointsDir.exists()) return;
+    final List<FileSystemEntity> files;
+    try {
+      files = await _checkpointsDir.list().toList();
+    } catch (error) {
+      debugPrint('sync store: could not list checkpoints: $error');
+      return;
+    }
+    for (final file in files) {
+      if (file is! File) continue;
+      final deviceId = _checkpointDeviceId(file);
+      if (deviceId == null) continue;
+      final previous = await loadCheckpoint(deviceId);
+      try {
+        await saveCheckpoint(
+          deviceId,
+          SyncCheckpoint(
+            previous.conversations,
+            pendingBlobs: previous.pendingBlobs,
+            unappliedConversations: previous.unappliedConversations,
+            peerEpoch: previous.peerEpoch,
+          ),
+        );
+      } catch (error) {
+        debugPrint(
+          'sync store: could not clear the row entries of $deviceId: $error',
+        );
+      }
+    }
+  }
+
+  /// The device id a checkpoint file names, or null for anything else in the
+  /// directory.
+  static String? _checkpointDeviceId(File file) {
+    const suffix = '.json.gz';
+    final name = file.uri.pathSegments.last;
+    if (!name.endsWith(suffix)) return null;
+    final deviceId = name.substring(0, name.length - suffix.length);
+    return deviceId.isEmpty ? null : deviceId;
+  }
+
   File get _epochFile =>
       File('${root.path}${Platform.pathSeparator}epoch.json');
 

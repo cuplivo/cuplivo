@@ -36,6 +36,13 @@ void main() {
     expect(find.text(l10n.lanSyncUpToDate), findsNothing);
     expect(find.text(l10n.lanSyncReportDeferred(1)), findsOneWidget);
 
+    // And for a deletion the local edit beat: the row the peer deleted is still
+    // here, so "up to date" would be the same lie in the other direction. The
+    // file face's counter (workspaceFilesMissing) is withheld for this reason.
+    await pump(const SyncPeerReport(success: true, deletedBlocked: 1));
+    expect(find.text(l10n.lanSyncUpToDate), findsNothing);
+    expect(find.text(l10n.lanSyncReportDeletesBlocked(1)), findsOneWidget);
+
     // Withheld or not, a session that moved something reports its counters.
     await pump(const SyncPeerReport(success: true, sent: 2, received: 1));
     expect(find.text(l10n.lanSyncUpToDate), findsNothing);

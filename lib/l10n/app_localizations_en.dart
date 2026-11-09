@@ -17815,7 +17815,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String lanSyncReportWorkspacesKept(Object count) {
-    return '$count workspace folders kept (switch off)';
+    return '$count workspace folders kept on disk (switched off, or holding unsynced files)';
   }
 
   @override

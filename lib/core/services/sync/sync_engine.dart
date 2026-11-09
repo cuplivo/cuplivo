@@ -130,10 +130,13 @@ class SyncSessionReport {
   final int workspacesOmitted;
 
   /// Managed workspace *folders* this device kept on disk after the peer deleted
-  /// their row, because the user had switched content sync off for them (slice
-  /// 22). The row is gone either way; this is the count of folders the switch
-  /// protected, and it exists so that protection is a fact on the report rather
-  /// than something the user has to discover in a file manager.
+  /// their row: the user had switched content sync off for them, or the folder
+  /// holds a file the two sides never agreed on and removing it would have
+  /// destroyed that edit with nothing in the bin to bring it back.
+  ///
+  /// The row is gone either way; this counts the folders something protected, so
+  /// that protection is a fact on the report rather than something the user has
+  /// to discover in a file manager.
   final int workspaceFoldersKept;
 
   /// Signed clock divergence observed at hello, in milliseconds — present
@@ -1361,6 +1364,9 @@ class SyncEngine implements SyncServerHandler {
         final outcome = await dataPlane.deleteBusinessRow(
           item.kindWire,
           item.id,
+          agreedFiles:
+              previous.workspaceFiles[item.id] ??
+              const <String, SyncAgreedFile>{},
         );
         (outcome.removed ? deletedBusiness : failedBusinessDeletes).add(key);
         if (outcome.folderKept) keptWorkspaceFolders++;
@@ -2066,7 +2072,13 @@ class SyncEngine implements SyncServerHandler {
         failedBusinessDeletes.add(key);
         continue;
       }
-      final outcome = await dataPlane.deleteBusinessRow(item.kindWire, item.id);
+      final outcome = await dataPlane.deleteBusinessRow(
+        item.kindWire,
+        item.id,
+        agreedFiles:
+            session.checkpoint.workspaceFiles[item.id] ??
+            const <String, SyncAgreedFile>{},
+      );
       (outcome.removed ? deletedBusiness : failedBusinessDeletes).add(key);
       if (outcome.folderKept) keptWorkspaceFolders++;
       if (outcome.removed && item.kindWire == SyncDataPlane.skillWire) {
@@ -2847,9 +2859,19 @@ class SyncEngine implements SyncServerHandler {
               !receivedKeys.contains(key)) {
             keepPrior();
           } else {
-            // The payload was read after this beat's apply, so it already
-            // carries whichever side the row-level LWW left in place — the
-            // converged row is the one that travelled.
+            // The evidence face here, but only because of what it costs when it
+            // is wrong, not because the payload is the converged row. It is that
+            // on the responder, which reads it after its own apply; the initiator
+            // reads it *before* its apply and before the push, so its entry for a
+            // `bothSend` names its pre-apply row — which may be the row-level LWW
+            // loser.
+            //
+            // That understates the agreement rather than inventing one, and it
+            // heals itself: an entry naming the loser makes the next session plan
+            // `peerSends`/`iSend` again, and the `none` arm corrects the entry once
+            // both manifests agree on the winner. Reading the post-apply row here
+            // (setFromLocal) would instead record an edit made *after* the apply —
+            // the window this whole slice exists to close.
             setFromSent();
           }
         case SyncConvAction.iDelete:

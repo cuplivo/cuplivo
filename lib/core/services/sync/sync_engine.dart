@@ -1110,16 +1110,21 @@ class SyncEngine implements SyncServerHandler {
       // Only the skill bodies this push actually carries advertise a hash.
       final sentSkillIds =
           outgoingEntityIds[SyncDataPlane.skillWire] ?? const <String>{};
+      // The body hashes that travel with this payload. Named because the
+      // checkpoint entry for a skill has to name the hash the peer was *told*
+      // about, and a second read at advance time could describe a directory
+      // nobody advertised.
+      final pushedSkillHashes = {
+        for (final id in sentSkillIds)
+          if (mySkillHashes[id] != null) id: mySkillHashes[id]!,
+      };
       _setProgress(peer.deviceId, SyncSessionPhase.sending);
       final ack = await session.pushDelta(
         SyncDeltaBatch(
           outgoing,
           business: outgoingBusiness,
           assets: outgoingAssets,
-          skillHashes: {
-            for (final id in sentSkillIds)
-              if (mySkillHashes[id] != null) id: mySkillHashes[id]!,
-          },
+          skillHashes: pushedSkillHashes,
           workspaceFiles: advertised.tables,
         ),
       );
@@ -1353,6 +1358,8 @@ class SyncEngine implements SyncServerHandler {
         previous: previous,
         plan: businessPlan,
         sentKeys: sentBusiness,
+        sentBusiness: outgoingBusiness,
+        sentSkillHashes: pushedSkillHashes,
         receivedKeys: receivedBusiness,
         deletedKeys: deletedBusiness,
         failedDeleteKeys: failedBusinessDeletes,
@@ -2038,12 +2045,28 @@ class SyncEngine implements SyncServerHandler {
       // manifests agree (`none`).
       sendsConfirmed: false,
     );
+    // The skill body hashes that travel with the response, read once. The
+    // checkpoint entry for a skill has to name the hash the initiator was told
+    // about, and a second read further down would let a directory edit land
+    // between the two and record a hash no peer ever heard of.
+    final sentSkillIds = {
+      for (final row
+          in businessRead.payload.entities[SyncDataPlane.skillWire] ?? const [])
+        if (row['id'] is String) row['id'] as String,
+    };
+    final mySkillHashes = await dataPlane.skillDirHashes();
+    final responseSkillHashes = {
+      for (final id in sentSkillIds)
+        if (mySkillHashes[id] != null) id: mySkillHashes[id]!,
+    };
     final nextBusiness = await _advanceBusinessCheckpoint(
       previous: session.checkpoint,
       plan: session.businessPlan,
       // What this device actually packed into the response; a row the plan
       // promised but the read did not deliver stays at its previous entry.
       sentKeys: businessRead.keys,
+      sentBusiness: businessRead.payload,
+      sentSkillHashes: responseSkillHashes,
       receivedKeys: dataPlane.businessKeysOf(session.receivedBusiness),
       deletedKeys: deletedBusiness,
       failedDeleteKeys: failedBusinessDeletes,
@@ -2064,7 +2087,7 @@ class SyncEngine implements SyncServerHandler {
       plan: session.skillPlan,
       deferredSkills: session.deferredSkills,
       deletedSkills: deletedSkillIds,
-      localHashes: await dataPlane.skillDirHashes(),
+      localHashes: mySkillHashes,
     );
     // The response batch carries this side's blob manifest for exactly what it
     // is sending, so the initiator can pull the same way this device just did.
@@ -2073,12 +2096,6 @@ class SyncEngine implements SyncServerHandler {
       business: businessRead.payload,
     );
     _rememberPublished(responseAssets);
-    final sentSkillIds = {
-      for (final row
-          in businessRead.payload.entities[SyncDataPlane.skillWire] ?? const [])
-        if (row['id'] is String) row['id'] as String,
-    };
-    final mySkillHashes = await dataPlane.skillDirHashes();
     // Workspace content, this side of the fetch beat (slice 18). The walk is
     // fresh here — after the push beat's own transfers landed — because this
     // table is what tells the initiator what this device now holds: a stale one
@@ -2091,10 +2108,7 @@ class SyncEngine implements SyncServerHandler {
       outgoing,
       business: businessRead.payload,
       assets: responseAssets,
-      skillHashes: {
-        for (final id in sentSkillIds)
-          if (mySkillHashes[id] != null) id: mySkillHashes[id]!,
-      },
+      skillHashes: responseSkillHashes,
       workspaceFiles: advertised.tables,
     );
     await store.saveCheckpoint(
@@ -2571,6 +2585,13 @@ class SyncEngine implements SyncServerHandler {
     required Set<String> failedDeleteKeys,
     required Set<String> peerAdvertisedKeys,
     required Set<String> peerAcceptedKeys,
+
+    /// The payload this device packed for the peer, and the skill body hashes
+    /// that travelled with it. An entry for a row this device *sent* describes
+    /// that payload, not a re-read of what is here now — see
+    /// [SyncDataPlane.checkpointBusinessFromSent].
+    required SyncBusinessPayload sentBusiness,
+    Map<String, String> sentSkillHashes = const {},
     required bool applyDeferred,
     bool peerApplyDeferred = false,
     bool sendsConfirmed = true,
@@ -2600,11 +2621,9 @@ class SyncEngine implements SyncServerHandler {
       final peerHoldsRow =
           peerAcceptedKeys.contains(key) || peerAdvertisedKeys.contains(key);
 
-      Future<void> setFromLocal() async {
-        final entry = await dataPlane.checkpointBusinessFromLocal(
-          item.kindWire,
-          item.id,
-        );
+      /// Records [entry] as the agreement for this row, or drops it when the row
+      /// is gone from here.
+      void store(SyncCheckpointEntry? entry) {
         if (item.kindWire == kSyncPreferenceWire) {
           if (entry == null) {
             preferences.remove(item.id);
@@ -2641,6 +2660,33 @@ class SyncEngine implements SyncServerHandler {
         }
       }
 
+      /// The row is here and nobody sent it: `none`, or a peer row this device
+      /// just applied. Re-reading is correct because the local row *is* the
+      /// agreed state.
+      Future<void> setFromLocal() async {
+        store(
+          await dataPlane.checkpointBusinessFromLocal(item.kindWire, item.id),
+        );
+      }
+
+      /// The row travelled from here: the entry describes what crossed the wire.
+      ///
+      /// A payload that does not carry the row proves nothing arrived, so the
+      /// previous entry stays and the next session offers the row again.
+      void setFromSent() {
+        final entry = dataPlane.checkpointBusinessFromSent(
+          sent: sentBusiness,
+          kindWire: item.kindWire,
+          id: item.id,
+          directoryHash: sentSkillHashes[item.id],
+        );
+        if (entry == null) {
+          keepPrior();
+          return;
+        }
+        store(entry);
+      }
+
       switch (item.action) {
         case SyncConvAction.none:
           await setFromLocal();
@@ -2650,7 +2696,9 @@ class SyncEngine implements SyncServerHandler {
               peerHoldsRow &&
               !peerApplyDeferred &&
               !peerDeferredKeys.contains(key)) {
-            await setFromLocal();
+            // What the peer holds is what was pushed, which is not necessarily
+            // what the row says by the time this runs.
+            setFromSent();
           } else {
             keepPrior();
           }
@@ -2667,7 +2715,10 @@ class SyncEngine implements SyncServerHandler {
               !receivedKeys.contains(key)) {
             keepPrior();
           } else {
-            await setFromLocal();
+            // The payload was read after this beat's apply, so it already
+            // carries whichever side the row-level LWW left in place — the
+            // converged row is the one that travelled.
+            setFromSent();
           }
         case SyncConvAction.iDelete:
           if (failedDeleteKeys.contains(key)) {

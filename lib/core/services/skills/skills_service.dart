@@ -78,9 +78,19 @@ class SkillsService extends ChangeNotifier {
   }
 
   Future<void> _load() => _serializeMutation(() async {
+    final root = await _ensureRoot();
+    // Settle the plane's scratch **before** the records are read, not on the
+    // first sync session. Two states depend on that order:
+    //
+    // * a body an interrupted swap parked is the only copy this device has of a
+    //   skill whose record still describes it — `_rescan` below would drop that
+    //   record for want of a `SKILL.md` at the path the recovery fills;
+    // * a ghost directory an older build invented a record for is gone by the
+    //   time the records are read, so the record goes with it instead of listing
+    //   one broken skill for a launch.
+    await sweepSkillRootScratch(root);
     final assets = _bundledAssets;
     if (assets != null) {
-      final root = await _ensureRoot();
       for (final bundle in _bundledSkillFiles.entries) {
         await _seedBundledSkill(root, assets, bundle.key, bundle.value);
       }
@@ -291,6 +301,17 @@ class SkillsService extends ChangeNotifier {
     }
 
     for (final id in List<String>.from(records.keys)) {
+      // A record *named* like scratch is one an older build invented for the
+      // directory a swap parked — the loaded sweep reclaims that directory, and
+      // the record goes with it even when the directory could not be deleted
+      // (a file held open for the rest of the launch). Tested here as well as
+      // reclaimed there because the record outliving its directory is exactly
+      // the "directory-less row installs a broken skill" state.
+      if (isSyncScratchName(id)) {
+        await store.delete(ExtensionEntityStore.kindSkill, id);
+        records.remove(id);
+        continue;
+      }
       final md = File(p.join(root.path, id, 'SKILL.md'));
       if (!await md.exists()) {
         await store.delete(ExtensionEntityStore.kindSkill, id);

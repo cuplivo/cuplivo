@@ -150,9 +150,11 @@ contradicts one of them is a bug, not a preference.
   OS bookkeeping files (`.DS_Store`, `Thumbs.db`, `desktop.ini`) — a name the hash ignores but the
   extractor installs is a divergence the content clock can never see.
   **The clock's equivalence is the shape of its own input (指纹＝hash 输入的形状)**: the per-launch
-  memo reuses a hash only when the sorted `relpath\0size` lines and the newest mtime are unchanged,
-  so a rename, a move into a subdirectory or a swap of two names is visible — a file count and a
-  total size could not see any of them. A directory whose carried set is empty still has a body — the
+  memo reuses a hash only when the sorted `relpath\0size\0mtime` lines are unchanged — every file
+  carries its own stamp, so an edit in place moves its own file rather than having to be the newest
+  file in the body — and the paths are in those lines, so a rename, a move into a subdirectory or a
+  swap of two names is visible where a file count and a total size could see none of them. A
+  directory whose carried set is empty still has a body — the
   empty one — which the writer serves and the receiver applies, so the empty-body hash is never an
   unservable promise. A record whose
   body did not converge is **deferred**, never installed broken.
@@ -160,9 +162,13 @@ contradicts one of them is a bug, not a preference.
   recycle bin *with its record, as one entry*, at all three places a body leaves this device — the
   user's delete, a peer's delete, and the body a swap replaces — and a restore puts both halves back
   (the record stamped `now()`, like every other restore). Leaving a row-less directory behind is what
-  the rescan resurrects; leaving a directory-less record is the skill that cannot open. What a swap
-  leaves mid-flight (an interrupted staging directory, a parked body) is scratch, swept at startup and
-  never adopted.
+  the rescan resurrects; leaving a directory-less record is the skill that cannot open.
+  **What a swap leaves mid-flight is settled at startup, and recovering comes before reclaiming
+  (先还后扫)**: a parked body is **put back** at its skill's live path when that path is empty — it is
+  then the only copy of the body its record describes, so deleting it would lose the skill twice — and
+  reclaimed only when the replacement landed; the interrupted staging directory and the served-zip
+  cache are reclaimed. This runs before the records are read, and a record whose *name* is scratch is
+  dropped on that name, so a ghost an older build adopted cannot become a directory-less row.
 - **Blob rules**: a received file lands at the path its URI names (URIs are never rewritten —
   that would diverge the conversation digest); writes are confined to the managed asset roots;
   the serving side answers only hashes it published or has registered, and a path a peer names is

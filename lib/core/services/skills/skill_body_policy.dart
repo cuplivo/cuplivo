@@ -36,20 +36,64 @@ const String kParkedBodyMarker = '.sync-old-';
 String skillApplyScratchName(String skillId, int micros) =>
     '${kSyncScratchPrefix}apply-$skillId-$micros';
 
-/// The parked body of a swap: `.sync-old-<id>-<micros>`.
+/// The prefix of a parked body's name: `.sync-park-<id>-<micros>`.
+const String kParkedBodyPrefix = '${kSyncScratchPrefix}park-';
+
+/// The parked body of a swap: `.sync-park-<id>-<micros>`.
+///
+/// The id comes *first* here, unlike the form an older build wrote
+/// (`<id>.sync-old-<micros>`), so a reader that only knows the prefix cannot see
+/// the old spelling and a reader that knows the marker cannot see this one. Both
+/// are named by the same file and recognised by [isSyncScratchName].
 String skillParkedBodyName(String skillId, int micros) =>
-    '${kSyncScratchPrefix}park-$skillId-$micros';
+    '$kParkedBodyPrefix$skillId-$micros';
 
 /// The served-zip cache beside the bodies.
 const String kSkillBlobCacheName = '${kSyncScratchPrefix}blob-cache';
 
+/// Whether [name] carries the sync plane's scratch *prefix*.
+///
+/// The narrow facet, and the one a workspace reads: a workspace holds the user's
+/// own files, so its prune rule stays what it has always been — a name starting
+/// with `.sync-` is this plane's, and nothing else is. It must not inherit the
+/// skill root's parked-body spelling below, which is written *after* an id and
+/// which a user's file may perfectly well contain (`report.sync-old-v2.docx`).
+bool isSyncScratchPrefix(String name) => name.startsWith(kSyncScratchPrefix);
+
 /// Whether [name] is the sync plane's own scratch rather than content.
 ///
-/// The one recogniser. Both spellings exist on disk — the prefix one this build
-/// writes, and the parked one an older build left behind — and a reader that
-/// knew only the prefix is how a parked body became a skill.
+/// The recogniser for the skills root, where both spellings exist on disk: the
+/// prefix one this build writes, and the parked one an older build left behind.
+/// A reader that knew only the prefix is how a parked body became a skill.
 bool isSyncScratchName(String name) =>
-    name.startsWith(kSyncScratchPrefix) || name.contains(kParkedBodyMarker);
+    isSyncScratchPrefix(name) || name.contains(kParkedBodyMarker);
+
+/// The skill id a parked body's name encodes, or null when [name] is not one.
+///
+/// Both spellings end in a microsecond stamp, so the id is what survives taking
+/// the stamp off: `.sync-park-<id>-<micros>` drops the prefix, and
+/// `<id>.sync-old-<micros>` drops the marker and everything after it. Ids may
+/// themselves contain dashes (`my-skill-2`), which is why the stamp is taken
+/// from the last one and must be all digits.
+String? parkedBodySkillId(String name) {
+  final String rest;
+  if (name.startsWith(kParkedBodyPrefix)) {
+    rest = name.substring(kParkedBodyPrefix.length);
+  } else {
+    final at = name.lastIndexOf(kParkedBodyMarker);
+    if (at <= 0) return null;
+    rest = name.substring(0, at);
+  }
+  final cut = rest.lastIndexOf('-');
+  if (cut <= 0) return null;
+  final stamp = rest.substring(cut + 1);
+  if (stamp.isEmpty) return null;
+  for (final unit in stamp.codeUnits) {
+    if (unit < 0x30 || unit > 0x39) return null;
+  }
+  final id = rest.substring(0, cut);
+  return id.isEmpty ? null : id;
+}
 
 /// Whether a skill-directory entry rides the body.
 ///
@@ -149,27 +193,31 @@ final String kEmptySkillBodyHash = crypto.sha256
     .toString();
 
 /// What a memo compares before it reuses a hash.
-typedef SkillBodyFingerprint = ({String shape, int maxMtimeMs});
+typedef SkillBodyFingerprint = String;
 
-/// The shape of the hash input — the same sorted `relpath\0…` lines with the
-/// file digests taken out — plus the newest mtime.
+/// Every file's path, size and mtime, as one string the memo compares.
 ///
-/// The digests are the expensive half and the shape is what they are computed
-/// over, so an unchanged shape cannot have produced a different hash. Any
-/// operation that moves a path — a rename, a file into a subdirectory, a swap of
-/// two names — moves the shape, which is exactly what a count-and-size
-/// fingerprint could not see (F4: a script renamed to an equal-length name with
-/// its mtime untouched hashed to the old value for the rest of the launch). The
-/// mtime stays because a same-size edit in place changes neither path nor size.
+/// The digest is the expensive half and this is the input it is computed over,
+/// so an unchanged fingerprint cannot have produced a different hash — with one
+/// limit, the same one the workspace file plane documents: an edit that keeps
+/// both the size and the mtime, within the filesystem's own granularity, is
+/// invisible here.
+///
+/// The stamp is **per file**, not the newest mtime of the body. One maximum is a
+/// different statement and a weaker one: an edit lands at "now", so it takes that
+/// slot only if it is the newest file in the body, while any file dated ahead of
+/// it — copied with preserved timestamps, unpacked from an archive that carried
+/// them, written before a clock correction — leaves a same-size edit with an
+/// unchanged fingerprint, and the pre-edit hash for the rest of the launch. What
+/// the shape adds to the stamps is the paths: a rename or a move changes no
+/// file's size or mtime, and F4 is exactly that case.
 SkillBodyFingerprint fingerprintOfSkillBody(String dirPath) {
-  final lines = <String>[];
-  var maxMtime = 0;
-  for (final file in walkSkillBody(dirPath)) {
-    lines.add('${file.relPath}\u0000${file.size}');
-    if (file.mtimeMs > maxMtime) maxMtime = file.mtimeMs;
-  }
+  final lines = <String>[
+    for (final file in walkSkillBody(dirPath))
+      '${file.relPath}\u0000${file.size}\u0000${file.mtimeMs}',
+  ];
   lines.sort();
-  return (shape: lines.join('\n'), maxMtimeMs: maxMtime);
+  return lines.join('\n');
 }
 
 /// The body directory of [skillId] under [root], or null when the id is not a
@@ -188,16 +236,26 @@ Directory? skillBodyDirectory(Directory root, String skillId) {
   return Directory(dest);
 }
 
-/// Deletes the sync plane's scratch names that sit directly under [root] — the
-/// staging directory of an apply that was interrupted, the parked body of a swap
-/// that died between its renames, and the served-zip cache (reproducible from
-/// the live bodies).
+/// Settles the sync plane's scratch that sits directly under [root]: **recovers**
+/// what an interrupted swap left recoverable, then **reclaims** the rest — the
+/// staging directory of an apply that was interrupted and the served-zip cache
+/// (which is reproducible from the live bodies).
 ///
-/// The one owner of what may be swept, and deliberately narrow: direct children
-/// of the root only, matched by [isSyncScratchName] alone, nothing followed and
-/// no body walked into. A user's own directory that merely looks similar
-/// (`sync-notes`, `.sync-backup`) is not a scratch name and is never touched,
-/// which is the whole of the risk this sweep carries.
+/// The recovery is the part that cannot be skipped and the order is why. A
+/// parked body is the body of its skill, moved out of the live root by a swap
+/// that did not finish installing the replacement: the process died between the
+/// two renames, or the second rename and the put-back both failed. In that state
+/// `<root>/<id>` is empty and the parked directory is **the only copy of that
+/// skill's body** — so deleting it, and then letting the rescan drop the record
+/// for want of a `SKILL.md` at the path the recovery was about to fill, loses a
+/// skill twice over at the one moment this plane is looking for debris.
+///
+/// Otherwise (the live path exists, so the replacement landed) the parked copy is
+/// debris and goes. Nothing here guesses: direct children of the root only,
+/// matched by [isSyncScratchName] alone, a name that parses to a safe id or it is
+/// not a body, nothing followed and no body walked into. A user's own directory
+/// that merely looks similar (`sync-notes`, `.sync-backup`) is not a scratch name
+/// and is never touched, which is the whole of the risk this carries.
 Future<void> sweepSkillRootScratch(Directory root) async {
   final List<FileSystemEntity> children;
   try {
@@ -207,12 +265,39 @@ Future<void> sweepSkillRootScratch(Directory root) async {
     debugPrint('sync skill: could not list ${root.path} to sweep: $error');
     return;
   }
+  final debris = <FileSystemEntity>[];
   for (final entity in children) {
     if (!isSyncScratchName(p.basename(entity.path))) continue;
+    if (await _putBackParkedBody(root, entity)) continue;
+    debris.add(entity);
+  }
+  for (final entity in debris) {
     try {
       await entity.delete(recursive: true);
     } catch (error) {
       debugPrint('sync skill: sweeping ${entity.path} failed: $error');
     }
+  }
+}
+
+/// Puts [entity] back at the live path of the skill its name encodes, when that
+/// path is empty, and reports whether it did.
+///
+/// False means "not recovered" — not scratch, a live path that already has a
+/// body, a name that does not parse, or a rename that failed — and every one of
+/// those is the caller's cue to reclaim it.
+Future<bool> _putBackParkedBody(Directory root, FileSystemEntity entity) async {
+  final id = parkedBodySkillId(p.basename(entity.path));
+  if (id == null || entity is! Directory) return false;
+  final live = skillBodyDirectory(root, id);
+  if (live == null) return false;
+  try {
+    if (await live.exists()) return false;
+    await entity.rename(live.path);
+    debugPrint('sync skill: put the parked body ${entity.path} back as $id');
+    return true;
+  } catch (error) {
+    debugPrint('sync skill: could not put ${entity.path} back: $error');
+    return false;
   }
 }

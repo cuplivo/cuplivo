@@ -1,31 +1,32 @@
 # Changelog
 
-## [Unreleased]
+## [4.6.0] - 2026-11-09
 
 ### Added
 
-- **Backups Kelivo can read**: 「Backup target」 gains a Kelivo 1.3.4 option, which writes an archive that release can import. Group chats do not travel — their conversations stay as ordinary chats — and the option says so
+- **Markdown as a picture**: paste, import or drop Markdown and get both the preview and the exported image from Kelivo's own Markdown renderer — on desktop and mobile, from the same tools entry as translation (#1075 by @cup113)
+- **Assistants and group chats can be shown apart**: configurable in Settings › Assistants and group chats (#1074 by @cup113)
+- **A group chat's composer carries the quick entries**: control each member's search, reasoning, tools, quick phrases, skills, instruction injection and world book quickly and independently inside a group chat (#1081 by @cup113)
+- Multi-image viewing pages on a phone (#1067 by @cup113)
 
 ### Changed
 
-- The backup archive format moved from 3 to 4: an older build now refuses a new backup with a clear version error instead of failing part-way through a restore
-- **Backup file names follow the reader**: `cuplivo_backup_*.zip` for this build, `kelivo_backup_*.zip` for Kelivo 1.3.4. Both namings are still discovered and cleaned up, whichever version wrote them
+- **Re-based on Kelivo `master` at v1.3.4**: everything upstream has shipped since `v1.3.2` (by @Chevey339)
+  - The desktop sidebar
+  - A desktop layout that narrows into a compact one
+  - Image-context management
+  - Select-text quoting and translation (replacing Cuplivo's own implementation)
+  - Other features and fixes
+- The backup archive format moved from 3 to 4: a new backup cannot be imported by an older build (#1071 by @cup113)
+- **Backup file names follow the backup target**: `cuplivo_backup_*.zip` for this build, `kelivo_backup_*.zip` for Kelivo; both namings are still discovered and cleaned up, whichever version wrote them (#1078 by @cup113)
 
 ### Fixed
 
-- **A Cuplivo backup could not be imported into Kelivo at all**: the archive listed the `group_chats_v1` entity, which Kelivo 1.3.4 rejects outright — even for a user who never created a group
-- **Markdown image**: paste, import or drop Markdown and get one clean picture out of it — no conversation title, no model name, no timestamp. The sheet is drawn by the app's own Markdown renderer at the export's own width, the type size inside the picture is yours to pick (small / standard / large), and the desktop keeps the source beside the result while letting that source pane step aside when you only want to read it
-
-### Removed
-
-- **Message replies**: the QQ-style citation and its `<reply-to>` context injection are removed. Upstream's own in-app quotes answer the same need — select text, quote it into the composer, tap a quote to jump back to its source — so the app carries one quoting model instead of two ([ADR-0012](docs/adr/0012-message-reply-quote.md))
-- **The built-in KelivoIN provider**: the free service upstream seeded, and the credential it carried, are gone — with its four prefilled models and its special cases on every provider screen. A saved config pointing at a backend this line wrote by mistake (the retired `pollinations.ai` host, or the `api.cuplivoas.top` host an earlier rename left behind) is removed at startup, and any assistant or conversation still naming it falls back to its default model. A config on upstream's own host stays as an ordinary provider, editable and deletable ([ADR-0018](docs/adr/0018-remove-built-in-kelivoin.md))
-
-### Fixed
-
-- A file dropped on a desktop tab stays on that tab: a tab that is not on screen no longer registers a drop target, so the chat composer behind it cannot swallow the file, and it no longer keeps the keyboard focus either
-- A long pasted document still becomes one picture: past the pixel budget the sheet is drawn at a smaller whole ratio instead of failing, and the page says when that happened
-- The Markdown image preview draws Mermaid diagrams the way the exported file does, redraws the sheet once per pause in typing rather than on every keystroke and caret move, and the desktop rail no longer keeps its own copy of the tab order
+- **A Cuplivo backup could not be imported into Kelivo at all**: the export now has a Kelivo-compatible target, so the `group_chats_v1` entity Kelivo 1.3.4 rejects outright never reaches the archive — even for a user who never created a group (#1071 by @cup113)
+- **LAN sync lost what was switched on**: the per-assistant selections for instruction injection, world books and the like sync now, so context no longer changes by surprise (#1068 by @cup113)
+- **Switching between a group chat and an assistant**: New conversation no longer stays inside the group — it opens the chosen assistant's own chat — and a group's backdrop no longer keeps the previous assistant's artwork (#1069 by @cup113)
+- A group chat on a phone showed two "+" (#1072 by @cup113)
+- **Their letter could not arrive in time**: the background process and its notification are fixed (#1064 by @Pheobe-Southwood)
 
 ## [4.5.0] - 2026-11-01
 

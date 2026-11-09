@@ -493,13 +493,28 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
           businessPreferences: _businessPreferences,
           reloader: _reloader,
           // Skill bodies ride sync as directory blobs (slice 3); the root is
-          // the same one the skills service installs into.
+          // the same one the skills service installs into. A body a peer's
+          // version replaces is handed to the same bin the deletion paths use,
+          // so a swap is undoable like any other loss (ADR-0016).
           skillDirectories: SkillDirectorySync(
             await AppDirectories.getSkillsDirectory(),
+            preserveBody: (skillId, displaced) async {
+              final recycle = _recycle;
+              if (recycle == null) return false;
+              final entry = await recycle.stageSkillBody(
+                skillId: skillId,
+                source: displaced,
+                origin: RecycleOrigin.remote,
+                reason: RecycleReason.overwritten,
+              );
+              return entry != null;
+            },
           ),
           // Managed workspace folders ride as files (slice 18); the root
           // resolver is the same one the workspace provider hands the tools.
           workspaceContent: workspaceContent,
+          // A skill record a peer deletes takes its body into the bin with it.
+          recycle: _recycle,
         ),
         onStateChanged: _onEngineStateChanged,
         // A beat can mark a peer online (see [_onEngineProgressChanged]); a

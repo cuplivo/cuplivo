@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:archive/archive_io.dart';
 import 'package:path/path.dart' as p;
 
+import 'skill_body_policy.dart';
+
 const int kSkillImportMaxBytes = 200 * 1024 * 1024;
 const int kSkillImportMaxExtractedBytes = 500 * 1024 * 1024;
 
@@ -24,7 +26,13 @@ void extractSkillArchive(
     for (final file in archive) {
       if (!file.isFile || file.isSymbolicLink) continue;
       final name = safeZipEntryName(file.name);
-      if (name != null) entries[name] = file;
+      if (name == null) continue;
+      // The same policy the hash and the served zip read: a name that does not
+      // ride is not installed either, so the tree a peer's body becomes holds
+      // exactly what its hash counted — no scratch of ours, and none of the
+      // bookkeeping files that would make two identical bodies differ.
+      if (!name.split('/').every(carriesSkillEntry)) continue;
+      entries[name] = file;
     }
     if (entries.isEmpty) {
       throw const FormatException('zip contains no files');

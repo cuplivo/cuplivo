@@ -14,6 +14,7 @@ import '../../models/skill_record.dart';
 import 'github_skill_ref.dart';
 import 'skill.dart';
 import 'skill_archive.dart';
+import 'skill_body_policy.dart';
 import 'skill_frontmatter.dart';
 import 'skill_import_progress.dart';
 
@@ -272,7 +273,12 @@ class SkillsService extends ChangeNotifier {
     await for (final entity in root.list(followLinks: false)) {
       if (entity is! Directory) continue;
       final id = p.basename(entity.path);
-      if (id.isEmpty || id.startsWith('.')) continue;
+      // A dot-name is never a skill: it is this plane's own staging (`.import-`,
+      // `.bundled-`) or the sync plane's scratch. The scratch names are asked of
+      // the one policy that produces them, because the parked body of a swap is
+      // *not* a dot-name (`<id>.sync-old-<micros>`) and adopting it here is how
+      // a ghost skill outlived every session (F2).
+      if (id.isEmpty || id.startsWith('.') || isSyncScratchName(id)) continue;
       diskIds.add(id);
     }
 

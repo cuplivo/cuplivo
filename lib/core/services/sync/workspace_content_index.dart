@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../utils/app_directories.dart';
+import '../skills/skill_body_policy.dart';
 import 'sync_limits.dart';
 import 'sync_models.dart';
 
@@ -98,23 +99,27 @@ const Set<String> _prunedFileNames = {
   '.localized',
 };
 
-/// Every name starting with this is the sync plane's own scratch: staging
-/// directories and trashed bodies (see `SkillDirectorySync`, which reserves the
-/// same prefix). A workspace that carried them would sync its own transfer
-/// debris back and forth.
-const String _scratchPrefix = '.sync-';
+/// Every name the sync plane writes for itself is scratch, and the definition
+/// of what those names are lives with the skill body that produces them
+/// (`isSyncScratchName`). A workspace that carried them would sync its own
+/// transfer debris back and forth.
+///
+/// Read through the shared predicate rather than a prefix test of its own: the
+/// plane has parked a body *after* its skill id in the past, and a reader that
+/// knows only the prefix silently disagrees with the writer.
+bool _isScratch(String name) => isSyncScratchName(name.toLowerCase());
 
 /// Whether a directory named [name] carries its contents into sync.
 bool workspaceDirectoryCarries(String name) {
   final lower = name.toLowerCase();
-  if (lower.startsWith(_scratchPrefix)) return false;
+  if (_isScratch(lower)) return false;
   return !_prunedDirectoryNames.contains(lower);
 }
 
 /// Whether a file named [name] carries itself into sync.
 bool workspaceFileCarries(String name) {
   final lower = name.toLowerCase();
-  if (lower.startsWith(_scratchPrefix)) return false;
+  if (_isScratch(lower)) return false;
   return !_prunedFileNames.contains(lower);
 }
 

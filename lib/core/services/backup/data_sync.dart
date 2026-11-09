@@ -30,6 +30,7 @@ import '../../models/message_part.dart';
 import '../../models/conversation.dart';
 import '../chat/chat_service.dart';
 import '../storage/attachment_file_lock.dart';
+import '../sync/sync_store.dart';
 import '../migration/legacy_message_content_decoder.dart';
 import '../migration/legacy_record_sanitizer.dart';
 import '../../utils/multimodal_input_utils.dart';
@@ -345,6 +346,30 @@ class DataSync {
             operation,
             canResumeOnError: canResumeOnError,
           );
+  }
+
+  /// Announces a bulk replacement of the business row face to a LAN-sync pair.
+  ///
+  /// The row face has replacement paths of its own that never touch the
+  /// database bundle — a settings-only overwrite, and the legacy archive's
+  /// overwrite — so they never pass the restore cutover that drops sync state
+  /// for a replaced database ([RestoreBundleMover.resetSyncState]).
+  ///
+  /// Without this the per-peer checkpoints keep describing rows this device has
+  /// just replaced. A row the archive does not carry is then absent here while
+  /// the peer still holds the agreed version, and that is exactly the shape the
+  /// plan reads as `peerDeletes`: this device would order the peer to delete a
+  /// row nobody deleted here. Clearing the checkpoints turns the same absence
+  /// into `peerSends`, and the epoch bump is what tells the peer that a missing
+  /// row was never deleted — the two halves of one announcement, which is why
+  /// they are one call.
+  ///
+  /// The caller runs it inside the replacement's non-cancellable commit region,
+  /// so a cancelled restore cannot bump an epoch for a history that survives.
+  Future<void> _announceBulkReplacement() async {
+    await SyncStore.resetForBulkReplacement(
+      await AppDirectories.getSyncDirectory(),
+    );
   }
 
   Future<void> _prepareLiveRestoreBundle({
@@ -3570,6 +3595,9 @@ class DataSync {
                 entityRowIds: entityRowIds,
               ),
             );
+            // The row face was replaced wholesale, so the pair is owed the
+            // announcement a replaced database makes.
+            await _announceBulkReplacement();
             return;
           }
           final appDataPath = (await AppDirectories.getAppDataDirectory()).path;
@@ -3838,6 +3866,12 @@ class DataSync {
       if (restoreBusiness != null) {
         beginNonCancellableCommit();
         await _runLiveBusinessRestore(restoreBusiness);
+      }
+      // Every versioned overwrite returned above, so reaching here in overwrite
+      // mode means the legacy archive replaced chats and/or the whole business
+      // row face in place — the same bulk replacement, announced the same way.
+      if (mode == RestoreMode.overwrite) {
+        await _announceBulkReplacement();
       }
     } catch (error) {
       restoreError = error;

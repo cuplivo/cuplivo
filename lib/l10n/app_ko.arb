@@ -687,7 +687,7 @@
   "backupPageSave": "저장",
   "backupPageBackupNow": "지금 백업",
   "backupPageLocalBackup": "로컬 백업",
-  "backupPageIosSystemBackupNote": "Cuplivo의 로컬 데이터는 iCloud 기기 백업에 포함되지 않습니다. 기기를 변경하거나 앱을 삭제하기 전에 iCloud Drive 또는 Cuplivo 외부의 폴더에 백업하세요. '내 iPhone > Cuplivo'의 파일은 앱과 함께 삭제됩니다.",
+  "backupPageIosSystemBackupNote": "Cuplivo의 로컬 데이터는 iCloud 기기 백업에서 제외되도록 설정되어 있습니다. 기기를 변경하거나 앱을 삭제하기 전에 백업 파일을 내보내세요.",
   "backupPageImportFromCherryStudio": "Cherry Studio에서 가져오기",
   "backupPageCherryStudioUnsupportedBackupVersion": "이 백업은 Cherry Studio 형식 버전 {version}을(를) 사용하며, Cuplivo에서는 아직 가져올 수 없습니다. Cherry Studio v1에서 내보내거나 Cherry Studio v2 백업을 지원하는 Cuplivo 업데이트를 기다리세요.",
   "backupPageImportFromChatbox": "Chatbox에서 가져오기",

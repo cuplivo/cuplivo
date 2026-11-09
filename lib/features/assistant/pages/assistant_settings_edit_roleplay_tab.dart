@@ -276,10 +276,14 @@ class _AssistantSettingsEditRoleplayTabState
       _runSettingsAction('exactAlarm', () async {
         final state = await _settingsService.requestExactAlarm();
         if (!mounted || state != AndroidProactiveCareSettingState.ready) return;
+        final assistants = context.read<AssistantProvider>();
         final chatService = context.read<ChatService>();
+        await assistants.loaded;
+        if (!mounted) return;
         await ProactiveCareAlarmService.rescheduleAll(
           conversations: chatService.getAllConversations(),
-          assistants: context.read<AssistantProvider>().assistants,
+          assistants: assistants.assistants,
+          assistantStoreLoaded: assistants.isLoaded,
         );
       });
 

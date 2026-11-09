@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -150,7 +151,14 @@ void main() {
         );
         await filter('头像与背景');
         expect(find.text('共 2 项'), findsOneWidget);
-        final activeTile = find.byKey(ValueKey('storage-image-${active.path}'));
+        // The reported entry path is whatever `Directory.list` yields under
+        // the subdirectory `AppDirectories` names; only its tail is fixed.
+        final activeTile = find.byWidgetPredicate((widget) {
+          final key = widget.key;
+          return key is ValueKey<String> &&
+              key.value.endsWith(p.join('avatars', 'active.png'));
+        });
+        expect(activeTile, findsOneWidget);
         expect(
           find.descendant(of: activeTile, matching: find.byType(IosCheckbox)),
           findsNothing,

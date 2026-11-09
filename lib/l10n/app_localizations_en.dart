@@ -2269,7 +2269,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupPageIosSystemBackupNote =>
-      'Cuplivo\'s local data is excluded from iCloud device backups. Before changing devices or deleting the app, back up to iCloud Drive or another folder outside Cuplivo. Files in On My iPhone > Cuplivo are deleted with the app.';
+      'Cuplivo\'s local data is set to be excluded from iCloud device backups. Export a backup file before changing devices or deleting the app.';
 
   @override
   String get backupPageImportFromCherryStudio => 'Import from Cherry Studio';

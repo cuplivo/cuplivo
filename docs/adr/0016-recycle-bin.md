@@ -332,11 +332,6 @@ deleted, and would put "your deleted conversation" into a peer's storage.
 - Message-level, per-version or attachment-only recovery.
 - Staging the private attachment files of a composer draft (decision 11). Only the row travels; the files the
   delete removed are gone, and the references to them are dropped on the way back.
-- The proactive-care re-arm's reaction to a schedule whose owner is gone. Restoring a conversation whose
-  assistant no longer exists is one of the ways that state arises, and `rescheduleAll` refuses the app-wide
-  re-arm while any such schedule is still future-dated — a decision pinned by its own test. Separating "the
-  owner really is gone" from "the assistant store has not loaded" needs a change to that call's contract,
-  not to this bin.
 - Staging the files of a **workspace that is deleted** (`WorkspaceContentSync.deleteContent`). That is one
   act about a workspace, not N deletions of files: staging it would fill the caps with a single action and
   evict everything else in the bin, and the workspace's own row is staged through the ordinary entity path

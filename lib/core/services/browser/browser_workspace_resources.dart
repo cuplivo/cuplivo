@@ -187,7 +187,7 @@ class BrowserWorkspaceScope {
       throw const FormatException('Invalid workspace URL');
     }
     return Uri.parse(
-      normalized,
+      publicUrl,
     ).replace(scheme: android ? 'https' : 'kelivo', host: host);
   }
 
@@ -195,7 +195,7 @@ class BrowserWorkspaceScope {
       uri.host == host &&
       uri.userInfo.isEmpty &&
       !uri.hasPort &&
-      (uri.scheme == 'cuplivo' || uri.scheme == 'https');
+      (uri.scheme == 'kelivo' || uri.scheme == 'https');
 
   String publicUrl(String value) {
     final uri = Uri.tryParse(value);

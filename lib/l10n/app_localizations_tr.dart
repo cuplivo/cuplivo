@@ -2283,7 +2283,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backupPageIosSystemBackupNote =>
-      'Cuplivo\'nun yerel verileri iCloud cihaz yedeklemelerine dahil edilmez. Cihaz değiştirmeden veya uygulamayı silmeden önce iCloud Drive\'a ya da Cuplivo dışında bir klasöre yedekleyin. \"iPhone\'um > Cuplivo\" içindeki dosyalar uygulamayla birlikte silinir.';
+      'Cuplivo\'nun yerel verileri iCloud cihaz yedeklemelerinden hariç tutulacak şekilde ayarlanmıştır. Cihaz değiştirmeden veya uygulamayı silmeden önce bir yedek dosyası dışa aktarın.';
 
   @override
   String get backupPageImportFromCherryStudio => 'Cherry Studio\'dan İçe Aktar';

@@ -687,7 +687,7 @@
   "backupPageSave": "Kaydet",
   "backupPageBackupNow": "Şimdi Yedekle",
   "backupPageLocalBackup": "Yerel Yedek",
-  "backupPageIosSystemBackupNote": "Cuplivo'nun yerel verileri iCloud cihaz yedeklemelerine dahil edilmez. Cihaz değiştirmeden veya uygulamayı silmeden önce iCloud Drive'a ya da Cuplivo dışında bir klasöre yedekleyin. \"iPhone'um > Cuplivo\" içindeki dosyalar uygulamayla birlikte silinir.",
+  "backupPageIosSystemBackupNote": "Cuplivo'nun yerel verileri iCloud cihaz yedeklemelerinden hariç tutulacak şekilde ayarlanmıştır. Cihaz değiştirmeden veya uygulamayı silmeden önce bir yedek dosyası dışa aktarın.",
   "backupPageImportFromCherryStudio": "Cherry Studio'dan İçe Aktar",
   "backupPageCherryStudioUnsupportedBackupVersion": "Bu yedek, Cuplivo'nun henüz içe aktaramadığı Cherry Studio biçim sürümü {version} kullanıyor. Bunun yerine Cherry Studio v1'den dışa aktarın veya Cherry Studio v2 yedeklerini destekleyen bir Cuplivo güncellemesini bekleyin.",
   "backupPageImportFromChatbox": "Chatbox'tan İçe Aktar",

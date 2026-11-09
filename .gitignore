@@ -70,6 +70,7 @@ internationalization.md
 /.agents/
 /skills-lock.json
 /.scratch/
+/.worktrees/
 /.grok/
 # Local tool-bridge state: job logs and the known-failure registry.
 /.toolbridge/
@@ -80,7 +81,16 @@ internationalization.md
 
 # Local Markdown visual baselines and comparison reports
 /test_goldens/out/
+# flutter_test writes a case's master/test/diff images here when a golden fails.
+/test/goldens/failures/
 
 # MCP/tools UI screenshots stay local, outside the tracked test suite.
 /test/goldens/baselines/mcp_*.png
 /test/goldens/baselines/tools_*.png
+# Flutter-generated files inside vendored plugin examples
+/dependencies/*/example/**/ephemeral/
+/dependencies/*/example/**/local.properties
+/dependencies/*/example/**/GeneratedPluginRegistrant.*
+/dependencies/*/example/**/flutter_export_environment.sh
+/dependencies/*/example/**/.plugin_symlinks/
+/macos/Flutter/GeneratedPluginRegistrant.swift

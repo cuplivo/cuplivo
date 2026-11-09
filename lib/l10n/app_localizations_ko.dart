@@ -2228,7 +2228,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupPageIosSystemBackupNote =>
-      'Cuplivo의 로컬 데이터는 iCloud 기기 백업에 포함되지 않습니다. 기기를 변경하거나 앱을 삭제하기 전에 iCloud Drive 또는 Cuplivo 외부의 폴더에 백업하세요. \'내 iPhone > Cuplivo\'의 파일은 앱과 함께 삭제됩니다.';
+      'Cuplivo의 로컬 데이터는 iCloud 기기 백업에서 제외되도록 설정되어 있습니다. 기기를 변경하거나 앱을 삭제하기 전에 백업 파일을 내보내세요.';
 
   @override
   String get backupPageImportFromCherryStudio => 'Cherry Studio에서 가져오기';

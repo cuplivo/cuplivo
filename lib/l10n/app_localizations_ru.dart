@@ -2307,7 +2307,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get backupPageIosSystemBackupNote =>
-      'Локальные данные Cuplivo не включаются в резервные копии устройств iCloud. Перед сменой устройства или удалением приложения сохраните резервную копию в iCloud Drive или другую папку вне Cuplivo. Файлы в «На моём iPhone > Cuplivo» удаляются вместе с приложением.';
+      'Локальные данные Cuplivo настроены так, чтобы не попадать в резервные копии устройств iCloud. Перед сменой устройства или удалением приложения экспортируйте файл резервной копии.';
 
   @override
   String get backupPageImportFromCherryStudio => 'Импорт из Cherry Studio';

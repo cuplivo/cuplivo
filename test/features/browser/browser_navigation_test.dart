@@ -18,6 +18,8 @@ class _Paths extends PathProviderPlatform {
   final String path;
   @override
   Future<String?> getApplicationSupportPath() async => path;
+  @override
+  Future<String?> getApplicationDocumentsPath() async => path;
 }
 
 // Store writes started by a pumped debounce timer continue in the fake zone.
@@ -40,6 +42,9 @@ Future<void> _flushBrowser(WidgetTester tester, BrowserService browser) async {
 void main() {
   testWidgets(
     'card tab is selected for dock and full page; closed tab falls back',
+    // Mounts the real page and its singleton service, which has no engine on
+    // Linux (what pr-check runs on) — see BrowserService.platformSupported.
+    skip: !BrowserService.platformSupported,
     (tester) async {
       final oldPaths = PathProviderPlatform.instance;
       late Directory directory;

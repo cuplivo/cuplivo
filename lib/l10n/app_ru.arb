@@ -687,7 +687,7 @@
   "backupPageSave": "Сохранить",
   "backupPageBackupNow": "Создать резервную копию",
   "backupPageLocalBackup": "Локальная резервная копия",
-  "backupPageIosSystemBackupNote": "Локальные данные Cuplivo не включаются в резервные копии устройств iCloud. Перед сменой устройства или удалением приложения сохраните резервную копию в iCloud Drive или другую папку вне Cuplivo. Файлы в «На моём iPhone > Cuplivo» удаляются вместе с приложением.",
+  "backupPageIosSystemBackupNote": "Локальные данные Cuplivo настроены так, чтобы не попадать в резервные копии устройств iCloud. Перед сменой устройства или удалением приложения экспортируйте файл резервной копии.",
   "backupPageImportFromCherryStudio": "Импорт из Cherry Studio",
   "backupPageCherryStudioUnsupportedBackupVersion": "Эта резервная копия использует версию формата Cherry Studio {version}, которую Cuplivo пока не может импортировать. Экспортируйте резервную копию из Cherry Studio v1 или дождитесь обновления Cuplivo с поддержкой резервных копий Cherry Studio v2.",
   "backupPageImportFromChatbox": "Импорт из Chatbox",

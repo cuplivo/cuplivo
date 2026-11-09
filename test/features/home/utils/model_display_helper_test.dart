@@ -152,6 +152,28 @@ void main() {
     expect(resolved.modelId, 'conversation-model');
   });
 
+  test('a group topic ignores a pinned conversation model', () async {
+    await settings.setPerChatModelEnabled(true);
+
+    // A group writes every reply with its speaker's own model, so a pin on the
+    // topic cannot mean anything — including one left over from before the
+    // conversation became a topic.
+    final resolved = resolveChatModel(
+      settings,
+      conversation: conversationWithModel(
+        providerKey: 'ConversationProvider',
+        modelId: 'conversation-model',
+      ).withGroupChatId('g1'),
+      assistant: assistantWithModel(
+        providerKey: 'AssistantProvider',
+        modelId: 'assistant-model',
+      ),
+    );
+
+    expect(resolved.providerKey, 'AssistantProvider');
+    expect(resolved.modelId, 'assistant-model');
+  });
+
   test('getActiveModelIds and getModelDisplayInfo agree with it', () async {
     await settings.setPerChatModelEnabled(true);
 

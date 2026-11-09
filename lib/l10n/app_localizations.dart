@@ -4924,6 +4924,18 @@ abstract class AppLocalizations {
   /// **'Image OCR'**
   String get bottomToolsSheetOcr;
 
+  /// No description provided for @chatToolsEmptyModelCannotUseTools.
+  ///
+  /// In en, this message translates to:
+  /// **'This member\'s model cannot call tools.'**
+  String get chatToolsEmptyModelCannotUseTools;
+
+  /// No description provided for @chatToolsEmptyNoToolsEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'This member has no tools switched on.'**
+  String get chatToolsEmptyNoToolsEnabled;
+
   /// Title and tooltip for the 'more actions' menu on a message or scheduled task tile.
   ///
   /// In en, this message translates to:

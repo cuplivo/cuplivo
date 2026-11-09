@@ -10,6 +10,8 @@ import 'package:Cuplivo/core/models/conversation_mcp_settings.dart';
 import '../utils/ensure_conversation.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
 import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/home/utils/model_display_helper.dart';
 import 'package:Cuplivo/core/providers/workspace_provider.dart';
 import 'package:Cuplivo/core/models/workspace_binding.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
@@ -18,6 +20,7 @@ import 'package:Cuplivo/features/home/services/local_tool_labels.dart';
 import 'package:Cuplivo/features/home/services/local_tool_toggle.dart';
 import 'package:Cuplivo/features/home/services/local_tools_service.dart';
 import 'package:Cuplivo/features/workspace/widgets/workspace_section.dart';
+import '../utils/tools_summary.dart';
 import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/shared/widgets/ios_switch.dart';
@@ -26,6 +29,7 @@ import 'package:Cuplivo/theme/app_font_weights.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 import 'tools_sheet_row.dart';
+import '../../group_chat/widgets/group_member_strip.dart';
 import '../../mcp/widgets/mcp_server_avatar.dart';
 import '../../mcp/utils/mcp_tool_groups.dart';
 
@@ -36,6 +40,8 @@ Future<void> showChatToolsSheet(
   BuildContext context, {
   required String assistantId,
   String? conversationId,
+  bool Function(String providerKey, String modelId)? modelSupportsTools,
+  List<Assistant>? members,
 }) async {
   if (context
           .read<AssistantProvider>()
@@ -59,6 +65,8 @@ Future<void> showChatToolsSheet(
     builder: (sheetContext) => ChatToolsSheet(
       assistantId: assistantId,
       conversationId: conversationId,
+      members: members,
+      modelSupportsTools: modelSupportsTools,
       onClose: () => Navigator.of(sheetContext).maybePop(),
     ),
   );
@@ -70,11 +78,24 @@ class ChatToolsSheet extends StatefulWidget {
     required this.assistantId,
     this.conversationId,
     this.onClose,
+    this.members,
+    this.modelSupportsTools,
   });
 
   final String assistantId;
   final String? conversationId;
   final VoidCallback? onClose;
+
+  /// Non-null in a group chat: the roster whose member the strip selects. The
+  /// three groups below then edit that member's tools, not the composer's
+  /// current assistant.
+  final List<Assistant>? members;
+
+  /// The composer's capability check. A group reaches this sheet for the whole
+  /// roster, so it has to ask about the member the strip shows: a model that
+  /// cannot call tools is offered none. Null in a 1:1 chat, where the composer
+  /// only opens this sheet for a model that can.
+  final bool Function(String providerKey, String modelId)? modelSupportsTools;
 
   static const Key localGroupKey = ValueKey<String>('chat-tools-group-local');
   static const Key mcpGroupKey = ValueKey<String>('chat-tools-group-mcp');
@@ -108,6 +129,43 @@ class _ChatToolsSheetState extends State<ChatToolsSheet> {
       .read<BusinessPreferences>();
   late final Set<_ToolsGroupId> _expanded = _readExpanded();
 
+  String? _selectedId;
+
+  /// The member these groups write to: the strip's selection in a group, and
+  /// the assistant the composer is on otherwise.
+  String get _targetId {
+    final members = widget.members;
+    if (members == null || members.isEmpty) return widget.assistantId;
+    final id = _selectedId ?? widget.assistantId;
+    return members.any((member) => member.id == id) ? id : members.first.id;
+  }
+
+  /// The conversation whose MCP override counts for [member], when that member
+  /// allows one.
+  Conversation? _conversationFor(Assistant member) {
+    final id = widget.conversationId;
+    if (id == null || !member.allowConversationMcp) return null;
+    return context.read<ChatService>().getConversation(id);
+  }
+
+  /// Whether the member on show can call tools at all. A 1:1 chat only opens
+  /// this sheet for such a model; a group opens it for the roster, so it asks
+  /// per selected member — the same gate the desktop popover applies.
+  bool _toolsAllowed() {
+    final supportsTools = widget.modelSupportsTools;
+    if (supportsTools == null) return true;
+    final settings = context.watch<SettingsProvider>();
+    final member = context.select<AssistantProvider, Assistant?>(
+      (provider) => provider.getById(_targetId),
+    );
+    if (member == null) return false;
+    final model = resolveChatModel(settings, assistant: member);
+    final providerKey = model.providerKey;
+    final modelId = model.modelId;
+    if (providerKey == null || (modelId ?? '').isEmpty) return false;
+    return supportsTools(providerKey, modelId!);
+  }
+
   Set<_ToolsGroupId> _readExpanded() {
     final stored = _preferences.getStringList(_expandedGroupsKey);
     if (stored == null) return <_ToolsGroupId>{..._defaultExpandedGroups};
@@ -135,6 +193,10 @@ class _ChatToolsSheetState extends State<ChatToolsSheet> {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     final maxHeight = MediaQuery.sizeOf(context).height * 0.8;
+    final toolsAllowed = _toolsAllowed();
+    final hasToolRows =
+        availableLocalToolIds().isNotEmpty ||
+        context.watch<McpProvider>().connectedServers.isNotEmpty;
 
     return SafeArea(
       top: false,
@@ -166,6 +228,31 @@ class _ChatToolsSheetState extends State<ChatToolsSheet> {
               ),
             ),
             const SizedBox(height: 4),
+            if (widget.members case final members? when members.length > 1)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: GroupMemberStrip(
+                  members: members,
+                  selectedId: _targetId,
+                  onSelect: (member) => setState(() => _selectedId = member.id),
+                  // What this panel is about, per member: how many of the tools
+                  // they could switch on they have on.
+                  valueBuilder: (member) {
+                    final summary = memberToolSummary(
+                      member,
+                      conversation: _conversationFor(member),
+                      connectedServerIds: [
+                        for (final server
+                            in context.watch<McpProvider>().connectedServers)
+                          server.id,
+                      ],
+                    );
+                    return summary.enabled == 0
+                        ? null
+                        : Text('${summary.enabled}/${summary.total}');
+                  },
+                ),
+              ),
             Flexible(
               child: AnimatedSize(
                 duration: const Duration(milliseconds: 200),
@@ -179,22 +266,43 @@ class _ChatToolsSheetState extends State<ChatToolsSheet> {
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                       sliver: SliverMainAxisGroup(
                         slivers: [
-                          SliverToBoxAdapter(
-                            child: _LocalToolsGroup(
-                              assistantId: widget.assistantId,
-                              expanded: _expanded.contains(_ToolsGroupId.local),
-                              onToggle: () => _toggleGroup(_ToolsGroupId.local),
+                          // A model that cannot call tools offers none — the
+                          // same gate the desktop popover applies to the member
+                          // it shows. The workspace group below is the
+                          // conversation's, not the member's.
+                          if (!toolsAllowed)
+                            SliverToBoxAdapter(
+                              child: _EmptyToolsNote(
+                                text: l10n.chatToolsEmptyModelCannotUseTools,
+                              ),
+                            )
+                          else if (!hasToolRows)
+                            SliverToBoxAdapter(
+                              child: _EmptyToolsNote(
+                                text: l10n.chatToolsEmptyNoToolsEnabled,
+                              ),
+                            )
+                          else ...[
+                            SliverToBoxAdapter(
+                              child: _LocalToolsGroup(
+                                assistantId: _targetId,
+                                expanded: _expanded.contains(
+                                  _ToolsGroupId.local,
+                                ),
+                                onToggle: () =>
+                                    _toggleGroup(_ToolsGroupId.local),
+                              ),
                             ),
-                          ),
-                          _McpGroup(
-                            assistantId: widget.assistantId,
-                            conversationId: widget.conversationId,
-                            expanded: _expanded.contains(_ToolsGroupId.mcp),
-                            onToggle: () => _toggleGroup(_ToolsGroupId.mcp),
-                          ),
+                            _McpGroup(
+                              assistantId: _targetId,
+                              conversationId: widget.conversationId,
+                              expanded: _expanded.contains(_ToolsGroupId.mcp),
+                              onToggle: () => _toggleGroup(_ToolsGroupId.mcp),
+                            ),
+                          ],
                           SliverToBoxAdapter(
                             child: _WorkspaceGroup(
-                              assistantId: widget.assistantId,
+                              assistantId: _targetId,
                               conversationId: widget.conversationId,
                               expanded: _expanded.contains(
                                 _ToolsGroupId.workspace,
@@ -212,6 +320,31 @@ class _ChatToolsSheetState extends State<ChatToolsSheet> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One line where a group of rows would be: the member on show has nothing to
+/// switch on, and an empty panel would not say whether that is the model or the
+/// configuration.
+class _EmptyToolsNote extends StatelessWidget {
+  const _EmptyToolsNote({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 13,
+          height: 1.35,
+          color: cs.onSurface.withValues(alpha: 0.6),
         ),
       ),
     );

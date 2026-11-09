@@ -64,6 +64,9 @@ import '../../chat/utils/ensure_conversation.dart';
 import '../../chat/widgets/context_management_sheet.dart';
 import '../../chat/widgets/reasoning_level_sheet.dart';
 import '../../search/widgets/search_settings_sheet.dart';
+import '../../group_chat/widgets/group_reasoning_sheet.dart';
+import '../../../core/models/assistant.dart';
+import '../../../core/models/group_chat.dart';
 import '../../chat/widgets/frosted/chat_frosted_backdrop.dart';
 import '../../chat/widgets/chat_assistant_background.dart';
 import '../../model/widgets/model_select_sheet.dart';
@@ -760,23 +763,24 @@ class _HomePageState extends State<HomePage>
     _controller.setCompactDesktopLayout(
       desktop && width < AppBreakpoints.tablet,
     );
-    if (desktop || width >= AppBreakpoints.tablet) {
-      return _buildTabletLayout(
-        context,
-        title: title,
-        providerName: modelInfo.providerName,
-        modelDisplay: modelInfo.modelDisplay,
-        cs: cs,
-      );
-    }
-
     // A group topic has no single model to name, so the header carries only the
-    // topic title.
+    // topic title — on every layout. The capsule is the desktop/tablet model
+    // picker, and picking one there would pin a topic whose replies come from
+    // the roster.
     final isGroup =
         context.watch<GroupChatProvider>().forConversation(
           _controller.currentConversation,
         ) !=
         null;
+    if (desktop || width >= AppBreakpoints.tablet) {
+      return _buildTabletLayout(
+        context,
+        title: title,
+        providerName: isGroup ? null : modelInfo.providerName,
+        modelDisplay: isGroup ? null : modelInfo.modelDisplay,
+        cs: cs,
+      );
+    }
 
     return _buildMobileLayout(
       context,
@@ -1307,6 +1311,10 @@ class _HomePageState extends State<HomePage>
       showUserAvatar: settings.showUserAvatar,
       showTokenStats: settings.showTokenStats,
       assistant: assistant,
+      // Who wrote each reply: a group topic names its speaker on every message,
+      // and without the roster the list resolves no author and labels every
+      // member reply "deleted assistant".
+      assistants: context.watch<AssistantProvider>(),
       onVersionChange: (groupId, version) async {
         await _controller.setSelectedVersion(groupId, version);
       },
@@ -1436,11 +1444,16 @@ class _HomePageState extends State<HomePage>
           anchorKey: _inputBarKey,
           conversationId: id,
           assistant: assistant,
+          members: _panelMembers(),
         );
       },
       onOpenTools: () {
         final a = context.read<AssistantProvider>().currentAssistant;
         if (a == null) return;
+        final toolsGroup = _currentGroup();
+        final toolsMembers = toolsGroup == null
+            ? null
+            : _membersOfGroup(toolsGroup);
         if (PlatformUtils.isDesktop) {
           showDesktopToolsPopover(
             context,
@@ -1454,6 +1467,12 @@ class _HomePageState extends State<HomePage>
                   chatModel.providerKey!,
                   chatModel.modelId!,
                 ),
+            // A group judges capability per member, through the same check the
+            // composer uses; a 1:1 chat has only the model above.
+            modelSupportsTools: toolsMembers == null
+                ? null
+                : _controller.isToolModel,
+            members: toolsMembers,
           );
         } else {
           _controller.dismissKeyboard();
@@ -1461,6 +1480,10 @@ class _HomePageState extends State<HomePage>
             context,
             assistantId: a.id,
             conversationId: _controller.currentConversation?.id,
+            modelSupportsTools: toolsMembers == null
+                ? null
+                : _controller.isToolModel,
+            members: toolsMembers,
           );
         }
       },
@@ -1729,7 +1752,56 @@ class _HomePageState extends State<HomePage>
         assistant: context.read<AssistantProvider>().currentAssistant,
       );
 
+  /// The roster of [group], resolved to live assistants. Members whose
+  /// assistant was deleted are skipped, exactly as the composer skips them.
+  List<Assistant> _membersOfGroup(GroupChat group) {
+    final ap = context.read<AssistantProvider>();
+    return [
+      for (final id in group.memberIds)
+        if (ap.getById(id) case final assistant?) assistant,
+    ];
+  }
+
+  GroupChat? _currentGroup() => context
+      .read<GroupChatProvider>()
+      .forConversation(_controller.currentConversation);
+
+  /// The roster for a panel that edits one member at a time, or null in a 1:1
+  /// chat, where the panel keeps its single-assistant shape.
+  List<Assistant>? _panelMembers() {
+    final group = _currentGroup();
+    if (group == null) return null;
+    final members = _membersOfGroup(group);
+    return members.isEmpty ? null : members;
+  }
+
   void _openSearchSettings() {
+    final group = _currentGroup();
+    if (group != null) {
+      final members = _membersOfGroup(group);
+      if (members.isEmpty) return;
+      if (PlatformUtils.isDesktop) {
+        // The popover resolves each member's own model once it has the roster;
+        // the composer's model keys are deliberately left out for a group.
+        showDesktopSearchProviderPopover(
+          context,
+          anchorKey: _inputBarKey,
+          members: members,
+          initialAssistantId: context
+              .read<AssistantProvider>()
+              .currentAssistantId,
+        );
+      } else {
+        showSearchSettingsSheet(
+          context,
+          members: members,
+          initialAssistantId: context
+              .read<AssistantProvider>()
+              .currentAssistantId,
+        );
+      }
+      return;
+    }
     final model = _resolvedChatModel();
     if (PlatformUtils.isDesktop) {
       showDesktopSearchProviderPopover(
@@ -1769,6 +1841,32 @@ class _HomePageState extends State<HomePage>
   }
 
   Future<void> _openReasoningSettings() async {
+    final group = _currentGroup();
+    if (group != null) {
+      final members = _membersOfGroup(group);
+      if (members.isEmpty) return;
+      final current = context.read<AssistantProvider>().currentAssistant;
+      if (PlatformUtils.isDesktop) {
+        // No model check here: the popover names no model of its own, it reads
+        // each member's once the strip selects one. A group whose members all
+        // have models therefore opens even when the composer's own assistant
+        // has none — the mobile sheet has always behaved that way.
+        await showDesktopGroupReasoningPopover(
+          context,
+          anchorKey: _inputBarKey,
+          members: members,
+          initialAssistantId: current?.id,
+        );
+      } else {
+        await showGroupReasoningSheet(
+          context,
+          members: members,
+          supportsReasoning: _controller.isReasoningModel,
+          initialAssistantId: current?.id,
+        );
+      }
+      return;
+    }
     final model = _resolvedChatModel();
     final providerKey = model.providerKey;
     final modelId = model.modelId;
@@ -1814,12 +1912,16 @@ class _HomePageState extends State<HomePage>
     final items = provider.items;
     if (items.isEmpty) return;
 
+    final members = _panelMembers();
+    // A group decides the scope per member inside the panel, so the conversation
+    // has to exist either way.
     final scoped =
-        context
-            .read<AssistantProvider>()
-            .currentAssistant
-            ?.allowConversationPromptInjection ??
-        false;
+        members != null ||
+        (context
+                .read<AssistantProvider>()
+                .currentAssistant
+                ?.allowConversationPromptInjection ??
+            false);
     final scopeId = scoped
         ? await ensureConversationId(
             context,
@@ -1835,6 +1937,7 @@ class _HomePageState extends State<HomePage>
         items: items,
         assistantId: assistantId,
         conversationId: scopeId,
+        members: members,
       );
     } else {
       await showInstructionInjectionSheet(
@@ -1854,12 +1957,14 @@ class _HomePageState extends State<HomePage>
     final books = provider.books;
     if (books.isEmpty) return;
 
+    final members = _panelMembers();
     final scoped =
-        context
-            .read<AssistantProvider>()
-            .currentAssistant
-            ?.allowConversationPromptInjection ??
-        false;
+        members != null ||
+        (context
+                .read<AssistantProvider>()
+                .currentAssistant
+                ?.allowConversationPromptInjection ??
+            false);
     final scopeId = scoped
         ? await ensureConversationId(
             context,
@@ -1875,6 +1980,7 @@ class _HomePageState extends State<HomePage>
         books: books,
         assistantId: assistantId,
         conversationId: scopeId,
+        members: members,
       );
     } else {
       await showWorldBookSheet(
@@ -1892,6 +1998,8 @@ class _HomePageState extends State<HomePage>
   void _toggleTools() async {
     _controller.dismissKeyboard();
     final assistantId = context.read<AssistantProvider>().currentAssistantId;
+    final group = _currentGroup();
+    final members = group == null ? null : _membersOfGroup(group);
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1924,6 +2032,7 @@ class _HomePageState extends State<HomePage>
                 },
                 assistantId: assistantId,
                 conversationId: _controller.currentConversation?.id,
+                members: members,
                 onClose: () => Navigator.of(ctx).maybePop(),
               ),
             );
@@ -2114,12 +2223,26 @@ class _HomePageState extends State<HomePage>
   Future<void> _showQuickPhraseMenu() async {
     final assistant = context.read<AssistantProvider>().currentAssistant;
     final quickPhraseProvider = context.read<QuickPhraseProvider>();
-    final globalPhrases = quickPhraseProvider.globalPhrases;
-    final assistantPhrases = assistant != null
-        ? quickPhraseProvider.getForAssistant(assistant.id)
-        : <QuickPhrase>[];
+    // In a group the entry exists because any member has a phrase, so the menu
+    // must be built from that same union: the composer's "current assistant" is
+    // not necessarily a member, and it is not who the button speaks for.
+    final group = _currentGroup();
+    final owners = <Assistant>[
+      if (group != null)
+        ..._membersOfGroup(group)
+      else if (assistant != null)
+        assistant,
+    ];
 
-    final allAvailable = [...globalPhrases, ...assistantPhrases];
+    final seen = <String>{};
+    final allAvailable = <QuickPhrase>[
+      for (final phrase in [
+        ...quickPhraseProvider.globalPhrases,
+        for (final owner in owners)
+          ...quickPhraseProvider.getForAssistant(owner.id),
+      ])
+        if (seen.add(phrase.content)) phrase,
+    ];
     if (allAvailable.isEmpty) return;
 
     final RenderBox? inputBox =

@@ -114,6 +114,27 @@ void main() {
     );
 
     expect(find.text('Aria'), findsOneWidget);
+    // The roster reached the list, so the author resolves and is not read as a
+    // deleted assistant — the label #1052 shipped for every group reply.
+    final l10n = AppLocalizations.of(tester.element(find.byType(Scaffold)))!;
+    expect(find.text(l10n.groupChatRemovedMember), findsNothing);
+  });
+
+  testWidgets('an author outside the roster keeps the deleted label', (
+    tester,
+  ) async {
+    final members = await roster();
+    await pumpReply(
+      tester,
+      assistants: members.provider,
+      selected: members.optedIn,
+      // Never added to the provider: exactly what a deleted member looks like.
+      author: const Assistant(id: 'gone', name: 'Gone'),
+    );
+
+    final l10n = AppLocalizations.of(tester.element(find.byType(Scaffold)))!;
+    expect(find.text(l10n.groupChatRemovedMember), findsOneWidget);
+    expect(find.text('Gone'), findsNothing);
   });
 
   testWidgets('a member who never opted in is not given a name', (

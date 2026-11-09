@@ -1,4 +1,5 @@
 import '../utils/prompt_injection_selection.dart';
+import '../../group_chat/widgets/group_member_strip.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -47,6 +48,7 @@ class BottomToolsSheet extends StatelessWidget {
     this.assistantId,
     this.conversationId,
     this.onClose,
+    this.members,
   });
 
   final VoidCallback? onCamera;
@@ -57,6 +59,11 @@ class BottomToolsSheet extends StatelessWidget {
   final String? assistantId;
   final String? conversationId;
   final VoidCallback? onClose;
+
+  /// Non-null in a group chat: the roster the panel's assistant-scoped rows
+  /// (skills, instruction injection, world book) edit. Without it those rows
+  /// keep following [assistantId], which is what a 1:1 chat means.
+  final List<Assistant>? members;
 
   @override
   Widget build(BuildContext context) {
@@ -169,6 +176,7 @@ class BottomToolsSheet extends StatelessWidget {
                       assistantId: assistantId,
                       conversationId: conversationId,
                       onClose: onClose,
+                      members: members,
                     ),
                   ],
                 ),
@@ -231,12 +239,14 @@ class _LearningAndClearSection extends StatefulWidget {
     this.assistantId,
     this.conversationId,
     this.onClose,
+    this.members,
   });
   final VoidCallback? onClear;
   final String? clearLabel;
   final String? assistantId;
   final String? conversationId;
   final VoidCallback? onClose;
+  final List<Assistant>? members;
 
   @override
   State<_LearningAndClearSection> createState() =>
@@ -245,6 +255,7 @@ class _LearningAndClearSection extends StatefulWidget {
 
 class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
   String? _promptConversationId;
+  String? _selectedAssistantId;
 
   Future<String?> _promptScopeId() async {
     if (_assistant()?.allowConversationPromptInjection != true) return null;
@@ -267,15 +278,43 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
     });
   }
 
+  /// The member the strip starts on: the composer's own assistant when it is one
+  /// of them, so the counts the panel opens with belong to whoever the user is
+  /// on rather than to whoever happens to be first in the roster.
+  String? get _initialMemberId {
+    final members = widget.members;
+    if (members == null || members.isEmpty) return null;
+    final preferred = widget.assistantId;
+    if (preferred != null && members.any((member) => member.id == preferred)) {
+      return preferred;
+    }
+    return members.first.id;
+  }
+
   Assistant? _assistant({bool listen = false}) {
     try {
       final provider = Provider.of<AssistantProvider>(context, listen: listen);
+      final members = widget.members;
+      if (members != null && members.isNotEmpty) {
+        final id = _selectedAssistantId ?? _initialMemberId;
+        return provider.getById(id!) ?? members.first;
+      }
       final id = widget.assistantId;
       if (id != null) return provider.getById(id);
       return provider.currentAssistant;
     } catch (_) {
       return null;
     }
+  }
+
+  /// The assistant the three assistant-scoped rows write to: the member the
+  /// strip selects in a group, and [widget.assistantId] otherwise.
+  String? get _targetAssistantId {
+    final members = widget.members;
+    if (members != null && members.isNotEmpty) {
+      return _selectedAssistantId ?? _initialMemberId;
+    }
+    return widget.assistantId;
   }
 
   Future<void> _openSessionSkills() async {
@@ -291,7 +330,25 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
       context,
       conversationId: id,
       assistant: _assistant(),
+      // The member strip above the row makes it that member's list, not the
+      // roster's shared conversation override.
+      scopeToAssistant: widget.members != null,
     );
+  }
+
+  /// Proactive care is arranged for the conversation's own assistant, which a
+  /// group topic does not carry — the row would open nothing there. A
+  /// conversation that does not exist yet is created on tap, so it still counts
+  /// as available.
+  bool _careSpeaksForTheConversation() {
+    final id = _promptConversationId ?? widget.conversationId;
+    if (id == null) return true;
+    try {
+      final conversation = context.read<ChatService>().getConversation(id);
+      return conversation != null && conversation.assistantId != null;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> _openProactiveCare() async {
@@ -334,7 +391,7 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
         : promptSelectionIds(
             context,
             kind: kind,
-            assistantId: widget.assistantId,
+            assistantId: _targetAssistantId,
             conversationId: scoped ? scopeId : null,
           ).toSet();
     final activeWorldBookIds = activeIds(PromptSelectionKind.worldBook);
@@ -370,6 +427,18 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (widget.members case final members? when members.length > 1) ...[
+          // No value on these chips: this strip scopes three rows with three
+          // different numbers, and one chip cannot carry all three. The panels
+          // that scope a single capability carry its count instead.
+          GroupMemberStrip(
+            members: members,
+            selectedId: _targetAssistantId ?? members.first.id,
+            onSelect: (member) =>
+                setState(() => _selectedAssistantId = member.id),
+          ),
+          const SizedBox(height: 10),
+        ],
         ToolsSheetRow(
           key: sessionSkillsKey,
           icon: Lucide.WandSparkles,
@@ -398,7 +467,7 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
             if (!context.mounted || (scoped && scopeId == null)) return;
             await showInstructionInjectionSheet(
               context,
-              assistantId: widget.assistantId,
+              assistantId: _targetAssistantId,
               conversationId: scopeId,
             );
           },
@@ -432,7 +501,7 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
               if (!context.mounted || (scoped && scopeId == null)) return;
               await showWorldBookSheet(
                 context,
-                assistantId: widget.assistantId,
+                assistantId: _targetAssistantId,
                 conversationId: scopeId,
               );
             },
@@ -451,6 +520,19 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
               worldBookProvider.books.length,
             ),
           ),
+        ],
+        // The strip scopes the three rows above it and nothing else: below this
+        // line the rows belong to the conversation, not to the selected member.
+        if (widget.members case final members? when members.length > 1) ...[
+          const SizedBox(height: 10),
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.08),
+          ),
+          const SizedBox(height: 2),
         ],
         if (hasOcrModel) ...[
           const SizedBox(height: 8),
@@ -479,7 +561,8 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
           trailing: chevron,
         ),
         if (ProactiveCareAlarmService.isSupported &&
-            _assistant(listen: true) != null) ...[
+            _assistant(listen: true) != null &&
+            _careSpeaksForTheConversation()) ...[
           const SizedBox(height: 8),
           ToolsSheetRow(
             key: const ValueKey<String>('bottom-tools-proactive-care'),

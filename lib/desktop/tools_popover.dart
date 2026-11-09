@@ -12,12 +12,17 @@ import '../icons/lucide_adapter.dart';
 import '../l10n/app_localizations.dart';
 import '../core/providers/mcp_provider.dart';
 import '../core/providers/assistant_provider.dart';
+import '../core/providers/settings_provider.dart';
 import '../core/models/conversation.dart';
 import '../core/models/conversation_mcp_settings.dart';
 import '../core/services/chat/chat_service.dart';
 import '../features/chat/utils/ensure_conversation.dart';
+import '../features/chat/utils/tools_summary.dart';
 import '../features/home/services/local_tool_labels.dart';
 import '../features/home/services/local_tool_toggle.dart';
+import '../core/models/assistant.dart';
+import '../features/group_chat/widgets/group_member_strip.dart';
+import '../features/home/utils/model_display_helper.dart';
 import 'package:Cuplivo/theme/app_font_weights.dart';
 import '../theme/design_tokens.dart';
 import 'desktop_overlay_backdrop.dart';
@@ -28,6 +33,8 @@ Future<void> showDesktopToolsPopover(
   required String assistantId,
   String? conversationId,
   required bool supportsModelTools,
+  bool Function(String providerKey, String modelId)? modelSupportsTools,
+  List<Assistant>? members,
 }) async {
   if (context
           .read<AssistantProvider>()
@@ -65,6 +72,8 @@ Future<void> showDesktopToolsPopover(
       assistantId: assistantId,
       conversationId: conversationId,
       supportsModelTools: supportsModelTools,
+      modelSupportsTools: modelSupportsTools,
+      members: members,
       onClose: () {
         try {
           entry.remove();
@@ -83,13 +92,22 @@ class _ToolsPopover extends StatefulWidget {
     required this.conversationId,
     required this.supportsModelTools,
     required this.onClose,
+    this.modelSupportsTools,
+    this.members,
   });
+
+  /// Non-null in a group chat: the roster whose member the strip selects.
+  final List<Assistant>? members;
 
   final Rect anchorRect;
   final double anchorWidth;
   final String assistantId;
   final String? conversationId;
   final bool supportsModelTools;
+
+  /// The composer's capability check, for the member the strip selects. Null in
+  /// a 1:1 chat, where [supportsModelTools] already speaks for the only model.
+  final bool Function(String providerKey, String modelId)? modelSupportsTools;
   final VoidCallback onClose;
 
   @override
@@ -102,6 +120,49 @@ class _ToolsPopoverState extends State<_ToolsPopover>
   late final Animation<double> _fadeIn;
   Offset _offset = const Offset(0, 0.12);
   bool _closing = false;
+
+  /// Which member a group popover is editing.
+  String? _selectedId;
+
+  String get _targetId {
+    final members = widget.members;
+    if (members == null || members.isEmpty) return widget.assistantId;
+    final id = _selectedId ?? widget.assistantId;
+    return members.any((member) => member.id == id) ? id : members.first.id;
+  }
+
+  Widget? get _memberStrip {
+    final members = widget.members;
+    if (members == null || members.length < 2) return null;
+    return GroupMemberStrip(
+      members: members,
+      selectedId: _targetId,
+      onSelect: (member) => setState(() => _selectedId = member.id),
+      // The panel's own number, so choosing a member answers "how much has this
+      // one switched on" before the rows say which.
+      valueBuilder: (member) {
+        final summary = memberToolSummary(
+          member,
+          conversation: _conversationFor(member),
+          connectedServerIds: [
+            for (final server in context.watch<McpProvider>().connectedServers)
+              server.id,
+          ],
+        );
+        return summary.enabled == 0
+            ? null
+            : Text('${summary.enabled}/${summary.total}');
+      },
+    );
+  }
+
+  /// The conversation whose MCP override counts for [member], when that member
+  /// allows one.
+  Conversation? _conversationFor(Assistant member) {
+    final id = widget.conversationId;
+    if (id == null || !member.allowConversationMcp) return null;
+    return context.read<ChatService>().getConversation(id);
+  }
 
   @override
   void initState() {
@@ -181,9 +242,11 @@ class _ToolsPopoverState extends State<_ToolsPopover>
                           top: Radius.circular(14),
                         ),
                         child: _ToolsContent(
-                          assistantId: widget.assistantId,
+                          assistantId: _targetId,
                           conversationId: widget.conversationId,
                           supportsModelTools: widget.supportsModelTools,
+                          modelSupportsTools: widget.modelSupportsTools,
+                          header: _memberStrip,
                           onDone: _close,
                         ),
                       ),
@@ -239,17 +302,41 @@ class _GlassPanel extends StatelessWidget {
   }
 }
 
+/// Whether [member]'s own model passes the composer's tool capability check.
+bool _modelCanCallTools(
+  SettingsProvider settings,
+  Assistant member,
+  bool Function(String providerKey, String modelId) supportsTools,
+) {
+  final model = resolveChatModel(settings, assistant: member);
+  final providerKey = model.providerKey;
+  final modelId = model.modelId;
+  if (providerKey == null || (modelId ?? '').isEmpty) return false;
+  return supportsTools(providerKey, modelId!);
+}
+
 class _ToolsContent extends StatelessWidget {
   const _ToolsContent({
     required this.assistantId,
     required this.conversationId,
     required this.supportsModelTools,
     required this.onDone,
+    this.header,
+    this.modelSupportsTools,
   });
   final String assistantId;
   final String? conversationId;
   final bool supportsModelTools;
   final VoidCallback onDone;
+
+  /// Rendered above the rows; a group puts its member strip here.
+  final Widget? header;
+
+  /// The composer's capability check, for the member the strip selects: a
+  /// group's members each send with their own model, so [supportsModelTools] —
+  /// resolved for the composer's model — says nothing about the one on show.
+  /// Null in a 1:1 chat, where it says everything.
+  final bool Function(String providerKey, String modelId)? modelSupportsTools;
 
   @override
   Widget build(BuildContext context) {
@@ -259,6 +346,14 @@ class _ToolsContent extends StatelessWidget {
     final ap = context.watch<AssistantProvider>();
     final a = ap.getById(assistantId);
     if (a == null) return const SizedBox.shrink();
+    final supportsTools = modelSupportsTools;
+    final toolsAllowed = supportsTools == null
+        ? supportsModelTools
+        : _modelCanCallTools(
+            context.watch<SettingsProvider>(),
+            a,
+            supportsTools,
+          );
     final conversationScoped = a.allowConversationMcp && conversationId != null;
     final conversation = conversationScoped
         ? context.select<ChatService, Conversation?>(
@@ -280,9 +375,9 @@ class _ToolsContent extends StatelessWidget {
       return ap.updateAssistant(a.copyWith(mcpServerIds: ids!));
     }
 
-    final groups = [if (supportsModelTools) ...mcpToolGroups(mcp)];
+    final groups = [if (toolsAllowed) ...mcpToolGroups(mcp)];
 
-    final localToolIds = supportsModelTools
+    final localToolIds = toolsAllowed
         ? availableLocalToolIds()
         : const <String>[];
     final enabledLocalTools = a.localToolIds.toSet();
@@ -295,7 +390,11 @@ class _ToolsContent extends StatelessWidget {
         : context.select<ChatService, Conversation?>(
             (chat) => chat.getConversation(conversationId!),
           );
-    if (ProactiveCareAlarmService.isSupported && careConversation != null) {
+    // A group topic carries no assistant, and care speaks for the
+    // conversation's own one — the row would open nothing.
+    if (ProactiveCareAlarmService.isSupported &&
+        careConversation != null &&
+        careConversation.assistantId != null) {
       rows.add(
         (context) => _RowItem(
           key: const ValueKey<String>('desktop-tools-proactive-care'),
@@ -344,7 +443,7 @@ class _ToolsContent extends StatelessWidget {
       }
     }
 
-    if (groups.isNotEmpty || (supportsModelTools && conversationScoped)) {
+    if (groups.isNotEmpty || (toolsAllowed && conversationScoped)) {
       rows.add(
         (context) => _SectionLabel(
           text: conversationScoped
@@ -415,20 +514,60 @@ class _ToolsContent extends StatelessWidget {
       }
     }
 
+    // A member with nothing to switch on reads why, rather than an empty panel.
+    if (rows.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 2),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (header != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                child: header,
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
+              child: Text(
+                toolsAllowed
+                    ? l10n.chatToolsEmptyNoToolsEnabled
+                    : l10n.chatToolsEmptyModelCannotUseTools,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.35,
+                  color: cs.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxHeight: 420),
-        child: ListView.builder(
-          shrinkWrap: true,
-          addRepaintBoundaries: false,
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
-          itemCount: rows.length,
-          itemBuilder: (context, index) => Padding(
-            padding: const EdgeInsets.only(bottom: 1),
-            child: rows[index](context),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (header != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+              child: header,
+            ),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 420),
+            child: ListView.builder(
+              shrinkWrap: true,
+              addRepaintBoundaries: false,
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
+              itemCount: rows.length,
+              itemBuilder: (context, index) => Padding(
+                padding: const EdgeInsets.only(bottom: 1),
+                child: rows[index](context),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

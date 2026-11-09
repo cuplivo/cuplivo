@@ -918,6 +918,8 @@
   "bottomToolsSheetResetDefault": "重置为默认",
   "bottomToolsSheetSave": "保存",
   "bottomToolsSheetOcr": "OCR 文字识别",
+  "chatToolsEmptyModelCannotUseTools": "这位成员的模型不能调用工具。",
+  "chatToolsEmptyNoToolsEnabled": "这位成员没有启用任何工具。",
   "messageMoreSheetTitle": "更多操作",
   "messageMoreSheetSelectCopy": "选择复制",
   "messageMoreSheetRenderWebView": "网页视图渲染",

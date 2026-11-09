@@ -11,6 +11,7 @@ import '../../database/chat_database_repository.dart';
 import '../../database/composer_draft_store.dart';
 import '../../database/schema_columns.dart';
 import '../../../utils/app_directories.dart';
+import '../skills/skill_body_policy.dart';
 import '../sync/workspace_content_index.dart';
 import 'recycle_store.dart';
 
@@ -81,9 +82,12 @@ final class RecycleService {
     this._database, {
     RecycleStore? store,
     Future<Directory> Function(String workspaceId)? workspaceRoot,
+    Future<Directory> Function()? skillsRoot,
   }) : _store = store ?? RecycleStore(),
        // ignore: prefer_initializing_formals
-       _workspaceRoot = workspaceRoot;
+       _workspaceRoot = workspaceRoot,
+       // ignore: prefer_initializing_formals
+       _skillsRoot = skillsRoot;
 
   /// Where one managed workspace's files live, or null when this build has no
   /// workspace content plane wired.
@@ -93,6 +97,14 @@ final class RecycleService {
   /// directory out. Null makes a file restore [unsupported] rather than guessing
   /// a path.
   final Future<Directory> Function(String workspaceId)? _workspaceRoot;
+
+  /// Where the skill bodies live (`<appData>/skills`), or null when this build
+  /// has no skill plane wired.
+  ///
+  /// Injected for the same two reasons as [_workspaceRoot]. Null makes a body
+  /// staging return null (the caller falls back to its own delete) and a body
+  /// restore [unsupported], rather than guessing a path.
+  final Future<Directory> Function()? _skillsRoot;
 
   /// Tables a conversation snapshot recovers, each with the column that ties its
   /// rows to the conversation — and, for a table that hosts more than one kind
@@ -322,6 +334,85 @@ final class RecycleService {
     }
   }
 
+  /// Preserves one skill's body together with the record row that belongs to
+  /// it, as **one** entry.
+  ///
+  /// Called at all three places a body leaves this device — the user's delete,
+  /// a peer's delete, and the body a swap replaces — so "a skill is reversible"
+  /// cannot be true of one path and false of another. It was false of two: a
+  /// peer's delete staged the *row* and destroyed the directory, so the entry
+  /// it left behind could only ever restore a skill with no body, and the user's
+  /// own delete staged nothing at all.
+  ///
+  /// Awaited, like [stageWorkspaceFile] and for a mechanical reason: the body is
+  /// *moved*, so the caller's delete or rename cannot proceed until the old
+  /// version is on the bin's side. Null means the bin did not take it — no
+  /// skills root, an unwritable bin, an id that is not a path segment — and the
+  /// caller falls back to its ordinary delete.
+  ///
+  /// [source] is the directory to move; a swap passes the body it has already
+  /// displaced (which still sits inside the skills root, under a scratch name),
+  /// everything else lets this method derive the live body from the id.
+  Future<RecycleEntry?> stageSkillBody({
+    required String skillId,
+    required RecycleOrigin origin,
+    required RecycleReason reason,
+    Directory? source,
+  }) async {
+    final staged = await _stageSkillBody(
+      skillId: skillId,
+      origin: origin,
+      reason: reason,
+      source: source,
+    );
+    // Awaited, like the workspace-file path: nothing else will notice that the
+    // burst ended, and the caller is already paying for a directory move.
+    await _sweepWhenSettled();
+    return staged;
+  }
+
+  /// The move alone: no sweep, for the one caller that has to write something
+  /// *after* it and before the sweep — a restore, whose own entry the sweep may
+  /// evict.
+  Future<RecycleEntry?> _stageSkillBody({
+    required String skillId,
+    required RecycleOrigin origin,
+    required RecycleReason reason,
+    Directory? source,
+  }) async {
+    if (skillId.isEmpty) return null;
+    final resolver = _skillsRoot;
+    if (resolver == null) return null;
+    final Directory root;
+    try {
+      root = await resolver();
+    } catch (error) {
+      debugPrint('recycle: resolving the skills root failed: $error');
+      return null;
+    }
+    final body = source ?? skillBodyDirectory(root, skillId);
+    if (body == null) return null;
+    try {
+      final type = await FileSystemEntity.type(body.path, followLinks: false);
+      if (type != FileSystemEntityType.directory) return null;
+      // Read before the move: the row is what a restore puts back beside the
+      // directory, and after the caller's delete there is nothing left to read.
+      final rows = await _entityRows(BusinessEntityKind.skill, skillId);
+      return await _store.stageSkillBody(
+        skillId: skillId,
+        source: body,
+        tables: rows.isEmpty
+            ? const <String, List<Map<String, Object?>>>{}
+            : {BusinessEntityKind.skill.tableName: rows},
+        origin: origin,
+        reason: reason,
+      );
+    } catch (error) {
+      debugPrint('recycle: staging the body of skill $skillId failed: $error');
+      return null;
+    }
+  }
+
   /// Waits for every bin write this service has started, and for the sweep those
   /// writes scheduled.
   ///
@@ -473,6 +564,10 @@ final class RecycleService {
   /// The moved file of a workspace-file entry, or null when it is gone.
   Future<File?> bodyFile(RecycleEntry entry) => _store.bodyFile(entry);
 
+  /// The moved directory of a skill-body entry, or null when it is gone.
+  Future<Directory?> bodyDirectory(RecycleEntry entry) =>
+      _store.bodyDirectory(entry);
+
   /// Brings one entry back, and retires every entry that staged the same
   /// identity so a recovered row cannot also be recovered twice.
   ///
@@ -496,6 +591,7 @@ final class RecycleService {
         RecycleEntryType.businessEntity => await _restoreEntity(entry),
         RecycleEntryType.preference => await _restorePreference(entry),
         RecycleEntryType.workspaceFile => await _restoreWorkspaceFile(entry),
+        RecycleEntryType.skillBody => await _restoreSkillBody(entry),
       };
       if (outcome == RecycleRestoreOutcome.restored) {
         await _store.purgeKey(entry.type, entry.key, exceptId: keepEntryId);
@@ -793,6 +889,80 @@ final class RecycleService {
     // After the bytes are back, not inside the staging: this sweep is what could
     // evict the very entry being restored, and it no longer has to be waited for
     // here — the caps hold a moment later either way.
+    await _sweepWhenSettled();
+    return (outcome: RecycleRestoreOutcome.restored, keepEntryId: keepEntryId);
+  }
+
+  /// Puts one staged skill back: its directory under the skills root, and its
+  /// record row beside it.
+  ///
+  /// Both halves, because either one alone is a broken skill: a directory with
+  /// no row is adopted by the rescan as a brand-new import (with the settings
+  /// gone), and a row with no directory installs nothing that opens.
+  ///
+  /// The record is written with the current clock, not the staged one, exactly
+  /// as decision 5 requires of every other restore: the staged clock would hand
+  /// the next session's comparison to the version that displaced this body, and
+  /// the peer's newer body would be re-applied at once. What the restore finds
+  /// decides what it may do, and [RecycleEntry.reason] says which case it is — a
+  /// body staged by a **deletion** is refused when the skill is back, while a
+  /// body staged by a **swap** is always looking at the body that replaced it,
+  /// so that one must replace it, staging the live body into the bin first so
+  /// the restore is undoable in turn.
+  Future<_RestoreResult> _restoreSkillBody(RecycleEntry entry) async {
+    final resolver = _skillsRoot;
+    if (resolver == null) return _not(RecycleRestoreOutcome.unsupported);
+    final Directory root;
+    try {
+      root = await resolver();
+    } catch (error) {
+      debugPrint('recycle: resolving the skills root failed: $error');
+      return _not(RecycleRestoreOutcome.failed);
+    }
+    // The same rule an apply follows, asked of the same function: a body may
+    // only be written where a body could have been installed.
+    final target = skillBodyDirectory(root, entry.key);
+    if (target == null) return _not(RecycleRestoreOutcome.unsupported);
+    final body = await _store.bodyDirectory(entry);
+    if (body == null) return _not(RecycleRestoreOutcome.unreadable);
+    final tables = await _store.readTables(entry);
+    String? keepEntryId;
+    if (await target.exists()) {
+      if (entry.reason == RecycleReason.deleted) {
+        return _not(RecycleRestoreOutcome.skippedExisting);
+      }
+      // Moved, not copied, and before a byte is restored: the body at the path
+      // is the only copy of itself, so a bin that cannot take it stops the
+      // restore rather than being written over.
+      final displaced = await _stageSkillBody(
+        skillId: entry.key,
+        origin: RecycleOrigin.local,
+        reason: RecycleReason.overwritten,
+      );
+      if (displaced == null) return _not(RecycleRestoreOutcome.failed);
+      keepEntryId = displaced.id;
+    }
+    await root.create(recursive: true);
+    await body.rename(target.path);
+    final row = tables == null
+        ? null
+        : _singleRow(tables, BusinessEntityKind.skill.tableName);
+    if (row != null) {
+      // A directory restored without its row is adopted by the rescan as a fresh
+      // import — the settings, the enabled switch and the use count would all be
+      // invented again. The entry carries the row for exactly this.
+      await _insertRow(
+        BusinessEntityKind.skill.tableName,
+        row,
+        conflictTarget: const <String>['kind', 'id'],
+        overrides: <String, Object?>{
+          'updated_at': DateTime.now().toUtc().microsecondsSinceEpoch,
+          'kind': BusinessEntityKind.skill.extensionKind!,
+        },
+      );
+    }
+    // After the directory is back, not inside the staging: this sweep is what
+    // could evict the very entry being restored.
     await _sweepWhenSettled();
     return (outcome: RecycleRestoreOutcome.restored, keepEntryId: keepEntryId);
   }

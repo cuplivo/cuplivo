@@ -11,6 +11,7 @@ import '../../../utils/app_directories.dart';
 import '../../database/extension_entity_store.dart';
 import '../../models/assistant.dart';
 import '../../models/skill_record.dart';
+import '../recycle/recycle_service.dart';
 import 'github_skill_ref.dart';
 import 'skill.dart';
 import 'skill_archive.dart';
@@ -28,6 +29,7 @@ class SkillsService extends ChangeNotifier {
     required this.store,
     Directory? skillsDirectory,
     http.Client? httpClient,
+    this.recycle,
     this._bundledAssets,
   }) : _injectedSkillsDirectory = skillsDirectory,
        _httpClient = httpClient ?? http.Client(),
@@ -36,6 +38,12 @@ class SkillsService extends ChangeNotifier {
   }
 
   final ExtensionEntityStore store;
+
+  /// The device-local recycle bin, when this app attached one. A skill the user
+  /// deletes has a body as well as a row, and the two are preserved together
+  /// (ADR-0016); null only in a harness that has no bin.
+  final RecycleService? recycle;
+
   final Directory? _injectedSkillsDirectory;
   final AssetBundle? _bundledAssets;
   final http.Client _httpClient;
@@ -462,11 +470,26 @@ class SkillsService extends ChangeNotifier {
   Future<void> delete(String id) async {
     await loaded;
     await _serializeMutation(() async {
-      await store.delete(ExtensionEntityStore.kindSkill, id);
-      final dir = Directory(p.join((await _ensureRoot()).path, id));
-      if (await dir.exists()) {
-        await dir.delete(recursive: true);
+      final root = await _ensureRoot();
+      // The body goes into the bin **with its record row**, before either is
+      // removed. A row staged on its own restores into a skill with no
+      // directory, which is not a skill; the bin's entry carries both halves for
+      // exactly that reason (ADR-0016), and the user's own delete is one of the
+      // three places a body leaves this device.
+      final preserved = await recycle?.stageSkillBody(
+        skillId: id,
+        origin: RecycleOrigin.local,
+        reason: RecycleReason.deleted,
+      );
+      if (preserved == null) {
+        // No bin wired, or it could not take the body: fall back to the plain
+        // delete. A safety net is not a veto on a deletion the user asked for.
+        final dir = skillBodyDirectory(root, id);
+        if (dir != null && await dir.exists()) {
+          await dir.delete(recursive: true);
+        }
       }
+      await store.delete(ExtensionEntityStore.kindSkill, id);
       _skills.removeWhere((skill) => skill.record.id == id);
       notifyListeners();
     });

@@ -4040,6 +4040,7 @@
   "recycleBinKindMemory": "记忆",
   "recycleBinKindPreference": "设置项",
   "recycleBinKindWorkspaceFile": "工作区文件",
+  "recycleBinKindSkill": "技能",
   "recycleBinKindConfig": "配置",
   "recycleBinOriginLocal": "本机删除",
   "recycleBinOriginRemote": "同步删除",

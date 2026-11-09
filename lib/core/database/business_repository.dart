@@ -969,7 +969,16 @@ WHERE id IN ($placeholders);
   /// below, not before them: a row this device never offers is one there is
   /// nothing to remove of, and preserving a copy of it would invent a bin entry
   /// for a deletion that never happened.
-  Future<bool> syncDeleteEntity(String kindWire, String id) async {
+  /// [stageRow] is false for the one kind whose row is not a snapshot of its own:
+  /// a skill's record belongs to a directory, and the caller that preserved that
+  /// directory staged the row inside the same entry (see
+  /// `RecycleService.stageSkillBody`). Staging the row here as well would leave a
+  /// second entry that restores a record with no body.
+  Future<bool> syncDeleteEntity(
+    String kindWire,
+    String id, {
+    bool stageRow = true,
+  }) async {
     final kind = syncKindForWire(kindWire);
     if (kind == null || id.isEmpty) return false;
     // A row this device never offers is not deletable through sync either. The
@@ -985,12 +994,14 @@ WHERE id IN ($placeholders);
       final local = await _syncEntityRow(kind, id);
       if (local != null && _syncSkipsRow(kind, id, local.payload)) return false;
     }
-    await recycle?.stageEntityRow(
-      kind,
-      id,
-      origin: RecycleOrigin.remote,
-      reason: RecycleReason.deleted,
-    );
+    if (stageRow) {
+      await recycle?.stageEntityRow(
+        kind,
+        id,
+        origin: RecycleOrigin.remote,
+        reason: RecycleReason.deleted,
+      );
+    }
     final extensionFilter = kind.extensionKind == null
         ? ''
         : " AND kind = '${kind.extensionKind}'";

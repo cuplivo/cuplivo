@@ -475,6 +475,10 @@ Future<void> main() async {
           RecycleService(
             database,
             workspaceRoot: AppDirectories.workspaceFilesDir,
+            // A skill's body moves into the bin beside its record, and a
+            // restore puts it back under the root the skills service installs
+            // into.
+            skillsRoot: AppDirectories.getSkillsDirectory,
           );
       ChatDatabaseLease? processDatabaseLease;
       BusinessPreferences? businessPreferences;
@@ -1045,6 +1049,9 @@ class MyApp extends StatelessWidget {
           create: (ctx) => SkillsService(
             store: ctx.read<ExtensionEntityStore>(),
             bundledAssets: rootBundle,
+            // A deleted skill's body rides with its record into the bin, so the
+            // deletion is undoable like every other one (ADR-0016).
+            recycle: databaseLease.recycleService,
           ),
         ),
         ChangeNotifierProvider(

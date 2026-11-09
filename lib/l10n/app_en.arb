@@ -5039,6 +5039,7 @@
   "recycleBinKindMemory": "Memory",
   "recycleBinKindPreference": "Setting",
   "recycleBinKindWorkspaceFile": "Workspace file",
+  "recycleBinKindSkill": "Skill",
   "recycleBinKindConfig": "Configuration",
   "recycleBinOriginLocal": "Deleted here",
   "recycleBinOriginRemote": "Deleted by sync",

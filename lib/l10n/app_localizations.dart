@@ -19725,6 +19725,12 @@ abstract class AppLocalizations {
   /// **'Workspace file'**
   String get recycleBinKindWorkspaceFile;
 
+  /// No description provided for @recycleBinKindSkill.
+  ///
+  /// In en, this message translates to:
+  /// **'Skill'**
+  String get recycleBinKindSkill;
+
   /// No description provided for @recycleBinKindConfig.
   ///
   /// In en, this message translates to:

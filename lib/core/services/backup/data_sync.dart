@@ -2859,9 +2859,7 @@ class DataSync {
       final raw = (entry as Map).cast<String, dynamic>();
       final conversation = Conversation.fromJson(raw);
       // Fork-lineage per-conversation proactive care state rides extras here.
-      final extras = {
-        ...ToolPermissionMode.withoutGrant(conversation.extras),
-      };
+      final extras = {...ToolPermissionMode.withoutGrant(conversation.extras)};
       final careOverride = raw['proactiveCareEnabledOverride'];
       if (careOverride is bool) {
         extras[Conversation.proactiveCareEnabledOverrideKey] = careOverride;

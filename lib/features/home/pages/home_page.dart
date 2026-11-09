@@ -765,6 +765,14 @@ class _HomePageState extends State<HomePage>
       );
     }
 
+    // A group topic has no single model to name, so the header carries only the
+    // topic title.
+    final isGroup =
+        context.watch<GroupChatProvider>().forConversation(
+          _controller.currentConversation,
+        ) !=
+        null;
+
     return _buildMobileLayout(
       context,
       title: title,
@@ -1182,7 +1190,7 @@ class _HomePageState extends State<HomePage>
     final settings = context.watch<SettingsProvider>();
     final suggestionConversation = conversationId == null
         ? null
-        : chat.getConversation(conversationId!);
+        : chat.getConversation(conversationId);
     final suggestionAssistant = context
         .watch<AssistantProvider>()
         .resolveConversationAssistant(suggestionConversation?.assistantId);
@@ -1193,6 +1201,9 @@ class _HomePageState extends State<HomePage>
       (chat) => suggestionsEnabled && conversationId != null
           ? (chat.getConversation(conversationId)?.chatSuggestions ?? const [])
           : const [],
+    );
+    final currentGroup = context.watch<GroupChatProvider>().forConversation(
+      _controller.currentConversation,
     );
     return MessageListView(
       contextTask: compression,

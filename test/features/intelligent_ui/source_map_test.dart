@@ -20,7 +20,7 @@ const _web =
     '```kelivo-web\n{"version":1,"title":"<think>literal</think>","summary":"😀"}\n<b>Local</b>\n```';
 void main() {
   const parser = MarkdownParser();
-  for (final language in ['cuplivo-ui', 'cuplivo-web']) {
+  for (final language in ['kelivo-ui', 'kelivo-web']) {
     test(
       '$language preserves a closed tail only when its body is unchanged',
       () {
@@ -45,7 +45,7 @@ void main() {
             expect(resolved.node.code, node.code);
             expect(
               source.messageOrdinalOf(resolved),
-              language == 'cuplivo-ui' ? 1 : 2,
+              language == 'kelivo-ui' ? 1 : 2,
             );
           }
           for (final text in [
@@ -87,7 +87,7 @@ void main() {
           expect(resolved!.source, startsWith(node.span.slice(before)));
           expect(
             source.messageOrdinalOf(resolved),
-            language == 'cuplivo-ui' ? 1 : 2,
+            language == 'kelivo-ui' ? 1 : 2,
           );
         }
 
@@ -180,13 +180,13 @@ void main() {
         ];
         final previous = builder.update(parts);
         expect(UiMessageSource.of(previous).hasCandidate, isFalse);
-        for (final prefix in ['```cuplivo-', '```kelivx-', '```cuplivo-']) {
+        for (final prefix in ['```kelivo-', '```kelivx-', '```kelivo-']) {
           parts[0] = TextPart(prefix);
           expect(
             UiMessageSource.of(
               builder.update(parts, changed: {0}),
             ).hasCandidate,
-            prefix == '```cuplivo-',
+            prefix == '```kelivo-',
           );
         }
       },
@@ -199,7 +199,7 @@ void main() {
       for (final removeBoundary in [false, true]) {
         final builder = MessagePartSnapshotBuilder();
         final parts = <MessagePart>[
-          const TextPart('```cuplivo-'),
+          const TextPart('```kelivo-'),
           const ToolCallPart('{}'),
           const TextPart('invalid'),
         ];
@@ -261,7 +261,7 @@ void main() {
     expect(UiMessageSource.of(first).hasCandidate, isFalse);
   });
 
-  for (final language in ['cuplivo-ui', 'cuplivo-web']) {
+  for (final language in ['kelivo-ui', 'kelivo-web']) {
     test('$language candidate spans short and empty adjacent text parts', () {
       final source = UiMessageSource.of([
         const TextPart('```'),
@@ -285,7 +285,7 @@ void main() {
         AssistantRoundEndPart(),
       ]) {
         final source = UiMessageSource.of([
-          const TextPart('```cuplivo-'),
+          const TextPart('```kelivo-'),
           const TextPart(''),
           boundary,
           const TextPart(''),

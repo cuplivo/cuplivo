@@ -1,5 +1,27 @@
 # Changelog
 
+## [Unreleased]
+
+### Removed
+
+- **Message replies**: the QQ-style citation and its `<reply-to>` context injection are removed. Upstream's own in-app quotes answer the same need — select text, quote it into the composer, tap a quote to jump back to its source — so the app carries one quoting model instead of two ([ADR-0012](docs/adr/0012-message-reply-quote.md))
+
+## [4.5.0] - 2026-11-01
+
+### Added
+
+- **Multi-assistant group chat**: a director decides which model speaks, so several assistants talk to each other (#1052 by @cup113)
+
+### Changed
+
+- The 「Assistants」 settings page is now 「Assistants & Group Chats」 (#1052 by @cup113)
+
+### Fixed
+
+- PDF export polish: weight, colours, the reasoning panel and code blocks all render properly in the export (#1045 by @cup113)
+- The desktop assistant's gradient-background switch was missing: a gradient LAN sync carried over from a phone could not be turned off on a PC; the desktop assistant dialog has the full gradient settings again (#1053 by @cup113)
+- Their Letter could stop altogether because of one ownerless letter: a future-dated letter whose owner assistant is gone no longer vetoes the re-arm of every other pending letter (#1051 by @cup113)
+
 ## [4.4.0] - 2026-10-27
 
 ### Added

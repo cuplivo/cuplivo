@@ -2428,6 +2428,25 @@ class HomeViewModel extends ChangeNotifier {
 
   final Map<String, Object> _suggestionRequests = {};
 
+  /// The suggestions the composer may show: the current conversation's list,
+  /// gated the same way generation is (global master, per-assistant opt-out).
+  List<String> get visibleChatSuggestions {
+    final conversation = currentConversation;
+    if (conversation == null) return const <String>[];
+    final settings = _contextProvider.read<SettingsProvider>();
+    final assistant = _contextProvider
+        .read<AssistantProvider>()
+        .resolveConversationAssistant(conversation.assistantId);
+    if (!settings.isSuggestionGenerationAllowedFor(assistant)) {
+      return const <String>[];
+    }
+    return conversation.chatSuggestions;
+  }
+
+  /// Test entry point: runs one suggestion pass for [conversationId].
+  Future<void> debugMaybeGenerateSuggestionsFor(String conversationId) =>
+      _maybeGenerateSuggestionsFor(conversationId);
+
   Future<void> _clearSuggestionsFor(String conversationId) async {
     _suggestionRequests.remove(conversationId);
     final convo = _chatService.getConversation(conversationId);
@@ -2475,7 +2494,12 @@ class HomeViewModel extends ChangeNotifier {
     final prompt = settings.suggestionPrompt;
     bool isCurrent() =>
         identical(_suggestionRequests[conversationId], request) &&
-        settings.isSuggestionGenerationAllowedFor(assistant) &&
+        // Re-resolved rather than reusing the snapshot read above: an opt-out
+        // that lands while the request is in flight must discard the reply, and
+        // the snapshot still says "allowed".
+        settings.isSuggestionGenerationAllowedFor(
+          assistantProvider.resolveConversationAssistant(convo.assistantId),
+        ) &&
         settings.suggestionPrompt == prompt &&
         _chatService.getConversation(conversationId) != null &&
         _chatService.getContextStartIndex(conversationId) == truncateIndex;

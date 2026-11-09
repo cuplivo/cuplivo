@@ -29,7 +29,6 @@ class AssistantProvider extends ChangeNotifier {
   String? _orphanedAssistantId;
   final ChatService? chatService;
   bool _isLoaded = false;
-)
 
   List<Assistant> get assistants => List.unmodifiable(_assistants);
   String? get currentAssistantId => currentAssistant?.id;
@@ -53,7 +52,7 @@ class AssistantProvider extends ChangeNotifier {
   /// synchronous swap — so this is the only "not ready" state there is. It
   /// never flips back: a reload keeps the previous complete list until the new
   /// one decodes, and a failed decode leaves it untouched.
-  bool get isLoaded => _loaded;
+  bool get isLoaded => _isLoaded;
 
   /// Re-reads assistants after LAN sync wrote business rows outside this
   /// provider's own write path (ADR-0003 apply → reload).
@@ -132,7 +131,6 @@ class AssistantProvider extends ChangeNotifier {
       await preferences.setString(_currentAssistantKey, _currentAssistantId!);
     }
     _isLoaded = true;
-)
     notifyListeners();
   }
 
@@ -225,20 +223,6 @@ class AssistantProvider extends ChangeNotifier {
     final src = File(fixed);
     if (!await src.exists()) return rawPath;
 
-    final dir = isAvatar
-        ? await AppDirectories.getAvatarsDirectory()
-        : await AppDirectories.getImagesDirectory();
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
-    }
-    String ext = '';
-    final dot = fixed.lastIndexOf('.');
-    if (dot != -1 && dot < fixed.length - 1) {
-      ext = fixed.substring(dot + 1).toLowerCase();
-      if (ext.length > 6) ext = 'jpg';
-    } else {
-      ext = 'jpg';
-||||||| .scratch/st-base.tmp
     try {
       final dir = isAvatar
           ? await AppDirectories.getAvatarsDirectory()
@@ -258,18 +242,12 @@ class AssistantProvider extends ChangeNotifier {
       final dest = File(
         '${dir.path}/${prefix}_${newId}_${DateTime.now().millisecondsSinceEpoch}.$ext',
       );
+      createdFiles.add(dest);
       await src.copy(dest.path);
       return SandboxPathResolver.canonicalStorage(dest.path);
     } catch (_) {
       return rawPath;
     }
-    final prefix = isAvatar ? 'assistant' : 'background';
-    final dest = File(
-      '${dir.path}/${prefix}_${newId}_${DateTime.now().millisecondsSinceEpoch}.$ext',
-    );
-    createdFiles.add(dest);
-    await src.copy(dest.path);
-    return SandboxPathResolver.canonicalStorage(dest.path);
   }
 
   Future<String?> _copyLocalAssetToManagedDirectory(
@@ -633,6 +611,65 @@ class AssistantProvider extends ChangeNotifier {
     final a = currentAssistant;
     if (a == null || a.searchEnabled == enabled) return;
     await updateAssistant(a.copyWith(searchEnabled: enabled));
+  }
+
+  Future<void> reorderAssistants(int oldIndex, int newIndex) async {
+    if (oldIndex == newIndex) return;
+    if (oldIndex < 0 || oldIndex >= _assistants.length) return;
+    if (newIndex < 0 || newIndex >= _assistants.length) return;
+
+    final assistant = _assistants.removeAt(oldIndex);
+    _assistants.insert(newIndex, assistant);
+
+    // Notify listeners immediately for smooth UI update
+    notifyListeners();
+
+    // Then persist the changes
+    await _persist();
+  }
+
+  Future<void> reorderAssistantsWithin({
+    required List<String> subsetIds,
+    required int oldIndex,
+    required int newIndex,
+  }) async {
+    if (oldIndex == newIndex) return;
+    if (subsetIds.isEmpty) return;
+
+    // Build subset indices in the master list preserving current order
+    final idSet = subsetIds.toSet();
+    final subsetIndices = <int>[];
+    for (int i = 0; i < _assistants.length; i++) {
+      if (idSet.contains(_assistants[i].id)) subsetIndices.add(i);
+    }
+    if (subsetIndices.isEmpty) return;
+    if (oldIndex < 0 || oldIndex >= subsetIndices.length) return;
+    if (newIndex < 0 || newIndex >= subsetIndices.length) return;
+
+    // Extract subset in current order
+    final subset = subsetIndices
+        .map((i) => _assistants[i])
+        .toList(growable: true);
+    final moved = subset.removeAt(oldIndex);
+    subset.insert(newIndex, moved);
+
+    // Merge back into master list
+    final merged = <Assistant>[];
+    int take = 0;
+    for (int i = 0; i < _assistants.length; i++) {
+      final a = _assistants[i];
+      if (idSet.contains(a.id)) {
+        merged.add(subset[take++]);
+      } else {
+        merged.add(a);
+      }
+    }
+    _assistants
+      ..clear()
+      ..addAll(merged);
+
+    notifyListeners();
+    await _persist();
   }
 
   Future<void> reorderAssistantRegex({

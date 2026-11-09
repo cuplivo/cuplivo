@@ -40,7 +40,10 @@ void main() {
     const source = r'`a\';
     final nodes = parser.parse(source);
     expect(nodes.whereType<CodeSpanNode>(), isEmpty);
-    expect(nodes.map((node) => node is TextNode ? node.text : '').join(), source);
+    expect(
+      nodes.map((node) => node is TextNode ? node.text : '').join(),
+      source,
+    );
   });
 
   test('an unmatched opener is an open span while streaming', () {

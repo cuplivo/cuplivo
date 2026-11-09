@@ -41,15 +41,14 @@ every fold below names the crossings it accepts.
 | 7 | `fix: re-port input focus retention on app resume (#1012)` | the desktop hotkey plus the composer it focuses |
 | 8 | `feat(chat): copy a conversation or message link (#1013)` | **plus `#1034` folded in** (Android deep links): iOS and Android links are one unit. Accepts one crossing on `test/message_more_sheet_test.dart` (`#1027`) |
 | 9 | `feat(chat): weigh the compression readout in tokens, tool results included (#1026)` | ADR-0011 |
-| 10 | `feat(reply): a message reply carries a quote citation (#1027)` | ADR-0012 |
-| 11 | `feat(export): a PDF laid out from markstream's tree, no WebView and no second renderer (#1028)` | ADR-0013 |
-| 12 | `feat(translate): user-managed target languages incl. Bengali (#1039)` | ADR-0014 |
-| 13 | `feat(suggestions): a chat-suggestions switch per assistant (#1040)` | — |
-| 14 | `feat(recycle): a recycle bin for deletions, losing merges and workspace files (#1035)` | ADR-0016 |
-| 15 | `fix: the new baseline's suite, fixtures and preference keys` | the landing repair: the two tests the baseline reshaped (`0bb6bc952`), the Windows-only assumptions the suite still carried (`6f4252bf5`), the non-nullable selection-toolbar items (`8407fbc88`), the migration retry's 1 s poll budget (`e4b111e31`), the browser cases the platform cannot run and the golden fixtures generated on the CI image (`71b0afa17`, `724affebc`), the two pre-rename ARB messages upstream still ships (`379fd2b35`), and the MCP presentation key the sync registry owed (`5efd382ff`). Not folded into unit 2, its natural home: the repairs touch test files units 3-14 own, so folding would mean replaying the whole series |
-| 16 | `chore(deps): the lock and the release wiring the gates run against` | `00d9c4580` (the seeded `pubspec.lock` every gate now runs against), `f75363461`'s `.gitignore` line for golden failures, and `515e807e2` — the notarization signs `cuplivo.app` and `Cuplivo_macos_*.dmg`, and `docs/homebrew/kelivo.rb` is deleted (rule 15) |
-| 17 | `docs(rebase): the invariants and the 199647a5d record` | `docs(agents)` `2eda72787` folded in, then `76993e753`, `956bec9fe`, `81271f940`, `e362f75bf`, `779452761`, `78436c40b`, `ea19c6cc1`, plus the document hunks of `f75363461` and `724affebc` |
-| 18 | `style: reformat the files the 3.47.6 formatter lays out differently` | re-derived at the tip (rule 10); never replayed, and never folded into a content unit — a mixed unit could be neither dropped nor re-derived. **Last on purpose**: the series tip is the reformat, which is what makes the `<old-master>~1` cut in the procedure correct again |
+| 10 | `feat(export): a PDF laid out from markstream's tree, no WebView and no second renderer (#1028)` | ADR-0013 |
+| 11 | `feat(translate): user-managed target languages incl. Bengali (#1039)` | ADR-0014 |
+| 12 | `feat(suggestions): a chat-suggestions switch per assistant (#1040)` | — |
+| 13 | `feat(recycle): a recycle bin for deletions, losing merges and workspace files (#1035)` | ADR-0016 |
+| 14 | `fix: the new baseline's suite, fixtures and preference keys` | the landing repair: the two tests the baseline reshaped (`0bb6bc952`), the Windows-only assumptions the suite still carried (`6f4252bf5`), the non-nullable selection-toolbar items (`8407fbc88`), the migration retry's 1 s poll budget (`e4b111e31`), the browser cases the platform cannot run and the golden fixtures generated on the CI image (`71b0afa17`, `724affebc`), the two pre-rename ARB messages upstream still ships (`379fd2b35`), and the MCP presentation key the sync registry owed (`5efd382ff`). Not folded into unit 2, its natural home: the repairs touch test files units 3-13 own, so folding would mean replaying the whole series |
+| 15 | `chore(deps): the lock and the release wiring the gates run against` | `00d9c4580` (the seeded `pubspec.lock` every gate now runs against), `f75363461`'s `.gitignore` line for golden failures, and `515e807e2` — the notarization signs `cuplivo.app` and `Cuplivo_macos_*.dmg`, and `docs/homebrew/kelivo.rb` is deleted (rule 15) |
+| 16 | `docs(rebase): the invariants and the 199647a5d record` | `docs(agents)` `2eda72787` folded in, then `76993e753`, `956bec9fe`, `81271f940`, `e362f75bf`, `779452761`, `78436c40b`, `ea19c6cc1`, plus the document hunks of `f75363461` and `724affebc` |
+| 17 | `style: reformat the files the 3.47.6 formatter lays out differently` | re-derived at the tip (rule 10); never replayed, and never folded into a content unit — a mixed unit could be neither dropped nor re-derived. **Last on purpose**: the series tip is the reformat, which is what makes the `<old-master>~1` cut in the procedure correct again |
 
 The tail is no longer a run of one-commit chores: the l10n cleanup and every test/CI repair now belong
 to unit 2, and the content carry, the CI collapse, the release-notes step and the runbook itself belong
@@ -88,6 +87,14 @@ Units from earlier series that are **gone, and must not come back**:
   (`707772844` sits in the baseline), so `tool/fetch_proot.sh` and `tool/proot_checksums.txt` are
   upstream's files now and no Cuplivo commit touches them. Re-adding the unit would fight upstream's own
   tooling — the same case as the `await` gate fix (rule 7).
+- **The message-reply unit (`#1027`) is retired.** 4.4 shipped it (`aa290f6fc`), but the rewrite that
+  produced this baseline replayed the unit as a shell — its docs, its hooks, and 24k lines of committed
+  `.merge`/`.rej` conflict scrap, with no implementation — and deleted the unit's tests in the same pass
+  (`c7fea7e5c`), so the suite could not notice. Upstream's own selection quotes (`7dd9b4e7d`, inside the
+  `4a7da9b6f` baseline) cover the same need, so the line keeps those and the reply is **not** replayed.
+  `docs/adr/0012-message-reply-quote.md` is withdrawn and `lib/l10n`, the hotkey table and the message
+  menus no longer carry its strings or hooks. Do not re-add the unit; a re-base that does would reintroduce
+  a second quoting model beside upstream's.
 - **There is no release unit.** A re-base is not a release: no version bump, no new tag, no
   changelog section, no release dispatch. `pubspec.yaml` keeps the version line the old tip had
   (`4.3.0+6` for the 4.3 line) while taking upstream's dependency changes — but the *content carry* is
@@ -652,7 +659,7 @@ each item is a fact about the merge, not about a feature):
 | `SandboxPathResolver.canonicalStorage` gone, 12 analyzer errors | the union above kept `dedupeKey` and `_nativeForIo` but the merge body was the *old* resolver | restore `canonicalStorage` from the fork tip |
 | `tools_popover.dart` did not compile (`widget.` in a `StatelessWidget`) | the care block was written for the stateful popover and upstream turned `_ToolsContent` stateless | take it as a field, and thread `conversation` from the entry point |
 | 48 generated files committed in unit 1 | `git add -A` in a rebase whose tree held `test/goldens/failures/` and vendored plugin build products from earlier runs | untrack both, extend `.gitignore`, and never `git add -A` without a marker and ignore check |
-| the browser workspace feature threw `FormatException: Use a relative workspace PNG path` on every platform (7 + 1 cases) | the identity sweep renamed `uri.scheme == 'kelivo'` to `'cuplivo'` in `browser_workspace_resources.dart` while the file's own producers kept the protected `kelivo://`. A half-renamed protocol is worse than an unrenamed one: the *feature* is dead, and only the upstream test suite said so | revert the four scheme comparisons to `kelivo`; keep the branded pseudo-host and staging prefix, which are per-run |
+| the browser workspace feature threw `FormatException: Use a relative workspace PNG path` on every platform (7 + 1 cases) | the identity sweep renamed `uri.scheme == 'kelivo'` to `'cuplivo'` in `browser_workspace_resources.dart` while the file's own producers kept the protected `kelivo://`. A half-renamed protocol is worse than an unrenamed one: the *feature* is dead, and only the upstream test suite said so | revert the four scheme comparisons to `kelivo`; keep the staging prefix, which is per-run. The branded pseudo-host looked per-run too and was kept — the next baseline showed why that is the wrong test (see the `4a7da9b6f` replay below) |
 | 14 `package:Kelivo/` imports in the newest baseline's four Windows data-directory test files | `b1702b3a9` adds the feature and its tests in one commit, so the files arrive after the sweep has run | rename them in a tail commit of their own, and re-run `dart analyze` |
 | 27 committed blobs carried CRLF where both the old fork and upstream hold LF | a resolution step wrote them through a Windows text path, which no gate reads | convert them back in one mechanical commit; `git diff --ignore-cr-at-eol` reduces `settings_provider.dart` from 6 885 deleted / 6 960 added to 27 / 102, and prints nothing for the staged set |
 | 13 deterministic failures in six files, none of them load | `b1702b3a9` moved `BrowserStore` onto `AppDirectories`, seeded a new provider (`KelivoIN`), made `cancelQueuedMessage` a `Future`, and shipped its data-directory tests from a run that only happens on POSIX | three path spellings joined per segment, `p.equals` in a durability double, a basename filter, one fake path provider, the provider list, one `await`, and a key found by its tail instead of by a spelling the fixture cannot reproduce |
@@ -678,3 +685,35 @@ Measured on Windows against the committed lock, in the order the runbook prescri
 | `flutter build windows --debug` | `\ Built build\windows\x64\runner\Debug\cuplivo.exe` (205 s) |
 | identity | `git grep -c Kelivo master -- lib/l10n` prints nothing; no `package:Kelivo` outside this document |
 | ancestry | `git merge-base --is-ancestor 4671dbe48 HEAD` holds; no tag points at the tip; `pubspec.yaml` says `4.3.0+6` at the replay tip, and the release commit after it moves to `4.4.0+7` |
+
+### The `4a7da9b6f` replay
+
+Twelve upstream commits, 78 files, +4 678 / −355; 42 units replayed; **six stops**, against a forecast
+of 25 (see §18 of `docs/flaky-tests.md` for why overlap rank over-predicts: the identity unit rewrites
+whole files, so upstream edits inside them are absorbed instead of conflicting). Three tail commits,
+none of them folded back:
+
+| commit | what it carries |
+|---|---|
+| `a29d043ac` | the incoming side's `package:Kelivo/` in six files, the stray `)` a split hunk left in the browser engine, and the protocol test restored to upstream's file plus the rename |
+| `5619d84aa` | the workspace pseudo-host back to `kelivo` (upstream's `isInternalHost` and its new test both require it), and the crypto vectors' 2-minute timeout |
+| `bce8b656f` | the MCP harness's teardown tolerating the client it outran — §4's oldest registry entry, repaired instead of registered |
+
+The gates on this tip:
+
+| gate | result |
+| --- | --- |
+| `dart analyze --fatal-infos lib test integration_test` | No issues found (two runs: before and after the tail repairs) |
+| `flutter gen-l10n` | idempotent at the tip, and re-run *inside* the l10n-regen unit so that commit kept real content instead of becoming empty |
+| `dart format --output=none --set-exit-if-changed` (pinned Dart 3.13.0) | `0 changed` of 2 515 |
+| `:app:testDebugUnitTest` | BUILD SUCCESSFUL (6 m 2 s) |
+| `flutter test` | see the tail of `docs/flaky-tests.md` §18 — three runs, and the two that failed did so on the crypto vectors' timeout and the MCP teardown, both now repaired |
+| identity | `git grep -l 'package:Kelivo/'` matches only this document; `git grep -c Kelivo -- lib/l10n` prints nothing; `git grep cuplivo.invalid` prints nothing |
+| ancestry | `git merge-base --is-ancestor 4a7da9b6f HEAD` holds; 45 commits above the baseline (42 units + 3 repairs); `pubspec.yaml` still says `4.5.0+8` |
+
+**Two rules this replay adds.** A whole-file conflict block must not be resolved by prefixing "lines
+theirs has that ours lacks" — on `message_generation_protocol_test.dart` that put a statement above
+`import 'dart:convert'`, and only `dart analyze` said so. And a hunk boundary is not a semantic
+boundary: the identity hunk on the settings literal ended one argument before upstream's new block
+began, so "ours + theirs" kept a `)` that upstream's code no longer has.
+

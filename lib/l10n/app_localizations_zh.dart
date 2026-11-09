@@ -65,13 +65,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsPageDisplaySubtitle => '外观、行为与交互偏好';
 
   @override
-  String get settingsPageChatOwners => '助手与群聊';
+  String get settingsPageAssistant => '助手';
 
   @override
-  String get settingsPageChatOwnersCreate => '新建';
-
-  @override
-  String get chatOwnerCreateAssistant => '新建助手';
+  String get settingsPageAssistantSubtitle => '默认助手与对话风格';
 
   @override
   String get settingsPageModelsServicesSection => '模型与服务';
@@ -1436,6 +1433,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assistantEditModelUseGlobalDefault => '使用全局默认';
 
   @override
+  String get assistantSettingsPageTitle => '助手设置';
+
+  @override
   String get assistantSettingsCopyButton => '复制';
 
   @override
@@ -1461,6 +1461,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get assistantSettingsAddSheetSave => '保存';
+
+  @override
+  String get desktopAssistantsListTitle => '助手列表';
 
   @override
   String get desktopSidebarTabAssistants => '助手';
@@ -1500,9 +1503,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get hotkeyCopySelectionMarkdown => '复制选中为 Markdown';
-
-  @override
-  String get hotkeyReplySelection => '回复选中内容';
 
   @override
   String get hotkeysPressShortcut => '按下快捷键';
@@ -1715,7 +1715,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get startupRecoveryExportButton => '导出我的数据副本';
 
   @override
-  String get startupRecoveryResetButton => '重置数据';
+  String get startupRecoveryResetButton => '从空列表重新开始';
 
   @override
   String get startupRecoveryBusy => '处理中…';
@@ -1734,14 +1734,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get startupRecoveryResetFailed => '重置失败。请彻底关闭 Cuplivo 后重新打开。';
 
   @override
-  String get startupRecoveryResetDialogTitle => '重置全部数据？';
+  String get startupRecoveryResetDialogTitle => '确定从空列表重新开始？';
 
   @override
   String get startupRecoveryResetDialogContent =>
-      '开始使用新的空数据库？当前数据库及其日志文件、已有副本都会保留，供之后恢复。';
+      '这不会找回之前的聊天。Cuplivo 会保留当前数据库和已有副本，建立新的空聊天列表。想找回聊天，请取消并选择本地副本恢复。';
 
   @override
-  String get startupRecoveryResetDialogConfirm => '重置并重启';
+  String get startupRecoveryResetDialogConfirm => '保留副本并重新开始';
 
   @override
   String get startupRecoveryResetDialogCancel => '取消';
@@ -1813,8 +1813,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get startupRecoverySectionDataTitle => '你的数据';
 
   @override
-  String get startupRecoverySectionDataBody =>
-      '目前没有任何数据被删除。在尝试下面的操作前，先把副本保存到安全的地方。';
+  String get startupRecoverySectionDataBody => '也可以先导出剩余数据，保存到安全的位置，再继续操作。';
 
   @override
   String startupRecoveryExportSavedTo(String path) {
@@ -1846,14 +1845,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get startupRecoveryIntegrityFailed => '完整性检查无法运行。';
 
   @override
-  String get startupRecoveryDangerZone => '危险操作';
+  String get startupRecoveryDangerZone => '其他选项';
 
   @override
   String get startupRecoveryDangerBody =>
       '重新开始后，当前数据将不再显示。Cuplivo 会保留旧数据库和已有副本以供恢复，建议先导出一份数据副本。';
 
   @override
-  String get startupRecoveryResetAcknowledge => '我确认开始使用新的空数据库。';
+  String get startupRecoveryResetAcknowledge => '我确认暂不恢复聊天，继续使用空聊天列表。';
 
   @override
   String get startupDatabaseUpdateRequiredTitle => '请更新 Cuplivo 以继续';
@@ -2421,15 +2420,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get messageMoreSheetEdit => '编辑';
 
   @override
-  String get messageQuotePreviewRemove => '移除回复';
-
-  @override
-  String get messageQuoteTargetMissing => '原消息不可用';
-
-  @override
-  String get messageMoreSheetReply => '回复';
-
-  @override
   String get messageMoreSheetShare => '分享';
 
   @override
@@ -2472,9 +2462,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chatMessageWidgetCopiedToClipboard => '已复制到剪贴板';
-
-  @override
-  String get chatMessageWidgetReplySelection => '回复';
 
   @override
   String get chatMessageWidgetResendTooltip => '重新发送';
@@ -10465,9 +10452,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get recycleBinKindConfig => '配置';
 
   @override
-  String get recycleBinKindGroup => '群聊';
-
-  @override
   String get recycleBinOriginLocal => '本机删除';
 
   @override
@@ -10517,9 +10501,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get recycleBinFilterAssistants => '助手';
-
-  @override
-  String get recycleBinFilterGroups => '群聊';
 
   @override
   String get recycleBinFilterSettings => '设置';
@@ -11413,7 +11394,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mcpImportConfirm => '导入';
 
   @override
-  String get startupRecoverySnapshotTitle => '从数据库快照恢复';
+  String get startupRecoverySnapshotTitle => '从本地副本找回';
 
   @override
   String get startupRecoverySnapshotBody =>
@@ -11423,7 +11404,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get startupRecoverySnapshotEmpty => '未在本机找到数据库快照。请先导出数据，再尝试其他恢复操作。';
 
   @override
-  String get startupRecoverySnapshotButton => '选择快照恢复';
+  String get startupRecoverySnapshotButton => '选择副本恢复记录';
 
   @override
   String startupRecoverySnapshotConfirm(String when) {
@@ -11833,7 +11814,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get oauthSyncing => '正在同步模型…';
 
   @override
-  String get oauthModelsHint => '可用模型由账号同步。';
+  String get oauthModelsHint => '可用模型由账号同步。选择要在模型列表中启用的模型，选择会在同步和重新登录后保留。';
 
   @override
   String get oauthNoModels => '同步模型后即可开始对话';
@@ -13511,7 +13492,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get searchServicesPageWebFetchFooter =>
-      '开启联网搜索后，模型还可以读取网页全文。搜索服务不支持抓取时会改用本地抓取，本地抓取无法处理需要 JavaScript 渲染或有反爬限制的页面。';
+      '开启联网搜索后，模型还可以读取网页全文。搜索服务不支持抓取时会改用本地抓取，本地抓取无法处理需要 JavaScript 渲染或有反爬限制的页面。\n\n如已使用此处的网页抓取，建议前往「设置 → MCP」关闭内置 @cuplivo/fetch，避免模型混用两个抓取工具。此处配置的网页抓取仍可正常使用。';
 
   @override
   String get searchServicesPageWebFetchSupported => '支持网页抓取';
@@ -13816,10 +13797,11 @@ class AppLocalizationsZh extends AppLocalizations {
       '当前数据库没有对话，但发现了历史副本。Cuplivo 已暂停启动，你可以恢复副本，也可以明确选择保留当前数据。应用不会自动覆盖数据。';
 
   @override
-  String get recoveryKeepCurrent => '保留当前数据并继续';
+  String get recoveryKeepCurrent => '继续使用空聊天列表';
 
   @override
-  String get recoveryKeepCurrentConfirm => '继续使用当前空数据库？历史副本仍会保留，可以稍后恢复。';
+  String get recoveryKeepCurrentConfirm =>
+      '此操作不会找回之前的聊天，当前聊天列表将保持为空，旧副本会继续保留。如果想找回聊天，请取消并选择本地副本恢复。';
 
   @override
   String get recoverySearchingCopies => '正在查找并校验本机数据副本…';
@@ -13870,7 +13852,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get recoveryStorageInsufficientSpaceBody =>
-      '剩余空间不足，无法在保留原数据库的同时建立经过校验的内部副本。现有数据和快照均未改动，请腾出一些空间后重试。';
+      '存储空间不足，暂时无法安全地准备数据。请到系统设置释放一些空间，再重新打开 Cuplivo，或重新检查下方的副本。请保留 Cuplivo，不要删除它的数据和本地副本。';
 
   @override
   String get migrationFreshStartTitle => '已重新开始';
@@ -13921,10 +13903,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupEncryptionOffHint => '未加密的备份可被直接读取。';
 
   @override
-  String get backupEncryptionOnHint => '当前页面内的备份均会加密。';
+  String get backupEncryptionOnHint => '备份将加密保存，重启应用后需重新输入口令。';
 
   @override
-  String get backupEncryptionPasswordHint => '请妥善保存口令，遗忘后无法恢复备份。口令仅在当前页面保留。';
+  String get backupEncryptionPasswordHint =>
+      '请妥善保存口令，遗忘后无法恢复备份。口令仅在内存中保留至退出应用。';
 
   @override
   String get backupEncryptionPassword => '口令';
@@ -15805,6 +15788,167 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dataDirectoryCancelHint => '取消搬迁会保留目标目录中已复制的文件，你可以检查后手动清理这些副本。';
 
   @override
+  String get assistantCopyTitle => '复制助手';
+
+  @override
+  String get assistantCopyDefaultHint => '选择复制范围，或直接全量复制。';
+
+  @override
+  String get assistantCopyConfiguration => '助手配置';
+
+  @override
+  String get assistantCopyConfigurationHint => '始终复制名称、头像、提示词、模型、参数及预设消息等配置。';
+
+  @override
+  String get assistantCopyMemories => '助手专属记忆';
+
+  @override
+  String get assistantCopyMemoriesHint => '包含新旧两套专属记忆，保留归档状态；全局记忆继续共享。';
+
+  @override
+  String get assistantCopyChooseMemories => '选择记忆条目';
+
+  @override
+  String get assistantCopyChooseEntries => '选择条目';
+
+  @override
+  String get assistantCopyPhrasesHint => '复制此助手专属的快捷短语；全局短语继续共享。';
+
+  @override
+  String get assistantCopyBindingsHint =>
+      '以下仅复制绑定，不另建资源或复制工作区文件。世界书、指令注入未勾选时沿用全局默认。';
+
+  @override
+  String get assistantCopyWorldBooks => '世界书绑定';
+
+  @override
+  String get assistantCopySkills => '技能选择';
+
+  @override
+  String get assistantCopyTools => '工具与搜索设置';
+
+  @override
+  String get assistantCopyWorkspace => '默认工作区绑定';
+
+  @override
+  String get assistantCopyAll => '全量复制';
+
+  @override
+  String get assistantCopyInProgress => '正在复制…';
+
+  @override
+  String get assistantCopyFailed => '复制失败，原数据未改变，请重试。';
+
+  @override
+  String get assistantCopyMemoryLoadFailed => '无法加载记忆，请重试。';
+
+  @override
+  String get assistantCopyRetry => '重试';
+
+  @override
+  String get assistantCopyNoMemories => '此助手没有可复制的专属记忆。';
+
+  @override
+  String get assistantCopySelectAll => '全选记忆';
+
+  @override
+  String get assistantConversationMcpTitle => '允许对话自定义 MCP';
+
+  @override
+  String get assistantConversationMcpHint => '开启后，对话可单独选择 MCP 服务器；未自定义时跟随助手设置。';
+
+  @override
+  String get mcpSelectionInherited => '跟随助手';
+
+  @override
+  String get mcpSelectionCustom => '本对话自定义';
+
+  @override
+  String get mcpInheritAssistant => '跟随助手设置';
+
+  @override
+  String get displaySettingsPageUseLegacyInlineCodeStyleTitle => '旧版行内代码样式';
+
+  @override
+  String get displaySettingsPageUseLegacyInlineCodeStyleSubtitle =>
+      '为行内代码使用较浅的底色、细边框和更宽松的行距。';
+
+  @override
+  String get asrServicesElevenLabsSubtitle => 'Scribe 分段云端转写';
+
+  @override
+  String get oauthDnsError => 'DNS 解析失败，请检查网络或代理的 DNS 设置。';
+
+  @override
+  String get oauthTlsError => 'TLS 安全连接失败，请检查网络或代理的证书配置。';
+
+  @override
+  String get oauthProxyError => '代理连接失败，请检查代理地址和认证设置。';
+
+  @override
+  String get oauthConnectionError => '连接失败或中断，请检查网络或代理设置。';
+
+  @override
+  String get oauthConnectionTimeout => '连接服务器超时，请检查网络或代理设置。';
+
+  @override
+  String get oauthSendTimeout => '发送请求超时，请检查网络后重试。';
+
+  @override
+  String get oauthReceiveTimeout => '等待服务器响应超时，请重试。';
+
+  @override
+  String get oauthRequestTimeout => '请求超时，请检查网络或代理设置后重试。';
+
+  @override
+  String oauthFailureStage(String stage) {
+    return '失败阶段：$stage';
+  }
+
+  @override
+  String get oauthStageRequestDeviceCode => '申请设备码';
+
+  @override
+  String get oauthStageWaitDeviceAuthorization => '等待设备授权';
+
+  @override
+  String get oauthStagePrepareBrowser => '准备浏览器登录';
+
+  @override
+  String get oauthStageBrowserAuthorization => '浏览器授权与回调';
+
+  @override
+  String get oauthStageExchangeToken => '交换登录令牌';
+
+  @override
+  String get oauthStageRefreshToken => '刷新登录令牌';
+
+  @override
+  String get oauthMonthlyTotal => '本月总额度';
+
+  @override
+  String get oauthMonthlyCode => '本月代码额度';
+
+  @override
+  String get oauthSpendCap => '积分消费上限';
+
+  @override
+  String get oauthOnDemand => '按需额度';
+
+  @override
+  String get oauthQuotaAdvisory => '仅供参考：本周额度仍有效，暂无法确认该月额度是否限制使用。';
+
+  @override
+  String oauthCreditsValue(String value) {
+    return '$value 积分';
+  }
+
+  @override
+  String oauthRemainingValue(String value) {
+    return '剩余 $value';
+  }
+
+  @override
   String providerDetailPageBaseUrlExample(String url) {
     return '例如 $url';
   }
@@ -16043,7 +16187,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get recoveryGuideBody =>
-      'Kelivo 暂时无法载入数据，已暂停操作。我们会查找本地副本，供你选择恢复。现有文件会保留。';
+      'Cuplivo 暂时无法载入数据，已暂停操作。我们会查找本地副本，供你选择恢复。现有文件会保留。';
 
   @override
   String get recoverySpaceTitle => '需要一些存储空间';
@@ -16064,7 +16208,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get recoveryRestoreRetryBody =>
-      '这次恢复尚未完成，选中的副本已保留。可以重新检查本地副本，或重新打开 Kelivo 继续。';
+      '这次恢复尚未完成，选中的副本已保留。可以重新检查本地副本，或重新打开 Cuplivo 继续。';
 
   @override
   String recoverySpaceAmount(String required, String available) {
@@ -16073,7 +16217,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get recoveryCopiesNeedUpdate =>
-      '部分副本来自更新版本的 Kelivo，请升级 App 后再恢复。这些副本仍然保留。';
+      '部分副本来自更新版本的 Cuplivo，请升级 App 后再恢复。这些副本仍然保留。';
 
   @override
   String get imageContextTitle => '图片上下文';
@@ -16144,6 +16288,122 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get imageContextUpdateFailed => '未能保存修改，请重试。';
+
+  @override
+  String get settingsPageChatOwners => '助手与群聊';
+
+  @override
+  String get settingsPageChatOwnersCreate => '新建';
+
+  @override
+  String get chatOwnerCreateAssistant => '新建助手';
+
+  @override
+  String get recycleBinKindGroup => '群聊';
+
+  @override
+  String get recycleBinFilterGroups => '群聊';
+
+  @override
+  String get groupChatTitle => '群聊';
+
+  @override
+  String get groupChatCreate => '新建群聊';
+
+  @override
+  String get groupChatCreateHint => '至少选择一位助手';
+
+  @override
+  String get groupChatNameHint => '群聊名称';
+
+  @override
+  String get groupChatChangeAvatar => '更换群头像';
+
+  @override
+  String get groupChatMembers => '成员';
+
+  @override
+  String get groupChatMembersEmpty => '还没有成员';
+
+  @override
+  String get groupChatInvite => '邀请助手';
+
+  @override
+  String get groupChatNoAssistantToInvite => '所有助手都已在这个群聊里';
+
+  @override
+  String get groupChatSave => '保存';
+
+  @override
+  String get groupChatCancel => '取消';
+
+  @override
+  String get groupChatSettingsTitle => '群聊设置';
+
+  @override
+  String get groupChatBack => '返回';
+
+  @override
+  String get groupChatOrchestration => '发言编排';
+
+  @override
+  String get groupChatDirectorTitle => '导演模型';
+
+  @override
+  String get groupChatDirectorSubtitle => '选择下一个谁来发言的模型，建议选择快速且低成本的模型';
+
+  @override
+  String get groupChatDirectorFollowDefault => '跟随默认模型';
+
+  @override
+  String get groupChatMaxTurnsTitle => '每轮最多发言';
+
+  @override
+  String get groupChatMaxTurnsSubtitle => '一条消息最多由几位成员回复';
+
+  @override
+  String get groupChatRemoveMember => '移出';
+
+  @override
+  String get groupChatRemoveMemberTitle => '移出助手';
+
+  @override
+  String get groupChatRemoveMemberContent => '该助手将不再参与这个群聊。';
+
+  @override
+  String get groupChatDelete => '删除群聊';
+
+  @override
+  String get groupChatDeleteTitle => '删除这个群聊？';
+
+  @override
+  String get groupChatDeleteContent => '群聊及其全部话题会一起移入回收站。';
+
+  @override
+  String get groupChatDeleted => '群聊已移入回收站';
+
+  @override
+  String get groupChatUnavailable => '找不到这个群聊的设置，请到回收站恢复。';
+
+  @override
+  String get groupChatNewTopic => '新话题';
+
+  @override
+  String get groupChatRemovedMember => '已删除的助手';
+
+  @override
+  String get groupChatDirectorFallbackWarning =>
+      '导演模型不可用，已由首位成员回复一次。请检查默认模型设置。';
+
+  @override
+  String get groupChatUnavailableWarning => '这个群聊没有可用的成员。';
+
+  @override
+  String get defaultModelPageDirectorModelTitle => '导演模型';
+
+  @override
+  String get defaultModelPageDirectorModelSubtitle =>
+      '决定群聊里下一位发言者，建议选择快速且低成本的模型';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -16207,13 +16467,10 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get settingsPageDisplaySubtitle => '外观、行为与交互偏好';
 
   @override
-  String get settingsPageChatOwners => '助手与群聊';
+  String get settingsPageAssistant => '助手';
 
   @override
-  String get settingsPageChatOwnersCreate => '新建';
-
-  @override
-  String get chatOwnerCreateAssistant => '新建助手';
+  String get settingsPageAssistantSubtitle => '默认助手与对话风格';
 
   @override
   String get settingsPageModelsServicesSection => '模型与服务';
@@ -17578,6 +17835,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get assistantEditModelUseGlobalDefault => '使用全局默认';
 
   @override
+  String get assistantSettingsPageTitle => '助手设置';
+
+  @override
   String get assistantSettingsCopyButton => '复制';
 
   @override
@@ -17603,6 +17863,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get assistantSettingsAddSheetSave => '保存';
+
+  @override
+  String get desktopAssistantsListTitle => '助手列表';
 
   @override
   String get desktopSidebarTabAssistants => '助手';
@@ -17642,9 +17905,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get hotkeyCopySelectionMarkdown => '复制选中为 Markdown';
-
-  @override
-  String get hotkeyReplySelection => '回复选中内容';
 
   @override
   String get hotkeysPressShortcut => '按下快捷键';
@@ -17857,7 +18117,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get startupRecoveryExportButton => '导出我的数据副本';
 
   @override
-  String get startupRecoveryResetButton => '重置数据';
+  String get startupRecoveryResetButton => '从空列表重新开始';
 
   @override
   String get startupRecoveryBusy => '处理中…';
@@ -17876,14 +18136,14 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get startupRecoveryResetFailed => '重置失败。请彻底关闭 Cuplivo 后重新打开。';
 
   @override
-  String get startupRecoveryResetDialogTitle => '重置全部数据？';
+  String get startupRecoveryResetDialogTitle => '确定从空列表重新开始？';
 
   @override
   String get startupRecoveryResetDialogContent =>
-      '开始使用新的空数据库？当前数据库及其日志文件、已有副本都会保留，供之后恢复。';
+      '这不会找回之前的聊天。Cuplivo 会保留当前数据库和已有副本，建立新的空聊天列表。想找回聊天，请取消并选择本地副本恢复。';
 
   @override
-  String get startupRecoveryResetDialogConfirm => '重置并重启';
+  String get startupRecoveryResetDialogConfirm => '保留副本并重新开始';
 
   @override
   String get startupRecoveryResetDialogCancel => '取消';
@@ -17955,8 +18215,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get startupRecoverySectionDataTitle => '你的数据';
 
   @override
-  String get startupRecoverySectionDataBody =>
-      '目前没有任何数据被删除。在尝试下面的操作前，先把副本保存到安全的地方。';
+  String get startupRecoverySectionDataBody => '也可以先导出剩余数据，保存到安全的位置，再继续操作。';
 
   @override
   String startupRecoveryExportSavedTo(String path) {
@@ -17988,14 +18247,14 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get startupRecoveryIntegrityFailed => '完整性检查无法运行。';
 
   @override
-  String get startupRecoveryDangerZone => '危险操作';
+  String get startupRecoveryDangerZone => '其他选项';
 
   @override
   String get startupRecoveryDangerBody =>
       '重新开始后，当前数据将不再显示。Cuplivo 会保留旧数据库和已有副本以供恢复，建议先导出一份数据副本。';
 
   @override
-  String get startupRecoveryResetAcknowledge => '我确认开始使用新的空数据库。';
+  String get startupRecoveryResetAcknowledge => '我确认暂不恢复聊天，继续使用空聊天列表。';
 
   @override
   String get startupDatabaseUpdateRequiredTitle => '请更新 Cuplivo 以继续';
@@ -18563,15 +18822,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get messageMoreSheetEdit => '编辑';
 
   @override
-  String get messageQuotePreviewRemove => '移除回复';
-
-  @override
-  String get messageQuoteTargetMissing => '原消息不可用';
-
-  @override
-  String get messageMoreSheetReply => '回复';
-
-  @override
   String get messageMoreSheetShare => '分享';
 
   @override
@@ -18614,9 +18864,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get chatMessageWidgetCopiedToClipboard => '已复制到剪贴板';
-
-  @override
-  String get chatMessageWidgetReplySelection => '回复';
 
   @override
   String get chatMessageWidgetResendTooltip => '重新发送';
@@ -26533,9 +26780,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get recycleBinKindConfig => '配置';
 
   @override
-  String get recycleBinKindGroup => '群聊';
-
-  @override
   String get recycleBinOriginLocal => '本机删除';
 
   @override
@@ -26585,9 +26829,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get recycleBinFilterAssistants => '助手';
-
-  @override
-  String get recycleBinFilterGroups => '群聊';
 
   @override
   String get recycleBinFilterSettings => '设置';
@@ -27481,7 +27722,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get mcpImportConfirm => '导入';
 
   @override
-  String get startupRecoverySnapshotTitle => '从数据库快照恢复';
+  String get startupRecoverySnapshotTitle => '从本地副本找回';
 
   @override
   String get startupRecoverySnapshotBody =>
@@ -27491,7 +27732,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get startupRecoverySnapshotEmpty => '未在本机找到数据库快照。请先导出数据，再尝试其他恢复操作。';
 
   @override
-  String get startupRecoverySnapshotButton => '选择快照恢复';
+  String get startupRecoverySnapshotButton => '选择副本恢复记录';
 
   @override
   String startupRecoverySnapshotConfirm(String when) {
@@ -27901,7 +28142,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get oauthSyncing => '正在同步模型…';
 
   @override
-  String get oauthModelsHint => '可用模型由账号同步。';
+  String get oauthModelsHint => '可用模型由账号同步。选择要在模型列表中启用的模型，选择会在同步和重新登录后保留。';
 
   @override
   String get oauthNoModels => '同步模型后即可开始对话';
@@ -29579,7 +29820,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get searchServicesPageWebFetchFooter =>
-      '开启联网搜索后，模型还可以读取网页全文。搜索服务不支持抓取时会改用本地抓取，本地抓取无法处理需要 JavaScript 渲染或有反爬限制的页面。';
+      '开启联网搜索后，模型还可以读取网页全文。搜索服务不支持抓取时会改用本地抓取，本地抓取无法处理需要 JavaScript 渲染或有反爬限制的页面。\n\n如已使用此处的网页抓取，建议前往「设置 → MCP」关闭内置 @cuplivo/fetch，避免模型混用两个抓取工具。此处配置的网页抓取仍可正常使用。';
 
   @override
   String get searchServicesPageWebFetchSupported => '支持网页抓取';
@@ -29884,10 +30125,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
       '当前数据库没有对话，但发现了历史副本。Cuplivo 已暂停启动，你可以恢复副本，也可以明确选择保留当前数据。应用不会自动覆盖数据。';
 
   @override
-  String get recoveryKeepCurrent => '保留当前数据并继续';
+  String get recoveryKeepCurrent => '继续使用空聊天列表';
 
   @override
-  String get recoveryKeepCurrentConfirm => '继续使用当前空数据库？历史副本仍会保留，可以稍后恢复。';
+  String get recoveryKeepCurrentConfirm =>
+      '此操作不会找回之前的聊天，当前聊天列表将保持为空，旧副本会继续保留。如果想找回聊天，请取消并选择本地副本恢复。';
 
   @override
   String get recoverySearchingCopies => '正在查找并校验本机数据副本…';
@@ -29938,7 +30180,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get recoveryStorageInsufficientSpaceBody =>
-      '剩余空间不足，无法在保留原数据库的同时建立经过校验的内部副本。现有数据和快照均未改动，请腾出一些空间后重试。';
+      '存储空间不足，暂时无法安全地准备数据。请到系统设置释放一些空间，再重新打开 Cuplivo，或重新检查下方的副本。请保留 Cuplivo，不要删除它的数据和本地副本。';
 
   @override
   String get migrationFreshStartTitle => '已重新开始';
@@ -29989,10 +30231,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backupEncryptionOffHint => '未加密的备份可被直接读取。';
 
   @override
-  String get backupEncryptionOnHint => '当前页面内的备份均会加密。';
+  String get backupEncryptionOnHint => '备份将加密保存，重启应用后需重新输入口令。';
 
   @override
-  String get backupEncryptionPasswordHint => '请妥善保存口令，遗忘后无法恢复备份。口令仅在当前页面保留。';
+  String get backupEncryptionPasswordHint =>
+      '请妥善保存口令，遗忘后无法恢复备份。口令仅在内存中保留至退出应用。';
 
   @override
   String get backupEncryptionPassword => '口令';
@@ -31873,6 +32116,453 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get dataDirectoryCancelHint => '取消搬迁会保留目标目录中已复制的文件，你可以检查后手动清理这些副本。';
 
   @override
+  String get assistantCopyTitle => '复制助手';
+
+  @override
+  String get assistantCopyDefaultHint => '选择复制范围，或直接全量复制。';
+
+  @override
+  String get assistantCopyConfiguration => '助手配置';
+
+  @override
+  String get assistantCopyConfigurationHint => '始终复制名称、头像、提示词、模型、参数及预设消息等配置。';
+
+  @override
+  String get assistantCopyMemories => '助手专属记忆';
+
+  @override
+  String get assistantCopyMemoriesHint => '包含新旧两套专属记忆，保留归档状态；全局记忆继续共享。';
+
+  @override
+  String get assistantCopyChooseMemories => '选择记忆条目';
+
+  @override
+  String get assistantCopyChooseEntries => '选择条目';
+
+  @override
+  String get assistantCopyPhrasesHint => '复制此助手专属的快捷短语；全局短语继续共享。';
+
+  @override
+  String get assistantCopyBindingsHint =>
+      '以下仅复制绑定，不另建资源或复制工作区文件。世界书、指令注入未勾选时沿用全局默认。';
+
+  @override
+  String get assistantCopyWorldBooks => '世界书绑定';
+
+  @override
+  String get assistantCopySkills => '技能选择';
+
+  @override
+  String get assistantCopyTools => '工具与搜索设置';
+
+  @override
+  String get assistantCopyWorkspace => '默认工作区绑定';
+
+  @override
+  String get assistantCopyAll => '全量复制';
+
+  @override
+  String get assistantCopyInProgress => '正在复制…';
+
+  @override
+  String get assistantCopyFailed => '复制失败，原数据未改变，请重试。';
+
+  @override
+  String get assistantCopyMemoryLoadFailed => '无法加载记忆，请重试。';
+
+  @override
+  String get assistantCopyRetry => '重试';
+
+  @override
+  String get assistantCopyNoMemories => '此助手没有可复制的专属记忆。';
+
+  @override
+  String get assistantCopySelectAll => '全选记忆';
+
+  @override
+  String get assistantConversationMcpTitle => '允许对话自定义 MCP';
+
+  @override
+  String get assistantConversationMcpHint => '开启后，对话可单独选择 MCP 服务器；未自定义时跟随助手设置。';
+
+  @override
+  String get mcpSelectionInherited => '跟随助手';
+
+  @override
+  String get mcpSelectionCustom => '本对话自定义';
+
+  @override
+  String get mcpInheritAssistant => '跟随助手设置';
+
+  @override
+  String get displaySettingsPageUseLegacyInlineCodeStyleTitle => '旧版行内代码样式';
+
+  @override
+  String get displaySettingsPageUseLegacyInlineCodeStyleSubtitle =>
+      '为行内代码使用较浅的底色、细边框和更宽松的行距。';
+
+  @override
+  String get asrServicesElevenLabsSubtitle => 'Scribe 分段云端转写';
+
+  @override
+  String get oauthDnsError => 'DNS 解析失败，请检查网络或代理的 DNS 设置。';
+
+  @override
+  String get oauthTlsError => 'TLS 安全连接失败，请检查网络或代理的证书配置。';
+
+  @override
+  String get oauthProxyError => '代理连接失败，请检查代理地址和认证设置。';
+
+  @override
+  String get oauthConnectionError => '连接失败或中断，请检查网络或代理设置。';
+
+  @override
+  String get oauthConnectionTimeout => '连接服务器超时，请检查网络或代理设置。';
+
+  @override
+  String get oauthSendTimeout => '发送请求超时，请检查网络后重试。';
+
+  @override
+  String get oauthReceiveTimeout => '等待服务器响应超时，请重试。';
+
+  @override
+  String get oauthRequestTimeout => '请求超时，请检查网络或代理设置后重试。';
+
+  @override
+  String oauthFailureStage(String stage) {
+    return '失败阶段：$stage';
+  }
+
+  @override
+  String get oauthStageRequestDeviceCode => '申请设备码';
+
+  @override
+  String get oauthStageWaitDeviceAuthorization => '等待设备授权';
+
+  @override
+  String get oauthStagePrepareBrowser => '准备浏览器登录';
+
+  @override
+  String get oauthStageBrowserAuthorization => '浏览器授权与回调';
+
+  @override
+  String get oauthStageExchangeToken => '交换登录令牌';
+
+  @override
+  String get oauthStageRefreshToken => '刷新登录令牌';
+
+  @override
+  String get oauthMonthlyTotal => '本月总额度';
+
+  @override
+  String get oauthMonthlyCode => '本月代码额度';
+
+  @override
+  String get oauthSpendCap => '积分消费上限';
+
+  @override
+  String get oauthOnDemand => '按需额度';
+
+  @override
+  String get oauthQuotaAdvisory => '仅供参考：本周额度仍有效，暂无法确认该月额度是否限制使用。';
+
+  @override
+  String oauthCreditsValue(String value) {
+    return '$value 积分';
+  }
+
+  @override
+  String oauthRemainingValue(String value) {
+    return '剩余 $value';
+  }
+
+  @override
+  String providerDetailPageBaseUrlExample(String url) {
+    return '例如 $url';
+  }
+
+  @override
+  String get providerDetailPageApiKeyExample => '例如 sk-…';
+
+  @override
+  String get providerDetailPageRequestUrlLabel => '请求地址';
+
+  @override
+  String providerDetailPageUrlWillAppendVersion(String v) {
+    return '未包含版本号，离开输入框时将自动补全 $v';
+  }
+
+  @override
+  String providerDetailPageUrlAppendedVersion(String v) {
+    return '已自动补全 $v';
+  }
+
+  @override
+  String get providerDetailPageUrlTrimmedSlash => '已去掉末尾的 /';
+
+  @override
+  String providerDetailPageUrlMovedPath(String path) {
+    return '已识别完整地址，$path 已移到「API 路径」';
+  }
+
+  @override
+  String get providerDetailPageUrlEmptyError => '未填写，无法发起请求';
+
+  @override
+  String get providerDetailPageUrlInvalidError =>
+      '地址格式不正确，需以 http:// 或 https:// 开头';
+
+  @override
+  String get providerDetailPageRestoreDefaultTooltip => '恢复默认地址';
+
+  @override
+  String get providerDetailPageClearTooltip => '清除';
+
+  @override
+  String providerDetailPageTestSuccessWithLatency(String ms) {
+    return '测试成功 · $ms ms';
+  }
+
+  @override
+  String providerDetailPageTestFailedWithCode(String code) {
+    return '测试失败 · $code';
+  }
+
+  @override
+  String providerDetailPageTestHintMissingVersion(String url) {
+    return '地址可能缺少版本号，试试 $url';
+  }
+
+  @override
+  String providerAutoVersionAdded(String v) {
+    return '已自动补全 $v';
+  }
+
+  @override
+  String get providerUndo => '撤销';
+
+  @override
+  String get sidePanelToggle => '显示 / 收起侧面板';
+
+  @override
+  String get sidePanelFiles => '文件';
+
+  @override
+  String get sidePanelTopics => '话题';
+
+  @override
+  String get sidePanelExpand => '展开面板';
+
+  @override
+  String get sidePanelCollapse => '退出展开';
+
+  @override
+  String get sidePanelAllTabs => '全部标签';
+
+  @override
+  String sidePanelMoreTabs(int count) {
+    return '另有 $count 个';
+  }
+
+  @override
+  String get sidePanelSearchTabs => '搜索标签';
+
+  @override
+  String get sidePanelOpenFile => '打开文件…';
+
+  @override
+  String get sidePanelCloseOthers => '关闭其他标签';
+
+  @override
+  String get sidePanelCloseRight => '关闭右侧标签';
+
+  @override
+  String get sidePanelReopenTab => '重新打开关闭的标签';
+
+  @override
+  String get sidePanelPinned => '已固定 · 不可关闭';
+
+  @override
+  String get sidePanelMoveTopicsLeft => '把话题移回左侧…';
+
+  @override
+  String get sidePanelPinnedHint =>
+      '话题放在右侧时始终固定在面板最左。要移除，请在 设置 › 显示 › 话题位置 中改回左侧。';
+
+  @override
+  String get sidePanelEvictedTitle => '已释放';
+
+  @override
+  String sidePanelEvictedBody(int count) {
+    return '这个网页在后台被释放以节省内存（最多保留 $count 个后台网页）。重新加载后继续浏览。';
+  }
+
+  @override
+  String get sidePanelEvictedTooltip => '已释放 · 重新加载后继续';
+
+  @override
+  String get sidePanelFileMissing => '文件不可用';
+
+  @override
+  String sidePanelFileMissingBody(String path) {
+    return '$path 已被删除或移动。';
+  }
+
+  @override
+  String get sidePanelRelocate => '重新查找';
+
+  @override
+  String sidePanelBackgroundIn(String topic) {
+    return '在「$topic」中运行';
+  }
+
+  @override
+  String sidePanelWidth(int px) {
+    return '${px}px';
+  }
+
+  @override
+  String get sidePanelWidthMax => '最大';
+
+  @override
+  String get sidePanelWidthMin => '最小';
+
+  @override
+  String get sidePanelRecentFiles => '最近的输出和附件';
+
+  @override
+  String get sidePanelOpenExternalUrl => '在系统浏览器中打开网址…';
+
+  @override
+  String get sidePanelWebPages => '网页';
+
+  @override
+  String get hotkeyToggleSidePanel => '显示 / 收起侧面板';
+
+  @override
+  String get hotkeySidePanelNewWeb => '新建网页标签';
+
+  @override
+  String get hotkeySidePanelFiles => '显示文件';
+
+  @override
+  String get hotkeySidePanelExpand => '展开侧面板';
+
+  @override
+  String get hotkeySidePanelReopenTab => '重新打开关闭的标签';
+
+  @override
+  String get hotkeySidePanelNextTab => '下一个面板标签';
+
+  @override
+  String get hotkeySidePanelPreviousTab => '上一个面板标签';
+
+  @override
+  String get hotkeySidePanelAddress => '聚焦网页地址栏';
+
+  @override
+  String get hotkeySidePanelFocus => '切换聊天与面板焦点';
+
+  @override
+  String get selectionQuote => '引用';
+
+  @override
+  String selectionQuoteMarker(int index) {
+    return '[引用$index]';
+  }
+
+  @override
+  String get selectionTranslate => '翻译';
+
+  @override
+  String get selectionAiTranslateIos => 'AI翻译';
+
+  @override
+  String get selectionCopyMarkdown => '复制为 Markdown';
+
+  @override
+  String get selectionCopyRich => '复制富文本';
+
+  @override
+  String get quoteJumpToSource => '跳到原文';
+
+  @override
+  String get quoteRemove => '移除引用';
+
+  @override
+  String get quoteDuplicate => '这段已在引用中';
+
+  @override
+  String get quoteLimit => '一条消息最多引用 10 段';
+
+  @override
+  String get quoteLocated => '已定位到引用原文';
+
+  @override
+  String get quoteSourceMissing => '原文已不存在';
+
+  @override
+  String get selectionRegenerate => '重新生成';
+
+  @override
+  String get translating => '正在翻译…';
+
+  @override
+  String get retry => '重试';
+
+  @override
+  String get recoveryGuideTitle => '帮你找回聊天记录';
+
+  @override
+  String get recoveryGuideBody =>
+      'Cuplivo 暂时无法载入数据，已暂停操作。我们会查找本地副本，供你选择恢复。现有文件会保留。';
+
+  @override
+  String get recoverySpaceTitle => '需要一些存储空间';
+
+  @override
+  String get recoveryChecksNeedSpace =>
+      '找到了本地副本，但空间不足，暂时无法检查。这不代表副本已损坏。释放一些空间后，可以重新检查。';
+
+  @override
+  String get recoveryChecksUnavailable =>
+      '部分本地副本暂时无法检查，文件仍然保留。可以重新检查，或导出数据副本寻求帮助。';
+
+  @override
+  String get recoveryRecheckCopies => '重新检查本地副本';
+
+  @override
+  String get recoveryCopyPreview => '副本预览';
+
+  @override
+  String get recoveryRestoreRetryBody =>
+      '这次恢复尚未完成，选中的副本已保留。可以重新检查本地副本，或重新打开 Cuplivo 继续。';
+
+  @override
+  String recoverySpaceAmount(String required, String available) {
+    return '上次检查：可用空间 $available，安全准备数据至少需要预留 $required。';
+  }
+
+  @override
+  String get recoveryCopiesNeedUpdate =>
+      '部分副本来自更新版本的 Cuplivo，请升级 App 后再恢复。这些副本仍然保留。';
+
+  @override
+  String get settingsPageChatOwners => '助手与群聊';
+
+  @override
+  String get settingsPageChatOwnersCreate => '新建';
+
+  @override
+  String get chatOwnerCreateAssistant => '新建助手';
+
+  @override
+  String get recycleBinKindGroup => '群聊';
+
+  @override
+  String get recycleBinFilterGroups => '群聊';
+
+  @override
   String get groupChatTitle => '群聊';
 
   @override
@@ -32035,13 +32725,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get settingsPageDisplaySubtitle => '外觀、行為與互動偏好';
 
   @override
-  String get settingsPageChatOwners => '助手與群聊';
+  String get settingsPageAssistant => '助理';
 
   @override
-  String get settingsPageChatOwnersCreate => '新增';
-
-  @override
-  String get chatOwnerCreateAssistant => '新增助手';
+  String get settingsPageAssistantSubtitle => '預設助理與對話風格';
 
   @override
   String get settingsPageModelsServicesSection => '模型與服務';
@@ -33406,6 +34093,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get assistantEditModelUseGlobalDefault => '使用全域預設';
 
   @override
+  String get assistantSettingsPageTitle => '助理設定';
+
+  @override
   String get assistantSettingsCopyButton => '複製';
 
   @override
@@ -33431,6 +34121,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get assistantSettingsAddSheetSave => '儲存';
+
+  @override
+  String get desktopAssistantsListTitle => '助理列表';
 
   @override
   String get desktopSidebarTabAssistants => '助理';
@@ -33470,9 +34163,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get hotkeyCopySelectionMarkdown => '複製選取為 Markdown';
-
-  @override
-  String get hotkeyReplySelection => '回覆選取內容';
 
   @override
   String get hotkeysPressShortcut => '按下快捷鍵';
@@ -33686,7 +34376,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get startupRecoveryExportButton => '匯出我的資料副本';
 
   @override
-  String get startupRecoveryResetButton => '重設資料';
+  String get startupRecoveryResetButton => '從空清單重新開始';
 
   @override
   String get startupRecoveryBusy => '處理中…';
@@ -33705,14 +34395,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get startupRecoveryResetFailed => '重設失敗。請完全關閉 Cuplivo 後再重新開啟。';
 
   @override
-  String get startupRecoveryResetDialogTitle => '重設全部資料？';
+  String get startupRecoveryResetDialogTitle => '確定從空清單重新開始？';
 
   @override
   String get startupRecoveryResetDialogContent =>
-      '開始使用新的空資料庫？目前資料庫及其日誌檔案、既有副本都會保留，以供日後還原。';
+      '這不會找回之前的聊天。Cuplivo 會保留目前的資料庫和已有副本，建立新的空聊天清單。想找回聊天，請取消並選擇本機副本還原。';
 
   @override
-  String get startupRecoveryResetDialogConfirm => '重設並重新啟動';
+  String get startupRecoveryResetDialogConfirm => '保留副本並重新開始';
 
   @override
   String get startupRecoveryResetDialogCancel => '取消';
@@ -33784,8 +34474,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get startupRecoverySectionDataTitle => '你的資料';
 
   @override
-  String get startupRecoverySectionDataBody =>
-      '目前沒有任何資料被刪除。在嘗試下方操作前，先把副本存到安全的地方。';
+  String get startupRecoverySectionDataBody => '也可以先匯出剩餘資料，儲存到安全的位置，再繼續操作。';
 
   @override
   String startupRecoveryExportSavedTo(String path) {
@@ -33817,14 +34506,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get startupRecoveryIntegrityFailed => '完整性檢查無法執行。';
 
   @override
-  String get startupRecoveryDangerZone => '危險操作';
+  String get startupRecoveryDangerZone => '其他選項';
 
   @override
   String get startupRecoveryDangerBody =>
       '重新開始後，目前資料將不再顯示。Cuplivo 會保留舊資料庫與既有副本以供還原，建議先匯出一份資料副本。';
 
   @override
-  String get startupRecoveryResetAcknowledge => '我確認開始使用新的空資料庫。';
+  String get startupRecoveryResetAcknowledge => '我確認暫不還原聊天，繼續使用空聊天清單。';
 
   @override
   String get startupDatabaseUpdateRequiredTitle => '請更新 Cuplivo 以繼續';
@@ -34391,15 +35080,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get messageMoreSheetEdit => '編輯';
 
   @override
-  String get messageQuotePreviewRemove => '移除回覆';
-
-  @override
-  String get messageQuoteTargetMissing => '原訊息不可用';
-
-  @override
-  String get messageMoreSheetReply => '回覆';
-
-  @override
   String get messageMoreSheetShare => '分享';
 
   @override
@@ -34442,9 +35122,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get chatMessageWidgetCopiedToClipboard => '已複製到剪貼簿';
-
-  @override
-  String get chatMessageWidgetReplySelection => '回覆';
 
   @override
   String get chatMessageWidgetResendTooltip => '重新傳送';
@@ -42436,9 +43113,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get recycleBinKindConfig => '設定';
 
   @override
-  String get recycleBinKindGroup => '群聊';
-
-  @override
   String get recycleBinOriginLocal => '本機刪除';
 
   @override
@@ -42488,9 +43162,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get recycleBinFilterAssistants => '助手';
-
-  @override
-  String get recycleBinFilterGroups => '群聊';
 
   @override
   String get recycleBinFilterSettings => '設定';
@@ -43387,7 +44058,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get mcpImportConfirm => '匯入';
 
   @override
-  String get startupRecoverySnapshotTitle => '從資料庫快照還原';
+  String get startupRecoverySnapshotTitle => '從本機副本找回';
 
   @override
   String get startupRecoverySnapshotBody =>
@@ -43397,7 +44068,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get startupRecoverySnapshotEmpty => '未在本機找到資料庫快照。請先匯出資料，再嘗試其他還原操作。';
 
   @override
-  String get startupRecoverySnapshotButton => '選擇快照還原';
+  String get startupRecoverySnapshotButton => '選擇副本還原記錄';
 
   @override
   String startupRecoverySnapshotConfirm(String when) {
@@ -43807,7 +44478,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get oauthSyncing => '正在同步模型…';
 
   @override
-  String get oauthModelsHint => '可用模型由帳號同步。';
+  String get oauthModelsHint => '可用模型由帳號同步。選擇要在模型清單中啟用的模型，選擇會在同步和重新登入後保留。';
 
   @override
   String get oauthNoModels => '同步模型後即可開始對話';
@@ -45485,7 +46156,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get searchServicesPageWebFetchFooter =>
-      '開啟連網搜尋後，模型還可以讀取網頁全文。搜尋服務不支援抓取時會改用本機抓取，本機抓取無法處理需要 JavaScript 渲染或有反爬限制的頁面。';
+      '開啟連網搜尋後，模型還可以讀取網頁全文。搜尋服務不支援抓取時會改用本機抓取，本機抓取無法處理需要 JavaScript 渲染或有反爬限制的頁面。\n\n如已使用此處的網頁抓取，建議前往「設定 → MCP」關閉內建 @cuplivo/fetch，避免模型混用兩個抓取工具。此處設定的網頁抓取仍可正常使用。';
 
   @override
   String get searchServicesPageWebFetchSupported => '支援網頁抓取';
@@ -45790,10 +46461,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '目前資料庫沒有對話，但發現了歷史副本。Cuplivo 已暫停啟動，你可以還原副本，也可以明確選擇保留目前資料。應用程式不會自動覆寫資料。';
 
   @override
-  String get recoveryKeepCurrent => '保留目前資料並繼續';
+  String get recoveryKeepCurrent => '繼續使用空聊天清單';
 
   @override
-  String get recoveryKeepCurrentConfirm => '繼續使用目前的空資料庫？歷史副本仍會保留，可稍後還原。';
+  String get recoveryKeepCurrentConfirm =>
+      '此操作不會找回之前的聊天，目前的聊天清單將保持為空，舊副本會繼續保留。如果想找回聊天，請取消並選擇本機副本還原。';
 
   @override
   String get recoverySearchingCopies => '正在尋找並驗證本機資料副本…';
@@ -45844,7 +46516,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get recoveryStorageInsufficientSpaceBody =>
-      '剩餘空間不足，無法在保留原資料庫的同時建立經過驗證的內部副本。現有資料和快照均未更動，請釋放一些空間後重試。';
+      '儲存空間不足，暫時無法安全地準備資料。請到系統設定釋放一些空間，再重新開啟 Cuplivo，或重新檢查下方的副本。請保留 Cuplivo，不要刪除它的資料和本機副本。';
 
   @override
   String get migrationFreshStartTitle => '已重新開始';
@@ -45896,10 +46568,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backupEncryptionOffHint => '未加密的備份可被直接讀取。';
 
   @override
-  String get backupEncryptionOnHint => '目前頁面內的備份均會加密。';
+  String get backupEncryptionOnHint => '備份將加密儲存，重新啟動應用程式後需重新輸入口令。';
 
   @override
-  String get backupEncryptionPasswordHint => '請妥善保存口令，遺忘後無法還原備份。口令僅在目前頁面保留。';
+  String get backupEncryptionPasswordHint =>
+      '請妥善保存口令，遺忘後無法還原備份。口令僅在記憶體中保留至結束應用程式。';
 
   @override
   String get backupEncryptionPassword => '口令';
@@ -47780,6 +48453,453 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get dataDirectoryCancelHint => '取消搬遷會保留目標目錄中已複製的檔案，你可以檢查後手動清理這些副本。';
+
+  @override
+  String get assistantCopyTitle => '複製助手';
+
+  @override
+  String get assistantCopyDefaultHint => '選擇複製範圍，或直接完整複製。';
+
+  @override
+  String get assistantCopyConfiguration => '助手設定';
+
+  @override
+  String get assistantCopyConfigurationHint => '一律複製名稱、頭像、提示詞、模型、參數及預設訊息等設定。';
+
+  @override
+  String get assistantCopyMemories => '助手專屬記憶';
+
+  @override
+  String get assistantCopyMemoriesHint => '包含新舊兩套專屬記憶，保留封存狀態；全域記憶繼續共用。';
+
+  @override
+  String get assistantCopyChooseMemories => '選擇記憶項目';
+
+  @override
+  String get assistantCopyChooseEntries => '選擇項目';
+
+  @override
+  String get assistantCopyPhrasesHint => '複製此助手專屬的快捷短語；全域短語繼續共用。';
+
+  @override
+  String get assistantCopyBindingsHint =>
+      '以下僅複製綁定，不另建資源或複製工作區檔案。世界書、指令注入未勾選時沿用全域預設。';
+
+  @override
+  String get assistantCopyWorldBooks => '世界書綁定';
+
+  @override
+  String get assistantCopySkills => '技能選擇';
+
+  @override
+  String get assistantCopyTools => '工具與搜尋設定';
+
+  @override
+  String get assistantCopyWorkspace => '預設工作區綁定';
+
+  @override
+  String get assistantCopyAll => '完整複製';
+
+  @override
+  String get assistantCopyInProgress => '正在複製…';
+
+  @override
+  String get assistantCopyFailed => '複製失敗，原始資料未變更，請重試。';
+
+  @override
+  String get assistantCopyMemoryLoadFailed => '無法載入記憶，請重試。';
+
+  @override
+  String get assistantCopyRetry => '重試';
+
+  @override
+  String get assistantCopyNoMemories => '此助手沒有可複製的專屬記憶。';
+
+  @override
+  String get assistantCopySelectAll => '全選記憶';
+
+  @override
+  String get assistantConversationMcpTitle => '允許對話自訂 MCP';
+
+  @override
+  String get assistantConversationMcpHint => '開啟後，對話可單獨選擇 MCP 伺服器；未自訂時跟隨助手設定。';
+
+  @override
+  String get mcpSelectionInherited => '跟隨助手';
+
+  @override
+  String get mcpSelectionCustom => '本對話自訂';
+
+  @override
+  String get mcpInheritAssistant => '跟隨助手設定';
+
+  @override
+  String get displaySettingsPageUseLegacyInlineCodeStyleTitle => '舊版行內程式碼樣式';
+
+  @override
+  String get displaySettingsPageUseLegacyInlineCodeStyleSubtitle =>
+      '為行內程式碼使用較淺的底色、細邊框和更寬鬆的行距。';
+
+  @override
+  String get asrServicesElevenLabsSubtitle => 'Scribe 分段雲端轉寫';
+
+  @override
+  String get oauthDnsError => 'DNS 解析失敗，請檢查網路或代理的 DNS 設定。';
+
+  @override
+  String get oauthTlsError => 'TLS 安全連線失敗，請檢查網路或代理的憑證設定。';
+
+  @override
+  String get oauthProxyError => '代理連線失敗，請檢查代理位址和驗證設定。';
+
+  @override
+  String get oauthConnectionError => '連線失敗或中斷，請檢查網路或代理設定。';
+
+  @override
+  String get oauthConnectionTimeout => '連線至伺服器逾時，請檢查網路或代理設定。';
+
+  @override
+  String get oauthSendTimeout => '傳送請求逾時，請檢查網路後重試。';
+
+  @override
+  String get oauthReceiveTimeout => '等待伺服器回應逾時，請重試。';
+
+  @override
+  String get oauthRequestTimeout => '請求逾時，請檢查網路或代理設定後重試。';
+
+  @override
+  String oauthFailureStage(String stage) {
+    return '失敗階段：$stage';
+  }
+
+  @override
+  String get oauthStageRequestDeviceCode => '申請裝置碼';
+
+  @override
+  String get oauthStageWaitDeviceAuthorization => '等待裝置授權';
+
+  @override
+  String get oauthStagePrepareBrowser => '準備瀏覽器登入';
+
+  @override
+  String get oauthStageBrowserAuthorization => '瀏覽器授權與回呼';
+
+  @override
+  String get oauthStageExchangeToken => '交換登入權杖';
+
+  @override
+  String get oauthStageRefreshToken => '重新整理登入權杖';
+
+  @override
+  String get oauthMonthlyTotal => '本月總額度';
+
+  @override
+  String get oauthMonthlyCode => '本月程式碼額度';
+
+  @override
+  String get oauthSpendCap => '積分消費上限';
+
+  @override
+  String get oauthOnDemand => '按需額度';
+
+  @override
+  String get oauthQuotaAdvisory => '僅供參考：本週額度仍有效，暫時無法確認該月額度是否限制使用。';
+
+  @override
+  String oauthCreditsValue(String value) {
+    return '$value 積分';
+  }
+
+  @override
+  String oauthRemainingValue(String value) {
+    return '剩餘 $value';
+  }
+
+  @override
+  String providerDetailPageBaseUrlExample(String url) {
+    return '例如 $url';
+  }
+
+  @override
+  String get providerDetailPageApiKeyExample => '例如 sk-…';
+
+  @override
+  String get providerDetailPageRequestUrlLabel => '請求位址';
+
+  @override
+  String providerDetailPageUrlWillAppendVersion(String v) {
+    return '未包含版本號，離開輸入框時將自動補全 $v';
+  }
+
+  @override
+  String providerDetailPageUrlAppendedVersion(String v) {
+    return '已自動補全 $v';
+  }
+
+  @override
+  String get providerDetailPageUrlTrimmedSlash => '已移除結尾的 /';
+
+  @override
+  String providerDetailPageUrlMovedPath(String path) {
+    return '已識別完整位址，$path 已移至「API 路徑」';
+  }
+
+  @override
+  String get providerDetailPageUrlEmptyError => '未填寫，無法發起請求';
+
+  @override
+  String get providerDetailPageUrlInvalidError =>
+      '位址格式不正確，需以 http:// 或 https:// 開頭';
+
+  @override
+  String get providerDetailPageRestoreDefaultTooltip => '恢復預設位址';
+
+  @override
+  String get providerDetailPageClearTooltip => '清除';
+
+  @override
+  String providerDetailPageTestSuccessWithLatency(String ms) {
+    return '測試成功 · $ms ms';
+  }
+
+  @override
+  String providerDetailPageTestFailedWithCode(String code) {
+    return '測試失敗 · $code';
+  }
+
+  @override
+  String providerDetailPageTestHintMissingVersion(String url) {
+    return '位址可能缺少版本號，試試 $url';
+  }
+
+  @override
+  String providerAutoVersionAdded(String v) {
+    return '已自動補全 $v';
+  }
+
+  @override
+  String get providerUndo => '復原';
+
+  @override
+  String get sidePanelToggle => '顯示 / 收起側面板';
+
+  @override
+  String get sidePanelFiles => '檔案';
+
+  @override
+  String get sidePanelTopics => '話題';
+
+  @override
+  String get sidePanelExpand => '展開面板';
+
+  @override
+  String get sidePanelCollapse => '退出展開';
+
+  @override
+  String get sidePanelAllTabs => '全部分頁';
+
+  @override
+  String sidePanelMoreTabs(int count) {
+    return '另有 $count 個';
+  }
+
+  @override
+  String get sidePanelSearchTabs => '搜尋分頁';
+
+  @override
+  String get sidePanelOpenFile => '開啟檔案…';
+
+  @override
+  String get sidePanelCloseOthers => '關閉其他分頁';
+
+  @override
+  String get sidePanelCloseRight => '關閉右側分頁';
+
+  @override
+  String get sidePanelReopenTab => '重新開啟關閉的分頁';
+
+  @override
+  String get sidePanelPinned => '已釘選 · 無法關閉';
+
+  @override
+  String get sidePanelMoveTopicsLeft => '把話題移回左側…';
+
+  @override
+  String get sidePanelPinnedHint =>
+      '話題放在右側時始終固定在面板最左。要移除，請在 設定 › 顯示 › 話題位置 中改回左側。';
+
+  @override
+  String get sidePanelEvictedTitle => '已釋放';
+
+  @override
+  String sidePanelEvictedBody(int count) {
+    return '這個網頁在背景被釋放以節省記憶體（最多保留 $count 個背景網頁）。重新載入後繼續瀏覽。';
+  }
+
+  @override
+  String get sidePanelEvictedTooltip => '已釋放 · 重新載入後繼續';
+
+  @override
+  String get sidePanelFileMissing => '檔案無法使用';
+
+  @override
+  String sidePanelFileMissingBody(String path) {
+    return '$path 已被刪除或移動。';
+  }
+
+  @override
+  String get sidePanelRelocate => '重新尋找';
+
+  @override
+  String sidePanelBackgroundIn(String topic) {
+    return '在「$topic」中執行';
+  }
+
+  @override
+  String sidePanelWidth(int px) {
+    return '${px}px';
+  }
+
+  @override
+  String get sidePanelWidthMax => '最大';
+
+  @override
+  String get sidePanelWidthMin => '最小';
+
+  @override
+  String get sidePanelRecentFiles => '最近的輸出和附件';
+
+  @override
+  String get sidePanelOpenExternalUrl => '在系統瀏覽器中開啟網址…';
+
+  @override
+  String get sidePanelWebPages => '網頁';
+
+  @override
+  String get hotkeyToggleSidePanel => '顯示 / 收起側面板';
+
+  @override
+  String get hotkeySidePanelNewWeb => '新增網頁分頁';
+
+  @override
+  String get hotkeySidePanelFiles => '顯示檔案';
+
+  @override
+  String get hotkeySidePanelExpand => '展開側面板';
+
+  @override
+  String get hotkeySidePanelReopenTab => '重新開啟關閉的分頁';
+
+  @override
+  String get hotkeySidePanelNextTab => '下一個面板分頁';
+
+  @override
+  String get hotkeySidePanelPreviousTab => '上一個面板分頁';
+
+  @override
+  String get hotkeySidePanelAddress => '聚焦網頁網址列';
+
+  @override
+  String get hotkeySidePanelFocus => '切換聊天與面板焦點';
+
+  @override
+  String get selectionQuote => '引用';
+
+  @override
+  String selectionQuoteMarker(int index) {
+    return '[引用$index]';
+  }
+
+  @override
+  String get selectionTranslate => '翻譯';
+
+  @override
+  String get selectionAiTranslateIos => 'AI翻譯';
+
+  @override
+  String get selectionCopyMarkdown => '複製為 Markdown';
+
+  @override
+  String get selectionCopyRich => '複製富文字';
+
+  @override
+  String get quoteJumpToSource => '跳至原文';
+
+  @override
+  String get quoteRemove => '移除引用';
+
+  @override
+  String get quoteDuplicate => '這段已在引用中';
+
+  @override
+  String get quoteLimit => '一則訊息最多引用 10 段';
+
+  @override
+  String get quoteLocated => '已定位至引用原文';
+
+  @override
+  String get quoteSourceMissing => '原文已不存在';
+
+  @override
+  String get selectionRegenerate => '重新產生';
+
+  @override
+  String get translating => '正在翻譯…';
+
+  @override
+  String get retry => '重試';
+
+  @override
+  String get recoveryGuideTitle => '幫你找回聊天記錄';
+
+  @override
+  String get recoveryGuideBody =>
+      'Cuplivo 暫時無法載入資料，已暫停操作。我們會尋找本機副本，供你選擇還原。現有檔案會保留。';
+
+  @override
+  String get recoverySpaceTitle => '需要一些儲存空間';
+
+  @override
+  String get recoveryChecksNeedSpace =>
+      '找到了本機副本，但空間不足，暫時無法檢查。這不代表副本已損壞。釋放一些空間後，可以重新檢查。';
+
+  @override
+  String get recoveryChecksUnavailable =>
+      '部分本機副本暫時無法檢查，檔案仍然保留。可以重新檢查，或匯出資料副本尋求協助。';
+
+  @override
+  String get recoveryRecheckCopies => '重新檢查本機副本';
+
+  @override
+  String get recoveryCopyPreview => '副本預覽';
+
+  @override
+  String get recoveryRestoreRetryBody =>
+      '這次還原尚未完成，選取的副本已保留。可以重新檢查本機副本，或重新開啟 Cuplivo 繼續。';
+
+  @override
+  String recoverySpaceAmount(String required, String available) {
+    return '上次檢查：可用空間 $available，安全準備資料至少需要預留 $required。';
+  }
+
+  @override
+  String get recoveryCopiesNeedUpdate =>
+      '部分副本來自更新版本的 Cuplivo，請升級 App 後再還原。這些副本仍然保留。';
+
+  @override
+  String get settingsPageChatOwners => '助手與群聊';
+
+  @override
+  String get settingsPageChatOwnersCreate => '新增';
+
+  @override
+  String get chatOwnerCreateAssistant => '新增助手';
+
+  @override
+  String get recycleBinKindGroup => '群聊';
+
+  @override
+  String get recycleBinFilterGroups => '群聊';
 
   @override
   String get groupChatTitle => '群聊';

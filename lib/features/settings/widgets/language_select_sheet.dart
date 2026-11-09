@@ -18,31 +18,129 @@ import '../../../shared/widgets/section_card.dart';
 
 class LanguageOption {
   final String code;
+
+  /// The name handed to the translator, in the app's own language of record.
+  final String displayName;
+  final String displayNameZh;
   final String flag;
 
-  const LanguageOption({required this.code, required this.flag});
+  const LanguageOption({
+    required this.code,
+    required this.displayName,
+    required this.displayNameZh,
+    required this.flag,
+  });
 }
+
+/// Sentinel a selector returns for "clear the target": no language option has
+/// this code, so callers can tell it apart from a real selection.
+const LanguageOption _clearLanguageOption = LanguageOption(
+  code: '__clear__',
+  displayName: '',
+  displayNameZh: '',
+  flag: '',
+);
 
 /// Full translate-target catalog. Order is the selector order; the user's
 /// visible subset is a separate persisted preference
 /// (`translate_visible_languages_v1`) and never reorders the catalog.
 const List<LanguageOption> supportedLanguages = [
-  LanguageOption(code: 'zh-CN', flag: '🇨🇳'),
-  LanguageOption(code: 'en', flag: '🇺🇸'),
-  LanguageOption(code: 'zh-TW', flag: '🇨🇳'),
-  LanguageOption(code: 'ja', flag: '🇯🇵'),
-  LanguageOption(code: 'ko', flag: '🇰🇷'),
-  LanguageOption(code: 'fr', flag: '🇫🇷'),
-  LanguageOption(code: 'de', flag: '🇩🇪'),
-  LanguageOption(code: 'it', flag: '🇮🇹'),
-  LanguageOption(code: 'es', flag: '🇪🇸'),
-  LanguageOption(code: 'pt', flag: '🇵🇹'),
-  LanguageOption(code: 'ru', flag: '🇷🇺'),
-  LanguageOption(code: 'ar', flag: '🇸🇦'),
-  LanguageOption(code: 'hi', flag: '🇮🇳'),
-  LanguageOption(code: 'th', flag: '🇹🇭'),
-  LanguageOption(code: 'vi', flag: '🇻🇳'),
-  LanguageOption(code: 'bn', flag: '🇧🇩'),
+  LanguageOption(
+    code: 'zh-CN',
+    displayName: 'Simplified Chinese',
+    displayNameZh: '简体中文',
+    flag: '🇨🇳',
+  ),
+  LanguageOption(
+    code: 'en',
+    displayName: 'English',
+    displayNameZh: 'English',
+    flag: '🇺🇸',
+  ),
+  LanguageOption(
+    code: 'zh-TW',
+    displayName: 'Traditional Chinese',
+    displayNameZh: '繁體中文',
+    flag: '🇨🇳',
+  ),
+  LanguageOption(
+    code: 'ja',
+    displayName: 'Japanese',
+    displayNameZh: '日本語',
+    flag: '🇯🇵',
+  ),
+  LanguageOption(
+    code: 'ko',
+    displayName: 'Korean',
+    displayNameZh: '한국어',
+    flag: '🇰🇷',
+  ),
+  LanguageOption(
+    code: 'fr',
+    displayName: 'French',
+    displayNameZh: 'Français',
+    flag: '🇫🇷',
+  ),
+  LanguageOption(
+    code: 'de',
+    displayName: 'German',
+    displayNameZh: 'Deutsch',
+    flag: '🇩🇪',
+  ),
+  LanguageOption(
+    code: 'it',
+    displayName: 'Italian',
+    displayNameZh: 'Italiano',
+    flag: '🇮🇹',
+  ),
+  LanguageOption(
+    code: 'es',
+    displayName: 'Spanish',
+    displayNameZh: 'Español',
+    flag: '🇪🇸',
+  ),
+  LanguageOption(
+    code: 'pt',
+    displayName: 'Portuguese',
+    displayNameZh: 'Português',
+    flag: '🇵🇹',
+  ),
+  LanguageOption(
+    code: 'ru',
+    displayName: 'Russian',
+    displayNameZh: 'Русский',
+    flag: '🇷🇺',
+  ),
+  LanguageOption(
+    code: 'ar',
+    displayName: 'Arabic',
+    displayNameZh: 'العربية',
+    flag: '🇸🇦',
+  ),
+  LanguageOption(
+    code: 'hi',
+    displayName: 'Hindi',
+    displayNameZh: 'हिन्दी',
+    flag: '🇮🇳',
+  ),
+  LanguageOption(
+    code: 'th',
+    displayName: 'Thai',
+    displayNameZh: 'ไทย',
+    flag: '🇹🇭',
+  ),
+  LanguageOption(
+    code: 'vi',
+    displayName: 'Vietnamese',
+    displayNameZh: 'Tiếng Việt',
+    flag: '🇻🇳',
+  ),
+  LanguageOption(
+    code: 'bn',
+    displayName: 'Bengali',
+    displayNameZh: 'বাংলা',
+    flag: '🇧🇩',
+  ),
 ];
 
 String languageDisplayName(AppLocalizations l10n, String languageCode) {
@@ -80,9 +178,14 @@ String languageDisplayName(AppLocalizations l10n, String languageCode) {
     case 'bn':
       return l10n.languageDisplayBengali;
     default:
-      return code;
+      return languageCode;
   }
 }
+
+/// Localized display name for a translate target language code, shared by
+/// every selector surface.
+String translateLanguageDisplayName(AppLocalizations l10n, String code) =>
+    languageDisplayName(l10n, code);
 
 /// Catalog entries whose codes are in [visibleCodes], in catalog order.
 /// Guaranteed non-empty: falls back to the default visible set.

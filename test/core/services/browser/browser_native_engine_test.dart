@@ -2289,6 +2289,8 @@ class _Document {
   String documentId = 'document-a';
   final Map<String, JavaScriptHandlerCallback> handlers = {};
   final List<String> evaluations = [];
+  final Map<String, Function(dynamic)> devToolsListeners = {};
+  final List<String> devToolsMethods = [];
 }
 
 class _HeadlessView extends PlatformHeadlessInAppWebView {
@@ -2496,6 +2498,27 @@ class _Controller extends PlatformInAppWebViewController {
     required JavaScriptHandlerCallback callback,
   }) {
     document.handlers[handlerName] = callback;
+  }
+
+  // `NativeBrowserEngine` bridges native dialogs over DevTools on Windows only,
+  // so the fake answers the two calls that path makes; on Linux it is never
+  // reached, which is why the platform interface's default (an
+  // `UnimplementedError`) went unnoticed in CI.
+  @override
+  Future<void> addDevToolsProtocolEventListener({
+    required String eventName,
+    required Function(dynamic data) callback,
+  }) async {
+    document.devToolsListeners[eventName] = callback;
+  }
+
+  @override
+  Future<dynamic> callDevToolsProtocolMethod({
+    required String methodName,
+    Map<String, dynamic>? parameters,
+  }) async {
+    document.devToolsMethods.add(methodName);
+    return null;
   }
 
   @override

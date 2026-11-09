@@ -346,6 +346,7 @@ void main() {
       final paths = PathProviderPlatform.instance;
       PathProviderPlatform.instance = FakePathProviderPlatform(root.path);
       SandboxPathResolver.debugSetDirs(docsDir: root.path);
+      late final File file;
       try {
         final first = img.encodePng(
           img.Image(width: 2, height: 2)..setPixelRgba(0, 0, 255, 0, 0, 255),
@@ -356,7 +357,7 @@ void main() {
         final saved = (await tester.runAsync(
           () => McpImageSnapshot.saveBytes(first),
         ))!;
-        final file = (await tester.runAsync(
+        file = (await tester.runAsync<File?>(
           () => McpImageSnapshot.localFile(saved.uri),
         ))!;
         browser.runningTab = 'one';
@@ -411,7 +412,32 @@ void main() {
         await tester.pump(const Duration(milliseconds: 1));
         PathProviderPlatform.instance = paths;
         SandboxPathResolver.debugSetDirs();
-        await tester.runAsync(() => root.delete(recursive: true));
+        await tester.runAsync(() async {
+          // `FileImage` decodes through `ImmutableBuffer.fromFilePath`, and the
+          // Windows engine keeps that mapping until the codec is collected.
+          // Windows refuses to unlink a mapped file (errno 32) where Linux does
+          // not, so only this host ever lost the teardown. Delete what can go,
+          // deepest first, and assert the one mapped snapshot is all that is
+          // left: the OS reclaims its temporary directory.
+          imageCache.clear();
+          imageCache.clearLiveImages();
+          final entities = await root.list(recursive: true).toList();
+          entities.sort((a, b) => b.path.length.compareTo(a.path.length));
+          for (final entity in entities) {
+            try {
+              await entity.delete();
+            } on FileSystemException {
+              // The mapped snapshot, and the directory that still holds it.
+            }
+          }
+          final remaining = entities
+              .whereType<File>()
+              .map((entity) => entity.path)
+              .toList();
+          // Windows keeps the mapped snapshot until its codec is collected
+          // (errno 32); POSIX unlinks it and leaves nothing behind.
+          expect(remaining, anyOf(isEmpty, equals([file.path])));
+        });
       }
     },
   );

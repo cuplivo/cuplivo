@@ -1,5 +1,6 @@
 package com.cuplivo.cuplivo.workspace
 
+import com.cuplivo.cuplivo.PosixHost
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -11,10 +12,13 @@ import org.junit.Test
 class ProotArgvTest {
     @Test
     fun execArgvMatchesGoldenString() {
+        val nativeLibDir = File("/nativelib")
+        val rootfsDir = File("/data/rootfs")
+        val tmpDir = File("/data/tmp")
         val launch = ProotCommand.build(
-            nativeLibDir = File("/nativelib"),
-            rootfsDir = File("/data/rootfs"),
-            tmpDir = File("/data/tmp"),
+            nativeLibDir = nativeLibDir,
+            rootfsDir = rootfsDir,
+            tmpDir = tmpDir,
             binds = listOf(BindMount("/host/files", "/workspace")),
             cwd = "/workspace",
             command = "echo hello",
@@ -25,17 +29,26 @@ class ProotArgvTest {
             includeLibraryPath = true,
             kernelRelease = null,
         )
+        // The argv spells host paths the way the host does, so the golden is
+        // derived from the same `File`s instead of restating them: `/nativelib`
+        // is an absolute path on Android and drive-relative on Windows.
         val golden =
-            "/nativelib/libproot_exec.so --root-id --link2symlink --kill-on-exit " +
-                "-r /data/rootfs -w /workspace -b /host/files:/workspace " +
+            "${File(nativeLibDir, ProotCommand.EXEC_LIB).absolutePath} --root-id --link2symlink --kill-on-exit " +
+                "-r ${rootfsDir.absolutePath} -w /workspace -b /host/files:/workspace " +
                 "-b /dev -b /proc -b /sys /usr/bin/env -i HOME=/root PATH=/bin LANG=C.UTF-8 " +
                 "/bin/sh -lc " + ProotCommand.BASH_EVAL + " kelivo /workspace echo hello"
         assertEquals(golden, launch.argv.joinToString(" "))
-        assertEquals("/data", launch.workingDirectory.absolutePath)
-        assertEquals("/nativelib/libproot_loader.so", launch.processEnv["PROOT_LOADER"])
-        assertEquals("/data/tmp", launch.processEnv["PROOT_TMP_DIR"])
-        assertEquals("/data/tmp", launch.processEnv["TMPDIR"])
-        assertEquals("/data/tmp:/nativelib", launch.processEnv["LD_LIBRARY_PATH"])
+        assertEquals(rootfsDir.parentFile!!.absolutePath, launch.workingDirectory.absolutePath)
+        assertEquals(
+            File(nativeLibDir, ProotCommand.LOADER_LIB).absolutePath,
+            launch.processEnv["PROOT_LOADER"],
+        )
+        assertEquals(tmpDir.absolutePath, launch.processEnv["PROOT_TMP_DIR"])
+        assertEquals(tmpDir.absolutePath, launch.processEnv["TMPDIR"])
+        assertEquals(
+            tmpDir.absolutePath + File.pathSeparator + nativeLibDir.absolutePath,
+            launch.processEnv["LD_LIBRARY_PATH"],
+        )
     }
 
     @Test
@@ -88,6 +101,7 @@ class ProotArgvTest {
 
     @Test
     fun readOnlyPreferenceUsesUnmodifiedProotForExecAndPty() {
+        PosixHost.assumeFileSystem()
         for (command in listOf("echo hello", null)) {
             val binds = listOf(BindMount("/storage/My Notes", "/mounts/Notes", true))
             validateExternalMounts(binds)
@@ -127,7 +141,7 @@ class ProotArgvTest {
                     kernelRelease = release,
                 )
                 assertEquals(
-                    listOf("--kernel-release=$release", "-v", "1", "-r", "/rootfs"),
+                    listOf("--kernel-release=$release", "-v", "1", "-r", File("/rootfs").absolutePath),
                     launch.argv.subList(4, 9),
                 )
                 assertEquals(1, launch.argv.count { it.startsWith("--kernel-release=") })

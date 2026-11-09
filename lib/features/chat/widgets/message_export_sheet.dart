@@ -910,7 +910,7 @@ Future<void> exportChatMessagesMarkdown(
   final settings = context.read<SettingsProvider>();
   final chat = context.read<ChatService>();
   final userProvider = context.read<UserProvider>();
-  final assistant = context.read<AssistantProvider>().currentAssistant;
+  final assistants = context.read<AssistantProvider>();
   final thinkingLabel = l10n.messageExportThinkingContentLabel;
   final timeFormatter = DateFormat(
     l10n.messageExportSheetDateTimeWithSecondsPattern,
@@ -942,7 +942,7 @@ Future<void> exportChatMessagesMarkdown(
         l10n: l10n,
         settings: settings,
         userProvider: userProvider,
-        assistant: assistant,
+        assistants: assistants,
         msg: msg,
       );
       buf.writeln('> $time · $roleName');
@@ -1028,7 +1028,6 @@ Future<void> exportChatMessagesMarkdown(
   }
 }
 
-)
 Future<void> exportChatMessagesTxt(
   BuildContext context, {
   required Conversation conversation,
@@ -1041,7 +1040,7 @@ Future<void> exportChatMessagesTxt(
   final settings = context.read<SettingsProvider>();
   final chat = context.read<ChatService>();
   final userProvider = context.read<UserProvider>();
-  final assistant = context.read<AssistantProvider>().currentAssistant;
+  final assistants = context.read<AssistantProvider>();
   final thinkingLabel = l10n.messageExportThinkingContentLabel;
   final timeFormatter = DateFormat(
     l10n.messageExportSheetDateTimeWithSecondsPattern,
@@ -1073,7 +1072,7 @@ Future<void> exportChatMessagesTxt(
         l10n: l10n,
         settings: settings,
         userProvider: userProvider,
-        assistant: assistant,
+        assistants: assistants,
         msg: msg,
       );
       buf.writeln('$time · $roleName');

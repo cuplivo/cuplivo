@@ -77,6 +77,10 @@ class ChatMessage extends HiveObject {
   String get content => _content;
 
   final List<QuoteRef> quotes;
+
+  /// Which participant wrote this message in a group topic (null for the
+  /// single-owner conversations every other flow uses).
+  final String? senderId;
   String quotedContent(String Function(int) quoteMarker) =>
       formatQuotedMessage(content, quotes, quoteMarker: quoteMarker);
 
@@ -164,6 +168,7 @@ class ChatMessage extends HiveObject {
     String? content,
     List<MessagePart>? parts,
     List<QuoteRef> quotes = const [],
+    this.senderId,
     DateTime? timestamp,
     this.modelId,
     this.providerId,
@@ -324,6 +329,7 @@ class ChatMessage extends HiveObject {
     String? content,
     List<MessagePart>? parts,
     List<QuoteRef>? quotes,
+    String? senderId,
     DateTime? timestamp,
     String? modelId,
     String? providerId,
@@ -359,6 +365,7 @@ class ChatMessage extends HiveObject {
         role: role ?? this.role,
         parts: nextParts,
         quotes: quotes ?? this.quotes,
+        senderId: senderId ?? this.senderId,
         timestamp: timestamp ?? this.timestamp,
         modelId: modelId ?? this.modelId,
         providerId: providerId ?? this.providerId,
@@ -400,6 +407,7 @@ class ChatMessage extends HiveObject {
       // Derived text for older readers; structured attachments live in [parts].
       'content': content,
       'quotes': quotes.map((quote) => quote.toJson()).toList(),
+      if (senderId != null) 'senderId': senderId,
       'parts': [
         for (final part in parts)
           {'kind': part.kind, 'payload': part.encodePayload()},
@@ -458,6 +466,9 @@ class ChatMessage extends HiveObject {
       content: parts == null ? json['content'] as String : null,
       parts: parts,
       quotes: QuoteRef.decodeList(json['quotes']),
+      senderId: (json['senderId'] as String?)?.trim().isNotEmpty == true
+          ? json['senderId'] as String
+          : null,
       timestamp: DateTime.parse(json['timestamp'] as String),
       modelId: json['modelId'] as String?,
       providerId: json['providerId'] as String?,

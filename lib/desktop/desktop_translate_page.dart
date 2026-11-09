@@ -21,12 +21,10 @@ import '../features/model/widgets/model_select_sheet.dart'
 import '../features/settings/widgets/language_select_sheet.dart'
     show
         LanguageOption,
-        TranslateLanguageActionRow,
         effectiveTranslateLanguage,
-        showTranslateLanguageManager,
+        supportedLanguages,
         translateLanguageDisplayName,
         visibleTranslateLanguages;
-import 'widgets/desktop_select_dropdown.dart';
 
 class DesktopTranslatePage extends StatefulWidget {
   const DesktopTranslatePage({super.key});
@@ -46,9 +44,17 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
   bool _translating = false;
   late final String _requestId = 'desktop-translate-${identityHashCode(this)}';
 
-  List<DesktopSelectOption<String>>? _cachedLanguageOptions;
-  Set<String>? _cachedOptionsCodes;
-  String? _cachedOptionsLocale;
+  /// The target language the dropdown shows; the persisted choice wins and the
+  /// locale's own language is the fallback (see [effectiveTranslateLanguage]).
+  LanguageOption? _targetLang;
+
+  void _onLanguageChanged(LanguageOption? value) {
+    if (value == null) return;
+    setState(() => _targetLang = value);
+    unawaited(
+      context.read<SettingsProvider>().setTranslateTargetLang(value.code),
+    );
+  }
 
   @override
   void initState() {
@@ -83,40 +89,6 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
       _modelProviderKey = providerKey;
       _modelId = modelId;
     });
-  }
-
-  Future<void> _onLanguageSelected(String code) async {
-    // Keep the target fixed for the running request (parity with the old
-    // disabled trigger). The option list is refreshed by the dropdown, so the
-    // emitted code is always one of the currently visible entries.
-    if (_translating) return;
-    await context.read<SettingsProvider>().setTranslateTargetLang(code);
-  }
-
-  List<DesktopSelectOption<String>> _languageOptions(
-    Set<String> visibleCodes,
-    List<LanguageOption> visible,
-    String localeCode,
-  ) {
-    final cached = _cachedLanguageOptions;
-    if (cached != null &&
-        identical(_cachedOptionsCodes, visibleCodes) &&
-        _cachedOptionsLocale == localeCode) {
-      return cached;
-    }
-    final l10n = AppLocalizations.of(context)!;
-    final options = [
-      for (final lang in visible)
-        DesktopSelectOption<String>(
-          value: lang.code,
-          label: translateLanguageDisplayName(l10n, lang.code),
-          leading: lang.flag,
-        ),
-    ];
-    _cachedLanguageOptions = options;
-    _cachedOptionsCodes = visibleCodes;
-    _cachedOptionsLocale = localeCode;
-    return options;
   }
 
   Future<void> _pickModel() async {
@@ -247,7 +219,6 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
       persistedCode: targetCode,
       localeLanguageCode: localeCode,
     );
-    final languageOptions = _languageOptions(visibleCodes, visible, localeCode);
 
     final topBar = SizedBox(
       height: 36,
@@ -305,7 +276,7 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
                                     children: [
                                       Flexible(
                                         child: _LanguageDropdown(
-                                          value: _targetLang,
+                                          value: _targetLang ?? currentTarget,
                                           onChanged: _translating
                                               ? null
                                               : _onLanguageChanged,

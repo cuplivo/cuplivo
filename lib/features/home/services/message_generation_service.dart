@@ -905,7 +905,7 @@ class MessageGenerationService {
         userParts: parts,
         draftSubmission: input.draftSubmission,
         uiContext: _uiContext(input),
-        quote: input.quote,
+        quotes: input.quotes,
       ),
     );
   }

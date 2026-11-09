@@ -128,7 +128,7 @@ class BrowserWorkspaceResources {
     // Applications must not share a registrable domain with one another or
     // normal workspace pages: Domain cookies would bypass origin isolation.
     final host = app == null
-        ? 'ws-$digest.cuplivo.invalid'
+        ? 'ws-$digest.kelivo.invalid'
         : 'app-$digest.invalid';
     if (bindingForSession?.call(sessionId) != binding) {
       throw StateError('browser_workspace_binding_changed');

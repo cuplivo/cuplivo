@@ -53,6 +53,7 @@ void main() {
         onShare: () => shares++,
         onDeleteCurrentVersions: () => deletes++,
         onDeleteAllVersions: () => fail('single version selection'),
+        onExportPdf: () {},
       ),
     );
     expect(find.text('Share'), findsOneWidget);
@@ -78,6 +79,7 @@ void main() {
         onShare: () => fail('no selection'),
         onDeleteCurrentVersions: () => fail('no selection'),
         onDeleteAllVersions: () => fail('no selection'),
+        onExportPdf: () {},
       ),
     );
     expect(
@@ -105,6 +107,7 @@ void main() {
           onShare: () {},
           onDeleteCurrentVersions: () => currentDeletes++,
           onDeleteAllVersions: () => allDeletes++,
+          onExportPdf: () {},
         ),
       );
       await tester.tap(find.text('Delete'));
@@ -154,6 +157,7 @@ void main() {
           onShare: () {},
           onDeleteCurrentVersions: () {},
           onDeleteAllVersions: () {},
+          onExportPdf: () {},
         ),
         size: size,
         locale: const Locale('zh'),

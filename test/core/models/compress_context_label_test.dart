@@ -36,12 +36,22 @@ void main() {
       : 'User';
 
   test('a reply with no labeller is an anonymous Assistant', () {
-    expect(conversationLineForCompression(messages[1]), 'Assistant: I am.');
+    expect(
+      conversationLineForCompression(
+        messages[1],
+        quoteMarker: (index) => '[$index]',
+      ),
+      'Assistant: I am.',
+    );
   });
 
   test('the labeller names each speaker', () {
     expect(
-      conversationLineForCompression(messages[1], labelOf: labelOf),
+      conversationLineForCompression(
+        messages[1],
+        quoteMarker: (index) => '[$index]',
+        labelOf: labelOf,
+      ),
       'Alice: I am.',
     );
   });
@@ -50,6 +60,7 @@ void main() {
     final chunked = chunkMessagesForCompression(
       messages,
       maxChars: 4000,
+      quoteMarker: (index) => '[$index]',
       labelOf: labelOf,
     ).join('\n\n');
     expect(chunked, contains('Alice: I am.'));
@@ -64,6 +75,7 @@ void main() {
         messages,
         mode: mode,
         maxChars: 4000,
+        quoteMarker: (index) => '[$index]',
         labelOf: labelOf,
       );
       expect(bounded, contains('Alice: I am.'), reason: '$mode');

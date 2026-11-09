@@ -116,7 +116,7 @@ void main() {
                         anchorKey: anchorKey,
                         assistantId: _assistantId,
                         supportsModelTools: true,
-                        conversation: conversation,
+                        conversationId: conversation?.id,
                       ),
                       child: const Text('open'),
                     ),

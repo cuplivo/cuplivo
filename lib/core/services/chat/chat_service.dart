@@ -55,6 +55,7 @@ import '../../../utils/app_directories.dart';
 import '../mcp/mcp_image_snapshot.dart';
 import '../storage/storage_image_usage.dart';
 import '../storage/attachment_file_lock.dart';
+import '../recycle/recycle_service.dart';
 
 part 'chat_context_operations.dart';
 part 'chat_image_context.dart';
@@ -2213,11 +2214,12 @@ class ChatService extends ChangeNotifier {
   Future<bool> _deletePersistedConversation(
     String id, {
     bool bump = true,
+    RecycleGroup? group,
   }) async {
     final conversation = _conversationsCache[id];
     if (conversation == null) return false;
 
-    await _repo.deleteConversation(id);
+    await _repo.deleteConversation(id, group: group);
     _conversationsCache.remove(id);
     // Stop any deferred/in-flight order backfill before clearing caches so a
     // late getMessageIds cannot resurrect order/count for a deleted id.
@@ -2252,7 +2254,10 @@ class ChatService extends ChangeNotifier {
     return true;
   }
 
-  Future<void> deleteConversationsForAssistant(String assistantId) async {
+  Future<void> deleteConversationsForAssistant(
+    String assistantId, {
+    RecycleGroup? group,
+  }) async {
     if (!_initialized) await init();
 
     final targetId = assistantId.trim();
@@ -2280,7 +2285,11 @@ class ChatService extends ChangeNotifier {
     }
     for (final conversationId in persistedConversationIds) {
       deleted =
-          await _deletePersistedConversation(conversationId, bump: false) ||
+          await _deletePersistedConversation(
+            conversationId,
+            bump: false,
+            group: group,
+          ) ||
           deleted;
     }
 
@@ -3480,6 +3489,7 @@ class ChatService extends ChangeNotifier {
     bool selectVersion = false,
     String? temporaryAfterGroupId,
     UiContextSubmission? uiContext,
+    String? senderId,
   }) => _serializeConversationPublication(conversationId, () async {
     if (!_initialized) await init();
 
@@ -3518,6 +3528,7 @@ class ChatService extends ChangeNotifier {
       reasoningFinishedAt: reasoningFinishedAt,
       groupId: groupId,
       version: version,
+      senderId: senderId,
     );
 
     if (_discardedTemporaryConversationIds.contains(conversationId)) {
@@ -3640,6 +3651,57 @@ class ChatService extends ChangeNotifier {
     return result;
   });
 
+  Future<ChatMessage> beginUserMessage({
+    required String conversationId,
+    required List<MessagePart> userParts,
+    DraftSubmission? draftSubmission,
+    UiContextSubmission? uiContext,
+    List<QuoteRef> quotes = const [],
+  }) async {
+    if (!_initialized) await init();
+    if (isTemporaryConversation(conversationId)) {
+      throw StateError('temporary_generation_is_not_persisted');
+    }
+    if (draftSubmission != null && getConversation(conversationId) == null) {
+      throw StateError('conversation_missing');
+    }
+    final conversation =
+        _conversationsCache[conversationId] ??
+        _draftConversations[conversationId] ??
+        Conversation(id: conversationId, title: _defaultConversationTitle);
+    final userMessage = ChatMessage(
+      id: draftSubmission?.id,
+      role: 'user',
+      parts: userParts,
+      conversationId: conversationId,
+      quotes: quotes,
+    );
+    final result = await _repo.beginUserMessage(
+      conversation: conversation,
+      userMessage: userMessage,
+      draftSubmission: draftSubmission,
+      uiContext: uiContext,
+    );
+    final published = result.userMessage;
+    _draftConversations.remove(conversationId);
+    _conversationsCache[conversationId] = result.conversation;
+    if (_messageCanOwnAssets(published)) {
+      await _synchronizeMessageAssetsBestEffort(published);
+    }
+    _messageCounts[conversationId] = await _repo.getMessageCount(
+      conversationId,
+    );
+    final order = _messageOrderIds[conversationId];
+    if (order != null && !order.contains(published.id)) order.add(published.id);
+    _messagesCache.putIfAbsent(conversationId, () => []).add(published);
+    _touchMessageCache(conversationId);
+    _bumpConversationListRevision();
+    _bumpContextRevision(conversationId);
+    await loadContextOperations(conversationId, refresh: true);
+    notifyListeners();
+    return published;
+  }
+
   Future<GenerationBeginResult> beginRegeneration({
     required String conversationId,
     required String modelId,
@@ -3648,6 +3710,7 @@ class ChatService extends ChangeNotifier {
     required int version,
     required bool truncateFuture,
     String? expectedContextState,
+    String? senderId,
   }) => _serializeConversationPublication(conversationId, () async {
     if (!_initialized) await init();
     if (isTemporaryConversation(conversationId)) {
@@ -3689,6 +3752,7 @@ class ChatService extends ChangeNotifier {
     required String anchorGroupId,
     required bool truncateFuture,
     String? expectedContextState,
+    String? senderId,
   }) => _serializeConversationPublication(conversationId, () async {
     if (!_initialized) await init();
     if (isTemporaryConversation(conversationId)) {

@@ -12,7 +12,6 @@ import '../../../core/models/compression_config.dart';
 import '../../../core/models/context_operation.dart';
 import '../../../core/models/context_compression_task.dart';
 import '../../../core/providers/settings_provider.dart';
-import '../../../core/services/chat/chat_service.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/chat/compression_templates.dart';

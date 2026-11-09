@@ -36,15 +36,14 @@ Cuplivo goes beyond chat. Models can search the web, call MCP servers, follow sk
 
 Conversations, settings and files are stored locally. Cuplivo has no account system of its own; back up to WebDAV or S3-compatible storage whenever you choose.
 
-## ✨ What's new in 4.4
+## ✨ What's new in 4.5
 
-- **A recycle bin** — deleting a conversation or an assistant keeps a recoverable copy under **Storage space → Recycle Bin**, with what it is, who removed it and what it costs, and one tap to bring it back. Entries are device-local (90 days, 256 MB or 1,000 entries; never synced, never in a backup), a restore outlives the peer's next sync session, and the rows a sync merge replaces and the workspace files a sync overwrites or removes are kept the same way.
-- **Workspace sync, and a rebuilt LAN Sync panel** — a workspace's record and its files now follow your paired devices, each workspace switchable on its own (linked workspaces stay local; over 2,000 files or 200 MB keeps the record and syncs no content). Each peer remembers up to twelve addresses with their own name, latency and history, and the panel shows this device, the workspaces, and one card per peer.
-- **Message replies** — reply to a whole message, or to just a selection inside an assistant reply, from the ⋯ menu or a long-press. The reply carries a one-line citation that the model receives as a `<reply-to>` prefix frozen with the rest of the turn, and desktop binds `Ctrl/Cmd+Shift+R` to reply with the selection (#1027).
-- **Chat suggestions per assistant** — an assistant can switch suggestions off on its own, so a work assistant stops spending a request after every reply while a role-play one keeps them. The default-models switch stays the master.
-- **Re-based on Kelivo `master`** — this release sits on upstream `b1702b3a9` (Flutter 3.47.6) and carries upstream's work since `v1.3.1`: the screenshot-golden suites are gone and the Linux browser checks are fixed, the data directory can be moved to another folder on Windows, iOS uses the platform's own blur, and the Live Activity extension follows the app's build version.
+- **Group chats with several assistants** — a group is a set of assistant members plus a list of topics, and a director picks who speaks each round. Every member sees the roster and its own turns; what the other members said arrives as user-side context, so the model never answers its own name. A group topic is an ordinary conversation: named once when the round ends, and ↻ reruns the whole round instead of one reply. A deleted group goes to the recycle bin like any conversation.
+- **Assistants and group chats in one list** — the settings page manages both, with a single drag order shared with the sidebar; the old 「New Group Chat」 row at the footer is gone.
+- **A readable PDF export** — the export no longer embeds the thinnest weight of a CJK face, and its margins, column, code blocks and reasoning panel are laid out again (#1045).
+- **The desktop gradient switch, and letters that all fire** — the desktop assistant dialog has its gradient-background control back (#1053), and one letter whose owner was deleted no longer stops every other pending letter from being re-armed (#1051).
 
-The [changelog](CHANGELOG.md) carries 4.3, 4.2 and 4.1.
+The [changelog](CHANGELOG.md) carries 4.4, 4.3 and 4.2.
 
 ## ✨ Since 4.0
 

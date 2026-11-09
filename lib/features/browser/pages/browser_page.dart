@@ -2595,7 +2595,9 @@ class BrowserStartPage extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(28, 60, 28, 130),
             children: [
               Text(
-                'Kelivo',
+                // The product name, not a translation: `main.dart` spells it the
+                // same way in the six window titles.
+                'Cuplivo',
                 style: TextStyle(
                   fontSize: 38,
                   fontWeight: FontWeight.w600,

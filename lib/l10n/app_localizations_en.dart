@@ -2181,7 +2181,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupPageIosSystemBackupNote =>
-      'Kelivo\'s local data is set to be excluded from iCloud device backups. Export a backup file before changing devices or deleting the app.';
+      'Cuplivo\'s local data is set to be excluded from iCloud device backups. Export a backup file before changing devices or deleting the app.';
 
   @override
   String get backupPageImportFromCherryStudio => 'Import from Cherry Studio';

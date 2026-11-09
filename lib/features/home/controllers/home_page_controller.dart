@@ -1410,7 +1410,10 @@ class HomePageController extends ChangeNotifier {
         if (!_context.mounted) return;
         await ProactiveCareAlarmService.rescheduleAll(
           conversations: _chatService.getAllConversations(),
-          assistants: _context.read<AssistantProvider>().assistants,
+          // `initChat` awaits `assistantProvider.loaded` before this point, so
+          // an owner this list cannot resolve is genuinely gone.
+          assistants: assistantProvider.assistants,
+          assistantStoreLoaded: assistantProvider.isLoaded,
         );
         // iOS: the arrival notification is the only carrier a suspended app
         // has, and the adapter refuses to register one without a notification

@@ -282,7 +282,11 @@ class NativeBrowserEngine implements BrowserEngine {
           action: ContentBlockerAction(type: ContentBlockerActionType.BLOCK),
         ),
     ],
+    // The workspace content namespace, not the app scheme: the pages are
+    // `kelivo://workspace/…` and that is the scheme [KelivoLink] builds, so the
+    // registry has to name the same one the handler accepts.
     resourceCustomSchemes: const [KelivoLink.scheme],
+)
     webViewAssetLoader: _workspaceLoader,
     useShouldOverrideUrlLoading: true,
     useOnDownloadStart: true,
@@ -1525,7 +1529,7 @@ class NativeBrowserEngine implements BrowserEngine {
     final uri = Uri.tryParse(request.url.toString());
     if (scope == null ||
         uri == null ||
-        uri.scheme != 'cuplivo' ||
+        uri.scheme != KelivoLink.scheme ||
         !scope.owns(uri) ||
         request.method != 'GET') {
       return null;

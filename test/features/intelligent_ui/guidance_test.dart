@@ -29,7 +29,13 @@ void main() {
       final files = root
           .listSync(recursive: true)
           .whereType<File>()
-          .map((f) => f.path.substring(root.path.length + 1))
+          // The generated asset keys are POSIX paths; a Windows relative path
+          // arrives with backslashes and would never match them.
+          .map(
+            (f) => f.path
+                .substring(root.path.length + 1)
+                .replaceAll(Platform.pathSeparator, '/'),
+          )
           .toSet();
       expect(files, assets.keys.toSet());
       for (final entry in assets.entries) {

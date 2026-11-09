@@ -23,6 +23,7 @@ source**, or marked as **not reproduced**.
 | same two tests, second pass (2026-10-21) | the remaining exposure was not the hang order but *which side of the cancel* decided first: under full-suite load the host's 120 ms abandon timer (`killGrace` + `isolateExitDeadline`) can be starved past the isolate's 2 s hang, so the isolate's own failure message — a `BackupCancelledException` whose `isolateExited` defaults to `true` — becomes the error, and `backupIsolateStillAlive` answers "gone" while the isolate is still sleeping. Fixing the flag at the source was tried and **reverted**: claiming `isolateExited: false` from inside the isolate moves `data_sync_backup_file_test`'s "cancelling … deletes the work directory" cases to the deferred branch and breaks their contract (the workspace must be gone when the call returns). The assertion was the wrong instrument instead: it now checks the invariant pair — a live isolate keeps its workspace, and nothing may survive once it is gone |
 | §9 — the three Windows-only defect families (`workspace_file_navigation_test.dart` ×5, `markstream_adapters_test.dart` › image providers…, `file_preview_test.dart` › code preview lazily…) | none of them was a platform limit: `p.canonicalize` lower-cases the whole path on Windows, `SandboxPathResolver.fix` returned its `/`-folded *matching* form, and the paged preview legitimately holds its file open until disposed. Fixed at each layer, see **§9** |
 | §3 — `file_browser_test.dart` › new folder rename and delete through the widget, and the `finish()` budget in `home_page_controller_composer_draft_test.dart` | both surfaced once in a 2026-10-21 full-suite run and pass in isolation. A single `_reload` after a mutation is not a synchronisation point — the mutation triggers its own refresh, and two refreshes can land out of order, so the older listing overwrites the newer one; the test now reloads until the item itself is on screen. `finish()` keeps `done` as the pass condition and bounds only a hung operation, in wall-clock terms instead of 200 × 15 ms (~3 s) |
+| §15 — the sync suite's eight panel cases | two layers, both in the test: `pumpAndSettle` cannot settle while the pairing dialog's `Timer.periodic` countdown or the panel's repeating progress bar is on screen, and the teardown's `ChatService.close()` deadlocks when awaited under the fake clock. The five pumping cases now use a bounded `pumpPanel`, and all eight close their side inside `closePanel`'s `runAsync`. The file went from 106 min / 151 passed / 8 failed to **4 min 08 s / 159 passed**, and the 89-minute CI run that reported `11516 passed, 10 failed` loses its eight hangs |
 
 Verified with Dart 3.13.0 (the SDK CI pins): `dart format` clean and
 `dart analyze --fatal-infos lib test integration_test` clean over the whole project; the four
@@ -704,3 +705,213 @@ when the re-base rebuilt that file from upstream's copy, so `rootBundle` could n
 Declaring it again fixed all three, and `app_mark_assets_test.dart` — which is this fork's own
 guard for exactly that class — had been red for the same reason.
 
+## 10. The `e15df5485` baseline: eight goldens and three test-side Windows assumptions
+
+Same method as **§9**, and it is the reason these are trustworthy: every entry was reproduced at
+upstream's own tip in a clean worktree — `git worktree add … e15df5485`, `flutter pub get`, then the
+same file — before a line of it was blamed on the platform. `pr-check.yml` still runs
+`ubuntu-latest` only, so upstream's CI never observes any of them.
+
+| test | how it fails on Windows |
+|---|---|
+| `test/goldens/markdown_backdrop_golden_test.dart` › all eight (`wallpaper light\|dark × code\|table\|details\|diagram`) | `Pixel test failed, 0.67 %–2.07 %, 1253–3872 px diff`. The baselines are PNGs of Skia's text rasterisation, which differs between the machine that generated them and this one. Re-measured after the baselines were regenerated **on the CI image**: 2.04/1.32/1.25/0.67 light, 2.07/1.31/1.25/0.67 dark. Control runs at `e15df5485` and `199647a5d` with no Cuplivo commit applied reproduced the same eight (2.07/1.46/1.35/0.71 and 2.04/1.45/1.34/0.70 against the *old* baselines), so the renderer is not the variable. |
+| `browser_desktop_layout_test.dart` › blank title row moves window while tabs and toolbar stay interactive | `startDragging` is never invoked. `window_manager` 0.5.2 became `if (Platform.isWindows && await isFullScreen()) return;` ahead of the drag, the test's mock channel answers `null`, and the typed `Future<bool>` `await` throws before the invoke. |
+| `data_sync_backup_file_test.dart` › startup snapshot retries after a damaged candidate and keeps the failed run | `Bad state: No element` — the test filters with `endsWith('/previous/preserved.txt')` and Windows spells the path with `\`. |
+| `data_sync_backup_file_test.dart` › kelivo-file portable attachments resolve after root change without rewriting persisted URIs | `'${rootB.path}/upload/pic.png'` against the resolver's native separator (`…\upload\pic.png`). |
+
+Repaired in the baseline-repair unit, not registered: the browser case (answer `isFullScreen` with
+`false`, the same fix `macos_window_drag_area_test.dart` already carries) and the two
+`data_sync_backup_file_test` cases (`p.join` instead of a `/` literal). Those two are this fork's own
+tests and both are the §9a-2 shape — a `/` frozen into an expectation — so the repair is the same one
+that section records.
+
+Registered instead, because repairing them means rewriting upstream's own test or its assets:
+`.toolbridge/known-failures.json`, `kind: "platform"`, `platform: "windows"`, eight entries named
+`wallpaper <light|dark> <code|table|details|diagram>`, each carrying the control-run numbers rather
+than a promise.
+
+## 11. The `199647a5d` baseline: one timing budget and one non-nullable toolbar
+
+The seven commits between `e15df5485` and `199647a5d` added iOS native selection menus, the world-book
+copy/batch transfer, macOS notarization, and the commit that commits both lockfiles. The full suite on
+that tree surfaced two test-side defects, neither a product bug, and **no new golden failure**: the
+eight registered cases still fail with the same magnitudes (2.07/1.46/1.35/0.71 light,
+2.04/1.45/1.34/0.70 dark), which is the control run's own fingerprint. Those baselines were afterwards
+regenerated on the CI image (§12), which moved the Windows percentages but not the finding.
+
+| test | how it fails | disposition |
+|---|---|---|
+| `test/shared/widgets/app_selection_area_test.dart` › the three Reply cases | three `unnecessary_non_null_assertion` warnings under `dart analyze --fatal-infos`. Upstream replaced `AdaptiveTextSelectionToolbar.buttonItems` with its own `AppTextSelectionToolbar`, whose `buttonItems` is `required` and non-nullable, so the `!` the fork's tests wrote became redundant. | repaired — the `!` dropped, nothing else |
+| `test/features/migration/migration_app_test.dart` › mobile retry does not export an already saved backup again | failed exactly once in 10063 tests: `_waitUntil` polled 100 × 10 ms — a 1 s budget — for file IO (export the backup, delete the temporary copy) that a loaded machine does not finish in time. The file passes alone, 7/7. | repaired — a 15 s deadline around the same condition |
+
+The migration case is §9a's shape one level up: the assertion was right and the *budget* was tuned on a
+quiet machine, exactly like the 2 s interleave window in §10. The helper still asserts the condition,
+so a genuinely stuck retry fails — it just fails for its own reason instead of for load.
+
+Two counts moved without a failure: the skip count goes 62 → 65 because the three
+`test/tool/macos_signing_test.dart` cases are `skip: !(Platform.isMacOS || Platform.isLinux)`, and the
+runtime of the suite grows with upstream's six new test files.
+
+## 12. The CI image is a platform too: five browser cases and eight pixel fixtures
+
+The first `pr-check.yml` run that got past `dart analyze` (it had been red on format, then on analyze,
+since the `e15df5485` landing) reported **13 failures on ubuntu-24.04** that never appear on Windows.
+Neither class was caused by the re-base; both arrived with the baseline and had simply never been
+observed, because no run had reached `flutter test` since:
+
+| test | how it fails on ubuntu-24.04 | disposition |
+|---|---|---|
+| `browser_library_test.dart` › `bookmarks\|history\|downloads ignores native page progress but refreshes its entries` (3), `browser_scroll_configuration_test.dart` › `browser start and independently pushed management pages have no stretch decoration`, `browser_navigation_test.dart` › `card tab is selected for dock and full page; closed tab falls back` | `UnsupportedError: browser_platform_unsupported` from `BrowserService._engine`: the browser exists for Android, iOS, macOS and Windows only, and these cases mount a page (or `initialize()` a service whose engine gate still runs even with an injected factory). | repaired — `BrowserService.platformSupported` states the platform rule once, `isSupported` derives from it, and the five cases skip where there is no engine. Every other browser test still runs everywhere |
+| `test/goldens/markdown_backdrop_golden_test.dart` › all eight | `Pixel test failed, 1.41 %–2.24 %` — the PNGs were generated on a machine whose font stack differs from the runner, so they matched neither this machine (0.70–2.07 %) nor CI. `frosted_surface_golden_test.dart`, whose baselines came from the runner, passes in both places. | repaired — regenerated **on ubuntu-24.04** by a one-off `workflow_dispatch` job (`flutter test --update-goldens`, artifact, copied in, workflow deleted), so CI now compares against its own image; Windows still differs (0.67–2.07 %, see §10) and stays registered |
+
+The lesson is the one §10 already carries on the Windows side, made symmetric: **a pixel fixture belongs
+to the image that produced it.** A golden that fails everywhere is not a platform failure to register —
+it is a fixture that was never generated where it runs. And a test that mounts a platform service has
+to ask that service's platform rule before it runs, or the CI's operating system becomes an implicit,
+untested input.
+
+
+## 13. The `a02ee457a`..`3924a5d0e` baselines: genui fixtures and the browser engine are Windows-host failures
+
+The replay onto `a02ee457a` (2026-10-25), finished on `3924a5d0e` when upstream advanced again
+while the gates were running, brought two upstream feature lines that this machine had
+never run: the generated-UI component set with its golden fixtures, and the embedded browser's
+native engine. Both are green on CI (`ubuntu-24.04`) and red here, and neither is a Cuplivo change -
+the control runs below are what says so.
+
+| test | how it fails on Windows | disposition |
+|---|---|---|
+| `test/goldens/genui_*_golden_test.dart` (241 cases), `tool_permissions_golden_test.dart` (8) | `Pixel test failed, 0.34 %-4.33 %`. The fixtures are new with this baseline - `git ls-tree 199647a5d test/goldens/baselines/genui` is empty, `a02ee457a` has 235 PNGs - and were generated on the CI image. `test/goldens/failures/<case>_isolatedDiff.png` shows the diff is glyph-shaped over every text run with no layout difference: Skia's text rasterisation, the same class as §10. | registered, `kind: "platform"` |
+| `browser_native_engine_test.dart` (63 of 64) | `UnimplementedError: addDevToolsProtocolEventListener is not implemented on the current platform`, thrown from `NativeBrowserEngine._installWindowsDialogs`, which `_onCreated` calls under `Platform.isWindows`. In a `flutter test` process that platform is the host, so the real plugin channel is reached and the method it lacks throws; on ubuntu the branch is skipped and the suite drives its fakes. | registered, `kind: "platform"` |
+
+Both were proved with a control run at upstream's own tip, `05506b840`, in a clean worktree
+(`git worktree add`, `flutter pub get`, the same file): `flutter test test/goldens` reports
+**2 passed, 251 failed** there and here, with the *same* percentages (dark inputs 2.05 %/10811 px on
+both, light table 3.46 %/24287 px on both), and `browser_native_engine_test.dart` reports
+**1 passed, 1 skipped, 63 failed** on both, with the same `UnimplementedError` 126 times. That is the
+fingerprint §10 describes: a registry entry is a claim about the platform, and the claim is only
+worth the control run behind it.
+
+One caveat worth writing down rather than re-discovering: four `browser_native_engine_test.dart` cases
+have a `:` inside their own description (`same-document back/forward settles loading (same URL: ...)`),
+and the local registry's name matching will not key them in any spelling that was tried - the plain
+form, the reporter's `>` rendering, or the truncated prefix. They stay the only `new` entries a local
+run reports (4 of 2900+), they fail identically at `05506b840`, and CI does not read this file at all
+(it is gitignored, `/.toolbridge/`), so the exception costs a sentence of interpretation and nothing
+else. If the file format is ever revisited, four cases with a colon in the name are the test corpus.
+
+Two fork-owned `pubspec.yaml` lines had to be put back by the replay, and neither is a platform fact:
+the version (upstream's `1.3.1+80` had overwritten `4.3.0+6`) and `assets/app_icon_about.png`, which
+the desktop tray, both About pages and `test/desktop/app_mark_assets_test.dart` need declared. That
+test loads the mark through `rootBundle`, so a dropped asset line fails it at runtime rather than at
+compile time - see the record in `docs/rebase-runbook.md`.
+
+
+## 14. The `4671dbe48` baseline: upstream retired the golden layer, and two Windows-host failures joined the list
+
+Upstream advanced again while this pass's gates were running, and one of the six commits
+`3924a5d0e..4671dbe48` changes what this file has to say: `ccd0815e9` ("test: remove screenshot
+goldens and fix Linux browser checks") **deletes** `test/goldens/` — the nine golden test files and
+all their PNG baselines. 259 of this file's registry entries named cases in those files.
+
+Dropping them is not a lost registration; it is the same conclusion reached at the source. Those
+entries existed because a pixel fixture generated on `ubuntu-24.04` cannot be compared against this
+machine's Skia, and a fixture that fails everywhere was never generated where it runs. Upstream's
+answer is to stop comparing pixels across platforms; the registry's answer was one entry per case.
+With the suites gone there is nothing left for the fragmented answer to name, so the 259 entries were
+retired in this pass — a registry entry is a claim about a test that exists, and `flutter test` cannot
+fail a file that is not in the tree.
+
+What survives, unchanged and re-proved in a control worktree at `05506b840`, is the embedded browser
+engine (63 of 64 cases, `UnimplementedError: addDevToolsProtocolListener ...` — see §13), plus the four
+case names the local registry cannot key. Two cases joined the list in this pass, each proved the same
+way — a control run at upstream's own tip, same file, same assertion:
+
+| test | how it fails on Windows | control at `05506b840` |
+|---|---|---|
+| `storage_image_usage_test.dart` › classifies rendered Markdown images without treating code samples as uses | `Expected: StorageImageKind:<StorageImageKind.chat> Actual: <null>`, reason `inline-code.png`. The classifier keeps *resolved* reference paths in a `Set<String>` while the listing hands back the on-disk spelling, so on a case-insensitive filesystem one file can occupy two spellings and the chat-use lookup misses. Upstream runs that suite on Linux only. | identical failure |
+| `browser_page_card_test.dart` › completed preview loads its saved file while the next group stays live | `PathAccessException: Deletion failed, path = ...browser_card_snapshot_<hash> (errno = 32)` from the test's own teardown at line 414: the preview's read handle is released after the test deletes its snapshot directory, which Windows refuses while a handle is open (`Linux` unlinks it happily). | identical failure |
+
+Both are the platform's, not the merge's: neither file has a Cuplivo commit in it, and both fail at a
+tip that has none of our code. The registry therefore stands at **70 entries** — 68 browser-engine
+cases and these two — down from 320, and the drop is upstream's, not a cleanup.
+
+
+## 15. The sync suite's panel cases never settled, and cost ten minutes each — fixed
+
+`test/core/services/sync/sync_engine_integration_test.dart` holds 159 cases, 14 of them
+`testWidgets`. Eight of those never reached `pumpAndSettle`'s quiet state; each one then failed on
+the *widget-test deadline* rather than on an assertion, which is why the reported error names no
+expectation and why the file alone took **106 minutes** and reported **151 passed, 8 failed**. That
+one file was the whole reason a full local suite needed two hours instead of twenty-five minutes.
+
+The eight: `a hand-typed code announces the device it paired with`, `a peer card says how long ago,
+and one tile per address`, `the address repair stores the bare host, like pairing does`, `the delete
+gesture in the detail is what asks for the delete`, `the address detail is a sheet on a phone and a
+dialog on a desk`, `a peer card renders its outcome as chips, not one joined line`, `a settled session
+that moved nothing reads as up to date`, and `a card shows the online dot and the first-sync warning`.
+
+**They were not the re-base's damage**, and the proof is that there is nothing left to compare: the
+whole `lib/features/sync/` tree, `lib/shared/widgets/animated_progress_bar.dart` and every other
+widget those cases drive are byte-identical at `d28bc1cbb` (the old fork tip) and at the replay's tip,
+and the test file itself differs only by the pinned-SDK reformat — `git diff backup/master-d28bc1cbb
+HEAD -- lib/features/sync test/core/services/sync/sync_engine_integration_test.dart` prints 10
+insertions and 7 deletions, all of them line wrapping. The failure was a property of the fork's own
+sync UI, which is also the most likely explanation for the previous pass's unexplained
+`SyncProvider`-panel cases.
+
+### Why it hung, in two layers
+
+**One: a widget that keeps a frame scheduled.** `pumpAndSettle` loops until *its* deadline (ten
+minutes) expires, and the pairing dialog never lets it settle — the countdown
+(`sync_pairing_dialogs.dart:94`) is a `Timer.periodic` that calls `setState` every second, and the
+panel's indeterminate bar (`animated_progress_bar.dart:75`) is an
+`AnimationController.repeat(reverse: true)`. Either one on screen is enough, and neither is what
+those cases assert on.
+
+**Two: a teardown awaited across the fake clock.** Fixing the first layer moved the hang, it did not
+remove it: `_Side`'s stores close for real, and `ChatService.close()` waits on drift's own shutdown —
+a future the widget test's fake clock never advances. Awaiting it in the body deadlocks the case
+without failing it, and the database it leaves open is what wedged *every case after it*: those hung
+inside the next case's `_Side.start`, which is why one stuck case used to cost eight deadlines. A
+`debugPrint` bisection through the first of the eight named the exact line — the body reached
+`provider.dispose()` and never reached the `chatService.close()` after it.
+
+### The repair
+
+`pumpPanel` — a bounded `pump` loop, 20 frames of 50 ms — replaces `pumpAndSettle` in the five cases
+whose dialog never settles; `closePanel` runs the teardown inside `tester.runAsync`, so the close
+happens on the real event loop. Both live next to the test's other helpers, with the mechanism
+written down where the next reader will find it.
+
+Measured on this machine, Windows, Dart 3.13.0:
+
+| | before | after |
+| --- | --- | --- |
+| the file alone | 106 min, 151 passed, 8 failed | **4 min 08 s, 159 passed** |
+| one of the eight, alone | 10 min deadline, no assertion | 1 s, passes |
+| a full CI run | 89 min, `11516 passed, 10 failed` (8 of them these) | — |
+
+It is not a registry entry, and it never could be: an entry would have to be true on CI too, and a
+hang is a property of the test's own clock handling rather than of the platform.
+
+## 16. Two failures in the `b1702b3a9` full run that the baseline did not cause
+
+The full suite at the replayed tip (the sync suite held aside, §15) ended at **11 248 passed, 70
+skipped, 67 failed**. Sixty-five are the registered platform set: 63 in `browser_native_engine_test`,
+`storage_image_usage_test`'s inline-code classification and `browser_page_card_test`'s teardown. The
+other two were new, and neither is the baseline's:
+
+- **`backup_encryption_test`: "cancellation during key derivation never publishes output"** failed in
+  its `tearDown`, not on its assertion — `PathAccessException: Deletion failed … errno = 32` on the
+  case's temporary directory. `encryptFile` runs in an isolate, and on cancellation that isolate can
+  still hold the file it was writing for a few milliseconds after the future completes; Windows will
+  not remove a directory that is still open. The repair sits in the test, where the race belongs: the
+  removal retries for up to 20 attempts at 25 ms, and the case then passes alone.
+- **`search_request_logging_test`: "search and usage requests are written to the common request log"**
+  failed once inside the full run and passed alone. It is a file-logging case, and the full run is the
+  only place it meets dozens of other suites' writers; there is no registry entry because an entry
+  would have to be true on the CI image as well, and nothing here can show that.
+
+Both were paid for on the spot rather than carried as known failures: an entry that names a case which
+passes on the next run is worse than none, because the next pass reads it as evidence.

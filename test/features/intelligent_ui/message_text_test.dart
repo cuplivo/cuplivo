@@ -145,7 +145,7 @@ void main() {
       _message(
         '',
         parts: const [
-          TextPart('```cuplivo-'),
+          TextPart('```kelivo-'),
           ImagePart(uri: 'boundary.png'),
           TextPart('ui\n$_body```'),
         ],
@@ -163,7 +163,7 @@ void main() {
   test('adjacent text parts retain original surface identity', () async {
     final item = _message(
       '',
-      parts: const [TextPart('```cuplivo-'), TextPart('ui\n$_body```')],
+      parts: const [TextPart('```kelivo-'), TextPart('ui\n$_body```')],
     );
     final controller = _controller(_body);
     controller.setInputs({'a': 4}, token: controller.token);

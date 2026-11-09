@@ -52,40 +52,59 @@ class _FakePathProvider extends PathProviderPlatform {
 }
 
 /// Seeds what a paired device leaves on disk: an epoch and one peer's
-/// checkpoint entry describing a row both sides had agreed on.
+/// checkpoint, holding one entry of each half — a conversation and a business
+/// preference.
 Future<SyncStore> _seedPairedState(Directory root) async {
   final store = SyncStore(Directory('${root.path}/sync'));
   await store.writeDataEpoch(3);
   await store.saveCheckpoint(
     _peerId,
-    SyncCheckpoint({
-      'conversation-1': SyncCheckpointConversation(
-        updatedAtUs: 111,
-        digest: 'digest-1',
-        rows: const {'row-1': 1},
-      ),
-    }),
+    SyncCheckpoint(
+      {
+        'conversation-1': SyncCheckpointConversation(
+          updatedAtUs: 111,
+          digest: 'digest-1',
+          rows: const {'row-1': 1},
+        ),
+      },
+      preferences: const {
+        'user_name': SyncCheckpointEntry(updatedAtUs: 222, digest: 'digest-2'),
+      },
+    ),
   );
   return store;
 }
 
-/// The announcement a bulk replacement owes the pair: the epoch moves, and the
-/// checkpoints that described the replaced history are gone.
+/// The announcement a row-face bulk replacement owes the pair: the epoch moves,
+/// the row entries that described the replaced rows go, and the conversation
+/// entries stay — these paths replace no conversation.
 ///
-/// The checkpoint half is the load-bearing one. A surviving entry says "the peer
+/// The row half is the load-bearing one. A surviving row entry says "the peer
 /// held this row when we agreed", so a row the archive did not carry reads as a
 /// deletion here and the peer is told to delete its own copy — the destructive
 /// direction this whole mechanism exists to prevent.
-Future<void> _expectReplacementAnnounced(SyncStore store) async {
+///
+/// The conversation half is the one a wholesale reset would silently break: a
+/// conversation this device deleted but has not announced is derived from its own
+/// entry, so dropping it makes the next session download the deleted chat back.
+Future<void> _expectRowReplacementAnnounced(SyncStore store) async {
   expect(
     await store.readDataEpoch(),
     4,
     reason: 'a bulk replacement must move the epoch so the peer re-converges',
   );
+  final checkpoint = await store.loadCheckpoint(_peerId);
   expect(
-    (await store.loadCheckpoint(_peerId)).conversations,
+    checkpoint.preferences,
     isEmpty,
-    reason: 'checkpoint entries describe a history this device no longer holds',
+    reason: 'row entries describe rows this device no longer holds',
+  );
+  expect(
+    checkpoint.conversations,
+    contains('conversation-1'),
+    reason:
+        'a settings-only overwrite replaces no conversation, so its entry — '
+        'and any deletion waiting to be announced from it — survives',
   );
 }
 
@@ -180,7 +199,7 @@ void main() {
           const WebDavConfig(scope: _settingsOnly),
         );
 
-        await _expectReplacementAnnounced(store);
+        await _expectRowReplacementAnnounced(store);
       },
     );
 
@@ -194,7 +213,7 @@ void main() {
         businessRepository: repository,
       ).restoreFromLocalFile(backup, const WebDavConfig(scope: _settingsOnly));
 
-      await _expectReplacementAnnounced(store);
+      await _expectRowReplacementAnnounced(store);
     });
 
     test('a settings-only merge announces nothing', () async {
@@ -215,10 +234,9 @@ void main() {
       // A merge adds to what is here; it replaces no history, so the pair's
       // bookkeeping still describes the same rows and must not be thrown away.
       expect(await store.readDataEpoch(), 3);
-      expect(
-        (await store.loadCheckpoint(_peerId)).conversations,
-        contains('conversation-1'),
-      );
+      final checkpoint = await store.loadCheckpoint(_peerId);
+      expect(checkpoint.conversations, contains('conversation-1'));
+      expect(checkpoint.preferences, contains('user_name'));
     });
   });
 }

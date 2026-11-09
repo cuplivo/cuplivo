@@ -817,6 +817,59 @@ void main() {
     });
   });
 
+  // A peer-driven workspace deletion takes the whole folder with
+  // `delete(recursive: true)` — the one write on this face that destroys local
+  // files in bulk, and none of them can be restored from the bin once the row is
+  // gone. So the folder has to prove it holds nothing but the agreed versions
+  // before it goes.
+  group('holdsUnagreedContent', () {
+    test(
+      'a folder holding only the agreed versions is safe to remove',
+      () async {
+        await putWorkspace('w1');
+        await putFile('w1', 'a.txt', 'aa', mtimeMs: 1000);
+        final walked = (await content.snapshots()).single;
+        final stamp = walked.index.files['a.txt']!;
+
+        expect(
+          await content.holdsUnagreedContent('w1', {
+            'a.txt': SyncAgreedFile(stamp, stamp),
+          }),
+          isFalse,
+        );
+      },
+    );
+
+    test('a file written since the agreement is not', () async {
+      await putWorkspace('w1');
+      await putFile('w1', 'a.txt', 'aa', mtimeMs: 1000);
+      final walked = (await content.snapshots()).single;
+      final stamp = walked.index.files['a.txt']!;
+      await putFile('w1', 'a.txt', 'aa, edited', mtimeMs: 3000);
+
+      expect(
+        await content.holdsUnagreedContent('w1', {
+          'a.txt': SyncAgreedFile(stamp, stamp),
+        }),
+        isTrue,
+        reason:
+            'an edit the peer never saw must not be removed with the folder',
+      );
+    });
+
+    test('a file the agreement never named is not', () async {
+      await putWorkspace('w1');
+      await putFile('w1', 'new.txt', 'never synced', mtimeMs: 2000);
+
+      expect(
+        await content.holdsUnagreedContent('w1', const {}),
+        isTrue,
+        reason:
+            'no ledger entry is "never agreed", which is not "safe to drop"',
+      );
+    });
+  });
+
   group('acceptPushed', () {
     test(
       'lands a requested version through the same gates as a fetch',

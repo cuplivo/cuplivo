@@ -23679,7 +23679,7 @@ abstract class AppLocalizations {
   /// No description provided for @lanSyncReportWorkspacesKept.
   ///
   /// In en, this message translates to:
-  /// **'{count} workspace folders kept (switch off)'**
+  /// **'{count} workspace folders kept on disk (switched off, or holding unsynced files)'**
   String lanSyncReportWorkspacesKept(Object count);
 
   /// No description provided for @lanSyncReportDeletesBlocked.

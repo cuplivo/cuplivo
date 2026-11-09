@@ -5846,7 +5846,7 @@
   "lanSyncReportWorkspaceConflicts": "{count} workspace file edits replaced",
   "lanSyncReportWorkspaceMissing": "{count} workspace files could not be applied",
   "lanSyncReportWorkspacesOmitted": "{count} workspaces not syncing files",
-  "lanSyncReportWorkspacesKept": "{count} workspace folders kept (switch off)",
+  "lanSyncReportWorkspacesKept": "{count} workspace folders kept on disk (switched off, or holding unsynced files)",
   "lanSyncReportDeletesBlocked": "{count} deletions skipped (the local copy changed)",
   "lanSyncReportRowsLost": "{n} local rows replaced by newer versions on the peer (recoverable in the recycle bin)",
   "lanSyncReportClockSkew": "Clocks differ by ~{n} min — fix the device clock, then sync again",

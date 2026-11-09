@@ -109,7 +109,12 @@ class _SuccessBreakdown extends StatelessWidget {
     final withheld =
         report.deferred > 0 ||
         report.blobsMissing > 0 ||
-        report.workspaceFilesMissing > 0;
+        report.workspaceFilesMissing > 0 ||
+        // A deletion this device planned and the local edit beat: the row the
+        // peer deleted is still here, which is exactly what `withheld` means.
+        // The file face's counterpart (`workspaceFilesMissing`) has suppressed
+        // the chip for the same reason since slice 18.
+        report.deletedBlocked > 0;
 
     final chips = <Widget>[
       if (!movedAnything && !withheld)
@@ -230,10 +235,11 @@ class _SuccessBreakdown extends StatelessWidget {
           Lucide.Folder,
           l10n.lanSyncReportWorkspacesOmitted(report.workspacesOmitted),
         ),
-      // A folder the switch protected from a peer-driven deletion is a fact the
+      // A folder something protected from a peer-driven deletion is a fact the
       // user has to be told: the workspace is gone from the app, and its files
       // are not — which looks like a bug from the file manager and is a promise
-      // from here.
+      // from here. The switch is one such protection; a file the two sides never
+      // agreed on is the other.
       if (report.workspaceFoldersKept > 0)
         (
           Lucide.Folder,

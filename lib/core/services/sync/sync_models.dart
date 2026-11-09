@@ -667,10 +667,12 @@ class SyncPeerReport {
   final int workspaceFilesMissing;
 
   /// Workspace *folders* this device deliberately did not remove after the peer
-  /// deleted the workspace's row, because the user had switched content sync off
-  /// for it. Counted so the protection is visible rather than inferred: the row
-  /// really is gone, and the folder really is still on disk, and the only place
-  /// that can say so is this report.
+  /// deleted the workspace's row — because the user had switched content sync off
+  /// for it, or because the folder holds a file the two sides never agreed on (an
+  /// edit written here, which the folder-wide delete would otherwise destroy with
+  /// none of it in the bin). Counted so the protection is visible rather than
+  /// inferred: the row really is gone, and the folder really is still on disk, and
+  /// the only place that can say so is this report.
   final int workspaceFoldersKept;
 
   /// Workspaces this device shared no content for this session: turned off, or

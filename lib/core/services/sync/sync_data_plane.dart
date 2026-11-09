@@ -336,8 +336,12 @@ class SyncDataPlane {
   /// checkpoint entry already dropped.
   Future<BusinessRowDeleteOutcome> deleteBusinessRow(
     String kindWire,
-    String id,
-  ) async {
+    String id, {
+
+    /// What this pairing last agreed for the workspace's files, when the row is
+    /// a workspace. Carried from the checkpoint the session read at its start.
+    Map<String, SyncAgreedFile> agreedFiles = const {},
+  }) async {
     Future<BusinessRowDeleteOutcome> delete() async {
       if (kindWire == kSyncPreferenceWire) {
         return BusinessRowDeleteOutcome(
@@ -359,6 +363,21 @@ class SyncDataPlane {
             content != null &&
             (await content.disabledWorkspaceIds()).contains(id);
         if (off) {
+          return const BusinessRowDeleteOutcome(
+            removed: true,
+            folderKept: true,
+          );
+        }
+        // The folder is about to go with `delete(recursive: true)`, which destroys
+        // local files in bulk and leaves none of them in the bin. A file the two
+        // sides never agreed on is an edit, and an edit beats a delete: the folder
+        // stays, the row still goes (that is the peer's intent and, unlike a
+        // refused row, it cannot make the session retry forever), and the report
+        // names it. Same rule the file face applies per file — there is no
+        // per-file pass here, because the peer shares no table for this workspace
+        // to plan against.
+        if (content != null &&
+            await content.holdsUnagreedContent(id, agreedFiles)) {
           return const BusinessRowDeleteOutcome(
             removed: true,
             folderKept: true,

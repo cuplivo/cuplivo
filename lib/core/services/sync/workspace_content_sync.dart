@@ -581,6 +581,41 @@ class WorkspaceContentSync {
     return capWorkspaceLedger(next, maxEntries: maxLedgerEntries);
   }
 
+  /// Whether this workspace's folder holds anything the pairing never agreed on.
+  ///
+  /// The question a peer-driven deletion has to ask before taking a folder with
+  /// `delete(recursive: true)` — the one write on this face that destroys local
+  /// files in bulk and leaves nothing behind. A file that is not the version the
+  /// two sides agreed is an edit (written here since, or never agreed at all),
+  /// and an edit beats a delete here exactly as it does on the file face
+  /// ([_deleteOne]) and on the row face.
+  ///
+  /// Conservatively true throughout: a folder whose walk could not complete, or
+  /// that hit a cap, is not "agreed", because a partial read must never authorise
+  /// a bulk removal. The bin cannot substitute for the guard — a staged workspace
+  /// file is unrestorable once its row is gone
+  /// (`RecycleRestoreOutcome.workspaceGone`), so preserving these files means not
+  /// deleting them.
+  Future<bool> holdsUnagreedContent(
+    String workspaceId,
+    Map<String, SyncAgreedFile> agreed,
+  ) async {
+    final root = await _resolveRootOrNull(workspaceId);
+    if (root == null) return true;
+    try {
+      final index = await indexWorkspaceContent(root.path);
+      if (index.incomplete || index.truncated) return true;
+      for (final entry in index.files.entries) {
+        final agreedFile = agreed[entry.key];
+        if (agreedFile == null || agreedFile.mine != entry.value) return true;
+      }
+      return false;
+    } catch (error) {
+      debugPrint('sync workspace $workspaceId: could not walk it: $error');
+      return true;
+    }
+  }
+
   /// Deletes a managed workspace's files — what a workspace row deleted *by
   /// sync* owes the disk. The row is what the UI shows, so leaving the folder
   /// behind would make a deletion invisible in the app and very visible in a

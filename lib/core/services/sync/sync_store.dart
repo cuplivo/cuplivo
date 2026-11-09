@@ -210,7 +210,38 @@ class SyncStore {
     }
   }
 
-  Future<void> saveCheckpoint(
+  Future<void> saveCheckpoint(String deviceId, SyncCheckpoint checkpoint) =>
+      _writeCheckpoint(deviceId, checkpoint);
+
+  /// [saveCheckpoint], unless a bulk replacement landed since [epochAtHello].
+  ///
+  /// A replacement bumps the data epoch at the same moment it rewrites the
+  /// checkpoints, so a different epoch means the file was reset *after* this
+  /// session read its `previous`: saving now would put the replaced rows back,
+  /// and one session later the peer would be told to delete rows nobody deleted —
+  /// the hazard the reset exists to prevent. Nothing is written then; the next
+  /// session plans from the checkpoint the replacement left, which costs one
+  /// re-scan and never loses a row.
+  ///
+  /// The alternative — a lock held across the session — would make a restore wait
+  /// on a network round trip, and this is the same guarantee without one.
+  Future<void> saveCheckpointUnlessReplaced(
+    String deviceId, {
+    required int epochAtHello,
+    required SyncCheckpoint checkpoint,
+  }) async {
+    if (await readDataEpoch() != epochAtHello) {
+      debugPrint(
+        'sync store: kept the reset checkpoint for $deviceId: a bulk replacement '
+        'landed while the session was running',
+      );
+      return;
+    }
+    await _writeCheckpoint(deviceId, checkpoint);
+  }
+
+  /// The one writer, so "who may write this file" is decided in this class only.
+  Future<void> _writeCheckpoint(
     String deviceId,
     SyncCheckpoint checkpoint,
   ) async {

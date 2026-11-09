@@ -410,7 +410,7 @@ class WorkspaceContentSync {
           case WorkspaceFileAction.peerWins:
             final advertised = peerTable[item.path];
             if (advertised == null) continue;
-            final stamp = await _fetchOne(
+            final landedFile = await _fetchOne(
               snapshot: snapshot,
               relPath: item.path,
               advertised: advertised,
@@ -419,7 +419,7 @@ class WorkspaceContentSync {
               myDeviceId: myDeviceId,
               peerDeviceId: peerDeviceId,
             );
-            if (stamp == null) {
+            if (landedFile == null) {
               filesMissing++;
               // A fetch that did not happen is the one kind of miss a push can
               // repair, so it is recorded with the version to ask for. A delete
@@ -434,10 +434,16 @@ class WorkspaceContentSync {
               }
               continue;
             }
-            landed[item.path] = stamp;
+            landed[item.path] = landedFile.stamp;
             filesLanded++;
-            bytesLanded += stamp.size;
-            if (item.action == WorkspaceFileAction.peerWins) filesReplaced++;
+            bytesLanded += landedFile.stamp.size;
+            // The replacement is counted from what the write did, not from what
+            // the walk planned: a file edited while the session ran is a conflict
+            // the re-read discovered (`peerSends` became `peerWins`), it was
+            // staged into the bin, and `peerWins` promises it is counted.
+            if (landedFile.decided == WorkspaceFileAction.peerWins) {
+              filesReplaced++;
+            }
           case WorkspaceFileAction.iDelete:
             if (!allowDeletes) continue;
             if (await _deleteOne(
@@ -534,7 +540,7 @@ class WorkspaceContentSync {
       }
       final root = await _resolveRootOrNull(workspaceId);
       if (root == null) return null;
-      return await land(
+      return (await land(
         workspaceId: workspaceId,
         root: root,
         relPath: relPath,
@@ -543,7 +549,7 @@ class WorkspaceContentSync {
         agreed: agreed,
         myDeviceId: myDeviceId,
         peerDeviceId: peerDeviceId,
-      );
+      ))?.stamp;
     } catch (error) {
       debugPrint(
         'sync workspace: landing the pushed $workspaceId/$relPath failed: '
@@ -602,12 +608,40 @@ class WorkspaceContentSync {
   ) async {
     final root = await _resolveRootOrNull(workspaceId);
     if (root == null) return true;
+    final rootPath = p.canonicalize(root.path);
     try {
-      final index = await indexWorkspaceContent(root.path);
-      if (index.incomplete || index.truncated) return true;
-      for (final entry in index.files.entries) {
-        final agreedFile = agreed[entry.key];
-        if (agreedFile == null || agreedFile.mine != entry.value) return true;
+      // This asks the tree the *delete* would destroy, which is not the tree the
+      // ledger is built from. The index prunes `.git`, `node_modules`, `build`,
+      // `dist`, `target`, `.venv`, … and drops every link, because none of it
+      // rides; `delete(recursive: true)` removes all of it. Walking the riding
+      // files only would answer "nothing unagreed" about a folder whose `.git`
+      // was never looked at — the exact content that cannot be reproduced.
+      //
+      // So: every entity must be a riding file whose stamp is the agreed one.
+      // A pruned directory surfaces through its files (`.git/HEAD` is a file the
+      // ledger does not name), a link surfaces as itself, and the OS scratch the
+      // index skips by *file* name (`.DS_Store`, `Thumbs.db`) is still waved
+      // through, because it holds no information.
+      await for (final entity in root.list(
+        recursive: true,
+        followLinks: false,
+      )) {
+        if (entity is Directory) continue; // its files are enumerated below it
+        if (entity is! File) return true; // a link: never indexed, never agreed
+        if (!workspaceFileCarries(p.basename(entity.path))) continue;
+        final rel = p
+            .relative(entity.path, from: rootPath)
+            .replaceAll('\\', '/');
+        final agreedFile = agreed[rel];
+        if (agreedFile == null) return true;
+        final stat = await entity.stat();
+        if (agreedFile.mine !=
+            WorkspaceFileStamp(
+              size: stat.size,
+              mtimeMs: stat.modified.millisecondsSinceEpoch,
+            )) {
+          return true;
+        }
       }
       return false;
     } catch (error) {
@@ -734,7 +768,7 @@ class WorkspaceContentSync {
     }
   }
 
-  Future<WorkspaceFileStamp?> _fetchOne({
+  Future<({WorkspaceFileStamp stamp, WorkspaceFileAction decided})?> _fetchOne({
     required WorkspaceContentSnapshot snapshot,
     required String relPath,
     required WorkspaceFileStamp advertised,
@@ -791,7 +825,7 @@ class WorkspaceContentSync {
   /// advertised one. The mtime is then set from the peer's, best effort: it is
   /// what the user sees in a file manager, and a filesystem that rounds it does
   /// not break convergence because the ledger remembers both sides' stamps.
-  Future<WorkspaceFileStamp?> land({
+  Future<({WorkspaceFileStamp stamp, WorkspaceFileAction decided})?> land({
     required String workspaceId,
     required Directory root,
     required String relPath,
@@ -891,9 +925,15 @@ class WorkspaceContentSync {
         await _deleteQuietly(landed);
         return null;
       }
-      return WorkspaceFileStamp(
-        size: stat.size,
-        mtimeMs: stat.modified.millisecondsSinceEpoch,
+      return (
+        stamp: WorkspaceFileStamp(
+          size: stat.size,
+          mtimeMs: stat.modified.millisecondsSinceEpoch,
+        ),
+        // What the write *did*, not what the walk planned: a file edited while
+        // the session ran is a conflict the re-read discovered, and `peerWins`
+        // promises the user it is counted. The caller counts from this.
+        decided: again,
       );
     } catch (error) {
       debugPrint('sync workspace: landing "$relPath" failed: $error');

@@ -20,6 +20,7 @@ import 'package:Cuplivo/features/home/services/local_tool_labels.dart';
 import 'package:Cuplivo/features/home/services/local_tool_toggle.dart';
 import 'package:Cuplivo/features/home/services/local_tools_service.dart';
 import 'package:Cuplivo/features/workspace/widgets/workspace_section.dart';
+import '../utils/tools_summary.dart';
 import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/shared/widgets/ios_switch.dart';
@@ -139,6 +140,14 @@ class _ChatToolsSheetState extends State<ChatToolsSheet> {
     return members.any((member) => member.id == id) ? id : members.first.id;
   }
 
+  /// The conversation whose MCP override counts for [member], when that member
+  /// allows one.
+  Conversation? _conversationFor(Assistant member) {
+    final id = widget.conversationId;
+    if (id == null || !member.allowConversationMcp) return null;
+    return context.read<ChatService>().getConversation(id);
+  }
+
   /// Whether the member on show can call tools at all. A 1:1 chat only opens
   /// this sheet for such a model; a group opens it for the roster, so it asks
   /// per selected member — the same gate the desktop popover applies.
@@ -185,6 +194,9 @@ class _ChatToolsSheetState extends State<ChatToolsSheet> {
     final cs = Theme.of(context).colorScheme;
     final maxHeight = MediaQuery.sizeOf(context).height * 0.8;
     final toolsAllowed = _toolsAllowed();
+    final hasToolRows =
+        availableLocalToolIds().isNotEmpty ||
+        context.watch<McpProvider>().connectedServers.isNotEmpty;
 
     return SafeArea(
       top: false,
@@ -223,6 +235,22 @@ class _ChatToolsSheetState extends State<ChatToolsSheet> {
                   members: members,
                   selectedId: _targetId,
                   onSelect: (member) => setState(() => _selectedId = member.id),
+                  // What this panel is about, per member: how many of the tools
+                  // they could switch on they have on.
+                  valueBuilder: (member) {
+                    final summary = memberToolSummary(
+                      member,
+                      conversation: _conversationFor(member),
+                      connectedServerIds: [
+                        for (final server
+                            in context.watch<McpProvider>().connectedServers)
+                          server.id,
+                      ],
+                    );
+                    return summary.enabled == 0
+                        ? null
+                        : Text('${summary.enabled}/${summary.total}');
+                  },
                 ),
               ),
             Flexible(
@@ -242,7 +270,19 @@ class _ChatToolsSheetState extends State<ChatToolsSheet> {
                           // same gate the desktop popover applies to the member
                           // it shows. The workspace group below is the
                           // conversation's, not the member's.
-                          if (toolsAllowed) ...[
+                          if (!toolsAllowed)
+                            SliverToBoxAdapter(
+                              child: _EmptyToolsNote(
+                                text: l10n.chatToolsEmptyModelCannotUseTools,
+                              ),
+                            )
+                          else if (!hasToolRows)
+                            SliverToBoxAdapter(
+                              child: _EmptyToolsNote(
+                                text: l10n.chatToolsEmptyNoToolsEnabled,
+                              ),
+                            )
+                          else ...[
                             SliverToBoxAdapter(
                               child: _LocalToolsGroup(
                                 assistantId: _targetId,
@@ -280,6 +320,31 @@ class _ChatToolsSheetState extends State<ChatToolsSheet> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One line where a group of rows would be: the member on show has nothing to
+/// switch on, and an empty panel would not say whether that is the model or the
+/// configuration.
+class _EmptyToolsNote extends StatelessWidget {
+  const _EmptyToolsNote({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 13,
+          height: 1.35,
+          color: cs.onSurface.withValues(alpha: 0.6),
         ),
       ),
     );

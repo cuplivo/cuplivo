@@ -155,9 +155,22 @@ class _InstructionInjectionPopoverState
         members: members,
         selectedId: _targetId!,
         onSelect: (member) => setState(() => _selectedId = member.id),
+        valueBuilder: (member) {
+          final count = promptSelectionCount(
+            context,
+            kind: PromptSelectionKind.instruction,
+            member: member,
+            conversationId: _scopeIdFor(member),
+          );
+          return count == 0 ? null : Text('$count');
+        },
       ),
     );
   }
+
+  /// The conversation layer applies only to a member that allows it.
+  String? _scopeIdFor(Assistant member) =>
+      member.allowConversationPromptInjection ? widget.conversationId : null;
 
   Future<void> _close() async {
     if (_closing) return;

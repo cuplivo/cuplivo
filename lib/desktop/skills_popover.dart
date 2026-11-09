@@ -1,8 +1,10 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../core/models/assistant.dart';
+import '../core/services/skills/skills_service.dart';
 import '../features/group_chat/widgets/group_member_strip.dart';
 import '../features/workspace/pages/skills_page.dart';
 import '../features/workspace/widgets/desktop_workspace_button.dart';
@@ -261,6 +263,16 @@ class _SkillsPopoverState extends State<_SkillsPopover> {
                         selectedId: _targetAssistant!.id,
                         onSelect: (member) =>
                             setState(() => _selectedId = member.id),
+                        // The panel's own number: how many skills that member
+                        // brings, before the rows say which.
+                        valueBuilder: (member) {
+                          final skills = context.watch<SkillsService?>();
+                          if (skills == null) return null;
+                          final count = skills
+                              .resolveForAssistant(member)
+                              .length;
+                          return count == 0 ? null : Text('$count');
+                        },
                       ),
                     ),
                   ConversationSkillsPanel(

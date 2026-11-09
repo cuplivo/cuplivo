@@ -1094,6 +1094,8 @@
   "bottomToolsSheetResetDefault": "Reset to default",
   "bottomToolsSheetSave": "Save",
   "bottomToolsSheetOcr": "Image OCR",
+  "chatToolsEmptyModelCannotUseTools": "This member's model cannot call tools.",
+  "chatToolsEmptyNoToolsEnabled": "This member has no tools switched on.",
   "messageMoreSheetTitle": "More Actions",
   "messageMoreSheetSelectCopy": "Select & Copy",
   "messageMoreSheetRenderWebView": "Render Web View",

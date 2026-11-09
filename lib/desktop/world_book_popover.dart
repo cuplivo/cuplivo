@@ -139,6 +139,10 @@ class _WorldBookPopoverState extends State<_WorldBookPopover>
         : null;
   }
 
+  /// The conversation layer applies only to a member that allows it.
+  String? _scopeIdFor(Assistant member) =>
+      member.allowConversationPromptInjection ? widget.conversationId : null;
+
   /// The roster strip, above the rows it scopes. Null for a 1:1 chat, which has
   /// nobody to switch between.
   Widget? _rosterHeader() {
@@ -150,6 +154,17 @@ class _WorldBookPopoverState extends State<_WorldBookPopover>
         members: members,
         selectedId: _targetId!,
         onSelect: (member) => setState(() => _selectedId = member.id),
+        // The panel's own number, so choosing a member answers "how many books
+        // is this one carrying" before the rows below say which.
+        valueBuilder: (member) {
+          final count = promptSelectionCount(
+            context,
+            kind: PromptSelectionKind.worldBook,
+            member: member,
+            conversationId: _scopeIdFor(member),
+          );
+          return count == 0 ? null : Text('$count');
+        },
       ),
     );
   }

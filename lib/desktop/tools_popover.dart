@@ -17,6 +17,7 @@ import '../core/models/conversation.dart';
 import '../core/models/conversation_mcp_settings.dart';
 import '../core/services/chat/chat_service.dart';
 import '../features/chat/utils/ensure_conversation.dart';
+import '../features/chat/utils/tools_summary.dart';
 import '../features/home/services/local_tool_labels.dart';
 import '../features/home/services/local_tool_toggle.dart';
 import '../core/models/assistant.dart';
@@ -137,7 +138,30 @@ class _ToolsPopoverState extends State<_ToolsPopover>
       members: members,
       selectedId: _targetId,
       onSelect: (member) => setState(() => _selectedId = member.id),
+      // The panel's own number, so choosing a member answers "how much has this
+      // one switched on" before the rows say which.
+      valueBuilder: (member) {
+        final summary = memberToolSummary(
+          member,
+          conversation: _conversationFor(member),
+          connectedServerIds: [
+            for (final server in context.watch<McpProvider>().connectedServers)
+              server.id,
+          ],
+        );
+        return summary.enabled == 0
+            ? null
+            : Text('${summary.enabled}/${summary.total}');
+      },
     );
+  }
+
+  /// The conversation whose MCP override counts for [member], when that member
+  /// allows one.
+  Conversation? _conversationFor(Assistant member) {
+    final id = widget.conversationId;
+    if (id == null || !member.allowConversationMcp) return null;
+    return context.read<ChatService>().getConversation(id);
   }
 
   @override
@@ -488,6 +512,36 @@ class _ToolsContent extends StatelessWidget {
           ),
         );
       }
+    }
+
+    // A member with nothing to switch on reads why, rather than an empty panel.
+    if (rows.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 2),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (header != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                child: header,
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
+              child: Text(
+                toolsAllowed
+                    ? l10n.chatToolsEmptyNoToolsEnabled
+                    : l10n.chatToolsEmptyModelCannotUseTools,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.35,
+                  color: cs.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     return Padding(

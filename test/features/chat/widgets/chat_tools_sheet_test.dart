@@ -493,10 +493,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    final l10n = AppLocalizations.of(tester.element(find.byType(Scaffold)))!;
     // A group opens this sheet for the whole roster, so the gate has to be the
     // member on show: a model that cannot call tools is offered none.
     expect(find.byKey(ChatToolsSheet.localGroupKey), findsNothing);
     expect(find.byKey(ChatToolsSheet.mcpGroupKey), findsNothing);
+    // ...and the panel says why instead of showing an empty body.
+    expect(find.text(l10n.chatToolsEmptyModelCannotUseTools), findsOneWidget);
     // The workspace binding is the conversation's, not the model's.
     expect(find.byKey(ChatToolsSheet.workspaceGroupKey), findsOneWidget);
   });

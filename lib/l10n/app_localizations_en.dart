@@ -2574,6 +2574,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bottomToolsSheetOcr => 'Image OCR';
 
   @override
+  String get chatToolsEmptyModelCannotUseTools =>
+      'This member\'s model cannot call tools.';
+
+  @override
+  String get chatToolsEmptyNoToolsEnabled =>
+      'This member has no tools switched on.';
+
+  @override
   String get messageMoreSheetTitle => 'More Actions';
 
   @override

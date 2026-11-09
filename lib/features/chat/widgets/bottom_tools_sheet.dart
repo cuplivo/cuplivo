@@ -428,6 +428,9 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (widget.members case final members? when members.length > 1) ...[
+          // No value on these chips: this strip scopes three rows with three
+          // different numbers, and one chip cannot carry all three. The panels
+          // that scope a single capability carry its count instead.
           GroupMemberStrip(
             members: members,
             selectedId: _targetAssistantId ?? members.first.id,

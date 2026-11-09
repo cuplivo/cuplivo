@@ -48,9 +48,10 @@ deleted, and would put "your deleted conversation" into a peer's storage.
 2. **One directory per entry, and one file for everything small.** An entry is
    `<deletedAtUs>-<uuid8>/entry.json`. A business row, a synced preference or a conversation row set
    keeps its tables **inline** in that file, so a losing memory entry or setting is exactly one file. The
-   two shapes that can be large travel beside it: a conversation subtree as `body.json` (so listing never
-   parses a multi-megabyte chat), a workspace file as `body`, **moved** rather than re-encoded — a rename
-   preserves the bytes and the mtime, and it is O(1) where a copy is O(size). Nothing is compressed: a
+   three shapes that can be large travel beside it: a conversation subtree as `body.json` (so listing never
+   parses a multi-megabyte chat), a workspace file as `body`, and a skill's whole directory as `body.d` —
+   the last two **moved** rather than re-encoded, because a rename preserves the bytes, the mtimes and the
+   tree, and it is O(1) where a copy is O(size). Nothing is compressed: a
    moved file cannot be compressed without giving up both properties, and the row snapshots are bounded by
    the caps below rather than by a codec. The envelope carries `v`, so a future build may add one.
    A move is also a commitment: an entry is published by renaming the staging directory into place, and a
@@ -58,6 +59,11 @@ deleted, and would put "your deleted conversation" into a peer's storage.
    discarded. `stageFile` returning null therefore means "not preserved", which is what the landing and
    deletion paths answer with their ordinary delete — a bin that had already deleted the file on its way out
    would make that answer a lie.
+   The skill body is the one shape whose entry also carries its row, inline as a small row set does: a
+   record staged on its own restores a skill that cannot open, and a directory staged without its row is
+   adopted by the skills rescan as a brand-new import with every setting invented again. So the two halves
+   are one entry and one restore, and all three places a body leaves this device — the user's delete, a
+   peer's delete and the body a swap replaces — move it there.
 
 3. **Staging reads where the content still exists, and everything else waits for the transaction to
    close.** `ChatDatabaseRepository.deleteConversation` — the single funnel every conversation deletion

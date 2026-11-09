@@ -1582,9 +1582,10 @@ void main() {
 
         final tmpDir = Directory('${root.path}/tmp');
         // Abandoned entries (older than the 6h reclaim threshold) carry their
-        // age in the name, matching prepareBackupFile's naming.
+        // age in the name, matching prepareBackupFile's naming. Both spellings
+        // are reclaimed: the prefix follows the target a backup was written for.
         final staleWorkDir = Directory(
-          '${tmpDir.path}/kelivo_backup_2000-01-01T00-00-00.000000',
+          '${tmpDir.path}/cuplivo_backup_2000-01-01T00-00-00.000000',
         );
         await staleWorkDir.create(recursive: true);
         await File('${staleWorkDir.path}/orphan.zip').writeAsString('old');
@@ -1596,12 +1597,12 @@ void main() {
         await staleLegacy.writeAsString('{}');
         await staleLegacy.setLastModified(DateTime(2000));
         // A fresh leftover looks like a backup another provider is running
-        // right now and must survive the sweep.
-        final freshWorkDir = Directory(
-          '${tmpDir.path}/kelivo_backup_'
-          '${DateTime.now().toIso8601String().replaceAll(':', '-')}',
-        );
+        // right now and must survive the sweep, whichever target wrote it.
+        final stamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+        final freshWorkDir = Directory('${tmpDir.path}/cuplivo_backup_$stamp');
         await freshWorkDir.create(recursive: true);
+        final freshLegacyZip = File('${tmpDir.path}/kelivo_backup_$stamp.zip');
+        await freshLegacyZip.writeAsString('live');
 
         final sync = DataSync(
           businessRepository: businessRepository,
@@ -1617,7 +1618,9 @@ void main() {
         expect(await staleZip.exists(), isFalse);
         expect(await staleLegacy.exists(), isFalse);
         expect(await freshWorkDir.exists(), isTrue);
+        expect(await freshLegacyZip.exists(), isTrue);
         await freshWorkDir.delete(recursive: true);
+        await freshLegacyZip.delete();
 
         final input = InputFileStream(backupFile.path);
         Archive? archive;
@@ -1926,7 +1929,7 @@ void main() {
         expect(
           leftovers.where(
             (name) =>
-                name.startsWith('kelivo_backup_') ||
+                BackupTarget.readableArchivePrefixes.any(name.startsWith) ||
                 name.startsWith('_bk_') ||
                 name.endsWith('.zip'),
           ),
@@ -1987,7 +1990,7 @@ void main() {
         expect(
           leftovers.where(
             (name) =>
-                name.startsWith('kelivo_backup_') ||
+                BackupTarget.readableArchivePrefixes.any(name.startsWith) ||
                 name.startsWith('_bk_') ||
                 name.endsWith('.zip'),
           ),
@@ -3478,6 +3481,41 @@ void main() {
         );
       },
     );
+
+    test('a backup file is named for the reader it was written for', () async {
+      // Readers filter by extension, so the prefix is not a wire format: it is
+      // what the user sees in their cloud folder. One writer per target, and
+      // the reader side accepts both so an older backup is still discovered.
+      final sync = DataSync(
+        businessRepository: businessRepository,
+        chatService: ChatService(),
+      );
+      final forThisBuild = await sync.exportToFile(_withoutChatsOrAssets);
+      final forKelivo = await sync.exportToFile(
+        _withoutChatsOrAssets.copyWith(target: BackupTarget.kelivoV1_3_4),
+      );
+      addTearDown(() async {
+        for (final file in [forThisBuild, forKelivo]) {
+          await DataSync.cleanupTemporaryBackupFile(file);
+        }
+      });
+
+      expect(p.basename(forThisBuild.path), startsWith('cuplivo_backup_'));
+      expect(p.basename(forKelivo.path), startsWith('kelivo_backup_'));
+      expect(
+        BackupTarget.values.map((target) => target.archiveFilePrefix).toSet(),
+        BackupTarget.readableArchivePrefixes,
+        reason: 'every name a writer produces must be one a reader accepts',
+      );
+      for (final file in [forThisBuild, forKelivo]) {
+        expect(
+          BackupTarget.readableArchivePrefixes.any(
+            p.basename(file.path).startsWith,
+          ),
+          isTrue,
+        );
+      }
+    });
 
     test('accepts a newer settings-only backup with unknown entries', () async {
       // A settings-only backup carries no database block at all, so a

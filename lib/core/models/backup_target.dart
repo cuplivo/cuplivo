@@ -94,6 +94,38 @@ enum BackupTarget {
 
   bool knowsSourceKey(String key) => vocabulary?.knowsSourceKey(key) ?? true;
 
+  /// The name a backup file written for this target carries.
+  ///
+  /// Readers list by extension, so this is not a wire format: it is what the
+  /// user sees in their cloud folder and what this build's recovery discovery
+  /// matches. Writers use their target's prefix; [readableArchivePrefixes] is
+  /// what readers accept, so a backup written before the naming changed is
+  /// still discovered and reclaimed.
+  String get archiveFilePrefix => switch (this) {
+    BackupTarget.cuplivo => 'cuplivo_backup_',
+    BackupTarget.kelivoV1_3_4 => 'kelivo_backup_',
+  };
+
+  /// Every prefix this build can read.
+  static const Set<String> readableArchivePrefixes = {
+    'kelivo_backup_',
+    'cuplivo_backup_',
+  };
+
+  /// [name] without whichever readable prefix it carries, or null when it
+  /// carries none.
+  static String? stripReadableArchivePrefix(String name) {
+    for (final prefix in readableArchivePrefixes) {
+      if (name.startsWith(prefix)) return name.substring(prefix.length);
+    }
+    return null;
+  }
+
+  /// Matches a readable archive prefix, for parsers that need it inside a
+  /// longer pattern.
+  static String get readableArchivePrefixPattern =>
+      readableArchivePrefixes.map(RegExp.escape).join('|');
+
   static BackupTarget? fromName(Object? name) {
     for (final target in values) {
       if (target.name == name) return target;

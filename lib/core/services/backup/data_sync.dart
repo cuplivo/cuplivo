@@ -792,11 +792,12 @@ class DataSync {
     final tmp = await _ensureTempDir();
     await _cleanupPreviousBackupTempFiles(tmp);
     final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-    final workDir = Directory(p.join(tmp.path, 'kelivo_backup_$timestamp'));
+    final name = '${target.archiveFilePrefix}$timestamp';
+    final workDir = Directory(p.join(tmp.path, name));
     await workDir.create(recursive: true);
     registerLiveTempPath(workDir.path);
 
-    final outPath = p.join(workDir.path, 'kelivo_backup_$timestamp.zip');
+    final outPath = p.join(workDir.path, '$name.zip');
     final outFile = File(outPath);
     if (await outFile.exists()) await outFile.delete();
 
@@ -1182,19 +1183,20 @@ class DataSync {
     return _cleanupPreviousBackupTempFiles(tmp);
   }
 
-  /// Parses the creation time out of a `kelivo_backup_<iso-with-dashes>` name
-  /// (see [prepareBackupFile], which replaces ':' with '-'). Returns null for
-  /// names that do not carry a timestamp.
+  /// Parses the creation time out of a `<prefix><iso-with-dashes>` name
+  /// (see [prepareBackupFile], which replaces ':' with '-'). Any readable
+  /// prefix counts: the name follows the target a backup was written for.
+  /// Returns null for names that do not carry a timestamp.
   static DateTime? _backupTempTimestampFromName(String name) {
-    const prefix = 'kelivo_backup_';
-    if (!name.startsWith(prefix)) return null;
-    var core = name.substring(prefix.length);
-    if (core.endsWith('.zip')) {
-      core = core.substring(0, core.length - 4);
+    final core = BackupTarget.stripReadableArchivePrefix(name);
+    if (core == null) return null;
+    var timestamp = core;
+    if (timestamp.endsWith('.zip')) {
+      timestamp = timestamp.substring(0, timestamp.length - 4);
     }
     final match = RegExp(
       r'^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})(.*)$',
-    ).firstMatch(core);
+    ).firstMatch(timestamp);
     if (match == null) return null;
     return DateTime.tryParse(
       '${match[1]}T${match[2]}:${match[3]}:${match[4]}${match[5]}',
@@ -1223,12 +1225,14 @@ class DataSync {
       await for (final ent in tmp.list(followLinks: false)) {
         if (_isLiveTempPath(ent.path)) continue;
         final name = p.basename(ent.path);
+        final isArchiveName = BackupTarget.readableArchivePrefixes.any(
+          name.startsWith,
+        );
         if (ent is Directory &&
-            (name.startsWith('kelivo_backup_') ||
-                name.startsWith('kelivo_decrypted_'))) {
+            (isArchiveName || name.startsWith('kelivo_decrypted_'))) {
           if (await isStale(ent, name)) await _deleteDirectoryQuietly(ent);
         } else if (ent is File &&
-            ((name.startsWith('kelivo_backup_') && name.endsWith('.zip')) ||
+            ((isArchiveName && name.endsWith('.zip')) ||
                 name == '_bk_settings.json' ||
                 name == '_bk_chats.json' ||
                 name == '_bk_manifest.json' ||
@@ -1912,10 +1916,12 @@ class DataSync {
           ? disp.first.trim()
           : Uri.parse(href).pathSegments.last;
 
-      // If mtime is null, try to extract from filename (format: kelivo_backup_2025-01-19T12-34-56.123456.zip)
+      // If mtime is null, try to extract from filename
+      // (format: <readable prefix>2025-01-19T12-34-56.123456.zip)
       if (mtime == null) {
         final match = RegExp(
-          r'kelivo_backup_(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d+)\.(?:zip|kbackup)',
+          '(?:${BackupTarget.readableArchivePrefixPattern})'
+          r'(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d+)\.(?:zip|kbackup)',
         ).firstMatch(name);
         if (match != null) {
           try {

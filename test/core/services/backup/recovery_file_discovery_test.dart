@@ -37,4 +37,43 @@ void main() {
       expect(await File('$path/kelivo.db').readAsString(), 'retained');
     },
   );
+
+  test('discovers a drop-in archive under either naming', () async {
+    for (final name in [
+      'kelivo_backup_2026-11-01T10-00-00.000000.zip',
+      'cuplivo_backup_2026-11-01T10-00-00.000000.zip',
+    ]) {
+      await File('${root.path}/$name').writeAsString('archive');
+    }
+    await File('${root.path}/notes.zip').writeAsString('not ours');
+    await File(
+      '${root.path}/cuplivo_backup_2026-11-01.txt',
+    ).writeAsString('wrong extension');
+
+    final discovered = await RecoveryFileDiscovery.archives(root);
+    expect(discovered.map((file) => file.uri.pathSegments.last).toSet(), {
+      'kelivo_backup_2026-11-01T10-00-00.000000.zip',
+      'cuplivo_backup_2026-11-01T10-00-00.000000.zip',
+    });
+    expect(await RecoveryFileDiscovery.hasPriorData(root), isTrue);
+  });
+
+  test('isSnapshotArchive accepts both prefixes and nothing else', () {
+    for (final name in [
+      'kelivo-snapshot-2026-11-01T10-00-00.000000.zip',
+      'kelivo_backup_2026-11-01T10-00-00.000000.zip',
+      'cuplivo_backup_2026-11-01T10-00-00.000000.zip',
+    ]) {
+      expect(
+        RecoveryFileDiscovery.isSnapshotArchive(name),
+        isTrue,
+        reason: name,
+      );
+    }
+    expect(RecoveryFileDiscovery.isSnapshotArchive('backup.zip'), isFalse);
+    expect(
+      RecoveryFileDiscovery.isSnapshotArchive('cuplivo_backup_2026-11-01.txt'),
+      isFalse,
+    );
+  });
 }

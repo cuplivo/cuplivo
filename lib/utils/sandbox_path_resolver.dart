@@ -291,6 +291,17 @@ class SandboxPathResolver {
         portable;
   }
 
+  /// One spelling of [value] for storage: a managed path keeps its
+  /// `kelivo-file:` URI, anything else is canonicalized when it can be and
+  /// repaired to the live container otherwise.
+  static String canonicalStorage(String value) {
+    if (value.isEmpty) return value;
+    if (KelivoFileUri.isKelivoFileUri(value)) return value;
+    final canonical = canonicalize(value);
+    if (KelivoFileUri.isKelivoFileUri(canonical)) return canonical;
+    return fix(value);
+  }
+
   /// Restore-boundary remap: if [uri] is a known previous managed sandbox
   /// absolute path and the corresponding file exists under the current docs
   /// root (because backup files were copied), return the kelivo-file URI.

@@ -83,16 +83,24 @@ void main() {
 
       test('draws a Chinese run as the run it was given', () async {
         // A fill that put a break opportunity after every character reads back as
-        // `小 节 标 题`, and a search for the phrase finds nothing.
-        final text = _flatten(await _text(cjkFont, mixed));
-        for (final run in <String>[
-          '先厘清语义',
-          '把改动挂到',
-          '责任边界的差别',
-          '主动陪伴的修复还没闭环',
-        ]) {
-          expect(text, contains(run));
+        // `小 节 标 题`, and a search for the phrase finds nothing. The invariant
+        // that says so without depending on where the column happens to break is
+        // the space itself: the source writes no space between two Han
+        // characters, so a line that shows one broke a run — a line's own break
+        // lands *between* lines, never inside one.
+        final lines = await _lines(cjkFont, mixed);
+        final inside = RegExp(r'[\u3400-\u9fff] [\u3400-\u9fff]');
+        for (final line in lines) {
+          expect(
+            inside.hasMatch(line),
+            isFalse,
+            reason: 'a run was broken inside the line: $line',
+          );
         }
+
+        // And the run a paragraph opens with is still one run.
+        final text = _flatten(await _text(cjkFont, mixed));
+        expect(text, contains('先厘清语义'));
       });
 
       test('never opens a line with closing punctuation', () async {

@@ -2,7 +2,7 @@
 
 ## Project overview
 
-Cuplivo is a cross-platform LLM chat client built with Flutter, targeting iOS, Android, macOS, Windows, and Linux. Package name is `Cuplivo` — imports use `package:Cuplivo/...`. It is a community fork of Kelivo, re-baselined on Kelivo upstream `master` at `199647a5d` (2026-10-24); upstream's newest published tag is still `v1.3.1` and older than the 4.3, 4.4 and current baselines, so master is the live line. From 4.0 on, every version re-bases on that upstream line and re-does Cuplivo's own features as cherry-picks on it.
+Cuplivo is a cross-platform LLM chat client built with Flutter, targeting iOS, Android, macOS, Windows, and Linux. Package name is `Cuplivo` — imports use `package:Cuplivo/...`. It is a community fork of Kelivo, re-baselined on Kelivo upstream `master` at `b1702b3a9` (2026-10-26); upstream's newest published tag is still `v1.3.1` and older than the 4.3, 4.4 and current baselines, so master is the live line. From 4.0 on, every version re-bases on that upstream line and re-does Cuplivo's own features as cherry-picks on it.
 
 ## Architecture
 
@@ -142,19 +142,28 @@ units so the next re-base replays 18 commits instead of 35. The unit table and t
   (`data_sync_backup_file_test.dart`), and persisted names the identity sweep had rewritten in a test
   fixture (`restore_failure_screen_test.dart` looked for `cuplivo-snapshot-…` while discovery matches
   `kelivo-snapshot-`, and for a `cuplivo-data` folder where the durability fault matches `kelivo-data`).
-  The eight `test/goldens/markdown_backdrop_golden_test.dart` cases are a third class: their baselines
-  are pixel fixtures, and Skia's text rasterisation differs between the image that generated them and
-  this machine. They are registered `kind: "platform"` for Windows (0.67–2.07 %), and their baselines
-  are generated **on the CI image** (ubuntu-24.04) so that `pr-check.yml` compares against its own
-  renderer — a fixture that fails everywhere is a fixture that was never generated where it runs, not
-  a platform to register.
+  The eight `test/goldens/markdown_backdrop_golden_test.dart` cases were a third class: their
+  baselines are pixel fixtures, and Skia's text rasterisation differs between the image that generated
+  them and this machine. Their baselines were generated **on the CI image** (ubuntu-24.04) so that
+  `pr-check.yml` compares against its own renderer — a fixture that fails everywhere is a fixture that
+  was never generated where it runs, not a platform to register. Upstream retired the whole golden
+  layer at `4671dbe48` (`ccd0815e9`, "remove screenshot goldens and fix Linux browser checks"), which
+  ends the question the registry could only answer per-run: their 259 entries were dropped with the
+  suites, because a registration names a test that must still exist.
 - **Register a Windows failure only after a control run at upstream's tip.** The eight goldens were
   not guessed at: `git worktree add … e15df5485`, `flutter pub get`, the same file, and all eight
   failed there with the same magnitudes. A registry entry is a claim that the failure is the
   platform's, and the claim is only worth the control run behind it. The claim has to be re-earned
   when the baseline moves: `199647a5d` got its own control worktree and reproduced the same eight at
   the same percentages (2.07/1.46/1.35/0.71 light, 2.04/1.45/1.34/0.70 dark), which is why the
-  entries could stay.
+  entries could stay. The `3924a5d0e` re-base re-earned the claim for two new classes — the
+  generated-UI goldens (241 cases) and the embedded browser engine (63) — each with its own
+  control run at that tip; `docs/flaky-tests.md` §13 carries the numbers and the one exception
+  (four case names containing a colon that the local registry cannot key). The `4671dbe48` re-base
+  then *retired* 259 of those 320 entries because upstream deleted the golden suites, and added two
+  of its own after the same kind of control run at `05506b840` — see §14. A registry is a claim
+  about a test that exists, so it shrinks as well as grows. The pass finished on `b1702b3a9`, which is
+  that line plus upstream's Windows custom-data-directory work.
 - **Back up before the force push**: `backup/master-<sha>`, plus a `backup/series-<old-baseline>` when
   a series branch is replaced, both pushed.
 

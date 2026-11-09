@@ -212,7 +212,11 @@ void main() {
       );
     });
 
-    test('normalizeCwd falls back when the path leaves the zones', () {
+    test('normalizeCwd keeps a cwd outside every zone', () {
+      // Native mode has no guest vocabulary to clamp to: a tool run reports the
+      // shell's real directory, so a cwd outside every zone stays what the shell
+      // said. Clamping an escaping cwd is the sandboxed rule — see the group
+      // above, where `/workspace/../etc` comes back as `/workspace`.
       expect(
         paths.normalizeCwd(null),
         WorkspacePaths.canonicalHostPath(workspace.path),
@@ -222,16 +226,17 @@ void main() {
         WorkspacePaths.canonicalHostPath(p.join(session.path, 'out')),
       );
       final climb = List<String>.filled(24, '..').join('/');
-      expect(
-        paths.normalizeCwd('$climb/etc'),
-        WorkspacePaths.canonicalHostPath(workspace.path),
-      );
+      final outside = paths.normalizeCwd('$climb/etc');
+      expect(p.isAbsolute(outside), isTrue);
+      expect(p.isWithin(workspace.path, outside), isFalse);
     });
 
     test('rejects .. that leaves workspace even when landing in tmp', () {
+      // The tmp zone is the session's own tmp directory, not the OS temp root,
+      // so a `..` that lands under the latter is still outside every zone.
       expect(
         paths.tmpHostRoot,
-        WorkspacePaths.canonicalHostPath(Directory.systemTemp.path),
+        WorkspacePaths.canonicalHostPath(p.join(session.path, 'tmp')),
       );
       expect(
         paths.resolve('../x.txt', cwd: workspace.path).zone,

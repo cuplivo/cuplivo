@@ -4237,7 +4237,7 @@ abstract class AppLocalizations {
   /// Note below Local Backup on iOS. Distinguishes iCloud device backups from an exported backup in iCloud Drive, and explains that the app-owned Cuplivo folder is deleted when the app is deleted.
   ///
   /// In en, this message translates to:
-  /// **'Cuplivo\'s local data is excluded from iCloud device backups. Before changing devices or deleting the app, back up to iCloud Drive or another folder outside Cuplivo. Files in On My iPhone > Cuplivo are deleted with the app.'**
+  /// **'Cuplivo\'s local data is set to be excluded from iCloud device backups. Export a backup file before changing devices or deleting the app.'**
   String get backupPageIosSystemBackupNote;
 
   /// Button label and task title for importing data from a Cherry Studio backup.

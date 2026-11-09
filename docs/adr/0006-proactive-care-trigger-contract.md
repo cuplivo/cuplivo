@@ -129,19 +129,20 @@ half* of a deviation this contract had accepted:
    consumption layer even though upstream does not re-arm on every resume. Two constraints make it
    safe: the re-arm is a *replace-all* (the native registry cancels whatever the payload omits,
    the in-process mirror clears and refills), so it (a) is skipped while the chat stores are
-   unloaded or the assistant list cannot resolve the owner of a schedule it would otherwise arm,
-   and (b) runs **before** the catch-up — and (b) only sequences the catch-up the same call
-   performs. No lock is needed for other triggers (the in-app timer on desktop/iOS, or a native
-   `fire` on Android): from the snapshot read (`getAllConversations()`) to the native
-   `rescheduleAll` invocation the path contains no `await` — `_resolvesEveryScheduledOwner` and
-   `pendingForReschedule` are synchronous — so no concurrent delivery can arm a newer occurrence
+   unloaded, or while the caller cannot vouch that the assistant store has finished loading — that
+   guarantee is the required `assistantStoreLoaded` argument, and the resume path gets it by
+   awaiting `AssistantProvider.loaded` — and (b) runs **before** the catch-up — and (b) only
+   sequences the catch-up the same call performs. No lock is needed for other triggers (the in-app
+   timer on desktop/iOS, or a native `fire` on Android): from the snapshot read
+   (`getAllConversations()`) to the native `rescheduleAll` invocation the path contains no `await`
+   — `pendingForReschedule` is synchronous — so no concurrent delivery can arm a newer occurrence
    inside the replace-all's window, and any `sync` that lands afterwards is ordered behind it on
    the same MethodChannel. The re-arm itself is guarded inside
    `HomeViewModel.reschedulePendingProactiveCare` (empty-store check) and
-   `ProactiveCareAlarmService._resolvesEveryScheduledOwner` (an unloaded snapshot must not clear
-   alarms it cannot see), while the catch-up is not: `runDueSchedules` finds no candidates while
-   the conversation cache is empty, and `initChat` kicks off `deliverDueProactiveCare` again once
-   the caches are loaded and the startup `rescheduleAll` has completed.
+   `ProactiveCareAlarmService.rescheduleAll` (`assistantStoreLoaded`: an unloaded store must not
+   clear alarms it cannot see), while the catch-up is not: `runDueSchedules` finds no candidates
+   while the conversation cache is empty, and `initChat` kicks off `deliverDueProactiveCare` again
+   once the caches are loaded and the startup `rescheduleAll` has completed.
 7. **Silent failures are over.** Every early return on the trigger chain logs
    `[ProactiveCare] …` (`debugPrint` on the Dart side, tag `ProactiveCare` on the Kotlin side),
    and native dispatch failures also go through `BackgroundRuntime.recordError`, the same
@@ -331,13 +332,20 @@ half* of a deviation this contract had accepted:
   who collapses it again is not fought. `AndroidProactiveCareSettingsStatus.waitsForExactAlarm`
   is the single predicate behind the conversation row's waiting text and its tests, and it treats
   a failed grant query (`unknown`) as waiting too.
-- A re-arm is only as good as its snapshot: the resume path and `rescheduleAll` itself refuse to
-  run on a snapshot that cannot resolve the owner of a future schedule the replace-all would
-  otherwise arm, because it would cancel exactly the alarms it failed to see. Schedules the
-  re-arm omits by design — past-due, or owned by an assistant that no longer exists — must not
-  veto it, or one stale row would freeze every other pending letter. A cold-start `resumed` that
-  arrives before `initChat` therefore changes nothing (the startup re-arm still runs), instead of
-  wiping the registry; the same `resumed` still runs the catch-up.
+- A re-arm is only as good as its snapshot. `rescheduleAll` refuses a snapshot whose caller cannot
+  vouch that the assistant store finished loading (`assistantStoreLoaded`), because a replace-all
+  would cancel exactly the alarms it failed to see. Once that guarantee is given, the status of a
+  single schedule is a different question: a future schedule whose owner is gone is dropped from
+  that one payload (the native side cancels its stale alarm) and the omission is logged, instead of
+  vetoing every other pending letter. It can never be armed again, so it must not hold the healthy
+  ones hostage — a rule this contract previously stated while the implementation did the opposite,
+  because the two cases were not distinguishable at the service. They are now: `AssistantProvider`
+  replaces its list in one synchronous swap after the preferences await, so the store is either
+  empty or complete — never half populated — and `loaded`/`isLoaded` names the one transition
+  there is, while `initChat` awaits it before the first re-arm. The one call site that can vouch
+  for *loaded* but not *current* is `ChatService`'s post-restore re-arm: a bulk restore reinstalls
+  assistants in a later step and the importers ask for an app restart, so that call arms what the
+  current store resolves and the startup re-arm after the restart owns the rest.
 - The 10-minute deadline *releases* an occurrence rather than replaying it. Re-arming a past
   occurrence there would re-enter the parked state every 10 minutes whenever no listener exists,
   so the recovery stays where the truth is: the Dart schedule is unconsumed, and the overdue

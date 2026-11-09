@@ -180,9 +180,9 @@ void main() {
         },
       );
       final placed = placedPdfImages(result.bytes).single;
-      // A4 minus the two 46-point margins: a picture wider than the column would
+      // A4 minus the two 60-point margins: a picture wider than the column would
       // be painted past the margin, and the writer draws what it is given.
-      expect(placed.width, closeTo(595.28 - 92, 0.1));
+      expect(placed.width, closeTo(595.28 - 120, 0.1));
       // Capped by width, the picture keeps the shape its author asked for.
       expect(placed.height / placed.width, closeTo(100 / 2000, 0.0001));
     });

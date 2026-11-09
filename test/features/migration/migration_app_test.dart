@@ -511,17 +511,19 @@ Future<void> _waitForEnabledButton(WidgetTester tester, IconData icon) async {
 }
 
 Future<void> _waitUntil(bool Function() condition) async {
-  // These callbacks perform real filesystem/SQLite work in runAsync. A one
-  // second wall-clock limit races a loaded full-suite worker, unlike fake-time
-  // widget pumping. Finish as soon as the specific operation completes.
-  final elapsed = Stopwatch()..start();
-  while (!condition() && elapsed.elapsed < const Duration(seconds: 10)) {
+  // A deadline, not a poll count: the waits cover real file IO (the backup is
+  // exported, the temporary copy deleted), and 100 polls of 10 ms is a 1 s
+  // budget that a quiet machine meets and a full parallel suite does not. On
+  // the 199647a5d re-base the retry wait expired exactly once in 10063 tests,
+  // on Windows, while the same file passed alone.
+  final deadline = DateTime.now().add(const Duration(seconds: 15));
+  while (!condition() && DateTime.now().isBefore(deadline)) {
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
   expect(
     condition(),
     isTrue,
-    reason: 'Async operation did not complete in 10 seconds',
+    reason: 'Async operation did not complete in 15 seconds',
   );
 }
 

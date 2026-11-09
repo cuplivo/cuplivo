@@ -1016,6 +1016,7 @@ Future<void> exportChatMessagesMarkdown(
   }
 }
 
+)
 Future<void> exportChatMessagesTxt(
   BuildContext context, {
   required Conversation conversation,

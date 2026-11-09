@@ -22,8 +22,9 @@ class _RecordingChatService extends ChatService {
   @override
   Future<void> updateConversationExtras(
     String conversationId,
-    Map<String, dynamic> Function(Map<String, dynamic> current) update,
-  ) async {
+    Map<String, dynamic> Function(Map<String, dynamic> current) update, {
+    Conversation? expectedOwner,
+  }) async {
     extras = update(Map<String, dynamic>.from(extras));
     writes.add(Map<String, dynamic>.from(extras));
   }

@@ -1737,6 +1737,9 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Compress context: summarize messages via LLM, create new conversation with summary.
+  /// Returns null on success, or an error key string on failure.
+  ///
   /// Dispatches compression with captured configuration; user input remains
   /// in the existing queue and is released only after an in-place commit.
   Future<String?> compressContext({

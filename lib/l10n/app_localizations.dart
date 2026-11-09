@@ -4810,6 +4810,18 @@ abstract class AppLocalizations {
   /// **'Image OCR'**
   String get bottomToolsSheetOcr;
 
+  /// No description provided for @chatToolsEmptyModelCannotUseTools.
+  ///
+  /// In en, this message translates to:
+  /// **'This member\'s model cannot call tools.'**
+  String get chatToolsEmptyModelCannotUseTools;
+
+  /// No description provided for @chatToolsEmptyNoToolsEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'This member has no tools switched on.'**
+  String get chatToolsEmptyNoToolsEnabled;
+
   /// No description provided for @messageMoreSheetTitle.
   ///
   /// In en, this message translates to:

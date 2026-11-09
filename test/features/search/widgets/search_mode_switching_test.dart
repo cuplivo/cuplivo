@@ -6,6 +6,7 @@ import 'package:Cuplivo/core/providers/assistant_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/api/builtin_tools.dart';
 import 'package:Cuplivo/desktop/search_provider_popover.dart';
+import 'package:Cuplivo/features/group_chat/widgets/group_member_strip.dart';
 import 'package:Cuplivo/features/search/widgets/search_settings_sheet.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 
@@ -162,4 +163,48 @@ void main() {
       _expectExternalSearchEnabled(fixture);
     },
   );
+
+  testWidgets('the desktop group strip starts on the composer assistant', (
+    tester,
+  ) async {
+    final fixture = await _createFixture();
+    final anchorKey = GlobalKey();
+    final otherId = await fixture.assistants.addAssistant(name: 'Other');
+    final other = fixture.assistants.getById(otherId)!;
+    final composer = fixture.assistants.currentAssistant!;
+
+    await tester.pumpWidget(
+      _app(
+        fixture: fixture,
+        home: Align(
+          alignment: Alignment.bottomCenter,
+          child: Builder(
+            builder: (context) => SizedBox(
+              key: anchorKey,
+              width: 500,
+              height: 48,
+              child: FilledButton(
+                onPressed: () => showDesktopSearchProviderPopover(
+                  context,
+                  anchorKey: anchorKey,
+                  // The composer is on the second member of the roster.
+                  members: [other, composer],
+                  initialAssistantId: composer.id,
+                ),
+                child: const Text('Open group search'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open group search'));
+    await tester.pumpAndSettle();
+
+    final strip = tester.widget<GroupMemberStrip>(
+      find.byType(GroupMemberStrip),
+    );
+    expect(strip.selectedId, composer.id);
+  });
 }

@@ -168,4 +168,19 @@ void main() {
     expect(find.byKey(_careRowKey), findsNothing);
     expect(find.byType(ConversationProactiveCareSheet), findsNothing);
   });
+
+  testWidgets('care row stays hidden for a group topic', (tester) async {
+    // A group conversation has no assistant of its own, so care has nothing to
+    // arrange: the row would be a dead control next to the working ones.
+    final conversation = Conversation(
+      id: 'c1',
+      title: 'Topic',
+    ).withGroupChatId('g1');
+    await pumpPopoverHost(tester, conversation: conversation);
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(_careRowKey), findsNothing);
+  });
 }

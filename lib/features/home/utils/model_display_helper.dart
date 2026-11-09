@@ -43,6 +43,12 @@ class ModelDisplayInfo {
 /// [SettingsProvider.perChatModelEnabled] is off; pins stay in the database so
 /// turning the setting back on restores each conversation's own model.
 ///
+/// It is skipped for a group topic as well. A group writes every reply with its
+/// speaker's own model, so a pin on the topic cannot mean anything: honouring
+/// one would send every reply with that single model while the composer reports
+/// the roster, and a pin left over from before the conversation became a topic
+/// would do it silently.
+///
 /// This is the only place that chain should be written. Every caller that means
 /// "the model this chat uses" goes through here or [getActiveModelIds].
 ({String? providerKey, String? modelId}) resolveChatModel(
@@ -50,7 +56,10 @@ class ModelDisplayInfo {
   Conversation? conversation,
   Assistant? assistant,
 }) {
-  final pinned = settings.perChatModelEnabled ? conversation : null;
+  final pinned =
+      settings.perChatModelEnabled && conversation?.isGroupConversation != true
+      ? conversation
+      : null;
   final providerKey =
       pinned?.chatModelProvider ??
       assistant?.chatModelProvider ??

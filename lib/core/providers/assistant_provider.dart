@@ -607,10 +607,22 @@ class AssistantProvider extends ChangeNotifier {
   /// main.dart where the ChatService is available.
   void Function(Assistant assistant)? onAssistantUpdated;
 
-  Future<void> setSearchEnabledForCurrentAssistant(bool enabled) async {
-    final a = currentAssistant;
+  /// Turns the external search switch on or off for one assistant.
+  ///
+  /// A group composer edits the member the panel is showing, which is not
+  /// necessarily [currentAssistant], so the write names its target instead of
+  /// reading the "current" one.
+  Future<void> setSearchEnabled(String assistantId, bool enabled) async {
+    final a = getById(assistantId);
     if (a == null || a.searchEnabled == enabled) return;
     await updateAssistant(a.copyWith(searchEnabled: enabled));
+  }
+
+  /// The 1:1 target: the assistant the composer is currently on.
+  Future<void> setSearchEnabledForCurrentAssistant(bool enabled) async {
+    final a = currentAssistant;
+    if (a == null) return;
+    await setSearchEnabled(a.id, enabled);
   }
 
   Future<void> reorderAssistants(int oldIndex, int newIndex) async {

@@ -300,6 +300,11 @@ Future<void> showModelSelectSheet(
   final assistantProvider = context.read<AssistantProvider>();
   final perChat = settings.perChatModelEnabled;
   final conversation = controller.currentConversation;
+  // A group topic has no model of its own: its replies are written by the
+  // members, and a pin on the topic is ignored (resolveChatModel). Picking one
+  // here would write a setting that never applies — and with per-chat models off
+  // it would rewrite the resolved assistant's default for every other chat.
+  if (conversation?.isGroupConversation == true) return;
   final assistant = assistantProvider.resolveConversationAssistant(
     conversation?.assistantId,
   );

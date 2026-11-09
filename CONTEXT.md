@@ -602,6 +602,22 @@ contradicts one of them is a bug, not a preference.
   devices. An `iSend` entry also describes the payload that was actually sent, never a fresh read:
   a row written while the session was in flight was never sent, and recording it as peer-seen made
   the next merge delete it here.
+- **A premise is re-read where it is used (前提在用的时刻重读)**: a plan is computed from a walk and
+  executed beats later, so the half of its premise that can move — the local row, the local file,
+  the workspace switch, the history — is read again at the moment of the write, while the half that
+  cannot (the peer's manifest, which came with its hello, and the checkpoint, which came from disk
+  at the session's start) travels with the plan and is never re-read. Both faces ask the *same*
+  function a second time instead of testing equality their own way: `planRowSync` /
+  `copyWrittenSinceAgreement` for rows — including the announcement premise, which is its own and
+  not the checkpoint's — and `planWorkspaceContent` one path wide for files. An answer that moved
+  means an edit has beaten the deletion exactly as it would have at walk time, so the write does not
+  happen, the local version stays where it is (never the recycle bin: nothing replaced it), and the
+  peer's version is owed again next session. A skipped *row* deletion is counted
+  (`deletedBlocked`) rather than only logged, because a row that is still here otherwise looks
+  exactly like a row there was nothing to do with; the file face already carried it as a miss. The
+  business face's checkpoint was the only place reading the wrong half — `setFromLocal()` for a row
+  this device had just sent, which recorded an edit nobody received as peer-seen — which is how
+  "sending is not receipt" failed for rows while it held for conversations and files.
 - **A deletion is announced, never inferred from an absence**: with the fetch beat no longer
   advancing optimistically, "the peer lacks this" cannot mean "the peer deleted it" — that
   ambiguity is what the announcement resolves. A conversation this device deleted keeps its
@@ -612,9 +628,13 @@ contradicts one of them is a bug, not a preference.
   resets its own checkpoints and bumps a **data epoch** carried on the hello; a peer seeing a
   different epoch converts its own deletions to re-sends for that session (recovering what was
   lost) while a deletion it made itself still stands, because that travels through the
-  announcement rather than an absence. Hooks: the restore cutover and an overwrite import — not a
-  restore rollback (which returns to the tracked state) and not an in-app "clear all data" (a
-  deletion intent, which propagates).
+  announcement rather than an absence. Hooks: every path that replaces history wholesale — the
+  restore cutover (a replaced database), a settings-only overwrite (rows and skill/workspace
+  directories, no database at all) and the legacy archive's overwrite, which reach the row face
+  without passing the cutover — but not a restore rollback (which returns to the tracked state) and
+  not an in-app "clear all data" (a deletion intent, which propagates). A row-face overwrite that
+  skipped the announcement made this device's silence about the rows the archive did not carry read
+  as `peerDeletes`: it ordered the peer to delete rows nobody had deleted.
 - **Replay-safe recovery**: checkpoints advance only after a successful apply + commit; an
   interrupted session simply recomputes its delta next time, and idempotent row upserts
   make re-application safe. Per-subtree transactions bound the damage of a mid-apply crash.

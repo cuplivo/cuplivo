@@ -395,6 +395,42 @@ void main() {
         reason: 'and clearing one peer says nothing about another',
       );
     });
+
+    test('a workspace turned off mid-session moves nothing', () async {
+      await putWorkspace('w1');
+      await putFile('w1', 'a.txt', 'mine', mtimeMs: 1000);
+      final walked = await content.snapshots();
+      expect(walked.single.shared, isTrue);
+
+      // The switch flipped after the walk, while the session is still open. The
+      // walk's `shared` is a photograph of the switch, not the switch.
+      await content.setEnabled('w1', false);
+
+      final outcome = await content.applyIncoming(
+        myDeviceId: 'me',
+        peerDeviceId: 'peer',
+        mine: walked,
+        peerTables: const {
+          'w1': {'a.txt': WorkspaceFileStamp(size: 6, mtimeMs: 2000)},
+        },
+        ledger: const {},
+        allowDeletes: true,
+        fetch: fetcher('theirs'),
+      );
+
+      expect(outcome.filesLanded, 0);
+      expect(
+        await workspaceFile('w1', 'a.txt').readAsString(),
+        'mine',
+        reason: 'a workspace the user just switched off is not written to',
+      );
+      expect(
+        outcome.workspacesOmitted,
+        1,
+        reason:
+            'the workspace shared nothing this session, and that is counted',
+      );
+    });
   });
 
   group('publish and serve', () {

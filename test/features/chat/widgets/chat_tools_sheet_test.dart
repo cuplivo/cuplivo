@@ -192,6 +192,7 @@ void main() {
     List<McpServerConfig> servers = const [],
     Conversation? conversation,
     bool desktop = false,
+    bool Function(String providerKey, String modelId)? modelSupportsTools,
   }) async {
     mcp.fakeServers = servers;
     tester.view.physicalSize = const Size(800, 1600);
@@ -236,6 +237,7 @@ void main() {
                               assistantId: assistantId,
                               conversationId: conversation?.id,
                               supportsModelTools: true,
+                              modelSupportsTools: modelSupportsTools,
                             ),
                             child: const Text('Open tools'),
                           ),
@@ -245,6 +247,7 @@ void main() {
                   : ChatToolsSheet(
                       assistantId: assistantId,
                       conversationId: conversation?.id,
+                      modelSupportsTools: modelSupportsTools,
                     ),
             ),
           ),
@@ -471,6 +474,55 @@ void main() {
   testWidgets('hides the MCP group when nothing is connected', (tester) async {
     await pumpSheet(tester);
     expect(find.byKey(ChatToolsSheet.mcpGroupKey), findsNothing);
+  });
+
+  testWidgets('a member whose model cannot call tools gets no tool rows', (
+    tester,
+  ) async {
+    await tester.runAsync(
+      () => assistants.updateAssistant(
+        assistants
+            .getById(assistantId)!
+            .copyWith(chatModelProvider: 'p', chatModelId: 'm'),
+      ),
+    );
+    await pumpSheet(
+      tester,
+      servers: [_server('s1', 'Alpha')],
+      modelSupportsTools: (_, _) => false,
+    );
+    await tester.pumpAndSettle();
+
+    final l10n = AppLocalizations.of(tester.element(find.byType(Scaffold)))!;
+    // A group opens this sheet for the whole roster, so the gate has to be the
+    // member on show: a model that cannot call tools is offered none.
+    expect(find.byKey(ChatToolsSheet.localGroupKey), findsNothing);
+    expect(find.byKey(ChatToolsSheet.mcpGroupKey), findsNothing);
+    // ...and the panel says why instead of showing an empty body.
+    expect(find.text(l10n.chatToolsEmptyModelCannotUseTools), findsOneWidget);
+    // The workspace binding is the conversation's, not the model's.
+    expect(find.byKey(ChatToolsSheet.workspaceGroupKey), findsOneWidget);
+  });
+
+  testWidgets('the same roster keeps its tool rows for a capable model', (
+    tester,
+  ) async {
+    await tester.runAsync(
+      () => assistants.updateAssistant(
+        assistants
+            .getById(assistantId)!
+            .copyWith(chatModelProvider: 'p', chatModelId: 'm'),
+      ),
+    );
+    await pumpSheet(
+      tester,
+      servers: [_server('s1', 'Alpha')],
+      modelSupportsTools: (_, _) => true,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(ChatToolsSheet.localGroupKey), findsOneWidget);
+    expect(find.byKey(ChatToolsSheet.mcpGroupKey), findsOneWidget);
   });
 
   testWidgets('MCP servers toggle the assistant selection', (tester) async {

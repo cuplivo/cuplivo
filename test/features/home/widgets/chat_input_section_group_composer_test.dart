@@ -1,6 +1,7 @@
 import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/group_chat.dart';
+import 'package:Cuplivo/core/models/world_book.dart';
 import 'package:Cuplivo/core/providers/asr_provider.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
 import 'package:Cuplivo/core/providers/instruction_injection_provider.dart';
@@ -38,8 +39,18 @@ void main() {
       await preferences.setString(
         'assistants_v1',
         Assistant.encodeList([
-          Assistant(id: 'a1', name: 'Alice'),
-          Assistant(id: 'a2', name: 'Bob'),
+          Assistant(
+            id: 'a1',
+            name: 'Alice',
+            chatModelProvider: 'openai',
+            chatModelId: 'gpt-4o',
+          ),
+          Assistant(
+            id: 'a2',
+            name: 'Bob',
+            chatModelProvider: 'openai',
+            chatModelId: 'gpt-4o',
+          ),
         ]),
       );
       await preferences.setString('current_assistant_id_v1', 'a1');
@@ -62,6 +73,16 @@ void main() {
     required AssistantProvider assistants,
     required bool isTablet,
     double width = 360,
+    String? chatModelProviderKey,
+    String? chatModelId,
+    bool reasoningModel = false,
+    VoidCallback? onOpenSearch,
+    VoidCallback? onConfigureReasoning,
+    VoidCallback? onOpenSkills,
+    VoidCallback? onToggleLearningMode,
+    VoidCallback? onOpenWorldBook,
+    TargetPlatform platform = TargetPlatform.android,
+    WorldBookProvider? worldBooks,
   }) async {
     tester.view.physicalSize = Size(width, 800);
     tester.view.devicePixelRatio = 1;
@@ -79,7 +100,8 @@ void main() {
           ChangeNotifierProvider.value(value: assistants),
           ChangeNotifierProvider(create: (_) => AsrProvider()),
           ChangeNotifierProvider(
-            create: (_) => WorldBookProvider(preferences: preferences),
+            create: (_) =>
+                worldBooks ?? WorldBookProvider(preferences: preferences),
           ),
           ChangeNotifierProvider(
             create: (_) =>
@@ -93,10 +115,11 @@ void main() {
           ),
         ],
         child: MaterialApp(
-          // A phone or tablet, never a desktop platform: the composer drops the
-          // camera picker on desktops for reasons that have nothing to do with
-          // where the bar puts it.
-          theme: ThemeData(platform: TargetPlatform.android),
+          // Phone and tablet widths run on an Android theme by default: the
+          // composer drops the camera picker on desktop platforms for reasons
+          // that have nothing to do with where the bar puts it. A test that
+          // needs the desktop-only entries asks for the platform itself.
+          theme: ThemeData(platform: platform),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
@@ -113,8 +136,15 @@ void main() {
                   mediaController: ChatInputBarController(),
                   isTablet: isTablet,
                   isLoading: false,
+                  chatModelProviderKey: chatModelProviderKey,
+                  chatModelId: chatModelId,
+                  onOpenSearch: onOpenSearch,
+                  onConfigureReasoning: onConfigureReasoning,
+                  onOpenSkills: onOpenSkills,
+                  onToggleLearningMode: onToggleLearningMode,
+                  onOpenWorldBook: onOpenWorldBook,
                   isToolModel: (_, _) => true,
-                  isReasoningModel: (_, _) => false,
+                  isReasoningModel: (_, _) => reasoningModel,
                   isReasoningEnabled: (_) => false,
                   conversationId: 'c1',
                   onPickCamera: () {},
@@ -163,9 +193,66 @@ void main() {
       tester.element(find.byType(ChatInputBar)),
     )!;
     expect(find.byTooltip(l10n.chatInputBarMoreTooltip), findsOneWidget);
-    // A group has no per-conversation search switch, so the globe is not drawn
-    // dead either.
+    // This caller wired no search handler, so no globe is drawn: an action with
+    // nothing to do is not an action.
     expect(find.byTooltip(l10n.chatInputBarOnlineSearchTooltip), findsNothing);
+  });
+
+  testWidgets('a group composer offers search and reasoning like a 1:1 chat', (
+    tester,
+  ) async {
+    final assistants = await loadAssistants(tester);
+    final bar = await pumpGroupComposer(
+      tester,
+      assistants: assistants,
+      isTablet: false,
+      chatModelProviderKey: 'openai',
+      chatModelId: 'gpt-4o',
+      reasoningModel: true,
+      onOpenSearch: () {},
+      onConfigureReasoning: () {},
+    );
+
+    // Both entries belong to the assistant the composer is on rather than to
+    // the conversation, so a group offers them through the same handlers a 1:1
+    // chat uses — and therefore through the same read and write path.
+    expect(bar.onOpenSearch, isNotNull);
+    expect(bar.onConfigureReasoning, isNotNull);
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(ChatInputBar)),
+    )!;
+    expect(
+      find.byTooltip(l10n.chatInputBarOnlineSearchTooltip),
+      findsOneWidget,
+    );
+    expect(
+      find.byTooltip(l10n.chatInputBarReasoningStrengthTooltip),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('a group hides reasoning when the composer model cannot reason', (
+    tester,
+  ) async {
+    final assistants = await loadAssistants(tester);
+    await pumpGroupComposer(
+      tester,
+      assistants: assistants,
+      isTablet: false,
+      chatModelProviderKey: 'openai',
+      chatModelId: 'gpt-4o',
+      reasoningModel: false,
+      onOpenSearch: () {},
+      onConfigureReasoning: () {},
+    );
+
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(ChatInputBar)),
+    )!;
+    expect(
+      find.byTooltip(l10n.chatInputBarReasoningStrengthTooltip),
+      findsNothing,
+    );
   });
 
   testWidgets('a group tablet still keeps the conversation tools in the bar', (
@@ -189,5 +276,34 @@ void main() {
     // The wide layout has no tools panel to duplicate: its "+" is the only one.
     expect(bar.showMoreButton, isFalse);
     expect(find.byType(GroupMemberCluster), findsOneWidget);
+  });
+
+  testWidgets('a wide group composer reaches skills, injection and world book', (
+    tester,
+  ) async {
+    final assistants = await loadAssistants(tester);
+    final worldBooks = WorldBookProvider(preferences: preferences);
+    await tester.runAsync(() async {
+      await worldBooks.initialize();
+      await worldBooks.addBook(const WorldBook(id: 'wb1', name: 'Lore'));
+    });
+    final bar = await pumpGroupComposer(
+      tester,
+      assistants: assistants,
+      isTablet: true,
+      width: 900,
+      platform: TargetPlatform.windows,
+      worldBooks: worldBooks,
+      onOpenSkills: () {},
+      onToggleLearningMode: () {},
+      onOpenWorldBook: () {},
+    );
+
+    // The three assistant-scoped entries were dropped for a group because there
+    // was no single assistant to read them from. The roster answers that now, so
+    // the wide bar offers them where it offers them for a 1:1 chat.
+    expect(bar.onOpenSkills, isNotNull);
+    expect(bar.onToggleLearningMode, isNotNull);
+    expect(bar.onOpenWorldBook, isNotNull);
   });
 }

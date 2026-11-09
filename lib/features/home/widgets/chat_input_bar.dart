@@ -1,6 +1,7 @@
 import '../../chat/controllers/quote_editing_controller.dart';
 import '../../intelligent_ui/models/ui_context_attachment.dart';
 import '../../intelligent_ui/host/ui_composer_context_chip.dart';
+import '../../group_chat/models/group_quick_entries.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../theme/app_semantic_colors.dart';
 import 'package:Cuplivo/features/chat/widgets/tool_permission_widgets.dart';
@@ -771,6 +772,7 @@ class ChatInputBar extends StatefulWidget {
         SettingsProvider.defaultChatInputBackgroundOpacityLight,
     this.inputBackgroundOpacityDark =
         SettingsProvider.defaultChatInputBackgroundOpacityDark,
+    this.groupSearch,
   });
 
   final Future<ChatInputSubmissionResult> Function(ChatInputData)? onSend;
@@ -811,6 +813,13 @@ class ChatInputBar extends StatefulWidget {
   final bool supportsReasoning;
   final bool showToolsButton;
   final bool toolsActive;
+
+  /// Non-null in a group chat: what the roster's search resolves to, so the
+  /// entry can show a brand or the neutral globe instead of one assistant's
+  /// switch. Reasoning carries no object: its two states (offered, lit) reach the
+  /// button as [supportsReasoning] and [reasoningActive].
+  final GroupSearchEntry? groupSearch;
+
   final bool showMiniMapButton;
   final VoidCallback? onOpenMiniMap;
   final VoidCallback? onPickCamera;
@@ -3729,9 +3738,57 @@ class _ChatInputBarState extends State<ChatInputBar>
           return BrandAssets.assetForName(svc.name);
         })();
 
-        // A group has no per-conversation search switch, so the caller passes no
-        // handler: an action with nothing to do is not an action.
-        if (widget.onOpenSearch != null) {
+        // A group has no single search mode: the entry reports the roster.
+        // Uniform members get their own value (the provider's brand, or the
+        // magnifier for built-in search); disagreeing members get the neutral
+        // globe, lit as long as somebody searches. The per-member values live
+        // in the panel, not on this button.
+        final groupSearch = widget.groupSearch;
+        if (groupSearch != null && widget.onOpenSearch != null) {
+          final groupBrandAsset =
+              (groupSearch.uniform &&
+                  !groupSearch.builtIn &&
+                  groupSearch.serviceName != null)
+              ? BrandAssets.assetForName(groupSearch.serviceName!)
+              : null;
+          actions.add(
+            _OverflowAction(
+              width: normalButtonW,
+              builder: () => _CompactIconButton(
+                tooltip: l10n.chatInputBarOnlineSearchTooltip,
+                icon: groupSearch.uniform && groupSearch.builtIn
+                    ? Lucide.Search
+                    : Lucide.Globe,
+                active: groupSearch.anyOn,
+                onTap: lockTap(widget.onOpenSearch),
+                childBuilder: groupBrandAsset == null
+                    ? null
+                    : (c) {
+                        if (groupBrandAsset.endsWith('.svg')) {
+                          return SvgPicture.asset(
+                            groupBrandAsset,
+                            width: 20,
+                            height: 20,
+                            colorFilter: ColorFilter.mode(c, BlendMode.srcIn),
+                          );
+                        }
+                        return Image.asset(
+                          groupBrandAsset,
+                          width: 20,
+                          height: 20,
+                          color: c,
+                          colorBlendMode: BlendMode.srcIn,
+                        );
+                      },
+              ),
+              menu: DesktopContextMenuItem(
+                icon: Lucide.Globe,
+                label: l10n.chatInputBarOnlineSearchTooltip,
+                onTap: lockTap(widget.onOpenSearch),
+              ),
+            ),
+          );
+        } else if (widget.onOpenSearch != null) {
           actions.add(
             _OverflowAction(
               width: normalButtonW,

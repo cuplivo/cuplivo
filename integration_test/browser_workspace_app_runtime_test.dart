@@ -6,15 +6,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:Kelivo/core/services/browser/browser_service.dart';
-import 'package:Kelivo/core/services/browser/browser_store.dart';
-import 'package:Kelivo/core/services/browser/browser_workspace_resources.dart';
-import 'package:Kelivo/core/services/browser/browser_workspace_app.dart';
-import 'package:Kelivo/core/services/workspace/workspace_app_storage.dart';
-import 'package:Kelivo/core/services/workspace/workspace_file_access.dart';
-import 'package:Kelivo/core/services/workspace/workspace_paths.dart';
-import 'package:Kelivo/core/services/conversation_tool_permissions.dart';
-import 'package:Kelivo/core/models/tool_permission_mode.dart';
+import 'package:Cuplivo/core/services/browser/browser_service.dart';
+import 'package:Cuplivo/core/services/browser/browser_store.dart';
+import 'package:Cuplivo/core/services/browser/browser_workspace_resources.dart';
+import 'package:Cuplivo/core/services/browser/browser_workspace_app.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_app_storage.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_file_access.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_paths.dart';
+import 'package:Cuplivo/core/services/conversation_tool_permissions.dart';
+import 'package:Cuplivo/core/models/tool_permission_mode.dart';
 
 Future<void> _measureStorage(Future<Object?> Function(String) evaluate) async {
   final clock = Stopwatch()..start();

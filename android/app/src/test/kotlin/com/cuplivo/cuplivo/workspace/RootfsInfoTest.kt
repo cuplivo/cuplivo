@@ -1,5 +1,6 @@
 package com.cuplivo.cuplivo.workspace
 
+import com.cuplivo.cuplivo.PosixHost
 import java.io.File
 import java.nio.file.Files
 import org.junit.Assert.*
@@ -18,6 +19,7 @@ class RootfsInfoTest {
     }
 
     @Test fun detectsAbsoluteGuestSymlinksAndDistro() {
+        PosixHost.assumeFileSystem()
         val root = Files.createTempDirectory("rootfs-info-").toFile()
         try {
             image(root)
@@ -30,6 +32,7 @@ class RootfsInfoTest {
     }
 
     @Test fun rejectsWrongCpuAndMissingShell() {
+        PosixHost.assumeFileSystem()
         val root = Files.createTempDirectory("rootfs-arch-").toFile()
         try {
             image(root, 62)
@@ -50,6 +53,7 @@ class RootfsInfoTest {
     }
 
     @Test fun acceptsArm32RootfsAndRejectsMismatchedElfClass() {
+        PosixHost.assumeFileSystem()
         val root = Files.createTempDirectory("rootfs-armhf-").toFile()
         try {
             image(root, machine = 40, elfClass = 1)

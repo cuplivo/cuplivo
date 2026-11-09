@@ -15,7 +15,6 @@ import 'package:Cuplivo/core/providers/asr_provider.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
 import 'package:Cuplivo/core/providers/chat_owners_provider.dart';
 import 'package:Cuplivo/core/providers/group_chat_provider.dart';
-import 'package:Cuplivo/core/database/extension_entity_store.dart';
 import 'package:Cuplivo/core/providers/backup_reminder_provider.dart';
 import 'package:Cuplivo/core/providers/instruction_injection_provider.dart';
 import 'package:Cuplivo/core/providers/mcp_provider.dart';
@@ -127,6 +126,10 @@ void main() {
           (call) async {
             windowCalls.add(call.method);
             if (call.method == 'isMaximized') return false;
+            // window_manager 0.5.2's `startDragging` asks `isFullScreen` first on
+            // Windows hosts; an unanswered channel hands back null and the await
+            // then throws instead of starting the drag.
+            if (call.method == 'isFullScreen') return false;
             return null;
           },
         );

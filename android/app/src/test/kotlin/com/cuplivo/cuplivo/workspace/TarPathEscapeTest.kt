@@ -1,5 +1,6 @@
 package com.cuplivo.cuplivo.workspace
 
+import com.cuplivo.cuplivo.PosixHost
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.file.Files
@@ -82,6 +83,7 @@ class TarPathEscapeTest {
 
     @Test
     fun ordinaryRootDirectoryEntriesAndGuestSymlinksStillExtract() {
+        PosixHost.assumeFileSystem()
         val archive = tmp.newFile("ordinary.tar").apply {
             writeBytes(listOf(".", "./", "././", "./././", ".//./")
                 .fold(ByteArray(0)) { bytes, name -> bytes + ustarFile(name, "", '5') } +
@@ -96,6 +98,7 @@ class TarPathEscapeTest {
 
     @Test
     fun extractionBoundaryDoesNotFollowAReplacedDestination() {
+        PosixHost.assumeFileSystem()
         val outside = tmp.newFolder("outside")
         val victim = File(outside, "victim").apply { writeText("keep original contents") }
         val archive = tmp.newFile("fixed-root.tar").apply {

@@ -66,6 +66,7 @@ import '../services/backup/restore_durability.dart';
 import '../services/backup/restore_previous_plan.dart';
 import '../services/sync/sync_merge.dart';
 import '../services/sync/sync_models.dart';
+import '../services/recycle/recycle_service.dart';
 
 part 'chat_context_repository.dart';
 part 'chat_image_context_repository.dart';
@@ -191,10 +192,15 @@ class ChatDatabaseRepository {
     this._db, {
     File? databaseFile,
     ChatDatabaseObserver? observer,
+    this.recycle,
   }) : _databaseFile = databaseFile?.absolute,
        _observer = observer ?? ChatDatabaseObserver.instance;
 
   final AppDatabase _db;
+  /// The recycle bin, when one is installed for this database: the delete paths
+  /// stage what they remove through it before committing.
+  final RecycleService? recycle;
+
   late final compression = CompressionRepository(ExtensionEntityStore(_db));
   late final _timelineIndex = MessageTimelineIndex(_db);
   final Zone _lifetimeZone = Zone.current;
@@ -1958,17 +1964,13 @@ class ChatDatabaseRepository {
   });
 
   Future<Conversation?> getConversation(String id) async {
-    return _observer.measure(
-      ChatDatabaseOperation.queryConversation,
-      () async {
-        final row = await (_db.select(
-          _db.conversationRows,
-        )..where((t) => t.id.equals(id))).getSingleOrNull();
-        if (row == null) return null;
-        return _conversationFromRow(row);
-      },
-      resultCount: (conversation) => conversation == null ? 0 : 1,
-    );
+    return _observer.measure(ChatDatabaseOperation.queryConversation, () async {
+      final row = await (_db.select(
+        _db.conversationRows,
+      )..where((t) => t.id.equals(id))).getSingleOrNull();
+      if (row == null) return null;
+      return _conversationFromRow(row);
+    }, resultCount: (conversation) => conversation == null ? 0 : 1);
   }
 
   Future<int> getMessageCount(String conversationId) async {
@@ -5554,6 +5556,7 @@ class ChatDatabaseRepository {
               : null,
           groupId: groupId,
           version: nextVersion,
+          senderId: original.senderId,
         ),
         uiContext,
       );
@@ -5871,7 +5874,7 @@ class ChatDatabaseRepository {
   /// false when the deletion is deferred (a generation is running).
   Future<bool> syncApplyPeerDeletion(String conversationId) async {
     if (await syncConversationIsStreaming(conversationId)) return false;
-    await deleteConversation(conversationId);
+    await deleteConversation(conversationId, origin: RecycleOrigin.remote);
     return true;
   }
 
@@ -7220,24 +7223,6 @@ class ChatDatabaseRepository {
     int? reasoningTokens,
     int? cacheWriteTokens,
   }) {
-Future<ChatMessage?> updateMessageFields(
-    String messageId, {
-    String? content,
-    List<MessagePart>? parts,
-    int? totalTokens,
-    bool? isStreaming,
-    String? reasoningText,
-    DateTime? reasoningStartAt,
-    DateTime? reasoningFinishedAt,
-    String? translation,
-    String? reasoningSegmentsJson,
-    int? promptTokens,
-    int? completionTokens,
-    int? cachedTokens,
-    int? durationMs,
-    int? reasoningTokens,
-    int? cacheWriteTokens,
-  }) {
     return _writeTransaction(() async {
       // Built inside the transaction because updated_at is floored at the
       // row's own timestamp, exactly as [_messageUpdate] floors it: the
@@ -7261,92 +7246,6 @@ Future<ChatMessage?> updateMessageFields(
           });
         }
       }
-      await _invalidateEmptyAcknowledgement();
-      final now = DateTime.now().toUtc();
-      final updatedAt = now.isBefore(existing.timestamp)
-          ? existing.timestamp
-          : now;
-      var write = MessageRowsCompanion(
-        updatedAt: Value(updatedAt),
-        totalTokens: totalTokens != null
-            ? Value(totalTokens)
-            : const Value.absent(),
-        isStreaming: isStreaming != null
-            ? Value(isStreaming)
-            : const Value.absent(),
-        reasoningStartAt: reasoningStartAt != null
-            ? Value(reasoningStartAt)
-            : const Value.absent(),
-        reasoningFinishedAt: reasoningFinishedAt != null
-            ? Value(reasoningFinishedAt)
-            : const Value.absent(),
-        translation: translation != null
-            ? Value(translation)
-            : const Value.absent(),
-        reasoningSegmentsJson: reasoningSegmentsJson != null
-            ? Value(reasoningSegmentsJson)
-            : const Value.absent(),
-        promptTokens: promptTokens != null
-            ? Value(promptTokens)
-            : const Value.absent(),
-        completionTokens: completionTokens != null
-            ? Value(completionTokens)
-            : const Value.absent(),
-        cachedTokens: cachedTokens != null
-            ? Value(cachedTokens)
-            : const Value.absent(),
-        durationMs: durationMs != null
-            ? Value(durationMs)
-            : const Value.absent(),
-      );
-      if (reasoningTokens != null || cacheWriteTokens != null) {
-        // The row was read above, inside this same transaction, so the extras
-        // merge onto the value that read saw.
-        write = write.copyWith(
-          extrasJson: Value(
-            _encodeTokenExtras(
-              existing.extrasJson,
-              reasoningTokens: reasoningTokens,
-              cacheWriteTokens: cacheWriteTokens,
-            ),
-          ),
-        );
-      }
-      await (_db.update(
-        _db.messageRows,
-      )..where((t) => t.id.equals(messageId))).write(write);
-      final updated = await getMessage(messageId);
-      if (updated == null) return null;
-      if (content == null && reasoningText == null && parts == null) {
-        if (reasoningSegmentsJson != null) {
-          await genUiStates.reconcileSource(updated);
-        }
-        if ((reasoningSegmentsJson != null || isStreaming != null) &&
-            UiMessageSource.of(updated.parts).hasCandidate) {
-          await _genUiSearch.seal(updated);
-        }
-        return updated;
-      }
-      var nextParts = updated.parts;
-      if (parts != null) {
-        nextParts = parts;
-      } else if (content != null) {
-        nextParts = ChatMessage.partsWithRedistributedText(nextParts, content);
-      }
-      if (reasoningText != null) {
-        nextParts = ChatMessage.partsWithReplacedReasoning(
-          nextParts,
-          reasoningText,
-        );
-      }
-      final corrected = updated.copyWith(
-        parts: nextParts,
-        reasoningText: reasoningText ?? updated.reasoningText,
-      );
-      await _replaceMessageParts(corrected);
-      return corrected;
-    });
-  }
       await _invalidateEmptyAcknowledgement();
       final now = DateTime.now().toUtc();
       final updatedAt = now.isBefore(existing.timestamp)
@@ -7535,10 +7434,20 @@ Future<ChatMessage?> updateMessageFields(
   /// replacing the whole local state is not a cross-device deletion intent.
   /// Draft conversations never reach this method (they are not persisted), so
   /// no tombstone is written for them.
-  Future<void> deleteConversation(String id) async {
+  Future<void> deleteConversation(
+    String id, {
+    RecycleOrigin origin = RecycleOrigin.local,
+    RecycleGroup? group,
+  }) async {
+    RecycleConversationCapture? capture;
     await composerDrafts.delete(
       id,
       deleteConversation: () async {
+        capture = await recycle?.captureConversationDeletion(
+          id,
+          origin: origin,
+          group: group,
+        );
         genUiStates.invalidateAfterCommit(conversations: {id});
         final deleted = await (_db.delete(
           _db.conversationRows,
@@ -7551,6 +7460,7 @@ Future<ChatMessage?> updateMessageFields(
                     'contextCompressionTask',
                     CompressionConfig.conversationKind,
                     ImageContextSettings.entityKind,
+                    'contextCompressionTask',
                   ]) &
                   row.ownerId.equals(id),
             ))
@@ -7574,6 +7484,7 @@ Future<ChatMessage?> updateMessageFields(
         await _acknowledgeIntentionalEmptyState();
       },
     );
+    if (capture case final staged?) recycle?.stageCapturedConversation(staged);
   }
 
   /// Reads deletion tombstones, newest first, optionally filtered by [scope].
@@ -8521,6 +8432,7 @@ Future<ChatMessage?> updateMessageFields(
       reasoningSegmentsJson: row.reasoningSegmentsJson,
       groupId: row.groupId,
       version: row.version,
+      senderId: row.senderId,
       promptTokens: row.promptTokens,
       completionTokens: row.completionTokens,
       cachedTokens: row.cachedTokens,

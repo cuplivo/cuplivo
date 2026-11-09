@@ -2672,16 +2672,6 @@ class _MessageListViewState extends State<MessageListView> {
       // The reply's own author when the conversation has several; the visual
       // regex pass needs the same answer the panel shows.
       author: author,
-      onReply: widget.onReplyMessage == null || message.isStreaming
-          ? null
-          : () => widget.onReplyMessage!(message),
-      onReplySelection: widget.onReplySelectionMessage == null
-          ? null
-          : (selected) => widget.onReplySelectionMessage!(message, selected),
-      quoteTarget: quoteTarget,
-      onQuoteTap: quoteTarget == null || widget.onQuoteTap == null
-          ? null
-          : () => widget.onQuoteTap!(quoteTarget.id),
       enableStreamingTextMotion: enableStreamingTextMotion,
       versionIndex: currentIdx < 0 ? selectedIdx : currentIdx,
       versionCount: total > 0 ? total : 1,

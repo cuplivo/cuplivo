@@ -28,6 +28,9 @@ import '../../../theme/design_tokens.dart';
 import 'chat_input_bar.dart';
 import 'model_icon.dart';
 import '../../chat/widgets/context_operations_panel.dart';
+import '../../../core/models/group_chat.dart';
+import '../../group_chat/widgets/group_member_cluster.dart';
+import '../../../l10n/app_localizations.dart';
 
 /// Callback for checking if a model supports tool calling.
 typedef IsToolModelCallback = bool Function(String providerKey, String modelId);

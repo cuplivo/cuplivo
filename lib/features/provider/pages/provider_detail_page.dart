@@ -764,7 +764,7 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
         // Top iOS-style section card for key settings
         SectionCard(
           children: [
-            if (widget.keyName.toLowerCase() != 'cuplivoin')
+            if (widget.keyName.toLowerCase() != 'kelivoin')
               _providerKindRow(context),
             _providerGroupRow(context, groupName: groupName),
             _iosRow(
@@ -1021,12 +1021,12 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
           label: l10n.providerDetailPageNameLabel,
           controller: _nameCtrl,
           hint: widget.displayName,
-          enabled: widget.keyName.toLowerCase() != 'cuplivoin',
+          enabled: widget.keyName.toLowerCase() != 'kelivoin',
           onChanged: (_) => _save(),
         ),
         const SizedBox(height: 12),
         if (!(_kind == ProviderKind.google && _vertexAI)) ...[
-          if (widget.keyName.toLowerCase() != 'cuplivoin' &&
+          if (widget.keyName.toLowerCase() != 'kelivoin' &&
               !_multiKeyEnabled) ...[
             _inputRow(
               context,
@@ -1060,12 +1060,12 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
             onDetachedUndo: (bare, replaced) =>
                 undoSavedProviderUrl(sp, widget.keyName, bare, replaced),
             restoreDefault: SettingsProvider.isBuiltInProvider(widget.keyName),
-            enabled: widget.keyName.toLowerCase() != 'cuplivoin',
+            enabled: widget.keyName.toLowerCase() != 'kelivoin',
             onCommit: _applyBaseUrlCommit,
           ),
         ],
         if (_kind == ProviderKind.openai &&
-            widget.keyName.toLowerCase() != 'cuplivoin' &&
+            widget.keyName.toLowerCase() != 'kelivoin' &&
             !_useResp) ...[
           const SizedBox(height: 12),
           _inputRow(

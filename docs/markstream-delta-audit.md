@@ -81,7 +81,7 @@ regression. A regression test is added in
 | unit | scope | status |
 | --- | --- | --- |
 | #1014 | hand cursor over links, citations, inline `<a>`, inline images and `<details>` labels; I-beam over surrounding text; an unresolvable workspace image keeps the I-beam | **not carried — asked upstream, see below** |
-| #1027 | a reply carries a quote citation (rendered through markstream's citation syntax) plus its hotkey | **re-done** on markstream's selection controller — `selection_markdown_memory.dart` stores the pruned node list and renders it with `toMarkdown`; ADR-0012 |
+| #1027 | a reply carries a quote citation (rendered through markstream's citation syntax) plus its hotkey | **not carried — superseded** by upstream's own selection quotes (`7dd9b4e7d`, in the `4a7da9b6f` baseline); the reply unit is retired and ADR-0012 is withdrawn |
 | #1028 | a PDF laid out from the document AST, no WebView and no second renderer | **re-done** on markstream's AST — see the section below; ADR-0013 |
 
 ## Cursor affordability (#1014) — deferred to upstream

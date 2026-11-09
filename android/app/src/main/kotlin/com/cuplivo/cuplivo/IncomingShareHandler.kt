@@ -158,8 +158,9 @@ class IncomingShareHandler(context: Context, messenger: BinaryMessenger) {
                     if (isCancelled()) throw CancellationException()
                     val local = if (uri.scheme == "file") File(uri.path ?: "").canonicalFile else null
                     if (local != null) {
-                        val privateRoot = context.dataDir.canonicalFile.path
-                        if (!local.isFile || local.path == privateRoot || local.path.startsWith("$privateRoot/")) {
+                        val privateRoot = context.dataDir.canonicalFile
+                        val privatePrefix = privateRoot.path + File.separator
+                        if (!local.isFile || local == privateRoot || local.path.startsWith(privatePrefix)) {
                             throw IOException("Private or unavailable file")
                         }
                     } else if (uri.scheme != "content") throw IOException("Unsupported URI")

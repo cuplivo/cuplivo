@@ -315,7 +315,6 @@ class ChatInputSection extends StatelessWidget {
           ? isReasoningModel(pk, mid)
           : false,
       groupSearch: groupSearch,
-      groupReasoning: groupReasoning,
       onOpenSearch: onOpenSearch,
       onSend: onSend,
       loading: isLoading,
@@ -327,7 +326,16 @@ class ChatInputSection extends StatelessWidget {
       queuedPaused: queuedPaused,
       onCancelQueuedInput: onCancelQueuedInput,
       onExpandedChanged: onExpandedChanged,
-      showToolsButton: isGroup ? true : supportsModelTools,
+      // A group offers the tools entry while some member's model can call a
+      // tool, which is the 1:1 rule (`supportsModelTools`) read across the
+      // roster; whether anything is switched on decides the lit state below.
+      showToolsButton: isGroup
+          ? anyGroupMemberCanCallTools(
+              settings: settings,
+              members: groupMembers,
+              supportsTools: isToolModel,
+            )
+          : supportsModelTools,
       toolsActive: isGroup
           ? _groupToolsActive(context, groupMembers, workspaceBound)
           : supportsModelTools && _isToolsActive(context, a, workspaceBound),

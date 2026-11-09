@@ -773,7 +773,6 @@ class ChatInputBar extends StatefulWidget {
     this.inputBackgroundOpacityDark =
         SettingsProvider.defaultChatInputBackgroundOpacityDark,
     this.groupSearch,
-    this.groupReasoning,
   });
 
   final Future<ChatInputSubmissionResult> Function(ChatInputData)? onSend;
@@ -815,14 +814,11 @@ class ChatInputBar extends StatefulWidget {
   final bool showToolsButton;
   final bool toolsActive;
 
-  /// Non-null in a group chat: what the roster's search resolves to. A group
-  /// has no single model to read, so the entry shows the roster (uniform value,
-  /// or the neutral globe when members disagree) instead of
-  /// [AssistantProvider.currentSearchEnabled].
+  /// Non-null in a group chat: what the roster's search resolves to, so the
+  /// entry can show a brand or the neutral globe instead of one assistant's
+  /// switch. Reasoning carries no object: its two states (offered, lit) reach the
+  /// button as [supportsReasoning] and [reasoningActive].
   final GroupSearchEntry? groupSearch;
-
-  /// Non-null in a group chat: what the roster's reasoning resolves to.
-  final GroupReasoningEntry? groupReasoning;
 
   final bool showMiniMapButton;
   final VoidCallback? onOpenMiniMap;

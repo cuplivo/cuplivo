@@ -24,11 +24,13 @@ Future<void> showConversationSkillsSheet(
   BuildContext context, {
   required String conversationId,
   required Assistant? assistant,
+  bool scopeToAssistant = false,
 }) {
   final l10n = AppLocalizations.of(context)!;
   final panel = ConversationSkillsPanel(
     conversationId: conversationId,
     assistant: assistant,
+    scopeToAssistant: scopeToAssistant,
   );
   if (useDesktopWorkspaceLayout(context)) {
     return showAppDialog<void>(
@@ -64,6 +66,7 @@ class ConversationSkillsPanel extends StatelessWidget {
     required this.conversationId,
     required this.assistant,
     this.compact = false,
+    this.scopeToAssistant = false,
     this.footerAction,
   });
 
@@ -71,6 +74,16 @@ class ConversationSkillsPanel extends StatelessWidget {
   final Assistant? assistant;
   final bool compact;
   final Widget? footerAction;
+
+  /// Write [assistant]'s own list, whatever the conversation carries.
+  ///
+  /// A group panel puts a member strip above this one, so the rows claim to be
+  /// that member's. Two of the three write paths would break that claim: the
+  /// global switch flips a skill for every assistant, and the conversation-wide
+  /// override is shared by the whole roster — switching chips would then re-read
+  /// the same list. A scoped panel therefore materialises the member's own list
+  /// on the first toggle and never shows the inherit switch.
+  final bool scopeToAssistant;
 
   Widget _group({required List<Widget> children}) => compact
       ? Column(mainAxisSize: MainAxisSize.min, children: children)
@@ -188,8 +201,12 @@ class ConversationSkillsPanel extends StatelessWidget {
     final skillsService = context.watch<SkillsService>();
     final live = _liveAssistant(context);
     final binding = _binding(chat);
+    // A scoped panel writes the member's own list, so the conversation layer is
+    // not consulted: neither the shared override nor the global switch can be
+    // what the strip above it selects.
+    final scoped = scopeToAssistant;
     final inherit = binding.skillIds == null;
-    final followGlobal = inherit && live?.skillIds == null;
+    final followGlobal = !scoped && inherit && live?.skillIds == null;
     final listed = followGlobal
         ? skillsService.skills
         : [
@@ -198,7 +215,7 @@ class ConversationSkillsPanel extends StatelessWidget {
           ];
     final active = skillsService.resolveForAssistant(
       live,
-      conversationOverride: binding.skillIds,
+      conversationOverride: scoped ? null : binding.skillIds,
     );
     final activeIds = {for (final skill in active) skill.record.id};
 
@@ -218,7 +235,7 @@ class ConversationSkillsPanel extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (!compact) ...[
+        if (!compact && !scoped) ...[
           _group(
             children: [
               _switchRow(
@@ -265,7 +282,7 @@ class ConversationSkillsPanel extends StatelessWidget {
                   label: listed[i].name,
                   value: followGlobal
                       ? listed[i].record.enabled
-                      : inherit
+                      : (scoped || inherit)
                       ? activeIds.contains(listed[i].record.id)
                       : (binding.skillIds ?? const <String>[]).contains(
                           listed[i].record.id,
@@ -282,7 +299,7 @@ class ConversationSkillsPanel extends StatelessWidget {
                       unawaited(_writeGlobal(context, skillId, checked));
                       return;
                     }
-                    if (inherit) {
+                    if (scoped || inherit) {
                       final ids = {
                         for (final skill in skillsService.resolveForAssistant(
                           live,

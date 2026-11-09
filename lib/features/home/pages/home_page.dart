@@ -1443,6 +1443,11 @@ class _HomePageState extends State<HomePage>
                   chatModel.providerKey!,
                   chatModel.modelId!,
                 ),
+            // A group judges capability per member, through the same check the
+            // composer uses; a 1:1 chat has only the model above.
+            modelSupportsTools: toolsMembers == null
+                ? null
+                : _controller.isToolModel,
             members: toolsMembers,
           );
         } else {
@@ -1451,6 +1456,9 @@ class _HomePageState extends State<HomePage>
             context,
             assistantId: a.id,
             conversationId: _controller.currentConversation?.id,
+            modelSupportsTools: toolsMembers == null
+                ? null
+                : _controller.isToolModel,
             members: toolsMembers,
           );
         }
@@ -1816,6 +1824,7 @@ class _HomePageState extends State<HomePage>
         await showGroupReasoningSheet(
           context,
           members: members,
+          supportsReasoning: _controller.isReasoningModel,
           initialAssistantId: current?.id,
         );
       }

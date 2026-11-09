@@ -278,13 +278,26 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
     });
   }
 
+  /// The member the strip starts on: the composer's own assistant when it is one
+  /// of them, so the counts the panel opens with belong to whoever the user is
+  /// on rather than to whoever happens to be first in the roster.
+  String? get _initialMemberId {
+    final members = widget.members;
+    if (members == null || members.isEmpty) return null;
+    final preferred = widget.assistantId;
+    if (preferred != null && members.any((member) => member.id == preferred)) {
+      return preferred;
+    }
+    return members.first.id;
+  }
+
   Assistant? _assistant({bool listen = false}) {
     try {
       final provider = Provider.of<AssistantProvider>(context, listen: listen);
       final members = widget.members;
       if (members != null && members.isNotEmpty) {
-        final id = _selectedAssistantId ?? members.first.id;
-        return provider.getById(id) ?? members.first;
+        final id = _selectedAssistantId ?? _initialMemberId;
+        return provider.getById(id!) ?? members.first;
       }
       final id = widget.assistantId;
       if (id != null) return provider.getById(id);
@@ -299,7 +312,7 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
   String? get _targetAssistantId {
     final members = widget.members;
     if (members != null && members.isNotEmpty) {
-      return _selectedAssistantId ?? members.first.id;
+      return _selectedAssistantId ?? _initialMemberId;
     }
     return widget.assistantId;
   }
@@ -317,6 +330,9 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
       context,
       conversationId: id,
       assistant: _assistant(),
+      // The member strip above the row makes it that member's list, not the
+      // roster's shared conversation override.
+      scopeToAssistant: widget.members != null,
     );
   }
 

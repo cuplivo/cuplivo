@@ -5,7 +5,6 @@ import '../../../core/models/assistant.dart';
 import '../../../core/models/model_spec.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/api/reasoning/reasoning_selection.dart';
-import '../../../core/services/model_spec/model_spec_resolver.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../chat/widgets/reasoning_level_sheet.dart';
 import '../../home/utils/model_display_helper.dart';
@@ -19,6 +18,7 @@ import 'group_member_strip.dart';
 Future<void> showGroupReasoningSheet(
   BuildContext context, {
   required List<Assistant> members,
+  required bool Function(String providerKey, String modelId) supportsReasoning,
   String? initialAssistantId,
 }) {
   if (members.isEmpty) return Future<void>.value();
@@ -27,18 +27,26 @@ Future<void> showGroupReasoningSheet(
       : members.first.id;
   return showReasoningPickerSheet<void>(
     context: context,
-    builder: (_) =>
-        _GroupReasoningPicker(members: members, initialAssistantId: initial),
+    builder: (_) => _GroupReasoningPicker(
+      members: members,
+      supportsReasoning: supportsReasoning,
+      initialAssistantId: initial,
+    ),
   );
 }
 
 class _GroupReasoningPicker extends StatefulWidget {
   const _GroupReasoningPicker({
     required this.members,
+    required this.supportsReasoning,
     required this.initialAssistantId,
   });
 
   final List<Assistant> members;
+
+  /// The composer's own capability check, so a group and a 1:1 chat never
+  /// disagree about whether a model can reason.
+  final bool Function(String providerKey, String modelId) supportsReasoning;
   final String initialAssistantId;
 
   @override
@@ -112,10 +120,8 @@ class _GroupReasoningPickerState extends State<_GroupReasoningPicker> {
     final providerKey = model.providerKey;
     final modelId = model.modelId;
     if (providerKey == null || (modelId ?? '').isEmpty) return null;
+    if (!widget.supportsReasoning(providerKey, modelId!)) return null;
     final config = settings.getProviderConfig(providerKey);
-    if (!ModelSpecResolver.instance.spec(config, modelId!).supportsReasoning) {
-      return null;
-    }
     final request = selectReasoningRequest(
       settings: settings,
       config: config,

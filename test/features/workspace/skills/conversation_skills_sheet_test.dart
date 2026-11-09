@@ -56,6 +56,7 @@ void main() {
     required FakeChatService chat,
     required AssistantProvider assistants,
     Assistant? assistant,
+    bool scopeToAssistant = false,
   }) async {
     tester.view.physicalSize = const Size(400, 900);
     tester.view.devicePixelRatio = 1;
@@ -80,6 +81,7 @@ void main() {
             body: ConversationSkillsPanel(
               conversationId: 'c1',
               assistant: assistant ?? Assistant(id: _assistantId, name: 'A'),
+              scopeToAssistant: scopeToAssistant,
             ),
           ),
         ),
@@ -217,6 +219,57 @@ void main() {
       );
     },
   );
+
+  testWidgets('a member-scoped panel writes that assistant, nothing shared', (
+    tester,
+  ) async {
+    final alpha = createTempSkill(
+      id: 'alpha',
+      name: 'Alpha',
+      description: 'First',
+      parent: tempDir,
+    );
+    final beta = createTempSkill(
+      id: 'beta',
+      name: 'Beta',
+      description: 'Second',
+      parent: tempDir,
+    );
+    final skills = FakeSkillsService(
+      skills: [alpha, beta],
+      skillsDirectory: tempDir,
+    );
+    final chat = FakeChatService(
+      conversation: Conversation(id: 'c1', title: 'Chat'),
+    );
+    final assistants = await loadAssistant(tester);
+    // The state that used to write the global switch: following the assistant,
+    // with no list of its own.
+    expect(assistants.getById(_assistantId)!.skillIds, isNull);
+
+    await pumpPanel(
+      tester,
+      skills: skills,
+      chat: chat,
+      assistants: assistants,
+      scopeToAssistant: true,
+    );
+
+    // The inherit switch would write the conversation, so a scoped panel drops
+    // it rather than offering a control whose target is the whole roster.
+    expect(find.byKey(ConversationSkillsPanel.inheritKey), findsNothing);
+
+    await tester.tap(find.byKey(ConversationSkillsPanel.skillKey('beta')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    // The member's own list materialises on the first toggle...
+    expect(assistants.getById(_assistantId)!.skillIds, ['alpha']);
+    // ...and the two shared layers are untouched: the global enabled record and
+    // the conversation-wide override would both change every member.
+    expect(skills.enabledCalls, isEmpty);
+    expect(chat.lastExtras, isNull);
+  });
 
   testWidgets('long-pressing a skill opens its detail page', (tester) async {
     final enabled = createTempSkill(

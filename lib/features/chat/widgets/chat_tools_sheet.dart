@@ -10,6 +10,8 @@ import 'package:Cuplivo/core/models/conversation_mcp_settings.dart';
 import '../utils/ensure_conversation.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
 import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/home/utils/model_display_helper.dart';
 import 'package:Cuplivo/core/providers/workspace_provider.dart';
 import 'package:Cuplivo/core/models/workspace_binding.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
@@ -37,6 +39,7 @@ Future<void> showChatToolsSheet(
   BuildContext context, {
   required String assistantId,
   String? conversationId,
+  bool Function(String providerKey, String modelId)? modelSupportsTools,
   List<Assistant>? members,
 }) async {
   if (context
@@ -62,6 +65,7 @@ Future<void> showChatToolsSheet(
       assistantId: assistantId,
       conversationId: conversationId,
       members: members,
+      modelSupportsTools: modelSupportsTools,
       onClose: () => Navigator.of(sheetContext).maybePop(),
     ),
   );
@@ -74,6 +78,7 @@ class ChatToolsSheet extends StatefulWidget {
     this.conversationId,
     this.onClose,
     this.members,
+    this.modelSupportsTools,
   });
 
   final String assistantId;
@@ -84,6 +89,12 @@ class ChatToolsSheet extends StatefulWidget {
   /// three groups below then edit that member's tools, not the composer's
   /// current assistant.
   final List<Assistant>? members;
+
+  /// The composer's capability check. A group reaches this sheet for the whole
+  /// roster, so it has to ask about the member the strip shows: a model that
+  /// cannot call tools is offered none. Null in a 1:1 chat, where the composer
+  /// only opens this sheet for a model that can.
+  final bool Function(String providerKey, String modelId)? modelSupportsTools;
 
   static const Key localGroupKey = ValueKey<String>('chat-tools-group-local');
   static const Key mcpGroupKey = ValueKey<String>('chat-tools-group-mcp');
@@ -128,6 +139,24 @@ class _ChatToolsSheetState extends State<ChatToolsSheet> {
     return members.any((member) => member.id == id) ? id : members.first.id;
   }
 
+  /// Whether the member on show can call tools at all. A 1:1 chat only opens
+  /// this sheet for such a model; a group opens it for the roster, so it asks
+  /// per selected member — the same gate the desktop popover applies.
+  bool _toolsAllowed() {
+    final supportsTools = widget.modelSupportsTools;
+    if (supportsTools == null) return true;
+    final settings = context.watch<SettingsProvider>();
+    final member = context.select<AssistantProvider, Assistant?>(
+      (provider) => provider.getById(_targetId),
+    );
+    if (member == null) return false;
+    final model = resolveChatModel(settings, assistant: member);
+    final providerKey = model.providerKey;
+    final modelId = model.modelId;
+    if (providerKey == null || (modelId ?? '').isEmpty) return false;
+    return supportsTools(providerKey, modelId!);
+  }
+
   Set<_ToolsGroupId> _readExpanded() {
     final stored = _preferences.getStringList(_expandedGroupsKey);
     if (stored == null) return <_ToolsGroupId>{..._defaultExpandedGroups};
@@ -155,6 +184,7 @@ class _ChatToolsSheetState extends State<ChatToolsSheet> {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     final maxHeight = MediaQuery.sizeOf(context).height * 0.8;
+    final toolsAllowed = _toolsAllowed();
 
     return SafeArea(
       top: false,
@@ -208,19 +238,28 @@ class _ChatToolsSheetState extends State<ChatToolsSheet> {
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                       sliver: SliverMainAxisGroup(
                         slivers: [
-                          SliverToBoxAdapter(
-                            child: _LocalToolsGroup(
-                              assistantId: _targetId,
-                              expanded: _expanded.contains(_ToolsGroupId.local),
-                              onToggle: () => _toggleGroup(_ToolsGroupId.local),
+                          // A model that cannot call tools offers none — the
+                          // same gate the desktop popover applies to the member
+                          // it shows. The workspace group below is the
+                          // conversation's, not the member's.
+                          if (toolsAllowed) ...[
+                            SliverToBoxAdapter(
+                              child: _LocalToolsGroup(
+                                assistantId: _targetId,
+                                expanded: _expanded.contains(
+                                  _ToolsGroupId.local,
+                                ),
+                                onToggle: () =>
+                                    _toggleGroup(_ToolsGroupId.local),
+                              ),
                             ),
-                          ),
-                          _McpGroup(
-                            assistantId: _targetId,
-                            conversationId: widget.conversationId,
-                            expanded: _expanded.contains(_ToolsGroupId.mcp),
-                            onToggle: () => _toggleGroup(_ToolsGroupId.mcp),
-                          ),
+                            _McpGroup(
+                              assistantId: _targetId,
+                              conversationId: widget.conversationId,
+                              expanded: _expanded.contains(_ToolsGroupId.mcp),
+                              onToggle: () => _toggleGroup(_ToolsGroupId.mcp),
+                            ),
+                          ],
                           SliverToBoxAdapter(
                             child: _WorkspaceGroup(
                               assistantId: _targetId,

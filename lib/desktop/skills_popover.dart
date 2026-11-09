@@ -266,6 +266,10 @@ class _SkillsPopoverState extends State<_SkillsPopover> {
                   ConversationSkillsPanel(
                     conversationId: widget.conversationId,
                     assistant: _targetAssistant,
+                    // The strip above makes the rows this member's own, so the
+                    // panel writes that member rather than the global switch or
+                    // the roster-wide conversation override.
+                    scopeToAssistant: roster != null,
                     compact: true,
                     footerAction: DesktopWorkspaceButton(
                       label: l10n.storageSpaceManageSkills,

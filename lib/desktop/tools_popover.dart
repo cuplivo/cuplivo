@@ -13,7 +13,6 @@ import '../l10n/app_localizations.dart';
 import '../core/providers/mcp_provider.dart';
 import '../core/providers/assistant_provider.dart';
 import '../core/providers/settings_provider.dart';
-import '../core/services/model_spec/model_spec_resolver.dart';
 import '../core/models/conversation.dart';
 import '../core/models/conversation_mcp_settings.dart';
 import '../core/services/chat/chat_service.dart';
@@ -33,6 +32,7 @@ Future<void> showDesktopToolsPopover(
   required String assistantId,
   String? conversationId,
   required bool supportsModelTools,
+  bool Function(String providerKey, String modelId)? modelSupportsTools,
   List<Assistant>? members,
 }) async {
   if (context
@@ -71,6 +71,7 @@ Future<void> showDesktopToolsPopover(
       assistantId: assistantId,
       conversationId: conversationId,
       supportsModelTools: supportsModelTools,
+      modelSupportsTools: modelSupportsTools,
       members: members,
       onClose: () {
         try {
@@ -90,6 +91,7 @@ class _ToolsPopover extends StatefulWidget {
     required this.conversationId,
     required this.supportsModelTools,
     required this.onClose,
+    this.modelSupportsTools,
     this.members,
   });
 
@@ -101,6 +103,10 @@ class _ToolsPopover extends StatefulWidget {
   final String assistantId;
   final String? conversationId;
   final bool supportsModelTools;
+
+  /// The composer's capability check, for the member the strip selects. Null in
+  /// a 1:1 chat, where [supportsModelTools] already speaks for the only model.
+  final bool Function(String providerKey, String modelId)? modelSupportsTools;
   final VoidCallback onClose;
 
   @override
@@ -215,7 +221,7 @@ class _ToolsPopoverState extends State<_ToolsPopover>
                           assistantId: _targetId,
                           conversationId: widget.conversationId,
                           supportsModelTools: widget.supportsModelTools,
-                          supportsToolsFromAssistant: widget.members != null,
+                          modelSupportsTools: widget.modelSupportsTools,
                           header: _memberStrip,
                           onDone: _close,
                         ),
@@ -272,6 +278,19 @@ class _GlassPanel extends StatelessWidget {
   }
 }
 
+/// Whether [member]'s own model passes the composer's tool capability check.
+bool _modelCanCallTools(
+  SettingsProvider settings,
+  Assistant member,
+  bool Function(String providerKey, String modelId) supportsTools,
+) {
+  final model = resolveChatModel(settings, assistant: member);
+  final providerKey = model.providerKey;
+  final modelId = model.modelId;
+  if (providerKey == null || (modelId ?? '').isEmpty) return false;
+  return supportsTools(providerKey, modelId!);
+}
+
 class _ToolsContent extends StatelessWidget {
   const _ToolsContent({
     required this.assistantId,
@@ -279,7 +298,7 @@ class _ToolsContent extends StatelessWidget {
     required this.supportsModelTools,
     required this.onDone,
     this.header,
-    this.supportsToolsFromAssistant = false,
+    this.modelSupportsTools,
   });
   final String assistantId;
   final String? conversationId;
@@ -289,23 +308,11 @@ class _ToolsContent extends StatelessWidget {
   /// Rendered above the rows; a group puts its member strip here.
   final Widget? header;
 
-  /// The same rule the composer applies to a model: one that cannot call tools
-  /// offers none.
-  bool _supportsTools(SettingsProvider settings, Assistant member) {
-    final model = resolveChatModel(settings, assistant: member);
-    final providerKey = model.providerKey;
-    final modelId = model.modelId;
-    if (providerKey == null || (modelId ?? '').isEmpty) return false;
-    return ModelSpecResolver.instance
-        .spec(settings.getProviderConfig(providerKey), modelId!)
-        .supportsTool;
-  }
-
-  /// Judge tool support by the selected assistant's own model instead of
-  /// [supportsModelTools], which the caller resolved for the composer's model.
-  /// A group's members each send with their own model, so the composer's
-  /// capability says nothing about the member the strip is showing.
-  final bool supportsToolsFromAssistant;
+  /// The composer's capability check, for the member the strip selects: a
+  /// group's members each send with their own model, so [supportsModelTools] —
+  /// resolved for the composer's model — says nothing about the one on show.
+  /// Null in a 1:1 chat, where it says everything.
+  final bool Function(String providerKey, String modelId)? modelSupportsTools;
 
   @override
   Widget build(BuildContext context) {
@@ -315,9 +322,14 @@ class _ToolsContent extends StatelessWidget {
     final ap = context.watch<AssistantProvider>();
     final a = ap.getById(assistantId);
     if (a == null) return const SizedBox.shrink();
-    final toolsAllowed = supportsToolsFromAssistant
-        ? _supportsTools(context.watch<SettingsProvider>(), a)
-        : supportsModelTools;
+    final supportsTools = modelSupportsTools;
+    final toolsAllowed = supportsTools == null
+        ? supportsModelTools
+        : _modelCanCallTools(
+            context.watch<SettingsProvider>(),
+            a,
+            supportsTools,
+          );
     final conversationScoped = a.allowConversationMcp && conversationId != null;
     final conversation = conversationScoped
         ? context.select<ChatService, Conversation?>(

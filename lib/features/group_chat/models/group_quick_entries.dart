@@ -170,8 +170,39 @@ GroupReasoningEntry resolveGroupReasoning({
   );
 }
 
-/// Whether a group offers the tools entry: some member both brings tools and
-/// can call them.
+/// The members whose model can call a tool at all, with the model resolved the
+/// way the round resolves it.
+Iterable<({Assistant member, String modelId})> _toolCapableMembers({
+  required SettingsProvider settings,
+  required List<Assistant> members,
+  required bool Function(String providerKey, String modelId) supportsTools,
+}) sync* {
+  for (final member in members) {
+    final model = resolveChatModel(settings, assistant: member);
+    final providerKey = model.providerKey;
+    final modelId = model.modelId;
+    if (providerKey == null || (modelId ?? '').isEmpty) continue;
+    if (!supportsTools(providerKey, modelId!)) continue;
+    yield (member: member, modelId: modelId);
+  }
+}
+
+/// Whether any member's model can call a tool, whatever that member has switched
+/// on. The composer draws the tools entry on this alone, the way a 1:1 chat does
+/// for its one model: a model that cannot call a tool is offered none, so a
+/// roster where nobody can gets no entry.
+bool anyGroupMemberCanCallTools({
+  required SettingsProvider settings,
+  required List<Assistant> members,
+  required bool Function(String providerKey, String modelId) supportsTools,
+}) => _toolCapableMembers(
+  settings: settings,
+  members: members,
+  supportsTools: supportsTools,
+).isNotEmpty;
+
+/// Whether a group's tools entry is lit: some member both brings tools and can
+/// call them.
 ///
 /// The capability test comes first, exactly as the 1:1 composer writes
 /// `supportsModelTools && _isToolsActive(...)`: a model that cannot call tools
@@ -188,16 +219,15 @@ bool resolveGroupToolsActive({
   Conversation? conversation,
 }) {
   final connected = connectedServerIds.toSet();
-  for (final member in members) {
-    final model = resolveChatModel(settings, assistant: member);
-    final providerKey = model.providerKey;
-    final modelId = model.modelId;
-    if (providerKey == null || (modelId ?? '').isEmpty) continue;
-    if (!supportsTools(providerKey, modelId!)) continue;
+  for (final capable in _toolCapableMembers(
+    settings: settings,
+    members: members,
+    supportsTools: supportsTools,
+  )) {
     if (workspaceBound) return true;
-    if (member.localToolIds.isNotEmpty) return true;
+    if (capable.member.localToolIds.isNotEmpty) return true;
     final selected = ConversationMcpSettings.effectiveServerIds(
-      member,
+      capable.member,
       conversation,
     );
     if (selected.any(connected.contains)) return true;

@@ -4,8 +4,10 @@ import 'package:Cuplivo/features/chat/utils/prompt_injection_selection.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/models/assistant.dart';
 import '../core/models/world_book.dart';
 import '../core/providers/world_book_provider.dart';
+import '../features/group_chat/widgets/group_member_strip.dart';
 import '../icons/lucide_adapter.dart';
 import '../l10n/app_localizations.dart';
 import 'package:Cuplivo/theme/app_font_weights.dart';
@@ -18,6 +20,7 @@ Future<void> showDesktopWorldBookPopover(
   required List<WorldBook> books,
   String? assistantId,
   String? conversationId,
+  List<Assistant>? members,
 }) async {
   if (books.isEmpty) return;
   final overlay = Overlay.maybeOf(context);
@@ -43,6 +46,7 @@ Future<void> showDesktopWorldBookPopover(
       anchorWidth: size.width,
       assistantId: assistantId,
       conversationId: conversationId,
+      members: members,
       onClose: () {
         try {
           entry.remove();
@@ -59,6 +63,7 @@ class _WorldBookPopover extends StatefulWidget {
     required this.anchorWidth,
     required this.assistantId,
     this.conversationId,
+    this.members,
     required this.onClose,
   });
 
@@ -66,6 +71,9 @@ class _WorldBookPopover extends StatefulWidget {
   final double anchorWidth;
   final String? assistantId;
   final String? conversationId;
+
+  /// Non-null in a group: the panel edits the member its strip selects.
+  final List<Assistant>? members;
   final VoidCallback onClose;
 
   @override
@@ -100,6 +108,50 @@ class _WorldBookPopoverState extends State<_WorldBookPopover>
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  String? _selectedId;
+
+  /// The member the rows write for: a group edits one member at a time, a 1:1
+  /// chat has nobody to switch between. The composer's own assistant starts
+  /// selected when it is one of them.
+  String? get _targetId {
+    final members = widget.members;
+    if (members == null || members.isEmpty) return widget.assistantId;
+    final preferred = _selectedId ?? widget.assistantId;
+    for (final member in members) {
+      if (member.id == preferred) return member.id;
+    }
+    return members.first.id;
+  }
+
+  /// A member keeps its pick in the conversation only when it allows that, so
+  /// the scope is per selected member rather than per panel.
+  String? get _scopeId {
+    final members = widget.members;
+    if (members == null || members.isEmpty) return widget.conversationId;
+    final member = members.firstWhere(
+      (candidate) => candidate.id == _targetId,
+      orElse: () => members.first,
+    );
+    return member.allowConversationPromptInjection
+        ? widget.conversationId
+        : null;
+  }
+
+  /// The roster strip, above the rows it scopes. Null for a 1:1 chat, which has
+  /// nobody to switch between.
+  Widget? _rosterHeader() {
+    final members = widget.members;
+    if (members == null || members.length < 2) return null;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
+      child: GroupMemberStrip(
+        members: members,
+        selectedId: _targetId!,
+        onSelect: (member) => setState(() => _selectedId = member.id),
+      ),
+    );
   }
 
   Future<void> _close() async {
@@ -157,8 +209,9 @@ class _WorldBookPopoverState extends State<_WorldBookPopover>
                           top: Radius.circular(14),
                         ),
                         child: _WorldBookList(
-                          assistantId: widget.assistantId,
-                          conversationId: widget.conversationId,
+                          assistantId: _targetId,
+                          conversationId: _scopeId,
+                          header: _rosterHeader(),
                           onClose: _close,
                         ),
                       ),
@@ -219,11 +272,15 @@ class _WorldBookList extends StatelessWidget {
   const _WorldBookList({
     required this.assistantId,
     this.conversationId,
+    this.header,
     required this.onClose,
   });
 
   final String? assistantId;
   final String? conversationId;
+
+  /// Drawn after the title, above the rows it scopes.
+  final Widget? header;
   final VoidCallback onClose;
 
   @override
@@ -235,6 +292,7 @@ class _WorldBookList extends StatelessWidget {
         child: _WorldBookListInner(
           assistantId: assistantId,
           conversationId: conversationId,
+          header: header,
           onClose: onClose,
         ),
       ),
@@ -246,11 +304,13 @@ class _WorldBookListInner extends StatelessWidget {
   const _WorldBookListInner({
     required this.assistantId,
     this.conversationId,
+    this.header,
     required this.onClose,
   });
 
   final String? assistantId;
   final String? conversationId;
+  final Widget? header;
   final VoidCallback onClose;
 
   @override
@@ -281,6 +341,7 @@ class _WorldBookListInner extends StatelessWidget {
               ),
             ),
           ),
+          if (header != null) header!,
           Padding(
             padding: const EdgeInsets.only(bottom: 1),
             child: _CancelRow(

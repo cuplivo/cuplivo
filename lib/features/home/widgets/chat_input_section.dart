@@ -269,9 +269,12 @@ class ChatInputSection extends StatelessWidget {
       onOpenWorkspace: onOpenWorkspace,
       showWorkspaceButton: showWorkspaceButton,
       workspaceActive: workspaceBound,
-      onOpenSkills: isDesktop && !isGroup ? onOpenSkills : null,
-      skillsActive:
-          isDesktop && onOpenSkills != null && _isSkillsActive(context, a),
+      onOpenSkills: isDesktop ? onOpenSkills : null,
+      skillsActive: isDesktop && onOpenSkills != null
+          ? (isGroup
+                ? _isGroupSkillsActive(context, groupMembers)
+                : _isSkillsActive(context, a))
+          : false,
       onStop: onStop,
       leading: isGroup
           ? GroupMemberCluster(members: groupMembers, onTap: onOpenGroupMembers)
@@ -352,17 +355,35 @@ class ChatInputSection extends StatelessWidget {
       onPickPhotos: leftBarTools ? (isDesktop ? null : onPickPhotos) : null,
       onUploadFiles: leftBarTools ? onUploadFiles : null,
       onOpenBrowser: leftBarTools ? onOpenBrowser : null,
-      onToggleLearningMode: isGroup || !isTablet ? null : onToggleLearningMode,
-      onOpenWorldBook: hasWorldBooks && !isGroup ? onOpenWorldBook : null,
-      onLongPressLearning: isGroup || !isTablet ? null : onLongPressLearning,
+      onToggleLearningMode: isTablet ? onToggleLearningMode : null,
+      onOpenWorldBook: hasWorldBooks ? onOpenWorldBook : null,
+      onLongPressLearning: isTablet ? onLongPressLearning : null,
       learningModeActive:
-          !isGroup &&
           isTablet &&
-          _isPromptSelectionActive(context, a, PromptSelectionKind.instruction),
+          (isGroup
+              ? _anyGroupMemberSelects(
+                  context,
+                  groupMembers,
+                  PromptSelectionKind.instruction,
+                )
+              : _isPromptSelectionActive(
+                  context,
+                  a,
+                  PromptSelectionKind.instruction,
+                )),
       worldBookActive:
-          !isGroup &&
           isTablet &&
-          _isPromptSelectionActive(context, a, PromptSelectionKind.worldBook),
+          (isGroup
+              ? _anyGroupMemberSelects(
+                  context,
+                  groupMembers,
+                  PromptSelectionKind.worldBook,
+                )
+              : _isPromptSelectionActive(
+                  context,
+                  a,
+                  PromptSelectionKind.worldBook,
+                )),
       showMoreButton: !isTablet,
       onClearContext: leftBarTools ? onClearContext : null,
       onCompressContext: leftBarTools ? onCompressContext : null,
@@ -426,6 +447,41 @@ class ChatInputSection extends StatelessWidget {
               ?.resolveForAssistant(assistant, conversationOverride: skillIds)
               .isNotEmpty ??
           false,
+    );
+  }
+
+  /// Any member that brings at least one skill. A group's reply is written by
+  /// its speaker, so the entry is lit when *somebody* the round will ask has one
+  /// — the same rule the 1:1 entry applies to its single assistant.
+  bool _isGroupSkillsActive(BuildContext context, List<Assistant> members) {
+    final skillIds = context.select<ChatService?, List<String>?>((chat) {
+      final extras = chat?.getConversation(conversationId ?? '')?.extras;
+      return SkillsBinding.fromExtras(extras ?? const {}).skillIds;
+    });
+    return context.select<SkillsService?, bool>((skills) {
+      if (skills == null) return false;
+      return members.any(
+        (member) => skills
+            .resolveForAssistant(member, conversationOverride: skillIds)
+            .isNotEmpty,
+      );
+    });
+  }
+
+  /// The roster version of [_isPromptSelectionActive]: lit when any member has
+  /// an active injection or world book, which is the same "somebody will use it"
+  /// the 1:1 entry reports for one assistant.
+  bool _anyGroupMemberSelects(
+    BuildContext context,
+    List<Assistant> members,
+    PromptSelectionKind kind,
+  ) {
+    if (kind == PromptSelectionKind.worldBook &&
+        context.watch<WorldBookProvider>().books.isEmpty) {
+      return false;
+    }
+    return members.any(
+      (member) => _isPromptSelectionActive(context, member, kind),
     );
   }
 

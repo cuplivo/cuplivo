@@ -1,6 +1,7 @@
 import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/group_chat.dart';
+import 'package:Cuplivo/core/models/world_book.dart';
 import 'package:Cuplivo/core/providers/asr_provider.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
 import 'package:Cuplivo/core/providers/instruction_injection_provider.dart';
@@ -77,6 +78,11 @@ void main() {
     bool reasoningModel = false,
     VoidCallback? onOpenSearch,
     VoidCallback? onConfigureReasoning,
+    VoidCallback? onOpenSkills,
+    VoidCallback? onToggleLearningMode,
+    VoidCallback? onOpenWorldBook,
+    TargetPlatform platform = TargetPlatform.android,
+    WorldBookProvider? worldBooks,
   }) async {
     tester.view.physicalSize = Size(width, 800);
     tester.view.devicePixelRatio = 1;
@@ -94,7 +100,8 @@ void main() {
           ChangeNotifierProvider.value(value: assistants),
           ChangeNotifierProvider(create: (_) => AsrProvider()),
           ChangeNotifierProvider(
-            create: (_) => WorldBookProvider(preferences: preferences),
+            create: (_) =>
+                worldBooks ?? WorldBookProvider(preferences: preferences),
           ),
           ChangeNotifierProvider(
             create: (_) =>
@@ -108,10 +115,11 @@ void main() {
           ),
         ],
         child: MaterialApp(
-          // A phone or tablet, never a desktop platform: the composer drops the
-          // camera picker on desktops for reasons that have nothing to do with
-          // where the bar puts it.
-          theme: ThemeData(platform: TargetPlatform.android),
+          // Phone and tablet widths run on an Android theme by default: the
+          // composer drops the camera picker on desktop platforms for reasons
+          // that have nothing to do with where the bar puts it. A test that
+          // needs the desktop-only entries asks for the platform itself.
+          theme: ThemeData(platform: platform),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
@@ -132,6 +140,9 @@ void main() {
                   chatModelId: chatModelId,
                   onOpenSearch: onOpenSearch,
                   onConfigureReasoning: onConfigureReasoning,
+                  onOpenSkills: onOpenSkills,
+                  onToggleLearningMode: onToggleLearningMode,
+                  onOpenWorldBook: onOpenWorldBook,
                   isToolModel: (_, _) => true,
                   isReasoningModel: (_, _) => reasoningModel,
                   isReasoningEnabled: (_) => false,
@@ -265,5 +276,34 @@ void main() {
     // The wide layout has no tools panel to duplicate: its "+" is the only one.
     expect(bar.showMoreButton, isFalse);
     expect(find.byType(GroupMemberCluster), findsOneWidget);
+  });
+
+  testWidgets('a wide group composer reaches skills, injection and world book', (
+    tester,
+  ) async {
+    final assistants = await loadAssistants(tester);
+    final worldBooks = WorldBookProvider(preferences: preferences);
+    await tester.runAsync(() async {
+      await worldBooks.initialize();
+      await worldBooks.addBook(const WorldBook(id: 'wb1', name: 'Lore'));
+    });
+    final bar = await pumpGroupComposer(
+      tester,
+      assistants: assistants,
+      isTablet: true,
+      width: 900,
+      platform: TargetPlatform.windows,
+      worldBooks: worldBooks,
+      onOpenSkills: () {},
+      onToggleLearningMode: () {},
+      onOpenWorldBook: () {},
+    );
+
+    // The three assistant-scoped entries were dropped for a group because there
+    // was no single assistant to read them from. The roster answers that now, so
+    // the wide bar offers them where it offers them for a 1:1 chat.
+    expect(bar.onOpenSkills, isNotNull);
+    expect(bar.onToggleLearningMode, isNotNull);
+    expect(bar.onOpenWorldBook, isNotNull);
   });
 }

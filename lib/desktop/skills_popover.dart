@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../core/models/assistant.dart';
+import '../features/group_chat/widgets/group_member_strip.dart';
 import '../features/workspace/pages/skills_page.dart';
 import '../features/workspace/widgets/desktop_workspace_button.dart';
 import '../features/workspace/widgets/skills/conversation_skills_sheet.dart';
@@ -20,6 +21,7 @@ Future<void> showDesktopSkillsPopover(
   required GlobalKey anchorKey,
   required String conversationId,
   required Assistant? assistant,
+  List<Assistant>? members,
 }) async {
   final anchor = anchorKey.currentContext?.findRenderObject();
   if (anchor is! RenderBox || !anchor.attached || !anchor.hasSize) return;
@@ -41,6 +43,7 @@ Future<void> showDesktopSkillsPopover(
       child: _SkillsPopover(
         conversationId: conversationId,
         assistant: assistant,
+        members: members,
       ),
     ),
     transitionBuilder: (_, __, ___, child) => child,
@@ -156,14 +159,43 @@ class _SkillsPopoverLayout extends SingleChildLayoutDelegate {
       anchorRect != oldDelegate.anchorRect;
 }
 
-class _SkillsPopover extends StatelessWidget {
-  const _SkillsPopover({required this.conversationId, required this.assistant});
+class _SkillsPopover extends StatefulWidget {
+  const _SkillsPopover({
+    required this.conversationId,
+    required this.assistant,
+    this.members,
+  });
 
   final String conversationId;
   final Assistant? assistant;
 
+  /// Non-null in a group: the panel edits the member its strip selects.
+  final List<Assistant>? members;
+
+  @override
+  State<_SkillsPopover> createState() => _SkillsPopoverState();
+}
+
+class _SkillsPopoverState extends State<_SkillsPopover> {
+  String? _selectedId;
+
+  /// The member the switches write for: a group edits one at a time, a 1:1 chat
+  /// has nobody to switch between. The composer's own assistant starts selected
+  /// when it is one of them.
+  Assistant? get _targetAssistant {
+    final members = widget.members;
+    if (members == null || members.isEmpty) return widget.assistant;
+    final preferred = _selectedId ?? widget.assistant?.id;
+    for (final member in members) {
+      if (member.id == preferred) return member;
+    }
+    return members.first;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final members = widget.members;
+    final roster = members != null && members.length > 1 ? members : null;
     final cs = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -221,9 +253,19 @@ class _SkillsPopover extends StatelessWidget {
                       ),
                     ],
                   ),
+                  if (roster != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
+                      child: GroupMemberStrip(
+                        members: roster,
+                        selectedId: _targetAssistant!.id,
+                        onSelect: (member) =>
+                            setState(() => _selectedId = member.id),
+                      ),
+                    ),
                   ConversationSkillsPanel(
-                    conversationId: conversationId,
-                    assistant: assistant,
+                    conversationId: widget.conversationId,
+                    assistant: _targetAssistant,
                     compact: true,
                     footerAction: DesktopWorkspaceButton(
                       label: l10n.storageSpaceManageSkills,

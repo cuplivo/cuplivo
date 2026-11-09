@@ -1420,6 +1420,7 @@ class _HomePageState extends State<HomePage>
           anchorKey: _inputBarKey,
           conversationId: id,
           assistant: assistant,
+          members: _panelMembers(),
         );
       },
       onOpenTools: () {
@@ -1725,6 +1726,15 @@ class _HomePageState extends State<HomePage>
       .read<GroupChatProvider>()
       .forConversation(_controller.currentConversation);
 
+  /// The roster for a panel that edits one member at a time, or null in a 1:1
+  /// chat, where the panel keeps its single-assistant shape.
+  List<Assistant>? _panelMembers() {
+    final group = _currentGroup();
+    if (group == null) return null;
+    final members = _membersOfGroup(group);
+    return members.isEmpty ? null : members;
+  }
+
   void _openSearchSettings() {
     final group = _currentGroup();
     if (group != null) {
@@ -1848,12 +1858,16 @@ class _HomePageState extends State<HomePage>
     final items = provider.items;
     if (items.isEmpty) return;
 
+    final members = _panelMembers();
+    // A group decides the scope per member inside the panel, so the conversation
+    // has to exist either way.
     final scoped =
-        context
-            .read<AssistantProvider>()
-            .currentAssistant
-            ?.allowConversationPromptInjection ??
-        false;
+        members != null ||
+        (context
+                .read<AssistantProvider>()
+                .currentAssistant
+                ?.allowConversationPromptInjection ??
+            false);
     final scopeId = scoped
         ? await ensureConversationId(
             context,
@@ -1869,6 +1883,7 @@ class _HomePageState extends State<HomePage>
         items: items,
         assistantId: assistantId,
         conversationId: scopeId,
+        members: members,
       );
     } else {
       await showInstructionInjectionSheet(
@@ -1888,12 +1903,14 @@ class _HomePageState extends State<HomePage>
     final books = provider.books;
     if (books.isEmpty) return;
 
+    final members = _panelMembers();
     final scoped =
-        context
-            .read<AssistantProvider>()
-            .currentAssistant
-            ?.allowConversationPromptInjection ??
-        false;
+        members != null ||
+        (context
+                .read<AssistantProvider>()
+                .currentAssistant
+                ?.allowConversationPromptInjection ??
+            false);
     final scopeId = scoped
         ? await ensureConversationId(
             context,
@@ -1909,6 +1926,7 @@ class _HomePageState extends State<HomePage>
         books: books,
         assistantId: assistantId,
         conversationId: scopeId,
+        members: members,
       );
     } else {
       await showWorldBookSheet(

@@ -99,15 +99,17 @@ const Set<String> _prunedFileNames = {
   '.localized',
 };
 
-/// Every name the sync plane writes for itself is scratch, and the definition
-/// of what those names are lives with the skill body that produces them
-/// (`isSyncScratchName`). A workspace that carried them would sync its own
-/// transfer debris back and forth.
+/// A name carrying the sync plane's scratch prefix is scratch, and the prefix
+/// lives with the code that produces it (`isSyncScratchPrefix`). A workspace that
+/// carried them would sync its own transfer debris back and forth.
 ///
-/// Read through the shared predicate rather than a prefix test of its own: the
-/// plane has parked a body *after* its skill id in the past, and a reader that
-/// knows only the prefix silently disagrees with the writer.
-bool _isScratch(String name) => isSyncScratchName(name.toLowerCase());
+/// Deliberately the **narrow** facet of that one constant, and not the skills
+/// root's fuller recogniser: this walk runs over the user's own files, where a
+/// name that merely *contains* the parked-body marker is a file
+/// (`report.sync-old-v2.docx`) and pruning it would stop it syncing in either
+/// direction, silently. Nothing here produces the parked spelling; the one
+/// reader that has to see it is the skills root.
+bool _isScratch(String name) => isSyncScratchPrefix(name);
 
 /// Whether a directory named [name] carries its contents into sync.
 bool workspaceDirectoryCarries(String name) {

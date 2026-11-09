@@ -6,6 +6,7 @@ import 'package:Cuplivo/core/database/extension_entity_store.dart';
 import 'package:Cuplivo/core/services/skills/skill_archive.dart';
 import 'package:Cuplivo/core/services/skills/skill_directory_sync.dart';
 import 'package:Cuplivo/core/services/skills/skills_service.dart';
+import 'package:Cuplivo/core/services/sync/workspace_content_index.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -101,12 +102,37 @@ void main() {
       expect(await sync.hashOf('demo'), isNot(before));
     });
 
-    test('an edit in place keeps the shape and still moves the clock', () async {
-      // The other half of the fingerprint: same paths, same size, new bytes. The
-      // shape alone cannot see this, which is why the newest mtime stays in it.
+    test(
+      'an edit in place keeps the shape and still moves the clock',
+      () async {
+        // The other half of the fingerprint: same paths, same size, new bytes.
+        // Neither the paths nor the sizes can see this, which is why every file
+        // carries its own stamp.
+        final sync = SkillDirectorySync(root);
+        await writeBody(root, {'SKILL.md': '# v1\n'});
+        final before = (await sync.hashOf('demo'))!;
+        await writeBody(root, {'SKILL.md': '# v2\n'});
+
+        expect(await sync.hashOf('demo'), isNot(before));
+      },
+    );
+
+    test('a same-size edit is seen even when another file is newer', () async {
+      // The stamp is per file. With one newest-mtime for the whole body, a file
+      // dated ahead of the edit — copied with preserved timestamps, unpacked
+      // from an archive that carried them, written before a clock correction —
+      // holds that slot, and a same-size edit leaves the fingerprint identical:
+      // the pre-edit hash for the rest of the launch.
       final sync = SkillDirectorySync(root);
-      await writeBody(root, {'SKILL.md': '# v1\n'});
+      await writeBody(root, {
+        'SKILL.md': '# v1\n',
+        'notes.md': 'dated ahead\n',
+      });
+      await File(
+        p.join(root.path, 'demo', 'notes.md'),
+      ).setLastModified(DateTime.utc(2030, 1, 1));
       final before = (await sync.hashOf('demo'))!;
+
       await writeBody(root, {'SKILL.md': '# v2\n'});
 
       expect(await sync.hashOf('demo'), isNot(before));
@@ -158,12 +184,26 @@ void main() {
         'writer',
       ], reason: 'the parked copy is scratch, not a skill');
       expect(
-        Directory(
+        FileSystemEntity.typeSync(
           p.join(root.path, 'writer${kParkedBodyMarker}1'),
-        ).existsSync(),
-        isTrue,
-        reason: 'the rescan refuses it; reclaiming it is the sweep\'s job',
+        ),
+        FileSystemEntityType.notFound,
+        reason:
+            'the load reclaims it, because the live body it was displaced by '
+            'is right there — nothing is left for a later launch to trip over',
       );
+    });
+
+    test('the workspace plane keeps its own, narrower prune rule', () {
+      // `report.sync-old-v2.docx` is the user's file. A workspace name is user
+      // data, so the walk there asks only the prefix — the parked-body spelling
+      // is the skills root's, and inheriting it would stop a real file syncing
+      // in either direction, silently.
+      expect(workspaceFileCarries('report.sync-old-v2.docx'), isTrue);
+      expect(workspaceDirectoryCarries('drafts.sync-old-notes'), isTrue);
+      expect(workspaceFileCarries('.sync-park-demo-1'), isFalse);
+      expect(workspaceDirectoryCarries('.sync-apply-demo-1'), isFalse);
+      expect(workspaceDirectoryCarries('.sync-blob-cache'), isFalse);
     });
 
     test('the startup sweep takes the scratch and nothing else', () async {
@@ -219,6 +259,51 @@ void main() {
         reason: 'a body is never walked into',
       );
     });
+    test(
+      'a scratch-named record is dropped even when its directory survives',
+      () async {
+        // The reclaim can fail — a file held open in the tree, which Windows
+        // refuses to unlink — so the record must not depend on the directory being
+        // gone. Dropped on its own name, it can never become the "directory-less
+        // row installs a broken skill" state this PR is about.
+        await writeBody(root, {'SKILL.md': '# demo\n'}, id: 'demo');
+        final ghost = 'demo${kParkedBodyMarker}1';
+        final database = AppDatabase(NativeDatabase.memory());
+        addTearDown(database.close);
+        final store = ExtensionEntityStore(database);
+        final service = SkillsService(store: store, skillsDirectory: root);
+        addTearDown(service.dispose);
+        await service.loaded;
+
+        // The same state as a device whose sweep could not delete it: directory and
+        // record both back, and a rescan with no load-time sweep in front of it.
+        await writeBody(root, {'SKILL.md': '# demo\n'}, id: ghost);
+        await store.upsert(ExtensionEntityStore.kindSkill, ghost, {
+          'id': ghost,
+          'enabled': true,
+          'useCount': 0,
+          'source': 'file',
+          'installedAt': DateTime.utc(2026, 1, 1).toIso8601String(),
+          'updatedAt': DateTime.utc(2026, 1, 1).toIso8601String(),
+        });
+
+        await service.rescan();
+
+        expect(
+          await store.get(ExtensionEntityStore.kindSkill, ghost),
+          isNull,
+          reason:
+              'its name is scratch, so it is not a skill and owns no record',
+        );
+        expect(
+          Directory(p.join(root.path, ghost)).existsSync(),
+          isTrue,
+          reason:
+              'the reclaim is not what dropped it: the rescan refuses the id',
+        );
+      },
+    );
+
     test('the extractor installs exactly what the hash counts', () async {
       // The third reader of the same policy: a name the hash ignores must not be
       // installed from a peer's archive either, or the body on disk holds
@@ -249,6 +334,126 @@ void main() {
         reason: 'nor is this plane\'s own scratch',
       );
     });
+  });
+
+  group('an interrupted swap is recovered, not swept away', () {
+    /// The state a swap leaves when it dies between its two renames, or when the
+    /// install and the put-back both fail: the live path is empty and the body
+    /// the record still describes is parked.
+    Future<void> abandonSwap(String id) async {
+      await writeBody(root, {'SKILL.md': '# v1\n'}, id: id);
+      await Directory(
+        p.join(root.path, id),
+      ).rename(p.join(root.path, skillParkedBodyName(id, 1)));
+      // The received body the apply was staging is debris on its own; the copy
+      // that matters is the parked one.
+      await Directory(
+        p.join(root.path, skillApplyScratchName(id, 2)),
+      ).create(recursive: true);
+    }
+
+    test('the parked body goes back to its live path', () async {
+      await abandonSwap('demo');
+
+      await SkillDirectorySync(root).ensureRoot();
+
+      expect(
+        await File(p.join(root.path, 'demo', 'SKILL.md')).readAsString(),
+        '# v1\n',
+        reason: 'it is the only copy of the body the record describes',
+      );
+      expect(scratchChildren(root), isEmpty);
+    });
+
+    test('a parked body whose replacement did land is reclaimed', () async {
+      await writeBody(root, {'SKILL.md': '# v2\n'}, id: 'demo');
+      await writeBody(root, {
+        'SKILL.md': '# v1\n',
+      }, id: skillParkedBodyName('demo', 1));
+
+      await SkillDirectorySync(root).ensureRoot();
+
+      expect(
+        await File(p.join(root.path, 'demo', 'SKILL.md')).readAsString(),
+        '# v2\n',
+        reason: 'the body at the live path is the one the swap installed',
+      );
+      expect(scratchChildren(root), isEmpty);
+    });
+
+    test('the record survives the launch the swap died in', () async {
+      // The half that made the sweep dangerous: recovering *after* the rescan
+      // would restore the body to a record the rescan had already dropped for
+      // want of a `SKILL.md`, losing the enabled switch and the use count.
+      final database = AppDatabase(NativeDatabase.memory());
+      addTearDown(database.close);
+      final store = ExtensionEntityStore(database);
+      await store.upsert(ExtensionEntityStore.kindSkill, 'demo', {
+        'id': 'demo',
+        'enabled': false,
+        'useCount': 7,
+        'source': 'github',
+        'installedAt': DateTime.utc(2026, 1, 1).toIso8601String(),
+        'updatedAt': DateTime.utc(2026, 1, 1).toIso8601String(),
+      });
+      await abandonSwap('demo');
+      final service = SkillsService(store: store, skillsDirectory: root);
+      addTearDown(service.dispose);
+
+      await service.loaded;
+
+      expect(
+        await File(p.join(root.path, 'demo', 'SKILL.md')).readAsString(),
+        '# v1\n',
+      );
+      expect(service.skills.map((skill) => skill.record.id), ['demo']);
+      final record = await store.get(ExtensionEntityStore.kindSkill, 'demo');
+      expect(record, isNotNull);
+      expect(
+        record!.payload['useCount'],
+        7,
+        reason:
+            'the recovery runs before the records are read, so the record '
+            'is never dropped',
+      );
+    });
+
+    test(
+      'a ghost record an older build adopted is gone after one launch',
+      () async {
+        // The pre-fix build adopted the parked directory as a skill of its own.
+        // The directory is reclaimed — unless a file in it is held open — so the
+        // record has to be dropped on its own name as well, or it lists a skill
+        // with no directory until some later launch.
+        await writeBody(root, {'SKILL.md': '# demo\n'}, id: 'demo');
+        final ghost = 'demo${kParkedBodyMarker}1';
+        await writeBody(root, {'SKILL.md': '# demo\n'}, id: ghost);
+        final database = AppDatabase(NativeDatabase.memory());
+        addTearDown(database.close);
+        final store = ExtensionEntityStore(database);
+        await store.upsert(ExtensionEntityStore.kindSkill, ghost, {
+          'id': ghost,
+          'enabled': true,
+          'useCount': 0,
+          'source': 'file',
+          'installedAt': DateTime.utc(2026, 1, 1).toIso8601String(),
+          'updatedAt': DateTime.utc(2026, 1, 1).toIso8601String(),
+        });
+        final service = SkillsService(store: store, skillsDirectory: root);
+        addTearDown(service.dispose);
+
+        await service.loaded;
+
+        expect(service.skills.map((skill) => skill.record.id), ['demo']);
+        expect(
+          await store.get(ExtensionEntityStore.kindSkill, ghost),
+          isNull,
+          reason:
+              'the record is dropped on its own name, not only for want of a '
+              'directory',
+        );
+      },
+    );
   });
 
   group('a swap is a transaction', () {

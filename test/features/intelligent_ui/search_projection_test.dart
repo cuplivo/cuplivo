@@ -293,8 +293,8 @@ void main() {
         'r',
         '',
         parts: [
-          const TextPart('```cuplivo-'),
-          TextPart(source.substring('```cuplivo-'.length)),
+          const TextPart('```kelivo-'),
+          TextPart(source.substring('```kelivo-'.length)),
         ],
       );
       await db.delete(db.genUiSurfaceStateRows).go();

@@ -21,6 +21,19 @@ import 'package:flutter_inappwebview_windows/flutter_inappwebview_windows.dart';
 
 const _androidDataUrl = 'data:text/html;charset=utf-8;base64,';
 
+/// The scheme the engine registers for workspace resources: the content
+/// namespace, `kelivo://`, not the app scheme `cuplivo://`.
+///
+/// Two namespaces, and only one of them is registered with the OS (ADR-0001):
+/// `cuplivo://` opens the app on a conversation, while `kelivo://` addresses
+/// workspace content and is resolved in-process. The identity rename swept the
+/// engine's registry and its handler to `cuplivo` while every builder, the
+/// address validator and `BrowserWorkspaceScope.owns` stayed on `kelivo`, so a
+/// workspace page could not load at all — these cases failed on exactly that.
+/// Spelled literally here rather than derived from the product, so a rename
+/// that splits the two again fails instead of agreeing with itself.
+const _workspaceScheme = 'kelivo';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late _BrowserPlatform platform;
@@ -135,7 +148,7 @@ void main() {
       await service.initialize();
       final tab = await service.createTab(
         ownerSessionId: 'chat-a',
-        url: 'kelivo://workspace/index.html',
+        url: '$_workspaceScheme://workspace/index.html',
       );
       await service.evaluateJavascript('1', tabId: tab.id);
       final view = platform.views.single;
@@ -143,7 +156,7 @@ void main() {
       expect(uri.host, startsWith('ws-'));
       expect(
         view.params.initialSettings!.resourceCustomSchemes,
-        contains('kelivo'),
+        contains(_workspaceScheme),
       );
       final response = await view.params.onLoadResourceWithCustomScheme!(
         view.callbackController,
@@ -154,7 +167,7 @@ void main() {
         await view.params.onLoadResourceWithCustomScheme!(
           view.callbackController,
           WebResourceRequest(
-            url: WebUri('kelivo://other/index.html'),
+            url: WebUri('$_workspaceScheme://other/index.html'),
             method: 'GET',
           ),
         ),
@@ -162,7 +175,10 @@ void main() {
       );
       await view.start(uri.toString());
       await view.stop(uri.toString());
-      expect(service.tabs.single.url, 'kelivo://workspace/index.html');
+      expect(
+        service.tabs.single.url,
+        '$_workspaceScheme://workspace/index.html',
+      );
     },
   );
 
@@ -188,11 +204,14 @@ void main() {
       );
       await service.evaluateJavascript('1', tabId: tab.id);
       await service.moveTabToSession(tab.id, 'b');
-      await service.navigate('kelivo://workspace/index.html', tabId: tab.id);
+      await service.navigate(
+        '$_workspaceScheme://workspace/index.html',
+        tabId: tab.id,
+      );
       final view = platform.views.single;
       final scopeB = await resources.scope('b');
       final uriB = scopeB.internalUrl(
-        'kelivo://workspace/index.html',
+        '$_workspaceScheme://workspace/index.html',
         android: false,
       );
       final response = await view.params.onLoadResourceWithCustomScheme!(
@@ -216,7 +235,10 @@ void main() {
         WebResourceRequest(
           url: WebUri(
             scopeA
-                .internalUrl('kelivo://workspace/index.html', android: false)
+                .internalUrl(
+                  '$_workspaceScheme://workspace/index.html',
+                  android: false,
+                )
                 .toString(),
           ),
           method: 'GET',
@@ -249,7 +271,10 @@ void main() {
       await view.stop('https://example.com');
       final before = service.tabs.single;
       await expectLater(
-        service.navigate('kelivo://workspace/missing.html', tabId: tab.id),
+        service.navigate(
+          '$_workspaceScheme://workspace/missing.html',
+          tabId: tab.id,
+        ),
         throwsA(isA<FileSystemException>()),
       );
       final after = service.tabs.single;
@@ -290,7 +315,7 @@ void main() {
       );
       await service.evaluateJavascript('1', tabId: tab.id);
       final navigation = service.navigate(
-        'kelivo://workspace/index.html',
+        '$_workspaceScheme://workspace/index.html',
         tabId: tab.id,
       );
       final failed = expectLater(
@@ -317,7 +342,10 @@ void main() {
           WebResourceRequest(
             url: WebUri(
               scopeA
-                  .internalUrl('kelivo://workspace/index.html', android: false)
+                  .internalUrl(
+                    '$_workspaceScheme://workspace/index.html',
+                    android: false,
+                  )
                   .toString(),
             ),
             method: 'GET',

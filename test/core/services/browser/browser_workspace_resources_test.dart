@@ -145,7 +145,7 @@ void main() {
           'kelivo://workspace/index.html',
           android: android,
         );
-        expect(url.scheme, android ? 'https' : 'cuplivo');
+        expect(url.scheme, android ? 'https' : 'kelivo');
         expect((await scope.read(url))!.mime, 'text/html');
         expect(
           String.fromCharCodes(

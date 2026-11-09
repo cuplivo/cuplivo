@@ -1,5 +1,6 @@
 import 'package:Cuplivo/l10n/app_localizations_en.dart';
 import 'package:Cuplivo/core/models/quote_ref.dart';
+)
 import 'package:Cuplivo/features/intelligent_ui/host/ui_context_submission.dart';
 import 'package:Cuplivo/features/intelligent_ui/host/ui_user_context_parts.dart';
 import 'package:Cuplivo/features/intelligent_ui/models/ui_context_attachment.dart';
@@ -26,6 +27,7 @@ import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/models/compress_context_options.dart';
 import 'package:Cuplivo/core/services/chat/context_compression_service.dart';
 import 'package:Cuplivo/core/models/message_part.dart';
+)
 import 'package:Cuplivo/core/models/preset_message.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
 import 'package:Cuplivo/core/providers/mcp_provider.dart';
@@ -92,6 +94,7 @@ class _GatedChatService extends ChatService {
     String content = '',
     List<MessagePart>? parts,
     List<QuoteRef> quotes = const [],
+)
     String? modelId,
     String? providerId,
     int? totalTokens,
@@ -104,6 +107,7 @@ class _GatedChatService extends ChatService {
     bool selectVersion = false,
     String? temporaryAfterGroupId,
     UiContextSubmission? uiContext,
+)
   }) async {
     if (content == 'preset question' && presetHold != null) {
       presetConversationId = conversationId;
@@ -115,6 +119,7 @@ class _GatedChatService extends ChatService {
       content: content,
       parts: parts,
       quotes: quotes,
+)
       modelId: modelId,
       providerId: providerId,
       totalTokens: totalTokens,
@@ -127,6 +132,7 @@ class _GatedChatService extends ChatService {
       selectVersion: selectVersion,
       temporaryAfterGroupId: temporaryAfterGroupId,
       uiContext: uiContext,
+)
     );
   }
 
@@ -156,6 +162,7 @@ class _GatedChatService extends ChatService {
     String content = '',
     List<MessagePart>? parts,
     List<QuoteRef>? quotes,
+)
     DraftSubmission? draftSubmission,
     UiContextSubmission? uiContext,
     String? expectedContextState,
@@ -169,6 +176,7 @@ class _GatedChatService extends ChatService {
       content: content,
       parts: parts,
       quotes: quotes,
+)
       draftSubmission: draftSubmission,
       uiContext: uiContext,
       expectedContextState: expectedContextState,
@@ -1894,6 +1902,7 @@ void main() {
                 return hold.future;
               },
               quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
+)
             ),
           );
           await waitFor(() => entered, 'compression generation');
@@ -1967,6 +1976,7 @@ void main() {
             return aHold.future;
           },
           quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
+)
         ),
       );
       await waitFor(() => aEntered, 'A compression');
@@ -1999,6 +2009,7 @@ void main() {
             return bHold.future;
           },
           quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
+)
         ),
       );
       await waitFor(() => bEntered, 'B compression');
@@ -2057,6 +2068,7 @@ void main() {
               return hold.future;
             },
             quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
+)
           ),
         );
         await waitFor(() => entered, 'compression started');
@@ -2110,6 +2122,7 @@ void main() {
               return generated.future;
             },
             quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
+)
           ),
         );
         expect(
@@ -2168,6 +2181,7 @@ void main() {
               return generated.future;
             },
             quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
+)
           ),
         );
         await waitFor(() => entered, 'compression');
@@ -2241,6 +2255,7 @@ void main() {
               return generated.future;
             },
             quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
+)
           ),
         );
         await waitFor(() => entered, 'compression');
@@ -2404,6 +2419,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+)
   testWidgets('double regenerate tap creates a single new version', (
     tester,
   ) async {

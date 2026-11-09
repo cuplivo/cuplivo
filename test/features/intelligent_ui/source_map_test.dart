@@ -395,7 +395,7 @@ void main() {
         isNull,
       );
       final splitMarker = UiMessageSource.of([
-        const TextPart('```cuplivo-'),
+        const TextPart('```kelivo-'),
         const FilePart(uri: '/file', name: 'file'),
         const TextPart('ui\n$_body\n```'),
       ]);

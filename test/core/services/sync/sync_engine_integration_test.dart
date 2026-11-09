@@ -276,6 +276,50 @@ class _CountingCheckpointPlane extends SyncDataPlane {
   }
 }
 
+/// Pumps [frames] frames of [step]: what a panel that never settles needs.
+///
+/// `pumpAndSettle` waits for a frame-free quiet, and the pairing dialog never
+/// reaches one — its countdown is a `Timer.periodic` that calls `setState` every
+/// second and its progress bar is an `AnimationController.repeat(reverse: true)`
+/// (see `docs/flaky-tests.md` §15). So the call ran to its own ten-minute
+/// deadline and the case failed on the deadline rather than on an expectation,
+/// which is also why the eight cases after the first one hung: a deadline
+/// reached mid-`pumpAndSettle` leaves the binding's timers behind.
+///
+/// A bounded pump reaches the same widget state — every route transition and every
+/// rebuild these cases wait for is a frame or two — without waiting for a quiet
+/// that cannot arrive.
+Future<void> pumpPanel(
+  WidgetTester tester, {
+  int frames = 20,
+  Duration step = const Duration(milliseconds: 50),
+}) async {
+  for (var frame = 0; frame < frames; frame++) {
+    await tester.pump(step);
+  }
+}
+
+/// Closes one widget case's side in the real zone.
+///
+/// `testWidgets` runs its body under a fake clock, and `ChatService.close()` waits
+/// on drift's own shutdown — a future the fake clock never advances. Awaiting it
+/// in the body does not fail the case, it *deadlocks* it, and the database it
+/// leaves open is what wedged every case after it: those then hung inside the
+/// next case's `_Side.start`, which is why one stuck case used to cost eight
+/// ten-minute deadlines instead of one. `runAsync` puts the close back on the real
+/// event loop, where it completes.
+Future<void> _closePanel(
+  WidgetTester tester,
+  _Side side, {
+  ChangeNotifier? release,
+}) async {
+  await tester.runAsync(() async {
+    release?.dispose();
+    await side.chatService.close();
+    await side.repository.close();
+  });
+}
+
 /// One device: its own sync directory, database, chat and business stores, and
 /// its own listener.
 class _Side {
@@ -2255,12 +2299,12 @@ void main() {
 
     Future<void> pairByHand() async {
       await tester.tap(find.text('open'));
-      await tester.pumpAndSettle();
+      await pumpPanel(tester);
       await tester.enterText(find.byType(TextField).at(0), '192.168.1.7');
       await tester.enterText(find.byType(TextField).at(1), '9527');
       // Six digits submits the form, which is the path the phone user takes.
       await tester.enterText(find.byType(TextField).at(2), '123456');
-      await tester.pumpAndSettle();
+      await pumpPanel(tester);
     }
 
     bool announced(String message) => AppSnackBarManager().activeToasts.any(
@@ -2303,12 +2347,10 @@ void main() {
     // Let both toasts expire: neither their own timer nor their exit animation
     // may outlive the test.
     await tester.pump(const Duration(seconds: 4));
-    await tester.pumpAndSettle();
+    await pumpPanel(tester);
     expect(AppSnackBarManager().activeToasts, isEmpty);
 
-    provider.dispose();
-    await a.chatService.close();
-    await a.repository.close();
+    await _closePanel(tester, a, release: provider);
   });
 
   testWidgets('a peer card says how long ago, and one tile per address', (
@@ -2392,10 +2434,10 @@ void main() {
 
     // The name is the rename target.
     await tester.tap(find.text('192.168.1.5'));
-    await tester.pumpAndSettle();
+    await pumpPanel(tester);
     expect(find.text(l10n.lanSyncRenameEndpointTitle), findsWidgets);
     await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
-    await tester.pumpAndSettle();
+    await pumpPanel(tester);
 
     // The latency is the detail target, and the detail is where the address is
     // copied from.
@@ -2407,10 +2449,10 @@ void main() {
         matching: find.text('—'),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpPanel(tester);
     expect(find.text('192.168.1.5:9527'), findsOneWidget);
     await tester.tap(find.text(l10n.lanSyncCopy));
-    await tester.pumpAndSettle();
+    await pumpPanel(tester);
 
     expect(
       (copied.single.arguments as Map)['text'],
@@ -2426,15 +2468,13 @@ void main() {
     );
 
     await tester.pump(const Duration(seconds: 4));
-    await tester.pumpAndSettle();
+    await pumpPanel(tester);
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
       null,
     );
 
-    provider.dispose();
-    await a.chatService.close();
-    await a.repository.close();
+    await _closePanel(tester, a, release: provider);
   });
 
   testWidgets('the address repair stores the bare host, like pairing does', (
@@ -2479,22 +2519,20 @@ void main() {
         matching: find.text('—'),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpPanel(tester);
     await tester.tap(find.text(l10n.lanSyncEditAddress));
-    await tester.pumpAndSettle();
+    await pumpPanel(tester);
     // The bracketed literal is what the detail shows and copies, so pasting the
     // address back into the repair field is the journey this field exists for —
     // and storage keeps the bare host, which is what the dial needs.
     await tester.enterText(find.byType(TextField).at(0), '[fd00::9]');
     await tester.enterText(find.byType(TextField).at(1), '9528');
     await tester.tap(find.widgetWithText(FilledButton, 'OK'));
-    await tester.pumpAndSettle();
+    await pumpPanel(tester);
 
     expect(provider.repaired.single, ('fd00::5', 9527, 'fd00::9', 9528));
 
-    provider.dispose();
-    await a.chatService.close();
-    await a.repository.close();
+    await _closePanel(tester, a, release: provider);
   });
 
   testWidgets('deleting one address from its detail reaches the store', (
@@ -2583,9 +2621,9 @@ void main() {
         matching: find.text('—'),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpPanel(tester);
     await tester.tap(find.text(l10n.lanSyncDeleteEndpoint));
-    await tester.pumpAndSettle();
+    await pumpPanel(tester);
 
     expect(provider.deleted.single, (
       '10.0.0.3',
@@ -2594,9 +2632,7 @@ void main() {
     // The sheet is about an address that just stopped existing.
     expect(find.byType(CustomBottomSheet), findsNothing);
 
-    provider.dispose();
-    await a.chatService.close();
-    await a.repository.close();
+    await _closePanel(tester, a, release: provider);
   });
 
   testWidgets(
@@ -2643,7 +2679,7 @@ void main() {
           ),
         );
         await tester.tap(tile);
-        await tester.pumpAndSettle();
+        await pumpPanel(tester);
       }
 
       // A phone: the app's sheet. A desk: a dialog — the app never puts a bottom
@@ -2659,9 +2695,7 @@ void main() {
       expect(find.text(l10n.lanSyncEndpointLatency), findsOneWidget);
       expect(find.text(l10n.lanSyncDeleteEndpoint), findsOneWidget);
 
-      provider.dispose();
-      await a.chatService.close();
-      await a.repository.close();
+      await _closePanel(tester, a, release: provider);
     },
   );
 
@@ -2732,9 +2766,7 @@ void main() {
     // No probe has run, so the dot is the honest gray one.
     expect(find.byTooltip(l10n.lanSyncOffline), findsOneWidget);
 
-    provider.dispose();
-    await a.chatService.close();
-    await a.repository.close();
+    await _closePanel(tester, a, release: provider);
   });
 
   testWidgets('a settled session that moved nothing reads as up to date', (
@@ -2778,9 +2810,7 @@ void main() {
       reason: '"0 sent" is noise; nothing moved is the fact',
     );
 
-    provider.dispose();
-    await a.chatService.close();
-    await a.repository.close();
+    await _closePanel(tester, a, release: provider);
   });
 
   testWidgets('a card shows the online dot and the first-sync warning', (
@@ -2836,9 +2866,7 @@ void main() {
       reason: 'the button is replaced by the progress it started',
     );
 
-    provider.dispose();
-    await a.chatService.close();
-    await a.repository.close();
+    await _closePanel(tester, a, release: provider);
   });
 
   test('a QR-scanned fingerprint pairs without a typed PIN', () async {

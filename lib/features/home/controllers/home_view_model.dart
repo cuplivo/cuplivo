@@ -26,7 +26,6 @@ import '../../../core/services/proactive_care_conversation_policy.dart';
 import '../../../core/services/proactive_care_message_flow.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/services/world_book_store.dart';
-import '../../../utils/utf16_safe_cut.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../chat/widgets/chat_message_widget.dart' show ToolUIPart;
 import '../services/context_usage_service.dart';
@@ -602,22 +601,25 @@ class HomeViewModel extends ChangeNotifier {
   /// process start to come back. Mirrors the native `ready` re-arm Kelivo's
   /// scheduled tasks do.
   ///
-  /// The re-arm is a replace-all, so an unloaded store has to skip instead of
-  /// arming: an empty snapshot would cancel every alarm it cannot see. A store
-  /// that is genuinely empty has no letter to preserve, and the startup /
-  /// restore / sync paths still own cleaning up stale registry entries.
+  /// The re-arm is a replace-all, so the assistant store has to be loaded
+  /// before the call vouches for it: otherwise a store that is about to fill
+  /// would cancel every alarm it cannot see. Waiting for [AssistantProvider]
+  /// is what makes the guarantee true; a missing owner after that is gone for
+  /// good and only drops its own letter.
   Future<void> reschedulePendingProactiveCare() async {
     if (!ProactiveCareAlarmService.isSupported) return;
-    final conversations = _chatService.getAllConversations();
-    final assistants = _contextProvider.read<AssistantProvider>().assistants;
-    if (conversations.isEmpty || assistants.isEmpty) {
-      debugPrint('[ProactiveCare] re-arm skipped: stores not ready');
-      return;
-    }
+    final assistantsProvider = _contextProvider.read<AssistantProvider>();
     try {
+      await assistantsProvider.loaded;
+      final conversations = _chatService.getAllConversations();
+      if (conversations.isEmpty) {
+        debugPrint('[ProactiveCare] re-arm skipped: no conversations loaded');
+        return;
+      }
       await ProactiveCareAlarmService.rescheduleAll(
         conversations: conversations,
-        assistants: assistants,
+        assistants: assistantsProvider.assistants,
+        assistantStoreLoaded: assistantsProvider.isLoaded,
       );
     } catch (e, st) {
       FlutterLogger.log(

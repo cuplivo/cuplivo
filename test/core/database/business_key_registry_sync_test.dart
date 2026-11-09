@@ -127,6 +127,11 @@ void main() {
         // A custom palette is named by 'theme_palette_v1' and defined by these.
         'custom_themes_v1',
         'custom_theme_selected_v1',
+        // MCP servers are entities that sync; the groups and icons that organize
+        // them are the same configuration, so a new device must not arrive with
+        // every server ungrouped. The request timeout stays out on purpose — it
+        // describes this device's network, not the setup.
+        'mcp_presentation_v1',
       ]),
     );
   });

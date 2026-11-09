@@ -1,7 +1,26 @@
 # ADR-0011: What the compression readout counts
 
-**Status:** Accepted (2026-10)
+**Status:** Withdrawn (2026-11-09) — the readout it describes has no surface on the next baseline
 **Deciders:** cuplivo
+
+> **Why withdrawn.** This decision was implemented on the 4.5/4.6 line (`4718e1d67`, shipped in 4.5.0
+> and 4.6.0) and answered a real fault: the old preview counted message *bodies* only, so a tool-heavy
+> conversation's cost was under-reported by an order of magnitude exactly where compressing matters.
+> Kelivo's `v1.3.5` compaction rework (`c2eabf0f0`) removed the surface this readout lived on — the
+> compress dialog renders no estimate any more, `compressUsage*` survive in the ARBs with no widget
+> referencing them, and `estimateCompressionTokens` has no caller outside its own tests. In their place
+> `context_operations_panel.dart` reports the task's real `usage.promptTokens`/`completionTokens` once
+> the work is done, which is a measurement rather than an estimate, and re-adding ours beside it would
+> be two answers to one question.
+>
+> What survives is the *evidence*, not the UI: the same rework deleted `keepRecentStartIndex`,
+> `compressRequestCharBudget`, `buildBoundedConversationText` and `chunkMessagesForCompression` and
+> replaced them with `compression_engine.dart`'s segment planning, so the surfaced unit replays as a
+> deletion — `CompressContextSplit`, `compressWeightTextForMessage`,
+> `compressWeightImageCountForMessage`, `_toolResultImageUris`, the dialog's readout block, the four
+> keys and the two cases asserting the band. `selectKeepRecentMessages`, `countUserMessages` and
+> `conversationLineForCompression` survive upstream and are taken from upstream's side. **Do not
+> re-port the readout on the next re-base**; see `docs/rebase-v1.3.5-forecast.md`.
 
 ## Context
 

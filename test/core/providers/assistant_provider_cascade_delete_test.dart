@@ -94,7 +94,7 @@ void main() {
   }
 
   test(
-    'retiring CuplivoIN clears assistant and conversation model overrides',
+    'retiring KelivoIN clears assistant and conversation model overrides',
     () async {
       SharedPreferences.setMockInitialValues({'flutter_log_enabled_v1': false});
       final chatService = createService();
@@ -106,7 +106,7 @@ void main() {
           {
             'id': 'assistant-delete',
             'name': 'Retired model',
-            'chatModelProvider': 'CuplivoIN',
+            'chatModelProvider': 'KelivoIN',
             'chatModelId': 'mistral',
           },
           {
@@ -122,7 +122,7 @@ void main() {
       );
       await chatService.setConversationModel(
         retiredChat.id,
-        providerKey: 'CuplivoIN',
+        providerKey: 'KelivoIN',
         modelId: 'qwen-coder',
       );
       final keptChat = await chatService.createConversation(title: 'Keep');
@@ -131,14 +131,14 @@ void main() {
         providerKey: 'OpenAI',
         modelId: 'gpt-4o',
       );
-      final retired = ProviderConfig.defaultsFor('CuplivoIN').copyWith(
+      final retired = ProviderConfig.defaultsFor('KelivoIN').copyWith(
         baseUrl: 'https://text.pollinations.ai/openai',
         apiKey: 'cuplivo',
         models: ['mistral', 'qwen-coder'],
       );
       await session.preferences.setString(
         'provider_configs_v1',
-        jsonEncode({'CuplivoIN': retired.toJson()}),
+        jsonEncode({'KelivoIN': retired.toJson()}),
       );
       final settings = SettingsProvider(
         session.preferences,
@@ -151,7 +151,7 @@ void main() {
       expect(assistants.assistants[1].chatModelId, 'gpt-4o');
       expect(chatService.getConversation(retiredChat.id)!.chatModelId, isNull);
       expect(chatService.getConversation(keptChat.id)!.chatModelId, 'gpt-4o');
-      expect(settings.getProviderConfig('CuplivoIN').models, contains('auto'));
+      expect(settings.getProviderConfig('KelivoIN').models, contains('auto'));
 
       final reloadedSession = await harness.open();
       final reloadedAssistants = AssistantProvider(

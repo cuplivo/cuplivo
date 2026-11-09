@@ -63,16 +63,6 @@ typedef OnSelectMessages =
     void Function(int messageIndex, List<ChatMessage> messages);
 typedef OnSpeakMessage = Future<void> Function(ChatMessage message);
 typedef OnSuggestionTap = void Function(String suggestion);
-
-/// Starts a whole-message reply to [message] (docs/adr/0012).
-typedef OnReplyMessage = void Function(ChatMessage message);
-
-/// Starts a ranged reply from [selected]'s markdown, in [message].
-typedef OnReplySelectionMessage =
-    void Function(ChatMessage message, String selectedMarkdown);
-
-/// Jumps to the message a reply cites.
-typedef OnQuoteTap = void Function(String messageId);
 typedef OnRecoveredAskUserAnswer =
     Future<void> Function(
       ChatMessage message,
@@ -158,9 +148,6 @@ class MessageListView extends StatefulWidget {
     this.onForkConversation,
     this.onSelectMessages,
     this.onSpeakMessage,
-    this.onReplyMessage,
-    this.onReplySelectionMessage,
-    this.onQuoteTap,
     this.suggestions = const <String>[],
     this.onSuggestionTap,
     this.onRecoveredAskUserAnswer,
@@ -263,9 +250,6 @@ class MessageListView extends StatefulWidget {
   final OnForkConversation? onForkConversation;
   final OnSelectMessages? onSelectMessages;
   final OnSpeakMessage? onSpeakMessage;
-  final OnReplyMessage? onReplyMessage;
-  final OnReplySelectionMessage? onReplySelectionMessage;
-  final OnQuoteTap? onQuoteTap;
   final List<String> suggestions;
 
   /// A compact action that scrolls after the last message, outside its content.
@@ -1755,10 +1739,6 @@ class _MessageListViewState extends State<MessageListView> {
 
   @override
   Widget build(BuildContext context) {
-    _quoteTargetsForBuild = _quoteTargets(
-      messages: widget.messages,
-      byGroup: widget.byGroup,
-    );
     // Items render at the system scale times the chat scale (see the MediaQuery
     // override in _buildMessageItem), so the estimate has to use both.
     _systemTextScale = MediaQuery.textScalerOf(context).scale(1);
@@ -2468,7 +2448,6 @@ class _MessageListViewState extends State<MessageListView> {
 
   /// The id a reply citation names inside the loaded window, mapped to the row
   /// that answers it. Rebuilt once per frame in [build].
-  Map<String, ChatMessage> _quoteTargetsForBuild = const {};
 
   /// Every id a reply citation in the window may name, mapped to the row that
   /// answers it (docs/adr/0012).
@@ -2485,33 +2464,6 @@ class _MessageListViewState extends State<MessageListView> {
   /// A cited row the conversation no longer holds, or one outside the loaded
   /// window, is in neither list and still resolves to null: the chip shows its
   /// stub and there is no jump to offer.
-  static Map<String, ChatMessage> _quoteTargets({
-    required List<ChatMessage> messages,
-    required Map<String, List<ChatMessage>> byGroup,
-  }) {
-    final shownByGroup = <String, ChatMessage>{
-      for (final message in messages) (message.groupId ?? message.id): message,
-    };
-    final targets = <String, ChatMessage>{
-      for (final message in messages) message.id: message,
-    };
-    for (final entry in byGroup.entries) {
-      final shown = shownByGroup[entry.key];
-      if (shown == null) continue;
-      // A version header carries no body, so it must never answer for itself.
-      for (final revision in entry.value) {
-        targets[revision.id] = shown;
-      }
-    }
-    return targets;
-  }
-
-  /// The message a reply cites, when the window can resolve it.
-  ChatMessage? _quoteTargetFor(ChatMessage message) {
-    final id = message.quote?.id;
-    return id == null ? null : _quoteTargetsForBuild[id];
-  }
-
   /// Build the actual ChatMessageWidget with all its properties.
   Widget _buildChatMessageWidget(
     BuildContext context, {
@@ -2538,7 +2490,6 @@ class _MessageListViewState extends State<MessageListView> {
     RetryStatus? retryStatus,
   }) {
     final currentIdx = availableVersions.indexOf(selectedVersion);
-    final quoteTarget = _quoteTargetFor(message);
     return ChatMessageWidget(
       timelineStorage: _timelineStorage.putIfAbsent(
         message.id,
@@ -2548,16 +2499,6 @@ class _MessageListViewState extends State<MessageListView> {
       // The reply's own author when the conversation has several; the visual
       // regex pass needs the same answer the panel shows.
       author: author,
-      onReply: widget.onReplyMessage == null || message.isStreaming
-          ? null
-          : () => widget.onReplyMessage!(message),
-      onReplySelection: widget.onReplySelectionMessage == null
-          ? null
-          : (selected) => widget.onReplySelectionMessage!(message, selected),
-      quoteTarget: quoteTarget,
-      onQuoteTap: quoteTarget == null || widget.onQuoteTap == null
-          ? null
-          : () => widget.onQuoteTap!(quoteTarget.id),
       enableStreamingTextMotion: enableStreamingTextMotion,
       versionIndex: currentIdx < 0 ? selectedIdx : currentIdx,
       versionCount: total > 0 ? total : 1,
@@ -2656,8 +2597,6 @@ class _MessageListViewState extends State<MessageListView> {
           await widget.onDeleteAllVersions?.call(message, widget.byGroup);
         } else if (action == MessageMoreAction.edit) {
           widget.onEditMessage?.call(message);
-        } else if (action == MessageMoreAction.reply) {
-          widget.onReplyMessage?.call(message);
         } else if (action == MessageMoreAction.fork) {
           await widget.onForkConversation?.call(message);
         } else if (action == MessageMoreAction.selectMessages) {

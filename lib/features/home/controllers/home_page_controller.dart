@@ -76,6 +76,7 @@ import '../utils/chat_layout_constants.dart';
 import '../widgets/chat_input_bar.dart';
 import '../widgets/share_destination_sheet.dart';
 import '../../model/widgets/model_select_sheet.dart';
+import '../../chat/widgets/pdf_export_dialog.dart';
 
 /// Translation data for UI state (expanded/collapsed).
 class TranslationData {
@@ -1109,6 +1110,12 @@ class HomePageController extends ChangeNotifier {
           break;
         case ChatAction.exitGlobalSearch:
           exitGlobalSearchMode(clearQuery: true);
+          break;
+        case ChatAction.copySelectionMarkdown:
+          // The bus fires this from the desktop hotkey, but no surface in the
+          // replayed tree owns the handler yet: the process-wide selection
+          // recording it reads did not survive the quote rewrite. The case
+          // exists so the switch stays exhaustive; see docs/flaky-tests.md.
           break;
       }
     });
@@ -3146,6 +3153,40 @@ class HomePageController extends ChangeNotifier {
       for (final id in ids)
         if (storedById[id] != null) storedById[id]!,
     ];
+  }
+
+  Future<void> exportSelectedAsPdf() async {
+    final convo = currentConversation;
+    if (convo == null) return;
+    final context = _context;
+
+    final selected = await _selectedCollapsedMessages(
+      Set<String>.of(_selectedItems),
+    );
+    if (!context.mounted) return;
+    if (selected.isEmpty) {
+      final l10n = AppLocalizations.of(context)!;
+      showAppSnackBar(
+        context,
+        message: l10n.homePageSelectMessagesToShare,
+        type: NotificationType.info,
+      );
+      return;
+    }
+
+    final settings = context.read<SettingsProvider>();
+    cancelSelection();
+    await showPdfExportDialog(
+      context,
+      conversation: convo,
+      messages: selected,
+      showThinkingAndToolCards: settings.showThinkingCards,
+      expandThinkingContent: false,
+      appFontPath: settings.appFontLocalPath,
+      codeFontPath: settings.codeFontLocalPath,
+      appFontFamily: settings.appFontFamily,
+      codeFontFamily: settings.codeFontFamily,
+    );
   }
 
   Future<void> exportSelectedMessages() async {

@@ -1,3 +1,11 @@
+// The two `multi-chunk stream matches OpenSSL` cases derive keys and encrypt
+// megabyte-scale vectors with pure-Dart pointycastle: measured on this machine
+// they take 39 s and 19 s on their own, so the package's 30 s default expires
+// once the rest of the suite competes for the CPU. The bound still catches a
+// hang; it just no longer measures how busy the machine is.
+@Timeout(Duration(minutes: 2))
+library;
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';

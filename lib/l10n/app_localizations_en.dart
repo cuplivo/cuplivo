@@ -74,13 +74,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Appearance, behavior, and interaction preferences';
 
   @override
-  String get settingsPageChatOwners => 'Assistants and groups';
+  String get settingsPageAssistant => 'Assistant';
 
   @override
-  String get settingsPageChatOwnersCreate => 'Create';
-
-  @override
-  String get chatOwnerCreateAssistant => 'New assistant';
+  String get settingsPageAssistantSubtitle => 'Default assistant and style';
 
   @override
   String get settingsPageModelsServicesSection => 'Models & Services';
@@ -1489,6 +1486,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get assistantEditModelUseGlobalDefault => 'Use global default';
 
   @override
+  String get assistantSettingsPageTitle => 'Assistant Settings';
+
+  @override
   String get assistantSettingsCopyButton => 'Copy';
 
   @override
@@ -1514,6 +1514,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get assistantSettingsAddSheetSave => 'Save';
+
+  @override
+  String get desktopAssistantsListTitle => 'Assistants';
 
   @override
   String get desktopSidebarTabAssistants => 'Assistants';
@@ -1553,9 +1556,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hotkeyCopySelectionMarkdown => 'Copy Selection as Markdown';
-
-  @override
-  String get hotkeyReplySelection => 'Reply to Selection';
 
   @override
   String get hotkeysPressShortcut => 'Press a shortcut';
@@ -1776,7 +1776,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get startupRecoveryExportButton => 'Export a copy of my data';
 
   @override
-  String get startupRecoveryResetButton => 'Reset data';
+  String get startupRecoveryResetButton => 'Start with an empty chat list';
 
   @override
   String get startupRecoveryBusy => 'Working…';
@@ -1797,14 +1797,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'Reset failed. Fully close Cuplivo, then open it again.';
 
   @override
-  String get startupRecoveryResetDialogTitle => 'Reset all data?';
+  String get startupRecoveryResetDialogTitle =>
+      'Start with an empty chat list?';
 
   @override
   String get startupRecoveryResetDialogContent =>
-      'Start with a new empty database? The current database, its journals and existing copies will be retained for recovery.';
+      'This will not recover your previous chats. Cuplivo will keep the current database and existing copies, and start a new empty chat list. To get your chats back, cancel and choose a local copy.';
 
   @override
-  String get startupRecoveryResetDialogConfirm => 'Reset and restart';
+  String get startupRecoveryResetDialogConfirm => 'Keep copies and start fresh';
 
   @override
   String get startupRecoveryResetDialogCancel => 'Cancel';
@@ -1877,7 +1878,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get startupRecoverySectionDataBody =>
-      'Nothing has been deleted. Save a copy somewhere safe before trying anything below.';
+      'You can also export the remaining data and keep it somewhere safe before continuing.';
 
   @override
   String startupRecoveryExportSavedTo(String path) {
@@ -1912,7 +1913,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'The integrity check could not run.';
 
   @override
-  String get startupRecoveryDangerZone => 'Danger zone';
+  String get startupRecoveryDangerZone => 'Other options';
 
   @override
   String get startupRecoveryDangerBody =>
@@ -1920,7 +1921,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get startupRecoveryResetAcknowledge =>
-      'I want to start with a new empty database.';
+      'I choose to continue with an empty chat list without recovering my chats now.';
 
   @override
   String get startupDatabaseUpdateRequiredTitle => 'Update Cuplivo to continue';
@@ -2512,15 +2513,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageMoreSheetEdit => 'Edit';
 
   @override
-  String get messageQuotePreviewRemove => 'Remove reply';
-
-  @override
-  String get messageQuoteTargetMissing => 'Original message unavailable';
-
-  @override
-  String get messageMoreSheetReply => 'Reply';
-
-  @override
   String get messageMoreSheetShare => 'Share';
 
   @override
@@ -2563,9 +2555,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatMessageWidgetCopiedToClipboard => 'Copied to clipboard';
-
-  @override
-  String get chatMessageWidgetReplySelection => 'Reply';
 
   @override
   String get chatMessageWidgetResendTooltip => 'Resend';
@@ -10927,9 +10916,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recycleBinKindConfig => 'Configuration';
 
   @override
-  String get recycleBinKindGroup => 'Group';
-
-  @override
   String get recycleBinOriginLocal => 'Deleted here';
 
   @override
@@ -10985,9 +10971,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recycleBinFilterAssistants => 'Assistants';
-
-  @override
-  String get recycleBinFilterGroups => 'Groups';
 
   @override
   String get recycleBinFilterSettings => 'Settings';
@@ -11929,7 +11912,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mcpImportConfirm => 'Import';
 
   @override
-  String get startupRecoverySnapshotTitle => 'Restore from a database snapshot';
+  String get startupRecoverySnapshotTitle => 'Recover from a local copy';
 
   @override
   String get startupRecoverySnapshotBody =>
@@ -11940,7 +11923,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'No database snapshots were found on this device. Export your data before trying other recovery actions.';
 
   @override
-  String get startupRecoverySnapshotButton => 'Choose a snapshot';
+  String get startupRecoverySnapshotButton => 'Choose a copy to recover';
 
   @override
   String startupRecoverySnapshotConfirm(String when) {
@@ -12378,7 +12361,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get oauthModelsHint =>
-      'Available models are synced from your account.';
+      'Available models are synced from your account. Choose which models appear in the model picker. Your choices are kept when syncing or signing in again.';
 
   @override
   String get oauthNoModels => 'Sync models to start chatting';
@@ -14161,7 +14144,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchServicesPageWebFetchFooter =>
-      'With web search on, the model can also read full pages. When the search service can\'t read pages, local reading is used, which can\'t handle pages that need JavaScript or block bots.';
+      'With web search on, the model can also read full pages. When the search service can\'t read pages, local reading is used, which can\'t handle pages that need JavaScript or block bots.\n\nIf you use the page reader configured here, disable the built-in @cuplivo/fetch in Settings → MCP to avoid overlapping tools. The page reader configured here will still work.';
 
   @override
   String get searchServicesPageWebFetchSupported => 'Can read web pages';
@@ -14479,11 +14462,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'The current database has no conversations, but previous copies were found. Cuplivo has paused startup so you can recover a copy or explicitly keep the current data. Nothing will be overwritten automatically.';
 
   @override
-  String get recoveryKeepCurrent => 'Keep current data and continue';
+  String get recoveryKeepCurrent => 'Continue with an empty chat list';
 
   @override
   String get recoveryKeepCurrentConfirm =>
-      'Continue with the current empty database? Previous copies will remain available for recovery later.';
+      'This continues without recovering your previous chats. The current chat list will stay empty; old copies will be kept. If you want your chats back, cancel and choose a local copy.';
 
   @override
   String get recoverySearchingCopies =>
@@ -14538,7 +14521,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recoveryStorageInsufficientSpaceBody =>
-      'There is not enough free space to keep the original database and create its verified internal copy. Existing data and snapshots are unchanged. Free some space, then retry.';
+      'There is not enough storage to safely prepare your data. Free space in system settings, then reopen Cuplivo or recheck the copies below. Keep Cuplivo installed and leave its data and local copies in place.';
 
   @override
   String get migrationFreshStartTitle => 'Fresh start is ready';
@@ -14594,11 +14577,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupEncryptionOnHint =>
-      'Backups are encrypted while this page stays open.';
+      'Backups are encrypted. Enter the password again after restarting the app.';
 
   @override
   String get backupEncryptionPasswordHint =>
-      'Keep this password safe. If you lose it, the backup cannot be restored. It is kept only while this page is open.';
+      'Keep this password safe. If you lose it, the backup cannot be restored. It is kept in memory until you exit the app.';
 
   @override
   String get backupEncryptionPassword => 'Password';
@@ -16656,6 +16639,187 @@ class AppLocalizationsEn extends AppLocalizations {
       'Cancelling keeps any files already copied to the destination. You can inspect and remove that partial copy yourself.';
 
   @override
+  String get assistantCopyTitle => 'Copy assistant';
+
+  @override
+  String get assistantCopyDefaultHint =>
+      'Choose what to copy, or copy everything.';
+
+  @override
+  String get assistantCopyConfiguration => 'Assistant configuration';
+
+  @override
+  String get assistantCopyConfigurationHint =>
+      'Always included: name, avatar, prompts, model, parameters, and preset messages.';
+
+  @override
+  String get assistantCopyMemories => 'Assistant memories';
+
+  @override
+  String get assistantCopyMemoriesHint =>
+      'Includes current and legacy memories, preserving archived status. Global memories remain shared.';
+
+  @override
+  String get assistantCopyChooseMemories => 'Choose memories';
+
+  @override
+  String get assistantCopyChooseEntries => 'Choose entries';
+
+  @override
+  String get assistantCopyPhrasesHint =>
+      'Copy this assistant’s phrases. Global phrases remain shared.';
+
+  @override
+  String get assistantCopyBindingsHint =>
+      'These options reuse existing resources; workspace files are not copied. Unselected world books and injections use global defaults.';
+
+  @override
+  String get assistantCopyWorldBooks => 'World book bindings';
+
+  @override
+  String get assistantCopySkills => 'Skill selection';
+
+  @override
+  String get assistantCopyTools => 'Tool and search settings';
+
+  @override
+  String get assistantCopyWorkspace => 'Default workspace binding';
+
+  @override
+  String get assistantCopyAll => 'Copy everything';
+
+  @override
+  String get assistantCopyInProgress => 'Copying…';
+
+  @override
+  String get assistantCopyFailed =>
+      'Could not copy the assistant. Your original data is unchanged. Please try again.';
+
+  @override
+  String get assistantCopyMemoryLoadFailed =>
+      'Could not load memories. Please try again.';
+
+  @override
+  String get assistantCopyRetry => 'Retry';
+
+  @override
+  String get assistantCopyNoMemories =>
+      'This assistant has no personal memories to copy.';
+
+  @override
+  String get assistantCopySelectAll => 'Select all memories';
+
+  @override
+  String get assistantConversationMcpTitle => 'Allow per-conversation MCP';
+
+  @override
+  String get assistantConversationMcpHint =>
+      'Let conversations choose their own MCP servers. Conversations use the assistant’s selection until customized.';
+
+  @override
+  String get mcpSelectionInherited => 'Following assistant';
+
+  @override
+  String get mcpSelectionCustom => 'Custom for this chat';
+
+  @override
+  String get mcpInheritAssistant => 'Use assistant settings';
+
+  @override
+  String get displaySettingsPageUseLegacyInlineCodeStyleTitle =>
+      'Legacy inline code style';
+
+  @override
+  String get displaySettingsPageUseLegacyInlineCodeStyleSubtitle =>
+      'Use a lighter background, a thin border, and more line spacing for inline code.';
+
+  @override
+  String get asrServicesElevenLabsSubtitle => 'Scribe segmented transcription';
+
+  @override
+  String get oauthDnsError =>
+      'DNS lookup failed. Check your network or proxy DNS settings.';
+
+  @override
+  String get oauthTlsError =>
+      'The TLS connection failed. Check the certificates used by your network or proxy.';
+
+  @override
+  String get oauthProxyError =>
+      'The proxy connection failed. Check your proxy address and authentication settings.';
+
+  @override
+  String get oauthConnectionError =>
+      'The connection failed or was interrupted. Check your network or proxy settings.';
+
+  @override
+  String get oauthConnectionTimeout =>
+      'Connecting to the server timed out. Check your network or proxy settings.';
+
+  @override
+  String get oauthSendTimeout =>
+      'Sending the request timed out. Check your network and try again.';
+
+  @override
+  String get oauthReceiveTimeout =>
+      'Waiting for the server response timed out. Please try again.';
+
+  @override
+  String get oauthRequestTimeout =>
+      'The request timed out. Check your network or proxy settings and try again.';
+
+  @override
+  String oauthFailureStage(String stage) {
+    return 'Failed at: $stage';
+  }
+
+  @override
+  String get oauthStageRequestDeviceCode => 'Requesting a device code';
+
+  @override
+  String get oauthStageWaitDeviceAuthorization =>
+      'Waiting for device authorization';
+
+  @override
+  String get oauthStagePrepareBrowser => 'Preparing browser sign-in';
+
+  @override
+  String get oauthStageBrowserAuthorization =>
+      'Browser authorization and callback';
+
+  @override
+  String get oauthStageExchangeToken => 'Exchanging the authorization code';
+
+  @override
+  String get oauthStageRefreshToken => 'Refreshing the login token';
+
+  @override
+  String get oauthMonthlyTotal => 'Monthly total';
+
+  @override
+  String get oauthMonthlyCode => 'Monthly code';
+
+  @override
+  String get oauthSpendCap => 'Credit spend cap';
+
+  @override
+  String get oauthOnDemand => 'On-demand quota';
+
+  @override
+  String get oauthQuotaAdvisory =>
+      'For reference only: active weekly credits make this monthly limit uncertain.';
+
+  @override
+  String oauthCreditsValue(String value) {
+    return '$value credits';
+  }
+
+  @override
+  String oauthRemainingValue(String value) {
+    return 'Remaining $value';
+  }
+
+  @override
   String providerDetailPageBaseUrlExample(String url) {
     return 'e.g. $url';
   }
@@ -16894,7 +17058,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recoveryGuideBody =>
-      'Kelivo paused loading your data. We’ll look for local copies so you can choose what to recover. Existing files will be kept.';
+      'Cuplivo paused loading your data. We’ll look for local copies so you can choose what to recover. Existing files will be kept.';
 
   @override
   String get recoverySpaceTitle => 'Some free space is needed';
@@ -16915,7 +17079,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recoveryRestoreRetryBody =>
-      'The restore could not be completed. The selected copy has been kept. Check local copies again or reopen Kelivo to continue.';
+      'The restore could not be completed. The selected copy has been kept. Check local copies again or reopen Cuplivo to continue.';
 
   @override
   String recoverySpaceAmount(String required, String available) {
@@ -16924,7 +17088,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recoveryCopiesNeedUpdate =>
-      'Some copies were made by a newer version of Kelivo. Update Kelivo before restoring them. These copies have been kept.';
+      'Some copies were made by a newer version of Cuplivo. Update Cuplivo before restoring them. These copies have been kept.';
 
   @override
   String get imageContextTitle => 'Image context';
@@ -17002,4 +17166,127 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get imageContextUpdateFailed =>
       'Could not save your changes. Try again.';
+
+  @override
+  String get settingsPageChatOwners => 'Assistants and groups';
+
+  @override
+  String get settingsPageChatOwnersCreate => 'Create';
+
+  @override
+  String get chatOwnerCreateAssistant => 'New assistant';
+
+  @override
+  String get recycleBinKindGroup => 'Group';
+
+  @override
+  String get recycleBinFilterGroups => 'Groups';
+
+  @override
+  String get groupChatTitle => 'Group chat';
+
+  @override
+  String get groupChatCreate => 'New group chat';
+
+  @override
+  String get groupChatCreateHint => 'Pick at least one assistant';
+
+  @override
+  String get groupChatNameHint => 'Group name';
+
+  @override
+  String get groupChatChangeAvatar => 'Change group avatar';
+
+  @override
+  String get groupChatMembers => 'Members';
+
+  @override
+  String get groupChatMembersEmpty => 'No members yet';
+
+  @override
+  String get groupChatInvite => 'Invite assistants';
+
+  @override
+  String get groupChatNoAssistantToInvite =>
+      'Every assistant is already in this group';
+
+  @override
+  String get groupChatSave => 'Save';
+
+  @override
+  String get groupChatCancel => 'Cancel';
+
+  @override
+  String get groupChatSettingsTitle => 'Group settings';
+
+  @override
+  String get groupChatBack => 'Back';
+
+  @override
+  String get groupChatOrchestration => 'Who speaks';
+
+  @override
+  String get groupChatDirectorTitle => 'Director model';
+
+  @override
+  String get groupChatDirectorSubtitle =>
+      'The model that picks who speaks next. A fast, low-cost model is the right choice.';
+
+  @override
+  String get groupChatDirectorFollowDefault => 'Follows default model';
+
+  @override
+  String get groupChatMaxTurnsTitle => 'Replies per round';
+
+  @override
+  String get groupChatMaxTurnsSubtitle =>
+      'How many members may reply to one message';
+
+  @override
+  String get groupChatRemoveMember => 'Remove';
+
+  @override
+  String get groupChatRemoveMemberTitle => 'Remove assistant';
+
+  @override
+  String get groupChatRemoveMemberContent =>
+      'This assistant will no longer take part in this group.';
+
+  @override
+  String get groupChatDelete => 'Delete group chat';
+
+  @override
+  String get groupChatDeleteTitle => 'Delete this group chat?';
+
+  @override
+  String get groupChatDeleteContent =>
+      'The group and all of its topics move to the recycle bin together.';
+
+  @override
+  String get groupChatDeleted => 'Group chat moved to the recycle bin';
+
+  @override
+  String get groupChatUnavailable =>
+      'This group chat\'s settings are not available. Restore it from the recycle bin.';
+
+  @override
+  String get groupChatNewTopic => 'New topic';
+
+  @override
+  String get groupChatRemovedMember => 'Deleted assistant';
+
+  @override
+  String get groupChatDirectorFallbackWarning =>
+      'The director model is unavailable, so the first member replied once. Check the default model settings.';
+
+  @override
+  String get groupChatUnavailableWarning =>
+      'This group chat has no available members.';
+
+  @override
+  String get defaultModelPageDirectorModelTitle => 'Director model';
+
+  @override
+  String get defaultModelPageDirectorModelSubtitle =>
+      'Picks who speaks next in a group chat. A fast, low-cost model is the best fit.';
 }

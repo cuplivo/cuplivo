@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
 import 'package:Cuplivo/core/models/message_part.dart';
 import 'package:Cuplivo/core/services/mcp/mcp_icon_cache.dart';
 import 'package:Cuplivo/core/services/storage/storage_image_usage.dart';
@@ -197,7 +198,8 @@ void main() {
       for (final entry in entries) {
         expect(
           entry.imageKind,
-          entry.path == code.path || entry.path == inlineCode.path
+          p.equals(entry.path, code.path) ||
+                  p.equals(entry.path, inlineCode.path)
               ? isNull
               : StorageImageKind.chat,
           reason: entry.name,

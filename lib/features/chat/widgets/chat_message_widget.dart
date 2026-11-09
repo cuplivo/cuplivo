@@ -1276,20 +1276,6 @@ class ChatMessageWidget extends StatefulWidget {
   final VoidCallback? onEdit; // user: edit
   final VoidCallback? onDelete; // user: delete
 
-  /// Starts a whole-message reply to this message (docs/adr/0012). Offered from
-  /// the message menus while the message is not streaming.
-  final VoidCallback? onReply;
-
-  /// Starts a ranged reply from the assistant content's text selection; carries
-  /// the markdown the renderer's mapping produced for that selection.
-  final ValueChanged<String>? onReplySelection;
-
-  /// Resolved target of [ChatMessage.quote], when it is in the loaded window.
-  /// Null renders the stub for a whole-message citation.
-  final ChatMessage? quoteTarget;
-
-  /// Scrolls to the quoted message, when it can be resolved.
-  final VoidCallback? onQuoteTap;
   // Optional version switcher (branch) UI controls
   final int? versionIndex; // zero-based display ordinal, not a version number
   final int? versionCount;
@@ -1358,10 +1344,6 @@ class ChatMessageWidget extends StatefulWidget {
     this.onMore,
     this.onEdit,
     this.onDelete,
-    this.onReply,
-    this.onReplySelection,
-    this.quoteTarget,
-    this.onQuoteTap,
     this.versionIndex,
     this.versionCount,
     this.onPrevVersion,
@@ -1891,16 +1873,6 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                                     widget.onEdit?.call();
                                   },
                                 ),
-                              if (widget.onReply != null &&
-                                  !widget.message.isStreaming)
-                                _MenuItem(
-                                  icon: Lucide.Reply,
-                                  label: l10n.messageMoreSheetReply,
-                                  onTap: () {
-                                    Navigator.of(ctx).pop();
-                                    widget.onReply?.call();
-                                  },
-                                ),
                               _MenuItem(
                                 icon: Lucide.Trash2,
                                 danger: true,
@@ -2331,12 +2303,6 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
             icon: Lucide.Pencil,
             label: l10n.messageMoreSheetEdit,
             onTap: () => widget.onEdit?.call(),
-          ),
-        if (widget.onReply != null && !widget.message.isStreaming)
-          DesktopContextMenuItem(
-            icon: Lucide.Reply,
-            label: l10n.messageMoreSheetReply,
-            onTap: () => widget.onReply?.call(),
           ),
         DesktopContextMenuItem(
           icon: Lucide.Trash2,
@@ -2947,8 +2913,6 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
               ? 'assistant_${widget.message.id}'
               : 'assistant_${widget.message.id}_$contentKey',
         ),
-        messageId: widget.message.id,
-        onReplySelection: widget.onReplySelection,
         child: DefaultTextStyle.merge(
           style: TextStyle(fontSize: baseAssistant, height: 1.5),
           child: assistantContent,

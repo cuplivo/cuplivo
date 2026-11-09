@@ -89,11 +89,11 @@ class _RecordingResolver extends FileLinkResolver {
   _RecordingResolver(WorkspaceProvider workspaces)
     : super(workspaces: workspaces);
 
-  final calls = <({CuplivoLink link, String conversationId})>[];
+  final calls = <({KelivoLink link, String conversationId})>[];
 
   @override
   Future<FileSystemEntity?> resolveToHostEntry(
-    CuplivoLink link, {
+    KelivoLink link, {
     required String conversationId,
     required WorkspaceBinding binding,
   }) async {
@@ -364,7 +364,11 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(FileBrowser.itemKey('note.md')));
     await tester.pump();
-    expect(previews, [(p.join(root, 'note.md'), 'workspace')]);
+    expect(previews, hasLength(1));
+    expect(previews.single.$2, 'workspace');
+    // The panel hands over its own resolved spelling of the host path, which is
+    // canonical (lowercased) where the filesystem is case-insensitive.
+    expect(p.equals(previews.single.$1, p.join(root, 'note.md')), isTrue);
     expect(resolver.calls, isEmpty);
     previews.clear();
     await tester.tap(find.byKey(FileBrowser.itemKey('page.HTML')));
@@ -375,7 +379,7 @@ void main() {
       expect(resolver.calls, isEmpty);
     } else {
       expect(previews, isEmpty);
-      expect(resolver.calls.single.link.kind, CuplivoLinkKind.workspaceFile);
+      expect(resolver.calls.single.link.kind, KelivoLinkKind.workspaceFile);
       expect(resolver.calls.single.link.relativePath, 'page.HTML');
       expect(resolver.calls.single.conversationId, id);
     }

@@ -208,23 +208,17 @@ abstract class AppLocalizations {
   /// **'Appearance, behavior, and interaction preferences'**
   String get settingsPageDisplaySubtitle;
 
-  /// No description provided for @settingsPageChatOwners.
+  /// No description provided for @settingsPageAssistant.
   ///
   /// In en, this message translates to:
-  /// **'Assistants and groups'**
-  String get settingsPageChatOwners;
+  /// **'Assistant'**
+  String get settingsPageAssistant;
 
-  /// No description provided for @settingsPageChatOwnersCreate.
+  /// No description provided for @settingsPageAssistantSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Create'**
-  String get settingsPageChatOwnersCreate;
-
-  /// No description provided for @chatOwnerCreateAssistant.
-  ///
-  /// In en, this message translates to:
-  /// **'New assistant'**
-  String get chatOwnerCreateAssistant;
+  /// **'Default assistant and style'**
+  String get settingsPageAssistantSubtitle;
 
   /// No description provided for @settingsPageModelsServicesSection.
   ///
@@ -2842,6 +2836,12 @@ abstract class AppLocalizations {
   /// **'Use global default'**
   String get assistantEditModelUseGlobalDefault;
 
+  /// No description provided for @assistantSettingsPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant Settings'**
+  String get assistantSettingsPageTitle;
+
   /// No description provided for @assistantSettingsCopyButton.
   ///
   /// In en, this message translates to:
@@ -2895,6 +2895,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Save'**
   String get assistantSettingsAddSheetSave;
+
+  /// No description provided for @desktopAssistantsListTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistants'**
+  String get desktopAssistantsListTitle;
 
   /// No description provided for @desktopSidebarTabAssistants.
   ///
@@ -2973,12 +2979,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copy Selection as Markdown'**
   String get hotkeyCopySelectionMarkdown;
-
-  /// No description provided for @hotkeyReplySelection.
-  ///
-  /// In en, this message translates to:
-  /// **'Reply to Selection'**
-  String get hotkeyReplySelection;
 
   /// No description provided for @hotkeysPressShortcut.
   ///
@@ -3385,7 +3385,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoveryResetButton.
   ///
   /// In en, this message translates to:
-  /// **'Reset data'**
+  /// **'Start with an empty chat list'**
   String get startupRecoveryResetButton;
 
   /// No description provided for @startupRecoveryBusy.
@@ -3421,19 +3421,19 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoveryResetDialogTitle.
   ///
   /// In en, this message translates to:
-  /// **'Reset all data?'**
+  /// **'Start with an empty chat list?'**
   String get startupRecoveryResetDialogTitle;
 
   /// No description provided for @startupRecoveryResetDialogContent.
   ///
   /// In en, this message translates to:
-  /// **'Start with a new empty database? The current database, its journals and existing copies will be retained for recovery.'**
+  /// **'This will not recover your previous chats. Cuplivo will keep the current database and existing copies, and start a new empty chat list. To get your chats back, cancel and choose a local copy.'**
   String get startupRecoveryResetDialogContent;
 
   /// No description provided for @startupRecoveryResetDialogConfirm.
   ///
   /// In en, this message translates to:
-  /// **'Reset and restart'**
+  /// **'Keep copies and start fresh'**
   String get startupRecoveryResetDialogConfirm;
 
   /// No description provided for @startupRecoveryResetDialogCancel.
@@ -3565,7 +3565,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoverySectionDataBody.
   ///
   /// In en, this message translates to:
-  /// **'Nothing has been deleted. Save a copy somewhere safe before trying anything below.'**
+  /// **'You can also export the remaining data and keep it somewhere safe before continuing.'**
   String get startupRecoverySectionDataBody;
 
   /// No description provided for @startupRecoveryExportSavedTo.
@@ -3619,7 +3619,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoveryDangerZone.
   ///
   /// In en, this message translates to:
-  /// **'Danger zone'**
+  /// **'Other options'**
   String get startupRecoveryDangerZone;
 
   /// No description provided for @startupRecoveryDangerBody.
@@ -3631,7 +3631,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoveryResetAcknowledge.
   ///
   /// In en, this message translates to:
-  /// **'I want to start with a new empty database.'**
+  /// **'I choose to continue with an empty chat list without recovering my chats now.'**
   String get startupRecoveryResetAcknowledge;
 
   /// No description provided for @startupDatabaseUpdateRequiredTitle.
@@ -4690,24 +4690,6 @@ abstract class AppLocalizations {
   /// **'Edit'**
   String get messageMoreSheetEdit;
 
-  /// No description provided for @messageQuotePreviewRemove.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove reply'**
-  String get messageQuotePreviewRemove;
-
-  /// No description provided for @messageQuoteTargetMissing.
-  ///
-  /// In en, this message translates to:
-  /// **'Original message unavailable'**
-  String get messageQuoteTargetMissing;
-
-  /// No description provided for @messageMoreSheetReply.
-  ///
-  /// In en, this message translates to:
-  /// **'Reply'**
-  String get messageMoreSheetReply;
-
   /// No description provided for @messageMoreSheetShare.
   ///
   /// In en, this message translates to:
@@ -4779,12 +4761,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copied to clipboard'**
   String get chatMessageWidgetCopiedToClipboard;
-
-  /// No description provided for @chatMessageWidgetReplySelection.
-  ///
-  /// In en, this message translates to:
-  /// **'Reply'**
-  String get chatMessageWidgetReplySelection;
 
   /// No description provided for @chatMessageWidgetResendTooltip.
   ///
@@ -19599,12 +19575,6 @@ abstract class AppLocalizations {
   /// **'Configuration'**
   String get recycleBinKindConfig;
 
-  /// No description provided for @recycleBinKindGroup.
-  ///
-  /// In en, this message translates to:
-  /// **'Group'**
-  String get recycleBinKindGroup;
-
   /// No description provided for @recycleBinOriginLocal.
   ///
   /// In en, this message translates to:
@@ -19706,12 +19676,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Assistants'**
   String get recycleBinFilterAssistants;
-
-  /// No description provided for @recycleBinFilterGroups.
-  ///
-  /// In en, this message translates to:
-  /// **'Groups'**
-  String get recycleBinFilterGroups;
 
   /// No description provided for @recycleBinFilterSettings.
   ///
@@ -21384,7 +21348,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoverySnapshotTitle.
   ///
   /// In en, this message translates to:
-  /// **'Restore from a database snapshot'**
+  /// **'Recover from a local copy'**
   String get startupRecoverySnapshotTitle;
 
   /// No description provided for @startupRecoverySnapshotBody.
@@ -21402,7 +21366,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoverySnapshotButton.
   ///
   /// In en, this message translates to:
-  /// **'Choose a snapshot'**
+  /// **'Choose a copy to recover'**
   String get startupRecoverySnapshotButton;
 
   /// No description provided for @startupRecoverySnapshotConfirm.
@@ -22176,7 +22140,7 @@ abstract class AppLocalizations {
   /// No description provided for @oauthModelsHint.
   ///
   /// In en, this message translates to:
-  /// **'Available models are synced from your account.'**
+  /// **'Available models are synced from your account. Choose which models appear in the model picker. Your choices are kept when syncing or signing in again.'**
   String get oauthModelsHint;
 
   /// No description provided for @oauthNoModels.
@@ -25137,7 +25101,7 @@ abstract class AppLocalizations {
   /// No description provided for @searchServicesPageWebFetchFooter.
   ///
   /// In en, this message translates to:
-  /// **'With web search on, the model can also read full pages. When the search service can\'t read pages, local reading is used, which can\'t handle pages that need JavaScript or block bots.'**
+  /// **'With web search on, the model can also read full pages. When the search service can\'t read pages, local reading is used, which can\'t handle pages that need JavaScript or block bots.\n\nIf you use the page reader configured here, disable the built-in @cuplivo/fetch in Settings → MCP to avoid overlapping tools. The page reader configured here will still work.'**
   String get searchServicesPageWebFetchFooter;
 
   /// No description provided for @searchServicesPageWebFetchSupported.
@@ -25683,13 +25647,13 @@ abstract class AppLocalizations {
   /// No description provided for @recoveryKeepCurrent.
   ///
   /// In en, this message translates to:
-  /// **'Keep current data and continue'**
+  /// **'Continue with an empty chat list'**
   String get recoveryKeepCurrent;
 
   /// No description provided for @recoveryKeepCurrentConfirm.
   ///
   /// In en, this message translates to:
-  /// **'Continue with the current empty database? Previous copies will remain available for recovery later.'**
+  /// **'This continues without recovering your previous chats. The current chat list will stay empty; old copies will be kept. If you want your chats back, cancel and choose a local copy.'**
   String get recoveryKeepCurrentConfirm;
 
   /// No description provided for @recoverySearchingCopies.
@@ -25773,7 +25737,7 @@ abstract class AppLocalizations {
   /// No description provided for @recoveryStorageInsufficientSpaceBody.
   ///
   /// In en, this message translates to:
-  /// **'There is not enough free space to keep the original database and create its verified internal copy. Existing data and snapshots are unchanged. Free some space, then retry.'**
+  /// **'There is not enough storage to safely prepare your data. Free space in system settings, then reopen Cuplivo or recheck the copies below. Keep Cuplivo installed and leave its data and local copies in place.'**
   String get recoveryStorageInsufficientSpaceBody;
 
   /// No description provided for @migrationFreshStartTitle.
@@ -25863,13 +25827,13 @@ abstract class AppLocalizations {
   /// No description provided for @backupEncryptionOnHint.
   ///
   /// In en, this message translates to:
-  /// **'Backups are encrypted while this page stays open.'**
+  /// **'Backups are encrypted. Enter the password again after restarting the app.'**
   String get backupEncryptionOnHint;
 
   /// No description provided for @backupEncryptionPasswordHint.
   ///
   /// In en, this message translates to:
-  /// **'Keep this password safe. If you lose it, the backup cannot be restored. It is kept only while this page is open.'**
+  /// **'Keep this password safe. If you lose it, the backup cannot be restored. It is kept in memory until you exit the app.'**
   String get backupEncryptionPasswordHint;
 
   /// No description provided for @backupEncryptionPassword.
@@ -29292,6 +29256,312 @@ abstract class AppLocalizations {
   /// **'Cancelling keeps any files already copied to the destination. You can inspect and remove that partial copy yourself.'**
   String get dataDirectoryCancelHint;
 
+  /// No description provided for @assistantCopyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy assistant'**
+  String get assistantCopyTitle;
+
+  /// No description provided for @assistantCopyDefaultHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose what to copy, or copy everything.'**
+  String get assistantCopyDefaultHint;
+
+  /// No description provided for @assistantCopyConfiguration.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant configuration'**
+  String get assistantCopyConfiguration;
+
+  /// No description provided for @assistantCopyConfigurationHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Always included: name, avatar, prompts, model, parameters, and preset messages.'**
+  String get assistantCopyConfigurationHint;
+
+  /// No description provided for @assistantCopyMemories.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant memories'**
+  String get assistantCopyMemories;
+
+  /// No description provided for @assistantCopyMemoriesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Includes current and legacy memories, preserving archived status. Global memories remain shared.'**
+  String get assistantCopyMemoriesHint;
+
+  /// No description provided for @assistantCopyChooseMemories.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose memories'**
+  String get assistantCopyChooseMemories;
+
+  /// No description provided for @assistantCopyChooseEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose entries'**
+  String get assistantCopyChooseEntries;
+
+  /// No description provided for @assistantCopyPhrasesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy this assistant’s phrases. Global phrases remain shared.'**
+  String get assistantCopyPhrasesHint;
+
+  /// No description provided for @assistantCopyBindingsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'These options reuse existing resources; workspace files are not copied. Unselected world books and injections use global defaults.'**
+  String get assistantCopyBindingsHint;
+
+  /// No description provided for @assistantCopyWorldBooks.
+  ///
+  /// In en, this message translates to:
+  /// **'World book bindings'**
+  String get assistantCopyWorldBooks;
+
+  /// No description provided for @assistantCopySkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Skill selection'**
+  String get assistantCopySkills;
+
+  /// No description provided for @assistantCopyTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool and search settings'**
+  String get assistantCopyTools;
+
+  /// No description provided for @assistantCopyWorkspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Default workspace binding'**
+  String get assistantCopyWorkspace;
+
+  /// No description provided for @assistantCopyAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy everything'**
+  String get assistantCopyAll;
+
+  /// No description provided for @assistantCopyInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Copying…'**
+  String get assistantCopyInProgress;
+
+  /// No description provided for @assistantCopyFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not copy the assistant. Your original data is unchanged. Please try again.'**
+  String get assistantCopyFailed;
+
+  /// No description provided for @assistantCopyMemoryLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load memories. Please try again.'**
+  String get assistantCopyMemoryLoadFailed;
+
+  /// No description provided for @assistantCopyRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get assistantCopyRetry;
+
+  /// No description provided for @assistantCopyNoMemories.
+  ///
+  /// In en, this message translates to:
+  /// **'This assistant has no personal memories to copy.'**
+  String get assistantCopyNoMemories;
+
+  /// No description provided for @assistantCopySelectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select all memories'**
+  String get assistantCopySelectAll;
+
+  /// No description provided for @assistantConversationMcpTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow per-conversation MCP'**
+  String get assistantConversationMcpTitle;
+
+  /// No description provided for @assistantConversationMcpHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Let conversations choose their own MCP servers. Conversations use the assistant’s selection until customized.'**
+  String get assistantConversationMcpHint;
+
+  /// No description provided for @mcpSelectionInherited.
+  ///
+  /// In en, this message translates to:
+  /// **'Following assistant'**
+  String get mcpSelectionInherited;
+
+  /// No description provided for @mcpSelectionCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom for this chat'**
+  String get mcpSelectionCustom;
+
+  /// No description provided for @mcpInheritAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Use assistant settings'**
+  String get mcpInheritAssistant;
+
+  /// No description provided for @displaySettingsPageUseLegacyInlineCodeStyleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Legacy inline code style'**
+  String get displaySettingsPageUseLegacyInlineCodeStyleTitle;
+
+  /// No description provided for @displaySettingsPageUseLegacyInlineCodeStyleSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use a lighter background, a thin border, and more line spacing for inline code.'**
+  String get displaySettingsPageUseLegacyInlineCodeStyleSubtitle;
+
+  /// No description provided for @asrServicesElevenLabsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scribe segmented transcription'**
+  String get asrServicesElevenLabsSubtitle;
+
+  /// No description provided for @oauthDnsError.
+  ///
+  /// In en, this message translates to:
+  /// **'DNS lookup failed. Check your network or proxy DNS settings.'**
+  String get oauthDnsError;
+
+  /// No description provided for @oauthTlsError.
+  ///
+  /// In en, this message translates to:
+  /// **'The TLS connection failed. Check the certificates used by your network or proxy.'**
+  String get oauthTlsError;
+
+  /// No description provided for @oauthProxyError.
+  ///
+  /// In en, this message translates to:
+  /// **'The proxy connection failed. Check your proxy address and authentication settings.'**
+  String get oauthProxyError;
+
+  /// No description provided for @oauthConnectionError.
+  ///
+  /// In en, this message translates to:
+  /// **'The connection failed or was interrupted. Check your network or proxy settings.'**
+  String get oauthConnectionError;
+
+  /// No description provided for @oauthConnectionTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting to the server timed out. Check your network or proxy settings.'**
+  String get oauthConnectionTimeout;
+
+  /// No description provided for @oauthSendTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending the request timed out. Check your network and try again.'**
+  String get oauthSendTimeout;
+
+  /// No description provided for @oauthReceiveTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the server response timed out. Please try again.'**
+  String get oauthReceiveTimeout;
+
+  /// No description provided for @oauthRequestTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'The request timed out. Check your network or proxy settings and try again.'**
+  String get oauthRequestTimeout;
+
+  /// No description provided for @oauthFailureStage.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed at: {stage}'**
+  String oauthFailureStage(String stage);
+
+  /// No description provided for @oauthStageRequestDeviceCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Requesting a device code'**
+  String get oauthStageRequestDeviceCode;
+
+  /// No description provided for @oauthStageWaitDeviceAuthorization.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for device authorization'**
+  String get oauthStageWaitDeviceAuthorization;
+
+  /// No description provided for @oauthStagePrepareBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing browser sign-in'**
+  String get oauthStagePrepareBrowser;
+
+  /// No description provided for @oauthStageBrowserAuthorization.
+  ///
+  /// In en, this message translates to:
+  /// **'Browser authorization and callback'**
+  String get oauthStageBrowserAuthorization;
+
+  /// No description provided for @oauthStageExchangeToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Exchanging the authorization code'**
+  String get oauthStageExchangeToken;
+
+  /// No description provided for @oauthStageRefreshToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Refreshing the login token'**
+  String get oauthStageRefreshToken;
+
+  /// No description provided for @oauthMonthlyTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly total'**
+  String get oauthMonthlyTotal;
+
+  /// No description provided for @oauthMonthlyCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly code'**
+  String get oauthMonthlyCode;
+
+  /// No description provided for @oauthSpendCap.
+  ///
+  /// In en, this message translates to:
+  /// **'Credit spend cap'**
+  String get oauthSpendCap;
+
+  /// No description provided for @oauthOnDemand.
+  ///
+  /// In en, this message translates to:
+  /// **'On-demand quota'**
+  String get oauthOnDemand;
+
+  /// No description provided for @oauthQuotaAdvisory.
+  ///
+  /// In en, this message translates to:
+  /// **'For reference only: active weekly credits make this monthly limit uncertain.'**
+  String get oauthQuotaAdvisory;
+
+  /// No description provided for @oauthCreditsValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} credits'**
+  String oauthCreditsValue(String value);
+
+  /// No description provided for @oauthRemainingValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Remaining {value}'**
+  String oauthRemainingValue(String value);
+
   /// No description provided for @providerDetailPageBaseUrlExample.
   ///
   /// In en, this message translates to:
@@ -29709,7 +29979,7 @@ abstract class AppLocalizations {
   /// No description provided for @recoveryGuideBody.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo paused loading your data. We’ll look for local copies so you can choose what to recover. Existing files will be kept.'**
+  /// **'Cuplivo paused loading your data. We’ll look for local copies so you can choose what to recover. Existing files will be kept.'**
   String get recoveryGuideBody;
 
   /// No description provided for @recoverySpaceTitle.
@@ -29745,7 +30015,7 @@ abstract class AppLocalizations {
   /// No description provided for @recoveryRestoreRetryBody.
   ///
   /// In en, this message translates to:
-  /// **'The restore could not be completed. The selected copy has been kept. Check local copies again or reopen Kelivo to continue.'**
+  /// **'The restore could not be completed. The selected copy has been kept. Check local copies again or reopen Cuplivo to continue.'**
   String get recoveryRestoreRetryBody;
 
   /// No description provided for @recoverySpaceAmount.
@@ -29757,7 +30027,7 @@ abstract class AppLocalizations {
   /// No description provided for @recoveryCopiesNeedUpdate.
   ///
   /// In en, this message translates to:
-  /// **'Some copies were made by a newer version of Kelivo. Update Kelivo before restoring them. These copies have been kept.'**
+  /// **'Some copies were made by a newer version of Cuplivo. Update Cuplivo before restoring them. These copies have been kept.'**
   String get recoveryCopiesNeedUpdate;
 
   /// No description provided for @imageContextTitle.
@@ -29891,6 +30161,234 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not save your changes. Try again.'**
   String get imageContextUpdateFailed;
+
+  /// No description provided for @settingsPageChatOwners.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistants and groups'**
+  String get settingsPageChatOwners;
+
+  /// No description provided for @settingsPageChatOwnersCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get settingsPageChatOwnersCreate;
+
+  /// No description provided for @chatOwnerCreateAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'New assistant'**
+  String get chatOwnerCreateAssistant;
+
+  /// No description provided for @recycleBinKindGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Group'**
+  String get recycleBinKindGroup;
+
+  /// No description provided for @recycleBinFilterGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'Groups'**
+  String get recycleBinFilterGroups;
+
+  /// No description provided for @groupChatTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Group chat'**
+  String get groupChatTitle;
+
+  /// No description provided for @groupChatCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'New group chat'**
+  String get groupChatCreate;
+
+  /// No description provided for @groupChatCreateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick at least one assistant'**
+  String get groupChatCreateHint;
+
+  /// No description provided for @groupChatNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Group name'**
+  String get groupChatNameHint;
+
+  /// No description provided for @groupChatChangeAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Change group avatar'**
+  String get groupChatChangeAvatar;
+
+  /// No description provided for @groupChatMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Members'**
+  String get groupChatMembers;
+
+  /// No description provided for @groupChatMembersEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No members yet'**
+  String get groupChatMembersEmpty;
+
+  /// No description provided for @groupChatInvite.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite assistants'**
+  String get groupChatInvite;
+
+  /// No description provided for @groupChatNoAssistantToInvite.
+  ///
+  /// In en, this message translates to:
+  /// **'Every assistant is already in this group'**
+  String get groupChatNoAssistantToInvite;
+
+  /// No description provided for @groupChatSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get groupChatSave;
+
+  /// No description provided for @groupChatCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get groupChatCancel;
+
+  /// No description provided for @groupChatSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Group settings'**
+  String get groupChatSettingsTitle;
+
+  /// No description provided for @groupChatBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get groupChatBack;
+
+  /// No description provided for @groupChatOrchestration.
+  ///
+  /// In en, this message translates to:
+  /// **'Who speaks'**
+  String get groupChatOrchestration;
+
+  /// No description provided for @groupChatDirectorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Director model'**
+  String get groupChatDirectorTitle;
+
+  /// No description provided for @groupChatDirectorSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The model that picks who speaks next. A fast, low-cost model is the right choice.'**
+  String get groupChatDirectorSubtitle;
+
+  /// No description provided for @groupChatDirectorFollowDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Follows default model'**
+  String get groupChatDirectorFollowDefault;
+
+  /// No description provided for @groupChatMaxTurnsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Replies per round'**
+  String get groupChatMaxTurnsTitle;
+
+  /// No description provided for @groupChatMaxTurnsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How many members may reply to one message'**
+  String get groupChatMaxTurnsSubtitle;
+
+  /// No description provided for @groupChatRemoveMember.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get groupChatRemoveMember;
+
+  /// No description provided for @groupChatRemoveMemberTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove assistant'**
+  String get groupChatRemoveMemberTitle;
+
+  /// No description provided for @groupChatRemoveMemberContent.
+  ///
+  /// In en, this message translates to:
+  /// **'This assistant will no longer take part in this group.'**
+  String get groupChatRemoveMemberContent;
+
+  /// No description provided for @groupChatDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete group chat'**
+  String get groupChatDelete;
+
+  /// No description provided for @groupChatDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this group chat?'**
+  String get groupChatDeleteTitle;
+
+  /// No description provided for @groupChatDeleteContent.
+  ///
+  /// In en, this message translates to:
+  /// **'The group and all of its topics move to the recycle bin together.'**
+  String get groupChatDeleteContent;
+
+  /// No description provided for @groupChatDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Group chat moved to the recycle bin'**
+  String get groupChatDeleted;
+
+  /// No description provided for @groupChatUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This group chat\'s settings are not available. Restore it from the recycle bin.'**
+  String get groupChatUnavailable;
+
+  /// No description provided for @groupChatNewTopic.
+  ///
+  /// In en, this message translates to:
+  /// **'New topic'**
+  String get groupChatNewTopic;
+
+  /// No description provided for @groupChatRemovedMember.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted assistant'**
+  String get groupChatRemovedMember;
+
+  /// No description provided for @groupChatDirectorFallbackWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'The director model is unavailable, so the first member replied once. Check the default model settings.'**
+  String get groupChatDirectorFallbackWarning;
+
+  /// No description provided for @groupChatUnavailableWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This group chat has no available members.'**
+  String get groupChatUnavailableWarning;
+
+  /// No description provided for @defaultModelPageDirectorModelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Director model'**
+  String get defaultModelPageDirectorModelTitle;
+
+  /// No description provided for @defaultModelPageDirectorModelSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Picks who speaks next in a group chat. A fast, low-cost model is the best fit.'**
+  String get defaultModelPageDirectorModelSubtitle;
 }
 
 class _AppLocalizationsDelegate

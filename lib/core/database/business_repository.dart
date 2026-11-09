@@ -94,11 +94,7 @@ final class BusinessRepository {
     RecycleGroup? removalGroup,
   }) => _database.transaction(() async {
     for (final entry in entities.entries) {
-      await synchronizeEntities(
-        entry.key,
-        entry.value,
-        group: removalGroup,
-      );
+      await synchronizeEntities(entry.key, entry.value, group: removalGroup);
     }
     for (final entry in preferences.entries) {
       await setPreference(entry.key, entry.value);

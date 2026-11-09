@@ -6864,7 +6864,7 @@ class ProviderConfig {
   static String _defaultBase(String key) {
     final k = key.toLowerCase();
     if (k.contains('tensdaq')) return 'https://tensdaq-api.x-aio.com/v1';
-    if (k.contains('cuplivoin')) return 'https://api.cuplivoas.top/v1';
+    if (k.contains('kelivoin')) return 'https://api.cuplivoas.top/v1';
     if (k.contains('openrouter')) return 'https://openrouter.ai/api/v1';
     if (k.contains('vercel')) return 'https://ai-gateway.vercel.sh/v1';
     if (k.contains('aihubmix')) return 'https://aihubmix.com/v1';
@@ -6906,7 +6906,7 @@ class ProviderConfig {
       if (s.contains('gemini') || s.contains('google')) return true;
       if (s.contains('silicon')) return true;
       if (s.contains('openrouter')) return true;
-      if (s.contains('cuplivoin')) return true;
+      if (s.contains('kelivoin')) return true;
       return false; // others disabled by default
     }
 
@@ -6967,7 +6967,7 @@ class ProviderConfig {
         );
       case ProviderKind.openai:
         // Special-case KelivoIN default models and overrides
-        if (lowerKey.contains('cuplivoin')) {
+        if (lowerKey.contains('kelivoin')) {
           return ProviderConfig(
             id: key,
             enabled: defaultEnabled(key),

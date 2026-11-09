@@ -785,3 +785,39 @@ theirs has that ours lacks" — on `message_generation_protocol_test.dart` that 
 boundary: the identity hunk on the settings literal ended one argument before upstream's new block
 began, so "ours + theirs" kept a `)` that upstream's code no longer has.
 
+### The 4.6 line's normalization (34 → 28)
+
+The line that carried Cuplivo 4.6.0 into the `v1.3.5` replay was 34 commits above `4a7da9b6f`. The pass
+folded five adjacent pairs into their upper commit, each by `git reset --soft <lo>^` at the upper one,
+so the survivor's tree is the *upper* commit's tree byte for byte and no patch application can invent a
+conflict. The fold keeps every folded body under `folded from <sha>:` — those bodies are the evidence
+the next replay reads, and `git commit -C` would have dropped them.
+
+| folded | into |
+|---|---|
+| `2184720ca` the 4.5 landing | `b264ef05a` the line's fixes |
+| `8b9e15859` release 4.5.0, `237c9a097` the replayed baseline's repairs | `fbe7e11dc` the `4a7da9b6f` record |
+| `7e5e8fdb6` crop in preview | `28e800170` focus retention |
+| `4718e1d67` compression readout | `d8d0445e3` the reply's ADR-0012 hooks |
+| `ef0d5280f` KelivoIN removal | `27f1beeaf` its follow-ups |
+
+Proved the usual way: `git diff --quiet master reorg/series-4.6`, `git merge-base --is-ancestor
+4a7da9b6f reorg/series-4.6`, and the count — 28, a delta of exactly the six commits folded away. Units
+1–5 keep their hashes because the first fold is at position 6.
+
+**What did not fold, measured.** The care follow-up into care crosses 40 files, the two group-chat
+follow-ups 30 and 49, the sync policy table into sync 39, and the markdown-image tab into its render
+commit 10 — one of them semantic (`side_drawer.dart`, which the chat-owners and composer units own in
+between). The reply *pair* (`d8d0445e3` add, `fbe7e11dc` retire) cannot fold across its ten-commit gap
+for the same reason; the retire instead rides in the 4.5 close-out. Below 28 the only lever left is a
+reorder into feature families, which moves the composer units' relative order — the first lesson in
+*What this line learned* — so it is a decision of its own.
+
+**Two consequences for the next replay.** The series tip is the `chore(release)` commit, not the
+mechanical reformat, so the procedure's `<old-master>~1` cut no longer drops exactly the reformat:
+name the release commit explicitly. And
+[ADR-0011](adr/0011-context-compression-readout.md) is withdrawn — Kelivo's own compaction rework
+deleted the pre-flight estimate surface (`compressUsage*` survive unreferenced,
+`estimateCompressionTokens` has no `lib/` caller, and the operations panel reports real `task.usage`),
+so the unit that carries the readout replays as a deletion.
+

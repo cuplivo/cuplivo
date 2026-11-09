@@ -398,6 +398,9 @@ class WorkspaceContentSync {
               relPath: item.path,
               advertised: advertised,
               fetch: fetch,
+              agreed: baseline[item.path],
+              myDeviceId: myDeviceId,
+              peerDeviceId: peerDeviceId,
             );
             if (stamp == null) {
               filesMissing++;
@@ -420,7 +423,13 @@ class WorkspaceContentSync {
             if (item.action == WorkspaceFileAction.peerWins) filesReplaced++;
           case WorkspaceFileAction.iDelete:
             if (!allowDeletes) continue;
-            if (await _deleteOne(snapshot, item.path)) {
+            if (await _deleteOne(
+              snapshot,
+              item.path,
+              agreed: baseline[item.path],
+              myDeviceId: myDeviceId,
+              peerDeviceId: peerDeviceId,
+            )) {
               deleted.add(item.path);
               filesRemoved++;
             } else {
@@ -494,6 +503,9 @@ class WorkspaceContentSync {
     required String relPath,
     required File staged,
     required WorkspaceFileStamp advertised,
+    required SyncAgreedFile? agreed,
+    required String myDeviceId,
+    required String peerDeviceId,
   }) async {
     try {
       if ((await disabledWorkspaceIds()).contains(workspaceId)) {
@@ -511,6 +523,9 @@ class WorkspaceContentSync {
         relPath: relPath,
         staged: staged,
         advertised: advertised,
+        agreed: agreed,
+        myDeviceId: myDeviceId,
+        peerDeviceId: peerDeviceId,
       );
     } catch (error) {
       debugPrint(
@@ -613,11 +628,68 @@ class WorkspaceContentSync {
     }
   }
 
+  /// The plan's verdict for one path, decided again from the file as it stands
+  /// right now.
+  ///
+  /// The plan for a workspace was computed from the walk; a landing or a
+  /// deletion happens later, after a fetch, a push and an apply. Two thirds of
+  /// what that verdict rests on travel with it — the version the peer
+  /// advertised, and the ledger entry saying what the two sides last agreed —
+  /// and only the file on disk is the thing that can move underneath. So it is
+  /// read here and the same planner is asked about the same path.
+  ///
+  /// Both callers ask a question about a *class* of answers rather than about
+  /// one action, because the class is what the write means: a landing is right
+  /// when the peer's version is still the one to adopt (`peerSends` or
+  /// `peerWins` — a local edit that loses the conflict is still adopted, and a
+  /// local revert to the agreed version is adopted too), and a deletion is
+  /// right only while the file is still the one both sides agreed on.
+  Future<WorkspaceFileAction> _planAgain({
+    required String relPath,
+    required File target,
+    required WorkspaceFileStamp? advertised,
+    required SyncAgreedFile? agreed,
+    required String myDeviceId,
+    required String peerDeviceId,
+  }) async {
+    final mine = await _stampOf(target);
+    return planWorkspaceContent(
+      mine: mine == null ? const {} : {relPath: mine},
+      peers: advertised == null ? const {} : {relPath: advertised},
+      baseline: agreed == null ? const {} : {relPath: agreed},
+      myDeviceId: myDeviceId,
+      peerDeviceId: peerDeviceId,
+    ).first.action;
+  }
+
+  /// The stamp of [file] as it stands, or null when no file is there.
+  ///
+  /// Read the way the walk reads it (size and milliseconds below), so a file
+  /// nobody touched produces exactly the stamp the walk did and the comparison
+  /// is exact rather than approximate.
+  static Future<WorkspaceFileStamp?> _stampOf(File file) async {
+    try {
+      final type = await FileSystemEntity.type(file.path, followLinks: false);
+      if (type != FileSystemEntityType.file) return null;
+      final stat = await file.stat();
+      return WorkspaceFileStamp(
+        size: stat.size,
+        mtimeMs: stat.modified.millisecondsSinceEpoch,
+      );
+    } catch (error) {
+      debugPrint('sync workspace: could not read ${file.path}: $error');
+      return null;
+    }
+  }
+
   Future<WorkspaceFileStamp?> _fetchOne({
     required WorkspaceContentSnapshot snapshot,
     required String relPath,
     required WorkspaceFileStamp advertised,
     required WorkspaceFileFetcher? fetch,
+    required SyncAgreedFile? agreed,
+    required String myDeviceId,
+    required String peerDeviceId,
   }) async {
     final fetcher = fetch;
     final root = snapshot.root;
@@ -642,6 +714,9 @@ class WorkspaceContentSync {
         relPath: relPath,
         staged: temp,
         advertised: advertised,
+        agreed: agreed,
+        myDeviceId: myDeviceId,
+        peerDeviceId: peerDeviceId,
       );
     } catch (error) {
       debugPrint('sync workspace file ${snapshot.id}/$relPath failed: $error');
@@ -670,6 +745,9 @@ class WorkspaceContentSync {
     required String relPath,
     required File staged,
     required WorkspaceFileStamp advertised,
+    required SyncAgreedFile? agreed,
+    required String myDeviceId,
+    required String peerDeviceId,
   }) async {
     final target = workspacePathWithin(root.path, relPath);
     if (target == null) {
@@ -678,6 +756,27 @@ class WorkspaceContentSync {
     }
     final file = File(target);
     try {
+      // The premise, re-read at the point of the write. The plan said the peer's
+      // version is the one to adopt about a file that has since been written
+      // here, so the write is refused: nothing is staged, nothing is binned —
+      // nothing replaced this file — and the peer's version is owed again next
+      // session, where the plan will have caught up and say `iSend` instead.
+      final again = await _planAgain(
+        relPath: relPath,
+        target: file,
+        advertised: advertised,
+        agreed: agreed,
+        myDeviceId: myDeviceId,
+        peerDeviceId: peerDeviceId,
+      );
+      if (again != WorkspaceFileAction.peerSends &&
+          again != WorkspaceFileAction.peerWins) {
+        debugPrint(
+          'sync workspace: refusing to land "$relPath": it was written here '
+          'since the plan was computed',
+        );
+        return null;
+      }
       // Containment is verified *before* anything is created: `create` follows
       // a symlinked ancestor, so creating first and checking afterwards would
       // already have made the directory on the far side of the link.
@@ -752,8 +851,11 @@ class WorkspaceContentSync {
 
   Future<bool> _deleteOne(
     WorkspaceContentSnapshot snapshot,
-    String relPath,
-  ) async {
+    String relPath, {
+    required SyncAgreedFile? agreed,
+    required String myDeviceId,
+    required String peerDeviceId,
+  }) async {
     final root = snapshot.root;
     if (root == null) return false;
     final target = workspacePathWithin(root.path, relPath);
@@ -765,6 +867,29 @@ class WorkspaceContentSync {
       // it may be a real folder the user made since, and deleting it would
       // take its contents with it.
       if (type != FileSystemEntityType.file) return false;
+      // The premise, re-read at the point of the removal: the peer deleted the
+      // version both sides agreed on, and this device still holds exactly that.
+      // A file written here since is an edit, and an edit beats a delete — it
+      // stays, nothing is binned (nothing is being removed), the deletion is
+      // owed again next session, and this counts as a miss rather than a
+      // removal.
+      final again = await _planAgain(
+        relPath: relPath,
+        target: File(target),
+        // The peer has no version of this path: that absence is what made the
+        // plan a deletion.
+        advertised: null,
+        agreed: agreed,
+        myDeviceId: myDeviceId,
+        peerDeviceId: peerDeviceId,
+      );
+      if (again != WorkspaceFileAction.iDelete) {
+        debugPrint(
+          'sync workspace: refusing to delete "$relPath": it was written here '
+          'since the plan was computed',
+        );
+        return false;
+      }
       // The peer removed this file and its bytes are about to leave the disk:
       // staged first for the same reason a replacement is, and awaited rather
       // than detached, because the move has to finish before this session

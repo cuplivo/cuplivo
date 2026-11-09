@@ -3382,6 +3382,13 @@ class SyncEngine implements SyncServerHandler {
         relPath: relPath,
         staged: staged,
         advertised: requested.stamp,
+        // The premise the landing is judged by: what this pairing last agreed
+        // about this path, carried from the checkpoint read at session start. A
+        // file written here since makes the arrival refuse itself rather than
+        // replace the user's edit.
+        agreed: session.checkpoint.workspaceFiles[workspaceId]?[relPath],
+        myDeviceId: identity.deviceId,
+        peerDeviceId: session.initiatorHello.deviceId,
       );
       if (landed == null) return false;
       session.pushedWorkspace.putIfAbsent(

@@ -785,3 +785,64 @@ theirs has that ours lacks" — on `message_generation_protocol_test.dart` that 
 boundary: the identity hunk on the settings literal ended one argument before upstream's new block
 began, so "ours + theirs" kept a `)` that upstream's code no longer has.
 
+### The 4.6 line's normalization (34 → 20 units)
+
+The line that carried Cuplivo 4.6.0 into the `v1.3.5` replay was 34 commits above `4a7da9b6f`. It took
+two passes to become 20 units.
+
+**Pass 1 folds adjacent pairs into their upper commit** — `git reset --soft <lo>^` at the upper one, so
+the survivor's tree is the *upper* commit's tree byte for byte and no patch application can invent a
+conflict. The fold keeps every folded body under `folded from <sha>:`; those bodies are the evidence the
+next replay reads, and `git commit -C` would have dropped them.
+
+| folded | into |
+|---|---|
+| `2184720ca` the 4.5 landing | `b264ef05a` the line's fixes |
+| `8b9e15859` release 4.5.0, `237c9a097` the replayed baseline's repairs | `fbe7e11dc` the `4a7da9b6f` record |
+| `7e5e8fdb6` crop in preview | `28e800170` focus retention |
+| `4718e1d67` compression readout | `d8d0445e3` the reply's ADR-0012 hooks |
+| `ef0d5280f` KelivoIN removal | `27f1beeaf` its follow-ups |
+
+**Pass 2 reorders into feature families.** A later member of a family is folded *back* into the
+family's unit: cherry-pick its patch onto that unit, then `git reset --soft <unit>^` and commit, so the
+merged unit sits where the family starts and every unit between replays onto it. That replay is what
+makes this pass different from pass 1 — the earlier commits now apply to content that already contains
+the later ones — so each fold is closed by comparing the *tip tree* with `master`'s, not by reading the
+resolution.
+
+| family unit | members |
+|---|---|
+| image | #925/#946 compression editor, #992 crop + #1012 focus, #1067 viewer paging, #1070 view-image test |
+| sync | LAN sync, #1068 policy table |
+| care | care port, #1064 backgrounded letter |
+| group-chat | #1052 topics, #1069 group exit, #1072 phone composer |
+| markdown-image | #1075 render, #1077 per-tab input |
+
+The fold conflicts were 0-1 files each except sync's policy table (7) and the group-chat quick entries
+(5); the *replay* conflicts were the same few files, and the resolution that holds is "the later
+commit's content wins", because a family's later member already contains its earlier members' changes.
+Proved the usual way: `git diff --name-only master reorg/series-4.6` is empty outside `docs/`,
+`git merge-base --is-ancestor 4a7da9b6f reorg/series-4.6` holds, and the count is 21 = 20 units plus
+the record. Units 1 and 2 keep their hashes.
+
+**The one family member that would not fold, and why it is the instructive one.** #1081 (the composer's
+quick entries follow the roster) into the group-chat unit conflicted on five files; the mechanical
+resolution left `home_page.dart` carrying the `isGroup` block **twice** — no conflict marker anywhere,
+and only the tip-tree comparison said so. A reorder makes the same change arrive by two routes, and git
+auto-merges both. That is rule 14's class, one level up: the marker scan cannot catch it, so it stays
+its own unit until someone resolves it by hand.
+
+What pass 1 alone could not reach, measured before pass 2 was attempted: the care follow-up into care
+crosses 40 files, the two group-chat follow-ups 30 and 49, the sync policy table 39, and the
+markdown-image tab 10 — one of them semantic (`side_drawer.dart`, owned in between by the chat-owners
+and composer units). The reply *pair* (`d8d0445e3` add, `fbe7e11dc` retire) cannot fold across its
+ten-commit gap for the same reason; the retire instead rides in the 4.5 close-out.
+
+**Two consequences for the next replay.** The series tip is the `chore(release)` commit, not the
+mechanical reformat, so the procedure's `<old-master>~1` cut no longer drops exactly the reformat:
+name the release commit explicitly. And
+[ADR-0011](adr/0011-context-compression-readout.md) is withdrawn — Kelivo's own compaction rework
+deleted the pre-flight estimate surface (`compressUsage*` survive unreferenced,
+`estimateCompressionTokens` has no `lib/` caller, and the operations panel reports real `task.usage`),
+so the unit that carries the readout replays as a deletion.
+

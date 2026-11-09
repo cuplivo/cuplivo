@@ -57,6 +57,7 @@ void main() {
     required AssistantProvider assistants,
     Assistant? assistant,
     bool scopeToAssistant = false,
+    bool compact = false,
   }) async {
     tester.view.physicalSize = const Size(400, 900);
     tester.view.devicePixelRatio = 1;
@@ -82,6 +83,7 @@ void main() {
               conversationId: 'c1',
               assistant: assistant ?? Assistant(id: _assistantId, name: 'A'),
               scopeToAssistant: scopeToAssistant,
+              compact: compact,
             ),
           ),
         ),
@@ -267,6 +269,43 @@ void main() {
     expect(assistants.getById(_assistantId)!.skillIds, ['alpha']);
     // ...and the two shared layers are untouched: the global enabled record and
     // the conversation-wide override would both change every member.
+    expect(skills.enabledCalls, isEmpty);
+    expect(chat.lastExtras, isNull);
+  });
+
+  testWidgets('a compact member-scoped panel drops the inherit switch too', (
+    tester,
+  ) async {
+    final alpha = createTempSkill(
+      id: 'alpha',
+      name: 'Alpha',
+      description: 'First',
+      parent: tempDir,
+    );
+    final skills = FakeSkillsService(skills: [alpha], skillsDirectory: tempDir);
+    final chat = FakeChatService(
+      conversation: Conversation(id: 'c1', title: 'Chat'),
+    );
+    final assistants = await loadAssistant(tester);
+
+    await pumpPanel(
+      tester,
+      skills: skills,
+      chat: chat,
+      assistants: assistants,
+      scopeToAssistant: true,
+      compact: true,
+    );
+
+    // The compact variant sits at the bottom of the panel and is the same
+    // control: it writes the conversation, which a scoped panel must not touch.
+    expect(find.byKey(ConversationSkillsPanel.inheritKey), findsNothing);
+
+    await tester.tap(find.byKey(ConversationSkillsPanel.skillKey('alpha')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(assistants.getById(_assistantId)!.skillIds, isEmpty);
     expect(skills.enabledCalls, isEmpty);
     expect(chat.lastExtras, isNull);
   });

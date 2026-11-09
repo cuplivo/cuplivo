@@ -326,48 +326,52 @@ class ConversationSkillsPanel extends StatelessWidget {
               ],
             ],
           ),
-        if (compact) ...[
+        if (compact && (footerAction != null || !scoped)) ...[
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Flexible(
-                child: IosCardPress(
-                  key: inheritKey,
-                  baseColor: Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 8,
-                  ),
-                  haptics: false,
-                  onTap: () => setInherit(!inherit),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IosCheckbox(
-                        value: inherit,
-                        onChanged: setInherit,
-                        size: 16,
-                        hitTestSize: 20,
-                        borderWidth: 1.5,
-                        activeColor: cs.primary,
-                        enableHaptics: false,
-                        semanticLabel: l10n.skillsInheritAssistant,
-                      ),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          l10n.skillsInheritAssistant,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12, color: cs.onSurface),
+              // The compact inherit switch writes the conversation, which a
+              // scoped panel must never do — it is the same control as the one
+              // this panel drops when it is not compact.
+              if (!scoped)
+                Flexible(
+                  child: IosCardPress(
+                    key: inheritKey,
+                    baseColor: Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 8,
+                    ),
+                    haptics: false,
+                    onTap: () => setInherit(!inherit),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IosCheckbox(
+                          value: inherit,
+                          onChanged: setInherit,
+                          size: 16,
+                          hitTestSize: 20,
+                          borderWidth: 1.5,
+                          activeColor: cs.primary,
+                          enableHaptics: false,
+                          semanticLabel: l10n.skillsInheritAssistant,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            l10n.skillsInheritAssistant,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 12, color: cs.onSurface),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
               if (footerAction != null) ...[
                 const SizedBox(width: 8),
                 footerAction!,

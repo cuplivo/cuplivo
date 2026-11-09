@@ -28,6 +28,7 @@ Future<void> showDesktopSearchProviderPopover(
   String? chatModelProviderKey,
   String? chatModelId,
   List<Assistant>? members,
+  String? initialAssistantId,
 }) async {
   final overlay = Overlay.of(context);
   final keyContext = anchorKey.currentContext;
@@ -52,6 +53,7 @@ Future<void> showDesktopSearchProviderPopover(
       chatModelProviderKey: chatModelProviderKey,
       chatModelId: chatModelId,
       members: members,
+      initialAssistantId: initialAssistantId,
       onClose: () {
         try {
           entry.remove();
@@ -70,6 +72,7 @@ class _SearchPopoverOverlay extends StatefulWidget {
     this.chatModelProviderKey,
     this.chatModelId,
     this.members,
+    this.initialAssistantId,
   });
 
   final Rect anchorRect;
@@ -80,6 +83,11 @@ class _SearchPopoverOverlay extends StatefulWidget {
 
   /// Non-null in a group chat: the roster whose member the strip selects.
   final List<Assistant>? members;
+
+  /// The member the strip starts on — the composer's own assistant, the way
+  /// every other group panel starts. Falls back to the roster's first member
+  /// when it is not one of them.
+  final String? initialAssistantId;
 
   @override
   State<_SearchPopoverOverlay> createState() => _SearchPopoverOverlayState();
@@ -99,7 +107,7 @@ class _SearchPopoverOverlayState extends State<_SearchPopoverOverlay>
   Assistant? get _target {
     final members = widget.members;
     if (members == null || members.isEmpty) return null;
-    final id = _selectedId ?? members.first.id;
+    final id = _selectedId ?? widget.initialAssistantId ?? members.first.id;
     return members.firstWhere(
       (member) => member.id == id,
       orElse: () => members.first,

@@ -1755,6 +1755,9 @@ class _HomePageState extends State<HomePage>
           context,
           anchorKey: _inputBarKey,
           members: members,
+          initialAssistantId: context
+              .read<AssistantProvider>()
+              .currentAssistantId,
         );
       } else {
         showSearchSettingsSheet(

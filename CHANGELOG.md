@@ -9,6 +9,7 @@
 ### Changed
 
 - The backup archive format moved from 3 to 4: an older build now refuses a new backup with a clear version error instead of failing part-way through a restore
+- **Backup file names follow the reader**: `cuplivo_backup_*.zip` for this build, `kelivo_backup_*.zip` for Kelivo 1.3.4. Both namings are still discovered and cleaned up, whichever version wrote them
 
 ### Fixed
 
@@ -18,6 +19,7 @@
 ### Removed
 
 - **Message replies**: the QQ-style citation and its `<reply-to>` context injection are removed. Upstream's own in-app quotes answer the same need — select text, quote it into the composer, tap a quote to jump back to its source — so the app carries one quoting model instead of two ([ADR-0012](docs/adr/0012-message-reply-quote.md))
+- **The built-in KelivoIN provider**: the free service upstream seeded, and the credential it carried, are gone — with its four prefilled models and its special cases on every provider screen. A saved config pointing at a backend this line wrote by mistake (the retired `pollinations.ai` host, or the `api.cuplivoas.top` host an earlier rename left behind) is removed at startup, and any assistant or conversation still naming it falls back to its default model. A config on upstream's own host stays as an ordinary provider, editable and deletable ([ADR-0018](docs/adr/0018-remove-built-in-kelivoin.md))
 
 ### Fixed
 

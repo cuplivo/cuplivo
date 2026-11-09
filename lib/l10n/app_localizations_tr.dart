@@ -2656,6 +2656,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get bottomToolsSheetOcr => 'Görsel OCR';
 
   @override
+  String get chatToolsEmptyModelCannotUseTools =>
+      'Bu üyenin modeli araç çağıramıyor.';
+
+  @override
+  String get chatToolsEmptyNoToolsEnabled => 'Bu üyede açık araç yok.';
+
+  @override
   String get messageMoreSheetTitle => 'Daha Fazla İşlem';
 
   @override

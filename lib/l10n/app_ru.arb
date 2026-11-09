@@ -5316,5 +5316,7 @@
   "backupPageTargetCuplivoNote": "Всё, что эта версия умеет восстанавливать, включая групповые чаты",
   "backupPageTargetKelivo": "Kelivo 1.3.4",
   "backupPageTargetKelivoNote": "Импортируется в Kelivo, но групповые чаты теряются",
-  "backupPageTargetTitle": "Цель резервной копии"
+  "backupPageTargetTitle": "Цель резервной копии",
+  "chatToolsEmptyModelCannotUseTools": "Модель этого участника не может вызывать инструменты.",
+  "chatToolsEmptyNoToolsEnabled": "У этого участника не включено ни одного инструмента."
 }

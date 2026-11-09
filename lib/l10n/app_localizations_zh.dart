@@ -2538,6 +2538,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get bottomToolsSheetOcr => 'OCR 文字识别';
 
   @override
+  String get chatToolsEmptyModelCannotUseTools => '这位成员的模型不能调用工具。';
+
+  @override
+  String get chatToolsEmptyNoToolsEnabled => '这位成员没有启用任何工具。';
+
+  @override
   String get messageMoreSheetTitle => '更多操作';
 
   @override
@@ -19826,6 +19832,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get bottomToolsSheetOcr => 'OCR 文字识别';
 
   @override
+  String get chatToolsEmptyModelCannotUseTools => '这位成员的模型不能调用工具。';
+
+  @override
+  String get chatToolsEmptyNoToolsEnabled => '这位成员没有启用任何工具。';
+
+  @override
   String get messageMoreSheetTitle => '更多操作';
 
   @override
@@ -37112,6 +37124,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get bottomToolsSheetOcr => 'OCR 文字辨識';
+
+  @override
+  String get chatToolsEmptyModelCannotUseTools => '這位成員的模型無法呼叫工具。';
+
+  @override
+  String get chatToolsEmptyNoToolsEnabled => '這位成員沒有啟用任何工具。';
 
   @override
   String get messageMoreSheetTitle => '更多操作';

@@ -4924,6 +4924,18 @@ abstract class AppLocalizations {
   /// **'Image OCR'**
   String get bottomToolsSheetOcr;
 
+  /// Empty state in the tools sheet when the current group member's model does not support tool calls.
+  ///
+  /// In en, this message translates to:
+  /// **'This member\'s model cannot call tools.'**
+  String get chatToolsEmptyModelCannotUseTools;
+
+  /// Empty state in the tools sheet when the current group member's model supports tools but none are switched on.
+  ///
+  /// In en, this message translates to:
+  /// **'This member has no tools switched on.'**
+  String get chatToolsEmptyNoToolsEnabled;
+
   /// Title and tooltip for the 'more actions' menu on a message or scheduled task tile.
   ///
   /// In en, this message translates to:

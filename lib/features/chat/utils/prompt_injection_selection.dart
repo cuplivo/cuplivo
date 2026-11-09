@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/models/assistant.dart';
 import '../../../core/models/conversation_prompt_settings.dart';
 import '../../../core/providers/instruction_injection_provider.dart';
 import '../../../core/providers/world_book_provider.dart';
@@ -68,6 +69,30 @@ Future<void> setPromptSelection(
           ids,
           assistantId: assistantId,
         );
+}
+
+/// How many of [kind] [member] has switched on — the one number the panels'
+/// member strips have room for.
+///
+/// The conversation layer counts only for a member that allows it, which is the
+/// layer that member's panel writes, so the number matches the rows below it.
+int promptSelectionCount(
+  BuildContext context, {
+  required PromptSelectionKind kind,
+  required Assistant member,
+  String? conversationId,
+}) {
+  final ids = promptSelectionIds(
+    context,
+    kind: kind,
+    assistantId: member.id,
+    conversationId: member.allowConversationPromptInjection
+        ? conversationId
+        : null,
+  );
+  if (kind != PromptSelectionKind.worldBook) return ids.length;
+  final books = context.watch<WorldBookProvider>().books;
+  return books.where((book) => book.enabled && ids.contains(book.id)).length;
 }
 
 Future<void> togglePromptSelection(

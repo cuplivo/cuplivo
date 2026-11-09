@@ -2586,6 +2586,12 @@ class AppLocalizationsKo extends AppLocalizations {
   String get bottomToolsSheetOcr => '이미지 OCR';
 
   @override
+  String get chatToolsEmptyModelCannotUseTools => '이 멤버의 모델은 도구를 호출할 수 없어요.';
+
+  @override
+  String get chatToolsEmptyNoToolsEnabled => '이 멤버는 사용 중인 도구가 없어요.';
+
+  @override
   String get messageMoreSheetTitle => '추가 작업';
 
   @override

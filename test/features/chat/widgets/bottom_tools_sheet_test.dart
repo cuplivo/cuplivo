@@ -157,6 +157,7 @@ void main() {
     VoidCallback? onCamera,
     VoidCallback? onPhotos,
     VoidCallback? onUpload,
+    List<Assistant>? members,
   }) async {
     tester.view.physicalSize = const Size(800, 1600);
     tester.view.devicePixelRatio = 1.0;
@@ -190,6 +191,7 @@ void main() {
               body: BottomToolsSheet(
                 assistantId: assistantId,
                 conversationId: conversation?.id,
+                members: members,
                 onCamera: onCamera,
                 onPhotos: onPhotos,
                 onUpload: onUpload,
@@ -202,6 +204,29 @@ void main() {
     await tester.pump();
     return AppLocalizations.of(tester.element(find.byType(Scaffold)))!;
   }
+
+  testWidgets('the strip starts on the composer assistant, not the first', (
+    tester,
+  ) async {
+    late Assistant composer;
+    late Assistant other;
+    await tester.runAsync(() async {
+      final otherId = await assistants.addAssistant(name: 'Other');
+      composer = assistants.getById(assistantId)!;
+      other = assistants.getById(otherId)!;
+      await worldBooks.initialize();
+      await worldBooks.addBook(const WorldBook(id: 'wb1', name: 'Lore'));
+      // Only the composer's own assistant has a world book on, so the count the
+      // panel opens with says whose list it is reading.
+      await worldBooks.setActiveBookIds(['wb1'], assistantId: composer.id);
+    });
+
+    // The composer is on the *second* member of the roster.
+    await pumpSheet(tester, members: [other, composer]);
+    await tester.pumpAndSettle();
+
+    expect(find.text('1/1'), findsOneWidget);
+  });
 
   testWidgets('more sheet retains browser entry with a window icon', (
     tester,

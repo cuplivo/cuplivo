@@ -1047,6 +1047,8 @@
  "chatSelectionThinkingContent": "22272a09f2268d91cae18ec372153cafb77f1384b3b655f1447b0a9504ff83ea",
  "chatSelectionThinkingTools": "82587c4536a1ceff5879a876ecd09c4597fdb63343c3464c5776ff59c5d80b36",
  "chatServiceDefaultConversationTitle": "c9e39fff68ecf448d116184c42cd3bc7043867dbf9fc8482607b13cfbebaf24a",
+ "chatToolsEmptyModelCannotUseTools": "c747d5ff0fd96fefde3d19cef48dee1996ded93c836e67b21fdd6a2e299f0236",
+ "chatToolsEmptyNoToolsEnabled": "e4216116035694917d55f080b622b60fe7a19b02f45b39be0a95d885f607d0a1",
  "clearContextDesc": "c80e37a847df8018b5795f70c30756e00a4788c342eca6ffdec356d2b50eab86",
  "codeBlockCollapseButton": "a7a51d3348a90c2c94567155804adf2510ea4bc89790d1b2b227f4c792d83c3d",
  "codeBlockCollapsedLines": "7834c94cb0a3c2682634d89e605f67eab7e587dcc44c196e9e703f1b41ee0185",

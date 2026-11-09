@@ -796,6 +796,8 @@
   "bottomToolsSheetResetDefault": "重設為預設",
   "bottomToolsSheetSave": "儲存",
   "bottomToolsSheetOcr": "OCR 文字辨識",
+  "chatToolsEmptyModelCannotUseTools": "這位成員的模型無法呼叫工具。",
+  "chatToolsEmptyNoToolsEnabled": "這位成員沒有啟用任何工具。",
   "messageMoreSheetTitle": "更多操作",
   "messageMoreSheetSelectCopy": "選擇複製",
   "messageMoreSheetRenderWebView": "網頁視圖渲染",

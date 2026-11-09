@@ -5316,5 +5316,7 @@
   "backupPageTargetCuplivoNote": "Bu sürümün geri yükleyebildiği her şey, grup sohbetleri dahil",
   "backupPageTargetKelivo": "Kelivo 1.3.4",
   "backupPageTargetKelivoNote": "Kelivo'ya aktarılabilir, ancak grup sohbetleri kaybolur",
-  "backupPageTargetTitle": "Yedek hedefi"
+  "backupPageTargetTitle": "Yedek hedefi",
+  "chatToolsEmptyModelCannotUseTools": "Bu üyenin modeli araç çağıramıyor.",
+  "chatToolsEmptyNoToolsEnabled": "Bu üyede açık araç yok."
 }

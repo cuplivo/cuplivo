@@ -70,6 +70,8 @@ internationalization.md
 /.agents/
 /skills-lock.json
 /.scratch/
+/.dsh-tmp/
+/.playwright-mcp/
 /.worktrees/
 /.grok/
 # Local tool-bridge state: job logs and the known-failure registry.

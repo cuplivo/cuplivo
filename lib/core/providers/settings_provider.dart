@@ -786,6 +786,15 @@ class SettingsProvider extends ChangeNotifier {
         _titleModelId = parts.sublist(1).join('::');
       }
     }
+    // load proactive care decision model
+    final careSel = prefs.getString(_proactiveCareDecisionModelKey);
+    if (careSel != null && careSel.contains('::')) {
+      final parts = careSel.split('::');
+      if (parts.length >= 2) {
+        _proactiveCareDecisionModelProvider = parts[0];
+        _proactiveCareDecisionModelId = parts.sublist(1).join('::');
+      }
+    }
     _perChatModelEnabled = prefs.getBool(_perChatModelEnabledKey) ?? false;
     _titleGenerationEnabled = prefs.getBool(_titleGenerationEnabledKey) ?? true;
     // load title prompt
@@ -3378,6 +3387,12 @@ class SettingsProvider extends ChangeNotifier {
       await prefs.remove(_memoryModelKey);
       changed = true;
     }
+    if (_proactiveCareDecisionModelProvider == providerKey) {
+      _proactiveCareDecisionModelProvider = null;
+      _proactiveCareDecisionModelId = null;
+      await prefs.remove(_proactiveCareDecisionModelKey);
+      changed = true;
+    }
     if (changed) notifyListeners();
   }
 
@@ -3447,6 +3462,14 @@ class SettingsProvider extends ChangeNotifier {
       changed = true;
     }
     // Disabling hides a model temporarily; deleting also removes its preferences.
+    if (_proactiveCareDecisionModelProvider == providerKey &&
+        _proactiveCareDecisionModelId == modelId) {
+      _proactiveCareDecisionModelProvider = null;
+      _proactiveCareDecisionModelId = null;
+      await prefs.remove(_proactiveCareDecisionModelKey);
+      changed = true;
+    }
+    // Also remove from pinned if applicable
     final pinKey = '$providerKey::$modelId';
     if (!preserveModelPreferences && _pinnedModels.contains(pinKey)) {
       _pinnedModels.remove(pinKey);
@@ -3479,6 +3502,11 @@ class SettingsProvider extends ChangeNotifier {
       _currentModelProvider = null;
       _currentModelId = null;
       await prefs.remove(_selectedModelKey);
+    }
+    if (_proactiveCareDecisionModelProvider == key) {
+      _proactiveCareDecisionModelProvider = null;
+      _proactiveCareDecisionModelId = null;
+      await prefs.remove(_proactiveCareDecisionModelKey);
     }
     if (_titleModelProvider == key) {
       _titleModelProvider = null;
@@ -3665,6 +3693,40 @@ You need to summarize the conversation between user and assistant into a short t
     notifyListeners();
     final prefs = _preferences;
     await prefs.setString(_titlePromptKey, _titlePrompt);
+  }
+
+  // Proactive care ("Ta的来信") decision model
+  static const String _proactiveCareDecisionModelKey =
+      'proactive_care_decision_model_v1';
+  String? _proactiveCareDecisionModelProvider;
+  String? _proactiveCareDecisionModelId;
+  String? get proactiveCareDecisionModelProvider =>
+      _proactiveCareDecisionModelProvider;
+  String? get proactiveCareDecisionModelId => _proactiveCareDecisionModelId;
+  String? get proactiveCareDecisionModelKey =>
+      (_proactiveCareDecisionModelProvider != null &&
+          _proactiveCareDecisionModelId != null)
+      ? '${_proactiveCareDecisionModelProvider!}::${_proactiveCareDecisionModelId!}'
+      : null;
+
+  Future<void> setProactiveCareDecisionModel(
+    String providerKey,
+    String modelId,
+  ) async {
+    _proactiveCareDecisionModelProvider = providerKey;
+    _proactiveCareDecisionModelId = modelId;
+    notifyListeners();
+    await _preferences.setString(
+      _proactiveCareDecisionModelKey,
+      '$providerKey::$modelId',
+    );
+  }
+
+  Future<void> resetProactiveCareDecisionModel() async {
+    _proactiveCareDecisionModelProvider = null;
+    _proactiveCareDecisionModelId = null;
+    notifyListeners();
+    await _preferences.remove(_proactiveCareDecisionModelKey);
   }
 
   Future<void> resetTitlePrompt() async => setTitlePrompt(defaultTitlePrompt);

@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import '../../database/backup_portability.dart';
 import '../../models/environment_variable.dart';
 import '../../database/business_settings_router.dart';
 
@@ -61,15 +60,16 @@ final class BackupSettingsValidator {
   };
 
   static bool isLocalOnly(String key) =>
-      BusinessKeyRegistry.classify(key) == BusinessKeyDisposition.localOnly;
+      BusinessKeyRegistry.isPlatformOnly(key);
 
-  static bool isDiscarded(String key) =>
-      BusinessKeyRegistry.classify(key) == BusinessKeyDisposition.discarded;
+  static bool isDiscarded(String key) => BusinessKeyRegistry.isDiscarded(key);
 
+  /// A backup that travels carries neither a platform preference, nor a key the
+  /// app only drops, nor device state the registry marks as staying here.
   static bool shouldIgnore(String key) =>
       isLocalOnly(key) ||
       isDiscarded(key) ||
-      BackupPortability.devicePreferenceKeys.contains(key);
+      BusinessKeyRegistry.isDeviceLocal(key);
 
   static void normalizeAndValidate(Map<String, dynamic> data) {
     normalizeLegacyStringLists(data);

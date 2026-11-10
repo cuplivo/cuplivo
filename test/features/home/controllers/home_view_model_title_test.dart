@@ -15,6 +15,7 @@ import 'package:Cuplivo/core/providers/mcp_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/core/services/mcp/mcp_tool_service.dart';
+import 'package:Cuplivo/features/chat/utils/placeholder_titles.dart';
 import 'package:Cuplivo/features/home/controllers/home_page_controller.dart';
 import 'package:Cuplivo/features/home/controllers/scroll_controller.dart';
 import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
@@ -52,6 +53,7 @@ void main() {
   late AssistantProvider assistantProvider;
   var generateTextRequestCount = 0;
   String? generateTextModel;
+  String? generateTextPrompt;
   final titleErrors = <Object>[];
 
   Future<void> handleApiRequest(HttpRequest request) async {
@@ -61,6 +63,11 @@ void main() {
     if (body['stream'] != true) {
       generateTextRequestCount++;
       generateTextModel = body['model'] as String?;
+      final messages = body['messages'];
+      if (messages is List && messages.isNotEmpty) {
+        final first = messages.first;
+        if (first is Map) generateTextPrompt = first['content'] as String?;
+      }
     }
     request.response.statusCode = HttpStatus.ok;
     request.response.headers.contentType = ContentType.json;
@@ -89,6 +96,7 @@ void main() {
     await chatService.init();
     generateTextRequestCount = 0;
     generateTextModel = null;
+    generateTextPrompt = null;
     titleErrors.clear();
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.listen(handleApiRequest);
@@ -166,6 +174,20 @@ void main() {
       titleErrors.add(error);
     };
     return controller!;
+  }
+
+  Future<void> seedTwoTurnGroupConversation(String conversationId) async {
+    await chatService.addMessage(
+      conversationId: conversationId,
+      role: 'user',
+      content: 'which chapter are we reading',
+    );
+    await chatService.addMessage(
+      conversationId: conversationId,
+      role: 'assistant',
+      content: 'chapter three',
+      senderId: assistantProvider.currentAssistantId,
+    );
   }
 
   Future<void> seedTwoTurnConversation(String conversationId) async {
@@ -253,6 +275,126 @@ void main() {
       expect(generateTextModel, 'conversation-model');
       expect(titleErrors, isEmpty);
       expect(chatService.getConversation(convo.id)!.title, 'Dark mode chat');
+    });
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a title in another language is still a placeholder', (
+    tester,
+  ) async {
+    final controller = await pumpHarness(tester);
+    await tester.runAsync(() async {
+      // What the app does on startup: every shipped locale's placeholder, not
+      // the one the process happens to have started in. A user who switches
+      // EN→ZH keeps creating `新话题` topics, and the naming gate has to keep
+      // recognising them.
+      chatService.setPlaceholderTitles(
+        conversation: 'New Chat',
+        titles: localizedPlaceholderTitles(),
+      );
+      final convo = await chatService.createConversation(
+        title: '新话题',
+        groupChatId: 'g1',
+      );
+      await seedTwoTurnGroupConversation(convo.id);
+
+      await controller.debugViewModel.debugMaybeGenerateTitleFor(convo.id);
+
+      expect(chatService.getConversation(convo.id)!.title, 'Dark mode chat');
+      await tester.pumpWidget(const SizedBox());
+    });
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a group topic is titled by the director model', (tester) async {
+    final controller = await pumpHarness(tester);
+    await tester.runAsync(() async {
+      await settings.setDirectorModel('SiliconFlow', 'director-model');
+      // The placeholder a topic actually carries. While it was not one of the
+      // names the gate recognised, a topic kept `新话题` for its whole life.
+      final convo = await chatService.createConversation(
+        title: 'New topic',
+        groupChatId: 'g1',
+      );
+      await seedTwoTurnGroupConversation(convo.id);
+
+      await controller.debugViewModel.debugMaybeGenerateTitleFor(convo.id);
+
+      expect(generateTextRequestCount, 1);
+      expect(generateTextModel, 'director-model');
+      // The title model reads who said what, and only the public text.
+      expect(generateTextPrompt, contains('[Title Assistant]: chapter three'));
+      expect(chatService.getConversation(convo.id)!.title, 'Dark mode chat');
+      await tester.pumpWidget(const SizedBox());
+    });
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the title model outranks the director model for a group', (
+    tester,
+  ) async {
+    final controller = await pumpHarness(tester);
+    await tester.runAsync(() async {
+      await settings.setDirectorModel('SiliconFlow', 'director-model');
+      await settings.setTitleModel('SiliconFlow', 'title-model');
+      final convo = await chatService.createConversation(
+        title: 'New Chat',
+        groupChatId: 'g1',
+      );
+      await seedTwoTurnGroupConversation(convo.id);
+
+      await controller.debugViewModel.debugMaybeGenerateTitleFor(convo.id);
+
+      expect(generateTextRequestCount, 1);
+      expect(generateTextModel, 'title-model');
+      await tester.pumpWidget(const SizedBox());
+    });
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a group topic that already has a title makes no request', (
+    tester,
+  ) async {
+    final controller = await pumpHarness(tester);
+    await tester.runAsync(() async {
+      await settings.setDirectorModel('SiliconFlow', 'director-model');
+      final convo = await chatService.createConversation(
+        title: 'New Chat',
+        groupChatId: 'g1',
+      );
+      await seedTwoTurnGroupConversation(convo.id);
+      await chatService.renameConversation(convo.id, 'Reading club');
+
+      await controller.debugViewModel.debugMaybeGenerateTitleFor(convo.id);
+
+      expect(generateTextRequestCount, 0);
+      expect(chatService.getConversation(convo.id)!.title, 'Reading club');
+    });
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('two finishes in a row produce one title request', (
+    tester,
+  ) async {
+    final controller = await pumpHarness(tester);
+    await tester.runAsync(() async {
+      await settings.setDirectorModel('SiliconFlow', 'director-model');
+      final convo = await chatService.createConversation(
+        title: 'New Chat',
+        groupChatId: 'g1',
+      );
+      await seedTwoTurnGroupConversation(convo.id);
+
+      final first = controller.debugViewModel.debugMaybeGenerateTitleFor(
+        convo.id,
+      );
+      final second = controller.debugViewModel.debugMaybeGenerateTitleFor(
+        convo.id,
+      );
+      await Future.wait([first, second]);
+
+      expect(generateTextRequestCount, 1);
+      await tester.pumpWidget(const SizedBox());
     });
     expect(tester.takeException(), isNull);
   });

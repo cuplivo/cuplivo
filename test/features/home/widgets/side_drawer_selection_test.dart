@@ -3,6 +3,9 @@ import 'dart:io';
 
 import "../../../support/business_test_harness.dart";
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/chat_owners_provider.dart';
+import 'package:Cuplivo/core/providers/group_chat_provider.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/providers/update_provider.dart';
 import 'package:Cuplivo/core/providers/backup_reminder_provider.dart';
@@ -178,6 +181,7 @@ void main() {
     final assistantPrefs = createBusinessTestPreferences();
     final backupPrefs = createBusinessTestPreferences();
     final tagPrefs = createBusinessTestPreferences();
+    final business = createBusinessTestPreferencesWithDatabase();
     final settings = SettingsProvider(settingsPrefs);
     Widget materialFor(Locale currentLocale) {
       return MaterialApp(
@@ -207,6 +211,18 @@ void main() {
           ChangeNotifierProvider<SettingsProvider>.value(value: settings),
           ChangeNotifierProvider(
             create: (_) => AssistantProvider(preferences: assistantPrefs),
+          ),
+          ChangeNotifierProvider(
+            create: (_) => GroupChatProvider(
+              store: ExtensionEntityStore(business.database),
+            ),
+          ),
+          ChangeNotifierProvider(
+            create: (ctx) => ChatOwnersProvider(
+              assistants: ctx.read<AssistantProvider>(),
+              groups: ctx.read<GroupChatProvider>(),
+              preferences: business.preferences,
+            ),
           ),
           ChangeNotifierProvider(
             create: (_) => BackupReminderProvider(preferences: backupPrefs),

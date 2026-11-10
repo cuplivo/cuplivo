@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>管理页 · 助手与群聊</title>
+<style>
+  :root {
+    --paper: #f4f1ea;
+    --ink: #1d1c1a;
+    --muted: #6f6b63;
+    --faint: #9b958b;
+    --accent: #0f6b5c;
+    --accent-soft: rgba(15,107,92,.09);
+    --line: rgba(29,28,26,.09);
+    --card: #fbf9f3;
+    --shadow: 0 18px 48px rgba(50,42,30,.14), 0 2px 6px rgba(50,42,30,.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .sheet { max-width: 1180px; margin: 0 auto; padding: 40px 28px 72px; }
+  .eyebrow {
+    font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700;
+  }
+  h1 { font-size: 30px; line-height: 1.18; margin: 10px 0 10px; letter-spacing: -.02em; }
+  .lede { font-size: 14px; line-height: 1.65; color: var(--muted); margin: 0; max-width: 760px; }
+  .caption {
+    display: flex; align-items: baseline; gap: 10px; margin: 0 0 12px;
+    font-size: 12px; color: var(--muted);
+  }
+  .caption b { color: var(--ink); font-size: 13px; letter-spacing: .02em; }
+  .variant { margin-top: 40px; padding-top: 26px; border-top: 1px solid var(--line); }
+  .variant h2 { font-size: 17px; margin: 0 0 6px; letter-spacing: -.01em; }
+  .variant p.note { font-size: 13px; line-height: 1.6; color: var(--muted); margin: 0 0 22px; max-width: 720px; }
+  .stage { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 36px; align-items: start; }
+  .stage > * { min-width: 0; }
+
+  /* ---------- phone ---------- */
+  .phone {
+    width: 340px; border-radius: 32px; border: 7px solid #242321;
+    background: #f7f5ef; overflow: hidden; box-shadow: var(--shadow);
+    height: 660px; display: flex; flex-direction: column;
+  }
+  .nav {
+    height: 46px; flex: none; display: flex; align-items: center; gap: 8px;
+    padding: 0 12px; border-bottom: 1px solid var(--line); font-size: 14px;
+    font-weight: 650;
+  }
+  .nav .spacer { flex: 1; }
+  .nav svg { width: 16px; height: 16px; }
+  .nav .icon { color: var(--accent); display: grid; place-items: center; padding: 4px; }
+  .nav .icon.plain { color: var(--ink); }
+  .body { flex: 1; min-height: 0; overflow: hidden; padding: 12px 14px 18px; }
+
+  /* ---------- segmented ---------- */
+  .seg {
+    display: flex; gap: 4px; padding: 3px; border-radius: 10px;
+    background: rgba(29,28,26,.06); margin: 0 0 14px;
+  }
+  .seg span {
+    flex: 1; text-align: center; font-size: 13px; padding: 6px 0; border-radius: 8px;
+    color: var(--muted); font-weight: 550;
+  }
+  .seg span.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(50,42,30,.12); }
+
+  /* ---------- rows ---------- */
+  .row {
+    display: flex; align-items: center; gap: 12px; background: var(--card);
+    border: 1px solid var(--line); border-radius: 14px; padding: 10px 10px 10px 12px;
+    margin-bottom: 10px;
+  }
+  .row .av {
+    width: 42px; height: 42px; flex: none; border-radius: 50%; display: grid;
+    place-items: center; font-size: 21px; background: linear-gradient(150deg,#e9e3d2,#d8cfb9);
+    border: 1px solid rgba(29,28,26,.07);
+  }
+  .row .av.cluster {
+    background: #f0ece1; display: flex; align-items: center; justify-content: center;
+    gap: -6px; padding: 0; font-size: 15px;
+  }
+  .row .av.cluster i {
+    width: 17px; height: 17px; border-radius: 50%; border: 1.5px solid var(--card);
+    display: grid; place-items: center; font-style: normal; font-size: 9px;
+    background: #cfd8cd; margin-left: -5px;
+  }
+  .row .av.cluster i:first-child { margin-left: 0; }
+  .row .txt { flex: 1; min-width: 0; }
+  .row .nm {
+    font-size: 14.5px; font-weight: 650; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .row .sub {
+    font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .row .tag {
+    font-size: 10px; padding: 1px 6px; border-radius: 6px; color: var(--accent);
+    background: var(--accent-soft); margin-left: 6px; vertical-align: 1px;
+  }
+  .row .handle {
+    flex: none; color: var(--faint); display: grid; place-items: center; padding: 6px 2px;
+  }
+  .row .handle svg { width: 15px; height: 15px; }
+  .row.dragging { transform: rotate(-.4deg) scale(1.01); box-shadow: 0 10px 22px rgba(50,42,30,.16); }
+
+  .newrow {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    border: 1px dashed rgba(29,28,26,.2); border-radius: 14px; padding: 12px;
+    color: var(--muted); font-size: 13px; margin-top: 14px;
+  }
+  .newrow svg { width: 15px; height: 15px; }
+
+  /* ---------- sheet ---------- */
+  .sheetmock { margin-top: 26px; width: 340px; }
+  .sheetbox {
+    background: var(--card); border-radius: 18px; box-shadow: var(--shadow);
+    overflow: hidden; border: 1px solid var(--line);
+  }
+  .sheetbox .grab { height: 5px; width: 38px; border-radius: 99px; background: rgba(29,28,26,.18); margin: 8px auto 4px; }
+  .sheetbox .item {
+    display: flex; align-items: center; gap: 12px; padding: 13px 16px; font-size: 14px;
+    border-top: 1px solid var(--line);
+  }
+  .sheetbox .item:first-of-type { border-top: none; }
+  .sheetbox .item .dot {
+    width: 26px; height: 26px; border-radius: 8px; background: var(--accent-soft);
+    color: var(--accent); display: grid; place-items: center;
+  }
+  .sheetbox .item .dot svg { width: 14px; height: 14px; }
+  .sheetbox .item small { color: var(--muted); font-size: 12px; margin-left: auto; }
+
+  /* ---------- desktop ---------- */
+  .desktop {
+    background: #f7f5ef; border-radius: 14px; border: 1px solid var(--line);
+    box-shadow: var(--shadow); overflow: hidden; display: flex; min-height: 470px;
+  }
+  .desktop .side {
+    width: 168px; flex: none; border-right: 1px solid var(--line); padding: 14px 10px;
+    font-size: 12.5px; color: var(--muted);
+  }
+  .desktop .side .brand { font-size: 12px; color: var(--faint); padding: 0 8px 10px; letter-spacing: .08em; text-transform: uppercase; }
+  .desktop .side .it { padding: 7px 10px; border-radius: 8px; }
+  .desktop .side .it.on { background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+  .desktop .main { flex: 1; padding: 16px 22px 22px; min-width: 0; }
+  .desktop .head {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+  }
+  .desktop .head h3 { font-size: 15px; margin: 0; font-weight: 650; }
+  .desktop .head .spacer { flex: 1; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px;
+    padding: 6px 12px; border-radius: 8px; background: var(--accent); color: #fff;
+    font-weight: 600;
+  }
+  .btn svg { width: 13px; height: 13px; }
+  .desktop .row { padding: 8px 8px 8px 12px; margin-bottom: 8px; }
+  .desktop .row .av { width: 34px; height: 34px; font-size: 17px; }
+  .desktop .row .av.cluster i { width: 15px; height: 15px; }
+  .desktop .row .nm { font-size: 13px; }
+  .desktop .row .sub { font-size: 11.5px; }
+
+  /* ---------- tradeoff ---------- */
+  .tradeoff {
+    margin-top: 34px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+    font-size: 12.5px; line-height: 1.65; color: var(--muted);
+  }
+  .tradeoff h4 { margin: 0 0 6px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink); }
+  .tradeoff ul { margin: 0; padding-left: 18px; }
+  .tradeoff li { margin-bottom: 4px; }
+  @media (max-width: 1000px) {
+    .stage { grid-template-columns: 1fr; }
+    .tradeoff { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="eyebrow">管理页 · 一轮 UI</div>
+  <h1>助手与群聊，同一份顺序</h1>
+  <p class="lede">
+    现在有两份排位：侧栏按“助手和群聊混排”拖，设置里的助手页按“只有助手”拖，两边各写各的，
+    拖完就对不上。这一轮把管理页和侧栏收成一份顺序，并且把“新建助手”和“新建群聊”放在同一个入口。
+  </p>
+
+  <!-- ============ A ============ -->
+  <section class="variant">
+    <h2>A · 一张列表，一个 +</h2>
+    <p class="note">
+      助手与群聊同列，拖动就是全局顺序（侧栏立刻同步）。行样式按类型分：助手给出提示词首行，
+      群聊给出成员名单。右上角一个 + 展开“新建助手 / 新建群聊”。
+    </p>
+    <div class="stage">
+      <div>
+        <p class="caption"><b>360 · 管理页</b> 拖动把手在行尾</p>
+        <div class="phone">
+          <div class="nav">
+            <span class="icon plain"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></span>
+            <span>管理</span>
+            <span class="spacer"></span>
+            <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></span>
+          </div>
+          <div class="body">
+            <div class="row">
+              <span class="av">🧪</span>
+              <div class="txt"><div class="nm">STEM Mentor v5</div><div class="sub">你是一位苛刻的审稿人</div></div>
+              <span class="handle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg></span>
+            </div>
+            <div class="row">
+              <span class="av cluster"><i>🧪</i><i>🏛</i><i>✍️</i></span>
+              <div class="txt"><div class="nm">论文评审组</div><div class="sub">STEM Mentor v5、苏格拉底、编辑</div></div>
+              <span class="handle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg></span>
+            </div>
+            <div class="row">
+              <span class="av">🏛</span>
+              <div class="txt"><div class="nm">苏格拉底</div><div class="sub">只提问，不给答案</div></div>
+              <span class="handle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg></span>
+            </div>
+            <div class="row">
+              <span class="av cluster"><i>📰</i><i>🗂</i></span>
+              <div class="txt"><div class="nm">晨间简报</div><div class="sub">播报、整理</div></div>
+              <span class="handle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg></span>
+            </div>
+            <div class="row">
+              <span class="av">✍️</span>
+              <div class="txt"><div class="nm">编辑</div><div class="sub">把口语改成书面语</div></div>
+              <span class="handle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg></span>
+            </div>
+            <div class="newrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+              新建助手或群聊
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="caption"><b>1280 · 设置 › 管理</b> 侧栏项由「助手」改名为「管理」</p>
+        <div class="desktop">
+          <div class="side">
+            <div class="brand">设置</div>
+            <div class="it">外观</div>
+            <div class="it">模型</div>
+            <div class="it on">管理</div>
+            <div class="it">记忆</div>
+            <div class="it">同步</div>
+          </div>
+          <div class="main">
+            <div class="head">
+              <h3>助手与群聊</h3>
+              <span class="spacer"></span>
+              <span class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>新建</span>
+            </div>
+            <div class="row">
+              <span class="av">🧪</span>
+              <div class="txt"><div class="nm">STEM Mentor v5</div><div class="sub">你是一位苛刻的审稿人</div></div>
+              <span class="handle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg></span>
+            </div>
+            <div class="row dragging">
+              <span class="av cluster"><i>🧪</i><i>🏛</i><i>✍️</i></span>
+              <div class="txt"><div class="nm">论文评审组</div><div class="sub">STEM Mentor v5、苏格拉底、编辑</div></div>
+              <span class="handle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg></span>
+            </div>
+            <div class="row">
+              <span class="av">🏛</span>
+              <div class="txt"><div class="nm">苏格拉底</div><div class="sub">只提问，不给答案</div></div>
+              <span class="handle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg></span>
+            </div>
+            <div class="row">
+              <span class="av cluster"><i>📰</i><i>🗂</i></span>
+              <div class="txt"><div class="nm">晨间简报</div><div class="sub">播报、整理</div></div>
+              <span class="handle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sheetmock">
+      <p class="caption"><b>+ 展开</b> 两版共用，移动端底部操作单、桌面端贴按钮</p>
+      <div class="sheetbox">
+        <div class="grab"></div>
+        <div class="item">
+          <span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8V4M8 12H4m16 0h-4M12 16v4"/><circle cx="12" cy="12" r="3"/></svg></span>
+          新建助手 <small>一个人设</small>
+        </div>
+        <div class="item">
+          <span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M4 19c0-3 2.5-4.5 5-4.5S14 16 14 19M15 19c0-2 1.5-3.2 3.2-3.2S21 17 21 19"/></svg></span>
+          新建群聊 <small>群名 + 首批成员</small>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ B ============ -->
+  <section class="variant">
+    <h2>B · 分段：助手 | 群聊</h2>
+    <p class="note">
+      同一页、同一份顺序，但按类型分段展示。段内拖动只改同名类型之间的相对位置，
+      跨类型的先后仍由侧栏决定。好处是两种卡片不用挤在同一种排版里。
+    </p>
+    <div class="stage">
+      <div>
+        <p class="caption"><b>360 · 管理页</b> 段内可拖，跨段不可</p>
+        <div class="phone">
+          <div class="nav">
+            <span class="icon plain"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></span>
+            <span>管理</span>
+            <span class="spacer"></span>
+            <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></span>
+          </div>
+          <div class="body">
+            <div class="seg"><span class="on">助手 3</span><span>群聊 2</span></div>
+            <div class="row">
+              <span class="av">🧪</span>
+              <div class="txt"><div class="nm">STEM Mentor v5<span class="tag">写作</span></div><div class="sub">你是一位苛刻的审稿人</div></div>
+              <span class="handle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg></span>
+            </div>
+            <div class="row">
+              <span class="av">🏛</span>
+              <div class="txt"><div class="nm">苏格拉底<span class="tag">教学</span></div><div class="sub">只提问，不给答案</div></div>
+              <span class="handle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg></span>
+            </div>
+            <div class="row">
+              <span class="av">✍️</span>
+              <div class="txt"><div class="nm">编辑</div><div class="sub">把口语改成书面语</div></div>
+              <span class="handle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg></span>
+            </div>
+            <div class="newrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+              新建助手
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="caption"><b>1280 · 设置 › 管理</b> 同一段控件，右侧是选中项的详情</p>
+        <div class="desktop">
+          <div class="side">
+            <div class="brand">设置</div>
+            <div class="it">外观</div>
+            <div class="it">模型</div>
+            <div class="it on">管理</div>
+            <div class="it">记忆</div>
+            <div class="it">同步</div>
+          </div>
+          <div class="main">
+            <div class="head">
+              <div class="seg" style="width:280px;margin:0;">
+                <span class="on">助手 3</span><span>群聊 2</span>
+              </div>
+              <span class="spacer"></span>
+              <span class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>新建助手</span>
+            </div>
+            <div class="row">
+              <span class="av">🧪</span>
+              <div class="txt"><div class="nm">STEM Mentor v5<span class="tag">写作</span></div><div class="sub">你是一位苛刻的审稿人</div></div>
+              <span class="handle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg></span>
+            </div>
+            <div class="row">
+              <span class="av">🏛</span>
+              <div class="txt"><div class="nm">苏格拉底<span class="tag">教学</span></div><div class="sub">只提问，不给答案</div></div>
+              <span class="handle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg></span>
+            </div>
+            <div class="row">
+              <span class="av">✍️</span>
+              <div class="txt"><div class="nm">编辑</div><div class="sub">把口语改成书面语</div></div>
+              <span class="handle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="tradeoff">
+    <div>
+      <h4>A 放弃的东西</h4>
+      <ul>
+        <li>群聊卡和助手卡共用一种排版，群聊没法显示“话题数”这类只属于它的信息</li>
+        <li>侧栏的标签分组在管理页里只剩行内一枚小标签，不再是分组标题</li>
+        <li>助手自己那份排序字段退场，没有“只重排助手”的旋钮了</li>
+      </ul>
+    </div>
+    <div>
+      <h4>B 放弃的东西</h4>
+      <ul>
+        <li>跨类型拖动做不到：想把群聊挪到某个助手前面，只能回侧栏拖</li>
+        <li>多了一个“当前在哪一段”的状态，新建后还要决定跳不跳段</li>
+        <li>顺序仍然只有一份，但“段”会让它看起来像两份</li>
+      </ul>
+    </div>
+  </div>
+</div>
+</body>
+</html>

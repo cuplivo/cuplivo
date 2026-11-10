@@ -60,6 +60,39 @@ class ModelDisplayInfo {
   return (providerKey: providerKey, modelId: modelId);
 }
 
+/// Resolves the model that writes a conversation's title.
+///
+/// The title model is a global preference and wins everywhere. Without it a
+/// 1:1 chat falls back to the model that chat sends with; a group topic has no
+/// chat model of its own — the group's is the director's — so it falls back to
+/// the director model and then to the global default.
+///
+/// This is the only place the title-model chain is written: both the
+/// end-of-round path and the sidebar's "regenerate title" go through it.
+({String? providerKey, String? modelId}) resolveTitleModel(
+  SettingsProvider settings, {
+  Conversation? conversation,
+  Assistant? assistant,
+}) {
+  final titleProvider = settings.titleModelProvider;
+  final titleModel = settings.titleModelId;
+  if (titleProvider != null && titleModel != null) {
+    return (providerKey: titleProvider, modelId: titleModel);
+  }
+  if (conversation?.isGroupConversation == true) {
+    return (
+      providerKey:
+          settings.directorModelProvider ?? settings.currentModelProvider,
+      modelId: settings.directorModelId ?? settings.currentModelId,
+    );
+  }
+  return resolveChatModel(
+    settings,
+    conversation: conversation,
+    assistant: assistant,
+  );
+}
+
 /// Extracts model display information from settings, conversation and assistant.
 ///
 /// This consolidates the repeated pattern of resolving the active model and

@@ -208,17 +208,23 @@ abstract class AppLocalizations {
   /// **'Appearance, behavior, and interaction preferences'**
   String get settingsPageDisplaySubtitle;
 
-  /// No description provided for @settingsPageAssistant.
+  /// No description provided for @settingsPageChatOwners.
   ///
   /// In en, this message translates to:
-  /// **'Assistant'**
-  String get settingsPageAssistant;
+  /// **'Assistants and groups'**
+  String get settingsPageChatOwners;
 
-  /// No description provided for @settingsPageAssistantSubtitle.
+  /// No description provided for @settingsPageChatOwnersCreate.
   ///
   /// In en, this message translates to:
-  /// **'Default assistant and style'**
-  String get settingsPageAssistantSubtitle;
+  /// **'Create'**
+  String get settingsPageChatOwnersCreate;
+
+  /// No description provided for @chatOwnerCreateAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'New assistant'**
+  String get chatOwnerCreateAssistant;
 
   /// No description provided for @settingsPageModelsServicesSection.
   ///
@@ -2836,12 +2842,6 @@ abstract class AppLocalizations {
   /// **'Use global default'**
   String get assistantEditModelUseGlobalDefault;
 
-  /// No description provided for @assistantSettingsPageTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Assistant Settings'**
-  String get assistantSettingsPageTitle;
-
   /// No description provided for @assistantSettingsCopyButton.
   ///
   /// In en, this message translates to:
@@ -2895,12 +2895,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Save'**
   String get assistantSettingsAddSheetSave;
-
-  /// No description provided for @desktopAssistantsListTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Assistants'**
-  String get desktopAssistantsListTitle;
 
   /// No description provided for @desktopSidebarTabAssistants.
   ///
@@ -6087,6 +6081,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add'**
   String get chatInputBarMoreTooltip;
+
+  /// No description provided for @chatInputBarOverflowTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'More actions'**
+  String get chatInputBarOverflowTooltip;
 
   /// No description provided for @chatInputBarVoiceInputTooltip.
   ///
@@ -19605,6 +19605,12 @@ abstract class AppLocalizations {
   /// **'Configuration'**
   String get recycleBinKindConfig;
 
+  /// No description provided for @recycleBinKindGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Group'**
+  String get recycleBinKindGroup;
+
   /// No description provided for @recycleBinOriginLocal.
   ///
   /// In en, this message translates to:
@@ -19706,6 +19712,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Assistants'**
   String get recycleBinFilterAssistants;
+
+  /// No description provided for @recycleBinFilterGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'Groups'**
+  String get recycleBinFilterGroups;
 
   /// No description provided for @recycleBinFilterSettings.
   ///

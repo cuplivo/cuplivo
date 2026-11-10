@@ -8,6 +8,8 @@ import '../core/providers/settings_provider.dart';
 import 'user_profile_dialog.dart';
 import '../icons/lucide_adapter.dart' as lucide;
 import '../utils/sandbox_path_resolver.dart';
+import '../shared/navigation/app_tools.dart';
+import 'desktop_tab.dart';
 import '../theme/app_font_weights.dart';
 import 'widgets/desktop_pane_surface.dart';
 
@@ -15,21 +17,24 @@ import 'widgets/desktop_pane_surface.dart';
 class DesktopNavRail extends StatelessWidget {
   const DesktopNavRail({
     super.key,
-    required this.activeIndex,
+    required this.activeTab,
     this.globalSearchActive = false,
     required this.onTapChat,
     required this.onTapGlobalSearch,
-    required this.onTapTranslate,
-    required this.onTapStorage,
+    required this.onSelectTool,
     required this.onTapSettings,
   });
 
-  final int activeIndex; // 0=Chat, 1=Translate, 2=Storage, 3=Settings
+  /// The tab on screen. The rail names tabs, not numbers: the shell owns the
+  /// stack, so it owns the order too.
+  final DesktopTab activeTab;
   final bool globalSearchActive;
   final VoidCallback onTapChat;
   final VoidCallback onTapGlobalSearch;
-  final VoidCallback onTapTranslate;
-  final VoidCallback onTapStorage;
+
+  /// Opens a tool's own tab. Every tool gets its own rail button, so this is
+  /// one tap, not a menu.
+  final ValueChanged<AppTool> onSelectTool;
   final VoidCallback onTapSettings;
 
   static const double width = 64.0;
@@ -40,11 +45,9 @@ class DesktopNavRail extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final isMac = Platform.isMacOS;
     final double topGap = isMac ? 36.0 : 8.0;
-    final isChatActive = activeIndex == 0 && !globalSearchActive;
+    final isChatActive = activeTab == DesktopTab.chat && !globalSearchActive;
     final isGlobalSearchActive = globalSearchActive;
-    final isTranslateActive = activeIndex == 1;
-    final isStorageActive = activeIndex == 2;
-    final isSettingsActive = activeIndex == 3;
+    final isSettingsActive = activeTab == DesktopTab.settings;
 
     return SizedBox(
       width: width,
@@ -72,23 +75,21 @@ class DesktopNavRail extends StatelessWidget {
               iconColor: isGlobalSearchActive ? cs.primary : null,
             ),
             const SizedBox(height: 8),
-            _CircleAction(
-              tooltip: l10n.desktopNavTranslateTooltip,
-              icon: lucide.Lucide.Languages,
-              onTap: onTapTranslate,
-              size: 40,
-              iconSize: 18,
-              iconColor: isTranslateActive ? cs.primary : null,
-            ),
-            const SizedBox(height: 8),
-            _CircleAction(
-              tooltip: l10n.desktopNavStorageTooltip,
-              icon: lucide.Lucide.Folder,
-              onTap: onTapStorage,
-              size: 40,
-              iconSize: 18,
-              iconColor: isStorageActive ? cs.primary : null,
-            ),
+            // One button per tool: the rail has the room, and a user who came
+            // for Translate should not have to open a menu first.
+            for (final tool in AppTool.values) ...[
+              _CircleAction(
+                tooltip: tool.label(l10n),
+                icon: tool.icon,
+                onTap: () => onSelectTool(tool),
+                size: 40,
+                iconSize: 18,
+                iconColor: activeTab == desktopTabForTool(tool)
+                    ? cs.primary
+                    : null,
+              ),
+              const SizedBox(height: 8),
+            ],
             const Spacer(),
             _ThemeCycleButton(),
             const SizedBox(height: 8),

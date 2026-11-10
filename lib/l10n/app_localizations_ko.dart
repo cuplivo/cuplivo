@@ -1025,6 +1025,66 @@ class AppLocalizationsKo extends AppLocalizations {
   String get desktopNavStorageTooltip => '저장소';
 
   @override
+  String get toolsMenuTooltip => '도구';
+
+  @override
+  String get markdownExportTitle => 'Markdown 이미지';
+
+  @override
+  String get markdownExportEditTab => '편집';
+
+  @override
+  String get markdownExportPreviewTab => '미리보기';
+
+  @override
+  String get markdownExportHint => 'Markdown을 붙여넣거나 .md 파일을 가져오세요';
+
+  @override
+  String get markdownExportPreviewEmpty => '아직 미리볼 내용이 없어요';
+
+  @override
+  String get markdownExportImport => '가져오기';
+
+  @override
+  String get markdownExportPaste => '붙여넣기';
+
+  @override
+  String get markdownExportTextSize => '글자 크기';
+
+  @override
+  String get markdownExportTextSizeSmall => '작게';
+
+  @override
+  String get markdownExportTextSizeStandard => '보통';
+
+  @override
+  String get markdownExportTextSizeLarge => '크게';
+
+  @override
+  String get markdownExportHideSource => '소스 접기';
+
+  @override
+  String get markdownExportShowSource => '소스 펼치기';
+
+  @override
+  String get markdownExportReducedResolution => '문서가 길어 한 장에 담기도록 해상도를 낮췄어요';
+
+  @override
+  String get markdownExportExportImage => '이미지 내보내기';
+
+  @override
+  String get markdownExportDropHint => '놓아서 Markdown 가져오기';
+
+  @override
+  String get markdownExportUnsupportedFile => 'Markdown 텍스트 파일만 지원해요';
+
+  @override
+  String get markdownExportReadFailed => '이 파일을 읽을 수 없어요';
+
+  @override
+  String get markdownExportNothingToPaste => '클립보드에 사용할 수 있는 내용이 없어요';
+
+  @override
   String get desktopNavGlobalSearchTooltip => '전체 검색';
 
   @override

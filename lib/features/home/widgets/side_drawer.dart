@@ -15,7 +15,7 @@ import '../../../core/models/chat_item.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../settings/pages/settings_page.dart';
-import '../../translate/pages/translate_page.dart';
+import '../../../shared/navigation/app_tools.dart';
 import '../../backup/pages/backup_page.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/providers/chat_owners_provider.dart';
@@ -50,6 +50,7 @@ import '../../../core/services/haptics.dart';
 import '../../../desktop/desktop_context_menu.dart';
 import '../../../shared/widgets/interactive_drawer.dart';
 import '../../../desktop/menu_anchor.dart';
+import '../../../shared/widgets/action_sheet.dart';
 import '../../../shared/widgets/emoji_text.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../core/providers/tag_provider.dart';
@@ -177,6 +178,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
   final GlobalKey _assistantTileKey = GlobalKey();
+  final GlobalKey _toolsMenuKey = GlobalKey();
   OverlayEntry? _assistantPickerEntry;
   ValueNotifier<int>? _closeTicker;
   bool _assistantsExpanded = false;
@@ -2996,24 +2998,25 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                                         ),
                                       ),
                                       const SizedBox(width: 8),
-                                      // 翻译按钮（圆形，无水波纹）
+                                      // 工具按钮（圆形，无水波纹）：翻译 / 存储 / Markdown 出图
                                       SizedBox(
                                         width: 45,
                                         height: 45,
                                         child: Center(
                                           child: IosIconButton(
+                                            key: _toolsMenuKey,
                                             size: 22,
                                             color: textBase,
-                                            icon: Lucide.Languages,
+                                            icon: Lucide.LayoutGrid,
+                                            semanticLabel: AppLocalizations.of(
+                                              context,
+                                            )!.toolsMenuTooltip,
+                                            tooltip: AppLocalizations.of(
+                                              context,
+                                            )!.toolsMenuTooltip,
                                             padding: const EdgeInsets.all(10),
-                                            onTap: () {
-                                              Navigator.of(context).push(
-                                                MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      const TranslatePage(),
-                                                ),
-                                              );
-                                            },
+                                            onTap: () =>
+                                                unawaited(_openToolsMenu()),
                                           ),
                                         ),
                                       ),
@@ -4213,6 +4216,25 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
             ],
         ],
       ),
+    );
+  }
+
+  /// The drawer's single tool entry. Everything that is its own screen lives
+  /// behind it, so the footer keeps two round buttons instead of growing one
+  /// per tool.
+  Future<void> _openToolsMenu() {
+    final l10n = AppLocalizations.of(context)!;
+    return showAdaptiveActionMenu(
+      context,
+      anchorKey: _toolsMenuKey,
+      items: [
+        for (final tool in AppTool.values)
+          ActionSheetItem(
+            icon: tool.icon,
+            label: tool.label(l10n),
+            onTap: () => tool.push(context),
+          ),
+      ],
     );
   }
 

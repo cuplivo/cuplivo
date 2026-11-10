@@ -1005,6 +1005,66 @@ class AppLocalizationsZh extends AppLocalizations {
   String get desktopNavStorageTooltip => '存储';
 
   @override
+  String get toolsMenuTooltip => '工具';
+
+  @override
+  String get markdownExportTitle => 'Markdown 出图';
+
+  @override
+  String get markdownExportEditTab => '编辑';
+
+  @override
+  String get markdownExportPreviewTab => '预览';
+
+  @override
+  String get markdownExportHint => '粘贴 Markdown，或导入 .md 文件';
+
+  @override
+  String get markdownExportPreviewEmpty => '还没有可以预览的内容';
+
+  @override
+  String get markdownExportImport => '导入文件';
+
+  @override
+  String get markdownExportPaste => '粘贴';
+
+  @override
+  String get markdownExportTextSize => '字号';
+
+  @override
+  String get markdownExportTextSizeSmall => '小';
+
+  @override
+  String get markdownExportTextSizeStandard => '标准';
+
+  @override
+  String get markdownExportTextSizeLarge => '大';
+
+  @override
+  String get markdownExportHideSource => '收起源码';
+
+  @override
+  String get markdownExportShowSource => '显示源码';
+
+  @override
+  String get markdownExportReducedResolution => '文档较长，已降低分辨率以保证仍然是一张图';
+
+  @override
+  String get markdownExportExportImage => '导出图片';
+
+  @override
+  String get markdownExportDropHint => '松开以导入 Markdown';
+
+  @override
+  String get markdownExportUnsupportedFile => '只支持 Markdown 文本文件';
+
+  @override
+  String get markdownExportReadFailed => '无法读取这个文件';
+
+  @override
+  String get markdownExportNothingToPaste => '剪贴板里没有可用的内容';
+
+  @override
   String get desktopNavGlobalSearchTooltip => '全局搜索';
 
   @override
@@ -18209,6 +18269,66 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get desktopNavStorageTooltip => '存储';
 
   @override
+  String get toolsMenuTooltip => '工具';
+
+  @override
+  String get markdownExportTitle => 'Markdown 出图';
+
+  @override
+  String get markdownExportEditTab => '编辑';
+
+  @override
+  String get markdownExportPreviewTab => '预览';
+
+  @override
+  String get markdownExportHint => '粘贴 Markdown，或导入 .md 文件';
+
+  @override
+  String get markdownExportPreviewEmpty => '还没有可以预览的内容';
+
+  @override
+  String get markdownExportImport => '导入文件';
+
+  @override
+  String get markdownExportPaste => '粘贴';
+
+  @override
+  String get markdownExportTextSize => '字号';
+
+  @override
+  String get markdownExportTextSizeSmall => '小';
+
+  @override
+  String get markdownExportTextSizeStandard => '标准';
+
+  @override
+  String get markdownExportTextSizeLarge => '大';
+
+  @override
+  String get markdownExportHideSource => '收起源码';
+
+  @override
+  String get markdownExportShowSource => '显示源码';
+
+  @override
+  String get markdownExportReducedResolution => '文档较长，已降低分辨率以保证仍然是一张图';
+
+  @override
+  String get markdownExportExportImage => '导出图片';
+
+  @override
+  String get markdownExportDropHint => '松开以导入 Markdown';
+
+  @override
+  String get markdownExportUnsupportedFile => '只支持 Markdown 文本文件';
+
+  @override
+  String get markdownExportReadFailed => '无法读取这个文件';
+
+  @override
+  String get markdownExportNothingToPaste => '剪贴板里没有可用的内容';
+
+  @override
   String get desktopNavGlobalSearchTooltip => '全局搜索';
 
   @override
@@ -35411,6 +35531,66 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get desktopNavStorageTooltip => '儲存';
+
+  @override
+  String get toolsMenuTooltip => '工具';
+
+  @override
+  String get markdownExportTitle => 'Markdown 出圖';
+
+  @override
+  String get markdownExportEditTab => '編輯';
+
+  @override
+  String get markdownExportPreviewTab => '預覽';
+
+  @override
+  String get markdownExportHint => '貼上 Markdown，或匯入 .md 檔案';
+
+  @override
+  String get markdownExportPreviewEmpty => '還沒有可以預覽的內容';
+
+  @override
+  String get markdownExportImport => '匯入檔案';
+
+  @override
+  String get markdownExportPaste => '貼上';
+
+  @override
+  String get markdownExportTextSize => '字級';
+
+  @override
+  String get markdownExportTextSizeSmall => '小';
+
+  @override
+  String get markdownExportTextSizeStandard => '標準';
+
+  @override
+  String get markdownExportTextSizeLarge => '大';
+
+  @override
+  String get markdownExportHideSource => '收起源碼';
+
+  @override
+  String get markdownExportShowSource => '顯示源碼';
+
+  @override
+  String get markdownExportReducedResolution => '文件較長，已降低解析度以保證仍然是一張圖';
+
+  @override
+  String get markdownExportExportImage => '匯出圖片';
+
+  @override
+  String get markdownExportDropHint => '放開以匯入 Markdown';
+
+  @override
+  String get markdownExportUnsupportedFile => '僅支援 Markdown 文字檔';
+
+  @override
+  String get markdownExportReadFailed => '無法讀取這個檔案';
+
+  @override
+  String get markdownExportNothingToPaste => '剪貼簿裡沒有可用的內容';
 
   @override
   String get desktopNavGlobalSearchTooltip => '全域搜尋';

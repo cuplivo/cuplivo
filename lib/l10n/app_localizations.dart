@@ -2008,6 +2008,126 @@ abstract class AppLocalizations {
   /// **'Storage'**
   String get desktopNavStorageTooltip;
 
+  /// Tooltip and accessibility label for the tools button that opens the tools sheet of the current conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Tools'**
+  String get toolsMenuTooltip;
+
+  /// Title of the Markdown image tool, which turns pasted Markdown into a single picture; also its entry in the tools menu.
+  ///
+  /// In en, this message translates to:
+  /// **'Markdown image'**
+  String get markdownExportTitle;
+
+  /// Segmented tab label on mobile for the pane where Markdown is pasted or edited.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get markdownExportEditTab;
+
+  /// Segmented tab label on mobile for the rendered preview of the Markdown before it is exported.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get markdownExportPreviewTab;
+
+  /// Placeholder shown in the empty Markdown editor, inviting the user to paste Markdown or import a .md file.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste Markdown, or import a .md file'**
+  String get markdownExportHint;
+
+  /// Empty-state hint in the preview pane when there is no Markdown to render yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to preview yet'**
+  String get markdownExportPreviewEmpty;
+
+  /// Button that opens a file picker to import a Markdown file into the tool.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get markdownExportImport;
+
+  /// Button that inserts the clipboard's Markdown into the editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste'**
+  String get markdownExportPaste;
+
+  /// Tooltip and menu label for the control that chooses the text size of the exported picture.
+  ///
+  /// In en, this message translates to:
+  /// **'Text size'**
+  String get markdownExportTextSize;
+
+  /// Text-size option that draws the exported picture with the smallest of the three type scales.
+  ///
+  /// In en, this message translates to:
+  /// **'Small'**
+  String get markdownExportTextSizeSmall;
+
+  /// Text-size option that draws the exported picture with the middle, default type scale.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get markdownExportTextSizeStandard;
+
+  /// Text-size option that draws the exported picture with the largest of the three type scales.
+  ///
+  /// In en, this message translates to:
+  /// **'Large'**
+  String get markdownExportTextSizeLarge;
+
+  /// Button label that collapses the Markdown source pane on desktop, leaving only the preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide source'**
+  String get markdownExportHideSource;
+
+  /// Button label that reopens the collapsed Markdown source pane on desktop.
+  ///
+  /// In en, this message translates to:
+  /// **'Show source'**
+  String get markdownExportShowSource;
+
+  /// Notice after an export saying a long document was rendered at a lower resolution so that it still fits in one picture.
+  ///
+  /// In en, this message translates to:
+  /// **'Long document: drawn at a lower resolution so it still fits one picture'**
+  String get markdownExportReducedResolution;
+
+  /// Primary button that renders the Markdown and exports it as an image; disabled while the editor is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Export image'**
+  String get markdownExportExportImage;
+
+  /// Overlay text shown while a file is dragged over the Markdown image tool, inviting the user to drop it to import.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop to import Markdown'**
+  String get markdownExportDropHint;
+
+  /// Error shown when the picked or dropped file is not a Markdown text file.
+  ///
+  /// In en, this message translates to:
+  /// **'Only Markdown text files are supported'**
+  String get markdownExportUnsupportedFile;
+
+  /// Error shown when a Markdown file was chosen but reading it failed.
+  ///
+  /// In en, this message translates to:
+  /// **'This file could not be read'**
+  String get markdownExportReadFailed;
+
+  /// Error shown when Paste is tapped but the clipboard holds nothing the tool can turn into Markdown.
+  ///
+  /// In en, this message translates to:
+  /// **'The clipboard has nothing this tool can use'**
+  String get markdownExportNothingToPaste;
+
   /// Tooltip on the desktop nav rail's global search icon button.
   ///
   /// In en, this message translates to:

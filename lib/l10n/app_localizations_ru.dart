@@ -1071,6 +1071,71 @@ class AppLocalizationsRu extends AppLocalizations {
   String get desktopNavStorageTooltip => 'Хранилище';
 
   @override
+  String get toolsMenuTooltip => 'Инструменты';
+
+  @override
+  String get markdownExportTitle => 'Markdown в изображение';
+
+  @override
+  String get markdownExportEditTab => 'Правка';
+
+  @override
+  String get markdownExportPreviewTab => 'Просмотр';
+
+  @override
+  String get markdownExportHint =>
+      'Вставьте Markdown или импортируйте файл .md';
+
+  @override
+  String get markdownExportPreviewEmpty => 'Пока нечего показывать';
+
+  @override
+  String get markdownExportImport => 'Импорт';
+
+  @override
+  String get markdownExportPaste => 'Вставить';
+
+  @override
+  String get markdownExportTextSize => 'Размер текста';
+
+  @override
+  String get markdownExportTextSizeSmall => 'Мелкий';
+
+  @override
+  String get markdownExportTextSizeStandard => 'Стандартный';
+
+  @override
+  String get markdownExportTextSizeLarge => 'Крупный';
+
+  @override
+  String get markdownExportHideSource => 'Скрыть исходник';
+
+  @override
+  String get markdownExportShowSource => 'Показать исходник';
+
+  @override
+  String get markdownExportReducedResolution =>
+      'Длинный документ: отрисован в пониженном разрешении, чтобы уместиться в одну картинку';
+
+  @override
+  String get markdownExportExportImage => 'Экспорт изображения';
+
+  @override
+  String get markdownExportDropHint =>
+      'Отпустите, чтобы импортировать Markdown';
+
+  @override
+  String get markdownExportUnsupportedFile =>
+      'Поддерживаются только текстовые файлы Markdown';
+
+  @override
+  String get markdownExportReadFailed => 'Не удалось прочитать файл';
+
+  @override
+  String get markdownExportNothingToPaste =>
+      'В буфере обмена нет подходящего содержимого';
+
+  @override
   String get desktopNavGlobalSearchTooltip => 'Глобальный поиск';
 
   @override

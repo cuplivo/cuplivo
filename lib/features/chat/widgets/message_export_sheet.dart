@@ -16,7 +16,6 @@ import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as image_lib;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -25,6 +24,7 @@ import 'package:path/path.dart' as p;
 import 'image_preview_sheet.dart';
 import 'pdf_export_dialog.dart';
 import 'export_image_capture.dart';
+import 'export_progress_overlay.dart';
 import '../utils/export_image_processor.dart';
 
 import '../../../icons/lucide_adapter.dart';
@@ -1153,7 +1153,7 @@ Future<void> exportChatMessagesImage(
     final uiCaptures = await captureUiExportMessages(context, messages);
     if (!context.mounted) return;
     _ExportedImageResult? file;
-    await _runWithExportingOverlay(context, (progress) async {
+    await runWithExportProgressOverlay(context, (progress) async {
       file = await _renderAndSaveChatImage(
         context,
         conversation,
@@ -1219,7 +1219,7 @@ Future<_ExportedImageResult?> _renderAndSaveMessageImage(
 
   final bool isDesktop =
       Platform.isWindows || Platform.isLinux || Platform.isMacOS;
-  final exportConfig = _exportImageRenderConfig(isDesktop: isDesktop);
+  final exportConfig = exportRenderConfig(isDesktop: isDesktop);
 
   Widget buildContent() => UiExportSnapshotScope(
     captures: uiCaptures,
@@ -1283,7 +1283,7 @@ Future<_ExportedImageResult?> _renderAndSaveChatImage(
 
   final bool isDesktop =
       Platform.isWindows || Platform.isLinux || Platform.isMacOS;
-  final exportConfig = _exportImageRenderConfig(isDesktop: isDesktop);
+  final exportConfig = exportRenderConfig(isDesktop: isDesktop);
 
   Widget buildContent() => UiExportSnapshotScope(
     captures: uiCaptures,
@@ -1315,24 +1315,11 @@ Future<_ExportedImageResult?> _renderAndSaveChatImage(
   );
 }
 
-const double _desktopExportLogicalWidth = 720.0;
-const double _mobileExportLogicalWidth = 480.0;
-const double _exportImagePixelRatio = 3.0;
-
-({double width, double pixelRatio}) _exportImageRenderConfig({
-  required bool isDesktop,
-}) {
-  return (
-    width: isDesktop ? _desktopExportLogicalWidth : _mobileExportLogicalWidth,
-    pixelRatio: _exportImagePixelRatio,
-  );
-}
-
 @visibleForTesting
 ({double width, double pixelRatio}) exportImageRenderConfigForTesting({
   required bool isDesktop,
 }) {
-  return _exportImageRenderConfig(isDesktop: isDesktop);
+  return exportRenderConfig(isDesktop: isDesktop);
 }
 
 class _ExportedImageResult {
@@ -1733,7 +1720,7 @@ class _ExportDialogState extends State<_ExportDialog> {
       await Navigator.of(context).maybePop();
       if (!pctx.mounted) return;
       _ExportedImageResult? file;
-      await _runWithExportingOverlay(pctx, (progress) async {
+      await runWithExportProgressOverlay(pctx, (progress) async {
         file = await _renderAndSaveMessageImage(
           pctx,
           widget.message,
@@ -2520,7 +2507,7 @@ class _ExportSheetState extends State<_ExportSheet> {
       final uiCaptures = await captureUiExportMessages(pctx, [widget.message]);
       if (!pctx.mounted) return;
       _ExportedImageResult? file;
-      await _runWithExportingOverlay(pctx, (progress) async {
+      await runWithExportProgressOverlay(pctx, (progress) async {
         file = await _renderAndSaveMessageImage(
           pctx,
           widget.message,
@@ -3127,95 +3114,7 @@ class _ExportDisclaimer extends StatelessWidget {
 
 @visibleForTesting
 Widget buildImageExportProgressForTesting(ExportImageProgress progress) =>
-    _ExportProgressContent(progress: progress);
-
-class _ExportProgressContent extends StatelessWidget {
-  const _ExportProgressContent({required this.progress});
-  final ExportImageProgress progress;
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final label = switch (progress.stage) {
-      ExportImageStage.preparing => l10n.imageExportPreparing,
-      ExportImageStage.diagrams => l10n.imageExportDiagrams(
-        progress.completed,
-        progress.total,
-      ),
-      ExportImageStage.capturing => l10n.imageExportCapturing(
-        progress.completed,
-        progress.total,
-      ),
-      ExportImageStage.processing => l10n.imageExportProcessing,
-      ExportImageStage.saving => l10n.imageExportSaving,
-    };
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-      child: SizedBox(
-        width: 240,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CupertinoActivityIndicator(radius: 16),
-            const SizedBox(height: 12),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: .8),
-              ),
-            ),
-            const SizedBox(height: 12),
-            LinearProgressIndicator(value: progress.fraction),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-Future<void> _runWithExportingOverlay(
-  BuildContext context,
-  Future<void> Function(ValueNotifier<ExportImageProgress> progress) task,
-) async {
-  final navigator = Navigator.of(context, rootNavigator: true);
-  final progress = ValueNotifier(
-    const ExportImageProgress(ExportImageStage.preparing),
-  );
-  final route = DialogRoute<void>(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => PopScope(
-      canPop: false,
-      child: Center(
-        child: Material(
-          color: context.appColors.surfaceCard,
-          elevation: 6,
-          shadowColor: Theme.of(
-            context,
-          ).colorScheme.shadow.withValues(alpha: .2),
-          borderRadius: BorderRadius.circular(14),
-          child: ValueListenableBuilder<ExportImageProgress>(
-            valueListenable: progress,
-            builder: (context, value, _) =>
-                _ExportProgressContent(progress: value),
-          ),
-        ),
-      ),
-    ),
-  );
-  unawaited(navigator.push(route));
-  try {
-    await WidgetsBinding.instance.endOfFrame;
-    await task(progress);
-  } finally {
-    // Remove only this operation's dialog, even when another route was opened.
-    if (route.isActive) navigator.removeRoute(route);
-    progress.dispose();
-  }
-}
+    ExportProgressContent(progress: progress);
 
 class _Parsed {
   final String text;

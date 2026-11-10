@@ -1054,6 +1054,70 @@ class AppLocalizationsTr extends AppLocalizations {
   String get desktopNavStorageTooltip => 'Depolama';
 
   @override
+  String get toolsMenuTooltip => 'Araçlar';
+
+  @override
+  String get markdownExportTitle => 'Markdown görseli';
+
+  @override
+  String get markdownExportEditTab => 'Düzenle';
+
+  @override
+  String get markdownExportPreviewTab => 'Önizleme';
+
+  @override
+  String get markdownExportHint =>
+      'Markdown yapıştırın veya .md dosyası içe aktarın';
+
+  @override
+  String get markdownExportPreviewEmpty => 'Henüz önizlenecek bir şey yok';
+
+  @override
+  String get markdownExportImport => 'İçe aktar';
+
+  @override
+  String get markdownExportPaste => 'Yapıştır';
+
+  @override
+  String get markdownExportTextSize => 'Yazı boyutu';
+
+  @override
+  String get markdownExportTextSizeSmall => 'Küçük';
+
+  @override
+  String get markdownExportTextSizeStandard => 'Standart';
+
+  @override
+  String get markdownExportTextSizeLarge => 'Büyük';
+
+  @override
+  String get markdownExportHideSource => 'Kaynağı gizle';
+
+  @override
+  String get markdownExportShowSource => 'Kaynağı göster';
+
+  @override
+  String get markdownExportReducedResolution =>
+      'Uzun belge: tek görsele sığsın diye daha düşük çözünürlükte çizildi';
+
+  @override
+  String get markdownExportExportImage => 'Görseli dışa aktar';
+
+  @override
+  String get markdownExportDropHint => 'Markdown içe aktarmak için bırakın';
+
+  @override
+  String get markdownExportUnsupportedFile =>
+      'Yalnızca Markdown metin dosyaları desteklenir';
+
+  @override
+  String get markdownExportReadFailed => 'Bu dosya okunamadı';
+
+  @override
+  String get markdownExportNothingToPaste =>
+      'Panoda bu aracın kullanabileceği bir şey yok';
+
+  @override
   String get desktopNavGlobalSearchTooltip => 'Genel Arama';
 
   @override

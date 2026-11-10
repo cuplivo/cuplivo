@@ -1476,7 +1476,7 @@
   "searchServicesPageWebFetchProviderSubtitle": "Использует API-ключ и квоту этого сервиса",
   "searchServicesPageWebFetchOff": "Выкл.",
   "searchServicesPageWebFetchOffSubtitle": "Только поиск, без чтения страниц",
-  "searchServicesPageWebFetchFooter": "При включённом веб-поиске модель также может читать страницы целиком. Если поисковый сервис не умеет читать страницы, используется локальное чтение, которое не справляется со страницами, требующими JavaScript, или блокирующими ботов.\n\nЕсли вы используете настроенное здесь чтение страниц, отключите встроенный @kelivo/fetch в разделе «Настройки → MCP», чтобы инструменты не дублировались. Настроенное здесь чтение страниц продолжит работать.",
+  "searchServicesPageWebFetchFooter": "При включённом веб-поиске модель также может читать страницы целиком. Если поисковый сервис не умеет читать страницы, используется локальное чтение, которое не справляется со страницами, требующими JavaScript, или блокирующими ботов.\n\nЕсли вы используете настроенное здесь чтение страниц, отключите встроенный @cuplivo/fetch в разделе «Настройки → MCP», чтобы инструменты не дублировались. Настроенное здесь чтение страниц продолжит работать.",
   "searchServicesPageWebFetchSupported": "Умеет читать веб-страницы",
   "searchServicesPageMaxResults": "Макс. результатов",
   "searchServicesPageTimeoutSeconds": "Тайм-аут (секунды)",
@@ -5247,5 +5247,7 @@
   "workspaceToolAllowAll": "Разрешить всё в этом сеансе",
   "aboutPageCuplivoSearchAlreadyUnlocked": "Вы уже проходили через эту дверь.",
   "aboutPageCuplivoSearchUnlocked": "Безымянная дверь приоткрылась. Возможно, вы найдёте её в настройках.",
-  "searchServiceNameCuplivo": "Cuplivo"
+  "searchServiceNameCuplivo": "Cuplivo",
+  "backgroundCareLetter": "Пишет письмо",
+  "backgroundCareWorking": "Готовит ваше письмо"
 }

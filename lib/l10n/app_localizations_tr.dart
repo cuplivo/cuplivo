@@ -4925,7 +4925,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get searchServicesPageWebFetchFooter =>
-      'Web araması açıkken model tam sayfaları da okuyabilir. Arama hizmeti sayfaları okuyamadığında yerel okuma kullanılır; bu yöntem JavaScript gerektiren veya botları engelleyen sayfaları işleyemez.\n\nBurada yapılandırılan sayfa okuyucuyu kullanıyorsanız, araçların çakışmasını önlemek için Ayarlar → MCP bölümünden yerleşik @kelivo/fetch\'i kapatın. Burada yapılandırılan sayfa okuyucu yine de çalışır.';
+      'Web araması açıkken model tam sayfaları da okuyabilir. Arama hizmeti sayfaları okuyamadığında yerel okuma kullanılır; bu yöntem JavaScript gerektiren veya botları engelleyen sayfaları işleyemez.\n\nBurada yapılandırılan sayfa okuyucuyu kullanıyorsanız, araçların çakışmasını önlemek için Ayarlar → MCP bölümünden yerleşik @cuplivo/fetch\'i kapatın. Burada yapılandırılan sayfa okuyucu yine de çalışır.';
 
   @override
   String get searchServicesPageWebFetchSupported =>
@@ -11972,6 +11972,12 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backgroundGenerating => 'Yanıt oluşturuluyor';
+
+  @override
+  String get backgroundCareLetter => 'Mektup yazıyor';
+
+  @override
+  String get backgroundCareWorking => 'Mektubunuz hazırlanıyor';
 
   @override
   String get backgroundThinking => 'Düşünüyor';

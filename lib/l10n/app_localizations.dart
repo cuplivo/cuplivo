@@ -21285,6 +21285,18 @@ abstract class AppLocalizations {
   /// **'Generating reply'**
   String get backgroundGenerating;
 
+  /// Title of the background task shown while the assistant writes a proactive care letter.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing a letter'**
+  String get backgroundCareLetter;
+
+  /// Status line in the mobile background-task notification while the care letter is still being prepared.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing your letter'**
+  String get backgroundCareWorking;
+
   /// Background task phase label shown while the model is thinking.
   ///
   /// In en, this message translates to:

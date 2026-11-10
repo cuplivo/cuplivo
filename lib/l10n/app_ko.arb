@@ -1476,7 +1476,7 @@
   "searchServicesPageWebFetchProviderSubtitle": "이 서비스의 API Key와 할당량을 사용합니다",
   "searchServicesPageWebFetchOff": "끔",
   "searchServicesPageWebFetchOffSubtitle": "검색만 하고 페이지는 읽지 않음",
-  "searchServicesPageWebFetchFooter": "웹 검색을 켜면 모델이 페이지 전체 내용도 읽을 수 있습니다. 검색 서비스가 페이지를 읽을 수 없을 때는 로컬 읽기를 사용하며, 로컬 읽기는 JavaScript가 필요한 페이지나 봇 차단이 있는 페이지를 처리할 수 없습니다.\n\n여기서 설정한 페이지 리더를 사용하는 경우, 도구 중복을 피하려면 설정 → MCP에서 내장 @kelivo/fetch를 비활성화하세요. 여기서 설정한 페이지 리더는 계속 정상 작동합니다.",
+  "searchServicesPageWebFetchFooter": "웹 검색을 켜면 모델이 페이지 전체 내용도 읽을 수 있습니다. 검색 서비스가 페이지를 읽을 수 없을 때는 로컬 읽기를 사용하며, 로컬 읽기는 JavaScript가 필요한 페이지나 봇 차단이 있는 페이지를 처리할 수 없습니다.\n\n여기서 설정한 페이지 리더를 사용하는 경우, 도구 중복을 피하려면 설정 → MCP에서 내장 @cuplivo/fetch를 비활성화하세요. 여기서 설정한 페이지 리더는 계속 정상 작동합니다.",
   "searchServicesPageWebFetchSupported": "웹 페이지 읽기 지원",
   "searchServicesPageMaxResults": "최대 결과 수",
   "searchServicesPageTimeoutSeconds": "시간 제한(초)",
@@ -5247,5 +5247,7 @@
   "workspaceToolAllowAll": "이 세션에서 모두 허용",
   "aboutPageCuplivoSearchAlreadyUnlocked": "이미 이 문을 열어본 적이 있습니다.",
   "aboutPageCuplivoSearchUnlocked": "이름 없는 문이 살짝 열렸습니다. 설정에서 찾아보세요.",
-  "searchServiceNameCuplivo": "Cuplivo"
+  "searchServiceNameCuplivo": "Cuplivo",
+  "backgroundCareLetter": "편지 쓰는 중",
+  "backgroundCareWorking": "편지를 준비하는 중"
 }

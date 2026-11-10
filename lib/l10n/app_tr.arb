@@ -1476,7 +1476,7 @@
   "searchServicesPageWebFetchProviderSubtitle": "Bu hizmetin API anahtarını ve kotasını kullanır",
   "searchServicesPageWebFetchOff": "Kapalı",
   "searchServicesPageWebFetchOffSubtitle": "Yalnızca arama, sayfalar okunmaz",
-  "searchServicesPageWebFetchFooter": "Web araması açıkken model tam sayfaları da okuyabilir. Arama hizmeti sayfaları okuyamadığında yerel okuma kullanılır; bu yöntem JavaScript gerektiren veya botları engelleyen sayfaları işleyemez.\n\nBurada yapılandırılan sayfa okuyucuyu kullanıyorsanız, araçların çakışmasını önlemek için Ayarlar → MCP bölümünden yerleşik @kelivo/fetch'i kapatın. Burada yapılandırılan sayfa okuyucu yine de çalışır.",
+  "searchServicesPageWebFetchFooter": "Web araması açıkken model tam sayfaları da okuyabilir. Arama hizmeti sayfaları okuyamadığında yerel okuma kullanılır; bu yöntem JavaScript gerektiren veya botları engelleyen sayfaları işleyemez.\n\nBurada yapılandırılan sayfa okuyucuyu kullanıyorsanız, araçların çakışmasını önlemek için Ayarlar → MCP bölümünden yerleşik @cuplivo/fetch'i kapatın. Burada yapılandırılan sayfa okuyucu yine de çalışır.",
   "searchServicesPageWebFetchSupported": "Web sayfalarını okuyabilir",
   "searchServicesPageMaxResults": "Maksimum Sonuç",
   "searchServicesPageTimeoutSeconds": "Zaman aşımı (saniye)",
@@ -5247,5 +5247,7 @@
   "workspaceToolAllowAll": "Bu oturumda tümüne izin ver",
   "aboutPageCuplivoSearchAlreadyUnlocked": "Bu kapıdan zaten geçtiniz.",
   "aboutPageCuplivoSearchUnlocked": "İsimsiz bir kapı aralandı. Ayarlar'da bulabilirsiniz.",
-  "searchServiceNameCuplivo": "Cuplivo"
+  "searchServiceNameCuplivo": "Cuplivo",
+  "backgroundCareLetter": "Mektup yazıyor",
+  "backgroundCareWorking": "Mektubunuz hazırlanıyor"
 }

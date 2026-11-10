@@ -1,4 +1,7 @@
 import 'dart:math' as math;
+import 'dart:async';
+import '../core/services/proactive_care_alarm_service.dart';
+import '../features/home/widgets/conversation_proactive_care_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../features/mcp/widgets/mcp_server_avatar.dart';
@@ -285,6 +288,33 @@ class _ToolsContent extends StatelessWidget {
     final enabledLocalTools = a.localToolIds.toSet();
 
     final rows = <WidgetBuilder>[];
+    // The assistant tool list can outgrow the popover's height cap, so the
+    // conversation-level care entry stays pinned above it.
+    final careConversation = conversationId == null
+        ? null
+        : context.select<ChatService, Conversation?>(
+            (chat) => chat.getConversation(conversationId!),
+          );
+    if (ProactiveCareAlarmService.isSupported && careConversation != null) {
+      rows.add(
+        (context) => _RowItem(
+          key: const ValueKey<String>('desktop-tools-proactive-care'),
+          leading: Icon(Lucide.HeartPulse, size: 16, color: cs.onSurface),
+          label: l10n.conversationProactiveCareTitle,
+          selected: false,
+          onTap: () {
+            onDone();
+            unawaited(
+              showConversationProactiveCare(
+                context,
+                conversation: careConversation,
+                assistant: a,
+              ),
+            );
+          },
+        ),
+      );
+    }
     if (localToolIds.isNotEmpty) {
       rows.add(
         (context) => _SectionLabel(text: l10n.assistantEditPageLocalToolsTab),

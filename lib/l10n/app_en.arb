@@ -5690,6 +5690,14 @@
   "backgroundInterrupted": "Background generation was interrupted. Open the chat to continue.",
   "backgroundRequesting": "Connecting",
   "backgroundGenerating": "Generating reply",
+  "backgroundCareLetter": "Writing a letter",
+  "@backgroundCareLetter": {
+    "description": "Title of the background task shown while the assistant writes a proactive care letter."
+  },
+  "backgroundCareWorking": "Preparing your letter",
+  "@backgroundCareWorking": {
+    "description": "Status line in the mobile background-task notification while the care letter is still being prepared."
+  },
   "backgroundThinking": "Thinking",
   "backgroundToolRunning": "Running tool",
   "backgroundRetrying": "Waiting to retry",

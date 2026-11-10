@@ -4961,7 +4961,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get searchServicesPageWebFetchFooter =>
-      'При включённом веб-поиске модель также может читать страницы целиком. Если поисковый сервис не умеет читать страницы, используется локальное чтение, которое не справляется со страницами, требующими JavaScript, или блокирующими ботов.\n\nЕсли вы используете настроенное здесь чтение страниц, отключите встроенный @kelivo/fetch в разделе «Настройки → MCP», чтобы инструменты не дублировались. Настроенное здесь чтение страниц продолжит работать.';
+      'При включённом веб-поиске модель также может читать страницы целиком. Если поисковый сервис не умеет читать страницы, используется локальное чтение, которое не справляется со страницами, требующими JavaScript, или блокирующими ботов.\n\nЕсли вы используете настроенное здесь чтение страниц, отключите встроенный @cuplivo/fetch в разделе «Настройки → MCP», чтобы инструменты не дублировались. Настроенное здесь чтение страниц продолжит работать.';
 
   @override
   String get searchServicesPageWebFetchSupported => 'Умеет читать веб-страницы';
@@ -12069,6 +12069,12 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get backgroundGenerating => 'Генерация ответа';
+
+  @override
+  String get backgroundCareLetter => 'Пишет письмо';
+
+  @override
+  String get backgroundCareWorking => 'Готовит ваше письмо';
 
   @override
   String get backgroundThinking => 'Размышление';

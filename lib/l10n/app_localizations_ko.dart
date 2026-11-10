@@ -4789,7 +4789,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get searchServicesPageWebFetchFooter =>
-      '웹 검색을 켜면 모델이 페이지 전체 내용도 읽을 수 있습니다. 검색 서비스가 페이지를 읽을 수 없을 때는 로컬 읽기를 사용하며, 로컬 읽기는 JavaScript가 필요한 페이지나 봇 차단이 있는 페이지를 처리할 수 없습니다.\n\n여기서 설정한 페이지 리더를 사용하는 경우, 도구 중복을 피하려면 설정 → MCP에서 내장 @kelivo/fetch를 비활성화하세요. 여기서 설정한 페이지 리더는 계속 정상 작동합니다.';
+      '웹 검색을 켜면 모델이 페이지 전체 내용도 읽을 수 있습니다. 검색 서비스가 페이지를 읽을 수 없을 때는 로컬 읽기를 사용하며, 로컬 읽기는 JavaScript가 필요한 페이지나 봇 차단이 있는 페이지를 처리할 수 없습니다.\n\n여기서 설정한 페이지 리더를 사용하는 경우, 도구 중복을 피하려면 설정 → MCP에서 내장 @cuplivo/fetch를 비활성화하세요. 여기서 설정한 페이지 리더는 계속 정상 작동합니다.';
 
   @override
   String get searchServicesPageWebFetchSupported => '웹 페이지 읽기 지원';
@@ -11557,6 +11557,12 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backgroundGenerating => '답변 생성 중';
+
+  @override
+  String get backgroundCareLetter => '편지 쓰는 중';
+
+  @override
+  String get backgroundCareWorking => '편지를 준비하는 중';
 
   @override
   String get backgroundThinking => '생각 중';

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _transparentPngDataUrl =
@@ -16,6 +17,14 @@ const _widePngDataUrl =
     'data:image/png;base64,'
     'iVBORw0KGgoAAAANSUhEUgAAABQAAAAKCAYAAAC0VX7mAAAAF0lEQVR4nGP4z8Dw'
     'n5qYYdTAUQOHo4EAf0SOgJVcF6MAAAAASUVORK5CYII=';
+
+// 30x90 (1:3) — a photo tall enough to fill the picture box on any layout,
+// which is the case the dots used to sit on top of.
+const _tallPngDataUrl =
+    'data:image/png;base64,'
+    'iVBORw0KGgoAAAANSUhEUgAAAB4AAABaCAIAAAAgm3GPAAAAN0lEQVR42u3MsQ0A'
+    'AAjAoP7/tF6hEwkzTR1JrVar1Wq1Wq1Wq9VqtVqtVqvVarVarVar1Wr1R7057YIL'
+    'zGKH+QAAAABJRU5ErkJggg==';
 
 const _transparentPngBytes = <int>[
   0x89,
@@ -105,6 +114,7 @@ Widget _viewerApp({
   required List<String> images,
   int initialIndex = 0,
   Map<String, ImageProvider> imageProviders = const <String, ImageProvider>{},
+  DraftImageActions? Function(int index)? draftActions,
   Size size = const Size(390, 844),
 }) {
   return MediaQuery(
@@ -116,6 +126,7 @@ Widget _viewerApp({
         images: images,
         initialIndex: initialIndex,
         imageProviders: imageProviders,
+        draftActions: draftActions,
       ),
     ),
   );
@@ -182,6 +193,96 @@ Finder _displayTransformFinder(int index) {
 }
 
 void main() {
+  testWidgets('draft preview offers only edit actions when configured', (
+    tester,
+  ) async {
+    var crops = 0;
+    var compresses = 0;
+    await tester.pumpWidget(
+      _viewerApp(
+        images: const [_transparentPngDataUrl],
+        draftActions: (index) => DraftImageActions(
+          onCrop: () => crops++,
+          onCompress: () => compresses++,
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byTooltip('Crop'), findsOneWidget);
+    expect(find.byTooltip('Compress Image'), findsOneWidget);
+    expect(find.byTooltip('Save Image'), findsNothing);
+    expect(find.byTooltip('Rotate Left'), findsNothing);
+    await tester.tap(find.byTooltip('Crop'));
+    await tester.tap(find.byTooltip('Compress Image'));
+    expect(crops, 1);
+    expect(compresses, 1);
+  });
+
+  testWidgets('draft actions belong to the page they are tapped on', (
+    tester,
+  ) async {
+    const secondImage =
+        'data:image/png;base64,'
+        'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mP8z8Dwn4GB'
+        'gYGBgAEABP8CBAEwQ2EAAAAASUVORK5CYII=';
+    final tapped = <String>[];
+
+    await tester.pumpWidget(
+      _viewerApp(
+        images: const [_transparentPngDataUrl, secondImage],
+        // Only the second image can be compressed, so the bar has to be rebuilt
+        // on paging rather than built once for the image that opened it.
+        draftActions: (index) => DraftImageActions(
+          onCrop: () => tapped.add('crop:$index'),
+          onCompress: index == 1 ? () => tapped.add('compress:$index') : null,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byTooltip('Compress Image'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('image-viewer-page-dot-1')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2/2'), findsOneWidget);
+    expect(find.byTooltip('Compress Image'), findsOneWidget);
+    await tester.tap(find.byTooltip('Crop'));
+    await tester.tap(find.byTooltip('Compress Image'));
+
+    expect(tapped, ['crop:1', 'compress:1']);
+  });
+
+  testWidgets('draft page with no actions hides the bar entirely', (
+    tester,
+  ) async {
+    const secondImage =
+        'data:image/png;base64,'
+        'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mP8z8Dwn4GB'
+        'gYGBgAEABP8CBAEwQ2EAAAAASUVORK5CYII=';
+
+    await tester.pumpWidget(
+      _viewerApp(
+        images: const [secondImage, secondImage],
+        draftActions: (index) => index == 0
+            ? DraftImageActions(onCrop: () {})
+            : const DraftImageActions(),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byTooltip('Crop'), findsOneWidget);
+    // A page that offers nothing must not fall back to the display actions.
+    expect(find.byTooltip('Save Image'), findsNothing);
+    expect(find.byTooltip('Share Image'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('image-viewer-page-dot-1')));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Crop'), findsNothing);
+    expect(find.byTooltip('Save Image'), findsNothing);
+  });
+
   testWidgets('ImageViewerPage uses a preloaded provider for the first frame', (
     tester,
   ) async {
@@ -524,6 +625,282 @@ void main() {
   });
 
   testWidgets(
+    'ImageViewerPage compact pages by dot, with no arrow over the picture',
+    (tester) async {
+      const secondImage =
+          'data:image/png;base64,'
+          'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mP8z8Dwn4GB'
+          'gYGBgAEABP8CBAEwQ2EAAAAASUVORK5CYII=';
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      _setTestViewSize(tester, _mobileSize);
+      try {
+        await tester.pumpWidget(
+          _viewerApp(
+            images: const [_transparentPngDataUrl, secondImage],
+            size: _mobileSize,
+          ),
+        );
+        await tester.pump();
+
+        expect(find.text('1/2'), findsOneWidget);
+        // A phone pages by swiping. The dots are the tappable alternative, and
+        // they live inside the action panel -- the one band that is not photo.
+        expect(find.byTooltip('Previous Image'), findsNothing);
+        expect(find.byTooltip('Next Image'), findsNothing);
+        expect(
+          find.byKey(const ValueKey('image-viewer-page-dot-0')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('image-viewer-page-dot-1')),
+          findsOneWidget,
+        );
+
+        await tester.tap(find.byKey(const ValueKey('image-viewer-page-dot-1')));
+        await tester.pumpAndSettle();
+        expect(find.text('2/2'), findsOneWidget);
+
+        await tester.tap(find.byKey(const ValueKey('image-viewer-page-dot-0')));
+        await tester.pumpAndSettle();
+        expect(find.text('1/2'), findsOneWidget);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  // The review of the dots measured what a phone-only test could not: the strip
+  // was placed with a literal that only matched the compact panel, and it
+  // covered the photo whenever the photo filled its box. Both are geometry, so
+  // both are asserted as geometry, on every touch layout.
+  for (final (size, label) in const <(Size, String)>[
+    (Size(390, 844), 'phone portrait'),
+    (Size(844, 390), 'phone landscape'),
+    (Size(1024, 768), 'tablet'),
+  ]) {
+    testWidgets('bottom chrome stays off the picture — $label', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      _setTestViewSize(tester, size);
+      try {
+        await tester.pumpWidget(
+          _viewerApp(
+            images: const [_tallPngDataUrl, _widePngDataUrl],
+            size: size,
+          ),
+        );
+        await tester.pump();
+
+        final picture = tester.getRect(_displayTransformFinder(0));
+        final panel = tester.getRect(
+          find.byKey(const ValueKey('image-viewer-bottom-chrome')),
+        );
+        final dots = tester.getRect(
+          find.byKey(const ValueKey('image-viewer-dots-row')),
+        );
+        final button = tester.getRect(find.byTooltip('Save Image'));
+        printOnFailure('picture=$picture panel=$panel dots=$dots $button');
+
+        // The picture stops above the panel, so nothing is drawn on the photo.
+        expect(picture.bottom, lessThanOrEqualTo(panel.top));
+        // The strip is inside the panel and clears its buttons.
+        expect(panel.overlaps(dots), isTrue);
+        expect(dots.bottom, lessThanOrEqualTo(button.top));
+        expect(dots.left, greaterThanOrEqualTo(panel.left));
+        expect(dots.right, lessThanOrEqualTo(panel.right));
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+  }
+
+  testWidgets('a mouse drag over the picture does not turn the page', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    _setTestViewSize(tester, _desktopSize);
+    try {
+      await tester.pumpWidget(
+        _viewerApp(
+          images: const [_transparentPngDataUrl, _widePngDataUrl],
+          size: _desktopSize,
+        ),
+      );
+      await tester.pump();
+      expect(find.text('1/2'), findsOneWidget);
+
+      final stage = find.byKey(const ValueKey('image-viewer-page-view'));
+      final mouse = await tester.startGesture(
+        tester.getCenter(stage),
+        kind: PointerDeviceKind.mouse,
+      );
+      for (var i = 0; i < 4; i++) {
+        await mouse.moveBy(const Offset(-40, 0));
+        await tester.pump();
+      }
+      await mouse.up();
+      await tester.pumpAndSettle();
+
+      // A mouse is not a swipe: the arrows are the desktop's pointer path, and
+      // the PageView itself never accepted this pointer either.
+      expect(find.text('1/2'), findsOneWidget);
+
+      // Control: the same travel with a finger does turn the page.
+      await tester.fling(stage, const Offset(-400, 0), 1200);
+      await tester.pumpAndSettle();
+      expect(find.text('2/2'), findsOneWidget);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('a long batch keeps a reachable dot for every page', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    _setTestViewSize(tester, _mobileSize);
+    try {
+      final images = List<String>.generate(20, (i) => 'memory://dot-$i');
+      final providers = <String, ImageProvider>{
+        for (final src in images)
+          src: MemoryImage(Uint8List.fromList(_transparentPngBytes)),
+      };
+      await tester.pumpWidget(
+        _viewerApp(
+          images: images,
+          imageProviders: providers,
+          size: _mobileSize,
+        ),
+      );
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      // Past twelve images the strip used to vanish, leaving the swipe as the
+      // only way to page on a phone.
+      expect(
+        find.byKey(const ValueKey('image-viewer-page-dot-19')),
+        findsOneWidget,
+      );
+      final panel = tester.getRect(
+        find.byKey(const ValueKey('image-viewer-bottom-chrome')),
+      );
+      final dots = tester.getRect(
+        find.byKey(const ValueKey('image-viewer-dots-row')),
+      );
+      expect(dots.right, lessThanOrEqualTo(panel.right + 0.5));
+      expect(dots.width, lessThanOrEqualTo(panel.width + 0.5));
+
+      await tester.tap(find.byKey(const ValueKey('image-viewer-page-dot-19')));
+      await tester.pumpAndSettle();
+      expect(find.text('20/20'), findsOneWidget);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets(
+    'ImageViewerPage keeps a swipe that starts off-axis a page turn',
+    (tester) async {
+      const secondImage =
+          'data:image/png;base64,'
+          'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mP8z8Dwn4GB'
+          'gYGBgAEABP8CBAEwQ2EAAAAASUVORK5CYII=';
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      _setTestViewSize(tester, _mobileSize);
+      try {
+        await tester.pumpWidget(
+          _viewerApp(
+            images: const [_transparentPngDataUrl, secondImage],
+            size: _mobileSize,
+          ),
+        );
+        await tester.pump();
+
+        // A flick whose first move is downward (5dp across, 20dp down) used to
+        // be claimed by the vertical dismiss recognizer, and the sideways
+        // travel that followed could never become a page turn. Real input
+        // arrives in small moves, so this follows the same shape.
+        final gesture = await tester.startGesture(
+          tester.getCenter(
+            find.byKey(const ValueKey('image-viewer-page-view')),
+          ),
+        );
+        for (final move in const [
+          Offset(5, 20),
+          Offset(-40, 0),
+          Offset(-60, 0),
+          Offset(-80, 0),
+          Offset(-70, 0),
+        ]) {
+          await gesture.moveBy(move);
+          await tester.pump();
+        }
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        expect(find.byType(ImageViewerPage), findsOneWidget);
+        expect(find.text('2/2'), findsOneWidget);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  testWidgets('ImageViewerPage still dismisses on a downward drag', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    _setTestViewSize(tester, _mobileSize);
+    try {
+      await _pumpViewerRoute(tester, images: const [_transparentPngDataUrl]);
+
+      await tester.drag(
+        find.byKey(const ValueKey('image-viewer-page-view')),
+        const Offset(0, 220),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ImageViewerPage), findsNothing);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('ImageViewerPage offers a screen reader the paging commands', (
+    tester,
+  ) async {
+    const secondImage =
+        'data:image/png;base64,'
+        'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mP8z8Dwn4GB'
+        'gYGBgAEABP8CBAEwQ2EAAAAASUVORK5CYII=';
+    final handle = tester.ensureSemantics();
+    try {
+      await tester.pumpWidget(
+        _viewerApp(
+          images: const [_transparentPngDataUrl, secondImage],
+          size: _mobileSize,
+        ),
+      );
+      await tester.pump();
+
+      final data = tester
+          .getSemantics(
+            find.byKey(const ValueKey('image-viewer-paging-actions')),
+          )
+          .getSemanticsData();
+      final labels = [
+        for (final id in data.customSemanticsActionIds ?? const <int>[])
+          CustomSemanticsAction.getAction(id)?.label,
+      ];
+
+      // On the first page only "next" exists; the swipe is not the only path.
+      expect(labels, contains('Next Image'));
+      expect(labels, isNot(contains('Previous Image')));
+    } finally {
+      handle.dispose();
+    }
+  });
+
+  testWidgets(
     'ImageViewerPage wide layout exposes navigation and zoom actions',
     (tester) async {
       const secondImage =
@@ -531,24 +908,31 @@ void main() {
           'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mP8z8Dwn4GB'
           'gYGBgAEABP8CBAEwQ2EAAAAASUVORK5CYII=';
 
-      await tester.pumpWidget(
-        _viewerApp(
-          images: const [_transparentPngDataUrl, secondImage],
-          size: _desktopSize,
-        ),
-      );
-      await tester.pump();
+      // A mouse cannot drag a PageView, so a desktop window keeps the arrows
+      // at any width.
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      try {
+        await tester.pumpWidget(
+          _viewerApp(
+            images: const [_transparentPngDataUrl, secondImage],
+            size: _desktopSize,
+          ),
+        );
+        await tester.pump();
 
-      expect(find.text('1/2'), findsOneWidget);
-      expect(find.byTooltip('Previous Image'), findsOneWidget);
-      expect(find.byTooltip('Next Image'), findsOneWidget);
-      expect(find.byTooltip('Zoom In'), findsOneWidget);
-      expect(find.byTooltip('Zoom Out'), findsOneWidget);
-      expect(find.byTooltip('Reset Zoom'), findsOneWidget);
-      expect(find.byTooltip('Flip Horizontal'), findsOneWidget);
-      expect(find.byTooltip('Flip Vertical'), findsOneWidget);
-      expect(find.byTooltip('Rotate Left'), findsOneWidget);
-      expect(find.byTooltip('Rotate Right'), findsOneWidget);
+        expect(find.text('1/2'), findsOneWidget);
+        expect(find.byTooltip('Previous Image'), findsOneWidget);
+        expect(find.byTooltip('Next Image'), findsOneWidget);
+        expect(find.byTooltip('Zoom In'), findsOneWidget);
+        expect(find.byTooltip('Zoom Out'), findsOneWidget);
+        expect(find.byTooltip('Reset Zoom'), findsOneWidget);
+        expect(find.byTooltip('Flip Horizontal'), findsOneWidget);
+        expect(find.byTooltip('Flip Vertical'), findsOneWidget);
+        expect(find.byTooltip('Rotate Left'), findsOneWidget);
+        expect(find.byTooltip('Rotate Right'), findsOneWidget);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
     },
   );
 

@@ -727,11 +727,14 @@ Widget _buildToolImageFromPath(
   );
 }
 
-void _showToolFullImage(BuildContext context, String path) {
+/// Opens a tool's images as one gallery, at the tile that was tapped, so the
+/// viewer can page through the same batch the card showed.
+void _showToolFullImage(BuildContext context, List<String> images, int index) {
   Navigator.of(context).push(
     PageRouteBuilder<void>(
       opaque: false,
-      pageBuilder: (_, __, ___) => ImageViewerPage(images: [path]),
+      pageBuilder: (_, __, ___) =>
+          ImageViewerPage(images: images, initialIndex: index),
       transitionDuration: const Duration(milliseconds: 360),
       reverseTransitionDuration: const Duration(milliseconds: 280),
       transitionsBuilder: (context, anim, sec, child) {
@@ -1215,7 +1218,8 @@ class _ToolDetailBody extends StatelessWidget {
                         itemBuilder: (context, index) {
                           final path = images[index];
                           return GestureDetector(
-                            onTap: () => _showToolFullImage(context, path),
+                            onTap: () =>
+                                _showToolFullImage(context, images, index),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8),
                               child: _buildToolImageFromPath(
@@ -6315,7 +6319,8 @@ class _ChainOfThoughtBrowserGroupState
             itemBuilder: (_, imageIndex) {
               final path = _images[index][imageIndex];
               return GestureDetector(
-                onTap: () => _showToolFullImage(context, path),
+                onTap: () =>
+                    _showToolFullImage(context, _images[index], imageIndex),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: _buildToolImageFromPath(
@@ -6667,7 +6672,7 @@ class _ChainOfThoughtToolStepState extends State<_ChainOfThoughtToolStep>
               itemBuilder: (ctx, i) {
                 final path = imagePaths[i];
                 return GestureDetector(
-                  onTap: () => _showToolFullImage(context, path),
+                  onTap: () => _showToolFullImage(context, imagePaths, i),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: _buildToolImageFromPath(
@@ -7169,7 +7174,7 @@ class _ToolCallItemState extends State<_ToolCallItem> {
                   itemBuilder: (ctx, i) {
                     final path = _imagePaths[i];
                     return GestureDetector(
-                      onTap: () => _showFullImage(context, path),
+                      onTap: () => _showFullImage(context, _imagePaths, i),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: _buildImageFromPath(
@@ -7203,12 +7208,13 @@ class _ToolCallItemState extends State<_ToolCallItem> {
   }
 
   /// Show full-size image using ImageViewerPage for save/share/copy support.
-  /// [path] can be a local file path or HTTP URL.
-  void _showFullImage(BuildContext context, String path) {
+  /// [images] are local paths or HTTP URLs; [index] is the tile that was tapped.
+  void _showFullImage(BuildContext context, List<String> images, int index) {
     Navigator.of(context).push(
       PageRouteBuilder<void>(
         opaque: false,
-        pageBuilder: (_, __, ___) => ImageViewerPage(images: [path]),
+        pageBuilder: (_, __, ___) =>
+            ImageViewerPage(images: images, initialIndex: index),
         transitionDuration: const Duration(milliseconds: 360),
         reverseTransitionDuration: const Duration(milliseconds: 280),
         transitionsBuilder: (context, anim, sec, child) {

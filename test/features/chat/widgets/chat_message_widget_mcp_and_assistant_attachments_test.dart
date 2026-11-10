@@ -4,6 +4,7 @@ import 'package:Cuplivo/core/models/message_part.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/providers/tts_provider.dart';
 import 'package:Cuplivo/core/providers/user_provider.dart';
+import 'package:Cuplivo/features/chat/pages/image_viewer_page.dart';
 import 'package:Cuplivo/features/chat/widgets/chat_message_widget.dart';
 import 'package:Cuplivo/utils/safe_resize_image.dart';
 import 'package:Cuplivo/features/home/services/ask_user_interaction_service.dart';
@@ -154,6 +155,55 @@ more text
       isTrue,
     );
     expect(images.every((image) => _resizeOf(image) != null), isTrue);
+  });
+
+  testWidgets('tool thumbnails open their batch at the tapped image', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        ChatMessageWidget(
+          showModelIcon: false,
+          message: ChatMessage(
+            id: 'assistant-mcp-gallery',
+            role: 'assistant',
+            content: 'tool ran',
+            conversationId: 'conversation-mcp-gallery',
+          ),
+          toolParts: const [
+            ToolUIPart(
+              id: 'tool-gallery',
+              toolName: 'screenshot',
+              arguments: {'target': 'desk'},
+              content:
+                  'captured\n![](https://example.com/first.png)\n'
+                  '![](https://example.com/second.png)',
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final thumbs = find.byKey(
+      const ValueKey('tool-image-thumbnails:tool-gallery'),
+    );
+    final tiles = find.descendant(
+      of: thumbs,
+      matching: find.byType(GestureDetector),
+    );
+    expect(tiles, findsNWidgets(2));
+
+    await tester.tap(tiles.at(1));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final viewer = tester.widget<ImageViewerPage>(find.byType(ImageViewerPage));
+    expect(viewer.initialIndex, 1);
+    expect(viewer.images, const [
+      'https://example.com/first.png',
+      'https://example.com/second.png',
+    ]);
   });
 
   testWidgets('hideToolResultImages suppresses MCP thumbnails under the card', (

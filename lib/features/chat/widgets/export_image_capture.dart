@@ -34,8 +34,38 @@ void checkExportPixelBudget(Size size, double ratio, int? maxPixels) {
   if (pixels > maxPixels) throw ExportImageTooLarge(pixels, maxPixels);
 }
 
+/// The largest whole raster ratio that keeps [size] inside [maxPixels], or
+/// `null` when even 1× does not fit.
+///
+/// Whole ratios only: a fractional one resamples every glyph for no gain in
+/// legibility, and the caller can name the ratio it ended up with. This is the
+/// opposite trade from [checkExportPixelBudget] — a document too tall for the
+/// requested ratio still becomes a picture, just a smaller one.
+double? exportRatioWithinBudget(Size size, double ratio, int? maxPixels) {
+  if (maxPixels == null || size.isEmpty || ratio <= 0) return ratio;
+  final logical = size.width * size.height;
+  if (logical * ratio * ratio <= maxPixels) return ratio;
+  final fitted = math.sqrt(maxPixels / logical).floorToDouble();
+  return fitted >= 1 ? math.min(ratio, fitted) : null;
+}
+
 const double maxExportFullCaptureDimension = 15360;
 const double maxExportSliceHeight = 4096;
+
+/// Every full-surface export uses the same logical width and raster ratio, so a
+/// picture of a message and a picture of a pasted document agree about type size
+/// and stroke weight. Two callers depend on the agreement, so it lives here
+/// rather than beside either of them.
+const double desktopExportLogicalWidth = 720;
+const double mobileExportLogicalWidth = 480;
+const double exportImagePixelRatio = 3;
+
+({double width, double pixelRatio}) exportRenderConfig({
+  required bool isDesktop,
+}) => (
+  width: isDesktop ? desktopExportLogicalWidth : mobileExportLogicalWidth,
+  pixelRatio: exportImagePixelRatio,
+);
 
 double exportSliceLogicalHeight(double ratio) =>
     math.max(1, (maxExportSliceHeight / ratio).floor()).toDouble();
@@ -71,6 +101,9 @@ Future<Uint8List?> captureExportBoundary(
 
 /// One mounted content tree and one fixed-width layout for all viewport slices.
 /// No resampling: native PNG precision and the requested pixel ratio survive.
+///
+/// [maxPixels] is enforced before anything is allocated. By default it refuses
+/// an oversized picture; with [shrinkToPixels] it lowers the ratio instead.
 Future<ProcessedExportImage> captureExportWidget(
   BuildContext context,
   Widget child, {
@@ -78,13 +111,16 @@ Future<ProcessedExportImage> captureExportWidget(
   double width = 480,
   double pixelRatio = 3,
   int? maxPixels,
+  bool shrinkToPixels = false,
   ValueChanged<ExportImageProgress>? onProgress,
 }) async {
   onProgress?.call(const ExportImageProgress(ExportImageStage.preparing));
   final boundaryKey = GlobalKey();
   final contentKey = GlobalKey();
-  final sliceHeight = exportSliceLogicalHeight(pixelRatio);
-  final viewport = ValueNotifier<(double, double)>((0, sliceHeight));
+  // The slice window is re-derived below once the content is measured and the
+  // budget has settled the ratio; this is only what the first frames paint.
+  final initialSliceHeight = exportSliceLogicalHeight(pixelRatio);
+  final viewport = ValueNotifier<(double, double)>((0, initialSliceHeight));
   final entry = OverlayEntry(
     builder: (_) => Positioned(
       left: -10000,
@@ -133,7 +169,20 @@ Future<ProcessedExportImage> captureExportWidget(
     final content = contentKey.currentContext!.findRenderObject()! as RenderBox;
     final size = content.size;
     if (size.isEmpty) throw StateError('Empty export content');
-    checkExportPixelBudget(size, pixelRatio, maxPixels);
+    // Settle the ratio before anything is allocated: a caller that would rather
+    // have a smaller picture than an error gets the largest whole ratio its
+    // budget allows.
+    final ratio = shrinkToPixels
+        ? exportRatioWithinBudget(size, pixelRatio, maxPixels)
+        : pixelRatio;
+    if (ratio == null) {
+      throw ExportImageTooLarge(
+        (size.width * size.height * pixelRatio * pixelRatio).ceil(),
+        maxPixels!,
+      );
+    }
+    if (!shrinkToPixels) checkExportPixelBudget(size, pixelRatio, maxPixels);
+    final sliceHeight = exportSliceLogicalHeight(ratio);
     final slices = <({Uint8List bytes, int y})>[];
     Future<Uint8List?> capture(double top, double height) async {
       viewport.value = (top, height);
@@ -141,11 +190,11 @@ Future<ProcessedExportImage> captureExportWidget(
       final boundary =
           boundaryKey.currentContext!.findRenderObject()!
               as RenderRepaintBoundary;
-      return captureExportBoundary(boundary, pixelRatio);
+      return captureExportBoundary(boundary, ratio);
     }
 
     Uint8List? single;
-    if (exportFullCaptureRatio(size, pixelRatio) != null) {
+    if (exportFullCaptureRatio(size, ratio) != null) {
       onProgress?.call(
         const ExportImageProgress(ExportImageStage.capturing, total: 1),
       );
@@ -174,7 +223,7 @@ Future<ProcessedExportImage> captureExportWidget(
         if (bytes == null) {
           throw StateError('Could not capture export slice ${i + 1}/$count');
         }
-        slices.add((bytes: bytes, y: (top * pixelRatio).round()));
+        slices.add((bytes: bytes, y: (top * ratio).round()));
         onProgress?.call(
           ExportImageProgress(
             ExportImageStage.capturing,
@@ -185,16 +234,23 @@ Future<ProcessedExportImage> captureExportWidget(
       }
     }
     onProgress?.call(const ExportImageProgress(ExportImageStage.processing));
-    return await compute(
+    final processed = await compute(
       processExportImage,
       ExportImageProcessingRequest(
         singlePngBytes: single,
-        outputWidth: (size.width * pixelRatio).ceil(),
-        outputHeight: (size.height * pixelRatio).ceil(),
+        outputWidth: (size.width * ratio).ceil(),
+        outputHeight: (size.height * ratio).ceil(),
         slices: slices,
         preparePreview: true,
       ),
       debugLabel: 'export-image-png-processing',
+    );
+    // Report the ratio that was actually used: the caller asked for one and may
+    // have been given a smaller one to stay inside its budget.
+    return ProcessedExportImage(
+      processed.pngBytes,
+      processed.preview,
+      appliedRatio: ratio,
     );
   } finally {
     entry.remove();

@@ -23,6 +23,7 @@ import 'package:flutter/services.dart'
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:provider/provider.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../desktop/desktop_tab.dart';
 import '../../../main.dart';
 import '../../../shared/widgets/interactive_drawer.dart';
 import '../../../shared/widgets/visible_route_theme.dart';
@@ -1651,15 +1652,21 @@ class _HomePageState extends State<HomePage>
 
   Widget _wrapWithDropTarget(Widget child) {
     if (!_controller.isDesktopPlatform) return child;
+    // The target stays mounted while another desktop tab is on screen: taking
+    // it out of the tree would rebuild this page around it, and desktop_drop
+    // hands every drop to every registered target anyway. What it must not do
+    // is act — the flag is read per event, never as a build dependency.
+    bool onScreen() => DesktopTabVisibility.read(context);
     return DropTarget(
       onDragEntered: (_) {
-        _controller.setDragHovering(true);
+        if (onScreen()) _controller.setDragHovering(true);
       },
       onDragExited: (_) {
         _controller.setDragHovering(false);
       },
       onDragDone: (details) async {
         _controller.setDragHovering(false);
+        if (!onScreen()) return;
         try {
           final files = details.files;
           await _controller.onFilesDroppedDesktop(files);

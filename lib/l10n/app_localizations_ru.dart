@@ -1071,6 +1071,69 @@ class AppLocalizationsRu extends AppLocalizations {
   String get desktopNavStorageTooltip => 'Хранилище';
 
   @override
+  String get toolsMenuTooltip => 'Tools';
+
+  @override
+  String get markdownExportTitle => 'Markdown image';
+
+  @override
+  String get markdownExportEditTab => 'Edit';
+
+  @override
+  String get markdownExportPreviewTab => 'Preview';
+
+  @override
+  String get markdownExportHint => 'Paste Markdown, or import a .md file';
+
+  @override
+  String get markdownExportPreviewEmpty => 'Nothing to preview yet';
+
+  @override
+  String get markdownExportImport => 'Import';
+
+  @override
+  String get markdownExportPaste => 'Paste';
+
+  @override
+  String get markdownExportTextSize => 'Text size';
+
+  @override
+  String get markdownExportTextSizeSmall => 'Small';
+
+  @override
+  String get markdownExportTextSizeStandard => 'Standard';
+
+  @override
+  String get markdownExportTextSizeLarge => 'Large';
+
+  @override
+  String get markdownExportHideSource => 'Hide source';
+
+  @override
+  String get markdownExportShowSource => 'Show source';
+
+  @override
+  String get markdownExportReducedResolution =>
+      'Long document: drawn at a lower resolution so it still fits one picture';
+
+  @override
+  String get markdownExportExportImage => 'Export image';
+
+  @override
+  String get markdownExportDropHint => 'Drop to import Markdown';
+
+  @override
+  String get markdownExportUnsupportedFile =>
+      'Only Markdown text files are supported';
+
+  @override
+  String get markdownExportReadFailed => 'This file could not be read';
+
+  @override
+  String get markdownExportNothingToPaste =>
+      'The clipboard has nothing this tool can use';
+
+  @override
   String get desktopNavGlobalSearchTooltip => 'Глобальный поиск';
 
   @override

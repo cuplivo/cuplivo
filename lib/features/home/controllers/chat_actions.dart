@@ -26,7 +26,10 @@ import '../../../core/models/message_part.dart';
 import '../../../utils/app_directories.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import '../../../core/models/conversation.dart';
+import '../../../core/models/group_chat.dart';
 import '../../../core/providers/assistant_provider.dart';
+import '../../group_chat/services/group_director.dart';
+import '../../group_chat/services/group_transcript.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/models/reasoning_request.dart';
 import '../../../core/services/api/chat_api_service.dart';
@@ -269,9 +272,16 @@ class ChatActions {
     String? expectedMessageId,
   }) async {
     final actions = _current;
-    if (actions == null || !actions._hasActiveGeneration(conversationId)) {
+    if (actions == null) return;
+    if (expectedMessageId == null &&
+        actions.isGroupRoundLoading(conversationId)) {
+      // A round holds no stream between speakers, so "is generating" cannot see
+      // it: deleting the topic has to stop the loop, or the director is asked
+      // for a next speaker whose conversation no longer exists.
+      await actions.cancelGroupRound(conversationId);
       return;
     }
+    if (!actions._hasActiveGeneration(conversationId)) return;
     if (expectedMessageId != null &&
         actions.activeStreamingMessageId(conversationId) != expectedMessageId) {
       return;
@@ -297,6 +307,30 @@ class ChatActions {
       if (actions._hasActiveGeneration(id)) {
         await actions.cancelStreamingById(id);
       }
+    }
+  }
+
+  /// Stop in-flight rounds for every conversation owned by a group chat.
+  ///
+  /// Deleting a group batch-deletes its topics, and the same invariant as
+  /// assistant deletion applies: deleting implies stopping, or a terminal
+  /// checkpoint would be written against rows that no longer exist.
+  static Future<void> cancelActiveGenerationsForGroup(
+    String groupChatId,
+  ) async {
+    final actions = _current;
+    if (actions == null) return;
+    final conversationIds = actions.chatService
+        .getAllConversations()
+        .where((c) => c.groupChatId == groupChatId)
+        .map((c) => c.id)
+        .toList();
+    for (final id in conversationIds) {
+      // Marked whether or not a generation is running right now: between two
+      // speakers a round holds no stream and no active message, so a guard
+      // keyed on "is generating" cannot see it, and the loop would go on to ask
+      // the next speaker for a conversation whose rows are already gone.
+      await actions.cancelGroupRound(id);
     }
   }
 
@@ -398,6 +432,13 @@ class ChatActions {
         if (ctx.generationRunId != null &&
             _generationCheckpointCursors[ctx.assistantMessage.id]?.runId !=
                 ctx.generationRunId) {
+          return;
+        }
+        // Cancel from the notification means cancel the round: stopping only the
+        // stream would let the loop pick the next speaker and keep talking after
+        // the user pressed Cancel.
+        if (isGroupRoundLoading(conversationId)) {
+          await cancelGroupRound(conversationId);
           return;
         }
         await cancelStreamingById(conversationId);
@@ -551,8 +592,563 @@ class ChatActions {
   }
 
   void _setConversationLoading(String conversationId, bool loading) {
+    if (!loading) {
+      // Whatever ended — a finished reply, a failure, a cancellation — the
+      // turn that owned this conversation is over. Settling before the flag is
+      // decided is what lets a group round advance speaker by speaker through
+      // the same terminal paths a 1:1 reply uses.
+      _settleTurns(conversationId);
+      // A group round owns the flag for its whole duration: one speaker
+      // finishing is not the round finishing.
+      if (_roundLoadingConversations.contains(conversationId)) return;
+    }
     chatController.setConversationLoading(conversationId, loading);
     onLoadingChanged?.call(conversationId, loading);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Group chat rounds
+  // ---------------------------------------------------------------------------
+
+  /// Conversations whose loading flag a whole group round holds.
+  final Set<String> _roundLoadingConversations = <String>{};
+
+  /// Conversations whose round the user stopped (or whose group was deleted).
+  final Set<String> _cancelledGroupRounds = <String>{};
+
+  /// Turn waiters, keyed by conversation: one turn runs at a time, and the
+  /// round awaits the one it started.
+  final Map<String, Completer<void>> _turnWaiters = <String, Completer<void>>{};
+
+  void _settleTurns(String conversationId) {
+    final waiter = _turnWaiters.remove(conversationId);
+    if (waiter != null && !waiter.isCompleted) waiter.complete();
+  }
+
+  /// Called when a group round has finished, been cancelled or been stopped by
+  /// an error, so the host can drain whatever the user queued during the round.
+  void Function(String conversationId)? onGroupRoundFinished;
+
+  /// Called when a round had to run without a usable director decision, so the
+  /// host can explain it once instead of letting the group look broken.
+  void Function(String conversationId)? onGroupDirectorFallback;
+
+  bool isGroupRoundCancelled(String conversationId) =>
+      _cancelledGroupRounds.contains(conversationId);
+
+  /// Whether a whole round holds [conversationId]'s loading flag.
+  ///
+  /// The round hands its send claim to the loading flag, so this is the only
+  /// thing that can tell "a round is writing here" apart from "the user is
+  /// typing". Anything that would start a second writer has to read it.
+  bool isGroupRoundLoading(String conversationId) =>
+      _roundLoadingConversations.contains(conversationId);
+
+  /// Send one user message into a group conversation and start a round.
+  ///
+  /// Matches [sendMessage]'s contract: the user message and the first speaker's
+  /// placeholder are visible when this returns, and the round then runs
+  /// unawaited under the conversation's loading guard. The whole round holds the
+  /// send claim, which is why a second send during a round queues instead of
+  /// interleaving.
+  Future<ChatActionResult> sendGroupMessage({
+    required ChatInputData input,
+    required Conversation conversation,
+    required GroupChat group,
+    required List<Assistant> members,
+    ValueChanged<String>? onGenerationStarted,
+  }) async {
+    if (input.isEmpty) return ChatActionResult.error('empty_input');
+    if (members.isEmpty) return ChatActionResult.error('group_has_no_members');
+    final claimToken = ++_sendInFlightClaimSerial;
+    if (isSendInFlight(conversation.id) ||
+        // The round hands its claim to the loading flag, which `isSendInFlight`
+        // does not see: reading it is what keeps this entry point at parity with
+        // the other two writers.
+        isGroupRoundLoading(conversation.id) ||
+        chatService.contextCompression.blocksSending(conversation.id)) {
+      return ChatActionResult.inFlight();
+    }
+    _sendInFlightClaims[conversation.id] = claimToken;
+
+    late final ChatMessage userMessage;
+    try {
+      // The user message is authored against the first member so attachments
+      // and regexes are handled once, exactly as a 1:1 send handles them; no
+      // reply is created here, because who replies is the round's decision.
+      userMessage = await messageGenerationService.beginGroupUserMessage(
+        conversationId: conversation.id,
+        input: input,
+        authoringAssistant: members.first,
+      );
+    } catch (error) {
+      _sendInFlightClaims.remove(conversation.id);
+      return ChatActionResult.error(error.toString());
+    }
+
+    _claimGroupRound(conversation.id);
+    try {
+      if (await chatController.appendPersistedTailMessages([userMessage])) {
+        viewModel.restoreMessageUiState();
+      }
+      onMessagesChanged?.call();
+      if (chatController.currentConversation?.id == conversation.id) {
+        onSendPairAppended?.call();
+      }
+    } catch (error) {
+      // The round claim is raised by now: a failed append has to give it back,
+      // or every later send queues behind a round that never started.
+      _roundLoadingConversations.remove(conversation.id);
+      _setConversationLoading(conversation.id, false);
+      return ChatActionResult.error(error.toString());
+    }
+
+    _startGroupRound(
+      conversation: conversation,
+      group: group,
+      members: members,
+      userMessage: userMessage,
+      onGenerationStarted: onGenerationStarted,
+    );
+    return ChatActionResult.success(userMessage);
+  }
+
+  /// Re-asks the question [userMessage] already asked.
+  ///
+  /// The round is the unit of "say that again" in a group: every reply after
+  /// this message answers it, so they are dropped together and the director
+  /// decides who answers the same question again. Regenerating one reply
+  /// instead would leave the rest answering text that no longer exists, and
+  /// would give a single member's version group a more recent, authorless
+  /// revision.
+  Future<ChatActionResult> restartGroupRound({
+    required Conversation conversation,
+    required GroupChat group,
+    required List<Assistant> members,
+    required ChatMessage userMessage,
+    ValueChanged<String>? onGenerationStarted,
+  }) async {
+    if (userMessage.role != 'user') {
+      return ChatActionResult.error('not_a_user_message');
+    }
+    if (members.isEmpty) return ChatActionResult.error('group_has_no_members');
+    // One writer per conversation. A round hands its claim to the loading flag
+    // (`_claimGroupRound`), which `isSendInFlight` does not see, so restarting
+    // during a round would run a second loop over the same conversation and the
+    // two would overwrite each other's turn waiter.
+    if (_roundLoadingConversations.contains(conversation.id) ||
+        isSendInFlight(conversation.id) ||
+        chatService.contextCompression.blocksSending(conversation.id)) {
+      return ChatActionResult.inFlight();
+    }
+    final claimToken = ++_sendInFlightClaimSerial;
+    _sendInFlightClaims[conversation.id] = claimToken;
+    try {
+      await cancelStreaming(conversation);
+      final messages = await chatController.messagesForCompleteHistoryContext(
+        conversation,
+      );
+      final idx = messages.indexWhere(
+        (message) => message.id == userMessage.id,
+      );
+      if (idx < 0) return ChatActionResult.error('message_not_found');
+      final removed = await messageGenerationService.removeTrailingMessages(
+        messages: messages,
+        lastKeep: idx,
+        targetGroupId: null,
+      );
+      if (removed.isNotEmpty) {
+        await chatController.refreshTimelineAfterMutation(
+          removedRevisionIds: removed.toSet(),
+        );
+        viewModel.restoreMessageUiState();
+        onMessagesChanged?.call();
+      }
+      _claimGroupRound(conversation.id);
+      _startGroupRound(
+        conversation: conversation,
+        group: group,
+        members: members,
+        userMessage: userMessage,
+        onGenerationStarted: onGenerationStarted,
+      );
+      return ChatActionResult.success(userMessage);
+    } finally {
+      if (_sendInFlightClaims[conversation.id] == claimToken) {
+        _sendInFlightClaims.remove(conversation.id);
+      }
+    }
+  }
+
+  /// Holds the conversation for a whole round: the loading flag is what makes
+  /// a second send queue instead of interleaving, and it stays raised until the
+  /// round has finished, failed or been cancelled.
+  void _claimGroupRound(String conversationId) {
+    _cancelledGroupRounds.remove(conversationId);
+    _roundLoadingConversations.add(conversationId);
+    _setConversationLoading(conversationId, true);
+    // The loading guard now owns re-entry exclusion for this conversation.
+    _sendInFlightClaims.remove(conversationId);
+  }
+
+  void _startGroupRound({
+    required Conversation conversation,
+    required GroupChat group,
+    required List<Assistant> members,
+    required ChatMessage userMessage,
+    ValueChanged<String>? onGenerationStarted,
+  }) {
+    unawaited(
+      _runGroupRound(
+        conversation: conversation,
+        group: group,
+        members: members,
+        userMessage: userMessage,
+        onGenerationStarted: onGenerationStarted,
+      ).whenComplete(() {
+        _roundLoadingConversations.remove(conversation.id);
+        _cancelledGroupRounds.remove(conversation.id);
+        _setConversationLoading(conversation.id, false);
+        onGroupRoundFinished?.call(conversation.id);
+      }),
+    );
+  }
+
+  /// One round: the director picks a speaker, that speaker answers, repeat.
+  Future<void> _runGroupRound({
+    required Conversation conversation,
+    required GroupChat group,
+    required List<Assistant> members,
+    required ChatMessage userMessage,
+    ValueChanged<String>? onGenerationStarted,
+  }) async {
+    final assistantProvider = contextProvider.read<AssistantProvider>();
+    Assistant? resolveAssistant(String? senderId) =>
+        senderId == null ? null : assistantProvider.getById(senderId);
+    final director = GroupDirector(
+      settings: contextProvider.read<SettingsProvider>(),
+    );
+    final spokeThisRound = <String>{};
+    ChatMessage anchor = userMessage;
+    var asked = 0;
+    try {
+      final history = await chatController.messagesForGenerationContext(
+        conversation,
+        maxMessages: 40,
+      );
+      final transcript = <ChatMessage>[
+        for (final message in history)
+          if (message.id != userMessage.id) message,
+        userMessage,
+      ];
+      // One reply per member per round, so a configured limit above the member
+      // count could never be reached: clamping here keeps the number the
+      // director is told about truthful.
+      final turnLimit = group.speakerTurnLimit < members.length
+          ? group.speakerTurnLimit
+          : members.length;
+      for (var turn = 0; turn < turnLimit; turn++) {
+        if (isGroupRoundCancelled(conversation.id)) break;
+        final remaining = turnLimit - turn;
+        final decision = await director.decide(
+          group: group,
+          members: members,
+          transcript: transcript,
+          spokeThisRound: spokeThisRound,
+          resolve: resolveAssistant,
+          remainingTurns: remaining,
+          // Stop is the user's answer for this round: a decision still in
+          // flight must not be retried after it lands…
+          isCancelled: () => isGroupRoundCancelled(conversation.id),
+          // …and the request itself is registered under the conversation, so
+          // Stop aborts it instead of leaving the round loading for up to the
+          // decision timeout.
+          requestId: conversation.id,
+        );
+        if (isGroupRoundCancelled(conversation.id)) break;
+
+        Assistant? speaker;
+        switch (decision) {
+          case GroupDirectorSpeak(:final assistantId):
+            for (final member in members) {
+              if (member.id == assistantId) {
+                speaker = member;
+                break;
+              }
+            }
+          case GroupDirectorEndTurn():
+            break;
+          case GroupDirectorUnavailable(:final failure):
+            // A round with no usable decision is not a broken conversation: the
+            // first member answers once and the host explains why. `asked`
+            // keeps that explanation to one per round.
+            if (spokeThisRound.isNotEmpty) break;
+            speaker = members.first;
+            if (asked++ == 0) {
+              FlutterLogger.log(
+                '[GroupChat] director unavailable: $failure',
+                tag: 'GroupChat',
+              );
+              onGroupDirectorFallback?.call(conversation.id);
+            }
+        }
+        if (speaker == null) break;
+
+        final reply = await runAssistantTurn(
+          conversation: conversation,
+          anchor: anchor,
+          speaker: speaker,
+          group: group,
+          members: members,
+          spokeThisRound: spokeThisRound,
+          onGenerationStarted: onGenerationStarted,
+        );
+        if (reply == null) break;
+        anchor = reply;
+        spokeThisRound.add(speaker.id);
+        transcript.add(reply);
+        // A fallback round answers once by design: there is no director to stop
+        // it, and repeating the first member forever is not a group chat.
+        if (decision is GroupDirectorUnavailable) break;
+      }
+    } catch (error, stackTrace) {
+      FlutterLogger.log(
+        '[GroupChat] round failed: $error\n$stackTrace',
+        tag: 'GroupChat',
+      );
+    }
+  }
+
+  /// Stop a round at the next safe point and cancel whatever is streaming now.
+  Future<void> cancelGroupRound(String conversationId) async {
+    _cancelledGroupRounds.add(conversationId);
+    await cancelStreamingById(conversationId);
+  }
+
+  /// Appends one assistant reply after [anchor], written by [speaker].
+  ///
+  /// This is the 1:1 "new reply after a user message" path, extracted so a group
+  /// round reuses the whole generation pipeline — preparation, injections, tools,
+  /// checkpoints, cancellation, terminal persistence — instead of growing a
+  /// second one. The group only adds two things: who the author is
+  /// ([ChatMessage.senderId]) and a flattened transcript plus roster directive.
+  ///
+  /// Returns the finished reply, or null when the turn produced nothing.
+  Future<ChatMessage?> runAssistantTurn({
+    required Conversation conversation,
+    required ChatMessage anchor,
+    required Assistant speaker,
+    required GroupChat group,
+    required List<Assistant> members,
+    required Set<String> spokeThisRound,
+    ValueChanged<String>? onGenerationStarted,
+  }) async {
+    final settings = contextProvider.read<SettingsProvider>();
+    final assistantProvider = contextProvider.read<AssistantProvider>();
+    final modelConfig = messageGenerationService.getModelConfig(
+      settings,
+      speaker,
+      conversation: conversation,
+    );
+    if (modelConfig.providerKey == null || modelConfig.modelId == null) {
+      onStreamError?.call('no_model');
+      return null;
+    }
+    final providerKey = modelConfig.providerKey!;
+    final modelId = modelConfig.modelId!;
+
+    ToolApprovalService? approvalService;
+    AskUserInteractionService? askUserService;
+    try {
+      approvalService = contextProvider.read<ToolApprovalService>();
+    } catch (_) {}
+    try {
+      askUserService = contextProvider.read<AskUserInteractionService>();
+    } catch (_) {}
+
+    final contextLimit = await _contextReadLimit(speaker, conversation);
+    final history = await chatController.messagesForGenerationContext(
+      conversation,
+      maxMessages: contextLimit,
+      throughRevisionId: anchor.id,
+      includeFollowingAssistant: true,
+    );
+
+    // Stop can land inside the two reads above. Without this check the turn
+    // would create a placeholder and generate a whole reply after the round was
+    // stopped, because nothing is streaming yet for Stop to cancel.
+    if (isGroupRoundCancelled(conversation.id)) return null;
+
+    late final ChatMessage assistantMessage;
+    String? runId;
+    try {
+      final begin = await messageGenerationService.beginAssistantGeneration(
+        conversationId: conversation.id,
+        modelId: modelId,
+        providerKey: providerKey,
+        anchorGroupId: anchor.groupId ?? anchor.id,
+        truncateFuture: false,
+        senderId: speaker.id,
+      );
+      assistantMessage = begin.assistantMessage;
+      runId = begin.runId;
+    } catch (error) {
+      // A round that was stopped — or whose topic was deleted — is not a
+      // generation failure: the user's action already explains the outcome, and
+      // a toast about it would be the app arguing with them.
+      if (!isGroupRoundCancelled(conversation.id)) {
+        onStreamError?.call(error.toString());
+      }
+      return null;
+    }
+    _registerGenerationRun(assistantMessage.id, runId);
+    _activeAssistantMessages.put(assistantMessage);
+    streamController.markStreamingStarted(assistantMessage.id);
+    onGenerationStarted?.call(assistantMessage.id);
+
+    // Registered before the awaited read below, not after it: a stop that lands
+    // inside that read settles a waiter that already exists instead of finding
+    // none and leaving this turn's `await waiter.future` pending forever.
+    final waiter = Completer<void>();
+    _turnWaiters[conversation.id] = waiter;
+
+    final versionSelections =
+        chatController.currentConversation?.id == conversation.id
+        ? _versionSelections
+        : Map<String, int>.of(conversation.versionSelections);
+    if (assistantMessage.groupId case final groupId?) {
+      versionSelections[groupId] = assistantMessage.version;
+    }
+    if (chatController.currentConversation?.id == conversation.id &&
+        await chatController.openAroundPersistedMessage(assistantMessage)) {
+      viewModel.restoreMessageUiState();
+    }
+    onMessagesChanged?.call();
+
+    final flattened = GroupTranscript.forSpeaker(
+      [
+        for (final message in history)
+          if (message.id != assistantMessage.id) message,
+      ],
+      speakerId: speaker.id,
+      resolve: (senderId) =>
+          senderId == null ? null : assistantProvider.getById(senderId),
+    );
+    final directive = GroupTranscript.rosterDirective(
+      group: group,
+      members: members,
+      speakerName: speaker.name.trim().isEmpty ? speaker.id : speaker.name,
+      spokeThisRound: spokeThisRound,
+    );
+
+    Future<void> generate() async {
+      try {
+        // Everything that can throw belongs inside the try: the caller only
+        // `unawaited` this, so a throw before the first await would escape and
+        // leave this turn's waiter pending for the rest of the round.
+        _bindFileProcessingCallbacks();
+        final supportsReasoning = _isReasoningModel(providerKey, modelId);
+        final enableReasoning =
+            supportsReasoning &&
+            _isReasoningEnabled(
+              _selectedReasoning(
+                settings: settings,
+                providerKey: providerKey,
+                modelId: modelId,
+                assistant: speaker,
+              ),
+            );
+        await messageGenerationService.initializeReasoningState(
+          messageId: assistantMessage.id,
+          enableReasoning: enableReasoning,
+        );
+        final prepared = await messageGenerationService
+            .prepareApiMessagesWithInjections(
+              messages: [
+                ...flattened,
+                ChatMessage(
+                  id: assistantMessage.id,
+                  role: 'assistant',
+                  content: '',
+                  timestamp: assistantMessage.timestamp,
+                  conversationId: conversation.id,
+                  isStreaming: true,
+                  senderId: speaker.id,
+                ),
+              ],
+              versionSelections: versionSelections,
+              currentConversation: conversation.copyWith(truncateIndex: -1),
+              settings: settings,
+              assistant: speaker,
+              assistantId: speaker.id,
+              providerKey: providerKey,
+              modelId: modelId,
+              approvalService: approvalService,
+              askUserService: askUserService,
+              processingMessageId: assistantMessage.id,
+            );
+        prepared.apiMessages.insert(0, {
+          'role': 'system',
+          'content': directive,
+        });
+        final userImagePaths = messageGenerationService.buildUserImagePaths(
+          input: null,
+          lastUserImagePaths: prepared.lastUserImagePaths,
+          settings: settings,
+          providerKey: providerKey,
+          modelId: modelId,
+        );
+        final ctx = messageGenerationService.buildGenerationContext(
+          assistantMessage: assistantMessage,
+          prepared: prepared,
+          userImagePaths: userImagePaths,
+          allowImagesApiRouting: true,
+          providerKey: providerKey,
+          modelId: modelId,
+          assistant: speaker,
+          settings: settings,
+          supportsReasoning: supportsReasoning,
+          enableReasoning: enableReasoning,
+          scheduled: false,
+          scheduledNotify: true,
+          scheduledPreview: true,
+          // The topic is named once, when the whole round has finished; a
+          // per-speaker trigger would title it from half a round.
+          generateTitleOnFinish: false,
+          generationRunId: runId,
+        );
+        if (!_activeAssistantMessages.isActive(assistantMessage)) return;
+        await _executeGeneration(ctx);
+      } catch (error) {
+        await handleSendGenerationFailure(
+          error: error,
+          conversationId: conversation.id,
+          assistantMessage: assistantMessage,
+        );
+      }
+    }
+
+    unawaited(generate());
+    await waiter.future;
+    // The terminal write has published by now; prefer the persisted row over
+    // the snapshot this turn started with.
+    final messages = _messages;
+    final index = messages.indexWhere(
+      (message) => message.id == assistantMessage.id,
+    );
+    if (index >= 0) return messages[index];
+    // `_messages` is whatever the page shows, and the user may have left this
+    // topic mid-round. Reading the row back keeps this speaker's text in the
+    // director's transcript instead of the empty placeholder.
+    try {
+      final persisted = await chatService.loadMessagesByIds([
+        assistantMessage.id,
+      ]);
+      if (persisted.isNotEmpty) return persisted.first;
+    } catch (_) {
+      // A temporary conversation has no row to read back; the snapshot stands.
+    }
+    return assistantMessage;
   }
 
   List<Map<String, dynamic>> _copyToolEvents(String messageId) {
@@ -1959,6 +2555,7 @@ class ChatActions {
   }) async {
     final compression = chatService.contextCompression.taskFor(conversation.id);
     if (isSendInFlight(conversation.id) ||
+        isGroupRoundLoading(conversation.id) ||
         (compression != null &&
             compression.active &&
             compression.phase != CompressionPhase.waiting)) {

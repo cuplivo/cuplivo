@@ -24,7 +24,8 @@ class DesktopSidebar extends StatelessWidget {
 
   /// Callback when a new conversation is requested.
   /// The [closeDrawer] parameter is ignored on desktop (sidebar is always visible).
-  final FutureOr<void> Function({bool closeDrawer})? onNewConversation;
+  final FutureOr<void> Function({bool closeDrawer, String? assistantId})?
+  onNewConversation;
   final Set<String> loadingConversationIds;
 
   @override

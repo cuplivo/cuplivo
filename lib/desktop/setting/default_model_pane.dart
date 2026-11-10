@@ -347,6 +347,36 @@ class DesktopDefaultModelPane extends StatelessWidget {
                       }
                     },
                   ),
+                  const SizedBox(height: 16),
+                  _ModelCard(
+                    icon: lucide.Lucide.Users,
+                    title: l10n.defaultModelPageDirectorModelTitle,
+                    subtitle: l10n.defaultModelPageDirectorModelSubtitle,
+                    modelProvider: settings.directorModelProvider,
+                    modelId: settings.directorModelId,
+                    fallbackProvider: settings.currentModelProvider,
+                    fallbackModelId: settings.currentModelId,
+                    onReset: () async {
+                      await context
+                          .read<SettingsProvider>()
+                          .resetDirectorModel();
+                    },
+                    onPick: () async {
+                      final settingsProvider = context.read<SettingsProvider>();
+                      final sel =
+                          await showModelSelectorWithCurrentChatFallback(
+                            context,
+                            initialProviderKey: settings.directorModelProvider,
+                            initialModelId: settings.directorModelId,
+                          );
+                      if (sel != null) {
+                        await settingsProvider.setDirectorModel(
+                          sel.providerKey,
+                          sel.modelId,
+                        );
+                      }
+                    },
+                  ),
                 ],
               ),
             ),

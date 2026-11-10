@@ -3204,7 +3204,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatInputBarToolsTooltip => '工具';
 
   @override
-  String get chatInputBarMoreTooltip => '更多';
+  String get chatInputBarMoreTooltip => '添加';
 
   @override
   String get chatInputBarVoiceInputTooltip => '语音输入';
@@ -17087,6 +17087,125 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get assistantEditProactiveCareFeatureTitle => 'Ta的来信';
+
+  @override
+  String get chatInputBarOverflowTooltip => '更多操作';
+
+  @override
+  String get settingsPageChatOwners => '助手与群聊';
+
+  @override
+  String get settingsPageChatOwnersCreate => '新建';
+
+  @override
+  String get chatOwnerCreateAssistant => '新建助手';
+
+  @override
+  String get recycleBinKindGroup => '群聊';
+
+  @override
+  String get recycleBinFilterGroups => '群聊';
+
+  @override
+  String get groupChatTitle => '群聊';
+
+  @override
+  String get groupChatCreate => '新建群聊';
+
+  @override
+  String get groupChatCreateHint => '至少选择一位助手';
+
+  @override
+  String get groupChatNameHint => '群聊名称';
+
+  @override
+  String get groupChatChangeAvatar => '更换群头像';
+
+  @override
+  String get groupChatMembers => '成员';
+
+  @override
+  String get groupChatMembersEmpty => '还没有成员';
+
+  @override
+  String get groupChatInvite => '邀请助手';
+
+  @override
+  String get groupChatNoAssistantToInvite => '所有助手都已在这个群聊里';
+
+  @override
+  String get groupChatSave => '保存';
+
+  @override
+  String get groupChatCancel => '取消';
+
+  @override
+  String get groupChatSettingsTitle => '群聊设置';
+
+  @override
+  String get groupChatBack => '返回';
+
+  @override
+  String get groupChatOrchestration => '发言编排';
+
+  @override
+  String get groupChatDirectorTitle => '导演模型';
+
+  @override
+  String get groupChatDirectorSubtitle => '选择下一个谁来发言的模型，建议选择快速且低成本的模型';
+
+  @override
+  String get groupChatDirectorFollowDefault => '跟随默认模型';
+
+  @override
+  String get groupChatMaxTurnsTitle => '每轮最多发言';
+
+  @override
+  String get groupChatMaxTurnsSubtitle => '一条消息最多由几位成员回复';
+
+  @override
+  String get groupChatRemoveMember => '移出';
+
+  @override
+  String get groupChatRemoveMemberTitle => '移出助手';
+
+  @override
+  String get groupChatRemoveMemberContent => '该助手将不再参与这个群聊。';
+
+  @override
+  String get groupChatDelete => '删除群聊';
+
+  @override
+  String get groupChatDeleteTitle => '删除这个群聊？';
+
+  @override
+  String get groupChatDeleteContent => '群聊及其全部话题会一起移入回收站。';
+
+  @override
+  String get groupChatDeleted => '群聊已移入回收站';
+
+  @override
+  String get groupChatUnavailable => '找不到这个群聊的设置，请到回收站恢复。';
+
+  @override
+  String get groupChatNewTopic => '新话题';
+
+  @override
+  String get groupChatRemovedMember => '已删除的助手';
+
+  @override
+  String get groupChatDirectorFallbackWarning =>
+      '导演模型不可用，已由首位成员回复一次。请检查默认模型设置。';
+
+  @override
+  String get groupChatUnavailableWarning => '这个群聊没有可用的成员。';
+
+  @override
+  String get defaultModelPageDirectorModelTitle => '导演模型';
+
+  @override
+  String get defaultModelPageDirectorModelSubtitle =>
+      '决定群聊里下一位发言者，建议选择快速且低成本的模型';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -20289,7 +20408,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get chatInputBarToolsTooltip => '工具';
 
   @override
-  String get chatInputBarMoreTooltip => '更多';
+  String get chatInputBarMoreTooltip => '添加';
 
   @override
   String get chatInputBarVoiceInputTooltip => '语音输入';
@@ -34172,6 +34291,125 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get assistantEditProactiveCareFeatureTitle => 'Ta的来信';
+
+  @override
+  String get chatInputBarOverflowTooltip => '更多操作';
+
+  @override
+  String get settingsPageChatOwners => '助手与群聊';
+
+  @override
+  String get settingsPageChatOwnersCreate => '新建';
+
+  @override
+  String get chatOwnerCreateAssistant => '新建助手';
+
+  @override
+  String get recycleBinKindGroup => '群聊';
+
+  @override
+  String get recycleBinFilterGroups => '群聊';
+
+  @override
+  String get groupChatTitle => '群聊';
+
+  @override
+  String get groupChatCreate => '新建群聊';
+
+  @override
+  String get groupChatCreateHint => '至少选择一位助手';
+
+  @override
+  String get groupChatNameHint => '群聊名称';
+
+  @override
+  String get groupChatChangeAvatar => '更换群头像';
+
+  @override
+  String get groupChatMembers => '成员';
+
+  @override
+  String get groupChatMembersEmpty => '还没有成员';
+
+  @override
+  String get groupChatInvite => '邀请助手';
+
+  @override
+  String get groupChatNoAssistantToInvite => '所有助手都已在这个群聊里';
+
+  @override
+  String get groupChatSave => '保存';
+
+  @override
+  String get groupChatCancel => '取消';
+
+  @override
+  String get groupChatSettingsTitle => '群聊设置';
+
+  @override
+  String get groupChatBack => '返回';
+
+  @override
+  String get groupChatOrchestration => '发言编排';
+
+  @override
+  String get groupChatDirectorTitle => '导演模型';
+
+  @override
+  String get groupChatDirectorSubtitle => '选择下一个谁来发言的模型，建议选择快速且低成本的模型';
+
+  @override
+  String get groupChatDirectorFollowDefault => '跟随默认模型';
+
+  @override
+  String get groupChatMaxTurnsTitle => '每轮最多发言';
+
+  @override
+  String get groupChatMaxTurnsSubtitle => '一条消息最多由几位成员回复';
+
+  @override
+  String get groupChatRemoveMember => '移出';
+
+  @override
+  String get groupChatRemoveMemberTitle => '移出助手';
+
+  @override
+  String get groupChatRemoveMemberContent => '该助手将不再参与这个群聊。';
+
+  @override
+  String get groupChatDelete => '删除群聊';
+
+  @override
+  String get groupChatDeleteTitle => '删除这个群聊？';
+
+  @override
+  String get groupChatDeleteContent => '群聊及其全部话题会一起移入回收站。';
+
+  @override
+  String get groupChatDeleted => '群聊已移入回收站';
+
+  @override
+  String get groupChatUnavailable => '找不到这个群聊的设置，请到回收站恢复。';
+
+  @override
+  String get groupChatNewTopic => '新话题';
+
+  @override
+  String get groupChatRemovedMember => '已删除的助手';
+
+  @override
+  String get groupChatDirectorFallbackWarning =>
+      '导演模型不可用，已由首位成员回复一次。请检查默认模型设置。';
+
+  @override
+  String get groupChatUnavailableWarning => '这个群聊没有可用的成员。';
+
+  @override
+  String get defaultModelPageDirectorModelTitle => '导演模型';
+
+  @override
+  String get defaultModelPageDirectorModelSubtitle =>
+      '决定群聊里下一位发言者，建议选择快速且低成本的模型';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -37374,7 +37612,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get chatInputBarToolsTooltip => '工具';
 
   @override
-  String get chatInputBarMoreTooltip => '更多';
+  String get chatInputBarMoreTooltip => '添加';
 
   @override
   String get chatInputBarVoiceInputTooltip => '語音輸入';
@@ -51264,4 +51502,123 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get assistantEditProactiveCareFeatureTitle => 'Ta的來信';
+
+  @override
+  String get chatInputBarOverflowTooltip => '更多操作';
+
+  @override
+  String get settingsPageChatOwners => '助手與群聊';
+
+  @override
+  String get settingsPageChatOwnersCreate => '新增';
+
+  @override
+  String get chatOwnerCreateAssistant => '新增助手';
+
+  @override
+  String get recycleBinKindGroup => '群聊';
+
+  @override
+  String get recycleBinFilterGroups => '群聊';
+
+  @override
+  String get groupChatTitle => '群聊';
+
+  @override
+  String get groupChatCreate => '新增群聊';
+
+  @override
+  String get groupChatCreateHint => '至少選擇一位助手';
+
+  @override
+  String get groupChatNameHint => '群聊名稱';
+
+  @override
+  String get groupChatChangeAvatar => '更換群頭像';
+
+  @override
+  String get groupChatMembers => '成員';
+
+  @override
+  String get groupChatMembersEmpty => '還沒有成員';
+
+  @override
+  String get groupChatInvite => '邀請助手';
+
+  @override
+  String get groupChatNoAssistantToInvite => '所有助手都已在此群聊中';
+
+  @override
+  String get groupChatSave => '儲存';
+
+  @override
+  String get groupChatCancel => '取消';
+
+  @override
+  String get groupChatSettingsTitle => '群聊設定';
+
+  @override
+  String get groupChatBack => '返回';
+
+  @override
+  String get groupChatOrchestration => '發言編排';
+
+  @override
+  String get groupChatDirectorTitle => '導演模型';
+
+  @override
+  String get groupChatDirectorSubtitle => '選擇下一個誰來發言的模型，建議選擇快速且低成本的模型';
+
+  @override
+  String get groupChatDirectorFollowDefault => '跟隨預設模型';
+
+  @override
+  String get groupChatMaxTurnsTitle => '每輪最多發言';
+
+  @override
+  String get groupChatMaxTurnsSubtitle => '一則訊息最多由幾位成員回覆';
+
+  @override
+  String get groupChatRemoveMember => '移出';
+
+  @override
+  String get groupChatRemoveMemberTitle => '移出助手';
+
+  @override
+  String get groupChatRemoveMemberContent => '該助手將不再參與此群聊。';
+
+  @override
+  String get groupChatDelete => '刪除群聊';
+
+  @override
+  String get groupChatDeleteTitle => '刪除此群聊？';
+
+  @override
+  String get groupChatDeleteContent => '群聊及其全部話題會一起移入回收站。';
+
+  @override
+  String get groupChatDeleted => '群聊已移入回收站';
+
+  @override
+  String get groupChatUnavailable => '找不到此群聊的設定，請到回收站還原。';
+
+  @override
+  String get groupChatNewTopic => '新話題';
+
+  @override
+  String get groupChatRemovedMember => '已刪除的助手';
+
+  @override
+  String get groupChatDirectorFallbackWarning =>
+      '導演模型無法使用，已由首位成員回覆一次。請檢查預設模型設定。';
+
+  @override
+  String get groupChatUnavailableWarning => '此群聊沒有可用的成員。';
+
+  @override
+  String get defaultModelPageDirectorModelTitle => '導演模型';
+
+  @override
+  String get defaultModelPageDirectorModelSubtitle =>
+      '決定群聊中下一位發言者，建議選擇快速且低成本的模型';
 }

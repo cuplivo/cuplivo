@@ -15,6 +15,7 @@ import '../../../utils/multimodal_input_utils.dart';
 import '../../../../utils/mcp_structured_image.dart';
 import '../builtin_tools.dart';
 import '../chat_api_helpers.dart';
+import '../message_authorship.dart';
 import '../native_input_attachments.dart';
 import '../tool_result_content.dart';
 import '../../model_spec/model_spec_resolver.dart';

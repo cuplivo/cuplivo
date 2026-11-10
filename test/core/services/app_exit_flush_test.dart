@@ -4,7 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:Cuplivo/core/services/app_exit_flush.dart';
 
 void main() {
-  tearDown(AppExitFlush.debugReset);
+  tearDown(() {
+    AppExitFlush.debugReset();
+    AppShutdown.debugReset();
+  });
 
   test('flushAll invokes every registered handler in order', () async {
     final calls = <String>[];
@@ -36,79 +39,63 @@ void main() {
     expect(calls, <String>['after']);
   });
 
-  test('exit stops producers and drains writes before closing once', () async {
-    final calls = <String>[];
-    final write = Completer<void>();
-    AppExitFlush.configureShutdown(
-      prepare: () async => calls.add('stop'),
-      close: () async => calls.add('close'),
-    );
-    AppExitFlush.register(() async {
-      calls.add('write');
-      await write.future;
-      calls.add('written');
+  // The two registries answer different questions: a flush drains writes and
+  // also runs for a window that only hides (close to tray), while a shutdown
+  // gives up process-owned resources. Keeping them apart is what stops a
+  // hiding window from closing the LAN sync listener — that, and nothing else,
+  // is #1036.
+  group('AppShutdown', () {
+    test('runs its handlers in order', () async {
+      final calls = <String>[];
+      AppShutdown.register(() async => calls.add('first'));
+      AppShutdown.register(() async => calls.add('second'));
+
+      await AppShutdown.runAll();
+
+      expect(calls, <String>['first', 'second']);
     });
 
-    final trayExit = AppExitFlush.shutdown();
-    final systemExit = AppExitFlush.shutdown();
-    expect(AppExitFlush.isExiting, isTrue);
-    expect(systemExit, same(trayExit));
-    await pumpEventQueue();
-    expect(calls, ['stop', 'write']);
+    test('skips a failing handler and still runs the rest', () async {
+      final calls = <String>[];
+      AppShutdown.register(() async => throw StateError('boom'));
+      AppShutdown.register(() async => calls.add('after'));
 
-    write.complete();
-    await Future.wait([trayExit, systemExit, AppExitFlush.flushAll()]);
-    await AppExitFlush.shutdown();
-    expect(calls, ['stop', 'write', 'written', 'close']);
-  });
+      await AppShutdown.runAll();
 
-  test('ordinary flush leaves the database open for continued use', () async {
-    var closed = false;
-    AppExitFlush.configureShutdown(
-      prepare: () async {},
-      close: () async => closed = true,
-    );
-    await AppExitFlush.flushAll();
-    expect(AppExitFlush.isExiting, isFalse);
-    expect(closed, isFalse);
-  });
+      expect(calls, <String>['after']);
+    });
 
-  test('deadline never closes underneath an unfinished flush', () async {
-    final write = Completer<void>();
-    var closeCount = 0;
-    AppExitFlush.register(() => write.future);
-    AppExitFlush.configureShutdown(
-      prepare: () async {},
-      close: () async => closeCount++,
-    );
+    test('unregister removes a handler', () async {
+      final calls = <String>[];
+      Future<void> gone() async => calls.add('gone');
+      AppShutdown.register(gone);
+      AppShutdown.unregister(gone);
 
-    await AppExitFlush.shutdown(timeout: Duration.zero);
-    await AppExitFlush.shutdown();
-    expect(closeCount, 0);
-    write.complete();
-    await pumpEventQueue();
-    expect(closeCount, 1);
-  });
+      await AppShutdown.runAll();
 
-  test('a failed flush handler still permits database cleanup', () async {
-    var closed = false;
-    AppExitFlush.register(() async => throw StateError('write failed'));
-    AppExitFlush.configureShutdown(
-      prepare: () async {},
-      close: () async => closed = true,
-    );
-    await AppExitFlush.shutdown();
-    expect(closed, isTrue);
-  });
+      expect(calls, isEmpty);
+    });
 
-  test('a failed preparation still flushes and closes the database', () async {
-    final calls = <String>[];
-    AppExitFlush.configureShutdown(
-      prepare: () async => throw StateError('terminal checkpoint failed'),
-      close: () async => calls.add('close'),
-    );
-    AppExitFlush.register(() async => calls.add('flush'));
-    await AppExitFlush.shutdown();
-    expect(calls, ['flush', 'close']);
+    test('a flush does not run shutdown handlers', () async {
+      final calls = <String>[];
+      AppShutdown.register(() async => calls.add('shutdown'));
+
+      await AppExitFlush.flushAll();
+
+      expect(
+        calls,
+        isEmpty,
+        reason: 'a hiding window flushes; it must not tear resources down',
+      );
+    });
+
+    test('a shutdown does not run flush handlers', () async {
+      final calls = <String>[];
+      AppExitFlush.register(() async => calls.add('flush'));
+
+      await AppShutdown.runAll();
+
+      expect(calls, isEmpty);
+    });
   });
 }

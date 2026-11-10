@@ -110,11 +110,10 @@ final class BusinessSettingsMerger {
 
     final preferences = Map<String, Object>.from(existing.preferences);
     for (final key in effectiveIncomingKeys) {
-      final disposition = BusinessKeyRegistry.classify(key);
-      if (disposition == BusinessKeyDisposition.entity ||
-          disposition == BusinessKeyDisposition.providerOrder ||
-          disposition == BusinessKeyDisposition.localOnly ||
-          disposition == BusinessKeyDisposition.discarded) {
+      if (BusinessKeyRegistry.entityKindFor(key) != null ||
+          BusinessKeyRegistry.isProviderOrder(key) ||
+          BusinessKeyRegistry.isPlatformOnly(key) ||
+          BusinessKeyRegistry.isDiscarded(key)) {
         continue;
       }
       final imported = incoming.preferences[key];

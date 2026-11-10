@@ -27,10 +27,7 @@ void main() {
       final localPreferences = await SharedPreferences.getInstance();
       expect(localPreferences.getBool(key), isFalse);
       expect(harness.preferences.containsKey(key), isFalse);
-      expect(
-        BusinessKeyRegistry.classify(key),
-        BusinessKeyDisposition.localOnly,
-      );
+      expect(BusinessKeyRegistry.isPlatformOnly(key), isTrue);
 
       final copied = settings.copyWith();
       addTearDown(copied.dispose);

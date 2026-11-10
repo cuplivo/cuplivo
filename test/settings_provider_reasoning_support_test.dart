@@ -1,4 +1,3 @@
-import "support/business_test_harness.dart";
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -9,6 +8,8 @@ import 'package:Cuplivo/core/models/model_spec.dart';
 import 'package:Cuplivo/core/models/reasoning_request.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/model_spec/model_defaults_guesser.dart';
+
+import 'support/business_test_harness.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -423,12 +424,8 @@ void main() {
         'OpenAI::gpt-5.1': {'level': 'medium', 'budgetTokens': 16000},
       });
       expect(
-        BusinessKeyRegistry.classify('reasoning_choice_by_model_v1'),
-        BusinessKeyDisposition.preference,
-      );
-      expect(
-        BusinessKeyRegistry.preferenceKeys,
-        contains('reasoning_choice_by_model_v1'),
+        BusinessKeyRegistry.policyOf('reasoning_choice_by_model_v1'),
+        KeyPolicy.backupOnly,
       );
 
       final reloaded = SettingsProvider(harness.preferences);

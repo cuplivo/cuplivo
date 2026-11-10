@@ -122,9 +122,10 @@ final class BusinessMigrationEngine {
   }
 
   static Set<String> _cleanupKeys(Iterable<String> keys) => {
+    // A platform preference stays where it is; everything else has been moved
+    // into the business store and can go.
     for (final key in keys)
-      if (BusinessKeyRegistry.classify(key) != BusinessKeyDisposition.localOnly)
-        key,
+      if (!BusinessKeyRegistry.isPlatformOnly(key)) key,
   };
 
   Future<void> _cleanup(Set<String> keys) async {

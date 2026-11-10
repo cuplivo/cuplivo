@@ -17,7 +17,7 @@ import 'browser_favicon.dart';
 import 'browser_menu.dart';
 import 'browser_surface_controls.dart';
 import 'browser_progressive_edge.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 class BrowserTabStrip extends StatelessWidget {
   const BrowserTabStrip({

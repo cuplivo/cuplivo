@@ -275,9 +275,64 @@ unchanged this round, so the check is "still true", not "new decision".
    `sync` the fork cannot authenticate; seeding `ko`/`ru`/`tr` with 430 English strings satisfies the
    key-set check but ships untranslated UI; leaving the tool in the tree unrun keeps the fork's own
    gate and is the smallest change.
-2. **Land the rewrite.** `master` has not moved: the 20-unit series is `reorg/series-4.6`, both backups
-   (`backup/master-ecd47c3f6`, `backup/series-4.6-4a7da9b6f`) are pushed, and so is the branch. Landing
-   is a force-push of `master`, and it should follow the replay rather than precede it.
+2. **Land the rewrite.** The rewrite itself landed (`reorg/series-4.6`), and the replay's
+   `master` now sits at `eec03c044` — 23 commits above `cb95d6af0`, `cb95d6af0` an ancestor, working
+   tree clean. Both backups are pushed: `backup/master-ea626d893` (the pre-replay `master`) and
+   `backup/series-v1.3.5-cb95d6af0` (the replayed series). What remains is the force-push of `master`
+   itself, which the repository's owner performs: `git push --force-with-lease origin master`
+   (`origin/master` is still `ea626d893`, so the lease holds).
 3. **#1081 (the composer's quick entries) is still its own unit**, because folding it into group-chat
    put `home_page.dart`'s `isGroup` block in twice with no conflict marker. A hand resolution would
    close the family; until then it is one extra round.
+
+## The replay, measured
+
+Written after the replay landed on `reorg/onto-v1.3.5`, so the forecast can be read
+against what actually happened.
+
+- **The surface was smaller and finer than predicted.** The forecast counted 224
+  predicted stop-files (153 distinct) from a whole-series `merge-tree`. The replay
+  actually stopped on 74 paths in unit 1, 19 in group-chat, 21 in the 4.5.0
+  close-out, 11 in the landing, 5 in sync, 4 in translate, 3 in KelivoIN, 3 in
+  `#1081`, 2 in markdown-image, 1 each in PDF and backup — and units 2, 3, 5, 6,
+  15 and 16 applied clean or needed only the ARB regeneration. The difference is
+  the lesson the runbook already carries: a `merge-tree` of the series answers "how
+  many files changed on both sides", not "how many hunks will stop".
+- **The identity fence was the real risk, and it was not where the forecast looked.**
+  The forecast planned for a broad brand sweep. Measurement says the identity unit
+  is two token substitutions plus path moves (1432 of 1711 files), and the whole
+  first attempt — 56 files resolved with a blanket `Kelivo` -> `Cuplivo` pass — had
+  to be thrown away with `git rebase --abort`. See the runbook's
+  "Verification of the `cb95d6af0` replay".
+- **The l10n maths held.** Upstream's `app_en.arb` covers every key with an
+  `@description` and the fork's 364 extra keys append cleanly; the merge is a dict
+  merge per key, and the three new locales arrived as plain added files, which is
+  why they needed the sweep. `desiredFileName.txt` lists ~1153 untranslated
+  strings, all of them the fork's keys in `ko`/`ru`/`tr` — the open `tool/l10n`
+  decision below, unchanged by the replay.
+- **Rule 7 found nothing this time.** No unit was absorbed by upstream: the
+  compression readout was *withdrawn* (ADR-0011) rather than absorbed, and the
+  reply hooks were already retired (ADR-0012). The one place upstream's mechanism
+  replaced the fork's was the desktop reasoning popover, and that needed a decision
+  (upstream's picker, recorded in the runbook) rather than a rule-7 deletion.
+- **The open items resolved as follows.** The rewrite landed before the replay, as
+  planned. `#1081` stayed its own unit and replayed without conflict. The
+  `tool/l10n` decision is still open (adopt / seed `ko`-`ru`-`tr` with English /
+  keep the fork's own gate). Newly open: `release.yml` was not re-derived from
+  upstream's `build-stable-47.yml` (the Impeller/Skia matrix is a product decision
+  the fork has not taken), and `v4.6.0` still points at the pre-rewrite tip.
+- **The suite, not the conflicts, was the work.** The first full run after the
+  replay reported 119 failures from seven root causes, all of them consequences of
+  the replay's own resolutions or of upstream-new tests that assume a POSIX
+  filesystem. That ratio — 137 conflicts against 119 post-merge failures — is the
+  number to plan the next re-base around.
+- **The gates, and one correction to how they are read.** `dart analyze
+  --fatal-infos lib test integration_test` is clean; `dart format --output=none
+  --set-exit-if-changed lib test integration_test` lays out 2,656 files with 0
+  changed; the full suite closes at `+13330 ~79: All other tests passed!`. Before
+  that number was believed, an hour went into a false alarm: counting the file
+  names in the bridge's copy of a `compact` log gave 489 against 1203 on disk.
+  That log is a sample of the reporter's stream, not an inventory of the run —
+  `--reporter json` reports 34 `suite` events for a directory that holds 34 files,
+  and the same directory shows 25 names under `compact`. The runbook carries the
+  measurement; the scare is recorded only so the next re-base does not repeat it.

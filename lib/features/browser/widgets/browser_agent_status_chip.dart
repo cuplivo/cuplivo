@@ -5,7 +5,7 @@ import '../../../l10n/app_localizations.dart';
 import '../models/browser_agent_activity.dart';
 import 'browser_glass.dart';
 import 'browser_surface_controls.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 export '../models/browser_agent_activity.dart';
 

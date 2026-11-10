@@ -10,7 +10,7 @@ import '../pages/browser_management_page.dart';
 import 'browser_glass.dart';
 import 'browser_library.dart';
 import 'browser_surface_controls.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 typedef _BrowserSettingsValues = ({
   BrowserSearchEngine searchEngine,

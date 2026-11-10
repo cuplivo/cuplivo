@@ -1,9 +1,9 @@
 import 'dart:convert';
 
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/provider_oauth.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/response_speed.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/provider_oauth.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/response_speed.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 ProviderConfig _config() => ProviderConfig(

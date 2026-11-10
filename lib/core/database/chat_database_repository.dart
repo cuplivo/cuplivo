@@ -197,6 +197,7 @@ class ChatDatabaseRepository {
        _observer = observer ?? ChatDatabaseObserver.instance;
 
   final AppDatabase _db;
+
   /// The recycle bin, when one is installed for this database: the delete paths
   /// stage what they remove through it before committing.
   final RecycleService? recycle;

@@ -1,6 +1,6 @@
-import 'package:Kelivo/core/models/compression_config.dart';
-import 'package:Kelivo/features/home/controllers/home_view_model.dart';
-import 'package:Kelivo/features/home/controllers/chat_controller.dart';
+import 'package:Cuplivo/core/models/compression_config.dart';
+import 'package:Cuplivo/features/home/controllers/home_view_model.dart';
+import 'package:Cuplivo/features/home/controllers/chat_controller.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:Cuplivo/core/models/memory_entry.dart';

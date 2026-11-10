@@ -270,29 +270,48 @@ void main() {
           final assistant = assistants.assistants.singleWhere(
             (a) => a.id == 'source',
           );
-          expect(assistant.avatar, '${newContent.path}/avatars/assistant.png');
           expect(
-            assistant.background,
-            '${newContent.path}/images/background.png',
+            p.equals(
+              assistant.avatar ?? '',
+              '${newContent.path}/avatars/assistant.png',
+            ),
+            isTrue,
+            reason: assistant.avatar,
           );
           expect(
-            SandboxPathResolver.fix(preferences.getString('avatar_value')!),
-            '${newContent.path}/avatars/user.png',
+            p.equals(
+              assistant.background ?? '',
+              '${newContent.path}/images/background.png',
+            ),
+            isTrue,
+            reason: assistant.background,
+          );
+          final userAvatar = SandboxPathResolver.fix(
+            preferences.getString('avatar_value')!,
+          );
+          expect(
+            p.equals(userAvatar, '${newContent.path}/avatars/user.png'),
+            isTrue,
+            reason: userAvatar,
           );
           final providers =
               jsonDecode(preferences.getString('provider_configs_v1')!) as Map;
-          expect(
-            SandboxPathResolver.fix(
-              providers['source']['avatarValue'] as String,
-            ),
-            '${newContent.path}/avatars/provider.png',
+          final providerAvatar = SandboxPathResolver.fix(
+            providers['source']['avatarValue'] as String,
           );
           expect(
-            SandboxPathResolver.fix(
-              providers['source']['modelOverrides']['model']['avatar']['value']
-                  as String,
-            ),
-            '${newContent.path}/avatars/model.png',
+            p.equals(providerAvatar, '${newContent.path}/avatars/provider.png'),
+            isTrue,
+            reason: providerAvatar,
+          );
+          final modelAvatar = SandboxPathResolver.fix(
+            providers['source']['modelOverrides']['model']['avatar']['value']
+                as String,
+          );
+          expect(
+            p.equals(modelAvatar, '${newContent.path}/avatars/model.png'),
+            isTrue,
+            reason: modelAvatar,
           );
         },
       );

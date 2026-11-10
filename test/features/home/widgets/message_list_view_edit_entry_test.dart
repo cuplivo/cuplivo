@@ -1,5 +1,5 @@
-import 'package:Kelivo/core/models/context_operation.dart';
-import 'package:Kelivo/features/chat/widgets/chat_message_widget.dart';
+import 'package:Cuplivo/core/models/context_operation.dart';
+import 'package:Cuplivo/features/chat/widgets/chat_message_widget.dart';
 import "../../../support/business_test_harness.dart";
 import '../../../support/markdown_render_helpers.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';

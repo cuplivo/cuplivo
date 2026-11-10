@@ -846,3 +846,169 @@ deleted the pre-flight estimate surface (`compressUsage*` survive unreferenced,
 `estimateCompressionTokens` has no `lib/` caller, and the operations panel reports real `task.usage`),
 so the unit that carries the readout replays as a deletion.
 
+## Verification of the `cb95d6af0` replay
+
+Landed on `reorg/onto-v1.3.5`, 23 commits above `cb95d6af0`: the 22 units plus one
+`fix(rebase)` tail that carries the sweep and everything the suite found afterwards
+(see "why a tail" below). `git merge-base --is-ancestor cb95d6af0 HEAD` holds,
+`dart analyze --fatal-infos lib test integration_test` is clean, `dart format
+--output=none --set-exit-if-changed` names no file, and `flutter gen-l10n` is
+idempotent.
+
+### The conflict census
+
+Units 2, 3 and 6 applied clean, and units 5, 15 and 16 needed only the ARB
+regeneration. The rest:
+
+| unit | files | shape |
+| --- | --- | --- |
+| 1 identity | 74 | 50 `rename(base) == fork` (take `rename(upstream)`), 3 three-way merges in the fork namespace, 8 hand, 4 ARB dict merges, 3 generated, 6 add/delete shapes |
+| 4 sync | 5 | tray / main / exit-flush test (the fork's two-registry model), the `KeyPolicy` registry, `BackupPortability` |
+| 9 translate | 4 | upstream's `ValueNotifier` destination, the fork's settings-driven target |
+| 12 4.5 landing | 11 | the `cuplivo`->`kelivo` scheme revert (already resolved in unit 1), a stray `)`, ARBs |
+| 13 group-chat | 19 | the provider layer, the composer, `home_page`, ARBs |
+| 14 4.5.0 close-out | 21 | the withdrawn readout and reply, the recycle field, ARBs |
+| 18 KelivoIN | 3 | the built-in list, the provider page, the test |
+
+The whole series conflicted on fewer files than the forecast's 153 distinct paths
+predicted, and the reconciliation was finer-grained than a file count suggests: on
+`google_common.dart` the fork's entire delta was one line
+(`messages.lastIndexWhere` -> `lastUserIndex`) under a block upstream had
+rewritten, which is why every block was diffed against its base before choosing a
+side rather than picked whole.
+
+### The identity sweep is two tokens, not a brand rename
+
+Measured over the unit's 1711 comparable files: **1432** are explained exactly by
+`package:Kelivo/` -> `package:Cuplivo/`, `com.psyche.kelivo` ->
+`com.cuplivo.cuplivo` and the 76 path moves. The fork does *not* rename code
+identifiers: `git grep -i kelivo` still finds ~3400 lines at the tip
+(`KelivoLink`, `KelivoFileUri`, `KelivoISH*`, `KelivoApplication`, `kelivo://`,
+`kelivo.db`). The first attempt at this replay used a blanket brand rename and had
+to be abandoned with `git rebase --abort` after 56 files had been resolved that
+way; the measurement above replaced it.
+
+The sweep still has to run over the *incoming* range (rule 3): 85 files upstream
+added since `4a7da9b6f` kept `package:Kelivo/`. And the compatibility names must
+survive it — a first pass rewrote the known-bundle-id whitelist in
+`lib/utils/kelivo_file_uri.dart` and the legacy on-disk fixtures in the path
+tests. What must move is the Java package declaration and its process-test
+fixture; what must not is anything naming where data already lives.
+
+One ARB exception, recorded because the standing gate says `git grep -c Kelivo
+master -- lib/l10n/` prints **nothing**: at this tip it prints two keys.
+`backupPageTargetKelivo` ("Kelivo 1.3.4") and `backupPageTargetKelivoNote`
+("Imports into Kelivo, but group chats are lost") exist on the fork's old tip and
+on neither `4a7da9b6f` nor `cb95d6af0`, and they name the *other* application as a
+backup target. Renaming them would rename a third-party product, not this one, so
+the sweep leaves them. The gate's real subject is the brand rename of the fork's own
+strings; when the two disagree, this is what the difference is.
+
+### What the suite found, and the seven root causes
+
+119 failures on the first full run; seven causes, not 119 problems:
+
+1. **A preference key with no registry row** (16). Upstream added
+   `display_use_legacy_code_block_style_v1`, `environment_native_shell_path_v1`,
+   `ollama_model_metadata_v1` and `compress_new_conversation`; the fork's
+   `KeyPolicy` registry is fail-closed, so `BusinessPreferences.setMany` asserts.
+2. **Every timeline row rendered twice** (30). The group-chat resolution kept the
+   fork's `Row(...)` and upstream's `if (importedEntry != null) ... else Row(...)`
+   in the same `Column`. Rule 14's class, at file scale.
+3. **The recycle bin captured nothing** (10). `json_group_array`'s result reached
+   the outer `json_object` as TEXT on this SQLite build, so every subtree arrived
+   as one quoted string. `json(...)` around the subquery is correct on old and new
+   builds alike. Found by printing the captured JSON, not by reasoning about it.
+4. **One image on two users** (5). Unit 13 kept the fork's `lastHumanUserIndex` as
+   the attachment anchor; it skips a group *peer* but not a tail-lore `user` row.
+   Upstream's `lastUserInputIndex` asks the ownership marker and subsumes both.
+5. **POSIX-only assertions** (8). `backup_scope_test` compared a `p.join`ed
+   Windows path to a `/` literal, `browser_workspace_resources_test` asserted
+   `endsWith('/index.html')`, `model_avatar_test` `startsWith('...avatars/')`, and
+   the new `viewport_block_list_image_test` gave an HTML `<img>` a bare `C:/...`
+   src, which has no scheme and renders a placeholder. `p.equals` / `p.basename` /
+   `p.isWithin` / `Uri.file` respectively.
+6. **A dedupe that cut too much.** Removing a duplicated `case 'ru'` from
+   `languageDisplayName` also deleted the six cases between the two `ru` arms.
+7. **A budget that had a reason.** `workspace_prompt_test`'s 1200-character cap is
+   now 1300 because upstream's shell-invocation line costs 12 characters.
+
+### A captured reporter stream is not an inventory
+
+The first run that came back clean printed
+
+```
+12:41 +13330 ~79: All other tests passed!
+```
+
+and the next hour was spent disproving it, wrongly. De-duplicating the file paths
+in the bridge's copy of the log gave **489** test files against **1203** on disk,
+which looked like a 41% run. It was not: **`--reporter compact` redraws its
+progress line in place**, and the log the bridge keeps merges those redraws, so the
+set of file names in it is a sample of the stream, not an inventory of the run.
+
+The measurement that settles it, and the one to use instead:
+
+```bash
+flutter test test/features/browser --reporter json
+# then count the events, not the text
+grep -c '"type":"suite"'   # -> 34, and the directory holds exactly 34 files
+grep -c '"type":"testStart"'
+```
+
+The same directory under `--reporter compact` shows only 25 file names in its log.
+Two further symptoms had the same cause and dissolve with it: the 13,330 against
+12,952 in two clean runs is the 378 tests in the 30 top-level files the second
+invocation did not name, and every "file that never ran" — `request_consistency_test`,
+all of `test/core/models/`, `business_preferences_test` — runs and passes when named
+directly (50 tests, 1,028 tests, 64 tests).
+
+So the number to trust is the summary line's counter, and the number to distrust is
+any file list read back out of a captured compact stream. For coverage, ask the
+JSON reporter for `suite` events.
+
+### The one product decision this re-base needed
+
+The desktop reasoning popover lost upstream's `#1367` response-speed control: the
+fork's `bf48a5ab9 fix(reasoning): restore the original reasoning picker look`
+replaced the picker *body*, and the speed control lived inside it. Decided with the
+two UIs side by side: **upstream's picker wins**. The popover is upstream's
+route-based 260-wide panel hosting `ReasoningLevelPicker`, the group popover
+(`#1081`) hosts the same picker for the selected member, and the fork's tile test
+gives way to upstream's slider one. Note that upstream's own
+`response_speed_picker_test` needed its desktop call site to pass `conversationId`
+-- without it `speedVisible` is false and the control the test taps cannot exist.
+
+### Why the replay ends with a tail commit
+
+The sweep belongs in the identity unit (rule 3) and the residue in the units that
+produced it, but folding either here means replaying all 22 patches over a changed
+unit-1 tree — re-opening every hand resolution, including the 19-conflict
+group-chat unit. The tail carries its evidence in the message instead, which is
+what this runbook asks of a closed replay.
+
+### What is deliberately left open
+
+- **`release.yml` was not re-derived from upstream's `build-stable-47.yml`.**
+  `FLUTTER_VERSION` already matches (3.47.6), and upstream's workflow now builds
+  an Impeller/Skia matrix and injects a siliconflow fallback key — both upstream
+  product decisions this fork has not taken. The CI rule expects a re-derivation;
+  this replay records the deviation instead of adopting the matrix silently.
+- **`desiredFileName.txt` lists ~1153 untranslated strings**: the fork's keys have
+  no `ko`/`ru`/`tr` translations, because those locales arrived with v1.3.5. The
+  `tool/l10n` decision (adopt the tool, seed the new locales with English, or keep
+  the fork's own gate) is still open, and the three locales' ARBs are otherwise
+  swept.
+- **The `v4.6.0` tag** still points at the pre-rewrite tip; re-creating it on the
+  new one is a release act (AGENTS.md -> Releases), not part of the replay.
+
+### The landing
+
+`master` moved to `eec03c044`: 23 commits above `cb95d6af0` (the 22 replayed
+units plus the tail), `cb95d6af0` an ancestor, working tree clean, `dart analyze
+--fatal-infos` clean, `dart format --set-exit-if-changed` reporting 2,656 files and
+0 changed, and the full suite at `+13330 ~79: All other tests passed!`. Both
+backups are pushed — `backup/master-ea626d893` (the pre-replay `master`) and
+`backup/series-v1.3.5-cb95d6af0` (this series, for the next re-base). The
+force-push of `master` is the repository owner's to run:
+`git push --force-with-lease origin master`.

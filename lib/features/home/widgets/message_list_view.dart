@@ -2209,109 +2209,6 @@ class _MessageListViewState extends State<MessageListView> {
       key: ValueKey<String>('timeline-slot:${_slotId(message)}'),
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (widget.selecting &&
-                (message.role == 'user' || message.role == 'assistant'))
-              Padding(
-                padding: const EdgeInsets.only(left: 10, right: 6),
-                child: IosCheckbox(
-                  value: widget.selectedItems.contains(message.id),
-                  size: 20,
-                  hitTestSize: 28,
-                  onChanged: (v) {
-                    widget.onToggleSelection?.call(message.id, v);
-                  },
-                ),
-              ),
-            Expanded(
-              child: (() {
-                Widget buildContent(bool isProcessingFiles) => Builder(
-                  builder: (context) {
-                    final baseMediaQuery = context
-                        .getInheritedWidgetOfExactType<MediaQuery>();
-                    final baseData = baseMediaQuery?.data;
-                    final data = baseData ?? MediaQuery.of(context);
-                    final textScale = data.textScaler.scale(1);
-                    return MediaQuery(
-                      // Keep chat font scaling without rebuilding on keyboard insets.
-                      data: data.copyWith(
-                        textScaler: TextScaler.linear(
-                          textScale * presentation.chatFontScale,
-                        ),
-                      ),
-                      child: message.role == 'assistant'
-                          ? _buildStreamingMessageWidget(
-                              context,
-                              isStreaming: isStreaming,
-                              message: message,
-                              index: index,
-                              r: r,
-                              t: t,
-                              useAssistAvatar: useAssistAvatar,
-                              useAssistName: useAssistName,
-                              author: author,
-                              authorGone: authorGone,
-                              gid: gid,
-                              availableVersions: availableVersions,
-                              selectedVersion: selectedVersion,
-                              selectedIdx: selectedIdx,
-                              total: total,
-                              isProcessingFiles: isProcessingFiles,
-                              suggestions: messageSuggestions,
-                              presentation: presentation,
-                            )
-                          : _buildChatMessageWidget(
-                              context,
-                              message: message,
-                              index: index,
-                              r: r,
-                              t: t,
-                              useAssistAvatar: useAssistAvatar,
-                              useAssistName: useAssistName,
-                              author: author,
-                              authorGone: authorGone,
-                              gid: gid,
-                              availableVersions: availableVersions,
-                              selectedVersion: selectedVersion,
-                              selectedIdx: selectedIdx,
-                              total: total,
-                              isProcessingFiles: isProcessingFiles,
-                              suggestions: messageSuggestions,
-                              presentation: presentation,
-                            ),
-                    );
-                  },
-                );
-
-                // Only the assistant message that owns the indicator listens,
-                // so parsing never rebuilds the rest of the timeline.
-                Widget content = message.role == 'assistant'
-                    ? ValueListenableBuilder<String?>(
-                        valueListenable: widget.processingFilesMessageId,
-                        builder: (context, processingId, _) =>
-                            buildContent(processingId == message.id),
-                      )
-                    : buildContent(false);
-
-                final canSelect =
-                    (message.role == 'user' || message.role == 'assistant');
-                if (widget.selecting && canSelect) {
-                  final isSelected = widget.selectedItems.contains(message.id);
-                  content = GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () =>
-                        widget.onToggleSelection?.call(message.id, !isSelected),
-                    child: IgnorePointer(ignoring: true, child: content),
-                  );
-                }
-
-                return content;
-              })(),
-            ),
-          ],
-        ),
         for (final operation in widget.contextOperations)
           if (operation.isFixedStart &&
               _showsOperationDivider(operation, message))
@@ -2371,7 +2268,8 @@ class _MessageListViewState extends State<MessageListView> {
                                 t: t,
                                 useAssistAvatar: useAssistAvatar,
                                 useAssistName: useAssistName,
-                                assistant: assistant,
+                                author: author,
+                                authorGone: authorGone,
                                 gid: gid,
                                 availableVersions: availableVersions,
                                 selectedVersion: selectedVersion,
@@ -2389,7 +2287,8 @@ class _MessageListViewState extends State<MessageListView> {
                                 t: t,
                                 useAssistAvatar: useAssistAvatar,
                                 useAssistName: useAssistName,
-                                assistant: assistant,
+                                author: author,
+                                authorGone: authorGone,
                                 gid: gid,
                                 availableVersions: availableVersions,
                                 selectedVersion: selectedVersion,

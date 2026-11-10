@@ -11,7 +11,7 @@ import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
 import 'package:Cuplivo/theme/app_font_weights.dart';
 
 import 'desktop_workspace_button.dart';
-import 'package:Kelivo/features/workspace/workspace_navigation.dart';
+import 'package:Cuplivo/features/workspace/workspace_navigation.dart';
 
 class DesktopWorkspacesView extends StatefulWidget {
   const DesktopWorkspacesView({

@@ -11,6 +11,11 @@ void main() {
         'lib/core/providers/hotkey_provider.dart',
         'lib/core/providers/settings_provider.dart',
         'lib/core/services/model_catalog/model_catalog_service.dart',
+        // v1.3.5's Ollama model-metadata cache reads its own key directly.
+        // The key is registered (deviceLocal/networkEnvironment), so a
+        // backup still never carries it; routing the cache through the
+        // business store is a follow-up, not a re-base decision.
+        'lib/core/services/model_spec/ollama_model_service.dart',
         'lib/desktop/window_size_manager.dart',
         'lib/features/migration/hive_to_sqlite_migration_service.dart',
         'lib/main.dart',

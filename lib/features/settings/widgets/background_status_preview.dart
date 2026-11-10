@@ -5,7 +5,7 @@ import 'package:flutter/widget_previews.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/mobile_background_settings.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 /// Native-free preview. Logical-pixel geometry mirrors BackgroundOverlay on
 /// Android, including shrinking artwork to fit very small user-defined cards.

@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:Kelivo/core/services/workspace/desktop_shell.dart';
+import 'package:Cuplivo/core/services/workspace/desktop_shell.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';

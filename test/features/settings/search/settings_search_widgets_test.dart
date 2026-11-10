@@ -548,7 +548,9 @@ void main() {
             .hitTestable(),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Simplified Chinese'));
+      // v1.3.5's app-locale picker lists the shipped locales by their own
+      // names; the fork's hardcoded English labels went with its old catalog.
+      await tester.tap(find.text('简体中文'));
       await tester.pumpAndSettle();
       expect(settings.appLocale.languageCode, 'zh');
       await tester.binding.handlePopRoute();

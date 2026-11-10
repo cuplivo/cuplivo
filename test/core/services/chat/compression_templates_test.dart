@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/compress_context_options.dart';
-import 'package:Kelivo/core/models/compression_config.dart';
-import 'package:Kelivo/core/models/context_compression_task.dart';
-import 'package:Kelivo/core/services/chat/compression_prompt.dart';
-import 'package:Kelivo/core/services/chat/compression_templates.dart';
+import 'package:Cuplivo/core/models/compress_context_options.dart';
+import 'package:Cuplivo/core/models/compression_config.dart';
+import 'package:Cuplivo/core/models/context_compression_task.dart';
+import 'package:Cuplivo/core/services/chat/compression_prompt.dart';
+import 'package:Cuplivo/core/services/chat/compression_templates.dart';
 
 void main() {
   final chinese = RegExp(r'[\u4e00-\u9fff]');

@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
 import 'support/business_test_harness.dart';
 import 'package:provider/provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
@@ -117,14 +117,17 @@ void main() {
       expect(find.text(l10n.branchInheritNote), findsNothing);
       expect(find.byType(Divider), findsNWidgets(3));
       final rows = find.byType(IosCardPress);
-      expect(rows, findsNWidgets(8));
+      // The fork's link unit (#1013/#1034) adds a "copy link" row: the phone
+      // sheet shows nine rows, the desktop menu eight (its row widget differs).
+      expect(rows, findsNWidgets(desktop ? 8 : 9));
       final bounds = [
         for (final element in rows.evaluate())
           tester.getRect(find.byWidget(element.widget)),
       ];
       expect(
         bounds.last.bottom - bounds.first.top,
-        lessThanOrEqualTo(desktop ? 330 : 400),
+        // One row's worth above upstream's budget, for that extra row.
+        lessThanOrEqualTo(desktop ? 382 : 452),
       );
       for (final rect in bounds) {
         expect(rect.height, greaterThanOrEqualTo(desktop ? 36 : 44));

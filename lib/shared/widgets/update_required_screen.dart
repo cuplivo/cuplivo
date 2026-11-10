@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../icons/lucide_adapter.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/url_launcher_ext.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 /// Shown when the installed database was written by a newer app version;
 /// restarting cannot help, so the only immediate action is updating Cuplivo.

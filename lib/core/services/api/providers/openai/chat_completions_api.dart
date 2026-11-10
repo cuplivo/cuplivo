@@ -294,7 +294,7 @@ Future<List<Map<String, dynamic>>> buildOpenAIChatCompletionMessages(
   // Use the last *human* turn — not the array tail, and not a group peer's turn
   // — so tool follow-ups still receive stashed assistant media while a group
   // chat keeps its images on the user's own message.
-  final lastUserIndex = lastHumanUserIndex(messages);
+  final lastUserIndex = lastUserInputIndex(messages);
   final pendingAssistantMediaUrls = <String>[];
   final pendingToolImageParts = <Map<String, dynamic>>[];
   Object? pendingToolOwner;

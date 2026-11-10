@@ -1,4 +1,4 @@
-package com.psyche.kelivo.workspace;
+package com.cuplivo.cuplivo.workspace;
 
 import android.os.Process;
 import java.io.BufferedReader;
@@ -18,7 +18,7 @@ public final class AndroidWorkspaceProcessTest {
     private static java.lang.Process child;
 
     private static WorkspaceProcessOwner owner() throws Exception {
-        return new WorkspaceProcessOwner("com.psyche.kelivo.process-test",
+        return new WorkspaceProcessOwner("com.cuplivo.cuplivo.process-test",
             new File("/proc"), Process.myUid(), Process.myPid(), (pid, stillOwned) -> {
                 ExecRunnerKt.requestProotExit(pid, stillOwned);
                 return kotlin.Unit.INSTANCE;

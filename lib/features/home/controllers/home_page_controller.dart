@@ -1137,12 +1137,6 @@ class HomePageController extends ChangeNotifier {
         case ChatAction.exitGlobalSearch:
           exitGlobalSearchMode(clearQuery: true);
           break;
-        case ChatAction.copySelectionMarkdown:
-          // The bus fires this from the desktop hotkey, but no surface in the
-          // replayed tree owns the handler yet: the process-wide selection
-          // recording it reads did not survive the quote rewrite. The case
-          // exists so the switch stays exhaustive; see docs/flaky-tests.md.
-          break;
       }
     });
   }

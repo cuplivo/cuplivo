@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:Kelivo/utils/platform_utils.dart';
+import 'package:Cuplivo/utils/platform_utils.dart';
 
 import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/workspace.dart';
@@ -37,7 +37,7 @@ import 'package:provider/provider.dart';
 
 import 'desktop_workspace_button.dart';
 import 'workspace_default_notice.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 class WorkspaceSection extends StatefulWidget {
   const WorkspaceSection({

@@ -12,7 +12,7 @@ import '../pages/browser_management_page.dart';
 import 'browser_controls.dart';
 import 'browser_favicon.dart';
 import 'browser_surface_controls.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 // All mutations come from the shared service, so pages opened by the agent and
 // user appear in the same history and bookmark lists.

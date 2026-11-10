@@ -13,7 +13,7 @@ import 'browser_glass.dart';
 import 'browser_scroll_configuration.dart';
 import '../models/browser_models.dart';
 import 'browser_switch_lens.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 bool _desktopControls(BuildContext context) =>
     switch (Theme.of(context).platform) {

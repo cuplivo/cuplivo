@@ -155,10 +155,6 @@ String languageDisplayName(AppLocalizations l10n, String languageCode) {
       return l10n.languageDisplayJapanese;
     case 'ko':
       return l10n.languageDisplayKorean;
-    case 'ru':
-      return l10n.languageDisplayRussian;
-    case 'tr':
-      return l10n.languageDisplayTurkish;
     case 'fr':
       return l10n.languageDisplayFrench;
     case 'de':

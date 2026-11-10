@@ -75,8 +75,8 @@ void main() {
     bool desktopTools = false,
     double composerWidth = 800,
     VoidCallback? openBrowser,
-VoidCallback? openSearch,
-GlobalKey? reasoningButtonKey,
+    VoidCallback? openSearch,
+    GlobalKey? reasoningButtonKey,
   }) async {
     final settings = settingsOverride ?? SettingsProvider(preferences);
     final inputBarKey = GlobalKey();

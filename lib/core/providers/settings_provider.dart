@@ -99,7 +99,7 @@ class SettingsProvider extends ChangeNotifier {
     'Gemini',
     'STA1N API',
     'OpenRouter',
-      '10dian-API',
+    '10dian-API',
     'DeepSeek',
     'SiliconFlow',
     'AIhubmix',

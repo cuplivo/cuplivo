@@ -3,7 +3,7 @@ import 'package:flutter/widget_previews.dart';
 import 'package:intl/intl.dart';
 
 import '../../../shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 class ScheduledWeekdaySelector extends StatelessWidget {
   const ScheduledWeekdaySelector({

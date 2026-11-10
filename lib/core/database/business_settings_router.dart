@@ -213,6 +213,10 @@ final class BusinessKeyRegistry {
       KeyPolicy.synced,
       PolicyReason.newDeviceConfiguration,
     ),
+    'compress_new_conversation': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+    ),
     'compress_prompt_v1': KeyRule(
       KeyPolicy.synced,
       PolicyReason.newDeviceConfiguration,
@@ -326,6 +330,11 @@ final class BusinessKeyRegistry {
     'memory_smart_add_prompt_zh_v1': KeyRule(
       KeyPolicy.synced,
       PolicyReason.newDeviceConfiguration,
+    ),
+    'ollama_model_metadata_v1': KeyRule(
+      KeyPolicy.deviceLocal,
+      PolicyReason.networkEnvironment,
+      'What this device could ask its own Ollama endpoint; regenerated on demand.',
     ),
     'ocr_enabled_v1': KeyRule(
       KeyPolicy.synced,
@@ -495,6 +504,11 @@ final class BusinessKeyRegistry {
     ),
 
     // deviceLocal — a location on this device's filesystem
+    'environment_native_shell_path_v1': KeyRule(
+      KeyPolicy.deviceLocal,
+      PolicyReason.deviceStoragePath,
+      'The shell executable this device runs, not another device\'s.',
+    ),
     'environment_rootfs_selection_v1': KeyRule(
       KeyPolicy.deviceLocal,
       PolicyReason.deviceStoragePath,
@@ -1254,6 +1268,10 @@ final class BusinessKeyRegistry {
     // platformOnly — how this device shows things
     'display_chat_font_scale_v1': KeyRule(
       KeyPolicy.platformOnly,
+      PolicyReason.deviceViewState,
+    ),
+    'display_use_legacy_code_block_style_v1': KeyRule(
+      KeyPolicy.backupOnly,
       PolicyReason.deviceViewState,
     ),
 

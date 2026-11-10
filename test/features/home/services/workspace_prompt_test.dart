@@ -158,7 +158,10 @@ void main() {
       expect(fragment, contains('kelivo://workspace/plot.png'));
       expect(fragment, contains('Linux (PRoot)'));
       expect(fragment, contains('/etc/os-release'));
-      expect(fragment.length, lessThan(1200));
+      // 1200 was calibrated on the fork's own sentences; v1.3.5 added the
+      // shell-invocation line ('Fresh non-interactive <shell> per call'), which
+      // costs 12 characters. The bound still catches a fragment that doubles.
+      expect(fragment.length, lessThan(1300));
     });
   }
 

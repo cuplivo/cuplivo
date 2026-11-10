@@ -10,7 +10,7 @@ import '../models/browser_models.dart';
 import '../browser_management_route.dart';
 import '../widgets/browser_surface_controls.dart';
 import 'browser_management_page.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 typedef BrowserBookmarkEdit = ({String title, String url});
 

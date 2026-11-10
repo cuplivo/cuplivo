@@ -9,8 +9,8 @@ import 'package:Cuplivo/features/workspace/widgets/files/workspace_prompts.dart'
 import 'package:Cuplivo/features/workspace/pages/environment_variables_page.dart';
 import 'environment_dependencies_section.dart';
 import 'native_shell_dialog.dart';
-import 'package:Kelivo/core/services/workspace/desktop_process_runtime.dart';
-import 'package:Kelivo/features/settings/widgets/custom_theme_widgets.dart';
+import 'package:Cuplivo/core/services/workspace/desktop_process_runtime.dart';
+import 'package:Cuplivo/features/settings/widgets/custom_theme_widgets.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';

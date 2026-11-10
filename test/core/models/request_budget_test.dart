@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/request_budget.dart';
-import 'package:Kelivo/core/models/image_context.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/features/chat/utils/image_context_budget_error.dart';
+import 'package:Cuplivo/core/models/request_budget.dart';
+import 'package:Cuplivo/core/models/image_context.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/chat/utils/image_context_budget_error.dart';
 import '../../support/business_test_harness.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 ProviderConfig config() => ProviderConfig(
   id: 'test',

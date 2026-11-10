@@ -1,9 +1,9 @@
 import 'dart:io';
 
-import 'package:Kelivo/core/models/avatar_config.dart';
-import 'package:Kelivo/shared/widgets/configurable_avatar.dart';
-import 'package:Kelivo/utils/avatar_cache.dart';
-import 'package:Kelivo/utils/brand_assets.dart';
+import 'package:Cuplivo/core/models/avatar_config.dart';
+import 'package:Cuplivo/shared/widgets/configurable_avatar.dart';
+import 'package:Cuplivo/utils/avatar_cache.dart';
+import 'package:Cuplivo/utils/brand_assets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';

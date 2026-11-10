@@ -1,8 +1,6 @@
 import '../../../../models/native_compaction.dart';
 import '../../native_compaction_context.dart';
 import '../../request_history_context.dart';
-import '../../message_authorship.dart';
-import '../../request_image_context.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -13,6 +11,7 @@ import '../../../../utils/multimodal_input_utils.dart';
 import '../../../../../utils/sandbox_path_resolver.dart';
 import '../../../model_spec/model_spec_resolver.dart';
 import '../../builtin_tools.dart';
+import '../../request_image_context.dart';
 import '../../chat_api_helpers.dart';
 import '../../native_input_attachments.dart';
 import '../../tool_result_content.dart';
@@ -69,8 +68,7 @@ Future<Map<String, dynamic>> buildOpenAIResponsesBody(
   // Collect assistant images to attach to the last user message.
   // Use last *user* index so tool follow-ups still receive stashed media.
   final List<String> lastAssistantImageUrls = <String>[];
-  // A group peer's turn must never become the attachment anchor.
-  final lastResponsesUserIndex = lastHumanUserIndex(messages);
+  final lastResponsesUserIndex = lastUserInputIndex(messages);
   for (int i = 0; i < messages.length; i++) {
     final m = messages[i];
     final sourceStart = input.length;

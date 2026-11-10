@@ -2,16 +2,26 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
+import '../../utils/app_directories.dart';
 import '../models/memory_entry.dart';
+import '../services/recycle/recycle_service.dart';
+import '../services/sync/sync_merge.dart';
+import '../services/sync/sync_models.dart';
 import 'app_database.dart';
 import 'business_data.dart';
+import 'business_settings_router.dart';
+import 'schema_columns.dart';
 
 final class BusinessRepository {
-  BusinessRepository(this._database);
+  BusinessRepository(this._database, {this.recycle});
 
   static const migrationReceiptKey = 'business_migration_complete_v1';
 
   final AppDatabase _database;
+
+  /// The device-local recycle bin, when this repository was opened by the
+  /// gateway. Null in tests and one-shot opens, where nothing stages.
+  final RecycleService? recycle;
 
   /// Used by cross-domain coordinators to fail closed unless both
   /// repositories are backed by the exact same Drift database instance.
@@ -40,10 +50,20 @@ final class BusinessRepository {
     await _database.transaction(() => _replaceEntities(kind, rows));
   }
 
+  /// Writes one list-shaped kind: rows whose id is no longer in [rows] are
+  /// deleted, the rest are upserted.
+  ///
+  /// [group] is stamped on the entries staged for the rows this write *removes*.
+  /// It exists because a list write is how several deletions actually happen —
+  /// deleting an assistant drops its row through here, not through
+  /// [deleteEntity] — and a caller that is performing one deletion event passes
+  /// the same group it gave the rest of that event, so the bin can show the act
+  /// as one instead of an assistant standing next to its own cascade.
   Future<void> synchronizeEntities(
     BusinessEntityKind kind,
-    List<BusinessEntityValue> rows,
-  ) async {
+    List<BusinessEntityValue> rows, {
+    RecycleGroup? group,
+  }) async {
     _validateRows(kind, rows);
     await _database.transaction(() async {
       final existing = await _readEntities(kind);
@@ -54,7 +74,7 @@ final class BusinessRepository {
       for (final row in existing) {
         if (!retainedIds.contains(row.id)) {
           _assertDecodablePayload(kind, row);
-          await _deleteEntity(kind, row.id);
+          await _deleteEntity(kind, row.id, group: group);
         }
       }
       final updatedAt = DateTime.now().toUtc().microsecondsSinceEpoch;
@@ -71,9 +91,10 @@ final class BusinessRepository {
   Future<void> writeBatch({
     required Map<BusinessEntityKind, List<BusinessEntityValue>> entities,
     required Map<String, Object> preferences,
+    RecycleGroup? removalGroup,
   }) => _database.transaction(() async {
     for (final entry in entities.entries) {
-      await synchronizeEntities(entry.key, entry.value);
+      await synchronizeEntities(entry.key, entry.value, group: removalGroup);
     }
     for (final entry in preferences.entries) {
       await setPreference(entry.key, entry.value);
@@ -92,9 +113,18 @@ final class BusinessRepository {
     );
   }
 
-  Future<void> deleteEntity(BusinessEntityKind kind, String id) async {
+  /// Deletes one entity row, staging it into the recycle bin first.
+  ///
+  /// [group] lets a caller that is performing one deletion event — a group chat
+  /// taking its row and its conversations with it — stage this row under the
+  /// same group, so the bin shows one act instead of a stray row beside it.
+  Future<void> deleteEntity(
+    BusinessEntityKind kind,
+    String id, {
+    RecycleGroup? group,
+  }) async {
     if (id.isEmpty) return;
-    await _deleteEntity(kind, id);
+    await _deleteEntity(kind, id, group: group);
   }
 
   Future<Object?> getPreference(String key) async {
@@ -463,12 +493,34 @@ WHERE id IN ($placeholders);
   static String normalizeMemoryContent(String content) =>
       MemoryEntry.normalizeContent(content);
 
-  Future<void> _deleteEntity(BusinessEntityKind kind, String id) =>
-      _database.customStatement(
-        'DELETE FROM ${kind.tableName} WHERE ${kind.idColumn} = ?'
-        '${kind.extensionKind == null ? '' : ' AND kind = ?'};',
-        <Object?>[id, if (kind.extensionKind != null) kind.extensionKind],
-      );
+  /// Deletes one entity row — a user-managed row that is going away, whether
+  /// the user removed it or a peer no longer has it.
+  ///
+  /// The row is staged into the recycle bin first, so a mistaken deletion of an
+  /// assistant, a provider or a memory entry stays undoable. Bulk replacement
+  /// ([_replaceEntities], [clearAll]) deliberately does not come through here:
+  /// replacing the whole local state is not a deletion of any one row, which is
+  /// the same line the conversation tombstones draw.
+  Future<void> _deleteEntity(
+    BusinessEntityKind kind,
+    String id, {
+    RecycleOrigin origin = RecycleOrigin.local,
+    RecycleReason reason = RecycleReason.deleted,
+    RecycleGroup? group,
+  }) async {
+    await recycle?.stageEntityRow(
+      kind,
+      id,
+      origin: origin,
+      reason: reason,
+      group: group,
+    );
+    await _database.customStatement(
+      'DELETE FROM ${kind.tableName} WHERE ${kind.idColumn} = ?'
+      '${kind.extensionKind == null ? '' : ' AND kind = ?'};',
+      <Object?>[id, if (kind.extensionKind != null) kind.extensionKind],
+    );
+  }
 
   Future<void> _replacePreferences(Map<String, Object> preferences) async {
     await _database.customStatement('DELETE FROM preference_rows;');
@@ -550,6 +602,496 @@ WHERE id IN ($placeholders);
       left.sortOrder == right.sortOrder &&
       left.payload == right.payload &&
       left.assistantId == right.assistantId;
+
+  // ---------------------------------------------------------------------------
+  // LAN sync (ADR-0003, slice 2)
+  //
+  // Business rows travel as raw column maps, exactly like conversation
+  // subtrees: storage format is wire format, so no translation layer can drift
+  // from the schema. Merge is per row, on the row's own clock (`updated_at`,
+  // ties to the higher deviceId), which is why an applied row keeps the
+  // *peer's* `updated_at` instead of being stamped with `DateTime.now()` — that
+  // clock is the entire basis for the next session's comparison.
+  //
+  // Deletions are not part of the payload: like message rows, they are derived
+  // from the plan by diffing against the per-peer checkpoint, so no extra
+  // tombstone bookkeeping is written on the hot path of every entity edit.
+  //
+  // SQL is built from [currentSchemaColumns] — schema facts — while the wire
+  // row only ever supplies values, so a peer cannot smuggle a column or clause
+  // in through a crafted key.
+  // ---------------------------------------------------------------------------
+
+  /// Whether one stored row is invisible to sync — in either direction.
+  ///
+  /// Workspaces are the only kind with a *row-level* exclusion, for three
+  /// reasons that all come down to the folder behind the row:
+  ///
+  /// * A linked workspace ([isLinkedWorkspace]) is a folder the user already
+  ///   had, named by a path on *this* machine's filesystem: device-local by
+  ///   definition, exactly as in a backup. A managed workspace is a directory
+  ///   Cuplivo owns and copies, which is the thing sync is for.
+  /// * The row id is interpolated into `<appData>/workspaces/<id>/files`
+  ///   ([AppDirectories.workspaceFilesDir]) and it arrives from the wire. An id
+  ///   that is not a single safe path segment ([isSafeWorkspaceId]) would name
+  ///   a directory outside the managed tree.
+  /// * The payload names the workspace *again*, and that second id is the one
+  ///   the app lists, updates and deletes by ([workspacePayloadNamesId]): a row
+  ///   whose halves disagree is malformed rather than a workspace, and a delete
+  ///   of it would remove the app data root itself.
+  ///
+  /// All kinds share one table and one wire name, so the rule cannot be per
+  /// kind — it is per row, and every path that offers, reads, accepts or
+  /// deletes a row applies it, so such a row is invisible in both directions.
+  static bool _syncSkipsRow(
+    BusinessEntityKind kind,
+    String id,
+    Object? payload,
+  ) {
+    if (kind != BusinessEntityKind.workspace) return false;
+    if (!isSafeWorkspaceId(id)) return true;
+    // A workspace payload is a JSON object or the row is not one either: every
+    // reader below decodes it and would otherwise be reading a shape the store
+    // cannot even hand back.
+    if (payload is! String) return true;
+    final decoded = decodePayloadObject(payload);
+    if (decoded == null) return true;
+    return isLinkedWorkspace(payload) || !workspacePayloadNamesId(decoded, id);
+  }
+
+  /// Ids per `IN (...)` batch, well under SQLite's bound-variable limit.
+  static const _syncIdBatch = 200;
+
+  static final Map<String, BusinessEntityKind> _syncKindByWire = {
+    for (final kind in BusinessEntityKind.values) kind.wireName: kind,
+  };
+
+  static Iterable<BusinessEntityKind> get _syncKinds => _syncKindByWire.values;
+
+  /// The entity kind behind a wire name, or null for a kind this build does
+  /// not sync — an unknown name is ignored rather than fatal.
+  static BusinessEntityKind? syncKindForWire(String wire) =>
+      _syncKindByWire[wire];
+
+  /// Every syncable entity row as a manifest ref: wire kind, row id, the row's
+  /// mutation clock and a content hash of its payload. The hash is what makes
+  /// "same clock, different content" visible, so a clock tie still exchanges
+  /// rows and resolves by deviceId instead of silently diverging.
+  ///
+  /// Rows [_syncSkipsRow] rejects are absent here, which is what keeps a linked
+  /// workspace out of every downstream decision: an id this manifest never
+  /// announced can also never be fetched, deleted or written into a checkpoint.
+  Future<List<({String kindWire, String id, int updatedAtUs, String digest})>>
+  syncEntityRefs() async {
+    final refs =
+        <({String kindWire, String id, int updatedAtUs, String digest})>[];
+    for (final kind in _syncKinds) {
+      final extensionFilter = kind.extensionKind == null
+          ? ''
+          : " WHERE kind = '${kind.extensionKind}'";
+      final rows = await _database
+          .customSelect(
+            'SELECT ${kind.idColumn}, payload, updated_at, sort_order FROM '
+            '${kind.tableName}$extensionFilter;',
+          )
+          .get();
+      for (final row in rows) {
+        final payload = row.read<String>('payload');
+        final id = row.read<String>(kind.idColumn);
+        if (_syncSkipsRow(kind, id, payload)) continue;
+        refs.add((
+          kindWire: kind.wireName,
+          id: id,
+          updatedAtUs: row.read<int>('updated_at'),
+          digest: entityRowDigest(payload, row.read<int>('sort_order')),
+        ));
+      }
+    }
+    return refs;
+  }
+
+  /// Every synced preference as a manifest ref. Membership is decided by
+  /// [BusinessKeyRegistry], the single authority — device-local keys never
+  /// reach the wire.
+  Future<List<({String key, int updatedAtUs, String digest})>>
+  syncPreferenceRefs() async {
+    final rows = await _database
+        .customSelect('SELECT key, value, updated_at FROM preference_rows;')
+        .get();
+    return [
+      for (final row in rows)
+        if (BusinessKeyRegistry.isSynced(row.read<String>('key')))
+          (
+            key: row.read<String>('key'),
+            updatedAtUs: row.read<int>('updated_at'),
+            digest: businessContentDigest(row.read<String>('value')),
+          ),
+    ];
+  }
+
+  /// The row ids of one syncable kind (empty for a kind this build does not
+  /// sync). Extension kinds share a table, so the kind column filters — and a
+  /// row [_syncSkipsRow] rejects is not an id this device has, which is what
+  /// keeps the id set equal to the announced manifest.
+  Future<Set<String>> syncEntityIds(String kindWire) async {
+    final kind = syncKindForWire(kindWire);
+    if (kind == null) return const {};
+    final extensionFilter = kind.extensionKind == null
+        ? ''
+        : " WHERE kind = '${kind.extensionKind}'";
+    final rows = await _database
+        .customSelect(
+          'SELECT ${kind.idColumn}, payload FROM '
+          '${kind.tableName}$extensionFilter;',
+        )
+        .get();
+    final ids = <String>{};
+    for (final row in rows) {
+      final id = row.read<String>(kind.idColumn);
+      if (_syncSkipsRow(kind, id, row.data['payload'])) continue;
+      ids.add(id);
+    }
+    return ids;
+  }
+
+  /// The named entity rows, as raw column maps ready to travel. A row this
+  /// device does not offer is not served either, however it was named: the id
+  /// list can arrive from the wire (a fetch request names what a peer wants),
+  /// and a linked workspace's row must not leave the device even then — the
+  /// same filter the manifest and the apply path already apply.
+  Future<List<Map<String, dynamic>>> syncReadEntityRows(
+    String kindWire,
+    Set<String> ids,
+  ) async {
+    final kind = syncKindForWire(kindWire);
+    if (kind == null || ids.isEmpty) return const [];
+    final rows = <Map<String, dynamic>>[];
+    for (final batch in _batched(ids)) {
+      final extensionFilter = kind.extensionKind == null
+          ? ''
+          : " AND kind = '${kind.extensionKind}'";
+      final result = await _database
+          .customSelect(
+            'SELECT * FROM ${kind.tableName} '
+            'WHERE ${kind.idColumn} IN '
+            '(${List.filled(batch.length, '?').join(', ')})$extensionFilter;',
+            variables: [for (final id in batch) Variable<String>(id)],
+          )
+          .get();
+      for (final row in result) {
+        final id = row.read<String>(kind.idColumn);
+        if (_syncSkipsRow(kind, id, row.data['payload'])) continue;
+        rows.add(Map<String, dynamic>.from(row.data));
+      }
+    }
+    return rows;
+  }
+
+  /// The named preference rows, as raw column maps. Only keys the registry
+  /// classifies as synced preferences are read: the caller's key list can
+  /// arrive from the wire (a fetch request names what a peer wants), and a
+  /// device-local or discarded key must not leave the device even then —
+  /// the same filter the manifest, apply and delete paths already apply.
+  Future<List<Map<String, dynamic>>> syncReadPreferenceRows(
+    Set<String> keys,
+  ) async {
+    final synced = keys.where(BusinessKeyRegistry.isSynced).toSet();
+    if (synced.isEmpty) return const [];
+    final rows = <Map<String, dynamic>>[];
+    for (final batch in _batched(synced)) {
+      final result = await _database
+          .customSelect(
+            'SELECT * FROM preference_rows WHERE key IN '
+            '(${List.filled(batch.length, '?').join(', ')});',
+            variables: [for (final key in batch) Variable<String>(key)],
+          )
+          .get();
+      rows.addAll([
+        for (final row in result) Map<String, dynamic>.from(row.data),
+      ]);
+    }
+    return rows;
+  }
+
+  /// Applies incoming business rows in one transaction, keeping only those that
+  /// win their row's LWW comparison. Unknown kinds are skipped: a peer built
+  /// with a kind this build does not know must not break the session.
+  ///
+  /// `*RowsLost` counts the rows whose local *content* a winning incoming row
+  /// replaced — a win over an identical row (a bothSend echo) is not a loss.
+  Future<SyncBusinessApplyOutcome> syncApplyBusinessRows({
+    required Map<String, List<Map<String, dynamic>>> entities,
+    required List<Map<String, dynamic>> preferences,
+    required String myDeviceId,
+    required String peerDeviceId,
+  }) async {
+    var entityRowsWritten = 0;
+    var entityRowsLost = 0;
+    var preferencesWritten = 0;
+    var preferencesLost = 0;
+    final acceptedKeys = <String>{};
+    await _database.transaction(() async {
+      for (final entry in entities.entries) {
+        final kind = syncKindForWire(entry.key);
+        if (kind == null) continue;
+        final columns = currentSchemaColumns[kind.tableName]!;
+        for (final row in entry.value) {
+          final id = row[kind.idColumn];
+          if (id is! String || id.isEmpty) continue;
+          // A row this device would never offer is a row it never accepts
+          // either. For a linked workspace that is not tidiness: the payload
+          // names a folder on *this* machine's filesystem, and a peer must not
+          // be able to plant one here. The id is half of the same rule — it is
+          // what names the folder Cuplivo would create, index and delete.
+          if (_syncSkipsRow(kind, id, row['payload'])) continue;
+          final incomingAt = (row['updated_at'] as num?)?.toInt();
+          if (incomingAt == null) continue;
+          // An extension kind travels under its own wire name; the row must
+          // carry (or receive) exactly that kind value, never another. The
+          // table's primary key is (kind, id), so the conflict target grows.
+          if (kind.extensionKind != null) row['kind'] = kind.extensionKind;
+          final local = await _syncEntityRow(kind, id);
+          // The same rule on the *local* half: a row this device does not offer
+          // is not one a peer may overwrite either. Only the local payload says
+          // whether the user's linked folder sits at this id, and the incoming
+          // payload never will — so without this check a peer that guessed (or
+          // learned) the id could replace the user's link with a managed
+          // workspace.
+          //
+          // The two skips above are the *only* way this device refuses a row, so
+          // past them it ends the apply holding the key — written just below, or
+          // kept because its own copy won the comparison. That is the receipt
+          // the sender's checkpoint is allowed to trust (`SyncApplyAck`
+          // `businessAccepted`); a row dropped here is not in it.
+          if (local != null && _syncSkipsRow(kind, id, local.payload)) {
+            continue;
+          }
+          acceptedKeys.add(syncBusinessKey(entry.key, id));
+          if (local != null) {
+            if (!incomingBusinessRowWins(
+              localUpdatedAtUs: local.updatedAtUs,
+              incomingUpdatedAtUs: incomingAt,
+              myDeviceId: myDeviceId,
+              peerDeviceId: peerDeviceId,
+            )) {
+              continue;
+            }
+            // The row is written either way — adopting the peer's clock is what
+            // makes the next session's digests agree. It is only a *loss* when
+            // the local content actually changed: a bothSend echoes this
+            // device's own row back at a tied clock, and reporting "your edit
+            // was replaced" for an identical row would be false.
+            if (!_sameEntityContent(local.payload, row['payload'])) {
+              entityRowsLost++;
+              // This is the only point where a losing local edit still exists:
+              // the upsert below replaces it. Staging here is what makes an
+              // overwritten edit as recoverable as a deleted one.
+              await recycle?.stageEntityRow(
+                kind,
+                id,
+                origin: RecycleOrigin.remote,
+                reason: RecycleReason.overwritten,
+              );
+            }
+          }
+          await _upsertSyncRow(
+            kind.tableName,
+            columns,
+            row,
+            kind.extensionKind == null ? [kind.idColumn] : const ['kind', 'id'],
+          );
+          entityRowsWritten++;
+        }
+      }
+      for (final row in preferences) {
+        final key = row['key'];
+        final value = row['value'];
+        final incomingAt = (row['updated_at'] as num?)?.toInt();
+        if (key is! String || value is! String || incomingAt == null) continue;
+        // A peer must not make this device hold a key it never syncs.
+        if (!BusinessKeyRegistry.isSynced(key)) {
+          continue;
+        }
+        // Past that guard the row stays here either way, so the sender may
+        // record the key as peer-held (see the entity loop above).
+        acceptedKeys.add(syncBusinessKey(kSyncPreferenceWire, key));
+        final local = await _syncPreferenceRow(key);
+        if (local != null) {
+          if (!incomingBusinessRowWins(
+            localUpdatedAtUs: local.updatedAtUs,
+            incomingUpdatedAtUs: incomingAt,
+            myDeviceId: myDeviceId,
+            peerDeviceId: peerDeviceId,
+          )) {
+            continue;
+          }
+          if (local.value != value) {
+            preferencesLost++;
+            // Same as the entity loss above: the local value is still here and
+            // is about to be replaced.
+            await recycle?.stagePreferenceRow(
+              key,
+              origin: RecycleOrigin.remote,
+              reason: RecycleReason.overwritten,
+            );
+          }
+        }
+        await _upsertSyncRow(
+          'preference_rows',
+          currentSchemaColumns['preference_rows']!,
+          row,
+          const ['key'],
+        );
+        preferencesWritten++;
+      }
+    });
+    return SyncBusinessApplyOutcome(
+      entityRowsWritten: entityRowsWritten,
+      preferencesWritten: preferencesWritten,
+      changed: entityRowsWritten > 0 || preferencesWritten > 0,
+      entityRowsLost: entityRowsLost,
+      preferencesLost: preferencesLost,
+      acceptedKeys: acceptedKeys,
+    );
+  }
+
+  /// Deletes one entity row the peer no longer has.
+  ///
+  /// Returns false for a kind this build does not sync and for a row this device
+  /// keeps out of sync (see [_syncSkipsRow]) — in both cases there is nothing to
+  /// remove, which is the honest answer rather than a failure. A row that is
+  /// simply already gone still reports true: the caller asked for its absence
+  /// and has it.
+  ///
+  /// The row is staged first: a peer's removal is not protected by any clock, so
+  /// a local edit made since the last session is deleted outright, and this is
+  /// the only moment it can still be preserved. Staging comes *after* the guards
+  /// below, not before them: a row this device never offers is one there is
+  /// nothing to remove of, and preserving a copy of it would invent a bin entry
+  /// for a deletion that never happened.
+  Future<bool> syncDeleteEntity(String kindWire, String id) async {
+    final kind = syncKindForWire(kindWire);
+    if (kind == null || id.isEmpty) return false;
+    // A row this device never offers is not deletable through sync either. The
+    // only way a delete can name a linked workspace is that the peer learned the
+    // id out of band or guessed it — nothing about that row was ever announced —
+    // and the right answer to "remove what you told me about" is that there is
+    // nothing to remove. Only workspace rows can be local-only, so no other kind
+    // pays for the lookup.
+    if (kind == BusinessEntityKind.workspace) {
+      // An id that is not a path segment names no row here, and must not name a
+      // folder either ([isSafeWorkspaceId]).
+      if (!isSafeWorkspaceId(id)) return false;
+      final local = await _syncEntityRow(kind, id);
+      if (local != null && _syncSkipsRow(kind, id, local.payload)) return false;
+    }
+    await recycle?.stageEntityRow(
+      kind,
+      id,
+      origin: RecycleOrigin.remote,
+      reason: RecycleReason.deleted,
+    );
+    final extensionFilter = kind.extensionKind == null
+        ? ''
+        : " AND kind = '${kind.extensionKind}'";
+    final statement = _database.customStatement(
+      'DELETE FROM ${kind.tableName} WHERE ${kind.idColumn} = ?$extensionFilter;',
+      <Object?>[id],
+    );
+    await statement;
+    return true;
+  }
+
+  /// Deletes one synced preference the peer no longer has. Staged for the same
+  /// reason as [syncDeleteEntity].
+  Future<bool> syncDeletePreference(String key) async {
+    if (key.isEmpty) return false;
+    if (!BusinessKeyRegistry.isSynced(key)) return false;
+    await recycle?.stagePreferenceRow(
+      key,
+      origin: RecycleOrigin.remote,
+      reason: RecycleReason.deleted,
+    );
+    await _database.customStatement(
+      'DELETE FROM preference_rows WHERE key = ?;',
+      <Object?>[key],
+    );
+    return true;
+  }
+
+  /// A local entity row's LWW clock plus the content a loss verdict compares.
+  /// One query, because the comparison needs both halves of the same row.
+  Future<({int updatedAtUs, Object? payload})?> _syncEntityRow(
+    BusinessEntityKind kind,
+    String id,
+  ) async {
+    final extensionFilter = kind.extensionKind == null
+        ? ''
+        : " AND kind = '${kind.extensionKind}'";
+    final row = await _database
+        .customSelect(
+          'SELECT updated_at, payload FROM ${kind.tableName} '
+          'WHERE ${kind.idColumn} = ?$extensionFilter;',
+          variables: <Variable<Object>>[Variable<String>(id)],
+        )
+        .getSingleOrNull();
+    if (row == null) return null;
+    return (
+      updatedAtUs: row.read<int>('updated_at'),
+      payload: row.read<String?>('payload'),
+    );
+  }
+
+  /// The same for one synced preference: its clock and its value.
+  Future<({int updatedAtUs, Object? value})?> _syncPreferenceRow(
+    String key,
+  ) async {
+    final row = await _database
+        .customSelect(
+          'SELECT updated_at, value FROM preference_rows WHERE key = ?;',
+          variables: <Variable<Object>>[Variable<String>(key)],
+        )
+        .getSingleOrNull();
+    if (row == null) return null;
+    return (
+      updatedAtUs: row.read<int>('updated_at'),
+      value: row.read<String?>('value'),
+    );
+  }
+
+  /// Whether an incoming row carries the content this device already holds.
+  /// Compared as JSON text, which is the form both sides travel in.
+  static bool _sameEntityContent(Object? local, Object? incoming) =>
+      local == incoming;
+
+  /// INSERT ... ON CONFLICT over an allowlisted column list. Values come from
+  /// the wire row by column name, so a column the peer cannot name simply
+  /// arrives as null and takes its schema default.
+  Future<void> _upsertSyncRow(
+    String table,
+    List<String> columns,
+    Map<String, dynamic> row,
+    List<String> conflictTarget,
+  ) async {
+    final updates = columns
+        .where((column) => !conflictTarget.contains(column))
+        .map((column) => '$column = excluded.$column')
+        .join(', ');
+    await _database.customStatement(
+      'INSERT INTO $table (${columns.join(', ')}) '
+      'VALUES (${List.filled(columns.length, '?').join(', ')}) '
+      'ON CONFLICT(${conflictTarget.join(', ')}) DO UPDATE SET $updates;',
+      [for (final column in columns) row[column]],
+    );
+  }
+
+  static Iterable<List<String>> _batched(Set<String> ids) sync* {
+    final all = ids.toList(growable: false);
+    for (var start = 0; start < all.length; start += _syncIdBatch) {
+      final end = start + _syncIdBatch;
+      yield all.sublist(start, end > all.length ? all.length : end);
+    }
+  }
 
   static Object _normalizePreference(String key, Object value) {
     if (value is bool || value is int || value is double || value is String) {

@@ -2,6 +2,7 @@
 "NSHealthUpdateUsageDescription" = "Cuplivo는 건강 데이터를 쓰지 않습니다. 이 설명은 HealthKit에서 요구됩니다.";
 "NSLocationWhenInUseUsageDescription" = "Cuplivo는 사용자가 요청한 위치 및 날씨 도구에 위치를 사용하며(도구 좌표는 선택한 AI 공급자에게 전송될 수 있음), 해당 옵션을 활성화한 경우 현재 백그라운드 작업을 지원하기 위해 대략적인 위치를 사용합니다. 유지 좌표는 저장되거나 전송되지 않습니다.";
 "NSLocationAlwaysAndWhenInUseUsageDescription" = "위치 보조 실행을 활성화한 경우, Cuplivo는 현재 백그라운드 작업 중에만 대략적인 위치를 사용합니다. 이 좌표는 저장되거나 전송되지 않습니다.";
+"NSLocalNetworkUsageDescription" = "Cuplivo는 로컬 네트워크를 사용해 사용자의 기기 간에 대화를 동기화합니다. 데이터는 서버를 거치지 않습니다.";
 "NSRemindersFullAccessUsageDescription" = "Cuplivo는 사용자가 확인한 후 미리 알림을 조회, 생성 및 완료할 수 있도록 미리 알림 접근 권한이 필요합니다. 미리 알림 내용은 답변 생성을 위해 사용자가 선택한 AI 공급자에게 전송될 수 있습니다.";
 "NSRemindersUsageDescription" = "Cuplivo는 사용자가 확인한 후 미리 알림을 조회, 생성 및 완료할 수 있도록 미리 알림 접근 권한이 필요합니다. 미리 알림 내용은 답변 생성을 위해 사용자가 선택한 AI 공급자에게 전송될 수 있습니다.";
 "NSCalendarsFullAccessUsageDescription" = "Cuplivo는 사용자가 캘린더 도구를 활성화할 때 AI 어시스턴트가 일정을 조회하고 생성할 수 있도록 캘린더 접근 권한이 필요합니다. 일정 내용은 답변 생성을 위해 사용자가 선택한 AI 공급자에게 전송될 수 있습니다.";

@@ -79,6 +79,49 @@ void main() {
       final expectedAtMinimum = img.encodeJpg(prepared, quality: 70);
       expect(output, orderedEquals(expectedAtMinimum));
     });
+
+    test('png format emits PNG, resizes, and preserves alpha', () async {
+      final transparent = img.Image(width: 32, height: 16, numChannels: 4)
+        ..clear(img.ColorRgba8(0, 0, 0, 0));
+      for (var y = 4; y < 12; y++) {
+        for (var x = 4; x < 12; x++) {
+          transparent.setPixelRgba(x, y, 255, 0, 0, 255);
+        }
+      }
+
+      final output = await Downsize.downsize(
+        data: img.encodePng(transparent),
+        format: DownsizeFormat.png,
+        maxLongEdge: 16,
+      );
+
+      expect(output, isNotNull);
+      expect(img.PngDecoder().isValidFile(output!), isTrue);
+      final decoded = img.decodePng(output);
+      expect(decoded, isNotNull);
+      expect(decoded!.width, 16);
+      expect(decoded.height, 8);
+      // Corner stays fully transparent instead of being composited on white.
+      expect(decoded.getPixel(0, 0).a, 0);
+      // Center stays opaque red.
+      final center = decoded.getPixel(8, 4);
+      expect(center.r, greaterThan(245));
+      expect(center.g, lessThan(10));
+      expect(center.a, 255);
+    });
+
+    test('compressDecoded matches compress through the full pipeline', () {
+      final input = img.encodePng(_patternImage(96, 48));
+      final downsize = Downsize();
+      final config = Config(data: input, quality: 80, maxLongEdge: 24);
+
+      final viaBytes = downsize.compress(config);
+      final viaDecoded =
+          downsize.compressDecoded(img.decodeImage(input, frame: 0)!, config);
+
+      expect(viaBytes, isNotNull);
+      expect(viaDecoded, orderedEquals(viaBytes));
+    });
   });
 }
 

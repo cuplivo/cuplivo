@@ -31631,6 +31631,240 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Their Letter'**
   String get assistantEditProactiveCareFeatureTitle;
+
+  /// Tooltip of the extra-actions button beside the message input, which reveals the remaining composer actions.
+  ///
+  /// In en, this message translates to:
+  /// **'More actions'**
+  String get chatInputBarOverflowTooltip;
+
+  /// Settings entry and page title for managing the assistants and group chats that own conversations.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistants and groups'**
+  String get settingsPageChatOwners;
+
+  /// Tooltip of the plus button that creates a new assistant or group chat.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get settingsPageChatOwnersCreate;
+
+  /// Menu item that starts creating a new assistant.
+  ///
+  /// In en, this message translates to:
+  /// **'New assistant'**
+  String get chatOwnerCreateAssistant;
+
+  /// Kind label on a recycle-bin entry that is a group chat.
+  ///
+  /// In en, this message translates to:
+  /// **'Group'**
+  String get recycleBinKindGroup;
+
+  /// Filter tab in the recycle bin that shows deleted group chats.
+  ///
+  /// In en, this message translates to:
+  /// **'Groups'**
+  String get recycleBinFilterGroups;
+
+  /// Fallback name for a group chat that has no name yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Group chat'**
+  String get groupChatTitle;
+
+  /// Menu item and dialog title for creating a new group chat.
+  ///
+  /// In en, this message translates to:
+  /// **'New group chat'**
+  String get groupChatCreate;
+
+  /// Hint in the group creation dialog reminding the user to pick at least one assistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick at least one assistant'**
+  String get groupChatCreateHint;
+
+  /// Placeholder in the field where a group chat's name is typed.
+  ///
+  /// In en, this message translates to:
+  /// **'Group name'**
+  String get groupChatNameHint;
+
+  /// Tooltip and accessibility label of the button that changes the group chat's avatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Change group avatar'**
+  String get groupChatChangeAvatar;
+
+  /// Section label above the list of a group chat's member assistants.
+  ///
+  /// In en, this message translates to:
+  /// **'Members'**
+  String get groupChatMembers;
+
+  /// Empty-state text when a group chat has no members yet.
+  ///
+  /// In en, this message translates to:
+  /// **'No members yet'**
+  String get groupChatMembersEmpty;
+
+  /// Row and dialog title for adding assistants to a group chat.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite assistants'**
+  String get groupChatInvite;
+
+  /// Empty state in the assistant picker when every assistant already belongs to the group.
+  ///
+  /// In en, this message translates to:
+  /// **'Every assistant is already in this group'**
+  String get groupChatNoAssistantToInvite;
+
+  /// Button in the assistant picker that confirms the selection.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get groupChatSave;
+
+  /// Button that dismisses a group chat dialog without making changes.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get groupChatCancel;
+
+  /// Title of the page and menu entry with a group chat's settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Group settings'**
+  String get groupChatSettingsTitle;
+
+  /// Tooltip of the back button on the group settings page.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get groupChatBack;
+
+  /// Section label for the settings that decide which group member speaks next.
+  ///
+  /// In en, this message translates to:
+  /// **'Who speaks'**
+  String get groupChatOrchestration;
+
+  /// Setting label for the model that decides who speaks next in the group.
+  ///
+  /// In en, this message translates to:
+  /// **'Director model'**
+  String get groupChatDirectorTitle;
+
+  /// Subtitle of that setting, recommending a fast, low-cost model for the director.
+  ///
+  /// In en, this message translates to:
+  /// **'The model that picks who speaks next. A fast, low-cost model is the right choice.'**
+  String get groupChatDirectorSubtitle;
+
+  /// Value shown for the director setting when the group uses the default model instead of its own choice.
+  ///
+  /// In en, this message translates to:
+  /// **'Follows default model'**
+  String get groupChatDirectorFollowDefault;
+
+  /// Setting label for how many members may reply to a single message.
+  ///
+  /// In en, this message translates to:
+  /// **'Replies per round'**
+  String get groupChatMaxTurnsTitle;
+
+  /// Subtitle of that setting, explaining it is the number of replies allowed per round.
+  ///
+  /// In en, this message translates to:
+  /// **'How many members may reply to one message'**
+  String get groupChatMaxTurnsSubtitle;
+
+  /// Button that confirms removing a member from the group chat.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get groupChatRemoveMember;
+
+  /// Title of the confirmation shown before removing a member.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove assistant'**
+  String get groupChatRemoveMemberTitle;
+
+  /// Body of that confirmation, saying the assistant will no longer take part in this group.
+  ///
+  /// In en, this message translates to:
+  /// **'This assistant will no longer take part in this group.'**
+  String get groupChatRemoveMemberContent;
+
+  /// Button and menu item that deletes the group chat.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete group chat'**
+  String get groupChatDelete;
+
+  /// Title of the confirmation shown before deleting a group chat.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this group chat?'**
+  String get groupChatDeleteTitle;
+
+  /// Body of that confirmation, saying the group and all of its topics move to the recycle bin together.
+  ///
+  /// In en, this message translates to:
+  /// **'The group and all of its topics move to the recycle bin together.'**
+  String get groupChatDeleteContent;
+
+  /// Toast confirming that the group chat was moved to the recycle bin.
+  ///
+  /// In en, this message translates to:
+  /// **'Group chat moved to the recycle bin'**
+  String get groupChatDeleted;
+
+  /// Shown when a group chat's settings cannot be opened because the group is gone, suggesting a restore from the recycle bin.
+  ///
+  /// In en, this message translates to:
+  /// **'This group chat\'s settings are not available. Restore it from the recycle bin.'**
+  String get groupChatUnavailable;
+
+  /// Default title given to a new topic started in a group chat.
+  ///
+  /// In en, this message translates to:
+  /// **'New topic'**
+  String get groupChatNewTopic;
+
+  /// Author label shown on messages whose member assistant has since been deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted assistant'**
+  String get groupChatRemovedMember;
+
+  /// Warning shown when the group's director model is unavailable, so the first member answered once instead.
+  ///
+  /// In en, this message translates to:
+  /// **'The director model is unavailable, so the first member replied once. Check the default model settings.'**
+  String get groupChatDirectorFallbackWarning;
+
+  /// Warning shown when a group chat has no members that can answer.
+  ///
+  /// In en, this message translates to:
+  /// **'This group chat has no available members.'**
+  String get groupChatUnavailableWarning;
+
+  /// Title of the card on the default models page that picks the model directing group chats.
+  ///
+  /// In en, this message translates to:
+  /// **'Director model'**
+  String get defaultModelPageDirectorModelTitle;
+
+  /// Subtitle of that card, saying the director picks who speaks next in a group chat and that a fast, low-cost model fits best.
+  ///
+  /// In en, this message translates to:
+  /// **'Picks who speaks next in a group chat. A fast, low-cost model is the best fit.'**
+  String get defaultModelPageDirectorModelSubtitle;
 }
 
 class _AppLocalizationsDelegate

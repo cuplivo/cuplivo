@@ -18129,4 +18129,129 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get assistantEditProactiveCareFeatureTitle => 'Onun Mektubu';
+
+  @override
+  String get chatInputBarOverflowTooltip => 'Diğer işlemler';
+
+  @override
+  String get settingsPageChatOwners => 'Asistanlar ve gruplar';
+
+  @override
+  String get settingsPageChatOwnersCreate => 'Oluştur';
+
+  @override
+  String get chatOwnerCreateAssistant => 'Yeni asistan';
+
+  @override
+  String get recycleBinKindGroup => 'Grup';
+
+  @override
+  String get recycleBinFilterGroups => 'Gruplar';
+
+  @override
+  String get groupChatTitle => 'Grup sohbeti';
+
+  @override
+  String get groupChatCreate => 'Yeni grup sohbeti';
+
+  @override
+  String get groupChatCreateHint => 'En az bir asistan seçin';
+
+  @override
+  String get groupChatNameHint => 'Grup adı';
+
+  @override
+  String get groupChatChangeAvatar => 'Grup avatarını değiştir';
+
+  @override
+  String get groupChatMembers => 'Üyeler';
+
+  @override
+  String get groupChatMembersEmpty => 'Henüz üye yok';
+
+  @override
+  String get groupChatInvite => 'Asistan davet et';
+
+  @override
+  String get groupChatNoAssistantToInvite => 'Her asistan zaten bu grupta';
+
+  @override
+  String get groupChatSave => 'Kaydet';
+
+  @override
+  String get groupChatCancel => 'İptal';
+
+  @override
+  String get groupChatSettingsTitle => 'Grup ayarları';
+
+  @override
+  String get groupChatBack => 'Geri';
+
+  @override
+  String get groupChatOrchestration => 'Kim konuşuyor';
+
+  @override
+  String get groupChatDirectorTitle => 'Yönetmen modeli';
+
+  @override
+  String get groupChatDirectorSubtitle =>
+      'Sıradaki konuşanı seçen model. Hızlı ve düşük maliyetli bir model doğru seçimdir.';
+
+  @override
+  String get groupChatDirectorFollowDefault => 'Varsayılan modeli izler';
+
+  @override
+  String get groupChatMaxTurnsTitle => 'Tur başına yanıt';
+
+  @override
+  String get groupChatMaxTurnsSubtitle =>
+      'Bir mesaja kaç üyenin yanıt verebileceği';
+
+  @override
+  String get groupChatRemoveMember => 'Kaldır';
+
+  @override
+  String get groupChatRemoveMemberTitle => 'Asistanı kaldır';
+
+  @override
+  String get groupChatRemoveMemberContent =>
+      'Bu asistan artık bu grupta yer almayacak.';
+
+  @override
+  String get groupChatDelete => 'Grup sohbetini sil';
+
+  @override
+  String get groupChatDeleteTitle => 'Bu grup sohbeti silinsin mi?';
+
+  @override
+  String get groupChatDeleteContent =>
+      'Grup ve tüm konuları birlikte geri dönüşüm kutusuna taşınır.';
+
+  @override
+  String get groupChatDeleted => 'Grup sohbeti geri dönüşüm kutusuna taşındı';
+
+  @override
+  String get groupChatUnavailable =>
+      'Bu grup sohbetinin ayarları yok. Geri dönüşüm kutusundan geri yükleyin.';
+
+  @override
+  String get groupChatNewTopic => 'Yeni konu';
+
+  @override
+  String get groupChatRemovedMember => 'Silinmiş asistan';
+
+  @override
+  String get groupChatDirectorFallbackWarning =>
+      'Yönetmen modeli kullanılamıyor, bu yüzden ilk üye bir kez yanıtladı. Varsayılan model ayarlarını denetleyin.';
+
+  @override
+  String get groupChatUnavailableWarning =>
+      'Bu grup sohbetinde kullanılabilir üye yok.';
+
+  @override
+  String get defaultModelPageDirectorModelTitle => 'Yönetmen modeli';
+
+  @override
+  String get defaultModelPageDirectorModelSubtitle =>
+      'Grup sohbetinde sıradaki konuşanı seçer. Hızlı ve düşük maliyetli bir model en uygunudur.';
 }

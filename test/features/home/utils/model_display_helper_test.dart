@@ -181,4 +181,108 @@ void main() {
     expect(display.modelId, 'conversation-model');
     expect(display.isConfigured, isTrue);
   });
+
+  group('resolveTitleModel', () {
+    Conversation groupConversation() =>
+        Conversation(title: 'Topic', extras: const {}).withGroupChatId('g1');
+
+    test('the title model outranks every chat model', () async {
+      await settings.setTitleModel('TitleProvider', 'title-model');
+      await settings.setPerChatModelEnabled(true);
+
+      final resolved = resolveTitleModel(
+        settings,
+        conversation: conversationWithModel(
+          providerKey: 'ConversationProvider',
+          modelId: 'conversation-model',
+        ),
+        assistant: assistantWithModel(
+          providerKey: 'AssistantProvider',
+          modelId: 'assistant-model',
+        ),
+      );
+
+      expect(resolved.providerKey, 'TitleProvider');
+      expect(resolved.modelId, 'title-model');
+    });
+
+    test(
+      'a 1:1 chat without a title model resolves as its chat does',
+      () async {
+        final conversation = conversationWithModel(
+          providerKey: 'ConversationProvider',
+          modelId: 'conversation-model',
+        );
+        final assistant = assistantWithModel(
+          providerKey: 'AssistantProvider',
+          modelId: 'assistant-model',
+        );
+
+        final resolved = resolveTitleModel(
+          settings,
+          conversation: conversation,
+          assistant: assistant,
+        );
+        final chat = resolveChatModel(
+          settings,
+          conversation: conversation,
+          assistant: assistant,
+        );
+
+        expect(resolved.providerKey, chat.providerKey);
+        expect(resolved.modelId, chat.modelId);
+        expect(resolved.providerKey, 'AssistantProvider');
+      },
+    );
+
+    test('a group topic falls back to the director model', () async {
+      await settings.setDirectorModel('DirectorProvider', 'director-model');
+
+      final resolved = resolveTitleModel(
+        settings,
+        conversation: groupConversation(),
+      );
+
+      expect(resolved.providerKey, 'DirectorProvider');
+      expect(resolved.modelId, 'director-model');
+    });
+
+    test('a group topic falls back to the global default last', () async {
+      final resolved = resolveTitleModel(
+        settings,
+        conversation: groupConversation(),
+      );
+
+      expect(resolved.providerKey, 'GlobalProvider');
+      expect(resolved.modelId, 'global-model');
+    });
+
+    test('the title model still outranks the director model', () async {
+      await settings.setDirectorModel('DirectorProvider', 'director-model');
+      await settings.setTitleModel('TitleProvider', 'title-model');
+
+      final resolved = resolveTitleModel(
+        settings,
+        conversation: groupConversation(),
+      );
+
+      expect(resolved.providerKey, 'TitleProvider');
+      expect(resolved.modelId, 'title-model');
+    });
+
+    test('a group topic ignores a pinned conversation model', () async {
+      await settings.setPerChatModelEnabled(true);
+      await settings.setDirectorModel('DirectorProvider', 'director-model');
+
+      final resolved = resolveTitleModel(
+        settings,
+        conversation: groupConversation().copyWith(
+          chatModelProvider: 'ConversationProvider',
+          chatModelId: 'conversation-model',
+        ),
+      );
+
+      expect(resolved.providerKey, 'DirectorProvider');
+    });
+  });
 }

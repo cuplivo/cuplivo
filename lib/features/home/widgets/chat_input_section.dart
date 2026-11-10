@@ -94,6 +94,8 @@ class ChatInputSection extends StatelessWidget {
     this.onContextOperations,
     this.conversationId,
     this.sendButtonTooltip,
+    this.group,
+    this.onOpenGroupMembers,
     this.backgroundImageActive = false,
   });
 
@@ -161,6 +163,18 @@ class ChatInputSection extends StatelessWidget {
   /// thinking budget shared by every other conversation under that assistant.
   final bool chatModelIsConversationOverride;
   final String? sendButtonTooltip;
+
+  /// Non-null when this conversation belongs to a group chat.
+  ///
+  /// A group has no single model, no single assistant prompt and no per-chat
+  /// search switch: the composer keeps what belongs to the *conversation*
+  /// (attachments, browser, mini map, context management and its ring) and drops
+  /// what belongs to one assistant. This field decides what a group *has*, never
+  /// where it goes: every action a group keeps is offered in the same place the
+  /// 1:1 composer offers it.
+  final GroupChat? group;
+  final VoidCallback? onOpenGroupMembers;
+
   final bool backgroundImageActive;
 
   @override
@@ -169,9 +183,18 @@ class ChatInputSection extends StatelessWidget {
     final asr = context.watch<AsrProvider>();
     final ap = context.watch<AssistantProvider>();
     final a = ap.currentAssistant;
+    final group = this.group;
+    final isGroup = group != null;
+    final groupMembers = <Assistant>[
+      if (group != null)
+        for (final id in group.memberIds)
+          if (ap.getById(id) case final assistant?) assistant,
+    ];
 
-    final pk = chatModelProviderKey;
-    final mid = chatModelId;
+    // A group sends each reply with its speaker's own model, so there is no
+    // single model to report or to reason about here.
+    final pk = isGroup ? null : chatModelProviderKey;
+    final mid = isGroup ? null : chatModelId;
     final supportsModelTools =
         pk != null && mid != null && isToolModel(pk, mid);
     final selectedReasoning = _selectedReasoning(settings, a, pk, mid);
@@ -201,23 +224,40 @@ class ChatInputSection extends StatelessWidget {
     if (showWorkspaceButton || showEnvChip) {
       workspaceBound = _isWorkspaceBound(context);
     }
+    // Where the conversation's tools go. The wide layouts have room for them in
+    // the left action bar; a phone does not, so it offers them in the composer's
+    // + panel instead, and keeps the mini map in the top bar where it always
+    // was. This decision covers these tools and nothing else: search, reasoning,
+    // the tools button and quick phrases stay in that bar on every layout.
+    // A group used to force the tools into the phone's bar as well, which pushed
+    // the row past its width and made the bar's overflow button sit beside the
+    // panel's own "+".
+    final leftBarTools = isTablet;
 
     final bar = ChatInputBar(
       chatModelProviderKey: pk,
       chatModelId: mid,
       onMore: onMore,
-      onSelectModel: onSelectModel,
-      onLongPressSelectModel: onLongPressSelectModel,
+      onSelectModel: isGroup ? null : onSelectModel,
+      onLongPressSelectModel: isGroup ? null : onLongPressSelectModel,
       conversationId: conversationId,
       onOpenTools: onOpenTools,
       onLongPressTools: onLongPressTools,
       onOpenWorkspace: onOpenWorkspace,
       showWorkspaceButton: showWorkspaceButton,
       workspaceActive: workspaceBound,
-      onOpenSkills: isDesktop ? onOpenSkills : null,
+      onOpenSkills: isDesktop && !isGroup ? onOpenSkills : null,
       skillsActive:
           isDesktop && onOpenSkills != null && _isSkillsActive(context, a),
       onStop: onStop,
+      leading: isGroup
+          ? GroupMemberCluster(members: groupMembers, onTap: onOpenGroupMembers)
+          : null,
+      onTapLeading: onOpenGroupMembers,
+      leadingTooltip: AppLocalizations.of(context)!.groupChatMembers,
+      leadingExtent: isGroup
+          ? GroupMemberCluster.extentFor(groupMembers.length)
+          : 30,
       modelIcon: (pk != null && mid != null)
           ? CurrentModelIcon(
               providerKey: pk,
@@ -231,7 +271,7 @@ class ChatInputSection extends StatelessWidget {
       controller: inputController,
       mediaController: mediaController,
       asrProvider: asr,
-      onConfigureReasoning: onConfigureReasoning,
+      onConfigureReasoning: isGroup ? null : onConfigureReasoning,
       reasoningButtonKey: reasoningButtonKey,
       onOpenContextUsage: onOpenContextUsage,
       reasoningActive: isReasoningEnabled(effectiveReasoning),
@@ -242,7 +282,7 @@ class ChatInputSection extends StatelessWidget {
       supportsReasoning: (pk != null && mid != null)
           ? isReasoningModel(pk, mid)
           : false,
-      onOpenSearch: onOpenSearch,
+      onOpenSearch: isGroup ? null : onOpenSearch,
       onSend: onSend,
       loading: isLoading,
       sendButtonTooltip: sendButtonTooltip,
@@ -256,36 +296,39 @@ class ChatInputSection extends StatelessWidget {
       showToolsButton: supportsModelTools,
       toolsActive:
           supportsModelTools && _isToolsActive(context, a, workspaceBound),
-      showQuickPhraseButton: _hasQuickPhrases(context, a),
-      onQuickPhrase: onQuickPhrase,
-      onLongPressQuickPhrase: onLongPressQuickPhrase,
+      showQuickPhraseButton: !isGroup && _hasQuickPhrases(context, a),
+      onQuickPhrase: isGroup ? null : onQuickPhrase,
+      onLongPressQuickPhrase: isGroup ? null : onLongPressQuickPhrase,
       // OCR button: show on desktop for mobile layout, always check settings for tablet layout
-      showOcrButton: isTablet
+      showOcrButton: isGroup
+          ? false
+          : isTablet
           ? (settings.ocrModelProvider != null && settings.ocrModelId != null)
           : (isDesktop &&
                 settings.ocrModelProvider != null &&
                 settings.ocrModelId != null),
       ocrActive: settings.ocrEnabled,
-      onToggleOcr: onToggleOcr,
-      // Tablet-specific parameters
-      showMiniMapButton: isTablet,
-      onOpenMiniMap: isTablet ? onOpenMiniMap : null,
-      onPickCamera: isTablet ? (isDesktop ? null : onPickCamera) : null,
-      onPickPhotos: isTablet ? (isDesktop ? null : onPickPhotos) : null,
-      onUploadFiles: isTablet ? onUploadFiles : null,
-      onOpenBrowser: isTablet ? onOpenBrowser : null,
-      onToggleLearningMode: isTablet ? onToggleLearningMode : null,
-      onOpenWorldBook: hasWorldBooks ? onOpenWorldBook : null,
-      onLongPressLearning: isTablet ? onLongPressLearning : null,
+      onToggleOcr: isGroup ? null : onToggleOcr,
+      showMiniMapButton: leftBarTools,
+      onOpenMiniMap: leftBarTools ? onOpenMiniMap : null,
+      onPickCamera: leftBarTools ? (isDesktop ? null : onPickCamera) : null,
+      onPickPhotos: leftBarTools ? (isDesktop ? null : onPickPhotos) : null,
+      onUploadFiles: leftBarTools ? onUploadFiles : null,
+      onOpenBrowser: leftBarTools ? onOpenBrowser : null,
+      onToggleLearningMode: isGroup || !isTablet ? null : onToggleLearningMode,
+      onOpenWorldBook: hasWorldBooks && !isGroup ? onOpenWorldBook : null,
+      onLongPressLearning: isGroup || !isTablet ? null : onLongPressLearning,
       learningModeActive:
+          !isGroup &&
           isTablet &&
           _isPromptSelectionActive(context, a, PromptSelectionKind.instruction),
       worldBookActive:
+          !isGroup &&
           isTablet &&
           _isPromptSelectionActive(context, a, PromptSelectionKind.worldBook),
       showMoreButton: !isTablet,
-      onClearContext: isTablet ? onClearContext : null,
-      onCompressContext: isTablet ? onCompressContext : null,
+      onClearContext: leftBarTools ? onClearContext : null,
+      onCompressContext: leftBarTools ? onCompressContext : null,
       onContextOperations: isTablet ? onContextOperations : null,
       backgroundImageActive: backgroundImageActive,
       inputBackgroundOpacityLight: settings.chatInputBackgroundOpacityLight,

@@ -17475,4 +17475,123 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get assistantEditProactiveCareFeatureTitle => 'Ta의 편지';
+
+  @override
+  String get chatInputBarOverflowTooltip => '추가 작업';
+
+  @override
+  String get settingsPageChatOwners => '어시스턴트와 그룹';
+
+  @override
+  String get settingsPageChatOwnersCreate => '만들기';
+
+  @override
+  String get chatOwnerCreateAssistant => '새 어시스턴트';
+
+  @override
+  String get recycleBinKindGroup => '그룹';
+
+  @override
+  String get recycleBinFilterGroups => '그룹';
+
+  @override
+  String get groupChatTitle => '그룹 채팅';
+
+  @override
+  String get groupChatCreate => '새 그룹 채팅';
+
+  @override
+  String get groupChatCreateHint => '어시스턴트를 하나 이상 선택하세요';
+
+  @override
+  String get groupChatNameHint => '그룹 이름';
+
+  @override
+  String get groupChatChangeAvatar => '그룹 아바타 변경';
+
+  @override
+  String get groupChatMembers => '멤버';
+
+  @override
+  String get groupChatMembersEmpty => '아직 멤버가 없어요';
+
+  @override
+  String get groupChatInvite => '어시스턴트 초대';
+
+  @override
+  String get groupChatNoAssistantToInvite => '모든 어시스턴트가 이미 이 그룹에 있어요';
+
+  @override
+  String get groupChatSave => '저장';
+
+  @override
+  String get groupChatCancel => '취소';
+
+  @override
+  String get groupChatSettingsTitle => '그룹 설정';
+
+  @override
+  String get groupChatBack => '뒤로';
+
+  @override
+  String get groupChatOrchestration => '발화 순서';
+
+  @override
+  String get groupChatDirectorTitle => '감독 모델';
+
+  @override
+  String get groupChatDirectorSubtitle => '다음 발화자를 고르는 모델이에요. 빠르고 저렴한 모델이 좋아요.';
+
+  @override
+  String get groupChatDirectorFollowDefault => '기본 모델 따름';
+
+  @override
+  String get groupChatMaxTurnsTitle => '라운드당 답변 수';
+
+  @override
+  String get groupChatMaxTurnsSubtitle => '한 메시지에 몇 명까지 답할 수 있는지';
+
+  @override
+  String get groupChatRemoveMember => '내보내기';
+
+  @override
+  String get groupChatRemoveMemberTitle => '어시스턴트 내보내기';
+
+  @override
+  String get groupChatRemoveMemberContent => '이 어시스턴트는 더 이상 이 그룹에 참여하지 않아요.';
+
+  @override
+  String get groupChatDelete => '그룹 채팅 삭제';
+
+  @override
+  String get groupChatDeleteTitle => '이 그룹 채팅을 삭제할까요?';
+
+  @override
+  String get groupChatDeleteContent => '그룹과 모든 토픽이 함께 휴지통으로 이동해요.';
+
+  @override
+  String get groupChatDeleted => '그룹 채팅을 휴지통으로 옮겼어요';
+
+  @override
+  String get groupChatUnavailable => '이 그룹 채팅의 설정을 찾을 수 없어요. 휴지통에서 복원하세요.';
+
+  @override
+  String get groupChatNewTopic => '새 토픽';
+
+  @override
+  String get groupChatRemovedMember => '삭제된 어시스턴트';
+
+  @override
+  String get groupChatDirectorFallbackWarning =>
+      '감독 모델을 사용할 수 없어 첫 번째 멤버가 한 번 답했어요. 기본 모델 설정을 확인하세요.';
+
+  @override
+  String get groupChatUnavailableWarning => '이 그룹 채팅에 사용할 수 있는 멤버가 없어요.';
+
+  @override
+  String get defaultModelPageDirectorModelTitle => '감독 모델';
+
+  @override
+  String get defaultModelPageDirectorModelSubtitle =>
+      '그룹 채팅에서 다음 발화자를 고르는 모델이에요. 빠르고 저렴한 모델이 가장 좋아요.';
 }

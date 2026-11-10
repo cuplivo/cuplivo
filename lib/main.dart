@@ -11,6 +11,8 @@ import 'package:flutter/foundation.dart'
 import 'dart:async';
 import 'dart:ui' show AppExitResponse;
 import 'l10n/app_localizations.dart';
+import 'features/chat/utils/placeholder_titles.dart';
+import 'features/group_chat/services/group_transcript.dart';
 import 'features/home/pages/home_page.dart';
 import 'features/migration/hive_to_sqlite_migration_page.dart';
 import 'features/migration/hive_to_sqlite_migration_service.dart';
@@ -52,6 +54,8 @@ import 'core/providers/s3_backup_provider.dart';
 import 'core/providers/backup_reminder_provider.dart';
 import 'core/providers/hotkey_provider.dart';
 import 'core/providers/workspace_provider.dart';
+import 'core/providers/group_chat_provider.dart';
+import 'core/providers/chat_owners_provider.dart';
 import 'core/services/workspace/workspace_binding_actions.dart';
 import 'core/providers/environment_provider.dart';
 import 'features/workspace/pages/environment_page.dart';
@@ -185,6 +189,11 @@ void _wireSyncReloaders(BuildContext ctx) {
     // the peer's workspaces would sit in SQLite unseen until the next launch.
     reloader.register(
       () => ctx.read<WorkspaceProvider>().reloadAfterExternalChange(),
+    );
+    // Group chats are entity rows too, and their list is cached and parsed the
+    // same way: a peer's new group would otherwise be invisible until relaunch.
+    reloader.register(
+      () => ctx.read<GroupChatProvider>().reloadAfterExternalChange(),
     );
   } catch (error) {
     debugPrint('Failed to wire sync reloaders: $error');
@@ -1052,6 +1061,20 @@ class MyApp extends StatelessWidget {
           ),
         ),
         ChangeNotifierProvider(
+          create: (ctx) => GroupChatProvider(
+            store: ctx.read<ExtensionEntityStore>(),
+            chatService: ctx.read<ChatService>(),
+            businessRepository: ctx.read<BusinessRepository>(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) => ChatOwnersProvider(
+            assistants: ctx.read<AssistantProvider>(),
+            groups: ctx.read<GroupChatProvider>(),
+            preferences: businessPreferences,
+          ),
+        ),
+        ChangeNotifierProvider(
           create: (ctx) => SkillsService(
             store: ctx.read<ExtensionEntityStore>(),
             bundledAssets: rootBundle,
@@ -1381,12 +1404,24 @@ class MyApp extends StatelessWidget {
                       try {
                         ctx.read<AssistantProvider>().ensureDefaults(ctx);
                       } catch (_) {}
+                      // Separate tries: a failure in one must not leave the
+                      // other unset for the rest of the process.
                       try {
-                        ctx.read<ChatService>().setDefaultConversationTitle(
-                          AppLocalizations.of(
-                            ctx,
-                          )!.chatServiceDefaultConversationTitle,
+                        final l10n = AppLocalizations.of(ctx)!;
+                        ctx.read<ChatService>().setPlaceholderTitles(
+                          conversation:
+                              l10n.chatServiceDefaultConversationTitle,
+                          titles: localizedPlaceholderTitles(),
                         );
+                      } catch (_) {}
+                      try {
+                        final chat = ctx.read<ChatService>();
+                        // A group's summary must keep its voices apart.
+                        chat.compressionLabelOf =
+                            GroupTranscript.compressionLabel(
+                              chat: chat,
+                              assistants: ctx.read<AssistantProvider>(),
+                            );
                       } catch (_) {}
                       try {
                         ctx.read<UserProvider>().setDefaultNameIfUnset(

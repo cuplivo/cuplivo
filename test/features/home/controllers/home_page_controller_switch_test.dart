@@ -7,11 +7,13 @@ import 'package:provider/provider.dart';
 
 import '../../../support/business_test_harness.dart';
 import 'package:Cuplivo/core/database/composer_draft_store.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/models/composer_draft.dart';
 import 'package:Cuplivo/core/models/chat_input_data.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/group_chat_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/core/services/notification_service.dart';
@@ -31,9 +33,13 @@ class _PageRequest {
 }
 
 class _ControlledChatService extends ChatService {
-  _ControlledChatService(this._messagesByConversation);
+  _ControlledChatService(
+    this._messagesByConversation, {
+    Map<String, String>? groupOf,
+  }) : _groupOf = groupOf ?? const <String, String>{};
 
   final Map<String, List<ChatMessage>> _messagesByConversation;
+  final Map<String, String> _groupOf;
   final Map<String, Conversation> _draftConversations =
       <String, Conversation>{};
   final List<_PageRequest> pageRequests = <_PageRequest>[];
@@ -113,6 +119,10 @@ class _ControlledChatService extends ChatService {
       id: id,
       title: 'Conversation $id',
       messageIds: messages.map((message) => message.id).toList(),
+      extras: {
+        if (_groupOf[id] case final groupId?)
+          Conversation.groupChatIdKey: groupId,
+      },
     );
   }
 
@@ -120,12 +130,16 @@ class _ControlledChatService extends ChatService {
   Future<Conversation> createDraftConversation({
     String? title,
     String? assistantId,
+    String? groupChatId,
     bool temporary = false,
     bool reuseNewEntry = false,
   }) async {
     final conversation = Conversation(
       title: title ?? 'Draft',
       assistantId: assistantId,
+      extras: {
+        if (groupChatId != null) Conversation.groupChatIdKey: groupChatId,
+      },
     );
     _draftConversations[conversation.id] = conversation;
     _messagesByConversation[conversation.id] = <ChatMessage>[];
@@ -263,8 +277,9 @@ void main() {
 
   Future<HomePageController> pumpHarness(
     WidgetTester tester,
-    _ControlledChatService service,
-  ) async {
+    _ControlledChatService service, {
+    GroupChatProvider? groups,
+  }) async {
     HomePageController? controller;
     await tester.pumpWidget(
       MultiProvider(
@@ -277,6 +292,8 @@ void main() {
             create: (_) =>
                 AssistantProvider(preferences: createBusinessTestPreferences()),
           ),
+          if (groups != null)
+            ChangeNotifierProvider<GroupChatProvider>.value(value: groups),
         ],
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -1284,6 +1301,101 @@ void main() {
         expect(controller.currentConversation?.id, 'conv-a');
         expect(controller.selecting, isTrue);
         expect(controller.selectedItems, selectedBefore);
+      });
+    });
+
+    testWidgets('a new chat inside a group stays in that group', (
+      tester,
+    ) async {
+      await runAsMobile(() async {
+        final service = _ControlledChatService(
+          {
+            'conv-g': [_message('conv-g', 0)],
+          },
+          groupOf: {'conv-g': 'g1'},
+        );
+        final controller = await pumpHarness(tester, service);
+        await switchAndSettle(tester, controller, service, 'conv-g');
+        expect(controller.currentConversation?.groupChatId, 'g1');
+
+        final future = controller.createNewConversationAnimated();
+        await pumpUntilDone(tester, [future]);
+
+        // A group topic has no assistant; opening a 1:1 chat instead would
+        // silently leave the group for whichever assistant was current.
+        expect(controller.currentConversation?.groupChatId, 'g1');
+        expect(controller.currentConversation?.assistantId, isNull);
+        expect(controller.currentConversation?.id, isNot('conv-g'));
+      });
+    });
+
+    testWidgets('a chat opened for an assistant leaves the group topic', (
+      tester,
+    ) async {
+      await runAsMobile(() async {
+        // The group is live, so "+" would inherit it: only the named owner can
+        // say the request meant a 1:1 instead.
+        final groups = GroupChatProvider(
+          store: ExtensionEntityStore(
+            createBusinessTestPreferencesWithDatabase().database,
+          ),
+        );
+        await groups.loaded;
+        final group = await groups.create(
+          name: 'Reading',
+          memberIds: const ['reader'],
+        );
+        final service = _ControlledChatService(
+          {
+            'conv-g': [_message('conv-g', 0)],
+          },
+          groupOf: {'conv-g': group.id},
+        );
+        final controller = await pumpHarness(tester, service, groups: groups);
+        await switchAndSettle(tester, controller, service, 'conv-g');
+        expect(controller.currentConversation?.groupChatId, group.id);
+
+        final future = controller.createNewConversationAnimated(
+          assistantId: 'assistant-b',
+        );
+        await pumpUntilDone(tester, [future]);
+
+        // Staying in the group here is what left the page on the group and hid
+        // every chat of the assistant that had just been chosen: the topics
+        // list follows the open conversation's group.
+        expect(controller.currentConversation?.groupChatId, isNull);
+        expect(controller.currentConversation?.assistantId, 'assistant-b');
+        expect(controller.currentConversation?.id, isNot('conv-g'));
+      });
+    });
+
+    testWidgets('a new chat in a topic whose group is gone starts a 1:1', (
+      tester,
+    ) async {
+      await runAsMobile(() async {
+        final service = _ControlledChatService(
+          {
+            'conv-g': [_message('conv-g', 0)],
+          },
+          groupOf: {'conv-g': 'g1'},
+        );
+        final groups = GroupChatProvider(
+          store: ExtensionEntityStore(
+            createBusinessTestPreferencesWithDatabase().database,
+          ),
+        );
+        await groups.loaded;
+        final controller = await pumpHarness(tester, service, groups: groups);
+        await switchAndSettle(tester, controller, service, 'conv-g');
+        expect(controller.currentConversation?.groupChatId, 'g1');
+
+        final future = controller.createNewConversationAnimated();
+        await pumpUntilDone(tester, [future]);
+
+        // The group row is gone, so the topic is an ordinary conversation:
+        // carrying its id over would mint another topic tagged with the dead
+        // group, and it would silently rejoin the group if that came back.
+        expect(controller.currentConversation?.groupChatId, isNull);
       });
     });
 

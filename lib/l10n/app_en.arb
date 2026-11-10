@@ -23283,5 +23283,161 @@
   "assistantEditProactiveCareFeatureTitle": "Their Letter",
   "@assistantEditProactiveCareFeatureTitle": {
     "description": "Feature header for the proactive care (Their Letter) section"
+  },
+  "chatInputBarOverflowTooltip": "More actions",
+  "@chatInputBarOverflowTooltip": {
+    "description": "Tooltip of the extra-actions button beside the message input, which reveals the remaining composer actions."
+  },
+  "settingsPageChatOwners": "Assistants and groups",
+  "@settingsPageChatOwners": {
+    "description": "Settings entry and page title for managing the assistants and group chats that own conversations."
+  },
+  "settingsPageChatOwnersCreate": "Create",
+  "@settingsPageChatOwnersCreate": {
+    "description": "Tooltip of the plus button that creates a new assistant or group chat."
+  },
+  "chatOwnerCreateAssistant": "New assistant",
+  "@chatOwnerCreateAssistant": {
+    "description": "Menu item that starts creating a new assistant."
+  },
+  "recycleBinKindGroup": "Group",
+  "@recycleBinKindGroup": {
+    "description": "Kind label on a recycle-bin entry that is a group chat."
+  },
+  "recycleBinFilterGroups": "Groups",
+  "@recycleBinFilterGroups": {
+    "description": "Filter tab in the recycle bin that shows deleted group chats."
+  },
+  "groupChatTitle": "Group chat",
+  "@groupChatTitle": {
+    "description": "Fallback name for a group chat that has no name yet."
+  },
+  "groupChatCreate": "New group chat",
+  "@groupChatCreate": {
+    "description": "Menu item and dialog title for creating a new group chat."
+  },
+  "groupChatCreateHint": "Pick at least one assistant",
+  "@groupChatCreateHint": {
+    "description": "Hint in the group creation dialog reminding the user to pick at least one assistant."
+  },
+  "groupChatNameHint": "Group name",
+  "@groupChatNameHint": {
+    "description": "Placeholder in the field where a group chat's name is typed."
+  },
+  "groupChatChangeAvatar": "Change group avatar",
+  "@groupChatChangeAvatar": {
+    "description": "Tooltip and accessibility label of the button that changes the group chat's avatar."
+  },
+  "groupChatMembers": "Members",
+  "@groupChatMembers": {
+    "description": "Section label above the list of a group chat's member assistants."
+  },
+  "groupChatMembersEmpty": "No members yet",
+  "@groupChatMembersEmpty": {
+    "description": "Empty-state text when a group chat has no members yet."
+  },
+  "groupChatInvite": "Invite assistants",
+  "@groupChatInvite": {
+    "description": "Row and dialog title for adding assistants to a group chat."
+  },
+  "groupChatNoAssistantToInvite": "Every assistant is already in this group",
+  "@groupChatNoAssistantToInvite": {
+    "description": "Empty state in the assistant picker when every assistant already belongs to the group."
+  },
+  "groupChatSave": "Save",
+  "@groupChatSave": {
+    "description": "Button in the assistant picker that confirms the selection."
+  },
+  "groupChatCancel": "Cancel",
+  "@groupChatCancel": {
+    "description": "Button that dismisses a group chat dialog without making changes."
+  },
+  "groupChatSettingsTitle": "Group settings",
+  "@groupChatSettingsTitle": {
+    "description": "Title of the page and menu entry with a group chat's settings."
+  },
+  "groupChatBack": "Back",
+  "@groupChatBack": {
+    "description": "Tooltip of the back button on the group settings page."
+  },
+  "groupChatOrchestration": "Who speaks",
+  "@groupChatOrchestration": {
+    "description": "Section label for the settings that decide which group member speaks next."
+  },
+  "groupChatDirectorTitle": "Director model",
+  "@groupChatDirectorTitle": {
+    "description": "Setting label for the model that decides who speaks next in the group."
+  },
+  "groupChatDirectorSubtitle": "The model that picks who speaks next. A fast, low-cost model is the right choice.",
+  "@groupChatDirectorSubtitle": {
+    "description": "Subtitle of that setting, recommending a fast, low-cost model for the director."
+  },
+  "groupChatDirectorFollowDefault": "Follows default model",
+  "@groupChatDirectorFollowDefault": {
+    "description": "Value shown for the director setting when the group uses the default model instead of its own choice."
+  },
+  "groupChatMaxTurnsTitle": "Replies per round",
+  "@groupChatMaxTurnsTitle": {
+    "description": "Setting label for how many members may reply to a single message."
+  },
+  "groupChatMaxTurnsSubtitle": "How many members may reply to one message",
+  "@groupChatMaxTurnsSubtitle": {
+    "description": "Subtitle of that setting, explaining it is the number of replies allowed per round."
+  },
+  "groupChatRemoveMember": "Remove",
+  "@groupChatRemoveMember": {
+    "description": "Button that confirms removing a member from the group chat."
+  },
+  "groupChatRemoveMemberTitle": "Remove assistant",
+  "@groupChatRemoveMemberTitle": {
+    "description": "Title of the confirmation shown before removing a member."
+  },
+  "groupChatRemoveMemberContent": "This assistant will no longer take part in this group.",
+  "@groupChatRemoveMemberContent": {
+    "description": "Body of that confirmation, saying the assistant will no longer take part in this group."
+  },
+  "groupChatDelete": "Delete group chat",
+  "@groupChatDelete": {
+    "description": "Button and menu item that deletes the group chat."
+  },
+  "groupChatDeleteTitle": "Delete this group chat?",
+  "@groupChatDeleteTitle": {
+    "description": "Title of the confirmation shown before deleting a group chat."
+  },
+  "groupChatDeleteContent": "The group and all of its topics move to the recycle bin together.",
+  "@groupChatDeleteContent": {
+    "description": "Body of that confirmation, saying the group and all of its topics move to the recycle bin together."
+  },
+  "groupChatDeleted": "Group chat moved to the recycle bin",
+  "@groupChatDeleted": {
+    "description": "Toast confirming that the group chat was moved to the recycle bin."
+  },
+  "groupChatUnavailable": "This group chat's settings are not available. Restore it from the recycle bin.",
+  "@groupChatUnavailable": {
+    "description": "Shown when a group chat's settings cannot be opened because the group is gone, suggesting a restore from the recycle bin."
+  },
+  "groupChatNewTopic": "New topic",
+  "@groupChatNewTopic": {
+    "description": "Default title given to a new topic started in a group chat."
+  },
+  "groupChatRemovedMember": "Deleted assistant",
+  "@groupChatRemovedMember": {
+    "description": "Author label shown on messages whose member assistant has since been deleted."
+  },
+  "groupChatDirectorFallbackWarning": "The director model is unavailable, so the first member replied once. Check the default model settings.",
+  "@groupChatDirectorFallbackWarning": {
+    "description": "Warning shown when the group's director model is unavailable, so the first member answered once instead."
+  },
+  "groupChatUnavailableWarning": "This group chat has no available members.",
+  "@groupChatUnavailableWarning": {
+    "description": "Warning shown when a group chat has no members that can answer."
+  },
+  "defaultModelPageDirectorModelTitle": "Director model",
+  "@defaultModelPageDirectorModelTitle": {
+    "description": "Title of the card on the default models page that picks the model directing group chats."
+  },
+  "defaultModelPageDirectorModelSubtitle": "Picks who speaks next in a group chat. A fast, low-cost model is the best fit.",
+  "@defaultModelPageDirectorModelSubtitle": {
+    "description": "Subtitle of that card, saying the director picks who speaks next in a group chat and that a fast, low-cost model fits best."
   }
 }

@@ -686,6 +686,16 @@ void main() {
             'updatedAt': 1786012880106000,
           },
         ]),
+        'group_chats_v1': jsonEncode([
+          {
+            'id': 'group-chat-1',
+            'name': 'Panel',
+            'memberIds': ['assistant-1'],
+            'maxSpeakerTurns': 3,
+            'createdAt': '2026-09-08T00:00:00Z',
+            'updatedAt': '2026-09-08T00:00:00Z',
+          },
+        ]),
       });
 
       for (final kind in BusinessEntityKind.values) {

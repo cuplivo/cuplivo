@@ -774,6 +774,10 @@ class ChatInputBar extends StatefulWidget {
     this.onToggleOcr,
     this.conversationId,
     this.sendButtonTooltip,
+    this.leading,
+    this.onTapLeading,
+    this.leadingTooltip,
+    this.leadingExtent = 30,
     this.backgroundImageActive = false,
     this.inputBackgroundOpacityLight =
         SettingsProvider.defaultChatInputBackgroundOpacityLight,
@@ -848,6 +852,16 @@ class ChatInputBar extends StatefulWidget {
   final String? chatModelProviderKey;
   final String? chatModelId;
   final String? sendButtonTooltip;
+
+  /// Replaces the model-select slot at the start of the composer.
+  ///
+  /// A group chat has no single model to show, so that slot carries the member
+  /// cluster instead: the one control that says who is in this room.
+  final Widget? leading;
+  final VoidCallback? onTapLeading;
+  final String? leadingTooltip;
+  final double leadingExtent;
+
   final bool backgroundImageActive;
   final double inputBackgroundOpacityLight;
   final double inputBackgroundOpacityDark;
@@ -3649,25 +3663,60 @@ class _ChatInputBarState extends State<ChatInputBar>
         final List<_OverflowAction> actions = [];
         int? reasoningActionIndex;
 
-        // Model select (always present; can be hidden if overflow)
-        actions.add(
-          _OverflowAction(
-            width: (widget.modelIcon != null) ? modelButtonW : normalButtonW,
-            builder: () => _CompactIconButton(
-              tooltip: l10n.chatInputBarSelectModelTooltip,
-              icon: Lucide.Boxes,
-              modelIcon: true,
-              onTap: lockTap(widget.onSelectModel),
-              onLongPress: lockTap(widget.onLongPressSelectModel),
-              child: widget.modelIcon,
+        // Model select (always present; can be hidden if overflow). A group
+        // replaces it with the member cluster, which is the same "who am I
+        // talking with" slot.
+        if (widget.leading != null) {
+          actions.add(
+            _OverflowAction(
+              width: widget.leadingExtent,
+              builder: () => Tooltip(
+                message: widget.leadingTooltip ?? '',
+                waitDuration: const Duration(milliseconds: 350),
+                child: Semantics(
+                  button: true,
+                  label: widget.leadingTooltip,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: lockTap(widget.onTapLeading),
+                    child: SizedBox(
+                      height: 30,
+                      width: widget.leadingExtent,
+                      child: Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: widget.leading,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              menu: DesktopContextMenuItem(
+                icon: Lucide.Users,
+                label: widget.leadingTooltip ?? '',
+                onTap: lockTap(widget.onTapLeading),
+              ),
             ),
-            menu: DesktopContextMenuItem(
-              icon: Lucide.Boxes,
-              label: l10n.chatInputBarSelectModelTooltip,
-              onTap: lockTap(widget.onSelectModel),
+          );
+        } else {
+          actions.add(
+            _OverflowAction(
+              width: (widget.modelIcon != null) ? modelButtonW : normalButtonW,
+              builder: () => _CompactIconButton(
+                tooltip: l10n.chatInputBarSelectModelTooltip,
+                icon: Lucide.Boxes,
+                modelIcon: true,
+                onTap: lockTap(widget.onSelectModel),
+                onLongPress: lockTap(widget.onLongPressSelectModel),
+                child: widget.modelIcon,
+              ),
+              menu: DesktopContextMenuItem(
+                icon: Lucide.Boxes,
+                label: l10n.chatInputBarSelectModelTooltip,
+                onTap: lockTap(widget.onSelectModel),
+              ),
             ),
-          ),
-        );
+          );
+        }
 
         // Search button (stateful icon depending on provider config)
         final settings = context.watch<SettingsProvider>();
@@ -3698,91 +3747,94 @@ class _ChatInputBarState extends State<ChatInputBar>
           return BrandAssets.assetForName(svc.name);
         })();
 
-        // Search button
-        actions.add(
-          _OverflowAction(
-            width: normalButtonW,
-            builder: () {
-              // Not enabled at all -> default globe
-              if (!appSearchEnabled && !builtinSearchActive) {
+        // A group has no per-conversation search switch, so the caller passes no
+        // handler: an action with nothing to do is not an action.
+        if (widget.onOpenSearch != null) {
+          actions.add(
+            _OverflowAction(
+              width: normalButtonW,
+              builder: () {
+                // Not enabled at all -> default globe
+                if (!appSearchEnabled && !builtinSearchActive) {
+                  return _CompactIconButton(
+                    tooltip: l10n.chatInputBarOnlineSearchTooltip,
+                    icon: Lucide.Globe,
+                    active: false,
+                    onTap: lockTap(widget.onOpenSearch),
+                  );
+                }
+                // Built-in search -> magnifier icon in theme color
+                if (builtinSearchActive) {
+                  return _CompactIconButton(
+                    tooltip: l10n.chatInputBarOnlineSearchTooltip,
+                    icon: Lucide.Search,
+                    active: true,
+                    onTap: lockTap(widget.onOpenSearch),
+                  );
+                }
+                // External provider search -> brand icon
                 return _CompactIconButton(
                   tooltip: l10n.chatInputBarOnlineSearchTooltip,
                   icon: Lucide.Globe,
-                  active: false,
-                  onTap: lockTap(widget.onOpenSearch),
-                );
-              }
-              // Built-in search -> magnifier icon in theme color
-              if (builtinSearchActive) {
-                return _CompactIconButton(
-                  tooltip: l10n.chatInputBarOnlineSearchTooltip,
-                  icon: Lucide.Search,
                   active: true,
                   onTap: lockTap(widget.onOpenSearch),
-                );
-              }
-              // External provider search -> brand icon
-              return _CompactIconButton(
-                tooltip: l10n.chatInputBarOnlineSearchTooltip,
-                icon: Lucide.Globe,
-                active: true,
-                onTap: lockTap(widget.onOpenSearch),
-                childBuilder: (c) {
-                  final asset = brandAsset;
-                  if (asset != null) {
-                    if (asset.endsWith('.svg')) {
-                      return SvgPicture.asset(
-                        asset,
-                        width: 20,
-                        height: 20,
-                        colorFilter: ColorFilter.mode(c, BlendMode.srcIn),
-                      );
+                  childBuilder: (c) {
+                    final asset = brandAsset;
+                    if (asset != null) {
+                      if (asset.endsWith('.svg')) {
+                        return SvgPicture.asset(
+                          asset,
+                          width: 20,
+                          height: 20,
+                          colorFilter: ColorFilter.mode(c, BlendMode.srcIn),
+                        );
+                      } else {
+                        return Image.asset(
+                          asset,
+                          width: 20,
+                          height: 20,
+                          color: c,
+                          colorBlendMode: BlendMode.srcIn,
+                        );
+                      }
                     } else {
-                      return Image.asset(
-                        asset,
-                        width: 20,
-                        height: 20,
-                        color: c,
-                        colorBlendMode: BlendMode.srcIn,
-                      );
+                      return Icon(Lucide.Globe, size: 20, color: c);
                     }
-                  } else {
-                    return Icon(Lucide.Globe, size: 20, color: c);
-                  }
-                },
-              );
-            },
-            menu: () {
-              // Prefer vector icon if brandAsset is svg, otherwise pick reasonable default
-              if (!appSearchEnabled && !builtinSearchActive) {
+                  },
+                );
+              },
+              menu: () {
+                // Prefer vector icon if brandAsset is svg, otherwise pick reasonable default
+                if (!appSearchEnabled && !builtinSearchActive) {
+                  return DesktopContextMenuItem(
+                    icon: Lucide.Globe,
+                    label: l10n.chatInputBarOnlineSearchTooltip,
+                    onTap: lockTap(widget.onOpenSearch),
+                  );
+                }
+                if (builtinSearchActive) {
+                  return DesktopContextMenuItem(
+                    icon: Lucide.Search,
+                    label: l10n.chatInputBarOnlineSearchTooltip,
+                    onTap: lockTap(widget.onOpenSearch),
+                  );
+                }
+                if (brandAsset != null && brandAsset.endsWith('.svg')) {
+                  return DesktopContextMenuItem(
+                    svgAsset: brandAsset,
+                    label: l10n.chatInputBarOnlineSearchTooltip,
+                    onTap: lockTap(widget.onOpenSearch),
+                  );
+                }
                 return DesktopContextMenuItem(
                   icon: Lucide.Globe,
                   label: l10n.chatInputBarOnlineSearchTooltip,
                   onTap: lockTap(widget.onOpenSearch),
                 );
-              }
-              if (builtinSearchActive) {
-                return DesktopContextMenuItem(
-                  icon: Lucide.Search,
-                  label: l10n.chatInputBarOnlineSearchTooltip,
-                  onTap: lockTap(widget.onOpenSearch),
-                );
-              }
-              if (brandAsset != null && brandAsset.endsWith('.svg')) {
-                return DesktopContextMenuItem(
-                  svgAsset: brandAsset,
-                  label: l10n.chatInputBarOnlineSearchTooltip,
-                  onTap: lockTap(widget.onOpenSearch),
-                );
-              }
-              return DesktopContextMenuItem(
-                icon: Lucide.Globe,
-                label: l10n.chatInputBarOnlineSearchTooltip,
-                onTap: lockTap(widget.onOpenSearch),
-              );
-            }(),
-          ),
-        );
+              }(),
+            ),
+          );
+        }
 
         if (widget.supportsReasoning) {
           final request = widget.reasoning ?? ReasoningRequest.auto;
@@ -4201,14 +4253,18 @@ class _ChatInputBarState extends State<ChatInputBar>
           children.add(
             Container(
               key: _leftOverflowAnchorKey,
+              // Not a second "+": a phone draws the tools panel's own "+" in the
+              // same row, and two buttons wearing the same glyph and the same
+              // tooltip read as one control twice. This one reaches the actions
+              // that did not fit.
               child: _CompactIconButton(
                 key:
                     reasoningActionIndex != null &&
                         reasoningActionIndex >= visibleCount
                     ? widget.reasoningButtonKey
                     : null,
-                tooltip: l10n.chatInputBarMoreTooltip,
-                icon: Lucide.Plus,
+                tooltip: l10n.chatInputBarOverflowTooltip,
+                icon: Lucide.Ellipsis,
                 onTap: () {
                   showDesktopAnchoredMenu(
                     context,

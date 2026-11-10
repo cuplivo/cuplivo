@@ -18336,4 +18336,129 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get assistantEditProactiveCareFeatureTitle => 'Письмо Ta';
+
+  @override
+  String get chatInputBarOverflowTooltip => 'Ещё';
+
+  @override
+  String get settingsPageChatOwners => 'Ассистенты и группы';
+
+  @override
+  String get settingsPageChatOwnersCreate => 'Создать';
+
+  @override
+  String get chatOwnerCreateAssistant => 'Новый ассистент';
+
+  @override
+  String get recycleBinKindGroup => 'Групповой чат';
+
+  @override
+  String get recycleBinFilterGroups => 'Группы';
+
+  @override
+  String get groupChatTitle => 'Групповой чат';
+
+  @override
+  String get groupChatCreate => 'Новый групповой чат';
+
+  @override
+  String get groupChatCreateHint => 'Выберите хотя бы одного ассистента';
+
+  @override
+  String get groupChatNameHint => 'Название группы';
+
+  @override
+  String get groupChatChangeAvatar => 'Сменить аватар группы';
+
+  @override
+  String get groupChatMembers => 'Участники';
+
+  @override
+  String get groupChatMembersEmpty => 'Участников пока нет';
+
+  @override
+  String get groupChatInvite => 'Пригласить ассистентов';
+
+  @override
+  String get groupChatNoAssistantToInvite => 'Все ассистенты уже в этой группе';
+
+  @override
+  String get groupChatSave => 'Сохранить';
+
+  @override
+  String get groupChatCancel => 'Отмена';
+
+  @override
+  String get groupChatSettingsTitle => 'Настройки группы';
+
+  @override
+  String get groupChatBack => 'Назад';
+
+  @override
+  String get groupChatOrchestration => 'Кто говорит';
+
+  @override
+  String get groupChatDirectorTitle => 'Модель-режиссёр';
+
+  @override
+  String get groupChatDirectorSubtitle =>
+      'Модель, которая выбирает, кто говорит следующим. Лучше подходит быстрая и недорогая.';
+
+  @override
+  String get groupChatDirectorFollowDefault => 'Как модель по умолчанию';
+
+  @override
+  String get groupChatMaxTurnsTitle => 'Ответов за раунд';
+
+  @override
+  String get groupChatMaxTurnsSubtitle =>
+      'Сколько участников могут ответить на одно сообщение';
+
+  @override
+  String get groupChatRemoveMember => 'Убрать';
+
+  @override
+  String get groupChatRemoveMemberTitle => 'Убрать ассистента';
+
+  @override
+  String get groupChatRemoveMemberContent =>
+      'Этот ассистент больше не будет участвовать в группе.';
+
+  @override
+  String get groupChatDelete => 'Удалить групповой чат';
+
+  @override
+  String get groupChatDeleteTitle => 'Удалить этот групповой чат?';
+
+  @override
+  String get groupChatDeleteContent =>
+      'Группа и все её темы вместе переместятся в корзину.';
+
+  @override
+  String get groupChatDeleted => 'Групповой чат перемещён в корзину';
+
+  @override
+  String get groupChatUnavailable =>
+      'Настройки этого группового чата недоступны. Восстановите его из корзины.';
+
+  @override
+  String get groupChatNewTopic => 'Новая тема';
+
+  @override
+  String get groupChatRemovedMember => 'Удалённый ассистент';
+
+  @override
+  String get groupChatDirectorFallbackWarning =>
+      'Модель-режиссёр недоступна, поэтому первый участник ответил один раз. Проверьте настройки модели по умолчанию.';
+
+  @override
+  String get groupChatUnavailableWarning =>
+      'В этом групповом чате нет доступных участников.';
+
+  @override
+  String get defaultModelPageDirectorModelTitle => 'Модель-режиссёр';
+
+  @override
+  String get defaultModelPageDirectorModelSubtitle =>
+      'Выбирает, кто говорит следующим в групповом чате. Лучше всего подходит быстрая и недорогая модель.';
 }

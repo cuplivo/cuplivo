@@ -79,6 +79,9 @@ class Lucide {
   static const IconData MoreVertical = lucide.LucideIcons.ellipsis;
   static const IconData Languages = lucide.LucideIcons.languages;
   static const IconData User = lucide.LucideIcons.user;
+  static const IconData Users = lucide.LucideIcons.users;
+  static const IconData UserPlus = lucide.LucideIcons.userPlus;
+  static const IconData Circle = lucide.LucideIcons.circle;
   static const IconData Hammer = lucide.LucideIcons.hammer;
   static const IconData ToolCase = lucide.LucideIcons.toolCase;
   static const IconData Brain = lucide.LucideIcons.brain;

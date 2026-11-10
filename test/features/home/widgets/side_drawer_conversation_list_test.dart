@@ -3,6 +3,9 @@ import 'dart:io';
 
 import "../../../support/business_test_harness.dart";
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/chat_owners_provider.dart';
+import 'package:Cuplivo/core/providers/group_chat_provider.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
 import 'package:Cuplivo/core/providers/user_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/providers/update_provider.dart';
@@ -177,6 +180,8 @@ void main() {
     SettingsProvider? settingsProvider,
     FutureOr<void> Function(String id, {bool closeDrawer})?
     onSelectConversation,
+    FutureOr<void> Function({bool closeDrawer, String? assistantId})?
+    onNewConversation,
   }) async {
     tester.view.physicalSize = mobileDrawer == null
         ? const Size(1200, 900)
@@ -188,6 +193,7 @@ void main() {
     final assistantPrefs = createBusinessTestPreferences();
     final backupPrefs = createBusinessTestPreferences();
     final tagPrefs = createBusinessTestPreferences();
+    final business = createBusinessTestPreferencesWithDatabase();
     final settings = settingsProvider ?? SettingsProvider(settingsPrefs);
     final scaffoldKey = GlobalKey<ScaffoldState>();
     final closeTick = ValueNotifier(0);
@@ -212,7 +218,7 @@ void main() {
                   onSelectConversation: (id) => onSelectConversation?.call(id),
                   onNewConversation: () {},
                   onOpenMiniMap: () {},
-                  onCreateNewConversation: () async {},
+                  onCreateNewConversation: ({String? assistantId}) async {},
                   onToggleTemporaryConversation: () async {},
                   onSelectModel: () {},
                   canToggleTemporaryConversation: false,
@@ -237,6 +243,7 @@ void main() {
                   globalSearchQuery: globalSearchQuery,
                   showBottomBar: false,
                   onSelectConversation: onSelectConversation,
+                  onNewConversation: onNewConversation,
                 ),
               ),
       );
@@ -260,6 +267,18 @@ void main() {
             ChangeNotifierProvider(
               create: (_) => AssistantProvider(preferences: assistantPrefs),
             ),
+          ChangeNotifierProvider(
+            create: (_) => GroupChatProvider(
+              store: ExtensionEntityStore(business.database),
+            ),
+          ),
+          ChangeNotifierProvider(
+            create: (ctx) => ChatOwnersProvider(
+              assistants: ctx.read<AssistantProvider>(),
+              groups: ctx.read<GroupChatProvider>(),
+              preferences: business.preferences,
+            ),
+          ),
           ChangeNotifierProvider(
             create: (_) => BackupReminderProvider(preferences: backupPrefs),
           ),
@@ -442,10 +461,8 @@ void main() {
             .assistantId,
         'missing-assistant',
       );
-      // Reordering must not move recovered history away from the selected
-      // assistant, including after reopening the persisted assistant snapshot.
-      await tester.runAsync(() => assistants.reorderAssistants(1, 0));
-      await tester.pumpAndSettle();
+      // Recovered history must stay with the selected assistant, including
+      // after reopening the persisted assistant snapshot.
       expect(assistants.currentAssistantId, first);
       expect(find.text('Orphaned topic'), findsOneWidget);
       expect(find.text('First topic'), findsOneWidget);
@@ -458,7 +475,7 @@ void main() {
       });
       await pumpDrawer(tester, service, assistantProvider: assistants);
       await tester.pumpAndSettle();
-      expect(assistants.assistants.first.id, second);
+      expect(assistants.assistants.first.id, first);
       expect(assistants.currentAssistantId, first);
       expect(find.text('Orphaned topic'), findsOneWidget);
       await tester.runAsync(() => assistants.deleteAssistant(first));
@@ -1061,5 +1078,61 @@ void main() {
     } finally {
       debugDefaultTargetPlatformOverride = null;
     }
+  });
+
+  testWidgets('choosing an assistant asks for a chat that assistant owns', (
+    tester,
+  ) async {
+    // A bare "new conversation" inside a group topic means another topic of
+    // that group, so switching assistants had to say whose chat it wanted:
+    // without it the page stayed on the group and the chosen assistant's chats
+    // stayed hidden behind the group's topic list.
+    await asDesktop(() async {
+      final service = createService();
+      late SettingsProvider settings;
+      late AssistantProvider assistants;
+      await tester.runAsync(() async {
+        await service.init();
+        settings = SettingsProvider(createBusinessTestPreferences());
+        await settings.loaded;
+        assistants = AssistantProvider(
+          preferences: createBusinessTestPreferences(),
+        );
+        await assistants.loaded;
+        // No history, so the drawer cannot just open one of its conversations.
+        await assistants.addAssistant(name: 'Reader');
+      });
+      final target = assistants.assistants.single;
+      String? requestedAssistantId;
+
+      await pumpDrawer(
+        tester,
+        service,
+        desktopAssistantsOnly: true,
+        assistantProvider: assistants,
+        settingsProvider: settings,
+        onNewConversation: ({closeDrawer = true, assistantId}) {
+          requestedAssistantId = assistantId;
+        },
+      );
+
+      await tester.tap(find.text('Reader'));
+      // Selecting an assistant persists the choice before it asks for a chat.
+      // That write runs on a real SQLite executor, so it only settles while
+      // runAsync holds the real event loop; pump() then drains the resumption
+      // it queued in the fake one.
+      for (var i = 0; i < 20 && requestedAssistantId == null; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pump();
+      }
+      await tester.pumpAndSettle();
+
+      expect(assistants.currentAssistantId, target.id);
+      expect(requestedAssistantId, target.id);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
   });
 }

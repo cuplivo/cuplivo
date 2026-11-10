@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:Cuplivo/core/services/app_exit_flush.dart';

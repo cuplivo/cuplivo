@@ -402,10 +402,10 @@ final class RecycleService {
   Future<String?> _readConversationSubtree(String conversationId) async {
     final projections = <String>[
       for (final entry in _conversationTables)
-        "'${entry.table}', (SELECT COALESCE(json_group_array("
+        "'${entry.table}', json((SELECT COALESCE(json_group_array("
             'json_object(${[for (final column in currentSchemaColumns[entry.table]!) "'$column', $column"].join(', ')})), json_array()) '
             'FROM ${entry.table} WHERE ${entry.column} = ?'
-            '${entry.kind == null ? '' : ' AND kind = ?'})',
+            '${entry.kind == null ? '' : ' AND kind = ?'}))',
     ];
     final row = await _database
         .customSelect(

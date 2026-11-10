@@ -14,6 +14,7 @@ import 'package:Cuplivo/utils/avatar_cache.dart';
 import 'package:Cuplivo/utils/brand_assets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:provider/provider.dart';
@@ -146,7 +147,7 @@ void main() {
       expect(await managed.exists(), isFalse);
       expect(await edit.save(sp), isTrue);
       final path = sp.getProviderConfig('A').modelAvatar('nemotron')!.value;
-      expect(path, startsWith('${managed.path}/'));
+      expect(p.isWithin(managed.path, path), isTrue, reason: path);
       expect(await File(path).readAsString(), await source.readAsString());
       await source.delete();
       expect(await File(path).exists(), isTrue);

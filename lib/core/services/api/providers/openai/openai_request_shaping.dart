@@ -5,8 +5,8 @@ import '../../../../models/model_spec.dart';
 import '../../../../models/token_usage.dart';
 import '../../../../providers/settings_provider.dart';
 import '../../../model_spec/vendor_defaults.dart';
+import '../../request_image_context.dart';
 import '../../builtin_tools.dart';
-import '../../message_authorship.dart';
 import '../../reasoning/reasoning_dialects.dart';
 
 /// Returns the resolved search query so client-tool rounds can reuse it.
@@ -86,7 +86,7 @@ String _lastUserText(Object? messages) {
     for (final message in messages)
       if (message is Map) Map<String, dynamic>.from(message),
   ];
-  final index = lastHumanUserIndex(maps);
+  final index = lastUserInputIndex(maps);
   if (index < 0) return '';
   final content = maps[index]['content'];
   if (content is String) return content.trim();

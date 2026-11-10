@@ -245,10 +245,6 @@ class _TranslatePageState extends State<TranslatePage> {
       persistedCode: targetCode,
       localeLanguageCode: Localizations.localeOf(context).languageCode,
     );
-    final asset = (_modelId != null)
-        ? BrandAssets.assetForName(_modelId!)
-        : null;
-
     return Scaffold(
       appBar: AppBar(
         leading: Tooltip(

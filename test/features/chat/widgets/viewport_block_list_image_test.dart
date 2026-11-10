@@ -86,7 +86,9 @@ void main() {
           '![wide](kelivo://workspace/wide.png)',
           '![portrait](kelivo://workspace/tall.png)',
           '![720x300](kelivo://workspace/wide.png)',
-          '<img src="${root.path}/tall.png" width="96" height="128">',
+          // An HTML src is a *URL*, not a path: on Windows a bare `C:/...` has
+          // no scheme and renders a placeholder instead of an image.
+          '<img src="${Uri.file('${root.path}/tall.png')}" width="96" height="128">',
         ];
         Widget host() => MultiProvider(
           providers: [

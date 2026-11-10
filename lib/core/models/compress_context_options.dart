@@ -203,13 +203,6 @@ CompressionSelection selectCompressionHistory(
     ? (providerKey: assistantProvider, modelId: assistantModelId)
     : (providerKey: currentProvider, modelId: currentModelId);
 
-String _speakerLabelOf(
-  ChatMessage message,
-  String Function(ChatMessage message)? labelOf,
-) =>
-    labelOf?.call(message) ??
-    (message.role == 'assistant' ? 'Assistant' : 'User');
-
 String? conversationLineForCompression(
   ChatMessage message, {
   required String Function(int) quoteMarker,

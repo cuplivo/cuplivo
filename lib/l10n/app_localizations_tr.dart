@@ -192,7 +192,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get storageSpaceClearDisplacedDatabasesConfirmMessage =>
-      'Bu ayrılmış veritabanları silinsin mi? Kelivo, veritabanını yeniden oluştururken bunları sakladı ve bunlar o sohbetlerin ve ayarların hayatta kalan tek kopyası olabilir. Bu işlem geri alınamaz.';
+      'Bu ayrılmış veritabanları silinsin mi? Cuplivo, veritabanını yeniden oluştururken bunları sakladı ve bunlar o sohbetlerin ve ayarların hayatta kalan tek kopyası olabilir. Bu işlem geri alınamaz.';
 
   @override
   String get storageSpaceRestoreTracesHint =>
@@ -1697,7 +1697,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backupPageChooseExternalFolder =>
-      'iCloud Drive\'ı veya \"iPhone\'um > Kelivo\" dışında bir klasör seçin. Kelivo klasöründeki dosyalar uygulamayla birlikte silinir. Yedek kaydedilmedi.';
+      'iCloud Drive\'ı veya \"iPhone\'um > Cuplivo\" dışında bir klasör seçin. Cuplivo klasöründeki dosyalar uygulamayla birlikte silinir. Yedek kaydedilmedi.';
 
   @override
   String get backupPageFilesLabel => 'Dosyalar ve Görseller';
@@ -1764,23 +1764,23 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backupPageRestartContent =>
-      'İçe aktarma başarılı. Güvenli şekilde uygulamak için Kelivo\'yu yeniden başlatın.';
+      'İçe aktarma başarılı. Güvenli şekilde uygulamak için Cuplivo\'yu yeniden başlatın.';
 
   @override
   String backupPageRestartContentWithSkipped(int count) {
-    return 'İçe aktarma tamamlandı, ancak geçersiz mesaj sıralamasına sahip $count sohbet atlandı. İçe aktarılan verileri güvenli şekilde uygulamak için Kelivo\'yu yeniden başlatın.';
+    return 'İçe aktarma tamamlandı, ancak geçersiz mesaj sıralamasına sahip $count sohbet atlandı. İçe aktarılan verileri güvenli şekilde uygulamak için Cuplivo\'yu yeniden başlatın.';
   }
 
   @override
   String get restartAppFailedMessage =>
-      'Kelivo otomatik olarak yeniden başlatılamadı. Tamamen kapatın, ardından yeniden açın.';
+      'Cuplivo otomatik olarak yeniden başlatılamadı. Tamamen kapatın, ardından yeniden açın.';
 
   @override
   String get backupRestoreRolledBackTitle => 'Geri yükleme geri alındı';
 
   @override
   String get backupRestoreRolledBackContent =>
-      'Geri yükleme tamamlanamadı. Kelivo önceki verilerinizi doğruladı ve korudu.';
+      'Geri yükleme tamamlanamadı. Cuplivo önceki verilerinizi doğruladı ve korudu.';
 
   @override
   String get backupRestoreDirectoryBlockedTitle =>
@@ -1798,22 +1798,22 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backupRestoreFailureContent =>
-      'Kelivo eksiksiz bir eski veya yeni veri kümesini doğrulayamadı, bu nedenle sohbet verileri açılmadı. Kelivo\'yu kapatın ve tekrar deneyin. Sorun tekrarlanırsa destek için tanılama kodunu saklayın.';
+      'Cuplivo eksiksiz bir eski veya yeni veri kümesini doğrulayamadı, bu nedenle sohbet verileri açılmadı. Cuplivo\'yu kapatın ve tekrar deneyin. Sorun tekrarlanırsa destek için tanılama kodunu saklayın.';
 
   @override
   String get backupRestoreBusinessLeaseUnavailableTitle =>
-      'Kelivo zaten çalışıyor';
+      'Cuplivo zaten çalışıyor';
 
   @override
   String get backupRestoreBusinessLeaseUnavailableContent =>
-      'Kelivo\'nun verileri hâlâ başka bir uygulama süreci tarafından kullanılıyor. Diğer Kelivo pencerelerini kapatın, ardından yeniden başlatın. Sohbet verileriniz bu süreç tarafından açılmadı.';
+      'Cuplivo\'nun verileri hâlâ başka bir uygulama süreci tarafından kullanılıyor. Diğer Cuplivo pencerelerini kapatın, ardından yeniden başlatın. Sohbet verileriniz bu süreç tarafından açılmadı.';
 
   @override
   String get restoreProgressTitle => 'Yedeğiniz geri yükleniyor';
 
   @override
   String get restoreProgressWarning =>
-      'Bu işlem bitene kadar Kelivo\'yu açık tutun. Şimdi kapatırsanız, bir sonraki başlatmada bu işlem baştan başlar.';
+      'Bu işlem bitene kadar Cuplivo\'yu açık tutun. Şimdi kapatırsanız, bir sonraki başlatmada bu işlem baştan başlar.';
 
   @override
   String get restoreProgressStageCheckingBackup => 'Yedek kontrol ediliyor';
@@ -1836,7 +1836,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get restoreProgressStageFinishing => 'Tamamlanıyor';
 
   @override
-  String get backupRestoreFailureRestartButton => 'Kelivo\'yu yeniden başlat';
+  String get backupRestoreFailureRestartButton => 'Cuplivo\'yu yeniden başlat';
 
   @override
   String get backupRestoreFailureCopyButton => 'Tanılama kodunu kopyala';
@@ -1879,7 +1879,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get startupRecoveryResetFailed =>
-      'Sıfırlama başarısız oldu. Kelivo\'yu tamamen kapatın, ardından yeniden açın.';
+      'Sıfırlama başarısız oldu. Cuplivo\'yu tamamen kapatın, ardından yeniden açın.';
 
   @override
   String get startupRecoveryResetDialogTitle =>
@@ -1887,7 +1887,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get startupRecoveryResetDialogContent =>
-      'Bu işlem önceki sohbetlerinizi kurtarmaz. Kelivo mevcut veritabanını ve mevcut kopyaları koruyacak ve yeni bir boş sohbet listesi başlatacaktır. Sohbetlerinizi geri almak için iptal edip yerel bir kopya seçin.';
+      'Bu işlem önceki sohbetlerinizi kurtarmaz. Cuplivo mevcut veritabanını ve mevcut kopyaları koruyacak ve yeni bir boş sohbet listesi başlatacaktır. Sohbetlerinizi geri almak için iptal edip yerel bir kopya seçin.';
 
   @override
   String get startupRecoveryResetDialogConfirm =>
@@ -2003,7 +2003,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get startupRecoveryDangerBody =>
-      'Yeni bir başlangıç, mevcut verileri görünümden kaldırır. Kelivo, kurtarma için eski veritabanını ve mevcut kopyaları korur. Mümkünse önce bir veri kopyası dışa aktarın.';
+      'Yeni bir başlangıç, mevcut verileri görünümden kaldırır. Cuplivo, kurtarma için eski veritabanını ve mevcut kopyaları korur. Mümkünse önce bir veri kopyası dışa aktarın.';
 
   @override
   String get startupRecoveryResetAcknowledge =>
@@ -2011,11 +2011,11 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get startupDatabaseUpdateRequiredTitle =>
-      'Devam etmek için Kelivo\'yu güncelleyin';
+      'Devam etmek için Cuplivo\'yu güncelleyin';
 
   @override
   String get startupDatabaseUpdateRequiredContent =>
-      'Bu cihazdaki sohbet veritabanı Kelivo\'nun daha yeni bir sürümü tarafından oluşturulmuş ve bu sürüm tarafından açılamıyor. Verileriniz değiştirilmedi. Kelivo\'nun en son sürümünü yükleyip tekrar açın.';
+      'Bu cihazdaki sohbet veritabanı Cuplivo\'nun daha yeni bir sürümü tarafından oluşturulmuş ve bu sürüm tarafından açılamıyor. Verileriniz değiştirilmedi. Cuplivo\'nun en son sürümünü yükleyip tekrar açın.';
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeTitle =>
@@ -2027,7 +2027,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeStep1 =>
-      'Kelivo\'nun en son sürümünü yükleyip açın, ardından Ayarlar → Yedek bölümünden bir yedek dışa aktarın.';
+      'Cuplivo\'nun en son sürümünü yükleyip açın, ardından Ayarlar → Yedek bölümünden bir yedek dışa aktarın.';
 
   @override
   String startupDatabaseUpdateRequiredDowngradeStep2(String url) {
@@ -2086,7 +2086,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String backupPageForwardCompatBody(int backupVersion, int currentVersion) {
-    return 'Bu yedek, Kelivo\'nun daha yeni bir sürümü tarafından oluşturulmuş (veri biçimi $backupVersion; bu sürüm $currentVersion destekliyor) ve eski sürümlerin okuyup okuyamayacağı belirtilmemiş.\n\nDevam edebilirsiniz: bu sürümün tanımadığı her şey atlanır ve yedek dosyasının kendisi değiştirilmez. Ancak yeni sürüm mevcut verilerin saklanma biçimini değiştirdiyse bazı içerikler yanlış içe aktarılabilir.\n\nÖnce Kelivo\'yu güncellemek daha güvenli bir seçimdir.';
+    return 'Bu yedek, Cuplivo\'nun daha yeni bir sürümü tarafından oluşturulmuş (veri biçimi $backupVersion; bu sürüm $currentVersion destekliyor) ve eski sürümlerin okuyup okuyamayacağı belirtilmemiş.\n\nDevam edebilirsiniz: bu sürümün tanımadığı her şey atlanır ve yedek dosyasının kendisi değiştirilmez. Ancak yeni sürüm mevcut verilerin saklanma biçimini değiştirdiyse bazı içerikler yanlış içe aktarılabilir.\n\nÖnce Cuplivo\'yu güncellemek daha güvenli bir seçimdir.';
   }
 
   @override
@@ -2097,7 +2097,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backupPageSchemaTooNewMessage =>
-      'Bu yedek, Kelivo\'nun daha yeni bir sürümü tarafından oluşturulmuş ve bu sürüm tarafından okunamıyor. Lütfen Kelivo\'yu güncelleyip tekrar deneyin.';
+      'Bu yedek, Cuplivo\'nun daha yeni bir sürümü tarafından oluşturulmuş ve bu sürüm tarafından okunamıyor. Lütfen Cuplivo\'yu güncelleyip tekrar deneyin.';
 
   @override
   String get backupPageBackupUploaded => 'Yedek yüklendi';
@@ -2283,14 +2283,14 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backupPageIosSystemBackupNote =>
-      'Kelivo\'nun yerel verileri iCloud cihaz yedeklemelerine dahil edilmez. Cihaz değiştirmeden veya uygulamayı silmeden önce iCloud Drive\'a ya da Kelivo dışında bir klasöre yedekleyin. \"iPhone\'um > Kelivo\" içindeki dosyalar uygulamayla birlikte silinir.';
+      'Cuplivo\'nun yerel verileri iCloud cihaz yedeklemelerine dahil edilmez. Cihaz değiştirmeden veya uygulamayı silmeden önce iCloud Drive\'a ya da Cuplivo dışında bir klasöre yedekleyin. \"iPhone\'um > Cuplivo\" içindeki dosyalar uygulamayla birlikte silinir.';
 
   @override
   String get backupPageImportFromCherryStudio => 'Cherry Studio\'dan İçe Aktar';
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return 'Bu yedek, Kelivo\'nun henüz içe aktaramadığı Cherry Studio biçim sürümü $version kullanıyor. Bunun yerine Cherry Studio v1\'den dışa aktarın veya Cherry Studio v2 yedeklerini destekleyen bir Kelivo güncellemesini bekleyin.';
+    return 'Bu yedek, Cuplivo\'nun henüz içe aktaramadığı Cherry Studio biçim sürümü $version kullanıyor. Bunun yerine Cherry Studio v1\'den dışa aktarın veya Cherry Studio v2 yedeklerini destekleyen bir Cuplivo güncellemesini bekleyin.';
   }
 
   @override
@@ -4925,7 +4925,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get searchServicesPageWebFetchFooter =>
-      'Web araması açıkken model tam sayfaları da okuyabilir. Arama hizmeti sayfaları okuyamadığında yerel okuma kullanılır; bu yöntem JavaScript gerektiren veya botları engelleyen sayfaları işleyemez.\n\nBurada yapılandırılan sayfa okuyucuyu kullanıyorsanız, araçların çakışmasını önlemek için Ayarlar → MCP bölümünden yerleşik @kelivo/fetch\'i kapatın. Burada yapılandırılan sayfa okuyucu yine de çalışır.';
+      'Web araması açıkken model tam sayfaları da okuyabilir. Arama hizmeti sayfaları okuyamadığında yerel okuma kullanılır; bu yöntem JavaScript gerektiren veya botları engelleyen sayfaları işleyemez.\n\nBurada yapılandırılan sayfa okuyucuyu kullanıyorsanız, araçların çakışmasını önlemek için Ayarlar → MCP bölümünden yerleşik @cuplivo/fetch\'i kapatın. Burada yapılandırılan sayfa okuyucu yine de çalışır.';
 
   @override
   String get searchServicesPageWebFetchSupported =>
@@ -5280,7 +5280,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get aboutPageEasterEggButton => 'Harika!';
 
   @override
-  String get aboutPageAppName => 'Kelivo';
+  String get aboutPageAppName => 'Cuplivo';
 
   @override
   String get aboutPageAppDescription => 'Açık kaynaklı AI asistanı';
@@ -5338,13 +5338,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get aboutPageJoinQQGroup => 'QQ Grubumuza katılın';
 
   @override
-  String get aboutPageQQGroupOne => 'Kelivo Grup 1';
+  String get aboutPageQQGroupOne => 'Cuplivo Grup 1';
 
   @override
-  String get aboutPageQQGroupTwo => 'Kelivo Grup 2';
+  String get aboutPageQQGroupTwo => 'Cuplivo Grup 2';
 
   @override
-  String get aboutPageQQGroupThree => 'Kelivo Grup 3';
+  String get aboutPageQQGroupThree => 'Cuplivo Grup 3';
 
   @override
   String get aboutPageJoinDiscord => 'Discord\'da bize katılın';
@@ -6473,7 +6473,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get settingsShare => 'Kelivo - Açık Kaynak AI Asistanı';
+  String get settingsShare => 'Cuplivo - Açık Kaynak AI Asistanı';
 
   @override
   String get searchProviderBingLocalDescription =>
@@ -6974,7 +6974,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get healthDataSettingsDescription =>
-      'Geçerli asistanın günlük sohbette kullanabileceği HealthKit sinyalleri. Anahtarlar Kelivo\'nun hangi aralığı okumayı deneyebileceğini belirler; gerçek Health erişimini yine iOS yönetir.';
+      'Geçerli asistanın günlük sohbette kullanabileceği HealthKit sinyalleri. Anahtarlar Cuplivo\'nun hangi aralığı okumayı deneyebileceğini belirler; gerçek Health erişimini yine iOS yönetir.';
 
   @override
   String healthDataSettingsBadge(int selected, int total) {
@@ -8352,7 +8352,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get legacyMemoryExport => 'Dışa aktar';
 
   @override
-  String get legacyMemoryExportTitle => 'Kelivo eski anı dışa aktarımı';
+  String get legacyMemoryExportTitle => 'Cuplivo eski anı dışa aktarımı';
 
   @override
   String legacyMemoryAssistantHeader(String name) {
@@ -8991,11 +8991,11 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get migrationIntroSubtitle =>
-      'Kelivo sohbet geçmişini daha hızlı bir SQLite veritabanına taşıyor. Verilerinizin tutarlı kalması için yükseltme uygulama açılmadan önce çalışır.';
+      'Cuplivo sohbet geçmişini daha hızlı bir SQLite veritabanına taşıyor. Verilerinizin tutarlı kalması için yükseltme uygulama açılmadan önce çalışır.';
 
   @override
   String get migrationBackupNote =>
-      'Geçiş başlamadan önce Kelivo; ayarlar, sohbet geçmişi ve yerel dosyaları içeren bir ZIP yedeği dışa aktarır.';
+      'Geçiş başlamadan önce Cuplivo; ayarlar, sohbet geçmişi ve yerel dosyaları içeren bir ZIP yedeği dışa aktarır.';
 
   @override
   String get migrationPerformanceNote =>
@@ -9035,14 +9035,14 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get migrationBackingUpSubtitle =>
-      'Ayarlar, sohbet geçmişi, yüklenen dosyalar, görseller ve yazı tipleri dışa aktarılıyor. Bu işlem bitene kadar Kelivo\'yu açık tutun.';
+      'Ayarlar, sohbet geçmişi, yüklenen dosyalar, görseller ve yazı tipleri dışa aktarılıyor. Bu işlem bitene kadar Cuplivo\'yu açık tutun.';
 
   @override
   String get migrationMigratingTitle => 'SQLite\'a Geçiliyor';
 
   @override
   String get migrationMigratingSubtitle =>
-      'Büyük geçmişlerin belleği aşırı yüklememesi için sohbetler ve mesajlar toplu olarak yazılıyor. Geçiş bitene kadar Kelivo\'yu ön planda tutun.';
+      'Büyük geçmişlerin belleği aşırı yüklememesi için sohbetler ve mesajlar toplu olarak yazılıyor. Geçiş bitene kadar Cuplivo\'yu ön planda tutun.';
 
   @override
   String migrationBackingUpDetail(String fileName) {
@@ -9103,7 +9103,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get migrationCompleteSubtitle =>
-      'Sohbet geçmişiniz artık SQLite\'ta saklanıyor. Yükseltilmiş uygulamaya girmek için Kelivo\'yu yeniden başlatın.';
+      'Sohbet geçmişiniz artık SQLite\'ta saklanıyor. Yükseltilmiş uygulamaya girmek için Cuplivo\'yu yeniden başlatın.';
 
   @override
   String get migrationConversationCount => 'Sohbetler';
@@ -9121,7 +9121,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get migrationMissingFilesCount => 'Eksik dosyalar';
 
   @override
-  String get migrationRestartButton => 'Kelivo\'yu Yeniden Başlat';
+  String get migrationRestartButton => 'Cuplivo\'yu Yeniden Başlat';
 
   @override
   String get migrationFailedTitle => 'Geçiş Başarısız';
@@ -9147,7 +9147,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get migrationSkipDialogMessage =>
-      'Kelivo boş bir sohbet veritabanıyla başlayacak. Eski sohbet geçmişiniz diskte kalır (.retired sonekiyle yeniden adlandırılır) ancak geçiş yapılmaz ve uygulamada görünmez. Daha sonra kurtarmanız gerekirse yedek ZIP dosyanızı kullanın.';
+      'Cuplivo boş bir sohbet veritabanıyla başlayacak. Eski sohbet geçmişiniz diskte kalır (.retired sonekiyle yeniden adlandırılır) ancak geçiş yapılmaz ve uygulamada görünmez. Daha sonra kurtarmanız gerekirse yedek ZIP dosyanızı kullanın.';
 
   @override
   String get migrationSkipDialogCancel => 'İptal';
@@ -9576,7 +9576,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get localSnapshotEnabledSubtitle =>
-      'Kelivo veritabanının bir kopyasını düzenli olarak bu cihazda kaydeder, böylece verileriniz tek bir yerde kalmaz.';
+      'Cuplivo veritabanının bir kopyasını düzenli olarak bu cihazda kaydeder, böylece verileriniz tek bir yerde kalmaz.';
 
   @override
   String get localSnapshotIntervalTitle => 'Sıklık';
@@ -9691,7 +9691,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get localSnapshotCopiesScopeNote =>
-      'Yerel kopyalar yalnızca bu cihazda bulunur. Uygulama içindeki verilerinizin zarar görmesine karşı korur; cihazın kaybolmasına veya Kelivo\'nun kaldırılmasına karşı korumaz — bunun için WebDAV veya S3 yedeğini kullanın.';
+      'Yerel kopyalar yalnızca bu cihazda bulunur. Uygulama içindeki verilerinizin zarar görmesine karşı korur; cihazın kaybolmasına veya Cuplivo\'nun kaldırılmasına karşı korumaz — bunun için WebDAV veya S3 yedeğini kullanın.';
 
   @override
   String get localSnapshotOriginAutomatic => 'Otomatik';
@@ -10416,7 +10416,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get workspaceEnvRestartBanner =>
-      'Tamamlamak için Kelivo\'yu yeniden başlatın';
+      'Tamamlamak için Cuplivo\'yu yeniden başlatın';
 
   @override
   String get workspaceEnvDetectingMirrors => 'En hızlı yansılar algılanıyor…';
@@ -10531,7 +10531,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get workspaceEnvNativeExplanation =>
-      'Masaüstünde Kelivo, Linux sandbox yerine sistem kabuğunuzu kullanır.';
+      'Masaüstünde Cuplivo, Linux sandbox yerine sistem kabuğunuzu kullanır.';
 
   @override
   String workspaceEnvNativeShellPath(String path) {
@@ -11468,7 +11468,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get workspaceDesktopManagedHint =>
-      'Kelivo bu proje için bir klasör oluşturur ve yönetir.';
+      'Cuplivo bu proje için bir klasör oluşturur ve yönetir.';
 
   @override
   String get workspaceDesktopHostHint =>
@@ -11726,7 +11726,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get workspaceExternalStorageMessage =>
-      'Çalışma alanında ve Shell\'de harici klasörleri okuyup yazmak için Android ayarlarından Kelivo\'nun dosyaları yönetmesine izin verin. Android 11 veya üzerinde tüm dosyalara erişimi etkinleştirin. Ardından bağlamak için cihazdaki bir klasörü seçin.';
+      'Çalışma alanında ve Shell\'de harici klasörleri okuyup yazmak için Android ayarlarından Cuplivo\'nun dosyaları yönetmesine izin verin. Android 11 veya üzerinde tüm dosyalara erişimi etkinleştirin. Ardından bağlamak için cihazdaki bir klasörü seçin.';
 
   @override
   String get workspaceExternalGrantAccess => 'Erişim ver';
@@ -11951,7 +11951,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get backgroundSettingsTitle => 'Arka plan görevleri';
 
   @override
-  String get backgroundTaskTitle => 'Kelivo görevi';
+  String get backgroundTaskTitle => 'Cuplivo görevi';
 
   @override
   String get backgroundCompleted => 'Oluşturma tamamlandı';
@@ -11972,6 +11972,12 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backgroundGenerating => 'Yanıt oluşturuluyor';
+
+  @override
+  String get backgroundCareLetter => 'Writing a letter';
+
+  @override
+  String get backgroundCareWorking => 'Preparing your letter';
 
   @override
   String get backgroundThinking => 'Düşünüyor';
@@ -12087,7 +12093,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get backgroundOverlayIcon => 'Yüzen simge';
 
   @override
-  String get backgroundIconDefault => 'Kelivo simgesi';
+  String get backgroundIconDefault => 'Cuplivo simgesi';
 
   @override
   String get backgroundIconImage => 'Görsel seç';
@@ -12308,7 +12314,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get startupRecoverySnapshotBody =>
-      'Veritabanı açılamasa bile sohbetlerinizi ve ayarlarınızı kurtarmak için bu cihazdaki bir anlık görüntüyü seçin. Kelivo\'yu kaldırmayın: kaldırmak bu anlık görüntüleri de siler.';
+      'Veritabanı açılamasa bile sohbetlerinizi ve ayarlarınızı kurtarmak için bu cihazdaki bir anlık görüntüyü seçin. Cuplivo\'yu kaldırmayın: kaldırmak bu anlık görüntüleri de siler.';
 
   @override
   String get startupRecoverySnapshotEmpty =>
@@ -12319,7 +12325,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String startupRecoverySnapshotConfirm(String when) {
-    return 'Sohbetler ve ayarlar $when anlık görüntüsünden geri yüklensin mi? Bu anlık görüntüden sonra yapılan değişiklikler dahil edilmez. Mevcut ek dosyaları ve anlık görüntü korunur. Geri yüklemeyi tamamlamak için Kelivo yeniden başlatılacak.';
+    return 'Sohbetler ve ayarlar $when anlık görüntüsünden geri yüklensin mi? Bu anlık görüntüden sonra yapılan değişiklikler dahil edilmez. Mevcut ek dosyaları ve anlık görüntü korunur. Geri yüklemeyi tamamlamak için Cuplivo yeniden başlatılacak.';
   }
 
   @override
@@ -12329,7 +12335,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get startupRecoverySnapshotReady =>
-      'Anlık görüntü hazır. Geri yüklemeyi tamamlamak için Kelivo\'yu yeniden başlatın.';
+      'Anlık görüntü hazır. Geri yüklemeyi tamamlamak için Cuplivo\'yu yeniden başlatın.';
 
   @override
   String get scheduledTasksTitle => 'Zamanlanmış görevler';
@@ -12403,7 +12409,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get scheduledTasksReliability =>
-      'Daha güvenilir çalıştırma için Kelivo\'yu pil ayarlarında kısıtlamasız tutun. Uygulamayı zorla durdurmak, yeniden açana kadar alarmları iptal eder. Kaçırılan çalıştırmalar atlanır; görevler cihazın saat dilimini izler.';
+      'Daha güvenilir çalıştırma için Cuplivo\'yu pil ayarlarında kısıtlamasız tutun. Uygulamayı zorla durdurmak, yeniden açana kadar alarmları iptal eder. Kaçırılan çalıştırmalar atlanır; görevler cihazın saat dilimini izler.';
 
   @override
   String get scheduledTasksExecutionDetail =>
@@ -12591,7 +12597,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get scheduledTasksDesktopReliability =>
-      'Görevler yalnızca Kelivo çalışırken yürütülür; simge durumuna küçültüldüğünde veya sistem tepsisindeyken de devam eder. Uygulamadan çıkıldıktan veya bilgisayar uykuya geçtikten sonra kaçırılan zamanlar atlanır. Kelivo otomatik olarak başlamaz.';
+      'Görevler yalnızca Cuplivo çalışırken yürütülür; simge durumuna küçültüldüğünde veya sistem tepsisindeyken de devam eder. Uygulamadan çıkıldıktan veya bilgisayar uykuya geçtikten sonra kaçırılan zamanlar atlanır. Cuplivo otomatik olarak başlamaz.';
 
   @override
   String get scheduledTasksDesktopExecutionDetail =>
@@ -12990,7 +12996,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get scheduledTasksIOSDetail =>
-      'iOS arka plan kısıtlamaları, Kelivo\'nun belirlenen saatte uyanıp model çalıştırmasını engeller. Bunun yerine, uygulama çalışabildiğinde içerik hazırlanır ve sistem planlanan saatte bir bildirim gösterir. Yalnızca bir sonraki tekrar hazırlanır. Uygulamadan ayrıldıktan sonra hazırlık tamamlanmayabilir; sonraki tekrarları hazırlamak için Kelivo\'yu yeniden açın.';
+      'iOS arka plan kısıtlamaları, Cuplivo\'nun belirlenen saatte uyanıp model çalıştırmasını engeller. Bunun yerine, uygulama çalışabildiğinde içerik hazırlanır ve sistem planlanan saatte bir bildirim gösterir. Yalnızca bir sonraki tekrar hazırlanır. Uygulamadan ayrıldıktan sonra hazırlık tamamlanmayabilir; sonraki tekrarları hazırlamak için Cuplivo\'yu yeniden açın.';
 
   @override
   String get scheduledTasksContextPolicy => 'Sohbet bağlamı';
@@ -13057,7 +13063,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get scheduledTasksReminderBody =>
-      'Planlanmış görevinizin zamanı geldi. Devam etmek için Kelivo\'yu açın.';
+      'Planlanmış görevinizin zamanı geldi. Devam etmek için Cuplivo\'yu açın.';
 
   @override
   String get scheduledTasksResultBody => 'Planlanmış görevinizin sonucu hazır.';
@@ -13072,7 +13078,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get scheduledTasksAllowPreparationTip =>
-      'Kelivo çalışabildiğinde bir sonraki sonucu planlanan saatinden önce oluşturun. Sonuç, zamanı gelene kadar sohbette görünmez. Hazırlık yalnızca metin kullanır; araç, ek veya özel istek gövdesi kullanmaz. Model ücretlerine yol açabilir.';
+      'Cuplivo çalışabildiğinde bir sonraki sonucu planlanan saatinden önce oluşturun. Sonuç, zamanı gelene kadar sohbette görünmez. Hazırlık yalnızca metin kullanır; araç, ek veya özel istek gövdesi kullanmaz. Model ücretlerine yol açabilir.';
 
   @override
   String get scheduledTasksContextPolicyTip =>
@@ -13080,7 +13086,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get scheduledTasksPreparationWindowTip =>
-      'Hazırlığın planlanan saatten en fazla ne kadar önce başlayabileceği, en fazla 24 saat. Örneğin öğlen Kelivo\'yu açmak ertesi sabahki hatırlatmayı hazırlayabilir. Daha geniş bir aralık daha fazla hazırlama şansı verir, ancak sonuç daha eski olabilir. Planlanan saati değiştirmez ve arka planda çalışmayı garanti etmez. Şimdi hazırla bu otomatik bekleme süresini ve tüm deneme sınırlarını atlar.';
+      'Hazırlığın planlanan saatten en fazla ne kadar önce başlayabileceği, en fazla 24 saat. Örneğin öğlen Cuplivo\'yu açmak ertesi sabahki hatırlatmayı hazırlayabilir. Daha geniş bir aralık daha fazla hazırlama şansı verir, ancak sonuç daha eski olabilir. Planlanan saati değiştirmez ve arka planda çalışmayı garanti etmez. Şimdi hazırla bu otomatik bekleme süresini ve tüm deneme sınırlarını atlar.';
 
   @override
   String get scheduledTasksPreparationAttemptsTip =>
@@ -13092,7 +13098,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get scheduledTasksUnavailableTip =>
-      'Hazır bir sonuç yoksa ve görev zamanı geldiğinde çalıştırılamıyorsa, bir hatırlatma gönder veya bu tekrarı atla. Hatırlatma oluşturulmuş bir yanıt içermez ve bildirimlerin etkin olmasını gerektirir. Görev zamanı geldiğinde Kelivo açıksa görevi o anda çalıştırabilir.';
+      'Hazır bir sonuç yoksa ve görev zamanı geldiğinde çalıştırılamıyorsa, bir hatırlatma gönder veya bu tekrarı atla. Hatırlatma oluşturulmuş bir yanıt içermez ve bildirimlerin etkin olmasını gerektirir. Görev zamanı geldiğinde Cuplivo açıksa görevi o anda çalıştırabilir.';
 
   @override
   String get scheduledTasksNotifyTip =>
@@ -13298,7 +13304,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get phoneControlAssistantHint =>
-      'Her iki izin de gereklidir: sistem Erişilebilirlik ayarlarında Kelivo telefon kontrolünü etkinleştirin, ardından asistanınızın Yerel Araçlar bölümünde Telefon Kontrolü\'nü açın (sohbet araçları menüsünden de erişilebilir). Her asistan ayrı ayrı yapılandırılır. Görev çalışırken telefonun kilidini açık tutun.';
+      'Her iki izin de gereklidir: sistem Erişilebilirlik ayarlarında Cuplivo telefon kontrolünü etkinleştirin, ardından asistanınızın Yerel Araçlar bölümünde Telefon Kontrolü\'nü açın (sohbet araçları menüsünden de erişilebilir). Her asistan ayrı ayrı yapılandırılır. Görev çalışırken telefonun kilidini açık tutun.';
 
   @override
   String get phoneControlRestrictedTitle =>
@@ -13306,7 +13312,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get phoneControlRestrictedHint =>
-      'Bazı indirilen APK\'ler için Android önce uygulama bilgisi menüsünde \"Kısıtlı ayarlara izin ver\" seçeneğini gerektirir. Kelivo\'nun uygulama bilgilerini açmak için dokunun, ardından Erişilebilirlik ayarlarına dönün.';
+      'Bazı indirilen APK\'ler için Android önce uygulama bilgisi menüsünde \"Kısıtlı ayarlara izin ver\" seçeneğini gerektirir. Cuplivo\'nun uygulama bilgilerini açmak için dokunun, ardından Erişilebilirlik ayarlarına dönün.';
 
   @override
   String get phoneControlEnableAssistant =>
@@ -13506,7 +13512,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get recoveryMissingDataBody =>
-      'Kelivo mevcut sohbet veritabanını bulamadı. Yüklemeyi duraklattı ve boş bir veritabanı oluşturmadı. Aşağıda önceki kopyaları arayacağız; mevcut dosyalar korunacak.';
+      'Cuplivo mevcut sohbet veritabanını bulamadı. Yüklemeyi duraklattı ve boş bir veritabanı oluşturmadı. Aşağıda önceki kopyaları arayacağız; mevcut dosyalar korunacak.';
 
   @override
   String get recoveryEmptyDataTitle => 'Mevcut sohbet geçmişi boş';
@@ -13550,7 +13556,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get recoveryStorageFailureBody =>
-      'Veri güncellemesi tamamlanamadı. Orijinal veriler korundu. Kelivo\'yu yeniden açmayı deneyin veya kurtarmak için aşağıdan yerel bir kopya seçin.';
+      'Veri güncellemesi tamamlanamadı. Orijinal veriler korundu. Cuplivo\'yu yeniden açmayı deneyin veya kurtarmak için aşağıdan yerel bir kopya seçin.';
 
   @override
   String get recoveryProtectingTitle => 'Sohbet veritabanı korunuyor';
@@ -13576,7 +13582,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get recoveryStorageInsufficientSpaceBody =>
-      'Verilerinizi güvenli şekilde hazırlamak için yeterli depolama alanı yok. Sistem ayarlarından alan boşaltın, ardından Kelivo\'yu yeniden açın veya aşağıdaki kopyaları yeniden kontrol edin. Kelivo\'yu yüklü tutun ve verilerini ve yerel kopyalarını yerinde bırakın.';
+      'Verilerinizi güvenli şekilde hazırlamak için yeterli depolama alanı yok. Sistem ayarlarından alan boşaltın, ardından Cuplivo\'yu yeniden açın veya aşağıdaki kopyaları yeniden kontrol edin. Cuplivo\'yu yüklü tutun ve verilerini ve yerel kopyalarını yerinde bırakın.';
 
   @override
   String get migrationFreshStartTitle => 'Yeni başlangıç hazır';
@@ -13661,7 +13667,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backupEncryptionUnsupported =>
-      'Bu şifreli yedek, Kelivo\'nun daha yeni bir sürümünü gerektiriyor.';
+      'Bu şifreli yedek, Cuplivo\'nun daha yeni bir sürümünü gerektiriyor.';
 
   @override
   String get backupProgressEncrypting => 'Yedek şifreleniyor';
@@ -13830,7 +13836,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get browserRestoreTabsDescription =>
-      'Kelivo başladığında sekmelerinizi yeniden aç.';
+      'Cuplivo başladığında sekmelerinizi yeniden aç.';
 
   @override
   String get browserSaveHistory => 'Geçmişi kaydet';
@@ -15574,7 +15580,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get toolPermissionRequestApprovalDesc =>
-      'Kelivo, çalışma alanı dışındaki dosyalara erişmeden, masaüstü komutlarını çalıştırmadan veya onay gerektiren diğer araçları kullanmadan önce soracaktır.';
+      'Cuplivo, çalışma alanı dışındaki dosyalara erişmeden, masaüstü komutlarını çalıştırmadan veya onay gerektiren diğer araçları kullanmadan önce soracaktır.';
 
   @override
   String get contextLimitedInputHint =>
@@ -15635,7 +15641,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get dataDirectoryMoving =>
-      'Veriler taşınıyor ve doğrulanıyor… Lütfen Kelivo\'yu açık tutun.';
+      'Veriler taşınıyor ve doğrulanıyor… Lütfen Cuplivo\'yu açık tutun.';
 
   @override
   String get dataDirectoryStartupFailed => 'Veri dizini açılamıyor';
@@ -15681,7 +15687,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get dataDirectoryGenericError =>
-      'İşlem tamamlanamadı. Kullanılabilir disk alanını, klasör izinlerini ve başka bir Kelivo sürecinin çalışıp çalışmadığını kontrol edip yeniden deneyin. Mevcut veriler korundu.';
+      'İşlem tamamlanamadı. Kullanılabilir disk alanını, klasör izinlerini ve başka bir Cuplivo sürecinin çalışıp çalışmadığını kontrol edip yeniden deneyin. Mevcut veriler korundu.';
 
   @override
   String get dataDirectoryCancelHint =>
@@ -15927,7 +15933,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get recoveryGuideBody =>
-      'Kelivo verilerinizi yüklemeyi duraklattı. Kurtarmak istediklerinizi seçebilmeniz için yerel kopyaları arayacağız. Mevcut dosyalar korunacak.';
+      'Cuplivo verilerinizi yüklemeyi duraklattı. Kurtarmak istediklerinizi seçebilmeniz için yerel kopyaları arayacağız. Mevcut dosyalar korunacak.';
 
   @override
   String get recoverySpaceTitle => 'Biraz boş alana ihtiyaç var';
@@ -15948,7 +15954,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get recoveryRestoreRetryBody =>
-      'Geri yükleme tamamlanamadı. Seçilen kopya korundu. Devam etmek için yerel kopyaları yeniden denetleyin veya Kelivo\'yu yeniden açın.';
+      'Geri yükleme tamamlanamadı. Seçilen kopya korundu. Devam etmek için yerel kopyaları yeniden denetleyin veya Cuplivo\'yu yeniden açın.';
 
   @override
   String recoverySpaceAmount(String required, String available) {
@@ -15957,7 +15963,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get recoveryCopiesNeedUpdate =>
-      'Bazı kopyalar Kelivo\'nun daha yeni bir sürümüyle oluşturulmuş. Bunları geri yüklemeden önce Kelivo\'yu güncelleyin. Bu kopyalar korundu.';
+      'Bazı kopyalar Cuplivo\'nun daha yeni bir sürümüyle oluşturulmuş. Bunları geri yüklemeden önce Cuplivo\'yu güncelleyin. Bu kopyalar korundu.';
 
   @override
   String get imageContextAllowRecall =>
@@ -16595,22 +16601,22 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String requestBudgetSingleError(int index, String actual, String limit) {
-    return 'Kelivo yerel ön kontrolü: $index. görselin kodlanmış boyutu $actual, tek görsel sınırı olan $limit değerini aşıyor.';
+    return 'Cuplivo yerel ön kontrolü: $index. görselin kodlanmış boyutu $actual, tek görsel sınırı olan $limit değerini aşıyor.';
   }
 
   @override
   String requestBudgetTotalError(String actual, String limit) {
-    return 'Kelivo yerel ön kontrolü: kodlanmış görseller toplam $actual, görsel bütçesi olan $limit değerini aşıyor.';
+    return 'Cuplivo yerel ön kontrolü: kodlanmış görseller toplam $actual, görsel bütçesi olan $limit değerini aşıyor.';
   }
 
   @override
   String requestBudgetCountError(String actual, int limit) {
-    return 'Kelivo yerel ön kontrolü: istek $actual görsel içeriyor, $limit sınırını aşıyor.';
+    return 'Cuplivo yerel ön kontrolü: istek $actual görsel içeriyor, $limit sınırını aşıyor.';
   }
 
   @override
   String requestBudgetBodyError(String actual, String limit) {
-    return 'Kelivo yerel ön kontrolü: tam istek gövdesi $actual, istek gövdesi bütçesi olan $limit değerini aşıyor.';
+    return 'Cuplivo yerel ön kontrolü: tam istek gövdesi $actual, istek gövdesi bütçesi olan $limit değerini aşıyor.';
   }
 
   @override
@@ -17085,11 +17091,11 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get aboutPageCuplivoSearchUnlocked =>
-      'An unnamed door opened a crack. You might find it in Settings.';
+      'İsimsiz bir kapı aralandı. Ayarlar\'da bulabilirsiniz.';
 
   @override
   String get aboutPageCuplivoSearchAlreadyUnlocked =>
-      'You\'ve already been through this door.';
+      'Bu kapıdan zaten geçtiniz.';
 
   @override
   String get aboutPageQQGroup => 'Cuplivo Group';

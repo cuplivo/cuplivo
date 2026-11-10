@@ -184,7 +184,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get storageSpaceClearDisplacedDatabasesConfirmMessage =>
-      '이 보관된 이전 데이터베이스를 삭제할까요? Kelivo가 데이터베이스를 재구축할 때 남긴 것으로, 해당 채팅 기록과 설정의 유일한 사본일 수 있습니다. 삭제 후에는 복구할 수 없습니다.';
+      '이 보관된 이전 데이터베이스를 삭제할까요? Cuplivo가 데이터베이스를 재구축할 때 남긴 것으로, 해당 채팅 기록과 설정의 유일한 사본일 수 있습니다. 삭제 후에는 복구할 수 없습니다.';
 
   @override
   String get storageSpaceRestoreTracesHint =>
@@ -1656,7 +1656,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupPageChooseExternalFolder =>
-      'iCloud Drive 또는 \'내 iPhone > Kelivo\' 외부의 폴더를 선택하세요. Kelivo 폴더의 파일은 앱과 함께 삭제됩니다. 백업이 저장되지 않았습니다.';
+      'iCloud Drive 또는 \'내 iPhone > Cuplivo\' 외부의 폴더를 선택하세요. Cuplivo 폴더의 파일은 앱과 함께 삭제됩니다. 백업이 저장되지 않았습니다.';
 
   @override
   String get backupPageFilesLabel => '파일 및 이미지';
@@ -1723,23 +1723,23 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupPageRestartContent =>
-      '가져오기에 성공했습니다. 안전하게 적용하려면 Kelivo를 재시작하세요.';
+      '가져오기에 성공했습니다. 안전하게 적용하려면 Cuplivo를 재시작하세요.';
 
   @override
   String backupPageRestartContentWithSkipped(int count) {
-    return '가져오기가 완료되었지만 메시지 순서가 잘못된 대화 $count개를 건너뛰었습니다. 가져온 데이터를 안전하게 적용하려면 Kelivo를 재시작하세요.';
+    return '가져오기가 완료되었지만 메시지 순서가 잘못된 대화 $count개를 건너뛰었습니다. 가져온 데이터를 안전하게 적용하려면 Cuplivo를 재시작하세요.';
   }
 
   @override
   String get restartAppFailedMessage =>
-      'Kelivo를 자동으로 재시작하지 못했습니다. 완전히 종료한 후 다시 실행하세요.';
+      'Cuplivo를 자동으로 재시작하지 못했습니다. 완전히 종료한 후 다시 실행하세요.';
 
   @override
   String get backupRestoreRolledBackTitle => '복원이 롤백되었습니다';
 
   @override
   String get backupRestoreRolledBackContent =>
-      '복원을 완료하지 못했습니다. Kelivo가 확인 후 기존 데이터를 유지했습니다.';
+      '복원을 완료하지 못했습니다. Cuplivo가 확인 후 기존 데이터를 유지했습니다.';
 
   @override
   String get backupRestoreDirectoryBlockedTitle => '복원이 폴더 해제를 기다리는 중입니다';
@@ -1756,21 +1756,22 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupRestoreFailureContent =>
-      'Kelivo가 기존 또는 새 데이터 세트의 완전성을 확인하지 못해 채팅 데이터를 열지 않았습니다. Kelivo를 종료한 후 다시 시도하세요. 문제가 반복되면 지원을 위해 진단 코드를 보관하세요.';
+      'Cuplivo가 기존 또는 새 데이터 세트의 완전성을 확인하지 못해 채팅 데이터를 열지 않았습니다. Cuplivo를 종료한 후 다시 시도하세요. 문제가 반복되면 지원을 위해 진단 코드를 보관하세요.';
 
   @override
-  String get backupRestoreBusinessLeaseUnavailableTitle => 'Kelivo가 이미 실행 중입니다';
+  String get backupRestoreBusinessLeaseUnavailableTitle =>
+      'Cuplivo가 이미 실행 중입니다';
 
   @override
   String get backupRestoreBusinessLeaseUnavailableContent =>
-      'Kelivo의 데이터가 다른 앱 프로세스에서 아직 사용 중입니다. 다른 Kelivo 창을 닫은 후 다시 시작하세요. 현재 프로세스는 채팅 데이터를 열지 않았습니다.';
+      'Cuplivo의 데이터가 다른 앱 프로세스에서 아직 사용 중입니다. 다른 Cuplivo 창을 닫은 후 다시 시작하세요. 현재 프로세스는 채팅 데이터를 열지 않았습니다.';
 
   @override
   String get restoreProgressTitle => '백업 복원 중';
 
   @override
   String get restoreProgressWarning =>
-      '완료될 때까지 Kelivo를 열어 두세요. 지금 닫으면 다음 실행 시 처음부터 다시 시작됩니다.';
+      '완료될 때까지 Cuplivo를 열어 두세요. 지금 닫으면 다음 실행 시 처음부터 다시 시작됩니다.';
 
   @override
   String get restoreProgressStageCheckingBackup => '백업 확인 중';
@@ -1791,7 +1792,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get restoreProgressStageFinishing => '마무리 중';
 
   @override
-  String get backupRestoreFailureRestartButton => 'Kelivo 재시작';
+  String get backupRestoreFailureRestartButton => 'Cuplivo 재시작';
 
   @override
   String get backupRestoreFailureCopyButton => '진단 코드 복사';
@@ -1831,14 +1832,14 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get startupRecoveryResetFailed =>
-      '초기화에 실패했습니다. Kelivo를 완전히 종료한 후 다시 열어 주세요.';
+      '초기화에 실패했습니다. Cuplivo를 완전히 종료한 후 다시 열어 주세요.';
 
   @override
   String get startupRecoveryResetDialogTitle => '빈 채팅 목록으로 시작할까요?';
 
   @override
   String get startupRecoveryResetDialogContent =>
-      '이 작업은 이전 채팅을 복구하지 않습니다. Kelivo는 현재 데이터베이스와 기존 사본을 유지하고 새로운 빈 채팅 목록을 시작합니다. 채팅을 되찾으려면 취소하고 로컬 사본을 선택하세요.';
+      '이 작업은 이전 채팅을 복구하지 않습니다. Cuplivo는 현재 데이터베이스와 기존 사본을 유지하고 새로운 빈 채팅 목록을 시작합니다. 채팅을 되찾으려면 취소하고 로컬 사본을 선택하세요.';
 
   @override
   String get startupRecoveryResetDialogConfirm => '사본 유지하고 새로 시작';
@@ -1952,18 +1953,18 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get startupRecoveryDangerBody =>
-      '새로 시작하면 현재 데이터가 표시되지 않습니다. Kelivo는 복구를 위해 기존 데이터베이스와 기존 사본을 보존합니다. 가능하면 먼저 데이터 사본을 내보내세요.';
+      '새로 시작하면 현재 데이터가 표시되지 않습니다. Cuplivo는 복구를 위해 기존 데이터베이스와 기존 사본을 보존합니다. 가능하면 먼저 데이터 사본을 내보내세요.';
 
   @override
   String get startupRecoveryResetAcknowledge =>
       '지금 채팅을 복구하지 않고 빈 채팅 목록으로 계속 진행하는 데 동의합니다.';
 
   @override
-  String get startupDatabaseUpdateRequiredTitle => '계속하려면 Kelivo를 업데이트하세요';
+  String get startupDatabaseUpdateRequiredTitle => '계속하려면 Cuplivo를 업데이트하세요';
 
   @override
   String get startupDatabaseUpdateRequiredContent =>
-      '이 기기의 채팅 데이터베이스는 더 새로운 버전의 Kelivo에서 생성되어 현재 버전에서는 열 수 없습니다. 데이터는 변경되지 않았습니다. 최신 버전의 Kelivo를 설치한 후 다시 열어 주세요.';
+      '이 기기의 채팅 데이터베이스는 더 새로운 버전의 Cuplivo에서 생성되어 현재 버전에서는 열 수 없습니다. 데이터는 변경되지 않았습니다. 최신 버전의 Cuplivo를 설치한 후 다시 열어 주세요.';
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeTitle => '이전 버전이 필요한 경우';
@@ -1974,7 +1975,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeStep1 =>
-      '최신 버전의 Kelivo를 설치하고 열어서 설정 → 백업에서 백업 파일을 내보내세요.';
+      '최신 버전의 Cuplivo를 설치하고 열어서 설정 → 백업에서 백업 파일을 내보내세요.';
 
   @override
   String startupDatabaseUpdateRequiredDowngradeStep2(String url) {
@@ -2033,7 +2034,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String backupPageForwardCompatBody(int backupVersion, int currentVersion) {
-    return '이 백업은 더 새로운 버전의 Kelivo에서 생성되었습니다(데이터 형식 $backupVersion, 현재 버전 지원 $currentVersion). 이전 버전에서 읽을 수 있는지 여부는 명시되지 않았습니다.\n\n계속할 수 있습니다. 현재 버전이 인식하지 못하는 내용은 건너뛰며 백업 파일 자체는 수정되지 않습니다. 하지만 새 버전에서 기존 데이터 저장 방식을 변경했다면 일부 내용이 잘못 가져와질 수 있습니다.\n\nKelivo를 먼저 업데이트하는 것이 더 안전합니다.';
+    return '이 백업은 더 새로운 버전의 Cuplivo에서 생성되었습니다(데이터 형식 $backupVersion, 현재 버전 지원 $currentVersion). 이전 버전에서 읽을 수 있는지 여부는 명시되지 않았습니다.\n\n계속할 수 있습니다. 현재 버전이 인식하지 못하는 내용은 건너뛰며 백업 파일 자체는 수정되지 않습니다. 하지만 새 버전에서 기존 데이터 저장 방식을 변경했다면 일부 내용이 잘못 가져와질 수 있습니다.\n\nCuplivo를 먼저 업데이트하는 것이 더 안전합니다.';
   }
 
   @override
@@ -2044,7 +2045,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupPageSchemaTooNewMessage =>
-      '이 백업은 더 새로운 버전의 Kelivo에서 생성되어 현재 버전에서는 읽을 수 없습니다. Kelivo를 업데이트한 후 다시 시도하세요.';
+      '이 백업은 더 새로운 버전의 Cuplivo에서 생성되어 현재 버전에서는 읽을 수 없습니다. Cuplivo를 업데이트한 후 다시 시도하세요.';
 
   @override
   String get backupPageBackupUploaded => '백업 업로드됨';
@@ -2227,14 +2228,14 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupPageIosSystemBackupNote =>
-      'Kelivo의 로컬 데이터는 iCloud 기기 백업에 포함되지 않습니다. 기기를 변경하거나 앱을 삭제하기 전에 iCloud Drive 또는 Kelivo 외부의 폴더에 백업하세요. \'내 iPhone > Kelivo\'의 파일은 앱과 함께 삭제됩니다.';
+      'Cuplivo의 로컬 데이터는 iCloud 기기 백업에 포함되지 않습니다. 기기를 변경하거나 앱을 삭제하기 전에 iCloud Drive 또는 Cuplivo 외부의 폴더에 백업하세요. \'내 iPhone > Cuplivo\'의 파일은 앱과 함께 삭제됩니다.';
 
   @override
   String get backupPageImportFromCherryStudio => 'Cherry Studio에서 가져오기';
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return '이 백업은 Cherry Studio 형식 버전 $version을(를) 사용하며, Kelivo에서는 아직 가져올 수 없습니다. Cherry Studio v1에서 내보내거나 Cherry Studio v2 백업을 지원하는 Kelivo 업데이트를 기다리세요.';
+    return '이 백업은 Cherry Studio 형식 버전 $version을(를) 사용하며, Cuplivo에서는 아직 가져올 수 없습니다. Cherry Studio v1에서 내보내거나 Cherry Studio v2 백업을 지원하는 Cuplivo 업데이트를 기다리세요.';
   }
 
   @override
@@ -4788,7 +4789,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get searchServicesPageWebFetchFooter =>
-      '웹 검색을 켜면 모델이 페이지 전체 내용도 읽을 수 있습니다. 검색 서비스가 페이지를 읽을 수 없을 때는 로컬 읽기를 사용하며, 로컬 읽기는 JavaScript가 필요한 페이지나 봇 차단이 있는 페이지를 처리할 수 없습니다.\n\n여기서 설정한 페이지 리더를 사용하는 경우, 도구 중복을 피하려면 설정 → MCP에서 내장 @kelivo/fetch를 비활성화하세요. 여기서 설정한 페이지 리더는 계속 정상 작동합니다.';
+      '웹 검색을 켜면 모델이 페이지 전체 내용도 읽을 수 있습니다. 검색 서비스가 페이지를 읽을 수 없을 때는 로컬 읽기를 사용하며, 로컬 읽기는 JavaScript가 필요한 페이지나 봇 차단이 있는 페이지를 처리할 수 없습니다.\n\n여기서 설정한 페이지 리더를 사용하는 경우, 도구 중복을 피하려면 설정 → MCP에서 내장 @cuplivo/fetch를 비활성화하세요. 여기서 설정한 페이지 리더는 계속 정상 작동합니다.';
 
   @override
   String get searchServicesPageWebFetchSupported => '웹 페이지 읽기 지원';
@@ -5125,7 +5126,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get aboutPageEasterEggButton => '좋아요!';
 
   @override
-  String get aboutPageAppName => 'Kelivo';
+  String get aboutPageAppName => 'Cuplivo';
 
   @override
   String get aboutPageAppDescription => '오픈소스 AI 어시스턴트';
@@ -5183,13 +5184,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get aboutPageJoinQQGroup => 'QQ 그룹 참여';
 
   @override
-  String get aboutPageQQGroupOne => 'Kelivo 1그룹';
+  String get aboutPageQQGroupOne => 'Cuplivo 1그룹';
 
   @override
-  String get aboutPageQQGroupTwo => 'Kelivo 2그룹';
+  String get aboutPageQQGroupTwo => 'Cuplivo 2그룹';
 
   @override
-  String get aboutPageQQGroupThree => 'Kelivo 3그룹';
+  String get aboutPageQQGroupThree => 'Cuplivo 3그룹';
 
   @override
   String get aboutPageJoinDiscord => 'Discord에서 참여하기';
@@ -6250,7 +6251,7 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get settingsShare => 'Kelivo - 오픈 소스 AI 어시스턴트';
+  String get settingsShare => 'Cuplivo - 오픈 소스 AI 어시스턴트';
 
   @override
   String get searchProviderBingLocalDescription =>
@@ -6743,7 +6744,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get healthDataSettingsDescription =>
-      '현재 어시스턴트가 일상 대화에서 사용할 수 있는 HealthKit 신호입니다. 스위치는 Kelivo가 읽기를 시도할 수 있는 범위를 제어하며, 실제 접근 권한은 여전히 iOS가 관리합니다.';
+      '현재 어시스턴트가 일상 대화에서 사용할 수 있는 HealthKit 신호입니다. 스위치는 Cuplivo가 읽기를 시도할 수 있는 범위를 제어하며, 실제 접근 권한은 여전히 iOS가 관리합니다.';
 
   @override
   String healthDataSettingsBadge(int selected, int total) {
@@ -8065,7 +8066,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get legacyMemoryExport => '내보내기';
 
   @override
-  String get legacyMemoryExportTitle => 'Kelivo 레거시 메모리 내보내기';
+  String get legacyMemoryExportTitle => 'Cuplivo 레거시 메모리 내보내기';
 
   @override
   String legacyMemoryAssistantHeader(String name) {
@@ -8683,7 +8684,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get migrationIntroSubtitle =>
-      'Kelivo가 채팅 기록을 더 빠른 SQLite 데이터베이스로 이전합니다. 데이터 일관성을 유지하기 위해 앱이 열리기 전에 업그레이드가 실행됩니다.';
+      'Cuplivo가 채팅 기록을 더 빠른 SQLite 데이터베이스로 이전합니다. 데이터 일관성을 유지하기 위해 앱이 열리기 전에 업그레이드가 실행됩니다.';
 
   @override
   String get migrationBackupNote =>
@@ -8727,14 +8728,14 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get migrationBackingUpSubtitle =>
-      '설정, 채팅 기록, 업로드된 파일, 이미지, 글꼴을 내보내는 중입니다. 완료될 때까지 Kelivo를 열어 두세요.';
+      '설정, 채팅 기록, 업로드된 파일, 이미지, 글꼴을 내보내는 중입니다. 완료될 때까지 Cuplivo를 열어 두세요.';
 
   @override
   String get migrationMigratingTitle => 'SQLite로 마이그레이션 중';
 
   @override
   String get migrationMigratingSubtitle =>
-      '대용량 기록이 메모리를 과부하시키지 않도록 대화와 메시지를 일괄로 기록하는 중입니다. 마이그레이션이 완료될 때까지 Kelivo를 포그라운드에 유지하세요.';
+      '대용량 기록이 메모리를 과부하시키지 않도록 대화와 메시지를 일괄로 기록하는 중입니다. 마이그레이션이 완료될 때까지 Cuplivo를 포그라운드에 유지하세요.';
 
   @override
   String migrationBackingUpDetail(String fileName) {
@@ -8793,7 +8794,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get migrationCompleteSubtitle =>
-      '채팅 기록이 이제 SQLite에 저장됩니다. 업그레이드된 앱으로 들어가려면 Kelivo를 다시 시작하세요.';
+      '채팅 기록이 이제 SQLite에 저장됩니다. 업그레이드된 앱으로 들어가려면 Cuplivo를 다시 시작하세요.';
 
   @override
   String get migrationConversationCount => '대화';
@@ -8811,7 +8812,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get migrationMissingFilesCount => '누락된 파일';
 
   @override
-  String get migrationRestartButton => 'Kelivo 재시작';
+  String get migrationRestartButton => 'Cuplivo 재시작';
 
   @override
   String get migrationFailedTitle => '마이그레이션 실패';
@@ -8837,7 +8838,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get migrationSkipDialogMessage =>
-      'Kelivo가 빈 채팅 데이터베이스로 시작됩니다. 기존 채팅 기록은 디스크에 남아 있지만(.retired 접미사로 이름 변경) 마이그레이션되지 않으며 앱에 표시되지 않습니다. 나중에 복구하려면 백업 ZIP을 사용하세요.';
+      'Cuplivo가 빈 채팅 데이터베이스로 시작됩니다. 기존 채팅 기록은 디스크에 남아 있지만(.retired 접미사로 이름 변경) 마이그레이션되지 않으며 앱에 표시되지 않습니다. 나중에 복구하려면 백업 ZIP을 사용하세요.';
 
   @override
   String get migrationSkipDialogCancel => '취소';
@@ -9255,7 +9256,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get localSnapshotEnabledSubtitle =>
-      'Kelivo가 이 기기에 데이터베이스 사본을 주기적으로 저장하여 데이터가 단 하나만 존재하지 않도록 합니다.';
+      'Cuplivo가 이 기기에 데이터베이스 사본을 주기적으로 저장하여 데이터가 단 하나만 존재하지 않도록 합니다.';
 
   @override
   String get localSnapshotIntervalTitle => '주기';
@@ -9364,7 +9365,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get localSnapshotCopiesScopeNote =>
-      '로컬 복사본은 이 기기에만 저장됩니다. 앱 내 데이터 손상이나 실수로 인한 삭제는 방지할 수 있지만, 기기 분실이나 Kelivo 제거로 인한 손실은 방지할 수 없습니다. 이를 위해서는 WebDAV 또는 S3 백업을 사용하세요.';
+      '로컬 복사본은 이 기기에만 저장됩니다. 앱 내 데이터 손상이나 실수로 인한 삭제는 방지할 수 있지만, 기기 분실이나 Cuplivo 제거로 인한 손실은 방지할 수 없습니다. 이를 위해서는 WebDAV 또는 S3 백업을 사용하세요.';
 
   @override
   String get localSnapshotOriginAutomatic => '자동';
@@ -10053,7 +10054,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get workspaceEnvUpToDate => '최신 상태입니다';
 
   @override
-  String get workspaceEnvRestartBanner => '완료하려면 Kelivo를 재시작하세요';
+  String get workspaceEnvRestartBanner => '완료하려면 Cuplivo를 재시작하세요';
 
   @override
   String get workspaceEnvDetectingMirrors => '가장 빠른 미러 감지 중…';
@@ -10162,7 +10163,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get workspaceEnvNativeExplanation =>
-      '데스크톱에서 Kelivo는 Linux 샌드박스 대신 시스템 셸을 사용합니다.';
+      '데스크톱에서 Cuplivo는 Linux 샌드박스 대신 시스템 셸을 사용합니다.';
 
   @override
   String workspaceEnvNativeShellPath(String path) {
@@ -11073,7 +11074,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get workspaceDesktopManagedHint =>
-      'Kelivo가 이 프로젝트를 위한 폴더를 생성하고 관리합니다.';
+      'Cuplivo가 이 프로젝트를 위한 폴더를 생성하고 관리합니다.';
 
   @override
   String get workspaceDesktopHostHint => '파일과 명령이 이 컴퓨터에서 실행됩니다.';
@@ -11315,7 +11316,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get workspaceExternalStorageMessage =>
-      '작업 공간과 Shell에서 외부 폴더를 읽고 쓰려면 Android 설정에서 Kelivo의 파일 관리 권한을 허용하세요. Android 11 이상에서는 \'모든 파일 접근 권한\'을 켠 다음, 마운트할 기기 내 폴더를 선택하세요.';
+      '작업 공간과 Shell에서 외부 폴더를 읽고 쓰려면 Android 설정에서 Cuplivo의 파일 관리 권한을 허용하세요. Android 11 이상에서는 \'모든 파일 접근 권한\'을 켠 다음, 마운트할 기기 내 폴더를 선택하세요.';
 
   @override
   String get workspaceExternalGrantAccess => '권한 허용';
@@ -11537,7 +11538,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get backgroundSettingsTitle => '백그라운드 작업';
 
   @override
-  String get backgroundTaskTitle => 'Kelivo 작업';
+  String get backgroundTaskTitle => 'Cuplivo 작업';
 
   @override
   String get backgroundCompleted => '생성 완료';
@@ -11556,6 +11557,12 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backgroundGenerating => '답변 생성 중';
+
+  @override
+  String get backgroundCareLetter => 'Writing a letter';
+
+  @override
+  String get backgroundCareWorking => 'Preparing your letter';
 
   @override
   String get backgroundThinking => '생각 중';
@@ -11671,7 +11678,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get backgroundOverlayIcon => '플로팅 아이콘';
 
   @override
-  String get backgroundIconDefault => 'Kelivo 아이콘';
+  String get backgroundIconDefault => 'Cuplivo 아이콘';
 
   @override
   String get backgroundIconImage => '이미지 선택';
@@ -11885,7 +11892,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get startupRecoverySnapshotBody =>
-      '데이터베이스를 열 수 없더라도 이 기기의 스냅샷을 선택해 대화와 설정을 복구할 수 있습니다. Kelivo를 제거하지 마세요. 제거하면 이 스냅샷도 함께 삭제됩니다.';
+      '데이터베이스를 열 수 없더라도 이 기기의 스냅샷을 선택해 대화와 설정을 복구할 수 있습니다. Cuplivo를 제거하지 마세요. 제거하면 이 스냅샷도 함께 삭제됩니다.';
 
   @override
   String get startupRecoverySnapshotEmpty =>
@@ -11896,7 +11903,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String startupRecoverySnapshotConfirm(String when) {
-    return '대화와 설정을 $when 스냅샷으로 복구할까요? 이 스냅샷 이후의 변경 사항은 포함되지 않습니다. 기존 첨부 파일과 스냅샷은 유지되며, 복구를 완료하려면 Kelivo가 다시 시작됩니다.';
+    return '대화와 설정을 $when 스냅샷으로 복구할까요? 이 스냅샷 이후의 변경 사항은 포함되지 않습니다. 기존 첨부 파일과 스냅샷은 유지되며, 복구를 완료하려면 Cuplivo가 다시 시작됩니다.';
   }
 
   @override
@@ -11906,7 +11913,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get startupRecoverySnapshotReady =>
-      '스냅샷이 준비되었습니다. 복구를 완료하려면 Kelivo를 다시 시작하세요.';
+      '스냅샷이 준비되었습니다. 복구를 완료하려면 Cuplivo를 다시 시작하세요.';
 
   @override
   String get scheduledTasksTitle => '예약 작업';
@@ -11979,7 +11986,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get scheduledTasksReliability =>
-      '더 안정적인 실행을 위해 배터리 설정에서 Kelivo를 제한 없이 사용하도록 설정하세요. 앱을 강제 중지하면 다시 열 때까지 알람이 취소됩니다. 놓친 실행은 건너뛰며, 작업은 기기 시간대를 따릅니다.';
+      '더 안정적인 실행을 위해 배터리 설정에서 Cuplivo를 제한 없이 사용하도록 설정하세요. 앱을 강제 중지하면 다시 열 때까지 알람이 취소됩니다. 놓친 실행은 건너뛰며, 작업은 기기 시간대를 따릅니다.';
 
   @override
   String get scheduledTasksExecutionDetail =>
@@ -12160,7 +12167,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get scheduledTasksDesktopReliability =>
-      '작업은 Kelivo가 실행 중일 때만 실행되며, 최소화되거나 시스템 트레이에 있을 때도 포함됩니다. 앱 종료 또는 컴퓨터 절전 중 놓친 시간은 건너뜁니다. Kelivo는 자동으로 시작되지 않습니다.';
+      '작업은 Cuplivo가 실행 중일 때만 실행되며, 최소화되거나 시스템 트레이에 있을 때도 포함됩니다. 앱 종료 또는 컴퓨터 절전 중 놓친 시간은 건너뜁니다. Cuplivo는 자동으로 시작되지 않습니다.';
 
   @override
   String get scheduledTasksDesktopExecutionDetail =>
@@ -12539,7 +12546,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get scheduledTasksIOSDetail =>
-      'iOS 백그라운드 제한으로 인해 Kelivo는 지정된 시간에 자동으로 깨어나 모델을 실행할 수 없습니다. 대신 앱이 실행될 수 있을 때 콘텐츠를 미리 준비하고, 시스템이 예정된 시간에 알림을 표시합니다. 다음 한 번의 결과만 준비됩니다. 앱을 나간 후에는 준비가 완료되지 않을 수 있으며, 이후 작업은 Kelivo를 다시 열어야 준비됩니다.';
+      'iOS 백그라운드 제한으로 인해 Cuplivo는 지정된 시간에 자동으로 깨어나 모델을 실행할 수 없습니다. 대신 앱이 실행될 수 있을 때 콘텐츠를 미리 준비하고, 시스템이 예정된 시간에 알림을 표시합니다. 다음 한 번의 결과만 준비됩니다. 앱을 나간 후에는 준비가 완료되지 않을 수 있으며, 이후 작업은 Cuplivo를 다시 열어야 준비됩니다.';
 
   @override
   String get scheduledTasksContextPolicy => '대화 컨텍스트';
@@ -12604,7 +12611,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get scheduledTasksReminderBody =>
-      '예약된 작업 시간이 되었습니다. Kelivo를 열어 계속하세요.';
+      '예약된 작업 시간이 되었습니다. Cuplivo를 열어 계속하세요.';
 
   @override
   String get scheduledTasksResultBody => '예약된 작업 결과가 준비되었습니다.';
@@ -12618,7 +12625,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get scheduledTasksAllowPreparationTip =>
-      'Kelivo가 실행될 수 있을 때 다음 작업 결과를 미리 생성하며, 만료 전에는 채팅에 표시되지 않습니다. 텍스트만 사용하고 도구, 첨부 파일 또는 사용자 지정 요청 본문은 사용하지 않습니다. 모델 호출로 비용이 발생할 수 있습니다.';
+      'Cuplivo가 실행될 수 있을 때 다음 작업 결과를 미리 생성하며, 만료 전에는 채팅에 표시되지 않습니다. 텍스트만 사용하고 도구, 첨부 파일 또는 사용자 지정 요청 본문은 사용하지 않습니다. 모델 호출로 비용이 발생할 수 있습니다.';
 
   @override
   String get scheduledTasksContextPolicyTip =>
@@ -12626,7 +12633,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get scheduledTasksPreparationWindowTip =>
-      '작업 시간 전 최대 24시간까지 준비를 시작할 수 있습니다. 예를 들어 다음 날 아침 알림이라면 전날 정오에 Kelivo를 열었을 때 준비할 기회가 생깁니다. 시간이 길수록 준비 기회는 많아지지만 내용이 더 일찍 오래될 수 있습니다. 작업 시간을 변경하지 않으며 백그라운드 정기 실행을 보장하지도 않습니다. 「지금 준비」는 이 자동 대기 시간과 모든 시도 제한을 우회합니다.';
+      '작업 시간 전 최대 24시간까지 준비를 시작할 수 있습니다. 예를 들어 다음 날 아침 알림이라면 전날 정오에 Cuplivo를 열었을 때 준비할 기회가 생깁니다. 시간이 길수록 준비 기회는 많아지지만 내용이 더 일찍 오래될 수 있습니다. 작업 시간을 변경하지 않으며 백그라운드 정기 실행을 보장하지도 않습니다. 「지금 준비」는 이 자동 대기 시간과 모든 시도 제한을 우회합니다.';
 
   @override
   String get scheduledTasksPreparationAttemptsTip =>
@@ -12638,7 +12645,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get scheduledTasksUnavailableTip =>
-      '사용 가능한 준비 결과가 없고 작업 시간에 작업을 실행할 수 없으면 알림을 보내거나 이번 회차를 건너뜁니다. 알림에는 모델이 생성한 답변이 포함되지 않으며 알림이 활성화되어 있어야 합니다. 작업 시간에 Kelivo가 열려 있으면 그때 작업을 실행할 수 있습니다.';
+      '사용 가능한 준비 결과가 없고 작업 시간에 작업을 실행할 수 없으면 알림을 보내거나 이번 회차를 건너뜁니다. 알림에는 모델이 생성한 답변이 포함되지 않으며 알림이 활성화되어 있어야 합니다. 작업 시간에 Cuplivo가 열려 있으면 그때 작업을 실행할 수 있습니다.';
 
   @override
   String get scheduledTasksNotifyTip =>
@@ -12821,14 +12828,14 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get phoneControlAssistantHint =>
-      '두 가지 권한이 모두 필요합니다: 시스템 접근성 설정에서 Kelivo 휴대폰 제어를 활성화한 다음, 어시스턴트의 로컬 도구에서 휴대폰 제어를 활성화하세요(대화 도구 메뉴에서도 가능). 각 어시스턴트는 개별적으로 구성됩니다. 작업을 실행하는 동안 휴대폰 잠금을 해제해 두세요.';
+      '두 가지 권한이 모두 필요합니다: 시스템 접근성 설정에서 Cuplivo 휴대폰 제어를 활성화한 다음, 어시스턴트의 로컬 도구에서 휴대폰 제어를 활성화하세요(대화 도구 메뉴에서도 가능). 각 어시스턴트는 개별적으로 구성됩니다. 작업을 실행하는 동안 휴대폰 잠금을 해제해 두세요.';
 
   @override
   String get phoneControlRestrictedTitle => '접근성 스위치를 사용할 수 없나요?';
 
   @override
   String get phoneControlRestrictedHint =>
-      '일부 다운로드한 APK의 경우 Android에서 먼저 앱 정보 메뉴에서 \'제한된 설정 허용\'이 필요합니다. 탭하여 Kelivo 앱 정보를 연 다음 접근성 설정으로 돌아오세요.';
+      '일부 다운로드한 APK의 경우 Android에서 먼저 앱 정보 메뉴에서 \'제한된 설정 허용\'이 필요합니다. 탭하여 Cuplivo 앱 정보를 연 다음 접근성 설정으로 돌아오세요.';
 
   @override
   String get phoneControlEnableAssistant => '이 어시스턴트가 휴대폰 제어를 사용하도록 허용';
@@ -13023,7 +13030,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get recoveryMissingDataBody =>
-      'Kelivo가 현재 채팅 데이터베이스를 찾지 못했습니다. 로딩을 일시 중지했으며 빈 데이터베이스를 새로 만들지 않았습니다. 아래에서 이전 사본을 찾아볼 것이며, 기존 파일은 유지됩니다.';
+      'Cuplivo가 현재 채팅 데이터베이스를 찾지 못했습니다. 로딩을 일시 중지했으며 빈 데이터베이스를 새로 만들지 않았습니다. 아래에서 이전 사본을 찾아볼 것이며, 기존 파일은 유지됩니다.';
 
   @override
   String get recoveryEmptyDataTitle => '현재 채팅 기록이 비어 있습니다';
@@ -13065,7 +13072,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get recoveryStorageFailureBody =>
-      '데이터 업데이트를 완료하지 못했습니다. 원본 데이터는 유지되었습니다. Kelivo를 다시 열거나 아래에서 로컬 사본을 선택해 복구해 보세요.';
+      '데이터 업데이트를 완료하지 못했습니다. 원본 데이터는 유지되었습니다. Cuplivo를 다시 열거나 아래에서 로컬 사본을 선택해 복구해 보세요.';
 
   @override
   String get recoveryProtectingTitle => '채팅 데이터베이스 보호 중';
@@ -13090,7 +13097,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get recoveryStorageInsufficientSpaceBody =>
-      '데이터를 안전하게 준비하기에 저장 공간이 부족합니다. 시스템 설정에서 공간을 확보한 뒤 Kelivo를 다시 열거나 아래 사본을 다시 확인하세요. Kelivo를 설치된 상태로 두고 데이터와 로컬 사본을 그대로 유지하세요.';
+      '데이터를 안전하게 준비하기에 저장 공간이 부족합니다. 시스템 설정에서 공간을 확보한 뒤 Cuplivo를 다시 열거나 아래 사본을 다시 확인하세요. Cuplivo를 설치된 상태로 두고 데이터와 로컬 사본을 그대로 유지하세요.';
 
   @override
   String get migrationFreshStartTitle => '새로 시작할 준비가 되었습니다';
@@ -13172,7 +13179,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupEncryptionUnsupported =>
-      '이 암호화된 백업을 사용하려면 더 새로운 버전의 Kelivo가 필요합니다.';
+      '이 암호화된 백업을 사용하려면 더 새로운 버전의 Cuplivo가 필요합니다.';
 
   @override
   String get backupProgressEncrypting => '백업 암호화 중';
@@ -13335,7 +13342,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get browserRestoreTabs => '탭 복원';
 
   @override
-  String get browserRestoreTabsDescription => 'Kelivo를 시작할 때 탭을 다시 엽니다.';
+  String get browserRestoreTabsDescription => 'Cuplivo를 시작할 때 탭을 다시 엽니다.';
 
   @override
   String get browserSaveHistory => '방문 기록 저장';
@@ -15061,7 +15068,7 @@ class AppLocalizationsKo extends AppLocalizations {
       '아래 디렉터리의 유지된 사본을 제거할까요? 현재 디렉터리의 데이터는 유지되며, 이동 후 변경된 파일은 삭제되지 않습니다.';
 
   @override
-  String get dataDirectoryMoving => '데이터 이동 및 검증 중… Kelivo를 열어 두세요.';
+  String get dataDirectoryMoving => '데이터 이동 및 검증 중… Cuplivo를 열어 두세요.';
 
   @override
   String get dataDirectoryStartupFailed => '데이터 디렉터리를 열 수 없습니다';
@@ -15105,7 +15112,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get dataDirectoryGenericError =>
-      '작업을 완료하지 못했습니다. 디스크 여유 공간, 폴더 권한, 다른 Kelivo 프로세스 실행 여부를 확인한 후 다시 시도하세요. 기존 데이터는 보관되었습니다.';
+      '작업을 완료하지 못했습니다. 디스크 여유 공간, 폴더 권한, 다른 Cuplivo 프로세스 실행 여부를 확인한 후 다시 시도하세요. 기존 데이터는 보관되었습니다.';
 
   @override
   String get dataDirectoryCancelHint =>
@@ -15350,7 +15357,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get recoveryGuideBody =>
-      'Kelivo가 데이터 로드를 일시 중지했습니다. 로컬 사본을 찾아 복구할 항목을 선택할 수 있도록 합니다. 기존 파일은 유지됩니다.';
+      'Cuplivo가 데이터 로드를 일시 중지했습니다. 로컬 사본을 찾아 복구할 항목을 선택할 수 있도록 합니다. 기존 파일은 유지됩니다.';
 
   @override
   String get recoverySpaceTitle => '약간의 여유 공간이 필요합니다';
@@ -15371,7 +15378,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get recoveryRestoreRetryBody =>
-      '복구를 완료하지 못했습니다. 선택한 사본은 유지되었습니다. 로컬 사본을 다시 확인하거나 Kelivo를 다시 열어 계속하세요.';
+      '복구를 완료하지 못했습니다. 선택한 사본은 유지되었습니다. 로컬 사본을 다시 확인하거나 Cuplivo를 다시 열어 계속하세요.';
 
   @override
   String recoverySpaceAmount(String required, String available) {
@@ -15380,7 +15387,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get recoveryCopiesNeedUpdate =>
-      '일부 사본은 최신 버전의 Kelivo에서 생성되었습니다. 해당 사본을 복구하려면 Kelivo를 업데이트하세요. 이 사본들은 유지되었습니다.';
+      '일부 사본은 최신 버전의 Cuplivo에서 생성되었습니다. 해당 사본을 복구하려면 Cuplivo를 업데이트하세요. 이 사본들은 유지되었습니다.';
 
   @override
   String get imageContextAllowRecall => '모델이 이미지를 다시 불러오도록 허용';
@@ -15987,22 +15994,22 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String requestBudgetSingleError(int index, String actual, String limit) {
-    return 'Kelivo 로컬 사전 검사: 이미지 $index의 인코딩 크기가 $actual로 단일 이미지 한도 $limit을(를) 초과했습니다.';
+    return 'Cuplivo 로컬 사전 검사: 이미지 $index의 인코딩 크기가 $actual로 단일 이미지 한도 $limit을(를) 초과했습니다.';
   }
 
   @override
   String requestBudgetTotalError(String actual, String limit) {
-    return 'Kelivo 로컬 사전 검사: 인코딩된 이미지 합계가 $actual로 이미지 예산 $limit을(를) 초과했습니다.';
+    return 'Cuplivo 로컬 사전 검사: 인코딩된 이미지 합계가 $actual로 이미지 예산 $limit을(를) 초과했습니다.';
   }
 
   @override
   String requestBudgetCountError(String actual, int limit) {
-    return 'Kelivo 로컬 사전 검사: 요청에 이미지가 $actual개 포함되어 한도 $limit개를 초과했습니다.';
+    return 'Cuplivo 로컬 사전 검사: 요청에 이미지가 $actual개 포함되어 한도 $limit개를 초과했습니다.';
   }
 
   @override
   String requestBudgetBodyError(String actual, String limit) {
-    return 'Kelivo 로컬 사전 검사: 전체 요청 본문이 $actual로 요청 본문 예산 $limit을(를) 초과했습니다.';
+    return 'Cuplivo 로컬 사전 검사: 전체 요청 본문이 $actual로 요청 본문 예산 $limit을(를) 초과했습니다.';
   }
 
   @override
@@ -16475,12 +16482,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get modelDetailSheetModelIdExistsError => 'Model ID already exists';
 
   @override
-  String get aboutPageCuplivoSearchUnlocked =>
-      'An unnamed door opened a crack. You might find it in Settings.';
+  String get aboutPageCuplivoSearchUnlocked => '이름 없는 문이 살짝 열렸습니다. 설정에서 찾아보세요.';
 
   @override
-  String get aboutPageCuplivoSearchAlreadyUnlocked =>
-      'You\'ve already been through this door.';
+  String get aboutPageCuplivoSearchAlreadyUnlocked => '이미 이 문을 열어본 적이 있습니다.';
 
   @override
   String get aboutPageQQGroup => 'Cuplivo Group';

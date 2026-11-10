@@ -193,7 +193,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get storageSpaceClearDisplacedDatabasesConfirmMessage =>
-      'Удалить эти отложенные базы данных? Kelivo сохранил их при пересоздании своей базы данных, и они могут быть единственной сохранившейся копией этих чатов и настроек. Это действие нельзя отменить.';
+      'Удалить эти отложенные базы данных? Cuplivo сохранил их при пересоздании своей базы данных, и они могут быть единственной сохранившейся копией этих чатов и настроек. Это действие нельзя отменить.';
 
   @override
   String get storageSpaceRestoreTracesHint =>
@@ -1718,7 +1718,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get backupPageChooseExternalFolder =>
-      'Выберите iCloud Drive или папку вне «На моём iPhone > Kelivo». Файлы в папке Kelivo удаляются вместе с приложением. Резервная копия не сохранена.';
+      'Выберите iCloud Drive или папку вне «На моём iPhone > Cuplivo». Файлы в папке Cuplivo удаляются вместе с приложением. Резервная копия не сохранена.';
 
   @override
   String get backupPageFilesLabel => 'Файлы и изображения';
@@ -1785,23 +1785,23 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get backupPageRestartContent =>
-      'Импорт выполнен. Перезапустите Kelivo, чтобы безопасно применить изменения.';
+      'Импорт выполнен. Перезапустите Cuplivo, чтобы безопасно применить изменения.';
 
   @override
   String backupPageRestartContentWithSkipped(int count) {
-    return 'Импорт завершён, но пропущено чатов с недопустимым порядком сообщений: $count. Перезапустите Kelivo, чтобы безопасно применить импортированные данные.';
+    return 'Импорт завершён, но пропущено чатов с недопустимым порядком сообщений: $count. Перезапустите Cuplivo, чтобы безопасно применить импортированные данные.';
   }
 
   @override
   String get restartAppFailedMessage =>
-      'Kelivo не удалось перезапустить автоматически. Полностью закройте приложение и откройте его снова.';
+      'Cuplivo не удалось перезапустить автоматически. Полностью закройте приложение и откройте его снова.';
 
   @override
   String get backupRestoreRolledBackTitle => 'Восстановление отменено';
 
   @override
   String get backupRestoreRolledBackContent =>
-      'Восстановление не удалось завершить. Kelivo проверил и сохранил ваши прежние данные.';
+      'Восстановление не удалось завершить. Cuplivo проверил и сохранил ваши прежние данные.';
 
   @override
   String get backupRestoreDirectoryBlockedTitle =>
@@ -1819,21 +1819,22 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get backupRestoreFailureContent =>
-      'Kelivo не удалось проверить полноту старых или новых данных, поэтому данные чатов не были открыты. Закройте Kelivo и повторите попытку. Если проблема повторяется, сохраните диагностический код для поддержки.';
+      'Cuplivo не удалось проверить полноту старых или новых данных, поэтому данные чатов не были открыты. Закройте Cuplivo и повторите попытку. Если проблема повторяется, сохраните диагностический код для поддержки.';
 
   @override
-  String get backupRestoreBusinessLeaseUnavailableTitle => 'Kelivo уже запущен';
+  String get backupRestoreBusinessLeaseUnavailableTitle =>
+      'Cuplivo уже запущен';
 
   @override
   String get backupRestoreBusinessLeaseUnavailableContent =>
-      'Данные Kelivo всё ещё используются другим процессом приложения. Закройте другие окна Kelivo и перезапустите. Этот процесс не открывал данные чатов.';
+      'Данные Cuplivo всё ещё используются другим процессом приложения. Закройте другие окна Cuplivo и перезапустите. Этот процесс не открывал данные чатов.';
 
   @override
   String get restoreProgressTitle => 'Восстановление резервной копии';
 
   @override
   String get restoreProgressWarning =>
-      'Не закрывайте Kelivo до завершения. Если закрыть его сейчас, при следующем запуске восстановление начнётся заново.';
+      'Не закрывайте Cuplivo до завершения. Если закрыть его сейчас, при следующем запуске восстановление начнётся заново.';
 
   @override
   String get restoreProgressStageCheckingBackup => 'Проверка резервной копии';
@@ -1857,7 +1858,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get restoreProgressStageFinishing => 'Завершение';
 
   @override
-  String get backupRestoreFailureRestartButton => 'Перезапустить Kelivo';
+  String get backupRestoreFailureRestartButton => 'Перезапустить Cuplivo';
 
   @override
   String get backupRestoreFailureCopyButton => 'Копировать диагностический код';
@@ -1898,7 +1899,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get startupRecoveryResetFailed =>
-      'Не удалось выполнить сброс. Полностью закройте Kelivo и откройте его снова.';
+      'Не удалось выполнить сброс. Полностью закройте Cuplivo и откройте его снова.';
 
   @override
   String get startupRecoveryResetDialogTitle =>
@@ -1906,7 +1907,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get startupRecoveryResetDialogContent =>
-      'Это не восстановит ваши предыдущие чаты. Kelivo сохранит текущую базу данных и существующие копии и создаст новый пустой список чатов. Чтобы вернуть чаты, отмените действие и выберите локальную копию.';
+      'Это не восстановит ваши предыдущие чаты. Cuplivo сохранит текущую базу данных и существующие копии и создаст новый пустой список чатов. Чтобы вернуть чаты, отмените действие и выберите локальную копию.';
 
   @override
   String get startupRecoveryResetDialogConfirm =>
@@ -2024,7 +2025,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get startupRecoveryDangerBody =>
-      'Новый старт скрывает текущие данные из вида. Kelivo сохранит старую базу данных и существующие копии для восстановления. Если возможно, сначала экспортируйте копию данных.';
+      'Новый старт скрывает текущие данные из вида. Cuplivo сохранит старую базу данных и существующие копии для восстановления. Если возможно, сначала экспортируйте копию данных.';
 
   @override
   String get startupRecoveryResetAcknowledge =>
@@ -2032,11 +2033,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get startupDatabaseUpdateRequiredTitle =>
-      'Обновите Kelivo, чтобы продолжить';
+      'Обновите Cuplivo, чтобы продолжить';
 
   @override
   String get startupDatabaseUpdateRequiredContent =>
-      'База данных чатов на этом устройстве была создана более новой версией Kelivo, и эта версия не может её открыть. Ваши данные не изменены. Установите последнюю версию Kelivo и откройте её снова.';
+      'База данных чатов на этом устройстве была создана более новой версией Cuplivo, и эта версия не может её открыть. Ваши данные не изменены. Установите последнюю версию Cuplivo и откройте её снова.';
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeTitle =>
@@ -2048,7 +2049,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeStep1 =>
-      'Установите и откройте последнюю версию Kelivo, затем экспортируйте резервную копию в разделе «Настройки → Резервная копия».';
+      'Установите и откройте последнюю версию Cuplivo, затем экспортируйте резервную копию в разделе «Настройки → Резервная копия».';
 
   @override
   String startupDatabaseUpdateRequiredDowngradeStep2(String url) {
@@ -2109,7 +2110,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String backupPageForwardCompatBody(int backupVersion, int currentVersion) {
-    return 'Эта резервная копия создана более новой версией Kelivo (формат данных $backupVersion; эта версия поддерживает $currentVersion), и в ней не указано, могут ли её читать более старые версии.\n\nВы можете продолжить: всё, что эта версия не распознаёт, будет пропущено, а сам файл резервной копии не изменяется. Но если более новая версия изменила способ хранения существующих данных, часть содержимого может быть импортирована неправильно.\n\nБезопаснее сначала обновить Kelivo.';
+    return 'Эта резервная копия создана более новой версией Cuplivo (формат данных $backupVersion; эта версия поддерживает $currentVersion), и в ней не указано, могут ли её читать более старые версии.\n\nВы можете продолжить: всё, что эта версия не распознаёт, будет пропущено, а сам файл резервной копии не изменяется. Но если более новая версия изменила способ хранения существующих данных, часть содержимого может быть импортирована неправильно.\n\nБезопаснее сначала обновить Cuplivo.';
   }
 
   @override
@@ -2120,7 +2121,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get backupPageSchemaTooNewMessage =>
-      'Эта резервная копия создана более новой версией Kelivo, и эта версия не может её прочитать. Обновите Kelivo и повторите попытку.';
+      'Эта резервная копия создана более новой версией Cuplivo, и эта версия не может её прочитать. Обновите Cuplivo и повторите попытку.';
 
   @override
   String get backupPageBackupUploaded => 'Резервная копия загружена';
@@ -2306,14 +2307,14 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get backupPageIosSystemBackupNote =>
-      'Локальные данные Kelivo не включаются в резервные копии устройств iCloud. Перед сменой устройства или удалением приложения сохраните резервную копию в iCloud Drive или другую папку вне Kelivo. Файлы в «На моём iPhone > Kelivo» удаляются вместе с приложением.';
+      'Локальные данные Cuplivo не включаются в резервные копии устройств iCloud. Перед сменой устройства или удалением приложения сохраните резервную копию в iCloud Drive или другую папку вне Cuplivo. Файлы в «На моём iPhone > Cuplivo» удаляются вместе с приложением.';
 
   @override
   String get backupPageImportFromCherryStudio => 'Импорт из Cherry Studio';
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return 'Эта резервная копия использует версию формата Cherry Studio $version, которую Kelivo пока не может импортировать. Экспортируйте резервную копию из Cherry Studio v1 или дождитесь обновления Kelivo с поддержкой резервных копий Cherry Studio v2.';
+    return 'Эта резервная копия использует версию формата Cherry Studio $version, которую Cuplivo пока не может импортировать. Экспортируйте резервную копию из Cherry Studio v1 или дождитесь обновления Cuplivo с поддержкой резервных копий Cherry Studio v2.';
   }
 
   @override
@@ -4960,7 +4961,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get searchServicesPageWebFetchFooter =>
-      'При включённом веб-поиске модель также может читать страницы целиком. Если поисковый сервис не умеет читать страницы, используется локальное чтение, которое не справляется со страницами, требующими JavaScript, или блокирующими ботов.\n\nЕсли вы используете настроенное здесь чтение страниц, отключите встроенный @kelivo/fetch в разделе «Настройки → MCP», чтобы инструменты не дублировались. Настроенное здесь чтение страниц продолжит работать.';
+      'При включённом веб-поиске модель также может читать страницы целиком. Если поисковый сервис не умеет читать страницы, используется локальное чтение, которое не справляется со страницами, требующими JavaScript, или блокирующими ботов.\n\nЕсли вы используете настроенное здесь чтение страниц, отключите встроенный @cuplivo/fetch в разделе «Настройки → MCP», чтобы инструменты не дублировались. Настроенное здесь чтение страниц продолжит работать.';
 
   @override
   String get searchServicesPageWebFetchSupported => 'Умеет читать веб-страницы';
@@ -5314,7 +5315,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get aboutPageEasterEggButton => 'Отлично!';
 
   @override
-  String get aboutPageAppName => 'Kelivo';
+  String get aboutPageAppName => 'Cuplivo';
 
   @override
   String get aboutPageAppDescription => 'Открытый ИИ-ассистент';
@@ -5372,13 +5373,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get aboutPageJoinQQGroup => 'Вступить в нашу группу QQ';
 
   @override
-  String get aboutPageQQGroupOne => 'Kelivo Группа 1';
+  String get aboutPageQQGroupOne => 'Cuplivo Группа 1';
 
   @override
-  String get aboutPageQQGroupTwo => 'Kelivo Группа 2';
+  String get aboutPageQQGroupTwo => 'Cuplivo Группа 2';
 
   @override
-  String get aboutPageQQGroupThree => 'Kelivo Группа 3';
+  String get aboutPageQQGroupThree => 'Cuplivo Группа 3';
 
   @override
   String get aboutPageJoinDiscord => 'Присоединяйтесь к нам в Discord';
@@ -6516,7 +6517,7 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get settingsShare => 'Kelivo — открытый ИИ-ассистент';
+  String get settingsShare => 'Cuplivo — открытый ИИ-ассистент';
 
   @override
   String get searchProviderBingLocalDescription =>
@@ -7020,7 +7021,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get healthDataSettingsDescription =>
-      'Сигналы HealthKit, доступные текущему ассистенту в повседневном чате. Переключатели определяют, что Kelivo может попытаться прочитать; фактический доступ по-прежнему управляется iOS.';
+      'Сигналы HealthKit, доступные текущему ассистенту в повседневном чате. Переключатели определяют, что Cuplivo может попытаться прочитать; фактический доступ по-прежнему управляется iOS.';
 
   @override
   String healthDataSettingsBadge(int selected, int total) {
@@ -8409,7 +8410,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get legacyMemoryExport => 'Экспорт';
 
   @override
-  String get legacyMemoryExportTitle => 'Экспорт старых воспоминаний Kelivo';
+  String get legacyMemoryExportTitle => 'Экспорт старых воспоминаний Cuplivo';
 
   @override
   String legacyMemoryAssistantHeader(String name) {
@@ -9055,11 +9056,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get migrationIntroSubtitle =>
-      'Kelivo переносит историю чатов в более быструю базу данных SQLite. Обновление выполняется до открытия приложения, чтобы данные оставались согласованными.';
+      'Cuplivo переносит историю чатов в более быструю базу данных SQLite. Обновление выполняется до открытия приложения, чтобы данные оставались согласованными.';
 
   @override
   String get migrationBackupNote =>
-      'Перед началом миграции Kelivo экспортирует ZIP-резервную копию с настройками, историей чатов и локальными файлами.';
+      'Перед началом миграции Cuplivo экспортирует ZIP-резервную копию с настройками, историей чатов и локальными файлами.';
 
   @override
   String get migrationPerformanceNote =>
@@ -9101,14 +9102,14 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get migrationBackingUpSubtitle =>
-      'Экспорт настроек, истории чатов, загруженных файлов, изображений и шрифтов. Не закрывайте Kelivo до завершения.';
+      'Экспорт настроек, истории чатов, загруженных файлов, изображений и шрифтов. Не закрывайте Cuplivo до завершения.';
 
   @override
   String get migrationMigratingTitle => 'Миграция в SQLite';
 
   @override
   String get migrationMigratingSubtitle =>
-      'Чаты и сообщения записываются пакетами, чтобы большие истории не перегружали память. Держите Kelivo на переднем плане до завершения миграции.';
+      'Чаты и сообщения записываются пакетами, чтобы большие истории не перегружали память. Держите Cuplivo на переднем плане до завершения миграции.';
 
   @override
   String migrationBackingUpDetail(String fileName) {
@@ -9171,7 +9172,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get migrationCompleteSubtitle =>
-      'Ваша история чатов теперь хранится в SQLite. Перезапустите Kelivo, чтобы войти в обновлённое приложение.';
+      'Ваша история чатов теперь хранится в SQLite. Перезапустите Cuplivo, чтобы войти в обновлённое приложение.';
 
   @override
   String get migrationConversationCount => 'Чаты';
@@ -9189,7 +9190,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get migrationMissingFilesCount => 'Отсутствующие файлы';
 
   @override
-  String get migrationRestartButton => 'Перезапустить Kelivo';
+  String get migrationRestartButton => 'Перезапустить Cuplivo';
 
   @override
   String get migrationFailedTitle => 'Миграция не удалась';
@@ -9215,7 +9216,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get migrationSkipDialogMessage =>
-      'Kelivo запустится с пустой базой данных чатов. Старая история чатов останется на диске (переименована с суффиксом .retired), но НЕ будет перенесена и не появится в приложении. Если позже понадобится её восстановить, используйте резервную копию ZIP.';
+      'Cuplivo запустится с пустой базой данных чатов. Старая история чатов останется на диске (переименована с суффиксом .retired), но НЕ будет перенесена и не появится в приложении. Если позже понадобится её восстановить, используйте резервную копию ZIP.';
 
   @override
   String get migrationSkipDialogCancel => 'Отмена';
@@ -9646,7 +9647,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get localSnapshotEnabledSubtitle =>
-      'Kelivo периодически сохраняет копию своей базы данных на этом устройстве, чтобы данные не хранились только в одном месте.';
+      'Cuplivo периодически сохраняет копию своей базы данных на этом устройстве, чтобы данные не хранились только в одном месте.';
 
   @override
   String get localSnapshotIntervalTitle => 'Как часто';
@@ -9767,7 +9768,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get localSnapshotCopiesScopeNote =>
-      'Локальные копии хранятся только на этом устройстве. Они защищают от повреждения данных внутри приложения, но не от потери устройства или удаления Kelivo — для этого используйте резервное копирование через WebDAV или S3.';
+      'Локальные копии хранятся только на этом устройстве. Они защищают от повреждения данных внутри приложения, но не от потери устройства или удаления Cuplivo — для этого используйте резервное копирование через WebDAV или S3.';
 
   @override
   String get localSnapshotOriginAutomatic => 'Автоматически';
@@ -10504,7 +10505,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get workspaceEnvRestartBanner =>
-      'Перезапустите Kelivo, чтобы завершить';
+      'Перезапустите Cuplivo, чтобы завершить';
 
   @override
   String get workspaceEnvDetectingMirrors => 'Поиск самых быстрых зеркал…';
@@ -10622,7 +10623,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get workspaceEnvNativeExplanation =>
-      'На десктопе Kelivo использует системную оболочку вместо песочницы Linux.';
+      'На десктопе Cuplivo использует системную оболочку вместо песочницы Linux.';
 
   @override
   String workspaceEnvNativeShellPath(String path) {
@@ -11562,7 +11563,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get workspaceDesktopManagedHint =>
-      'Kelivo создаст и будет управлять папкой для этого проекта.';
+      'Cuplivo создаст и будет управлять папкой для этого проекта.';
 
   @override
   String get workspaceDesktopHostHint =>
@@ -11821,7 +11822,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get workspaceExternalStorageMessage =>
-      'Чтобы читать и записывать внешние папки в рабочей области и Shell, разрешите Kelivo управлять файлами в настройках Android. На Android 11 и новее включите доступ ко всем файлам. Затем выберите папку на устройстве для монтирования.';
+      'Чтобы читать и записывать внешние папки в рабочей области и Shell, разрешите Cuplivo управлять файлами в настройках Android. На Android 11 и новее включите доступ ко всем файлам. Затем выберите папку на устройстве для монтирования.';
 
   @override
   String get workspaceExternalGrantAccess => 'Предоставить доступ';
@@ -12047,7 +12048,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get backgroundSettingsTitle => 'Фоновые задачи';
 
   @override
-  String get backgroundTaskTitle => 'Задача Kelivo';
+  String get backgroundTaskTitle => 'Задача Cuplivo';
 
   @override
   String get backgroundCompleted => 'Генерация завершена';
@@ -12068,6 +12069,12 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get backgroundGenerating => 'Генерация ответа';
+
+  @override
+  String get backgroundCareLetter => 'Writing a letter';
+
+  @override
+  String get backgroundCareWorking => 'Preparing your letter';
 
   @override
   String get backgroundThinking => 'Размышление';
@@ -12184,7 +12191,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get backgroundOverlayIcon => 'Значок плавающего окна';
 
   @override
-  String get backgroundIconDefault => 'Значок Kelivo';
+  String get backgroundIconDefault => 'Значок Cuplivo';
 
   @override
   String get backgroundIconImage => 'Выбрать изображение';
@@ -12407,7 +12414,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get startupRecoverySnapshotBody =>
-      'Выберите снимок на этом устройстве, чтобы восстановить чаты и настройки, даже если база данных не открывается. Не удаляйте Kelivo: при удалении эти снимки тоже будут удалены.';
+      'Выберите снимок на этом устройстве, чтобы восстановить чаты и настройки, даже если база данных не открывается. Не удаляйте Cuplivo: при удалении эти снимки тоже будут удалены.';
 
   @override
   String get startupRecoverySnapshotEmpty =>
@@ -12419,7 +12426,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String startupRecoverySnapshotConfirm(String when) {
-    return 'Восстановить чаты и настройки из снимка от $when? Изменения, сделанные после этого снимка, не будут включены. Существующие файлы вложений и снимок сохранятся. Kelivo перезапустится для завершения восстановления.';
+    return 'Восстановить чаты и настройки из снимка от $when? Изменения, сделанные после этого снимка, не будут включены. Существующие файлы вложений и снимок сохранятся. Cuplivo перезапустится для завершения восстановления.';
   }
 
   @override
@@ -12429,7 +12436,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get startupRecoverySnapshotReady =>
-      'Снимок готов. Перезапустите Kelivo, чтобы завершить восстановление.';
+      'Снимок готов. Перезапустите Cuplivo, чтобы завершить восстановление.';
 
   @override
   String get scheduledTasksTitle => 'Запланированные задачи';
@@ -12503,7 +12510,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get scheduledTasksReliability =>
-      'Снимите ограничения батареи для Kelivo, чтобы задачи выполнялись надёжнее. Принудительная остановка приложения отменяет будильники до повторного открытия. Пропущенные запуски не выполняются; задачи следуют часовому поясу устройства.';
+      'Снимите ограничения батареи для Cuplivo, чтобы задачи выполнялись надёжнее. Принудительная остановка приложения отменяет будильники до повторного открытия. Пропущенные запуски не выполняются; задачи следуют часовому поясу устройства.';
 
   @override
   String get scheduledTasksExecutionDetail =>
@@ -12692,7 +12699,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get scheduledTasksDesktopReliability =>
-      'Задачи выполняются только пока Kelivo запущен, в том числе в свёрнутом виде или в системном трее. Пропущенные моменты времени не выполняются после выхода или сна компьютера. Kelivo не запускается автоматически.';
+      'Задачи выполняются только пока Cuplivo запущен, в том числе в свёрнутом виде или в системном трее. Пропущенные моменты времени не выполняются после выхода или сна компьютера. Cuplivo не запускается автоматически.';
 
   @override
   String get scheduledTasksDesktopExecutionDetail =>
@@ -13093,7 +13100,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get scheduledTasksIOSDetail =>
-      'Ограничения фоновой работы iOS не позволяют Kelivo просыпаться в заданное время для запуска модели. Вместо этого содержимое готовится, пока приложение может работать, а система показывает уведомление в запланированное время. Готовится только ближайший запуск. Подготовка может не завершиться после выхода из приложения; откройте Kelivo снова, чтобы подготовить последующие запуски.';
+      'Ограничения фоновой работы iOS не позволяют Cuplivo просыпаться в заданное время для запуска модели. Вместо этого содержимое готовится, пока приложение может работать, а система показывает уведомление в запланированное время. Готовится только ближайший запуск. Подготовка может не завершиться после выхода из приложения; откройте Cuplivo снова, чтобы подготовить последующие запуски.';
 
   @override
   String get scheduledTasksContextPolicy => 'Контекст чата';
@@ -13164,7 +13171,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get scheduledTasksReminderBody =>
-      'Срок вашей запланированной задачи наступил. Откройте Kelivo, чтобы продолжить.';
+      'Срок вашей запланированной задачи наступил. Откройте Cuplivo, чтобы продолжить.';
 
   @override
   String get scheduledTasksResultBody =>
@@ -13180,7 +13187,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get scheduledTasksAllowPreparationTip =>
-      'Создавать следующий результат до назначенного времени, пока Kelivo может работать. Результат не появляется в чате до наступления срока. Подготовка использует только текст, без инструментов, вложений и пользовательских тел запросов. Это может повлечь расходы на модель.';
+      'Создавать следующий результат до назначенного времени, пока Cuplivo может работать. Результат не появляется в чате до наступления срока. Подготовка использует только текст, без инструментов, вложений и пользовательских тел запросов. Это может повлечь расходы на модель.';
 
   @override
   String get scheduledTasksContextPolicyTip =>
@@ -13188,7 +13195,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get scheduledTasksPreparationWindowTip =>
-      'За сколько времени до запланированного момента может начаться подготовка, максимум 24 часа. Например, открыв Kelivo в полдень, можно подготовить напоминание на следующее утро. Больший интервал даёт больше возможностей для подготовки, но результат может быть менее актуальным. Это не меняет время задачи и не гарантирует фоновое выполнение. «Подготовить сейчас» обходит этот период автоматического ожидания и все лимиты попыток.';
+      'За сколько времени до запланированного момента может начаться подготовка, максимум 24 часа. Например, открыв Cuplivo в полдень, можно подготовить напоминание на следующее утро. Больший интервал даёт больше возможностей для подготовки, но результат может быть менее актуальным. Это не меняет время задачи и не гарантирует фоновое выполнение. «Подготовить сейчас» обходит этот период автоматического ожидания и все лимиты попыток.';
 
   @override
   String get scheduledTasksPreparationAttemptsTip =>
@@ -13200,7 +13207,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get scheduledTasksUnavailableTip =>
-      'Если подготовленный результат недоступен и задача не может выполниться в срок, отправить напоминание или пропустить это наступление. Напоминание не содержит сгенерированного ответа и требует включённых уведомлений. Если Kelivo открыт в момент наступления срока, задача может выполниться тогда.';
+      'Если подготовленный результат недоступен и задача не может выполниться в срок, отправить напоминание или пропустить это наступление. Напоминание не содержит сгенерированного ответа и требует включённых уведомлений. Если Cuplivo открыт в момент наступления срока, задача может выполниться тогда.';
 
   @override
   String get scheduledTasksNotifyTip =>
@@ -13408,7 +13415,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get phoneControlAssistantHint =>
-      'Требуются оба разрешения: включите Kelivo phone control в системных настройках Специальных возможностей, затем включите «Управление телефоном» в разделе «Локальные инструменты» вашего ассистента (также доступно в меню инструментов чата). Каждый ассистент настраивается отдельно. Держите телефон разблокированным во время выполнения задачи.';
+      'Требуются оба разрешения: включите Cuplivo phone control в системных настройках Специальных возможностей, затем включите «Управление телефоном» в разделе «Локальные инструменты» вашего ассистента (также доступно в меню инструментов чата). Каждый ассистент настраивается отдельно. Держите телефон разблокированным во время выполнения задачи.';
 
   @override
   String get phoneControlRestrictedTitle =>
@@ -13416,7 +13423,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get phoneControlRestrictedHint =>
-      'Для некоторых загруженных APK Android сначала требует «Разрешить ограниченные настройки» в меню информации о приложении. Нажмите, чтобы открыть информацию о приложении Kelivo, затем вернитесь в настройки Специальных возможностей.';
+      'Для некоторых загруженных APK Android сначала требует «Разрешить ограниченные настройки» в меню информации о приложении. Нажмите, чтобы открыть информацию о приложении Cuplivo, затем вернитесь в настройки Специальных возможностей.';
 
   @override
   String get phoneControlEnableAssistant =>
@@ -13619,7 +13626,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get recoveryMissingDataBody =>
-      'Kelivo не удалось найти текущую базу данных чатов. Загрузка приостановлена, пустая база данных не создавалась. Ниже мы поищем предыдущие копии; существующие файлы будут сохранены.';
+      'Cuplivo не удалось найти текущую базу данных чатов. Загрузка приостановлена, пустая база данных не создавалась. Ниже мы поищем предыдущие копии; существующие файлы будут сохранены.';
 
   @override
   String get recoveryEmptyDataTitle => 'Текущая история чатов пуста';
@@ -13663,7 +13670,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get recoveryStorageFailureBody =>
-      'Не удалось завершить обновление данных. Исходные данные сохранены. Попробуйте снова открыть Kelivo или выберите локальную копию ниже для восстановления.';
+      'Не удалось завершить обновление данных. Исходные данные сохранены. Попробуйте снова открыть Cuplivo или выберите локальную копию ниже для восстановления.';
 
   @override
   String get recoveryProtectingTitle => 'Защита базы данных чатов';
@@ -13689,7 +13696,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get recoveryStorageInsufficientSpaceBody =>
-      'Недостаточно места в хранилище, чтобы безопасно подготовить данные. Освободите место в системных настройках, затем снова откройте Kelivo или перепроверьте копии ниже. Не удаляйте Kelivo и оставьте его данные и локальные копии на месте.';
+      'Недостаточно места в хранилище, чтобы безопасно подготовить данные. Освободите место в системных настройках, затем снова откройте Cuplivo или перепроверьте копии ниже. Не удаляйте Cuplivo и оставьте его данные и локальные копии на месте.';
 
   @override
   String get migrationFreshStartTitle => 'Новый старт готов';
@@ -13776,7 +13783,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get backupEncryptionUnsupported =>
-      'Для этой зашифрованной резервной копии требуется более новая версия Kelivo.';
+      'Для этой зашифрованной резервной копии требуется более новая версия Cuplivo.';
 
   @override
   String get backupProgressEncrypting => 'Шифрование резервной копии';
@@ -13945,7 +13952,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get browserRestoreTabsDescription =>
-      'Снова открывать ваши вкладки при запуске Kelivo.';
+      'Снова открывать ваши вкладки при запуске Cuplivo.';
 
   @override
   String get browserSaveHistory => 'Сохранять историю';
@@ -15763,7 +15770,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get toolPermissionRequestApprovalDesc =>
-      'Kelivo будет запрашивать разрешение перед доступом к файлам вне рабочей области, выполнением команд рабочего стола или использованием других инструментов, требующих одобрения.';
+      'Cuplivo будет запрашивать разрешение перед доступом к файлам вне рабочей области, выполнением команд рабочего стола или использованием других инструментов, требующих одобрения.';
 
   @override
   String get contextLimitedInputHint =>
@@ -15824,7 +15831,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get dataDirectoryMoving =>
-      'Перемещение и проверка данных… Пожалуйста, не закрывайте Kelivo.';
+      'Перемещение и проверка данных… Пожалуйста, не закрывайте Cuplivo.';
 
   @override
   String get dataDirectoryStartupFailed => 'Не удалось открыть каталог данных';
@@ -15870,7 +15877,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get dataDirectoryGenericError =>
-      'Не удалось завершить операцию. Проверьте свободное место на диске, права доступа к папке и наличие других запущенных процессов Kelivo, затем повторите попытку. Существующие данные сохранены.';
+      'Не удалось завершить операцию. Проверьте свободное место на диске, права доступа к папке и наличие других запущенных процессов Cuplivo, затем повторите попытку. Существующие данные сохранены.';
 
   @override
   String get dataDirectoryCancelHint =>
@@ -16118,7 +16125,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get recoveryGuideBody =>
-      'Kelivo приостановил загрузку данных. Мы поищем локальные копии, чтобы вы могли выбрать, что восстановить. Существующие файлы будут сохранены.';
+      'Cuplivo приостановил загрузку данных. Мы поищем локальные копии, чтобы вы могли выбрать, что восстановить. Существующие файлы будут сохранены.';
 
   @override
   String get recoverySpaceTitle => 'Требуется свободное место';
@@ -16139,7 +16146,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get recoveryRestoreRetryBody =>
-      'Восстановление не завершено. Выбранная копия сохранена. Проверьте локальные копии снова или перезапустите Kelivo, чтобы продолжить.';
+      'Восстановление не завершено. Выбранная копия сохранена. Проверьте локальные копии снова или перезапустите Cuplivo, чтобы продолжить.';
 
   @override
   String recoverySpaceAmount(String required, String available) {
@@ -16148,7 +16155,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get recoveryCopiesNeedUpdate =>
-      'Некоторые копии созданы более новой версией Kelivo. Обновите Kelivo перед их восстановлением. Эти копии сохранены.';
+      'Некоторые копии созданы более новой версией Cuplivo. Обновите Cuplivo перед их восстановлением. Эти копии сохранены.';
 
   @override
   String get imageContextAllowRecall =>
@@ -16792,22 +16799,22 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String requestBudgetSingleError(int index, String actual, String limit) {
-    return 'Локальная проверка Kelivo: изображение $index после кодирования занимает $actual, что превышает лимит одного изображения $limit.';
+    return 'Локальная проверка Cuplivo: изображение $index после кодирования занимает $actual, что превышает лимит одного изображения $limit.';
   }
 
   @override
   String requestBudgetTotalError(String actual, String limit) {
-    return 'Локальная проверка Kelivo: изображения после кодирования в сумме занимают $actual, что превышает лимит изображений $limit.';
+    return 'Локальная проверка Cuplivo: изображения после кодирования в сумме занимают $actual, что превышает лимит изображений $limit.';
   }
 
   @override
   String requestBudgetCountError(String actual, int limit) {
-    return 'Локальная проверка Kelivo: запрос содержит изображений ($actual), что превышает лимит $limit.';
+    return 'Локальная проверка Cuplivo: запрос содержит изображений ($actual), что превышает лимит $limit.';
   }
 
   @override
   String requestBudgetBodyError(String actual, String limit) {
-    return 'Локальная проверка Kelivo: полное тело запроса занимает $actual, что превышает лимит запроса $limit.';
+    return 'Локальная проверка Cuplivo: полное тело запроса занимает $actual, что превышает лимит запроса $limit.';
   }
 
   @override
@@ -17282,11 +17289,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get aboutPageCuplivoSearchUnlocked =>
-      'An unnamed door opened a crack. You might find it in Settings.';
+      'Безымянная дверь приоткрылась. Возможно, вы найдёте её в настройках.';
 
   @override
   String get aboutPageCuplivoSearchAlreadyUnlocked =>
-      'You\'ve already been through this door.';
+      'Вы уже проходили через эту дверь.';
 
   @override
   String get aboutPageQQGroup => 'Cuplivo Group';

@@ -96,6 +96,36 @@ void main() {
     cancel: cancel ?? () async {},
   );
 
+  test('a task can name its own line instead of a chat phase', () async {
+    await coordinator.configure(
+      const MobileBackgroundSettings(notificationsEnabled: true),
+      l10n,
+    );
+    await coordinator.start(
+      id: 'care:chat-a:1',
+      conversationId: 'chat-a',
+      title: 'Assistant',
+      detail: 'Writing a letter',
+      cancel: () async {},
+    );
+    final task = (snapshots().last['tasks'] as List).single as Map;
+    expect(task['title'], 'Assistant');
+    expect(task['detail'], 'Writing a letter');
+    expect(
+      (snapshots().last['labels'] as Map)['careWorking'],
+      'Preparing your letter',
+    );
+    // The letter posts its own notification; ending the task must not raise a
+    // chat-completion notification for the same letter.
+    await coordinator.finish(
+      'care:chat-a:1',
+      BackgroundTaskOutcome.completed,
+      resultPersisted: false,
+    );
+    expect(notifications, isEmpty);
+    expect(snapshots().last['tasks'], isEmpty);
+  });
+
   test(
     'initialization and status never request permissions or enable features',
     () async {

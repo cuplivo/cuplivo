@@ -11901,6 +11901,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backgroundGenerating => 'Generating reply';
 
   @override
+  String get backgroundCareLetter => 'Writing a letter';
+
+  @override
+  String get backgroundCareWorking => 'Preparing your letter';
+
+  @override
   String get backgroundThinking => 'Thinking';
 
   @override

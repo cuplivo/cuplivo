@@ -1,6 +1,7 @@
 import 'features/side_panel/desktop_side_panel_controller.dart';
 import 'core/services/scheduled_tasks_service.dart';
 import 'core/services/auth/provider_oauth_service.dart';
+import 'package:Cuplivo/core/services/proactive_care_alarm_service.dart';
 import 'package:Cuplivo/core/services/sandbox/workspace_channel.dart';
 import 'package:Cuplivo/core/providers/external_mounts_provider.dart';
 import 'package:Cuplivo/core/services/sandbox/environment_dependencies.dart';
@@ -265,6 +266,24 @@ void _wireWorkspaceServices(BuildContext ctx) {
         workspaceById: workspaces.byId,
       );
     };
+    // Proactive care ("Ta的来信"): extras writes re-arm the Android alarm
+    // through ChatService's central hook; it needs the owning assistant.
+    chat.proactiveCareAssistantResolver = assistants.getById;
+    // Platforms that only announce a due letter (iOS) have no letter text yet,
+    // so the arrival notification carries this localized line.
+    ProactiveCareAlarmService.proactiveCareArrivalBodyResolver = () =>
+        AppLocalizations.of(ctx)?.proactiveCareLetterArrivalBody;
+    assistants.onAssistantUpdated = (assistant) {
+      for (final conversation in chat.getAllConversations()) {
+        if (conversation.assistantId != assistant.id) continue;
+        unawaited(
+          ProactiveCareAlarmService.sync(
+            conversation: conversation,
+            assistant: assistant,
+          ),
+        );
+      }
+    };
     WorkspaceNavigation.onOpenEnvironmentPage = openEnvironmentPage;
     WorkspaceNavigation.onOpenTerminal = (navContext, {command}) {
       openTerminal(
@@ -302,6 +321,12 @@ Future<void> main() async {
         } catch (_) {}
       }
       FlutterLogger.installGlobalHandlers();
+      // A letter alarm that wakes a killed process boots this whole entrypoint
+      // under the foreground service. Answer the native handshake here, before
+      // the database/restore startup, so the fire is handed over as soon as the
+      // isolate runs and waits in the service (not in the native deadline) for
+      // the home page to attach its delivery handler.
+      unawaited(ProactiveCareAlarmService.installFireHandler());
       // The Linux runner starts hidden so decorations can be restored first.
       // Show before the restore gate so progress and failure screens stay visible.
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.linux) {

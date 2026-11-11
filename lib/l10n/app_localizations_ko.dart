@@ -17267,12 +17267,12 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String lanSyncReportWorkspacesKept(Object count) {
-    return '작업 공간 폴더 $count개 보관(스위치 꺼짐)';
+    return '작업 공간 폴더 $count개 보관(스위치 꺼짐 또는 동기화되지 않은 파일 있음)';
   }
 
   @override
   String lanSyncReportDeletesBlocked(Object count) {
-    return '$count deletions skipped (the local copy changed)';
+    return '삭제 $count건 건너뜀(이 기기의 내용이 변경됨)';
   }
 
   @override

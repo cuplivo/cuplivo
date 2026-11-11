@@ -1150,7 +1150,7 @@ repair would be a wait on a timer the test does not own.
 ### The landing
 
 `reorg/onto-4857da608` ends at 25 commits above `4857da608`: the 23 replayed units, a `fix(test)`
-for the request-log teardown the full run surfaced, and this record. `4857da608` is an ancestor, the
-working tree is clean, and the backup to push before a force push is `backup/series-4857da608` (this
-series, for the next re-base) alongside the `backup/master-*` the previous landing already pushed.
-The force-push of `master` is the repository owner's to run.
+for the request-log teardown the full run surfaced, and this record. `4857da608` is an ancestor and
+the working tree is clean. Both backups are pushed: `backup/master-299862c63` (the `master` this
+replaces — the previous landing's tip) and `backup/series-4857da608` (this series, for the next
+re-base). The force-push of `master` is the repository owner's to run.

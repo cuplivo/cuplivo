@@ -328,4 +328,78 @@ void main() {
     expect(Directory(p.join(root.path, 'victim')).existsSync(), isFalse);
     expect(binDir.existsSync(), isFalse, reason: 'nothing was ever created');
   });
+
+  test('a delete while a swap has the body parked takes it to the bin', () async {
+    // The window between a swap's two renames: the live path is empty and the
+    // parked directory is the only copy of the skill. A delete that asked only
+    // the live path found nothing, staged nothing, and left that copy in the
+    // root — where the next launch put it back as a skill the user had deleted.
+    // The body is looked for where it actually is.
+    await putSkill('writer');
+    final service = SkillsService(
+      store: store,
+      skillsDirectory: skillsDir,
+      recycle: recycle,
+    );
+    addTearDown(service.dispose);
+    await service.loaded;
+    final parked = Directory(
+      p.join(skillsDir.path, skillParkedBodyName('writer', 1723)),
+    );
+    await Directory(p.join(skillsDir.path, 'writer')).rename(parked.path);
+
+    await service.delete('writer');
+
+    final entries = await recycle.list();
+    expect(entries, hasLength(1));
+    expect(entries.single.type, RecycleEntryType.skillBody);
+    final staged = await recycle.bodyDirectory(entries.single);
+    expect(
+      await File(p.join(staged!.path, 'SKILL.md')).readAsString(),
+      '# writer\n',
+      reason: 'the parked copy is the body the entry carries',
+    );
+    expect(
+      parked.existsSync(),
+      isFalse,
+      reason: 'moved into the bin, not copied out of the root',
+    );
+    expect(await store.get(ExtensionEntityStore.kindSkill, 'writer'), isNull);
+  });
+
+  test('a parked body whose skill is gone goes to the bin, not back', () async {
+    // The same window with the record already gone: this is not an interrupted
+    // swap, it is what is left of a skill the user removed. Putting it back
+    // invents the skill; deleting it destroys the last copy. The bin is the one
+    // answer that is neither.
+    await putSkill('writer', withRow: false);
+    final parked = Directory(
+      p.join(skillsDir.path, skillParkedBodyName('writer', 1723)),
+    );
+    await Directory(p.join(skillsDir.path, 'writer')).rename(parked.path);
+    final service = SkillsService(
+      store: store,
+      skillsDirectory: skillsDir,
+      recycle: recycle,
+    );
+    addTearDown(service.dispose);
+
+    await service.loaded;
+
+    expect(service.skills, isEmpty, reason: 'no skill is invented for it');
+    expect(
+      Directory(p.join(skillsDir.path, 'writer')).existsSync(),
+      isFalse,
+      reason: 'and it is not renamed to the live path',
+    );
+    final entries = await recycle.list();
+    expect(entries, hasLength(1), reason: 'the last copy stays recoverable');
+    expect(entries.single.type, RecycleEntryType.skillBody);
+    expect(
+      await recycle
+          .bodyDirectory(entries.single)
+          .then((dir) => File(p.join(dir!.path, 'SKILL.md')).readAsString()),
+      '# writer\n',
+    );
+  });
 }

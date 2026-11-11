@@ -70,29 +70,41 @@ bool isSyncScratchName(String name) =>
 
 /// The skill id a parked body's name encodes, or null when [name] is not one.
 ///
-/// Both spellings end in a microsecond stamp, so the id is what survives taking
-/// the stamp off: `.sync-park-<id>-<micros>` drops the prefix, and
-/// `<id>.sync-old-<micros>` drops the marker and everything after it. Ids may
-/// themselves contain dashes (`my-skill-2`), which is why the stamp is taken
-/// from the last one and must be all digits.
+/// The two spellings put the microsecond stamp in different places, and that is
+/// the whole of the difference:
+///
+/// * `.sync-park-<id>-<micros>` — the stamp is appended *after* the id, so it is
+///   the last dash-separated field and that field alone may come off. Ids contain
+///   dashes themselves (`my-skill-2` is what a second skill called "my skill"
+///   becomes), which is why it is the **last** one.
+/// * `<id>.sync-old-<micros>` — the marker *is* the delimiter, so what precedes
+///   it is the id entire, and what follows it must be the stamp. Stripping a
+///   field from the id here reads `my-skill-2.sync-old-1723` as `my-skill` — a
+///   body put back under a stranger's id — and reads an id with no dash as
+///   `null`, which is how the sweep came to delete the only copy it was meant to
+///   recover.
 String? parkedBodySkillId(String name) {
-  final String rest;
+  final String id;
   if (name.startsWith(kParkedBodyPrefix)) {
-    rest = name.substring(kParkedBodyPrefix.length);
+    final rest = name.substring(kParkedBodyPrefix.length);
+    final cut = rest.lastIndexOf('-');
+    if (cut <= 0 || !_isStamp(rest.substring(cut + 1))) return null;
+    id = rest.substring(0, cut);
   } else {
     final at = name.lastIndexOf(kParkedBodyMarker);
     if (at <= 0) return null;
-    rest = name.substring(0, at);
+    if (!_isStamp(name.substring(at + kParkedBodyMarker.length))) return null;
+    id = name.substring(0, at);
   }
-  final cut = rest.lastIndexOf('-');
-  if (cut <= 0) return null;
-  final stamp = rest.substring(cut + 1);
-  if (stamp.isEmpty) return null;
-  for (final unit in stamp.codeUnits) {
-    if (unit < 0x30 || unit > 0x39) return null;
-  }
-  final id = rest.substring(0, cut);
   return id.isEmpty ? null : id;
+}
+
+bool _isStamp(String value) {
+  if (value.isEmpty) return false;
+  for (final unit in value.codeUnits) {
+    if (unit < 0x30 || unit > 0x39) return false;
+  }
+  return true;
 }
 
 /// Whether a skill-directory entry rides the body.
@@ -236,6 +248,46 @@ Directory? skillBodyDirectory(Directory root, String skillId) {
   return Directory(dest);
 }
 
+/// The parked copy of [skillId]'s body, when a swap left one behind.
+///
+/// A swap parks the body it displaces before installing the replacement, so in
+/// the window between the two renames the live path is empty and this directory
+/// holds the only copy of that skill's files. Direct children of [root] only,
+/// named by the shared recogniser and parsed by [parkedBodySkillId]: nothing is
+/// followed and no body is walked into.
+Future<Directory?> parkedSkillBody(Directory root, String skillId) async {
+  final List<FileSystemEntity> children;
+  try {
+    if (!await root.exists()) return null;
+    children = await root.list(followLinks: false).toList();
+  } catch (error) {
+    debugPrint('sync skill: could not list ${root.path} for $skillId: $error');
+    return null;
+  }
+  for (final entity in children) {
+    if (entity is! Directory) continue;
+    final name = p.basename(entity.path);
+    if (!isSyncScratchName(name)) continue;
+    if (parkedBodySkillId(name) != skillId) continue;
+    return entity;
+  }
+  return null;
+}
+
+/// The directory [skillId]'s body is in right now: the live path, or the parked
+/// copy of a swap that did not finish. Null when it has neither.
+///
+/// A caller that must not lose a body reads this instead of
+/// [skillBodyDirectory], because in that window the live path is empty and the
+/// parked directory is all there is — the delete that hands a body to the bin,
+/// and the bin itself when it resolves the directory it moves.
+Future<Directory?> liveOrParkedSkillBody(Directory root, String skillId) async {
+  final live = skillBodyDirectory(root, skillId);
+  if (live == null) return null;
+  if (await live.exists()) return live;
+  return parkedSkillBody(root, skillId);
+}
+
 /// Settles the sync plane's scratch that sits directly under [root]: **recovers**
 /// what an interrupted swap left recoverable, then **reclaims** the rest — the
 /// staging directory of an apply that was interrupted and the served-zip cache
@@ -250,13 +302,30 @@ Directory? skillBodyDirectory(Directory root, String skillId) {
 /// for want of a `SKILL.md` at the path the recovery was about to fill, loses a
 /// skill twice over at the one moment this plane is looking for debris.
 ///
-/// Otherwise (the live path exists, so the replacement landed) the parked copy is
-/// debris and goes. Nothing here guesses: direct children of the root only,
-/// matched by [isSyncScratchName] alone, a name that parses to a safe id or it is
-/// not a body, nothing followed and no body walked into. A user's own directory
-/// that merely looks similar (`sync-notes`, `.sync-backup`) is not a scratch name
-/// and is never touched, which is the whole of the risk this carries.
-Future<void> sweepSkillRootScratch(Directory root) async {
+/// Otherwise the parked copy is debris and goes — **except** in one state, which
+/// is the mirror of the first: the live path is empty *and* no record describes
+/// the skill any more. Then this is not an interrupted swap but the body of a
+/// skill the user deleted while it was parked (that delete found an empty live
+/// path and staged nothing), and both of the obvious answers are wrong: renaming
+/// it back invents a skill they deleted, and deleting it destroys the only copy
+/// there is. It goes to [intoBin]; when no bin will take it, it stays where it
+/// is — inert, named as scratch, and asked about again next launch.
+///
+/// [livingSkillIds] is what makes that distinction possible, and it comes from
+/// the records. Passing none means "no record set is known here", which recovers
+/// unconditionally: that is what the sync plane's own entry point does, because
+/// the records it will have are decided after this runs.
+///
+/// Nothing here guesses: direct children of the root only, matched by
+/// [isSyncScratchName] alone, a name that parses to a safe id or it is not a
+/// body, nothing followed and no body walked into. A user's own directory that
+/// merely looks similar (`sync-notes`, `.sync-backup`) is not a scratch name and
+/// is never touched, which is the whole of the risk this carries.
+Future<void> sweepSkillRootScratch(
+  Directory root, {
+  Set<String>? livingSkillIds,
+  ParkedBodySink? intoBin,
+}) async {
   final List<FileSystemEntity> children;
   try {
     if (!await root.exists()) return;
@@ -268,7 +337,9 @@ Future<void> sweepSkillRootScratch(Directory root) async {
   final debris = <FileSystemEntity>[];
   for (final entity in children) {
     if (!isSyncScratchName(p.basename(entity.path))) continue;
-    if (await _putBackParkedBody(root, entity)) continue;
+    if (await _settleParkedBody(root, entity, livingSkillIds, intoBin)) {
+      continue;
+    }
     debris.add(entity);
   }
   for (final entity in debris) {
@@ -280,24 +351,46 @@ Future<void> sweepSkillRootScratch(Directory root) async {
   }
 }
 
-/// Puts [entity] back at the live path of the skill its name encodes, when that
-/// path is empty, and reports whether it did.
-///
-/// False means "not recovered" — not scratch, a live path that already has a
-/// body, a name that does not parse, or a rename that failed — and every one of
-/// those is the caller's cue to reclaim it.
-Future<bool> _putBackParkedBody(Directory root, FileSystemEntity entity) async {
+/// Where a parked body goes when the skill it belonged to has no record left:
+/// the bin. True means the bin took it.
+typedef ParkedBodySink = Future<bool> Function(Directory parked, String id);
+
+/// Whether [entity] was settled in place — put back, handed to the bin, or kept
+/// because it is the only copy of a skill no record describes. False means
+/// debris: a staging directory, the blob cache, a name that is not a body, or a
+/// parked copy whose replacement landed.
+Future<bool> _settleParkedBody(
+  Directory root,
+  FileSystemEntity entity,
+  Set<String>? livingSkillIds,
+  ParkedBodySink? intoBin,
+) async {
   final id = parkedBodySkillId(p.basename(entity.path));
   if (id == null || entity is! Directory) return false;
   final live = skillBodyDirectory(root, id);
   if (live == null) return false;
   try {
     if (await live.exists()) return false;
+    if (livingSkillIds != null && !livingSkillIds.contains(id)) {
+      if (intoBin != null && await intoBin(entity, id)) {
+        debugPrint('sync skill: the body of the deleted $id went to the bin');
+      } else {
+        debugPrint(
+          'sync skill: keeping ${entity.path}: no record for $id and no bin '
+          'would take it',
+        );
+      }
+      return true;
+    }
     await entity.rename(live.path);
     debugPrint('sync skill: put the parked body ${entity.path} back as $id');
-    return true;
   } catch (error) {
-    debugPrint('sync skill: could not put ${entity.path} back: $error');
-    return false;
+    // A rename that threw is not a verdict on the body: it is the only copy of
+    // that skill, so keeping it is always better than the debris list, and the
+    // next launch asks again.
+    debugPrint(
+      'sync skill: could not settle ${entity.path}, keeping it: $error',
+    );
   }
+  return true;
 }

@@ -304,10 +304,12 @@ void main() {
       },
     );
 
-    test('the extractor installs exactly what the hash counts', () async {
+    test('the sync apply installs exactly what the hash counts', () async {
       // The third reader of the same policy: a name the hash ignores must not be
       // installed from a peer's archive either, or the body on disk holds
-      // something the content clock can never see change.
+      // something the content clock can never see change. The apply is the caller
+      // that asks for the filter, because the tree a peer's body becomes must
+      // hold exactly the names its hash counted.
       final zip = File(p.join(root.path, 'body.zip'));
       await zip.writeAsBytes(
         encodeSkillZip({
@@ -320,7 +322,7 @@ void main() {
       final out = Directory(p.join(root.path, 'out'));
       await out.create(recursive: true);
 
-      extractSkillArchive(zip.path, out.path);
+      extractSkillArchive(zip.path, out.path, installsName: carriesSkillEntry);
 
       expect(File(p.join(out.path, 'SKILL.md')).existsSync(), isTrue);
       expect(
@@ -332,6 +334,39 @@ void main() {
         Directory(p.join(out.path, '.sync-apply-1')).existsSync(),
         isFalse,
         reason: 'nor is this plane\'s own scratch',
+      );
+    });
+
+    test('an import installs the archive the user picked, scratch-named file '
+        'and all', () async {
+      // The same extractor, the other caller. An imported archive is not a body
+      // this device produced, so there is no hash for it to agree with, and a
+      // user file called `notes.sync-old-v2.md` is the user's: dropping it here
+      // silently edits what they chose to import. The filter is the caller's,
+      // and this caller passes none.
+      final zip = File(p.join(root.path, 'import.zip'));
+      await zip.writeAsBytes(
+        encodeSkillZip({
+          'SKILL.md': utf8.encode('# mine\n'),
+          'notes.sync-old-v2.md': utf8.encode('keep me\n'),
+          '.DS_Store': utf8.encode('noise'),
+        }),
+        flush: true,
+      );
+      final out = Directory(p.join(root.path, 'unpacked'));
+      await out.create(recursive: true);
+
+      extractSkillArchive(zip.path, out.path);
+
+      expect(
+        await File(p.join(out.path, 'notes.sync-old-v2.md')).readAsString(),
+        'keep me\n',
+        reason: 'an import passes no filter, so nothing is dropped',
+      );
+      expect(
+        File(p.join(out.path, '.DS_Store')).existsSync(),
+        isTrue,
+        reason: 'not even the OS bookkeeping file: the archive is the user\'s',
       );
     });
   });
@@ -592,5 +627,147 @@ void main() {
       expect(await sync.hashOf('demo'), v2Hash);
       expect(scratchChildren(root), isEmpty);
     });
+  });
+
+  group('a parked body names its skill, and a skill nobody describes', () {
+    Future<ExtensionEntityStore> storeWith(List<String> ids) async {
+      final database = AppDatabase(NativeDatabase.memory());
+      addTearDown(database.close);
+      final store = ExtensionEntityStore(database);
+      for (final id in ids) {
+        await store.upsert(ExtensionEntityStore.kindSkill, id, {
+          'id': id,
+          'enabled': false,
+          'useCount': 3,
+          'source': 'github',
+          'installedAt': DateTime.utc(2026, 1, 1).toIso8601String(),
+          'updatedAt': DateTime.utc(2026, 1, 1).toIso8601String(),
+        });
+      }
+      return store;
+    }
+
+    test('each spelling names its own skill, and only a stamp comes off', () {
+      // The two spellings put the microsecond stamp in different places. The new
+      // one appends it to the id, so the last dash-separated field is the stamp
+      // and may come off. The legacy one — `'${dest.path}.sync-old-<micros>'`,
+      // which is what the base build's swap left — uses the marker *as* the
+      // delimiter, so what precedes it is the id entire: applying the stamp rule
+      // there truncates an id with a dash (`my-skill-2`, what a second skill
+      // called "my skill" becomes) and answers null for an id without one.
+      expect(skillParkedBodyName('demo', 1723), '.sync-park-demo-1723');
+      expect(parkedBodySkillId('.sync-park-demo-1723'), 'demo');
+      expect(parkedBodySkillId('.sync-park-my-skill-2-1723'), 'my-skill-2');
+      expect(parkedBodySkillId('demo${kParkedBodyMarker}1723'), 'demo');
+      expect(
+        parkedBodySkillId('my-skill-2${kParkedBodyMarker}1723'),
+        'my-skill-2',
+        reason: 'the id keeps its own dash',
+      );
+      // Not a parked body: a tail that is not a stamp, no stamp at all, no
+      // marker at all, or another scratch name entirely.
+      expect(parkedBodySkillId('demo${kParkedBodyMarker}abc'), isNull);
+      expect(parkedBodySkillId('demo$kParkedBodyMarker'), isNull);
+      expect(parkedBodySkillId('.sync-park-demo'), isNull);
+      expect(parkedBodySkillId('demo'), isNull);
+      expect(parkedBodySkillId('.sync-apply-demo-1723'), isNull);
+    });
+
+    test('a legacy parked body that is the only copy comes back', () async {
+      // The pre-fix parse answered null for a legacy name whose id has no dash,
+      // so the sweep read the only copy of the body as debris: it deleted the
+      // directory, and the rescan then dropped the record for want of a
+      // `SKILL.md`. Both halves of the skill, gone, in the operation meant to
+      // recover it — with no live twin to hide behind, which is what the older
+      // cells in this file all had.
+      final store = await storeWith(['demo']);
+      await writeBody(root, {
+        'SKILL.md': '# v1\n',
+      }, id: 'demo${kParkedBodyMarker}1723');
+      final service = SkillsService(store: store, skillsDirectory: root);
+      addTearDown(service.dispose);
+
+      await service.loaded;
+
+      expect(
+        await File(p.join(root.path, 'demo', 'SKILL.md')).readAsString(),
+        '# v1\n',
+        reason: 'the only copy is recovered, not reclaimed',
+      );
+      expect(service.skills.map((skill) => skill.record.id), ['demo']);
+      expect(
+        (await store.get(
+          ExtensionEntityStore.kindSkill,
+          'demo',
+        ))!.payload['useCount'],
+        3,
+        reason: 'the record is never dropped for a body that comes back',
+      );
+      expect(scratchChildren(root), isEmpty);
+    });
+
+    test('a legacy parked body of an id with a dash comes back under that id, '
+        'not under its neighbour', () async {
+      // The other half of the same parse: `my-skill-2.sync-old-1723` read as
+      // `my-skill`, so the body was renamed into another skill's path when that
+      // path was free, and destroyed as debris when it was taken.
+      final store = await storeWith(['my-skill-2']);
+      await writeBody(root, {'SKILL.md': '# mine\n'}, id: 'my-skill');
+      await writeBody(root, {
+        'SKILL.md': '# v1\n',
+      }, id: 'my-skill-2${kParkedBodyMarker}1723');
+      final service = SkillsService(store: store, skillsDirectory: root);
+      addTearDown(service.dispose);
+
+      await service.loaded;
+
+      expect(
+        await File(p.join(root.path, 'my-skill-2', 'SKILL.md')).readAsString(),
+        '# v1\n',
+      );
+      expect(
+        await File(p.join(root.path, 'my-skill', 'SKILL.md')).readAsString(),
+        '# mine\n',
+        reason: 'the neighbour\'s body is not overwritten',
+      );
+      expect(
+        service.skills.map((skill) => skill.record.id),
+        contains('my-skill-2'),
+      );
+    });
+
+    test(
+      'a parked body whose skill no record describes is not put back',
+      () async {
+        // The mirror of the recovery: the user deleted the skill while the body
+        // was parked, so the delete found an empty live path and staged nothing.
+        // Renaming the body back would invent the skill they deleted (a fresh
+        // record, `installedAt: now`, advertised to peers); deleting it would
+        // destroy the last copy there is. With no bin wired it stays parked —
+        // inert, named as scratch, and asked about again next launch.
+        final store = await storeWith([]);
+        await writeBody(root, {
+          'SKILL.md': '# orphan\n',
+        }, id: skillParkedBodyName('demo', 1723));
+        final service = SkillsService(store: store, skillsDirectory: root);
+        addTearDown(service.dispose);
+
+        await service.loaded;
+
+        expect(
+          service.skills,
+          isEmpty,
+          reason: 'a skill the user deleted does not come back',
+        );
+        expect(
+          File(p.join(root.path, 'demo', 'SKILL.md')).existsSync(),
+          isFalse,
+          reason: 'and it is not renamed to the live path either',
+        );
+        expect(scratchChildren(root), [
+          skillParkedBodyName('demo', 1723),
+        ], reason: 'kept: it is the only copy, so it is never debris');
+      },
+    );
   });
 }

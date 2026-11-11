@@ -159,7 +159,16 @@ class SkillDirectorySync {
       // below is the verification. `dirHash` is the contract either way — a
       // body that hashes to the empty set *is* the empty set.
       if (dirHash != kEmptySkillBodyHash) {
-        await Isolate.run(() => extractSkillArchive(zipPath, stagingPath));
+        // The one caller that filters: what a peer's body becomes must hold
+        // exactly the names its hash counted, or the re-hash below fails on a
+        // difference no sender ever produced. An import passes no filter.
+        await Isolate.run(
+          () => extractSkillArchive(
+            zipPath,
+            stagingPath,
+            installsName: carriesSkillEntry,
+          ),
+        );
       }
       final received = await Isolate.run(() => hashSkillBody(stagingPath));
       if (received != dirHash) return false;

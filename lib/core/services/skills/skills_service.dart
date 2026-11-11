@@ -80,15 +80,30 @@ class SkillsService extends ChangeNotifier {
   Future<void> _load() => _serializeMutation(() async {
     final root = await _ensureRoot();
     // Settle the plane's scratch **before** the records are read, not on the
-    // first sync session. Two states depend on that order:
+    // first sync session. Three states depend on that order:
     //
     // * a body an interrupted swap parked is the only copy this device has of a
     //   skill whose record still describes it — `_rescan` below would drop that
     //   record for want of a `SKILL.md` at the path the recovery fills;
     // * a ghost directory an older build invented a record for is gone by the
     //   time the records are read, so the record goes with it instead of listing
-    //   one broken skill for a launch.
-    await sweepSkillRootScratch(root);
+    //   one broken skill for a launch;
+    // * a parked body whose skill the user deleted is neither recovered (that
+    //   invents the skill back) nor deleted (that destroys the last copy): it
+    //   goes to the bin. Telling that apart from an interrupted swap is the one
+    //   thing the sweep cannot answer itself, so the records are read here —
+    //   `_rescan` reads them again, and this is the earlier of the two.
+    final described = <String>{
+      for (final entity in await store.listByKind(
+        ExtensionEntityStore.kindSkill,
+      ))
+        entity.id,
+    };
+    await sweepSkillRootScratch(
+      root,
+      livingSkillIds: described,
+      intoBin: _handParkedBodyToBin,
+    );
     final assets = _bundledAssets;
     if (assets != null) {
       for (final bundle in _bundledSkillFiles.entries) {
@@ -97,6 +112,24 @@ class SkillsService extends ChangeNotifier {
     }
     await _rescan();
   });
+
+  /// Hands a parked body whose skill the records no longer describe to the bin.
+  ///
+  /// That body is the last copy of files the user deleted — the delete found an
+  /// empty live path and staged nothing — so the bin is where it belongs:
+  /// recoverable, and out of the root where the rescan would adopt it as a skill
+  /// nobody asked for. False leaves it parked, which the sweep treats as "keep".
+  Future<bool> _handParkedBodyToBin(Directory parked, String id) async {
+    final bin = recycle;
+    if (bin == null) return false;
+    final entry = await bin.stageSkillBody(
+      skillId: id,
+      origin: RecycleOrigin.local,
+      reason: RecycleReason.deleted,
+      source: parked,
+    );
+    return entry != null;
+  }
 
   static const _bundledSkillFiles = <String, List<String>>{
     'skill-creator': ['SKILL.md'],
@@ -504,9 +537,11 @@ class SkillsService extends ChangeNotifier {
       );
       if (preserved == null) {
         // No bin wired, or it could not take the body: fall back to the plain
-        // delete. A safety net is not a veto on a deletion the user asked for.
-        final dir = skillBodyDirectory(root, id);
-        if (dir != null && await dir.exists()) {
+        // delete. A safety net is not a veto on a deletion the user asked for —
+        // and it looks where the body actually is, because a swap may have
+        // parked it and the live path would then be empty.
+        final dir = await liveOrParkedSkillBody(root, id);
+        if (dir != null) {
           await dir.delete(recursive: true);
         }
       }

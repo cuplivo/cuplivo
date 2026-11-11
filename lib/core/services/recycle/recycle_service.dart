@@ -351,8 +351,11 @@ final class RecycleService {
   /// caller falls back to its ordinary delete.
   ///
   /// [source] is the directory to move; a swap passes the body it has already
-  /// displaced (which still sits inside the skills root, under a scratch name),
-  /// everything else lets this method derive the live body from the id.
+  /// displaced (which still sits inside the skills root, under a scratch name).
+  /// Everything else lets this method find the body itself, and "the body" means
+  /// the live path **or** the parked copy a swap left behind: between a swap's
+  /// two renames the live path is empty, and a delete in that window that looked
+  /// only there staged nothing and left the last copy of the skill in the root.
   Future<RecycleEntry?> stageSkillBody({
     required String skillId,
     required RecycleOrigin origin,
@@ -390,7 +393,7 @@ final class RecycleService {
       debugPrint('recycle: resolving the skills root failed: $error');
       return null;
     }
-    final body = source ?? skillBodyDirectory(root, skillId);
+    final body = source ?? await liveOrParkedSkillBody(root, skillId);
     if (body == null) return null;
     try {
       final type = await FileSystemEntity.type(body.path, followLinks: false);

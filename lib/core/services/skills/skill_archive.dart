@@ -10,11 +10,20 @@ const int kSkillImportMaxExtractedBytes = 500 * 1024 * 1024;
 
 /// Extract only the selected skill to disk. Run in an isolate so large archives
 /// do not block the UI or keep the whole download and extracted tree in memory.
+///
+/// [installsName] decides which names are installed, one path segment at a time,
+/// and is the caller's answer rather than this function's: the sync apply passes
+/// [carriesSkillEntry] — the rule its hash and its served zip read — so the tree
+/// a peer's body becomes holds exactly what its hash counted. An **import** passes
+/// nothing, because that archive is the user's: a file called
+/// `notes.sync-old-v2.md`, or the `.DS_Store` their Mac zipped along with it, is
+/// theirs to keep and not this plane's to drop silently.
 void extractSkillArchive(
   String archivePath,
   String outputDirectory, {
   String? subdir,
   bool stripSingleRoot = false,
+  bool Function(String name)? installsName,
 }) {
   if (File(archivePath).lengthSync() > kSkillImportMaxBytes) {
     throw const FormatException('zip exceeds 200 MB');
@@ -27,11 +36,9 @@ void extractSkillArchive(
       if (!file.isFile || file.isSymbolicLink) continue;
       final name = safeZipEntryName(file.name);
       if (name == null) continue;
-      // The same policy the hash and the served zip read: a name that does not
-      // ride is not installed either, so the tree a peer's body becomes holds
-      // exactly what its hash counted — no scratch of ours, and none of the
-      // bookkeeping files that would make two identical bodies differ.
-      if (!name.split('/').every(carriesSkillEntry)) continue;
+      if (installsName != null && !name.split('/').every(installsName)) {
+        continue;
+      }
       entries[name] = file;
     }
     if (entries.isEmpty) {

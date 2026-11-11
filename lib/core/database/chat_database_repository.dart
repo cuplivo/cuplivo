@@ -4439,8 +4439,10 @@ class ChatDatabaseRepository {
   Future<void> putConversation(Conversation conversation) async {
     await _db.transaction(() async {
       await _invalidateEmptyAcknowledgement();
-      // Existing rows keep the database-owned hash written by prompt freeze;
-      // cached Conversation instances may still hold an older value.
+      // `injected_memory_hash` is not a property of the conversation the model
+      // knows: nothing writes it any more (the carrier's freeze row records
+      // where the snapshot is), so an update leaves the stored value exactly as
+      // the last build that maintained it left it.
       final updated =
           await (_db.update(
             _db.conversationRows,
@@ -4911,7 +4913,6 @@ class ChatDatabaseRepository {
             ConversationRowsCompanion(
               assistantId: Value(assistantId),
               updatedAt: Value(updatedAt),
-              injectedMemoryHash: const Value(null),
             ),
           );
       return updated != 0;
@@ -5807,6 +5808,24 @@ class ChatDatabaseRepository {
     ];
   }
 
+  /// Conversation columns that belong to this device alone and never cross the
+  /// wire.
+  ///
+  /// The column itself still exists — dropping one is not an additive migration
+  /// — and [_upsertSyncRow] still writes every column of
+  /// [currentSchemaColumns], so the applier restores these from the local row
+  /// instead of letting the peer decide them.
+  static const Set<String> _syncLocalConversationColumns = {
+    // Which user message carries this device's memory snapshot. The peer's
+    // carriers are not here at all, so a peer value can only be wrong: it says
+    // a snapshot is in context that this device never sent, or reports a change
+    // that did not happen — and either way the next turn rewrote history. The
+    // request does not read the column any more (the carrier's own freeze row
+    // records where the snapshot is), so it is inert now and goes with the next
+    // schema change.
+    'injected_memory_hash',
+  };
+
   Future<Map<String, dynamic>?> syncReadConversationRow(String id) async {
     final rows = await _db
         .customSelect(
@@ -5816,6 +5835,19 @@ class ChatDatabaseRepository {
         .get();
     if (rows.isEmpty) return null;
     return Map<String, dynamic>.from(rows.first.data);
+  }
+
+  /// The row as it travels: [syncReadConversationRow] without this device's
+  /// memory bookkeeping.
+  ///
+  /// The apply side also builds its upsert from [currentSchemaColumns], so what
+  /// is left out here is put back from the local row there — the two halves of
+  /// one rule, which is why both read [_syncLocalConversationColumns].
+  Future<Map<String, dynamic>?> syncReadWireConversationRow(String id) async {
+    final row = await syncReadConversationRow(id);
+    if (row == null) return null;
+    row.removeWhere((key, _) => _syncLocalConversationColumns.contains(key));
+    return row;
   }
 
   Future<List<Map<String, dynamic>>> syncReadMessageRows(
@@ -5939,6 +5971,46 @@ class ChatDatabaseRepository {
         );
         conversationRow = Map<String, dynamic>.from(merge.winner);
         conversationRowChanged = merge.incomingWon;
+
+        // The extraction watermark is a fact about the conversation, not about
+        // this device: the memory entries travel, so a message the peer already
+        // extracted needs no second pass here. Whole-row LWW gets it wrong in
+        // both directions — replacing ours with the peer's older value re-reads
+        // history, and handing the peer ours skips messages neither side has
+        // read. Monotone on both sides, so the join is max.
+        //
+        // Persisted on its own rather than through the row write below: the
+        // winner's MCP list belongs to the winner, and an advance that lost the
+        // row must not drag the peer's list over here. Nothing displays the
+        // watermark either, so the caller has nothing to reload for it.
+        final localOrder =
+            (localConversation['last_memory_extracted_order'] as num?)
+                ?.toInt() ??
+            -1;
+        final incomingOrder =
+            (payload.conversation['last_memory_extracted_order'] as num?)
+                ?.toInt() ??
+            -1;
+        final watermark = localOrder > incomingOrder
+            ? localOrder
+            : incomingOrder;
+        if (watermark >
+            ((conversationRow['last_memory_extracted_order'] as num?)
+                    ?.toInt() ??
+                -1)) {
+          conversationRow['last_memory_extracted_order'] = watermark;
+          await setConversationLastMemoryExtractedOrder(
+            conversationId,
+            watermark,
+          );
+        }
+
+        // The rest of the bookkeeping is this device's alone (see
+        // [_syncLocalConversationColumns]): the wire row does not carry it, and
+        // writing the column back as null would erase what we know.
+        for (final column in _syncLocalConversationColumns) {
+          conversationRow[column] = localConversation[column];
+        }
       }
       if (localConversation != null && conversationRowChanged) {
         await _upsertSyncRow('conversation_rows', conversationRow);
@@ -9249,6 +9321,19 @@ class ChatDatabaseRepository {
     return {for (final row in rows) row.revisionId: row};
   }
 
+  /// Freezes the payload a user message was sent with (§8.3).
+  ///
+  /// [carriesMemorySnapshot] is the record of *where* the memory snapshot
+  /// lives: the request that assembles a conversation reads it back
+  /// ([MessageBuilderService.resolveMemoryPlan]) instead of keeping a second,
+  /// conversation-level ledger of the same fact — that ledger was a column of
+  /// `conversation_rows` and LAN sync overwrote it from the peer, who has its
+  /// own carriers.
+  ///
+  /// The flag describes the row, not the next request: a carrier that memory
+  /// has moved away from keeps the flag and the prefix it actually sent, and
+  /// the request drops the prefix on the way out. Rewriting the row instead
+  /// would make the record and the text disagree in the other direction.
   Future<void> putMessagePrompt({
     required String revisionId,
     required String conversationId,
@@ -9267,89 +9352,6 @@ class ChatDatabaseRepository {
             createdAt: now,
           ),
         );
-  }
-
-  /// Freezes a message's final prompt string and, when [injectedMemoryHash] is
-  /// present, advances the conversation's injected-memory hash in the same
-  /// transaction.
-  ///
-  /// The two writes must not be split: a crash between them leaves a hash that
-  /// claims a snapshot was delivered while no message carries one, costing an
-  /// extra full re-injection once self-healing notices (§8.3).
-  ///
-  /// [injectedMemoryHash] is a three-state value on purpose. `Value.absent()`
-  /// leaves the stored hash alone, `Value(hash)` records a freshly injected
-  /// snapshot, and `Value(null)` records that the context now carries no
-  /// snapshot at all — the state a turn reaches when every visible memory is
-  /// gone and the stale snapshots in history are stripped at send time.
-  /// Without that third state a later re-add of identical content would hash
-  /// equal to the cleared snapshot and never be injected again.
-  Future<void> freezeMessagePrompt({
-    required String revisionId,
-    required String conversationId,
-    required String payload,
-    required bool carriesMemorySnapshot,
-    Value<String?> injectedMemoryHash = const Value.absent(),
-  }) {
-    return _db.transaction(() async {
-      await putMessagePrompt(
-        revisionId: revisionId,
-        conversationId: conversationId,
-        payload: payload,
-        carriesMemorySnapshot: carriesMemorySnapshot,
-      );
-      if (injectedMemoryHash.present) {
-        await setConversationInjectedMemoryHash(
-          conversationId,
-          injectedMemoryHash.value,
-        );
-      }
-    });
-  }
-
-  Future<bool> anyPromptCarriesMemorySnapshot(List<String> revisionIds) async {
-    if (revisionIds.isEmpty) return false;
-    final unique = revisionIds.toSet().toList(growable: false);
-    final placeholders = List.filled(unique.length, '?').join(',');
-    final row = await _db
-        .customSelect(
-          'SELECT 1 AS hit FROM message_prompt_rows '
-          'WHERE carries_memory_snapshot = 1 '
-          'AND revision_id IN ($placeholders) '
-          'LIMIT 1;',
-          variables: [for (final id in unique) Variable<String>(id)],
-          readsFrom: {_db.messagePromptRows},
-        )
-        .getSingleOrNull();
-    return row != null;
-  }
-
-  /// The last memory snapshot hash delivered to [conversationId].
-  ///
-  /// Read this rather than a cached [Conversation]: the field is written by
-  /// [freezeMessagePrompt] and never loaded back into the in-memory model, so a
-  /// cached copy reports the value from whenever it was constructed.
-  Future<String?> getConversationInjectedMemoryHash(
-    String conversationId,
-  ) async {
-    final row = await _db
-        .customSelect(
-          'SELECT injected_memory_hash FROM conversation_rows '
-          'WHERE id = ? LIMIT 1;',
-          variables: [Variable<String>(conversationId)],
-          readsFrom: {_db.conversationRows},
-        )
-        .getSingleOrNull();
-    return row?.read<String?>('injected_memory_hash');
-  }
-
-  Future<void> setConversationInjectedMemoryHash(
-    String conversationId,
-    String? hash,
-  ) async {
-    await (_db.update(_db.conversationRows)
-          ..where((t) => t.id.equals(conversationId)))
-        .write(ConversationRowsCompanion(injectedMemoryHash: Value(hash)));
   }
 
   Future<void> setConversationLastMemoryExtractedOrder(

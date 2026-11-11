@@ -191,53 +191,38 @@ void main() {
     setUp(openHarness);
     tearDown(closeHarness);
 
-    test(
-      'resolveMemoryPrefix is empty and freeze writes no snapshot',
-      () async {
-        await settings.setLegacyMemoryMode(true);
-        await seedAssistant(assistant.id);
-        await putEntry(id: 'mem_01', content: 'User likes Flutter.');
-        final conversation = await seedConversation('conv-1');
-        final message = await seedUserMessage(
-          id: 'u1',
-          conversationId: 'conv-1',
-          content: 'hello',
-        );
-        final service = buildService(messages: [message]);
-        final apiMessages = <Map<String, dynamic>>[
-          {
-            'role': 'user',
-            'content': 'hello',
-            MessageBuilderService.internalRevisionIdKey: 'u1',
-          },
-        ];
+    test('the request carries no snapshot and freeze records none', () async {
+      await settings.setLegacyMemoryMode(true);
+      await seedAssistant(assistant.id);
+      await putEntry(id: 'mem_01', content: 'User likes Flutter.');
+      final conversation = await seedConversation('conv-1');
+      final message = await seedUserMessage(
+        id: 'u1',
+        conversationId: 'conv-1',
+        content: 'hello',
+      );
+      final service = buildService(messages: [message]);
+      final apiMessages = <Map<String, dynamic>>[
+        {
+          'role': 'user',
+          'content': 'hello',
+          MessageBuilderService.internalRevisionIdKey: 'u1',
+        },
+      ];
 
-        final result = await service.resolveMemoryPrefix(
-          conversation: conversation,
-          assistant: assistant,
-          apiMessages: apiMessages,
-          currentMessageId: 'u1',
-          lang: MemoryPromptLang.zh,
-          settings: settings,
-        );
-        expect(result.prefix, isEmpty);
-        expect(result.hash, isNull);
-        expect(result.snapshotKind, isNull);
-
-        await service.processUserMessagesForApi(
-          apiMessages,
-          settings,
-          assistant,
-          conversation: conversation,
-          sourceMessages: [message],
-        );
-        final frozen = await chatRepository.getMessagePrompt('u1');
-        expect(frozen, isNotNull);
-        expect(frozen!.carriesMemorySnapshot, isFalse);
-        expect(frozen.payload, isNot(contains('<user_memory')));
-        expect(frozen.payload, isNot(contains(MemoryPrompts.introFullZh)));
-      },
-    );
+      await service.processUserMessagesForApi(
+        apiMessages,
+        settings,
+        assistant,
+        conversation: conversation,
+        sourceMessages: [message],
+      );
+      final frozen = await chatRepository.getMessagePrompt('u1');
+      expect(frozen, isNotNull);
+      expect(frozen!.carriesMemorySnapshot, isFalse);
+      expect(frozen.payload, isNot(contains('<user_memory')));
+      expect(frozen.payload, isNot(contains(MemoryPrompts.introFullZh)));
+    });
 
     test(
       'strips a previously frozen v2 snapshot from send, keeps the freeze row',

@@ -19,7 +19,7 @@ import 'package:Cuplivo/core/services/memory/memory_block_builder.dart';
 import 'package:Cuplivo/core/services/memory/memory_prompts.dart';
 import 'package:Cuplivo/features/home/services/message_builder_service.dart';
 import 'package:Cuplivo/features/home/services/ocr_service.dart';
-import 'package:drift/drift.dart' show Value, driftRuntimeOptions;
+import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -51,6 +51,11 @@ class _CountingPromptRepository extends ChatDatabaseRepository {
   int singlePromptReads = 0;
   int batchPromptReads = 0;
 
+  /// Revision ids whose prompt row was written, in order. A turn that changes
+  /// nothing must leave this empty: re-freezing a carrier is what moves the
+  /// rewrite point, and no test can see that in the payload alone.
+  final List<String> promptWrites = <String>[];
+
   @override
   Future<MessagePromptRow?> getMessagePrompt(String revisionId) {
     singlePromptReads++;
@@ -63,6 +68,22 @@ class _CountingPromptRepository extends ChatDatabaseRepository {
   ) {
     batchPromptReads++;
     return super.getMessagePrompts(revisionIds);
+  }
+
+  @override
+  Future<void> putMessagePrompt({
+    required String revisionId,
+    required String conversationId,
+    required String payload,
+    required bool carriesMemorySnapshot,
+  }) {
+    promptWrites.add(revisionId);
+    return super.putMessagePrompt(
+      revisionId: revisionId,
+      conversationId: conversationId,
+      payload: payload,
+      carriesMemorySnapshot: carriesMemorySnapshot,
+    );
   }
 }
 
@@ -430,492 +451,345 @@ void main() {
     },
   );
 
-  group('§18.1 item 6 — §7.6 decision table', () {
-    test('enableMemory off returns empty and writes nothing', () async {
+  group('§7.6 — the carrier record decides the request', () {
+    // What the send path does, as the provider would see it: the same list it
+    // mutates in place, so `api[n]['content']` is a real payload.
+    Future<void> runTurn(
+      List<Map<String, dynamic>> api, {
+      required Conversation conversation,
+      List<ChatMessage> messages = const [],
+      Assistant? who,
+      ChatDatabaseRepository? repository,
+    }) async {
+      await buildService(
+        messages: messages,
+        repository: repository,
+      ).processUserMessagesForApi(
+        api,
+        settings,
+        who ?? assistant,
+        conversation: conversation,
+        sourceMessages: messages,
+      );
+    }
+
+    Map<String, dynamic> userTurn(String id, String content) => {
+      'role': 'user',
+      'content': content,
+      MessageBuilderService.internalRevisionIdKey: id,
+    };
+
+    test('enableMemory off injects nothing and records nothing', () async {
       await seedAssistant('assistant-1');
       await putEntry(id: 'mem_01', content: 'User likes Flutter.');
       final conversation = await seedConversation('conv-1');
-      final service = buildService();
+      final u1 = await seedUserMessage(id: 'u1', conversationId: 'conv-1');
+      final api = [userTurn('u1', 'hi')];
 
-      final result = await service.resolveMemoryPrefix(
+      await runTurn(
+        api,
         conversation: conversation,
-        assistant: assistant.copyWith(enableMemory: false),
-        apiMessages: const [],
-        currentMessageId: 'u-new',
-        lang: MemoryPromptLang.zh,
+        messages: [u1],
+        who: assistant.copyWith(enableMemory: false),
       );
 
-      expect(result.prefix, isEmpty);
-      expect(result.hash, isNull);
-      expect(conversation.injectedMemoryHash, isNull);
+      expect(api.single['content'], 'hi');
+      final frozen = await chatRepository.getMessagePrompt('u1');
+      expect(frozen?.carriesMemorySnapshot, isFalse);
     });
 
-    test(
-      'empty profile and visible set returns empty without writing hash',
-      () async {
-        await seedAssistant('assistant-1');
-        final conversation = await seedConversation('conv-1');
-        final service = buildService();
-
-        final result = await service.resolveMemoryPrefix(
-          conversation: conversation,
-          assistant: assistant,
-          apiMessages: const [],
-          currentMessageId: 'u-new',
-          lang: MemoryPromptLang.zh,
-        );
-
-        expect(result.prefix, isEmpty);
-        expect(result.hash, isNull);
-        expect(conversation.injectedMemoryHash, isNull);
-      },
-    );
-
-    test('no snapshot in history → full snapshot', () async {
+    test('an empty memory state injects nothing', () async {
       await seedAssistant('assistant-1');
-      await putEntry(id: 'mem_01', content: 'User likes Flutter.');
       final conversation = await seedConversation('conv-1');
-      await seedUserMessage(id: 'u1', conversationId: 'conv-1');
-      await seedUserMessage(
-        id: 'u-new',
-        conversationId: 'conv-1',
-        content: 'next',
-        messageOrder: 1,
-      );
-      final service = buildService();
-      final apiMessages = [
-        {
-          'role': 'user',
-          'content': 'hi',
-          MessageBuilderService.internalRevisionIdKey: 'u1',
-        },
-        {'role': 'assistant', 'content': 'hello'},
-        {
-          'role': 'user',
-          'content': 'next',
-          MessageBuilderService.internalRevisionIdKey: 'u-new',
-        },
-      ];
+      final u1 = await seedUserMessage(id: 'u1', conversationId: 'conv-1');
+      final api = [userTurn('u1', 'hi')];
 
-      final result = await service.resolveMemoryPrefix(
-        conversation: conversation,
-        assistant: assistant,
-        apiMessages: apiMessages,
-        currentMessageId: 'u-new',
-        lang: MemoryPromptLang.zh,
-      );
+      await runTurn(api, conversation: conversation, messages: [u1]);
 
-      expect(result.prefix, contains(MemoryPrompts.introFullZh));
-      expect(result.prefix, contains('<user_memory type="identity">'));
-      expect(result.prefix, isNot(contains('<user_memory_update>')));
-      expect(result.hash, isNotNull);
-    });
-
-    test('has snapshot + same hash → empty', () async {
-      await seedAssistant('assistant-1');
-      await putEntry(id: 'mem_01', content: 'User likes Flutter.');
-      final fields = await chatRepository.readProfileFields();
-      final visible = await chatRepository.queryVisibleMemories(
-        assistantId: 'assistant-1',
-      );
-      final totals = await chatRepository.countVisibleMemoriesByType(
-        assistantId: 'assistant-1',
-      );
-      final profileBlock = MemoryBlockBuilder.buildProfileBlock(
-        fields: fields,
-        lang: MemoryPromptLang.zh,
-      );
-      final memoryBlock = MemoryBlockBuilder.buildMemoryBlock(
-        visible: visible,
-        totalByType: totals,
-        lang: MemoryPromptLang.zh,
-        maxItems: 10,
-      );
-      final hash = MemoryBlockBuilder.hashBlocks(profileBlock, memoryBlock);
-
-      final conversation = await seedConversation(
-        'conv-1',
-        injectedMemoryHash: hash,
-      );
-      await seedUserMessage(id: 'u1', conversationId: 'conv-1');
-      await seedUserMessage(
-        id: 'u-new',
-        conversationId: 'conv-1',
-        content: 'next',
-        messageOrder: 1,
-      );
-      await chatRepository.freezeMessagePrompt(
-        revisionId: 'u1',
-        conversationId: 'conv-1',
-        payload: 'frozen',
-        carriesMemorySnapshot: true,
-        injectedMemoryHash: Value(hash),
-      );
-
-      final service = buildService();
-      final apiMessages = [
-        {
-          'role': 'user',
-          'content': 'hi',
-          MessageBuilderService.internalRevisionIdKey: 'u1',
-        },
-        {
-          'role': 'user',
-          'content': 'next',
-          MessageBuilderService.internalRevisionIdKey: 'u-new',
-        },
-      ];
-
-      final result = await service.resolveMemoryPrefix(
-        conversation: conversation,
-        assistant: assistant,
-        apiMessages: apiMessages,
-        currentMessageId: 'u-new',
-        lang: MemoryPromptLang.zh,
-      );
-
-      expect(result.prefix, isEmpty);
-      expect(result.hash, isNull);
-    });
-
-    test('has snapshot + different hash → full snapshot', () async {
-      await seedAssistant('assistant-1');
-      await putEntry(id: 'mem_01', content: 'User likes Flutter.');
-      final conversation = await seedConversation(
-        'conv-1',
-        injectedMemoryHash: 'oldhash012345678',
-      );
-      await seedUserMessage(id: 'u1', conversationId: 'conv-1');
-      await seedUserMessage(
-        id: 'u-new',
-        conversationId: 'conv-1',
-        content: 'next',
-        messageOrder: 1,
-      );
-      await chatRepository.freezeMessagePrompt(
-        revisionId: 'u1',
-        conversationId: 'conv-1',
-        payload: 'frozen-old',
-        carriesMemorySnapshot: true,
-        injectedMemoryHash: Value('oldhash012345678'),
-      );
-
-      final service = buildService();
-      final apiMessages = [
-        {
-          'role': 'user',
-          'content': 'hi',
-          MessageBuilderService.internalRevisionIdKey: 'u1',
-        },
-        {
-          'role': 'user',
-          'content': 'next',
-          MessageBuilderService.internalRevisionIdKey: 'u-new',
-        },
-      ];
-
-      final result = await service.resolveMemoryPrefix(
-        conversation: conversation,
-        assistant: assistant,
-        apiMessages: apiMessages,
-        currentMessageId: 'u-new',
-        lang: MemoryPromptLang.zh,
-      );
-
-      expect(result.prefix, contains(MemoryPrompts.introFullZh));
-      expect(result.prefix, isNot(contains('<user_memory_update>')));
-      expect(result.persistHash, isTrue);
-      expect(result.hash, isNotNull);
-      expect(result.hash, isNot('oldhash012345678'));
-    });
-
-    test('deleting the last memory clears the hash, injects nothing', () async {
-      await seedAssistant('assistant-1');
-      await putEntry(id: 'mem_01', content: 'User likes Flutter.');
-      final conversation = await seedConversation('conv-1');
-      await seedUserMessage(id: 'u1', conversationId: 'conv-1');
-      await seedUserMessage(
-        id: 'u-new',
-        conversationId: 'conv-1',
-        content: 'next',
-        messageOrder: 1,
-      );
-      final service = buildService();
-      final first = await service.resolveMemoryPrefix(
-        conversation: conversation,
-        assistant: assistant,
-        apiMessages: [
-          {
-            'role': 'user',
-            'content': 'hi',
-            MessageBuilderService.internalRevisionIdKey: 'u1',
-          },
-        ],
-        currentMessageId: 'u1',
-        lang: MemoryPromptLang.zh,
-      );
-      await chatRepository.freezeMessagePrompt(
-        revisionId: 'u1',
-        conversationId: 'conv-1',
-        payload: '${first.prefix}hi',
-        carriesMemorySnapshot: true,
-        injectedMemoryHash: Value(first.hash),
-      );
-
-      await businessRepository.deleteEntity(
-        BusinessEntityKind.memoryEntry,
-        'mem_01',
-      );
-      final cleared = await service.resolveMemoryPrefix(
-        conversation: conversation,
-        assistant: assistant,
-        apiMessages: [
-          {
-            'role': 'user',
-            'content': 'hi',
-            MessageBuilderService.internalRevisionIdKey: 'u1',
-          },
-          {
-            'role': 'user',
-            'content': 'next',
-            MessageBuilderService.internalRevisionIdKey: 'u-new',
-          },
-        ],
-        currentMessageId: 'u-new',
-        lang: MemoryPromptLang.zh,
-      );
-
-      // The stale snapshot on u1 is dropped at send time instead of being
-      // corrected by an empty update block, so nothing is injected here — but
-      // the conversation must record that its context now carries none.
-      expect(cleared.prefix, isEmpty);
-      expect(cleared.persistHash, isTrue);
-      expect(cleared.hash, isNull);
+      expect(api.single['content'], 'hi');
       expect(
-        await chatRepository.getConversationInjectedMemoryHash('conv-1'),
-        isNotNull,
-        reason: 'the first turn recorded its snapshot',
+        (await chatRepository.getMessagePrompt('u1'))?.carriesMemorySnapshot,
+        isFalse,
       );
     });
 
     test(
-      'the prior hash is read from the database, not from the model',
+      'with no recorded carrier the snapshot lands on the last message',
       () async {
-        // Callers pass `conversation.copyWith(...)` and nothing ever loads this
-        // column back into the model, so a stale copy must not be trusted:
-        // doing so makes every turn look like a change and re-sends the same
-        // update block forever.
+        // A freshly synced conversation: the messages arrived, the freeze rows
+        // did not (they never travel), and the peer's row still carries its own
+        // memory ledger. Deciding inside the assembly loop let the *oldest*
+        // message take the snapshot and froze it there, so every later memory
+        // change rewrote the prompt from message one and the provider's prefix
+        // cache kept nothing but the system prompt (issue #1086, 1920/250297).
         await seedAssistant('assistant-1');
         await putEntry(id: 'mem_01', content: 'User likes Flutter.');
-        final fields = await chatRepository.readProfileFields();
-        final visible = await chatRepository.queryVisibleMemories(
-          assistantId: 'assistant-1',
+        final conversation = await seedConversation(
+          'conv-1',
+          injectedMemoryHash: 'peerhash00000001',
         );
-        final totals = await chatRepository.countVisibleMemoriesByType(
-          assistantId: 'assistant-1',
-        );
-        final hash = MemoryBlockBuilder.hashBlocks(
-          MemoryBlockBuilder.buildProfileBlock(
-            fields: fields,
-            lang: MemoryPromptLang.zh,
-          ),
-          MemoryBlockBuilder.buildMemoryBlock(
-            visible: visible,
-            totalByType: totals,
-            lang: MemoryPromptLang.zh,
-            maxItems: 10,
-          ),
-        );
-
-        await seedConversation('conv-1');
-        await seedUserMessage(id: 'u1', conversationId: 'conv-1');
-        await seedUserMessage(
-          id: 'u-new',
+        final u1 = await seedUserMessage(id: 'u1', conversationId: 'conv-1');
+        final u2 = await seedUserMessage(
+          id: 'u2',
           conversationId: 'conv-1',
-          content: 'next',
+          content: 'two',
           messageOrder: 1,
         );
-        await chatRepository.freezeMessagePrompt(
-          revisionId: 'u1',
+        final u3 = await seedUserMessage(
+          id: 'u3',
           conversationId: 'conv-1',
-          payload: 'frozen',
-          carriesMemorySnapshot: true,
-          injectedMemoryHash: Value(hash),
+          content: 'three',
+          messageOrder: 2,
         );
-
-        // The model still carries the pre-freeze value.
-        final staleConversation = Conversation(id: 'conv-1', title: 'conv-1');
-        expect(staleConversation.injectedMemoryHash, isNull);
-
-        final apiMessages = [
-          {
-            'role': 'user',
-            'content': 'hi',
-            MessageBuilderService.internalRevisionIdKey: 'u1',
-          },
-          {
-            'role': 'user',
-            'content': 'next',
-            MessageBuilderService.internalRevisionIdKey: 'u-new',
-          },
+        final api = [
+          userTurn('u1', 'hi'),
+          {'role': 'assistant', 'content': 'hello'},
+          userTurn('u2', 'two'),
+          {'role': 'assistant', 'content': 'hello again'},
+          userTurn('u3', 'three'),
         ];
-        final result = await buildService().resolveMemoryPrefix(
-          conversation: staleConversation,
-          assistant: assistant,
-          apiMessages: apiMessages,
-          currentMessageId: 'u-new',
-          lang: MemoryPromptLang.zh,
-        );
 
-        expect(result.prefix, isEmpty);
-        expect(result.hash, isNull);
+        await runTurn(api, conversation: conversation, messages: [u1, u2, u3]);
+
+        expect(api[0]['content'], 'hi');
+        expect(api[2]['content'], 'two');
+        expect(api[4]['content'], startsWith(MemoryPrompts.introFullZh));
+        expect(api[4]['content'], contains('User likes Flutter.'));
+        final rows = await chatRepository.getMessagePrompts(['u1', 'u2', 'u3']);
+        expect(
+          rows.values.where((row) => row.carriesMemorySnapshot),
+          hasLength(1),
+          reason: 'exactly one message may carry the snapshot',
+        );
+        expect(rows['u3']!.carriesMemorySnapshot, isTrue);
       },
     );
 
+    test('a turn that changes no memory moves nothing', () async {
+      // 0.6 of the turns in the reported workload change nothing, and they are
+      // where the cache has to hold: moving the carrier every turn re-sends the
+      // snapshot and invalidates the tail behind it (25k/round instead of 13k).
+      await seedAssistant('assistant-1');
+      await putEntry(id: 'mem_01', content: 'User likes Flutter.');
+      final conversation = await seedConversation('conv-1');
+      final u1 = await seedUserMessage(id: 'u1', conversationId: 'conv-1');
+      final u2 = await seedUserMessage(
+        id: 'u2',
+        conversationId: 'conv-1',
+        content: 'next',
+        messageOrder: 1,
+      );
+
+      final first = [userTurn('u1', 'hi')];
+      await runTurn(first, conversation: conversation, messages: [u1]);
+      final frozen = (await chatRepository.getMessagePrompt('u1'))!.payload;
+      expect(frozen, startsWith(MemoryPrompts.introFullZh));
+
+      final counting = _CountingPromptRepository(database);
+      final second = [userTurn('u1', 'hi'), userTurn('u2', 'next')];
+      await runTurn(
+        second,
+        conversation: conversation,
+        messages: [u1, u2],
+        repository: counting,
+      );
+
+      expect(
+        second[0]['content'],
+        frozen,
+        reason: 'the recorded carrier is sent byte for byte',
+      );
+      expect(second[1]['content'], 'next');
+      expect(
+        (await chatRepository.getMessagePrompt('u1'))!.payload,
+        frozen,
+        reason: 'nothing is rewritten when memory has not changed',
+      );
+      expect(
+        (await chatRepository.getMessagePrompt('u2'))!.carriesMemorySnapshot,
+        isFalse,
+      );
+      expect(counting.promptWrites, [
+        'u2',
+      ], reason: 'only the message that had no freeze row yet is written');
+
+      // The same request again: every row it needs already exists, so a turn
+      // that changes nothing writes nothing at all.
+      counting.promptWrites.clear();
+      final again = [userTurn('u1', 'hi'), userTurn('u2', 'next')];
+      await runTurn(
+        again,
+        conversation: conversation,
+        messages: [u1, u2],
+        repository: counting,
+      );
+      expect(again[0]['content'], frozen);
+      expect(again[1]['content'], 'next');
+      expect(counting.promptWrites, isEmpty);
+    });
+
+    test('the conversation ledger is not consulted, the record is', () async {
+      // injectedMemoryHash is the peer's bookkeeping on this device after a
+      // sync: it names a snapshot this device never had. Trusting it forced a
+      // re-injection, and trusting it in the other direction swallowed a real
+      // change. The request now reads the carrier's own bytes.
+      await seedAssistant('assistant-1');
+      await putEntry(id: 'mem_01', content: 'User likes Flutter.');
+      final conversation = await seedConversation(
+        'conv-1',
+        injectedMemoryHash: 'stalehash0000001',
+      );
+      final u1 = await seedUserMessage(id: 'u1', conversationId: 'conv-1');
+      final u2 = await seedUserMessage(
+        id: 'u2',
+        conversationId: 'conv-1',
+        content: 'next',
+        messageOrder: 1,
+      );
+
+      final first = [userTurn('u1', 'hi')];
+      await runTurn(first, conversation: conversation, messages: [u1]);
+      final frozen = (await chatRepository.getMessagePrompt('u1'))!.payload;
+
+      final second = [userTurn('u1', 'hi'), userTurn('u2', 'next')];
+      await runTurn(second, conversation: conversation, messages: [u1, u2]);
+
+      expect(second[0]['content'], frozen);
+      expect(second[1]['content'], 'next');
+    });
+
     test(
-      'a hash injected earlier in the same request is not re-injected',
+      'a change moves the snapshot to the tail and leaves the row alone',
       () async {
-        // Temporary conversations never reach the database, so the prior hash
-        // has to come from the request itself. Without that, every message
-        // after the first repeats a byte-identical update block.
         await seedAssistant('assistant-1');
-        await putEntry(id: 'mem_01', content: 'User likes Flutter.');
+        await putEntry(id: 'mem_01', content: 'Original content.');
         final conversation = await seedConversation('conv-1');
-        await seedUserMessage(id: 'u1', conversationId: 'conv-1');
-        await seedUserMessage(
+        final u1 = await seedUserMessage(id: 'u1', conversationId: 'conv-1');
+        final u2 = await seedUserMessage(
           id: 'u2',
           conversationId: 'conv-1',
           content: 'next',
           messageOrder: 1,
         );
 
-        final service = buildService();
-        final apiMessages = [
-          {
-            'role': 'user',
-            'content': 'hi',
-            MessageBuilderService.internalRevisionIdKey: 'u1',
-          },
-          {
-            'role': 'user',
-            'content': 'next',
-            MessageBuilderService.internalRevisionIdKey: 'u2',
-          },
+        final first = [userTurn('u1', 'hi')];
+        await runTurn(first, conversation: conversation, messages: [u1]);
+        final frozen = (await chatRepository.getMessagePrompt('u1'))!.payload;
+
+        await putEntry(
+          id: 'mem_01',
+          content: 'Changed content that alters the hash.',
+        );
+
+        final second = [
+          userTurn('u1', 'hi'),
+          {'role': 'assistant', 'content': 'hello'},
+          userTurn('u2', 'next'),
         ];
-        final pass = MemoryInjectionPass();
+        await runTurn(second, conversation: conversation, messages: [u1, u2]);
 
-        final first = await service.resolveMemoryPrefix(
-          conversation: conversation,
-          assistant: assistant,
-          apiMessages: apiMessages,
-          currentMessageId: 'u1',
-          lang: MemoryPromptLang.zh,
-          pass: pass,
+        expect(
+          second[0]['content'],
+          'hi',
+          reason: 'the stale prefix is dropped',
         );
-        pass.snapshotCarriers.add('u1');
-
-        final second = await service.resolveMemoryPrefix(
-          conversation: conversation,
-          assistant: assistant,
-          apiMessages: apiMessages,
-          currentMessageId: 'u2',
-          lang: MemoryPromptLang.zh,
-          pass: pass,
+        expect(
+          second[2]['content'],
+          allOf(
+            startsWith(MemoryPrompts.introFullZh),
+            contains('Changed content that alters the hash.'),
+          ),
         );
-
-        expect(first.prefix, contains(MemoryPrompts.introFullZh));
-        expect(second.prefix, isEmpty);
-        expect(second.hash, isNull);
+        expect(
+          (await chatRepository.getMessagePrompt('u1'))!.payload,
+          frozen,
+          reason: 'a freeze row records what was sent, so it is not rewritten',
+        );
+        expect(
+          MemoryPrompts.introFullZh.allMatches(
+            second.map((m) => m['content']).join('\n'),
+          ),
+          hasLength(1),
+          reason: 'exactly one message in the request carries the snapshot',
+        );
       },
     );
-  });
 
-  group('hash ordering regression (appendix item 6)', () {
     test(
-      'compares prior hash before writing — the change is not swallowed',
+      'deleting the last memory strips the carrier and injects nothing',
       () async {
         await seedAssistant('assistant-1');
-        await putEntry(id: 'mem_01', content: 'Original content.');
-        final fields = await chatRepository.readProfileFields();
-        final visible = await chatRepository.queryVisibleMemories(
-          assistantId: 'assistant-1',
-        );
-        final totals = await chatRepository.countVisibleMemoriesByType(
-          assistantId: 'assistant-1',
-        );
-        final oldHash = MemoryBlockBuilder.hashBlocks(
-          MemoryBlockBuilder.buildProfileBlock(
-            fields: fields,
-            lang: MemoryPromptLang.zh,
-          ),
-          MemoryBlockBuilder.buildMemoryBlock(
-            visible: visible,
-            totalByType: totals,
-            lang: MemoryPromptLang.zh,
-            maxItems: 10,
-          ),
-        );
-
-        final conversation = await seedConversation(
-          'conv-1',
-          injectedMemoryHash: oldHash,
-        );
-        await seedUserMessage(id: 'u1', conversationId: 'conv-1');
-        await seedUserMessage(
-          id: 'u-new',
+        await putEntry(id: 'mem_01', content: 'User likes Flutter.');
+        final conversation = await seedConversation('conv-1');
+        final u1 = await seedUserMessage(id: 'u1', conversationId: 'conv-1');
+        final u2 = await seedUserMessage(
+          id: 'u2',
           conversationId: 'conv-1',
           content: 'next',
           messageOrder: 1,
         );
-        await chatRepository.freezeMessagePrompt(
-          revisionId: 'u1',
-          conversationId: 'conv-1',
-          payload: 'snap',
-          carriesMemorySnapshot: true,
-          injectedMemoryHash: Value(oldHash),
+
+        final first = [userTurn('u1', 'hi')];
+        await runTurn(first, conversation: conversation, messages: [u1]);
+        expect(first.single['content'], contains('User likes Flutter.'));
+
+        await businessRepository.deleteEntity(
+          BusinessEntityKind.memoryEntry,
+          'mem_01',
         );
 
-        // Change memory so currentHash != oldHash.
-        await putEntry(
-          id: 'mem_01',
-          content: 'Changed content that alters hash.',
-        );
+        final second = [userTurn('u1', 'hi'), userTurn('u2', 'next')];
+        await runTurn(second, conversation: conversation, messages: [u1, u2]);
 
-        final service = buildService();
-        final apiMessages = [
-          {
-            'role': 'user',
-            'content': 'hi',
-            MessageBuilderService.internalRevisionIdKey: 'u1',
-          },
-          {
-            'role': 'user',
-            'content': 'next',
-            MessageBuilderService.internalRevisionIdKey: 'u-new',
-          },
-        ];
-
-        // If someone writes conversation.injectedMemoryHash = currentHash BEFORE
-        // comparing, this returns '' and the model never sees the change.
-        final result = await service.resolveMemoryPrefix(
-          conversation: conversation,
-          assistant: assistant,
-          apiMessages: apiMessages,
-          currentMessageId: 'u-new',
-          lang: MemoryPromptLang.zh,
-        );
-
-        expect(
-          result.prefix,
-          contains(MemoryPrompts.introFullZh),
-          reason:
-              'Writing injectedMemoryHash before comparing makes the change '
-              'branch unreachable (appendix item 6).',
-        );
-        expect(result.prefix, contains('Changed content that alters hash.'));
-        expect(result.hash, isNot(oldHash));
+        final sent = second.map((m) => m['content']).join('\n');
+        expect(sent, isNot(contains('User likes Flutter.')));
+        expect(sent, isNot(contains('<user_profile/>')));
+        expect(sent, isNot(contains(MemoryPrompts.introFullZh)));
+        expect(second[0]['content'], 'hi');
+        expect(second[1]['content'], 'next');
       },
     );
+
+    test('a frozen message without the snapshot is left alone', () async {
+      // Only rows that came from injection are candidates. Text that merely
+      // looks like a snapshot is the user's own and must survive.
+      await seedAssistant('assistant-1');
+      await putEntry(id: 'mem_01', content: 'User likes Flutter.');
+      final conversation = await seedConversation('conv-1');
+      final pasted =
+          '${MemoryPrompts.introFullZh}\n'
+          '<user_profile/>\n'
+          '<user_memory type="identity">\n'
+          '- [2026-08-01] pasted by the user\n'
+          '</user_memory>\n'
+          '<user_memory type="workflow"/>\n'
+          '<user_memory type="voice"/>\n'
+          '<user_memory type="instruction"/>\n'
+          'my question';
+      final u1 = await seedUserMessage(
+        id: 'u1',
+        conversationId: 'conv-1',
+        content: 'my question',
+      );
+      await chatRepository.putMessagePrompt(
+        revisionId: 'u1',
+        conversationId: 'conv-1',
+        payload: pasted,
+        carriesMemorySnapshot: false,
+      );
+      final u2 = await seedUserMessage(
+        id: 'u2',
+        conversationId: 'conv-1',
+        content: 'next',
+        messageOrder: 1,
+      );
+      final api = [userTurn('u1', 'my question'), userTurn('u2', 'next')];
+
+      await runTurn(api, conversation: conversation, messages: [u1, u2]);
+
+      expect(api[0]['content'], pasted);
+      expect(api[1]['content'], startsWith(MemoryPrompts.introFullZh));
+    });
   });
 
   for (final hasConversation in [false, true]) {
@@ -976,46 +850,46 @@ void main() {
             timestamp: ts,
           );
           final service = buildService(messages: [message]);
-          final apiMessages = <Map<String, dynamic>>[
-            {
-              'role': 'user',
-              'content': 'hello world',
-              MessageBuilderService.internalRevisionIdKey: 'u1',
-            },
-          ];
 
-          final first = await service.resolvePromptContent(
-            message: message,
-            processedUserBody: 'hello world',
-            assistant: assistant.copyWith(
+          // A frozen prompt is what the turn sends, whatever the body, the
+          // template or the time format has become since.
+          Future<String> send({
+            required String body,
+            required Assistant who,
+          }) async {
+            final api = <Map<String, dynamic>>[
+              {
+                'role': 'user',
+                'content': body,
+                MessageBuilderService.internalRevisionIdKey: 'u1',
+              },
+            ];
+            await service.processUserMessagesForApi(
+              api,
+              settings,
+              who,
+              conversation: conversation,
+              sourceMessages: [message],
+            );
+            return api.single['content'] as String;
+          }
+
+          final first = await send(
+            body: 'hello world',
+            who: assistant.copyWith(
               appendCurrentTimeToUserMessage: true,
               useIso8601TimeFormat: iso8601,
             ),
-            conversation: conversation,
-            settings: settings,
-            apiMessages: apiMessages,
           );
-          final second = await service.resolvePromptContent(
-            message: message,
-            processedUserBody: 'hello world CHANGED',
-            assistant: assistant.copyWith(
+          final second = await send(
+            body: 'hello world CHANGED',
+            who: assistant.copyWith(
               appendCurrentTimeToUserMessage: true,
               messageTemplate: 'IGNORE {{ message }}',
               useIso8601TimeFormat: !iso8601,
             ),
-            conversation: conversation,
-            settings: settings,
-            apiMessages: apiMessages,
           );
-          // Retry path: same frozen row.
-          final retry = await service.resolvePromptContent(
-            message: message,
-            processedUserBody: 'retry body',
-            assistant: assistant,
-            conversation: conversation,
-            settings: settings,
-            apiMessages: apiMessages,
-          );
+          final retry = await send(body: 'retry body', who: assistant);
 
           expect(second, first);
           expect(retry, first);
@@ -1327,14 +1201,11 @@ void main() {
           MemoryPromptLang.zh,
         );
         final payload = '${prefix}hello';
-        await chatRepository.freezeMessagePrompt(
+        await chatRepository.putMessagePrompt(
           revisionId: 'u1',
           conversationId: 'conv-frozen-tag',
           payload: payload,
           carriesMemorySnapshot: true,
-          injectedMemoryHash: Value(
-            MemoryBlockBuilder.hashBlocks(profileBlock, memoryBlock),
-          ),
         );
 
         await ContextLogger.setEnabled(true);
@@ -1438,11 +1309,6 @@ void main() {
         expect(sent, isNot(contains('<user_profile/>')));
         expect(sent, isNot(contains(MemoryPrompts.introFullZh)));
         expect(secondTurn.first['content'], 'hi');
-        expect(
-          await chatRepository.getConversationInjectedMemoryHash('conv-2'),
-          isNull,
-          reason: 'the context no longer carries a snapshot',
-        );
 
         // The freeze row still records what was actually sent that turn.
         final frozen = await chatRepository.getMessagePrompt('u1');
@@ -1496,22 +1362,18 @@ void main() {
         '<user_memory type="instruction"/>\n',
         MemoryPromptLang.zh,
       );
-      await chatRepository.freezeMessagePrompt(
+      await chatRepository.putMessagePrompt(
         revisionId: 'u1',
         conversationId: 'conv-1',
         payload: '${stale}hi',
         carriesMemorySnapshot: true,
-        injectedMemoryHash: const Value('stalehash0000001'),
       );
-      await chatRepository.freezeMessagePrompt(
+      await chatRepository.putMessagePrompt(
         revisionId: 'u2',
         conversationId: 'conv-1',
         payload:
             '${MemoryBlockBuilder.buildFullSnapshotPrefix(profileBlock, memoryBlock, MemoryPromptLang.zh)}again',
         carriesMemorySnapshot: true,
-        injectedMemoryHash: Value(
-          MemoryBlockBuilder.hashBlocks(profileBlock, memoryBlock),
-        ),
       );
 
       final apiMessages = <Map<String, dynamic>>[
@@ -1620,8 +1482,6 @@ void main() {
         expect(frozenSecond.payload, contains('Memory after the update.'));
         expect(frozenFirst.carriesMemorySnapshot, isTrue);
         expect(frozenSecond.carriesMemorySnapshot, isTrue);
-        final storedHash = await chatRepository
-            .getConversationInjectedMemoryHash(conversation.id);
 
         var apiMessages = await assemble(
           [first, second],
@@ -1652,12 +1512,6 @@ void main() {
         expect(
           (await chatRepository.getMessagePrompt(second.id))!.payload,
           frozenSecond.payload,
-        );
-        expect(
-          await chatRepository.getConversationInjectedMemoryHash(
-            conversation.id,
-          ),
-          storedHash,
         );
         if (previewOnly && followUp) {
           expect(
@@ -1721,12 +1575,11 @@ void main() {
         );
         final firstSnapshot = await currentSnapshot(assistant.id);
         final frozenOrdinary = '${firstSnapshot.prefix}hi';
-        await chatRepository.freezeMessagePrompt(
+        await chatRepository.putMessagePrompt(
           revisionId: ordinary.id,
           conversationId: conversation.id,
           payload: frozenOrdinary,
           carriesMemorySnapshot: true,
-          injectedMemoryHash: Value(firstSnapshot.hash),
         );
 
         await putEntry(id: 'mem_pdf', content: 'Memory after the update.');
@@ -1744,12 +1597,11 @@ void main() {
           ],
         );
         final latestSnapshot = await currentSnapshot(assistant.id);
-        await chatRepository.freezeMessagePrompt(
+        await chatRepository.putMessagePrompt(
           revisionId: pdf.id,
           conversationId: conversation.id,
           payload: '${latestSnapshot.prefix}Extracted PDF contents',
           carriesMemorySnapshot: true,
-          injectedMemoryHash: Value(latestSnapshot.hash),
         );
         final service = buildService(messages: [ordinary, pdf]);
         final apiMessages = service.buildApiMessages(
@@ -1765,17 +1617,18 @@ void main() {
           sourceMessages: [ordinary, pdf],
           nativePdfInput: true,
         );
-        expect(apiMessages[0]['content'], '${latestSnapshot.prefix}hi');
-        expect(apiMessages[1]['content'], 'PDF question');
+        // The ordinary message is a stale carrier now, so this request drops
+        // its prefix; the fresh snapshot goes to the last user message, which
+        // native PDF mode never freezes. Refreshing the older message instead
+        // would put the rewrite point back in the middle of the history.
+        expect(apiMessages[0]['content'], 'hi');
+        expect(
+          apiMessages[1]['content'],
+          '${latestSnapshot.prefix}PDF question',
+        );
         expect(
           (await chatRepository.getMessagePrompt(ordinary.id))!.payload,
           frozenOrdinary,
-        );
-        expect(
-          await chatRepository.getConversationInjectedMemoryHash(
-            conversation.id,
-          ),
-          latestSnapshot.hash,
         );
       },
     );
@@ -1792,12 +1645,11 @@ void main() {
         final conversation = await seedConversation('conv-2');
         final u1 = await seedUserMessage(id: 'u1', conversationId: 'conv-2');
         final snapshot = await currentSnapshot('assistant-2');
-        await chatRepository.freezeMessagePrompt(
+        await chatRepository.putMessagePrompt(
           revisionId: 'u1',
           conversationId: 'conv-2',
           payload: '${snapshot.prefix}hi',
           carriesMemorySnapshot: true,
-          injectedMemoryHash: Value(snapshot.hash),
         );
 
         await putEntry(
@@ -1835,12 +1687,11 @@ void main() {
       final conversation = await seedConversation('conv-1');
       final u1 = await seedUserMessage(id: 'u1', conversationId: 'conv-1');
       final snapshot = await currentSnapshot('assistant-1');
-      await chatRepository.freezeMessagePrompt(
+      await chatRepository.putMessagePrompt(
         revisionId: 'u1',
         conversationId: 'conv-1',
         payload: '${snapshot.prefix}hi',
         carriesMemorySnapshot: true,
-        injectedMemoryHash: Value(snapshot.hash),
       );
 
       await putEntry(id: 'mem_02', content: 'User ships on Fridays.');
@@ -1864,12 +1715,8 @@ void main() {
       expect(sent, contains('User likes Flutter.'));
       expect(sent, contains('User ships on Fridays.'));
       expect(sent, endsWith('hi'));
-      // Ephemeral: the stored hash keeps describing the freeze row, or the next
-      // turn would believe the stale prefix is current.
-      expect(
-        await chatRepository.getConversationInjectedMemoryHash('conv-1'),
-        snapshot.hash,
-      );
+      // Ephemeral: only the request is refreshed. The freeze row keeps the
+      // snapshot it actually sent, so the next turn re-derives the same bytes.
       expect(
         (await chatRepository.getMessagePrompt('u1'))?.payload,
         '${snapshot.prefix}hi',
@@ -1896,12 +1743,11 @@ void main() {
 
         // u1 froze snapshot A, back when the memory was global.
         final snapshotA = await currentSnapshot('assistant-1');
-        await chatRepository.freezeMessagePrompt(
+        await chatRepository.putMessagePrompt(
           revisionId: 'u1',
           conversationId: 'conv-1',
           payload: '${snapshotA.prefix}hi',
           carriesMemorySnapshot: true,
-          injectedMemoryHash: Value(snapshotA.hash),
         );
 
         // The memory moves to another assistant, then u2 froze snapshot B and
@@ -1913,12 +1759,11 @@ void main() {
           assistantId: 'assistant-2',
         );
         final snapshotB = await currentSnapshot('assistant-1');
-        await chatRepository.freezeMessagePrompt(
+        await chatRepository.putMessagePrompt(
           revisionId: 'u2',
           conversationId: 'conv-1',
           payload: '${snapshotB.prefix}again',
           carriesMemorySnapshot: true,
-          injectedMemoryHash: Value(snapshotB.hash),
         );
 
         // Regenerating the reply after u1 leaves u2 out of the request.
@@ -1944,11 +1789,12 @@ void main() {
     );
 
     test(
-      'a snapshot injected mid-request outranks a later frozen one',
+      'a stale carrier is overridden at the tail, not refreshed in place',
       () async {
-        // A history message that could not be frozen (failed OCR, sandbox data
-        // file) is reassembled in place and can take the fresh snapshot while an
-        // older frozen one still follows it.
+        // The only frozen message in this request holds a snapshot from before
+        // the last memory change. Overwriting it in place would move the
+        // rewrite point back to where it sits; the fresh snapshot goes to the
+        // last user message instead, and the row keeps what it actually sent.
         await seedAssistant('assistant-1');
         await putEntry(id: 'mem_01', content: 'User likes Flutter.');
         final conversation = await seedConversation('conv-1');
@@ -1959,7 +1805,6 @@ void main() {
           content: 'again',
           messageOrder: 1,
         );
-        // u1 has no freeze row; u2 froze a snapshot from before mem_01 changed.
         final stale = MemoryBlockBuilder.buildFullSnapshotPrefix(
           MemoryBlockBuilder.buildProfileBlock(
             fields: const [],
@@ -1973,12 +1818,11 @@ void main() {
           '<user_memory type="instruction"/>\n',
           MemoryPromptLang.zh,
         );
-        await chatRepository.freezeMessagePrompt(
+        await chatRepository.putMessagePrompt(
           revisionId: 'u2',
           conversationId: 'conv-1',
           payload: '${stale}again',
           carriesMemorySnapshot: true,
-          injectedMemoryHash: const Value('stalehash0000001'),
         );
 
         final apiMessages = <Map<String, dynamic>>[
@@ -1987,6 +1831,7 @@ void main() {
             'content': 'hi',
             MessageBuilderService.internalRevisionIdKey: 'u1',
           },
+          {'role': 'assistant', 'content': 'hello'},
           {
             'role': 'user',
             'content': 'again',
@@ -2001,10 +1846,19 @@ void main() {
           sourceMessages: [u1, u2],
         );
 
-        expect(apiMessages[0]['content'], contains('User likes Flutter.'));
-        expect(apiMessages[1]['content'], 'again');
+        expect(apiMessages[0]['content'], 'hi');
+        expect(
+          apiMessages[2]['content'],
+          startsWith(MemoryPrompts.introFullZh),
+        );
+        expect(apiMessages[2]['content'], contains('User likes Flutter.'));
+        expect(apiMessages[2]['content'], endsWith('again'));
         final sent = apiMessages.map((m) => m['content'].toString()).join('\n');
         expect(sent, isNot(contains('stale entry')));
+        expect(
+          (await chatRepository.getMessagePrompt('u2'))!.payload,
+          '${stale}again',
+        );
       },
     );
 
@@ -2029,12 +1883,11 @@ void main() {
         payload: pasted,
         carriesMemorySnapshot: false,
       );
-      await chatRepository.freezeMessagePrompt(
+      await chatRepository.putMessagePrompt(
         revisionId: 'u2',
         conversationId: 'conv-1',
         payload: '${snapshot.prefix}again',
         carriesMemorySnapshot: true,
-        injectedMemoryHash: Value(snapshot.hash),
       );
 
       final apiMessages = <Map<String, dynamic>>[
@@ -2064,88 +1917,66 @@ void main() {
 
   group('§18.4 item 30 — self-heal after truncateIndex advances', () {
     test(
-      'dropping snapshot-carrying message yields full snapshot next turn',
+      'dropping the carrier out of the request yields a full snapshot again',
       () async {
         await seedAssistant('assistant-1');
         await putEntry(id: 'mem_01', content: 'User likes Flutter.');
 
         final conversation = await seedConversation('conv-1');
-        await seedUserMessage(id: 'u1', conversationId: 'conv-1');
-        await seedUserMessage(
+        final u1 = await seedUserMessage(id: 'u1', conversationId: 'conv-1');
+        final u2 = await seedUserMessage(
           id: 'u2',
           conversationId: 'conv-1',
           content: 'again',
           messageOrder: 1,
         );
-        await seedUserMessage(
+        final u3 = await seedUserMessage(
           id: 'u3',
           conversationId: 'conv-1',
           content: 'after truncate',
           messageOrder: 2,
         );
-        final service = buildService();
+        final service = buildService(messages: [u1, u2, u3]);
 
-        // First turn: no history snapshot → full snapshot, freeze u1.
-        final first = await service.resolveMemoryPrefix(
-          conversation: conversation,
-          assistant: assistant,
-          apiMessages: [
-            {
-              'role': 'user',
-              'content': 'hi',
-              MessageBuilderService.internalRevisionIdKey: 'u1',
-            },
-          ],
-          currentMessageId: 'u1',
-          lang: MemoryPromptLang.zh,
-        );
-        expect(first.prefix, contains(MemoryPrompts.introFullZh));
-        await chatRepository.freezeMessagePrompt(
-          revisionId: 'u1',
-          conversationId: 'conv-1',
-          payload: '${first.prefix}hi',
-          carriesMemorySnapshot: true,
-          injectedMemoryHash: Value(first.hash),
-        );
+        Future<List<Map<String, dynamic>>> turn(
+          List<ChatMessage> messages,
+        ) async {
+          final api = <Map<String, dynamic>>[
+            for (final message in messages)
+              {
+                'role': 'user',
+                'content': message.content,
+                MessageBuilderService.internalRevisionIdKey: message.id,
+              },
+          ];
+          await service.processUserMessagesForApi(
+            api,
+            settings,
+            assistant,
+            conversation: conversation,
+            sourceMessages: messages,
+          );
+          return api;
+        }
 
-        // Same hash, snapshot still in apiMessages → empty.
-        final same = await service.resolveMemoryPrefix(
-          conversation: conversation,
-          assistant: assistant,
-          apiMessages: [
-            {
-              'role': 'user',
-              'content': 'hi',
-              MessageBuilderService.internalRevisionIdKey: 'u1',
-            },
-            {
-              'role': 'user',
-              'content': 'again',
-              MessageBuilderService.internalRevisionIdKey: 'u2',
-            },
-          ],
-          currentMessageId: 'u2',
-          lang: MemoryPromptLang.zh,
-        );
-        expect(same.prefix, isEmpty);
+        // First turn: no recorded carrier → the snapshot lands on u1, which is
+        // also the last message of this request.
+        final first = await turn([u1]);
+        expect(first.single['content'], startsWith(MemoryPrompts.introFullZh));
 
-        // truncateIndex advanced: u1 left apiMessages → full snapshot again.
-        final healed = await service.resolveMemoryPrefix(
-          conversation: conversation,
-          assistant: assistant,
-          apiMessages: [
-            {
-              'role': 'user',
-              'content': 'after truncate',
-              MessageBuilderService.internalRevisionIdKey: 'u3',
-            },
-          ],
-          currentMessageId: 'u3',
-          lang: MemoryPromptLang.zh,
-        );
+        // Unchanged memory: the record still holds, so u2 gets nothing.
+        final same = await turn([u1, u2]);
+        expect(same[0]['content'], startsWith(MemoryPrompts.introFullZh));
+        expect(same[1]['content'], 'again');
 
-        expect(healed.prefix, contains(MemoryPrompts.introFullZh));
-        expect(healed.prefix, isNot(contains('<user_memory_update>')));
+        // truncateIndex advanced and u1 left the request: the record is now
+        // outside it, so the snapshot has to be sent again — on u3.
+        final healed = await turn([u3]);
+        expect(healed.single['content'], startsWith(MemoryPrompts.introFullZh));
+        expect(
+          healed.single['content'],
+          isNot(contains('<user_memory_update>')),
+        );
       },
     );
   });

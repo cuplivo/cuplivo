@@ -703,8 +703,7 @@ void main() {
         await reopened.ensureReady();
         final conversation = await reopened.getConversation('imported');
         expect(conversation, isNotNull);
-        expect(conversation!.injectedMemoryHash, isNull);
-        expect(conversation.lastMemoryExtractedOrder, 2);
+        expect(conversation!.lastMemoryExtractedOrder, 2);
       },
     );
 
@@ -764,10 +763,8 @@ void main() {
       await reopened.ensureReady();
       final merged = await reopened.getConversation('merged');
       final local = await reopened.getConversation('local');
-      expect(merged!.injectedMemoryHash, isNull);
-      expect(merged.lastMemoryExtractedOrder, 1);
-      expect(local!.injectedMemoryHash, 'stale-local');
-      expect(local.lastMemoryExtractedOrder, -1);
+      expect(merged!.lastMemoryExtractedOrder, 1);
+      expect(local!.lastMemoryExtractedOrder, -1);
     });
   });
 

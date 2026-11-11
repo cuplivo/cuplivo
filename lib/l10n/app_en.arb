@@ -22462,6 +22462,10 @@
   "@recycleBinKindWorkspaceFile": {
     "description": "Kind label on a recycle-bin entry that is a file from a workspace folder."
   },
+  "recycleBinKindSkill": "Skill",
+  "@recycleBinKindSkill": {
+    "description": "Kind label on a recycle-bin entry that is a skill — an installed skill's folder of files, deleted as one item."
+  },
   "recycleBinKindConfig": "Configuration",
   "@recycleBinKindConfig": {
     "description": "Fallback kind label for a recycle-bin entry whose stored type is not otherwise recognised."

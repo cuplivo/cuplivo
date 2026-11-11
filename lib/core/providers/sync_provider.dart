@@ -486,19 +486,8 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       final engine = SyncEngine(
         identity: identity,
         store: store,
-        dataPlane: SyncDataPlane(
-          repository: _repository,
-          chatService: _chatService,
-          businessRepository: _businessRepository,
-          businessPreferences: _businessPreferences,
-          reloader: _reloader,
-          // Skill bodies ride sync as directory blobs (slice 3); the root is
-          // the same one the skills service installs into.
-          skillDirectories: SkillDirectorySync(
-            await AppDirectories.getSkillsDirectory(),
-          ),
-          // Managed workspace folders ride as files (slice 18); the root
-          // resolver is the same one the workspace provider hands the tools.
+        dataPlane: await _dataPlaneFor(
+          store: store,
           workspaceContent: workspaceContent,
         ),
         onStateChanged: _onEngineStateChanged,
@@ -547,6 +536,55 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       starting = false;
       _notify();
     }
+  }
+
+  /// The engine's data plane: the stores, the kind-holding callbacks, and the
+  /// two content planes whose roots only the app knows.
+  ///
+  /// Deliberately **not** built inline in [_start], and not only for length. A
+  /// closure written in [_start] that captures `this` — the skill-body sink
+  /// below does, to reach the recycle bin — is boxed into that method's scope
+  /// context, and `Isolate.run` sends the *context* of the closure it is given,
+  /// not just the variables that closure names. The identity load above runs in
+  /// an isolate, so the whole start failed with "Illegal argument in isolate
+  /// message: object is unsendable — dart:async _Future" (the provider's own
+  /// pending start future) and did so silently: `_start` records it in
+  /// [startError] and the listener simply never came up, which every
+  /// provider-driven sync test then read as "no listener".
+  Future<SyncDataPlane> _dataPlaneFor({
+    required SyncStore store,
+    required WorkspaceContentSync workspaceContent,
+  }) async {
+    final recycle = _recycle;
+    return SyncDataPlane(
+      repository: _repository,
+      chatService: _chatService,
+      businessRepository: _businessRepository,
+      businessPreferences: _businessPreferences,
+      reloader: _reloader,
+      // Skill bodies ride sync as directory blobs (slice 3); the root is the
+      // same one the skills service installs into. A body a peer's version
+      // replaces is handed to the same bin the deletion paths use, so a swap is
+      // undoable like any other loss (ADR-0016).
+      skillDirectories: SkillDirectorySync(
+        await AppDirectories.getSkillsDirectory(),
+        preserveBody: (skillId, displaced) async {
+          if (recycle == null) return false;
+          final entry = await recycle.stageSkillBody(
+            skillId: skillId,
+            source: displaced,
+            origin: RecycleOrigin.remote,
+            reason: RecycleReason.overwritten,
+          );
+          return entry != null;
+        },
+      ),
+      // Managed workspace folders ride as files (slice 18); the root resolver
+      // is the same one the workspace provider hands the tools.
+      workspaceContent: workspaceContent,
+      // A skill record a peer deletes takes its body into the bin with it.
+      recycle: recycle,
+    );
   }
 
   /// Stops the listener. Idempotent.

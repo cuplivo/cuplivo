@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/services/chat/chat_service.dart';
 import '../../core/services/recycle/recycle_service.dart';
+import '../../core/services/skills/skills_service.dart';
 import '../../core/services/sync/business_state_reloader.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/snackbar.dart';
@@ -235,6 +236,10 @@ class _RefreshTargets {
   /// Whether any business row or synced preference came back.
   bool business = false;
 
+  /// Whether a skill's directory came back. Its list is read from disk, so a
+  /// restored skill stays invisible until that list is rebuilt.
+  bool skills = false;
+
   void add(RecycleEntry entry) {
     switch (entry.type) {
       case RecycleEntryType.conversation:
@@ -242,6 +247,11 @@ class _RefreshTargets {
       case RecycleEntryType.businessEntity:
       case RecycleEntryType.preference:
         business = true;
+      case RecycleEntryType.skillBody:
+        // Both halves: the record is a business row, and the body is what the
+        // skills list enumerates.
+        business = true;
+        skills = true;
       case RecycleEntryType.workspaceFile:
         break;
     }
@@ -264,6 +274,7 @@ Future<void> _refreshAfterRestore(
   final reloader = targets.business
       ? _maybe<BusinessStateReloader>(context)
       : null;
+  final skills = targets.skills ? _maybe<SkillsService>(context) : null;
   try {
     // A restored conversation comes back with the draft its delete took, and the
     // delete fenced that id against the store for good: without taking it back
@@ -279,6 +290,9 @@ Future<void> _refreshAfterRestore(
       );
     }
     if (reloader != null) await reloader.reloadAll();
+    // After the row is back: the rescan reads the directory *and* the row, and
+    // it is what rebuilds the list the skills pane and the composer read.
+    if (skills != null) await skills.rescan();
   } catch (error) {
     // A provider that cannot reload must not make a completed restore look like
     // a failure; the rows are back and the next load picks them up.

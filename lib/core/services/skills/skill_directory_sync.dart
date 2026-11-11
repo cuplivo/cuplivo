@@ -1,59 +1,87 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
-import 'package:crypto/crypto.dart' as crypto;
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path/path.dart' as p;
 
 import 'skill_archive.dart';
+import 'skill_body_policy.dart';
 
-/// The body hash of a skill whose carried set is empty — a directory that
-/// holds nothing that rides (or only names the policy excludes). It is a real
-/// body, and the hash, the zip and the extraction have to agree on it: when
-/// they did not, a peer holding this hash asked for a body this device could
-/// never produce, so the record stayed deferred session after session.
-final String kEmptySkillBodyHash = crypto.sha256
-    .convert(const <int>[])
-    .toString();
+export 'skill_body_policy.dart';
 
-/// Skill-directory carriage for LAN sync (ADR-0003 slice 3): a skill travels
-/// as its entity record plus its on-disk directory as one zip blob keyed by a
-/// directory hash — sha256 over the sorted `relpath\0fileDigest` lines. The
-/// record's `updated_at` does not track content edits, so the hash is the
-/// only content clock.
+/// Hands the body a swap has just displaced — already out of the live root,
+/// still inside it under a scratch name — to the recycle bin, so the version it
+/// replaced can be brought back (ADR-0016).
 ///
-/// Apply is staging + atomic directory swap, re-hashed on receipt before the
-/// swap; extraction reuses the `skill_archive` hardened unpacker, so zip-slip
-/// and size caps are enforced by the same code the import flow trusts.
+/// False means the bin could not take it. The body then stays under its scratch
+/// name, which is lossy at the next startup sweep but never silent and never the
+/// only copy of anything live: what it holds is the version a peer's newer body
+/// already replaced.
+typedef SkillBodyPreserver =
+    Future<bool> Function(String skillId, Directory displaced);
+
+/// One directory rename, as the swap performs it.
+typedef SkillRenamer = Future<void> Function(String from, String to);
+
+Future<void> _renameDirectory(String from, String to) async {
+  await Directory(from).rename(to);
+}
+
+/// Skill-directory carriage for LAN sync (ADR-0003 slice 3): a skill travels as
+/// its entity record plus its on-disk directory as one zip blob keyed by a
+/// directory hash — sha256 over the sorted `relpath\0fileDigest` lines (see
+/// `skill_body_policy.dart`, which owns what a body is). The record's
+/// `updated_at` does not track content edits, so the hash is the only content
+/// clock.
+///
+/// Apply is staging + directory swap, re-hashed on receipt before the swap;
+/// extraction reuses the `skill_archive` hardened unpacker, so zip-slip and size
+/// caps are enforced by the same code the import flow trusts.
 class SkillDirectorySync {
-  SkillDirectorySync(this.root);
+  SkillDirectorySync(this.root, {this.preserveBody, SkillRenamer? rename})
+    : _rename = rename ?? _renameDirectory;
 
   /// The skills root (`<appData>/skills`).
   final Directory root;
 
-  /// Per-launch memo: a fingerprint (file count, total size, max mtime) that
-  /// has not changed cannot have changed content, so the hash is reused.
-  /// Fingerprints are recomputed on every call; hashing is the expensive half.
+  /// Where a displaced body goes. Null in a harness with no bin: the swap still
+  /// works and the old body waits under its scratch name for the sweep.
+  final SkillBodyPreserver? preserveBody;
+
+  /// The rename the swap performs. Injected only to force one to fail: the
+  /// second rename of a swap is the failure whose recovery matters most — the
+  /// old body has to come back so the next round is a retry rather than a loss —
+  /// and no filesystem this project targets can be made to refuse it on demand.
+  /// Production never passes it.
+  final SkillRenamer _rename;
+
+  /// Per-launch memo: a fingerprint that has not changed cannot have changed
+  /// content, so the hash is reused. Fingerprints are recomputed on every call;
+  /// hashing is the expensive half.
   final Map<String, _SkillHashMemo> _memos = {};
 
+  /// Whether the startup sweep has already run for this instance.
+  bool _swept = false;
+
+  /// Creates the root if it is not there, and reclaims the scratch this plane
+  /// left behind the last time it ran — an interrupted apply's staging
+  /// directory, a swap's parked body, the served-zip cache.
+  ///
+  /// Once per instance, and only ever direct children matched by the policy's
+  /// own names: the sweep is the one operation here that deletes something it
+  /// did not create in this run, so it is the one that refuses to guess.
   Future<void> ensureRoot() async {
     if (!await root.exists()) {
       await root.create(recursive: true);
     }
+    if (_swept) return;
+    _swept = true;
+    await sweepSkillRootScratch(root);
   }
 
-  /// The directory of [skillId], or null when the id is not contained in the
-  /// skills root. Skill ids arrive from the wire (a peer's manifest names
-  /// them), so every path this class builds from one goes through here: a
-  /// crafted id (`../victim`, an absolute path) is refused before any stat,
-  /// create, rename or delete can leave the root — the same rule
-  /// [deleteDirectory] has always enforced, now applied to every entry point.
-  Directory? _skillDir(String skillId) {
-    final rootCanonical = p.canonicalize(root.path);
-    final dest = p.canonicalize(p.join(rootCanonical, skillId));
-    if (!p.isWithin(rootCanonical, dest)) return null;
-    return Directory(dest);
-  }
+  /// The directory of [skillId], or null when the id is not one safe segment
+  /// inside the root (see [skillBodyDirectory]).
+  Directory? _skillDir(String skillId) => skillBodyDirectory(root, skillId);
 
   /// The directory hash of one skill, or null when it has no body here.
   Future<String?> hashOf(String skillId) async {
@@ -68,14 +96,14 @@ class SkillDirectorySync {
       final dir = _skillDir(id);
       if (dir == null) continue;
       if (!await dir.exists()) continue;
-      final fingerprint = _fingerprintOf(dir.path);
+      final fingerprint = fingerprintOfSkillBody(dir.path);
       final memo = _memos[id];
       if (memo != null && memo.fingerprint == fingerprint) {
         out[id] = memo.dirHash;
         continue;
       }
       final dirPath = dir.path;
-      final dirHash = await Isolate.run(() => _hashSkillDirectory(dirPath));
+      final dirHash = await Isolate.run(() => hashSkillBody(dirPath));
       _memos[id] = _SkillHashMemo(fingerprint, dirHash);
       out[id] = dirHash;
     }
@@ -94,16 +122,17 @@ class SkillDirectorySync {
     if (dirPath == null) {
       throw StateError('skill id escapes the skills root: $skillId');
     }
-    final current = await Isolate.run(() => _hashSkillDirectory(dirPath));
+    final current = await Isolate.run(() => hashSkillBody(dirPath));
     if (current != dirHash) {
       throw StateError('skill body changed while serving: $skillId');
     }
     await Isolate.run(() => _writeSkillZip(dirPath, output.path));
   }
 
-  /// Applies a received zip: extract to staging, re-hash, and only then swap
-  /// the directory atomically. Returns false when the re-hash does not match
-  /// [dirHash] (corrupt or truncated transfer — nothing is installed).
+  /// Applies a received zip: extract to staging, re-hash, and only then swap the
+  /// directory in. Returns false when the re-hash does not match [dirHash]
+  /// (corrupt or truncated transfer — nothing is installed) or when the swap
+  /// could not complete (the body that was here is still here).
   Future<bool> applyZip({
     required String skillId,
     required String dirHash,
@@ -118,7 +147,7 @@ class SkillDirectorySync {
     final staging = Directory(
       p.join(
         root.path,
-        '.sync-apply-$skillId-${DateTime.now().microsecondsSinceEpoch}',
+        skillApplyScratchName(skillId, DateTime.now().microsecondsSinceEpoch),
       ),
     );
     await staging.create(recursive: true);
@@ -130,21 +159,28 @@ class SkillDirectorySync {
       // below is the verification. `dirHash` is the contract either way — a
       // body that hashes to the empty set *is* the empty set.
       if (dirHash != kEmptySkillBodyHash) {
-        await Isolate.run(() => extractSkillArchive(zipPath, stagingPath));
+        // The one caller that filters: what a peer's body becomes must hold
+        // exactly the names its hash counted, or the re-hash below fails on a
+        // difference no sender ever produced. An import passes no filter.
+        await Isolate.run(
+          () => extractSkillArchive(
+            zipPath,
+            stagingPath,
+            installsName: carriesSkillEntry,
+          ),
+        );
       }
-      final received = await Isolate.run(
-        () => _hashSkillDirectory(stagingPath),
-      );
+      final received = await Isolate.run(() => hashSkillBody(stagingPath));
       if (received != dirHash) return false;
-      _memos[skillId] = _SkillHashMemo(_fingerprintOf(staging.path), received);
-
-      final trash =
-          '${dest.path}.sync-old-${DateTime.now().microsecondsSinceEpoch}';
-      if (await dest.exists()) {
-        await dest.rename(trash);
-      }
-      await staging.rename(dest.path);
-      await _deleteBestEffort(trash);
+      if (!await _swapIn(staging, dest, skillId)) return false;
+      // Observed from the directory that is now installed, not from the staging
+      // one: they hold the same bytes, but what the next `hashesOf` reads is
+      // this path, and a memo keyed to a path that no longer exists is a memo
+      // that can only ever be wrong.
+      _memos[skillId] = _SkillHashMemo(
+        fingerprintOfSkillBody(dest.path),
+        received,
+      );
       return true;
     } finally {
       if (await staging.exists()) {
@@ -153,14 +189,103 @@ class SkillDirectorySync {
     }
   }
 
-  /// Zips one skill into the serving cache, keyed by content hash, and reuses
-  /// an existing archive. The cache lives in a dot-directory beside the skills,
-  /// so directory hashing and zip building never see it.
+  /// Moves [staging] into [dest], keeping the body it replaces.
+  ///
+  /// A directory swap is two renames and no platform makes the pair atomic, so
+  /// the order is chosen for the state an interruption leaves behind:
+  ///
+  /// 1. the body that is here goes to a scratch name **first** — still inside
+  ///    the root, still O(1), and never a delete;
+  /// 2. the new body takes its place;
+  /// 3. the old body goes into the recycle bin.
+  ///
+  /// A failure at 2 renames the displaced body straight back, so the record, the
+  /// content clock and the next session's plan all read the state before the
+  /// attempt: the identity is intact and the next round retries. A failure at 3
+  /// (or no bin at all) leaves the body under its scratch name, which the rescan
+  /// refuses to adopt and [sweepSkillRootScratch] reclaims. What cannot happen,
+  /// in either case, is the old body being destroyed while its replacement was
+  /// never installed — which is what "moved, not deleted" is worth.
+  Future<bool> _swapIn(
+    Directory staging,
+    Directory dest,
+    String skillId,
+  ) async {
+    if (!await dest.exists()) {
+      try {
+        await _rename(staging.path, dest.path);
+        return true;
+      } catch (error) {
+        debugPrint(
+          'sync skill: installing the body of $skillId failed: $error',
+        );
+        return false;
+      }
+    }
+    final displaced = Directory(
+      p.join(
+        root.path,
+        skillParkedBodyName(skillId, DateTime.now().microsecondsSinceEpoch),
+      ),
+    );
+    try {
+      await _rename(dest.path, displaced.path);
+    } catch (error) {
+      // Nothing has moved: the body that is here is the body that stays.
+      debugPrint(
+        'sync skill: could not move the body of $skillId aside: $error',
+      );
+      return false;
+    }
+    try {
+      await _rename(staging.path, dest.path);
+    } catch (error) {
+      debugPrint(
+        'sync skill: installing the body of $skillId failed, putting the old '
+        'one back: $error',
+      );
+      await _putBack(displaced, dest);
+      return false;
+    }
+    await _keepDisplacedBody(skillId, displaced);
+    return true;
+  }
+
+  /// Puts a displaced body back where it came from after a failed install.
+  Future<void> _putBack(Directory displaced, Directory dest) async {
+    try {
+      await _rename(displaced.path, dest.path);
+    } catch (error) {
+      // The body is not lost — it is under a scratch name, which is what the
+      // startup sweep collects — but the live root is now missing it, so this
+      // is worth a log line rather than a swallow.
+      debugPrint(
+        'sync skill: the body of ${p.basename(dest.path)} could not be put '
+        'back and waits in ${displaced.path}: $error',
+      );
+    }
+  }
+
+  /// Hands the body a swap displaced to the recycle bin, or leaves it for the
+  /// sweep when there is no bin or the bin could not take it.
+  Future<void> _keepDisplacedBody(String skillId, Directory displaced) async {
+    final preserve = preserveBody;
+    if (preserve == null) return;
+    try {
+      if (await preserve(skillId, displaced)) return;
+    } catch (error) {
+      debugPrint('sync skill: preserving the body of $skillId failed: $error');
+    }
+  }
+
+  /// Zips one skill into the serving cache, keyed by content hash, and reuses an
+  /// existing archive. The cache lives in a dot-directory beside the skills, so
+  /// directory hashing and zip building never see it.
   Future<File> zipToCache({
     required String skillId,
     required String dirHash,
   }) async {
-    final cacheDir = Directory(p.join(root.path, _blobCacheDirName));
+    final cacheDir = Directory(p.join(root.path, kSkillBlobCacheName));
     if (!await cacheDir.exists()) await cacheDir.create(recursive: true);
     final output = File(p.join(cacheDir.path, '$dirHash.zip'));
     if (await output.exists()) return output;
@@ -171,14 +296,16 @@ class SkillDirectorySync {
   /// Drops every cached archive: they are reproducible from the live
   /// directories, so a launch starts empty rather than accumulating.
   Future<void> clearBlobCache() async {
-    await _deleteBestEffort(p.join(root.path, _blobCacheDirName));
+    await _deleteBestEffort(p.join(root.path, kSkillBlobCacheName));
   }
 
-  static const String _blobCacheDirName = '.sync-blob-cache';
-
   /// Deletes one skill body. The repository row delete happens next to this
-  /// call — a row-less directory would be resurrected as a fresh record by
-  /// the skills rescan, and a directory-less row installs a broken skill.
+  /// call — a row-less directory would be resurrected as a fresh record by the
+  /// skills rescan, and a directory-less row installs a broken skill.
+  ///
+  /// This is the path a build with no recycle bin has, and the fallback a bin
+  /// that could not take the body leaves: everything else moves the body into
+  /// the bin instead (ADR-0016).
   Future<void> deleteDirectory(String skillId) async {
     final dir = _skillDir(skillId);
     if (dir == null) return;
@@ -198,99 +325,18 @@ class SkillDirectorySync {
       }
     } catch (_) {}
   }
-
-  /// Cheap stat walk used as the memo fingerprint.
-  _SkillFingerprint _fingerprintOf(String dirPath) {
-    var count = 0;
-    var totalSize = 0;
-    var maxMtime = 0;
-    final stack = <String>[dirPath];
-    while (stack.isNotEmpty) {
-      final current = stack.removeLast();
-      for (final entity in Directory(current).listSync(followLinks: false)) {
-        final name = p.basename(entity.path);
-        if (!_carriesSkillEntry(name)) continue;
-        if (entity is Directory) {
-          stack.add(entity.path);
-        } else if (entity is File) {
-          final stat = entity.statSync();
-          count++;
-          totalSize += stat.size;
-          final mtime = stat.modified.millisecondsSinceEpoch;
-          if (mtime > maxMtime) maxMtime = mtime;
-        }
-      }
-    }
-    return _SkillFingerprint(count, totalSize, maxMtime);
-  }
-}
-
-/// Whether a skill-directory entry rides the body. The hash, the fingerprint
-/// and the zip must agree on this set: the extractor installs every entry of a
-/// received archive, so any name the hash ignores is a divergence the content
-/// clock can never see — an edit touching only those names would never
-/// converge between two devices.
-///
-/// Excluded are the sync plane's own scratch directories (`.sync-blob-cache`
-/// beside the skills, the `.sync-apply-*` staging and `.sync-old-*` trashed
-/// bodies) and the bookkeeping files Finder and Explorer drop in, which would
-/// otherwise make two identical bodies hash differently per platform.
-bool _carriesSkillEntry(String name) {
-  if (name == '.DS_Store' || name == 'Thumbs.db' || name == 'desktop.ini') {
-    return false;
-  }
-  return !name.startsWith('.sync-');
-}
-
-/// sha256 over the sorted `relpath\0fileDigest` lines of every regular file
-/// under [dirPath]. Deterministic across platforms (posix separators, UTF-8,
-/// sorted) and independent of mtimes.
-String _hashSkillDirectory(String dirPath) {
-  final lines = <String>[];
-  final stack = <String>[dirPath];
-  while (stack.isNotEmpty) {
-    final current = stack.removeLast();
-    for (final entity in Directory(current).listSync(followLinks: false)) {
-      final name = p.basename(entity.path);
-      if (!_carriesSkillEntry(name)) continue;
-      if (entity is Directory) {
-        stack.add(entity.path);
-      } else if (entity is File) {
-        final rel = p
-            .relative(entity.path, from: dirPath)
-            .replaceAll('\\', '/');
-        final digest = crypto.sha256.convert(entity.readAsBytesSync());
-        lines.add('$rel\u0000$digest');
-      }
-    }
-  }
-  lines.sort();
-  return crypto.sha256.convert(utf8.encode(lines.join('\n'))).toString();
 }
 
 void _writeSkillZip(String dirPath, String outputPath) {
   final files = <String, List<int>>{};
-  final stack = <String>[dirPath];
   var total = 0;
-  while (stack.isNotEmpty) {
-    final current = stack.removeLast();
-    for (final entity in Directory(current).listSync(followLinks: false)) {
-      final name = p.basename(entity.path);
-      if (!_carriesSkillEntry(name)) continue;
-      if (entity is Directory) {
-        stack.add(entity.path);
-      } else if (entity is File) {
-        final rel = p
-            .relative(entity.path, from: dirPath)
-            .replaceAll('\\', '/');
-        final bytes = entity.readAsBytesSync();
-        total += bytes.length;
-        if (total > kSkillImportMaxBytes) {
-          throw const FormatException('skill body exceeds 200 MB');
-        }
-        files[rel] = bytes;
-      }
+  for (final entry in walkSkillBody(dirPath)) {
+    final bytes = File(entry.path).readAsBytesSync();
+    total += bytes.length;
+    if (total > kSkillImportMaxBytes) {
+      throw const FormatException('skill body exceeds 200 MB');
     }
+    files[entry.relPath] = bytes;
   }
   // An empty carried set still produces the empty body's zip: the hash
   // advertised for it is servable, and the receiver converges to a directory
@@ -299,26 +345,8 @@ void _writeSkillZip(String dirPath, String outputPath) {
   File(outputPath).writeAsBytesSync(encodeSkillZip(files), flush: true);
 }
 
-final class _SkillFingerprint {
-  final int count;
-  final int totalSize;
-  final int maxMtimeMs;
-
-  const _SkillFingerprint(this.count, this.totalSize, this.maxMtimeMs);
-
-  @override
-  bool operator ==(Object other) =>
-      other is _SkillFingerprint &&
-      other.count == count &&
-      other.totalSize == totalSize &&
-      other.maxMtimeMs == maxMtimeMs;
-
-  @override
-  int get hashCode => Object.hash(count, totalSize, maxMtimeMs);
-}
-
 final class _SkillHashMemo {
-  final _SkillFingerprint fingerprint;
+  final SkillBodyFingerprint fingerprint;
   final String dirHash;
 
   const _SkillHashMemo(this.fingerprint, this.dirHash);

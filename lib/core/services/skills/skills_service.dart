@@ -11,9 +11,11 @@ import '../../../utils/app_directories.dart';
 import '../../database/extension_entity_store.dart';
 import '../../models/assistant.dart';
 import '../../models/skill_record.dart';
+import '../recycle/recycle_service.dart';
 import 'github_skill_ref.dart';
 import 'skill.dart';
 import 'skill_archive.dart';
+import 'skill_body_policy.dart';
 import 'skill_frontmatter.dart';
 import 'skill_import_progress.dart';
 
@@ -27,6 +29,7 @@ class SkillsService extends ChangeNotifier {
     required this.store,
     Directory? skillsDirectory,
     http.Client? httpClient,
+    this.recycle,
     this._bundledAssets,
   }) : _injectedSkillsDirectory = skillsDirectory,
        _httpClient = httpClient ?? http.Client(),
@@ -35,6 +38,12 @@ class SkillsService extends ChangeNotifier {
   }
 
   final ExtensionEntityStore store;
+
+  /// The device-local recycle bin, when this app attached one. A skill the user
+  /// deletes has a body as well as a row, and the two are preserved together
+  /// (ADR-0016); null only in a harness that has no bin.
+  final RecycleService? recycle;
+
   final Directory? _injectedSkillsDirectory;
   final AssetBundle? _bundledAssets;
   final http.Client _httpClient;
@@ -69,15 +78,58 @@ class SkillsService extends ChangeNotifier {
   }
 
   Future<void> _load() => _serializeMutation(() async {
+    final root = await _ensureRoot();
+    // Settle the plane's scratch **before** the records are read, not on the
+    // first sync session. Three states depend on that order:
+    //
+    // * a body an interrupted swap parked is the only copy this device has of a
+    //   skill whose record still describes it — `_rescan` below would drop that
+    //   record for want of a `SKILL.md` at the path the recovery fills;
+    // * a ghost directory an older build invented a record for is gone by the
+    //   time the records are read, so the record goes with it instead of listing
+    //   one broken skill for a launch;
+    // * a parked body whose skill the user deleted is neither recovered (that
+    //   invents the skill back) nor deleted (that destroys the last copy): it
+    //   goes to the bin. Telling that apart from an interrupted swap is the one
+    //   thing the sweep cannot answer itself, so the records are read here —
+    //   `_rescan` reads them again, and this is the earlier of the two.
+    final described = <String>{
+      for (final entity in await store.listByKind(
+        ExtensionEntityStore.kindSkill,
+      ))
+        entity.id,
+    };
+    await sweepSkillRootScratch(
+      root,
+      livingSkillIds: described,
+      intoBin: _handParkedBodyToBin,
+    );
     final assets = _bundledAssets;
     if (assets != null) {
-      final root = await _ensureRoot();
       for (final bundle in _bundledSkillFiles.entries) {
         await _seedBundledSkill(root, assets, bundle.key, bundle.value);
       }
     }
     await _rescan();
   });
+
+  /// Hands a parked body whose skill the records no longer describe to the bin.
+  ///
+  /// That body is the last copy of files the user deleted — the delete found an
+  /// empty live path and staged nothing — so the bin is where it belongs:
+  /// recoverable, and out of the root where the rescan would adopt it as a skill
+  /// nobody asked for. False leaves it parked, which the sweep treats as "keep".
+  Future<bool> _handParkedBodyToBin(Directory parked, String id) async {
+    final bin = recycle;
+    if (bin == null) return false;
+    final entry = await bin.stageSkillBody(
+      skillId: id,
+      origin: RecycleOrigin.local,
+      reason: RecycleReason.deleted,
+      source: parked,
+    );
+    return entry != null;
+  }
 
   static const _bundledSkillFiles = <String, List<String>>{
     'skill-creator': ['SKILL.md'],
@@ -272,11 +324,27 @@ class SkillsService extends ChangeNotifier {
     await for (final entity in root.list(followLinks: false)) {
       if (entity is! Directory) continue;
       final id = p.basename(entity.path);
-      if (id.isEmpty || id.startsWith('.')) continue;
+      // A dot-name is never a skill: it is this plane's own staging (`.import-`,
+      // `.bundled-`) or the sync plane's scratch. The scratch names are asked of
+      // the one policy that produces them, because the parked body of a swap is
+      // *not* a dot-name (`<id>.sync-old-<micros>`) and adopting it here is how
+      // a ghost skill outlived every session (F2).
+      if (id.isEmpty || id.startsWith('.') || isSyncScratchName(id)) continue;
       diskIds.add(id);
     }
 
     for (final id in List<String>.from(records.keys)) {
+      // A record *named* like scratch is one an older build invented for the
+      // directory a swap parked — the loaded sweep reclaims that directory, and
+      // the record goes with it even when the directory could not be deleted
+      // (a file held open for the rest of the launch). Tested here as well as
+      // reclaimed there because the record outliving its directory is exactly
+      // the "directory-less row installs a broken skill" state.
+      if (isSyncScratchName(id)) {
+        await store.delete(ExtensionEntityStore.kindSkill, id);
+        records.remove(id);
+        continue;
+      }
       final md = File(p.join(root.path, id, 'SKILL.md'));
       if (!await md.exists()) {
         await store.delete(ExtensionEntityStore.kindSkill, id);
@@ -456,11 +524,28 @@ class SkillsService extends ChangeNotifier {
   Future<void> delete(String id) async {
     await loaded;
     await _serializeMutation(() async {
-      await store.delete(ExtensionEntityStore.kindSkill, id);
-      final dir = Directory(p.join((await _ensureRoot()).path, id));
-      if (await dir.exists()) {
-        await dir.delete(recursive: true);
+      final root = await _ensureRoot();
+      // The body goes into the bin **with its record row**, before either is
+      // removed. A row staged on its own restores into a skill with no
+      // directory, which is not a skill; the bin's entry carries both halves for
+      // exactly that reason (ADR-0016), and the user's own delete is one of the
+      // three places a body leaves this device.
+      final preserved = await recycle?.stageSkillBody(
+        skillId: id,
+        origin: RecycleOrigin.local,
+        reason: RecycleReason.deleted,
+      );
+      if (preserved == null) {
+        // No bin wired, or it could not take the body: fall back to the plain
+        // delete. A safety net is not a veto on a deletion the user asked for —
+        // and it looks where the body actually is, because a swap may have
+        // parked it and the live path would then be empty.
+        final dir = await liveOrParkedSkillBody(root, id);
+        if (dir != null) {
+          await dir.delete(recursive: true);
+        }
       }
+      await store.delete(ExtensionEntityStore.kindSkill, id);
       _skills.removeWhere((skill) => skill.record.id == id);
       notifyListeners();
     });

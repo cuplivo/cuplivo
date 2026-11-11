@@ -5,6 +5,7 @@ import '../../database/business_preferences.dart';
 import '../../database/business_repository.dart';
 import '../../database/chat_database_repository.dart';
 import '../chat/chat_service.dart';
+import '../recycle/recycle_service.dart';
 import '../skills/skill_directory_sync.dart';
 import 'blob_sync.dart';
 import 'business_state_reloader.dart';
@@ -27,6 +28,7 @@ class SyncDataPlane {
     this.reloader,
     this.skillDirectories,
     this.workspaceContent,
+    this.recycle,
     BlobFileHasher? fileHasher,
     this.blobPathResolver = defaultBlobPathResolver,
   }) : fileHasher = fileHasher ?? BlobFileHasher();
@@ -53,6 +55,12 @@ class SyncDataPlane {
   /// Null in conversation-only tests, where the records still travel and no
   /// file ever moves.
   final WorkspaceContentSync? workspaceContent;
+
+  /// The device-local recycle bin, when the app attached one. A skill's body
+  /// travels into it together with the record a peer's deletion removes, so that
+  /// deletion is undoable (ADR-0016); null in a harness with no bin, where the
+  /// body is deleted and the row is staged on its own.
+  final RecycleService? recycle;
 
   /// Content hashing for file blobs, memoised per (path, length, mtime).
   final BlobFileHasher fileHasher;
@@ -315,8 +323,10 @@ class SyncDataPlane {
   }
 
   /// Deletes one business row the peer no longer has. A skill's body goes with
-  /// its record: a row-less directory would be resurrected as a fresh record by
-  /// the skills rescan, and a directory-less row installs a broken skill. A
+  /// its record — a row-less directory would be resurrected as a fresh record by
+  /// the skills rescan, and a directory-less row installs a broken skill — and
+  /// the pair goes into the recycle bin as **one** entry, so that deletion is
+  /// undoable on this device (ADR-0016). A
   /// *managed workspace's* folder goes with its record for the same two
   /// reasons — a directory-less workspace looks empty in the app, and a
   /// row-less folder is invisible there while sitting on the disk.
@@ -353,10 +363,31 @@ class SyncDataPlane {
       final managesFolder =
           kindWire == WorkspaceContentSync.workspaceWire &&
           await _isManagedWorkspace(id);
-      final removed = await businessRepository.syncDeleteEntity(kindWire, id);
+      // A skill's body leaves this device with its record, in **one** entry: a
+      // row staged on its own restores into a skill with no directory, which is
+      // what a peer's deletion used to produce. The body moves first, because
+      // the entry that preserves it carries the row — so the row must not also
+      // be staged on its own that way.
+      final preservedBody = kindWire != skillWire
+          ? null
+          : await recycle?.stageSkillBody(
+              skillId: id,
+              origin: RecycleOrigin.remote,
+              reason: RecycleReason.deleted,
+            );
+      final removed = await businessRepository.syncDeleteEntity(
+        kindWire,
+        id,
+        stageRow: preservedBody == null,
+      );
       if (!removed) return const BusinessRowDeleteOutcome(removed: false);
       if (kindWire == skillWire) {
-        await skillDirectories?.deleteDirectory(id);
+        // The bin did not take the body (no bin wired, an unwritable directory):
+        // the row is gone, so the directory has to go too, or the rescan
+        // resurrects what was just deleted as a fresh import.
+        if (preservedBody == null) {
+          await skillDirectories?.deleteDirectory(id);
+        }
       } else if (managesFolder) {
         final content = workspaceContent;
         final off =

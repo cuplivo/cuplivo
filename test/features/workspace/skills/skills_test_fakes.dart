@@ -5,6 +5,7 @@ import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/models/skill_record.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/recycle/recycle_service.dart';
 import 'package:Cuplivo/core/services/skills/skills_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
@@ -30,6 +31,11 @@ class FakeSkillsService extends ChangeNotifier implements SkillsService {
 
   @override
   ExtensionEntityStore get store => throw UnimplementedError();
+
+  /// A fake holds no bin: what it records is the deletion itself, not where the
+  /// body went.
+  @override
+  RecycleService? get recycle => null;
 
   @override
   Directory get skillsDirectory {

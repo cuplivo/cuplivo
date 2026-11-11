@@ -1041,4 +1041,43 @@ Two lessons, both about resolutions rather than about upstream:
 The third run is the slowest of the three and still clean, which is the point: both remaining failures
 were load-shaped, and both are now repaired rather than registered.
 
+## 19. The `4857da608` replay: two full runs, two different flakes, and a per-commit l10n gate
 
+The 23 units were replayed onto `4857da608` — `v1.3.5` plus the three commits upstream published
+while the previous landing was being pushed — and this pass moved the l10n into the units
+themselves, so `translate.py check` is green at all 23 rather than at the tip only. The conflict
+surface was 16 files (12 of them generated output, regenerated rather than merged) and the tail
+carried one residue: the PDF move's old selection route, reported by the first `dart analyze` of
+the finished series as six `undefined_named_parameter` errors. The runbook's "Verification of the
+`4857da608` replay" has the full account.
+
+**Gates.** `translate.py check` 0 pending in all four translated locales and `desiredFileName.txt`
+`{}`; `dart analyze --fatal-infos lib test integration_test` clean in 44 s; `dart format
+--output=none --set-exit-if-changed` 2 657 files, 0 changed; `flutter gen-l10n` idempotent.
+
+**The two full runs, and neither was green for the same reason:**
+
+| run | duration | result | what failed |
+|---|---|---|---|
+| 1 | 16 m 15 s | 13 344 passed, 79 skipped, **1 failed** | `search_request_logging_test`: `tearDown` could not delete its temp directory — `errno 32`, the request logger's write still holding it |
+| 2 | 19 m 53 s | 13 344 passed, 79 skipped, **1 failed** | `message_list_view_image_anchor_test`: "A Timer is still pending even after the widget tree was disposed", a 120 ms one-shot from `TtsProvider._ensureBound` |
+
+Both files are byte-identical to the pre-replay tip, and both pass alone — 1 test and 5 tests
+respectively — so neither is this replay's defect. They are the §16 shape again: the failure needs
+the rest of the suite competing for the machine, and the run reports it in whichever case lost that
+race.
+
+**The first is repaired, and the repair is a wait for a handle the test can name.** Disabling the
+logger stops the next write, not one already in flight, so the directory can still be open when
+`tearDown` runs. It now calls `deleteDirectoryWhenReleased` from `test/support/` — the helper the
+image and backup tests already use — which retries for a bounded 20 × 50 ms and rethrows a leak that
+never clears. It did not recur in run 2.
+
+**The second is recorded, not patched.** The pending timer belongs to `TtsProvider`, a provider the
+tree mounts rather than something this test sets up, and it fires 120 ms after the frame that binds
+the TTS engine. Under load that bind lands in a later frame than the case's last `pump`, and the
+tree is disposed first. A repair would be "pump past the timer at the end", which is a wait on a
+timer the test does not own and cannot prove it has drained without the full run that produced it —
+and unlike the request-log case there is no handle whose release can be waited for. Registered here
+as load-shaped rather than in `.toolbridge/known-failures.json`, which is for platform claims proven
+at upstream's tip.

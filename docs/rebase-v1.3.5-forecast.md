@@ -271,16 +271,20 @@ unchanged this round, so the check is "still true", not "new decision".
 
 ## Still open
 
-1. **`tool/l10n`: adopt, seed, or leave dark.** Adopting upstream's CI steps needs a translation
-   `sync` the fork cannot authenticate; seeding `ko`/`ru`/`tr` with 430 English strings satisfies the
-   key-set check but ships untranslated UI; leaving the tool in the tree unrun keeps the fork's own
-   gate and is the smallest change.
+1. **`tool/l10n`: adopted.** The second replay closed this: the three locales are
+   fully translated (`translate.py check` at 0 pending for `ru`/`ko`/`tr`/`zh_Hant`,
+   `desiredFileName.txt` is `{}`), the state fingerprints and the nine native resource
+   files are committed, and every unit carries its own share of that work. What
+   remains a decision is CI: adopting upstream's translation steps means a `sync`
+   the fork cannot authenticate, so the check runs as a gate rather than a writer.
 2. **Land the rewrite.** The rewrite itself landed (`reorg/series-4.6`), and the replay's
    `master` now sits at `eec03c044` — 23 commits above `cb95d6af0`, `cb95d6af0` an ancestor, working
    tree clean. Both backups are pushed: `backup/master-ea626d893` (the pre-replay `master`) and
    `backup/series-v1.3.5-cb95d6af0` (the replayed series). What remains is the force-push of `master`
    itself, which the repository's owner performs: `git push --force-with-lease origin master`
-   (`origin/master` is still `ea626d893`, so the lease holds).
+   (`origin/master` is still `ea626d893`, so the lease holds). The same series was then replayed
+   again onto `4857da608` with per-commit l10n — see the runbook's "Verification of the
+   `4857da608` replay" — and *that* tip is the one to land.
 3. **#1081 (the composer's quick entries) is still its own unit**, because folding it into group-chat
    put `home_page.dart`'s `isGroup` block in twice with no conflict marker. A hand resolution would
    close the family; until then it is one extra round.
@@ -336,3 +340,40 @@ against what actually happened.
   `--reporter json` reports 34 `suite` events for a directory that holds 34 files,
   and the same directory shows 25 names under `compact`. The runbook carries the
   measurement; the scare is recorded only so the next re-base does not repeat it.
+
+### The second replay, onto `4857da608`
+
+Upstream published three commits (`8813d09ef`, `9442e39e6`, `4857da608`) while the
+first landing was being pushed. The choice was a follow-up commit on top or a
+replay of the series onto the new tip; the series exists to be replayed, so it was
+replayed — with one change of contract. **Every unit now carries its own l10n**:
+the descriptions, the ru/ko/tr text, the state fingerprints and the native
+resources land in the unit that adds the message, so no commit leaves a fork key
+undescribed or untranslated, and `translate.py check` is green at each of the 23
+rather than at the tip only.
+
+- **The conflict surface collapsed, and for a reason worth knowing.** The first
+  pass stopped on 74 paths in its identity unit alone; this one stopped on 16
+  conflicts across the whole series — unit 5's three ARBs, unit 12's, 13's and 17's
+  generated files, unit 16's `app_en.arb` and `app_localizations.dart`, and unit
+  23's one import list — and **12 of those 16 were generated output**, resolved by
+  restoring ours and letting `flutter gen-l10n` re-derive the file. A one-commit
+  follow-up would have hidden this: the shape of a replay depends on how far the
+  baseline moved, not on how big the series is.
+- **Four defects were the replay's own**, and none of them could be seen from the
+  conflict count: the brand sweep never reached the *values* of `ru`/`ko`/`tr`
+  (70/68/70 strings naming the other app, with every ARB-level gate green); two
+  conflicts were insertions of upstream's pre-rename keys beside the fork's; the
+  sync unit's new iOS permission string left the native resources stale until two
+  units later; and the PDF move left its old selection route behind, which is what
+  the first `dart analyze --fatal-infos` of the finished series reported as six
+  `undefined_named_parameter` errors. The runbook carries each one.
+- **The units do not compile individually, and the previous pass was the same.**
+  Measured, not assumed: unit 2's tree cannot load its own tests, because it
+  imports files that units 3 and 4 add. The per-commit gate is therefore ARB-level
+  and the analyzer runs once, at the tip. Making the units compile is the next
+  normalization pass's target, and it starts by not letting the identity unit carry
+  hunks of shared files.
+- **The tree against the old tip is 37 paths**, all intended, and the message
+  inventory ends at 5,320 — the same number the old tip ended on. That equality is
+  the cheap proof that this pass added every message the last one had and no other.

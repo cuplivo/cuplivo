@@ -1012,3 +1012,145 @@ backups are pushed — `backup/master-ea626d893` (the pre-replay `master`) and
 `backup/series-v1.3.5-cb95d6af0` (this series, for the next re-base). The
 force-push of `master` is the repository owner's to run:
 `git push --force-with-lease origin master`.
+
+## Verification of the `4857da608` replay
+
+The same 23 units, replayed a second time onto `4857da608` — upstream's `v1.3.5`
+plus the three commits it published while the previous landing was being pushed
+(`8813d09ef` oauth usage, `9442e39e6` compression planning, `4857da608` the 1M
+default). What makes this pass a different product from the last one is not the
+baseline: it is that **every unit now ships its own l10n**. The `cb95d6af0` landing
+left that to the tail, so its own tip carried 432 messages with no ru/ko/tr text
+and 397 with no `@description`, and no commit in between could be read as finished
+on its own. Here each one can.
+
+### What "its own l10n" means, per commit
+
+At every one of the 23 commits, `tool/l10n/translate.py check` exits 0 and these
+hold in that commit's tree:
+
+- the same message inventory in all seven ARBs (`en`, `zh`, `zh_Hans`, `zh_Hant`,
+  `ru`, `ko`, `tr`), `app_zh.arb` byte-equal to `app_zh_Hans.arb`;
+- an `@description` for every message in `app_en.arb`, and a non-empty value in
+  every locale;
+- `tool/l10n/state/*.json` carrying a fingerprint for every message — the tool
+  decides "pending" by comparing against that file, so a commit that writes a
+  translation without refreshing it reports the message as stale at itself;
+- `ios/Runner/{ru,ko,tr}.lproj/InfoPlist.strings`,
+  `ios/ShareExtension/{ru,ko,tr}.lproj/Localizable.strings` and
+  `android/app/src/main/res/values-{ru,ko,tr}/phone_control.xml` consistent with
+  `native_messages()`, digest included;
+- `lib/l10n/app_localizations*.dart` re-derived by `flutter gen-l10n` in that
+  commit, and no `package:Kelivo/` import anywhere in `lib`, `test`,
+  `integration_test` or `tool`.
+
+Those seven were checked by a scratch script run once per commit, not by anything
+in the tree — the repo's own gate is `translate.py check` plus `gen-l10n`, and the
+rest is what a person had to look at. It grew the brand check only after the first
+defect below, which is the honest way to say it was not looking for that class at
+first.
+
+### The four defects this pass found in itself
+
+1. **The brand sweep never reached the translated ARBs' values.** `en`, `zh` and
+   `zh_Hant` arrive from the fork already carrying Cuplivo, so only the keys a unit
+   adds needed writing. `ru`, `ko` and `tr` arrive from the *new baseline*, and the
+   ~4,700 values they inherit still read "Kelivo" — `aboutPageAppName`, the
+   restart/backup/startup-recovery sentences, the QQ-group labels. Writing the new
+   translations on top left **70 (ru), 68 (ko), 70 (tr)** values naming the other
+   app, and no ARB-level gate notices: the key sets match, every message is
+   described, and the fingerprints cover the source text rather than the target.
+   Rebound in the identity unit, and only where the template does not name Kelivo on
+   purpose — a whitelist *read off* `app_en.arb` (a key whose name or English value
+   names Kelivo), so a message that stops naming it drops out by itself. This is the
+   runbook's "the rename applies to the incoming side too" seen from the other end:
+   not a fork value that should have been `rename(upstream[k])`, but an upstream
+   value that was never renamed at all.
+2. **A conflict that is an insertion, not a disagreement.** Two units' ARB hunks
+   conflicted on keys that were already in the tree under their renamed names
+   (`aboutPageCuplivoSearch*`, `searchServiceNameCuplivo`): the incoming side
+   re-inserts upstream's pre-rename keys next to the fork's, which is the shape rule
+   "drop upstream's pre-rename key" exists to refuse. Taking the incoming side would
+   have duplicated three keys and put a second `Kelivo` value beside `Cuplivo`.
+3. **A native resource is a fourth face of the same commit.** The sync unit adds
+   `NSLocalNetworkUsageDescription` to `ios/Runner/Info.plist`, which by itself makes
+   the three translated native files stale — the digest covers
+   `native_messages()`, and one more plist key changes it. `translate.py check` said
+   so, two units later, because that is where the next l10n gate ran; the three
+   sentences and the digests now land *in* the unit that adds the plist key.
+4. **The PDF route outlived its move.** Moving PDF into the export menu also drops
+   `HomePageController.exportSelectedAsPdf` and the `onExportPdf` argument two tests
+   pass to a version-selection bar; only part of that reached the replay, so the
+   first `dart analyze --fatal-infos` of the finished series reported six
+   `undefined_named_parameter` errors. Repaired in the tail (the route it removes
+   was re-introduced by the 4.5.0 release unit, which runs after the unit that
+   moved PDF).
+
+### Generated files conflict, so regenerate them
+
+Six of the units conflicted on `lib/l10n/app_localizations*.dart` and nothing else:
+both sides had run the generator over different ARBs. The resolution is always the
+same and is not a merge — restore ours and let `flutter gen-l10n` re-derive the
+file. A hand-merged generated file is a file the next generator run disagrees with,
+and CI regenerates and compares.
+
+### The units do not compile individually, and that is inherited
+
+Tested, not assumed: the first attempt at a per-commit gate ran the unit's own test
+files. Unit 2's tree cannot even load them — `restore_bundle_mover.dart` imports
+`../sync/sync_store.dart` (unit 4), `chat_input_bar.dart` uses
+`_retainedImageSources` (unit 3), `settings_provider.dart` names a
+`CuplivoOptions` that no commit defines. The old series has the same property, byte
+for byte, because it was assembled by splitting the fork's final file contents by
+feature rather than by replaying compiling steps: **the tip builds, the units do
+not**. So the per-commit gate is ARB-level (above) and `dart analyze` /
+`flutter test` run once, at the tip. Making each unit compile is a different
+normalization pass — the identity unit would have to stop carrying hunks of shared
+files — and is named here rather than silently assumed.
+
+### The tree, against the old tip
+
+`git diff --name-only 299862c63 <tip>` is **37 paths**, and every one is intended:
+
+| paths | why |
+| --- | --- |
+| 7 ARBs + 4 generated + 7 `tool/l10n/state/*.json` | the l10n this pass carries (descriptions, ru/ko/tr text, fingerprints) |
+| 9 iOS/Android native resource files | the rebrand reached them, and the sync unit's new plist key |
+| 6 compression files | upstream's three commits |
+| 5 PDF-share-menu files + 2 selection tests | the stashed placement, folded |
+| `lib/features/provider/widgets/oauth_account_card.dart` | upstream's oauth usage fix |
+| `test/core/services/chat/compression_engine_test.dart` | the import list upstream's `9442e39e6` lengthened |
+
+Nothing else moved: `app_zh.arb`, `app_zh_Hans.arb` and `app_zh_Hant.arb` are
+byte-identical to the old tip, and the message inventory is 5,320 — the same number
+the old tip ended on, which is the arithmetic check that this replay added every
+message the old one had and no other.
+
+### Gates
+
+| gate | result |
+| --- | --- |
+| `translate.py check` | `ru/ko/tr/zh_Hant: 0 pending / 5320 messages`, exit 0 — and at each of the 23 commits, with that commit's inventory |
+| `desiredFileName.txt` | `{}` — the tool's own untranslated report is empty |
+| `git grep -l 'package:Kelivo/'` over `lib test integration_test tool` | 0 files |
+| `dart analyze --fatal-infos lib test integration_test` | No issues found (44 s) |
+| `dart format --output=none --set-exit-if-changed` | 2,657 files, 0 changed |
+| `flutter gen-l10n` | idempotent: a second run changes nothing |
+| `flutter test`, run 1 | `+13344 ~79`, **1 failed**: `search_request_logging_test`'s `tearDown` deleting a directory a request-log write still held (`errno 32`) |
+| `flutter test`, run 2 | `+13344 ~79`, **1 failed**: `message_list_view_image_anchor_test`'s pending 120 ms `TtsProvider` timer |
+
+Both failures are in files byte-identical to the old tip and both pass alone (1 and 5 tests),
+so neither is this replay's defect: they are the "the failure needs the rest of the suite
+competing for the machine" shape `docs/flaky-tests.md` §16 records, and §19 has the detail. The
+first is repaired in the tree — `tearDown` now calls `deleteDirectoryWhenReleased` from
+`test/support/`, the helper the image and backup tests use — and did not recur in run 2. The
+second is recorded rather than patched: the timer belongs to a provider the tree mounts, and a
+repair would be a wait on a timer the test does not own.
+
+### The landing
+
+`reorg/onto-4857da608` ends at 25 commits above `4857da608`: the 23 replayed units, a `fix(test)`
+for the request-log teardown the full run surfaced, and this record. `4857da608` is an ancestor, the
+working tree is clean, and the backup to push before a force push is `backup/series-4857da608` (this
+series, for the next re-base) alongside the `backup/master-*` the previous landing already pushed.
+The force-push of `master` is the repository owner's to run.

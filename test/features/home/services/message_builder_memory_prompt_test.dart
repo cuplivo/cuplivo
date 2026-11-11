@@ -790,6 +790,57 @@ void main() {
       expect(api[0]['content'], pasted);
       expect(api[1]['content'], startsWith(MemoryPrompts.introFullZh));
     });
+
+    test('a frozen target that carries no snapshot still takes one', () async {
+      // The target's row exists because the message was frozen on a turn whose
+      // memory state was empty — or because a truncation made an old non-carrier
+      // the last message of the request. Gating the injection on that row's flag
+      // dropped the snapshot while the same plan stripped the stale carrier, so
+      // the turn went out with no memory at all.
+      await seedAssistant('assistant-1');
+      await putEntry(id: 'mem_01', content: 'Original memory content.');
+      final conversation = await seedConversation('conv-1');
+      final u1 = await seedUserMessage(id: 'u1', conversationId: 'conv-1');
+      final u2 = await seedUserMessage(
+        id: 'u2',
+        conversationId: 'conv-1',
+        content: 'next',
+        messageOrder: 1,
+      );
+      final service = buildService(messages: [u1, u2]);
+      final original = (await service.currentMemorySnapshot(
+        assistant: assistant,
+        lang: settings.resolvedMemoryPromptLang,
+        settings: settings,
+      ))!;
+      await chatRepository.putMessagePrompt(
+        revisionId: 'u1',
+        conversationId: 'conv-1',
+        payload: '${original.prefix}hi',
+        carriesMemorySnapshot: true,
+      );
+      await chatRepository.putMessagePrompt(
+        revisionId: 'u2',
+        conversationId: 'conv-1',
+        payload: 'next',
+        carriesMemorySnapshot: false,
+      );
+
+      await putEntry(id: 'mem_01', content: 'Changed memory content.');
+
+      final api = [userTurn('u1', 'hi'), userTurn('u2', 'next')];
+      await runTurn(api, conversation: conversation, messages: [u1, u2]);
+
+      expect(api[0]['content'], 'hi', reason: 'the stale carrier is dropped');
+      expect(api[1]['content'], startsWith(MemoryPrompts.introFullZh));
+      expect(api[1]['content'], contains('Changed memory content.'));
+      expect(api[1]['content'], endsWith('next'));
+      expect(
+        (await chatRepository.getMessagePrompt('u2'))!.payload,
+        'next',
+        reason: 'only the request is corrected; the row keeps what it sent',
+      );
+    });
   });
 
   for (final hasConversation in [false, true]) {

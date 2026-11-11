@@ -17324,6 +17324,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recycleBinKindWorkspaceFile => 'Workspace file';
 
   @override
+  String get recycleBinKindSkill => 'Skill';
+
+  @override
   String get recycleBinKindConfig => 'Configuration';
 
   @override

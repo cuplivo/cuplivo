@@ -17421,6 +17421,9 @@ class AppLocalizationsTr extends AppLocalizations {
   String get recycleBinKindWorkspaceFile => 'Çalışma alanı dosyası';
 
   @override
+  String get recycleBinKindSkill => 'Beceri';
+
+  @override
   String get recycleBinKindConfig => 'Yapılandırma';
 
   @override

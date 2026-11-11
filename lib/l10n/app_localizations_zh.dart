@@ -16411,6 +16411,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get recycleBinKindWorkspaceFile => '工作区文件';
 
   @override
+  String get recycleBinKindSkill => '技能';
+
+  @override
   String get recycleBinKindConfig => '配置';
 
   @override
@@ -34311,6 +34314,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get recycleBinKindWorkspaceFile => '工作区文件';
+
+  @override
+  String get recycleBinKindSkill => '技能';
 
   @override
   String get recycleBinKindConfig => '配置';
@@ -52224,6 +52230,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get recycleBinKindWorkspaceFile => '工作區檔案';
+
+  @override
+  String get recycleBinKindSkill => '技能';
 
   @override
   String get recycleBinKindConfig => '設定';

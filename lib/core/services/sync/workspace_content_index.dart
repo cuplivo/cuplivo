@@ -54,19 +54,23 @@ class WorkspaceContentIndex {
   bool get isEmpty => files.isEmpty;
 }
 
-/// Directory names that never ride: version-control stores (their history is
-/// the interesting part and it is not a file tree), dependency and build
-/// output (reproducible from the manifest, orders of magnitude larger than the
-/// sources), and editor/OS scratch.
-///
-/// Pruned by name at every depth, compared case-insensitively because a
-/// case-insensitive filesystem would otherwise hand back `Node_Modules` for a
-/// rule written against `node_modules`.
-const Set<String> _prunedDirectoryNames = {
+/// Version-control stores: their history is the interesting part, it is not a
+/// file tree, and nothing on either device can reproduce it. Pruning them from
+/// the ride is right; a workspace *deletion* must not take them with it, which
+/// is the one thing this set separates from [workspaceDirectoryCarries] (see
+/// `WorkspaceContentSync.holdsUnagreedContent`).
+const Set<String> _unreproducibleDirectoryNames = {
   '.git',
   '.svn',
   '.hg',
   '.jj',
+};
+
+/// Dependency, build and cache output — reproducible from the manifest and
+/// orders of magnitude larger than the sources — and editor/OS scratch. Pruned
+/// from the ride for the same reason the OS files below are: they hold nothing
+/// a partner could not regenerate, so they do not pin a folder either.
+const Set<String> _regenerableDirectoryNames = {
   'node_modules',
   '.venv',
   'venv',
@@ -86,6 +90,16 @@ const Set<String> _prunedDirectoryNames = {
   '.idea',
   '.vscode',
   '.cache',
+};
+
+/// Directory names that never ride: the union of the two sets above.
+///
+/// Pruned by name at every depth, compared case-insensitively because a
+/// case-insensitive filesystem would otherwise hand back `Node_Modules` for a
+/// rule written against `node_modules`.
+const Set<String> _prunedDirectoryNames = {
+  ..._unreproducibleDirectoryNames,
+  ..._regenerableDirectoryNames,
 };
 
 /// File names that never ride: the bookkeeping files Explorer and Finder drop
@@ -110,6 +124,13 @@ bool workspaceDirectoryCarries(String name) {
   if (lower.startsWith(_scratchPrefix)) return false;
   return !_prunedDirectoryNames.contains(lower);
 }
+
+/// Whether a directory named [name] holds content nothing can reproduce — a
+/// version-control store. A folder that contains one keeps it: the ride prunes
+/// it, so no partner has a copy, and a workspace deletion would destroy the only
+/// one.
+bool workspaceDirectoryIrreproducible(String name) =>
+    _unreproducibleDirectoryNames.contains(name.toLowerCase());
 
 /// Whether a file named [name] carries itself into sync.
 bool workspaceFileCarries(String name) {

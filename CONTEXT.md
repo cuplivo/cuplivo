@@ -626,15 +626,22 @@ contradicts one of them is a bug, not a preference.
 - **A bulk replacement is an epoch, not a deletion**: a restore or an overwrite import replaces
   the local history wholesale, so the rows it drops were never deletions. The replaced device
   resets its own checkpoints and bumps a **data epoch** carried on the hello; a peer seeing a
-  different epoch converts its own deletions to re-sends for that session (recovering what was
-  lost) while a deletion it made itself still stands, because that travels through the
-  announcement rather than an absence. Hooks: every path that replaces history wholesale — the
-  restore cutover (a replaced database), a settings-only overwrite (rows and skill/workspace
-  directories, no database at all) and the legacy archive's overwrite, which reach the row face
-  without passing the cutover — but not a restore rollback (which returns to the tracked state) and
-  not an in-app "clear all data" (a deletion intent, which propagates). A row-face overwrite that
-  skipped the announcement made this device's silence about the rows the archive did not carry read
-  as `peerDeletes`: it ordered the peer to delete rows nobody had deleted.
+  different epoch turns deleting its own copy into re-sending it for that session (recovering what
+  was lost), while a deletion the replaced device made itself still stands, because it travels
+  through the announcement — applied *after* that override, since the override sees only `iDelete`
+  and cannot tell an announced deletion from an absence. Both sides read the epoch **before** the
+  checkpoint they plan from (`SyncStore.loadSession`): a replacement sweeps the checkpoints and then
+  bumps, so the other order lets one that fits between the two reads slide past the closing save and
+  put the dropped entries back. Hooks: every path that replaces history wholesale — the restore
+  cutover (a replaced database), which drops both halves, and the overwrite imports that never pass
+  the cutover, which drop the row half or both depending on what they replaced. That choice is made
+  once, in `DataSync._announceBulkReplacement`: chats untouched keeps every conversation entry (a
+  deletion not yet announced is derived from one), chats restored drops them too, because the kept
+  entries would name conversations this device no longer has. Not hooks: a restore rollback (which
+  returns to the tracked state) and an in-app "clear all data" (a deletion intent, which
+  propagates). A row-face overwrite that skipped the announcement made this device's silence about
+  the rows the archive did not carry read as `peerDeletes`: it ordered the peer to delete rows nobody
+  had deleted.
 - **Replay-safe recovery**: checkpoints advance only after a successful apply + commit; an
   interrupted session simply recomputes its delta next time, and idempotent row upserts
   make re-application safe. Per-subtree transactions bound the damage of a mid-apply crash.

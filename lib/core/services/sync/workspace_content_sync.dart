@@ -617,21 +617,35 @@ class WorkspaceContentSync {
       // files only would answer "nothing unagreed" about a folder whose `.git`
       // was never looked at — the exact content that cannot be reproduced.
       //
-      // So: every entity must be a riding file whose stamp is the agreed one.
-      // A pruned directory surfaces through its files (`.git/HEAD` is a file the
-      // ledger does not name), a link surfaces as itself, and the OS scratch the
-      // index skips by *file* name (`.DS_Store`, `Thumbs.db`) is still waved
-      // through, because it holds no information.
+      // So the walk covers the whole tree, and what it meets is sorted three
+      // ways:
+      // - anything under a version-control store is content no partner can
+      //   restore, so the folder stays ([workspaceDirectoryIrreproducible]);
+      // - anything under a *regenerable* pruned directory (dependencies, build
+      //   output, caches), under the sync plane's own scratch, or named like the
+      //   OS scratch the index skips (`.DS_Store`, `Thumbs.db`) holds nothing
+      //   worth keeping — the same reasoning that prunes it from the ride keeps
+      //   it from pinning the folder, which otherwise made the whole guard fire
+      //   for every code workspace and orphan the folder for good;
+      // - everything else must be a riding file whose stamp is the agreed one.
       await for (final entity in root.list(
         recursive: true,
         followLinks: false,
       )) {
         if (entity is Directory) continue; // its files are enumerated below it
         if (entity is! File) return true; // a link: never indexed, never agreed
-        if (!workspaceFileCarries(p.basename(entity.path))) continue;
         final rel = p
             .relative(entity.path, from: rootPath)
             .replaceAll('\\', '/');
+        final segments = p.posix.split(rel);
+        var underRegenerable = false;
+        for (final segment in segments.take(segments.length - 1)) {
+          if (workspaceDirectoryCarries(segment)) continue;
+          if (workspaceDirectoryIrreproducible(segment)) return true;
+          underRegenerable = true;
+        }
+        if (underRegenerable) continue;
+        if (!workspaceFileCarries(segments.last)) continue;
         final agreedFile = agreed[rel];
         if (agreedFile == null) return true;
         final stat = await entity.stat();

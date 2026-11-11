@@ -210,6 +210,29 @@ class SyncStore {
     }
   }
 
+  /// The pair a sync session plans from, read in the one order that keeps
+  /// [saveCheckpointUnlessReplaced] honest.
+  ///
+  /// The epoch is read **before** the checkpoint, and the order is the guard. A
+  /// replacement sweeps the checkpoints and then bumps the epoch
+  /// ([resetForBulkReplacement]); a session that reads the other way round —
+  /// checkpoint first, epoch second — holds pre-reset entries and the post-reset
+  /// epoch whenever a whole replacement fits between its two reads. The closing
+  /// save then compares equal, writes the dropped entries back, and one session
+  /// later the peer deletes rows nobody deleted.
+  ///
+  /// Read this way the window closes from both ends: a replacement that starts
+  /// after the epoch read bumps the epoch again before the save, which then
+  /// skips; one that finished before it is already in the checkpoint this reads
+  /// next. Callers get one method instead of two files to read in the right
+  /// order, because the wrong order fails silently.
+  Future<({SyncCheckpoint previous, int epoch})> loadSession(
+    String deviceId,
+  ) async {
+    final epoch = await readDataEpoch();
+    return (previous: await loadCheckpoint(deviceId), epoch: epoch);
+  }
+
   Future<void> saveCheckpoint(String deviceId, SyncCheckpoint checkpoint) =>
       _writeCheckpoint(deviceId, checkpoint);
 
@@ -310,11 +333,11 @@ class SyncStore {
 
   /// The same hook for a replacement that only replaces *rows*.
   ///
-  /// A settings-only overwrite (and the legacy archive's overwrite) replaces the
-  /// business row face and the directories anchored on it — skills, workspaces —
-  /// and nothing else: it never touches conversations. So the row entries
-  /// describe rows this device no longer has and must go, while the conversation
-  /// entries describe conversations nobody replaced and must stay.
+  /// A settings-only overwrite replaces the business row face and the
+  /// directories anchored on it — skills, workspaces — and touches no
+  /// conversation at all. So the row entries describe rows this device no longer
+  /// has and must go, while the conversation entries describe conversations
+  /// nobody replaced and must stay.
   ///
   /// The second half is not bookkeeping. A conversation this device deleted but
   /// has not announced is *derived* from its own checkpoint entry
@@ -325,8 +348,9 @@ class SyncStore {
   /// resurrect it on the next round.
   ///
   /// [resetForBulkReplacement] has no such half to protect: a replaced database
-  /// replaces the conversations too, which is why these are two hooks rather than
-  /// one switch.
+  /// replaces the conversations too, which is why these are two hooks rather
+  /// than one switch. A caller that restored chats owes that hook, not this one
+  /// — [DataSync] decides which, in one place.
   static Future<void> resetRowFaceForBulkReplacement(Directory root) async {
     final store = SyncStore(root);
     await store._dropRowEntriesKeepingConversations();
@@ -337,7 +361,8 @@ class SyncStore {
   ///
   /// Rewritten one file at a time rather than deleted, so each entry that
   /// survives keeps its own identity: the peer's epoch, the conversations, the
-  /// blobs still owed, and what this device could not apply last session.
+  /// blobs still owed, and the *conversations* this device could not apply last
+  /// session. `unappliedBusiness` goes with the row entries it belongs to.
   Future<void> _dropRowEntriesKeepingConversations() async {
     if (!await _checkpointsDir.exists()) return;
     final List<FileSystemEntity> files;

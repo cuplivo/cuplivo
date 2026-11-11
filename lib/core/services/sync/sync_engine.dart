@@ -891,11 +891,15 @@ class SyncEngine implements SyncServerHandler {
       final myManifest = await dataPlane.buildManifest();
       if (round.cancelled) return null;
       final myClockUs = clockUs();
-      // Read before the hello: the checkpoint carries what this device owes
-      // itself from last session (applies it had to defer), and the peer needs
-      // that in the hello to tell "never delivered" from "deleted here".
-      final previous = await store.loadCheckpoint(peer.deviceId);
-      final myEpoch = await store.readDataEpoch();
+      // Read before the hello, as one pair: the checkpoint carries what this
+      // device owes itself from last session (applies it had to defer), and the
+      // peer needs that in the hello to tell "never delivered" from "deleted
+      // here". The epoch comes first inside that pair, or a replacement landing
+      // between the two reads slips past the closing save — see
+      // [SyncStore.loadSession].
+      final opened = await store.loadSession(peer.deviceId);
+      final previous = opened.previous;
+      final myEpoch = opened.epoch;
       if (round.cancelled) return null;
       final SyncHelloOutcome hello;
       try {
@@ -1001,17 +1005,13 @@ class SyncEngine implements SyncServerHandler {
       // lacks were dropped by that replacement, not deleted, so no absence of
       // its may justify a deletion here.
       final peerReplaced = peerHello.epoch != previous.peerEpoch;
-      var plan = _applyDeletionAnnouncements(
-        _reSendUnapplied(
-          planSync(
-            mine: myManifest,
-            peers: peerHello.manifest,
-            checkpoint: previous,
-          ),
-          peerUnapplied,
-        ),
-        peerHello.deletedConversations,
-        myManifest,
+      var plan = composeConversationPlan(
+        mine: myManifest,
+        peers: peerHello.manifest,
+        checkpoint: previous,
+        peerUnapplied: peerUnapplied,
+        announced: peerHello.deletedConversations,
+        peerReplaced: peerReplaced,
       );
       var businessPlan = _keepRowsPeerMayNeverHaveSeen(
         planBusinessSync(
@@ -1021,13 +1021,7 @@ class SyncEngine implements SyncServerHandler {
         ),
         peerHello.unappliedBusiness,
       );
-      if (peerReplaced) {
-        // A deletion this device made itself still stands (it plans
-        // `peerDeletes`, carried to the peer by the announcement); what is
-        // overridden is deleting our own rows to match a peer that lost them.
-        plan = _reSendInsteadOfDelete(plan);
-        businessPlan = _keepInsteadOfDelete(businessPlan);
-      }
+      if (peerReplaced) businessPlan = _keepInsteadOfDelete(businessPlan);
       final skillPlan = planSkillContentSync(
         mine: myManifest,
         peers: peerHello.manifest,
@@ -1587,9 +1581,11 @@ class SyncEngine implements SyncServerHandler {
     }
 
     final myManifest = await dataPlane.buildManifest();
-    final checkpoint = await store.loadCheckpoint(initiatorHello.deviceId);
+    // One pair, epoch first: see [SyncStore.loadSession].
+    final opened = await store.loadSession(initiatorHello.deviceId);
+    final checkpoint = opened.previous;
     final myClockUs = clockUs();
-    final myEpoch = await store.readDataEpoch();
+    final myEpoch = opened.epoch;
     // What the initiator reports it could not apply decides whether its silence
     // about a conversation or a business row means "deleted there" or "never
     // arrived there".
@@ -1598,17 +1594,13 @@ class SyncEngine implements SyncServerHandler {
     // missing rows were dropped, not deleted, so none of its absences may
     // justify a deletion here.
     final peerReplaced = initiatorHello.epoch != checkpoint.peerEpoch;
-    var plan = _applyDeletionAnnouncements(
-      _reSendUnapplied(
-        planSync(
-          mine: myManifest,
-          peers: initiatorHello.manifest,
-          checkpoint: checkpoint,
-        ),
-        peerUnapplied,
-      ),
-      initiatorHello.deletedConversations,
-      myManifest,
+    var plan = composeConversationPlan(
+      mine: myManifest,
+      peers: initiatorHello.manifest,
+      checkpoint: checkpoint,
+      peerUnapplied: peerUnapplied,
+      announced: initiatorHello.deletedConversations,
+      peerReplaced: peerReplaced,
     );
     var businessPlan = _keepRowsPeerMayNeverHaveSeen(
       planBusinessSync(
@@ -1618,10 +1610,7 @@ class SyncEngine implements SyncServerHandler {
       ),
       initiatorHello.unappliedBusiness,
     );
-    if (peerReplaced) {
-      plan = _reSendInsteadOfDelete(plan);
-      businessPlan = _keepInsteadOfDelete(businessPlan);
-    }
+    if (peerReplaced) businessPlan = _keepInsteadOfDelete(businessPlan);
     final session = _ResponderSession(
       initiatorHello: initiatorHello,
       plan: plan,
@@ -2678,6 +2667,33 @@ class SyncEngine implements SyncServerHandler {
             ? SyncConvPlan(item.conversationId, SyncConvAction.iSend)
             : item,
     ];
+  }
+
+  /// The conversation plan, composed in the one order that keeps the two
+  /// overrides from eating each other.
+  ///
+  /// `peerUnapplied` and the announcements both say something about an absence
+  /// the table would otherwise read as a deletion, and the epoch override says
+  /// something about all absences at once. Order matters: the epoch override
+  /// rewrites every `iDelete`, and an announced deletion *is* an `iDelete`, so
+  /// applying announcements first would have the epoch convert a deletion the
+  /// peer really made back into a re-send of the row it deleted. Announcements
+  /// go last: they name a deletion, where the epoch speaks only about absences.
+  @visibleForTesting
+  static List<SyncConvPlan> composeConversationPlan({
+    required SyncManifest mine,
+    required SyncManifest peers,
+    required SyncCheckpoint checkpoint,
+    required Set<String> peerUnapplied,
+    required Map<String, SyncAnnouncedDeletion> announced,
+    required bool peerReplaced,
+  }) {
+    var plan = _reSendUnapplied(
+      planSync(mine: mine, peers: peers, checkpoint: checkpoint),
+      peerUnapplied,
+    );
+    if (peerReplaced) plan = _reSendInsteadOfDelete(plan);
+    return _applyDeletionAnnouncements(plan, announced, mine);
   }
 
   /// The business face of [_reSendInsteadOfDelete].

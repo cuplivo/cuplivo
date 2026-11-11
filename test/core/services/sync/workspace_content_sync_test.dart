@@ -919,7 +919,7 @@ void main() {
       );
     });
 
-    test('a pruned directory is content the index never sees', () async {
+    test('a version-control store is content nothing can reproduce', () async {
       // The guard used to walk the index, and the index prunes `.git`,
       // `node_modules`, `build` … because none of it rides. The delete it guards
       // is `delete(recursive: true)`, so a folder whose only unagreed content is
@@ -927,11 +927,10 @@ void main() {
       await putWorkspace('w1');
       await putFile('w1', 'notes.txt', 'aa', mtimeMs: 1000);
       await putFile('w1', '.git/HEAD', 'ref: refs/heads/main\n', mtimeMs: 2000);
-      await putFile('w1', 'node_modules/pkg/index.js', 'dep', mtimeMs: 2000);
       final walked = (await content.snapshots()).single;
       expect(walked.index.files.keys, [
         'notes.txt',
-      ], reason: 'the walking index prunes both directories, as it must');
+      ], reason: 'the walking index prunes the store, as it must');
       final stamp = walked.index.files['notes.txt']!;
 
       expect(
@@ -940,6 +939,38 @@ void main() {
         }),
         isTrue,
         reason: 'the delete destroys .git, and .git cannot be reproduced',
+      );
+    });
+
+    test('a regenerable pruned directory does not pin the folder', () async {
+      // `node_modules`, `build`, `dist` … are pruned because the manifest can
+      // rebuild them — the reasoning that waves the OS scratch files through.
+      // Counting them as unagreed content pinned the folder for every code
+      // workspace, which is the primary kind: the row was deleted anyway, and
+      // `deleteContent` has one caller, so nothing ever retried the removal.
+      await putWorkspace('w1');
+      await putFile('w1', 'notes.txt', 'aa', mtimeMs: 1000);
+      await putFile('w1', 'node_modules/pkg/index.js', 'dep', mtimeMs: 2000);
+      await putFile('w1', 'build/app.exe', 'binary', mtimeMs: 2000);
+      final walked = (await content.snapshots()).single;
+      final stamp = walked.index.files['notes.txt']!;
+
+      expect(
+        await content.holdsUnagreedContent('w1', {
+          'notes.txt': SyncAgreedFile(stamp, stamp),
+        }),
+        isFalse,
+        reason: 'the folder goes with its record; the peer can rebuild both',
+      );
+
+      // The exception stays the exception: an edit the peer never saw still pins
+      // the folder, wherever in the tree it sits.
+      await putFile('w1', 'notes.txt', 'aa, edited', mtimeMs: 3000);
+      expect(
+        await content.holdsUnagreedContent('w1', {
+          'notes.txt': SyncAgreedFile(stamp, stamp),
+        }),
+        isTrue,
       );
     });
 

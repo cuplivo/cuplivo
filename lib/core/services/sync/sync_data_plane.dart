@@ -139,7 +139,7 @@ class SyncDataPlane {
 
   /// One conversation as a wire subtree, or null when it no longer exists.
   Future<SyncSubtreePayload?> readSubtree(String conversationId) async {
-    final conversation = await repository.syncReadConversationRow(
+    final conversation = await repository.syncReadWireConversationRow(
       conversationId,
     );
     if (conversation == null) return null;

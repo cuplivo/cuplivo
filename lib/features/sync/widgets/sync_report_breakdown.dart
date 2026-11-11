@@ -109,7 +109,12 @@ class _SuccessBreakdown extends StatelessWidget {
     final withheld =
         report.deferred > 0 ||
         report.blobsMissing > 0 ||
-        report.workspaceFilesMissing > 0;
+        report.workspaceFilesMissing > 0 ||
+        // A deletion this device planned and the local edit beat: the row the
+        // peer deleted is still here, which is exactly what `withheld` means.
+        // The file face's counterpart (`workspaceFilesMissing`) has suppressed
+        // the chip for the same reason since slice 18.
+        report.deletedBlocked > 0;
 
     final chips = <Widget>[
       if (!movedAnything && !withheld)
@@ -230,15 +235,22 @@ class _SuccessBreakdown extends StatelessWidget {
           Lucide.Folder,
           l10n.lanSyncReportWorkspacesOmitted(report.workspacesOmitted),
         ),
-      // A folder the switch protected from a peer-driven deletion is a fact the
+      // A folder something protected from a peer-driven deletion is a fact the
       // user has to be told: the workspace is gone from the app, and its files
       // are not — which looks like a bug from the file manager and is a promise
-      // from here.
+      // from here. The switch is one such protection; a file the two sides never
+      // agreed on is the other.
       if (report.workspaceFoldersKept > 0)
         (
           Lucide.Folder,
           l10n.lanSyncReportWorkspacesKept(report.workspaceFoldersKept),
         ),
+      // A deletion the local edit beat: the row the peer deleted is still here,
+      // because the user wrote into it after the plan was computed. This row is
+      // the whole reason the count exists — nothing else on the card can tell
+      // "held back" apart from "there was nothing to delete".
+      if (report.deletedBlocked > 0)
+        (Lucide.Trash, l10n.lanSyncReportDeletesBlocked(report.deletedBlocked)),
       if (report.deferred > 0)
         (Lucide.Hourglass, l10n.lanSyncReportDeferred(report.deferred)),
       if (report.clockSkewMs != null)

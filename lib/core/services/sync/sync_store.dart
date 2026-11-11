@@ -210,7 +210,61 @@ class SyncStore {
     }
   }
 
-  Future<void> saveCheckpoint(
+  /// The pair a sync session plans from, read in the one order that keeps
+  /// [saveCheckpointUnlessReplaced] honest.
+  ///
+  /// The epoch is read **before** the checkpoint, and the order is the guard. A
+  /// replacement sweeps the checkpoints and then bumps the epoch
+  /// ([resetForBulkReplacement]); a session that reads the other way round —
+  /// checkpoint first, epoch second — holds pre-reset entries and the post-reset
+  /// epoch whenever a whole replacement fits between its two reads. The closing
+  /// save then compares equal, writes the dropped entries back, and one session
+  /// later the peer deletes rows nobody deleted.
+  ///
+  /// Read this way the window closes from both ends: a replacement that starts
+  /// after the epoch read bumps the epoch again before the save, which then
+  /// skips; one that finished before it is already in the checkpoint this reads
+  /// next. Callers get one method instead of two files to read in the right
+  /// order, because the wrong order fails silently.
+  Future<({SyncCheckpoint previous, int epoch})> loadSession(
+    String deviceId,
+  ) async {
+    final epoch = await readDataEpoch();
+    return (previous: await loadCheckpoint(deviceId), epoch: epoch);
+  }
+
+  Future<void> saveCheckpoint(String deviceId, SyncCheckpoint checkpoint) =>
+      _writeCheckpoint(deviceId, checkpoint);
+
+  /// [saveCheckpoint], unless a bulk replacement landed since [epochAtHello].
+  ///
+  /// A replacement bumps the data epoch at the same moment it rewrites the
+  /// checkpoints, so a different epoch means the file was reset *after* this
+  /// session read its `previous`: saving now would put the replaced rows back,
+  /// and one session later the peer would be told to delete rows nobody deleted —
+  /// the hazard the reset exists to prevent. Nothing is written then; the next
+  /// session plans from the checkpoint the replacement left, which costs one
+  /// re-scan and never loses a row.
+  ///
+  /// The alternative — a lock held across the session — would make a restore wait
+  /// on a network round trip, and this is the same guarantee without one.
+  Future<void> saveCheckpointUnlessReplaced(
+    String deviceId, {
+    required int epochAtHello,
+    required SyncCheckpoint checkpoint,
+  }) async {
+    if (await readDataEpoch() != epochAtHello) {
+      debugPrint(
+        'sync store: kept the reset checkpoint for $deviceId: a bulk replacement '
+        'landed while the session was running',
+      );
+      return;
+    }
+    await _writeCheckpoint(deviceId, checkpoint);
+  }
+
+  /// The one writer, so "who may write this file" is decided in this class only.
+  Future<void> _writeCheckpoint(
     String deviceId,
     SyncCheckpoint checkpoint,
   ) async {
@@ -275,6 +329,80 @@ class SyncStore {
     final store = SyncStore(root);
     await store.resetCheckpoints();
     await store.writeDataEpoch(await store.readDataEpoch() + 1);
+  }
+
+  /// The same hook for a replacement that only replaces *rows*.
+  ///
+  /// A settings-only overwrite replaces the business row face and the
+  /// directories anchored on it — skills, workspaces — and touches no
+  /// conversation at all. So the row entries describe rows this device no longer
+  /// has and must go, while the conversation entries describe conversations
+  /// nobody replaced and must stay.
+  ///
+  /// The second half is not bookkeeping. A conversation this device deleted but
+  /// has not announced is *derived* from its own checkpoint entry
+  /// (`SyncEngine._deletionsToAnnounce` walks `checkpoint.conversations`), so
+  /// dropping the entry drops the announcement, and the next session reads the
+  /// peer's copy as the only one left and downloads the deleted chat back.
+  /// Deleting a chat and then restoring a settings-only backup would therefore
+  /// resurrect it on the next round.
+  ///
+  /// [resetForBulkReplacement] has no such half to protect: a replaced database
+  /// replaces the conversations too, which is why these are two hooks rather
+  /// than one switch. A caller that restored chats owes that hook, not this one
+  /// — [DataSync] decides which, in one place.
+  static Future<void> resetRowFaceForBulkReplacement(Directory root) async {
+    final store = SyncStore(root);
+    await store._dropRowEntriesKeepingConversations();
+    await store.writeDataEpoch(await store.readDataEpoch() + 1);
+  }
+
+  /// Clears every per-peer checkpoint's row half, in place.
+  ///
+  /// Rewritten one file at a time rather than deleted, so each entry that
+  /// survives keeps its own identity: the peer's epoch, the conversations, the
+  /// blobs still owed, and the *conversations* this device could not apply last
+  /// session. `unappliedBusiness` goes with the row entries it belongs to.
+  Future<void> _dropRowEntriesKeepingConversations() async {
+    if (!await _checkpointsDir.exists()) return;
+    final List<FileSystemEntity> files;
+    try {
+      files = await _checkpointsDir.list().toList();
+    } catch (error) {
+      debugPrint('sync store: could not list checkpoints: $error');
+      return;
+    }
+    for (final file in files) {
+      if (file is! File) continue;
+      final deviceId = _checkpointDeviceId(file);
+      if (deviceId == null) continue;
+      final previous = await loadCheckpoint(deviceId);
+      try {
+        await saveCheckpoint(
+          deviceId,
+          SyncCheckpoint(
+            previous.conversations,
+            pendingBlobs: previous.pendingBlobs,
+            unappliedConversations: previous.unappliedConversations,
+            peerEpoch: previous.peerEpoch,
+          ),
+        );
+      } catch (error) {
+        debugPrint(
+          'sync store: could not clear the row entries of $deviceId: $error',
+        );
+      }
+    }
+  }
+
+  /// The device id a checkpoint file names, or null for anything else in the
+  /// directory.
+  static String? _checkpointDeviceId(File file) {
+    const suffix = '.json.gz';
+    final name = file.uri.pathSegments.last;
+    if (!name.endsWith(suffix)) return null;
+    final deviceId = name.substring(0, name.length - suffix.length);
+    return deviceId.isEmpty ? null : deviceId;
   }
 
   File get _epochFile =>

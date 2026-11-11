@@ -336,8 +336,12 @@ class SyncDataPlane {
   /// checkpoint entry already dropped.
   Future<BusinessRowDeleteOutcome> deleteBusinessRow(
     String kindWire,
-    String id,
-  ) async {
+    String id, {
+
+    /// What this pairing last agreed for the workspace's files, when the row is
+    /// a workspace. Carried from the checkpoint the session read at its start.
+    Map<String, SyncAgreedFile> agreedFiles = const {},
+  }) async {
     Future<BusinessRowDeleteOutcome> delete() async {
       if (kindWire == kSyncPreferenceWire) {
         return BusinessRowDeleteOutcome(
@@ -359,6 +363,21 @@ class SyncDataPlane {
             content != null &&
             (await content.disabledWorkspaceIds()).contains(id);
         if (off) {
+          return const BusinessRowDeleteOutcome(
+            removed: true,
+            folderKept: true,
+          );
+        }
+        // The folder is about to go with `delete(recursive: true)`, which destroys
+        // local files in bulk and leaves none of them in the bin. A file the two
+        // sides never agreed on is an edit, and an edit beats a delete: the folder
+        // stays, the row still goes (that is the peer's intent and, unlike a
+        // refused row, it cannot make the session retry forever), and the report
+        // names it. Same rule the file face applies per file — there is no
+        // per-file pass here, because the peer shares no table for this workspace
+        // to plan against.
+        if (content != null &&
+            await content.holdsUnagreedContent(id, agreedFiles)) {
           return const BusinessRowDeleteOutcome(
             removed: true,
             folderKept: true,
@@ -388,6 +407,12 @@ class SyncDataPlane {
 
   /// The checkpoint entry for a business row whose local state is the state
   /// both sides now agree on, or null when the row does not exist here.
+  ///
+  /// This is the **action** face: it asks what is here *now*, which is the right
+  /// question for a row nobody just sent — a `none` (nothing differs) or a row
+  /// the peer sent and this device applied. A row this device *sent* is answered
+  /// by [checkpointBusinessFromSent] instead, and the two are not
+  /// interchangeable.
   Future<SyncCheckpointEntry?> checkpointBusinessFromLocal(
     String kindWire,
     String id,
@@ -395,29 +420,116 @@ class SyncDataPlane {
     if (kindWire == kSyncPreferenceWire) {
       final rows = await businessRepository.syncReadPreferenceRows({id});
       if (rows.isEmpty) return null;
-      return SyncCheckpointEntry(
-        updatedAtUs: (rows.first['updated_at'] as num).toInt(),
-        digest: businessContentDigest(rows.first['value'] as String),
-      );
+      return _businessEntryFromRow(kindWire: kindWire, row: rows.first);
     }
     final rows = await businessRepository.syncReadEntityRows(kindWire, {id});
     if (rows.isEmpty) return null;
-    final kind = BusinessRepository.syncKindForWire(kindWire);
-    if (kind == null) return null;
-    final payloadDigest = entityRowDigest(
-      rows.first['payload'] as String,
-      (rows.first['sort_order'] as num).toInt(),
+    if (BusinessRepository.syncKindForWire(kindWire) == null) return null;
+    return _businessEntryFromRow(
+      kindWire: kindWire,
+      row: rows.first,
+      directoryHash: kindWire == skillWire
+          ? (await _directoryHashes({id}))[id] ?? missingSkillBody
+          : null,
     );
+  }
+
+  /// The checkpoint entry for a business row **as it was sent**, or null when
+  /// [sent] does not carry it.
+  ///
+  /// The **evidence** face, and the reason it is a separate name is the whole of
+  /// this slice. A checkpoint entry is a claim about what the *peer* holds, so
+  /// it has to be read from the payload that crossed the wire. Re-reading the
+  /// row instead records a write the user made while the session ran — between
+  /// the read and the advance, which is the push beat's whole duration — as
+  /// content the peer has seen. The peer never received it, and the damage is
+  /// not merely a missed send: the next session plans `mine == checkpoint` and
+  /// concludes the *peer* has newer content, so this device pulls the peer's
+  /// stale row over the edit it never sent.
+  ///
+  /// The conversation face has read its checkpoint from the sent subtree since
+  /// slice 1 for exactly this reason ([SyncEngine] passes `sentSubtrees`); the
+  /// business face was the only violator.
+  ///
+  /// [directoryHash] is the skill body hash that travelled with the row. A
+  /// skill sent with no hash advertised carried no body the peer agreed to,
+  /// which is what [missingSkillBody] records.
+  SyncCheckpointEntry? checkpointBusinessFromSent({
+    required SyncBusinessPayload sent,
+    required String kindWire,
+    required String id,
+    String? directoryHash,
+  }) {
+    final row = _sentRow(sent, kindWire, id);
+    if (row == null) return null;
+    return _businessEntryFromRow(
+      kindWire: kindWire,
+      row: row,
+      // A skill's advertised hash is the one that travelled; a nil hash here
+      // means nothing was advertised, not that the body is missing.
+      directoryHash: directoryHash ?? missingSkillBody,
+    );
+  }
+
+  /// The row [sent] carries for `(kindWire, id)`, or null when the payload does
+  /// not include it — a row deleted between the manifest and the read.
+  static Map<String, dynamic>? _sentRow(
+    SyncBusinessPayload sent,
+    String kindWire,
+    String id,
+  ) {
+    if (kindWire == kSyncPreferenceWire) {
+      for (final row in sent.preferences) {
+        if (row['key'] == id) return row;
+      }
+      return null;
+    }
+    final idColumn = _entityIdColumn(kindWire);
+    if (idColumn == null) return null;
+    for (final row in sent.entities[kindWire] ?? const []) {
+      if (row[idColumn] == id) return row;
+    }
+    return null;
+  }
+
+  /// One checkpoint entry from one wire row.
+  ///
+  /// The single place an entry is built for a business row, so both faces agree
+  /// on what an entry *is* and differ only in which row they were handed. A
+  /// shape this build cannot digest answers null, which leaves the caller's
+  /// previous entry in place rather than inventing one.
+  SyncCheckpointEntry? _businessEntryFromRow({
+    required String kindWire,
+    required Map<String, dynamic> row,
+    String? directoryHash,
+  }) {
+    final clock = row['updated_at'];
+    if (clock is! num) return null;
+    final updatedAtUs = clock.toInt();
+    if (kindWire == kSyncPreferenceWire) {
+      final value = row['value'];
+      if (value is! String) return null;
+      return SyncCheckpointEntry(
+        updatedAtUs: updatedAtUs,
+        digest: businessContentDigest(value),
+      );
+    }
+    final payload = row['payload'];
+    final sortOrder = row['sort_order'];
+    if (payload is! String || sortOrder is! num) return null;
+    final payloadDigest = entityRowDigest(payload, sortOrder.toInt());
     if (kindWire != skillWire) {
       return SyncCheckpointEntry(
-        updatedAtUs: (rows.first['updated_at'] as num).toInt(),
+        updatedAtUs: updatedAtUs,
         digest: payloadDigest,
       );
     }
-    final dirHash = (await _directoryHashes({id}))[id] ?? missingSkillBody;
     return SyncCheckpointEntry(
-      updatedAtUs: (rows.first['updated_at'] as num).toInt(),
-      digest: combineSkillDigest(payloadDigest, dirHash),
+      updatedAtUs: updatedAtUs,
+      digest: combineSkillDigest(
+        payloadDigest,
+        directoryHash ?? missingSkillBody,
+      ),
     );
   }
 

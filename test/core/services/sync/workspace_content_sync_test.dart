@@ -395,6 +395,42 @@ void main() {
         reason: 'and clearing one peer says nothing about another',
       );
     });
+
+    test('a workspace turned off mid-session moves nothing', () async {
+      await putWorkspace('w1');
+      await putFile('w1', 'a.txt', 'mine', mtimeMs: 1000);
+      final walked = await content.snapshots();
+      expect(walked.single.shared, isTrue);
+
+      // The switch flipped after the walk, while the session is still open. The
+      // walk's `shared` is a photograph of the switch, not the switch.
+      await content.setEnabled('w1', false);
+
+      final outcome = await content.applyIncoming(
+        myDeviceId: 'me',
+        peerDeviceId: 'peer',
+        mine: walked,
+        peerTables: const {
+          'w1': {'a.txt': WorkspaceFileStamp(size: 6, mtimeMs: 2000)},
+        },
+        ledger: const {},
+        allowDeletes: true,
+        fetch: fetcher('theirs'),
+      );
+
+      expect(outcome.filesLanded, 0);
+      expect(
+        await workspaceFile('w1', 'a.txt').readAsString(),
+        'mine',
+        reason: 'a workspace the user just switched off is not written to',
+      );
+      expect(
+        outcome.workspacesOmitted,
+        1,
+        reason:
+            'the workspace shared nothing this session, and that is counted',
+      );
+    });
   });
 
   group('publish and serve', () {
@@ -692,6 +728,276 @@ void main() {
     );
   });
 
+  // The plan is computed from the walk, and the write happens later — after a
+  // fetch, a push and an apply. These two cases are what that gap costs if
+  // nothing re-reads the file: the walk saw the version both sides agreed on,
+  // and the disk holds the user's edit.
+  group('the premise, re-read at the write', () {
+    test('a landing refuses a file written since the walk', () async {
+      await putWorkspace('w1');
+      await putFile('w1', 'a.txt', 'mine', mtimeMs: 1000);
+      final walked = await content.snapshots();
+      final agreedMine = walked.single.index.files['a.txt']!;
+
+      // The user writes into the file after the walk and before the landing.
+      await putFile('w1', 'a.txt', 'mine, edited', mtimeMs: 3000);
+
+      final outcome = await content.applyIncoming(
+        myDeviceId: 'me',
+        peerDeviceId: 'peer',
+        mine: walked,
+        peerTables: const {
+          'w1': {'a.txt': WorkspaceFileStamp(size: 6, mtimeMs: 2000)},
+        },
+        // The peer has moved since the two sides agreed, so the plan for this
+        // file is `peerSends` — computed from a version that no longer exists
+        // here.
+        ledger: {
+          'w1': {
+            'a.txt': SyncAgreedFile(
+              agreedMine,
+              const WorkspaceFileStamp(size: 5, mtimeMs: 1500),
+            ),
+          },
+        },
+        allowDeletes: true,
+        fetch: fetcher('theirs'),
+      );
+
+      expect(
+        await workspaceFile('w1', 'a.txt').readAsString(),
+        'mine, edited',
+        reason:
+            'the plan called the peer\'s version the winner of a file the '
+            'user has since edited',
+      );
+      expect(
+        outcome.filesMissing,
+        1,
+        reason: 'the peer\'s version stays owed and is re-planned next session',
+      );
+      expect(
+        await binEntries(),
+        isEmpty,
+        reason: 'a refused landing replaces nothing, so nothing is binned',
+      );
+    });
+
+    test('a deletion refuses a file written since the walk', () async {
+      await putWorkspace('w1');
+      await putFile('w1', 'a.txt', 'mine', mtimeMs: 1000);
+      final walked = await content.snapshots();
+      final agreedMine = walked.single.index.files['a.txt']!;
+
+      await putFile('w1', 'a.txt', 'mine, edited', mtimeMs: 3000);
+
+      final outcome = await content.applyIncoming(
+        myDeviceId: 'me',
+        peerDeviceId: 'peer',
+        mine: walked,
+        // The peer shares the workspace and holds no files: that emptiness is
+        // what makes this walk's plan a deletion rather than "no opinion".
+        peerTables: const {'w1': <String, WorkspaceFileStamp>{}},
+        ledger: {
+          'w1': {'a.txt': SyncAgreedFile(agreedMine, agreedMine)},
+        },
+        allowDeletes: true,
+      );
+
+      expect(
+        workspaceFile('w1', 'a.txt').existsSync(),
+        isTrue,
+        reason:
+            'an edit beats the deletion, and this one was made after the '
+            'plan that still holds the agreed version',
+      );
+      expect(outcome.filesRemoved, 0);
+      expect(outcome.filesMissing, 1);
+      expect(await binEntries(), isEmpty);
+    });
+
+    test('a conflict found at the write is counted, though the walk said '
+        'peerSends', () async {
+      // `filesReplaced` used to be counted from the *walk's* action. When the
+      // re-read discovers that the file was edited while the session ran, the
+      // peer wins the mtime rule, the edit is staged into the bin and replaced —
+      // and nothing reported it, against the "counted, never silent" promise
+      // `peerWins` carries.
+      await putWorkspace('w1');
+      await putFile('w1', 'a.txt', 'mine', mtimeMs: 1000);
+      final walked = await content.snapshots();
+      final agreedMine = walked.single.index.files['a.txt']!;
+      await putFile('w1', 'a.txt', 'mine, edited', mtimeMs: 3000);
+
+      final outcome = await content.applyIncoming(
+        myDeviceId: 'me',
+        peerDeviceId: 'peer',
+        mine: walked,
+        // The peer moved on since the agreement, so the walk planned `peerSends`.
+        peerTables: const {
+          'w1': {'a.txt': WorkspaceFileStamp(size: 6, mtimeMs: 4000)},
+        },
+        ledger: {
+          'w1': {
+            'a.txt': SyncAgreedFile(
+              agreedMine,
+              const WorkspaceFileStamp(size: 5, mtimeMs: 1500),
+            ),
+          },
+        },
+        allowDeletes: true,
+        fetch: fetcher('theirs'),
+      );
+
+      expect(
+        await workspaceFile('w1', 'a.txt').readAsString(),
+        'theirs',
+        reason: 'the peer won the conflict the re-read found',
+      );
+      expect(
+        (await binEntries()).length,
+        1,
+        reason: 'the edit really was replaced, and really is recoverable',
+      );
+      expect(
+        outcome.filesReplaced,
+        1,
+        reason: 'the class of write is what the re-read knows; count from it',
+      );
+    });
+  });
+
+  // A peer-driven workspace deletion takes the whole folder with
+  // `delete(recursive: true)` — the one write on this face that destroys local
+  // files in bulk, and none of them can be restored from the bin once the row is
+  // gone. So the folder has to prove it holds nothing but the agreed versions
+  // before it goes.
+  group('holdsUnagreedContent', () {
+    test(
+      'a folder holding only the agreed versions is safe to remove',
+      () async {
+        await putWorkspace('w1');
+        await putFile('w1', 'a.txt', 'aa', mtimeMs: 1000);
+        final walked = (await content.snapshots()).single;
+        final stamp = walked.index.files['a.txt']!;
+
+        expect(
+          await content.holdsUnagreedContent('w1', {
+            'a.txt': SyncAgreedFile(stamp, stamp),
+          }),
+          isFalse,
+        );
+      },
+    );
+
+    test('a file written since the agreement is not', () async {
+      await putWorkspace('w1');
+      await putFile('w1', 'a.txt', 'aa', mtimeMs: 1000);
+      final walked = (await content.snapshots()).single;
+      final stamp = walked.index.files['a.txt']!;
+      await putFile('w1', 'a.txt', 'aa, edited', mtimeMs: 3000);
+
+      expect(
+        await content.holdsUnagreedContent('w1', {
+          'a.txt': SyncAgreedFile(stamp, stamp),
+        }),
+        isTrue,
+        reason:
+            'an edit the peer never saw must not be removed with the folder',
+      );
+    });
+
+    test('a file the agreement never named is not', () async {
+      await putWorkspace('w1');
+      await putFile('w1', 'new.txt', 'never synced', mtimeMs: 2000);
+
+      expect(
+        await content.holdsUnagreedContent('w1', const {}),
+        isTrue,
+        reason:
+            'no ledger entry is "never agreed", which is not "safe to drop"',
+      );
+    });
+
+    test('a version-control store is content nothing can reproduce', () async {
+      // The guard used to walk the index, and the index prunes `.git`,
+      // `node_modules`, `build` … because none of it rides. The delete it guards
+      // is `delete(recursive: true)`, so a folder whose only unagreed content is
+      // a version-control store read as "agreed" and lost it.
+      await putWorkspace('w1');
+      await putFile('w1', 'notes.txt', 'aa', mtimeMs: 1000);
+      await putFile('w1', '.git/HEAD', 'ref: refs/heads/main\n', mtimeMs: 2000);
+      final walked = (await content.snapshots()).single;
+      expect(walked.index.files.keys, [
+        'notes.txt',
+      ], reason: 'the walking index prunes the store, as it must');
+      final stamp = walked.index.files['notes.txt']!;
+
+      expect(
+        await content.holdsUnagreedContent('w1', {
+          'notes.txt': SyncAgreedFile(stamp, stamp),
+        }),
+        isTrue,
+        reason: 'the delete destroys .git, and .git cannot be reproduced',
+      );
+    });
+
+    test('a regenerable pruned directory does not pin the folder', () async {
+      // `node_modules`, `build`, `dist` … are pruned because the manifest can
+      // rebuild them — the reasoning that waves the OS scratch files through.
+      // Counting them as unagreed content pinned the folder for every code
+      // workspace, which is the primary kind: the row was deleted anyway, and
+      // `deleteContent` has one caller, so nothing ever retried the removal.
+      await putWorkspace('w1');
+      await putFile('w1', 'notes.txt', 'aa', mtimeMs: 1000);
+      await putFile('w1', 'node_modules/pkg/index.js', 'dep', mtimeMs: 2000);
+      await putFile('w1', 'build/app.exe', 'binary', mtimeMs: 2000);
+      final walked = (await content.snapshots()).single;
+      final stamp = walked.index.files['notes.txt']!;
+
+      expect(
+        await content.holdsUnagreedContent('w1', {
+          'notes.txt': SyncAgreedFile(stamp, stamp),
+        }),
+        isFalse,
+        reason: 'the folder goes with its record; the peer can rebuild both',
+      );
+
+      // The exception stays the exception: an edit the peer never saw still pins
+      // the folder, wherever in the tree it sits.
+      await putFile('w1', 'notes.txt', 'aa, edited', mtimeMs: 3000);
+      expect(
+        await content.holdsUnagreedContent('w1', {
+          'notes.txt': SyncAgreedFile(stamp, stamp),
+        }),
+        isTrue,
+      );
+    });
+
+    test('a link is content the index dropped and the walk sees', () async {
+      await putWorkspace('w1');
+      await putFile('w1', 'notes.txt', 'aa', mtimeMs: 1000);
+      final walked = (await content.snapshots()).single;
+      final stamp = walked.index.files['notes.txt']!;
+      try {
+        await Link(
+          '${root.path}/workspaces/w1/files/alias',
+        ).create('${root.path}/elsewhere');
+      } on FileSystemException {
+        markTestSkipped('this platform will not create a link here');
+        return;
+      }
+
+      expect(
+        await content.holdsUnagreedContent('w1', {
+          'notes.txt': SyncAgreedFile(stamp, stamp),
+        }),
+        isTrue,
+        reason: 'a link never rides, was never agreed, and points outside',
+      );
+    });
+  });
+
   group('acceptPushed', () {
     test(
       'lands a requested version through the same gates as a fetch',
@@ -706,6 +1012,9 @@ void main() {
           relPath: 'deep/a.txt',
           staged: staged,
           advertised: advertised,
+          agreed: null,
+          myDeviceId: 'me',
+          peerDeviceId: 'peer',
         );
 
         expect(landed, isNotNull);
@@ -734,6 +1043,9 @@ void main() {
           relPath: 'a.txt',
           staged: staged,
           advertised: const WorkspaceFileStamp(size: 6, mtimeMs: 2000),
+          agreed: null,
+          myDeviceId: 'me',
+          peerDeviceId: 'peer',
         );
 
         expect(landed, isNotNull);
@@ -765,6 +1077,9 @@ void main() {
           relPath: 'a.txt',
           staged: staged,
           advertised: const WorkspaceFileStamp(size: 2, mtimeMs: 1000),
+          agreed: null,
+          myDeviceId: 'me',
+          peerDeviceId: 'peer',
         ),
         isNull,
         reason: 'the switch is re-read, not trusted from the push beat',
@@ -783,6 +1098,9 @@ void main() {
           relPath: '../escape.txt',
           staged: staged,
           advertised: const WorkspaceFileStamp(size: 4, mtimeMs: 1000),
+          agreed: null,
+          myDeviceId: 'me',
+          peerDeviceId: 'peer',
         ),
         isNull,
       );
@@ -795,7 +1113,15 @@ void main() {
       // refusal that had already deleted it left the path empty — a file the
       // device never lost, gone until the next session re-fetched it.
       await putWorkspace('w1');
-      await putFile('w1', 'a.txt', 'mine');
+      // The premise this test must not be refused by: the local file is exactly
+      // the version both sides agreed on and the peer now advertises a different
+      // one, so adopting the peer's version is the right thing to attempt —
+      // which leaves the size check as the only gate that can refuse it.
+      await putFile('w1', 'a.txt', 'mine', mtimeMs: 1000);
+      const agreed = SyncAgreedFile(
+        WorkspaceFileStamp(size: 4, mtimeMs: 1000),
+        WorkspaceFileStamp(size: 9, mtimeMs: 900),
+      );
       final staged = File('${root.path}/staged.bin');
       await staged.writeAsString('other!', flush: true);
 
@@ -805,6 +1131,9 @@ void main() {
           relPath: 'a.txt',
           staged: staged,
           advertised: const WorkspaceFileStamp(size: 2, mtimeMs: 1000),
+          agreed: agreed,
+          myDeviceId: 'me',
+          peerDeviceId: 'peer',
         ),
         isNull,
       );
@@ -826,6 +1155,9 @@ void main() {
           relPath: 'a.txt',
           staged: staged,
           advertised: const WorkspaceFileStamp(size: 5, mtimeMs: 1000),
+          agreed: null,
+          myDeviceId: 'me',
+          peerDeviceId: 'peer',
         ),
         isNull,
       );

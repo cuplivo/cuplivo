@@ -1425,23 +1425,26 @@ class MessageBuilderService {
         );
         var carriesSnapshot =
             existing.carriesMemorySnapshot && sendPayload == existing.payload;
-        if (carriesSnapshot) {
-          if (revisionId == memoryPlan.injectIntoId) {
-            // The snapshot has to move and the target already holds a frozen
-            // payload, so its body is the frozen text minus whatever prefix it
-            // carries. Only the new prefix is written here; the row keeps the
-            // snapshot it actually sent (§8.3).
-            final rest =
-                MemoryBlockBuilder.splitInjectedPrefix(sendPayload)?.rest ??
-                sendPayload;
-            sendPayload = '${memoryPlan.prefix}$rest';
-            carriesSnapshot = memoryPlan.prefix.isNotEmpty;
-          } else if (memoryPlan.staleCarrierIds.contains(revisionId)) {
-            sendPayload =
-                MemoryBlockBuilder.splitInjectedPrefix(sendPayload)?.rest ??
-                sendPayload;
-            carriesSnapshot = false;
-          }
+        if (revisionId == memoryPlan.injectIntoId) {
+          // The plan picked this message and it is frozen, so its body is
+          // whatever the row holds minus the prefix it carries — which is
+          // nothing at all when the row was frozen while memory was empty, or
+          // when a truncation made an old non-carrier the last message of the
+          // request. Gating this on the row's flag dropped the snapshot and left
+          // the request with none, because the same plan strips every other
+          // carrier.
+          final rest = carriesSnapshot
+              ? MemoryBlockBuilder.splitInjectedPrefix(sendPayload)?.rest ??
+                    sendPayload
+              : sendPayload;
+          sendPayload = '${memoryPlan.prefix}$rest';
+          carriesSnapshot = memoryPlan.prefix.isNotEmpty;
+        } else if (carriesSnapshot &&
+            memoryPlan.staleCarrierIds.contains(revisionId)) {
+          sendPayload =
+              MemoryBlockBuilder.splitInjectedPrefix(sendPayload)?.rest ??
+              sendPayload;
+          carriesSnapshot = false;
         }
         apiMessages[i]['content'] = sendPayload;
         _tagFrozenUserPrompt(
@@ -1624,6 +1627,10 @@ class MessageBuilderService {
     if (_repo == null || _legacyMemoryMode(settings)) {
       return MemorySnapshotPlan.none;
     }
+    // No user message in the request means no message can carry the snapshot,
+    // and no recorded carrier can be in context either — there is nothing to
+    // read and nothing to strip.
+    if (lastUserIdx < 0) return MemorySnapshotPlan.none;
     final snapshot = await currentMemorySnapshot(
       assistant: assistant,
       lang: settings.resolvedMemoryPromptLang,
@@ -1632,30 +1639,42 @@ class MessageBuilderService {
     if (snapshot == null) return MemorySnapshotPlan.none;
     final wanted = snapshot.isEmpty ? '' : snapshot.prefix;
 
+    // Walk the request rather than the row map: the same state has to resolve to
+    // the same carrier on every turn, and the row map has no order of its own.
+    // "Last in request order" is the tie-break, because that is the position
+    // whose rewrite costs the least if the snapshot ever has to move.
     final carriers = <String, String>{};
-    for (final entry in frozenPrompts.entries) {
-      if (!entry.value.carriesMemorySnapshot) continue;
-      final split = MemoryBlockBuilder.splitInjectedPrefix(entry.value.payload);
+    final order = <String>[];
+    for (final message in apiMessages) {
+      if ((message['role'] ?? '').toString() != 'user') continue;
+      final revisionId = (message[internalRevisionIdKey] ?? '')
+          .toString()
+          .trim();
+      if (revisionId.isEmpty || carriers.containsKey(revisionId)) continue;
+      final row = frozenPrompts[revisionId];
+      if (row == null || !row.carriesMemorySnapshot) continue;
+      final split = MemoryBlockBuilder.splitInjectedPrefix(row.payload);
       if (split == null) continue;
-      carriers[entry.key] = split.prefix;
+      carriers[revisionId] = split.prefix;
+      order.add(revisionId);
     }
 
     String? live;
-    for (final entry in carriers.entries) {
-      if (entry.value == wanted) live = entry.key;
+    for (final id in order) {
+      if (carriers[id] == wanted) live = id;
     }
     if (live != null) {
       return MemorySnapshotPlan(
         prefix: wanted,
         injectIntoId: null,
         staleCarrierIds: {
-          for (final id in carriers.keys)
+          for (final id in order)
             if (id != live) id,
         },
       );
     }
 
-    final target = wanted.isEmpty || lastUserIdx < 0
+    final target = wanted.isEmpty
         ? ''
         : (apiMessages[lastUserIdx][internalRevisionIdKey] ?? '')
               .toString()

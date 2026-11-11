@@ -17914,7 +17914,12 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String lanSyncReportWorkspacesKept(Object count) {
-    return '$count çalışma alanı klasörü korundu (anahtar kapalı)';
+    return '$count çalışma alanı klasörü korundu (anahtar kapalı veya eşitlenmemiş dosya var)';
+  }
+
+  @override
+  String lanSyncReportDeletesBlocked(Object count) {
+    return '$count silme atlandı (yerel kopya değişti)';
   }
 
   @override

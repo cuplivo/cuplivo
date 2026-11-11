@@ -18118,7 +18118,12 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String lanSyncReportWorkspacesKept(Object count) {
-    return 'Сохранено папок (переключатель выкл.): $count';
+    return 'Сохранено папок (переключатель выкл. или есть несинхронизированные файлы): $count';
+  }
+
+  @override
+  String lanSyncReportDeletesBlocked(Object count) {
+    return 'Пропущено удалений (локальная копия изменилась): $count';
   }
 
   @override

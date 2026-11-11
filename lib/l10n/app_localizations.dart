@@ -31284,11 +31284,17 @@ abstract class AppLocalizations {
   /// **'{count} workspaces not syncing files'**
   String lanSyncReportWorkspacesOmitted(Object count);
 
-  /// Sync report count of workspace folders kept on this device because their switch is off; count is that number.
+  /// Sync report count of workspace folders left on disk because the workspace's sync switch is off, or because the folder holds files the two devices never agreed on; count is that number.
   ///
   /// In en, this message translates to:
-  /// **'{count} workspace folders kept (switch off)'**
+  /// **'{count} workspace folders kept on disk (switched off, or holding unsynced files)'**
   String lanSyncReportWorkspacesKept(Object count);
+
+  /// Sync report count of deletions this device skipped because its own copy had changed since the two devices last agreed; count is that number.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} deletions skipped (the local copy changed)'**
+  String lanSyncReportDeletesBlocked(Object count);
 
   /// Sync report count of local records replaced by newer versions from the other device, noting they can be recovered from the recycle bin; n is that count.
   ///

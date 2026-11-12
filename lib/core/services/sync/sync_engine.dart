@@ -118,6 +118,12 @@ class SyncSessionReport {
   final int entityRowsLost;
   final int preferencesLost;
 
+  /// Conversations whose own document the peer's newer copy replaced (D-7):
+  /// compression history, image context, compression config, artifacts. The
+  /// same rule as above — an overwritten local edit is never silent — for the
+  /// families that were device-local until this protocol version.
+  final int documentsReplaced;
+
   /// Workspace content in either direction (slice 18), counted the same way the
   /// blob face is: what this device itself landed, deleted, lost and could not
   /// apply — plus how many workspaces it shared no content for (turned off, or
@@ -167,6 +173,7 @@ class SyncSessionReport {
     this.blobsMissing = 0,
     this.entityRowsLost = 0,
     this.preferencesLost = 0,
+    this.documentsReplaced = 0,
     this.workspaceFiles = 0,
     this.workspaceBytes = 0,
     this.workspaceFilesRemoved = 0,
@@ -196,6 +203,7 @@ class SyncSessionReport {
     blobsMissing: blobsMissing,
     entityRowsLost: entityRowsLost,
     preferencesLost: preferencesLost,
+    documentsReplaced: documentsReplaced,
     workspaceFiles: workspaceFiles,
     workspaceBytes: workspaceBytes,
     workspaceFilesRemoved: workspaceFilesRemoved,
@@ -3732,9 +3740,11 @@ class SyncEngine implements SyncServerHandler {
   }) {
     var upserted = 0;
     var deleted = 0;
+    var documentsReplaced = 0;
     for (final outcome in outcomes) {
       upserted += outcome.upsertedMessages;
       deleted += outcome.deletedMessages;
+      documentsReplaced += outcome.documentsReplaced;
     }
     final entityRows =
         _entityRowCount(business) + _entityRowCount(receivedBusiness);
@@ -3812,6 +3822,8 @@ class SyncEngine implements SyncServerHandler {
       if (appliedBusiness?.deferred == true) 'business deferred',
       if (entityRowsLost > 0) 'lost $entityRowsLost entity rows',
       if (preferencesLost > 0) 'lost $preferencesLost prefs',
+      if (documentsReplaced > 0)
+        'replaced $documentsReplaced conversation documents',
       if (skewMinutes != null) 'clock skew ~$skewMinutes min',
     ];
     return SyncSessionReport(
@@ -3835,6 +3847,7 @@ class SyncEngine implements SyncServerHandler {
       blobsMissing: blobsMissing,
       entityRowsLost: entityRowsLost,
       preferencesLost: preferencesLost,
+      documentsReplaced: documentsReplaced,
       workspaceFiles: workspaceFiles,
       workspaceBytes: workspaceBytes,
       workspaceFilesRemoved: workspace?.filesRemoved ?? 0,

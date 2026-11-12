@@ -64,6 +64,7 @@ import '../services/api/providers/claude/claude_thinking_recovery.dart';
 import '../services/api/providers/claude/claude_history.dart';
 import '../services/backup/restore_durability.dart';
 import '../services/backup/restore_previous_plan.dart';
+import '../services/sync/sync_family_registry.dart';
 import '../services/sync/sync_merge.dart';
 import '../services/sync/sync_models.dart';
 import '../services/recycle/recycle_service.dart';
@@ -5716,6 +5717,17 @@ class ChatDatabaseRepository {
     'message_rows': ['id'],
   };
 
+  /// The three families whose apply is not a plain row write — a version group
+  /// to resolve, an order to re-derive, parts written with their revision — named
+  /// once so the merge body reads exactly the rows the registration publishes.
+  static final SyncFamily _messageFamily = syncFamilyOfTable('message_rows');
+  static final SyncFamily _messagePartFamily = syncFamilyOfTable(
+    'message_part_rows',
+  );
+  static final SyncFamily _mcpBindingFamily = syncFamilyOfTable(
+    'conversation_mcp_server_rows',
+  );
+
   /// Ids per `IN (...)` batch, well under SQLite's bound-variable limit.
   static const _syncMessageIdBatch = 200;
 
@@ -5820,38 +5832,40 @@ class ChatDatabaseRepository {
 
   Future<List<Map<String, dynamic>>> syncReadMessageRows(
     String conversationId,
-  ) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT * FROM message_rows WHERE conversation_id = ? '
-          'ORDER BY message_order, id;',
-          variables: [Variable.withString(conversationId)],
-        )
-        .get();
-    return [for (final row in rows) Map<String, dynamic>.from(row.data)];
-  }
+  ) => syncReadFamilyRows(syncFamilyOfTable('message_rows'), conversationId);
 
+  /// The part rows of one conversation, in write order. The same reader the
+  /// subtree uses; kept named for the tests that assert on a landed apply.
   Future<List<Map<String, dynamic>>> syncReadMessagePartRows(
     String conversationId,
-  ) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT * FROM message_part_rows WHERE conversation_id = ? '
-          'ORDER BY revision_id, ordinal;',
-          variables: [Variable.withString(conversationId)],
-        )
-        .get();
-    return [for (final row in rows) Map<String, dynamic>.from(row.data)];
-  }
+  ) => syncReadFamilyRows(
+    syncFamilyOfTable('message_part_rows'),
+    conversationId,
+  );
 
-  Future<List<Map<String, dynamic>>> syncReadMcpServerRows(
+  /// The rows of [family] belonging to [conversationId], in the family's own
+  /// order.
+  ///
+  /// One reader for every family, built from the registration rather than from a
+  /// method per table: the table, the column that names the conversation and the
+  /// order all come from there, so a family that starts travelling is read here
+  /// without a new method. The interpolated parts are registry constants, never
+  /// wire values — the same rule [currentSchemaColumns] follows.
+  Future<List<Map<String, dynamic>>> syncReadFamilyRows(
+    SyncFamily family,
     String conversationId,
   ) async {
+    final filter = family.kind == null
+        ? '${family.conversationColumn} = ?'
+        : 'kind = ? AND ${family.conversationColumn} = ?';
+    final order = family.orderBy == null ? '' : ' ORDER BY ${family.orderBy}';
     final rows = await _db
         .customSelect(
-          'SELECT * FROM conversation_mcp_server_rows WHERE conversation_id = ? '
-          'ORDER BY ordinal;',
-          variables: [Variable.withString(conversationId)],
+          'SELECT * FROM ${family.table} WHERE $filter$order;',
+          variables: <Variable<Object>>[
+            if (family.kind != null) Variable<String>(family.kind!),
+            Variable<String>(conversationId),
+          ],
         )
         .get();
     return [for (final row in rows) Map<String, dynamic>.from(row.data)];
@@ -5912,7 +5926,7 @@ class ChatDatabaseRepository {
       // cross-reference no honest peer can produce, since its own reader
       // filters by conversation.
       final labelled = {
-        for (final row in payload.messages)
+        for (final row in payload.rowsOf(_messageFamily))
           if (row['id'] is String && row['conversation_id'] == conversationId)
             row['id'] as String: {...row, 'is_streaming': 0},
       };
@@ -5942,10 +5956,16 @@ class ChatDatabaseRepository {
       }
       if (localConversation != null && conversationRowChanged) {
         await _upsertSyncRow('conversation_rows', conversationRow);
-        await _replaceSyncMcpServers(conversationId, payload.mcpServers);
+        await _replaceSyncMcpServers(
+          conversationId,
+          payload.rowsOf(_mcpBindingFamily),
+        );
       } else if (localConversation == null) {
         await _upsertSyncRow('conversation_rows', conversationRow);
-        await _replaceSyncMcpServers(conversationId, payload.mcpServers);
+        await _replaceSyncMcpServers(
+          conversationId,
+          payload.rowsOf(_mcpBindingFamily),
+        );
       }
 
       final plan = mergeMessageRows(
@@ -6037,7 +6057,7 @@ class ChatDatabaseRepository {
 
       // Phase 3: upserts with final order, then re-point untouched rows.
       final partsByRevision = <String, List<Map<String, dynamic>>>{};
-      for (final part in payload.parts) {
+      for (final part in payload.rowsOf(_messagePartFamily)) {
         final revisionId = part['revision_id'];
         if (revisionId is! String) continue;
         partsByRevision.putIfAbsent(revisionId, () => []).add(part);

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart' as crypto;
 
+import 'sync_family_registry.dart';
 import 'sync_limits.dart';
 
 /// Wire vocabulary for LAN sync slice 1 (ADR-0003).
@@ -791,45 +792,59 @@ class SyncPeerReport {
   );
 }
 
-/// One conversation subtree on the wire: the conversation row, its message
-/// rows in stable order, its MCP server bindings, and the message part rows.
-/// All values are JSON primitives; timestamps as µs ints; nullable columns may
-/// be absent.
+/// One conversation subtree on the wire: the conversation row, plus one row list
+/// per travelling family under that family's registered wire key.
+///
+/// The rows are keyed by family *name* here and by [SyncFamily.wireKey] in JSON,
+/// which is the whole of "a family is a registration, not a wire field": this
+/// class carries whatever the registry names, so a new family is a new entry
+/// rather than a new field. All values are JSON primitives; timestamps as µs
+/// ints; nullable columns may be absent.
 class SyncSubtreePayload {
+  /// The subtree root: the conversation row itself.
   final Map<String, dynamic> conversation;
-  final List<Map<String, dynamic>> messages;
-  final List<Map<String, dynamic>> parts;
-  final List<Map<String, dynamic>> mcpServers;
+
+  /// Rows per registered family name. The root family is not in here — it is
+  /// [conversation] — but [rowsOf] answers for it too.
+  final Map<String, List<Map<String, dynamic>>> families;
 
   const SyncSubtreePayload({
     required this.conversation,
-    required this.messages,
-    required this.parts,
-    this.mcpServers = const [],
+    this.families = const {},
   });
 
+  /// The rows of [family] as they travel here, or empty when the payload does
+  /// not carry it.
+  List<Map<String, dynamic>> rowsOf(SyncFamily family) => family.isSubtreeRoot
+      ? [conversation]
+      : (families[family.name] ?? const []);
+
+  /// Every row this payload carries, whichever family it belongs to.
+  Iterable<Map<String, dynamic>> get travellingRows sync* {
+    for (final family in syncedConversationFamilies) {
+      yield* rowsOf(family);
+    }
+  }
+
   Map<String, dynamic> toJson() => {
-    'conversation': conversation,
-    'messages': messages,
-    'parts': parts,
-    'mcpServers': mcpServers,
+    for (final family in syncedConversationFamilies)
+      if (family.isSubtreeRoot)
+        'conversation': conversation
+      else
+        family.wireKey!: [for (final row in rowsOf(family)) row],
   };
 
   static SyncSubtreePayload fromJson(Map<String, dynamic> json) =>
       SyncSubtreePayload(
         conversation: (json['conversation'] as Map).cast<String, dynamic>(),
-        messages: [
-          for (final message in (json['messages'] as List? ?? const []))
-            (message as Map).cast<String, dynamic>(),
-        ],
-        parts: [
-          for (final part in (json['parts'] as List? ?? const []))
-            (part as Map).cast<String, dynamic>(),
-        ],
-        mcpServers: [
-          for (final server in (json['mcpServers'] as List? ?? const []))
-            (server as Map).cast<String, dynamic>(),
-        ],
+        families: {
+          for (final family in syncedConversationFamilies)
+            if (!family.isSubtreeRoot)
+              family.name: [
+                for (final row in (json[family.wireKey] as List? ?? const []))
+                  (row as Map).cast<String, dynamic>(),
+              ],
+        },
       );
 }
 

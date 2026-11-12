@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:Cuplivo/core/database/business_data.dart';
 import 'package:Cuplivo/core/services/sync/sync_family_registry.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -57,6 +58,20 @@ void main() {
         reason: '$table hangs off a conversation but is registered nowhere',
       );
     }
+  });
+
+  test('the business families are the entity kinds, one for one', () {
+    expect(
+      {
+        for (final family in syncedBusinessFamilies)
+          if (family.table != 'preference_rows') family.kind ?? family.table,
+      },
+      {for (final kind in BusinessEntityKind.values) kind.wireName},
+      reason:
+          'the business face reads its rows by kind, so a kind with no family '
+          'would travel to nobody and a family with no kind would be read from '
+          'nothing',
+    );
   });
 
   test('the kind scan claims declarations and camelCase uses only', () {

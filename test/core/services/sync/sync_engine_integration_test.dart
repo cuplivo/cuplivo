@@ -20,6 +20,7 @@ import 'package:Cuplivo/core/services/sync/business_state_reloader.dart';
 import 'package:Cuplivo/core/services/sync/sync_client.dart';
 import 'package:Cuplivo/core/services/sync/sync_data_plane.dart';
 import 'package:Cuplivo/core/services/sync/sync_endpoint_prober.dart';
+import 'package:Cuplivo/core/services/sync/sync_family_registry.dart';
 import 'package:Cuplivo/core/services/sync/sync_engine.dart';
 import 'package:Cuplivo/core/services/sync/sync_identity.dart';
 import 'package:Cuplivo/core/services/sync/sync_limits.dart';
@@ -28,6 +29,7 @@ import 'package:Cuplivo/core/services/sync/sync_models.dart';
 import 'package:Cuplivo/core/services/sync/sync_pair_qr.dart';
 import 'package:Cuplivo/core/services/sync/sync_server.dart';
 import 'package:Cuplivo/core/services/sync/sync_store.dart';
+import '../../../support/sync_payload.dart';
 import 'package:Cuplivo/core/services/sync/workspace_content_sync.dart';
 import 'package:Cuplivo/features/home/controllers/chat_controller.dart';
 import 'package:Cuplivo/features/sync/widgets/sync_pairing_dialogs.dart';
@@ -243,11 +245,16 @@ class _CrossReferencingPlane extends SyncDataPlane {
     final subtree = await super.readSubtree(conversationId);
     final extra = craft();
     if (subtree == null || extra.isEmpty) return subtree;
-    return SyncSubtreePayload(
+    return subtreePayload(
       conversation: subtree.conversation,
-      messages: [...subtree.messages, ...extra],
-      parts: subtree.parts,
-      mcpServers: subtree.mcpServers,
+      messages: [
+        ...subtree.rowsOf(syncFamilyOfTable('message_rows')),
+        ...extra,
+      ],
+      parts: subtree.rowsOf(syncFamilyOfTable('message_part_rows')),
+      mcpServers: subtree.rowsOf(
+        syncFamilyOfTable('conversation_mcp_server_rows'),
+      ),
     );
   }
 }

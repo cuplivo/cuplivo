@@ -5084,6 +5084,7 @@
   "lanSyncReportPreferences": "{n} tercih",
   "lanSyncReportReceived": "{n} alındı",
   "lanSyncReportRowsLost": "{n} yerel kayıt, eşteki daha yeni sürümlerle değiştirildi (geri dönüşüm kutusundan kurtarılabilir)",
+  "lanSyncReportDocumentsReplaced": "{n} sohbetin sıkıştırma geçmişi veya ayarları eşteki daha yeni sürümle değiştirildi",
   "lanSyncReportSent": "{n} gönderildi",
   "lanSyncReportSkillConflicts": "{n} beceri düzenlemesi değiştirildi",
   "lanSyncReportSkills": "{n} beceri",

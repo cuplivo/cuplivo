@@ -23058,6 +23058,10 @@
   "@lanSyncReportRowsLost": {
     "description": "Sync report count of local records replaced by newer versions from the other device, noting they can be recovered from the recycle bin; n is that count."
   },
+  "lanSyncReportDocumentsReplaced": "{n} conversations' compression history or settings replaced by the peer's newer copy",
+  "@lanSyncReportDocumentsReplaced": {
+    "description": "Sync report count of conversations whose own document (compression history, image-context switches or provider artifacts) the peer's newer copy replaced, because those families are stored one document per conversation; n is that count."
+  },
   "lanSyncReportClockSkew": "Clocks differ by ~{n} min — fix the device clock, then sync again",
   "@lanSyncReportClockSkew": {
     "description": "Sync report warning that the two devices' clocks differ, so the times of the sync cannot be trusted; n is the difference in minutes."

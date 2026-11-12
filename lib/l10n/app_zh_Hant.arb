@@ -5229,6 +5229,7 @@
   "lanSyncReportWorkspacesKept": "已保留 {count} 個工作區資料夾（開關已關閉或含未同步檔案）",
   "lanSyncReportDeletesBlocked": "{count} 項刪除已略過（本機內容已變更）",
   "lanSyncReportRowsLost": "{n} 條本地記錄被對端更新的版本覆蓋（可在回收站還原）",
+  "lanSyncReportDocumentsReplaced": "{n} 個對話的壓縮歷史或設定被對端較新的版本取代",
   "lanSyncReportClockSkew": "兩台設備的時鐘相差約 {n} 分鐘，請校準設備時鐘後重新同步",
   "lanSyncReportUnreachable": "同步失敗：無法連線到對方裝置。它可能已離線或換了網路——重新掃描它的二維碼，或在卡片上修改位址。",
   "lanSyncReportNoEndpoint": "同步失敗：沒有記錄對方裝置的位址。請重新掃描它的二維碼，或在卡片上填寫位址。",

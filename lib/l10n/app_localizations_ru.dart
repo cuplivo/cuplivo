@@ -18135,6 +18135,11 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return 'Заменено более новой версией с другого устройства: история сжатия или настройки $n диалогов';
+  }
+
+  @override
   String lanSyncReportClockSkew(Object n) {
     return 'Часы расходятся на ~$n мин — исправьте время на устройстве и синхронизируйтесь снова';
   }

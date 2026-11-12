@@ -215,6 +215,11 @@ class _SuccessBreakdown extends StatelessWidget {
             report.entityRowsLost + report.preferencesLost,
           ),
         ),
+      if (report.documentsReplaced > 0)
+        (
+          Lucide.TriangleAlert,
+          l10n.lanSyncReportDocumentsReplaced(report.documentsReplaced),
+        ),
       if (report.blobsMissing > 0)
         (
           Lucide.FileQuestion,

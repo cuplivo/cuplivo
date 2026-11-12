@@ -17931,6 +17931,11 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return '$n sohbetin sıkıştırma geçmişi veya ayarları eşteki daha yeni sürümle değiştirildi';
+  }
+
+  @override
   String lanSyncReportClockSkew(Object n) {
     return 'Saatler yaklaşık $n dk farklı — cihaz saatini düzeltip yeniden eşitleyin';
   }

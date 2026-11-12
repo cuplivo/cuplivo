@@ -64,6 +64,7 @@ import '../services/api/providers/claude/claude_thinking_recovery.dart';
 import '../services/api/providers/claude/claude_history.dart';
 import '../services/backup/restore_durability.dart';
 import '../services/backup/restore_previous_plan.dart';
+import '../services/sync/sync_family_registry.dart';
 import '../services/sync/sync_merge.dart';
 import '../services/sync/sync_models.dart';
 import '../services/recycle/recycle_service.dart';
@@ -5714,7 +5715,23 @@ class ChatDatabaseRepository {
     'conversation_rows': ['id'],
     'conversation_mcp_server_rows': ['conversation_id', 'server_id'],
     'message_rows': ['id'],
+    // The document families (D-7): a conversation's compression history, image
+    // context and compression config share `extension_entity_rows` by kind, and
+    // a provider artifact is keyed by the revision it belongs to.
+    'extension_entity_rows': ['kind', 'id'],
+    'provider_artifact_rows': ['revision_id', 'kind'],
   };
+
+  /// The three families whose apply is not a plain row write — a version group
+  /// to resolve, an order to re-derive, parts written with their revision — named
+  /// once so the merge body reads exactly the rows the registration publishes.
+  static final SyncFamily _messageFamily = syncFamilyOfTable('message_rows');
+  static final SyncFamily _messagePartFamily = syncFamilyOfTable(
+    'message_part_rows',
+  );
+  static final SyncFamily _mcpBindingFamily = syncFamilyOfTable(
+    'conversation_mcp_server_rows',
+  );
 
   /// Ids per `IN (...)` batch, well under SQLite's bound-variable limit.
   static const _syncMessageIdBatch = 200;
@@ -5820,38 +5837,40 @@ class ChatDatabaseRepository {
 
   Future<List<Map<String, dynamic>>> syncReadMessageRows(
     String conversationId,
-  ) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT * FROM message_rows WHERE conversation_id = ? '
-          'ORDER BY message_order, id;',
-          variables: [Variable.withString(conversationId)],
-        )
-        .get();
-    return [for (final row in rows) Map<String, dynamic>.from(row.data)];
-  }
+  ) => syncReadFamilyRows(syncFamilyOfTable('message_rows'), conversationId);
 
+  /// The part rows of one conversation, in write order. The same reader the
+  /// subtree uses; kept named for the tests that assert on a landed apply.
   Future<List<Map<String, dynamic>>> syncReadMessagePartRows(
     String conversationId,
-  ) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT * FROM message_part_rows WHERE conversation_id = ? '
-          'ORDER BY revision_id, ordinal;',
-          variables: [Variable.withString(conversationId)],
-        )
-        .get();
-    return [for (final row in rows) Map<String, dynamic>.from(row.data)];
-  }
+  ) => syncReadFamilyRows(
+    syncFamilyOfTable('message_part_rows'),
+    conversationId,
+  );
 
-  Future<List<Map<String, dynamic>>> syncReadMcpServerRows(
+  /// The rows of [family] belonging to [conversationId], in the family's own
+  /// order.
+  ///
+  /// One reader for every family, built from the registration rather than from a
+  /// method per table: the table, the column that names the conversation and the
+  /// order all come from there, so a family that starts travelling is read here
+  /// without a new method. The interpolated parts are registry constants, never
+  /// wire values — the same rule [currentSchemaColumns] follows.
+  Future<List<Map<String, dynamic>>> syncReadFamilyRows(
+    SyncFamily family,
     String conversationId,
   ) async {
+    final filter = family.kind == null
+        ? '${family.conversationColumn} = ?'
+        : 'kind = ? AND ${family.conversationColumn} = ?';
+    final order = family.orderBy == null ? '' : ' ORDER BY ${family.orderBy}';
     final rows = await _db
         .customSelect(
-          'SELECT * FROM conversation_mcp_server_rows WHERE conversation_id = ? '
-          'ORDER BY ordinal;',
-          variables: [Variable.withString(conversationId)],
+          'SELECT * FROM ${family.table} WHERE $filter$order;',
+          variables: <Variable<Object>>[
+            if (family.kind != null) Variable<String>(family.kind!),
+            Variable<String>(conversationId),
+          ],
         )
         .get();
     return [for (final row in rows) Map<String, dynamic>.from(row.data)];
@@ -5912,7 +5931,7 @@ class ChatDatabaseRepository {
       // cross-reference no honest peer can produce, since its own reader
       // filters by conversation.
       final labelled = {
-        for (final row in payload.messages)
+        for (final row in payload.rowsOf(_messageFamily))
           if (row['id'] is String && row['conversation_id'] == conversationId)
             row['id'] as String: {...row, 'is_streaming': 0},
       };
@@ -5942,11 +5961,27 @@ class ChatDatabaseRepository {
       }
       if (localConversation != null && conversationRowChanged) {
         await _upsertSyncRow('conversation_rows', conversationRow);
-        await _replaceSyncMcpServers(conversationId, payload.mcpServers);
+        await _replaceSyncMcpServers(
+          conversationId,
+          payload.rowsOf(_mcpBindingFamily),
+        );
       } else if (localConversation == null) {
         await _upsertSyncRow('conversation_rows', conversationRow);
-        await _replaceSyncMcpServers(conversationId, payload.mcpServers);
+        await _replaceSyncMcpServers(
+          conversationId,
+          payload.rowsOf(_mcpBindingFamily),
+        );
       }
+
+      // D-7: the conversation's own document families are rows on their own
+      // clock, and are applied here because nothing in the message merge depends
+      // on them.
+      final documentsReplaced = await _applyConversationDocuments(
+        conversationId: conversationId,
+        payload: payload,
+        myDeviceId: myDeviceId,
+        peerDeviceId: peerDeviceId,
+      );
 
       final plan = mergeMessageRows(
         local: localMessages,
@@ -6037,7 +6072,7 @@ class ChatDatabaseRepository {
 
       // Phase 3: upserts with final order, then re-point untouched rows.
       final partsByRevision = <String, List<Map<String, dynamic>>>{};
-      for (final part in payload.parts) {
+      for (final part in payload.rowsOf(_messagePartFamily)) {
         final revisionId = part['revision_id'];
         if (revisionId is! String) continue;
         partsByRevision.putIfAbsent(revisionId, () => []).add(part);
@@ -6090,8 +6125,92 @@ class ChatDatabaseRepository {
         conversationRowChanged: conversationRowChanged,
         reordered: orderDrifted,
         appliedRevisionIds: upsertedIds,
+        documentsReplaced: documentsReplaced,
       );
     });
+  }
+
+  /// Applies the conversation's own document families (D-7): the compression
+  /// history, the image-context switches and pins, the compression configuration
+  /// and the provider artifacts a native continuation needs.
+  ///
+  /// Each is a row on its own clock, so the rule is the business face's one: the
+  /// newer `updated_at` wins, and an exact tie falls to the higher deviceId, so
+  /// both peers reach the same verdict without talking. A local copy that loses
+  /// is **replaced**, and the count comes back to the caller because this is
+  /// where a device's own compression can disappear — the session report is the
+  /// only place that can say so.
+  ///
+  /// A row is accepted only where it says it belongs: its conversation column
+  /// names this conversation, and an extension row carries exactly its family's
+  /// kind. A crafted row that names another conversation or another kind is
+  /// dropped, the refusal [_syncForeignMessageIds] already makes for messages.
+  Future<int> _applyConversationDocuments({
+    required String conversationId,
+    required SyncSubtreePayload payload,
+    required String myDeviceId,
+    required String peerDeviceId,
+  }) async {
+    var replaced = 0;
+    for (final family in syncedConversationFamilies) {
+      if (family.isSubtreeRoot ||
+          family.apply != SyncFamilyApply.rowLastWriteWins) {
+        continue;
+      }
+      final rows = payload.rowsOf(family);
+      if (rows.isEmpty) continue;
+      final keyColumns = _syncConflictTargets[family.table];
+      if (keyColumns == null) {
+        throw StateError('sync_conflict_target_missing:${family.table}');
+      }
+      for (final row in rows) {
+        if (row[family.conversationColumn] != conversationId) continue;
+        if (family.kind != null && row['kind'] != family.kind) continue;
+        if (row['payload'] is! String) continue;
+        if (keyColumns.any((column) => row[column] is! String)) continue;
+        final incomingAt = (row['updated_at'] as num?)?.toInt();
+        if (incomingAt == null) continue;
+        final local = await _syncReadRowByKey(family.table, keyColumns, row);
+        if (local != null) {
+          final localAt = (local['updated_at'] as num?)?.toInt();
+          if (localAt == null) continue;
+          if (!incomingBusinessRowWins(
+            localUpdatedAtUs: localAt,
+            incomingUpdatedAtUs: incomingAt,
+            myDeviceId: myDeviceId,
+            peerDeviceId: peerDeviceId,
+          )) {
+            continue;
+          }
+          // A loss only when the content differs: a bothSend echoes this
+          // device's own row back at a tied clock, and counting that would tell
+          // the user their work was replaced by itself.
+          if (local['payload'] != row['payload']) replaced++;
+        }
+        await _upsertSyncRow(family.table, row);
+      }
+    }
+    return replaced;
+  }
+
+  /// One row of [table] by the columns that key it, or null when this device
+  /// has none.
+  Future<Map<String, dynamic>?> _syncReadRowByKey(
+    String table,
+    List<String> keyColumns,
+    Map<String, dynamic> row,
+  ) async {
+    final result = await _db
+        .customSelect(
+          'SELECT * FROM $table WHERE '
+          '${keyColumns.map((column) => '$column = ?').join(' AND ')};',
+          variables: [
+            for (final column in keyColumns)
+              Variable<String>(row[column] as String),
+          ],
+        )
+        .getSingleOrNull();
+    return result == null ? null : Map<String, dynamic>.from(result.data);
   }
 
   Future<int?> _syncMaxMessageOrder(String conversationId) async {

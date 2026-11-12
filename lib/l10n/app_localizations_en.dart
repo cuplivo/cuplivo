@@ -17832,6 +17832,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return '$n conversations\' compression history or settings replaced by the peer\'s newer copy';
+  }
+
+  @override
   String lanSyncReportClockSkew(Object n) {
     return 'Clocks differ by ~$n min — fix the device clock, then sync again';
   }

@@ -9,6 +9,7 @@ import '../recycle/recycle_service.dart';
 import '../skills/skill_directory_sync.dart';
 import 'blob_sync.dart';
 import 'business_state_reloader.dart';
+import 'sync_family_registry.dart';
 import 'sync_merge.dart';
 import 'sync_models.dart';
 import 'workspace_content_sync.dart';
@@ -72,6 +73,16 @@ class SyncDataPlane {
   /// Wire name of the skill entity kind — the single authority for it lives on
   /// `BusinessEntityKind`.
   static String get skillWire => BusinessEntityKind.skill.wireName;
+
+  /// The two families this class still reads by name: the preference rows, which
+  /// travel beside the entity map rather than inside it, and the part rows, which
+  /// are what a landed asset reference hangs off.
+  static final SyncFamily _preferenceFamily = syncFamilyOfTable(
+    'preference_rows',
+  );
+  static final SyncFamily _messagePartFamily = syncFamilyOfTable(
+    'message_part_rows',
+  );
 
   /// Sentinel directory hash for a skill whose body this device does not have.
   /// It is a legal digest value, so it rides the ordinary combined digest and
@@ -138,17 +149,24 @@ class SyncDataPlane {
   }
 
   /// One conversation as a wire subtree, or null when it no longer exists.
+  ///
+  /// Every family in [syncedConversationFamilies] is read, and nothing else is:
+  /// what a subtree carries is the registration's answer, so a family that
+  /// starts travelling is read here without touching this method.
   Future<SyncSubtreePayload?> readSubtree(String conversationId) async {
     final conversation = await repository.syncReadConversationRow(
       conversationId,
     );
     if (conversation == null) return null;
-    return SyncSubtreePayload(
-      conversation: conversation,
-      messages: await repository.syncReadMessageRows(conversationId),
-      parts: await repository.syncReadMessagePartRows(conversationId),
-      mcpServers: await repository.syncReadMcpServerRows(conversationId),
-    );
+    final families = <String, List<Map<String, dynamic>>>{};
+    for (final family in syncedConversationFamilies) {
+      if (family.isSubtreeRoot) continue;
+      families[family.name] = await repository.syncReadFamilyRows(
+        family,
+        conversationId,
+      );
+    }
+    return SyncSubtreePayload(conversation: conversation, families: families);
   }
 
   /// Whether a generation is writing to this conversation right now. Such a
@@ -656,18 +674,25 @@ class SyncDataPlane {
     required List<SyncSubtreePayload> subtrees,
     required SyncBusinessPayload business,
   }) async {
-    final rows = <Map<String, dynamic>>[
-      for (final subtree in subtrees) ...[
-        subtree.conversation,
-        ...subtree.messages,
-        ...subtree.parts,
-        ...subtree.mcpServers,
-      ],
-      for (final entityRows in business.entities.values) ...entityRows,
-      ...business.preferences,
-    ];
+    final uris = <String>{};
+    for (final subtree in subtrees) {
+      for (final family in syncedConversationFamilies) {
+        uris.addAll(
+          kelivoFileUrisInRows(
+            subtree.rowsOf(family),
+            columns: family.blobColumns,
+          ),
+        );
+      }
+    }
+    for (final family in syncedBusinessFamilies) {
+      final rows = family == _preferenceFamily
+          ? business.preferences
+          : (business.entities[family.kind ?? family.table] ?? const []);
+      uris.addAll(kelivoFileUrisInRows(rows, columns: family.blobColumns));
+    }
     final entries = await buildFileBlobEntries(
-      kelivoFileUrisInRows(rows),
+      uris,
       fileHasher,
       resolve: blobPathResolver,
     );
@@ -761,7 +786,7 @@ class SyncDataPlane {
       final revisions = outcomes[conversationId]?.appliedRevisionIds;
       if (revisions == null || revisions.isEmpty) continue;
       final byRevision = <String, List<({String uri, String kind})>>{};
-      for (final part in subtree.parts) {
+      for (final part in subtree.rowsOf(_messagePartFamily)) {
         final revisionId = part['revision_id'];
         final payload = part['payload'];
         if (revisionId is! String || payload is! String) continue;

@@ -57,6 +57,17 @@ class ConversationRows extends Table {
       .withDefault(const Constant(0))();
   TextColumn get chatSuggestionsJson =>
       text().withDefault(const Constant('[]'))();
+  // No decision reads this column any more and it never crosses the wire — it
+  // used to record which snapshot the conversation had injected, and LAN sync
+  // overwrote it with the peer's value, who has its own carriers, so the two
+  // disagreed and every memory change rewrote history from wherever the
+  // snapshot happened to sit. Where the snapshot is now lives on the carrier's
+  // own freeze row (`message_prompt_rows.carries_memory_snapshot`).
+  //
+  // What is left is plumbing, not intent: `Conversation.injectedMemoryHash`
+  // still mirrors it and an insert may write that (always null in practice),
+  // because the column stays until a schema change can drop it — dropping one
+  // is not an additive migration.
   TextColumn get injectedMemoryHash => text().nullable()();
   IntColumn get lastMemoryExtractedOrder => integer()
       // ignore: recursive_getters

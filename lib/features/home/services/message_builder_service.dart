@@ -8,9 +8,9 @@ import '../../chat/utils/thinking_tag_parser.dart';
 import 'package:Cuplivo/core/providers/external_mounts_provider.dart';
 import 'dart:convert';
 import 'dart:io';
-import 'package:drift/drift.dart' show Value;
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
+import '../../../core/database/app_database.dart';
 import '../../../core/database/chat_database_repository.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_input_data.dart';
@@ -85,64 +85,46 @@ void _removeGoogleToolSignatures(Map<String, dynamic> message) {
   }
 }
 
-/// Result of §7.6 memory-prefix resolution.
+/// What one request does about the memory snapshot (§7.6).
 ///
-/// [persistHash] separates "leave the stored hash alone" from "store [hash]".
-/// Clearing needs that distinction: when the last visible memory disappears the
-/// turn injects nothing yet must still record that the context now carries no
-/// snapshot, which is a null [hash] rather than an absent write.
-typedef MemoryPrefixResolution = ({
-  String prefix,
-  String? hash,
-  bool persistHash,
-  String? snapshotKind,
-});
-
-const MemoryPrefixResolution _noMemoryPrefix = (
-  prefix: '',
-  hash: null,
-  persistHash: false,
-  snapshotKind: null,
-);
-
-/// Memory injection state shared by the messages assembled in one request.
+/// A snapshot is frozen into exactly one user message — the *carrier* — and the
+/// freeze row's `carriesMemorySnapshot` flag is the record of where it is. That
+/// record decides the request, not the assembly order: while a recorded carrier
+/// still holds exactly the current snapshot nothing moves, because a move
+/// rewrites the request from the old carrier onwards and the provider's prefix
+/// cache stops paying there.
 ///
-/// Persisted conversations could read all of this back from the database, but
-/// temporary ones are never written there, so without a pass-scoped record each
-/// message would look like the first and re-inject the same snapshot.
-class MemoryInjectionPass {
-  MemoryInjectionPass({this.retainedSnapshotCarriers});
+/// [injectIntoId] is set only when the snapshot has to move, and then it names
+/// the last user message of the request: the one position whose rewrite cannot
+/// invalidate text a later turn would have kept cached.
+///
+/// An empty [prefix] with carriers in [staleCarrierIds] is the "context carries
+/// no snapshot" state — the visible set emptied, or the assistant's memory was
+/// switched off. Nothing is injected and every recorded carrier loses its
+/// prefix on the way out.
+final class MemorySnapshotPlan {
+  const MemorySnapshotPlan({
+    required this.prefix,
+    required this.injectIntoId,
+    required this.staleCarrierIds,
+  });
 
-  /// Frozen snapshot carriers actually retained in this request. A null value
-  /// lets standalone prompt resolution consult the stored history instead.
-  final Set<String>? retainedSnapshotCarriers;
+  /// The snapshot to inject, or `''` when the memory state is empty.
+  final String prefix;
 
-  /// Revision ids that received a memory block during this request.
-  final Set<String> snapshotCarriers = <String>{};
+  /// The message that takes [prefix] in this request, or null when the recorded
+  /// carrier already holds it.
+  final String? injectIntoId;
 
-  /// The most recent hash injected during this request, if any.
-  String? get injectedHash => _injectedHash;
-  String? _injectedHash;
+  /// Recorded carriers holding something else. Their prefix is dropped on the
+  /// way out; the freeze rows keep what was actually sent (§8.3).
+  final Set<String> staleCarrierIds;
 
-  /// Whether [injectedHash] has been set, distinguishing "none yet" from a
-  /// legitimately null hash.
-  bool get hasInjectedHash => _hasInjectedHash;
-  bool _hasInjectedHash = false;
-
-  void recordInjectedHash(String? hash) {
-    _injectedHash = hash;
-    _hasInjectedHash = true;
-  }
-
-  /// What injection would emit right now, once it has been computed. Reused so
-  /// a request that resolves the state and then decides not to inject does not
-  /// read it a second time on the way out.
-  MemorySnapshotState? get currentSnapshot => _currentSnapshot;
-  MemorySnapshotState? _currentSnapshot;
-
-  void recordCurrentSnapshot(MemorySnapshotState snapshot) {
-    _currentSnapshot = snapshot;
-  }
+  static const MemorySnapshotPlan none = MemorySnapshotPlan(
+    prefix: '',
+    injectIntoId: null,
+    staleCarrierIds: <String>{},
+  );
 }
 
 /// Service for building API messages from conversation state.
@@ -1165,6 +1147,18 @@ class MessageBuilderService {
           if (!nativePdfRevisionIds.contains(entry.key)) entry.key: entry.value,
     };
 
+    // The memory decision belongs to the request, not to the message being
+    // assembled. Made here, once, it cannot depend on which message happens to
+    // be the first one without a freeze row — the ordering that put the snapshot
+    // on the oldest message of a freshly synced conversation.
+    final memoryPlan = await resolveMemoryPlan(
+      apiMessages: apiMessages,
+      frozenPrompts: frozenPrompts,
+      lastUserIdx: lastUserIdx,
+      assistant: assistant,
+      settings: settings,
+    );
+
     // Prefetch OCR only for messages that still need generation (no freeze yet).
     OcrPrepareSession? ocrSession;
     if (!previewOnly && ocrActive && ocrPrefetch != null) {
@@ -1267,18 +1261,6 @@ class MessageBuilderService {
       }
     }
 
-    final injectionPass = MemoryInjectionPass(
-      retainedSnapshotCarriers: {
-        for (final entry in frozenPrompts.entries)
-          if (entry.value.carriesMemorySnapshot) entry.key,
-      },
-    );
-
-    // Revision ids whose payload really came from memory injection. Format
-    // alone must never decide this: a user who pastes a snapshot copied out of
-    // the context log would otherwise have that text treated as an internal
-    // block and stripped off their message.
-    final snapshotRevisionIds = <String>{};
     final workspaceAttachmentPrompts = <int, String>{};
 
     for (int i = 0; i < apiMessages.length; i++) {
@@ -1441,15 +1423,41 @@ class MessageBuilderService {
       // Reuse only the frozen prompts retained for this request.
       final existing = frozenPrompts[revisionId];
       if (existing != null) {
-        final sendPayload = _legacyAwareFrozenPayload(
+        var sendPayload = _legacyAwareFrozenPayload(
           payload: existing.payload,
           carriesMemorySnapshot: existing.carriesMemorySnapshot,
           settings: settings,
         );
-        apiMessages[i]['content'] = sendPayload;
-        final carriesSnapshot =
+        var carriesSnapshot =
             existing.carriesMemorySnapshot && sendPayload == existing.payload;
-        if (carriesSnapshot) snapshotRevisionIds.add(revisionId);
+        if (revisionId == memoryPlan.injectIntoId) {
+          // The plan picked this message and it is frozen, so its body is
+          // whatever the row holds minus the prefix it carries — which is
+          // nothing at all when the row was frozen while memory was empty, or
+          // when a truncation made an old non-carrier the last message of the
+          // request. Gating this on the row's flag dropped the snapshot and left
+          // the request with none, because the same plan strips every other
+          // carrier.
+          final rest = carriesSnapshot
+              ? MemoryBlockBuilder.splitInjectedPrefix(sendPayload)?.rest ??
+                    sendPayload
+              : sendPayload;
+          sendPayload = '${memoryPlan.prefix}$rest';
+          carriesSnapshot = memoryPlan.prefix.isNotEmpty;
+          await _recordFrozenInjection(
+            existing: existing,
+            payload: sendPayload,
+            carriesMemorySnapshot: carriesSnapshot,
+            previewOnly: previewOnly,
+          );
+        } else if (carriesSnapshot &&
+            memoryPlan.staleCarrierIds.contains(revisionId)) {
+          sendPayload =
+              MemoryBlockBuilder.splitInjectedPrefix(sendPayload)?.rest ??
+              sendPayload;
+          carriesSnapshot = false;
+        }
+        apiMessages[i]['content'] = sendPayload;
         _tagFrozenUserPrompt(
           apiMessages[i],
           payload: sendPayload,
@@ -1549,11 +1557,10 @@ class MessageBuilderService {
           message: chatMessage,
           processedUserBody: processedBody,
           assistant: assistant,
-          conversation: conversation,
-          settings: settings,
           apiMessages: apiMessages,
-          pass: injectionPass,
-          readFrozenPrompt: false,
+          memoryPrefix: revisionId == memoryPlan.injectIntoId
+              ? memoryPlan.prefix
+              : '',
           freezePrompt: canFreezePrompt,
         );
       } else {
@@ -1581,16 +1588,6 @@ class MessageBuilderService {
       }
     }
 
-    await refreshMemorySnapshots(
-      apiMessages,
-      assistant: assistant,
-      conversation: conversation,
-      settings: settings,
-      pass: injectionPass,
-      snapshotRevisionIds: snapshotRevisionIds
-        ..addAll(injectionPass.snapshotCarriers),
-    );
-
     // Keep execution paths out of frozen prompts so rebinding a workspace can
     // resolve them again. Only the owning message receives each descriptor;
     // later uploads do not change the system prompt or earlier message text.
@@ -1605,111 +1602,140 @@ class MessageBuilderService {
     return lastUserImagePaths ?? <String>[];
   }
 
-  /// Leave exactly the live memory snapshot in the request (§7.6).
+  /// Decide where the memory snapshot goes in this request (§7.6).
   ///
-  /// A snapshot is frozen into the user message it was injected on and would
-  /// otherwise be replayed for the life of the conversation. Every other one is
-  /// stale the moment memory changes, and a scope switch makes the staleness
-  /// user-visible: entries moved from global to one assistant keep showing up
-  /// in another assistant's older conversations, because that conversation's
-  /// history still carries the snapshot taken while they were global.
+  /// A snapshot is frozen into exactly one user message — the carrier — and
+  /// that freeze row's `carriesMemorySnapshot` flag is the record of where it
+  /// is. This reads the record and decides; it never lets the assembly order
+  /// decide, which is what used to put the snapshot on the *oldest* message of
+  /// a freshly synced conversation (no freeze rows at all, so every message
+  /// looked like it could take one) and then made every later memory change
+  /// rewrite the request from that position onwards.
   ///
-  /// The freeze rows are left untouched — they record what was actually sent,
-  /// and a turn that changes nothing must keep hitting the prompt cache — so
-  /// the correction happens on the way out instead: superseded prefixes are
-  /// dropped, and when nothing in this request injected a fresh snapshot the
-  /// surviving one is brought up to date in place.
+  /// The record moves only when memory itself changed, because a move rewrites
+  /// the request from the old carrier onwards and the provider's prefix cache
+  /// stops paying there. A turn that changes nothing therefore writes nothing
+  /// and sends exactly the bytes it sent last time.
   ///
-  /// [snapshotRevisionIds] names the messages whose payload really came from
-  /// injection. Only those are candidates; text that merely looks like a
-  /// snapshot is the user's own and stays untouched.
-  Future<void> refreshMemorySnapshots(
-    List<Map<String, dynamic>> apiMessages, {
+  /// A recorded carrier holding something else is stale: its prefix is dropped
+  /// on the way out while the freeze row keeps what was actually sent (§8.3),
+  /// and the new snapshot lands on the last user message — the one position
+  /// whose rewrite cannot invalidate text a later turn would have kept cached.
+  ///
+  /// Only rows that really came from injection are candidates. Format alone
+  /// must never decide this: a user who pastes a snapshot copied out of the
+  /// context log would otherwise have it stripped off their message.
+  Future<MemorySnapshotPlan> resolveMemoryPlan({
+    required List<Map<String, dynamic>> apiMessages,
+    required Map<String, MessagePromptRow> frozenPrompts,
+    required int lastUserIdx,
     required Assistant? assistant,
-    required Conversation? conversation,
     required SettingsProvider settings,
-    required Set<String> snapshotRevisionIds,
-    MemoryInjectionPass? pass,
   }) async {
-    if (snapshotRevisionIds.isEmpty) return;
+    if (assistant == null) return MemorySnapshotPlan.none;
+    if (_repo == null || _legacyMemoryMode(settings)) {
+      return MemorySnapshotPlan.none;
+    }
+    // No user message in the request means no message can carry the snapshot,
+    // and no recorded carrier can be in context either — there is nothing to
+    // read and nothing to strip.
+    if (lastUserIdx < 0) return MemorySnapshotPlan.none;
 
-    final carriers = <int>[];
-    int? injectedThisRequest;
-    for (int i = 0; i < apiMessages.length; i++) {
-      final message = apiMessages[i];
+    // Walk the request rather than the row map: the same state has to resolve to
+    // the same carrier on every turn, and the row map has no order of its own.
+    // "Last in request order" is the tie-break, because that is the position
+    // whose rewrite costs the least if the snapshot ever has to move.
+    final carriers = <String, String>{};
+    final order = <String>[];
+    for (final message in apiMessages) {
       if ((message['role'] ?? '').toString() != 'user') continue;
       final revisionId = (message[internalRevisionIdKey] ?? '')
           .toString()
           .trim();
-      if (!snapshotRevisionIds.contains(revisionId)) continue;
-      final content = message['content'];
-      if (content is! String || content.isEmpty) continue;
-      if (MemoryBlockBuilder.endOfInjectedPrefix(content) == null) continue;
-      carriers.add(i);
-      if (pass?.snapshotCarriers.contains(revisionId) ?? false) {
-        injectedThisRequest = i;
-      }
-    }
-    if (carriers.isEmpty) return;
-
-    // A snapshot injected during this request is the live one wherever it sits.
-    // Position alone would get this wrong: a history message that could not be
-    // frozen (a failed OCR, a sandbox data file) is reassembled mid-request and
-    // can take the fresh snapshot while an older frozen one follows it.
-    int? live = injectedThisRequest;
-    String? wanted;
-    if (live == null) {
-      // Nothing injected — either the state is unchanged, or no new user
-      // message forced a decision at all, which is what regenerating an old
-      // reply does. The surviving carrier has to prove it is current by holding
-      // exactly the snapshot the state produces right now; anything else is
-      // rewritten in place, and an empty state rewrites it away.
-      //
-      // Its own prefix is the only reliable evidence. The conversation's stored
-      // hash names whichever snapshot was injected last, which need not be the
-      // one that survives here: regenerating an earlier reply cuts the later
-      // messages — and the newer snapshot with them — out of the request.
-      //
-      // The rewrite is deliberately never persisted: the stored hash must keep
-      // describing the freeze rows, or the next turn would believe the stale
-      // prefix is current and send it untouched.
-      if (assistant == null || _repo == null) return;
-      final current = assistant.enableMemory && !_legacyMemoryMode(settings)
-          ? pass?.currentSnapshot ??
-                await currentMemorySnapshot(
-                  assistant: assistant,
-                  lang: settings.resolvedMemoryPromptLang,
-                  settings: settings,
-                )
-          : null;
-      wanted = current == null || current.isEmpty ? '' : current.prefix;
-      live = carriers.last;
-    }
-
-    for (final i in carriers) {
-      final message = apiMessages[i];
-      final split = MemoryBlockBuilder.splitInjectedPrefix(
-        message['content'] as String,
-      );
+      if (revisionId.isEmpty || carriers.containsKey(revisionId)) continue;
+      final row = frozenPrompts[revisionId];
+      if (row == null || !row.carriesMemorySnapshot) continue;
+      final split = MemoryBlockBuilder.splitInjectedPrefix(row.payload);
       if (split == null) continue;
-      if (i == live) {
-        if (wanted == null || wanted == split.prefix) continue;
-        final refreshed = '$wanted${split.rest}';
-        message['content'] = refreshed;
-        _tagFrozenUserPrompt(
-          message,
-          payload: refreshed,
-          carriesMemorySnapshot: wanted.isNotEmpty,
-        );
-        continue;
-      }
-      message['content'] = split.rest;
-      ContextSegmentTags.replaceWithSingle(
-        message,
-        source: ContextSource.chatHistory,
-        length: split.rest.length,
+      carriers[revisionId] = split.prefix;
+      order.add(revisionId);
+    }
+
+    // Memory off is not "no plan". The snapshots frozen into this conversation
+    // were sent while the switch was on, and leaving them there keeps feeding
+    // the model a memory block the assistant no longer has — for as long as the
+    // conversation lives. Their prefixes go on the way out, the same way they do
+    // when the visible set empties; the freeze rows keep what they sent (§8.3).
+    if (!assistant.enableMemory) {
+      return MemorySnapshotPlan(
+        prefix: '',
+        injectIntoId: null,
+        staleCarrierIds: carriers.keys.toSet(),
       );
     }
+
+    final snapshot = await currentMemorySnapshot(
+      assistant: assistant,
+      lang: settings.resolvedMemoryPromptLang,
+      settings: settings,
+    );
+    if (snapshot == null) return MemorySnapshotPlan.none;
+    final wanted = snapshot.isEmpty ? '' : snapshot.prefix;
+
+    String? live;
+    for (final id in order) {
+      if (carriers[id] == wanted) live = id;
+    }
+    if (live != null) {
+      return MemorySnapshotPlan(
+        prefix: wanted,
+        injectIntoId: null,
+        staleCarrierIds: {
+          for (final id in order)
+            if (id != live) id,
+        },
+      );
+    }
+
+    final target = wanted.isEmpty
+        ? ''
+        : (apiMessages[lastUserIdx][internalRevisionIdKey] ?? '')
+              .toString()
+              .trim();
+    return MemorySnapshotPlan(
+      prefix: wanted,
+      injectIntoId: target.isEmpty ? null : target,
+      staleCarrierIds: carriers.keys.toSet(),
+    );
+  }
+
+  /// Write the injection that landed on an already-frozen message.
+  ///
+  /// A frozen row is normally left alone (§8.3 — it records what that turn
+  /// sent), but this one is about to send something else, so the row and the
+  /// request now disagree. Only the row survives to the next turn: with the
+  /// prefix living in this payload alone, the next request looks for a carrier,
+  /// finds none, injects again on the *new* last message and drops this one —
+  /// one wasted prefix move per regeneration, and the invalidation point slips
+  /// back to this message. Writing the row is what makes the flag mean what
+  /// [resolveMemoryPlan] already assumes it means.
+  Future<void> _recordFrozenInjection({
+    required MessagePromptRow existing,
+    required String payload,
+    required bool carriesMemorySnapshot,
+    required bool previewOnly,
+  }) async {
+    if (previewOnly || payload == existing.payload) return;
+    final repo = _repo;
+    if (repo == null) return;
+    // Temporary drafts have no message_rows for the FK to point at.
+    if (chatService.isTemporaryConversation(existing.conversationId)) return;
+    await repo.putMessagePrompt(
+      revisionId: existing.revisionId,
+      conversationId: existing.conversationId,
+      payload: payload,
+      carriesMemorySnapshot: carriesMemorySnapshot,
+    );
   }
 
   /// The stored message behind an api payload, or null when it cannot be
@@ -1746,47 +1772,22 @@ class MessageBuilderService {
     return null;
   }
 
-  /// §8.3 immutability contract: return frozen payload or assemble + freeze.
+  /// §8.3 immutability contract: assemble this message's payload and freeze it.
+  ///
+  /// [memoryPrefix] is decided once per request by [resolveMemoryPlan]; it is
+  /// empty for every message except the one that carries the snapshot.
   Future<String> resolvePromptContent({
     required ChatMessage message,
     required String processedUserBody,
     required Assistant? assistant,
-    required Conversation conversation,
-    required SettingsProvider settings,
     required List<Map<String, dynamic>> apiMessages,
-    MemoryInjectionPass? pass,
-    bool readFrozenPrompt = true,
+    String memoryPrefix = '',
     bool freezePrompt = true,
   }) async {
     final repo = _repo;
     final persist =
         repo != null &&
         !chatService.isTemporaryConversation(message.conversationId);
-    if (persist && readFrozenPrompt) {
-      final existing = await repo.getMessagePrompt(message.id);
-      if (existing != null) {
-        return _legacyAwareFrozenPayload(
-          payload: existing.payload,
-          carriesMemorySnapshot: existing.carriesMemorySnapshot,
-          settings: settings,
-        );
-      }
-    }
-
-    final memory = assistant == null
-        ? _noMemoryPrefix
-        : await resolveMemoryPrefix(
-            conversation: conversation,
-            assistant: assistant,
-            apiMessages: apiMessages,
-            currentMessageId: message.id,
-            lang: settings.resolvedMemoryPromptLang,
-            pass: pass,
-            settings: settings,
-          );
-    if (memory.prefix.isNotEmpty) {
-      pass?.snapshotCarriers.add(message.id);
-    }
 
     final template = assistant?.messageTemplate ?? '';
     final templ = template.trim().isEmpty ? '{{ message }}' : template;
@@ -1804,23 +1805,22 @@ class MessageBuilderService {
       );
       timeSuffix = '\n\n$timeTag';
     }
-    final finalContent = '${memory.prefix}$templated$timeSuffix';
+    final finalContent = '$memoryPrefix$templated$timeSuffix';
 
     for (final apiMessage in apiMessages) {
       if ((apiMessage[internalRevisionIdKey] ?? '').toString() != message.id) {
         continue;
       }
-      if (memory.prefix.isNotEmpty) {
-        final kind = memory.snapshotKind;
+      if (memoryPrefix.isNotEmpty) {
         ContextSegmentTags.write(apiMessage, [
           ContextSegmentTags.item(
             source: ContextSource.memorySnapshot,
-            length: memory.prefix.length,
-            meta: kind == null ? null : {'kind': kind},
+            length: memoryPrefix.length,
+            meta: const {'kind': 'full'},
           ),
           ContextSegmentTags.item(
             source: ContextSource.chatHistory,
-            length: finalContent.length - memory.prefix.length,
+            length: finalContent.length - memoryPrefix.length,
           ),
         ]);
       } else {
@@ -1835,14 +1835,11 @@ class MessageBuilderService {
     // Temporary drafts never land in message_rows; freezing would violate the
     // message_prompt_rows FK. Assemble in-memory only for those.
     if (persist && freezePrompt) {
-      await repo.freezeMessagePrompt(
+      await repo.putMessagePrompt(
         revisionId: message.id,
         conversationId: message.conversationId,
         payload: finalContent,
-        carriesMemorySnapshot: memory.prefix.isNotEmpty,
-        injectedMemoryHash: memory.persistHash
-            ? Value(memory.hash)
-            : const Value.absent(),
+        carriesMemorySnapshot: memoryPrefix.isNotEmpty,
       );
     }
 
@@ -1895,8 +1892,8 @@ class MessageBuilderService {
   }
 
   /// Drop a v2 snapshot that was frozen into history while the new memory
-  /// system was on. The stored freeze row is left intact so switching back
-  /// still hits prompt cache / hash gating.
+  /// system was on. The stored freeze row is left intact, so switching the new
+  /// system back on finds the snapshot where it left it.
   String _legacyAwareFrozenPayload({
     required String payload,
     required bool carriesMemorySnapshot,
@@ -1937,104 +1934,6 @@ class MessageBuilderService {
       lang: lang,
       maxItems: maxItems,
       fullInjectionTypes: assistant.memoryFullInjectionTypes,
-    );
-  }
-
-  /// §7.6 hash gating + self-healing. Compare hash **before** writing it.
-  Future<MemoryPrefixResolution> resolveMemoryPrefix({
-    required Conversation conversation,
-    required Assistant assistant,
-    required List<Map<String, dynamic>> apiMessages,
-    required String currentMessageId,
-    required MemoryPromptLang lang,
-    MemoryInjectionPass? pass,
-    SettingsProvider? settings,
-  }) async {
-    if (_legacyMemoryMode(settings) || !assistant.enableMemory) {
-      return _noMemoryPrefix;
-    }
-
-    final repo = _repo;
-    if (repo == null) {
-      return _noMemoryPrefix;
-    }
-
-    final current = await currentMemorySnapshot(
-      assistant: assistant,
-      lang: lang,
-      settings: settings,
-    );
-    if (current == null) return _noMemoryPrefix;
-    pass?.recordCurrentSnapshot(current);
-    final currentHash = current.hash;
-
-    // Self-healing: any history user message in *this* request carrying a
-    // snapshot? Read revision ids before stripInternalRevisionIds; exclude
-    // the message being assembled now.
-    final historyUserIds = <String>[];
-    for (final message in apiMessages) {
-      if ((message['role'] ?? '').toString() != 'user') continue;
-      final revisionId = (message[internalRevisionIdKey] ?? '')
-          .toString()
-          .trim();
-      if (revisionId.isEmpty || revisionId == currentMessageId) continue;
-      historyUserIds.add(revisionId);
-    }
-    final retainedCarriers = pass?.retainedSnapshotCarriers;
-    final hasSnapshot =
-        historyUserIds.any(
-          (id) => pass?.snapshotCarriers.contains(id) ?? false,
-        ) ||
-        (retainedCarriers != null
-            ? historyUserIds.any(retainedCarriers.contains)
-            : await repo.anyPromptCarriesMemorySnapshot(historyUserIds));
-
-    // CRITICAL: compare against the prior hash BEFORE any write (appendix §6).
-    // Writing first makes currentHash == injectedMemoryHash and no change is
-    // ever detected again.
-    //
-    // Read from the database, not from [conversation]: callers hand us
-    // `conversation.copyWith(...)` and nothing ever loads this column back into
-    // the model, so the cached value is stale forever and every turn would look
-    // like a change.
-    //
-    // A hash already injected earlier in this same request wins, because
-    // temporary conversations are never persisted and would otherwise read
-    // null for every message and repeat an identical snapshot on each one.
-    final previousHash = pass != null && pass.hasInjectedHash
-        ? pass.injectedHash
-        : await repo.getConversationInjectedMemoryHash(conversation.id);
-
-    // Nothing visible left. The snapshots already frozen into history are
-    // dropped on the way out by [refreshMemorySnapshots], so no update
-    // block has to announce the emptiness — but the conversation must record
-    // that its context now carries no snapshot at all. Skipping that write
-    // would leave the hash of the vanished snapshot behind, and re-adding the
-    // same content later would hash equal to it and never be injected again.
-    if (current.isEmpty) {
-      if (!hasSnapshot && previousHash == null) return _noMemoryPrefix;
-      pass?.recordInjectedHash(null);
-      return (
-        prefix: '',
-        hash: null,
-        // Already cleared on an earlier turn: recording it again would rewrite
-        // the same null every turn the memory stays empty.
-        persistHash: previousHash != null,
-        snapshotKind: null,
-      );
-    }
-
-    // Already the snapshot in context, and a message still carries it.
-    if (hasSnapshot && currentHash == previousHash) return _noMemoryPrefix;
-
-    // The hash lands in the database through freezeMessagePrompt, in the same
-    // transaction as the prompt row.
-    pass?.recordInjectedHash(currentHash);
-    return (
-      prefix: current.prefix,
-      hash: currentHash,
-      persistHash: true,
-      snapshotKind: 'full',
     );
   }
 

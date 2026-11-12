@@ -657,7 +657,7 @@ void main() {
 
   group('prompt freeze and conversation columns', () {
     test(
-      'put/get/anyPromptCarriesMemorySnapshot and setConversation*',
+      'a frozen prompt records whether it carries the memory snapshot',
       () async {
         final now = DateTime.utc(2026, 8, 8);
         await database
@@ -711,28 +711,23 @@ void main() {
         expect(prompt!.payload, 'frozen with snapshot');
         expect(prompt.carriesMemorySnapshot, isTrue);
 
+        final without = await chatRepository.getMessagePrompt('m2');
+        expect(without!.payload, 'frozen without');
+        expect(without.carriesMemorySnapshot, isFalse);
+
+        // The flag is read as a record of *where* the snapshot lives, and it is
+        // read in bulk with the payloads — no per-request boolean query.
+        final batch = await chatRepository.getMessagePrompts(['m1', 'm2']);
         expect(
-          await chatRepository.anyPromptCarriesMemorySnapshot(['m2']),
-          isFalse,
-        );
-        expect(
-          await chatRepository.anyPromptCarriesMemorySnapshot(['m2', 'm1']),
-          isTrue,
-        );
-        expect(
-          await chatRepository.anyPromptCarriesMemorySnapshot(const []),
-          isFalse,
+          batch.values
+              .where((row) => row.carriesMemorySnapshot)
+              .map((row) => row.revisionId),
+          ['m1'],
         );
 
-        await chatRepository.setConversationInjectedMemoryHash('c1', 'abc123');
         await chatRepository.setConversationLastMemoryExtractedOrder('c1', 7);
-        var conversation = await chatRepository.getConversation('c1');
-        expect(conversation!.injectedMemoryHash, 'abc123');
-        expect(conversation.lastMemoryExtractedOrder, 7);
-
-        await chatRepository.setConversationInjectedMemoryHash('c1', null);
-        conversation = await chatRepository.getConversation('c1');
-        expect(conversation!.injectedMemoryHash, isNull);
+        final conversation = await chatRepository.getConversation('c1');
+        expect(conversation!.lastMemoryExtractedOrder, 7);
       },
     );
   });

@@ -63,6 +63,10 @@ class SyncFamily {
     required this.name,
     required this.table,
     this.kind,
+    this.wireKey,
+    this.conversationColumn = 'conversation_id',
+    this.orderBy,
+    this.isSubtreeRoot = false,
     required this.ownership,
     this.deviceLocalReason,
     required this.scope,
@@ -80,6 +84,28 @@ class SyncFamily {
   /// `extension_entity_rows.kind` filter, for a family that shares that table
   /// with others. Null for every family that owns its table outright.
   final String? kind;
+
+  /// The key this family's rows travel under inside a conversation subtree.
+  ///
+  /// It is spelled here so that adding a family is adding an entry: the payload
+  /// is a map of these keys, not a struct whose fields somebody has to grow.
+  /// Required for a synced conversation family, and unique among them.
+  final String? wireKey;
+
+  /// The column that names the conversation a row belongs to. `conversation_id`
+  /// almost everywhere; `id` for the conversation itself and for the
+  /// `extension_entity_rows` documents, which are keyed by the conversation's
+  /// own id.
+  final String conversationColumn;
+
+  /// `ORDER BY` clause for this family's rows, so a sender and a sender's peer
+  /// read the same order. Null when the family has one row per conversation.
+  final String? orderBy;
+
+  /// Whether this family *is* the subtree root: one row, travelling as the
+  /// payload's `conversation` rather than as a list. Exactly one synced
+  /// conversation family claims it.
+  final bool isSubtreeRoot;
 
   final SyncFamilyOwnership ownership;
 
@@ -115,14 +141,25 @@ const List<SyncFamily> kSyncFamilies = [
   SyncFamily(
     name: 'conversation',
     table: 'conversation_rows',
+    wireKey: 'conversation',
+    conversationColumn: 'id',
+    isSubtreeRoot: true,
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.conversation,
     identity: SyncIdentityContribution.conversationClock,
-    blobColumns: ['title', 'summary', 'extras_json'],
+    blobColumns: [
+      'title',
+      'summary',
+      'extras_json',
+      'chat_suggestions_json',
+      'version_selections_json',
+    ],
   ),
   SyncFamily(
     name: 'mcpBindings',
     table: 'conversation_mcp_server_rows',
+    wireKey: 'mcpServers',
+    orderBy: 'ordinal',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.conversation,
     // No clock column: the binding *is* its (server, ordinal) pair.
@@ -132,6 +169,8 @@ const List<SyncFamily> kSyncFamilies = [
   SyncFamily(
     name: 'messages',
     table: 'message_rows',
+    wireKey: 'messages',
+    orderBy: 'message_order, id',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.conversation,
     identity: SyncIdentityContribution.rowClocks,
@@ -141,6 +180,8 @@ const List<SyncFamily> kSyncFamilies = [
   SyncFamily(
     name: 'messageParts',
     table: 'message_part_rows',
+    wireKey: 'parts',
+    orderBy: 'revision_id, ordinal',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.conversation,
     identity: SyncIdentityContribution.rowClocks,
@@ -152,6 +193,8 @@ const List<SyncFamily> kSyncFamilies = [
   SyncFamily(
     name: 'providerArtifacts',
     table: 'provider_artifact_rows',
+    wireKey: 'artifacts',
+    orderBy: 'revision_id, kind',
     ownership: SyncFamilyOwnership.deviceLocal,
     deviceLocalReason:
         'Signed/round state a provider hands back for native continuation. It '
@@ -166,6 +209,8 @@ const List<SyncFamily> kSyncFamilies = [
     name: 'conversationContext',
     table: 'extension_entity_rows',
     kind: 'conversationContext',
+    wireKey: 'context',
+    conversationColumn: 'id',
     ownership: SyncFamilyOwnership.deviceLocal,
     deviceLocalReason:
         'The compression history of one conversation, stored as one document. '
@@ -179,6 +224,8 @@ const List<SyncFamily> kSyncFamilies = [
     name: 'conversationImageContext',
     table: 'extension_entity_rows',
     kind: 'conversationImageContext',
+    wireKey: 'imageContext',
+    conversationColumn: 'id',
     ownership: SyncFamilyOwnership.deviceLocal,
     deviceLocalReason:
         'Auto/recall switches and pins for one conversation. Device-local until '
@@ -191,6 +238,8 @@ const List<SyncFamily> kSyncFamilies = [
     name: 'conversationCompression',
     table: 'extension_entity_rows',
     kind: 'conversationCompression',
+    wireKey: 'compression',
+    conversationColumn: 'id',
     ownership: SyncFamilyOwnership.deviceLocal,
     deviceLocalReason:
         'The compression configuration of one conversation. Device-local until '
@@ -478,6 +527,14 @@ const List<SyncFamily> kSyncFamilies = [
   ),
 ];
 
+/// The family that owns [table] outright — the one with no kind filter.
+SyncFamily syncFamilyOfTable(String table) {
+  for (final family in kSyncFamilies) {
+    if (family.table == table && family.kind == null) return family;
+  }
+  throw StateError('unregistered family: $table');
+}
+
 /// The family that names [table] and (when the family shares
 /// `extension_entity_rows`) [kind].
 SyncFamily? syncFamilyFor(String table, {String? kind}) {
@@ -492,6 +549,22 @@ Set<String> get registeredSyncKinds => {
   for (final family in kSyncFamilies)
     if (family.kind != null) family.kind!,
 };
+
+/// The families a conversation subtree carries, in wire order.
+///
+/// This list *is* what `readSubtree` reads and what a payload's JSON holds: a
+/// family that is `synced` and conversation-scoped appears here without anyone
+/// editing the read path.
+List<SyncFamily> get syncedConversationFamilies => [
+  for (final family in kSyncFamilies)
+    if (family.isSynced && family.scope == SyncFamilyScope.conversation) family,
+];
+
+/// The families the business face carries.
+List<SyncFamily> get syncedBusinessFamilies => [
+  for (final family in kSyncFamilies)
+    if (family.isSynced && family.scope == SyncFamilyScope.business) family,
+];
 
 /// The tables a conversation hangs rows off: the conversation itself, and every
 /// table carrying `conversation_id` or `revision_id`.
@@ -622,6 +695,16 @@ List<String> syncFamilyProblems(
         problems.add('$where: column $column is not in ${family.table}');
       }
     }
+    if (family.isSynced && family.scope == SyncFamilyScope.conversation) {
+      if ((family.wireKey ?? '').trim().isEmpty) {
+        problems.add('$where: travels in a subtree without a wire key');
+      }
+      if (!columns.contains(family.conversationColumn)) {
+        problems.add(
+          '$where: ${family.table} has no ${family.conversationColumn} column',
+        );
+      }
+    }
     // Only a family that owns its table is checkable this way. A family living
     // in `extension_entity_rows` hangs off whatever its `owner_id` names, which
     // the schema map cannot say per kind — that attachment is the registration
@@ -641,6 +724,23 @@ List<String> syncFamilyProblems(
       problems.add(
         '$table: hangs off a conversation but is registered nowhere',
       );
+    }
+  }
+  final roots = families.where((family) => family.isSubtreeRoot).length;
+  if (roots != 1) {
+    problems.add('a subtree needs exactly one root family, found $roots');
+  }
+  // Two families writing the same key of one payload would trade rows: the
+  // reader of the second would find the first's.
+  final wireKeys = <String>{};
+  for (final family in families) {
+    if (!family.isSynced || family.scope != SyncFamilyScope.conversation) {
+      continue;
+    }
+    final key = family.wireKey;
+    if (key == null || key.isEmpty) continue;
+    if (!wireKeys.add(key)) {
+      problems.add('${family.name}: wire key $key is used twice');
     }
   }
   return problems;

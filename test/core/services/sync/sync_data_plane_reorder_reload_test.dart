@@ -8,6 +8,7 @@ import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/core/services/sync/sync_data_plane.dart';
 import 'package:Cuplivo/core/services/sync/sync_models.dart';
+import '../../../support/sync_payload.dart';
 import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -142,7 +143,7 @@ void main() {
     final conversationRow = (await repository.syncReadConversationRow(
       conversationId,
     ))!;
-    final payload = SyncSubtreePayload(
+    final payload = subtreePayload(
       conversation: {
         ...conversationRow,
         'updated_at': (conversationRow['updated_at'] as num).toInt() - 1000000,
@@ -200,7 +201,7 @@ void main() {
 
       await dataPlane.registerLandedAssets(
         subtrees: [
-          const SyncSubtreePayload(
+          subtreePayload(
             conversation: {'id': conversationId},
             messages: [],
             parts: [

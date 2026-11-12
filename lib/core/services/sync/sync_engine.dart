@@ -9,6 +9,7 @@ import 'blob_sync.dart';
 import 'sync_client.dart';
 import 'sync_data_plane.dart';
 import 'sync_endpoint_prober.dart';
+import 'sync_family_registry.dart';
 import 'sync_identity.dart';
 import 'sync_limits.dart';
 import 'sync_local_addresses.dart';
@@ -215,6 +216,10 @@ class SyncSessionReport {
 /// session per initiator so `hello`, the incoming apply and the outgoing
 /// subtree fetch share a single plan and checkpoint.
 class SyncEngine implements SyncServerHandler {
+  /// The messages a sent payload carries — read by name because the
+  /// checkpoint entry is built from exactly those rows.
+  static final SyncFamily _messageFamily = syncFamilyOfTable('message_rows');
+
   SyncEngine({
     required this.identity,
     required this.store,
@@ -2413,7 +2418,7 @@ class SyncEngine implements SyncServerHandler {
             if (sent != null) {
               next[id] = buildCheckpointConversation(
                 conversationRow: sent.conversation,
-                messageRows: sent.messages,
+                messageRows: sent.rowsOf(_messageFamily),
               );
             } else if (prior != null) {
               next[id] = prior;

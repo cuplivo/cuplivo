@@ -5203,6 +5203,7 @@
   "lanSyncReportWorkspacesKept": "47d370ad149ae4db5a4bb7dca8a29a7a15855bab5d673a45a2779fb54fe81052",
   "lanSyncReportDeletesBlocked": "60a7d1b8b67e583bc7f755be13715d5ac6ea35b428946b5c1ecf6cb2924d0fd1",
   "lanSyncReportRowsLost": "afb183d6f6166a1aa4b88c9c4c1cdfb53619d6fc58326f326b7c9883754b43fe",
+  "lanSyncReportDocumentsReplaced": "d470c7e7b88ba1af2b23e7a3671d0e03fe4fd903810d6d2a9e19044aec2def30",
   "lanSyncReportClockSkew": "f39143ebfd0fee4a191732dd4a300180720de7ee1b85c946421fc090e8601ab9",
   "lanSyncReportUnreachable": "d6730fba2c4a3d78ab08001a5e164912bc594e298cc0a465612f3181846e1acc",
   "lanSyncReportNoEndpoint": "23ff2180a695b37855c611c5e0819855f8db6ae72b3f0faeabd10143de57d2b9",

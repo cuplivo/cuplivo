@@ -442,12 +442,6 @@ void main() {
         'question',
       );
       expect(await chatRepository.getMessagePrompt(message.id), isNull);
-      expect(
-        (await chatRepository.getConversation(
-          conversation.id,
-        ))!.injectedMemoryHash,
-        isNull,
-      );
     },
   );
 
@@ -496,6 +490,51 @@ void main() {
       expect(api.single['content'], 'hi');
       final frozen = await chatRepository.getMessagePrompt('u1');
       expect(frozen?.carriesMemorySnapshot, isFalse);
+    });
+
+    test('turning memory off strips a carrier that is already frozen', () async {
+      // The switch is flipped off in the assistant's memory tab and the
+      // conversation carries on. The snapshot was frozen while memory was on, so
+      // leaving it in the request keeps feeding the model a memory block this
+      // assistant no longer has — for as long as the conversation lives.
+      await seedAssistant('assistant-1');
+      await putEntry(id: 'mem_01', content: 'User likes Flutter.');
+      final conversation = await seedConversation('conv-1');
+      final u1 = await seedUserMessage(id: 'u1', conversationId: 'conv-1');
+      final u2 = await seedUserMessage(
+        id: 'u2',
+        conversationId: 'conv-1',
+        content: 'next',
+        messageOrder: 1,
+      );
+
+      final first = [userTurn('u1', 'hi')];
+      await runTurn(first, conversation: conversation, messages: [u1]);
+      final frozen = (await chatRepository.getMessagePrompt('u1'))!.payload;
+      expect(frozen, startsWith(MemoryPrompts.introFullZh));
+
+      final second = [
+        userTurn('u1', 'hi'),
+        {'role': 'assistant', 'content': 'hello'},
+        userTurn('u2', 'next'),
+      ];
+      await runTurn(
+        second,
+        conversation: conversation,
+        messages: [u1, u2],
+        who: assistant.copyWith(enableMemory: false),
+      );
+
+      expect(second[0]['content'], 'hi');
+      expect(second[2]['content'], 'next');
+      final sent = second.map((m) => m['content']).join('\n');
+      expect(sent, isNot(contains('User likes Flutter.')));
+      expect(sent, isNot(contains(MemoryPrompts.introFullZh)));
+      expect(
+        (await chatRepository.getMessagePrompt('u1'))!.payload,
+        frozen,
+        reason: 'the row keeps what it sent; only the request is corrected',
+      );
     });
 
     test('an empty memory state injects nothing', () async {

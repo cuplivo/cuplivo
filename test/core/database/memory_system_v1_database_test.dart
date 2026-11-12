@@ -638,74 +638,71 @@ void main() {
   });
 
   group('memory system v1 merge conversation watermarks (§18.3/28)', () {
-    test(
-      '28: merge restore sets lastMemoryExtractedOrder to max and clears hash',
-      () async {
-        final directory = await Directory.systemTemp.createTemp(
-          'kelivo_memory_merge_order_',
-        );
-        addTearDown(() async {
-          if (await directory.exists()) {
-            await directory.delete(recursive: true);
-          }
-        });
+    test('28: merge restore sets lastMemoryExtractedOrder to max', () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'kelivo_memory_merge_order_',
+      );
+      addTearDown(() async {
+        if (await directory.exists()) {
+          await directory.delete(recursive: true);
+        }
+      });
 
-        final liveFile = File('${directory.path}/live.db');
-        final sourceFile = File('${directory.path}/source.db');
-        final live = ChatDatabaseRepository.open(file: liveFile);
-        final source = ChatDatabaseRepository.open(file: sourceFile);
-        await live.ensureReady();
-        await source.ensureReady();
+      final liveFile = File('${directory.path}/live.db');
+      final sourceFile = File('${directory.path}/source.db');
+      final live = ChatDatabaseRepository.open(file: liveFile);
+      final source = ChatDatabaseRepository.open(file: sourceFile);
+      await live.ensureReady();
+      await source.ensureReady();
 
-        final anchor = DateTime.utc(2026, 8, 8, 12);
-        await source.putMigrationBatch(
-          conversations: [
-            Conversation(
-              id: 'imported',
-              title: 'Imported',
-              createdAt: anchor,
-              updatedAt: anchor,
-              messageIds: const ['m0', 'm1', 'm2'],
-              injectedMemoryHash: 'stale-hash',
-              lastMemoryExtractedOrder: 0,
-            ),
-          ],
-          messages: [
-            for (final (id, order) in [('m0', 0), ('m1', 1), ('m2', 2)])
-              (
-                message: ChatMessage(
-                  id: id,
-                  role: order.isEven ? 'user' : 'assistant',
-                  content: 'msg-$order',
-                  conversationId: 'imported',
-                  timestamp: anchor,
-                ),
-                messageOrder: order,
+      final anchor = DateTime.utc(2026, 8, 8, 12);
+      await source.putMigrationBatch(
+        conversations: [
+          Conversation(
+            id: 'imported',
+            title: 'Imported',
+            createdAt: anchor,
+            updatedAt: anchor,
+            messageIds: const ['m0', 'm1', 'm2'],
+            injectedMemoryHash: 'stale-hash',
+            lastMemoryExtractedOrder: 0,
+          ),
+        ],
+        messages: [
+          for (final (id, order) in [('m0', 0), ('m1', 1), ('m2', 2)])
+            (
+              message: ChatMessage(
+                id: id,
+                role: order.isEven ? 'user' : 'assistant',
+                content: 'msg-$order',
+                conversationId: 'imported',
+                timestamp: anchor,
               ),
-          ],
-          toolEventsByMessageId: const {},
-          geminiSignaturesByMessageId: const {},
-        );
-        await source.close();
+              messageOrder: order,
+            ),
+        ],
+        toolEventsByMessageId: const {},
+        geminiSignaturesByMessageId: const {},
+      );
+      await source.close();
 
-        await live.mergeBackupSnapshot(sourceFile);
-        // Insert path already applies §6.7 watermarks; also exercise the
-        // data_sync post-merge SQL hook against the live file.
-        await live.close();
-        final db = AppDatabase.open(file: liveFile);
-        await BusinessRepository(
-          db,
-        ).applyPostMergeMemoryConversationState(const ['imported']);
-        await db.close();
+      await live.mergeBackupSnapshot(sourceFile);
+      // Insert path already applies §6.7 watermarks; also exercise the
+      // data_sync post-merge SQL hook against the live file.
+      await live.close();
+      final db = AppDatabase.open(file: liveFile);
+      await BusinessRepository(
+        db,
+      ).applyPostMergeMemoryConversationState(const ['imported']);
+      await db.close();
 
-        final reopened = ChatDatabaseRepository.open(file: liveFile);
-        addTearDown(reopened.close);
-        await reopened.ensureReady();
-        final conversation = await reopened.getConversation('imported');
-        expect(conversation, isNotNull);
-        expect(conversation!.lastMemoryExtractedOrder, 2);
-      },
-    );
+      final reopened = ChatDatabaseRepository.open(file: liveFile);
+      addTearDown(reopened.close);
+      await reopened.ensureReady();
+      final conversation = await reopened.getConversation('imported');
+      expect(conversation, isNotNull);
+      expect(conversation!.lastMemoryExtractedOrder, 2);
+    });
 
     test('28b: post-merge watermarks skip untouched conversations', () async {
       final directory = await Directory.systemTemp.createTemp(

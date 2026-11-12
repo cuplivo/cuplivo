@@ -361,12 +361,16 @@ void main() {
           memoryFullInjectionTypes: initiallyFull ? {} : {MemoryType.voice},
         );
 
-        // Regeneration has only the frozen user message to carry the new snapshot.
-        expectSnapshot(await assemble([first]), full: !initiallyFull);
-        expect(
-          (await chatRepository.getMessagePrompt(first.id))!.payload,
-          frozen,
-        );
+        // Regeneration has only the frozen user message to carry the new
+        // snapshot. It lands there and its row records it, so the turns that
+        // follow find the carrier instead of moving the snapshot once more.
+        final regenerated = await assemble([first]);
+        expectSnapshot(regenerated, full: !initiallyFull);
+        final carried = (await chatRepository.getMessagePrompt(
+          first.id,
+        ))!.payload;
+        expect(carried, regenerated.last['content']);
+        expect(carried, isNot(frozen), reason: 'the row follows the injection');
 
         final second = await seedUserMessage(
           id: 'second',
@@ -378,7 +382,8 @@ void main() {
         expectSnapshot(await assemble([first, second]), full: !initiallyFull);
         expect(
           (await chatRepository.getMessagePrompt(first.id))!.payload,
-          frozen,
+          carried,
+          reason: 'a new message does not move the recorded carrier',
         );
       },
     );
@@ -874,11 +879,64 @@ void main() {
       expect(api[1]['content'], startsWith(MemoryPrompts.introFullZh));
       expect(api[1]['content'], contains('Changed memory content.'));
       expect(api[1]['content'], endsWith('next'));
+      final row = await chatRepository.getMessagePrompt('u2');
       expect(
-        (await chatRepository.getMessagePrompt('u2'))!.payload,
-        'next',
-        reason: 'only the request is corrected; the row keeps what it sent',
+        row?.payload,
+        api[1]['content'],
+        reason: 'the row records the snapshot the context now holds',
       );
+      expect(row?.carriesMemorySnapshot, isTrue);
+    });
+
+    test('a regeneration does not make the next turn move the snapshot', () async {
+      // The injection landed on an already-frozen message, so its row is the
+      // only place the next turn can learn about it. Left unrecorded, the next
+      // turn finds no carrier, injects on the *new* message and drops this one —
+      // which invalidates the prompt from here onwards with memory unchanged.
+      await seedAssistant('assistant-1');
+      final conversation = await seedConversation('conv-1');
+      final u1 = await seedUserMessage(id: 'u1', conversationId: 'conv-1');
+      // Frozen while memory was empty: the row exists and carries nothing.
+      await chatRepository.putMessagePrompt(
+        revisionId: 'u1',
+        conversationId: 'conv-1',
+        payload: 'hi',
+        carriesMemorySnapshot: false,
+      );
+
+      await putEntry(id: 'mem_01', content: 'User likes Flutter.');
+
+      final regenerate = [userTurn('u1', 'hi')];
+      await runTurn(regenerate, conversation: conversation, messages: [u1]);
+      expect(
+        regenerate.single['content'],
+        startsWith(MemoryPrompts.introFullZh),
+      );
+      expect(
+        (await chatRepository.getMessagePrompt('u1'))?.carriesMemorySnapshot,
+        isTrue,
+        reason: 'the frozen target records the injection',
+      );
+
+      final u2 = await seedUserMessage(
+        id: 'u2',
+        conversationId: 'conv-1',
+        content: 'next',
+        messageOrder: 1,
+      );
+      final next = [
+        userTurn('u1', 'hi'),
+        {'role': 'assistant', 'content': 'hello'},
+        userTurn('u2', 'next'),
+      ];
+      await runTurn(next, conversation: conversation, messages: [u1, u2]);
+
+      expect(
+        next[0]['content'],
+        regenerate.single['content'],
+        reason: 'the recorded carrier keeps the snapshot where it was',
+      );
+      expect(next[2]['content'], 'next');
     });
   });
 
@@ -1726,9 +1784,9 @@ void main() {
     test(
       'regenerating after a scope change drops the stale snapshot',
       () async {
-        // Regeneration adds no user message, so nothing calls
-        // resolveMemoryPrefix and the stored hash alone cannot say whether the
-        // frozen snapshot is still accurate.
+        // Regeneration adds no user message, so the injection decision has no
+        // new message to hang on; the recorded carrier alone has to say whether
+        // the frozen snapshot is still accurate.
         await seedAssistant('assistant-1');
         await seedAssistant('assistant-2');
         await putEntry(id: 'mem_01', content: 'User likes Flutter.');
@@ -1768,57 +1826,68 @@ void main() {
       },
     );
 
-    test('regenerating after a memory is added refreshes in place', () async {
-      // Stripping instead of refreshing would hand the regenerated reply no
-      // memory at all, which the automatic memory pipeline would trigger
-      // constantly.
-      await seedAssistant('assistant-1');
-      await putEntry(id: 'mem_01', content: 'User likes Flutter.');
-      final conversation = await seedConversation('conv-1');
-      final u1 = await seedUserMessage(id: 'u1', conversationId: 'conv-1');
-      final snapshot = await currentSnapshot('assistant-1');
-      await chatRepository.putMessagePrompt(
-        revisionId: 'u1',
-        conversationId: 'conv-1',
-        payload: '${snapshot.prefix}hi',
-        carriesMemorySnapshot: true,
-      );
+    test(
+      'regenerating after a memory is added sends it and records it',
+      () async {
+        // Stripping instead of injecting would hand the regenerated reply no
+        // memory at all, which the automatic memory pipeline would trigger
+        // constantly. The injection lands on the frozen message — it is the
+        // request's last user message — and is written to its row, so the next
+        // turn finds the carrier instead of moving the snapshot once more.
+        await seedAssistant('assistant-1');
+        await putEntry(id: 'mem_01', content: 'User likes Flutter.');
+        final conversation = await seedConversation('conv-1');
+        final u1 = await seedUserMessage(id: 'u1', conversationId: 'conv-1');
+        final snapshot = await currentSnapshot('assistant-1');
+        await chatRepository.putMessagePrompt(
+          revisionId: 'u1',
+          conversationId: 'conv-1',
+          payload: '${snapshot.prefix}hi',
+          carriesMemorySnapshot: true,
+        );
 
-      await putEntry(id: 'mem_02', content: 'User ships on Fridays.');
+        await putEntry(id: 'mem_02', content: 'User ships on Fridays.');
 
-      final apiMessages = <Map<String, dynamic>>[
-        {
-          'role': 'user',
-          'content': 'hi',
-          MessageBuilderService.internalRevisionIdKey: 'u1',
-        },
-      ];
-      await buildService(messages: [u1]).processUserMessagesForApi(
-        apiMessages,
-        settings,
-        assistant,
-        conversation: conversation,
-        sourceMessages: [u1],
-      );
+        final apiMessages = <Map<String, dynamic>>[
+          {
+            'role': 'user',
+            'content': 'hi',
+            MessageBuilderService.internalRevisionIdKey: 'u1',
+          },
+        ];
+        await buildService(messages: [u1]).processUserMessagesForApi(
+          apiMessages,
+          settings,
+          assistant,
+          conversation: conversation,
+          sourceMessages: [u1],
+        );
 
-      final sent = apiMessages.single['content'].toString();
-      expect(sent, contains('User likes Flutter.'));
-      expect(sent, contains('User ships on Fridays.'));
-      expect(sent, endsWith('hi'));
-      // Ephemeral: only the request is refreshed. The freeze row keeps the
-      // snapshot it actually sent, so the next turn re-derives the same bytes.
-      expect(
-        (await chatRepository.getMessagePrompt('u1'))?.payload,
-        '${snapshot.prefix}hi',
-      );
-    });
+        final sent = apiMessages.single['content'].toString();
+        expect(sent, contains('User likes Flutter.'));
+        expect(sent, contains('User ships on Fridays.'));
+        expect(sent, endsWith('hi'));
+        expect(
+          sent,
+          isNot(startsWith(snapshot.prefix)),
+          reason: 'the stored prefix is the old snapshot',
+        );
+        final row = await chatRepository.getMessagePrompt('u1');
+        expect(
+          row?.payload,
+          sent,
+          reason: 'the row records the snapshot the context now holds',
+        );
+        expect(row?.carriesMemorySnapshot, isTrue);
+      },
+    );
 
     test(
       'regenerating an earlier reply refreshes that turn\'s snapshot',
       () async {
         // Regeneration cuts the later messages out of the request, so the
-        // conversation's stored hash — which names the snapshot the *newest*
-        // message carries — says nothing about the one that survives here.
+        // carrier that survives here is the one to judge; the record on the
+        // newer message says nothing about it.
         await seedAssistant('assistant-1');
         await seedAssistant('assistant-2');
         await putEntry(id: 'mem_01', content: 'User likes Flutter.');
@@ -1882,9 +1951,10 @@ void main() {
       'a stale carrier is overridden at the tail, not refreshed in place',
       () async {
         // The only frozen message in this request holds a snapshot from before
-        // the last memory change. Overwriting it in place would move the
-        // rewrite point back to where it sits; the fresh snapshot goes to the
-        // last user message instead, and the row keeps what it actually sent.
+        // the last memory change. Refreshing *that* row would keep the rewrite
+        // point where it sits; the fresh snapshot goes to the last user message
+        // instead — which here happens to be the same message — and its row is
+        // updated so the next turn finds the carrier.
         await seedAssistant('assistant-1');
         await putEntry(id: 'mem_01', content: 'User likes Flutter.');
         final conversation = await seedConversation('conv-1');
@@ -1946,8 +2016,10 @@ void main() {
         final sent = apiMessages.map((m) => m['content'].toString()).join('\n');
         expect(sent, isNot(contains('stale entry')));
         expect(
-          (await chatRepository.getMessagePrompt('u2'))!.payload,
-          '${stale}again',
+          (await chatRepository.getMessagePrompt('u2'))?.payload,
+          apiMessages[2]['content'],
+          reason:
+              'the target is frozen, so its row is written, not left behind',
         );
       },
     );

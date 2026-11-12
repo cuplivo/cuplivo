@@ -1444,6 +1444,12 @@ class MessageBuilderService {
               : sendPayload;
           sendPayload = '${memoryPlan.prefix}$rest';
           carriesSnapshot = memoryPlan.prefix.isNotEmpty;
+          await _recordFrozenInjection(
+            existing: existing,
+            payload: sendPayload,
+            carriesMemorySnapshot: carriesSnapshot,
+            previewOnly: previewOnly,
+          );
         } else if (carriesSnapshot &&
             memoryPlan.staleCarrierIds.contains(revisionId)) {
           sendPayload =
@@ -1700,6 +1706,35 @@ class MessageBuilderService {
       prefix: wanted,
       injectIntoId: target.isEmpty ? null : target,
       staleCarrierIds: carriers.keys.toSet(),
+    );
+  }
+
+  /// Write the injection that landed on an already-frozen message.
+  ///
+  /// A frozen row is normally left alone (§8.3 — it records what that turn
+  /// sent), but this one is about to send something else, so the row and the
+  /// request now disagree. Only the row survives to the next turn: with the
+  /// prefix living in this payload alone, the next request looks for a carrier,
+  /// finds none, injects again on the *new* last message and drops this one —
+  /// one wasted prefix move per regeneration, and the invalidation point slips
+  /// back to this message. Writing the row is what makes the flag mean what
+  /// [resolveMemoryPlan] already assumes it means.
+  Future<void> _recordFrozenInjection({
+    required MessagePromptRow existing,
+    required String payload,
+    required bool carriesMemorySnapshot,
+    required bool previewOnly,
+  }) async {
+    if (previewOnly || payload == existing.payload) return;
+    final repo = _repo;
+    if (repo == null) return;
+    // Temporary drafts have no message_rows for the FK to point at.
+    if (chatService.isTemporaryConversation(existing.conversationId)) return;
+    await repo.putMessagePrompt(
+      revisionId: existing.revisionId,
+      conversationId: existing.conversationId,
+      payload: payload,
+      carriesMemorySnapshot: carriesMemorySnapshot,
     );
   }
 

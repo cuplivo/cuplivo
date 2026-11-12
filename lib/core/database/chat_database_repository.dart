@@ -9330,10 +9330,15 @@ class ChatDatabaseRepository {
   /// `conversation_rows` and LAN sync overwrote it from the peer, who has its
   /// own carriers.
   ///
-  /// The flag describes the row, not the next request: a carrier that memory
-  /// has moved away from keeps the flag and the prefix it actually sent, and
-  /// the request drops the prefix on the way out. Rewriting the row instead
-  /// would make the record and the text disagree in the other direction.
+  /// The flag is the record the next request reads. Two cases meet here:
+  ///
+  /// - a carrier that memory has moved away from keeps its flag and the prefix
+  ///   it actually sent, and the request drops the prefix on the way out —
+  ///   rewriting that row would rewrite history for no gain;
+  /// - the message a request *injects* into is frozen already, so the row is
+  ///   written to hold the new prefix instead. Leaving that one alone leaves the
+  ///   new prefix only in the payload, and the next turn looks for a carrier
+  ///   that no longer exists (see `_recordFrozenInjection`).
   Future<void> putMessagePrompt({
     required String revisionId,
     required String conversationId,

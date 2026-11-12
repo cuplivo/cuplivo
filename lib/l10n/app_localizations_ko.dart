@@ -17284,6 +17284,11 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return '상대 기기의 최신 버전으로 대체된 대화 $n개의 압축 기록 또는 설정';
+  }
+
+  @override
   String lanSyncReportClockSkew(Object n) {
     return '두 기기의 시계가 약 $n분 차이 나요. 기기 시계를 맞춘 뒤 다시 동기화하세요';
   }

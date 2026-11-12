@@ -5715,6 +5715,11 @@ class ChatDatabaseRepository {
     'conversation_rows': ['id'],
     'conversation_mcp_server_rows': ['conversation_id', 'server_id'],
     'message_rows': ['id'],
+    // The document families (D-7): a conversation's compression history, image
+    // context and compression config share `extension_entity_rows` by kind, and
+    // a provider artifact is keyed by the revision it belongs to.
+    'extension_entity_rows': ['kind', 'id'],
+    'provider_artifact_rows': ['revision_id', 'kind'],
   };
 
   /// The three families whose apply is not a plain row write — a version group
@@ -5968,6 +5973,16 @@ class ChatDatabaseRepository {
         );
       }
 
+      // D-7: the conversation's own document families are rows on their own
+      // clock, and are applied here because nothing in the message merge depends
+      // on them.
+      final documentsReplaced = await _applyConversationDocuments(
+        conversationId: conversationId,
+        payload: payload,
+        myDeviceId: myDeviceId,
+        peerDeviceId: peerDeviceId,
+      );
+
       final plan = mergeMessageRows(
         local: localMessages,
         incoming: incomingMessages,
@@ -6110,8 +6125,92 @@ class ChatDatabaseRepository {
         conversationRowChanged: conversationRowChanged,
         reordered: orderDrifted,
         appliedRevisionIds: upsertedIds,
+        documentsReplaced: documentsReplaced,
       );
     });
+  }
+
+  /// Applies the conversation's own document families (D-7): the compression
+  /// history, the image-context switches and pins, the compression configuration
+  /// and the provider artifacts a native continuation needs.
+  ///
+  /// Each is a row on its own clock, so the rule is the business face's one: the
+  /// newer `updated_at` wins, and an exact tie falls to the higher deviceId, so
+  /// both peers reach the same verdict without talking. A local copy that loses
+  /// is **replaced**, and the count comes back to the caller because this is
+  /// where a device's own compression can disappear — the session report is the
+  /// only place that can say so.
+  ///
+  /// A row is accepted only where it says it belongs: its conversation column
+  /// names this conversation, and an extension row carries exactly its family's
+  /// kind. A crafted row that names another conversation or another kind is
+  /// dropped, the refusal [_syncForeignMessageIds] already makes for messages.
+  Future<int> _applyConversationDocuments({
+    required String conversationId,
+    required SyncSubtreePayload payload,
+    required String myDeviceId,
+    required String peerDeviceId,
+  }) async {
+    var replaced = 0;
+    for (final family in syncedConversationFamilies) {
+      if (family.isSubtreeRoot ||
+          family.apply != SyncFamilyApply.rowLastWriteWins) {
+        continue;
+      }
+      final rows = payload.rowsOf(family);
+      if (rows.isEmpty) continue;
+      final keyColumns = _syncConflictTargets[family.table];
+      if (keyColumns == null) {
+        throw StateError('sync_conflict_target_missing:${family.table}');
+      }
+      for (final row in rows) {
+        if (row[family.conversationColumn] != conversationId) continue;
+        if (family.kind != null && row['kind'] != family.kind) continue;
+        if (row['payload'] is! String) continue;
+        if (keyColumns.any((column) => row[column] is! String)) continue;
+        final incomingAt = (row['updated_at'] as num?)?.toInt();
+        if (incomingAt == null) continue;
+        final local = await _syncReadRowByKey(family.table, keyColumns, row);
+        if (local != null) {
+          final localAt = (local['updated_at'] as num?)?.toInt();
+          if (localAt == null) continue;
+          if (!incomingBusinessRowWins(
+            localUpdatedAtUs: localAt,
+            incomingUpdatedAtUs: incomingAt,
+            myDeviceId: myDeviceId,
+            peerDeviceId: peerDeviceId,
+          )) {
+            continue;
+          }
+          // A loss only when the content differs: a bothSend echoes this
+          // device's own row back at a tied clock, and counting that would tell
+          // the user their work was replaced by itself.
+          if (local['payload'] != row['payload']) replaced++;
+        }
+        await _upsertSyncRow(family.table, row);
+      }
+    }
+    return replaced;
+  }
+
+  /// One row of [table] by the columns that key it, or null when this device
+  /// has none.
+  Future<Map<String, dynamic>?> _syncReadRowByKey(
+    String table,
+    List<String> keyColumns,
+    Map<String, dynamic> row,
+  ) async {
+    final result = await _db
+        .customSelect(
+          'SELECT * FROM $table WHERE '
+          '${keyColumns.map((column) => '$column = ?').join(' AND ')};',
+          variables: [
+            for (final column in keyColumns)
+              Variable<String>(row[column] as String),
+          ],
+        )
+        .getSingleOrNull();
+    return result == null ? null : Map<String, dynamic>.from(result.data);
   }
 
   Future<int?> _syncMaxMessageOrder(String conversationId) async {

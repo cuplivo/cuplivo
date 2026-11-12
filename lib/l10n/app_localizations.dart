@@ -31308,6 +31308,12 @@ abstract class AppLocalizations {
   /// **'{n} local rows replaced by newer versions on the peer (recoverable in the recycle bin)'**
   String lanSyncReportRowsLost(Object n);
 
+  /// No description provided for @lanSyncReportDocumentsReplaced.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} conversations\' compression history or settings replaced by the peer\'s newer copy'**
+  String lanSyncReportDocumentsReplaced(Object n);
+
   /// Sync report warning that the two devices' clocks differ, so the times of the sync cannot be trusted; n is the difference in minutes.
   ///
   /// In en, this message translates to:

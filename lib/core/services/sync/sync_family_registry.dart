@@ -11,6 +11,19 @@ enum SyncFamilyOwnership {
   deviceLocal,
 }
 
+/// Who applies a conversation family's rows.
+enum SyncFamilyApply {
+  /// The merge body's own rules: the message union with its order
+  /// re-derivation, the binding set replace. These are the families whose
+  /// content is the conversation's text, and no row-level rule can express them.
+  specialised,
+
+  /// Row-level last-write-wins over the family's rows — the D-7 rule for a family
+  /// stored as one document per conversation. A local copy that loses is
+  /// replaced, and the session report counts it.
+  rowLastWriteWins,
+}
+
 /// What a family belongs to.
 enum SyncFamilyScope {
   /// Hung off one conversation: it rides (or refuses to ride) that
@@ -67,6 +80,7 @@ class SyncFamily {
     this.conversationColumn = 'conversation_id',
     this.orderBy,
     this.isSubtreeRoot = false,
+    this.apply = SyncFamilyApply.specialised,
     required this.ownership,
     this.deviceLocalReason,
     required this.scope,
@@ -106,6 +120,9 @@ class SyncFamily {
   /// payload's `conversation` rather than as a list. Exactly one synced
   /// conversation family claims it.
   final bool isSubtreeRoot;
+
+  /// Who applies this family's rows when they arrive.
+  final SyncFamilyApply apply;
 
   final SyncFamilyOwnership ownership;
 
@@ -195,12 +212,9 @@ const List<SyncFamily> kSyncFamilies = [
     table: 'provider_artifact_rows',
     wireKey: 'artifacts',
     orderBy: 'revision_id, kind',
-    ownership: SyncFamilyOwnership.deviceLocal,
-    deviceLocalReason:
-        'Signed/round state a provider hands back for native continuation. It '
-        'was never in the subtree, so a peer that continues the conversation '
-        'here sends history it cannot sign — this PR moves it into the subtree.',
+    ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.conversation,
+    apply: SyncFamilyApply.rowLastWriteWins,
     identity: SyncIdentityContribution.rowClocks,
     identityColumns: ['revision_id', 'kind'],
     blobColumns: ['payload'],
@@ -211,12 +225,9 @@ const List<SyncFamily> kSyncFamilies = [
     kind: 'conversationContext',
     wireKey: 'context',
     conversationColumn: 'id',
-    ownership: SyncFamilyOwnership.deviceLocal,
-    deviceLocalReason:
-        'The compression history of one conversation, stored as one document. '
-        'It never travelled, which is why a peer shows the uncompressed text '
-        'while holding the summary. This PR moves it into the subtree.',
+    ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.conversation,
+    apply: SyncFamilyApply.rowLastWriteWins,
     identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
   ),
@@ -226,11 +237,9 @@ const List<SyncFamily> kSyncFamilies = [
     kind: 'conversationImageContext',
     wireKey: 'imageContext',
     conversationColumn: 'id',
-    ownership: SyncFamilyOwnership.deviceLocal,
-    deviceLocalReason:
-        'Auto/recall switches and pins for one conversation. Device-local until '
-        'this PR puts it in the subtree.',
+    ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.conversation,
+    apply: SyncFamilyApply.rowLastWriteWins,
     identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
   ),
@@ -240,11 +249,9 @@ const List<SyncFamily> kSyncFamilies = [
     kind: 'conversationCompression',
     wireKey: 'compression',
     conversationColumn: 'id',
-    ownership: SyncFamilyOwnership.deviceLocal,
-    deviceLocalReason:
-        'The compression configuration of one conversation. Device-local until '
-        'this PR puts it in the subtree.',
+    ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.conversation,
+    apply: SyncFamilyApply.rowLastWriteWins,
     identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
   ),

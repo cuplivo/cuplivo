@@ -16905,6 +16905,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return '$n 个会话的压缩历史或设置被对端较新的版本替换';
+  }
+
+  @override
   String lanSyncReportClockSkew(Object n) {
     return '两台设备的时钟相差约 $n 分钟，请校准设备时钟后重新同步';
   }
@@ -34204,6 +34209,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String lanSyncReportRowsLost(Object n) {
     return '$n 条本地记录被对端更新的版本覆盖（可在回收站恢复）';
+  }
+
+  @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return '$n 个会话的压缩历史或设置被对端较新的版本替换';
   }
 
   @override
@@ -51513,6 +51523,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String lanSyncReportRowsLost(Object n) {
     return '$n 條本地記錄被對端更新的版本覆蓋（可在回收站還原）';
+  }
+
+  @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return '$n 個對話的壓縮歷史或設定被對端較新的版本取代';
   }
 
   @override

@@ -5084,6 +5084,7 @@
   "lanSyncReportPreferences": "Настроек: {n}",
   "lanSyncReportReceived": "Получено: {n}",
   "lanSyncReportRowsLost": "Заменено более новыми записями с другого устройства: {n} (можно вернуть в корзине)",
+  "lanSyncReportDocumentsReplaced": "Заменено более новой версией с другого устройства: история сжатия или настройки {n} диалогов",
   "lanSyncReportSent": "Отправлено: {n}",
   "lanSyncReportSkillConflicts": "Перезаписано правок навыков: {n}",
   "lanSyncReportSkills": "Навыков: {n}",

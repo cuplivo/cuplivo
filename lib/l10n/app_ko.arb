@@ -5084,6 +5084,7 @@
   "lanSyncReportPreferences": "{n}개 설정",
   "lanSyncReportReceived": "{n}개 받음",
   "lanSyncReportRowsLost": "상대 기기의 최신 버전으로 대체된 로컬 기록 {n}개(휴지통에서 복원 가능)",
+  "lanSyncReportDocumentsReplaced": "상대 기기의 최신 버전으로 대체된 대화 {n}개의 압축 기록 또는 설정",
   "lanSyncReportSent": "{n}개 보냄",
   "lanSyncReportSkillConflicts": "{n}건의 스킬 수정이 대체됨",
   "lanSyncReportSkills": "{n}개 스킬",

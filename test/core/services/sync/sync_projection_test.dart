@@ -47,6 +47,17 @@ void main() {
     }
   });
 
+  test("the conversation's own documents ride the subtree", () {
+    // The four families that were device-local until this protocol version: a
+    // conversation's compression history, its image context, its compression
+    // config, and the artifacts a native continuation needs. They are on the
+    // wire because they are registered, and nothing else had to change.
+    expect(
+      subtreePayload(conversation: {'id': 'c1'}).toJson().keys.toSet(),
+      containsAll(['context', 'imageContext', 'compression', 'artifacts']),
+    );
+  });
+
   test('the root family answers with the conversation row itself', () {
     final payload = subtreePayload(conversation: {'id': 'c1'});
     final root = syncedConversationFamilies.singleWhere(

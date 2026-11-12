@@ -13,9 +13,11 @@ SyncSubtreePayload subtreePayload({
   List<Map<String, dynamic>> messages = const [],
   List<Map<String, dynamic>> parts = const [],
   List<Map<String, dynamic>> mcpServers = const [],
+  Map<String, List<Map<String, dynamic>>> families = const {},
 }) => SyncSubtreePayload(
   conversation: conversation,
   families: {
+    ...families,
     syncFamilyOfTable('message_rows').name: messages,
     syncFamilyOfTable('message_part_rows').name: parts,
     syncFamilyOfTable('conversation_mcp_server_rows').name: mcpServers,

@@ -3,6 +3,7 @@ import 'package:Cuplivo/core/database/chat_database_repository.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/services/sync/sync_models.dart';
+import '../../support/sync_payload.dart';
 import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -92,7 +93,7 @@ void main() {
 
   SyncSubtreePayload payloadOf(
     List<({String id, int order, int timestampUs})> rows,
-  ) => SyncSubtreePayload(
+  ) => subtreePayload(
     conversation: conversationRow(),
     messages: [
       for (final row in rows)
@@ -189,7 +190,7 @@ void main() {
       // One new row arrives; the two local rows keep their positions, which is
       // the case the old skip-optimisation mis-handled by leaving them shifted.
       await apply(
-        SyncSubtreePayload(
+        subtreePayload(
           conversation: conversationRow(),
           messages: [messageRow('m3', 3000000, order: 2, role: 'assistant')],
           parts: [partRow('m3', 3000000)],
@@ -292,7 +293,7 @@ void main() {
       geminiSignaturesByMessageId: const {},
     );
 
-    final incoming = SyncSubtreePayload(
+    final incoming = subtreePayload(
       conversation: conversationRow(),
       messages: [
         messageRow('m1', 1000000, order: 0),
@@ -344,7 +345,7 @@ void main() {
     final edited = messageRow('m0', 1000000, order: 0);
     edited['updated_at'] = 2000000;
     await apply(
-      SyncSubtreePayload(
+      subtreePayload(
         conversation: conversationRow(),
         messages: [edited],
         parts: [partRow('m0', 1000000)],
@@ -405,7 +406,7 @@ void main() {
       // foreign key fails the transaction's COMMIT (code 787) and, because the
       // checkpoint then never advances, every later session as well.
       final outcome = await repository.syncApplySubtree(
-        payload: SyncSubtreePayload(
+        payload: subtreePayload(
           conversation: conversationRow(),
           messages: [messageRow('m1', 1000000, order: 0)],
           parts: [partRow('m1', 1000000)],
@@ -468,7 +469,7 @@ void main() {
       );
 
       final outcome = await apply(
-        SyncSubtreePayload(
+        subtreePayload(
           conversation: conversationRow(),
           messages: [
             messageRow('m1', 1000000, order: 0),
@@ -526,7 +527,7 @@ void main() {
       );
 
       final outcome = await apply(
-        SyncSubtreePayload(
+        subtreePayload(
           conversation: conversationRow(),
           messages: [
             messageRow(

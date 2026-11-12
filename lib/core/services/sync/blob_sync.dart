@@ -41,14 +41,25 @@ typedef BlobPathResolver = String? Function(String uri);
 String? defaultBlobPathResolver(String uri) =>
     SandboxPathResolver.resolveForIo(uri);
 
-/// Every canonical `kelivo-file` URI referenced by the string values of these
-/// rows. Payload columns are JSON strings, so one lexical pass per value
-/// covers parts, entity payloads and preference values alike; each candidate
-/// is validated by the strict URI parser, so junk matches are dropped.
-Set<String> kelivoFileUrisInRows(Iterable<Map<String, dynamic>> rows) {
+/// Every canonical `kelivo-file` URI referenced by these rows. Payload columns
+/// are JSON strings, so one lexical pass per value covers parts, entity payloads
+/// and preference values alike; each candidate is validated by the strict URI
+/// parser, so junk matches are dropped.
+///
+/// [columns] is the family's declared blob columns ([SyncFamily.blobColumns]) —
+/// which columns may reference a file is a property of the family, not a guess
+/// per call site. Null scans every value, for a caller holding rows whose family
+/// it cannot name.
+Set<String> kelivoFileUrisInRows(
+  Iterable<Map<String, dynamic>> rows, {
+  List<String>? columns,
+}) {
   final uris = <String>{};
   for (final row in rows) {
-    for (final value in row.values) {
+    final values = columns == null
+        ? row.values
+        : [for (final column in columns) row[column]];
+    for (final value in values) {
       if (value is! String) continue;
       for (final match in _kelivoFileUriPattern.allMatches(value)) {
         final candidate = match.group(0)!;

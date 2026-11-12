@@ -688,6 +688,17 @@ class SyncPeerReport {
   final int entityRowsLost;
   final int preferencesLost;
 
+  /// Conversations whose own document (compression history, image context,
+  /// compression config, provider artifacts) the peer's copy replaced because
+  /// it was newer (D-7).
+  ///
+  /// These families were device-local until the subtree carried them, so the
+  /// first sessions after the upgrade are exactly when both sides have their own
+  /// version. The newer one wins and the other is replaced — which is fine as a
+  /// rule and unacceptable as a secret, so it is counted here: nothing else on
+  /// the card could reveal that a compression this device performed is gone.
+  final int documentsReplaced;
+
   /// Signed clock divergence against this peer in milliseconds, present only
   /// when it exceeded [kClockSkewWarnMs] (positive: this device ran ahead).
   /// The session still succeeded — this is the yellow flag, not a failure.
@@ -724,6 +735,7 @@ class SyncPeerReport {
     this.workspacesOmitted = 0,
     this.entityRowsLost = 0,
     this.preferencesLost = 0,
+    this.documentsReplaced = 0,
     this.clockSkewMs,
     this.refusal,
     this.failure,
@@ -754,6 +766,7 @@ class SyncPeerReport {
     'workspacesOmitted': workspacesOmitted,
     'entityRowsLost': entityRowsLost,
     'preferencesLost': preferencesLost,
+    'documentsReplaced': documentsReplaced,
     if (clockSkewMs != null) 'clockSkewMs': clockSkewMs,
     if (refusal != null) 'refusal': refusal!.wire,
     if (failure != null) 'failure': failure!.wire,
@@ -786,6 +799,7 @@ class SyncPeerReport {
     workspacesOmitted: (json['workspacesOmitted'] as num?)?.toInt() ?? 0,
     entityRowsLost: (json['entityRowsLost'] as num?)?.toInt() ?? 0,
     preferencesLost: (json['preferencesLost'] as num?)?.toInt() ?? 0,
+    documentsReplaced: (json['documentsReplaced'] as num?)?.toInt() ?? 0,
     clockSkewMs: (json['clockSkewMs'] as num?)?.toInt(),
     refusal: SyncRefusalReason.tryParse(json['refusal'] as String?),
     failure: SyncFailureReason.tryParse(json['failure'] as String?),
@@ -1498,6 +1512,11 @@ class SyncSubtreeApplyOutcome {
   /// row the local copy beat describe references this device does not hold.
   final Set<String> appliedRevisionIds;
 
+  /// Document rows of this conversation the peer's copy replaced, because the
+  /// local version was older and the content differed (D-7). Reported, never
+  /// swallowed: the losing copy is this device's own compression work.
+  final int documentsReplaced;
+
   const SyncSubtreeApplyOutcome({
     this.deferred = false,
     this.conversationRow,
@@ -1507,6 +1526,7 @@ class SyncSubtreeApplyOutcome {
     this.conversationRowChanged = false,
     this.reordered = false,
     this.appliedRevisionIds = const {},
+    this.documentsReplaced = 0,
   });
 
   static const deferredOutcome = SyncSubtreeApplyOutcome(deferred: true);

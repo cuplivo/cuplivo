@@ -5203,6 +5203,7 @@
   "lanSyncReportWorkspacesKept": "작업 공간 폴더 {count}개를 디스크에 유지했습니다(동기화가 꺼져 있거나 동기화되지 않은 파일 포함)",
   "lanSyncReportDeletesBlocked": "삭제 {count}건을 건너뛰었습니다(로컬 사본이 변경됨)",
   "lanSyncReportRowsLost": "상대 기기의 최신 버전으로 대체된 로컬 기록 {n}개(휴지통에서 복원 가능)",
+  "lanSyncReportDocumentsReplaced": "상대 기기의 최신 버전으로 대체된 대화 {n}개의 압축 기록 또는 설정",
   "lanSyncReportClockSkew": "두 기기의 시계가 약 {n}분 차이 나요. 기기 시계를 맞춘 뒤 다시 동기화하세요",
   "lanSyncReportUnreachable": "동기화 실패: 상대 기기에 연결하지 못했어요. 오프라인이거나 다른 네트워크일 수 있어요. QR 코드를 다시 스캔하거나 카드에서 주소를 수정하세요.",
   "lanSyncReportNoEndpoint": "동기화 실패: 상대 기기의 주소가 저장되어 있지 않아요. QR 코드를 다시 스캔하거나 카드에서 주소를 입력하세요.",

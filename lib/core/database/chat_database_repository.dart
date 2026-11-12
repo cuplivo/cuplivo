@@ -4439,10 +4439,11 @@ class ChatDatabaseRepository {
   Future<void> putConversation(Conversation conversation) async {
     await _db.transaction(() async {
       await _invalidateEmptyAcknowledgement();
-      // `injected_memory_hash` is not a property of the conversation the model
-      // knows: nothing writes it any more (the carrier's freeze row records
-      // where the snapshot is), so an update leaves the stored value exactly as
-      // the last build that maintained it left it.
+      // No decision uses `injected_memory_hash` any more — the carrier's freeze
+      // row records where the snapshot is — so an update leaves the stored value
+      // exactly as the last build that maintained it left it. The placeholder
+      // below is what keeps a stale (`null`) model value from clobbering it; an
+      // insert still writes the model's value, which is null either way.
       final updated =
           await (_db.update(
             _db.conversationRows,
@@ -5819,10 +5820,9 @@ class ChatDatabaseRepository {
     // Which user message carries this device's memory snapshot. The peer's
     // carriers are not here at all, so a peer value can only be wrong: it says
     // a snapshot is in context that this device never sent, or reports a change
-    // that did not happen — and either way the next turn rewrote history. The
-    // request does not read the column any more (the carrier's own freeze row
-    // records where the snapshot is), so it is inert now and goes with the next
-    // schema change.
+    // that did not happen — and either way the next turn rewrote history. No
+    // decision reads the column any more (the carrier's own freeze row records
+    // where the snapshot is), so it goes with the next schema change.
     'injected_memory_hash',
   };
 

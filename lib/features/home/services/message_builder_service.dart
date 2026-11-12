@@ -97,6 +97,11 @@ void _removeGoogleToolSignatures(Map<String, dynamic> message) {
 /// [injectIntoId] is set only when the snapshot has to move, and then it names
 /// the last user message of the request: the one position whose rewrite cannot
 /// invalidate text a later turn would have kept cached.
+///
+/// An empty [prefix] with carriers in [staleCarrierIds] is the "context carries
+/// no snapshot" state — the visible set emptied, or the assistant's memory was
+/// switched off. Nothing is injected and every recorded carrier loses its
+/// prefix on the way out.
 final class MemorySnapshotPlan {
   const MemorySnapshotPlan({
     required this.prefix,
@@ -1621,9 +1626,7 @@ class MessageBuilderService {
     required Assistant? assistant,
     required SettingsProvider settings,
   }) async {
-    if (assistant == null || !assistant.enableMemory) {
-      return MemorySnapshotPlan.none;
-    }
+    if (assistant == null) return MemorySnapshotPlan.none;
     if (_repo == null || _legacyMemoryMode(settings)) {
       return MemorySnapshotPlan.none;
     }
@@ -1631,13 +1634,6 @@ class MessageBuilderService {
     // and no recorded carrier can be in context either — there is nothing to
     // read and nothing to strip.
     if (lastUserIdx < 0) return MemorySnapshotPlan.none;
-    final snapshot = await currentMemorySnapshot(
-      assistant: assistant,
-      lang: settings.resolvedMemoryPromptLang,
-      settings: settings,
-    );
-    if (snapshot == null) return MemorySnapshotPlan.none;
-    final wanted = snapshot.isEmpty ? '' : snapshot.prefix;
 
     // Walk the request rather than the row map: the same state has to resolve to
     // the same carrier on every turn, and the row map has no order of its own.
@@ -1658,6 +1654,27 @@ class MessageBuilderService {
       carriers[revisionId] = split.prefix;
       order.add(revisionId);
     }
+
+    // Memory off is not "no plan". The snapshots frozen into this conversation
+    // were sent while the switch was on, and leaving them there keeps feeding
+    // the model a memory block the assistant no longer has — for as long as the
+    // conversation lives. Their prefixes go on the way out, the same way they do
+    // when the visible set empties; the freeze rows keep what they sent (§8.3).
+    if (!assistant.enableMemory) {
+      return MemorySnapshotPlan(
+        prefix: '',
+        injectIntoId: null,
+        staleCarrierIds: carriers.keys.toSet(),
+      );
+    }
+
+    final snapshot = await currentMemorySnapshot(
+      assistant: assistant,
+      lang: settings.resolvedMemoryPromptLang,
+      settings: settings,
+    );
+    if (snapshot == null) return MemorySnapshotPlan.none;
+    final wanted = snapshot.isEmpty ? '' : snapshot.prefix;
 
     String? live;
     for (final id in order) {

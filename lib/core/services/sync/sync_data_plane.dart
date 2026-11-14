@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import '../../database/business_data.dart';
 import '../../database/business_preferences.dart';
 import '../../database/business_repository.dart';
@@ -691,11 +693,23 @@ class SyncDataPlane {
           : (business.entities[family.kind ?? family.table] ?? const []);
       uris.addAll(kelivoFileUrisInRows(rows, columns: family.blobColumns));
     }
-    final entries = await buildFileBlobEntries(
+    final files = await buildFileBlobEntries(
       uris,
       fileHasher,
       resolve: blobPathResolver,
     );
+    if (files.missing.isNotEmpty) {
+      // The sender's own window already shows these files as unavailable; what
+      // this line adds is that the reference travelled and the bytes did not,
+      // with the URIs — so a missing blob is a fact in the log rather than a
+      // file the peer never asked for. The card's `blobsMissing` is the
+      // receiver's half of the same story.
+      debugPrint(
+        'sync blob: ${files.missing.length} referenced files cannot be served '
+        'here: ${files.missing.take(5).join(', ')}',
+      );
+    }
+    final entries = <SyncBlobEntry>[...files.entries];
     // One directory entry per skill record being sent: the receiver verifies
     // its re-hash against this value before swapping the directory in.
     final sentSkillIds = {

@@ -78,6 +78,7 @@ class SyncFamily {
     this.kind,
     this.wireKey,
     this.conversationColumn = 'conversation_id',
+    this.messageRevisionColumn,
     this.orderBy,
     this.isSubtreeRoot = false,
     this.apply = SyncFamilyApply.specialised,
@@ -113,6 +114,19 @@ class SyncFamily {
   /// `extension_entity_rows` documents, which are keyed by the conversation's
   /// own id.
   final String conversationColumn;
+
+  /// The column naming a `message_rows` row this family's row hangs off, for a
+  /// family the generic apply writes. Null for a family that hangs off nothing
+  /// but its conversation.
+  ///
+  /// A row is written only when that revision survives the merge. The schema's
+  /// `revision_id -> message_rows.id` foreign key is deferred to COMMIT, so a
+  /// row for a revision the version-group rule dropped would insert cleanly and
+  /// then fail the whole transaction — and since the checkpoint never advances
+  /// past a failed apply, every later session would fail the same way. It is
+  /// also what keeps a crafted row from re-homing another conversation's row:
+  /// the revisions this conversation keeps are the only ones in the set.
+  final String? messageRevisionColumn;
 
   /// `ORDER BY` clause for this family's rows, so a sender and a sender's peer
   /// read the same order. Null when the family has one row per conversation.
@@ -224,6 +238,7 @@ const List<SyncFamily> kSyncFamilies = [
     name: 'providerArtifacts',
     table: 'provider_artifact_rows',
     wireKey: 'artifacts',
+    messageRevisionColumn: 'revision_id',
     orderBy: 'revision_id, kind',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.conversation,
@@ -709,7 +724,11 @@ List<String> syncFamilyProblems(
         '$where: identity columns declared for ${family.identity.name}',
       );
     }
-    for (final column in [...family.identityColumns, ...family.blobColumns]) {
+    for (final column in [
+      ...family.identityColumns,
+      ...family.blobColumns,
+      if (family.messageRevisionColumn != null) family.messageRevisionColumn!,
+    ]) {
       if (!columns.contains(column)) {
         problems.add('$where: column $column is not in ${family.table}');
       }

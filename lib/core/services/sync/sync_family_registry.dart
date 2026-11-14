@@ -618,8 +618,12 @@ Set<String> get conversationAttachedTables => {
 /// informative:
 ///
 /// * A *declaration* — `entityKind = '…'`, `extensionKind: '…'`,
-///   `static const kind = '…'` — is a kind whatever its casing, so it is
-///   claimed as written.
+///   `static const kind = '…'`, `static const conversationKind = '…'` — is a
+///   kind whatever its casing, so it is claimed as written. The identifier may
+///   end in `kind`/`Kind` rather than be exactly `kind`: the one document kind
+///   this tree already had was declared as `conversationKind`, and a pattern
+///   that knew only `kind` could not see it — the family would go unregistered
+///   while this guard stayed green.
 /// * A *use* — `kind = '…'`, `kind: '…'`, `kind.equals('…')`, `kind IN (…)` —
 ///   is claimed only when the literal is camelCase. That test is what separates
 ///   an extension kind from the snake_case/word-shaped kinds of the other
@@ -630,7 +634,9 @@ Map<String, List<String>> extensionKindsInSource(String source) {
   final declarations = [
     RegExp(r"""\bentityKind\s*=\s*'([A-Za-z]+)'"""),
     RegExp(r"""\bextensionKind\s*:\s*'([A-Za-z]+)'"""),
-    RegExp(r"""static\s+const\s+(?:String\s+)?kind\s*=\s*'([A-Za-z]+)'"""),
+    RegExp(
+      r"""static\s+const\s+(?:String\s+)?\w*[Kk]ind\s*=\s*'([A-Za-z]+)'""",
+    ),
   ];
   final uses = [
     RegExp(r"""\bkind\s*=\s*'([A-Za-z]+)'"""),
@@ -643,7 +649,15 @@ Map<String, List<String>> extensionKindsInSource(String source) {
   final lines = source.split('\n');
   for (var i = 0; i < lines.length; i++) {
     final line = lines[i];
-    void claim(String literal) => (found[literal] ??= []).add('line ${i + 1}');
+    void claim(String literal) {
+      final locations = found[literal] ??= [];
+      final location = 'line ${i + 1}';
+      // One line can match two declaration patterns — `static const entityKind`
+      // is both an `entityKind` declaration and a `…Kind` one — and the location
+      // is worth reporting once.
+      if (!locations.contains(location)) locations.add(location);
+    }
+
     for (final pattern in declarations) {
       for (final match in pattern.allMatches(line)) {
         claim(match.group(1)!);

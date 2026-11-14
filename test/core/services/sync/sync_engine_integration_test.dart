@@ -476,15 +476,12 @@ class _Side {
   /// The skills root the data plane hashes, zips and swaps in.
   Directory get skillsRoot => Directory('${dir.path}/skills');
 
-  /// This side's conversation digest, computed the way the manifest computes it:
-  /// message rows only. A restore that writes the conversation row is therefore
-  /// invisible here, which is the whole reason the announcement needed a clock.
-  Future<String> conversationDigest(String id) async {
-    final rows = await repository.syncMessageDigestInputs();
-    return digestFromDigestInput(
-      rows.firstWhere((row) => row.conversationId == id).digestInput,
-    );
-  }
+  /// This side's conversation digest, composed the way the manifest composes it:
+  /// every travelling family, but not the conversation row's own clock. A restore
+  /// that writes that row is therefore invisible here, which is the whole reason
+  /// the announcement needed a clock.
+  Future<String> conversationDigest(String id) =>
+      repository.syncConversationDigest(id);
 
   /// This side's files root for one managed workspace. One test process hosts
   /// both peers, so `AppDirectories`' single global root cannot serve both —

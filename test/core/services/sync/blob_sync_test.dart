@@ -96,71 +96,77 @@ void main() {
     expect(isAllowedFileBlobUri('https://example.com/a.png'), isFalse);
   });
 
-  test(
-    'build skips what this device cannot serve, need finds what is absent',
-    () async {
-      final hasher = BlobFileHasher();
-      final resolve = resolverFor(root);
-      final present = await write('images/present.png', 'present-bytes');
+  test('build serves what it can and reports what it cannot', () async {
+    final hasher = BlobFileHasher();
+    final resolve = resolverFor(root);
+    final present = await write('images/present.png', 'present-bytes');
 
-      final entries = await buildFileBlobEntries(
-        {
-          'kelivo-file:///images/present.png',
-          'kelivo-file:///images/missing.png',
-          'kelivo-file:///skills/s/SKILL.md',
-        },
-        hasher,
-        resolve: resolve,
-      );
+    final built = await buildFileBlobEntries(
+      {
+        'kelivo-file:///images/present.png',
+        'kelivo-file:///images/missing.png',
+        'kelivo-file:///skills/s/SKILL.md',
+      },
+      hasher,
+      resolve: resolve,
+    );
 
-      expect(entries, hasLength(1));
-      expect(entries.single.key, 'kelivo-file:///images/present.png');
-      expect(
-        entries.single.contentHash,
-        hashOfBytes(await present.readAsBytes()),
-      );
-      expect(entries.single.byteSize, await present.length());
+    expect(built.entries, hasLength(1));
+    expect(built.entries.single.key, 'kelivo-file:///images/present.png');
+    expect(
+      built.entries.single.contentHash,
+      hashOfBytes(await present.readAsBytes()),
+    );
+    expect(built.entries.single.byteSize, await present.length());
+    // A referenced file this device cannot serve is reported, not skipped:
+    // one bucket, because the sender's next move is the same for every reason
+    // — a file that is not there, and a root the blob plane may not write.
+    expect(built.missing, {
+      'kelivo-file:///images/missing.png',
+      'kelivo-file:///skills/s/SKILL.md',
+    });
 
-      // The receiver has nothing: the entry is needed.
-      final receiverRoot = await Directory.systemTemp.createTemp('blob_peer_');
-      addTearDown(() async {
-        if (await receiverRoot.exists()) {
-          await receiverRoot.delete(recursive: true);
-        }
-      });
-      final needed = await neededFileBlobEntries(
+    final entries = built.entries;
+
+    // The receiver has nothing: the entry is needed.
+    final receiverRoot = await Directory.systemTemp.createTemp('blob_peer_');
+    addTearDown(() async {
+      if (await receiverRoot.exists()) {
+        await receiverRoot.delete(recursive: true);
+      }
+    });
+    final needed = await neededFileBlobEntries(
+      entries,
+      BlobFileHasher(),
+      resolve: resolverFor(receiverRoot),
+    );
+    expect(needed, hasLength(1));
+
+    // The receiver has the identical bytes: nothing to fetch.
+    final copy = File('${receiverRoot.path}/images/present.png');
+    await copy.parent.create(recursive: true);
+    await copy.writeAsBytes(await present.readAsBytes(), flush: true);
+    expect(
+      await neededFileBlobEntries(
         entries,
         BlobFileHasher(),
         resolve: resolverFor(receiverRoot),
-      );
-      expect(needed, hasLength(1));
+      ),
+      isEmpty,
+    );
 
-      // The receiver has the identical bytes: nothing to fetch.
-      final copy = File('${receiverRoot.path}/images/present.png');
-      await copy.parent.create(recursive: true);
-      await copy.writeAsBytes(await present.readAsBytes(), flush: true);
-      expect(
-        await neededFileBlobEntries(
-          entries,
-          BlobFileHasher(),
-          resolve: resolverFor(receiverRoot),
-        ),
-        isEmpty,
-      );
-
-      // A different file at the same path is a mismatch, so it is still needed
-      // (the travelling rows are authoritative for that path).
-      await copy.writeAsString('someone-elses-bytes', flush: true);
-      expect(
-        await neededFileBlobEntries(
-          entries,
-          BlobFileHasher(),
-          resolve: resolverFor(receiverRoot),
-        ),
-        hasLength(1),
-      );
-    },
-  );
+    // A different file at the same path is a mismatch, so it is still needed
+    // (the travelling rows are authoritative for that path).
+    await copy.writeAsString('someone-elses-bytes', flush: true);
+    expect(
+      await neededFileBlobEntries(
+        entries,
+        BlobFileHasher(),
+        resolve: resolverFor(receiverRoot),
+      ),
+      hasLength(1),
+    );
+  });
 
   test(
     'placeFileBlob lands the bytes at the URI path, replacing what was there',
@@ -204,5 +210,76 @@ void main() {
       isNull,
     );
     expect(await staged.exists(), isTrue, reason: 'nothing was consumed');
+  });
+
+  group('an inline reference is parsed, not pattern-matched', () {
+    test("the app's own Markdown form yields the file", () {
+      // This is the shape the app writes when a pasted image is saved to disk:
+      // the URI sits inside a Markdown image, and `)` is a legal path character
+      // — which is why a character class swallowed the bracket, the strict
+      // parser then rejected the candidate, and the file was never advertised.
+      expect(
+        kelivoFileUrisInRows([
+          {'payload': 'look: ![shot](kelivo-file:///images/a.png) ok'},
+        ]),
+        {'kelivo-file:///images/a.png'},
+      );
+    });
+
+    test('sentence punctuation is not part of the path', () {
+      expect(
+        kelivoFileUrisInRows([
+          {'payload': 'see kelivo-file:///images/a.png.'},
+        ]),
+        {'kelivo-file:///images/a.png'},
+      );
+    });
+
+    test('a balanced parenthesis stays in the path', () {
+      expect(
+        kelivoFileUrisInRows([
+          {'payload': 'kelivo-file:///images/a(1).png'},
+        ]),
+        {'kelivo-file:///images/a(1).png'},
+      );
+    });
+
+    test('the same file twice in one payload is one reference', () {
+      expect(
+        kelivoFileUrisInRows([
+          {
+            'payload':
+                '![a](kelivo-file:///images/a.png) '
+                '![b](kelivo-file:///images/a.png)',
+          },
+        ]),
+        {'kelivo-file:///images/a.png'},
+      );
+    });
+
+    test('a scheme with nothing behind it is not a reference', () {
+      expect(
+        kelivoFileUrisInRows([
+          {'payload': 'kelivo-file://'},
+        ]),
+        isEmpty,
+      );
+    });
+
+    test('the file a Markdown image names is advertised', () async {
+      await write('images/a.png', 'png-bytes');
+      final built = await buildFileBlobEntries(
+        kelivoFileUrisInRows([
+          {'payload': '![shot](kelivo-file:///images/a.png)'},
+        ]),
+        BlobFileHasher(),
+        resolve: resolverFor(root),
+      );
+
+      expect(built.entries.map((entry) => entry.key), [
+        'kelivo-file:///images/a.png',
+      ]);
+      expect(built.missing, isEmpty);
+    });
   });
 }

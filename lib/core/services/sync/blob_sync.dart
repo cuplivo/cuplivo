@@ -19,9 +19,18 @@ import 'sync_models.dart';
 /// Skill bodies are the second blob kind (`skill-dir`): the entry key is the
 /// skill id and the bytes are a zip of the directory; see
 /// `SkillDirectorySync`.
-final RegExp _kelivoFileUriPattern = RegExp(
-  r'kelivo-file://[A-Za-z0-9\-._~%!$&()*+,;=:@/]*',
-);
+const String kKelivoFileScheme = 'kelivo-file://';
+
+/// One character a canonical URI's path may contain: RFC 3986 `pchar` plus the
+/// separators a path is built from. Parentheses are in it on purpose — they are
+/// legal sub-delims, which is exactly why a Markdown link around a URI is
+/// ambiguous.
+final RegExp _uriChar = RegExp(r"[A-Za-z0-9\-._~%!$&'()*+,;=:@/]");
+
+/// Characters that end a sentence or a quotation far more often than they end a
+/// filename. `)` is absent on purpose: a balanced one is part of the path, and
+/// an unbalanced one already stopped the scan.
+final RegExp _trailingPunctuation = RegExp(r'''[.,;:!?'"(]''');
 
 /// Roots a received file blob may land in — the managed roots the sandbox
 /// resolver knows, minus `skills` (directory blobs own that root) and
@@ -43,8 +52,16 @@ String? defaultBlobPathResolver(String uri) =>
 
 /// Every canonical `kelivo-file` URI referenced by these rows. Payload columns
 /// are JSON strings, so one lexical pass per value covers parts, entity payloads
-/// and preference values alike; each candidate is validated by the strict URI
-/// parser, so junk matches are dropped.
+/// and preference values alike.
+///
+/// The URI is **parsed out of the text**, not pattern-matched. A character class
+/// is what made an inline image unreachable: `)` is a legal path character, so
+/// `![…](kelivo-file:///a.png)` matched the closing bracket too, the strict
+/// parser then rejected the whole candidate, and the file was silently never
+/// advertised. Here parentheses are balanced — a `)` that closes more than it
+/// opened belongs to the Markdown around the URI — and the tail is then
+/// shortened: first by punctuation that ends a sentence rather than a filename,
+/// then until the strict parser accepts what is left.
 ///
 /// [columns] is the family's declared blob columns ([SyncFamily.blobColumns]) —
 /// which columns may reference a file is a property of the family, not a guess
@@ -61,15 +78,59 @@ Set<String> kelivoFileUrisInRows(
         : [for (final column in columns) row[column]];
     for (final value in values) {
       if (value is! String) continue;
-      for (final match in _kelivoFileUriPattern.allMatches(value)) {
-        final candidate = match.group(0)!;
-        if (KelivoFileUri.decodeToSegments(candidate) != null) {
-          uris.add(candidate);
+      var from = value.indexOf(kKelivoFileScheme);
+      while (from >= 0) {
+        final uri = kelivoFileUriAt(value, from);
+        if (uri == null) {
+          from = value.indexOf(
+            kKelivoFileScheme,
+            from + kKelivoFileScheme.length,
+          );
+          continue;
         }
+        uris.add(uri);
+        from = value.indexOf(kKelivoFileScheme, from + uri.length);
       }
     }
   }
   return uris;
+}
+
+/// The longest canonical URI that starts at [start] and parses, or null when
+/// nothing there is one.
+///
+/// Two ambiguities are resolved here, and both are the reason this is a parser:
+/// parentheses are balanced rather than consumed (a URI may legitimately contain
+/// them; the bracket around it may not), and the candidate is shortened until
+/// [KelivoFileUri.decodeToSegments] accepts it, so prose punctuation that is a
+/// legal path character — a trailing `.`, a `,` — does not make the whole
+/// reference unreadable.
+String? kelivoFileUriAt(String text, int start) {
+  if (!text.startsWith(kKelivoFileScheme, start)) return null;
+  var end = start + kKelivoFileScheme.length;
+  var depth = 0;
+  while (end < text.length) {
+    final char = text[end];
+    if (!_uriChar.hasMatch(char)) break;
+    if (char == '(') {
+      depth++;
+    } else if (char == ')') {
+      if (depth == 0) break;
+      depth--;
+    }
+    end++;
+  }
+  // A path may legally contain `.` or `,`, so "it parses" alone would keep the
+  // full stop of a sentence.
+  final floor = start + kKelivoFileScheme.length;
+  while (end > floor && _trailingPunctuation.hasMatch(text[end - 1])) {
+    end--;
+  }
+  for (var stop = end; stop > floor; stop--) {
+    final candidate = text.substring(start, stop);
+    if (KelivoFileUri.decodeToSegments(candidate) != null) return candidate;
+  }
+  return null;
 }
 
 /// Whether a file blob for [uri] may be written here (root allowlist).
@@ -106,22 +167,46 @@ class BlobFileHasher {
   }
 }
 
+/// What a sender can and cannot serve: one entry per referenced URI it has, and
+/// the URIs it does not.
+///
+/// [missing] is a report, not a filter: a referenced file this device cannot
+/// serve is the exact shape of "the reference arrived, the bytes did not", and
+/// skipping it without saying so is how an inline image becomes invisible to
+/// everyone including the sender. It holds every unservable reason in one
+/// bucket — a root the blob plane may not write, a URI the sandbox cannot
+/// resolve, a file that is not there — because the sender's next move is the
+/// same in all three: nothing.
+typedef BlobManifestBuild = ({
+  List<SyncBlobEntry> entries,
+  List<String> missing,
+});
+
 /// The sender side of the manifest: one entry per referenced URI this device
 /// can actually serve (the file exists and the target root is allowed).
-/// Missing local files are skipped — the sender's own UI is missing them too.
-Future<List<SyncBlobEntry>> buildFileBlobEntries(
+Future<BlobManifestBuild> buildFileBlobEntries(
   Set<String> uris,
   BlobFileHasher hasher, {
   BlobPathResolver resolve = defaultBlobPathResolver,
 }) async {
   final entries = <SyncBlobEntry>[];
+  final missing = <String>[];
   for (final uri in uris) {
-    if (!isAllowedFileBlobUri(uri)) continue;
+    if (!isAllowedFileBlobUri(uri)) {
+      missing.add(uri);
+      continue;
+    }
     final resolved = resolve(uri);
-    if (resolved == null) continue;
+    if (resolved == null) {
+      missing.add(uri);
+      continue;
+    }
     final file = File(resolved);
     final hash = await hasher.hashOf(file);
-    if (hash == null) continue;
+    if (hash == null) {
+      missing.add(uri);
+      continue;
+    }
     entries.add(
       SyncBlobEntry(
         kind: SyncBlobEntry.kindFile,
@@ -131,7 +216,7 @@ Future<List<SyncBlobEntry>> buildFileBlobEntries(
       ),
     );
   }
-  return entries;
+  return (entries: entries, missing: missing);
 }
 
 /// The receiver side: which entries must be fetched. A file that exists with

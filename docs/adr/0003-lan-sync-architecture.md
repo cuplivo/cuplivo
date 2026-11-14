@@ -2057,3 +2057,90 @@ The listener's graceful stop is no longer the exit flush's job, and a close that
 no longer answered as a quit. That decision, its platform evidence and its rejected alternatives live
 in [ADR-0015](0015-close-to-tray-listener.md); the parenthetical in the slice-16 amendment above ("the
 graceful stop is the exit flush's job") is superseded by it.
+
+## Amendment (2026-11, projection): a family is a registration, and the protocol moves
+
+### Context
+
+"Does this row cross devices?" was answered by five separate enumerations — the subtree read
+list, the apply list, the digest SQL, the blob scan, the session report — so a family added to
+the schema could be silently absent from some of them. The re-based baseline made that concrete:
+four conversation-scoped kinds (the compression history, the image-context switches, the
+compression configuration) and `provider_artifact_rows` hang off a conversation and travelled
+nowhere. A peer therefore showed the uncompressed text while holding the summary, lost every pin,
+and could not sign the history it continued. The same shape hid a second defect: a conversation's
+identity was a hash of its message rows, so a change to any of those families was invisible to the
+plan until something happened to a message.
+
+### Decision
+
+**A family is a registration.** `lib/core/services/sync/sync_family_registry.dart` holds one entry
+per family: table, scope (conversation or business), the `extension_entity_rows.kind` filter, how
+it enters an identity, which of its columns may carry a `kelivo-file` URI, and whether it is
+`synced` or `deviceLocal` **with a reason**. The subtree read (`syncReadFamilyRows`), the payload's
+keys (`SyncSubtreePayload` maps family name → rows over the registered wire keys), the blob scan
+(each family's declared columns) and the digest all read that entry. Adding a family is adding an
+entry; the wire struct does not grow.
+
+**The registration is guarded.** A test fails when the source grows an `extension_entity_rows`
+kind nobody registered (declarations whatever their casing; uses only when the literal is
+camelCase, which separates an extension kind from `message_part_rows`' word-shaped ones), and when
+the schema grows a table carrying `conversation_id` or `revision_id` with no family. A family is
+`synced`, or `deviceLocal` with a reason — there is no third answer.
+
+**A conversation's identity is composed from the families.** Every `synced` conversation family
+contributes what its entry says: one `key:clock` line per row, one `key:value` line per row where
+the family has no clock, or one digest per document where the family is stored as a whole document
+per conversation. The family's name is part of the text, so two families contributing the same
+lines cannot compose the same identity. The conversation row's own clock still rides beside the
+digest in the manifest entry, for the row-only writes the digest cannot see. Two readers implement
+this one rule — an SQL aggregate per family for the manifest (a manifest must not materialise a row
+per message) and a Dart re-read for a checkpoint — and a test holds them equal on a conversation
+that has something in every family.
+
+**A document family is applied whole.** The compression history, the image context and the
+compression configuration are one row per conversation whose payload is the entire document
+(`readContextOperations` reads one row whose payload is the whole operation array), so there is no
+row set to merge: the newer `updated_at` wins and an exact tie falls to the higher deviceId, as on
+the business face. A local document that loses is **replaced and counted** (`documentsReplaced`,
+carried from the apply outcome to the session report and the card). Those families were
+device-local until this version, so the first sessions after the upgrade are exactly when both
+sides hold their own copy; the newer one winning is fine as a rule and unacceptable as a secret. A
+row is accepted only where it says it belongs — its conversation column names this conversation,
+and an extension row carries exactly its family's kind.
+
+**A checkpoint describes what was sent, not what is here now.** A sent conversation's entry is
+composed from the payload; an applied one is the identity the apply composed inside its own
+transaction. A re-read outside either would record a row written while the session was in flight as
+one the peer already has, and the next merge would read the peer's silence as a deletion.
+
+**References are parsed, not pattern-matched.** `)` is a legal URI path character, so a character
+class matched the closing bracket of `![…](kelivo-file:///a.png)`, the strict parser rejected the
+candidate, and the file was silently never advertised. Discovery balances parentheses and trims
+prose punctuation until the strict parser accepts what is left. What the sender cannot serve is
+returned as a list of misses and logged, instead of skipped.
+
+**The compression library is a business kind.** Templates and recipes are global rows shared by
+every conversation that names one, so they join `BusinessEntityKind` and ride the business face. A
+new kind there is also a reverse-import decision: a Kelivo-target archive drops them (recorded in
+`unreadableKindDispositions` with what the user loses), the settings export and the payload
+validator gained their cases, and the global compression defaults are the template kind's companion
+key.
+
+**Protocol 9.** The subtree carries four more sections and the identity is composed differently, so
+a v8 peer cannot be spoken to half-way: it would ignore the sections, keep a document it never
+received as its local version, and disagree about the digest of every conversation for good. The
+existing hello gate refuses it with the upgrade reason it already carries.
+
+### Consequences
+
+- **An upgrade window**: both devices must be updated before they sync again (the usual cost of a
+  protocol revision; the panel already says so).
+- **One re-baseline, not a re-send**: every conversation's digest changes, so the first session
+  after the upgrade rewrites every checkpoint entry. That is a local re-read per settled
+  conversation; `planRowSync` still compares the two manifests first and answers `none` when they
+  agree, so only genuinely diverged conversations transfer.
+- **A replaced compression history is visible**: the report counts it, and the losing copy is
+  recoverable from the raw messages, not from the document.
+- **A new family costs one entry plus, at most, a payload case** — and the guard refuses the ones
+  nobody classified.

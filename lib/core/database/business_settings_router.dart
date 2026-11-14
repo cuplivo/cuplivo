@@ -1447,6 +1447,12 @@ final class BusinessKeyRegistry {
     // A group and its topics are rows; the sidebar's mixed order is this key.
     BusinessEntityKind.groupChat: {'chat_owner_order_v1'},
     BusinessEntityKind.userProfileField: {},
+    // The global compression defaults name the template a conversation falls
+    // back to, so they organize the library exactly as the active world-book
+    // selections organize theirs. A recipe needs no companion of its own: it
+    // carries the template it was saved from.
+    BusinessEntityKind.compressionTemplate: {'compression_defaults_v1'},
+    BusinessEntityKind.compressionRecipe: {},
   };
 
   static KeyRule? ruleFor(String key) => rules[key];
@@ -2048,6 +2054,27 @@ final class BusinessSettingsRouter {
           strings: const {'avatar'},
           numbers: const {'v', 'maxSpeakerTurns'},
           stringLists: const {'memberIds'},
+        );
+        return;
+      case BusinessEntityKind.compressionTemplate:
+        // A prompt the user wrote for the summariser: opaque to this router, so
+        // it is type-checked at the import boundary and never interpreted.
+        _validateKnownFields(
+          kind,
+          payload,
+          requiredStrings: const {'id', 'name', 'prompt'},
+          strings: const {'scene', 'outputLanguage'},
+          integers: const {'formatVersion'},
+        );
+        return;
+      case BusinessEntityKind.compressionRecipe:
+        _validateKnownFields(
+          kind,
+          payload,
+          requiredStrings: const {'id', 'name'},
+          strings: const {'focus'},
+          maps: const {'template', 'settings'},
+          integers: const {'formatVersion'},
         );
         return;
       case BusinessEntityKind.userProfileField:

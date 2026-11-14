@@ -259,11 +259,7 @@ const List<SyncFamily> kSyncFamilies = [
     name: 'compressionTemplate',
     table: 'extension_entity_rows',
     kind: 'compressionTemplate',
-    ownership: SyncFamilyOwnership.deviceLocal,
-    deviceLocalReason:
-        'A library template, shared by every conversation that names it — so it '
-        'belongs on the business face, not in a subtree. This PR registers the '
-        'kind there.',
+    ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.business,
     identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
@@ -272,10 +268,7 @@ const List<SyncFamily> kSyncFamilies = [
     name: 'compressionRecipe',
     table: 'extension_entity_rows',
     kind: 'compressionRecipe',
-    ownership: SyncFamilyOwnership.deviceLocal,
-    deviceLocalReason:
-        'A library recipe over the templates, with the same standing as the '
-        'templates themselves. This PR registers the kind on the business face.',
+    ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.business,
     identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],

@@ -79,6 +79,7 @@ void main() {
       class A {
         static const kind = 'composerDraft';
         static const entityKind = 'conversationContext';
+        static const conversationKind = 'conversationCompression';
         extensionKind: 'skill',
       }
       void b() {
@@ -97,12 +98,30 @@ void main() {
     expect(found.keys.toSet(), {
       'composerDraft',
       'conversationContext',
+      'conversationCompression',
       'skill',
       'contextCompressionTask',
       'composerPublishedFile',
       'composerPrivateFile',
       'composerShareReceipt',
     });
+  });
+
+  test('a compound-named kind declaration in the tree is a kind', () {
+    // The document kind this registry already carries is declared as
+    // `static const conversationKind`, not `static const kind`. A pattern that
+    // knew only the latter could not see it: a new document family declared the
+    // same way would go unregistered while this guard stayed green — the exact
+    // failure the registry exists to prevent.
+    final found = extensionKindsInSource(
+      File('lib/core/models/compression_config.dart').readAsStringSync(),
+    );
+    expect(found.keys, contains('conversationCompression'));
+    expect(
+      found.keys,
+      contains('compressionTemplate'),
+      reason: 'the `entityKind` form still has to be claimed',
+    );
   });
 
   test('an unregistered kind would fail the build', () {

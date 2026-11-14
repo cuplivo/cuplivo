@@ -18,9 +18,11 @@ enum SyncFamilyApply {
   /// content is the conversation's text, and no row-level rule can express them.
   specialised,
 
-  /// Row-level last-write-wins over the family's rows — the D-7 rule for a family
-  /// stored as one document per conversation. A local copy that loses is
-  /// replaced, and the session report counts it.
+  /// Row-level last-write-wins over the family's rows: the D-7 rule for a family
+  /// stored as one document per conversation, and the rule for the provider
+  /// artifacts, which are a row set keyed by revision. A local copy that loses
+  /// is replaced; the report counts the conversation when the row was a
+  /// document, and says nothing about an artifact.
   rowLastWriteWins,
 }
 
@@ -148,8 +150,12 @@ class SyncFamily {
 
   final SyncFamilyScope scope;
 
-  /// What this family contributes to a conversation's identity — for a
-  /// `business` family, to the row's own manifest digest.
+  /// What this family contributes to its conversation's identity.
+  ///
+  /// Conversation families only. A business row's digest is fixed —
+  /// `entityRowDigest(payload, sort_order)`, read by the business manifest in
+  /// `business_repository` — so a business family declares nothing here, and
+  /// [syncFamilyProblems] refuses one that tries.
   final SyncIdentityContribution identity;
 
   /// The columns that name a row inside an [SyncIdentityContribution.rowClocks]
@@ -240,7 +246,7 @@ const List<SyncFamily> kSyncFamilies = [
     blobColumns: ['payload'],
   ),
 
-  // ---- families that hang off a conversation and do not travel yet ---------
+  // ---- the conversation's own documents, and the artifacts it needs --------
   SyncFamily(
     name: 'providerArtifacts',
     table: 'provider_artifact_rows',
@@ -298,7 +304,6 @@ const List<SyncFamily> kSyncFamilies = [
     kind: 'compressionTemplate',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.business,
-    identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
   ),
   SyncFamily(
@@ -307,7 +312,6 @@ const List<SyncFamily> kSyncFamilies = [
     kind: 'compressionRecipe',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.business,
-    identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
   ),
 
@@ -428,7 +432,6 @@ const List<SyncFamily> kSyncFamilies = [
     table: 'assistant_rows',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.business,
-    identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
   ),
   SyncFamily(
@@ -436,7 +439,6 @@ const List<SyncFamily> kSyncFamilies = [
     table: 'provider_rows',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.business,
-    identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
   ),
   SyncFamily(
@@ -444,7 +446,6 @@ const List<SyncFamily> kSyncFamilies = [
     table: 'provider_group_rows',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.business,
-    identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
   ),
   SyncFamily(
@@ -452,7 +453,6 @@ const List<SyncFamily> kSyncFamilies = [
     table: 'mcp_server_rows',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.business,
-    identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
   ),
   SyncFamily(
@@ -460,7 +460,6 @@ const List<SyncFamily> kSyncFamilies = [
     table: 'world_book_rows',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.business,
-    identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
   ),
   SyncFamily(
@@ -468,7 +467,6 @@ const List<SyncFamily> kSyncFamilies = [
     table: 'assistant_memory_rows',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.business,
-    identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
   ),
   SyncFamily(
@@ -476,7 +474,6 @@ const List<SyncFamily> kSyncFamilies = [
     table: 'quick_phrase_rows',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.business,
-    identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
   ),
   SyncFamily(
@@ -484,7 +481,6 @@ const List<SyncFamily> kSyncFamilies = [
     table: 'search_service_rows',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.business,
-    identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
   ),
   SyncFamily(
@@ -492,7 +488,6 @@ const List<SyncFamily> kSyncFamilies = [
     table: 'tts_service_rows',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.business,
-    identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
   ),
   SyncFamily(
@@ -500,7 +495,6 @@ const List<SyncFamily> kSyncFamilies = [
     table: 'instruction_injection_rows',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.business,
-    identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
   ),
   SyncFamily(
@@ -508,7 +502,6 @@ const List<SyncFamily> kSyncFamilies = [
     table: 'assistant_tag_rows',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.business,
-    identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
   ),
   SyncFamily(
@@ -516,7 +509,6 @@ const List<SyncFamily> kSyncFamilies = [
     table: 'memory_entry_rows',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.business,
-    identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
   ),
   SyncFamily(
@@ -524,7 +516,6 @@ const List<SyncFamily> kSyncFamilies = [
     table: 'user_profile_field_rows',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.business,
-    identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
   ),
   SyncFamily(
@@ -533,7 +524,6 @@ const List<SyncFamily> kSyncFamilies = [
     kind: 'workspace',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.business,
-    identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
   ),
   SyncFamily(
@@ -542,7 +532,6 @@ const List<SyncFamily> kSyncFamilies = [
     kind: 'skill',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.business,
-    identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
   ),
   SyncFamily(
@@ -551,7 +540,6 @@ const List<SyncFamily> kSyncFamilies = [
     kind: 'groupChat',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.business,
-    identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['payload'],
   ),
   SyncFamily(
@@ -559,7 +547,6 @@ const List<SyncFamily> kSyncFamilies = [
     table: 'preference_rows',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.business,
-    identity: SyncIdentityContribution.payloadDigest,
     blobColumns: ['value'],
   ),
 ];
@@ -726,7 +713,19 @@ List<String> syncFamilyProblems(
         if (family.deviceLocalReason != null) {
           problems.add('$where: synced but carries a device-local reason');
         }
-        if (family.identity == SyncIdentityContribution.none) {
+        // A conversation's identity is composed from its families, so each has
+        // to say what it contributes. A business row's identity is fixed —
+        // `entityRowDigest(payload, sort_order)` in `business_repository` — and
+        // nothing reads this field for one, so declaring an identity there would
+        // be a lie, and the guard refuses it.
+        if (family.scope == SyncFamilyScope.business) {
+          if (family.identity != SyncIdentityContribution.none) {
+            problems.add(
+              '$where: a business family declares an identity, which nothing '
+              'reads — its digest is entityRowDigest',
+            );
+          }
+        } else if (family.identity == SyncIdentityContribution.none) {
           problems.add('$where: synced but contributes nothing to an identity');
         }
     }

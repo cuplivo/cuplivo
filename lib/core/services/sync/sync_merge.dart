@@ -131,9 +131,10 @@ bool copyWrittenSinceAgreement({
 /// A null digest means "this side does not have the row".
 ///
 /// [mineClock] and [peerClock] are the conversation row's mutation clocks,
-/// passed only by the conversation face: its digest covers the message rows,
-/// so a change to the row itself (title, pin, selected version, extras) is
-/// otherwise invisible and would never transfer. [checkpointClock] is the row
+/// passed only by the conversation face: its digest covers the conversation's
+/// families and never the conversation row, so a change to the row itself
+/// (title, pin, selected version, extras) is otherwise invisible and would
+/// never transfer. [checkpointClock] is the row
 /// clock the two sides last agreed on, and is what keeps the delete branch from
 /// undoing a restore: the bin writes the row back with `now()` and the messages
 /// back byte-identical, so the digest still matches the agreement while the row

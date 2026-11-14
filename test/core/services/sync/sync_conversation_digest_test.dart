@@ -282,4 +282,17 @@ void main() {
       },
     );
   });
+
+  test('the composer is order-free inside a family', () {
+    // A family's contribution is a set of lines, and the two readers produce it
+    // in different ways: the manifest path relies on `group_concat` over an
+    // ordered subquery, which SQLite does not guarantee, while the checkpoint
+    // path sorts in Dart. Sorting in the composer is the one place both pass
+    // through, so a reader that hands its lines over in another order cannot
+    // split the identity in two.
+    expect(
+      composeConversationDigest({'messages': 'm2:200\nm1:100'}),
+      composeConversationDigest({'messages': 'm1:100\nm2:200'}),
+    );
+  });
 }

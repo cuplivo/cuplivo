@@ -322,6 +322,15 @@ void main() {
                       'createdAt': '2026-09-08T00:00:00Z',
                       'updatedAt': '2026-09-08T00:00:00Z',
                     },
+                    if (kind == BusinessEntityKind.compressionTemplate) ...{
+                      'name': 'Brief',
+                      'prompt': 'Summarise in five lines.',
+                    },
+                    if (kind == BusinessEntityKind.compressionRecipe) ...{
+                      'name': 'Tight',
+                      'template': <String, Object?>{'id': 'template-a'},
+                      'settings': <String, Object?>{},
+                    },
                     'opaque': kind.name,
                   },
               ]),

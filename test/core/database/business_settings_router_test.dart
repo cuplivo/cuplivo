@@ -700,6 +700,25 @@ void main() {
             'updatedAt': '2026-09-08T00:00:00Z',
           },
         ]),
+        'compression_templates_v1': jsonEncode([
+          {
+            'formatVersion': 1,
+            'id': 'template-1',
+            'name': 'Brief',
+            'prompt': 'Summarise in five lines.',
+            'scene': 'general',
+            'outputLanguage': 'conversation',
+          },
+        ]),
+        'compression_recipes_v1': jsonEncode([
+          {
+            'formatVersion': 1,
+            'id': 'recipe-1',
+            'name': 'Tight',
+            'template': {'id': 'template-1'},
+            'settings': {'keepRecentUserTurns': 2},
+          },
+        ]),
       });
 
       for (final kind in BusinessEntityKind.values) {

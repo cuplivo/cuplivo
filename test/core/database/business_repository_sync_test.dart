@@ -604,4 +604,73 @@ void main() {
     expect(preferences.getString('theme_mode_v1'), 'dark');
     expect(preferences.getString('user_name'), 'Local');
   });
+
+  test('the compression library travels as a business kind', () async {
+    // A template is a prompt the user wrote for the summariser and a recipe is
+    // that template plus its settings: both are global, shared by every
+    // conversation that names one, so they ride the business face like a world
+    // book. Until they did, a new device showed `compressionTemplateMissing` for
+    // conversations whose template only ever existed on the other one.
+    final at = DateTime.now().microsecondsSinceEpoch;
+    final applied = await repository.syncApplyBusinessRows(
+      entities: {
+        'compressionTemplate': [
+          {
+            'kind': 'compressionTemplate',
+            'id': 't1',
+            'sort_order': 0,
+            'owner_id': null,
+            'payload': jsonEncode({
+              'formatVersion': 1,
+              'id': 't1',
+              'name': 'Brief',
+              'prompt': 'Summarise in five lines.',
+            }),
+            'updated_at': at,
+          },
+        ],
+        'compressionRecipe': [
+          {
+            'kind': 'compressionRecipe',
+            'id': 'r1',
+            'sort_order': 0,
+            'owner_id': null,
+            'payload': jsonEncode({
+              'formatVersion': 1,
+              'id': 'r1',
+              'name': 'Tight',
+              'template': {'id': 't1'},
+              'settings': {'keepRecentUserTurns': 2},
+            }),
+            'updated_at': at,
+          },
+        ],
+      },
+      preferences: const [],
+      myDeviceId: 'me',
+      peerDeviceId: 'peer',
+    );
+
+    expect(applied.entityRowsWritten, 2);
+    // The manifest is what makes the next session plan them: a row that lands but
+    // is not in the refs would be re-sent forever, and one in the refs but not
+    // written would be planned against nothing.
+    final refs = await repository.syncEntityRefs();
+    expect(
+      refs
+          .where((ref) => ref.kindWire == 'compressionTemplate')
+          .map((ref) => ref.id),
+      ['t1'],
+    );
+    expect(
+      refs
+          .where((ref) => ref.kindWire == 'compressionRecipe')
+          .map((ref) => ref.id),
+      ['r1'],
+    );
+    final read = await repository.syncReadEntityRows('compressionTemplate', {
+      't1',
+    });
+    expect(jsonDecode(read.single['payload'] as String)['name'], 'Brief');
+  });
 }

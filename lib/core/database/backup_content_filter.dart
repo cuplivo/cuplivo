@@ -38,6 +38,13 @@ final class BackupContentFilter {
     if (key.startsWith('instruction_injection')) {
       return BackupCategory.instructions;
     }
+    // The compression library is a prompt library: a template is what the
+    // summariser is told, and a recipe is that template with the settings it was
+    // saved under. Exact keys, not a `compression_` prefix — `compression_
+    // defaults_v1` is a preference and keeps its own category.
+    if (key == 'compression_templates_v1' || key == 'compression_recipes_v1') {
+      return BackupCategory.instructions;
+    }
     if (key.startsWith('search_')) return BackupCategory.searchServices;
     if (key.startsWith('tts_') || key.startsWith('asr_')) {
       return BackupCategory.speechServices;

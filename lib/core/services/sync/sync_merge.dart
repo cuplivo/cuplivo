@@ -792,9 +792,15 @@ Map<String, int> rederiveMessageOrder(Iterable<Map<String, dynamic>> rows) {
 /// Builds a checkpoint entry from the post-merge row state. Both peers call
 /// this after applying; identical inputs produce identical entries, which is
 /// what keeps the next session's plan symmetric.
+/// [digest] is the conversation's composed identity
+/// ([composeConversationDigest]) — every synced family, not only its messages.
+/// It arrives from the caller because the composition is a read of every
+/// travelling family, and the two peers must agree on it exactly: this function
+/// only packages the post-merge state.
 SyncCheckpointConversation buildCheckpointConversation({
   required Map<String, dynamic> conversationRow,
   required Iterable<Map<String, dynamic>> messageRows,
+  required String digest,
 }) {
   final rows = {
     for (final row in messageRows)
@@ -802,9 +808,7 @@ SyncCheckpointConversation buildCheckpointConversation({
   };
   return SyncCheckpointConversation(
     updatedAtUs: (conversationRow['updated_at'] as num).toInt(),
-    digest: computeConversationDigest(
-      rows.entries.map((e) => (id: e.key, updatedAtUs: e.value)),
-    ),
+    digest: digest,
     rows: rows,
   );
 }

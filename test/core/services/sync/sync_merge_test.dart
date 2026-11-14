@@ -1,16 +1,22 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:Cuplivo/core/services/sync/sync_family_registry.dart';
 import 'package:Cuplivo/core/services/sync/sync_limits.dart';
 import 'package:Cuplivo/core/services/sync/sync_merge.dart';
 import 'package:Cuplivo/core/services/sync/sync_models.dart';
+
+final SyncFamily _messageFamily = syncFamilyOfTable('message_rows');
 
 SyncManifestEntry _entry(int updatedAtUs, Map<String, int> rows) =>
     SyncManifestEntry(
       updatedAtUs: updatedAtUs,
       messageCount: rows.length,
-      digest: computeConversationDigest(
-        rows.entries.map((e) => (id: e.key, updatedAtUs: e.value)),
-      ),
+      digest: composeConversationDigest({
+        _messageFamily.name: syncFamilyDigestInput(_messageFamily, [
+          for (final entry in rows.entries)
+            {'id': entry.key, 'updated_at': entry.value},
+        ]),
+      }),
     );
 
 SyncManifest _manifest(Map<String, SyncManifestEntry> conversations) =>
@@ -445,24 +451,42 @@ void main() {
   });
 
   group('buildCheckpointConversation', () {
-    test('digest is order-independent and edit-sensitive', () {
+    test('the family input is order-independent and edit-sensitive', () {
       Map<String, dynamic> row(String id, int ts, {int? up}) =>
           _msg(id, ts, updatedAtUs: up);
-      final first = buildCheckpointConversation(
+      final first = syncFamilyDigestInput(_messageFamily, [
+        row('m1', 5),
+        row('m2', 6),
+      ]);
+      final reordered = syncFamilyDigestInput(_messageFamily, [
+        row('m2', 6),
+        row('m1', 5),
+      ]);
+      final edited = syncFamilyDigestInput(_messageFamily, [
+        row('m1', 5, up: 9),
+        row('m2', 6),
+      ]);
+      expect(first, reordered);
+      expect(first, isNot(equals(edited)));
+    });
+
+    test('the entry carries the composed digest and the row map', () {
+      Map<String, dynamic> row(String id, int ts, {int? up}) =>
+          _msg(id, ts, updatedAtUs: up);
+      final digest = composeConversationDigest({
+        _messageFamily.name: syncFamilyDigestInput(_messageFamily, [
+          row('m1', 5),
+          row('m2', 6),
+        ]),
+      });
+      final entry = buildCheckpointConversation(
         conversationRow: {'updated_at': 1},
         messageRows: [row('m1', 5), row('m2', 6)],
+        digest: digest,
       );
-      final reordered = buildCheckpointConversation(
-        conversationRow: {'updated_at': 1},
-        messageRows: [row('m2', 6), row('m1', 5)],
-      );
-      final edited = buildCheckpointConversation(
-        conversationRow: {'updated_at': 1},
-        messageRows: [row('m1', 5, up: 9), row('m2', 6)],
-      );
-      expect(first.digest, reordered.digest);
-      expect(first.digest, isNot(equals(edited.digest)));
-      expect(first.rows, {'m1': 5, 'm2': 6});
+      expect(entry.digest, digest);
+      expect(entry.updatedAtUs, 1);
+      expect(entry.rows, {'m1': 5, 'm2': 6});
     });
   });
 

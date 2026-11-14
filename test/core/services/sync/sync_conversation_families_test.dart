@@ -1,8 +1,10 @@
 import 'package:Cuplivo/core/database/app_database.dart';
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/services/sync/sync_family_registry.dart';
 import 'package:Cuplivo/core/services/sync/sync_models.dart';
+import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -91,6 +93,8 @@ void main() {
     String id,
     int timestampUs, {
     int order = 0,
+    String? groupId,
+    int version = 0,
   }) => {
     'id': id,
     'conversation_id': conversationId,
@@ -104,8 +108,8 @@ void main() {
     'reasoning_finished_at': null,
     'translation': null,
     'reasoning_segments_json': null,
-    'group_id': null,
-    'version': 0,
+    'group_id': groupId,
+    'version': version,
     'prompt_tokens': null,
     'completion_tokens': null,
     'cached_tokens': null,
@@ -114,6 +118,22 @@ void main() {
     'updated_at': timestampUs,
     'sender_id': null,
     'extras_json': '{}',
+  };
+
+  /// A provider artifact as the sender's `SELECT *` produces it: it hangs off a
+  /// revision, and the schema cascades it from `message_rows`.
+  Map<String, dynamic> artifactRow({
+    required String revisionId,
+    required String payload,
+    required int updatedAt,
+    String conversation = conversationId,
+  }) => {
+    'conversation_id': conversation,
+    'revision_id': revisionId,
+    'kind': 'signature',
+    'payload': payload,
+    'created_at': 1,
+    'updated_at': updatedAt,
   };
 
   SyncSubtreePayload payloadWith(
@@ -321,4 +341,108 @@ void main() {
     expect(read.single['payload'], 'second');
     expect(outcome.documentsReplaced, 1);
   });
+
+  test('an artifact whose revision loses the version slot is not written', () async {
+    // Two devices regenerated the same version slot: this one produced mB (the
+    // newer revision), the peer produced mA. The peer's subtree carries mA and
+    // the provider artifact it recorded for it.
+    await apply(
+      subtreePayload(
+        conversation: conversationRow(),
+        messages: [messageRow('mB', 200, groupId: 'g')],
+      ),
+    );
+
+    final payload = subtreePayload(
+      conversation: conversationRow(),
+      messages: [messageRow('mA', 100, groupId: 'g')],
+      families: {
+        artifactsFamily.name: [
+          artifactRow(revisionId: 'mA', payload: 'sig-mA', updatedAt: 100),
+        ],
+      },
+    );
+
+    // mA loses the slot and is never inserted. Writing its artifact anyway left
+    // the deferred `revision_id -> message_rows.id` foreign key pointing at a
+    // row that does not exist: the insert succeeded and COMMIT failed with 787,
+    // which aborted the session before the checkpoint advanced — so every later
+    // session re-planned the same apply and failed the same way.
+    final outcome = await apply(payload);
+    expect(outcome.deferred, isFalse);
+    expect(await documents(artifactsFamily), isEmpty);
+    expect(
+      [
+        for (final row in await repository.syncReadMessageRows(conversationId))
+          row['id'],
+      ],
+      ['mB'],
+      reason: 'the newer rival owns the slot, and the loser brings no rows',
+    );
+
+    // The proof that the checkpoint can move: the same subtree applies again as
+    // a no-op instead of failing a second time.
+    await apply(payload);
+    expect(await documents(artifactsFamily), isEmpty);
+  });
+
+  test(
+    "an artifact naming another conversation's revision is dropped",
+    () async {
+      await repository.putMigrationBatch(
+        conversations: [Conversation(id: 'other', title: 'other')],
+        messages: [
+          (
+            message: ChatMessage(
+              id: 'm2',
+              conversationId: 'other',
+              role: 'assistant',
+              content: 'other',
+              timestamp: DateTime.fromMicrosecondsSinceEpoch(10),
+            ),
+            messageOrder: 0,
+          ),
+        ],
+        toolEventsByMessageId: const {},
+        geminiSignaturesByMessageId: const {},
+      );
+      await repository.setProviderArtifact('m2', 'signature', 'sig-other');
+
+      // The row claims the conversation being applied while its revision is
+      // another conversation's. The family is keyed by (revision_id, kind), so
+      // the upsert found that row and overwrote its conversation column — and no
+      // peer holds its payload, so the artifact was gone for good.
+      await apply(
+        subtreePayload(
+          conversation: conversationRow(),
+          families: {
+            artifactsFamily.name: [
+              artifactRow(
+                revisionId: 'm2',
+                payload: 'sig-smuggled',
+                updatedAt: 2000000000000000,
+              ),
+            ],
+          },
+        ),
+      );
+
+      final read = await database
+          .customSelect(
+            'SELECT conversation_id, payload FROM provider_artifact_rows '
+            'WHERE revision_id = ? AND kind = ?;',
+            variables: const [
+              Variable<String>('m2'),
+              Variable<String>('signature'),
+            ],
+          )
+          .getSingle();
+      expect(
+        read.data['conversation_id'],
+        'other',
+        reason: 'a revision id belongs to one conversation',
+      );
+      expect(read.data['payload'], 'sig-other');
+    },
+  );
 }

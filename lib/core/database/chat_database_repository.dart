@@ -6042,6 +6042,15 @@ class ChatDatabaseRepository {
         // history, and handing the peer ours skips messages neither side has
         // read. Monotone on both sides, so the join is max.
         //
+        // The join rests on both sides agreeing which message occupies which
+        // slot, which holds while they hold the same messages. When this apply
+        // inserts one below the joined value — a message with an earlier
+        // timestamp arriving late — the slot it takes can be one neither side
+        // has read, and the join skips it. That costs one unextracted message;
+        // joining to the smaller value instead would re-read on every ordinary
+        // sync, which is the 重抽 direction the issue reports. Left as max, with
+        // the case pinned by a test.
+        //
         // Persisted on its own rather than through the row write below: the
         // winner's MCP list belongs to the winner, and an advance that lost the
         // row must not drag the peer's list over here. Nothing displays the

@@ -1,6 +1,7 @@
 import 'package:Cuplivo/core/database/app_database.dart';
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
 import 'package:Cuplivo/core/services/sync/sync_models.dart';
+import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -148,4 +149,90 @@ void main() {
       expect(fresh.hash, isNull);
     },
   );
+
+  /// A wire message row carries every column of `currentSchemaColumns`.
+  Map<String, dynamic> wireMessageRow({
+    required String id,
+    required int timestampUs,
+    required int order,
+  }) => {
+    'id': id,
+    'conversation_id': conversationId,
+    'role': 'user',
+    'timestamp': timestampUs,
+    'model_id': null,
+    'provider_id': null,
+    'total_tokens': null,
+    'is_streaming': 0,
+    'reasoning_start_at': null,
+    'reasoning_finished_at': null,
+    'translation': null,
+    'reasoning_segments_json': null,
+    'group_id': null,
+    'version': 0,
+    'prompt_tokens': null,
+    'completion_tokens': null,
+    'cached_tokens': null,
+    'duration_ms': null,
+    'message_order': order,
+    'updated_at': null,
+    'sender_id': null,
+    'extras_json': '{}',
+  };
+
+  test('a message that lands below the joined watermark is skipped', () async {
+    // Pins a known limitation of joining by max. The watermark names *slots*,
+    // so it only means "read up to here" while both sides agree which message
+    // sits in each one. A message that arrives with an earlier timestamp takes
+    // a slot at or below the joined value, and neither side has read it: the
+    // join keeps the higher value, and the next extraction window starts above
+    // it. One unextracted message, not a wrong memory.
+    //
+    // Recorded rather than fixed. Joining to the smaller value would re-read on
+    // every ordinary sync — the 重抽 direction issue #1086 reports — and a
+    // conservative clamp needs this mismatched-set case understood first.
+    await seedLocal(injectedMemoryHash: null, watermark: 0);
+    await database.customStatement(
+      'INSERT INTO message_rows (id, conversation_id, role, timestamp, '
+      'message_order) VALUES (?, ?, ?, ?, ?);',
+      ['late', conversationId, 'user', 2000, 0],
+    );
+
+    await repository.syncApplySubtree(
+      payload: SyncSubtreePayload(
+        conversation: wireConversationRow(
+          id: conversationId,
+          updatedAtUs: 2000,
+          watermark: -1,
+        ),
+        messages: [wireMessageRow(id: 'early', timestampUs: 1000, order: 0)],
+        parts: const [],
+        mcpServers: const [],
+      ),
+      myDeviceId: 'me',
+      peerDeviceId: 'peer',
+      checkpointRows: const {},
+    );
+
+    expect(
+      (await readLocal()).watermark,
+      0,
+      reason: 'the join keeps the higher value',
+    );
+    final rows = await database
+        .customSelect(
+          'SELECT id, message_order FROM message_rows '
+          'WHERE conversation_id = ? ORDER BY message_order;',
+          variables: [Variable.withString(conversationId)],
+        )
+        .get();
+    expect(
+      [
+        for (final row in rows)
+          (row.read<String>('id'), row.read<int>('message_order')),
+      ],
+      [('early', 0), ('late', 1)],
+      reason: 'the late arrival took the slot the watermark already covers',
+    );
+  });
 }

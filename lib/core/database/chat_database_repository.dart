@@ -6187,7 +6187,7 @@ class ChatDatabaseRepository {
       // the merge above is what decides which revisions exist afterwards. A row
       // written before that decision can name a revision the version-group rule
       // dropped, which the deferred foreign key only reports at COMMIT.
-      final documentsReplaced = await _applyConversationDocuments(
+      final documentReplaced = await _applyConversationDocuments(
         conversationId: conversationId,
         payload: payload,
         myDeviceId: myDeviceId,
@@ -6206,7 +6206,7 @@ class ChatDatabaseRepository {
         conversationRowChanged: conversationRowChanged,
         reordered: orderDrifted,
         appliedRevisionIds: upsertedIds,
-        documentsReplaced: documentsReplaced,
+        documentReplaced: documentReplaced,
         // Inside the transaction, so this is the post-merge state and nothing
         // later: a checkpoint built from a re-read outside it could record a row
         // written after the apply as one the peer already has.
@@ -6222,9 +6222,13 @@ class ChatDatabaseRepository {
   /// Each is a row on its own clock, so the rule is the business face's one: the
   /// newer `updated_at` wins, and an exact tie falls to the higher deviceId, so
   /// both peers reach the same verdict without talking. A local copy that loses
-  /// is **replaced**, and the count comes back to the caller because this is
+  /// is **replaced**, and the answer comes back to the caller because this is
   /// where a device's own compression can disappear — the session report is the
   /// only place that can say so.
+  ///
+  /// The answer is one flag, not a count: a conversation is one line on the
+  /// card, and only a family whose row *is* a document counts. A provider
+  /// artifact is applied like any other row and reported by nobody.
   ///
   /// A row is accepted only where it says it belongs: its conversation column
   /// names this conversation, an extension row carries exactly its family's
@@ -6232,14 +6236,14 @@ class ChatDatabaseRepository {
   /// A crafted row that names another conversation, another kind, or another
   /// conversation's revision is dropped — the refusal [_syncForeignMessageIds]
   /// already makes for messages.
-  Future<int> _applyConversationDocuments({
+  Future<bool> _applyConversationDocuments({
     required String conversationId,
     required SyncSubtreePayload payload,
     required String myDeviceId,
     required String peerDeviceId,
     required Set<String> survivingRevisions,
   }) async {
-    var replaced = 0;
+    var documentReplaced = false;
     for (final family in syncedConversationFamilies) {
       if (family.isSubtreeRoot ||
           family.apply != SyncFamilyApply.rowLastWriteWins) {
@@ -6281,12 +6285,14 @@ class ChatDatabaseRepository {
           // A loss only when the content differs: a bothSend echoes this
           // device's own row back at a tied clock, and counting that would tell
           // the user their work was replaced by itself.
-          if (local['payload'] != row['payload']) replaced++;
+          if (family.isWholeDocument && local['payload'] != row['payload']) {
+            documentReplaced = true;
+          }
         }
         await _upsertSyncRow(family.table, row);
       }
     }
-    return replaced;
+    return documentReplaced;
   }
 
   /// One row of [table] by the columns that key it, or null when this device

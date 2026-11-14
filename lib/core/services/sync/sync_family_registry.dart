@@ -169,6 +169,13 @@ class SyncFamily {
   final List<String> blobColumns;
 
   bool get isSynced => ownership == SyncFamilyOwnership.synced;
+
+  /// Whether this family's row *is* a whole document (D-7): one row per
+  /// conversation whose payload is the document itself, which is why its
+  /// identity is the payload digest. A family of keyed rows — the provider
+  /// artifacts — is not one, however it is applied.
+  bool get isWholeDocument =>
+      identity == SyncIdentityContribution.payloadDigest;
 }
 
 /// Every family of rows this build knows about.

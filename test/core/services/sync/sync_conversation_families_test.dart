@@ -204,14 +204,67 @@ void main() {
       final read = await documents(contextFamily);
       expect(read.single['payload'], '{"ops":["theirs"]}');
       expect(
-        outcome.documentsReplaced,
-        1,
+        outcome.documentReplaced,
+        isTrue,
         reason:
             'this device had a compression history of its own and lost it; the '
             'report is the only place that can say so',
       );
     },
   );
+
+  test('two documents replaced in one conversation are one line', () async {
+    // The card says "N conversations", so the unit is the conversation: a
+    // compression history and an image context replaced together are one loss
+    // of this device's work, not two.
+    await apply(
+      payloadWith({
+        contextFamily.name: [
+          documentRow(
+            kind: contextFamily.kind!,
+            payload: '{"ops":["mine"]}',
+            updatedAt: 100,
+          ),
+        ],
+        imageContextFamily.name: [
+          documentRow(
+            kind: imageContextFamily.kind!,
+            payload: '{"auto":false}',
+            updatedAt: 100,
+          ),
+        ],
+      }),
+    );
+
+    final outcome = await apply(
+      payloadWith({
+        contextFamily.name: [
+          documentRow(
+            kind: contextFamily.kind!,
+            payload: '{"ops":["theirs"]}',
+            updatedAt: 200,
+          ),
+        ],
+        imageContextFamily.name: [
+          documentRow(
+            kind: imageContextFamily.kind!,
+            payload: '{"auto":true}',
+            updatedAt: 200,
+          ),
+        ],
+      }),
+    );
+
+    expect(
+      (await documents(contextFamily)).single['payload'],
+      '{"ops":["theirs"]}',
+    );
+    expect(
+      (await documents(imageContextFamily)).single['payload'],
+      '{"auto":true}',
+    );
+    expect(outcome.documentReplaced, isTrue);
+  });
 
   test('an older document is refused', () async {
     await apply(
@@ -242,7 +295,7 @@ void main() {
       (await documents(contextFamily)).single['payload'],
       '{"ops":["mine"]}',
     );
-    expect(outcome.documentsReplaced, 0);
+    expect(outcome.documentReplaced, isFalse);
   });
 
   test('an echo of the same document at a newer clock is not a loss', () async {
@@ -272,8 +325,8 @@ void main() {
     );
 
     expect(
-      outcome.documentsReplaced,
-      0,
+      outcome.documentReplaced,
+      isFalse,
       reason:
           'a bothSend echoes our own row back; nothing of ours was replaced',
     );
@@ -339,7 +392,13 @@ void main() {
 
     final read = await documents(artifactsFamily);
     expect(read.single['payload'], 'second');
-    expect(outcome.documentsReplaced, 1);
+    expect(
+      outcome.documentReplaced,
+      isFalse,
+      reason:
+          'an artifact is continuation state, not a document: the card names '
+          'compression history and settings, and this is neither',
+    );
   });
 
   test('an artifact whose revision loses the version slot is not written', () async {

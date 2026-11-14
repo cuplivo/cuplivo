@@ -85,6 +85,7 @@ class SyncDataPlane {
   static final SyncFamily _messagePartFamily = syncFamilyOfTable(
     'message_part_rows',
   );
+  static final SyncFamily _messageFamily = syncFamilyOfTable('message_rows');
 
   /// Sentinel directory hash for a skill whose body this device does not have.
   /// It is a legal digest value, so it rides the ordinary combined digest and
@@ -96,10 +97,25 @@ class SyncDataPlane {
   /// Conversation, entity and preference state of this device, as a manifest.
   Future<SyncManifest> buildManifest() async {
     final refs = await repository.syncConversationRefs();
-    final digestInputs = await repository.syncMessageDigestInputs();
-    final byConversation = {
-      for (final row in digestInputs) row.conversationId: row,
-    };
+    // One query per travelling family, composed into each conversation's
+    // identity. Which families, and what each contributes, is the registration's
+    // answer — so a family that starts travelling enters the digest without this
+    // method naming it.
+    final contributions = <String, Map<String, String>>{};
+    final messageCounts = <String, int>{};
+    for (final family in syncedConversationFamilies) {
+      if (family.isSubtreeRoot ||
+          family.identity == SyncIdentityContribution.none) {
+        continue;
+      }
+      for (final input in await repository.syncFamilyDigestInputs(family)) {
+        (contributions[input.conversationId] ??= {})[family.name] =
+            input.digestInput;
+        if (family == _messageFamily) {
+          messageCounts[input.conversationId] = input.rowCount;
+        }
+      }
+    }
     final entityRefs = await businessRepository.syncEntityRefs();
     final preferenceRefs = await businessRepository.syncPreferenceRefs();
     // A skill's manifest digest combines its record payload with its directory
@@ -131,11 +147,10 @@ class SyncDataPlane {
         for (final ref in refs)
           ref.conversationId: SyncManifestEntry(
             updatedAtUs: ref.updatedAtUs,
-            messageCount: byConversation[ref.conversationId]?.messageCount ?? 0,
-            digest: switch (byConversation[ref.conversationId]) {
-              null => emptyConversationDigest,
-              final row => digestFromDigestInput(row.digestInput),
-            },
+            messageCount: messageCounts[ref.conversationId] ?? 0,
+            digest: composeConversationDigest(
+              contributions[ref.conversationId] ?? const {},
+            ),
           ),
       },
       entities: entities,
@@ -189,6 +204,7 @@ class SyncDataPlane {
     return buildCheckpointConversation(
       conversationRow: conversation,
       messageRows: await repository.syncReadMessageRows(conversationId),
+      digest: await repository.syncConversationDigest(conversationId),
     );
   }
 

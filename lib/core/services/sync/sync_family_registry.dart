@@ -86,6 +86,8 @@ class SyncFamily {
     required this.scope,
     this.identity = SyncIdentityContribution.none,
     this.identityColumns = const [],
+    this.clockColumn,
+    this.fallbackClockColumn,
     this.blobColumns = const [],
   });
 
@@ -140,6 +142,13 @@ class SyncFamily {
   /// or [SyncIdentityContribution.rowValues] line, in order.
   final List<String> identityColumns;
 
+  /// The column a row's clock is read from, for
+  /// [SyncIdentityContribution.rowClocks]. [fallbackClockColumn] is what a row
+  /// that has no clock of its own is read as, so the two readers — the SQL
+  /// aggregate and the Dart re-read — cannot disagree about what a clock is.
+  final String? clockColumn;
+  final String? fallbackClockColumn;
+
   /// The columns that may embed a `kelivo-file` URI, which is what the blob
   /// plane scans. Declared rather than guessed, so "which strings can reference
   /// a file" is answered once.
@@ -192,6 +201,8 @@ const List<SyncFamily> kSyncFamilies = [
     scope: SyncFamilyScope.conversation,
     identity: SyncIdentityContribution.rowClocks,
     identityColumns: ['id'],
+    clockColumn: 'updated_at',
+    fallbackClockColumn: 'timestamp',
     blobColumns: ['translation', 'reasoning_segments_json', 'extras_json'],
   ),
   SyncFamily(
@@ -203,6 +214,8 @@ const List<SyncFamily> kSyncFamilies = [
     scope: SyncFamilyScope.conversation,
     identity: SyncIdentityContribution.rowClocks,
     identityColumns: ['revision_id', 'ordinal'],
+    clockColumn: 'updated_at',
+    fallbackClockColumn: 'created_at',
     blobColumns: ['payload'],
   ),
 
@@ -217,6 +230,8 @@ const List<SyncFamily> kSyncFamilies = [
     apply: SyncFamilyApply.rowLastWriteWins,
     identity: SyncIdentityContribution.rowClocks,
     identityColumns: ['revision_id', 'kind'],
+    clockColumn: 'updated_at',
+    fallbackClockColumn: 'created_at',
     blobColumns: ['payload'],
   ),
   SyncFamily(
@@ -682,6 +697,10 @@ List<String> syncFamilyProblems(
     final keyed =
         family.identity == SyncIdentityContribution.rowClocks ||
         family.identity == SyncIdentityContribution.rowValues;
+    if (family.identity == SyncIdentityContribution.rowClocks &&
+        family.clockColumn == null) {
+      problems.add('$where: rowClocks without a clock column');
+    }
     if (keyed && family.identityColumns.isEmpty) {
       problems.add('$where: ${family.identity.name} without identity columns');
     }

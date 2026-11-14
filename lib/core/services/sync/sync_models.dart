@@ -179,15 +179,82 @@ class SyncManifest {
   };
 }
 
-/// Digest over a conversation's message rows: sha256 of the sorted
-/// `id:coalescedUpdatedAtUs` lines. Order-independent and sensitive to any
-/// row insert, edit or delete.
-String computeConversationDigest(
-  Iterable<({String id, int updatedAtUs})> rows,
+/// The digest input one family's rows contribute, in the rule the registration
+/// gives for that family.
+///
+/// This is the Dart half of the identity: the manifest composes the same inputs
+/// in one SQL aggregate per family (a manifest must not materialise a row per
+/// message), and `sync_family_registry_test.dart` holds the two readers equal on
+/// a fixture. One rule, two readers, one test — rather than two rules that drift.
+String syncFamilyDigestInput(
+  SyncFamily family,
+  Iterable<Map<String, dynamic>> rows,
 ) {
-  final lines = rows.map((row) => '${row.id}:${row.updatedAtUs}').toList()
-    ..sort();
-  return digestFromSortedLines(lines.join('\n'));
+  switch (family.identity) {
+    case SyncIdentityContribution.none:
+    case SyncIdentityContribution.conversationClock:
+      return '';
+    case SyncIdentityContribution.rowClocks:
+      final clock = family.clockColumn!;
+      final fallback = family.fallbackClockColumn;
+      final lines = <String>[
+        for (final row in rows)
+          '${family.identityColumns.map((column) => row[column]).join(':')}'
+              ':${row[clock] ?? (fallback == null ? null : row[fallback]) ?? 0}',
+      ]..sort();
+      return lines.join('\n');
+    case SyncIdentityContribution.rowValues:
+      final lines = <String>[
+        for (final row in rows)
+          family.identityColumns.map((column) => row[column]).join(':'),
+      ]..sort();
+      return lines.join('\n');
+    case SyncIdentityContribution.payloadDigest:
+      final lines = <String>[
+        for (final row in rows)
+          crypto.sha256
+              .convert(utf8.encode('${row['payload'] ?? ''}'))
+              .toString(),
+      ]..sort();
+      return lines.join('\n');
+  }
+}
+
+/// The identity contributions a payload's own rows make, per family.
+///
+/// The sender's checkpoint is built from *this*, never from a re-read: a row
+/// written while the session is in flight was never sent, and a checkpoint that
+/// claimed the peer had it would make the next merge read the peer's silence as
+/// a deletion.
+Map<String, String> identityContributionsOf(SyncSubtreePayload payload) => {
+  for (final family in syncedConversationFamilies)
+    if (!family.isSubtreeRoot &&
+        family.identity != SyncIdentityContribution.none)
+      family.name: syncFamilyDigestInput(family, payload.rowsOf(family)),
+};
+
+/// A conversation's identity: every synced family's contribution, one block per
+/// family, blocks ordered by family name.
+///
+/// The family name is in the text on purpose. Without it, a conversation whose
+/// last message was deleted and whose last part was added could compose the same
+/// lines — the digest would answer "unchanged" for a change it cannot see.
+String composeConversationDigest(Map<String, String> contributions) {
+  final names =
+      contributions.keys
+          .where((name) => contributions[name]!.isNotEmpty)
+          .toList()
+        ..sort();
+  if (names.isEmpty) return emptyConversationDigest;
+  return crypto.sha256
+      .convert(
+        utf8.encode(
+          [
+            for (final name in names) '$name\n${contributions[name]}',
+          ].join('\n'),
+        ),
+      )
+      .toString();
 }
 
 /// Digest of an already-sorted, newline-joined digest input. The repository
@@ -1517,6 +1584,11 @@ class SyncSubtreeApplyOutcome {
   /// swallowed: the losing copy is this device's own compression work.
   final int documentsReplaced;
 
+  /// The conversation's identity as the apply left it, composed inside the same
+  /// transaction — so the checkpoint records the state the two sides agreed on
+  /// and not whatever a writer added in the window after it.
+  final String? digest;
+
   const SyncSubtreeApplyOutcome({
     this.deferred = false,
     this.conversationRow,
@@ -1527,6 +1599,7 @@ class SyncSubtreeApplyOutcome {
     this.reordered = false,
     this.appliedRevisionIds = const {},
     this.documentsReplaced = 0,
+    this.digest,
   });
 
   static const deferredOutcome = SyncSubtreeApplyOutcome(deferred: true);

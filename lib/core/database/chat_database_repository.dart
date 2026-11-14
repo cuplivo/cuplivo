@@ -5797,31 +5797,108 @@ class ChatDatabaseRepository {
     ];
   }
 
-  /// Per-conversation digest input: `id:mutationUs` lines joined by newlines,
-  /// plus the message count. Aggregated in SQL so a manifest never materialises
-  /// one Dart object per message. Line order is *not* relied upon —
-  /// [digestFromDigestInput] sorts.
-  Future<List<({String conversationId, String digestInput, int messageCount})>>
-  syncMessageDigestInputs() async {
-    final rows = await _db.customSelect('''
-      SELECT conversation_id, group_concat(line, char(10)) AS digest_input,
-             COUNT(*) AS message_count
-      FROM (
-        SELECT conversation_id,
-               id || ':' || COALESCE(updated_at, timestamp) AS line
-        FROM message_rows
-        ORDER BY conversation_id, id
-      )
-      GROUP BY conversation_id;
-    ''').get();
+  /// The digest input every conversation's [family] contributes, in one query.
+  ///
+  /// Aggregated in SQL so a manifest never materialises one Dart object per
+  /// message; the rule — which columns key a row, which column is its clock —
+  /// comes from the registration, so this is the same answer
+  /// [syncConversationDigest] gives by re-reading rows in Dart.
+  Future<List<({String conversationId, String digestInput, int rowCount})>>
+  syncFamilyDigestInputs(SyncFamily family) async {
+    switch (family.identity) {
+      case SyncIdentityContribution.none:
+      case SyncIdentityContribution.conversationClock:
+        return const [];
+      case SyncIdentityContribution.rowClocks:
+        final clock =
+            'COALESCE(${family.clockColumn}, '
+            '${family.fallbackClockColumn}, 0)';
+        return _syncDigestInputs(
+          family,
+          line:
+              '${_syncKeyExpr(family)} || '
+              "':' || $clock",
+        );
+      case SyncIdentityContribution.rowValues:
+        return _syncDigestInputs(family, line: _syncKeyExpr(family));
+      case SyncIdentityContribution.payloadDigest:
+        final rows = await _db
+            .customSelect(
+              'SELECT ${family.conversationColumn} AS conversation_id, payload '
+              'FROM ${family.table}'
+              '${family.kind == null ? '' : ' WHERE kind = ?'};',
+              variables: <Variable<Object>>[
+                if (family.kind != null) Variable<String>(family.kind!),
+              ],
+            )
+            .get();
+        final byConversation = <String, List<String>>{};
+        for (final row in rows) {
+          (byConversation[row.read<String>('conversation_id')] ??= []).add(
+            sha256.convert(utf8.encode(row.read<String>('payload'))).toString(),
+          );
+        }
+        return [
+          for (final entry in byConversation.entries)
+            (
+              conversationId: entry.key,
+              digestInput: (entry.value..sort()).join('\n'),
+              rowCount: entry.value.length,
+            ),
+        ];
+    }
+  }
+
+  /// `column || ':' || column` — the key half of one identity line.
+  static String _syncKeyExpr(SyncFamily family) => family.identityColumns
+      .map((column) => "COALESCE($column, '')")
+      .join(" || ':' || ");
+
+  Future<List<({String conversationId, String digestInput, int rowCount})>>
+  _syncDigestInputs(SyncFamily family, {required String line}) async {
+    final where = family.kind == null ? '' : ' WHERE kind = ?';
+    final rows = await _db
+        .customSelect(
+          'SELECT conversation_id, group_concat(line, char(10)) AS digest_input, '
+          'COUNT(*) AS row_count '
+          'FROM (SELECT ${family.conversationColumn} AS conversation_id, '
+          '$line AS line FROM ${family.table}$where '
+          'ORDER BY conversation_id, line) '
+          'GROUP BY conversation_id;',
+          variables: <Variable<Object>>[
+            if (family.kind != null) Variable<String>(family.kind!),
+          ],
+        )
+        .get();
     return [
       for (final row in rows)
         (
           conversationId: row.read<String>('conversation_id'),
           digestInput: row.read<String>('digest_input'),
-          messageCount: row.read<int>('message_count'),
+          rowCount: row.read<int>('row_count'),
         ),
     ];
+  }
+
+  /// The conversation's identity as this device sees it now, composed from every
+  /// synced family by re-reading its rows.
+  ///
+  /// The slow, exact half of the same rule [syncFamilyDigestInputs] aggregates:
+  /// a checkpoint entry and a manifest entry built from identical state must be
+  /// equal, and `sync_family_registry_test.dart` holds the two readers to it.
+  Future<String> syncConversationDigest(String conversationId) async {
+    final contributions = <String, String>{};
+    for (final family in syncedConversationFamilies) {
+      if (family.isSubtreeRoot ||
+          family.identity == SyncIdentityContribution.none) {
+        continue;
+      }
+      contributions[family.name] = syncFamilyDigestInput(
+        family,
+        await syncReadFamilyRows(family, conversationId),
+      );
+    }
+    return composeConversationDigest(contributions);
   }
 
   Future<Map<String, dynamic>?> syncReadConversationRow(String id) async {
@@ -6126,6 +6203,10 @@ class ChatDatabaseRepository {
         reordered: orderDrifted,
         appliedRevisionIds: upsertedIds,
         documentsReplaced: documentsReplaced,
+        // Inside the transaction, so this is the post-merge state and nothing
+        // later: a checkpoint built from a re-read outside it could record a row
+        // written after the apply as one the peer already has.
+        digest: await syncConversationDigest(conversationId),
       );
     });
   }

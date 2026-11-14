@@ -58,6 +58,19 @@ import 'sync_limits.dart';
 /// owed" and had no reverse connection to fetch over either, so an undiallable
 /// peer's images would keep failing while both reports claimed success.
 ///
+/// v9: the conversation's own families (the projection). The subtree now carries
+/// the compression history, the image-context switches, the compression
+/// configuration and the provider artifacts — the four families that hung off a
+/// conversation and travelled nowhere — and a conversation's identity is
+/// composed from every travelling family instead of from its messages alone.
+///
+/// A v8 peer cannot be half-spoken to. It would ignore the four sections, so its
+/// apply would leave a document it never received as this device's local version;
+/// and because it computes the identity from message rows alone, the two sides
+/// would disagree about the digest of *every* conversation for good — each would
+/// re-send, every session, and neither could converge. Refused at hello like
+/// every other shape change.
+///
 /// v8: the deletion announcement carries the conversation row's clock beside the
 /// digest ([SyncAnnouncedDeletion]). The digest is computed from the message
 /// rows, so it cannot see a row write that left every message untouched — which
@@ -67,7 +80,7 @@ import 'sync_limits.dart';
 /// A v7 peer would read the pair as a digest string (`toString`), match nothing,
 /// and silently stop honouring announced deletions, so this is refused at hello
 /// like every other shape change.
-const int kSyncProtocolVersion = 8;
+const int kSyncProtocolVersion = 9;
 
 /// Wall-clock divergence (milliseconds) beyond which a session report carries
 /// a clock-skew warning. Kerberos-style tolerance: below it, LWW comparisons

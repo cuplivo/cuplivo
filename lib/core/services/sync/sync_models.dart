@@ -252,6 +252,13 @@ Map<String, String> identityContributionsOf(SyncSubtreePayload payload) => {
 /// The family name is in the text on purpose. Without it, a conversation whose
 /// last message was deleted and whose last part was added could compose the same
 /// lines — the digest would answer "unchanged" for a change it cannot see.
+///
+/// The identity is a *set* of lines, so the composer sorts them. The two
+/// readers produce a block differently — the manifest path from one SQL
+/// aggregate (`group_concat` over an ordered subquery), the checkpoint path by
+/// sorting in Dart — and only the second is a guarantee. Sorting where the set
+/// becomes a string means neither reader can be the reason the two disagree,
+/// which would leave a settled conversation looking changed forever.
 String composeConversationDigest(Map<String, String> contributions) {
   final names =
       contributions.keys
@@ -263,7 +270,8 @@ String composeConversationDigest(Map<String, String> contributions) {
       .convert(
         utf8.encode(
           [
-            for (final name in names) '$name\n${contributions[name]}',
+            for (final name in names)
+              '$name\n${(contributions[name]!.split('\n')..sort()).join('\n')}',
           ].join('\n'),
         ),
       )

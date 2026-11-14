@@ -156,6 +156,28 @@ void main() {
     );
   });
 
+  test('a business family that declares an identity would fail', () {
+    // A business row's digest is `entityRowDigest(payload, sort_order)`; the
+    // registry's `identity` is read only for conversation families. Declaring
+    // one on a business family used to be required and inert — a field that
+    // promised a digest change nothing would ever make.
+    final problems = syncFamilyProblems([
+      ...families,
+      const SyncFamily(
+        name: 'ghostEntity',
+        table: 'extension_entity_rows',
+        kind: 'ghostEntityKind',
+        ownership: SyncFamilyOwnership.synced,
+        scope: SyncFamilyScope.business,
+        identity: SyncIdentityContribution.payloadDigest,
+      ),
+    ]);
+    expect(
+      problems.where((problem) => problem.contains('nothing reads')),
+      isNotEmpty,
+    );
+  });
+
   test('a device-local family without a reason would fail', () {
     final problems = syncFamilyProblems([
       ...families,

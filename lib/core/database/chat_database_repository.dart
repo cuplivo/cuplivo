@@ -6113,16 +6113,6 @@ class ChatDatabaseRepository {
         );
       }
 
-      // D-7: the conversation's own document families are rows on their own
-      // clock, and are applied here because nothing in the message merge depends
-      // on them.
-      final documentsReplaced = await _applyConversationDocuments(
-        conversationId: conversationId,
-        payload: payload,
-        myDeviceId: myDeviceId,
-        peerDeviceId: peerDeviceId,
-      );
-
       final plan = mergeMessageRows(
         local: localMessages,
         incoming: incomingMessages,
@@ -6254,6 +6244,20 @@ class ChatDatabaseRepository {
         }
       }
 
+      // D-7: the conversation's own document families, each a row on its own
+      // clock. Applied *after* the message phases because a document row may
+      // hang off a revision — a provider artifact names `message_rows.id` — and
+      // the merge above is what decides which revisions exist afterwards. A row
+      // written before that decision can name a revision the version-group rule
+      // dropped, which the deferred foreign key only reports at COMMIT.
+      final documentsReplaced = await _applyConversationDocuments(
+        conversationId: conversationId,
+        payload: payload,
+        myDeviceId: myDeviceId,
+        peerDeviceId: peerDeviceId,
+        survivingRevisions: finalRows.keys.toSet(),
+      );
+
       return SyncSubtreeApplyOutcome(
         conversationRow: conversationRow,
         messageRows: [for (final row in finalRows.values) row],
@@ -6286,14 +6290,17 @@ class ChatDatabaseRepository {
   /// only place that can say so.
   ///
   /// A row is accepted only where it says it belongs: its conversation column
-  /// names this conversation, and an extension row carries exactly its family's
-  /// kind. A crafted row that names another conversation or another kind is
-  /// dropped, the refusal [_syncForeignMessageIds] already makes for messages.
+  /// names this conversation, an extension row carries exactly its family's
+  /// kind, and a row that hangs off a revision names one this conversation keeps.
+  /// A crafted row that names another conversation, another kind, or another
+  /// conversation's revision is dropped — the refusal [_syncForeignMessageIds]
+  /// already makes for messages.
   Future<int> _applyConversationDocuments({
     required String conversationId,
     required SyncSubtreePayload payload,
     required String myDeviceId,
     required String peerDeviceId,
+    required Set<String> survivingRevisions,
   }) async {
     var replaced = 0;
     for (final family in syncedConversationFamilies) {
@@ -6308,6 +6315,14 @@ class ChatDatabaseRepository {
         throw StateError('sync_conflict_target_missing:${family.table}');
       }
       for (final row in rows) {
+        // A row that hangs off a revision is written only when the merge kept
+        // that revision: the foreign key is checked at COMMIT, and a dangling
+        // row would abort the apply and, with it, the checkpoint.
+        final revisionColumn = family.messageRevisionColumn;
+        if (revisionColumn != null &&
+            !survivingRevisions.contains(row[revisionColumn])) {
+          continue;
+        }
         if (row[family.conversationColumn] != conversationId) continue;
         if (family.kind != null && row['kind'] != family.kind) continue;
         if (row['payload'] is! String) continue;

@@ -1,28 +1,16 @@
 # Changelog
 
-## [4.7.0] - 2026-11-15
-
-### Added
-
-- **A reply bubble can be turned off**: Settings › Display › Show assistant reply bubbles draws the assistant's answer straight on the chat background (#1475 by @Chevey339)
-- **One message's other versions can be dropped in one step**: the ⋯ menu offers "Delete Other Versions" beside "Delete This Version" and "Delete All Versions", with a confirmation naming how many will go (#1480 by @Chevey339)
-- **DeepSeek voices**: speech synthesis and recognition appear in the TTS and ASR service lists, with the two DeepSeek voices
-- **A deleted skill's files go to the recycle bin**: deleting a skill moves its body with its record, and a restore puts the body back — the one last write that could not be undone now can (#1084 by @cup113)
+## [4.7.0] - 2026-11-16
 
 ### Changed
 
-- **Re-based on Kelivo `master` at v1.3.6**: everything upstream has shipped since `v1.3.5` (by @Chevey339)
-  - The optional assistant reply bubble
-  - Deleting other versions of a message
-  - DeepSeek speech synthesis and recognition
-  - Built-in prompts deduplicated, world-book placement stabilized
-  - A PNG stays a PNG when saved to the mobile gallery
-  - Image thumbnails keep their aspect ratio and crop centrally (#1481)
-- **A deletion LAN sync skipped is now reported**: a delete this device refused because its own copy had changed since the two devices last agreed appears in the sync report as "n deletions skipped", instead of vanishing (#1083 by @cup113)
-
-### Fixed
-
-- The file tool preference no longer sits in the system prompt
+- **LAN sync rebuilt to close latent defects**: the sync protocol version is bumped, so devices that want to keep syncing must upgrade together (#1083, #1084 by @cup113, @hstate)
+- **Re-based on Kelivo v1.3.6**: everything the upstream line has shipped since v1.3.4 (by @Chevey339)
+  - Context compaction reworked
+  - Start at login, with an option to stay in the tray
+  - Russian, Korean and Turkish
+  - Other changes and fixes
+- Cuplivo's own manual compaction, tap-to-preview and crop implementations are replaced by upstream's, which do more (by @Chevey339)
 
 ## [4.6.0] - 2026-11-09
 

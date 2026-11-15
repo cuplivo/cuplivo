@@ -88,6 +88,9 @@ jobs:
       - name: Identity sweep (forward)
         run: python3 tool/identity/verify.py --forward
 
+      - name: Identity tool tests
+        run: python3 -m unittest discover -s tool/identity -p 'test_*.py'
+
       - name: dart analyze (app and development tools)
         run: dart analyze --fatal-infos lib test integration_test tool
 

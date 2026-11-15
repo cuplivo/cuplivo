@@ -1068,67 +1068,68 @@ class AppLocalizationsTr extends AppLocalizations {
   String get desktopNavStorageTooltip => 'Depolama';
 
   @override
-  String get toolsMenuTooltip => 'Tools';
+  String get toolsMenuTooltip => 'Araçlar';
 
   @override
-  String get markdownExportTitle => 'Markdown image';
+  String get markdownExportTitle => 'Markdown görseli';
 
   @override
-  String get markdownExportEditTab => 'Edit';
+  String get markdownExportEditTab => 'Düzenle';
 
   @override
-  String get markdownExportPreviewTab => 'Preview';
+  String get markdownExportPreviewTab => 'Önizleme';
 
   @override
-  String get markdownExportHint => 'Paste Markdown, or import a .md file';
+  String get markdownExportHint =>
+      'Markdown yapıştırın veya bir .md dosyası içe aktarın';
 
   @override
-  String get markdownExportPreviewEmpty => 'Nothing to preview yet';
+  String get markdownExportPreviewEmpty => 'Henüz önizlenecek bir şey yok';
 
   @override
-  String get markdownExportImport => 'Import';
+  String get markdownExportImport => 'İçe aktar';
 
   @override
-  String get markdownExportPaste => 'Paste';
+  String get markdownExportPaste => 'Yapıştır';
 
   @override
-  String get markdownExportTextSize => 'Text size';
+  String get markdownExportTextSize => 'Yazı boyutu';
 
   @override
-  String get markdownExportTextSizeSmall => 'Small';
+  String get markdownExportTextSizeSmall => 'Küçük';
 
   @override
-  String get markdownExportTextSizeStandard => 'Standard';
+  String get markdownExportTextSizeStandard => 'Standart';
 
   @override
-  String get markdownExportTextSizeLarge => 'Large';
+  String get markdownExportTextSizeLarge => 'Büyük';
 
   @override
-  String get markdownExportHideSource => 'Hide source';
+  String get markdownExportHideSource => 'Kaynağı gizle';
 
   @override
-  String get markdownExportShowSource => 'Show source';
+  String get markdownExportShowSource => 'Kaynağı göster';
 
   @override
   String get markdownExportReducedResolution =>
-      'Long document: drawn at a lower resolution so it still fits one picture';
+      'Uzun belge: tek bir görsele sığması için daha düşük çözünürlükte çizildi';
 
   @override
-  String get markdownExportExportImage => 'Export image';
+  String get markdownExportExportImage => 'Görseli dışa aktar';
 
   @override
-  String get markdownExportDropHint => 'Drop to import Markdown';
+  String get markdownExportDropHint => 'Markdown içe aktarmak için bırakın';
 
   @override
   String get markdownExportUnsupportedFile =>
-      'Only Markdown text files are supported';
+      'Yalnızca Markdown metin dosyaları desteklenir';
 
   @override
-  String get markdownExportReadFailed => 'This file could not be read';
+  String get markdownExportReadFailed => 'Bu dosya okunamadı';
 
   @override
   String get markdownExportNothingToPaste =>
-      'The clipboard has nothing this tool can use';
+      'Panoda bu aracın kullanabileceği bir içerik yok';
 
   @override
   String get desktopNavGlobalSearchTooltip => 'Genel Arama';
@@ -1788,21 +1789,21 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get backupPageTargetTitle => 'Backup target';
+  String get backupPageTargetTitle => 'Yedek hedefi';
 
   @override
   String get backupPageTargetCuplivo => 'Cuplivo';
 
   @override
   String get backupPageTargetCuplivoNote =>
-      'Everything this version can restore, group chats included';
+      'Bu sürümün geri yükleyebildiği her şey, grup sohbetleri dahil';
 
   @override
   String get backupPageTargetKelivo => 'Kelivo 1.3.4';
 
   @override
   String get backupPageTargetKelivoNote =>
-      'Imports into Kelivo, but group chats are lost';
+      'Kelivo\'ya aktarılabilir, ancak grup sohbetleri kaybolur';
 
   @override
   String get backupPageBackupManagementDescription =>
@@ -2675,11 +2676,11 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get chatToolsEmptyModelCannotUseTools =>
-      'This member\'s model cannot call tools.';
+      'Bu üyenin modeli araçları çağıramıyor.';
 
   @override
   String get chatToolsEmptyNoToolsEnabled =>
-      'This member has no tools switched on.';
+      'Bu üyede etkinleştirilmiş araç yok.';
 
   @override
   String get messageMoreSheetTitle => 'Daha Fazla İşlem';
@@ -3466,7 +3467,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get chatInputBarMoreTooltip => 'Ekle';
 
   @override
-  String get chatInputBarOverflowTooltip => 'More actions';
+  String get chatInputBarOverflowTooltip => 'Daha fazla işlem';
 
   @override
   String get chatInputBarVoiceInputTooltip => 'Sesli giriş';
@@ -12107,10 +12108,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get backgroundGenerating => 'Yanıt oluşturuluyor';
 
   @override
-  String get backgroundCareLetter => 'Writing a letter';
+  String get backgroundCareLetter => 'Mektup yazılıyor';
 
   @override
-  String get backgroundCareWorking => 'Preparing your letter';
+  String get backgroundCareWorking => 'Mektubunuz hazırlanıyor';
 
   @override
   String get backgroundThinking => 'Düşünüyor';
@@ -17970,12 +17971,12 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String lanSyncReportWorkspacesKept(Object count) {
-    return '$count çalışma alanı klasörü korundu (anahtar kapalı veya eşitlenmemiş dosya var)';
+    return '$count çalışma alanı klasörü diskte tutuldu (kapalı veya eşitlenmemiş dosyalar içeriyor)';
   }
 
   @override
   String lanSyncReportDeletesBlocked(Object count) {
-    return '$count silme atlandı (yerel kopya değişti)';
+    return '$count silme işlemi atlandı (yerel kopya değişti)';
   }
 
   @override
@@ -18750,7 +18751,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backupAutoEnableHint =>
-      'Planlanan saat geldiğinde Cuplivo, uygulama ön plandayken yedekleme yapar. Uygulama kapatılır veya sonlandırılırsa yedekleme devam etmez ve kaldığı yerden sürdürülmez; uygulamayı bir sonraki açışınızda süre hâlâ dolmuşsa tek bir tam yedekleme çalışır.';
+      'Planlanan saat geldiğinde, uygulama ön plandayken Cuplivo yedekleme yapar. Uygulama kapatılır veya sonlandırılırsa yedekleme devam etmez ve kaldığı yerden sürdürülmez; uygulamayı bir sonraki açışınızda hâlâ zamanı gelmişse tek bir tam yedekleme çalışır.';
 
   @override
   String get backupAutoDestinationTitle => 'Otomatik yedekleme hedefi';
@@ -18800,11 +18801,11 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backupAutoLocalDirUnavailable =>
-      'Seçilen klasöre yazılamıyor. Hâlâ kullanılabilir olduğunu kontrol edin veya başka bir klasör seçin. Cuplivo kayıtlı konumu kendi başına değiştirmez.';
+      'Seçilen klasöre yazılamıyor. Hâlâ kullanılabilir olduğunu kontrol edin veya başka bir klasör seçin. Cuplivo kayıtlı konumu kendiliğinden değiştirmez.';
 
   @override
   String get backupAutoLocalDirPermission =>
-      'Seçilen klasöre yazma izniniz yok. Lütfen klasörü yeniden seçin. Cuplivo kayıtlı konumu kendi başına değiştirmez.';
+      'Seçilen klasöre yazma izniniz yok. Lütfen klasörü yeniden seçin. Cuplivo kayıtlı konumu kendiliğinden değiştirmez.';
 
   @override
   String get backupAutoLocalDirFull =>
@@ -18837,7 +18838,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backupAutoKeychainUnavailable =>
-      'Cuplivo, yedekleme parolası için sistem anahtarlığına erişemiyor. Yine de manuel olarak yedekleme yapabilirsiniz.';
+      'Cuplivo, yedek parolası için sistem anahtarlığına erişemiyor. Yine de manuel yedekleme yapabilirsiniz.';
 
   @override
   String get backupAutoSucceeded => 'Otomatik yedekleme tamamlandı';
@@ -18879,144 +18880,143 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backupMacKeychainNeedsUnlock =>
-      'macOS oturum açma anahtarlığının kilidini açamadı. Anahtar Zinciri Erişimi\'ni açın, “oturum açma” anahtarlığının kilidini açın ve ardından Cuplivo\'da tekrar deneyin.';
+      'macOS oturum açma anahtarlığının kilidini açamadı. Anahtar Zinciri Erişimi\'ni açın, \"login\" anahtarlığının kilidini açın ve ardından Cuplivo\'da yeniden deneyin.';
 
   @override
   String get backupMacOpenKeychainAccess => 'Anahtar Zinciri Erişimi\'ni aç';
 
   @override
   String get backupMacKeychainAccessDenied =>
-      'macOS yedek parolasına erişimi reddetti. Bir sistem istemi görünürse Cuplivo\'nun erişmesine izin verin. Ayrıca Anahtar Zinciri Erişimi\'nde varsayılan anahtar zincirini ve parola öğesinin izinlerini kontrol edebilirsiniz.';
+      'macOS, yedek parolasına erişimi reddetti. Bir sistem istemi görünürse Cuplivo\'nun erişmesine izin verin. Ayrıca Anahtar Zinciri Erişimi\'nde varsayılan anahtar zincirini ve parola öğesinin izinlerini kontrol edebilirsiniz.';
 
   @override
-  String get settingsPageChatOwners => 'Assistants and groups';
+  String get settingsPageChatOwners => 'Asistanlar ve gruplar';
 
   @override
-  String get settingsPageChatOwnersCreate => 'Create';
+  String get settingsPageChatOwnersCreate => 'Oluştur';
 
   @override
-  String get chatOwnersSeparate => 'Show separately';
+  String get chatOwnersSeparate => 'Ayrı göster';
 
   @override
-  String get chatOwnersSectionAssistants => 'Assistants';
+  String get chatOwnersSectionAssistants => 'Asistanlar';
 
   @override
-  String get chatOwnersSectionGroups => 'Groups';
+  String get chatOwnersSectionGroups => 'Gruplar';
 
   @override
-  String get chatOwnerCreateAssistant => 'New assistant';
+  String get chatOwnerCreateAssistant => 'Yeni asistan';
 
   @override
-  String get recycleBinKindGroup => 'Group';
+  String get recycleBinKindGroup => 'Grup';
 
   @override
-  String get recycleBinFilterGroups => 'Groups';
+  String get recycleBinFilterGroups => 'Gruplar';
 
   @override
-  String get groupChatTitle => 'Group chat';
+  String get groupChatTitle => 'Grup sohbeti';
 
   @override
-  String get groupChatCreate => 'New group chat';
+  String get groupChatCreate => 'Yeni grup sohbeti';
 
   @override
-  String get groupChatCreateHint => 'Pick at least one assistant';
+  String get groupChatCreateHint => 'En az bir asistan seçin';
 
   @override
-  String get groupChatNameHint => 'Group name';
+  String get groupChatNameHint => 'Grup adı';
 
   @override
-  String get groupChatChangeAvatar => 'Change group avatar';
+  String get groupChatChangeAvatar => 'Grup avatarını değiştir';
 
   @override
-  String get groupChatMembers => 'Members';
+  String get groupChatMembers => 'Üyeler';
 
   @override
-  String get groupChatMembersEmpty => 'No members yet';
+  String get groupChatMembersEmpty => 'Henüz üye yok';
 
   @override
-  String get groupChatInvite => 'Invite assistants';
+  String get groupChatInvite => 'Asistan davet et';
 
   @override
-  String get groupChatNoAssistantToInvite =>
-      'Every assistant is already in this group';
+  String get groupChatNoAssistantToInvite => 'Tüm asistanlar zaten bu grupta';
 
   @override
-  String get groupChatSave => 'Save';
+  String get groupChatSave => 'Kaydet';
 
   @override
-  String get groupChatCancel => 'Cancel';
+  String get groupChatCancel => 'İptal';
 
   @override
-  String get groupChatSettingsTitle => 'Group settings';
+  String get groupChatSettingsTitle => 'Grup ayarları';
 
   @override
-  String get groupChatBack => 'Back';
+  String get groupChatBack => 'Geri';
 
   @override
-  String get groupChatOrchestration => 'Who speaks';
+  String get groupChatOrchestration => 'Kim konuşacak';
 
   @override
-  String get groupChatDirectorTitle => 'Director model';
+  String get groupChatDirectorTitle => 'Yönetmen modeli';
 
   @override
   String get groupChatDirectorSubtitle =>
-      'The model that picks who speaks next. A fast, low-cost model is the right choice.';
+      'Sırada kimin konuşacağını seçen model. Hızlı ve düşük maliyetli bir model doğru seçimdir.';
 
   @override
-  String get groupChatDirectorFollowDefault => 'Follows default model';
+  String get groupChatDirectorFollowDefault => 'Varsayılan modeli izler';
 
   @override
-  String get groupChatMaxTurnsTitle => 'Replies per round';
+  String get groupChatMaxTurnsTitle => 'Tur başına yanıt';
 
   @override
   String get groupChatMaxTurnsSubtitle =>
-      'How many members may reply to one message';
+      'Bir mesaja en fazla kaç üye yanıt verebilir';
 
   @override
-  String get groupChatRemoveMember => 'Remove';
+  String get groupChatRemoveMember => 'Kaldır';
 
   @override
-  String get groupChatRemoveMemberTitle => 'Remove assistant';
+  String get groupChatRemoveMemberTitle => 'Asistanı kaldır';
 
   @override
   String get groupChatRemoveMemberContent =>
-      'This assistant will no longer take part in this group.';
+      'Bu asistan artık bu grupta yer almayacak.';
 
   @override
-  String get groupChatDelete => 'Delete group chat';
+  String get groupChatDelete => 'Grup sohbetini sil';
 
   @override
-  String get groupChatDeleteTitle => 'Delete this group chat?';
+  String get groupChatDeleteTitle => 'Bu grup sohbeti silinsin mi?';
 
   @override
   String get groupChatDeleteContent =>
-      'The group and all of its topics move to the recycle bin together.';
+      'Grup ve tüm konuları birlikte geri dönüşüm kutusuna taşınır.';
 
   @override
-  String get groupChatDeleted => 'Group chat moved to the recycle bin';
+  String get groupChatDeleted => 'Grup sohbeti geri dönüşüm kutusuna taşındı';
 
   @override
   String get groupChatUnavailable =>
-      'This group chat\'s settings are not available. Restore it from the recycle bin.';
+      'Bu grup sohbetinin ayarları bulunamadı. Geri dönüşüm kutusundan geri yükleyin.';
 
   @override
-  String get groupChatNewTopic => 'New topic';
+  String get groupChatNewTopic => 'Yeni konu';
 
   @override
-  String get groupChatRemovedMember => 'Deleted assistant';
+  String get groupChatRemovedMember => 'Silinmiş asistan';
 
   @override
   String get groupChatDirectorFallbackWarning =>
-      'The director model is unavailable, so the first member replied once. Check the default model settings.';
+      'Yönetmen modeli kullanılamıyor, bu yüzden ilk üye bir kez yanıtladı. Varsayılan model ayarlarını kontrol edin.';
 
   @override
   String get groupChatUnavailableWarning =>
-      'This group chat has no available members.';
+      'Bu grup sohbetinde kullanılabilir üye yok.';
 
   @override
-  String get defaultModelPageDirectorModelTitle => 'Director model';
+  String get defaultModelPageDirectorModelTitle => 'Yönetmen modeli';
 
   @override
   String get defaultModelPageDirectorModelSubtitle =>
-      'Picks who speaks next in a group chat. A fast, low-cost model is the best fit.';
+      'Grup sohbetinde sıradaki konuşmacıyı belirler. Hızlı ve düşük maliyetli bir model en uygun seçimdir.';
 }

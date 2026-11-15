@@ -1038,67 +1038,65 @@ class AppLocalizationsKo extends AppLocalizations {
   String get desktopNavStorageTooltip => '저장소';
 
   @override
-  String get toolsMenuTooltip => 'Tools';
+  String get toolsMenuTooltip => '도구';
 
   @override
-  String get markdownExportTitle => 'Markdown image';
+  String get markdownExportTitle => 'Markdown 이미지';
 
   @override
-  String get markdownExportEditTab => 'Edit';
+  String get markdownExportEditTab => '편집';
 
   @override
-  String get markdownExportPreviewTab => 'Preview';
+  String get markdownExportPreviewTab => '미리보기';
 
   @override
-  String get markdownExportHint => 'Paste Markdown, or import a .md file';
+  String get markdownExportHint => 'Markdown을 붙여넣거나 .md 파일을 가져오세요';
 
   @override
-  String get markdownExportPreviewEmpty => 'Nothing to preview yet';
+  String get markdownExportPreviewEmpty => '아직 미리 볼 내용이 없습니다';
 
   @override
-  String get markdownExportImport => 'Import';
+  String get markdownExportImport => '가져오기';
 
   @override
-  String get markdownExportPaste => 'Paste';
+  String get markdownExportPaste => '붙여넣기';
 
   @override
-  String get markdownExportTextSize => 'Text size';
+  String get markdownExportTextSize => '글자 크기';
 
   @override
-  String get markdownExportTextSizeSmall => 'Small';
+  String get markdownExportTextSizeSmall => '작게';
 
   @override
-  String get markdownExportTextSizeStandard => 'Standard';
+  String get markdownExportTextSizeStandard => '표준';
 
   @override
-  String get markdownExportTextSizeLarge => 'Large';
+  String get markdownExportTextSizeLarge => '크게';
 
   @override
-  String get markdownExportHideSource => 'Hide source';
+  String get markdownExportHideSource => '소스 숨기기';
 
   @override
-  String get markdownExportShowSource => 'Show source';
+  String get markdownExportShowSource => '소스 표시';
 
   @override
   String get markdownExportReducedResolution =>
-      'Long document: drawn at a lower resolution so it still fits one picture';
+      '문서가 길어 한 장의 이미지에 담기도록 해상도를 낮췄습니다';
 
   @override
-  String get markdownExportExportImage => 'Export image';
+  String get markdownExportExportImage => '이미지 내보내기';
 
   @override
-  String get markdownExportDropHint => 'Drop to import Markdown';
+  String get markdownExportDropHint => '놓아서 Markdown 가져오기';
 
   @override
-  String get markdownExportUnsupportedFile =>
-      'Only Markdown text files are supported';
+  String get markdownExportUnsupportedFile => 'Markdown 텍스트 파일만 지원합니다';
 
   @override
-  String get markdownExportReadFailed => 'This file could not be read';
+  String get markdownExportReadFailed => '이 파일을 읽을 수 없습니다';
 
   @override
-  String get markdownExportNothingToPaste =>
-      'The clipboard has nothing this tool can use';
+  String get markdownExportNothingToPaste => '클립보드에 이 도구에서 사용할 수 있는 내용이 없습니다';
 
   @override
   String get desktopNavGlobalSearchTooltip => '전체 검색';
@@ -1746,21 +1744,20 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get backupPageTargetTitle => 'Backup target';
+  String get backupPageTargetTitle => '백업 대상';
 
   @override
   String get backupPageTargetCuplivo => 'Cuplivo';
 
   @override
-  String get backupPageTargetCuplivoNote =>
-      'Everything this version can restore, group chats included';
+  String get backupPageTargetCuplivoNote => '이 버전에서 복원할 수 있는 모든 항목, 그룹 채팅 포함';
 
   @override
   String get backupPageTargetKelivo => 'Kelivo 1.3.4';
 
   @override
   String get backupPageTargetKelivoNote =>
-      'Imports into Kelivo, but group chats are lost';
+      'Kelivo에서 가져올 수 있지만 그룹 채팅 데이터는 사라집니다';
 
   @override
   String get backupPageBackupManagementDescription =>
@@ -2608,12 +2605,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get bottomToolsSheetOcr => '이미지 OCR';
 
   @override
-  String get chatToolsEmptyModelCannotUseTools =>
-      'This member\'s model cannot call tools.';
+  String get chatToolsEmptyModelCannotUseTools => '이 멤버의 모델은 도구를 호출할 수 없습니다.';
 
   @override
-  String get chatToolsEmptyNoToolsEnabled =>
-      'This member has no tools switched on.';
+  String get chatToolsEmptyNoToolsEnabled => '이 멤버는 활성화된 도구가 없습니다.';
 
   @override
   String get messageMoreSheetTitle => '추가 작업';
@@ -3367,7 +3362,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get chatInputBarMoreTooltip => '추가';
 
   @override
-  String get chatInputBarOverflowTooltip => 'More actions';
+  String get chatInputBarOverflowTooltip => '더 많은 작업';
 
   @override
   String get chatInputBarVoiceInputTooltip => '음성 입력';
@@ -11690,10 +11685,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get backgroundGenerating => '답변 생성 중';
 
   @override
-  String get backgroundCareLetter => 'Writing a letter';
+  String get backgroundCareLetter => '편지 작성 중';
 
   @override
-  String get backgroundCareWorking => 'Preparing your letter';
+  String get backgroundCareWorking => '편지를 준비하는 중';
 
   @override
   String get backgroundThinking => '생각 중';
@@ -17330,12 +17325,12 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String lanSyncReportWorkspacesKept(Object count) {
-    return '작업 공간 폴더 $count개 보관(스위치 꺼짐 또는 동기화되지 않은 파일 있음)';
+    return '작업 공간 폴더 $count개를 디스크에 유지했습니다(동기화가 꺼져 있거나 동기화되지 않은 파일 포함)';
   }
 
   @override
   String lanSyncReportDeletesBlocked(Object count) {
-    return '삭제 $count건 건너뜀(이 기기의 내용이 변경됨)';
+    return '삭제 $count건을 건너뛰었습니다(로컬 사본이 변경됨)';
   }
 
   @override
@@ -18083,7 +18078,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupAutoEnableHint =>
-      '예정된 시각이 되면 앱이 포그라운드에 있을 때 Cuplivo가 백업합니다. 앱이 닫히거나 종료되면 백업이 계속 실행되지 않으며 이어서 진행되지도 않습니다. 앱을 다시 열었을 때 아직 예정 시각이 지났다면 전체 백업을 한 번만 실행합니다.';
+      '예약 시간이 되면 앱이 포그라운드에 있을 때 Cuplivo가 백업합니다. 앱이 닫히거나 종료되면 백업이 계속 실행되지 않으며 이어서 진행되지도 않습니다. 다음에 앱을 열었을 때 아직 기한이 지났다면 전체 백업을 한 번 실행합니다.';
 
   @override
   String get backupAutoDestinationTitle => '자동 백업 위치';
@@ -18132,11 +18127,11 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupAutoLocalDirUnavailable =>
-      '선택한 폴더에 쓸 수 없습니다. 폴더가 여전히 사용 가능한지 확인하거나 다른 폴더를 선택하세요. Cuplivo는 저장된 위치를 임의로 변경하지 않습니다.';
+      '선택한 폴더에 쓸 수 없습니다. 폴더가 여전히 사용 가능한지 확인하거나 다른 폴더를 선택하세요. 저장된 위치는 자동으로 변경되지 않습니다.';
 
   @override
   String get backupAutoLocalDirPermission =>
-      '선택한 폴더에 쓸 권한이 없습니다. 폴더를 다시 선택하세요. Cuplivo는 저장된 위치를 임의로 변경하지 않습니다.';
+      '선택한 폴더에 쓸 권한이 없습니다. 폴더를 다시 선택하세요. 저장된 위치는 자동으로 변경되지 않습니다.';
 
   @override
   String get backupAutoLocalDirFull =>
@@ -18144,7 +18139,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupAutoLocalBookmarkLost =>
-      'Cuplivo가 선택한 폴더에 접근할 수 없습니다. 폴더를 다시 선택하세요. 저장된 위치는 자동으로 변경되지 않습니다.';
+      '선택한 폴더에 접근할 수 없습니다. 폴더를 다시 선택하세요. 저장된 위치는 자동으로 변경되지 않습니다.';
 
   @override
   String get backupAutoNextTitle => '다음 자동 백업';
@@ -18207,144 +18202,138 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupMacKeychainNeedsUnlock =>
-      'macOS에서 로그인 키체인을 잠금 해제하지 못했습니다. 키체인 접근을 열어 \'로그인\'을 잠금 해제한 후 Cuplivo에서 다시 시도하세요.';
+      'macOS가 로그인 키체인을 잠금 해제하지 못했습니다. \'키체인 접근\'을 열어 \'로그인\'을 잠금 해제한 뒤 Cuplivo에서 다시 시도하세요.';
 
   @override
   String get backupMacOpenKeychainAccess => '키체인 접근 열기';
 
   @override
   String get backupMacKeychainAccessDenied =>
-      'macOS에서 백업 비밀번호 접근이 거부되었습니다. 시스템 프롬프트가 나타나면 Cuplivo의 접근을 허용해 주세요. 키체인 접근에서 기본 키체인과 비밀번호 항목의 권한을 확인할 수도 있습니다.';
+      'macOS에서 백업 비밀번호 접근을 거부했습니다. 시스템 프롬프트가 나타나면 Cuplivo의 접근을 허용해 주세요. 키체인 접근에서 기본 키체인과 비밀번호 항목의 권한을 확인할 수도 있습니다.';
 
   @override
-  String get settingsPageChatOwners => 'Assistants and groups';
+  String get settingsPageChatOwners => '어시스턴트 및 그룹';
 
   @override
-  String get settingsPageChatOwnersCreate => 'Create';
+  String get settingsPageChatOwnersCreate => '만들기';
 
   @override
-  String get chatOwnersSeparate => 'Show separately';
+  String get chatOwnersSeparate => '별도로 표시';
 
   @override
-  String get chatOwnersSectionAssistants => 'Assistants';
+  String get chatOwnersSectionAssistants => '어시스턴트';
 
   @override
-  String get chatOwnersSectionGroups => 'Groups';
+  String get chatOwnersSectionGroups => '그룹';
 
   @override
-  String get chatOwnerCreateAssistant => 'New assistant';
+  String get chatOwnerCreateAssistant => '새 어시스턴트';
 
   @override
-  String get recycleBinKindGroup => 'Group';
+  String get recycleBinKindGroup => '그룹';
 
   @override
-  String get recycleBinFilterGroups => 'Groups';
+  String get recycleBinFilterGroups => '그룹';
 
   @override
-  String get groupChatTitle => 'Group chat';
+  String get groupChatTitle => '그룹 채팅';
 
   @override
-  String get groupChatCreate => 'New group chat';
+  String get groupChatCreate => '새 그룹 채팅';
 
   @override
-  String get groupChatCreateHint => 'Pick at least one assistant';
+  String get groupChatCreateHint => '어시스턴트를 하나 이상 선택하세요';
 
   @override
-  String get groupChatNameHint => 'Group name';
+  String get groupChatNameHint => '그룹 이름';
 
   @override
-  String get groupChatChangeAvatar => 'Change group avatar';
+  String get groupChatChangeAvatar => '그룹 아바타 변경';
 
   @override
-  String get groupChatMembers => 'Members';
+  String get groupChatMembers => '멤버';
 
   @override
-  String get groupChatMembersEmpty => 'No members yet';
+  String get groupChatMembersEmpty => '아직 멤버가 없습니다';
 
   @override
-  String get groupChatInvite => 'Invite assistants';
+  String get groupChatInvite => '어시스턴트 초대';
 
   @override
-  String get groupChatNoAssistantToInvite =>
-      'Every assistant is already in this group';
+  String get groupChatNoAssistantToInvite => '모든 어시스턴트가 이미 이 그룹에 있습니다';
 
   @override
-  String get groupChatSave => 'Save';
+  String get groupChatSave => '저장';
 
   @override
-  String get groupChatCancel => 'Cancel';
+  String get groupChatCancel => '취소';
 
   @override
-  String get groupChatSettingsTitle => 'Group settings';
+  String get groupChatSettingsTitle => '그룹 설정';
 
   @override
-  String get groupChatBack => 'Back';
+  String get groupChatBack => '뒤로';
 
   @override
-  String get groupChatOrchestration => 'Who speaks';
+  String get groupChatOrchestration => '발언자 선택';
 
   @override
-  String get groupChatDirectorTitle => 'Director model';
+  String get groupChatDirectorTitle => '디렉터 모델';
 
   @override
   String get groupChatDirectorSubtitle =>
-      'The model that picks who speaks next. A fast, low-cost model is the right choice.';
+      '다음 발언자를 선택하는 모델입니다. 빠르고 비용이 낮은 모델을 권장합니다.';
 
   @override
-  String get groupChatDirectorFollowDefault => 'Follows default model';
+  String get groupChatDirectorFollowDefault => '기본 모델을 따름';
 
   @override
-  String get groupChatMaxTurnsTitle => 'Replies per round';
+  String get groupChatMaxTurnsTitle => '라운드당 최대 답변 수';
 
   @override
-  String get groupChatMaxTurnsSubtitle =>
-      'How many members may reply to one message';
+  String get groupChatMaxTurnsSubtitle => '한 메시지에 최대 몇 명의 멤버가 답변할 수 있는지';
 
   @override
-  String get groupChatRemoveMember => 'Remove';
+  String get groupChatRemoveMember => '내보내기';
 
   @override
-  String get groupChatRemoveMemberTitle => 'Remove assistant';
+  String get groupChatRemoveMemberTitle => '어시스턴트 내보내기';
 
   @override
-  String get groupChatRemoveMemberContent =>
-      'This assistant will no longer take part in this group.';
+  String get groupChatRemoveMemberContent => '이 어시스턴트는 더 이상 이 그룹에 참여하지 않습니다.';
 
   @override
-  String get groupChatDelete => 'Delete group chat';
+  String get groupChatDelete => '그룹 채팅 삭제';
 
   @override
-  String get groupChatDeleteTitle => 'Delete this group chat?';
+  String get groupChatDeleteTitle => '이 그룹 채팅을 삭제할까요?';
 
   @override
-  String get groupChatDeleteContent =>
-      'The group and all of its topics move to the recycle bin together.';
+  String get groupChatDeleteContent => '그룹과 모든 토픽이 함께 휴지통으로 이동합니다.';
 
   @override
-  String get groupChatDeleted => 'Group chat moved to the recycle bin';
+  String get groupChatDeleted => '그룹 채팅이 휴지통으로 이동했습니다';
 
   @override
-  String get groupChatUnavailable =>
-      'This group chat\'s settings are not available. Restore it from the recycle bin.';
+  String get groupChatUnavailable => '이 그룹 채팅의 설정을 찾을 수 없습니다. 휴지통에서 복원하세요.';
 
   @override
-  String get groupChatNewTopic => 'New topic';
+  String get groupChatNewTopic => '새 토픽';
 
   @override
-  String get groupChatRemovedMember => 'Deleted assistant';
+  String get groupChatRemovedMember => '삭제된 어시스턴트';
 
   @override
   String get groupChatDirectorFallbackWarning =>
-      'The director model is unavailable, so the first member replied once. Check the default model settings.';
+      '디렉터 모델을 사용할 수 없어 첫 번째 멤버가 한 번 답변했습니다. 기본 모델 설정을 확인하세요.';
 
   @override
-  String get groupChatUnavailableWarning =>
-      'This group chat has no available members.';
+  String get groupChatUnavailableWarning => '이 그룹 채팅에 사용 가능한 멤버가 없습니다.';
 
   @override
-  String get defaultModelPageDirectorModelTitle => 'Director model';
+  String get defaultModelPageDirectorModelTitle => '디렉터 모델';
 
   @override
   String get defaultModelPageDirectorModelSubtitle =>
-      'Picks who speaks next in a group chat. A fast, low-cost model is the best fit.';
+      '그룹 채팅에서 다음 발언자를 선택합니다. 빠르고 저렴한 모델이 가장 적합합니다.';
 }

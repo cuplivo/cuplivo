@@ -36843,7 +36843,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get markdownExportHint => '貼上 Markdown，或匯入 .md 檔案';
 
   @override
-  String get markdownExportPreviewEmpty => '還沒有可以預覽的內容';
+  String get markdownExportPreviewEmpty => '尚無可預覽的內容';
 
   @override
   String get markdownExportImport => '匯入檔案';
@@ -36867,10 +36867,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get markdownExportHideSource => '收起源碼';
 
   @override
-  String get markdownExportShowSource => '顯示源碼';
+  String get markdownExportShowSource => '顯示原始碼';
 
   @override
-  String get markdownExportReducedResolution => '文件較長，已降低解析度以保證仍然是一張圖';
+  String get markdownExportReducedResolution => '文件較長，已降低解析度以確保仍是一張圖';
 
   @override
   String get markdownExportExportImage => '匯出圖片';
@@ -37525,13 +37525,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backupPageTargetCuplivo => 'Cuplivo';
 
   @override
-  String get backupPageTargetCuplivoNote => '當前版本可還原的全部內容，含群聊';
+  String get backupPageTargetCuplivoNote => '目前版本可還原的全部內容，含群組聊天';
 
   @override
   String get backupPageTargetKelivo => 'Kelivo 1.3.4';
 
   @override
-  String get backupPageTargetKelivoNote => '可在 Kelivo 中匯入，但會丟失群聊資料';
+  String get backupPageTargetKelivoNote => '可在 Kelivo 中匯入，但會遺失群組聊天資料';
 
   @override
   String get backupPageBackupManagementDescription =>
@@ -39109,7 +39109,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get chatInputBarToolsTooltip => '工具';
 
   @override
-  String get chatInputBarMoreTooltip => '添加';
+  String get chatInputBarMoreTooltip => '新增';
 
   @override
   String get chatInputBarOverflowTooltip => '更多操作';
@@ -52762,7 +52762,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String lanSyncReportDeletesBlocked(Object count) {
-    return '$count 項刪除已略過（本機內容已變更）';
+    return '已略過 $count 項刪除（本機內容已變更）';
   }
 
   @override
@@ -53489,7 +53489,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupAutoEnableHint =>
-      '到期後，在應用程式處於前景時自動備份。應用程式被關閉或清除後不會繼續跑，也不會接著傳；再次開啟時若已到期，只完整備份一次。';
+      '到期後，在應用程式處於前景時自動備份。應用程式被關閉或清除後不會繼續執行，也不會接續傳輸；再次開啟時若已到期，只會完整備份一次。';
 
   @override
   String get backupAutoDestinationTitle => '自動備份到';
@@ -53537,17 +53537,17 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupAutoLocalDirUnavailable =>
-      '無法寫入所選資料夾，請檢查它是否仍可用，或改選一個。已儲存的位置不會被自動更改。';
+      '無法寫入所選資料夾，請檢查它是否仍可用，或改選一個。已儲存的位置不會被自動變更。';
 
   @override
   String get backupAutoLocalDirPermission =>
-      '沒有所選資料夾的寫入權限。請重新選擇資料夾。已儲存的位置不會被自動更改。';
+      '沒有所選資料夾的寫入權限。請重新選擇資料夾。已儲存的位置不會被自動變更。';
 
   @override
   String get backupAutoLocalDirFull => '磁碟空間不足，備份未完成。先前的備份都還在。';
 
   @override
-  String get backupAutoLocalBookmarkLost => '無法存取所選資料夾，請重新選擇一次。已儲存的位置不會被自動更改。';
+  String get backupAutoLocalBookmarkLost => '無法存取所選資料夾，請重新選擇一次。已儲存的位置不會被自動變更。';
 
   @override
   String get backupAutoNextTitle => '下次自動備份';
@@ -53606,7 +53606,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupMacKeychainNeedsUnlock =>
-      'macOS 無法解鎖登入鑰匙圈。請開啟「鑰匙串存取」，解鎖「登入」，再回到 Cuplivo 重試。';
+      'macOS 無法解鎖登入鑰匙圈。請開啟「鑰匙圈存取」，解鎖「登入」，再回到 Cuplivo 重試。';
 
   @override
   String get backupMacOpenKeychainAccess => '開啟鑰匙圈存取';
@@ -53616,55 +53616,55 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       'macOS 拒絕存取備份密碼。如果出現系統提示，請允許 Cuplivo 存取。你也可以在「鑰匙串存取」中檢查預設鑰匙串和備份密碼項目的權限。';
 
   @override
-  String get settingsPageChatOwners => '助手與群聊';
+  String get settingsPageChatOwners => '助手與群組';
 
   @override
   String get settingsPageChatOwnersCreate => '新增';
 
   @override
-  String get chatOwnersSeparate => '分別顯示';
+  String get chatOwnersSeparate => '分開顯示';
 
   @override
   String get chatOwnersSectionAssistants => '助手';
 
   @override
-  String get chatOwnersSectionGroups => '群聊';
+  String get chatOwnersSectionGroups => '群組';
 
   @override
   String get chatOwnerCreateAssistant => '新增助手';
 
   @override
-  String get recycleBinKindGroup => '群聊';
+  String get recycleBinKindGroup => '群組';
 
   @override
-  String get recycleBinFilterGroups => '群聊';
+  String get recycleBinFilterGroups => '群組';
 
   @override
-  String get groupChatTitle => '群聊';
+  String get groupChatTitle => '群組聊天';
 
   @override
-  String get groupChatCreate => '新增群聊';
+  String get groupChatCreate => '新增群組聊天';
 
   @override
   String get groupChatCreateHint => '至少選擇一位助手';
 
   @override
-  String get groupChatNameHint => '群聊名稱';
+  String get groupChatNameHint => '群組名稱';
 
   @override
-  String get groupChatChangeAvatar => '更換群頭像';
+  String get groupChatChangeAvatar => '更換群組頭像';
 
   @override
   String get groupChatMembers => '成員';
 
   @override
-  String get groupChatMembersEmpty => '還沒有成員';
+  String get groupChatMembersEmpty => '尚無成員';
 
   @override
   String get groupChatInvite => '邀請助手';
 
   @override
-  String get groupChatNoAssistantToInvite => '所有助手都已在此群聊中';
+  String get groupChatNoAssistantToInvite => '所有助手都已在此群組中';
 
   @override
   String get groupChatSave => '儲存';
@@ -53673,7 +53673,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get groupChatCancel => '取消';
 
   @override
-  String get groupChatSettingsTitle => '群聊設定';
+  String get groupChatSettingsTitle => '群組設定';
 
   @override
   String get groupChatBack => '返回';
@@ -53685,7 +53685,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get groupChatDirectorTitle => '導演模型';
 
   @override
-  String get groupChatDirectorSubtitle => '選擇下一個誰來發言的模型，建議選擇快速且低成本的模型';
+  String get groupChatDirectorSubtitle => '選擇下一位發言者的模型，建議選擇快速且低成本的模型';
 
   @override
   String get groupChatDirectorFollowDefault => '跟隨預設模型';
@@ -53703,22 +53703,22 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get groupChatRemoveMemberTitle => '移出助手';
 
   @override
-  String get groupChatRemoveMemberContent => '該助手將不再參與此群聊。';
+  String get groupChatRemoveMemberContent => '該助手將不再參與此群組。';
 
   @override
-  String get groupChatDelete => '刪除群聊';
+  String get groupChatDelete => '刪除群組聊天';
 
   @override
-  String get groupChatDeleteTitle => '刪除此群聊？';
+  String get groupChatDeleteTitle => '刪除此群組聊天？';
 
   @override
-  String get groupChatDeleteContent => '群聊及其全部話題會一起移入回收站。';
+  String get groupChatDeleteContent => '群組及其全部話題會一起移入回收站。';
 
   @override
-  String get groupChatDeleted => '群聊已移入回收站';
+  String get groupChatDeleted => '群組聊天已移入回收站';
 
   @override
-  String get groupChatUnavailable => '找不到此群聊的設定，請到回收站還原。';
+  String get groupChatUnavailable => '找不到此群組聊天的設定，請到回收站還原。';
 
   @override
   String get groupChatNewTopic => '新話題';
@@ -53731,12 +53731,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '導演模型無法使用，已由首位成員回覆一次。請檢查預設模型設定。';
 
   @override
-  String get groupChatUnavailableWarning => '此群聊沒有可用的成員。';
+  String get groupChatUnavailableWarning => '此群組聊天沒有可用的成員。';
 
   @override
   String get defaultModelPageDirectorModelTitle => '導演模型';
 
   @override
   String get defaultModelPageDirectorModelSubtitle =>
-      '決定群聊中下一位發言者，建議選擇快速且低成本的模型';
+      '決定群組聊天中下一位發言者，建議選擇快速且低成本的模型';
 }

@@ -1087,67 +1087,69 @@ class AppLocalizationsRu extends AppLocalizations {
   String get desktopNavStorageTooltip => 'Хранилище';
 
   @override
-  String get toolsMenuTooltip => 'Tools';
+  String get toolsMenuTooltip => 'Инструменты';
 
   @override
-  String get markdownExportTitle => 'Markdown image';
+  String get markdownExportTitle => 'Markdown-изображение';
 
   @override
-  String get markdownExportEditTab => 'Edit';
+  String get markdownExportEditTab => 'Редактирование';
 
   @override
-  String get markdownExportPreviewTab => 'Preview';
+  String get markdownExportPreviewTab => 'Предпросмотр';
 
   @override
-  String get markdownExportHint => 'Paste Markdown, or import a .md file';
+  String get markdownExportHint =>
+      'Вставьте Markdown или импортируйте файл .md';
 
   @override
-  String get markdownExportPreviewEmpty => 'Nothing to preview yet';
+  String get markdownExportPreviewEmpty => 'Пока нечего просматривать';
 
   @override
-  String get markdownExportImport => 'Import';
+  String get markdownExportImport => 'Импорт';
 
   @override
-  String get markdownExportPaste => 'Paste';
+  String get markdownExportPaste => 'Вставить';
 
   @override
-  String get markdownExportTextSize => 'Text size';
+  String get markdownExportTextSize => 'Размер текста';
 
   @override
-  String get markdownExportTextSizeSmall => 'Small';
+  String get markdownExportTextSizeSmall => 'Мелкий';
 
   @override
-  String get markdownExportTextSizeStandard => 'Standard';
+  String get markdownExportTextSizeStandard => 'Стандартный';
 
   @override
-  String get markdownExportTextSizeLarge => 'Large';
+  String get markdownExportTextSizeLarge => 'Крупный';
 
   @override
-  String get markdownExportHideSource => 'Hide source';
+  String get markdownExportHideSource => 'Скрыть исходник';
 
   @override
-  String get markdownExportShowSource => 'Show source';
+  String get markdownExportShowSource => 'Показать исходник';
 
   @override
   String get markdownExportReducedResolution =>
-      'Long document: drawn at a lower resolution so it still fits one picture';
+      'Длинный документ: отрисован в пониженном разрешении, чтобы уместиться в одно изображение';
 
   @override
-  String get markdownExportExportImage => 'Export image';
+  String get markdownExportExportImage => 'Экспортировать изображение';
 
   @override
-  String get markdownExportDropHint => 'Drop to import Markdown';
+  String get markdownExportDropHint =>
+      'Отпустите, чтобы импортировать Markdown';
 
   @override
   String get markdownExportUnsupportedFile =>
-      'Only Markdown text files are supported';
+      'Поддерживаются только текстовые файлы Markdown';
 
   @override
-  String get markdownExportReadFailed => 'This file could not be read';
+  String get markdownExportReadFailed => 'Не удалось прочитать этот файл';
 
   @override
   String get markdownExportNothingToPaste =>
-      'The clipboard has nothing this tool can use';
+      'В буфере обмена нет подходящего содержимого';
 
   @override
   String get desktopNavGlobalSearchTooltip => 'Глобальный поиск';
@@ -1811,21 +1813,21 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get backupPageTargetTitle => 'Backup target';
+  String get backupPageTargetTitle => 'Цель резервной копии';
 
   @override
   String get backupPageTargetCuplivo => 'Cuplivo';
 
   @override
   String get backupPageTargetCuplivoNote =>
-      'Everything this version can restore, group chats included';
+      'Всё, что эта версия может восстановить, включая групповые чаты';
 
   @override
   String get backupPageTargetKelivo => 'Kelivo 1.3.4';
 
   @override
   String get backupPageTargetKelivoNote =>
-      'Imports into Kelivo, but group chats are lost';
+      'Импортируется в Kelivo, но групповые чаты теряются';
 
   @override
   String get backupPageBackupManagementDescription =>
@@ -2701,11 +2703,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get chatToolsEmptyModelCannotUseTools =>
-      'This member\'s model cannot call tools.';
+      'Модель этого участника не поддерживает вызов инструментов.';
 
   @override
   String get chatToolsEmptyNoToolsEnabled =>
-      'This member has no tools switched on.';
+      'У этого участника не включено ни одного инструмента.';
 
   @override
   String get messageMoreSheetTitle => 'Другие действия';
@@ -3492,7 +3494,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chatInputBarMoreTooltip => 'Добавить';
 
   @override
-  String get chatInputBarOverflowTooltip => 'More actions';
+  String get chatInputBarOverflowTooltip => 'Другие действия';
 
   @override
   String get chatInputBarVoiceInputTooltip => 'Голосовой ввод';
@@ -12205,10 +12207,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get backgroundGenerating => 'Генерация ответа';
 
   @override
-  String get backgroundCareLetter => 'Writing a letter';
+  String get backgroundCareLetter => 'Пишем письмо';
 
   @override
-  String get backgroundCareWorking => 'Preparing your letter';
+  String get backgroundCareWorking => 'Готовим ваше письмо';
 
   @override
   String get backgroundThinking => 'Размышление';
@@ -18162,12 +18164,12 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String lanSyncReportWorkspacesKept(Object count) {
-    return 'Сохранено папок (переключатель выкл. или есть несинхронизированные файлы): $count';
+    return 'Папок рабочей области сохранено на диске: $count (синхронизация выключена или в папке есть несинхронизированные файлы)';
   }
 
   @override
   String lanSyncReportDeletesBlocked(Object count) {
-    return 'Пропущено удалений (локальная копия изменилась): $count';
+    return 'Пропущено удалений: $count (локальная копия изменилась)';
   }
 
   @override
@@ -19007,11 +19009,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get backupAutoLocalDirUnavailable =>
-      'Не удаётся записать в выбранную папку. Проверьте, доступна ли она, или выберите другую. Cuplivo не изменит сохранённое расположение самостоятельно.';
+      'Не удаётся записать в выбранную папку. Проверьте, что она по-прежнему доступна, или выберите другую. Cuplivo не изменит сохранённое расположение самостоятельно.';
 
   @override
   String get backupAutoLocalDirPermission =>
-      'У вас нет разрешения на запись в выбранную папку. Выберите папку снова. Cuplivo не изменит сохранённое расположение самостоятельно.';
+      'Нет разрешения на запись в выбранную папку. Выберите папку заново. Cuplivo не изменит сохранённое расположение самостоятельно.';
 
   @override
   String get backupAutoLocalDirFull =>
@@ -19019,7 +19021,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get backupAutoLocalBookmarkLost =>
-      'Cuplivo не может получить доступ к выбранной папке. Выберите её снова. Сохранённое расположение не будет изменено автоматически.';
+      'Cuplivo не может получить доступ к выбранной папке. Выберите её заново. Сохранённое расположение не будет изменено автоматически.';
 
   @override
   String get backupAutoNextTitle =>
@@ -19045,7 +19047,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get backupAutoKeychainUnavailable =>
-      'Cuplivo не может получить доступ к системной связке ключей для пароля резервной копии. Вы по-прежнему можете создать резервную копию вручную.';
+      'Cuplivo не может получить доступ к системному хранилищу ключей для пароля резервной копии. Вы по-прежнему можете создать резервную копию вручную.';
 
   @override
   String get backupAutoSucceeded =>
@@ -19090,144 +19092,144 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get backupMacKeychainNeedsUnlock =>
-      'macOS не удалось разблокировать связку ключей «login». Откройте «Связка ключей» (Keychain Access), разблокируйте «login», затем повторите попытку в Cuplivo.';
+      'macOS не удалось разблокировать связку ключей входа. Откройте «Связка ключей», разблокируйте «login», затем повторите попытку в Cuplivo.';
 
   @override
   String get backupMacOpenKeychainAccess => 'Открыть «Связку ключей»';
 
   @override
   String get backupMacKeychainAccessDenied =>
-      'macOS запретила доступ к паролю резервной копии. Если появится системный запрос, разрешите Cuplivo доступ к нему. Также можно проверить связку ключей по умолчанию и разрешения элемента пароля в «Связке ключей».';
+      'macOS запретила доступ к паролю резервной копии. Если появится системный запрос, разрешите Cuplivo доступ. Также можно проверить связку ключей по умолчанию и права элемента пароля в «Связке ключей».';
 
   @override
-  String get settingsPageChatOwners => 'Assistants and groups';
+  String get settingsPageChatOwners => 'Ассистенты и группы';
 
   @override
-  String get settingsPageChatOwnersCreate => 'Create';
+  String get settingsPageChatOwnersCreate => 'Создать';
 
   @override
-  String get chatOwnersSeparate => 'Show separately';
+  String get chatOwnersSeparate => 'Показывать отдельно';
 
   @override
-  String get chatOwnersSectionAssistants => 'Assistants';
+  String get chatOwnersSectionAssistants => 'Ассистенты';
 
   @override
-  String get chatOwnersSectionGroups => 'Groups';
+  String get chatOwnersSectionGroups => 'Группы';
 
   @override
-  String get chatOwnerCreateAssistant => 'New assistant';
+  String get chatOwnerCreateAssistant => 'Новый ассистент';
 
   @override
-  String get recycleBinKindGroup => 'Group';
+  String get recycleBinKindGroup => 'Группа';
 
   @override
-  String get recycleBinFilterGroups => 'Groups';
+  String get recycleBinFilterGroups => 'Группы';
 
   @override
-  String get groupChatTitle => 'Group chat';
+  String get groupChatTitle => 'Групповой чат';
 
   @override
-  String get groupChatCreate => 'New group chat';
+  String get groupChatCreate => 'Новый групповой чат';
 
   @override
-  String get groupChatCreateHint => 'Pick at least one assistant';
+  String get groupChatCreateHint => 'Выберите хотя бы одного ассистента';
 
   @override
-  String get groupChatNameHint => 'Group name';
+  String get groupChatNameHint => 'Название группы';
 
   @override
-  String get groupChatChangeAvatar => 'Change group avatar';
+  String get groupChatChangeAvatar => 'Сменить аватар группы';
 
   @override
-  String get groupChatMembers => 'Members';
+  String get groupChatMembers => 'Участники';
 
   @override
-  String get groupChatMembersEmpty => 'No members yet';
+  String get groupChatMembersEmpty => 'Участников пока нет';
 
   @override
-  String get groupChatInvite => 'Invite assistants';
+  String get groupChatInvite => 'Пригласить ассистентов';
 
   @override
-  String get groupChatNoAssistantToInvite =>
-      'Every assistant is already in this group';
+  String get groupChatNoAssistantToInvite => 'Все ассистенты уже в этой группе';
 
   @override
-  String get groupChatSave => 'Save';
+  String get groupChatSave => 'Сохранить';
 
   @override
-  String get groupChatCancel => 'Cancel';
+  String get groupChatCancel => 'Отмена';
 
   @override
-  String get groupChatSettingsTitle => 'Group settings';
+  String get groupChatSettingsTitle => 'Настройки группы';
 
   @override
-  String get groupChatBack => 'Back';
+  String get groupChatBack => 'Назад';
 
   @override
-  String get groupChatOrchestration => 'Who speaks';
+  String get groupChatOrchestration => 'Кто говорит';
 
   @override
-  String get groupChatDirectorTitle => 'Director model';
+  String get groupChatDirectorTitle => 'Модель-режиссёр';
 
   @override
   String get groupChatDirectorSubtitle =>
-      'The model that picks who speaks next. A fast, low-cost model is the right choice.';
+      'Модель, которая выбирает следующего говорящего. Лучше выбрать быструю и недорогую модель.';
 
   @override
-  String get groupChatDirectorFollowDefault => 'Follows default model';
+  String get groupChatDirectorFollowDefault =>
+      'Используется модель по умолчанию';
 
   @override
-  String get groupChatMaxTurnsTitle => 'Replies per round';
+  String get groupChatMaxTurnsTitle => 'Ответов за раунд';
 
   @override
   String get groupChatMaxTurnsSubtitle =>
-      'How many members may reply to one message';
+      'Сколько участников могут ответить на одно сообщение';
 
   @override
-  String get groupChatRemoveMember => 'Remove';
+  String get groupChatRemoveMember => 'Удалить';
 
   @override
-  String get groupChatRemoveMemberTitle => 'Remove assistant';
+  String get groupChatRemoveMemberTitle => 'Удалить ассистента';
 
   @override
   String get groupChatRemoveMemberContent =>
-      'This assistant will no longer take part in this group.';
+      'Этот ассистент больше не будет участвовать в этой группе.';
 
   @override
-  String get groupChatDelete => 'Delete group chat';
+  String get groupChatDelete => 'Удалить групповой чат';
 
   @override
-  String get groupChatDeleteTitle => 'Delete this group chat?';
+  String get groupChatDeleteTitle => 'Удалить этот групповой чат?';
 
   @override
   String get groupChatDeleteContent =>
-      'The group and all of its topics move to the recycle bin together.';
+      'Группа и все её темы вместе переместятся в корзину.';
 
   @override
-  String get groupChatDeleted => 'Group chat moved to the recycle bin';
+  String get groupChatDeleted => 'Групповой чат перемещён в корзину';
 
   @override
   String get groupChatUnavailable =>
-      'This group chat\'s settings are not available. Restore it from the recycle bin.';
+      'Настройки этого группового чата недоступны. Восстановите его из корзины.';
 
   @override
-  String get groupChatNewTopic => 'New topic';
+  String get groupChatNewTopic => 'Новая тема';
 
   @override
-  String get groupChatRemovedMember => 'Deleted assistant';
+  String get groupChatRemovedMember => 'Удалённый ассистент';
 
   @override
   String get groupChatDirectorFallbackWarning =>
-      'The director model is unavailable, so the first member replied once. Check the default model settings.';
+      'Модель-режиссёр недоступна, поэтому первый участник ответил один раз. Проверьте настройки модели по умолчанию.';
 
   @override
   String get groupChatUnavailableWarning =>
-      'This group chat has no available members.';
+      'В этом групповом чате нет доступных участников.';
 
   @override
-  String get defaultModelPageDirectorModelTitle => 'Director model';
+  String get defaultModelPageDirectorModelTitle => 'Модель режиссёра';
 
   @override
   String get defaultModelPageDirectorModelSubtitle =>
-      'Picks who speaks next in a group chat. A fast, low-cost model is the best fit.';
+      'Определяет, кто говорит следующим в групповом чате. Лучше всего подойдёт быстрая и недорогая модель.';
 }

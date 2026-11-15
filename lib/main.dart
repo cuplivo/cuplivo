@@ -953,6 +953,9 @@ class MyApp extends StatelessWidget {
             businessPreferences: businessPreferences,
             reloader: ctx.read<BusinessStateReloader>(),
             syncDirectory: AppDirectories.getSyncDirectory,
+            // The same bin the delete paths stage into: a workspace file a
+            // sync round replaces or removes goes here too (ADR-0016).
+            recycle: databaseLease.recycleService,
           ),
         ),
         ChangeNotifierProvider(create: (_) => McpToolService()),

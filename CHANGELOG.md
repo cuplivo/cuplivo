@@ -4,7 +4,7 @@
 
 ### Changed
 
-- **LAN sync rebuilt to close latent defects**: the sync protocol version is bumped, so devices that want to keep syncing must upgrade together (#1083, #1084 by @cup113, @hstate)
+- **LAN sync rebuilt to close latent defects** (#1083, #1084 by @cup113, @hstate)
 - **Re-based on Kelivo v1.3.6**: everything the upstream line has shipped since v1.3.4 (by @Chevey339)
   - Context compaction reworked
   - Start at login, with an option to stay in the tray

@@ -873,6 +873,15 @@ WHERE id IN ($placeholders);
             // was replaced" for an identical row would be false.
             if (!_sameEntityContent(local.payload, row['payload'])) {
               entityRowsLost++;
+              // This is the only point where a losing local edit still exists:
+              // the upsert below replaces it. Staging here is what makes an
+              // overwritten edit as recoverable as a deleted one.
+              await recycle?.stageEntityRow(
+                kind,
+                id,
+                origin: RecycleOrigin.remote,
+                reason: RecycleReason.overwritten,
+              );
             }
           }
           await _upsertSyncRow(
@@ -906,7 +915,16 @@ WHERE id IN ($placeholders);
           )) {
             continue;
           }
-          if (local.value != value) preferencesLost++;
+          if (local.value != value) {
+            preferencesLost++;
+            // Same as the entity loss above: the local value is still here and
+            // is about to be replaced.
+            await recycle?.stagePreferenceRow(
+              key,
+              origin: RecycleOrigin.remote,
+              reason: RecycleReason.overwritten,
+            );
+          }
         }
         await _upsertSyncRow(
           'preference_rows',
@@ -934,6 +952,13 @@ WHERE id IN ($placeholders);
   /// remove, which is the honest answer rather than a failure. A row that is
   /// simply already gone still reports true: the caller asked for its absence
   /// and has it.
+  ///
+  /// The row is staged first: a peer's removal is not protected by any clock, so
+  /// a local edit made since the last session is deleted outright, and this is
+  /// the only moment it can still be preserved. Staging comes *after* the guards
+  /// below, not before them: a row this device never offers is one there is
+  /// nothing to remove of, and preserving a copy of it would invent a bin entry
+  /// for a deletion that never happened.
   Future<bool> syncDeleteEntity(String kindWire, String id) async {
     final kind = syncKindForWire(kindWire);
     if (kind == null || id.isEmpty) return false;
@@ -950,6 +975,12 @@ WHERE id IN ($placeholders);
       final local = await _syncEntityRow(kind, id);
       if (local != null && _syncSkipsRow(kind, id, local.payload)) return false;
     }
+    await recycle?.stageEntityRow(
+      kind,
+      id,
+      origin: RecycleOrigin.remote,
+      reason: RecycleReason.deleted,
+    );
     final extensionFilter = kind.extensionKind == null
         ? ''
         : " AND kind = '${kind.extensionKind}'";
@@ -961,10 +992,16 @@ WHERE id IN ($placeholders);
     return true;
   }
 
-  /// Deletes one synced preference the peer no longer has.
+  /// Deletes one synced preference the peer no longer has. Staged for the same
+  /// reason as [syncDeleteEntity].
   Future<bool> syncDeletePreference(String key) async {
     if (key.isEmpty) return false;
     if (!BusinessKeyRegistry.isSynced(key)) return false;
+    await recycle?.stagePreferenceRow(
+      key,
+      origin: RecycleOrigin.remote,
+      reason: RecycleReason.deleted,
+    );
     await _database.customStatement(
       'DELETE FROM preference_rows WHERE key = ?;',
       <Object?>[key],

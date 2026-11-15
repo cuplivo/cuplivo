@@ -5890,7 +5890,7 @@ class ChatDatabaseRepository {
   /// false when the deletion is deferred (a generation is running).
   Future<bool> syncApplyPeerDeletion(String conversationId) async {
     if (await syncConversationIsStreaming(conversationId)) return false;
-    await deleteConversation(conversationId);
+    await deleteConversation(conversationId, origin: RecycleOrigin.remote);
     return true;
   }
 

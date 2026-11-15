@@ -2,15 +2,16 @@ import 'dart:async';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Cuplivo/core/services/desktop_power_state.dart';
-import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/database/backup_portability.dart';
-import '../../support/business_test_harness.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/database/business_settings_router.dart';
 import 'package:Cuplivo/core/models/scheduled_task.dart';
+import 'package:Cuplivo/core/services/desktop_power_state.dart';
 import 'package:Cuplivo/core/services/desktop_scheduled_tasks.dart';
 import 'package:Cuplivo/core/services/scheduled_task_store.dart';
 import 'package:Cuplivo/core/services/scheduled_tasks_service.dart';
+
+import '../../support/business_test_harness.dart';
 
 const task = ScheduledTask(
   id: 'task',
@@ -72,8 +73,8 @@ void main() {
 
   test('desktop schedules stay local to this device', () {
     expect(
-      BusinessKeyRegistry.classify(ScheduledTaskStore.preferenceKey),
-      BusinessKeyDisposition.preference,
+      BusinessKeyRegistry.policyOf(ScheduledTaskStore.preferenceKey),
+      KeyPolicy.deviceLocal,
     );
     final local = BusinessSettingsRouter.normalizeAndRoute({
       ScheduledTaskStore.preferenceKey: 'local tasks',

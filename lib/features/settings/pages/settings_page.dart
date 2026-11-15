@@ -31,6 +31,7 @@ import 'network_proxy_page.dart';
 import 'phone_control_settings_page.dart';
 import '../../home/services/local_tools_service.dart';
 import 'storage_space_page.dart';
+import 'sync_settings_page.dart';
 import '../../stats/pages/stats_page.dart';
 import '../../../core/services/storage/storage_usage_service.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -398,6 +399,17 @@ class SettingsPage extends StatelessWidget {
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const StorageSpacePage()),
+                  );
+                },
+              ),
+              _iosDivider(context),
+              _iosNavRow(
+                context,
+                icon: Lucide.RefreshCw,
+                label: l10n.settingsPageLanSync,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SyncSettingsPage()),
                   );
                 },
               ),

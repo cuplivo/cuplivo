@@ -115,6 +115,7 @@ The bridge's git surface has no `checkout`, `reset` or `rm`; units are moved wit
 | 1 | `8d71b60f3` | done: analyze clean, gen-l10n idempotent, `package:Kelivo/` gone, the identity checker clean in all three directions — plus the browser workspace scheme restored after the suite caught the over-rename |
 | 2 | `a56653bc9` | done: `flutter test` green (`+12775 ~94`), `dart analyze --fatal-infos` clean |
 | 3 | `9746532a4` | done: analyze clean, gen-l10n idempotent, full suite green at this tip (`+12840 ~94`); 65 recycle cases, 907 in `test/core/database` + storage + the storage-space pages, 343 in `test/core/services/chat` + the assistant cascade. §10 lists what it deliberately left for units 4, 5 and 11 |
+| 4 | (this commit) | done: analyze clean across `lib test integration_test`; the sync subsystem replayed with `#1068`'s policy table folded in. §11 records the repairs the old commit needed and what it changes about §10's list |
 
 The 115 failures this unit started from were four classes, and only one of them was a platform without
 a service:
@@ -148,7 +149,7 @@ that went away with the move. The last one needed the one product change in this
 `@visibleForTesting` `BackupStaging.debugRootOverride`, because `Directory.create` cannot be
 intercepted by `IOOverrides` and a real directory cannot be made to fail on demand.
 
-Next: unit 3, the recycle bin's core.
+Next: unit 5, "a restore is an edit — protocol v8".
 
 ## 7. Open risks
 
@@ -353,6 +354,12 @@ expected back.
 | `BusinessEntityKind.wireName` | `business_data.dart` **already here** | the bin records it per entry; the wire names the kind with it |
 | a `BusinessKeyRegistry` row per `external_backup_auto_*` key | `business_key_registry` | §8.4: a key with no row makes `setMany` assert, and the suite finds it as cause 1 |
 
+Each row landed in unit 4 with one deviation, and §11 records it: the two helpers unit 3 had already
+moved (`workspace_paths.dart`, `business_state_reloader.dart`) came back in the replay, and the unit had
+to *delete* the copies rather than re-declare them — `workspace_content_index.dart` was carrying its own
+`isSafeWorkspaceRelativePath`/`workspacePathWithin`, and `sync/business_state_reloader.dart` was a second
+copy of a class that already lived one directory up.
+
 ### 10.2 Unit 5 (`a restore is an edit — protocol v8`) re-introduces
 
 The **sync-side staging** is the bin's other half. Product hunks, all of which are in the old line's
@@ -377,6 +384,18 @@ Test cases deleted from unit 3 because they call sync APIs, to be brought back w
   again is not written over".
 - `recycle_conversation_test.dart`: "a peer deletion stages with the remote origin".
 
+Unit 4 changed three things about this list, because `#1068` landed between the two halves:
+
+- `syncDeletePreference`'s guard is `BusinessKeyRegistry.isSynced(key)`, not `BusinessKeyRegistry
+  .classify(key) == BusinessKeyDisposition.syncedPreference` — the disposition enum is gone. The staging
+  call still does not exist there; unit 5 adds it beside the new guard.
+- The older-peer test (`sync_engine_integration_test.dart`, "a key an older peer cannot accept is re-sent,
+  never read as a deletion") arrived with `#1068`, and its recycle-bin assertions — `_Side(withRecycle:
+  true)`, `a.recycle`, `RecycleEntryType.preference`, the empty-bin check — were left out here for the
+  same reason. Unit 5 restores them with the staging.
+- `test/features/settings/translate_language_catalog_test.dart` is unit 9's; `#1068` edited it, so unit 9
+  must take the edited version rather than the one its own commit carries.
+
 ### 10.3 Unit 11 re-introduces
 
 As §8.1 says: `members: <roster>` at `home_page.dart`'s new else-branch, and the `skillsActive`
@@ -388,5 +407,78 @@ conversation override, which is not "some member has a skill").
 - The `json(...)` wrapper around each `json_group_array` in `_readConversationSubtree`. Without it
   SQLite embeds the array as a string on this build, the decode finds no rows, and a delete stages
   nothing — silently. Runbook rule 20 carries the trap.
-- `schema_columns.dart`'s header still describes the map as "every table LAN sync may write". It is now
-  the bin's schema source too; the wording is unit 4's to widen, the map itself is shared.
+- `schema_columns.dart`'s header used to describe the map as "every table LAN sync may write". Unit 4
+  widened it to name both readers (the bin's row snapshots and the sync apply's SQL); the map itself
+  stayed shared, and the two columns lists did not diverge.
+
+## 11. Unit 4's replay — the old commit is not only non-compiling, it is corrupt
+
+The plan expected unit 4 to be the series' largest conflict surface: 40,851 insertions over 118 files,
+and `chat_database_repository.dart` rewritten by 858 lines while unit 3 had threaded `recycle` through the
+same file. The measured surface was **20 conflict blocks in 13 files**, and the reason is worth carrying
+into the next re-base: `f36104732` is a squash of a feature branch rebased onto the baseline, so most of
+its edits are *additions* to files this branch had not touched. The conflicts were the imports and the
+four files the two sides both rewrote.
+
+What made the unit expensive was not the conflicts. It was that **the old commit does not compile, and
+not only because it calls later code.** Three separate kinds:
+
+1. **Committed conflict markers.** `desktop_settings_page.dart` carried a `||||||| .scratch/st-base.tmp`
+   block whose "theirs" half was the whole pre-`DesktopAdaptivePanes` widget tree, and
+   `assistant_provider.dart` carried one whose "theirs" half was the old `_duplicateLocalFile` body
+   wrapped in a `try`. Both regions were reconstructed from this branch's version plus the commit's real
+   change (a `lanSync` menu item → `DesktopSyncPane`; `canonicalStorage` on the copied avatar path).
+2. **A method spliced into itself.** `updateMessageFields`'s header and body appear twice in the old
+   blob: the outer header opens, a second header opens inside it, one complete body closes, and a
+   truncated second body follows. The class therefore closed one brace early, every method after it
+   became a top-level function, and `dart analyze` reported 318 errors of the shape "isn't defined for
+   the type `ChatDatabaseRepository`" — none of them in the file itself. The repair is this branch's
+   body plus the commit's one semantic change (`updated_at` floored at the row's own timestamp, so a
+   local edit cannot lower the LWW clock of a message authored under a skewed peer clock).
+3. **Forward references.** `SandboxPathResolver.canonicalStorage`, `isLinkedWorkspace`,
+   `workspacePayloadNamesId` and `RestoreBundleMover.resetSyncState` are called by this commit and
+   defined by later ones. Each definition is small and is genuinely part of this feature (a stored
+   spelling that can travel, workspace portability, a replaced database dropping its checkpoints), so
+   each came in here rather than being dropped from the call site.
+
+The test harness needed the same treatment. The widget cases drive the pairing panel, whose countdown is
+a `Timer.periodic` and whose progress bar repeats forever, so `pumpAndSettle` runs to its ten-minute
+deadline — the failure `docs/flaky-tests.md` §15 records. The `pumpPanel`/`_closePanel` helpers that fix it
+were added by the old line's 4.5 close-out (`b264ef05a`), i.e. *after* this commit, so they were applied
+here: 15 `pumpPanel` calls and 9 `_closePanel` teardowns. A unit whose own tests cannot finish has not met
+the definition of done.
+
+### 11.1 The policy table (`#1068`), folded
+
+`bb079ed2d` is the runbook's family-table entry for sync, and the plan's unit 4 already says "one policy
+table deciding what travels", so it folds here. Its conflicts were 5 files — `BackupPortability`,
+`business_repository`, the registry itself, and two tests — because the table was written against the
+old line's key set. The rules that resolved it:
+
+- **The table is the authority.** `BusinessKeyRegistry.rules` replaces the three hand-kept sets *and*
+  `BackupPortability.devicePreferenceKeys`; the portability layer now derives its strip list from
+  `KeyPolicy.deviceLocal`. Taking the table wholesale was the only option that keeps one authority.
+- **A key upstream added needs a row, and the row is transposed from the two lists this branch kept by
+  hand.** That is what §8.4 predicted and it was 11 keys, not one family: five `backup_auto_*` and
+  `environment_native_shell_path_v1` (they were in `BackupPortability.devicePreferenceKeys` →
+  `deviceLocal`), `desktop_autostart_hidden_v1` and `ollama_model_metadata_v1` (they were in
+  `localOnlyKeys` → `platformOnly`, and both are `SharedPreferences` keys, which the export test
+  catches), then four with no counterpart at all (`native_compression_v1`,
+  `compression_defaults_v1`, `compress_new_conversation` → synced with the compression family;
+  `display_use_legacy_code_block_style_v1`, `tts_playback_speed_v1` → backupOnly), plus
+  `attachment_retention_days` in the retention windows. Two pinned lists moved with them: "the synced
+  face is pinned" gained three keys, and the writer scan's pinned *unresolved* list lost one.
+- **The writer scan was blind to a modified class header.** `AttachmentRetention` is declared
+  `abstract final class`, so `^class\s+(\w+)` could not attribute `preferenceKey` to it and the write
+  landed in the pinned unresolved list instead of being checked. The pattern now accepts the modifiers;
+  the entry resolved and the key got its row.
+
+### 11.2 What unit 4 leaves for unit 5
+
+Everything §10.2 lists still stands, with the three amendments recorded there. Two more:
+
+- `BusinessEntityKind.groupChat` does not exist until unit 11, so the table's companion row for it
+  (`chat_owner_order_v1`) is absent here. Unit 11 adds the kind and the row together — the registry test
+  asserts one companion row per kind.
+- `syncDeleteEntity` keeps unit 3's signature and stages nothing; only `_deleteEntity` stages, for a
+  local delete.

@@ -5,35 +5,25 @@ import '../models/backup_scope.dart';
 import 'backup_content_filter.dart';
 import 'business_data.dart';
 import 'business_repository.dart';
+import 'business_settings_router.dart';
 
 /// Device state stays in SQLite at runtime, but must not travel in a backup.
 final class BackupPortability {
   BackupPortability._();
 
-  static const devicePreferenceKeys = {
-    'backup_encryption_enabled_v1',
-    'backup_auto_enabled_v1',
-    'backup_auto_destination_v1',
-    'backup_auto_last_destination_v1',
-    'backup_auto_local_dir_v1',
-    'backup_auto_local_bookmark_v1',
-    'backup_auto_local_retention_v1',
-    'backup_password_forget_pending_v1',
-    'backup_password_remember_manual_v1',
-    'backup_password_verifier_v1',
-    'backup_install_id_v1',
-    'backup_outstanding_partial_v1',
-    'desktop_scheduled_tasks_v1',
-    'scheduled_task_results_v1',
-    'environment_state_v1',
-    'environment_disk_usage_v1',
-    'environment_rootfs_selection_v1',
-    'environment_proot_options_v1',
-    'environment_native_shell_path_v1',
+  /// The keys a travelling backup leaves behind.
+  ///
+  /// Membership belongs to the registry (`KeyPolicy.deviceLocal`), not here: this
+  /// list used to be the second authority on the same question, so a key could be
+  /// added to the registry and left out of backups (or the reverse) without
+  /// anything noticing.
+  static final Set<String> devicePreferenceKeys = {
+    for (final entry in BusinessKeyRegistry.rules.entries)
+      if (entry.value.policy == KeyPolicy.deviceLocal) entry.key,
   };
 
   static bool _isLinked(BusinessEntityValue row) =>
-      (jsonDecode(row.payload) as Map)['kind'] == 'linked';
+      isLinkedWorkspace(row.payload);
 
   static BusinessSnapshot portable(BusinessSnapshot source) {
     final workspaces = source.entities[BusinessEntityKind.workspace]!;

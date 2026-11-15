@@ -280,5 +280,54 @@ the pair a sweep breaks when it renames one side and not the other.
 - **`dependencies/markstream`**: the RTL refactor means `docs/markstream-delta-audit.md`'s hand-cursor
   gap must be re-checked against the new package before it is recorded as still open (AGENTS.md:
   re-check per re-base).
-- **The document itself**: §1's frozen baseline, §2's `23bfa30e3` rows, §3's `depends on` column and
-  this title all name the old baseline. A retarget rewrites them; the unit *content* does not change.
+- **The document itself**: §1's frozen baseline, §2's rows, §3's `depends on` column and this title
+  all named the old baseline. The retarget rewrote them, and the file is
+  `rebase-plan-00a2b7de0.md` now; the unit *content* did not change.
+
+## 9. The retarget, resolved
+
+Two branches exist. `reorg/green-23bfa30e3` is the series as it stood on the old baseline
+(`0423cb6ec`, seven commits). `reorg/green-00a2b7de0` is this series: the same seven replayed onto
+`00a2b7de0`, and units 3–15 follow there.
+
+The retarget replays the **resolved** units rather than upstream's patches — the `199647a5d`
+precedent — so unit 1 costs only the conflicts where the six new commits touch a file unit 1 owns.
+`git cherry-pick 79f0b176e` onto `00a2b7de0` reported **thirteen**, against 86 on the first run, and
+each resolved as this table said it would:
+
+| files | why they collided | resolution |
+|---|---|---|
+| `.github/workflows/build-linux-arm64.yml`, `build-stable-47.yml`, `build-stable.yml`, `build.yml` (modify/delete) | unit 1 deletes them; the new range bumped each by four lines | deleted, after taking the bump's facts — `release.yml` is the only build workflow (the CI rule) |
+| `.github/workflows/release.yml` | it is the rename of `build-stable-44.yml`, which the new range bumped | kept the branded file, re-applied the bump's facts (`libsecret-1-dev` in the apt list, `libsecret-1-0` in the deb `Depends`) |
+| `lib/core/services/backup/data_sync.dart` | the new range rewrites 347 lines of the backup subsystem; unit 1 touched its strings | three-way: upstream's structure, the fork's names |
+| `lib/features/home/widgets/side_drawer.dart` (21), `lib/features/intelligent_ui/widgets/genui_content.dart` (9) | brand strings against upstream's edits | three-way |
+| `settings_provider_backup_encryption_test.dart` (+103), `backup_encryption_tile_test.dart` (+201), `backup_temp_cleanup_test.dart` (45), `settings_card_layout_test.dart` (+11), `chat_input_section_skills_test.dart` (+64) | new upstream tests that unit 1 had swept | took upstream's test, then re-applied the brand rename — the incoming side is renamed too (the runbook's rule) |
+
+Unit 1 is `8d71b60f3`; unit 2 is `a56653bc9`. What the resolution cost, beyond the table:
+
+- **The incoming side is renamed too**, and it is the class no `git status` reports: the range's own
+  copy named `Kelivo` in 37 ARB values and 4 descriptions across the seven locales, and eight files it
+  added or extended still carried `package:Kelivo/` — none of them conflicts.
+- **The spec was re-derived, not edited.** `rename.json`'s `baseline` is `00a2b7de0` and
+  `mechanical.txt` is regenerated: 1,516 mechanical files, 320 hand-resolved, 20 unclassified tokens —
+  the same twenty the old baseline had, which is the check that the retarget did not change the
+  sweep's character.
+- **The first run of the checker found a defect in the checker.** `--forward` failed against
+  `tool/identity/rename.json` and `verify.py`: the files that *define* the rule spell the needles on
+  purpose. They are exempt now, and the tool's own tests assert the spec still spells every `from`, so
+  the exemption cannot hide a rewritten rule. This is the first time the checker ran on a *moving*
+  baseline, which is what it was built for.
+- **Unit 2 grew a fifth failure class** the old baseline never had: the backup staging move. §6
+  records it, and it was 33 of the failures the first full run showed.
+
+The order it ran in:
+
+1. `flutter gen-l10n`, then `dart analyze --fatal-infos lib test integration_test`.
+2. `python tool/identity/verify.py --derive --write` against `00a2b7de0`, then `--forward`,
+   `--inverse` and `--exact` clean — and the scheme defect injected and reverted to prove `--inverse`
+   still fails on it.
+3. `git cherry-pick 9ce0fbeb4` (unit 2), then the gates: `gen-l10n` idempotent, analyze clean,
+   `flutter test` green (`+12775 ~94`).
+4. Only then unit 3.
+
+Nothing in §3's unit order changed. What changed is which tree each unit is replayed onto.

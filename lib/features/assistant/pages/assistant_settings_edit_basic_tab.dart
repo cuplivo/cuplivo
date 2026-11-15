@@ -50,6 +50,7 @@ class _BasicSettingsTabState extends State<_BasicSettingsTab> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final ap = context.watch<AssistantProvider>();
     final a = ap.getById(widget.assistantId)!;
+    final settingsProvider = context.watch<SettingsProvider>();
 
     Widget avatarWidget({double size = 56}) {
       final bg = cs.primary.withValues(alpha: isDark ? 0.18 : 0.12);
@@ -254,6 +255,43 @@ class _BasicSettingsTabState extends State<_BasicSettingsTab> {
                 onChanged: (v) => context
                     .read<AssistantProvider>()
                     .updateAssistant(a.copyWith(streamOutput: v)),
+              ),
+              _iosDivider(context),
+              // Chat suggestions: a per-assistant opt-out of the global switch.
+              KeyedSubtree(
+                key: _chatSuggestionsSwitchKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _iosSwitchRow(
+                      context,
+                      icon: Lucide.MessagesSquare,
+                      label: l10n.assistantEditChatSuggestionsTitle,
+                      tip: l10n.assistantEditChatSuggestionsTip,
+                      value: a.suggestionsEnabled,
+                      onChanged: (v) => context
+                          .read<AssistantProvider>()
+                          .updateAssistant(a.copyWith(suggestionsEnabled: v)),
+                    ),
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOutCubic,
+                      child: settingsProvider.isSuggestionOptOutInactiveFor(a)
+                          ? Padding(
+                              padding: const EdgeInsets.fromLTRB(48, 0, 44, 8),
+                              child: Text(
+                                l10n.assistantEditChatSuggestionsGlobalOff,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  height: 1.3,
+                                  color: cs.onSurface.withValues(alpha: 0.58),
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

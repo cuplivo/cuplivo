@@ -25,6 +25,8 @@ import '../../../utils/platform_utils.dart';
 import '../../../utils/safe_resize_image.dart';
 import '../../backup/pages/local_snapshots_page.dart';
 import '../../chat/pages/image_viewer_page.dart';
+import '../../recycle/pages/recycle_bin_page.dart';
+import '../../recycle/recycle_actions.dart';
 import '../../workspace/pages/environment_page.dart';
 import '../../workspace/pages/skills_page.dart';
 import '../../workspace/pages/workspaces_page.dart';
@@ -115,6 +117,8 @@ class _StorageSpacePageState extends State<StorageSpacePage> {
       StorageUsageCategoryKey.restoreTraces,
       StorageUsageCategoryKey.displacedDatabases,
       StorageUsageCategoryKey.localSnapshots,
+      StorageUsageCategoryKey.recycleBin,
+      StorageUsageCategoryKey.assistantData,
       StorageUsageCategoryKey.cache,
       StorageUsageCategoryKey.logs,
       StorageUsageCategoryKey.workspaceFiles,
@@ -142,6 +146,10 @@ class _StorageSpacePageState extends State<StorageSpacePage> {
         return Lucide.Database;
       case StorageUsageCategoryKey.localSnapshots:
         return Lucide.Shield;
+      case StorageUsageCategoryKey.recycleBin:
+        return Lucide.Trash2;
+      case StorageUsageCategoryKey.assistantData:
+        return Lucide.Bot;
       case StorageUsageCategoryKey.cache:
         return Lucide.Boxes;
       case StorageUsageCategoryKey.logs:
@@ -175,6 +183,10 @@ class _StorageSpacePageState extends State<StorageSpacePage> {
         return l10n.storageSpaceCategoryDisplacedDatabases;
       case StorageUsageCategoryKey.localSnapshots:
         return l10n.localSnapshotSectionTitle;
+      case StorageUsageCategoryKey.recycleBin:
+        return l10n.recycleBinTitle;
+      case StorageUsageCategoryKey.assistantData:
+        return l10n.storageSpaceCategoryAssistantData;
       case StorageUsageCategoryKey.cache:
         return l10n.storageSpaceCategoryCache;
       case StorageUsageCategoryKey.logs:
@@ -1701,6 +1713,7 @@ class _CategoryDetail extends StatelessWidget {
       StorageUsageCategoryKey.other => l10n.storageSpaceOtherHint,
       StorageUsageCategoryKey.workspaceFiles =>
         l10n.storageSpaceCategoryWorkspaceFilesHint,
+      StorageUsageCategoryKey.recycleBin => l10n.recycleBinStorageHint,
       StorageUsageCategoryKey.sandboxEnvironment =>
         l10n.storageSpaceCategorySandboxEnvironmentHint,
       StorageUsageCategoryKey.skills => l10n.storageSpaceCategorySkillsHint,
@@ -1711,6 +1724,33 @@ class _CategoryDetail extends StatelessWidget {
             ? l10n.storageSpaceSafeToClearHint
             : l10n.storageSpaceNotSafeToClearHint,
     };
+
+    // One short line, with the long rules behind an info button: the same shape
+    // the prompt tab uses for "append current time", and the reason the hint
+    // itself can stay a sentence.
+    Widget hintLine() {
+      final style = TextStyle(
+        fontSize: 12.5,
+        color: cs.onSurface.withValues(alpha: 0.7),
+      );
+      if (category.key != StorageUsageCategoryKey.recycleBin) {
+        return Text(hint, style: style);
+      }
+      return Row(
+        children: [
+          Expanded(child: Text(hint, style: style)),
+          IosIconButton(
+            icon: Lucide.BadgeInfo,
+            size: 16,
+            padding: const EdgeInsets.all(6),
+            minSize: 32,
+            color: cs.onSurface.withValues(alpha: 0.55),
+            semanticLabel: l10n.recycleBinInfoTitle,
+            onTap: () => showRecycleBinInfoDialog(context),
+          ),
+        ],
+      );
+    }
 
     Future<void> openManager(Widget page) async {
       await Navigator.of(
@@ -1800,6 +1840,15 @@ class _CategoryDetail extends StatelessWidget {
           MaterialPageRoute(builder: (_) => const LocalSnapshotsPage()),
         ),
       );
+    } else if (category.key == StorageUsageCategoryKey.recycleBin) {
+      // Managed rather than cleared: every entry is something the user already
+      // lost once, and each one says what it is before it goes back.
+      actions = IosTileButton(
+        label: l10n.recycleBinManage,
+        icon: Lucide.ChevronRight,
+        enabled: !clearing,
+        onTap: () => openManager(const RecycleBinPage()),
+      );
     } else if (category.key == StorageUsageCategoryKey.workspaceFiles) {
       actions = IosTileButton(
         label: l10n.workspaceEntryManage,
@@ -1833,13 +1882,35 @@ class _CategoryDetail extends StatelessWidget {
 
     if (category.key == StorageUsageCategoryKey.images ||
         category.key == StorageUsageCategoryKey.files) {
-      return _UploadManager(
-        key: ValueKey(category.key),
-        images: category.key == StorageUsageCategoryKey.images,
-        category: category,
-        title: title,
-        refreshReport: refreshReport,
-        fmtBytes: fmtBytes,
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(fontSize: 16, fontWeight: AppFontWeights.emphasis),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 12.5,
+              color: cs.onSurface.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(height: 8),
+          hintLine(),
+          const SizedBox(height: 12),
+          Expanded(
+            child: _UploadManager(
+              key: ValueKey(category.key),
+              images: category.key == StorageUsageCategoryKey.images,
+              category: category,
+              title: title,
+              refreshReport: refreshReport,
+              fmtBytes: fmtBytes,
+            ),
+          ),
+        ],
       );
     }
 
@@ -1859,13 +1930,7 @@ class _CategoryDetail extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Text(
-          hint,
-          style: TextStyle(
-            fontSize: 12.5,
-            color: cs.onSurface.withValues(alpha: 0.7),
-          ),
-        ),
+        hintLine(),
         const SizedBox(height: 14),
         if (actions != null) actions,
         if (actions != null) const SizedBox(height: 14),

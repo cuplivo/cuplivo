@@ -19,7 +19,12 @@ import '../features/translate/widgets/translation_output.dart';
 import '../features/model/widgets/model_select_sheet.dart'
     show showModelSelector;
 import '../features/settings/widgets/language_select_sheet.dart'
-    show LanguageOption, supportedLanguages;
+    show
+        LanguageOption,
+        effectiveTranslateLanguage,
+        supportedLanguages,
+        translateLanguageDisplayName,
+        visibleTranslateLanguages;
 
 class DesktopTranslatePage extends StatefulWidget {
   const DesktopTranslatePage({super.key});
@@ -60,13 +65,12 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
     final settings = context.read<SettingsProvider>();
     final assistant = context.read<AssistantProvider>().currentAssistant;
 
-    final savedLang = _languageForCode(settings.translateTargetLang);
-    final locale = Localizations.localeOf(context).languageCode.toLowerCase();
-    final localeLang = locale.startsWith('zh')
-        ? _languageForCode('zh-CN')
-        : _languageForCode(locale) ?? _languageForCode('en');
     setState(() {
-      _targetLang = savedLang ?? localeLang ?? supportedLanguages.first;
+      _targetLang = effectiveTranslateLanguage(
+        visible: visibleTranslateLanguages(settings.translateVisibleLanguages),
+        persistedCode: settings.translateTargetLang,
+        localeLanguageCode: Localizations.localeOf(context).languageCode,
+      );
     });
 
     // Default model: translate model -> assistant's chat model -> global default
@@ -84,44 +88,10 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
     });
   }
 
-  LanguageOption? _languageForCode(String? code) {
-    if (code == null || code.isEmpty) return null;
-    try {
-      return supportedLanguages.firstWhere((e) => e.code == code);
-    } catch (_) {
-      return null;
-    }
-  }
-
   Future<void> _onLanguageChanged(LanguageOption? lang) async {
     if (lang == null) return;
     setState(() => _targetLang = lang);
     await context.read<SettingsProvider>().setTranslateTargetLang(lang.code);
-  }
-
-  String _displayNameFor(AppLocalizations l10n, String code) {
-    switch (code) {
-      case 'zh-CN':
-        return l10n.languageDisplaySimplifiedChinese;
-      case 'en':
-        return l10n.languageDisplayEnglish;
-      case 'zh-TW':
-        return l10n.languageDisplayTraditionalChinese;
-      case 'ja':
-        return l10n.languageDisplayJapanese;
-      case 'ko':
-        return l10n.languageDisplayKorean;
-      case 'fr':
-        return l10n.languageDisplayFrench;
-      case 'de':
-        return l10n.languageDisplayGerman;
-      case 'it':
-        return l10n.languageDisplayItalian;
-      case 'es':
-        return l10n.languageDisplaySpanish;
-      default:
-        return code;
-    }
   }
 
   Future<void> _pickModel() async {
@@ -163,10 +133,17 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
 
     final cfg = settings.getProviderConfig(providerKey);
 
-    final lang = _targetLang ?? supportedLanguages.first;
+    final lang = effectiveTranslateLanguage(
+      visible: visibleTranslateLanguages(settings.translateVisibleLanguages),
+      persistedCode: settings.translateTargetLang,
+      localeLanguageCode: Localizations.localeOf(context).languageCode,
+    );
     final prompt = settings.translatePrompt
         .replaceAll('{source_text}', text)
-        .replaceAll('{target_lang}', _displayNameFor(l10n, lang.code));
+        .replaceAll(
+          '{target_lang}',
+          translateLanguageDisplayName(l10n, lang.code),
+        );
 
     setState(() {
       _translating = true;
@@ -681,7 +658,9 @@ class _LangDropdownOverlayState extends State<_LangDropdownOverlay>
     final borderColor = cs.outlineVariant.withValues(alpha: 0.12);
     // divider removed
 
-    final filtered = supportedLanguages;
+    final filtered = visibleTranslateLanguages(
+      context.read<SettingsProvider>().translateVisibleLanguages,
+    );
 
     return FadeTransition(
       opacity: _opacity,

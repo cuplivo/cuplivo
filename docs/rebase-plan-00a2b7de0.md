@@ -124,6 +124,7 @@ The bridge's git surface has no `checkout`, `reset` or `rm`; units are moved wit
 | 10 | `70659cc35` | done: 11 files — the per-assistant opt-out in both assistant layouts, one predicate for the "not in effect yet" note, and the render gate moved to one accessor. analyze clean, gen-l10n idempotent, format no changes, 21 cases in the unit's own five files and 3,207 across assistant/home/backup/sync/models/providers. §16 records the unit whose own test was red against its own code |
 | 11 | `7918424bc` | done: 141 files — the four group-chat commits folded into one unit: topics, the director, the roster, the shared owner order, the composer's roster-following entries, and the group's reasoning/tools/skills panels. analyze clean, gen-l10n idempotent (38 keys × 4 ARBs), format no changes except the six unit-14 files, 461 cases across the unit's surfaces and the full suite green after the six failures it caught were fixed. §17 records the six forward references, the fourth helper collapse, and the two tests rewritten to an invariant |
 | 12 | `ca1f34cfd` | done: 25 files — a named backup reader, the pinned Kelivo vocabulary, archive format 3 → 4 with 2 and 3 still readable, and the standing test that refuses an unlisted business kind. analyze clean, gen-l10n idempotent, format no changes except the six unit-14 files, 666 cases across the vocabulary, portability, backup feature and backup service suites. §18 records the hunk a reorganized page moved, and the rule the carry already held |
+| 13 | `366b93410` | done: 40 files — the Markdown-to-picture tool on both form factors, the 3× capture through the chat's own image path, the diagram warm-up, and the per-tab input the second commit fixes. analyze clean, gen-l10n idempotent (20 keys × 4 ARBs), format no changes except the six unit-14 files, 954 cases across markdown_export, desktop, chat/widgets and the author-identity suite. §19 records the hotkey the baseline had already removed |
 
 The 115 failures this unit started from were four classes, and only one of them was a platform without
 a service:
@@ -157,7 +158,7 @@ that went away with the move. The last one needed the one product change in this
 `@visibleForTesting` `BackupStaging.debugRootOverride`, because `Directory.create` cannot be
 intercepted by `IOOverrides` and a real directory cannot be made to fail on demand.
 
-Next: unit 13, `feat(markdown-image)`.
+Next: unit 14, the reformat.
 
 ## 7. Open risks
 
@@ -746,3 +747,20 @@ A note about this unit's source: its own message carries a `# Conflicts:` line f
 `backup_portability.dart`, i.e. the commit is itself a merge resolution. Rule 21's warning applies in
 weaker form: its diff can be internally consistent only for the merged files, so read the resulting
 file's logic rather than the patch when something looks off.
+
+## 19. Unit 13: a hunk for a hotkey this baseline no longer has
+
+The unit's second commit is about a tab keeping its own input, and it touches the desktop hotkey
+switch: `HotkeyAction.focusInput` / `copySelectionMarkdown` guarded by `_tabIndex == 0` become guarded
+by `_tab == DesktopTab.chat`. This baseline deleted both enum members (`hotkey_event_bus.dart` ends at
+`toggleLeftPanelTopics`), and the surrounding cases all speak `_tab == DesktopTab.chat`, so the merge's
+conflict had an empty ours side: the unit's two `case` arms cannot compile here.
+
+The resolution is to delete them, and the *reason* is what matters for the next re-base: the unit's
+per-tab fix has two halves, and only one survives — `desktop_tab.dart` and `home_page.dart` (the tab's
+own input state) merged and are the behaviour; the hotkey arms were a route to it that upstream
+removed. A conflict whose ours side is empty means the other side added something this baseline
+deleted; check whether the enum/API it names still exists before resolving it as "ours added nothing".
+
+The feature files themselves are the clean case: no later commit touched them, so the page, its
+widgets and its tests came from the tip whole.

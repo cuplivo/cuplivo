@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
@@ -11,6 +12,14 @@ abstract final class BackupStaging {
   static const directoryName = 'kelivo_backup_staging';
   static final _live = <String>{};
   static final _legacySwept = <String>{};
+
+  /// Replaces the staging root when set, so a test can inject the failure a
+  /// full or read-only volume produces: a real directory cannot be made to
+  /// fail on demand, and `IOOverrides` does not intercept `Directory.create`.
+  /// Only [root] without an explicit parent consults it, so the sweep keeps
+  /// looking at the real staging root.
+  @visibleForTesting
+  static Future<Directory> Function()? debugRootOverride;
 
   static void register(String path) => _live.add(p.normalize(p.absolute(path)));
   static void release(String path) =>
@@ -30,6 +39,10 @@ abstract final class BackupStaging {
       : getTemporaryDirectory();
 
   static Future<Directory> root({Directory? temporary}) async {
+    if (temporary == null) {
+      final override = debugRootOverride;
+      if (override != null) return override();
+    }
     final dir = Directory(
       p.join((temporary ?? await _parent()).path, directoryName),
     );

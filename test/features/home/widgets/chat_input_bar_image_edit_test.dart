@@ -24,6 +24,7 @@ import 'package:Cuplivo/features/chat/pages/image_editor_page.dart';
 import 'package:Cuplivo/features/chat/pages/image_viewer_page.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import '../../../support/business_test_harness.dart';
+import '../../../support/temp_directory_cleanup.dart';
 
 class _Picker extends ImagePickerPlatform {
   _Picker(this.gallery, this.camera);
@@ -78,7 +79,7 @@ void main() {
   });
   tearDown(() async {
     PathProviderPlatform.instance = previous;
-    await dir.delete(recursive: true);
+    await deleteDirectoryWhenReleased(dir, keepLockedLeftovers: true);
   });
   Future<void> drain(WidgetTester tester, {bool Function()? done}) async {
     for (var i = 0; i < 80; i++) {

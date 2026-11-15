@@ -63,6 +63,10 @@ class SandboxPathResolver {
   /// otherwise returns [path] unchanged.
   ///
   /// Canonical `kelivo-file:` URIs are resolved without existence probes.
+  ///
+  /// The returned spelling is always the platform's own (see [_nativeForIo]):
+  /// callers hand it to `File`/`Image` and to persisted fields, so a
+  /// comparison form must never escape from here.
   static String fix(String path) {
     if (path.isEmpty) return path;
 
@@ -74,16 +78,18 @@ class SandboxPathResolver {
 
     // Decode file:// percent-escapes before remapping (avoid %20 → %2520).
     // Non-local / UNC file: URIs must not be remapped or probed (SMB risk).
-    final String raw0 = _decodeFileUri(path);
-    if (raw0 == path && path.toLowerCase().startsWith('file:')) return path;
-    if (_isUncPath(raw0)) return path;
+    final String native = _decodeFileUri(path);
+    if (native == path && path.toLowerCase().startsWith('file:')) return path;
+    if (_isUncPath(native)) return path;
     // Only Windows drive paths normalize `\`; POSIX backslash filenames stay.
-    final String raw = _normalizeSeparatorsForMatch(raw0);
+    // [raw] is the *matching* spelling for the `/subdir/` scans below: it is
+    // never returned, only searched and probed.
+    final String raw = normalizeForMatch(native);
     if (_isUncPath(raw)) return path;
 
     final docs = _docsDir;
     final support = _supportDir;
-    if (docs == null || docs.isEmpty) return raw;
+    if (docs == null || docs.isEmpty) return native;
 
     // Determine root and tail to map. Prefer the same structured sandbox
     // markers as KelivoFileUri.tryEncodeLegacyAbsolutePath, then generic.
@@ -122,11 +128,11 @@ class SandboxPathResolver {
           '[SandboxPathResolver.fix] input=$path -> skipped (no known subdir pattern found)',
         );
       }
-      return raw;
+      return native;
     }
 
     // Primary: map to current ApplicationDocumentsDirectory
-    final String mapped = '$docs$tail';
+    final String mapped = _nativeForIo('$docs$tail');
     try {
       if (File(mapped).existsSync()) {
         if (debug) {
@@ -152,7 +158,7 @@ class SandboxPathResolver {
 
     // Secondary: try ApplicationSupportDirectory
     if (support != null && support.isNotEmpty) {
-      final alt = '$support$tail';
+      final alt = _nativeForIo('$support$tail');
       try {
         if (File(alt).existsSync()) {
           if (debug) {
@@ -188,7 +194,7 @@ class SandboxPathResolver {
         'upload',
         'drafts',
       ]) {
-        final probe = '$root/$sub/$base';
+        final probe = _nativeForIo('$root/$sub/$base');
         try {
           if (File(probe).existsSync()) {
             if (debug) {
@@ -215,10 +221,10 @@ class SandboxPathResolver {
     }
     if (debug) {
       debugPrint(
-        '[SandboxPathResolver.fix] root=$rootType input=$path -> unchanged=$raw (no match)',
+        '[SandboxPathResolver.fix] root=$rootType input=$path -> unchanged=$native (no match)',
       );
     }
-    return raw;
+    return native;
   }
 
   static String _basename(String p) {
@@ -410,8 +416,15 @@ class SandboxPathResolver {
   static bool _looksLikeWindowsDrivePath(String path) =>
       RegExp(r'^[A-Za-z]:[\\/]').hasMatch(path);
 
-  /// Convert `\` → `/` only for Windows drive paths. POSIX keeps `\`.
-  static String _normalizeSeparatorsForMatch(String path) {
+  /// Canonical form for *comparing* two spellings of one local path.
+  ///
+  /// Converts `\` → `/` for Windows drive paths only; POSIX input is returned
+  /// unchanged, because a backslash is a legal POSIX filename character.
+  ///
+  /// Windows accepts `C:\a\b` and `C:\a/b` as the same file, so a raw
+  /// separator difference must not make two references look distinct — callers
+  /// that dedupe references (rather than open files) key their sets with this.
+  static String normalizeForMatch(String path) {
     if (_looksLikeWindowsDrivePath(path)) {
       return path.replaceAll('\\', '/');
     }
@@ -431,6 +444,19 @@ class SandboxPathResolver {
     }
     if (!_looksLikeWindowsDrivePath(path)) return path;
     return path.replaceAll('\\', '/').toLowerCase();
+  }
+
+  /// The platform's own spelling of [path], for local IO and persisted values.
+  ///
+  /// Inverse of [normalizeForMatch]: a value that was folded to `/` for
+  /// comparison must go back to `\` before it reaches `File`, `Image` or a
+  /// stored field, otherwise the same file has two spellings — the bug that made
+  /// `FileImage.file.path` disagree with the path it was built from.
+  static String _nativeForIo(String path) {
+    if (_looksLikeWindowsDrivePath(path)) {
+      return path.replaceAll('/', '\\');
+    }
+    return path;
   }
 
   // Expose current dirs for diagnostic purposes

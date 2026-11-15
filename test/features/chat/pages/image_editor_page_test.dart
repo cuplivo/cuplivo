@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as image;
+import '../../../support/temp_directory_cleanup.dart';
 
 void main() {
   late Directory directory;
@@ -22,7 +23,9 @@ void main() {
     path = '${directory.path}/source.png';
     await File(path).writeAsBytes(image.encodePng(bitmap));
   });
-  tearDown(() async => directory.delete(recursive: true));
+  tearDown(
+    () => deleteDirectoryWhenReleased(directory, keepLockedLeftovers: true),
+  );
 
   Future<void> open(
     WidgetTester tester, {

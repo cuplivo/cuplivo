@@ -125,6 +125,8 @@ The bridge's git surface has no `checkout`, `reset` or `rm`; units are moved wit
 | 11 | `7918424bc` | done: 141 files — the four group-chat commits folded into one unit: topics, the director, the roster, the shared owner order, the composer's roster-following entries, and the group's reasoning/tools/skills panels. analyze clean, gen-l10n idempotent (38 keys × 4 ARBs), format no changes except the six unit-14 files, 461 cases across the unit's surfaces and the full suite green after the six failures it caught were fixed. §17 records the six forward references, the fourth helper collapse, and the two tests rewritten to an invariant |
 | 12 | `ca1f34cfd` | done: 25 files — a named backup reader, the pinned Kelivo vocabulary, archive format 3 → 4 with 2 and 3 still readable, and the standing test that refuses an unlisted business kind. analyze clean, gen-l10n idempotent, format no changes except the six unit-14 files, 666 cases across the vocabulary, portability, backup feature and backup service suites. §18 records the hunk a reorganized page moved, and the rule the carry already held |
 | 13 | `366b93410` | done: 40 files — the Markdown-to-picture tool on both form factors, the 3× capture through the chat's own image path, the diagram warm-up, and the per-tab input the second commit fixes. analyze clean, gen-l10n idempotent (20 keys × 4 ARBs), format no changes except the six unit-14 files, 954 cases across markdown_export, desktop, chat/widgets and the author-identity suite. §19 records the hotkey the baseline had already removed |
+| 14 | `53dd186c5` | done: 6 files, whitespace only — the last files the pinned SDK lays out differently, re-derived at the tip with Dart 3.13.0 (CI's Flutter 3.47.6). `dart format --output=none --set-exit-if-changed` over `lib test integration_test` now names no file; droppable and re-derivable, so it carries no product knowledge |
+| 15 | `e699186e9`+`{{RECORD}}` | done: the TTS timer leak the tip's suite found (three cases), the 71 source descriptions the l10n tool demands, and this record. §20 carries the definition of done as measured, and the recipe for the final fifteen-commit shape |
 
 The 115 failures this unit started from were four classes, and only one of them was a platform without
 a service:
@@ -158,7 +160,56 @@ that went away with the move. The last one needed the one product change in this
 `@visibleForTesting` `BackupStaging.debugRootOverride`, because `Directory.create` cannot be
 intercepted by `IOOverrides` and a real directory cannot be made to fail on demand.
 
-Next: unit 14, the reformat.
+Next: the fifteen-commit re-split, then the push.
+
+## 20. The definition of done, as measured
+
+The series stands at **31 commits** above `00a2b7de0` on `reorg/green-00a2b7de0`: the fourteen content
+units (§3's table), thirteen record commits, the two identity-tool commits, and one repair commit that
+carries the TTS timer fix and the l10n descriptions. Every one of them was gated when it landed; the
+numbers below are from this tip, not from a plan.
+
+| check | result |
+|---|---|
+| ancestry | `git merge-base --is-ancestor 00a2b7de0 HEAD` → true |
+| series | 31 commits above the baseline (14 content, 13 records, 2 tool, 1 repair) |
+| per commit | `dart analyze --fatal-infos lib test integration_test` clean at every tip recorded in §6 |
+| per commit | `flutter gen-l10n` idempotent at every tip recorded in §6 |
+| tip | full `flutter test` at `e699186e9` → **`+13773 ~94: All tests passed!`** (13 minutes). The only failures any full run produced were unit 11's six merge defects and unit 15's three TTS-timer cases; all nine were fixed, and each fix's own files re-ran green |
+| tip | `dart format --output=none --set-exit-if-changed lib test integration_test` → 0 changed (2733 files) |
+| identity | `git grep -c Kelivo -- lib/l10n` matches only `backupPageTargetKelivo*` (2 per ARB, 3–6 in the generated files) |
+| identity | `package:Kelivo/` outside `docs/`, the workflow and `tool/identity/` → none |
+| l10n | en/zh/zh_Hans/zh_Hant share 5486 messages; **ko/ru/tr lag by 71** (see below) |
+| l10n | every message has an `@description` (71 added by `e699186e9`) |
+| l10n | `python tool/l10n/translate.py check` → still fails: 79 pending per locale for ko, ru, tr and zh_Hant |
+| backups | not yet pushed: `backup/master-<old-tip>` and `backup/series-…` are the push's first two commands |
+
+**The one open gate, and why it is open.** `translate.py check` is offline, but the fix it asks for is
+not: `sync` translates through an API that needs `KELIVO_L10N_API_KEY` (or
+`~/.config/kelivo/l10n-api-key`), and neither exists on this machine. `status` is precise about the
+work: **79 pending per locale** — the 71 keys this series added plus 8 whose English or Chinese source
+changed under them — for **ko, ru, tr and zh_Hant**. Two of those four are new locales in this
+baseline (upstream added ko/ru/tr; the fork's line had four ARBs), which is why the gap exists at all:
+the fork never had to translate its own messages into them. With the key, the sequence is
+`describe` (done by hand instead), `sync`, then `check`, and the generated files come out of
+`gen-l10n` unchanged in shape.
+
+**The recipe for fifteen.** The plan's §3 table is the target shape, and the fourteen content commits
+are already one each. What the re-split moves is documentation and repair, not product:
+
+1. Branch from `00a2b7de0`. Replay the fourteen content commits in §3's order.
+2. Fold the two identity-tool commits into unit 1 (they check the sweep the unit performs), and the
+   TTS-timer fix into unit 2 (the suite repair).
+3. Fold `971f8293e`'s registry rows into unit 4; its prose joins the record.
+4. Distribute the 71 `@description` blocks to the units that added their keys — a per-unit patch of
+   `app_en.arb`, generated from the tip's file so the metadata is byte-identical.
+5. One final commit materialises `docs/` — this plan, the runbook, the ADRs and the per-unit records
+   merged into §6/§10–§19, the l10n tool's README — so the fifteen commits carry the whole record and
+   nothing is lost when the intermediate docs commits disappear.
+6. Verify the tree: `git diff <this tip> <new tip>` must be **empty** — steps 1–5 move no content,
+   they only re-arrange which commit owns which file (the two dropped units were never in this branch),
+   so a non-empty diff means a fold lost something. Then the full suite runs once at the new tip.
+
 
 ## 7. Open risks
 

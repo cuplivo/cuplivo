@@ -123,6 +123,7 @@ The bridge's git surface has no `checkout`, `reset` or `rm`; units are moved wit
 | 9 | `383b0f18d` | done: 10 files — the visible target set, the manager, the shared `effectiveTranslateLanguage` rule, and five languages the catalog never had. analyze clean, gen-l10n idempotent, format no changes, 31 cases across the translate page (both form factors), the catalog, the manager and the dropdown. §15 records the one place this unit was *older* than the baseline |
 | 10 | `70659cc35` | done: 11 files — the per-assistant opt-out in both assistant layouts, one predicate for the "not in effect yet" note, and the render gate moved to one accessor. analyze clean, gen-l10n idempotent, format no changes, 21 cases in the unit's own five files and 3,207 across assistant/home/backup/sync/models/providers. §16 records the unit whose own test was red against its own code |
 | 11 | `7918424bc` | done: 141 files — the four group-chat commits folded into one unit: topics, the director, the roster, the shared owner order, the composer's roster-following entries, and the group's reasoning/tools/skills panels. analyze clean, gen-l10n idempotent (38 keys × 4 ARBs), format no changes except the six unit-14 files, 461 cases across the unit's surfaces and the full suite green after the six failures it caught were fixed. §17 records the six forward references, the fourth helper collapse, and the two tests rewritten to an invariant |
+| 12 | `ca1f34cfd` | done: 25 files — a named backup reader, the pinned Kelivo vocabulary, archive format 3 → 4 with 2 and 3 still readable, and the standing test that refuses an unlisted business kind. analyze clean, gen-l10n idempotent, format no changes except the six unit-14 files, 666 cases across the vocabulary, portability, backup feature and backup service suites. §18 records the hunk a reorganized page moved, and the rule the carry already held |
 
 The 115 failures this unit started from were four classes, and only one of them was a platform without
 a service:
@@ -156,7 +157,7 @@ that went away with the move. The last one needed the one product change in this
 `@visibleForTesting` `BackupStaging.debugRootOverride`, because `Directory.create` cannot be
 intercepted by `IOOverrides` and a real directory cannot be made to fail on demand.
 
-Next: unit 12, `feat(backup)`.
+Next: unit 13, `feat(markdown-image)`.
 
 ## 7. Open risks
 
@@ -717,3 +718,31 @@ of the fork's `_ReasoningContent`/`_HoverRow` pair. `builtInSearchOnly` is upstr
 
 And one debt from unit 10 closes here: the suggestion pass now begins with
 `if (convo.isGroupConversation) return;`, which is what the tip had and unit 10 deliberately left out.
+
+## 18. Unit 12: the hunk a reorganized page moved, and the rule the carry already held
+
+Two mechanics, both about *location* rather than content.
+
+**A merge can place a hunk where the other side reorganized the page.** The mobile backup page was
+substantially reorganized at this baseline: the unit's backup-management card (scope tile, then the
+new target tile, then the encryption tile) sits where this branch now has the WebDAV section. Git
+resolved the conflict by putting the unit's card *inside* the WebDAV list — a merge that compiles
+nowhere near where the feature belongs, and that would have put the target picker above "test
+connection". The fix is the file's own structure: find the symbol the unit inserts *next to*
+(`BackupScopeTile`), and put the tile there. The general shape: when a conflict's two sides look like
+different pages, the unit's block belongs beside the same neighbour in ours, not at the conflict's
+offset.
+
+**A rewritten tile keeps this branch's shape.** `BackupEncryptionTile` now takes `busy`, not
+`enabled`/`onChanged`, so the insertion above it was ported onto this branch's call rather than
+replayed with the unit's.
+
+And one duplication the carry makes: the unit's commit adds runbook rule 17, but the runbook was
+carried complete in unit 1 and already holds it (plus later rules that reference it). Documents take
+ours, and the unit's copy is a duplicate of a row the table already has — rule 24 applied to a
+document instead of a module.
+
+A note about this unit's source: its own message carries a `# Conflicts:` line for
+`backup_portability.dart`, i.e. the commit is itself a merge resolution. Rule 21's warning applies in
+weaker form: its diff can be internally consistent only for the merged files, so read the resulting
+file's logic rather than the patch when something looks off.

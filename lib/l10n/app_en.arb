@@ -456,25 +456,85 @@
   "desktopNavTranslateTooltip": "Translate",
   "desktopNavStorageTooltip": "Storage",
   "toolsMenuTooltip": "Tools",
+  "@toolsMenuTooltip": {
+    "description": "Tooltip of the tools icon in the desktop navigation rail; opens the app's tool list, where the Markdown image tool lives."
+  },
   "markdownExportTitle": "Markdown image",
+  "@markdownExportTitle": {
+    "description": "Title of the page that renders Markdown text into one picture."
+  },
   "markdownExportEditTab": "Edit",
+  "@markdownExportEditTab": {
+    "description": "Tab label for the Markdown source editor in the Markdown image tool."
+  },
   "markdownExportPreviewTab": "Preview",
+  "@markdownExportPreviewTab": {
+    "description": "Tab label for the rendered preview in the Markdown image tool."
+  },
   "markdownExportHint": "Paste Markdown, or import a .md file",
+  "@markdownExportHint": {
+    "description": "Placeholder in the empty Markdown editor: what the user can do."
+  },
   "markdownExportPreviewEmpty": "Nothing to preview yet",
+  "@markdownExportPreviewEmpty": {
+    "description": "Preview pane's empty state before there is any Markdown to render."
+  },
   "markdownExportImport": "Import",
+  "@markdownExportImport": {
+    "description": "Button that imports a .md file into the Markdown image tool."
+  },
   "markdownExportPaste": "Paste",
+  "@markdownExportPaste": {
+    "description": "Button that pastes the clipboard into the Markdown editor."
+  },
   "markdownExportTextSize": "Text size",
+  "@markdownExportTextSize": {
+    "description": "Label above the text-size choice for the rendered picture."
+  },
   "markdownExportTextSizeSmall": "Small",
+  "@markdownExportTextSizeSmall": {
+    "description": "Text-size option: small."
+  },
   "markdownExportTextSizeStandard": "Standard",
+  "@markdownExportTextSizeStandard": {
+    "description": "Text-size option: standard (the default)."
+  },
   "markdownExportTextSizeLarge": "Large",
+  "@markdownExportTextSizeLarge": {
+    "description": "Text-size option: large."
+  },
   "markdownExportHideSource": "Hide source",
+  "@markdownExportHideSource": {
+    "description": "Tooltip on the preview's toggle while the source is shown; pressing it hides the editor."
+  },
   "markdownExportShowSource": "Show source",
+  "@markdownExportShowSource": {
+    "description": "Tooltip on the preview's toggle while the source is hidden; pressing it shows the editor."
+  },
   "markdownExportReducedResolution": "Long document: drawn at a lower resolution so it still fits one picture",
+  "@markdownExportReducedResolution": {
+    "description": "Notice shown when a long document is captured below the normal 3x scale so it still fits in one image."
+  },
   "markdownExportExportImage": "Export image",
+  "@markdownExportExportImage": {
+    "description": "Button that captures the preview and saves it as one image."
+  },
   "markdownExportDropHint": "Drop to import Markdown",
+  "@markdownExportDropHint": {
+    "description": "Overlay shown while a file is dragged over the Markdown image tool."
+  },
   "markdownExportUnsupportedFile": "Only Markdown text files are supported",
+  "@markdownExportUnsupportedFile": {
+    "description": "Error when the dropped or picked file is not a Markdown text file."
+  },
   "markdownExportReadFailed": "This file could not be read",
+  "@markdownExportReadFailed": {
+    "description": "Error when an imported file could not be read."
+  },
   "markdownExportNothingToPaste": "The clipboard has nothing this tool can use",
+  "@markdownExportNothingToPaste": {
+    "description": "Message when the clipboard holds nothing the Markdown editor can paste."
+  },
   "desktopNavGlobalSearchTooltip": "Global Search",
   "desktopNavThemeToggleTooltip": "Theme",
   "desktopNavSettingsTooltip": "Settings",
@@ -743,10 +803,25 @@
     "description": "Counter showing selected versus total backup categories, e.g. 3/12, with {selected} and {total} placeholders."
   },
   "backupPageTargetTitle": "Backup target",
+  "@backupPageTargetTitle": {
+    "description": "Section label above the backup-target choice: which app the archive is written for."
+  },
   "backupPageTargetCuplivo": "Cuplivo",
+  "@backupPageTargetCuplivo": {
+    "description": "Backup target option: a Cuplivo archive, restorable here with every kind."
+  },
   "backupPageTargetCuplivoNote": "Everything this version can restore, group chats included",
+  "@backupPageTargetCuplivoNote": {
+    "description": "One-line explanation under the Cuplivo backup target."
+  },
   "backupPageTargetKelivo": "Kelivo 1.3.4",
+  "@backupPageTargetKelivo": {
+    "description": "Backup target option: an archive Kelivo 1.3.4 can import."
+  },
   "backupPageTargetKelivoNote": "Imports into Kelivo, but group chats are lost",
+  "@backupPageTargetKelivoNote": {
+    "description": "One-line explanation under the Kelivo backup target: it imports there, but group chats are not in it."
+  },
   "backupPageBackupManagementDescription": "Choose what to back up and import. Applies to local, WebDAV and S3 backups. Unselected content stays unchanged on import. Skills and workspaces include their own files.",
   "backupPageAssistantsLabel": "Assistants",
   "backupPageProvidersLabel": "Providers",
@@ -1164,7 +1239,13 @@
   "bottomToolsSheetSave": "Save",
   "bottomToolsSheetOcr": "Image OCR",
   "chatToolsEmptyModelCannotUseTools": "This member's model cannot call tools.",
+  "@chatToolsEmptyModelCannotUseTools": {
+    "description": "Shown in the tools panel when the member on show runs a model that cannot call tools."
+  },
   "chatToolsEmptyNoToolsEnabled": "This member has no tools switched on.",
+  "@chatToolsEmptyNoToolsEnabled": {
+    "description": "Shown in the tools panel when the member on show has no tools switched on."
+  },
   "messageMoreSheetTitle": "More Actions",
   "messageMoreSheetSelectCopy": "Select & Copy",
   "messageMoreSheetRenderWebView": "Render Web View",
@@ -1604,6 +1685,9 @@
   "chatInputBarToolsTooltip": "Tools",
   "chatInputBarMoreTooltip": "Add",
   "chatInputBarOverflowTooltip": "More actions",
+  "@chatInputBarOverflowTooltip": {
+    "description": "Tooltip of the composer's overflow button, which holds the actions that did not fit."
+  },
   "chatInputBarVoiceInputTooltip": "Voice input",
   "chatInputBarVoiceCancelTooltip": "Discard recording",
   "chatInputBarVoiceStopTooltip": "Stop and transcribe to input",
@@ -5719,7 +5803,13 @@
   "backgroundRequesting": "Connecting",
   "backgroundGenerating": "Generating reply",
   "backgroundCareLetter": "Writing a letter",
+  "@backgroundCareLetter": {
+    "description": "Notification title while a proactive-care letter is being written, shown on the platform notification."
+  },
   "backgroundCareWorking": "Preparing your letter",
+  "@backgroundCareWorking": {
+    "description": "Notification body while a proactive-care letter is being generated in the background."
+  },
   "backgroundThinking": "Thinking",
   "backgroundToolRunning": "Running tool",
   "backgroundRetrying": "Waiting to retry",
@@ -24109,44 +24199,167 @@
     "description": "Backup password error when macOS denied access even though the default keychain was reported unlocked. Covers access denied by item permissions or an unusable login keychain without assuming that the user cancelled."
   },
   "settingsPageChatOwners": "Assistants and groups",
+  "@settingsPageChatOwners": {
+    "description": "Settings row that opens the list of assistants and group chats."
+  },
   "settingsPageChatOwnersCreate": "Create",
+  "@settingsPageChatOwnersCreate": {
+    "description": "Label of the create action in the assistants-and-groups list."
+  },
   "chatOwnersSeparate": "Show separately",
+  "@chatOwnersSeparate": {
+    "description": "Switch that lists assistants and group chats in separate sections instead of one mixed order."
+  },
   "chatOwnersSectionAssistants": "Assistants",
+  "@chatOwnersSectionAssistants": {
+    "description": "Section header for assistants in the assistants-and-groups list."
+  },
   "chatOwnersSectionGroups": "Groups",
+  "@chatOwnersSectionGroups": {
+    "description": "Section header for group chats in the assistants-and-groups list."
+  },
   "chatOwnerCreateAssistant": "New assistant",
+  "@chatOwnerCreateAssistant": {
+    "description": "Create action that makes a new assistant from the assistants-and-groups list."
+  },
   "recycleBinKindGroup": "Group",
+  "@recycleBinKindGroup": {
+    "description": "Recycle bin entry kind: a deleted group chat."
+  },
   "recycleBinFilterGroups": "Groups",
+  "@recycleBinFilterGroups": {
+    "description": "Recycle bin filter that shows only group chats."
+  },
   "groupChatTitle": "Group chat",
+  "@groupChatTitle": {
+    "description": "Name of the group-chat feature, used as a page title and fallback label."
+  },
   "groupChatCreate": "New group chat",
+  "@groupChatCreate": {
+    "description": "Entry that starts creating a group chat."
+  },
   "groupChatCreateHint": "Pick at least one assistant",
+  "@groupChatCreateHint": {
+    "description": "Helper line under the group name field: a group needs at least one assistant."
+  },
   "groupChatNameHint": "Group name",
+  "@groupChatNameHint": {
+    "description": "Placeholder in the group name field."
+  },
   "groupChatChangeAvatar": "Change group avatar",
+  "@groupChatChangeAvatar": {
+    "description": "Row that opens the avatar picker for the group."
+  },
   "groupChatMembers": "Members",
+  "@groupChatMembers": {
+    "description": "Section label listing the assistants in a group."
+  },
   "groupChatMembersEmpty": "No members yet",
+  "@groupChatMembersEmpty": {
+    "description": "Empty state of a group's member list."
+  },
   "groupChatInvite": "Invite assistants",
+  "@groupChatInvite": {
+    "description": "Action that opens the roster picker to add assistants to the group."
+  },
   "groupChatNoAssistantToInvite": "Every assistant is already in this group",
+  "@groupChatNoAssistantToInvite": {
+    "description": "Shown when every assistant is already a member of the group."
+  },
   "groupChatSave": "Save",
+  "@groupChatSave": {
+    "description": "Save action in the group editor."
+  },
   "groupChatCancel": "Cancel",
+  "@groupChatCancel": {
+    "description": "Cancel action in the group editor."
+  },
   "groupChatSettingsTitle": "Group settings",
+  "@groupChatSettingsTitle": {
+    "description": "Title of the group settings page."
+  },
   "groupChatBack": "Back",
+  "@groupChatBack": {
+    "description": "Back action in the group settings page."
+  },
   "groupChatOrchestration": "Who speaks",
+  "@groupChatOrchestration": {
+    "description": "Section label for the settings that decide who speaks next in a group round."
+  },
   "groupChatDirectorTitle": "Director model",
+  "@groupChatDirectorTitle": {
+    "description": "Setting label: the model that picks the next speaker in a group round."
+  },
   "groupChatDirectorSubtitle": "The model that picks who speaks next. A fast, low-cost model is the right choice.",
+  "@groupChatDirectorSubtitle": {
+    "description": "Explanation under the director model setting."
+  },
   "groupChatDirectorFollowDefault": "Follows default model",
+  "@groupChatDirectorFollowDefault": {
+    "description": "Value shown when the director model follows the default model instead of a pinned one."
+  },
   "groupChatMaxTurnsTitle": "Replies per round",
+  "@groupChatMaxTurnsTitle": {
+    "description": "Setting label: the most member replies one round may produce."
+  },
   "groupChatMaxTurnsSubtitle": "How many members may reply to one message",
+  "@groupChatMaxTurnsSubtitle": {
+    "description": "Explanation under the replies-per-round setting."
+  },
   "groupChatRemoveMember": "Remove",
+  "@groupChatRemoveMember": {
+    "description": "Action that removes an assistant from the group."
+  },
   "groupChatRemoveMemberTitle": "Remove assistant",
+  "@groupChatRemoveMemberTitle": {
+    "description": "Title of the confirmation that removes an assistant from the group."
+  },
   "groupChatRemoveMemberContent": "This assistant will no longer take part in this group.",
+  "@groupChatRemoveMemberContent": {
+    "description": "Body of the confirmation that removes an assistant from the group."
+  },
   "groupChatDelete": "Delete group chat",
+  "@groupChatDelete": {
+    "description": "Action that deletes the group chat."
+  },
   "groupChatDeleteTitle": "Delete this group chat?",
+  "@groupChatDeleteTitle": {
+    "description": "Title of the confirmation that deletes a group chat."
+  },
   "groupChatDeleteContent": "The group and all of its topics move to the recycle bin together.",
+  "@groupChatDeleteContent": {
+    "description": "Body of the delete confirmation: the group and its topics move to the recycle bin together."
+  },
   "groupChatDeleted": "Group chat moved to the recycle bin",
+  "@groupChatDeleted": {
+    "description": "Snackbar after a group chat moved to the recycle bin."
+  },
   "groupChatUnavailable": "This group chat's settings are not available. Restore it from the recycle bin.",
+  "@groupChatUnavailable": {
+    "description": "Shown when a conversation belongs to a group chat that no longer exists, with the recycle-bin hint."
+  },
   "groupChatNewTopic": "New topic",
+  "@groupChatNewTopic": {
+    "description": "Placeholder title of a group topic before it is named, and the action that starts one."
+  },
   "groupChatRemovedMember": "Deleted assistant",
+  "@groupChatRemovedMember": {
+    "description": "Author label for a reply whose member was deleted from the group."
+  },
   "groupChatDirectorFallbackWarning": "The director model is unavailable, so the first member replied once. Check the default model settings.",
+  "@groupChatDirectorFallbackWarning": {
+    "description": "Notice after a round fell back because the director model is unavailable: the first member replied once."
+  },
   "groupChatUnavailableWarning": "This group chat has no available members.",
+  "@groupChatUnavailableWarning": {
+    "description": "Notice when a group chat has no available members."
+  },
   "defaultModelPageDirectorModelTitle": "Director model",
-  "defaultModelPageDirectorModelSubtitle": "Picks who speaks next in a group chat. A fast, low-cost model is the best fit."
+  "@defaultModelPageDirectorModelTitle": {
+    "description": "Title of the director model card in Default Models."
+  },
+  "defaultModelPageDirectorModelSubtitle": "Picks who speaks next in a group chat. A fast, low-cost model is the best fit.",
+  "@defaultModelPageDirectorModelSubtitle": {
+    "description": "Subtitle of the director model card: what the model does and which model suits it."
+  }
 }

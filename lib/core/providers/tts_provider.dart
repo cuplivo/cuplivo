@@ -75,6 +75,12 @@ class TtsProvider extends ChangeNotifier {
 
   bool _initialized = false;
   bool _engineReady = false;
+  bool _disposed = false;
+
+  /// The poll's pending wait, kept so `dispose` can cancel it (see
+  /// [_ensureBound]).
+  Timer? _bindRetry;
+  Completer<void>? _bindRetryWaiter;
   bool _isSpeaking = false;
   bool _isPaused = false;
   bool _usingNetwork = false;
@@ -379,9 +385,9 @@ class TtsProvider extends ChangeNotifier {
   Future<void> _ensureBound({
     Duration timeout = const Duration(seconds: 3),
   }) async {
-    if (_engineReady) return;
+    if (_engineReady || _disposed) return;
     final deadline = DateTime.now().add(timeout);
-    while (DateTime.now().isBefore(deadline)) {
+    while (!_disposed && DateTime.now().isBefore(deadline)) {
       try {
         final langs = await _tts.getLanguages;
         if (langs != null) {
@@ -390,7 +396,16 @@ class TtsProvider extends ChangeNotifier {
           return;
         }
       } catch (_) {}
-      await Future.delayed(const Duration(milliseconds: 120));
+      if (_disposed) return;
+      // A cancellable wait: `dispose` cancels this timer, so a provider torn
+      // down mid-poll neither reschedules a retry nor leaves a timer pending
+      // after the widget tree is gone (which a widget test rightly refuses).
+      final waiter = Completer<void>();
+      _bindRetryWaiter = waiter;
+      _bindRetry = Timer(const Duration(milliseconds: 120), waiter.complete);
+      await waiter.future;
+      _bindRetry = null;
+      _bindRetryWaiter = null;
     }
   }
 
@@ -1536,6 +1551,11 @@ class TtsProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
+    _bindRetry?.cancel();
+    _bindRetry = null;
+    _bindRetryWaiter?.complete();
+    _bindRetryWaiter = null;
     _sessionId++;
     _replayCache.retain({});
     _completeNetworkChunk();

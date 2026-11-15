@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import '../services/recycle/recycle_service.dart';
 import 'business_data.dart';
 import 'business_repository.dart';
 import 'business_settings_router.dart';
@@ -53,6 +54,19 @@ final class BusinessPreferences {
     } finally {
       _loadFuture = null;
     }
+  }
+
+  /// Re-reads the database into the in-memory view after a writer outside this
+  /// process's own preference calls changed it — the recycle bin's restore, and
+  /// (later) a LAN sync apply.
+  ///
+  /// Distinct from [load]: that one is idempotent and returns immediately once
+  /// the first read succeeded, which is exactly what a caller needs *not* to
+  /// happen here. Accepted writes are drained first so the reload cannot
+  /// overwrite a value this process has already queued.
+  Future<void> reload() async {
+    await flushPendingWrites();
+    await _loadFromRepository();
   }
 
   /// Drains accepted writes, runs one live restore, and keeps this process
@@ -137,7 +151,19 @@ final class BusinessPreferences {
 
   Future<bool> setDouble(String key, double value) => _setValue(key, value);
 
-  Future<bool> setString(String key, String value) => _setValue(key, value);
+  /// Writes one list-shaped kind, and stamps [removalGroup] on whatever rows the
+  /// write removes.
+  ///
+  /// Only the assistant list needs it. Deleting an assistant drops its row by
+  /// rewriting this list — the write is what performs the delete, through
+  /// `synchronizeEntities` — and the caller that decided on the deletion already
+  /// holds the group the rest of that act carries. Every other key leaves it
+  /// null, which is the same write as before.
+  Future<bool> setString(
+    String key,
+    String value, {
+    RecycleGroup? removalGroup,
+  }) => _setValue(key, value, removalGroup: removalGroup);
 
   Future<bool> setStringList(String key, List<String> value) =>
       _setValue(key, List<String>.unmodifiable(value));
@@ -160,10 +186,17 @@ final class BusinessPreferences {
     });
   }
 
-  Future<bool> _setValue(String key, Object value) => setMany({key: value});
+  Future<bool> _setValue(
+    String key,
+    Object value, {
+    RecycleGroup? removalGroup,
+  }) => setMany({key: value}, removalGroup: removalGroup);
 
   /// Publishes the cache only after every write has committed successfully.
-  Future<bool> setMany(Map<String, Object> values) async {
+  Future<bool> setMany(
+    Map<String, Object> values, {
+    RecycleGroup? removalGroup,
+  }) async {
     final updates = values.map(
       (key, value) => MapEntry(key, _copyForStorage(value)),
     );
@@ -197,6 +230,7 @@ final class BusinessPreferences {
       await _repository.writeBatch(
         entities: entities,
         preferences: preferenceUpdates,
+        removalGroup: removalGroup,
       );
       if (normalized != null) {
         final routed = BusinessSnapshot(

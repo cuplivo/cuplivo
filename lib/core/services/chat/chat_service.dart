@@ -33,6 +33,7 @@ import '../../database/business_repository.dart';
 import '../../database/chat_database_gateway.dart';
 import '../../database/chat_database_repository.dart';
 import '../backup/backup_cancel_token.dart';
+import '../recycle/recycle_service.dart';
 import '../backup/backup_isolate_runner.dart';
 import '../backup/backup_task_progress.dart';
 import '../../database/generation_run.dart';
@@ -2245,11 +2246,13 @@ class ChatService extends ChangeNotifier {
   Future<bool> _deletePersistedConversation(
     String id, {
     bool bump = true,
+    RecycleOrigin origin = RecycleOrigin.local,
+    RecycleGroup? group,
   }) async {
     final conversation = _conversationsCache[id];
     if (conversation == null) return false;
 
-    await _repo.deleteConversation(id);
+    await _repo.deleteConversation(id, origin: origin, group: group);
     _conversationsCache.remove(id);
     // Stop any deferred/in-flight order backfill before clearing caches so a
     // late getMessageIds cannot resurrect order/count for a deleted id.
@@ -2276,7 +2279,10 @@ class ChatService extends ChangeNotifier {
     return true;
   }
 
-  Future<void> deleteConversationsForAssistant(String assistantId) async {
+  Future<void> deleteConversationsForAssistant(
+    String assistantId, {
+    RecycleGroup? group,
+  }) async {
     if (!_initialized) await init();
 
     final targetId = assistantId.trim();
@@ -2304,7 +2310,11 @@ class ChatService extends ChangeNotifier {
     }
     for (final conversationId in persistedConversationIds) {
       deleted =
-          await _deletePersistedConversation(conversationId, bump: false) ||
+          await _deletePersistedConversation(
+            conversationId,
+            bump: false,
+            group: group,
+          ) ||
           deleted;
     }
 
@@ -2316,7 +2326,14 @@ class ChatService extends ChangeNotifier {
 
   /// Deletes each id once. Returns the number of conversations actually
   /// removed. Notifies and bumps the list revision at most once.
-  Future<int> deleteConversations(Iterable<String> ids) async {
+  ///
+  /// [group] is the recycle bin's label for one deletion event: a bulk delete
+  /// that is one act to the user stages its conversations as one entry in the
+  /// bin rather than N unrelated ones.
+  Future<int> deleteConversations(
+    Iterable<String> ids, {
+    RecycleGroup? group,
+  }) async {
     if (!_initialized) await init();
 
     var count = 0;
@@ -2324,7 +2341,7 @@ class ChatService extends ChangeNotifier {
     for (final id in ids) {
       if (id.isEmpty || !seen.add(id)) continue;
       if (await _deleteDraftConversation(id) ||
-          await _deletePersistedConversation(id, bump: false)) {
+          await _deletePersistedConversation(id, bump: false, group: group)) {
         count++;
       }
     }
@@ -2878,6 +2895,29 @@ class ChatService extends ChangeNotifier {
         .toList(growable: true);
     _messageCounts[restored.id] = messages.length;
     _bumpContextRevision(restored.id);
+    _bumpConversationListRevision();
+    notifyListeners();
+  }
+
+  /// Re-reads persisted chat state after a writer outside this service changed
+  /// the database — the recycle bin's restore writes rows through the
+  /// repository and then needs the in-memory caches to catch up. Mirrors the
+  /// post-merge tail of [mergeDatabaseSnapshot]; no restart is involved.
+  ///
+  /// [touchedConversations] names what the external writer changed, so the open
+  /// window knows to rebuild itself instead of leaving the user on the content
+  /// that was there before the write.
+  Future<void> reloadAfterExternalChange({
+    Set<String>? touchedConversations,
+  }) async {
+    if (touchedConversations != null) {
+      for (final conversationId in touchedConversations) {
+        _bumpContextRevision(conversationId);
+      }
+    }
+    _clearPersistedMessageCache();
+    await _backfillAssetReferencesForCurrentRoot();
+    await _loadConversationsCache();
     _bumpConversationListRevision();
     notifyListeners();
   }

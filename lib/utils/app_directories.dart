@@ -23,10 +23,11 @@ bool isSafePathSegment(String segment) {
 
 /// Whether [id] may name a directory under `<appData>/workspaces`.
 ///
-/// This device creates workspace ids as UUIDs, but an id also arrives from a
-/// backup. It is a single path segment or it is not a workspace id at all: `..`
-/// would name a directory *outside* the managed tree, which the file plane
-/// would then index and — on a delete — remove recursively.
+/// This device creates workspace ids as UUIDs, but an id also arrives from the
+/// wire (LAN sync) and from a backup. It is a single path segment or it is not
+/// a workspace id at all: `..` would name a directory *outside* the managed
+/// tree, which the file plane would then index, advertise to the peer and — on
+/// a delete — remove recursively.
 bool isSafeWorkspaceId(String id) => isSafePathSegment(id);
 
 /// The DOS device names Windows refuses (or resolves to a device) even with an
@@ -163,8 +164,29 @@ class AppDirectories {
   /// storage-space report measures it by name while walking that root.
   static const recycleDirName = 'recycle';
 
+  /// LAN sync device state: `<appData>/sync` (identity, peers, checkpoints).
+  /// Deliberately outside the backup face — the device private key and the
+  /// per-peer checkpoints are device-local by definition (ADR-0003).
+  static Future<Directory> getSyncDirectory() => _ensureSubdir(syncDirName);
+
+  /// The sync directory's name under the app data root. Exported because the
+  /// restore cutover resets sync state before any provider exists and so
+  /// builds the path itself (see `SyncStore.resetForBulkReplacement`).
+  static const syncDirName = 'sync';
+
   /// Files root for a managed workspace: `<appData>/workspaces/<id>/files`.
-  static Future<Directory> workspaceFilesDir(String workspaceId) {
+  ///
+  /// Throws for an id that is not a single safe path segment. The id arrives
+  /// from the wire and from a backup, and this is the last place before it
+  /// becomes a filesystem path — see [isSafeWorkspaceId].
+  static Future<Directory> workspaceFilesDir(String workspaceId) async {
+    if (!isSafeWorkspaceId(workspaceId)) {
+      throw ArgumentError.value(
+        workspaceId,
+        'workspaceId',
+        'not a single safe path segment',
+      );
+    }
     return _ensurePath('workspaces/$workspaceId/files');
   }
 

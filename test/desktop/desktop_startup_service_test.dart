@@ -127,8 +127,10 @@ void main() {
       expect(settings.desktopAutostartHidden, isFalse);
       expect(await DesktopStartupService.readHidden(), isFalse);
       expect(
-        BusinessKeyRegistry.classify(DesktopStartupService.hiddenKey),
-        BusinessKeyDisposition.localOnly,
+        BusinessKeyRegistry.isSynced(DesktopStartupService.hiddenKey),
+        isFalse,
+        reason:
+            'the hidden flag describes this machine, so it never rides sync',
       );
     },
   );

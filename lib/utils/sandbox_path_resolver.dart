@@ -57,6 +57,22 @@ class SandboxPathResolver {
     _supportDir = supportDir;
   }
 
+  /// One spelling of [value] for storage: a managed path keeps its
+  /// `kelivo-file:` URI, anything else is canonicalized when it can be and
+  /// repaired to the live container otherwise.
+  ///
+  /// A stored spelling is what travels — in a backup, and over LAN sync — so
+  /// one form has to be chosen once here rather than per caller: two devices
+  /// that spell the same avatar differently would otherwise exchange it back
+  /// and forth as an edit on every round.
+  static String canonicalStorage(String value) {
+    if (value.isEmpty) return value;
+    if (KelivoFileUri.isKelivoFileUri(value)) return value;
+    final canonical = canonicalize(value);
+    if (KelivoFileUri.isKelivoFileUri(canonical)) return canonical;
+    return fix(value);
+  }
+
   /// Synchronously map an old absolute path to the current container's path
   /// when it points under our managed subfolders (upload/images/avatars).
   /// If mapping succeeds and the target exists, returns the mapped path;

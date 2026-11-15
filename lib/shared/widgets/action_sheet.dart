@@ -2,6 +2,7 @@ import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:Cuplivo/core/services/haptics.dart';
 import 'package:Cuplivo/desktop/desktop_context_menu.dart';
@@ -15,7 +16,8 @@ import 'package:Cuplivo/theme/app_semantic_colors.dart';
 /// Mirrors `message_more_sheet.dart` `_actionItem`.
 class ActionSheetItem {
   const ActionSheetItem({
-    required this.icon,
+    this.icon,
+    this.svgAsset,
     required this.label,
     required this.onTap,
     this.destructive = false,
@@ -23,7 +25,10 @@ class ActionSheetItem {
     this.key,
   });
 
-  final IconData icon;
+  final IconData? icon;
+
+  /// Branded glyph used instead of [icon] (for example a vendor mark).
+  final String? svgAsset;
   final String label;
   final VoidCallback onTap;
   final bool destructive;
@@ -57,30 +62,42 @@ Future<void> showMobileActionSheet(
   );
 }
 
-/// Desktop: [showDesktopContextMenuAt] with `danger:` from
+/// Desktop: a context menu at [anchor] (or anchored to [anchorKey] when the
+/// menu belongs to a widget rather than a pointer), with `danger:` from
 /// [ActionSheetItem.destructive]. Mobile: [showMobileActionSheet].
 ///
 /// Platform branch matches `message_more_sheet.dart`.
 Future<void> showAdaptiveActionMenu(
   BuildContext context, {
-  required Offset anchor,
+  Offset? anchor,
+  GlobalKey? anchorKey,
   String? title,
   required List<ActionSheetItem> items,
 }) {
   if (_isDesktopPlatform()) {
+    final desktopItems = [
+      for (final item in items)
+        DesktopContextMenuItem(
+          icon: item.icon,
+          svgAsset: item.svgAsset,
+          label: item.label,
+          danger: item.destructive,
+          checked: item.checked,
+          onTap: item.onTap,
+        ),
+    ];
+    if (anchorKey != null) {
+      return showDesktopAnchoredMenu(
+        context,
+        anchorKey: anchorKey,
+        items: desktopItems,
+      );
+    }
+    if (anchor == null) return Future<void>.value();
     return showDesktopContextMenuAt(
       context,
       globalPosition: anchor,
-      items: [
-        for (final item in items)
-          DesktopContextMenuItem(
-            icon: item.icon,
-            label: item.label,
-            danger: item.destructive,
-            checked: item.checked,
-            onTap: item.onTap,
-          ),
-      ],
+      items: desktopItems,
     );
   }
   return showMobileActionSheet(context, title: title, items: items);
@@ -173,8 +190,17 @@ class _ActionTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(
             children: [
-              Icon(item.icon, size: 20, color: fg),
-              const SizedBox(width: 10),
+              if (item.svgAsset != null)
+                SvgPicture.asset(
+                  item.svgAsset!,
+                  width: 20,
+                  height: 20,
+                  colorFilter: ColorFilter.mode(fg, BlendMode.srcIn),
+                )
+              else if (item.icon != null)
+                Icon(item.icon, size: 20, color: fg),
+              if (item.svgAsset != null || item.icon != null)
+                const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   item.label,

@@ -511,6 +511,7 @@ class _RecordingChatService extends ChatService {
   Future<Conversation> createConversation({
     String? title,
     String? assistantId,
+    String? groupChatId,
     bool activate = true,
   }) async {
     final conversation = Conversation(title: title!, assistantId: assistantId);

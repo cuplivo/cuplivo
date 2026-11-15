@@ -288,6 +288,35 @@ void main() {
       },
     );
 
+    test('a custom line renderer replaces the role labels', () async {
+      final service = createService();
+      await service.init();
+      final conversation = await service.createConversation(
+        title: 'Topic',
+        groupChatId: 'g1',
+      );
+      await service.addMessage(
+        conversationId: conversation.id,
+        role: 'user',
+        content: 'hello',
+      );
+      await service.addMessage(
+        conversationId: conversation.id,
+        role: 'assistant',
+        content: 'answer',
+        senderId: 'a1',
+      );
+
+      final source = await service.generateTitleSource(
+        conversation.id,
+        line: (message) => message.role == 'assistant'
+            ? '[Lin]: ${message.content}'
+            : '用户：${message.content}',
+      );
+
+      expect(source, '用户：hello\n\n[Lin]: answer');
+    });
+
     test('honors a logical truncateIndex after regeneration', () async {
       final service = createService();
       await service.init();

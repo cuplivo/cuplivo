@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:markstream/markstream.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import '../widgets/genui_theme.dart';
 import 'ui_block_adapter.dart';
 import 'ui_web_block_adapter.dart';

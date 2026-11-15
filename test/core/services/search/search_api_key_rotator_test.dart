@@ -1,5 +1,5 @@
-import 'package:Kelivo/core/services/search/search_api_key_rotator.dart';
-import 'package:Kelivo/core/services/search/search_service.dart';
+import 'package:Cuplivo/core/services/search/search_api_key_rotator.dart';
+import 'package:Cuplivo/core/services/search/search_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

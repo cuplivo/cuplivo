@@ -5,7 +5,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
-import 'package:Kelivo/shared/cache/byte_lru_cache.dart';
+import 'package:Cuplivo/shared/cache/byte_lru_cache.dart';
 
 Future<PreviewTextDocument> loadPreviewTextDocument(File file) =>
     compute(_openPreviewTextDocument, file.path);

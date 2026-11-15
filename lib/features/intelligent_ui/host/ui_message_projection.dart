@@ -1,11 +1,11 @@
 import 'package:flutter/widgets.dart';
 import 'package:markstream/markstream_core.dart' show SourceSpan;
 import 'package:provider/provider.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/utils/source_text_map.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/tts/tts_text_selection.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/utils/source_text_map.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/tts/tts_text_selection.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import '../runtime/ui_surface_controller.dart';
 import '../catalog/ui_budgets.dart';
 import '../runtime/ui_surface_state.dart';

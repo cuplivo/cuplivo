@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:Kelivo/core/services/api/tool_call_cancellation.dart';
-import 'package:Kelivo/core/services/workspace/workspace_file_coordinator.dart';
+import 'package:Cuplivo/core/services/api/tool_call_cancellation.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_file_coordinator.dart';
 
 void main() {
   late Directory temp;

@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
 
 final _reasoningSources = Expando<({List<MessagePart> parts, bool provider})>();
 

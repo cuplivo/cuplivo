@@ -3,11 +3,11 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/features/chat/widgets/frosted/chat_frosted_backdrop.dart';
-import 'package:Kelivo/features/chat/widgets/frosted/frosted_surface.dart';
-import 'package:Kelivo/theme/chat_bubble_style.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/chat/widgets/frosted/chat_frosted_backdrop.dart';
+import 'package:Cuplivo/features/chat/widgets/frosted/frosted_surface.dart';
+import 'package:Cuplivo/theme/chat_bubble_style.dart';
 
 import '../../../../support/business_test_harness.dart';
 

@@ -2,17 +2,17 @@ import 'dart:async';
 import 'dart:io';
 
 import "../../../support/business_test_harness.dart";
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/update_provider.dart';
-import 'package:Kelivo/core/providers/backup_reminder_provider.dart';
-import 'package:Kelivo/core/providers/tag_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/features/home/widgets/side_drawer.dart';
-import 'package:Kelivo/features/home/widgets/sidebar_selection_bars.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/update_provider.dart';
+import 'package:Cuplivo/core/providers/backup_reminder_provider.dart';
+import 'package:Cuplivo/core/providers/tag_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/features/home/widgets/side_drawer.dart';
+import 'package:Cuplivo/features/home/widgets/sidebar_selection_bars.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -330,8 +330,12 @@ void main() {
         await tester.tap(confirmButton);
         await tester.pump();
         // deleteConversations does sqlite + asset-maintenance dart:io; those
-        // hops complete in the real async zone and need interleaved pumps.
-        for (var i = 0; i < 40; i++) {
+        // hops complete in the real async zone and need interleaved pumps. The
+        // last conversation also durably acknowledges the intentionally empty
+        // database (token write + native flush) inside its transaction, so the
+        // window has to be generous: 40 rounds (2 s of real time) is not enough
+        // on a loaded Windows runner.
+        for (var i = 0; i < 400; i++) {
           if (service.notifyCount > notifyBeforeDelete) break;
           await tester.runAsync(
             () => Future<void>.delayed(const Duration(milliseconds: 50)),

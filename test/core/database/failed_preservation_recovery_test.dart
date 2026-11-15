@@ -8,15 +8,15 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
-import 'package:Kelivo/core/database/database_family_preserver.dart';
-import 'package:Kelivo/core/database/database_installation_gate.dart';
-import 'package:Kelivo/core/database/empty_database_recovery_guard.dart';
-import 'package:Kelivo/core/database/startup_recovery_service.dart';
-import 'package:Kelivo/core/services/backup/data_sync.dart';
-import 'package:Kelivo/core/services/backup/restore_durability.dart';
-import 'package:Kelivo/core/services/backup/restore_receipt.dart';
-import 'package:Kelivo/core/services/backup/restore_startup_gate.dart';
-import 'package:Kelivo/core/services/backup/restore_workspace_lock.dart';
+import 'package:Cuplivo/core/database/database_family_preserver.dart';
+import 'package:Cuplivo/core/database/database_installation_gate.dart';
+import 'package:Cuplivo/core/database/empty_database_recovery_guard.dart';
+import 'package:Cuplivo/core/database/startup_recovery_service.dart';
+import 'package:Cuplivo/core/services/backup/data_sync.dart';
+import 'package:Cuplivo/core/services/backup/restore_durability.dart';
+import 'package:Cuplivo/core/services/backup/restore_receipt.dart';
+import 'package:Cuplivo/core/services/backup/restore_startup_gate.dart';
+import 'package:Cuplivo/core/services/backup/restore_workspace_lock.dart';
 
 import '../../support/recovery_snapshot_fixture.dart';
 
@@ -324,7 +324,7 @@ void main() {
         durability: _Faults(
           afterRename: (source, target) {
             if (!failed &&
-                target == live.path &&
+                p.equals(target, live.path) &&
                 source.path.contains('${p.separator}candidate${p.separator}')) {
               failed = true;
               throw StateError('injected candidate install failure');

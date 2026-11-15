@@ -8,7 +8,7 @@ import 'package:http/testing.dart';
 import 'package:image/image.dart' as img;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
-import 'package:Kelivo/core/services/mcp/mcp_icon_cache.dart';
+import 'package:Cuplivo/core/services/mcp/mcp_icon_cache.dart';
 
 class _Paths extends PathProviderPlatform {
   _Paths(this.root);

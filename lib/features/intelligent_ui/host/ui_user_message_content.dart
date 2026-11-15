@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/theme/design_tokens.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/theme/design_tokens.dart';
 import 'ui_user_context_parts.dart';
 import '../widgets/genui_context_chip.dart';
 

@@ -1,13 +1,13 @@
-import 'package:Kelivo/utils/unicode_sanitizer.dart';
+import 'package:Cuplivo/utils/unicode_sanitizer.dart';
 import 'dart:convert';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_budgets.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_budgets.dart';
 
 /// Frozen, human-readable message text. The framing identifies a separate
 /// ordinary TextPart for the read-only user chip; it grants no UI authority.
 final class UiContextText {
   UiContextText._(this.title, this.body, this.exactText);
-  static const prefix = '[Kelivo UI state] ';
-  static const suffix = '\n[/Kelivo UI state]';
+  static const prefix = '[Cuplivo UI state] ';
+  static const suffix = '\n[/Cuplivo UI state]';
   final String title, body, exactText;
 
   factory UiContextText({required String title, required String body}) {

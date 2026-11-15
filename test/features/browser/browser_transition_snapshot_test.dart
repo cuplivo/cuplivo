@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/browser/widgets/browser_transition_snapshot.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_transition_snapshot.dart';
 
 void main() {
   testWidgets('one resolved page is reused until motion settles or cancels', (

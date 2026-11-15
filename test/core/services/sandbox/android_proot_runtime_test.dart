@@ -3,12 +3,12 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/environment_state.dart';
-import 'package:Kelivo/core/providers/environment_provider.dart';
-import 'package:Kelivo/core/services/sandbox/android_proot_runtime.dart';
-import 'package:Kelivo/core/services/sandbox/environment_installer.dart';
-import 'package:Kelivo/core/services/sandbox/workspace_channel.dart';
-import 'package:Kelivo/core/services/workspace/workspace_runtime.dart';
+import 'package:Cuplivo/core/models/environment_state.dart';
+import 'package:Cuplivo/core/providers/environment_provider.dart';
+import 'package:Cuplivo/core/services/sandbox/android_proot_runtime.dart';
+import 'package:Cuplivo/core/services/sandbox/environment_installer.dart';
+import 'package:Cuplivo/core/services/sandbox/workspace_channel.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_runtime.dart';
 
 import '../../../support/business_test_harness.dart';
 import 'sandbox_channel_harness.dart';

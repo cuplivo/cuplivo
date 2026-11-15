@@ -2,11 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/features/chat/pages/message_edit_page.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/text_input/message_editing_controller.dart';
-import 'package:Kelivo/shared/widgets/long_message_editor.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/features/chat/pages/message_edit_page.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/text_input/message_editing_controller.dart';
+import 'package:Cuplivo/shared/widgets/long_message_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';

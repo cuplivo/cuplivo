@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:Kelivo/core/services/backup/backup_secure_password_store.dart';
+import 'package:Cuplivo/core/services/backup/backup_secure_password_store.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 

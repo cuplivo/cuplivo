@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Verify startup, GStreamer and GTK input methods without host frontend packages.
-# Usage: bash tool/test_appimage.sh Kelivo-<version>-<arch>.AppImage
+# Usage: bash tool/test_appimage.sh Cuplivo-<version>-<arch>.AppImage
 set -euo pipefail
 
 if [[ $# -ne 1 ]]; then
@@ -13,7 +13,7 @@ gst_inspect="$(command -v gst-inspect-1.0)"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 docker run --rm -i \
-  --mount "type=bind,src=$appimage,dst=/tmp/Kelivo.AppImage,readonly" \
+  --mount "type=bind,src=$appimage,dst=/tmp/Cuplivo.AppImage,readonly" \
   --mount "type=bind,src=$gst_inspect,dst=/tmp/gst-inspect-1.0,readonly" \
   --mount "type=bind,src=$script_dir/check_appimage_gtk.py,dst=/tmp/check_appimage_gtk.py,readonly" \
   ubuntu:22.04 bash -s <<'CONTAINER'
@@ -28,7 +28,7 @@ apt-get install -y --no-install-recommends \
   dbus-x11 xvfb xauth xdotool python3
 
 cd /tmp
-./Kelivo.AppImage --appimage-extract >/dev/null
+./Cuplivo.AppImage --appimage-extract >/dev/null
 # A relocated path with spaces catches caches tied to the build or mount path.
 mv squashfs-root 'relocated AppDir'
 export APPDIR='/tmp/relocated AppDir'
@@ -85,7 +85,7 @@ GTK_TEST
 xvfb-run -a dbus-run-session -- bash -s <<'DISPLAY_TEST'
 set -euo pipefail
 # Launch the actual artifact without an injected library/plugin search path.
-/tmp/Kelivo.AppImage --appimage-extract-and-run >/tmp/kelivo.log 2>&1 &
+/tmp/Cuplivo.AppImage --appimage-extract-and-run >/tmp/cuplivo.log 2>&1 &
 app_pid=$!
 trap 'kill "$app_pid" 2>/dev/null || true' EXIT
 
@@ -93,18 +93,18 @@ trap 'kill "$app_pid" 2>/dev/null || true' EXIT
 for ((attempt = 1; attempt <= 30; attempt++)); do
   sleep 1
   if ! kill -0 "$app_pid" 2>/dev/null; then
-    cat /tmp/kelivo.log
-    echo "Kelivo exited before the AppImage startup check completed" >&2
+    cat /tmp/cuplivo.log
+    echo "Cuplivo exited before the AppImage startup check completed" >&2
     exit 1
   fi
-  if ((attempt >= 10)) && xdotool search --onlyvisible --class '[Kk]elivo' >/dev/null; then
-    echo "AppImage startup, GStreamer and GTK input-method checks passed"
+  if ((attempt >= 10)) && xdotool search --onlyvisible --class '[Cc]uplivo' >/dev/null; then
+    echo "AppImage startup and GStreamer checks passed"
     exit 0
   fi
 done
 
-cat /tmp/kelivo.log
-echo "Kelivo did not show a window within 30 seconds" >&2
+cat /tmp/cuplivo.log
+echo "Cuplivo did not show a window within 30 seconds" >&2
 exit 1
 DISPLAY_TEST
 CONTAINER

@@ -1,4 +1,4 @@
-# Kelivo UI protocol
+# Cuplivo UI protocol
 
 Use an ordinary assistant reply with a useful conclusion and one top-level
 fenced block labelled `kelivo-ui`. The first physical source line is exactly:

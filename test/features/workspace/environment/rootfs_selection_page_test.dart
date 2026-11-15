@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:Kelivo/core/providers/environment_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/sandbox/environment_installer.dart';
-import 'package:Kelivo/core/services/sandbox/rootfs_source.dart';
-import 'package:Kelivo/core/services/sandbox/mirror_speed_test.dart';
-import 'package:Kelivo/core/services/sandbox/workspace_channel.dart';
-import 'package:Kelivo/features/workspace/pages/environment_download_page.dart';
-import 'package:Kelivo/features/workspace/pages/proot_options_page.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/form_sheet.dart';
+import 'package:Cuplivo/core/providers/environment_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/sandbox/environment_installer.dart';
+import 'package:Cuplivo/core/services/sandbox/rootfs_source.dart';
+import 'package:Cuplivo/core/services/sandbox/mirror_speed_test.dart';
+import 'package:Cuplivo/core/services/sandbox/workspace_channel.dart';
+import 'package:Cuplivo/features/workspace/pages/environment_download_page.dart';
+import 'package:Cuplivo/features/workspace/pages/proot_options_page.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/form_sheet.dart';
 import '../../../support/business_test_harness.dart';
 
 void main() {

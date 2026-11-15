@@ -191,7 +191,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get storageSpaceClearDisplacedDatabasesConfirmMessage =>
-      'Delete these set-aside databases? Kelivo kept them when it rebuilt its database, and they may be the only surviving copy of those chats and settings. This cannot be undone.';
+      'Delete these set-aside databases? Cuplivo kept them when it rebuilt its database, and they may be the only surviving copy of those chats and settings. This cannot be undone.';
 
   @override
   String get storageSpaceRestoreTracesHint =>
@@ -1005,7 +1005,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Enable streaming responses';
 
   @override
-  String get assistantEditThinkingBudgetTitle => 'Thinking';
+  String get assistantEditThinkingBudgetTitle => 'Thinking Budget';
 
   @override
   String get assistantEditReasoningFollowDefault => 'Follow model default';
@@ -1690,7 +1690,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupPageChooseExternalFolder =>
-      'Choose iCloud Drive or a folder outside On My iPhone > Kelivo. Files in the Kelivo folder are deleted with the app. The backup was not saved.';
+      'Choose iCloud Drive or a folder outside On My iPhone > Cuplivo. Files in the Cuplivo folder are deleted with the app. The backup was not saved.';
 
   @override
   String get backupPageFilesLabel => 'Files and Images';
@@ -1757,23 +1757,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupPageRestartContent =>
-      'Import successful. Restart Kelivo to apply it safely.';
+      'Import successful. Restart Cuplivo to apply it safely.';
 
   @override
   String backupPageRestartContentWithSkipped(int count) {
-    return 'Import completed, but $count conversations with invalid message ordering were skipped. Restart Kelivo to apply the imported data safely.';
+    return 'Import completed, but $count conversations with invalid message ordering were skipped. Restart Cuplivo to apply the imported data safely.';
   }
 
   @override
   String get restartAppFailedMessage =>
-      'Kelivo could not restart automatically. Fully close it, then open it again.';
+      'Cuplivo could not restart automatically. Fully close it, then open it again.';
 
   @override
   String get backupRestoreRolledBackTitle => 'Restore was rolled back';
 
   @override
   String get backupRestoreRolledBackContent =>
-      'The restore could not be completed. Kelivo verified and kept your previous data.';
+      'The restore could not be completed. Cuplivo verified and kept your previous data.';
 
   @override
   String get backupRestoreDirectoryBlockedTitle =>
@@ -1791,22 +1791,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupRestoreFailureContent =>
-      'Kelivo could not verify a complete old or new data set, so chat data was not opened. Close Kelivo and try again. If this repeats, keep the diagnostic code for support.';
+      'Cuplivo could not verify a complete old or new data set, so chat data was not opened. Close Cuplivo and try again. If this repeats, keep the diagnostic code for support.';
 
   @override
   String get backupRestoreBusinessLeaseUnavailableTitle =>
-      'Kelivo is already running';
+      'Cuplivo is already running';
 
   @override
   String get backupRestoreBusinessLeaseUnavailableContent =>
-      'Kelivo\'s data is still in use by another app process. Close any other Kelivo window, then restart. Your chat data has not been opened by this process.';
+      'Cuplivo\'s data is still in use by another app process. Close any other Cuplivo window, then restart. Your chat data has not been opened by this process.';
 
   @override
   String get restoreProgressTitle => 'Restoring your backup';
 
   @override
   String get restoreProgressWarning =>
-      'Keep Kelivo open until this finishes. If you close it now, the next launch starts this over.';
+      'Keep Cuplivo open until this finishes. If you close it now, the next launch starts this over.';
 
   @override
   String get restoreProgressStageCheckingBackup => 'Checking the backup';
@@ -1828,7 +1828,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get restoreProgressStageFinishing => 'Finishing up';
 
   @override
-  String get backupRestoreFailureRestartButton => 'Restart Kelivo';
+  String get backupRestoreFailureRestartButton => 'Restart Cuplivo';
 
   @override
   String get backupRestoreFailureCopyButton => 'Copy diagnostic code';
@@ -1869,7 +1869,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get startupRecoveryResetFailed =>
-      'Reset failed. Fully close Kelivo, then open it again.';
+      'Reset failed. Fully close Cuplivo, then open it again.';
 
   @override
   String get startupRecoveryResetDialogTitle =>
@@ -1877,7 +1877,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get startupRecoveryResetDialogContent =>
-      'This will not recover your previous chats. Kelivo will keep the current database and existing copies, and start a new empty chat list. To get your chats back, cancel and choose a local copy.';
+      'This will not recover your previous chats. Cuplivo will keep the current database and existing copies, and start a new empty chat list. To get your chats back, cancel and choose a local copy.';
 
   @override
   String get startupRecoveryResetDialogConfirm => 'Keep copies and start fresh';
@@ -1992,18 +1992,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get startupRecoveryDangerBody =>
-      'A fresh start removes the current data from view. Kelivo will preserve the old database and existing copies for recovery. Export a data copy first if possible.';
+      'A fresh start removes the current data from view. Cuplivo will preserve the old database and existing copies for recovery. Export a data copy first if possible.';
 
   @override
   String get startupRecoveryResetAcknowledge =>
       'I choose to continue with an empty chat list without recovering my chats now.';
 
   @override
-  String get startupDatabaseUpdateRequiredTitle => 'Update Kelivo to continue';
+  String get startupDatabaseUpdateRequiredTitle => 'Update Cuplivo to continue';
 
   @override
   String get startupDatabaseUpdateRequiredContent =>
-      'The chat database on this device was created by a newer version of Kelivo and cannot be opened by this version. Your data has not been changed. Install the latest version of Kelivo, then open it again.';
+      'The chat database on this device was created by a newer version of Cuplivo and cannot be opened by this version. Your data has not been changed. Install the latest version of Cuplivo, then open it again.';
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeTitle =>
@@ -2015,7 +2015,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeStep1 =>
-      'Install and open the latest Kelivo, then export a backup from Settings → Backup.';
+      'Install and open the latest Cuplivo, then export a backup from Settings → Backup.';
 
   @override
   String startupDatabaseUpdateRequiredDowngradeStep2(String url) {
@@ -2057,7 +2057,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupPageOverwriteModeDescription =>
-      'Replace the selected components; keep unselected components and unrelated local settings. Replacing chats also clears local unsent drafts.';
+      'Replace the selected components; keep unselected components and unrelated local settings';
 
   @override
   String get backupPageMergeMode => 'Merge';
@@ -2074,7 +2074,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String backupPageForwardCompatBody(int backupVersion, int currentVersion) {
-    return 'This backup was created by a newer version of Kelivo (data format $backupVersion; this version supports $currentVersion), and it does not say whether older versions can read it.\n\nYou can continue: anything this version does not recognise will be skipped, and the backup file itself is not modified. But if the newer version changed how existing data is stored, some content may be imported incorrectly.\n\nUpdating Kelivo first is the safer choice.';
+    return 'This backup was created by a newer version of Cuplivo (data format $backupVersion; this version supports $currentVersion), and it does not say whether older versions can read it.\n\nYou can continue: anything this version does not recognise will be skipped, and the backup file itself is not modified. But if the newer version changed how existing data is stored, some content may be imported incorrectly.\n\nUpdating Cuplivo first is the safer choice.';
   }
 
   @override
@@ -2085,7 +2085,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupPageSchemaTooNewMessage =>
-      'This backup was created by a newer version of Kelivo and cannot be read by this version. Please update Kelivo and try again.';
+      'This backup was created by a newer version of Cuplivo and cannot be read by this version. Please update Cuplivo and try again.';
 
   @override
   String get backupPageBackupUploaded => 'Backup uploaded';
@@ -2115,15 +2115,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupProgressErrorCopied => 'Error copied';
-
-  @override
-  String get backupProgressSkippedTitle =>
-      'Backup completed with skipped items';
-
-  @override
-  String backupProgressSkippedMessage(int count) {
-    return 'Unreadable files or directories skipped: $count. They are not included in this backup.';
-  }
 
   @override
   String get backupProgressPreparing => 'Preparing';
@@ -2278,14 +2269,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupPageIosSystemBackupNote =>
-      'Kelivo\'s local data is excluded from iCloud device backups. Before changing devices or deleting the app, back up to iCloud Drive or another folder outside Kelivo. Files in On My iPhone > Kelivo are deleted with the app.';
+      'Cuplivo\'s local data is excluded from iCloud device backups. Before changing devices or deleting the app, back up to iCloud Drive or another folder outside Cuplivo. Files in On My iPhone > Cuplivo are deleted with the app.';
 
   @override
   String get backupPageImportFromCherryStudio => 'Import from Cherry Studio';
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return 'This backup uses Cherry Studio format version $version, which Kelivo cannot import yet. Export from Cherry Studio v1 instead, or wait for a Kelivo update that supports Cherry Studio v2 backups.';
+    return 'This backup uses Cherry Studio format version $version, which Cuplivo cannot import yet. Export from Cherry Studio v1 instead, or wait for a Cuplivo update that supports Cherry Studio v2 backups.';
   }
 
   @override
@@ -2530,11 +2521,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get compressContextKeepRecentMessages => 'Keep recent turns';
 
   @override
-  String get compressContextKeepCountLabel => 'Recent user messages to keep';
+  String get compressContextKeepCountLabel => 'Keep recent rounds';
 
   @override
   String get compressContextKeepAllMessages =>
-      'That many recent messages already covers the whole chat, so there’s nothing left to compress.';
+      'Keeping that many covers all rounds — nothing to compress';
 
   @override
   String compressContextEstimatePreview(
@@ -3437,22 +3428,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get contextUsageUnavailable => 'Usage isn’t available right now.';
-
-  @override
-  String contextUsagePartialSummary(String tokens) {
-    return 'Estimated $tokens, plus unknown server-side usage';
-  }
-
-  @override
-  String get contextUsageBucketNativeCompaction => 'Server-side compression';
-
-  @override
-  String get contextUsageUnknownTokens => 'Unknown';
-
-  @override
-  String contextUsageLastRequestInput(String tokens) {
-    return 'Last amount actually sent to the model: $tokens';
-  }
 
   @override
   String get contextUsageStateNone => 'No data yet';
@@ -4977,37 +4952,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get miniMapScrollToBottomTooltip => 'Scroll to bottom';
 
   @override
-  String get conversationFindHint => 'Find';
-
-  @override
-  String get conversationFindPrevious => 'Previous match';
-
-  @override
-  String get conversationFindNext => 'Next match';
-
-  @override
-  String get conversationFindOptions => 'Find options';
-
-  @override
-  String conversationFindMatchPosition(int current, int total) {
-    return '$current/$total';
+  String miniMapSearchMatchCount(int count) {
+    return '$count';
   }
 
   @override
-  String get conversationFindCaseSensitive => 'Match case';
-
-  @override
-  String get conversationFindWholeWord => 'Whole word';
-
-  @override
-  String get conversationFindWholeWordTooltip =>
-      'Matches whole words for scripts with word boundaries (e.g. English). Queries that contain Chinese, Japanese, or Korean characters still use substring matching.';
-
-  @override
-  String get conversationFindIncludeThinking => 'Include thinking';
-
-  @override
-  String get conversationFindOpenTooltip => 'Find in conversation';
+  String get miniMapSearchNoResults => 'No matching messages';
 
   @override
   String get searchServicesPageApiKeyRequiredStatus => 'API Key Required';
@@ -5300,15 +5250,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutPageEasterEggButton => 'Nice!';
 
   @override
-  String get aboutPageKelivoSearchUnlocked =>
-      'An unnamed door opened a crack. You might find it in Settings.';
-
-  @override
-  String get aboutPageKelivoSearchAlreadyUnlocked =>
-      'You\'ve already been through this door.';
-
-  @override
-  String get aboutPageAppName => 'Kelivo';
+  String get aboutPageAppName => 'Cuplivo';
 
   @override
   String get aboutPageAppDescription => 'Open-source AI Assistant';
@@ -5366,13 +5308,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutPageJoinQQGroup => 'Join our QQ Group';
 
   @override
-  String get aboutPageQQGroupOne => 'Kelivo Group 1';
+  String get aboutPageQQGroupOne => 'Cuplivo Group 1';
 
   @override
-  String get aboutPageQQGroupTwo => 'Kelivo Group 2';
+  String get aboutPageQQGroupTwo => 'Cuplivo Group 2';
 
   @override
-  String get aboutPageQQGroupThree => 'Kelivo Group 3';
+  String get aboutPageQQGroupThree => 'Cuplivo Group 3';
 
   @override
   String get aboutPageJoinDiscord => 'Join us on Discord';
@@ -5547,7 +5489,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get displaySettingsPageEnableImageCropperSubtitle =>
-      'Crop images after selecting from gallery or camera';
+      'Show a Crop action when previewing an unsent image';
 
   @override
   String get displaySettingsPageKeepSidebarOpenOnAssistantTapTitle =>
@@ -6440,6 +6382,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get imageViewerPageNextButton => 'Next Image';
 
   @override
+  String get imageViewerPageZoomInButton => 'Zoom In';
+
+  @override
+  String get imageViewerPageZoomOutButton => 'Zoom Out';
+
+  @override
+  String get imageViewerPageResetZoomButton => 'Reset Zoom';
+
+  @override
+  String get imageViewerPageFlipHorizontalButton => 'Flip Horizontal';
+
+  @override
+  String get imageViewerPageFlipVerticalButton => 'Flip Vertical';
+
+  @override
+  String get imageViewerPageRotateLeftButton => 'Rotate Left';
+
+  @override
+  String get imageViewerPageRotateRightButton => 'Rotate Right';
+
+  @override
   String imageViewerPageCounter(int index, int total) {
     return '$index/$total';
   }
@@ -6461,7 +6424,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get settingsShare => 'Kelivo - Open Source AI Assistant';
+  String get settingsShare => 'Cuplivo - Open Source AI Assistant';
 
   @override
   String get searchProviderBingLocalDescription =>
@@ -6676,9 +6639,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get searchServicesDialogMaximumTokensInvalid =>
       'Maximum tokens must be between 1024 and 32768.';
-
-  @override
-  String get searchServiceNameKelivo => 'Kelivo';
 
   @override
   String get searchServicesDialogCountryOptional => 'Country/region (optional)';
@@ -6963,7 +6923,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get healthDataSettingsDescription =>
-      'HealthKit signals available to the current assistant in daily conversation. Switches control what Kelivo may try to read; iOS still manages actual Health access.';
+      'HealthKit signals available to the current assistant in daily conversation. Switches control what Cuplivo may try to read; iOS still manages actual Health access.';
 
   @override
   String healthDataSettingsBadge(int selected, int total) {
@@ -8334,7 +8294,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get legacyMemoryExport => 'Export';
 
   @override
-  String get legacyMemoryExportTitle => 'Kelivo legacy memory export';
+  String get legacyMemoryExportTitle => 'Cuplivo legacy memory export';
 
   @override
   String legacyMemoryAssistantHeader(String name) {
@@ -8859,13 +8819,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String tokenDetailFirstResponse(String value) {
-    return '${value}s (first response)';
-  }
-
-  @override
-  String tokenDetailFirstOutput(String value) {
-    return '${value}s (first output)';
+  String tokenDetailFirstToken(String value) {
+    return '${value}s (first token)';
   }
 
   @override
@@ -8977,11 +8932,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get migrationIntroSubtitle =>
-      'Kelivo is moving chat history to a faster SQLite database. The upgrade runs before the app opens so your data stays consistent.';
+      'Cuplivo is moving chat history to a faster SQLite database. The upgrade runs before the app opens so your data stays consistent.';
 
   @override
   String get migrationBackupNote =>
-      'Before migration starts, Kelivo exports a ZIP backup with settings, chat history, and local files.';
+      'Before migration starts, Cuplivo exports a ZIP backup with settings, chat history, and local files.';
 
   @override
   String get migrationPerformanceNote =>
@@ -9021,14 +8976,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get migrationBackingUpSubtitle =>
-      'Exporting settings, chat history, uploaded files, images, and fonts. Keep Kelivo open until this finishes.';
+      'Exporting settings, chat history, uploaded files, images, and fonts. Keep Cuplivo open until this finishes.';
 
   @override
   String get migrationMigratingTitle => 'Migrating to SQLite';
 
   @override
   String get migrationMigratingSubtitle =>
-      'Writing conversations and messages in batches so large histories do not overload memory. Keep Kelivo in the foreground until migration finishes.';
+      'Writing conversations and messages in batches so large histories do not overload memory. Keep Cuplivo in the foreground until migration finishes.';
 
   @override
   String migrationBackingUpDetail(String fileName) {
@@ -9088,7 +9043,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get migrationCompleteSubtitle =>
-      'Your chat history is now stored in SQLite. Restart Kelivo to enter the upgraded app.';
+      'Your chat history is now stored in SQLite. Restart Cuplivo to enter the upgraded app.';
 
   @override
   String get migrationConversationCount => 'Conversations';
@@ -9106,7 +9061,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get migrationMissingFilesCount => 'Missing files';
 
   @override
-  String get migrationRestartButton => 'Restart Kelivo';
+  String get migrationRestartButton => 'Restart Cuplivo';
 
   @override
   String get migrationFailedTitle => 'Migration Failed';
@@ -9132,7 +9087,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get migrationSkipDialogMessage =>
-      'Kelivo will start with an empty chat database. Your old chat history stays on disk (renamed with a .retired suffix) but will NOT be migrated and will not appear in the app. Use your backup ZIP if you need to recover it later.';
+      'Cuplivo will start with an empty chat database. Your old chat history stays on disk (renamed with a .retired suffix) but will NOT be migrated and will not appear in the app. Use your backup ZIP if you need to recover it later.';
 
   @override
   String get migrationSkipDialogCancel => 'Cancel';
@@ -9560,7 +9515,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get localSnapshotEnabledSubtitle =>
-      'Kelivo periodically saves a copy of its database on this device, so it is never the only one.';
+      'Cuplivo periodically saves a copy of its database on this device, so it is never the only one.';
 
   @override
   String get localSnapshotIntervalTitle => 'How often';
@@ -9675,7 +9630,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get localSnapshotCopiesScopeNote =>
-      'Local copies live on this device only. They protect against damage to your data inside the app, not against losing the device or uninstalling Kelivo — use WebDAV or S3 backup for that.';
+      'Local copies live on this device only. They protect against damage to your data inside the app, not against losing the device or uninstalling Cuplivo — use WebDAV or S3 backup for that.';
 
   @override
   String get localSnapshotOriginAutomatic => 'Automatic';
@@ -9733,7 +9688,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String localSnapshotRestoreMessage(String when) {
-    return 'Your current chats and settings will be replaced by this copy from $when. A copy of the current chats and settings is saved first. Unsent drafts are excluded from copies and will be cleared.';
+    return 'Your current chats and settings will be replaced by this copy from $when. A copy of what you have now is saved first, so this can be undone.';
   }
 
   @override
@@ -9822,9 +9777,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get toolSchemaSettingsGroupSearch => 'Search';
-
-  @override
-  String get toolSchemaSettingsGroupImages => 'Images';
 
   @override
   String get toolSchemaSettingsGroupMemory => 'Memory';
@@ -10400,7 +10352,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workspaceEnvUpToDate => 'You\'re up to date';
 
   @override
-  String get workspaceEnvRestartBanner => 'Restart Kelivo to finish';
+  String get workspaceEnvRestartBanner => 'Restart Cuplivo to finish';
 
   @override
   String get workspaceEnvDetectingMirrors => 'Detecting fastest mirrors…';
@@ -10492,18 +10444,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not finish setting up the sandbox.';
 
   @override
-  String get workspaceEnvErrorRepairInterrupted =>
-      'Sandbox repair was interrupted. The existing sandbox has been kept. Retry to finish the repair.';
-
-  @override
-  String get workspaceEnvErrorRepairTimeout =>
-      'Sandbox repair timed out. Check your network connection and retry. The existing sandbox has been kept.';
-
-  @override
-  String get workspaceEnvRepairRestartBanner =>
-      'Could not confirm that sandbox repair stopped within the time limit. Fully close and reopen Kelivo before retrying. The existing sandbox has been kept.';
-
-  @override
   String get workspaceEnvErrorCancelled => 'Installation was cancelled.';
 
   @override
@@ -10529,7 +10469,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workspaceEnvNativeExplanation =>
-      'On desktop, Kelivo uses your system shell instead of a Linux sandbox.';
+      'On desktop, Cuplivo uses your system shell instead of a Linux sandbox.';
 
   @override
   String workspaceEnvNativeShellPath(String path) {
@@ -11463,7 +11403,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workspaceDesktopManagedHint =>
-      'Kelivo creates and manages a folder for this project.';
+      'Cuplivo creates and manages a folder for this project.';
 
   @override
   String get workspaceDesktopHostHint =>
@@ -11720,7 +11660,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workspaceExternalStorageMessage =>
-      'To read and write external folders in the workspace and Shell, allow Kelivo to manage files in Android settings. On Android 11 or later, enable All files access. Then select an on-device folder to mount.';
+      'To read and write external folders in the workspace and Shell, allow Cuplivo to manage files in Android settings. On Android 11 or later, enable All files access. Then select an on-device folder to mount.';
 
   @override
   String get workspaceExternalGrantAccess => 'Grant access';
@@ -11944,7 +11884,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backgroundSettingsTitle => 'Background tasks';
 
   @override
-  String get backgroundTaskTitle => 'Kelivo task';
+  String get backgroundTaskTitle => 'Cuplivo task';
 
   @override
   String get backgroundCompleted => 'Generation complete';
@@ -12080,7 +12020,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backgroundOverlayIcon => 'Floating icon';
 
   @override
-  String get backgroundIconDefault => 'Kelivo icon';
+  String get backgroundIconDefault => 'Cuplivo icon';
 
   @override
   String get backgroundIconImage => 'Choose image';
@@ -12301,7 +12241,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get startupRecoverySnapshotBody =>
-      'Choose a snapshot on this device to recover your chats and settings, even when the database cannot open. Do not uninstall Kelivo: uninstalling also removes these snapshots.';
+      'Choose a snapshot on this device to recover your chats and settings, even when the database cannot open. Do not uninstall Cuplivo: uninstalling also removes these snapshots.';
 
   @override
   String get startupRecoverySnapshotEmpty =>
@@ -12312,7 +12252,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String startupRecoverySnapshotConfirm(String when) {
-    return 'Restore chats and settings from $when? Changes made after this snapshot will not be included. Existing attachment files and the snapshot will be kept. Kelivo will restart to complete the restore.';
+    return 'Restore chats and settings from $when? Changes made after this snapshot will not be included. Existing attachment files and the snapshot will be kept. Cuplivo will restart to complete the restore.';
   }
 
   @override
@@ -12322,7 +12262,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get startupRecoverySnapshotReady =>
-      'The snapshot is ready. Restart Kelivo to complete the restore.';
+      'The snapshot is ready. Restart Cuplivo to complete the restore.';
 
   @override
   String get scheduledTasksTitle => 'Scheduled tasks';
@@ -12396,7 +12336,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scheduledTasksReliability =>
-      'Keep Kelivo unrestricted in battery settings for more reliable execution. Force stopping the app cancels alarms until you reopen it. Missed runs are skipped; tasks follow the device time zone.';
+      'Keep Cuplivo unrestricted in battery settings for more reliable execution. Force stopping the app cancels alarms until you reopen it. Missed runs are skipped; tasks follow the device time zone.';
 
   @override
   String get scheduledTasksExecutionDetail =>
@@ -12584,7 +12524,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scheduledTasksDesktopReliability =>
-      'Tasks run only while Kelivo is running, including when minimized or in the system tray. Missed times are skipped after quitting or computer sleep. Kelivo will not start automatically.';
+      'Tasks run only while Cuplivo is running, including when minimized or in the system tray. Missed times are skipped after quitting or computer sleep. Cuplivo will not start automatically.';
 
   @override
   String get scheduledTasksDesktopExecutionDetail =>
@@ -12982,7 +12922,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scheduledTasksIOSDetail =>
-      'iOS background limits prevent Kelivo from waking at a set time to run a model. Instead, content is prepared while the app can run, and the system shows a notification at the scheduled time. Only the next occurrence is prepared. Preparation may not finish after leaving the app; reopen Kelivo to prepare subsequent occurrences.';
+      'iOS background limits prevent Cuplivo from waking at a set time to run a model. Instead, content is prepared while the app can run, and the system shows a notification at the scheduled time. Only the next occurrence is prepared. Preparation may not finish after leaving the app; reopen Cuplivo to prepare subsequent occurrences.';
 
   @override
   String get scheduledTasksContextPolicy => 'Conversation context';
@@ -13048,7 +12988,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scheduledTasksReminderBody =>
-      'Your scheduled task is due. Open Kelivo to continue.';
+      'Your scheduled task is due. Open Cuplivo to continue.';
 
   @override
   String get scheduledTasksResultBody => 'Your scheduled task result is ready.';
@@ -13062,7 +13002,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scheduledTasksAllowPreparationTip =>
-      'Generate the next result before its scheduled time, while Kelivo can run. The result stays out of the chat until it is due. Preparation uses text only, without tools, attachments or custom request bodies. It may incur model charges.';
+      'Generate the next result before its scheduled time, while Cuplivo can run. The result stays out of the chat until it is due. Preparation uses text only, without tools, attachments or custom request bodies. It may incur model charges.';
 
   @override
   String get scheduledTasksContextPolicyTip =>
@@ -13070,7 +13010,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scheduledTasksPreparationWindowTip =>
-      'How far ahead of the scheduled time preparation may begin, up to 24 hours. For example, opening Kelivo at noon can prepare the next morning’s reminder. A larger window gives more chances to prepare, but the result may be less current. It does not change the scheduled time or guarantee background execution. Prepare now bypasses this automatic waiting period and all attempt limits.';
+      'How far ahead of the scheduled time preparation may begin, up to 24 hours. For example, opening Cuplivo at noon can prepare the next morning’s reminder. A larger window gives more chances to prepare, but the result may be less current. It does not change the scheduled time or guarantee background execution. Prepare now bypasses this automatic waiting period and all attempt limits.';
 
   @override
   String get scheduledTasksPreparationAttemptsTip =>
@@ -13082,7 +13022,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scheduledTasksUnavailableTip =>
-      'If no prepared result is available and the task cannot run when due, send a reminder or skip the occurrence. A reminder contains no generated answer and requires notifications to be enabled. If Kelivo is open when the task is due, it can run the task then.';
+      'If no prepared result is available and the task cannot run when due, send a reminder or skip the occurrence. A reminder contains no generated answer and requires notifications to be enabled. If Cuplivo is open when the task is due, it can run the task then.';
 
   @override
   String get scheduledTasksNotifyTip =>
@@ -13285,14 +13225,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get phoneControlAssistantHint =>
-      'Both permissions are required: enable Kelivo phone control in system Accessibility settings, then enable Phone Control under your assistant’s Local Tools (also available in the chat tools menu). Each assistant is configured separately. Keep the phone unlocked while running a task.';
+      'Both permissions are required: enable Cuplivo phone control in system Accessibility settings, then enable Phone Control under your assistant’s Local Tools (also available in the chat tools menu). Each assistant is configured separately. Keep the phone unlocked while running a task.';
 
   @override
   String get phoneControlRestrictedTitle => 'Accessibility switch unavailable?';
 
   @override
   String get phoneControlRestrictedHint =>
-      'For some downloaded APKs, Android requires “Allow restricted settings” in the app info menu first. Tap to open Kelivo’s app info, then return to Accessibility settings.';
+      'For some downloaded APKs, Android requires “Allow restricted settings” in the app info menu first. Tap to open Cuplivo’s app info, then return to Accessibility settings.';
 
   @override
   String get phoneControlEnableAssistant =>
@@ -13493,14 +13433,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recoveryMissingDataBody =>
-      'Kelivo could not find the current chat database. It has paused loading and has not created an empty database. We’ll look for previous copies below; existing files will be kept.';
+      'The current database is missing, but this device still contains previous data. Cuplivo has paused startup and has not created an empty database. Your remaining files and copies are being preserved.';
 
   @override
   String get recoveryEmptyDataTitle => 'Current chat history is empty';
 
   @override
   String get recoveryEmptyDataBody =>
-      'The current chat list is empty, and previous copies were found. Choose a copy below to recover your chats. Existing files will be kept.';
+      'The current database has no conversations, but previous copies were found. Cuplivo has paused startup so you can recover a copy or explicitly keep the current data. Nothing will be overwritten automatically.';
 
   @override
   String get recoveryKeepCurrent => 'Continue with an empty chat list';
@@ -13536,7 +13476,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recoveryStorageFailureBody =>
-      'The data update could not finish. The original data has been kept. Try reopening Kelivo, or choose a local copy below to recover.';
+      'Cuplivo could not activate its protected data storage. Startup has stopped and the original data has been kept. Export a copy of your data or retry; no empty database will be created.';
 
   @override
   String get recoveryProtectingTitle => 'Protecting the chat database';
@@ -13562,7 +13502,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recoveryStorageInsufficientSpaceBody =>
-      'There is not enough storage to safely prepare your data. Free space in system settings, then reopen Kelivo or recheck the copies below. Keep Kelivo installed and leave its data and local copies in place.';
+      'There is not enough storage to safely prepare your data. Free space in system settings, then reopen Cuplivo or recheck the copies below. Keep Cuplivo installed and leave its data and local copies in place.';
 
   @override
   String get migrationFreshStartTitle => 'Fresh start is ready';
@@ -13648,7 +13588,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupEncryptionUnsupported =>
-      'This encrypted backup requires a newer version of Kelivo.';
+      'This encrypted backup requires a newer version of Cuplivo.';
 
   @override
   String get backupProgressEncrypting => 'Encrypting backup';
@@ -13816,7 +13756,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get browserRestoreTabsDescription =>
-      'Reopen your tabs when Kelivo starts.';
+      'Reopen your tabs when Cuplivo starts.';
 
   @override
   String get browserSaveHistory => 'Save history';
@@ -15010,6 +14950,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get compressTaskAbandon => 'Dismiss';
 
   @override
+  String get browserAgentTimedOut => 'Operation timed out; AI paused';
+
+  @override
   String get compressCancelledSnack => 'Cancelled. The context is unchanged.';
 
   @override
@@ -15550,7 +15493,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get toolPermissionRequestApprovalDesc =>
-      'Kelivo will ask before accessing files outside the workspace, running desktop commands, or using other tools that need approval.';
+      'Cuplivo will ask before accessing files outside the workspace, running desktop commands, or using other tools that need approval.';
 
   @override
   String get contextLimitedInputHint =>
@@ -15611,7 +15554,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dataDirectoryMoving =>
-      'Moving and verifying data… Please keep Kelivo open.';
+      'Moving and verifying data… Please keep Cuplivo open.';
 
   @override
   String get dataDirectoryStartupFailed => 'Unable to open the data directory';
@@ -15657,7 +15600,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dataDirectoryGenericError =>
-      'The operation could not finish. Check available disk space, folder permissions and whether another Kelivo process is running, then retry. Existing data has been kept.';
+      'The operation could not finish. Check available disk space, folder permissions and whether another Cuplivo process is running, then retry. Existing data has been kept.';
 
   @override
   String get dataDirectoryCancelHint =>
@@ -15902,7 +15845,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recoveryGuideBody =>
-      'Kelivo paused loading your data. We’ll look for local copies so you can choose what to recover. Existing files will be kept.';
+      'Cuplivo paused loading your data. We’ll look for local copies so you can choose what to recover. Existing files will be kept.';
 
   @override
   String get recoverySpaceTitle => 'Some free space is needed';
@@ -15923,7 +15866,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recoveryRestoreRetryBody =>
-      'The restore could not be completed. The selected copy has been kept. Check local copies again or reopen Kelivo to continue.';
+      'The restore could not be completed. The selected copy has been kept. Check local copies again or reopen Cuplivo to continue.';
 
   @override
   String recoverySpaceAmount(String required, String available) {
@@ -15932,7 +15875,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recoveryCopiesNeedUpdate =>
-      'Some copies were made by a newer version of Kelivo. Update Kelivo before restoring them. These copies have been kept.';
+      'Some copies were made by a newer version of Cuplivo. Update Cuplivo before restoring them. These copies have been kept.';
 
   @override
   String get imageContextAllowRecall => 'Allow the model to recall images';
@@ -16020,9 +15963,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get contextOperationsTitle => 'Compression and clear history';
-
-  @override
-  String get contextOperationsLoadMore => 'Show more';
 
   @override
   String get contextOperationsDescription =>
@@ -16473,24 +16413,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get compressionCallUnit => 'calls';
 
   @override
-  String get compressionRequestTimeout => 'Compression request timeout';
-
-  @override
-  String get compressionMinuteUnit => 'min';
-
-  @override
-  String get compressionRequestTimeoutDefault => 'Default';
-
-  @override
-  String get compressionRequestTimeoutHint =>
-      'Enter a number of minutes greater than 0. Leave blank to keep the current default (5 minutes for server-side compression). When summarizing in parts, each part and the merge is timed separately.';
-
-  @override
-  String compressionRequestTimedOut(num minutes) {
-    return 'Compression stopped after $minutes minutes and the context is unchanged. Try again, or allow a longer timeout.';
-  }
-
-  @override
   String get compressionAdvancedOptions => 'Compression details';
 
   @override
@@ -16591,22 +16513,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String requestBudgetSingleError(int index, String actual, String limit) {
-    return 'Kelivo local preflight: image $index has an encoded size of $actual, exceeding the single-image limit of $limit.';
+    return 'Cuplivo local preflight: image $index has an encoded size of $actual, exceeding the single-image limit of $limit.';
   }
 
   @override
   String requestBudgetTotalError(String actual, String limit) {
-    return 'Kelivo local preflight: encoded images total $actual, exceeding the image budget of $limit.';
+    return 'Cuplivo local preflight: encoded images total $actual, exceeding the image budget of $limit.';
   }
 
   @override
   String requestBudgetCountError(String actual, int limit) {
-    return 'Kelivo local preflight: the request contains $actual images, exceeding the limit of $limit.';
+    return 'Cuplivo local preflight: the request contains $actual images, exceeding the limit of $limit.';
   }
 
   @override
   String requestBudgetBodyError(String actual, String limit) {
-    return 'Kelivo local preflight: the complete request body is $actual, exceeding the request budget of $limit.';
+    return 'Cuplivo local preflight: the complete request body is $actual, exceeding the request budget of $limit.';
   }
 
   @override
@@ -16803,18 +16725,1439 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workspaceEnvNativeShellSave => 'Save';
 
   @override
+  String get storageSpaceCategoryAssistantData => 'Assistants';
+
+  @override
+  String get storageSpaceSubAssistantAvatars => 'Avatars';
+
+  @override
+  String get storageSpaceSubAssistantImages => 'Images';
+
+  @override
+  String get storageSpaceSourceLabel => 'Source';
+
+  @override
+  String get storageSpaceSourceAll => 'All';
+
+  @override
+  String get storageSpaceSourceUserUpload => 'User uploads';
+
+  @override
+  String get storageSpaceSourceAssistant => 'Assistant';
+
+  @override
+  String get languageDisplayPortuguese => 'Portuguese';
+
+  @override
+  String get languageDisplayArabic => 'Arabic';
+
+  @override
+  String get languageDisplayHindi => 'Hindi';
+
+  @override
+  String get languageDisplayThai => 'Thai';
+
+  @override
+  String get languageDisplayVietnamese => 'Vietnamese';
+
+  @override
+  String get languageDisplayBengali => 'Bengali';
+
+  @override
+  String get translateLanguageManagerTitle => 'Manage Languages';
+
+  @override
+  String get translateLanguageManagerSubtitle =>
+      'Choose which languages appear in the translate target list.';
+
+  @override
+  String get translateLanguageManagerAtLeastOne =>
+      'Keep at least one language visible.';
+
+  @override
+  String get assistantEditChatSuggestionsTitle => 'Chat Suggestions';
+
+  @override
+  String get assistantEditChatSuggestionsTip =>
+      'Adds one request after each reply to propose up to three follow-ups. Off spends nothing.';
+
+  @override
+  String get assistantEditChatSuggestionsGlobalOff =>
+      'Inactive — turn on Chat Suggestions under Default Models first.';
+
+  @override
+  String get hotkeyFocusInput => 'Focus Input';
+
+  @override
+  String get hotkeyCopySelectionMarkdown => 'Copy Selection as Markdown';
+
+  @override
+  String get hotkeyReplySelection => 'Reply to Selection';
+
+  @override
+  String get compressingContext => 'Compressing context...';
+
+  @override
+  String compressContextReadoutRounds(int rounds) {
+    String _temp0 = intl.Intl.pluralLogic(
+      rounds,
+      locale: localeName,
+      other: '$rounds rounds',
+      one: '1 round',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String compressContextReadoutKeptRounds(int rounds) {
+    String _temp0 = intl.Intl.pluralLogic(
+      rounds,
+      locale: localeName,
+      other: '$rounds rounds',
+      one: '1 round',
+    );
+    return '$_temp0 + summary';
+  }
+
+  @override
+  String compressContextReadoutTokens(String tokens) {
+    return '~$tokens tokens';
+  }
+
+  @override
+  String compressContextReadoutTokensBand(String min, String max) {
+    return '~$min–$max tokens';
+  }
+
+  @override
+  String compressContextReadoutReduction(int percent) {
+    return '−$percent%';
+  }
+
+  @override
+  String get messageQuotePreviewRemove => 'Remove reply';
+
+  @override
+  String get messageQuoteTargetMissing => 'Original message unavailable';
+
+  @override
+  String get messageMoreSheetReply => 'Reply';
+
+  @override
+  String get messageMoreSheetCopyLink => 'Copy Link';
+
+  @override
+  String reasoningBudgetSheetCurrentLevel(String level) {
+    return 'Current Level: $level';
+  }
+
+  @override
+  String get chatMessageWidgetReplySelection => 'Reply';
+
+  @override
+  String get chatSelectionExportPdf => 'PDF';
+
+  @override
+  String get messageExportSheetUser => 'User';
+
+  @override
+  String get messageExportSheetPdf => 'PDF';
+
+  @override
+  String get messageExportSheetBatchPdfSubtitle =>
+      'Export selected messages as a PDF document';
+
+  @override
+  String get pdfExportDialogTitle => 'Export PDF';
+
+  @override
+  String get pdfExportDialogCancel => 'Cancel';
+
+  @override
+  String get pdfExportDialogExport => 'Export PDF';
+
+  @override
+  String get pdfExportDialogSectionContent => 'Content';
+
+  @override
+  String get pdfExportDialogSectionFonts => 'Fonts';
+
+  @override
+  String get pdfExportFontRoleBody => 'Body font';
+
+  @override
+  String get pdfExportFontRoleMono => 'Code font';
+
+  @override
+  String get pdfExportFontRoleEmoji => 'Emoji font';
+
+  @override
+  String get pdfExportFontCheck => 'Check fonts';
+
+  @override
+  String get pdfExportFontChecking => 'Checking…';
+
+  @override
+  String get pdfExportFontMissing =>
+      'No embeddable CJK font was found; CJK text may print blank.';
+
+  @override
+  String get pdfExportFontUnusable =>
+      'The chosen font could not be used; another was substituted.';
+
+  @override
+  String get pdfExportFontBuiltIn => 'Built-in font';
+
+  @override
+  String get pdfExportFontNone => 'Not embedded';
+
+  @override
+  String get pdfExportFontNeedsDownload => 'Needs download';
+
+  @override
+  String get pdfExportFontAuto => 'Automatic';
+
+  @override
+  String get pdfExportFontGroupSystem => 'System fonts';
+
+  @override
+  String get pdfExportFontGroupDownload => 'Download';
+
+  @override
+  String get pdfExportFontGroupOther => 'Other';
+
+  @override
+  String get pdfExportFontNoteCjk => 'Includes CJK';
+
+  @override
+  String get pdfExportFontNoteColour => 'Colour';
+
+  @override
+  String get pdfExportFontNoteMonochrome => 'Monochrome';
+
+  @override
+  String get pdfExportFontBuiltInNote => 'Embeds no font; CJK prints blank';
+
+  @override
+  String get pdfExportFontDownloadNote => 'Includes CJK, about 10 MB';
+
+  @override
+  String get pdfExportFontListFailed => 'Could not read the font list';
+
+  @override
+  String get pdfExportResultTitle => 'Export complete';
+
+  @override
+  String pdfExportResultSummary(Object pages, Object size) {
+    return '$pages pages · $size';
+  }
+
+  @override
+  String pdfExportResultDegraded(Object count) {
+    return '$count item(s) not fully exported';
+  }
+
+  @override
+  String pdfExportResultDegradedMath(Object count) {
+    return '$count formula(s) shown as plain text';
+  }
+
+  @override
+  String pdfExportResultDegradedDiagram(Object count) {
+    return '$count diagram(s) shown as code';
+  }
+
+  @override
+  String pdfExportResultDegradedImage(Object count) {
+    return '$count image(s) could not be read and are shown as their reference';
+  }
+
+  @override
+  String get pdfExportResultDone => 'Done';
+
+  @override
+  String get sideDrawerMenuCopyLink => 'Copy Link';
+
+  @override
+  String get conversationLinkCopied => 'Link copied';
+
+  @override
+  String get conversationLinkMissing =>
+      'This conversation isn\'t on this device.';
+
+  @override
+  String modelDetailSheetModelIdDisabledHint(String modelId) {
+    return '$modelId';
+  }
+
+  @override
+  String get modelDetailSheetSearchTool => 'Search';
+
+  @override
+  String get modelDetailSheetSearchToolDescription =>
+      'Enable Google Search integration';
+
+  @override
+  String get modelDetailSheetModelIdExistsError => 'Model ID already exists';
+
+  @override
+  String get aboutPageCuplivoSearchUnlocked =>
+      'An unnamed door opened a crack. You might find it in Settings.';
+
+  @override
+  String get aboutPageCuplivoSearchAlreadyUnlocked =>
+      'You\'ve already been through this door.';
+
+  @override
+  String get aboutPageQQGroup => 'Cuplivo Group';
+
+  @override
+  String get draftImageCropAction => 'Crop';
+
+  @override
+  String get draftImageCropFailed =>
+      'Could not crop this image. The original is unchanged.';
+
+  @override
+  String get displaySettingsPageAutoScrollIdleTitle => 'Auto-Scroll Back Delay';
+
+  @override
+  String get displaySettingsPageAutoScrollIdleSubtitle =>
+      'Wait time after user scroll before jumping to bottom';
+
+  @override
+  String get searchServiceNameCuplivo => 'Cuplivo';
+
+  @override
+  String get memorySettingsFullInjectionTypesTitle =>
+      'Always inject these types';
+
+  @override
+  String get memorySettingsFullInjectionTypesSubtitle =>
+      'Select one or more types to inject all their active memories visible to the current assistant. These types ignore the item limit and use more context and tokens.';
+
+  @override
+  String get toolApprovalApprove => 'Approve';
+
+  @override
+  String get imageSettingsPageModeTitle => 'Compression Mode';
+
+  @override
+  String get imageSettingsPageModeManual => 'Manual';
+
+  @override
+  String get imageSettingsPageModeAuto => 'Automatic';
+
+  @override
+  String get imageSettingsPageModeOff => 'Off';
+
+  @override
+  String get imageSettingsPageModeManualSubtitle =>
+      'Images are attached unchanged; open the preview to compress them manually';
+
+  @override
+  String get imageSettingsPageModeAutoSubtitle =>
+      'Images are re-encoded when attached, using the preset below';
+
+  @override
+  String get imageSettingsPageModeOffSubtitle => 'Images are never compressed';
+
+  @override
+  String get compressEditorTitle => 'Compress Image';
+
+  @override
+  String get compressEditorFormatJpeg => 'JPEG';
+
+  @override
+  String get compressEditorFormatPng => 'PNG';
+
+  @override
+  String get compressEditorFormatOriginal => 'Original';
+
+  @override
+  String get compressEditorLongEdgeLabel => 'Long edge';
+
+  @override
+  String get compressEditorLongEdgeFull => '100%';
+
+  @override
+  String get compressEditorLongEdgeHalf => '50%';
+
+  @override
+  String get compressEditorLongEdgeQuarter => '25%';
+
+  @override
+  String get compressEditorQualityLabel => 'Quality';
+
+  @override
+  String get compressEditorOriginalSide => 'Original';
+
+  @override
+  String get compressEditorEstimating => 'Estimating size…';
+
+  @override
+  String get compressEditorEstimateFailed => 'Size estimate unavailable';
+
+  @override
+  String compressEditorSavings(int percent) {
+    return '−$percent%';
+  }
+
+  @override
+  String compressEditorGrowth(int percent) {
+    return '+$percent%';
+  }
+
+  @override
+  String get compressEditorNoReencode => 'no re-encode';
+
+  @override
+  String get compressEditorDecodeFailed =>
+      'This image can\'t be previewed, so it can\'t be re-compressed.';
+
+  @override
+  String get compressEditorTooLarge =>
+      'This image is too large to open in the editor, so it can\'t be re-compressed here. It will be attached as it is.';
+
+  @override
+  String compressEditorWorkingScale(String source, int percent) {
+    return 'Source $source, loaded at $percent% to stay within memory';
+  }
+
+  @override
+  String get compressEditorCancel => 'Cancel';
+
+  @override
+  String get compressEditorApply => 'Apply';
+
+  @override
+  String get compressEditorApplyAll => 'Apply to all';
+
+  @override
+  String get compressEditorDone => 'Done';
+
+  @override
+  String get workspaceToolAllowAll => 'Allow all this session';
+
+  @override
+  String get workspaceEntryAllowAll => 'Allow all this session';
+
+  @override
+  String get workspaceEntryAllowAllSubtitle =>
+      'Shell commands in this conversation will run without approval.';
+
+  @override
+  String get recycleBinTitle => 'Recycle Bin';
+
+  @override
+  String get recycleBinManage => 'Manage recycle bin';
+
+  @override
+  String get recycleBinStorageHint =>
+      'Kept on this device only — never synced, never in a backup.';
+
+  @override
+  String get recycleBinEntriesLabel => 'items';
+
+  @override
+  String get recycleBinEmptyTitle => 'Nothing in the bin';
+
+  @override
+  String get recycleBinEmptyBody =>
+      'Conversations and assistants you delete, and settings a sync merge replaced, are kept here so you can bring them back.';
+
+  @override
+  String get recycleBinUntitled => 'Untitled';
+
+  @override
+  String get recycleBinKindConversation => 'Conversation';
+
+  @override
+  String get recycleBinKindAssistant => 'Assistant';
+
+  @override
+  String get recycleBinKindProvider => 'Provider';
+
+  @override
+  String get recycleBinKindWorldBook => 'World book';
+
+  @override
+  String get recycleBinKindMemory => 'Memory';
+
+  @override
+  String get recycleBinKindPreference => 'Setting';
+
+  @override
+  String get recycleBinKindWorkspaceFile => 'Workspace file';
+
+  @override
+  String get recycleBinKindConfig => 'Configuration';
+
+  @override
+  String get recycleBinOriginLocal => 'Deleted here';
+
+  @override
+  String get recycleBinOriginRemote => 'Deleted by sync';
+
+  @override
+  String get recycleBinReasonOverwritten => 'Replaced by a newer copy';
+
+  @override
+  String get recycleBinRestore => 'Restore';
+
+  @override
+  String get recycleBinDeleteForever => 'Delete permanently';
+
+  @override
+  String get recycleBinDeleteForeverBody =>
+      'This entry will be deleted for good and can no longer be recovered.';
+
+  @override
+  String get recycleBinClearAll => 'Empty the bin';
+
+  @override
+  String get recycleBinClearAllBody =>
+      'Every entry in the bin will be deleted for good and can no longer be recovered.';
+
+  @override
+  String get recycleBinRestored => 'Restored';
+
+  @override
+  String get recycleBinRestoreSkipped =>
+      'That item is back already, so nothing was changed';
+
+  @override
+  String get recycleBinRestoreUnreadable =>
+      'The staged copy is damaged and cannot be restored';
+
+  @override
+  String get recycleBinRestoreUnsupported =>
+      'This build cannot restore that entry';
+
+  @override
+  String get recycleBinRestoreNoWorkspace =>
+      'This file\'s workspace was deleted, so there is no folder to put it back into.';
+
+  @override
+  String get recycleBinRestoreFailed => 'Could not restore that entry';
+
+  @override
+  String get recycleBinFilterAll => 'All';
+
+  @override
+  String get recycleBinFilterConversation => 'Conversations';
+
+  @override
+  String get recycleBinFilterAssistants => 'Assistants';
+
+  @override
+  String get recycleBinFilterSettings => 'Settings';
+
+  @override
+  String get recycleBinFilterFiles => 'Files';
+
+  @override
+  String get recycleBinCancel => 'Cancel';
+
+  @override
+  String get recycleBinInfoTitle => 'About the recycle bin';
+
+  @override
+  String get recycleBinInfoBody =>
+      'What you delete here — a conversation, an assistant, a provider, a memory, a setting — is kept on this device so it can be brought back.\n\nThe bin never syncs and never goes into a backup. Entries are kept for 90 days, or until the bin passes 256 MB or 1000 entries; past either limit the oldest go first.\n\nBringing something back writes it as of now, so it is not immediately replaced by whatever won last time.';
+
+  @override
+  String get recycleBinInfoClose => 'Got it';
+
+  @override
+  String recycleBinGroupHeader(Object count, Object name) {
+    return '$count conversations deleted together with “$name”';
+  }
+
+  @override
+  String get recycleBinRestoreGroup => 'Restore all';
+
+  @override
+  String recycleBinGroupRestored(Object restored, Object skipped) {
+    return 'Restored $restored, $skipped already back';
+  }
+
+  @override
+  String recycleBinGroupRestoreFailed(Object failed, Object restored) {
+    return 'Restored $restored, $failed could not be restored';
+  }
+
+  @override
+  String get recycleBinOpenDetail => 'View details';
+
+  @override
+  String get recycleBinDetailKey => 'Identity';
+
+  @override
+  String get recycleBinDetailOrigin => 'Origin';
+
+  @override
+  String get recycleBinDetailWhen => 'Deleted';
+
+  @override
+  String get recycleBinDetailReplacedWhen => 'Replaced';
+
+  @override
+  String get recycleBinDetailSize => 'Size';
+
+  @override
+  String get recycleBinDetailModified => 'File modified';
+
+  @override
+  String get recycleBinDetailContent => 'Contents';
+
+  @override
+  String recycleBinDetailRows(Object count) {
+    return '$count rows';
+  }
+
+  @override
+  String recycleBinDetailTruncated(Object shown) {
+    return 'Too large — showing the first $shown';
+  }
+
+  @override
+  String get recycleBinDetailBinary => 'Binary file — no preview';
+
+  @override
+  String get recycleBinDetailUnreadable =>
+      'The staged copy is damaged; its contents cannot be read';
+
+  @override
+  String get recycleBinDetailCopyJson => 'Copy JSON';
+
+  @override
+  String get recycleBinDetailCopyText => 'Copy text';
+
+  @override
+  String get recycleBinDetailCopied => 'Copied';
+
+  @override
+  String recycleBinDetailAssistantGone(Object name) {
+    return 'This conversation belonged to “$name”, which is no longer on this device. After restoring it you will need to choose an assistant for it.';
+  }
+
+  @override
+  String get settingsPageLanSync => 'LAN Sync';
+
+  @override
+  String get lanSyncThisDevice => 'This device';
+
+  @override
+  String get lanSyncListenerStarting => 'Starting listener…';
+
+  @override
+  String get lanSyncListenerNotRunning => 'Listener not running';
+
+  @override
+  String lanSyncListenerFailed(Object error) {
+    return 'Listener failed to start: $error';
+  }
+
+  @override
+  String get lanSyncPairSectionTitle => 'Pair a device';
+
+  @override
+  String get lanSyncPairIntro =>
+      'Two devices on the same LAN: one shows the QR code, the other scans it.';
+
+  @override
+  String get lanSyncPairFirstSyncNote =>
+      'After pairing, the first sync starts automatically and can take a while. Keep the desktop app running and this app in the foreground on mobile.';
+
+  @override
+  String get lanSyncShowCode => 'Show pairing QR';
+
+  @override
+  String get lanSyncEnterCode => 'Scan or enter code';
+
+  @override
+  String get lanSyncPairingCode => 'Pairing code';
+
+  @override
+  String lanSyncPairingExpiresIn(Object time) {
+    return 'Expires in $time';
+  }
+
+  @override
+  String get lanSyncPairingEndpointHint => 'Enter this on the other device';
+
+  @override
+  String get lanSyncPairingNoIpHint =>
+      'No LAN address was found. The other device can still reach this one by its IP or hostname.';
+
+  @override
+  String get lanSyncHostLabel => 'Address';
+
+  @override
+  String get lanSyncPortLabel => 'Port';
+
+  @override
+  String get lanSyncPairButton => 'Pair';
+
+  @override
+  String get lanSyncPairAgain => 'Pair again';
+
+  @override
+  String get lanSyncPairingBusy => 'Pairing…';
+
+  @override
+  String lanSyncPairSuccess(Object name) {
+    return 'Paired with $name';
+  }
+
+  @override
+  String get lanSyncPairErrorInvalidPin =>
+      'Wrong pairing code, or the other device\'s pairing window is closed.';
+
+  @override
+  String get lanSyncPairErrorInvalidAddress =>
+      'Enter the other device\'s address and port.';
+
+  @override
+  String get lanSyncPairErrorUnreachable =>
+      'Could not reach the device. Check the address and port, and that both devices are on the same network.';
+
+  @override
+  String get lanSyncPairErrorNoCertificate =>
+      'The other device did not identify itself. Pairing aborted.';
+
+  @override
+  String get lanSyncPairErrorIdMismatch =>
+      'The other device\'s identity could not be verified. Pairing aborted.';
+
+  @override
+  String get lanSyncPairErrorNoListener =>
+      'The sync listener on this device is not running yet.';
+
+  @override
+  String lanSyncPairErrorUnknown(Object error) {
+    return 'Pairing failed: $error';
+  }
+
+  @override
+  String get lanSyncScanQr => 'Scan pairing QR';
+
+  @override
+  String get lanSyncPairQrCaption =>
+      'Scan to pair, or enter the details below on the other device';
+
+  @override
+  String lanSyncPairUpdatedSnackbar(Object name) {
+    return 'Pairing with $name updated';
+  }
+
+  @override
+  String get lanSyncPairErrorFingerprintMismatch =>
+      'The device\'s certificate does not match the scanned code. Pairing aborted.';
+
+  @override
+  String get lanSyncPairErrorNoEndpointInQr =>
+      'The code carries no address. Enter one below to pair.';
+
+  @override
+  String get lanSyncPairErrorNotPairingQr =>
+      'This is not a Cuplivo pairing code.';
+
+  @override
+  String get lanSyncPairErrorInvalidQr => 'The pairing code could not be read.';
+
+  @override
+  String get lanSyncPairErrorQrBadVersion =>
+      'This pairing code is from a newer version. Update the app and try again.';
+
+  @override
+  String get lanSyncClosePairing => 'Close pairing window';
+
+  @override
+  String get lanSyncPairedDevices => 'Paired devices';
+
+  @override
+  String get lanSyncWorkspaces => 'Workspaces';
+
+  @override
+  String get lanSyncWorkspaceTip =>
+      'Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files or 200 MB don\'t sync their files. A workspace\'s record always syncs — the switch governs only its files: a folder with the switch off is never sent, and a sync never removes it.';
+
+  @override
+  String lanSyncWorkspaceSyncing(Object count) {
+    return '$count syncing files';
+  }
+
+  @override
+  String get lanSyncWorkspaceStatusSyncing => 'Syncing';
+
+  @override
+  String get lanSyncWorkspaceStatusTooLarge => 'Too large';
+
+  @override
+  String get lanSyncWorkspaceStatusUnreadable => 'Unreadable';
+
+  @override
+  String get lanSyncWorkspaceStatusOff => 'Off';
+
+  @override
+  String lanSyncWorkspaceFiles(Object count) {
+    return '$count files';
+  }
+
+  @override
+  String lanSyncWorkspaceFilesAtLeast(Object count) {
+    return '$count+ files';
+  }
+
+  @override
+  String lanSyncWorkspaceSizeAtLeast(Object size) {
+    return '$size+';
+  }
+
+  @override
+  String get lanSyncNoDevices =>
+      'No paired devices yet. Pair one to start syncing.';
+
+  @override
+  String get lanSyncPlatformAndroid => 'Android';
+
+  @override
+  String get lanSyncPlatformIos => 'iOS';
+
+  @override
+  String get lanSyncPlatformWindows => 'Windows';
+
+  @override
+  String get lanSyncPlatformMacos => 'macOS';
+
+  @override
+  String get lanSyncPlatformLinux => 'Linux';
+
+  @override
+  String get lanSyncPlatformUnknown => 'Unknown device';
+
+  @override
+  String lanSyncLastSyncedAt(Object time) {
+    return 'Last synced $time';
+  }
+
+  @override
+  String get lanSyncNeverSynced => 'Never synced';
+
+  @override
+  String get lanSyncJustSynced => 'Just synced';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n min ago';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n h ago';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n d ago';
+  }
+
+  @override
+  String get lanSyncSyncNow => 'Sync now';
+
+  @override
+  String get lanSyncOnline => 'Online';
+
+  @override
+  String get lanSyncOnlineFromSession => 'Online — the last sync connected';
+
+  @override
+  String get lanSyncOfflineFromSession =>
+      'Offline — the last sync could not connect';
+
+  @override
+  String lanSyncPhaseConnectingTo(Object address) {
+    return 'Connecting to $address…';
+  }
+
+  @override
+  String get lanSyncOffline => 'Offline';
+
+  @override
+  String get lanSyncUpToDate => 'Up to date';
+
+  @override
+  String get lanSyncPhaseConnecting => 'Connecting…';
+
+  @override
+  String get lanSyncPhaseExchanging => 'Comparing data…';
+
+  @override
+  String get lanSyncPhaseSending => 'Sending changes…';
+
+  @override
+  String get lanSyncPhaseReceiving => 'Receiving changes…';
+
+  @override
+  String lanSyncPhaseFiles(Object done, Object total) {
+    return 'Downloading files… ($done/$total)';
+  }
+
+  @override
+  String get lanSyncPhaseFilesNoTotal => 'Downloading files…';
+
+  @override
+  String get lanSyncPhaseApplying => 'Applying changes…';
+
+  @override
+  String get lanSyncFirstSyncHint =>
+      'First sync in progress — keep both devices awake and Cuplivo open (in the foreground on mobile) until it finishes.';
+
+  @override
+  String get lanSyncRename => 'Rename';
+
+  @override
+  String get lanSyncRenameTitle => 'Device name';
+
+  @override
+  String get lanSyncEditAddress => 'Edit address';
+
+  @override
+  String get lanSyncAddressCopied => 'Address copied';
+
+  @override
+  String get lanSyncUnpair => 'Unpair';
+
+  @override
+  String lanSyncUnpairConfirmTitle(Object name) {
+    return 'Unpair $name?';
+  }
+
+  @override
+  String get lanSyncUnpairConfirmBody =>
+      'Conversations stay on both devices. Syncing with it stops until you pair again.';
+
+  @override
+  String lanSyncReportSent(Object n) {
+    return '$n sent';
+  }
+
+  @override
+  String lanSyncReportReceived(Object n) {
+    return '$n received';
+  }
+
+  @override
+  String lanSyncReportMessagesUpserted(Object n) {
+    return '+$n messages';
+  }
+
+  @override
+  String lanSyncReportMessagesDeleted(Object n) {
+    return '-$n messages';
+  }
+
+  @override
+  String lanSyncReportConversationsDeleted(Object n) {
+    return '-$n conversations';
+  }
+
+  @override
+  String lanSyncReportDeferred(Object n) {
+    return '$n deferred';
+  }
+
+  @override
+  String lanSyncReportEntities(Object n) {
+    return '$n entities';
+  }
+
+  @override
+  String lanSyncReportPreferences(Object n) {
+    return '$n preferences';
+  }
+
+  @override
+  String lanSyncReportBlobsWithSize(Object n, Object size) {
+    return '$n files · $size';
+  }
+
+  @override
+  String lanSyncReportBlobs(Object n) {
+    return '$n files';
+  }
+
+  @override
+  String lanSyncReportSkills(Object n) {
+    return '$n skills';
+  }
+
+  @override
+  String lanSyncReportSkillConflicts(Object n) {
+    return '$n skill edits replaced';
+  }
+
+  @override
+  String lanSyncReportBlobsMissing(Object n) {
+    return '$n files missing on the other device';
+  }
+
+  @override
+  String lanSyncReportWorkspaceFiles(Object count) {
+    return '$count workspace files';
+  }
+
+  @override
+  String lanSyncReportWorkspaceFilesWithSize(Object count, Object size) {
+    return '$count workspace files · $size';
+  }
+
+  @override
+  String lanSyncReportWorkspaceRemoved(Object count) {
+    return '-$count workspace files';
+  }
+
+  @override
+  String lanSyncReportWorkspaceConflicts(Object count) {
+    return '$count workspace file edits replaced';
+  }
+
+  @override
+  String lanSyncReportWorkspaceMissing(Object count) {
+    return '$count workspace files could not be applied';
+  }
+
+  @override
+  String lanSyncReportWorkspacesOmitted(Object count) {
+    return '$count workspaces not syncing files';
+  }
+
+  @override
+  String lanSyncReportWorkspacesKept(Object count) {
+    return '$count workspace folders kept (switch off)';
+  }
+
+  @override
+  String lanSyncReportRowsLost(Object n) {
+    return '$n local rows replaced by newer versions on the peer (recoverable in the recycle bin)';
+  }
+
+  @override
+  String lanSyncReportClockSkew(Object n) {
+    return 'Clocks differ by ~$n min — fix the device clock, then sync again';
+  }
+
+  @override
+  String get lanSyncReportUnreachable =>
+      'Sync failed: the other device could not be reached. It may be offline or on another network — rescan its QR code, or edit its address on the card.';
+
+  @override
+  String get lanSyncReportNoEndpoint =>
+      'Sync failed: no address is stored for the other device. Rescan its QR code, or enter the address on its card.';
+
+  @override
+  String get lanSyncReportTimeout =>
+      'Sync failed: the other device stopped responding.';
+
+  @override
+  String get lanSyncReportPeerError =>
+      'Sync failed: the other device reported an error.';
+
+  @override
+  String get lanSyncReportInternal => 'Sync failed. See the logs for details.';
+
+  @override
+  String get lanSyncRefusedPeerSchemaNewer =>
+      'The other device\'s database is newer. Update this device first, then sync again.';
+
+  @override
+  String get lanSyncRefusedProtocolUnknown =>
+      'The other device speaks a different sync protocol. Update the app on both devices.';
+
+  @override
+  String get lanSyncRefusedNotPaired =>
+      'This device and the other one no longer agree on this pairing — it was unpaired there, or a re-pairing did not finish on both sides. Pair again on both devices.';
+
+  @override
+  String get lanSyncRefusedIdentityMismatch =>
+      'The other device presented a mismatched identity. Pair again on both devices.';
+
+  @override
+  String get lanSyncRefusedBusy =>
+      'Another sync session is in progress. Try again shortly.';
+
+  @override
+  String get lanSyncFirewallTitle => 'Windows Firewall';
+
+  @override
+  String lanSyncFirewallHint(Object port) {
+    return 'The inbound rule for port $port needs one-time administrator approval.';
+  }
+
+  @override
+  String get lanSyncFirewallFix => 'Allow access (UAC)';
+
+  @override
+  String get lanSyncFirewallFixed => 'Inbound access allowed.';
+
+  @override
+  String lanSyncArrivalToast(Object name) {
+    return 'Synced with $name';
+  }
+
+  @override
+  String get lanSyncArrivalDetails => 'Details';
+
+  @override
+  String get lanSyncNever => 'Never';
+
+  @override
+  String get lanSyncTemporarilyUnreachable => 'Can\'t reach right now';
+
+  @override
+  String get lanSyncListening => 'Listening';
+
+  @override
+  String get lanSyncCopy => 'Copy';
+
+  @override
+  String get lanSyncMoreActions => 'More actions';
+
+  @override
+  String get lanSyncEndpointTip =>
+      'One tile per address: tap the name to rename it, tap the latency for details — when it was last measured, how many syncs it has carried, when it was added. Edit or delete the address there.';
+
+  @override
+  String get lanSyncJustNow => 'Just now';
+
+  @override
+  String get lanSyncShowAddresses => 'Addresses';
+
+  @override
+  String get lanSyncPairTrustTip =>
+      'Use a code only on a network you trust: it stops a passive eavesdropper, not a machine in the middle. The QR carries the other device\'s certificate fingerprint, which is why it is the safer half.';
+
+  @override
+  String get lanSyncNoAddress => 'No address is remembered for this device.';
+
+  @override
+  String get lanSyncAddAddress => 'Add address';
+
+  @override
+  String lanSyncAddressLimit(Object count) {
+    return 'This device already remembers $count addresses for that device. Remove one before adding another.';
+  }
+
+  @override
+  String get lanSyncRenameEndpointTitle => 'Address name';
+
+  @override
+  String get lanSyncRenameEndpointHint => 'e.g. Home network';
+
+  @override
+  String get lanSyncEndpointLatency => 'Latency';
+
+  @override
+  String get lanSyncEndpointLastMeasured => 'Last measured';
+
+  @override
+  String get lanSyncEndpointLastReached => 'Last connected';
+
+  @override
+  String get lanSyncEndpointSuccessCount => 'Syncs';
+
+  @override
+  String get lanSyncEndpointAddedAt => 'Added';
+
+  @override
+  String lanSyncEndpointSuccessTimes(Object n) {
+    return '$n times';
+  }
+
+  @override
+  String get lanSyncDeleteEndpoint => 'Delete this address';
+
+  @override
+  String get lanSyncEndpointUnreachable => 'Not reachable';
+
+  @override
+  String get lanSyncSupersededByPeer =>
+      'The other device is running this sync.';
+
+  @override
+  String get assistantEditProactiveCareEnableTitle => 'Proactive Care';
+
+  @override
+  String get assistantEditProactiveCareDefaultDescription =>
+      'Default for conversations without an override';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      'Messages used for time decisions';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      'Maximum number of recent conversation messages sent to the model when deciding the next proactive message time';
+
+  @override
+  String get assistantEditProactiveCareConversationTimesTitle =>
+      'Conversation next-letter times';
+
+  @override
+  String get assistantEditProactiveCareNoEligibleConversations =>
+      'No enabled conversations for this assistant';
+
+  @override
+  String assistantEditProactiveCareConversationTimeFuture(String time) {
+    return 'Future · $time';
+  }
+
+  @override
+  String assistantEditProactiveCareConversationTimeExpired(String time) {
+    return 'Expired · $time';
+  }
+
+  @override
+  String get assistantEditProactiveCareConversationTimeUnset => 'Unset';
+
+  @override
+  String get assistantEditProactiveCarePermissionsTitle => 'Android readiness';
+
+  @override
+  String get assistantEditProactiveCareNotificationsTitle => 'Notifications';
+
+  @override
+  String get assistantEditProactiveCareExactAlarmTitle => 'Exact alarms';
+
+  @override
+  String get assistantEditProactiveCareAutoStartTitle => 'Auto-start';
+
+  @override
+  String get assistantEditProactiveCareBatteryTitle =>
+      'Battery optimization exemption';
+
+  @override
+  String get assistantEditProactiveCarePermissionRequired => 'Required';
+
+  @override
+  String get assistantEditProactiveCarePermissionRecommended => 'Recommended';
+
+  @override
+  String get assistantEditProactiveCarePermissionReady => 'Ready';
+
+  @override
+  String get assistantEditProactiveCarePermissionMissing => 'Tap to grant';
+
+  @override
+  String get assistantEditProactiveCarePermissionManual => 'Manual';
+
+  @override
+  String get assistantEditProactiveCarePermissionUnknown => 'Unknown';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeTitle =>
+      'Next proactive message time';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeUnset => 'Not set';
+
+  @override
+  String get assistantEditProactiveCarePromptTitle => 'Proactive care prompt';
+
+  @override
+  String get assistantEditProactiveCarePromptHint =>
+      'Prompt used when the assistant proactively sends a message';
+
+  @override
+  String get assistantEditProactiveCarePromptDefault =>
+      'Based on the assistant\'s character settings, conversation context, and the current time, send a message to the user.';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptTitle =>
+      'Decision time instruction prompt';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptDefault =>
+      'You are the director of a role-playing scenario, responsible for deciding when the assistant should next proactively message the user.\n\n[Feature description]\n· Proactive messaging: the assistant can send a message to the user at a scheduled time without waiting for the user to speak first.\n· If no proactive message time is set, the assistant cannot send any message while the user is silent.\n· Evaluate the currently scheduled next message time: keep it if no adjustment is needed; otherwise change it.\n\n[Note]\n· Only consider information visible from the assistant\'s perspective, not the user\'s.\n\n[Considerations]\n1. The assistant should proactively check in or greet the user after waking up, finishing a task, arriving safely at the dorm, etc.\n2. If the context mentions the assistant missed the user\'s messages due to sleeping or being busy, schedule a message for when the assistant wakes up or finishes.\n3. If the context mentions the assistant needs to supervise or remind the user at a specific time, schedule the message for that time.\n4. When a topic is unfinished, assume the user never replies after the assistant\'s last message — decide when the assistant should proactively follow up.\n\n[Examples]\n1. The user messaged at midnight saying they have insomnia and plan to wake at 10:30, but the assistant sleeps normally and wakes at 8:30. Set the proactive message time to the assistant\'s wake-up time.\n2. The user and assistant are discussing an exam. At 8:30 the last message is a question from the assistant. Per rule 4, assume the user never replies — the assistant should follow up within 10 minutes.';
+
+  @override
+  String get assistantEditProactiveCareDateTimePickerTitle =>
+      'Choose date and time';
+
+  @override
+  String get assistantEditProactiveCareTimeMustBeFuture =>
+      'Choose a time in the future.';
+
+  @override
+  String get conversationProactiveCareTitle => 'Conversation proactive care';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOn =>
+      'Following assistant setting: On';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOff =>
+      'Following assistant setting: Off';
+
+  @override
+  String get conversationProactiveCareExplicitOn => 'Conversation setting: On';
+
+  @override
+  String get conversationProactiveCareExplicitOff =>
+      'Conversation setting: Off';
+
+  @override
+  String get conversationProactiveCareRestoreFollowing =>
+      'Follow assistant setting';
+
+  @override
+  String get conversationProactiveCareClearTime => 'Clear next message time';
+
+  @override
+  String get conversationProactiveCareUpdateFailed =>
+      'Couldn\'t update conversation proactive care.';
+
+  @override
+  String get defaultModelPageProactiveCareModelTitle =>
+      'Ta\'s Letter Decision Model';
+
+  @override
+  String get defaultModelPageProactiveCareModelSubtitle =>
+      'Model used to decide when the assistant should proactively message';
+
+  @override
+  String get proactiveCareFailedNotificationBody =>
+      'Couldn\'t generate the proactive care message. Open the app to check the model settings and network.';
+
+  @override
+  String get proactiveCareLetterArrivalBody =>
+      'A letter has arrived. Open the app to read it.';
+
+  @override
+  String get assistantEditPageRoleplayTab => 'Roleplay';
+
+  @override
+  String get assistantEditProactiveCareFeatureTitle => 'Their Letter';
+
+  @override
+  String get backupProgressSkippedTitle =>
+      'Backup completed with skipped items';
+
+  @override
+  String backupProgressSkippedMessage(int count) {
+    return 'Unreadable files or directories skipped: $count. They are not included in this backup.';
+  }
+
+  @override
+  String contextUsagePartialSummary(String tokens) {
+    return 'Estimated $tokens, plus unknown server-side usage';
+  }
+
+  @override
+  String get contextUsageBucketNativeCompaction => 'Server-side compression';
+
+  @override
+  String get contextUsageUnknownTokens => 'Unknown';
+
+  @override
+  String contextUsageLastRequestInput(String tokens) {
+    return 'Last amount actually sent to the model: $tokens';
+  }
+
+  @override
+  String get conversationFindHint => 'Find';
+
+  @override
+  String get conversationFindPrevious => 'Previous match';
+
+  @override
+  String get conversationFindNext => 'Next match';
+
+  @override
+  String get conversationFindOptions => 'Find options';
+
+  @override
+  String conversationFindMatchPosition(int current, int total) {
+    return '$current/$total';
+  }
+
+  @override
+  String get conversationFindCaseSensitive => 'Match case';
+
+  @override
+  String get conversationFindWholeWord => 'Whole word';
+
+  @override
+  String get conversationFindWholeWordTooltip =>
+      'Matches whole words for scripts with word boundaries (e.g. English). Queries that contain Chinese, Japanese, or Korean characters still use substring matching.';
+
+  @override
+  String get conversationFindIncludeThinking => 'Include thinking';
+
+  @override
+  String get conversationFindOpenTooltip => 'Find in conversation';
+
+  @override
+  String tokenDetailFirstResponse(String value) {
+    return '${value}s (first response)';
+  }
+
+  @override
+  String tokenDetailFirstOutput(String value) {
+    return '${value}s (first output)';
+  }
+
+  @override
+  String get toolSchemaSettingsGroupImages => 'Images';
+
+  @override
+  String get workspaceEnvErrorRepairInterrupted =>
+      'Sandbox repair was interrupted. The existing sandbox has been kept. Retry to finish the repair.';
+
+  @override
+  String get workspaceEnvErrorRepairTimeout =>
+      'Sandbox repair timed out. Check your network connection and retry. The existing sandbox has been kept.';
+
+  @override
+  String get workspaceEnvRepairRestartBanner =>
+      'Could not confirm that sandbox repair stopped within the time limit. Fully close and reopen Cuplivo before retrying. The existing sandbox has been kept.';
+
+  @override
+  String get contextOperationsLoadMore => 'Show more';
+
+  @override
+  String get compressionRequestTimeout => 'Compression request timeout';
+
+  @override
+  String get compressionMinuteUnit => 'min';
+
+  @override
+  String get compressionRequestTimeoutDefault => 'Default';
+
+  @override
+  String get compressionRequestTimeoutHint =>
+      'Enter a number of minutes greater than 0. Leave blank to keep the current default (5 minutes for server-side compression). When summarizing in parts, each part and the merge is timed separately.';
+
+  @override
+  String compressionRequestTimedOut(num minutes) {
+    return 'Compression stopped after $minutes minutes and the context is unchanged. Try again, or allow a longer timeout.';
+  }
+
+  @override
   String get desktopAutostartTitle => 'Launch at startup';
 
   @override
   String get desktopAutostartDescription =>
-      'Start Kelivo when you sign in to this computer.';
+      'Start Cuplivo when you sign in to this computer.';
 
   @override
   String get desktopAutostartHiddenTitle => 'Hide to tray on automatic startup';
 
   @override
   String get desktopAutostartHiddenDescription =>
-      'Requires launch at startup and the tray icon. Opening Kelivo manually still shows the window.';
+      'Requires launch at startup and the tray icon. Opening Cuplivo manually still shows the window.';
 
   @override
   String get desktopAutostartUnsupported =>
@@ -17171,7 +18514,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupAutoEnableHint =>
-      'When the scheduled time arrives, Kelivo backs up while the app is in the foreground. If the app is closed or killed, the backup does not keep running and is not resumed; the next time you open the app, a single full backup runs if it is still due.';
+      'When the scheduled time arrives, Cuplivo backs up while the app is in the foreground. If the app is closed or killed, the backup does not keep running and is not resumed; the next time you open the app, a single full backup runs if it is still due.';
 
   @override
   String get backupAutoDestinationTitle => 'Automatic backup destination';
@@ -17221,11 +18564,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupAutoLocalDirUnavailable =>
-      'Can\'t write to the chosen folder. Check that it is still available, or choose another one. Kelivo won\'t change the saved location on its own.';
+      'Can\'t write to the chosen folder. Check that it is still available, or choose another one. Cuplivo won\'t change the saved location on its own.';
 
   @override
   String get backupAutoLocalDirPermission =>
-      'You don\'t have permission to write to the chosen folder. Please choose the folder again. Kelivo won\'t change the saved location on its own.';
+      'You don\'t have permission to write to the chosen folder. Please choose the folder again. Cuplivo won\'t change the saved location on its own.';
 
   @override
   String get backupAutoLocalDirFull =>
@@ -17233,7 +18576,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupAutoLocalBookmarkLost =>
-      'Kelivo can\'t access the chosen folder. Please choose it again. The saved location won\'t be changed automatically.';
+      'Cuplivo can\'t access the chosen folder. Please choose it again. The saved location won\'t be changed automatically.';
 
   @override
   String get backupAutoNextTitle => 'Next automatic backup';
@@ -17258,7 +18601,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupAutoKeychainUnavailable =>
-      'Kelivo can’t access the system keychain for the backup password. You can still back up manually.';
+      'Cuplivo can’t access the system keychain for the backup password. You can still back up manually.';
 
   @override
   String get backupAutoSucceeded => 'Automatic backup finished';
@@ -17301,12 +18644,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupMacKeychainNeedsUnlock =>
-      'macOS couldn’t unlock the login keychain. Open Keychain Access, unlock “login”, then try again in Kelivo.';
+      'macOS couldn’t unlock the login keychain. Open Keychain Access, unlock “login”, then try again in Cuplivo.';
 
   @override
   String get backupMacOpenKeychainAccess => 'Open Keychain Access';
 
   @override
   String get backupMacKeychainAccessDenied =>
-      'macOS denied access to the backup password. If a system prompt appears, allow Kelivo to access it. You can also check the default keychain and the password item’s permissions in Keychain Access.';
+      'macOS denied access to the backup password. If a system prompt appears, allow Cuplivo to access it. You can also check the default keychain and the password item’s permissions in Keychain Access.';
 }

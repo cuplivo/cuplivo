@@ -1,6 +1,6 @@
 ---
 name: visualize
-description: Create a native interactive calculator, conditional form, chart or data table when local input changes help answer the user. Also handles repairs to an existing Kelivo interface.
+description: Create a native interactive calculator, conditional form, chart or data table when local input changes help answer the user. Also handles repairs to an existing Cuplivo interface.
 ---
 
 # Interactive answers

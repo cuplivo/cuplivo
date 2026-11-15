@@ -13,7 +13,7 @@ import '../../core/providers/instruction_injection_group_provider.dart';
 import '../../core/providers/instruction_injection_provider.dart';
 import '../../shared/widgets/snackbar.dart';
 import '../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 class DesktopInstructionInjectionPane extends StatefulWidget {
   const DesktopInstructionInjectionPane({super.key});

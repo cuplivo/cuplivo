@@ -94,9 +94,9 @@ class FakeGenUiWebController extends PlatformWebViewController {
     await owner.step('load');
     documents.add(html);
     navigation?.started?.call('about:blank');
-    if (html.contains('<title>Kelivo preview closed</title>')) {
+    if (html.contains('<title>Cuplivo preview closed</title>')) {
       await owner.emptyWait?.future;
-      title = 'Kelivo preview closed';
+      title = 'Cuplivo preview closed';
       if (owner.finishEmpty) navigation?.finished?.call('about:blank');
     } else if (owner.finishInitial) {
       navigation?.finished?.call('about:blank');

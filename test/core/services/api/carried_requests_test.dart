@@ -1,18 +1,18 @@
-import 'package:Kelivo/core/models/provider_oauth.dart';
-import 'package:Kelivo/core/services/api/native_compaction_context.dart';
+import 'package:Cuplivo/core/models/provider_oauth.dart';
+import 'package:Cuplivo/core/services/api/native_compaction_context.dart';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:Kelivo/core/models/carried_original.dart';
-import 'package:Kelivo/core/models/native_compaction.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/providers/openai/responses_request.dart';
-import 'package:Kelivo/core/services/api/providers/openai/native_compaction.dart';
-import 'package:Kelivo/core/services/api/providers/claude_official.dart';
-import 'package:Kelivo/core/services/api/providers/google_gemini.dart';
-import 'package:Kelivo/core/services/api/request_history_context.dart';
-import 'package:Kelivo/core/services/api/request_image_context.dart';
+import 'package:Cuplivo/core/models/carried_original.dart';
+import 'package:Cuplivo/core/models/native_compaction.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/responses_request.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/native_compaction.dart';
+import 'package:Cuplivo/core/services/api/providers/claude_official.dart';
+import 'package:Cuplivo/core/services/api/providers/google_gemini.dart';
+import 'package:Cuplivo/core/services/api/request_history_context.dart';
+import 'package:Cuplivo/core/services/api/request_image_context.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

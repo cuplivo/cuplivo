@@ -597,10 +597,22 @@ class AssistantProvider extends ChangeNotifier {
   /// main.dart where the ChatService is available.
   void Function(Assistant assistant)? onAssistantUpdated;
 
-  Future<void> setSearchEnabledForCurrentAssistant(bool enabled) async {
-    final a = currentAssistant;
+  /// Turns the external search switch on or off for one assistant.
+  ///
+  /// A group composer edits the member the panel is showing, which is not
+  /// necessarily [currentAssistant], so the write names its target instead of
+  /// reading the "current" one.
+  Future<void> setSearchEnabled(String assistantId, bool enabled) async {
+    final a = getById(assistantId);
     if (a == null || a.searchEnabled == enabled) return;
     await updateAssistant(a.copyWith(searchEnabled: enabled));
+  }
+
+  /// The 1:1 target: the assistant the composer is currently on.
+  Future<void> setSearchEnabledForCurrentAssistant(bool enabled) async {
+    final a = currentAssistant;
+    if (a == null) return;
+    await setSearchEnabled(a.id, enabled);
   }
 
   Future<void> reorderAssistantRegex({
@@ -652,66 +664,5 @@ class AssistantProvider extends ChangeNotifier {
     }
     notifyListeners();
     return true;
-  }
-
-  Future<void> reorderAssistants(int oldIndex, int newIndex) async {
-    if (oldIndex == newIndex) return;
-    if (oldIndex < 0 || oldIndex >= _assistants.length) return;
-    if (newIndex < 0 || newIndex >= _assistants.length) return;
-
-    final assistant = _assistants.removeAt(oldIndex);
-    _assistants.insert(newIndex, assistant);
-
-    // Notify listeners immediately for smooth UI update
-    notifyListeners();
-
-    // Then persist the changes
-    await _persist();
-  }
-
-  // Reorder only within a subset (e.g., assistants belonging to a tag group or ungrouped).
-  // subsetIds defines the set and order boundary; other assistants remain in place.
-  Future<void> reorderAssistantsWithin({
-    required List<String> subsetIds,
-    required int oldIndex,
-    required int newIndex,
-  }) async {
-    if (oldIndex == newIndex) return;
-    if (subsetIds.isEmpty) return;
-
-    // Build subset indices in the master list preserving current order
-    final idSet = subsetIds.toSet();
-    final subsetIndices = <int>[];
-    for (int i = 0; i < _assistants.length; i++) {
-      if (idSet.contains(_assistants[i].id)) subsetIndices.add(i);
-    }
-    if (subsetIndices.isEmpty) return;
-    if (oldIndex < 0 || oldIndex >= subsetIndices.length) return;
-    if (newIndex < 0 || newIndex >= subsetIndices.length) return;
-
-    // Extract subset in current order
-    final subset = subsetIndices
-        .map((i) => _assistants[i])
-        .toList(growable: true);
-    final moved = subset.removeAt(oldIndex);
-    subset.insert(newIndex, moved);
-
-    // Merge back into master list
-    final merged = <Assistant>[];
-    int take = 0;
-    for (int i = 0; i < _assistants.length; i++) {
-      final a = _assistants[i];
-      if (idSet.contains(a.id)) {
-        merged.add(subset[take++]);
-      } else {
-        merged.add(a);
-      }
-    }
-    _assistants
-      ..clear()
-      ..addAll(merged);
-
-    notifyListeners();
-    await _persist();
   }
 }

@@ -4,6 +4,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 import '../icons/lucide_adapter.dart';
+import '../core/models/assistant.dart';
+import '../features/group_chat/widgets/group_member_strip.dart';
 import '../core/providers/settings_provider.dart';
 import '../core/providers/assistant_provider.dart';
 import '../core/services/api/builtin_tools.dart';
@@ -25,6 +27,8 @@ Future<void> showDesktopSearchProviderPopover(
   required GlobalKey anchorKey,
   String? chatModelProviderKey,
   String? chatModelId,
+  List<Assistant>? members,
+  String? initialAssistantId,
 }) async {
   final overlay = Overlay.of(context);
   final keyContext = anchorKey.currentContext;
@@ -48,6 +52,8 @@ Future<void> showDesktopSearchProviderPopover(
       anchorWidth: size.width,
       chatModelProviderKey: chatModelProviderKey,
       chatModelId: chatModelId,
+      members: members,
+      initialAssistantId: initialAssistantId,
       onClose: () {
         try {
           entry.remove();
@@ -65,6 +71,8 @@ class _SearchPopoverOverlay extends StatefulWidget {
     required this.onClose,
     this.chatModelProviderKey,
     this.chatModelId,
+    this.members,
+    this.initialAssistantId,
   });
 
   final Rect anchorRect;
@@ -72,6 +80,14 @@ class _SearchPopoverOverlay extends StatefulWidget {
   final VoidCallback onClose;
   final String? chatModelProviderKey;
   final String? chatModelId;
+
+  /// Non-null in a group chat: the roster whose member the strip selects.
+  final List<Assistant>? members;
+
+  /// The member the strip starts on — the composer's own assistant, the way
+  /// every other group panel starts. Falls back to the roster's first member
+  /// when it is not one of them.
+  final String? initialAssistantId;
 
   @override
   State<_SearchPopoverOverlay> createState() => _SearchPopoverOverlayState();
@@ -84,6 +100,31 @@ class _SearchPopoverOverlayState extends State<_SearchPopoverOverlay>
   bool _closing = false;
   // Positive dy means positioned slightly below final spot (slide up to appear)
   Offset _offset = const Offset(0, 0.12);
+
+  /// Which member a group popover is editing.
+  String? _selectedId;
+
+  Assistant? get _target {
+    final members = widget.members;
+    if (members == null || members.isEmpty) return null;
+    final id = _selectedId ?? widget.initialAssistantId ?? members.first.id;
+    return members.firstWhere(
+      (member) => member.id == id,
+      orElse: () => members.first,
+    );
+  }
+
+  Widget? get _memberStrip {
+    final members = widget.members;
+    if (members == null || members.length < 2) return null;
+    final target = _target;
+    if (target == null) return null;
+    return GroupMemberStrip(
+      members: members,
+      selectedId: target.id,
+      onSelect: (member) => setState(() => _selectedId = member.id),
+    );
+  }
 
   @override
   void initState() {
@@ -171,6 +212,8 @@ class _SearchPopoverOverlayState extends State<_SearchPopoverOverlay>
                           onDone: _close,
                           chatModelProviderKey: widget.chatModelProviderKey,
                           chatModelId: widget.chatModelId,
+                          target: _target,
+                          header: _memberStrip,
                         ),
                       ),
                     ),
@@ -230,13 +273,30 @@ class _SearchContent extends StatelessWidget {
     required this.onDone,
     this.chatModelProviderKey,
     this.chatModelId,
+    this.target,
+    this.header,
   });
   final VoidCallback onDone;
   final String? chatModelProviderKey;
   final String? chatModelId;
 
+  /// The assistant this popover writes to. Null means the current one, which is
+  /// what the 1:1 composer means; a group passes the member its strip selects.
+  final Assistant? target;
+
+  /// Rendered above the rows; a group puts its member strip here.
+  final Widget? header;
+
+  /// Writes the external switch to [target] when there is one, and to the
+  /// current assistant otherwise.
+  Future<void> _setExternal(AssistantProvider ap, bool value) async {
+    final id = (target ?? ap.currentAssistant)?.id;
+    if (id == null) return;
+    await ap.setSearchEnabled(id, value);
+  }
+
   bool _supportsBuiltInSearch(SettingsProvider settings, AssistantProvider ap) {
-    final a = ap.currentAssistant;
+    final a = target ?? ap.currentAssistant;
     final providerKey =
         chatModelProviderKey ??
         a?.chatModelProvider ??
@@ -254,7 +314,7 @@ class _SearchContent extends StatelessWidget {
     SettingsProvider settings,
     AssistantProvider ap,
   ) {
-    final a = ap.currentAssistant;
+    final a = target ?? ap.currentAssistant;
     final providerKey =
         chatModelProviderKey ??
         a?.chatModelProvider ??
@@ -272,7 +332,7 @@ class _SearchContent extends StatelessWidget {
     SettingsProvider settings,
     AssistantProvider ap,
   ) {
-    final a = ap.currentAssistant;
+    final a = target ?? ap.currentAssistant;
     final providerKey =
         chatModelProviderKey ??
         a?.chatModelProvider ??
@@ -290,7 +350,7 @@ class _SearchContent extends StatelessWidget {
     SettingsProvider settings,
     AssistantProvider ap,
   ) {
-    final a = ap.currentAssistant;
+    final a = target ?? ap.currentAssistant;
     final providerKey =
         chatModelProviderKey ??
         a?.chatModelProvider ??
@@ -309,7 +369,7 @@ class _SearchContent extends StatelessWidget {
     AssistantProvider ap, {
     bool useClaudeDynamicWebSearch = false,
   }) async {
-    final a = ap.currentAssistant;
+    final a = target ?? ap.currentAssistant;
     final providerKey =
         chatModelProviderKey ?? a?.chatModelProvider ?? sp.currentModelProvider;
     final modelId = chatModelId ?? a?.chatModelId ?? sp.currentModelId;
@@ -328,14 +388,14 @@ class _SearchContent extends StatelessWidget {
       providerKey,
       cfg.copyWith(modelOverrides: overrides),
     );
-    await ap.setSearchEnabledForCurrentAssistant(false);
+    await _setExternal(ap, false);
   }
 
   Future<void> _disableBuiltInSearch(
     SettingsProvider sp,
     AssistantProvider ap,
   ) async {
-    final a = ap.currentAssistant;
+    final a = target ?? ap.currentAssistant;
     final providerKey =
         chatModelProviderKey ?? a?.chatModelProvider ?? sp.currentModelProvider;
     final modelId = chatModelId ?? a?.chatModelId ?? sp.currentModelId;
@@ -374,7 +434,7 @@ class _SearchContent extends StatelessWidget {
       0,
       services.isNotEmpty ? services.length - 1 : 0,
     );
-    final enabled = ap.currentSearchEnabled;
+    final enabled = (target ?? ap.currentAssistant)?.searchEnabled ?? false;
     final settingsNotifier = context.read<SettingsProvider>();
     final done = onDone;
     final supportsBuiltIn = _supportsBuiltInSearch(sp, ap);
@@ -397,7 +457,7 @@ class _SearchContent extends StatelessWidget {
         selected: false,
         onTap: () async {
           await _disableBuiltInSearch(sp, ap);
-          await ap.setSearchEnabledForCurrentAssistant(false);
+          await _setExternal(ap, false);
           done();
         },
       ),
@@ -454,7 +514,7 @@ class _SearchContent extends StatelessWidget {
           onTap: () async {
             await settingsNotifier.setSearchServiceSelected(i);
             await _disableBuiltInSearch(sp, ap);
-            await ap.setSearchEnabledForCurrentAssistant(true);
+            await _setExternal(ap, true);
             done();
           },
         ),
@@ -470,6 +530,11 @@ class _SearchContent extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (header != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: header,
+                ),
               ...rows.map(
                 (w) => Padding(
                   padding: const EdgeInsets.only(bottom: 1),

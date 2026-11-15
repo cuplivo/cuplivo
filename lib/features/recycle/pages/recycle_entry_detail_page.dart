@@ -684,6 +684,7 @@ class _RecycleEntryDetailPageState extends State<RecycleEntryDetailPage> {
     RecycleEntryType.workspaceFile => l10n.recycleBinKindWorkspaceFile,
     RecycleEntryType.businessEntity => switch (_entry.kindWire) {
       'assistant_rows' => l10n.recycleBinKindAssistant,
+      'groupChat' => l10n.recycleBinKindGroup,
       'provider_rows' || 'provider_group_rows' => l10n.recycleBinKindProvider,
       'world_book_rows' => l10n.recycleBinKindWorldBook,
       'assistant_memory_rows' ||

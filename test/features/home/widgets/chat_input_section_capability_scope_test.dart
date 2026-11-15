@@ -79,6 +79,7 @@ void main() {
     double composerWidth = 800,
     VoidCallback? openBrowser,
     GlobalKey? reasoningButtonKey,
+    VoidCallback? openSearch,
   }) async {
     final settings = settingsOverride ?? SettingsProvider(preferences);
     final inputBarKey = GlobalKey();
@@ -132,6 +133,9 @@ void main() {
                   isReasoningEnabled: (request) =>
                       request.level != ReasoningLevel.off,
                   onOpenBrowser: desktopTools ? openBrowser ?? () {} : null,
+                  // An action with no handler is not drawn, so a fixture that
+                  // wants the search slot has to say what it opens.
+                  onOpenSearch: openSearch,
                   onOpenTools: desktopTools
                       ? () => showDesktopToolsPopover(
                           context,
@@ -268,9 +272,12 @@ void main() {
         desktopTools: true,
         composerWidth: 220,
         openBrowser: () => opened = true,
+        openSearch: () {},
       );
       expect(find.byTooltip('Tools'), findsNothing);
-      await tester.tap(find.byTooltip('Add'));
+      // The bar's overflow is not the tools panel's "+": it reaches the actions
+      // that did not fit, so it has its own tooltip.
+      await tester.tap(find.byTooltip('More actions'));
       await tester.pumpAndSettle();
       expect(find.text('Open browser'), findsOneWidget);
       await tester.tap(find.text('Open browser'));

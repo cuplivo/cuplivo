@@ -2,17 +2,17 @@ import 'dart:async';
 import 'package:drift/drift.dart' show ApplyInterceptor;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/database/generation_run.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_context_submission.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_user_context_parts.dart';
-import 'package:Kelivo/features/intelligent_ui/models/ui_context_attachment.dart';
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_source_hash.dart';
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_stream_parser.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/database/generation_run.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_context_submission.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_user_context_parts.dart';
+import 'package:Cuplivo/features/intelligent_ui/models/ui_context_attachment.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_source_hash.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_stream_parser.dart';
 import '../../support/commit_gate.dart';
 
 const _source = '''ui 1 catalog "kelivo.native/1"

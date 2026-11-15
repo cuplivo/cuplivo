@@ -4,18 +4,18 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/models/scheduled_task.dart';
-import 'package:Kelivo/core/models/scheduled_task_payload.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/scheduled_task_text_executor.dart';
-import 'package:Kelivo/core/services/prepared_scheduled_tasks.dart';
-import 'package:Kelivo/core/services/scheduled_task_notifications.dart';
-import 'package:Kelivo/core/services/scheduled_task_store.dart';
-import 'package:Kelivo/features/home/controllers/chat_controller.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/scheduled_task.dart';
+import 'package:Cuplivo/core/models/scheduled_task_payload.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/scheduled_task_text_executor.dart';
+import 'package:Cuplivo/core/services/prepared_scheduled_tasks.dart';
+import 'package:Cuplivo/core/services/scheduled_task_notifications.dart';
+import 'package:Cuplivo/core/services/scheduled_task_store.dart';
+import 'package:Cuplivo/features/home/controllers/chat_controller.dart';
 import '../../support/business_test_harness.dart';
 
 class _Paths extends PathProviderPlatform {

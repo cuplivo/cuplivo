@@ -1,8 +1,8 @@
-import 'package:Kelivo/features/browser/pages/browser_management_page.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/features/browser/widgets/browser_progressive_edge.dart';
-import 'package:Kelivo/features/browser/widgets/browser_surface_controls.dart';
-import 'package:Kelivo/features/browser/widgets/browser_glass.dart';
+import 'package:Cuplivo/features/browser/pages/browser_management_page.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_progressive_edge.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_surface_controls.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_glass.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';

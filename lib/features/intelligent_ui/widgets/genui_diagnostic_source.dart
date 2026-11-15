@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'genui_clipboard.dart';
 import 'genui_source_selection.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
 import 'genui_control_region.dart';
 import 'genui_theme.dart';
 

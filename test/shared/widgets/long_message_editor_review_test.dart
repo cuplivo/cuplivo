@@ -1,4 +1,4 @@
-import 'package:Kelivo/shared/widgets/long_message_editor.dart';
+import 'package:Cuplivo/shared/widgets/long_message_editor.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

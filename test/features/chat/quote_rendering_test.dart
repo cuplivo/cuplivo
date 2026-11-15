@@ -1,10 +1,10 @@
-import 'package:Kelivo/core/models/quote_ref.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/features/chat/widgets/quote_chip.dart';
-import 'package:Kelivo/features/chat/widgets/quote_interaction_scope.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/markdown/markdown_with_code_highlight.dart';
-import 'package:Kelivo/shared/markdown/quote_syntax.dart';
+import 'package:Cuplivo/core/models/quote_ref.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/chat/widgets/quote_chip.dart';
+import 'package:Cuplivo/features/chat/widgets/quote_interaction_scope.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/markdown/markdown_with_code_highlight.dart';
+import 'package:Cuplivo/shared/markdown/quote_syntax.dart';
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
 import 'package:lucide_icons_flutter/lucide_icons.dart';

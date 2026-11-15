@@ -1,4 +1,4 @@
-import 'package:Kelivo/core/services/instruction_injection_store.dart';
+import 'package:Cuplivo/core/services/instruction_injection_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/business_preferences_test_harness.dart';

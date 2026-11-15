@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:Kelivo/features/mcp/pages/mcp_page.dart';
-import 'package:Kelivo/features/chat/widgets/chat_tools_sheet.dart';
+import 'package:Cuplivo/features/mcp/pages/mcp_page.dart';
+import 'package:Cuplivo/features/chat/widgets/chat_tools_sheet.dart';
 
 import '../test/support/mcp_presentation_harness.dart';
 

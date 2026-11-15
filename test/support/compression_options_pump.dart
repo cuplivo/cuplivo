@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/chat/widgets/compress_context_options_dialog.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/features/chat/widgets/compress_context_options_dialog.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 /// Range selection uses a real isolate, which pumpAndSettle's fake clock does
 /// not wait for. Wait for the visible loading state instead of a fixed delay.

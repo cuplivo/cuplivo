@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show SelectedContent;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/chat/widgets/plain_message_text.dart';
-import 'package:Kelivo/features/chat/widgets/quote_source_highlight.dart';
+import 'package:Cuplivo/features/chat/widgets/plain_message_text.dart';
+import 'package:Cuplivo/features/chat/widgets/quote_source_highlight.dart';
 import 'package:markstream/markstream.dart';
 import '../../../support/markdown_render_helpers.dart';
 

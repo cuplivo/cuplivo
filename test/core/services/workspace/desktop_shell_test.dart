@@ -4,7 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/services/workspace/desktop_shell.dart';
+import 'package:Cuplivo/core/services/workspace/desktop_shell.dart';
 
 String decodeCommand(List<String> args) {
   final bytes = base64Decode(args.last);

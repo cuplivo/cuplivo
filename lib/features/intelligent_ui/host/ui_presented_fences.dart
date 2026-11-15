@@ -1,11 +1,11 @@
 import 'dart:convert';
 
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/features/chat/utils/message_reasoning_source.dart';
-import 'package:Kelivo/features/chat/utils/thinking_tag_parser.dart';
-import 'package:Kelivo/features/chat/utils/tool_event_deduplication.dart';
-import 'package:Kelivo/features/chat/widgets/timeline_projection.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/features/chat/utils/message_reasoning_source.dart';
+import 'package:Cuplivo/features/chat/utils/thinking_tag_parser.dart';
+import 'package:Cuplivo/features/chat/utils/tool_event_deduplication.dart';
+import 'package:Cuplivo/features/chat/widgets/timeline_projection.dart';
 import 'package:markstream/markstream_core.dart';
 
 import 'ui_source_map.dart';

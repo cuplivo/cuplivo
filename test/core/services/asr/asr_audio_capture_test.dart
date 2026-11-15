@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/asr/asr_audio_capture.dart';
+import 'package:Cuplivo/core/services/asr/asr_audio_capture.dart';
 
 void main() {
   test('normalizedPcm16Level maps silence to zero', () {

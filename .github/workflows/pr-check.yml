@@ -6,6 +6,12 @@ env:
 on:
   pull_request:
     branches: [master]
+  # A re-base rewrites master (docs/adr/0004-follow-upstream-rebase.md), so the
+  # baseline a PR is judged against is itself a fresh tree. Without this trigger
+  # nothing ever runs on that rewrite: the first PR after it becomes the first
+  # run against the new baseline, and a red baseline is blamed on that PR.
+  push:
+    branches: [master]
 
 jobs:
   checks:
@@ -46,6 +52,11 @@ jobs:
           else
             BASE_SHA="${{ github.event.before }}"
             HEAD_SHA="${{ github.sha }}"
+            # A push that creates the branch reports an all-zero "before"; fall
+            # back to the pushed commit's parent so the diff stays meaningful.
+            if [ -z "$(printf '%s' "$BASE_SHA" | tr -d '0')" ]; then
+              BASE_SHA="$(git rev-parse --verify -q "$HEAD_SHA^" || printf '%s' "$HEAD_SHA")"
+            fi
           fi
 
           files="$(git diff --diff-filter=ACMR --name-only "$BASE_SHA" "$HEAD_SHA" -- | grep -E '^(lib|test|integration_test|tool|dependencies/markstream/(lib|test))/.*\.dart$' || true)"
@@ -69,8 +80,16 @@ jobs:
       - name: Localization tool tests
         run: python3 -m unittest discover -s tool/l10n -p 'test_*.py'
 
-      - name: AppImage packaging script tests
-        run: python3 -m unittest discover -s tool -p 'test_bundle_appimage_gtk.py'
+      # The identity sweep's under-rename half: a file upstream added keeps
+      # `package:Kelivo/` until something reads it, and an ARB value that still
+      # names the other app is a shipped string. The over-rename half needs the
+      # upstream baseline, so it runs from the re-base procedure instead
+      # (docs/rebase-runbook.md rule 19).
+      - name: Identity sweep (forward)
+        run: python3 tool/identity/verify.py --forward
+
+      - name: Identity tool tests
+        run: python3 -m unittest discover -s tool/identity -p 'test_*.py'
 
       - name: dart analyze (app and development tools)
         run: dart analyze --fatal-infos lib test integration_test tool

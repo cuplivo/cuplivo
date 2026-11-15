@@ -1,5 +1,5 @@
-import 'package:Kelivo/features/home/controllers/scroll_controller.dart';
-import 'package:Kelivo/shared/widgets/scroll_layout_anchor.dart';
+import 'package:Cuplivo/features/home/controllers/scroll_controller.dart';
+import 'package:Cuplivo/shared/widgets/scroll_layout_anchor.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

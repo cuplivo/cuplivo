@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
 
 void main() {
   group('Assistant workspace fields', () {

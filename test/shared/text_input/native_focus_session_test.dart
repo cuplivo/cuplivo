@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:Kelivo/shared/widgets/long_message_editor.dart';
+import 'package:Cuplivo/shared/widgets/long_message_editor.dart';
 import 'controlled_native_message_input.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:re_editor/re_editor.dart';

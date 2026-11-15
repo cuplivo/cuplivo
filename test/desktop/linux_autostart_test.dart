@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/desktop/linux_autostart.dart';
+import 'package:Cuplivo/desktop/linux_autostart.dart';
 
 void main() {
   late Directory directory;

@@ -114,6 +114,7 @@ The bridge's git surface has no `checkout`, `reset` or `rm`; units are moved wit
 |---|---|---|
 | 1 | `8d71b60f3` | done: analyze clean, gen-l10n idempotent, `package:Kelivo/` gone, the identity checker clean in all three directions — plus the browser workspace scheme restored after the suite caught the over-rename |
 | 2 | `a56653bc9` | done: `flutter test` green (`+12775 ~94`), `dart analyze --fatal-infos` clean |
+| 3 | `9746532a4` | done: analyze clean, gen-l10n idempotent, full suite green at this tip (`+12840 ~94`); 65 recycle cases, 907 in `test/core/database` + storage + the storage-space pages, 343 in `test/core/services/chat` + the assistant cascade. §10 lists what it deliberately left for units 4, 5 and 11 |
 
 The 115 failures this unit started from were four classes, and only one of them was a platform without
 a service:
@@ -331,3 +332,61 @@ The order it ran in:
 4. Only then unit 3.
 
 Nothing in §3's unit order changed. What changed is which tree each unit is replayed onto.
+
+## 10. What unit 3 deliberately left for the units after it
+
+Unit 3 is the bin's **product** half. The sync side of the same feature was not carried, because sync
+does not exist on this line yet, and a hook that stages a peer's write has nowhere to hang. This is the
+list, by destination, so that nothing is lost by silence — the next unit's replay is where each line is
+expected back.
+
+### 10.1 Unit 4 (`feat(sync)`) re-introduces
+
+| what | where | why it is not in unit 3 |
+|---|---|---|
+| the sync subsystem — engine, merge, models, limits, store, data plane, provider | `lib/core/services/sync/**` | it is unit 4's whole content |
+| the four path helpers: `isSafeWorkspaceRelativePath`, `workspacePathWithin`, `nearestExistingAncestor`, `isReallyInsideWorkspace` | `lib/utils/workspace_paths.dart` **already here** | unit 3 moved them out of `workspace_content_index.dart`; unit 4's index must *import* them, not re-declare them |
+| `isSafePathSegment`, `isSafeWorkspaceId` | `lib/utils/app_directories.dart` **already here** | shared; the bin asks them whether or not the device has ever synced |
+| `BusinessStateReloader` | `lib/core/services/business_state_reloader.dart` **already here** | unit 3 provides it in `main.dart`; unit 4 adds `_wireSyncReloaders` (the 14 `register(...)` calls) and the providers' `reloadAfterExternalChange()` |
+| `ChatService.reloadAfterExternalChange` | `chat_service.dart` **already here** | unit 3's version reloads the caches and bumps the context revision; unit 4 adds the `_externalWriteRevisions` map and `externalWriteRevision(id)`, so an open window rebuilds after an apply |
+| `currentSchemaColumns` | `lib/core/database/schema_columns.dart` **already here** | the bin builds row snapshots from it; the sync apply builds its SQL from it |
+| `BusinessEntityKind.wireName` | `business_data.dart` **already here** | the bin records it per entry; the wire names the kind with it |
+| a `BusinessKeyRegistry` row per `external_backup_auto_*` key | `business_key_registry` | §8.4: a key with no row makes `setMany` assert, and the suite finds it as cause 1 |
+
+### 10.2 Unit 5 (`a restore is an edit — protocol v8`) re-introduces
+
+The **sync-side staging** is the bin's other half. Product hunks, all of which are in the old line's
+`237c9a097` rather than in the recycle commit:
+
+- `BusinessRepository.syncDeleteEntity` and `syncDeletePreference` — `stageEntityRow` /
+  `stagePreferenceRow` **before** the delete, with `origin: RecycleOrigin.remote`,
+  `reason: RecycleReason.deleted`. A peer's removal has no clock protecting the local edit, so this is
+  the only moment it can be preserved.
+- the apply path's losing comparison — stage with `reason: overwritten` immediately before the upsert
+  replaces the local value; that is the only point where the losing version still exists.
+- `ChatDatabaseRepository.syncApplyPeerDeletion` → `deleteConversation(id, origin: RecycleOrigin.remote)`.
+- `WorkspaceContentSync` — the `RecycleService? recycle` it takes, for the file a swap replaces or
+  removes, and the `workspaceRoot` the restore needs.
+
+Test cases deleted from unit 3 because they call sync APIs, to be brought back with the hunks above:
+
+- `recycle_business_test.dart`: "a losing local edit is staged, an identical echo is not"; "a
+  preference that loses is staged and restorable"; "restoring an overwritten row keeps the version it
+  displaced"; "a peer deleting a row stages it before the delete"; "a row this device keeps out of sync
+  is not staged"; "a peer deleting a preference stages it before the delete"; "a preference that is set
+  again is not written over".
+- `recycle_conversation_test.dart`: "a peer deletion stages with the remote origin".
+
+### 10.3 Unit 11 re-introduces
+
+As §8.1 says: `members: <roster>` at `home_page.dart`'s new else-branch, and the `skillsActive`
+decision for a roster (`_isSkillsActive` with a null assistant reads the global list plus the
+conversation override, which is not "some member has a skill").
+
+### 10.4 Two things unit 3 changed that a later unit must not undo
+
+- The `json(...)` wrapper around each `json_group_array` in `_readConversationSubtree`. Without it
+  SQLite embeds the array as a string on this build, the decode finds no rows, and a delete stages
+  nothing — silently. Runbook rule 20 carries the trap.
+- `schema_columns.dart`'s header still describes the map as "every table LAN sync may write". It is now
+  the bin's schema source too; the wording is unit 4's to widen, the map itself is shared.

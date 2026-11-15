@@ -420,6 +420,31 @@ Units from earlier series that are **gone, and must not come back**:
     the range's trap: it reads like prose and is an HKDF salt, so renaming it would change the derived
     key, while `kelivo.backup.encryption_password` beside it is a keychain account and must also stay.
 
+20. **A unit whose source commit does not compile is re-derived from the tip, not replayed.** The old
+    line was built as a stack and only its tip was gated, so an intermediate commit can carry a
+    reference to something that lands later: `1a04207ff` (the recycle bin) passes `recycle:` to
+    `ChatDatabaseRepository`, whose constructor only grows that parameter two commits later in
+    `237c9a097 fix(replay): the baseline's suite, its fixtures, and the replay's tears`. Replaying
+    `1a04207ff` therefore produces a tree that cannot compile *by construction*, and the missing hook
+    is not a conflict git can show you. So:
+
+    - Take a unit's **file set from the tip**, and its *content* from the tip too, not from the commit
+      that introduced the feature. The recycle files were 98% identical between the two, but the
+      delete-path hook existed only at the tip.
+    - Diff a shared file with **`-w`** before deciding it is a rewrite. `storage_space_page.dart`'s
+      6,065-line diff in that commit was 73 semantic lines: the rest was a formatter pass. Port the 73,
+      never the file.
+    - Name the deferred halves in the plan (§10 there) instead of leaving them to be rediscovered: a
+      product hook that lands in a later unit, and a test case that calls an API the later unit brings,
+      both look like "this unit is done" from the outside.
+
+    One portability trap the same unit hit, worth knowing before it costs an afternoon: a
+    `json_group_array(...)` nested inside `json_object(...)` through a **scalar subquery** loses
+    SQLite's JSON subtype on some builds, and is then embedded as a *string*. The decode finds no rows
+    and reports nothing — the snapshot is simply empty, and the delete looks like it never staged
+    anything. Wrap it: `json((SELECT json_group_array(...) ...))`. The old line worked only because its
+    SQLite propagated the subtype; ours did not, and only the tests said so.
+
 ## The CI rule
 
 `.github/workflows/release.yml` is the only build workflow. Upstream publishes one workflow per

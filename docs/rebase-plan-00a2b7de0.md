@@ -118,6 +118,7 @@ The bridge's git surface has no `checkout`, `reset` or `rm`; units are moved wit
 | 4 | `a9137a796` + `971f8293e` | done: analyze clean across `lib test integration_test`; the sync subsystem replayed with `#1068`'s policy table folded in. 574 cases in the unit's own set, 2,725 in the database/chat/backup/providers set it touches, and the full suite `+13344 ~94` with one failure that was this unit's own comment tripping a text gate. §11 records the repairs the old commit needed, the table's thirteen transposed rows, and what it changes about §10's list |
 | 5 | `a81991887` | done: protocol v8 (the row clock in the announcement, `copyWrittenSinceAgreement`, the business face's clock pair) and the bin's sync half — the staging §10.2 listed. analyze clean, gen-l10n idempotent, format no changes, 526 cases across the sync, recycle and provider suites. §12 records what the unit's source turned out to be |
 | 6 | `4360703f7` | done: 69 files — the cross-platform care port, the roleplay tab, the backgrounded letter (`#1064` folded). analyze clean, gen-l10n idempotent, format clean, 112 care cases + 2,452 in the home/assistant/chat/providers/models set. §13 records the two files whose fold was silently dropped, and the one API the baseline had never had |
+| 7 | `bbc456ac2` | done: 19 files — `ConversationLink` and the two native handovers (`#1034` folded; it was the same feature on the second platform). analyze clean, gen-l10n idempotent, format clean, 108 cases in the unit's files and 2,450 across `test/features/chat` + `test/features/home` |
 
 The 115 failures this unit started from were four classes, and only one of them was a platform without
 a service:
@@ -151,7 +152,7 @@ that went away with the move. The last one needed the one product change in this
 `@visibleForTesting` `BackupStaging.debugRootOverride`, because `Directory.create` cannot be
 intercepted by `IOOverrides` and a real directory cannot be made to fail on demand.
 
-Next: unit 7, `feat(chat)` — conversation and message links.
+Next: unit 8, `feat(export)` — a PDF from markstream's tree.
 
 ## 7. Open risks
 

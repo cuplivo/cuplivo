@@ -18,6 +18,7 @@ import '../../../../utils/multimodal_input_utils.dart';
 import '../../../../../utils/sandbox_path_resolver.dart';
 import '../../chat_api_helpers.dart';
 import '../../response_speed.dart';
+import '../../message_authorship.dart';
 import '../../builtin_tools.dart';
 import '../../native_input_attachments.dart';
 import '../../tool_result_content.dart';
@@ -364,6 +365,7 @@ Future<List<Map<String, dynamic>>> buildOpenAIChatCompletionMessages(
     outMsg.remove(carriedImageHandlesKey);
     outMsg.remove(multimodalInternalDocumentPathsKey);
     outMsg.remove(multimodalInternalRevisionIdKey);
+    outMsg.remove(groupPeerSenderKey);
     outMsg.remove(multimodalInternalClaudeContainerKey);
     outMsg.remove(multimodalInternalClaudeTurnKey);
     outMsg.remove(multimodalInternalClaudeThinkingRecoveryKey);

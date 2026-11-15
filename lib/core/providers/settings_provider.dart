@@ -281,6 +281,8 @@ class SettingsProvider extends ChangeNotifier {
       'display_keep_sidebar_open_on_topic_tap_v1';
   static const String _displayKeepAssistantListExpandedOnSidebarCloseKey =
       'display_keep_assistant_list_expanded_on_sidebar_close_v1';
+  static const String _displaySeparateChatOwnersKey =
+      'display_separate_chat_owners_v1';
   static const String _displayNewChatOnAssistantSwitchKey =
       'display_new_chat_on_assistant_switch_v1';
   static const String _displayNewChatOnLaunchKey =
@@ -822,6 +824,15 @@ class SettingsProvider extends ChangeNotifier {
         _proactiveCareDecisionModelId = parts.sublist(1).join('::');
       }
     }
+    // load group-chat director model
+    final directorSel = prefs.getString(_directorModelKey);
+    if (directorSel != null && directorSel.contains('::')) {
+      final parts = directorSel.split('::');
+      if (parts.length >= 2) {
+        _directorModelProvider = parts[0];
+        _directorModelId = parts.sublist(1).join('::');
+      }
+    }
     _perChatModelEnabled = prefs.getBool(_perChatModelEnabledKey) ?? false;
     _titleGenerationEnabled = prefs.getBool(_titleGenerationEnabledKey) ?? true;
     // load title prompt
@@ -1156,6 +1167,7 @@ class SettingsProvider extends ChangeNotifier {
     _keepAssistantListExpandedOnSidebarClose =
         prefs.getBool(_displayKeepAssistantListExpandedOnSidebarCloseKey) ??
         false;
+    _separateChatOwners = prefs.getBool(_displaySeparateChatOwnersKey) ?? false;
     _requestLogEnabled = prefs.getBool(_requestLogEnabledKey) ?? true;
     await RequestLogger.setEnabled(_requestLogEnabled);
     _contextLogEnabled = prefs.getBool(_contextLogEnabledKey) ?? true;
@@ -3702,6 +3714,12 @@ class SettingsProvider extends ChangeNotifier {
       await prefs.remove(_proactiveCareDecisionModelKey);
       changed = true;
     }
+    if (_directorModelProvider == providerKey) {
+      _directorModelProvider = null;
+      _directorModelId = null;
+      await prefs.remove(_directorModelKey);
+      changed = true;
+    }
     if (changed) notifyListeners();
   }
 
@@ -3778,6 +3796,12 @@ class SettingsProvider extends ChangeNotifier {
       await prefs.remove(_proactiveCareDecisionModelKey);
       changed = true;
     }
+    if (_directorModelProvider == providerKey && _directorModelId == modelId) {
+      _directorModelProvider = null;
+      _directorModelId = null;
+      await prefs.remove(_directorModelKey);
+      changed = true;
+    }
     // Also remove from pinned if applicable
     final pinKey = '$providerKey::$modelId';
     if (!preserveModelPreferences && _pinnedModels.contains(pinKey)) {
@@ -3816,6 +3840,11 @@ class SettingsProvider extends ChangeNotifier {
       _proactiveCareDecisionModelProvider = null;
       _proactiveCareDecisionModelId = null;
       await prefs.remove(_proactiveCareDecisionModelKey);
+    }
+    if (_directorModelProvider == key) {
+      _directorModelProvider = null;
+      _directorModelId = null;
+      await prefs.remove(_directorModelKey);
     }
     if (_titleModelProvider == key) {
       _titleModelProvider = null;
@@ -4039,6 +4068,34 @@ You need to summarize the conversation between user and assistant into a short t
   }
 
   Future<void> resetTitlePrompt() async => setTitlePrompt(defaultTitlePrompt);
+
+  // Group-chat director model: the model that picks who speaks next.
+  //
+  // Global on purpose — it is a property of "how this app runs a group", not of
+  // one group — and it falls back to the global default model when unset.
+  static const String _directorModelKey = 'group_director_model_v1';
+  String? _directorModelProvider;
+  String? _directorModelId;
+  String? get directorModelProvider => _directorModelProvider;
+  String? get directorModelId => _directorModelId;
+  String? get directorModelKey =>
+      (_directorModelProvider != null && _directorModelId != null)
+      ? '${_directorModelProvider!}::${_directorModelId!}'
+      : null;
+
+  Future<void> setDirectorModel(String providerKey, String modelId) async {
+    _directorModelProvider = providerKey;
+    _directorModelId = modelId;
+    notifyListeners();
+    await _preferences.setString(_directorModelKey, '$providerKey::$modelId');
+  }
+
+  Future<void> resetDirectorModel() async {
+    _directorModelProvider = null;
+    _directorModelId = null;
+    notifyListeners();
+    await _preferences.remove(_directorModelKey);
+  }
 
   // Translate model and prompt
   String? _translateModelProvider;
@@ -6120,6 +6177,18 @@ Requirements:
     await prefs.setBool(_displayKeepAssistantListExpandedOnSidebarCloseKey, v);
   }
 
+  // Display: assistants and groups as two sections instead of one mixed list.
+  // The sidebar and Settings › Assistants and groups read this one value.
+  bool _separateChatOwners = false;
+  bool get separateChatOwners => _separateChatOwners;
+  Future<void> setSeparateChatOwners(bool v) async {
+    if (_separateChatOwners == v) return;
+    _separateChatOwners = v;
+    notifyListeners();
+    final prefs = _preferences;
+    await prefs.setBool(_displaySeparateChatOwnersKey, v);
+  }
+
   // Network: request logging (debug)
   bool _requestLogEnabled = true;
   bool get requestLogEnabled => _requestLogEnabled;
@@ -6345,6 +6414,8 @@ Requirements:
     copy._titleModelId = _titleModelId;
     copy._titleGenerationEnabled = _titleGenerationEnabled;
     copy._titlePrompt = _titlePrompt;
+    copy._directorModelProvider = _directorModelProvider;
+    copy._directorModelId = _directorModelId;
     copy._summaryModelProvider = _summaryModelProvider;
     copy._summaryModelId = _summaryModelId;
     copy._summaryPrompt = _summaryPrompt;
@@ -6450,6 +6521,7 @@ Requirements:
     copy._keepSidebarOpenOnTopicTap = _keepSidebarOpenOnTopicTap;
     copy._keepAssistantListExpandedOnSidebarClose =
         _keepAssistantListExpandedOnSidebarClose;
+    copy._separateChatOwners = _separateChatOwners;
     copy._requestLogEnabled = _requestLogEnabled;
     copy._contextLogEnabled = _contextLogEnabled;
     copy._flutterLogEnabled = _flutterLogEnabled;

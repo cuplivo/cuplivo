@@ -353,4 +353,53 @@ void main() {
       'assistant-1': 4,
     });
   });
+
+  test(
+    'an append materialises a draft, but cannot resurrect a deleted topic',
+    () async {
+      final draft = Conversation(id: 'draft', title: 'Draft');
+      // The ordinary append path is what persists a draft conversation.
+      await repository.appendLinearMessageToConversation(
+        conversation: draft,
+        message: ChatMessage(
+          id: 'draft-question',
+          conversationId: draft.id,
+          role: 'user',
+          content: 'first words',
+        ),
+      );
+      expect(await repository.getConversation(draft.id), isNotNull);
+
+      // A group topic can be deleted while its round is waiting for the director
+      // to name the next speaker, and the round's reply is appended one await
+      // later. The append would otherwise be a second `insertOnConflictUpdate` of
+      // the conversation row — a ghost topic that survives a restart. It cannot:
+      // the anchor this reply is ordered after cascaded away with the
+      // conversation, so the whole write rolls back.
+      await repository.deleteConversation(draft.id);
+      await expectLater(
+        repository.beginAssistantGeneration(
+          conversation: draft,
+          assistantMessage: ChatMessage(
+            id: 'draft-orphan-reply',
+            conversationId: draft.id,
+            role: 'assistant',
+            content: '',
+            isStreaming: true,
+          ),
+          anchorGroupId: 'draft-question',
+          runId: 'run-orphan',
+          truncateFuture: false,
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            'linear_message_group_missing',
+          ),
+        ),
+      );
+      expect(await repository.getConversation(draft.id), isNull);
+    },
+  );
 }

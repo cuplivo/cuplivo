@@ -12,15 +12,41 @@ import 'package:Cuplivo/core/database/empty_database_recovery_guard.dart';
 import 'package:Cuplivo/core/services/backup/local_copy_catalog.dart';
 import 'package:Cuplivo/core/services/backup/data_sync.dart';
 import 'package:Cuplivo/core/services/backup/local_snapshot_schedule.dart';
+// ignore: depend_on_referenced_packages
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import '../../support/recovery_snapshot_fixture.dart';
+
+class _Paths extends PathProviderPlatform {
+  _Paths(this.root);
+
+  final String root;
+
+  @override
+  Future<String?> getApplicationDocumentsPath() async => root;
+
+  @override
+  Future<String?> getApplicationSupportPath() async => root;
+
+  @override
+  Future<String?> getTemporaryPath() async => p.join(root, 'tmp');
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory root;
+  late PathProviderPlatform previousPaths;
   setUp(() async {
     root = await Directory.systemTemp.createTemp('kelivo-loss-recovery-');
+    // Inspecting a snapshot stages a working copy through `BackupStaging`,
+    // which asks path_provider for a data root; a host without the plugin is
+    // not a product state, so point it at this test's directory.
+    previousPaths = PathProviderPlatform.instance;
+    PathProviderPlatform.instance = _Paths(root.path);
   });
-  tearDown(() async => root.delete(recursive: true));
+  tearDown(() async {
+    PathProviderPlatform.instance = previousPaths;
+    await root.delete(recursive: true);
+  });
   for (final location in [
     '',
     'snapshots',

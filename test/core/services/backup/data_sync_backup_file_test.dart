@@ -35,6 +35,7 @@ import 'package:Cuplivo/core/providers/s3_backup_provider.dart';
 import 'package:Cuplivo/core/services/backup/backup_encryption.dart';
 import 'package:Cuplivo/core/services/backup/backup_cancel_token.dart';
 import 'package:Cuplivo/core/services/backup/backup_task_progress.dart';
+import 'package:Cuplivo/core/services/backup/backup_staging.dart';
 import 'package:Cuplivo/core/services/backup/data_sync.dart';
 import 'package:Cuplivo/core/services/backup/restore_business_lease.dart';
 import 'package:Cuplivo/core/services/backup/restore_workspace_lock.dart';
@@ -80,6 +81,12 @@ bool _containsContiguousBytes(List<int> source, List<int> pattern) {
   }
   return false;
 }
+
+/// Where the product keeps its working files while it packs, encrypts and
+/// unpacks. It is not a fixture detail: a desktop host stages inside the data
+/// root and a mobile one in temp, so a `tmp/` literal here only holds on a
+/// macOS host. Ask `BackupStaging` instead of assuming.
+Future<String> _stagingPath() async => (await BackupStaging.root()).path;
 
 class _FakePathProviderPlatform extends PathProviderPlatform {
   _FakePathProviderPlatform(this.root);
@@ -767,7 +774,11 @@ void main() {
         final preserved = root
             .listSync(recursive: true, followLinks: false)
             .whereType<File>()
-            .where((f) => f.path.endsWith('/previous/preserved.txt'))
+            .where(
+              (f) =>
+                  p.basename(f.path) == 'preserved.txt' &&
+                  p.basename(p.dirname(f.path)) == 'previous',
+            )
             .single;
         expect(await preserved.readAsString(), 'previous data evidence');
         expect(
@@ -1606,8 +1617,9 @@ void main() {
         final fontFile = File('${fontsDir.path}/custom.ttf');
         await fontFile.writeAsBytes(List<int>.filled(256, 9));
 
-        final tmpDir = Directory('${root.path}/tmp');
-        // Previous releases put these working files in the cache root.
+        final tmpDir = await BackupStaging.root();
+        // Stale working files from an interrupted run live in the staging root,
+        // and the next backup reclaims every one of them that is not registered.
         final staleWorkDir = Directory(
           '${tmpDir.path}/kelivo_backup_2000-01-01T00-00-00.000000',
         );
@@ -1826,7 +1838,7 @@ void main() {
       await File(
         '${uploadDir.path}/payload.bin',
       ).writeAsBytes(List<int>.filled(32 * 1024, 5), flush: true);
-      final tmpDir = Directory('${root.path}/tmp/kelivo_backup_staging');
+      final tmpDir = Directory(await _stagingPath());
       await tmpDir.create(recursive: true);
       final createdVerify = <String>[];
       final watch = tmpDir.watch(recursive: true).listen((event) {
@@ -1943,7 +1955,7 @@ void main() {
         throwsA(isA<BackupCancelledException>()),
       );
 
-      final tmp = Directory('${root.path}/tmp/kelivo_backup_staging');
+      final tmp = Directory(await _stagingPath());
       if (await tmp.exists()) {
         final leftovers = tmp
             .listSync(recursive: true, followLinks: false)
@@ -2004,7 +2016,7 @@ void main() {
         events.map((event) => event.phase),
         contains(BackupPhase.verifying),
       );
-      final tmp = Directory('${root.path}/tmp/kelivo_backup_staging');
+      final tmp = Directory(await _stagingPath());
       if (await tmp.exists()) {
         final leftovers = tmp
             .listSync(recursive: true, followLinks: false)
@@ -2154,7 +2166,7 @@ void main() {
         throwsA(isA<BackupCancelledException>()),
       );
 
-      final tmp = Directory('${root.path}/tmp/kelivo_backup_staging');
+      final tmp = Directory(await _stagingPath());
       if (await tmp.exists()) {
         final leftovers = tmp
             .listSync(followLinks: false)
@@ -2311,10 +2323,7 @@ void main() {
             ),
           ),
         );
-        expect(
-          await Directory('${root.path}/tmp/kelivo_backup_staging').exists(),
-          isFalse,
-        );
+        expect(await Directory(await _stagingPath()).list().toList(), isEmpty);
         expect(preferences.getBool('backup_encryption_enabled_v1'), isTrue);
       },
     );
@@ -2375,9 +2384,7 @@ void main() {
         );
         expect(await backup.readAsBytes(), original);
         expect(
-          (await Directory(
-            '${root.path}/tmp/kelivo_backup_staging',
-          ).list().toList()).where(
+          (await Directory(await _stagingPath()).list().toList()).where(
             (e) => p.basename(e.path).startsWith('kelivo_decrypted_'),
           ),
           isEmpty,
@@ -2397,9 +2404,7 @@ void main() {
           'keep-on-cancel',
         );
         expect(
-          (await Directory(
-            '${root.path}/tmp/kelivo_backup_staging',
-          ).list().toList()).where(
+          (await Directory(await _stagingPath()).list().toList()).where(
             (e) => p.basename(e.path).startsWith('kelivo_decrypted_'),
           ),
           isEmpty,
@@ -2489,12 +2494,7 @@ void main() {
           await RestoreStartupGate.inspect(appDataDirectory: root),
           isNull,
         );
-        expect(
-          await Directory(
-            '${root.path}/tmp/kelivo_backup_staging',
-          ).list().toList(),
-          isEmpty,
-        );
+        expect(await Directory(await _stagingPath()).list().toList(), isEmpty);
       },
     );
 
@@ -2659,9 +2659,7 @@ void main() {
           );
           expect(mimeTypes[archivePath], 'application/octet-stream');
           expect(
-            await Directory(
-              '${root.path}/tmp/kelivo_backup_staging',
-            ).list().toList(),
+            await Directory(await _stagingPath()).list().toList(),
             isEmpty,
           );
           final items = useS3 ? await s3.listRemote() : await dav.listRemote();
@@ -2698,9 +2696,7 @@ void main() {
             'remote-secret',
           );
           expect(
-            await Directory(
-              '${root.path}/tmp/kelivo_backup_staging',
-            ).list().toList(),
+            await Directory(await _stagingPath()).list().toList(),
             isEmpty,
           );
 
@@ -2736,9 +2732,7 @@ void main() {
             'keep-secret',
           );
           expect(
-            await Directory(
-              '${root.path}/tmp/kelivo_backup_staging',
-            ).list().toList(),
+            await Directory(await _stagingPath()).list().toList(),
             isEmpty,
           );
         },
@@ -5892,7 +5886,7 @@ void main() {
         encoder.addFileSync(untrustedCandidate, 'candidate.sqlite');
         encoder.closeSync();
         final chatService = _CandidateCleanupChatService(
-          Directory('${root.path}/tmp/kelivo_backup_staging'),
+          Directory(await _stagingPath()),
         );
 
         await DataSync(
@@ -6454,7 +6448,7 @@ void main() {
           businessRepository: businessRepository,
           chatService: ChatService(),
         );
-        final tmpDir = Directory('${root.path}/tmp/kelivo_backup_staging');
+        final tmpDir = Directory(await _stagingPath());
         final relativeSentinel = File('${root.path}/webdav_relative.zip');
         final absoluteSentinel = File('${root.path}/webdav_absolute.zip');
         await relativeSentinel.writeAsString('keep relative');
@@ -6563,7 +6557,7 @@ void main() {
       expect(before.parts.whereType<ImagePart>().single.uri, uri);
 
       final resolved = SandboxPathResolver.fix(uri);
-      expect(resolved, '${rootB.path}/upload/pic.png');
+      expect(p.normalize(resolved), p.join(rootB.path, 'upload', 'pic.png'));
       expect(File(resolved).existsSync(), isTrue);
 
       // Path-migration pass with the production rewriteUri must leave URI intact.

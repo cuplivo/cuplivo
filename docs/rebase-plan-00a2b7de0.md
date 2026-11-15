@@ -115,7 +115,7 @@ The bridge's git surface has no `checkout`, `reset` or `rm`; units are moved wit
 | 1 | `8d71b60f3` | done: analyze clean, gen-l10n idempotent, `package:Kelivo/` gone, the identity checker clean in all three directions — plus the browser workspace scheme restored after the suite caught the over-rename |
 | 2 | `a56653bc9` | done: `flutter test` green (`+12775 ~94`), `dart analyze --fatal-infos` clean |
 | 3 | `9746532a4` | done: analyze clean, gen-l10n idempotent, full suite green at this tip (`+12840 ~94`); 65 recycle cases, 907 in `test/core/database` + storage + the storage-space pages, 343 in `test/core/services/chat` + the assistant cascade. §10 lists what it deliberately left for units 4, 5 and 11 |
-| 4 | (this commit) | done: analyze clean across `lib test integration_test`; the sync subsystem replayed with `#1068`'s policy table folded in. §11 records the repairs the old commit needed and what it changes about §10's list |
+| 4 | `a9137a796` + `435bbabec` | done: analyze clean across `lib test integration_test`; the sync subsystem replayed with `#1068`'s policy table folded in. 574 cases in the unit's own set, 2,725 in the database/chat/backup/providers set it touches. §11 records the repairs the old commit needed, the table's thirteen transposed rows, and what it changes about §10's list |
 
 The 115 failures this unit started from were four classes, and only one of them was a platform without
 a service:
@@ -458,16 +458,24 @@ old line's key set. The rules that resolved it:
 - **The table is the authority.** `BusinessKeyRegistry.rules` replaces the three hand-kept sets *and*
   `BackupPortability.devicePreferenceKeys`; the portability layer now derives its strip list from
   `KeyPolicy.deviceLocal`. Taking the table wholesale was the only option that keeps one authority.
-- **A key upstream added needs a row, and the row is transposed from the two lists this branch kept by
-  hand.** That is what §8.4 predicted and it was 11 keys, not one family: five `backup_auto_*` and
-  `environment_native_shell_path_v1` (they were in `BackupPortability.devicePreferenceKeys` →
-  `deviceLocal`), `desktop_autostart_hidden_v1` and `ollama_model_metadata_v1` (they were in
-  `localOnlyKeys` → `platformOnly`, and both are `SharedPreferences` keys, which the export test
-  catches), then four with no counterpart at all (`native_compression_v1`,
-  `compression_defaults_v1`, `compress_new_conversation` → synced with the compression family;
-  `display_use_legacy_code_block_style_v1`, `tts_playback_speed_v1` → backupOnly), plus
-  `attachment_retention_days` in the retention windows. Two pinned lists moved with them: "the synced
-  face is pinned" gained three keys, and the writer scan's pinned *unresolved* list lost one.
+- **A key upstream added needs a row, and the row is transposed from the lists this branch kept by
+  hand.** The reliable way to find the gap is to diff the table against the three sets unit 3 still
+  carried (`preferenceKeys`, `localOnlyKeys`, `discardedKeys`), not to wait for the analyzer: it found
+  exactly two keys, which is the check that the transposition is complete. Between that and the
+  writer scan the unit added **thirteen** rows: five `backup_auto_*`, `environment_native_shell_path_v1`,
+  `backup_password_remember_manual_v1` and `backup_password_verifier_v1` (all eight were in
+  `BackupPortability.devicePreferenceKeys` → `deviceLocal`); `desktop_autostart_hidden_v1` and
+  `ollama_model_metadata_v1` (they were `localOnlyKeys` → `platformOnly`, and both really are
+  `SharedPreferences` keys, which the export test catches); then four with no counterpart at all
+  (`native_compression_v1`, `compression_defaults_v1`, `compress_new_conversation` → synced with the
+  compression family; `display_use_legacy_code_block_style_v1`, `tts_playback_speed_v1` → backupOnly),
+  and `attachment_retention_days` in the retention windows. Two pinned lists moved with them: "the
+  synced face is pinned" gained three keys, and the writer scan's pinned *unresolved* list lost one.
+- **The writer scan is not the whole guard**, and the last two rows prove it: it resolves a literal, a
+  `Class.const` and a one-hop getter, but a key passed through a map (`setMany({...})` for the backup
+  password state) is invisible to it. The `setMany` debug assert is what found those, through 14
+  backup-encryption and backup-page cases. A row added for a *runtime* assert still needs its
+  classification argued, so it is not a mechanical follow-up.
 - **The writer scan was blind to a modified class header.** `AttachmentRetention` is declared
   `abstract final class`, so `^class\s+(\w+)` could not attribute `preferenceKey` to it and the write
   landed in the pinned unresolved list instead of being checked. The pattern now accepts the modifiers;

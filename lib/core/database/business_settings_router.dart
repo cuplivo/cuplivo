@@ -554,6 +554,16 @@ final class BusinessKeyRegistry {
       PolicyReason.platformCapability,
       'A keychain forget that this device has queued; the keychain is per device.',
     ),
+    'backup_password_remember_manual_v1': KeyRule(
+      KeyPolicy.deviceLocal,
+      PolicyReason.platformCapability,
+      'Whether this device was told to remember a manual backup password; the answer lives in this device\'s keychain.',
+    ),
+    'backup_password_verifier_v1': KeyRule(
+      KeyPolicy.deviceLocal,
+      PolicyReason.platformCapability,
+      'What this device checks a typed backup password against, for the keychain entry it holds.',
+    ),
     'environment_native_shell_path_v1': KeyRule(
       KeyPolicy.deviceLocal,
       PolicyReason.deviceStoragePath,
@@ -1332,7 +1342,7 @@ final class BusinessKeyRegistry {
     'desktop_autostart_hidden_v1': KeyRule(
       KeyPolicy.platformOnly,
       PolicyReason.platformCapability,
-      'Whether this machine launches the app minimized; the OS entry it describes is per machine and lives in SharedPreferences.',
+      'Whether this machine launches the app minimized; the OS entry it describes is per machine, in the platform preference store rather than the business one.',
     ),
     'desktop_hotkeys_enabled_v1': KeyRule(
       KeyPolicy.platformOnly,
@@ -1355,7 +1365,7 @@ final class BusinessKeyRegistry {
     'ollama_model_metadata_v1': KeyRule(
       KeyPolicy.platformOnly,
       PolicyReason.runtimeDiagnostics,
-      'A cache of what an Ollama endpoint advertised; it lives in SharedPreferences, not the business store.',
+      'A cache of what an Ollama endpoint advertised; it lives in the platform preference store, not the business one.',
     ),
 
     // platformOnly — this device's network path

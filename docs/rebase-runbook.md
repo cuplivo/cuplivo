@@ -445,6 +445,36 @@ Units from earlier series that are **gone, and must not come back**:
     anything. Wrap it: `json((SELECT json_group_array(...) ...))`. The old line worked only because its
     SQLite propagated the subtype; ours did not, and only the tests said so.
 
+21. **An intermediate commit can also be *corrupt*, and then the analyzer blames the callers.** The sync
+    unit (`f36104732`) is an intermediate of the 4.6 line, and its blob carries three different kinds of
+    damage, none of which `git cherry-pick` reports as a conflict:
+
+    - **Committed conflict markers.** `desktop_settings_page.dart` and `assistant_provider.dart` each
+      contain a `||||||| .scratch/st-base.tmp` block whose "theirs" half is a whole old region (the
+      pre-`DesktopAdaptivePanes` widget tree; the `try`-wrapped `_duplicateLocalFile`). Grep the
+      incoming tree for `|||||||`, `<<<<<<<` and `>>>>>>>` **before** resolving anything — the marker
+      is inside the commit, so the merge happily brings it in.
+    - **A method spliced into itself.** `updateMessageFields`'s header and body appear twice in one
+      blob, so the class closes one brace early, every later member becomes a *top-level function*
+      (legal Dart, no error in that file), and the analyzer reports `The method 'x' isn't defined for
+      the type 'Y'` in dozens of *other* files. When that error shape appears in bulk, suspect the
+      declaring file's braces, not its members.
+    - **Forward references.** Four symbols the commit calls are defined by later commits
+      (`canonicalStorage`, `isLinkedWorkspace`, `workspacePayloadNamesId`, `resetSyncState`). The
+      repair is to take each **definition** from the old tip — they are small and belong to the same
+      feature — never to drop the call, which would leave the commit self-consistent but the product
+      changed.
+
+    Two habits that make this cheap: `dart analyze` on the **whole tree**, never per file (the damage is
+    in the callees), and a brace-count assertion on the file you just edited (equal `{`/`}`) before
+    spending a six-minute analyze run on it.
+
+    And the harness: a unit whose own tests cannot *finish* has not met the definition of done. The sync
+    widget cases drive a pairing panel whose countdown timer means `pumpAndSettle` never returns; the
+    `pumpPanel`/`_closePanel` helpers that replace it live in a later close-out commit (`b264ef05a`), so
+    they were applied inside the unit, nine teardowns included. A ten-minute deadline that fires is
+    evidence about the harness, not about the case.
+
 ## The CI rule
 
 `.github/workflows/release.yml` is the only build workflow. Upstream publishes one workflow per

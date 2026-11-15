@@ -515,6 +515,27 @@ Units from earlier series that are **gone, and must not come back**:
     while `mobile_background.dart`, `BackgroundRuntime.kt` and their test kept this branch's, because
     the tip's versions carried the next unit's link work.
 
+24. **A unit that carries its own copy of a rule the baseline already has is collapsed, not replayed.**
+    The PDF export unit brought `features/chat/utils/citation_index.dart`: 77 lines duplicating
+    `shared/markdown/citation_syntax.dart`'s three citation helpers, with `resolveCitationIndex`'s
+    arguments swapped. On the old line the module *was* the implementation; on this baseline it would
+    have been a second definition of the same name, and the one file that needs both
+    (`chat_message_widget.dart`) would not compile.
+
+    This is the project's blast-radius rule meeting a replay: the replay's job is to reproduce the
+    *behaviour*, not the file layout of a line that had no baseline to duplicate. The resolution was to
+    delete the module, point its callers at the baseline's three functions, and keep its test file —
+    rewritten against the one implementation, which is also the first coverage that rule had. Its
+    "newest first" case flipped, because the baseline's function takes the parts already reversed.
+
+    The tell is cheap: before accepting a unit's new module, grep the tree for each function it declares.
+    Two definitions of one name in two files reachable from one import is the signature.
+
+    And the companion trap from the same unit: a shared file can be **newer and older at once**.
+    `kelivo_markdown_extensions.dart` and `link_image_handlers.dart` are older at the 4.6 tip in their
+    widget-facing parts and newer in the export helpers, so neither "take the tip" nor "keep ours" is
+    right — the unit's three helpers were added to this branch's files.
+
 ## The CI rule
 
 `.github/workflows/release.yml` is the only build workflow. Upstream publishes one workflow per

@@ -119,6 +119,7 @@ The bridge's git surface has no `checkout`, `reset` or `rm`; units are moved wit
 | 5 | `a81991887` | done: protocol v8 (the row clock in the announcement, `copyWrittenSinceAgreement`, the business face's clock pair) and the bin's sync half — the staging §10.2 listed. analyze clean, gen-l10n idempotent, format no changes, 526 cases across the sync, recycle and provider suites. §12 records what the unit's source turned out to be |
 | 6 | `4360703f7` | done: 69 files — the cross-platform care port, the roleplay tab, the backgrounded letter (`#1064` folded). analyze clean, gen-l10n idempotent, format clean, 112 care cases + 2,452 in the home/assistant/chat/providers/models set. §13 records the two files whose fold was silently dropped, and the one API the baseline had never had |
 | 7 | `bbc456ac2` | done: 19 files — `ConversationLink` and the two native handovers (`#1034` folded; it was the same feature on the second platform). analyze clean, gen-l10n idempotent, format clean, 108 cases in the unit's files and 2,450 across `test/features/chat` + `test/features/home` |
+| 8 | `dae39a81c` | done: 34 files, the PDF exporter (2.8k-line emitter, document model, fonts, dialog) with the old line's own landing repairs folded in; the unit's duplicate citation module collapsed onto the baseline's. analyze clean, gen-l10n idempotent, format no changes, 92 export cases and 3,333 across chat/home/shared. §14 records why this unit could not compile as written |
 
 The 115 failures this unit started from were four classes, and only one of them was a platform without
 a service:
@@ -152,7 +153,7 @@ that went away with the move. The last one needed the one product change in this
 `@visibleForTesting` `BackupStaging.debugRootOverride`, because `Directory.create` cannot be
 intercepted by `IOOverrides` and a real directory cannot be made to fail on demand.
 
-Next: unit 8, `feat(export)` — a PDF from markstream's tree.
+Next: unit 9, `feat(translate)`.
 
 ## 7. Open risks
 
@@ -571,3 +572,29 @@ that touched it are this fold and the 4.5 close-out's fixes. But the *lesson* is
   and does nothing without it.
 
 Runbook rule 23 carries the fold procedure.
+
+## 14. Unit 8: the unit that does not compile, and the rule it duplicated
+
+Two mechanics worth carrying forward, both new in kind.
+
+**The unit's own repairs live in later commits, and they are not features.** `d593bfdd4` calls
+`markdownParserOptionsFor`, `kelivoInlineSyntaxes`, `markdownImageSizeOf`, `exportChatMessagesPdf` and
+`HomePageController.exportSelectedAsPdf`; the old line added every one of them in `2184720ca`,
+`b264ef05a` or `237c9a97` — the 4.5 landing, the 4.5 fixes and the replay repair. Rule 22's range query
+answers "is the tip still my unit?" per file, and here it said yes for the three *new* files (their only
+later commits are those repair commits), so they came across whole. For the two shared files the answer
+was no in a way the query cannot see: `kelivo_markdown_extensions.dart` and `link_image_handlers.dart`
+are **older at the tip** in their widget-facing parts (the tip lacks `chatProseDirection` and
+`imageStorage`), so the unit's three helpers were added to this branch's files instead. A file can be
+newer and older at once; only the diff says which half.
+
+**A unit can bring a second implementation of a rule the baseline already has.** The unit added
+`features/chat/utils/citation_index.dart` — a 77-line copy of `citation_syntax.dart`'s
+`citationSearchItems`, `citationIndexLookup` and `resolveCitationIndex`, with the last one's arguments
+swapped. On the old line there was one of each; on this baseline the unit's copy would have made two
+`resolveCitationIndex` definitions, and `chat_message_widget.dart` imports both files. The collapse was
+the only resolution that leaves one choke point: the module is deleted, its callers use the baseline's
+three functions, and the unit's test file survives as the first coverage that rule ever had. Its
+"newest first" case also had to flip, because the baseline's function is handed `parts.reversed`.
+
+Runbook rule 24 is the general form.

@@ -157,7 +157,8 @@ Next: unit 3, the recycle bin's core.
   breaking the recycle bin's staging. Re-check when unit 3 lands.
 - Upstream moved once already: `master` was `23bfa30e3` when this plan was written and is `00a2b7de0`
   now (six commits, 107 files). The series is built on `00a2b7de0`, and §8 records what that range
-  carried. `00a2b7de0` is frozen for this plan; a later tip is a new re-base, not a retarget in place.
+  carried and what it re-opened. `00a2b7de0` is frozen for this plan; a later tip is a new re-base,
+  not a retarget in place.
 - The pinned formatter wants six files laid out differently at unit 2's tip —
   `lib/core/providers/settings_provider.dart`, `lib/features/chat/pages/image_viewer_page.dart`,
   `test/builtin_provider_test.dart`, `test/core/utils/token_estimator_test.dart`,
@@ -166,3 +167,108 @@ Next: unit 3, the recycle bin's core.
   the format gate stays red until unit 14: the reformat is derived at the tip, never per unit.
 - The count is 15 here; if the record folds into unit 1 the series is 14, and that is a decision to
   take at the tip, not now.
+
+## 8. The `00a2b7de0` retarget — what the range carries
+
+`git fetch upstream` moved `master` from `23bfa30e3` to `00a2b7de0`: six commits, and not a small
+hop — 107 files, four subsystems. The series is built on `00a2b7de0`; this section is what the hop
+carried and what taking it re-opened, so that §3's units are replayed against the right tree.
+
+| commit | what it carries |
+|---|---|
+| `bb1e64ed9` | `feat(backup): run due external backups and clean interrupted transfers (#1462)` — the external-backup scheduler, its staging, partials and folder access, a rewritten `backup_page.dart` and `setting/backup_pane.dart` |
+| `e54097c17` | `fix(chat): expose skills in the tablet toolbar (#1477)` — the *entry*, not the surface |
+| `01796eda5` `581ef7d97` `00a2b7de0` | macOS login-keychain authorization and cancellation, a remembered backup password in a device-protected keychain (new `BackupPasswordKeychain.swift`, `MacBackupPasswordStore.swift`), manual encrypted backups |
+| `f4d78f893` | `fix(chat): recognize model-led RTL prose… (#1465)` — inside `dependencies/markstream`, `prose_direction_resolver.dart` becomes `render/prose_direction.dart` |
+
+### 8.1 `e54097c1` and the group-chat quick entries: one seam, two owners
+
+`e54097c1` changes three things. `chat_input_section.dart` gains
+`openSkills = isDesktop || isTablet ? onOpenSkills : null`, and `skillsActive` follows `openSkills`
+instead of re-testing `isDesktop`. `home_page.dart`'s `onOpenSkills` now branches: desktop keeps
+`showDesktopSkillsPopover`, everything else dismisses the keyboard and opens
+`showConversationSkillsSheet`. Its test adds `isTablet: true` cases for both the toolbar and the
+overflow menu.
+
+`#1081` (`03e033d5e`, folded into unit 11) changed the *surfaces*, not the entry:
+`conversation_skills_sheet.dart` and `desktop/skills_popover.dart` gained
+`List<Assistant>? members`, a member strip above the rows and the rule that "the panel writes that
+member's own list" (`scopeToAssistant: roster != null`); `bottom_tools_sheet.dart` passes the roster
+in. It did **not** touch the skills handler in `home_page.dart`.
+
+The line-level overlap is absorbed by the fold, and that is now load-bearing: `#1052` added
+`isDesktop && !isGroup` and the `isGroup ? null :` exclusions to the entry arguments, `#1081` removed
+them again. Folded into one unit, the net patch contains none of those lines — so the retarget's
+`openSkills` line has nothing to conflict with, and a group inherits the tablet entry for free. Had
+`#1081` stayed its own commit, its "remove `isGroup`" hunks would land on the line upstream just
+rewrote.
+
+The seam is: **upstream owns reach, the fork owns content.** Which form factor shows the entry, and
+which surface it opens, is upstream's; what the surface shows for a roster is the fork's.
+`showConversationSkillsSheet` is already conversation-scoped (`required String conversationId,
+required Assistant? assistant`) and reads `chat.getConversation(id)?.extras`, so a group can use
+upstream's tablet path unchanged. Two additions and one expectation remain for unit 11:
+
+1. `home_page.dart`'s new else-branch passes only `conversationId` and the current assistant. A group
+   has no current assistant, so the branch must also pass `members: <roster>`; the sheet's parameter
+   is optional, so omitting it compiles and silently drops the per-member panel — the exact class of
+   loss this plan exists to prevent.
+2. `skillsActive` now evaluates `_isSkillsActive(context, a)` for a group on tablet. That helper asks
+   `skills.resolveForAssistant(assistant, conversationOverride: …)` with a null assistant, i.e. the
+   global list plus the conversation override — not "does some member have a skill". Unit 11 decides
+   the roster rule instead of inheriting a light that means nothing.
+3. Expect a small conflict in `chat_input_section.dart`'s `ChatInputBar(...)` argument list
+   (upstream's hunk is lines 217-225; unit 11 inserts `leading:`/`leadingExtent:` and the strip into
+   the list opened at line 208). Keep upstream's `openSkills`/`skillsActive`, add the fork's
+   arguments.
+
+### 8.2 `3849c87c7`: already on the baseline, and it survives the retarget
+
+`3849c87c7 fix(macos): start Flutter before showing the main window` is `23bfa30e3`'s parent — `git
+log --oneline -2 23bfa30e3` prints it directly below — so it is already in the tree and nothing needs
+replaying. Its change is two files: drop `super.applicationDidFinishLaunching(notification)` from
+`AppDelegate.swift`, and run the engine in `MainFlutterWindow.awakeFromNib`
+(`flutterViewController.engine.run(withEntrypoint: nil)`, present at
+`macos/Runner/MainFlutterWindow.swift:601`).
+
+The rebrand does not touch it: unit 1's `macos/Runner/` diff is the app icons, `AppInfo.xcconfig`,
+`RestoreHarness.xcconfig` and `Info.plist`, and the fork never touched either Swift file
+(`git log 4857da608..master -- macos/Runner/AppDelegate.swift macos/Runner/MainFlutterWindow.swift`
+is empty). The retarget keeps it too: `23bfa30e3`→`00a2b7de0` changes `MainFlutterWindow.swift` by
++59 lines at the end (the backup folder and keychain channels) and +48 at line 455, with
+`super.awakeFromNib()` and the `engine.run` line as context. Verdict: nothing to do, before or after
+the retarget.
+
+### 8.3 Preventing an over- or under-rename
+
+This range is the first real test of the sweep, because it carries both kinds in one diff: **35** new
+`import 'package:Kelivo/…'` lines to rename, **41** new ARB values naming `Kelivo` across the seven
+locales, and about **thirty** persisted or protocol names to protect (`kelivo_backup_*`,
+`kelivo_auto_<installId>_`, `.kelivo-autobackup-<id>.json`, `kelivo/backup_keychain`,
+`kelivo.backup.encryption_password`, `kelivo_backups/`, `kelivo-managed-keychain-*`, and
+`"Kelivo local backup keychain v1"` — which reads like prose and is an HKDF salt). The method is
+runbook rule 19: a checked-in spec (`substitutions`, `protected`, `mechanical`), a forward check for
+what is left, an **inverse** check that each protected name is still *present* where upstream has it,
+a substitution-exactness check for what went too far, and the proof that the inverse check fails when
+the known defect is injected.
+
+### 8.4 What the retarget re-opens
+
+- **Unit 1** ran the sweep over the new range: 1,563 files still carried `package:Kelivo/`, 37 ARB
+  values and 4 descriptions named `Kelivo` across the seven locales, and the ~30 protected names held.
+  It cost thirteen conflicts, all of them in files unit 1 owns, and no product change: the four
+  per-Flutter-version build workflows are deleted after taking the bump's `libsecret` facts, the
+  fork's `release.yml` carries them, and the three brand-string crossings are three-way.
+- **Unit 2** found a fifth failure class the `23bfa30e3` run never had — the backup staging move,
+  recorded in §6. The nineteen path fixes stayed valid, and the new files needed their own look.
+- **Unit 4** (sync): the range adds preference keys (`external_backup_auto_*`). The fork's
+  fail-closed preference registry needs a row for each, or `setMany` asserts (the runbook's "the suite
+  found", cause 1).
+- **Unit 12** (`#1071`) now replays onto a rewritten backup subsystem — `backup_page.dart`,
+  `setting/backup_pane.dart`, `data_sync.dart`, `backup_portability.dart`,
+  `business_settings_router.dart` all moved. It becomes the largest conflict surface in the series.
+- **`dependencies/markstream`**: the RTL refactor means `docs/markstream-delta-audit.md`'s hand-cursor
+  gap must be re-checked against the new package before it is recorded as still open (AGENTS.md:
+  re-check per re-base).
+- **The document itself**: §1's frozen baseline, §2's `23bfa30e3` rows, §3's `depends on` column and
+  this title all name the old baseline. A retarget rewrites them; the unit *content* does not change.

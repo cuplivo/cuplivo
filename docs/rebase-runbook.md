@@ -356,6 +356,55 @@ Units from earlier series that are **gone, and must not come back**:
     `_builtInProviderKeysInOrder`, or restoring its seeding, defaults, prefill or UI special cases, is
     the boundary coming back ([ADR-0018](adr/0018-remove-built-in-kelivoin.md)).
 
+19. **The identity sweep is a checked list, not a regex over the brand.** Two failure modes, one
+    direction each, and this line has now produced both:
+
+    - **An over-rename leaves nothing to grep.** A blind `Kelivo` → `Cuplivo` pass renamed the browser
+      workspace's custom scheme in `browser_workspace_resources.dart` and the handler that accepts it,
+      while the registry still advertised `KelivoLink.scheme`. Every workspace page load then
+      returned null, and the failure surfaced as two browser tests — the word "rename" appeared
+      nowhere in the output. The names the pass must not touch are exactly the ones that are *gone*
+      afterwards: `kelivo://…`, `kelivo-file://`, `kelivo.db`, `kelivo_backup_*`, `kelivo-snapshot-*`,
+      `.kelivo_restore`, `KelivoLink`, `KelivoFileUri`, `KelivoISH*`, `KelivoApplication`,
+      `KelivoPtyJni`, `kelivo_*` tool ids, `kelivo.psycheas.top`, the other app's bundle ids,
+      `@kelivo/fetch`. A grep can only prove what *remains*.
+    - **An under-rename is invisible in `git status`.** Files upstream added never conflict, so the
+      sweep has to run over `--diff-filter=A`, and a missed file keeps `package:Kelivo/` until the
+      analyzer or a test reads it.
+
+    So the sweep is a spec in the tree, checked from both directions. `tool/identity/rename.json`
+    (proposed — the directory does not exist yet) would carry `substitutions` (the exact, ordered
+    pairs the identity unit applies: `package:Kelivo/` → `package:Cuplivo/`, `com.psyche.kelivo` →
+    `com.cuplivo.cuplivo`, the ARB key/value brand rule, the path moves), `protected` (every name
+    above, each with a one-line reason and the upstream file set it appears in) and `mechanical` (the
+    files whose content must be exactly `apply(substitutions, upstream)`).
+
+    Four checks, run per unit — they are greps, not builds — and again at the tip:
+
+    1. **Forward, under-rename.** `git grep -lE 'Kelivo|kelivo'` over `lib test integration_test tool`
+       returns only `protected` names and documents.
+    2. **Inverse, over-rename.** For every `protected` entry, each file that contains it upstream
+       contains it in the fork's tree too, with the same count (after the path map). This asks the
+       name to be *present*, which is the only question a renamed name cannot answer for itself: it
+       catches the scheme case, where upstream has `'kelivo'` twice in
+       `browser_workspace_resources.dart` and the swept tree had none.
+    3. **Substitution exactness.** Every file in `mechanical` equals
+       `apply(substitutions, upstream)`; a file that does not match is either on the hand-resolved
+       list or a defect. This catches a rename that went too far in a file no test reads.
+    4. **The proof.** Inject the known defect — rename `'kelivo'` back to `'cuplivo'` in
+       `browser_workspace_resources.dart` — and show check 2 fails, then revert byte-exact. A check
+       that has never failed is a check nobody wrote.
+
+    The spec is *derived*, not typed: a `--derive` mode walks the old-baseline→fork-tip diff, prints
+    every changed line that a substitution explains, and lists every token that looks like a brand or
+    a protocol name and is not yet classified — so adding a name is a decision with a diff behind it.
+    Classify a new name *before* resolving anything, because one range can carry both kinds: the
+    `23bfa30e3`→`00a2b7de0` range adds 35 `package:Kelivo/` imports (rename) and about thirty
+    persisted or protocol names (protect) in the same diff, and the difference is semantic, not
+    textual. `"Kelivo local backup keychain v1"` is the range's trap: it reads like prose and is an
+    HKDF salt, so renaming it would change the derived key, while
+    `kelivo.backup.encryption_password` beside it is a keychain account and must also stay.
+
 ## The CI rule
 
 `.github/workflows/release.yml` is the only build workflow. Upstream publishes one workflow per

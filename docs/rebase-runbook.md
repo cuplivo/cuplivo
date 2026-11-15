@@ -169,14 +169,21 @@ Units from earlier series that are **gone, and must not come back**:
    the exact work is the set difference: for every file upstream touched, compare its brand-matching
    lines at the old tip against the current tree and take what is new. Classify every survivor against
    the whitelist (`kelivo://workspace|chat|session|skills|tmp|mounts`, `kelivo-file://`,
-   `KelivoOpenURL`, `KelivoFileUri`, `KelivoISH*`, `KelivoApplication`, `KelivoPtyJni`, `kelivo_*` tool
+   `KelivoOpenURL`, `KelivoFileUri`, `KelivoISH*`, `KelivoApplication`, `kelivo_*` tool
    ids, `kelivo.db`, `kelivo_backups`, `kelivo-snapshot-<ms>.zip`, `kelivo.restore-*`, `.kelivo_restore`,
    `kelivo.psycheas.top` / `search.psycheas.top`, `afdian.com/a/kelivo`, `KELIVO_PERF_SCENE`,
    `PackageInfo` mock `appName:`/`packageName:` values, temp-dir prefixes, and the intentional
    `Chevey339/kelivo` attribution in README / CONTEXT / `.github`). On this re-base that reduced 65
    surviving brand lines in 10 files to 9 files' worth of import fixes.
 
-   The whitelist is only a policy until something greps for it, and the sweep is what breaks it: a
+   The whitelist is a judgement per name, and one of its early entries was wrong: `KelivoPtyJni` is a
+   `#define LOG_TAG` string in `android/app/src/main/cpp/termux_pty.cpp`, nothing reads it, and the
+   fork's own identity commit renames it to `CuplivoPtyJni` — a log line is branding, not an
+   identifier. What must not move is the JNI *class* (`PtyJni`, no brand token in it) and the
+   `Java_com_psyche_kelivo_…` symbol names, which follow the package move rather than the brand.
+   `tool/identity/rename.json` carries the corrected list; `tool/identity/verify.py` checks it.
+
+   And it is only a policy until something greps for it, and the sweep is what breaks it: a
    blind `Kelivo` → `Cuplivo` pass over the identity unit's file list rewrote the persisted snapshot
    prefix in `test/shared/widgets/restore_failure_screen_test.dart` to `cuplivo-snapshot-…`, which no
    production code reads — `recovery_file_discovery.dart` matches
@@ -356,6 +363,250 @@ Units from earlier series that are **gone, and must not come back**:
     `_builtInProviderKeysInOrder`, or restoring its seeding, defaults, prefill or UI special cases, is
     the boundary coming back ([ADR-0018](adr/0018-remove-built-in-kelivoin.md)).
 
+19. **The identity sweep is a checked list, not a regex over the brand.** Two failure modes, one
+    direction each, and this line has now produced both:
+
+    - **An over-rename leaves nothing to grep.** A blind `Kelivo` → `Cuplivo` pass renamed the browser
+      workspace's custom scheme in `browser_workspace_resources.dart` and the handler that accepts it,
+      while the registry still advertised `KelivoLink.scheme`. Every workspace page load then
+      returned null, and the failure surfaced as two browser tests — the word "rename" appeared
+      nowhere in the output. The names the pass must not touch are exactly the ones that are *gone*
+      afterwards: `kelivo://…`, `kelivo-file://`, `kelivo.db`, `kelivo_backup_*`, `kelivo-snapshot-*`,
+      `.kelivo_restore`, `KelivoLink`, `KelivoFileUri`, `KelivoISH*`, `KelivoApplication`,
+      `kelivo_*` tool ids, `kelivo.psycheas.top`, the other app's bundle ids,
+      `@kelivo/fetch`. A grep can only prove what *remains*. (`KelivoPtyJni` is *not* on the list: it
+      is a `#define LOG_TAG`, a log line, and the fork renames it — see rule 4.)
+    - **An under-rename is invisible in `git status`.** Files upstream added never conflict, so the
+      sweep has to run over `--diff-filter=A`, and a missed file keeps `package:Kelivo/` until the
+      analyzer or a test reads it.
+
+    So the sweep is a spec in the tree, checked from both directions. `tool/identity/rename.json`
+    carries `substitutions` (the exact, ordered pairs the identity unit applies: `package:Kelivo/` →
+    `package:Cuplivo/`, `com.psyche.kelivo` → `com.cuplivo.cuplivo`), `path_moves` (the Java/Kotlin
+    package path, so a moved file still finds its base blob), `protected` (each name with a minimum
+    presence, optionally a per-file floor, and a one-line reason) and the `l10n` rule.
+    `tool/identity/mechanical.txt` is the derived list: every file whose content must be exactly
+    `apply(substitutions, upstream)`. Measured on this series: 1516 mechanical files, 320
+    hand-resolved, 20 brand tokens a change introduced without classifying them. The check reads the
+    product tree, so it exempts the files that *define* the rule (the spec, the derived list, the
+    script and its tests) — the one place the needles are written on purpose.
+
+    Four checks, run per unit — they are greps, not builds — and again at the tip:
+
+    1. **Forward, under-rename.** `package:Kelivo/` occurs nowhere, and no ARB key or value names
+       `Kelivo` outside the two backup-target keys. This is the half that ships silently, so CI runs
+       it on every PR (`verify.py --forward`).
+    2. **Inverse, over-rename.** Every `protected` entry is still present at the floor the spec sets,
+       and in each file the spec pins. This asks the name to be *present*, which is the only question
+       a renamed name cannot answer for itself. The scheme case is the one to keep in mind: upstream
+       has `uri.scheme == 'kelivo'` twice in `browser_workspace_resources.dart`, the swept tree had
+       none, and the constructing side (`replace(scheme: 'kelivo')`) still said `kelivo` — so the
+       entry is the *comparison*, with a count of 2, not the bare literal, whose total in that file is
+       4 and would have stayed above the floor.
+    3. **Substitution exactness.** Every file in `mechanical.txt` equals
+       `apply(substitutions, upstream)`; a file that does not match has drifted, or was hand-resolved
+       and should be regenerated out of the list. This catches a rename that went too far in a file no
+       test reads.
+    4. **The proof.** Inject the known defect — rename the two comparisons back to `'cuplivo'` — and
+       show check 2 fails, then revert byte-exact. A check that has never failed is a check nobody
+       wrote. Done once when the spec was written; redo it when the spec changes shape.
+
+    The spec is *derived*, not typed: `--derive` walks the old-baseline→fork-tip diff, splits it into
+    mechanical and hand-resolved, and lists every brand token the change introduced that nobody
+    classified — so adding a name is a decision with a diff behind it. Classify a new name *before*
+    resolving anything, because one range can carry both kinds: the `23bfa30e3`→`00a2b7de0` range adds
+    35 `package:Kelivo/` imports (rename) and about thirty persisted or protocol names (protect) in
+    the same diff, and the difference is semantic, not textual. `"Kelivo local backup keychain v1"` is
+    the range's trap: it reads like prose and is an HKDF salt, so renaming it would change the derived
+    key, while `kelivo.backup.encryption_password` beside it is a keychain account and must also stay.
+
+20. **A unit whose source commit does not compile is re-derived from the tip, not replayed.** The old
+    line was built as a stack and only its tip was gated, so an intermediate commit can carry a
+    reference to something that lands later: `1a04207ff` (the recycle bin) passes `recycle:` to
+    `ChatDatabaseRepository`, whose constructor only grows that parameter two commits later in
+    `237c9a097 fix(replay): the baseline's suite, its fixtures, and the replay's tears`. Replaying
+    `1a04207ff` therefore produces a tree that cannot compile *by construction*, and the missing hook
+    is not a conflict git can show you. So:
+
+    - Take a unit's **file set from the tip**, and its *content* from the tip too, not from the commit
+      that introduced the feature. The recycle files were 98% identical between the two, but the
+      delete-path hook existed only at the tip.
+    - Diff a shared file with **`-w`** before deciding it is a rewrite. `storage_space_page.dart`'s
+      6,065-line diff in that commit was 73 semantic lines: the rest was a formatter pass. Port the 73,
+      never the file.
+    - Name the deferred halves in the plan (§10 there) instead of leaving them to be rediscovered: a
+      product hook that lands in a later unit, and a test case that calls an API the later unit brings,
+      both look like "this unit is done" from the outside.
+
+    One portability trap the same unit hit, worth knowing before it costs an afternoon: a
+    `json_group_array(...)` nested inside `json_object(...)` through a **scalar subquery** loses
+    SQLite's JSON subtype on some builds, and is then embedded as a *string*. The decode finds no rows
+    and reports nothing — the snapshot is simply empty, and the delete looks like it never staged
+    anything. Wrap it: `json((SELECT json_group_array(...) ...))`. The old line worked only because its
+    SQLite propagated the subtype; ours did not, and only the tests said so.
+
+21. **An intermediate commit can also be *corrupt*, and then the analyzer blames the callers.** The sync
+    unit (`f36104732`) is an intermediate of the 4.6 line, and its blob carries three different kinds of
+    damage, none of which `git cherry-pick` reports as a conflict:
+
+    - **Committed conflict markers.** `desktop_settings_page.dart` and `assistant_provider.dart` each
+      contain a `||||||| .scratch/st-base.tmp` block whose "theirs" half is a whole old region (the
+      pre-`DesktopAdaptivePanes` widget tree; the `try`-wrapped `_duplicateLocalFile`). Grep the
+      incoming tree for `|||||||`, `<<<<<<<` and `>>>>>>>` **before** resolving anything — the marker
+      is inside the commit, so the merge happily brings it in.
+    - **A method spliced into itself.** `updateMessageFields`'s header and body appear twice in one
+      blob, so the class closes one brace early, every later member becomes a *top-level function*
+      (legal Dart, no error in that file), and the analyzer reports `The method 'x' isn't defined for
+      the type 'Y'` in dozens of *other* files. When that error shape appears in bulk, suspect the
+      declaring file's braces, not its members.
+    - **Forward references.** Four symbols the commit calls are defined by later commits
+      (`canonicalStorage`, `isLinkedWorkspace`, `workspacePayloadNamesId`, `resetSyncState`). The
+      repair is to take each **definition** from the old tip — they are small and belong to the same
+      feature — never to drop the call, which would leave the commit self-consistent but the product
+      changed.
+
+    Two habits that make this cheap: `dart analyze` on the **whole tree**, never per file (the damage is
+    in the callees), and a brace-count assertion on the file you just edited (equal `{`/`}`) before
+    spending a six-minute analyze run on it.
+
+    And the harness: a unit whose own tests cannot *finish* has not met the definition of done. The sync
+    widget cases drive a pairing panel whose countdown timer means `pumpAndSettle` never returns; the
+    `pumpPanel`/`_closePanel` helpers that replace it live in a later close-out commit (`b264ef05a`), so
+    they were applied inside the unit, nine teardowns included. A ten-minute deadline that fires is
+    evidence about the harness, not about the case.
+
+22. **A unit's file set is commit archaeology: ask which commits touched the path *after* the one you
+    are deriving from.** Rule 20 says a broken intermediate is re-derived from the tip; the question
+    that follows is "for which files is the tip still my unit?". One command answers it per path:
+
+        git log --oneline <the-commit-you-derive-from>..<old-tip> -- <path>
+
+    - **Empty** → the tip's file is exactly that commit's state, so take it whole.
+    - **Only commits you have already applied** → likewise. The sync unit's files were `bb079ed2d`
+      alone, which unit 4 had already folded, so five files came across with no merge at all.
+    - **Anything else** → hand-merge, and name which of the later commits each hunk belongs to. That is
+      how `deleteEntity`'s `group:` parameter was recognised as group-chat's and left out of the sync
+      unit.
+
+    The trap is a file whose tip version is **older** than yours. `business_preferences.dart` at the
+    4.6 tip lacks the `close()`/`_closed` guard that upstream's `c66ade4a8` gave this branch, because
+    the old line never had that commit — so "take the tip's file", applied uniformly, would have
+    deleted a baseline repair. The range query does not answer this one; only reading the diff does. A
+    diff that *removes* a guard, a null-check or a cast is the signature: your side is newer, and the
+    file is not this unit's business.
+
+23. **A `--no-commit` fold is not proof the fold is in.** Verify each folded file against the *folded
+    commit's own* version, never against the base:
+
+        git cherry-pick --no-commit <follow-up>
+        git diff <follow-up> -- <the paths it touches>      # must be empty
+
+    The care unit's fold (`#1064` into the care port) reported `Auto-merging` on eleven files and a
+    conflict on two, and came out with **two files byte-identical to the unit's own version** — the
+    fold's rewrites of `proactive_care_alarm_service.dart` and
+    `proactive_care_conversation_policy.dart` were simply absent. The mechanism is the procedure: the
+    first `cherry-pick --no-commit` leaves its result in the index, so the second one's three-way merge
+    runs against an "ours" that did not exist when its patch was written, and a hunk whose context
+    moved can be dropped rather than conflicted. Nothing in git's output says so; `dart analyze` found
+    it, as two call sites passing a parameter that did not exist.
+
+    Resolve such a file with rule 22's tool (is the tip's version still this unit's?) and then diff
+    again. The choice is per file: in the care unit the two service files took the tip's version whole,
+    while `mobile_background.dart`, `BackgroundRuntime.kt` and their test kept this branch's, because
+    the tip's versions carried the next unit's link work.
+
+24. **A unit that carries its own copy of a rule the baseline already has is collapsed, not replayed.**
+    The PDF export unit brought `features/chat/utils/citation_index.dart`: 77 lines duplicating
+    `shared/markdown/citation_syntax.dart`'s three citation helpers, with `resolveCitationIndex`'s
+    arguments swapped. On the old line the module *was* the implementation; on this baseline it would
+    have been a second definition of the same name, and the one file that needs both
+    (`chat_message_widget.dart`) would not compile.
+
+    This is the project's blast-radius rule meeting a replay: the replay's job is to reproduce the
+    *behaviour*, not the file layout of a line that had no baseline to duplicate. The resolution was to
+    delete the module, point its callers at the baseline's three functions, and keep its test file —
+    rewritten against the one implementation, which is also the first coverage that rule had. Its
+    "newest first" case flipped, because the baseline's function takes the parts already reversed.
+
+    The tell is cheap: before accepting a unit's new module, grep the tree for each function it declares.
+    Two definitions of one name in two files reachable from one import is the signature.
+
+    And the companion trap from the same unit: a shared file can be **newer and older at once**.
+    `kelivo_markdown_extensions.dart` and `link_image_handlers.dart` are older at the 4.6 tip in their
+    widget-facing parts and newer in the export helpers, so neither "take the tip" nor "keep ours" is
+    right — the unit's three helpers were added to this branch's files.
+
+25. **A merge whose result is longer than either side is corrupt; a file can be newer and older at once.**
+    Two tells from the translate unit, both cheap:
+
+    - **Length.** `desktop_select_dropdown.dart` is 692 lines on this branch and 747 at the 4.6 tip; the
+      merge produced 1110, with class members sitting at top level (`@override` on nothing, locals
+      declared as fields). That is rule 21's brace imbalance produced by the *merge*, not by the source
+      commit. Check the line count against both sides before reading the file; a number larger than
+      both means take the tip (rule 22) and move on.
+    - **Per-part age.** `desktop_translate_page.dart` is older at the tip in its *widget tree* (a
+      read-only `TextField` where this branch had `TranslationOutput`) and newer in its *rule*
+      (`effectiveTranslateLanguage`, the visible set). Taking the file whole fails this branch's test;
+      keeping this branch's file loses the feature. The resolution is to transplant the unit's **rule**
+      into the baseline's tree — and then remove the locals the transplant orphaned
+      (`_languageForCode`, `_displayNameFor`), because the analyzer counts unused elements.
+
+    A file that is both is the normal case for a rebase onto a moving baseline; the mistake is deciding
+    per file what only the diff can decide per region.
+
+26. **A unit's own test can be red against the unit's own code, and the fix is the same tip repair.**
+    `dart analyze` proves the tests only *call* APIs that exist; it says nothing about whether the code
+    does what they assert. The suggestions unit (`0efe19988`) is the first case where those diverged:
+
+    - **The analyzer caught half of it.** Three symbols the unit's tests call —
+      `HomeViewModel.visibleChatSuggestions`, `HomeViewModel.debugMaybeGenerateSuggestionsFor`, and the
+      re-resolved assistant inside `isCurrent` — were added by `237c9a097`, the same replay-repair commit
+      unit 8 took its export helpers from. A repair commit is not one unit's property; the range query of
+      rule 22 is what reveals the sharing (`git log -S <symbol> <commit>..<old-tip> -- <path>`).
+    - **The test run caught the other half, and it is the interesting one.** The unit's
+      "an opt-out while the request is in flight discards the reply" failed against the unit's own
+      `isCurrent`, which compared the `Assistant` *snapshot* captured before the async gap — a snapshot
+      that still says "allowed" after an opt-out lands. The unit's message claims it "re-reads it inside
+      `isCurrent`"; the code re-reads nothing. The tip re-resolves through
+      `assistantProvider.resolveConversationAssistant(convo.assistantId)` inside `isCurrent`, and that is
+      the version to take.
+
+    So the check order after a unit's tests come back: a red case is your merge *or* the unit, and the
+    way to tell is whether a later commit changed the same expression — not whether the test looks
+    plausible. Never "fix" it by weakening the test: the test is the only artifact in the unit that ever
+    stated what the feature was supposed to do.
+
+27. **The replay-repair commit is a per-unit dependency, and its message is the checklist.** Three
+    units — the PDF export, the suggestions switch and group chat — each turned out to need symbols
+    that only `237c9a097` ever added: `markdownParserOptionsFor` and the export helpers, then
+    `visibleChatSuggestions`/`debugMaybeGenerateSuggestionsFor` and the re-resolved opt-out, then
+    `ChatMessage.senderId`, its repository read and edit carry, `ChatService.beginUserMessage` and
+    the `senderId` parameters. Group chat alone needed six of them, and the repair commit's own body
+    names every one ("Also: ChatMessage.senderId, … the compression text builder …").
+
+    So the preflight for any unit is two commands and five minutes:
+
+        git log --oneline <the-commit>..<old-tip> -- <the unit's paths>
+        git show --format=%B <the one repair commit that keeps appearing>
+
+    Every symbol it lists that the unit's code or tests use is a forward reference. Check each
+    definition exists at the *base* before resolving a single conflict: an intermediate that cannot
+    compile is normal in this line (rule 20), and the analyzer will name the callers rather than the
+    missing definition (rule 21).
+
+    Two shapes to expect once the symbols are in:
+
+    - **A part file's imports belong to its host.** `assistants_pane.dart` starts with
+      `part of '../desktop_settings_page.dart';`, so six group imports the unit added are in the host
+      file, and a merge that drops them makes the analyzer blame the part. Read the `part of` line
+      before adding an import to a file that has no import block.
+    - **A test can assert a mechanism the baseline replaced.** The fork's compression test drove a
+      `labelOf` callback and two builders this baseline's compaction rework does not have; the
+      tablet skills test tapped a "+" that the folded `#1072` turned into an ellipsis. In both cases
+      the test was rewritten to the *invariant* (voices stay apart; the narrow composer's overflow is
+      the one that opens) rather than to the old API — and the invariant is what the new assertion
+      states, so the next re-base can port it again.
+
 ## The CI rule
 
 `.github/workflows/release.yml` is the only build workflow. Upstream publishes one workflow per
@@ -415,6 +666,10 @@ flutter gen-l10n && git status --short -- lib/l10n      # must be empty
 dart analyze --fatal-infos lib test integration_test
 dart format --output=none --set-exit-if-changed lib test integration_test
 flutter test                                            # only the registered known failures
+
+# the identity sweep, from both directions (rule 19) — after unit 1 and at the tip
+python tool/identity/verify.py                          # forward + inverse + exact
+python tool/identity/verify.py --derive                 # after a retarget: recompute, then --write
 
 # the reverse direction, which none of the gates above can see (rule 17)
 flutter test test/core/database/kelivo_vocabulary_test.dart

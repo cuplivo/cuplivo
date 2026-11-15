@@ -63,9 +63,12 @@ the same commit as any `pubspec.yaml` change, or the next CI run fails on `--enf
 ## Releases
 
 - **Version**: `pubspec.yaml` only (`version: X.Y.Z+N`); the release tag is `vX.Y.Z`.
-- **Rebases**: master is rewritten whenever the line re-bases on a new Kelivo baseline. Re-create the
-  release tag on the new tip and re-dispatch `release.yml` for it, so the published assets match the
-  rewritten tree.
+- **Rebases**: master is rewritten whenever the line re-bases on a new Kelivo baseline. **A released
+  tag is never moved or re-created**: `v4.6.0` names the tree that shipped, and re-pointing it at the
+  rewritten line would make one version name two different products and re-upload assets for a
+  version already published. The rewritten line gets the *next* version's tag (`v4.7.0`), cut on the
+  new tip; older tags keep pointing into the pre-rebase history, which stays reachable through the
+  `backup/*` refs pushed before each force push.
 - **Changelog**: `CHANGELOG.md` (English) and `CHANGELOG_CN.md` (Chinese) carry the same entries,
   newest first, with keep-a-changelog headings (`Added` / `Changed` / `Removed` / `Fixed`). Update
   both in the version-bump commit.

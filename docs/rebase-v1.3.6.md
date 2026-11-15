@@ -170,9 +170,18 @@ spot again: upstream's new `built_in_prompt_assembly_test.dart` arrived with
 
 ## 8. Open
 
-- `translate.py check` cannot go green here: 79 messages were pending per locale
-  before this round, and the two carried units add two more keys. `sync` needs
-  `KELIVO_L10N_API_KEY` (or `~/.config/kelivo/l10n-api-key`).
+- `translate.py check` cannot go green here, and it is now measured rather than
+  estimated: **82 pending / 5494 messages** in each of ru, ko, tr and zh_Hant,
+  with **71 keys carrying no state entry at all** (`Wrong keys: 71 missing`).
+  The values themselves are there — the replay carried them — so this is the
+  tool's *freshness* record, not missing translations. The old line's
+  `tool/l10n/state/*.json` had an entry for every key (5322 for 5322); ours has
+  5421 for 5494 because `sync` never ran on this line, and the 71 keys the 4.6
+  series added only got their `@description` afterwards — and the fingerprint
+  covers the description. Only 2 of the 73 can be copied from the old line's
+  state with a matching fingerprint; the other 71 need a real `sync`
+  (`KELIVO_L10N_API_KEY`, or `~/.config/kelivo/l10n-api-key`). `pr-check.yml`
+  runs `check` on every push to `master`, so that step is red until it runs.
 - `master` is not moved by this work; the force push, the `v4.7.0` tag and the
   `release.yml` dispatch are the owner's step (this session's push surface
   refuses `--force` and `+refspec`).

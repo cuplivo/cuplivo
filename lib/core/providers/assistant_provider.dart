@@ -47,6 +47,12 @@ class AssistantProvider extends ChangeNotifier {
 
   late final Future<void> loaded;
 
+  /// Whether the first read has finished, for callers that need to know before
+  /// it does rather than await it — the proactive-care code decides whether a
+  /// letter has an owner to deliver to, and asking `currentAssistant` before
+  /// the read would answer with the *first* assistant instead of the chosen one.
+  bool get isLoaded => _isLoaded;
+
   /// Re-reads assistants after LAN sync wrote business rows outside this
   /// provider's own write path (ADR-0003 apply → reload).
   Future<void> reloadAfterExternalChange() async {
@@ -581,7 +587,15 @@ class AssistantProvider extends ChangeNotifier {
     _assistants[idx] = next;
     await _persist();
     notifyListeners();
+    // Proactive care: flipping the master switch changes eligibility for
+    // every owned conversation's schedule; the wiring in main.dart re-arms
+    // (or cancels) their alarms.
+    onAssistantUpdated?.call(next);
   }
+
+  /// Fired after an assistant was persisted (post-avatar handling). Wired in
+  /// main.dart where the ChatService is available.
+  void Function(Assistant assistant)? onAssistantUpdated;
 
   Future<void> setSearchEnabledForCurrentAssistant(bool enabled) async {
     final a = currentAssistant;

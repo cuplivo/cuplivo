@@ -12016,6 +12016,12 @@ class AppLocalizationsTr extends AppLocalizations {
   String get backgroundGenerating => 'Yanıt oluşturuluyor';
 
   @override
+  String get backgroundCareLetter => 'Writing a letter';
+
+  @override
+  String get backgroundCareWorking => 'Preparing your letter';
+
+  @override
   String get backgroundThinking => 'Düşünüyor';
 
   @override

@@ -12114,6 +12114,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get backgroundGenerating => 'Генерация ответа';
 
   @override
+  String get backgroundCareLetter => 'Writing a letter';
+
+  @override
+  String get backgroundCareWorking => 'Preparing your letter';
+
+  @override
   String get backgroundThinking => 'Размышление';
 
   @override

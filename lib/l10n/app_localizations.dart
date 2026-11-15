@@ -21321,6 +21321,18 @@ abstract class AppLocalizations {
   /// **'Generating reply'**
   String get backgroundGenerating;
 
+  /// Notification title while a proactive-care letter is being written, shown on the platform notification.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing a letter'**
+  String get backgroundCareLetter;
+
+  /// Notification body while a proactive-care letter is being generated in the background.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing your letter'**
+  String get backgroundCareWorking;
+
   /// Background task phase label shown while the model is thinking.
   ///
   /// In en, this message translates to:

@@ -445,6 +445,27 @@ Units from earlier series that are **gone, and must not come back**:
     anything. Wrap it: `json((SELECT json_group_array(...) ...))`. The old line worked only because its
     SQLite propagated the subtype; ours did not, and only the tests said so.
 
+22. **A unit's file set is commit archaeology: ask which commits touched the path *after* the one you
+    are deriving from.** Rule 20 says a broken intermediate is re-derived from the tip; the question
+    that follows is "for which files is the tip still my unit?". One command answers it per path:
+
+        git log --oneline <the-commit-you-derive-from>..<old-tip> -- <path>
+
+    - **Empty** → the tip's file is exactly that commit's state, so take it whole.
+    - **Only commits you have already applied** → likewise. The sync unit's files were `bb079ed2d`
+      alone, which unit 4 had already folded, so five files came across with no merge at all.
+    - **Anything else** → hand-merge, and name which of the later commits each hunk belongs to. That is
+      how `deleteEntity`'s `group:` parameter was recognised as group-chat's and left out of the sync
+      unit.
+
+    The trap is a file whose tip version is **older** than yours. `business_preferences.dart` at the
+    4.6 tip lacks the `close()`/`_closed` guard that upstream's `c66ade4a8` gave this branch, because
+    the old line never had that commit — so "take the tip's file", applied uniformly, would have
+    deleted a baseline repair. The range query does not answer this one; only reading the diff does. A
+    diff that *removes* a guard, a null-check or a cast is the signature: your side is newer, and the
+    file is not this unit's business.
+
+
 21. **An intermediate commit can also be *corrupt*, and then the analyzer blames the callers.** The sync
     unit (`f36104732`) is an intermediate of the 4.6 line, and its blob carries three different kinds of
     damage, none of which `git cherry-pick` reports as a conflict:

@@ -57,7 +57,7 @@ content second.
 | 2 | `fix(tests): the new baseline's suite` | the upstream baseline is green on this machine, so every later unit replays onto a passing tree | 1 |
 | 3 | `feat(recycle): the bin (core)` | deleting a conversation, a merge loser or a workspace file is recoverable, without depending on sync | 2 |
 | 4 | `feat(sync): LAN sync, the dual stack, candidate probing (#1083)` | two devices converge over the LAN, with one policy table deciding what travels | 3 |
-| 5 | `feat(sync): a restore is an edit — protocol v8` | the bin's restore survives a sync round instead of being re-deleted; the workspace plane stages what it replaces; #1084's skill-body lifecycle | 4 |
+| 5 | `feat(sync): a restore is an edit — protocol v8` | the bin's restore survives a sync round instead of being re-deleted; the workspace plane stages what it replaces | 4 |
 | 6 | `feat(care): 「Ta的来信」, the roleplay tab, the backgrounded letter` | proactive care arrives on every platform it claims, with the composer and alarm contract it needs | 5 |
 | 7 | `feat(chat): copy a conversation or message link (#1013, #1034)` | iOS and Android links are one feature | 6 |
 | 8 | `feat(export): a PDF from markstream's tree` | export needs no WebView and no second renderer | 7 |
@@ -115,7 +115,8 @@ The bridge's git surface has no `checkout`, `reset` or `rm`; units are moved wit
 | 1 | `8d71b60f3` | done: analyze clean, gen-l10n idempotent, `package:Kelivo/` gone, the identity checker clean in all three directions — plus the browser workspace scheme restored after the suite caught the over-rename |
 | 2 | `a56653bc9` | done: `flutter test` green (`+12775 ~94`), `dart analyze --fatal-infos` clean |
 | 3 | `9746532a4` | done: analyze clean, gen-l10n idempotent, full suite green at this tip (`+12840 ~94`); 65 recycle cases, 907 in `test/core/database` + storage + the storage-space pages, 343 in `test/core/services/chat` + the assistant cascade. §10 lists what it deliberately left for units 4, 5 and 11 |
-| 4 | `a9137a796` + `435bbabec` | done: analyze clean across `lib test integration_test`; the sync subsystem replayed with `#1068`'s policy table folded in. 574 cases in the unit's own set, 2,725 in the database/chat/backup/providers set it touches. §11 records the repairs the old commit needed, the table's thirteen transposed rows, and what it changes about §10's list |
+| 4 | `a9137a796` + `971f8293e` | done: analyze clean across `lib test integration_test`; the sync subsystem replayed with `#1068`'s policy table folded in. 574 cases in the unit's own set, 2,725 in the database/chat/backup/providers set it touches, and the full suite `+13344 ~94` with one failure that was this unit's own comment tripping a text gate. §11 records the repairs the old commit needed, the table's thirteen transposed rows, and what it changes about §10's list |
+| 5 | `a81991887` | done: protocol v8 (the row clock in the announcement, `copyWrittenSinceAgreement`, the business face's clock pair) and the bin's sync half — the staging §10.2 listed. analyze clean, gen-l10n idempotent, format no changes, 526 cases across the sync, recycle and provider suites. §12 records what the unit's source turned out to be |
 
 The 115 failures this unit started from were four classes, and only one of them was a platform without
 a service:
@@ -149,7 +150,7 @@ that went away with the move. The last one needed the one product change in this
 `@visibleForTesting` `BackupStaging.debugRootOverride`, because `Directory.create` cannot be
 intercepted by `IOOverrides` and a real directory cannot be made to fail on demand.
 
-Next: unit 5, "a restore is an edit — protocol v8".
+Next: unit 6, `feat(care)`.
 
 ## 7. Open risks
 
@@ -362,6 +363,10 @@ copy of a class that already lived one directory up.
 
 ### 10.2 Unit 5 (`a restore is an edit — protocol v8`) re-introduces
 
+**Delivered in `a81991887`.** Every bullet below landed; the three amendments unit 4 made to this list
+(superseded in §11.2) stood, and the unit's total was 13 files, +1,099/−144. See §12 for why the source
+turned out to be easy to find.
+
 The **sync-side staging** is the bin's other half. Product hunks, all of which are in the old line's
 `237c9a097` rather than in the recycle commit:
 
@@ -490,3 +495,45 @@ Everything §10.2 lists still stands, with the three amendments recorded there. 
   asserts one companion row per kind.
 - `syncDeleteEntity` keeps unit 3's signature and stages nothing; only `_deleteEntity` stages, for a
   local delete.
+
+## 12. Unit 5's source: the bin's other half was in the bin's commit
+
+The plan expected unit 5 to be assembled from `237c9a097` (the old line's replay-repair landing),
+because that is the commit where the recycle bin's sync integration is *visible* in the 4.6 history's
+shape. It is not where it *was written*: `git log -S` on each of the five product hunks and on
+`kSyncProtocolVersion = 8` named one commit, and it is `1a04207ff` — the same commit that carried the
+bin. The old line shipped the bin and its sync face together; only this series' ordering separates them.
+
+That made the unit cheap to derive, and it is the mirror image of runbook rule 20: rather than replay a
+broken intermediate, ask **which commits touched the file after the commit you are deriving from**.
+
+    git log --oneline 1a04207ff..backup/series-4.6-4a7da9b6f -- lib/core/services/sync/
+
+The answer was `bb079ed2d` alone — the policy table, already folded into unit 4. So for every file in
+`lib/core/services/sync/`, the 4.6 tip is *exactly* unit 4 + unit 5, and the file can be taken whole. No
+three-way merge, no hunk reading. The files outside that directory needed the query run per file, and it
+paid twice:
+
+- `business_repository.dart` was touched afterwards by `237c9a097` **and** `5136e617b` (group-chat), so
+  it was hand-merged: four hunks are unit 5's, and the fifth (`deleteEntity`'s `group:` parameter, whose
+  doc says "a group chat taking its row and its conversations with it") is unit 11's and was left out.
+- `business_preferences.dart` was the trap. Its tip version is **older** than this branch's: the old
+  line never had upstream's `c66ade4a8` (the `close()`/`_closed` guard that lets the desktop exit path
+  drain and close the database) or its `getDouble` cast. Taking the tip's file — the rule the rest of
+  the unit followed — would have deleted a baseline repair. Its only unit-5 content is a `reload()`
+  that unit 3 already landed, so the file is untouched here.
+
+Two things the unit changed in the plan rather than in code:
+
+- **`#1084` is not in this series.** §3 said unit 5 carries "the skill-body lifecycle"; `b091ffa2a` is
+  not an ancestor of the 4.6 tip, so the skill-body refactor is later work and 4.6 ships the directory
+  sync unit 4 brought. The §3 row is corrected above.
+- **`syncApplyPeerDeletion`'s `origin: remote` is in `chat_database_repository.dart`, not in the
+  recycle commit.** §10.2 said "the recycle commit's staging hunks"; the delete hook landed in
+  `237c9a097`, one line plus an import, and is here.
+
+The lesson for the next re-base is worth stating separately, so it becomes runbook rule 22: **a unit's
+file set is derivable from commit archaeology, and the recipe is the `..` range on the path.** It
+converts "which of these twenty commits do I take?" into one command per file, and it is the only cheap
+way to tell "the tip's file is my unit plus what I already have" from "the tip's file is my unit plus
+three units I have not replayed".

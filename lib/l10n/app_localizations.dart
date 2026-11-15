@@ -3244,6 +3244,36 @@ abstract class AppLocalizations {
   /// **'{selected}/{total}'**
   String backupPageScopeSelectedCount(int selected, int total);
 
+  /// Section label above the backup-target choice: which app the archive is written for.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup target'**
+  String get backupPageTargetTitle;
+
+  /// Backup target option: a Cuplivo archive, restorable here with every kind.
+  ///
+  /// In en, this message translates to:
+  /// **'Cuplivo'**
+  String get backupPageTargetCuplivo;
+
+  /// One-line explanation under the Cuplivo backup target.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything this version can restore, group chats included'**
+  String get backupPageTargetCuplivoNote;
+
+  /// Backup target option: an archive Kelivo 1.3.4 can import.
+  ///
+  /// In en, this message translates to:
+  /// **'Kelivo 1.3.4'**
+  String get backupPageTargetKelivo;
+
+  /// One-line explanation under the Kelivo backup target: it imports there, but group chats are not in it.
+  ///
+  /// In en, this message translates to:
+  /// **'Imports into Kelivo, but group chats are lost'**
+  String get backupPageTargetKelivoNote;
+
   /// Explanatory text under the backup scope selector describing that the choice applies to local, WebDAV and S3 backups and that unselected content is preserved on import.
   ///
   /// In en, this message translates to:

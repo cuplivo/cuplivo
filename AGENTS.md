@@ -2,7 +2,7 @@
 
 ## Project overview
 
-Cuplivo is a cross-platform LLM chat client built with Flutter, targeting iOS, Android, macOS, Windows, and Linux. Package name is `Cuplivo` — imports use `package:Cuplivo/...`. It is a community fork of Kelivo, re-baselined on Kelivo upstream `master` at `4a7da9b6f` (`v1.3.4`, 2026-11-02). Upstream's tags now track that line — `v1.3.2` is `b1702b3a9`, the previous baseline, and `v1.3.4` is this one — so a tag marks a released point on `master` rather than a separate older branch, and the fork follows `master`. From 4.0 on, every version re-bases on that upstream line and re-does Cuplivo's own features as cherry-picks on it.
+Cuplivo is a cross-platform LLM chat client built with Flutter, targeting iOS, Android, macOS, Windows, and Linux. Package name is `Cuplivo` — imports use `package:Cuplivo/...`. It is a community fork of Kelivo, re-baselined on Kelivo upstream `master` at `c2b48958d` (`v1.3.6`). Upstream tags its releases on that line — `v1.3.2` is `b1702b3a9`, `v1.3.4` `4a7da9b6f`, `v1.3.5` `a03255cb8`, `v1.3.6` `c2b48958d` — so a tag marks a released point on `master` rather than a separate older branch, and the fork follows `master`. From 4.0 on, every version re-bases on that upstream line and re-does Cuplivo's own features as cherry-picks on it.
 
 ## Architecture
 
@@ -77,7 +77,7 @@ the same commit as any `pubspec.yaml` change, or the next CI run fails on `--enf
 ## Upstream policy
 
 Cuplivo follows upstream: a new version re-bases the code base on the newest Kelivo line — upstream
-`master`, which is also where upstream now tags its releases (`v1.3.2`, `v1.3.3`, `v1.3.4` in the
+`master`, which is also where upstream now tags its releases (`v1.3.2` … `v1.3.6` in the
 window this baseline lands in), so a tag is a point on the line the fork follows rather than a
 separate, older branch — and re-does Cuplivo's own features on that baseline instead of porting the
 fork forward.

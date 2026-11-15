@@ -455,6 +455,86 @@
   "desktopNavChatTooltip": "Chat",
   "desktopNavTranslateTooltip": "Translate",
   "desktopNavStorageTooltip": "Storage",
+  "toolsMenuTooltip": "Tools",
+  "@toolsMenuTooltip": {
+    "description": "Tooltip of the tools icon in the desktop navigation rail; opens the app's tool list, where the Markdown image tool lives."
+  },
+  "markdownExportTitle": "Markdown image",
+  "@markdownExportTitle": {
+    "description": "Title of the page that renders Markdown text into one picture."
+  },
+  "markdownExportEditTab": "Edit",
+  "@markdownExportEditTab": {
+    "description": "Tab label for the Markdown source editor in the Markdown image tool."
+  },
+  "markdownExportPreviewTab": "Preview",
+  "@markdownExportPreviewTab": {
+    "description": "Tab label for the rendered preview in the Markdown image tool."
+  },
+  "markdownExportHint": "Paste Markdown, or import a .md file",
+  "@markdownExportHint": {
+    "description": "Placeholder in the empty Markdown editor: what the user can do."
+  },
+  "markdownExportPreviewEmpty": "Nothing to preview yet",
+  "@markdownExportPreviewEmpty": {
+    "description": "Preview pane's empty state before there is any Markdown to render."
+  },
+  "markdownExportImport": "Import",
+  "@markdownExportImport": {
+    "description": "Button that imports a .md file into the Markdown image tool."
+  },
+  "markdownExportPaste": "Paste",
+  "@markdownExportPaste": {
+    "description": "Button that pastes the clipboard into the Markdown editor."
+  },
+  "markdownExportTextSize": "Text size",
+  "@markdownExportTextSize": {
+    "description": "Label above the text-size choice for the rendered picture."
+  },
+  "markdownExportTextSizeSmall": "Small",
+  "@markdownExportTextSizeSmall": {
+    "description": "Text-size option: small."
+  },
+  "markdownExportTextSizeStandard": "Standard",
+  "@markdownExportTextSizeStandard": {
+    "description": "Text-size option: standard (the default)."
+  },
+  "markdownExportTextSizeLarge": "Large",
+  "@markdownExportTextSizeLarge": {
+    "description": "Text-size option: large."
+  },
+  "markdownExportHideSource": "Hide source",
+  "@markdownExportHideSource": {
+    "description": "Tooltip on the preview's toggle while the source is shown; pressing it hides the editor."
+  },
+  "markdownExportShowSource": "Show source",
+  "@markdownExportShowSource": {
+    "description": "Tooltip on the preview's toggle while the source is hidden; pressing it shows the editor."
+  },
+  "markdownExportReducedResolution": "Long document: drawn at a lower resolution so it still fits one picture",
+  "@markdownExportReducedResolution": {
+    "description": "Notice shown when a long document is captured below the normal 3x scale so it still fits in one image."
+  },
+  "markdownExportExportImage": "Export image",
+  "@markdownExportExportImage": {
+    "description": "Button that captures the preview and saves it as one image."
+  },
+  "markdownExportDropHint": "Drop to import Markdown",
+  "@markdownExportDropHint": {
+    "description": "Overlay shown while a file is dragged over the Markdown image tool."
+  },
+  "markdownExportUnsupportedFile": "Only Markdown text files are supported",
+  "@markdownExportUnsupportedFile": {
+    "description": "Error when the dropped or picked file is not a Markdown text file."
+  },
+  "markdownExportReadFailed": "This file could not be read",
+  "@markdownExportReadFailed": {
+    "description": "Error when an imported file could not be read."
+  },
+  "markdownExportNothingToPaste": "The clipboard has nothing this tool can use",
+  "@markdownExportNothingToPaste": {
+    "description": "Message when the clipboard holds nothing the Markdown editor can paste."
+  },
   "desktopNavGlobalSearchTooltip": "Global Search",
   "desktopNavThemeToggleTooltip": "Theme",
   "desktopNavSettingsTooltip": "Settings",

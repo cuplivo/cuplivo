@@ -2008,6 +2008,126 @@ abstract class AppLocalizations {
   /// **'Storage'**
   String get desktopNavStorageTooltip;
 
+  /// Tooltip of the tools icon in the desktop navigation rail; opens the app's tool list, where the Markdown image tool lives.
+  ///
+  /// In en, this message translates to:
+  /// **'Tools'**
+  String get toolsMenuTooltip;
+
+  /// Title of the page that renders Markdown text into one picture.
+  ///
+  /// In en, this message translates to:
+  /// **'Markdown image'**
+  String get markdownExportTitle;
+
+  /// Tab label for the Markdown source editor in the Markdown image tool.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get markdownExportEditTab;
+
+  /// Tab label for the rendered preview in the Markdown image tool.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get markdownExportPreviewTab;
+
+  /// Placeholder in the empty Markdown editor: what the user can do.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste Markdown, or import a .md file'**
+  String get markdownExportHint;
+
+  /// Preview pane's empty state before there is any Markdown to render.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to preview yet'**
+  String get markdownExportPreviewEmpty;
+
+  /// Button that imports a .md file into the Markdown image tool.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get markdownExportImport;
+
+  /// Button that pastes the clipboard into the Markdown editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste'**
+  String get markdownExportPaste;
+
+  /// Label above the text-size choice for the rendered picture.
+  ///
+  /// In en, this message translates to:
+  /// **'Text size'**
+  String get markdownExportTextSize;
+
+  /// Text-size option: small.
+  ///
+  /// In en, this message translates to:
+  /// **'Small'**
+  String get markdownExportTextSizeSmall;
+
+  /// Text-size option: standard (the default).
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get markdownExportTextSizeStandard;
+
+  /// Text-size option: large.
+  ///
+  /// In en, this message translates to:
+  /// **'Large'**
+  String get markdownExportTextSizeLarge;
+
+  /// Tooltip on the preview's toggle while the source is shown; pressing it hides the editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide source'**
+  String get markdownExportHideSource;
+
+  /// Tooltip on the preview's toggle while the source is hidden; pressing it shows the editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Show source'**
+  String get markdownExportShowSource;
+
+  /// Notice shown when a long document is captured below the normal 3x scale so it still fits in one image.
+  ///
+  /// In en, this message translates to:
+  /// **'Long document: drawn at a lower resolution so it still fits one picture'**
+  String get markdownExportReducedResolution;
+
+  /// Button that captures the preview and saves it as one image.
+  ///
+  /// In en, this message translates to:
+  /// **'Export image'**
+  String get markdownExportExportImage;
+
+  /// Overlay shown while a file is dragged over the Markdown image tool.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop to import Markdown'**
+  String get markdownExportDropHint;
+
+  /// Error when the dropped or picked file is not a Markdown text file.
+  ///
+  /// In en, this message translates to:
+  /// **'Only Markdown text files are supported'**
+  String get markdownExportUnsupportedFile;
+
+  /// Error when an imported file could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'This file could not be read'**
+  String get markdownExportReadFailed;
+
+  /// Message when the clipboard holds nothing the Markdown editor can paste.
+  ///
+  /// In en, this message translates to:
+  /// **'The clipboard has nothing this tool can use'**
+  String get markdownExportNothingToPaste;
+
   /// Tooltip on the desktop nav rail's global search icon button.
   ///
   /// In en, this message translates to:

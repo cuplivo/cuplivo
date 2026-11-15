@@ -120,6 +120,7 @@ The bridge's git surface has no `checkout`, `reset` or `rm`; units are moved wit
 | 6 | `4360703f7` | done: 69 files — the cross-platform care port, the roleplay tab, the backgrounded letter (`#1064` folded). analyze clean, gen-l10n idempotent, format clean, 112 care cases + 2,452 in the home/assistant/chat/providers/models set. §13 records the two files whose fold was silently dropped, and the one API the baseline had never had |
 | 7 | `bbc456ac2` | done: 19 files — `ConversationLink` and the two native handovers (`#1034` folded; it was the same feature on the second platform). analyze clean, gen-l10n idempotent, format clean, 108 cases in the unit's files and 2,450 across `test/features/chat` + `test/features/home` |
 | 8 | `dae39a81c` | done: 34 files, the PDF exporter (2.8k-line emitter, document model, fonts, dialog) with the old line's own landing repairs folded in; the unit's duplicate citation module collapsed onto the baseline's. analyze clean, gen-l10n idempotent, format no changes, 92 export cases and 3,333 across chat/home/shared. §14 records why this unit could not compile as written |
+| 9 | `383b0f18d` | done: 10 files — the visible target set, the manager, the shared `effectiveTranslateLanguage` rule, and five languages the catalog never had. analyze clean, gen-l10n idempotent, format no changes, 31 cases across the translate page (both form factors), the catalog, the manager and the dropdown. §15 records the one place this unit was *older* than the baseline |
 
 The 115 failures this unit started from were four classes, and only one of them was a platform without
 a service:
@@ -153,7 +154,7 @@ that went away with the move. The last one needed the one product change in this
 `@visibleForTesting` `BackupStaging.debugRootOverride`, because `Directory.create` cannot be
 intercepted by `IOOverrides` and a real directory cannot be made to fail on demand.
 
-Next: unit 9, `feat(translate)`.
+Next: unit 10, `feat(suggestions)`.
 
 ## 7. Open risks
 
@@ -598,3 +599,29 @@ three functions, and the unit's test file survives as the first coverage that ru
 "newest first" case also had to flip, because the baseline's function is handed `parts.reversed`.
 
 Runbook rule 24 is the general form.
+
+## 15. Unit 9: when the unit is older than the baseline
+
+Every previous unit was the baseline's junior or its senior in a uniform way, which is why rules 21 and
+22 worked: "the tip is still my unit" or "my side is newer". This one is both, in different places, and
+the split is per *file part*:
+
+- **Older**: the fork's `desktop_translate_page.dart` renders the destination as a read-only
+  `TextField`; this baseline had replaced it with `TranslationOutput` (markstream, so streaming math
+  renders in the target pane). Taking the unit's page made the desktop variant of
+  `translate_page_test` fail with `Bad state: Too many elements` — `find.byType(TextField)` matched two
+  fields where the test enters into one. The baseline's tree stays; the unit's *rule* was applied to it.
+- **Newer**: the unit's `language_select_sheet.dart` (692 lines against this branch's 323) adds the
+  manager, the clear sentinel, and five catalog entries; and its desktop dropdown is a two-column
+  rewrite of the shared widget.
+- **Corrupt either way**: `desktop_select_dropdown.dart` came out of the merge with its members at top
+  level — rule 21's brace imbalance again, in a file that is 692 lines on this branch and 747 at the
+  tip, while the merge produced 1110. Taken whole from the tip with its test, which the 4.5 landing had
+  already reconciled with the rewrite.
+
+The method note: **a file whose merge result is longer than either side is corrupt**, and the fix is the
+tip (rule 22), not a hand-merge. The other note: when only part of a file is older, the unit's *rule* is
+the thing to transplant — `effectiveTranslateLanguage` here — not its widget tree.
+
+One deferred dependency closed: `translate_language_catalog_test.dart` is unit 4's deferral, and its
+tip version carries `#1068`'s edit, so this unit adds the edited file rather than the unit's own.

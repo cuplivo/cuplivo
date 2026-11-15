@@ -536,6 +536,24 @@ Units from earlier series that are **gone, and must not come back**:
     widget-facing parts and newer in the export helpers, so neither "take the tip" nor "keep ours" is
     right — the unit's three helpers were added to this branch's files.
 
+25. **A merge whose result is longer than either side is corrupt; a file can be newer and older at once.**
+    Two tells from the translate unit, both cheap:
+
+    - **Length.** `desktop_select_dropdown.dart` is 692 lines on this branch and 747 at the 4.6 tip; the
+      merge produced 1110, with class members sitting at top level (`@override` on nothing, locals
+      declared as fields). That is rule 21's brace imbalance produced by the *merge*, not by the source
+      commit. Check the line count against both sides before reading the file; a number larger than
+      both means take the tip (rule 22) and move on.
+    - **Per-part age.** `desktop_translate_page.dart` is older at the tip in its *widget tree* (a
+      read-only `TextField` where this branch had `TranslationOutput`) and newer in its *rule*
+      (`effectiveTranslateLanguage`, the visible set). Taking the file whole fails this branch's test;
+      keeping this branch's file loses the feature. The resolution is to transplant the unit's **rule**
+      into the baseline's tree — and then remove the locals the transplant orphaned
+      (`_languageForCode`, `_displayNameFor`), because the analyzer counts unused elements.
+
+    A file that is both is the normal case for a rebase onto a moving baseline; the mistake is deciding
+    per file what only the diff can decide per region.
+
 ## The CI rule
 
 `.github/workflows/release.yml` is the only build workflow. Upstream publishes one workflow per

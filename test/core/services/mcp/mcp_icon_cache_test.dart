@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:Cuplivo/core/services/mcp/mcp_icon_cache.dart';
@@ -140,7 +141,7 @@ void main() {
     () async {
       final original = PathProviderPlatform.instance;
       addTearDown(() => PathProviderPlatform.instance = original);
-      PathProviderPlatform.instance = _Paths('${directory.path}/before');
+      PathProviderPlatform.instance = _Paths(p.join(directory.path, 'before'));
       final source = File('${directory.path}/upload.png');
       final png = img.encodePng(img.Image(width: 2, height: 2));
       await source.writeAsBytes(png);
@@ -148,11 +149,16 @@ void main() {
       expect(name, isNot(contains('/')));
       final stored = (await McpIconCache.localPath(name))!;
       await source.delete();
-      final restored = File('${directory.path}/after/avatars/$name');
+      final restored = File(p.join(directory.path, 'after', 'avatars', name));
       await restored.parent.create(recursive: true);
       await File(stored).copy(restored.path);
-      PathProviderPlatform.instance = _Paths('${directory.path}/after');
-      expect(await McpIconCache.localPath(name), restored.path);
+      PathProviderPlatform.instance = _Paths(p.join(directory.path, 'after'));
+      // The icon cache resolves its root through AppDirectories, which joins
+      // with '/'; compare with path semantics rather than byte equality.
+      expect(
+        p.equals((await McpIconCache.localPath(name))!, restored.path),
+        isTrue,
+      );
       expect(await restored.readAsBytes(), png);
       expect(await McpIconCache.localPath('../upload.png'), isNull);
     },

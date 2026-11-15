@@ -10,6 +10,7 @@ import 'package:Cuplivo/features/chat/models/image_viewer_draft_mode.dart';
 import 'package:Cuplivo/features/chat/pages/image_viewer_page.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/utils/safe_resize_image.dart';
+import '../../../support/temp_directory_cleanup.dart';
 
 void main() {
   late Directory dir;
@@ -25,7 +26,7 @@ void main() {
       paths.add(path);
     }
   });
-  tearDown(() async => dir.delete(recursive: true));
+  tearDown(() => deleteDirectoryWhenReleased(dir, keepLockedLeftovers: true));
   Future<void> pump(WidgetTester tester, ImageViewerDraftMode? draft) async {
     tester.view.physicalSize = const Size(393, 852);
     tester.view.devicePixelRatio = 1;

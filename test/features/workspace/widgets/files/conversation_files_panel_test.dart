@@ -364,7 +364,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(FileBrowser.itemKey('note.md')));
     await tester.pump();
-    expect(previews, [(p.join(root, 'note.md'), 'workspace')]);
+    // The panel reports the canonicalized path, which lowercases on Windows.
+    expect(previews, hasLength(1));
+    expect(p.equals(previews.single.$1, p.join(root, 'note.md')), isTrue);
+    expect(previews.single.$2, 'workspace');
     expect(resolver.calls, isEmpty);
     previews.clear();
     await tester.tap(find.byKey(FileBrowser.itemKey('page.HTML')));

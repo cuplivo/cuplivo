@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:path/path.dart' as p;
 
 import 'package:Cuplivo/core/models/avatar_config.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
@@ -146,7 +147,7 @@ void main() {
       expect(await managed.exists(), isFalse);
       expect(await edit.save(sp), isTrue);
       final path = sp.getProviderConfig('A').modelAvatar('nemotron')!.value;
-      expect(path, startsWith('${managed.path}/'));
+      expect(p.isWithin(managed.path, path), isTrue);
       expect(await File(path).readAsString(), await source.readAsString());
       await source.delete();
       expect(await File(path).exists(), isTrue);

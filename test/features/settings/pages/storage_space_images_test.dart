@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,6 +14,7 @@ import 'package:Cuplivo/features/settings/pages/storage_space_page.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/shared/widgets/ios_checkbox.dart';
 import 'package:Cuplivo/shared/widgets/ios_tile_button.dart';
+import 'package:Cuplivo/utils/app_directories.dart';
 import 'package:Cuplivo/shared/widgets/snackbar.dart';
 
 import '../../../support/storage_images_test_fixture.dart';
@@ -205,7 +207,10 @@ void main() {
         );
         await filter('头像与背景');
         expect(find.text('共 2 项'), findsOneWidget);
-        final activeTile = find.byKey(ValueKey('storage-image-${active.path}'));
+        final avatars = await AppDirectories.getAvatarsDirectory();
+        final activeTile = find.byKey(
+          ValueKey('storage-image-${p.join(avatars.path, 'active.png')}'),
+        );
         expect(
           find.descendant(of: activeTile, matching: find.byType(IosCheckbox)),
           findsNothing,

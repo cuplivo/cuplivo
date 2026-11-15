@@ -3,7 +3,7 @@
 Run from a clean, committed implementation tree with the C01 SDK:
 
 ```sh
-GENUI_FLUTTER=/Users/psyche/development/flutter/bin/flutter bash tool/legacy_restore/run.sh
+GENUI_FLUTTER=/Users/cuplivo/development/flutter/bin/flutter bash tool/legacy_restore/run.sh
 ```
 
 This is a development acceptance check, run after C13 and again for C26. It is

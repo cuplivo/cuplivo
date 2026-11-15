@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:Kelivo/features/intelligent_ui/host/ui_web_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_web_document.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_web_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_web_document.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -172,7 +172,7 @@ void main() {
         const secure=${jsonEncode('$secure/probe')};
         const localFile=${jsonEncode(localFile.uri.toString())};
         const authorityFile=${jsonEncode(authorityFile.toString())};
-        const testScheme=${jsonEncode(Platform.isIOS ? 'kelivo-genui-test' : 'kelivo')};
+        const testScheme=${jsonEncode(Platform.isIOS ? 'kelivo-genui-test' : 'cuplivo')};
         const fontUrl=${jsonEncode('data:font/woff2;base64,$genUiDataFont')};
         const attempt=(key,fn)=>{try{results[key]=fn()}catch(e){results[key]=e.name}};
         const execute=async(e)=>{try{
@@ -359,7 +359,7 @@ void main() {
       const i=new Image();i.src=base+'/removed-csp-image';document.body.append(i);
     ''');
     void expectProtocolRejected(Map<String, dynamic> result) {
-      final scheme = Platform.isIOS ? 'kelivo-genui-test' : 'kelivo';
+      final scheme = Platform.isIOS ? 'kelivo-genui-test' : 'cuplivo';
       final nativeDenied = (reports.last['navigation'] as List)
           .cast<Map<String, Object?>>()
           .any(

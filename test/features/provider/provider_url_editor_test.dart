@@ -1,8 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/utils/provider_url.dart';
-import 'package:Kelivo/features/provider/utils/provider_url_editor.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/utils/provider_url.dart';
+import 'package:Cuplivo/features/provider/utils/provider_url_editor.dart';
 
 void main() {
   late TextEditingController text;

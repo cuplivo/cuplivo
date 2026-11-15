@@ -5,22 +5,22 @@ import 'package:flutter_test/flutter_test.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
-import 'package:Kelivo/core/database/business_preferences.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/models/assistant_copy_options.dart';
-import 'package:Kelivo/core/models/assistant_regex.dart';
-import 'package:Kelivo/core/models/memory_entry.dart';
-import 'package:Kelivo/core/models/preset_message.dart';
-import 'package:Kelivo/core/models/quick_phrase.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/services/assistant_copy_service.dart';
-import 'package:Kelivo/core/services/instruction_injection_store.dart';
-import 'package:Kelivo/core/services/memory/memory_repository.dart';
-import 'package:Kelivo/core/services/memory/memory_tools.dart';
-import 'package:Kelivo/core/services/memory_store.dart';
-import 'package:Kelivo/core/services/quick_phrase_store.dart';
-import 'package:Kelivo/core/services/world_book_store.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/assistant_copy_options.dart';
+import 'package:Cuplivo/core/models/assistant_regex.dart';
+import 'package:Cuplivo/core/models/memory_entry.dart';
+import 'package:Cuplivo/core/models/preset_message.dart';
+import 'package:Cuplivo/core/models/quick_phrase.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/services/assistant_copy_service.dart';
+import 'package:Cuplivo/core/services/instruction_injection_store.dart';
+import 'package:Cuplivo/core/services/memory/memory_repository.dart';
+import 'package:Cuplivo/core/services/memory/memory_tools.dart';
+import 'package:Cuplivo/core/services/memory_store.dart';
+import 'package:Cuplivo/core/services/quick_phrase_store.dart';
+import 'package:Cuplivo/core/services/world_book_store.dart';
 
 import '../../support/business_test_harness.dart';
 

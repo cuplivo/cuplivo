@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/tool_permission_mode.dart';
-import 'package:Kelivo/core/models/workspace_binding.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/conversation_tool_permissions.dart';
-import 'package:Kelivo/features/home/services/tool_approval_service.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/tool_permission_mode.dart';
+import 'package:Cuplivo/core/models/workspace_binding.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/conversation_tool_permissions.dart';
+import 'package:Cuplivo/features/home/services/tool_approval_service.dart';
 
 class MemoryChat extends ChatService {
   Conversation? conversation = Conversation(

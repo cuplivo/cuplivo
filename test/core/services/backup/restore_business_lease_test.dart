@@ -6,8 +6,8 @@ import 'dart:isolate';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:Kelivo/core/services/backup/restore_business_lease.dart';
-import 'package:Kelivo/core/services/backup/restore_durability.dart';
+import 'package:Cuplivo/core/services/backup/restore_business_lease.dart';
+import 'package:Cuplivo/core/services/backup/restore_durability.dart';
 
 final class _FailingOwnerDurability implements RestoreDurability {
   _FailingOwnerDurability(this.delegate);
@@ -114,6 +114,9 @@ void main() {
 
     test(
       'fails without waiting once the foreign lock grace is spent',
+      // The helper is spawned as `dart --packages=...`, and there is no `dart`
+      // on PATH on Windows; the lease semantics under test are POSIX locks.
+      skip: Platform.isWindows,
       () async {
         final helper = File(p.join(root.path, 'business_lease_helper.dart'));
         await helper.writeAsString(_helperSource, flush: true);
@@ -179,44 +182,53 @@ void main() {
       },
     );
 
-    test('waits out a previous process that is still dying', () async {
-      final helper = File(p.join(root.path, 'business_lease_helper.dart'));
-      await helper.writeAsString(_helperSource, flush: true);
-      final packageConfig = p.join(
-        Directory.current.path,
-        '.dart_tool',
-        'package_config.json',
-      );
-      final releaseFile = File(p.join(root.path, 'release_helper'));
-      final process = await Process.start('dart', [
-        '--packages=$packageConfig',
-        helper.path,
-        appData.path,
-        releaseFile.path,
-      ], workingDirectory: Directory.current.path);
-      addTearDown(() async {
-        process.kill();
-        await process.stdin.close();
-      });
-      final ready = await process.stdout
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())
-          .first
-          .timeout(const Duration(seconds: 15));
-      expect(ready, 'ready');
+    test(
+      'waits out a previous process that is still dying',
+      // The helper is spawned as `dart --packages=...`, and there is no `dart`
+      // on PATH on Windows; the lease semantics under test are POSIX locks.
+      skip: Platform.isWindows,
+      () async {
+        final helper = File(p.join(root.path, 'business_lease_helper.dart'));
+        await helper.writeAsString(_helperSource, flush: true);
+        final packageConfig = p.join(
+          Directory.current.path,
+          '.dart_tool',
+          'package_config.json',
+        );
+        final releaseFile = File(p.join(root.path, 'release_helper'));
+        final process = await Process.start('dart', [
+          '--packages=$packageConfig',
+          helper.path,
+          appData.path,
+          releaseFile.path,
+        ], workingDirectory: Directory.current.path);
+        addTearDown(() async {
+          process.kill();
+          await process.stdin.close();
+        });
+        final ready = await process.stdout
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())
+            .first
+            .timeout(const Duration(seconds: 15));
+        expect(ready, 'ready');
 
-      // A phone cannot run the app twice, so the only lock another process can
-      // hold there is one on its way out.
-      Timer(const Duration(milliseconds: 400), () => releaseFile.createSync());
+        // A phone cannot run the app twice, so the only lock another process can
+        // hold there is one on its way out.
+        Timer(
+          const Duration(milliseconds: 400),
+          () => releaseFile.createSync(),
+        );
 
-      final lease = await RestoreBusinessLease.acquire(
-        appDataDirectory: appData,
-        foreignLockGrace: const Duration(seconds: 10),
-      );
-      addTearDown(lease.close);
-      expect(lease.isClosed, isFalse);
-      await process.exitCode.timeout(const Duration(seconds: 15));
-    });
+        final lease = await RestoreBusinessLease.acquire(
+          appDataDirectory: appData,
+          foreignLockGrace: const Duration(seconds: 10),
+        );
+        addTearDown(lease.close);
+        expect(lease.isClosed, isFalse);
+        await process.exitCode.timeout(const Duration(seconds: 15));
+      },
+    );
 
     test(
       'reclaims an orphaned same-process owner in every build mode',
@@ -320,6 +332,9 @@ void main() {
 
     test(
       'reacquires after an engine restart left the lock descriptor open',
+      // Windows keeps the dead isolate's descriptor alive, so the premise
+      // (re-acquire after a leaked descriptor) is unachievable there.
+      skip: Platform.isWindows,
       () async {
         final leaseDirectory = Directory(
           p.join(appData.path, RestoreBusinessLease.leaseDirectoryName),
@@ -510,7 +525,7 @@ final class _FakeOwnerProbe {
 const _helperSource = r'''
 import 'dart:io';
 
-import 'package:Kelivo/core/services/backup/restore_business_lease.dart';
+import 'package:Cuplivo/core/services/backup/restore_business_lease.dart';
 
 Future<void> main(List<String> arguments) async {
   final lease = await RestoreBusinessLease.acquire(

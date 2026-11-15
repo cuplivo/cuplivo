@@ -1,21 +1,21 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/models/instruction_injection.dart';
-import 'package:Kelivo/core/models/quick_phrase.dart';
-import 'package:Kelivo/core/models/world_book.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/backup_reminder_provider.dart';
-import 'package:Kelivo/core/providers/instruction_injection_group_provider.dart';
-import 'package:Kelivo/core/providers/instruction_injection_provider.dart';
-import 'package:Kelivo/core/providers/mcp_provider.dart';
-import 'package:Kelivo/core/providers/tag_provider.dart';
-import 'package:Kelivo/core/providers/user_provider.dart';
-import 'package:Kelivo/core/services/instruction_injection_store.dart';
-import 'package:Kelivo/core/services/memory_store.dart';
-import 'package:Kelivo/core/services/quick_phrase_store.dart';
-import 'package:Kelivo/core/services/world_book_store.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/instruction_injection.dart';
+import 'package:Cuplivo/core/models/quick_phrase.dart';
+import 'package:Cuplivo/core/models/world_book.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/backup_reminder_provider.dart';
+import 'package:Cuplivo/core/providers/instruction_injection_group_provider.dart';
+import 'package:Cuplivo/core/providers/instruction_injection_provider.dart';
+import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/providers/tag_provider.dart';
+import 'package:Cuplivo/core/providers/user_provider.dart';
+import 'package:Cuplivo/core/services/instruction_injection_store.dart';
+import 'package:Cuplivo/core/services/memory_store.dart';
+import 'package:Cuplivo/core/services/quick_phrase_store.dart';
+import 'package:Cuplivo/core/services/world_book_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 

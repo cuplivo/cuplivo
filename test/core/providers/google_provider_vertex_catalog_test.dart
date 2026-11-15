@@ -3,10 +3,10 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/providers/model_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/model_catalog/catalog_entry.dart';
-import 'package:Kelivo/core/services/model_catalog/model_catalog_service.dart';
+import 'package:Cuplivo/core/providers/model_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/model_catalog/catalog_entry.dart';
+import 'package:Cuplivo/core/services/model_catalog/model_catalog_service.dart';
 
 late HttpServer server;
 

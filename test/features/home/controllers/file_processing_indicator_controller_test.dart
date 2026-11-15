@@ -1,7 +1,7 @@
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/features/home/controllers/file_processing_indicator_controller.dart';
+import 'package:Cuplivo/features/home/controllers/file_processing_indicator_controller.dart';
 
 void main() {
   const showDelay = Duration(milliseconds: 220);

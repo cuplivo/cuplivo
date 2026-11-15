@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_budgets.dart';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_catalog.dart';
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_diagnostic.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_evaluator.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_budgets.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_catalog.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_diagnostic.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_evaluator.dart';
 
 final class UiChartDataException implements Exception {
   const UiChartDataException(this.code, this.detail);

@@ -3,13 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/assistant_copy_options.dart';
-import 'package:Kelivo/core/models/assistant_memory.dart';
-import 'package:Kelivo/core/models/memory_entry.dart';
-import 'package:Kelivo/core/services/assistant_copy_service.dart';
-import 'package:Kelivo/features/assistant/widgets/assistant_copy_dialog.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_checkbox.dart';
+import 'package:Cuplivo/core/models/assistant_copy_options.dart';
+import 'package:Cuplivo/core/models/assistant_memory.dart';
+import 'package:Cuplivo/core/models/memory_entry.dart';
+import 'package:Cuplivo/core/services/assistant_copy_service.dart';
+import 'package:Cuplivo/features/assistant/widgets/assistant_copy_dialog.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_checkbox.dart';
 
 AssistantCopyMemories _memories() => AssistantCopyMemories(
   entries: [

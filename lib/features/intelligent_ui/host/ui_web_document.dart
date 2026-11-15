@@ -92,7 +92,7 @@ final class UiWebDocument {
 /// and no interpolation enters a script, style or unquoted attribute.
 abstract final class UiWebSandbox {
   static const frameId = 'kelivo-generated-document';
-  static const closedTitle = 'Kelivo preview closed';
+  static const closedTitle = 'Cuplivo preview closed';
   static const emptyDocument =
       '<!doctype html><html><head><title>$closedTitle</title></head><body></body></html>';
   static const csp =

@@ -1,10 +1,10 @@
 import 'dart:ui' as ui;
 
-import 'package:Kelivo/features/chat/widgets/frosted/chat_frosted_backdrop.dart';
-import 'package:Kelivo/features/chat/widgets/frosted/frosted_surface.dart';
-import 'package:Kelivo/features/home/controllers/scroll_controller.dart';
-import 'package:Kelivo/shared/widgets/interactive_drawer.dart';
-import 'package:Kelivo/theme/chat_bubble_style.dart';
+import 'package:Cuplivo/features/chat/widgets/frosted/chat_frosted_backdrop.dart';
+import 'package:Cuplivo/features/chat/widgets/frosted/frosted_surface.dart';
+import 'package:Cuplivo/features/home/controllers/scroll_controller.dart';
+import 'package:Cuplivo/shared/widgets/interactive_drawer.dart';
+import 'package:Cuplivo/theme/chat_bubble_style.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';

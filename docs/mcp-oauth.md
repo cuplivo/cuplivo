@@ -36,7 +36,7 @@ Kelivo 不内置未经部署的元数据 URL。下面的文档需要由客户端
 {
   "client_id": "https://your-domain.example/kelivo/mcp-client.json",
   "client_name": "Kelivo",
-  "client_uri": "https://github.com/Chevey339/kelivo",
+  "client_uri": "https://github.com/cuplivo/cuplivo",
   "application_type": "native",
   "redirect_uris": [
     "psyche.kelivo://mcp-oauth-callback/authorize",
@@ -81,7 +81,7 @@ Android 由独立的 `OAuthAuthorizationActivity` 接收浏览器结果，支持
 dart analyze --fatal-infos lib test
 flutter test --no-pub
 cd android
-./gradlew :app:testDebugUnitTest --tests 'com.psyche.kelivo.OAuth*Test' -x fetchProot -x compileFlutterBuildDebug
+./gradlew :app:testDebugUnitTest --tests 'com.cuplivo.cuplivo.OAuth*Test' -x fetchProot -x compileFlutterBuildDebug
 ```
 
 回归覆盖根资源发现（含 #1141 的 Swiggy / Zepto 形状）、显式根路径与跨主机元数据位置、自动构造地址的资源身份校验、资源边界、错误回调、取消竞争、注册持久化、CIMD、移动端/桌面配置，以及 Android Activity 重建、关闭授权窗口和有效回调唤回主界面。浏览器回归还覆盖 Custom Tabs / Auth Tab 的实际 session token、保活服务 Intent、绑定与 session 创建被拒绝、绑定超时和迟到连接、空绑定、连接中断，以及绑定期间取消和窗口重建。原生测试使用 Robolectric；这些测试不代替 Android 真机与 Notion、Swiggy、Zepto 账号的完整登录验收。#1132 视频中的失败位置仍需真机日志确认。

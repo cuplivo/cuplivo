@@ -1,4 +1,4 @@
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_budgets.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_budgets.dart';
 import 'package:flutter/material.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../core/models/chat_message.dart';

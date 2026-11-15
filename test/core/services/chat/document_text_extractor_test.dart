@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:Kelivo/core/services/chat/document_text_extractor.dart';
+import 'package:Cuplivo/core/services/chat/document_text_extractor.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

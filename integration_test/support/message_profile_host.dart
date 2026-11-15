@@ -2,10 +2,10 @@ import '../../test/support/message_test_services.dart';
 export '../../test/support/message_test_services.dart';
 import 'package:flutter/material.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/features/home/widgets/message_list_view.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/features/home/widgets/message_list_view.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
 
 /// This exact host/fixture is also copied into the archived C01 build snapshot.
 /// It imports no GenUI code and uses no production feature flag.

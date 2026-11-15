@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/auth/provider_oauth_adapter.dart';
-import 'package:Kelivo/core/services/auth/provider_oauth_service.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/auth/provider_oauth_adapter.dart';
+import 'package:Cuplivo/core/services/auth/provider_oauth_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';

@@ -1,7 +1,7 @@
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/models/message_part_snapshot.dart';
-import 'package:Kelivo/features/home/controllers/assistant_part_snapshots.dart';
-import 'package:Kelivo/features/home/controllers/chat_actions.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/message_part_snapshot.dart';
+import 'package:Cuplivo/features/home/controllers/assistant_part_snapshots.dart';
+import 'package:Cuplivo/features/home/controllers/chat_actions.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

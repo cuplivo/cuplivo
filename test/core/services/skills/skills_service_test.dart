@@ -10,12 +10,12 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/extension_entity_store.dart';
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/models/skill_record.dart';
-import 'package:Kelivo/core/services/skills/skill_archive.dart';
-import 'package:Kelivo/core/services/skills/skills_service.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/skill_record.dart';
+import 'package:Cuplivo/core/services/skills/skill_archive.dart';
+import 'package:Cuplivo/core/services/skills/skills_service.dart';
 
 const _skillMd = '''
 ---

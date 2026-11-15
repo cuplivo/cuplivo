@@ -9,16 +9,17 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 import 'package:provider/provider.dart';
 
 import '../../../support/business_test_harness.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/mcp_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/mcp/mcp_tool_service.dart';
-import 'package:Kelivo/features/home/controllers/home_page_controller.dart';
-import 'package:Kelivo/features/home/controllers/scroll_controller.dart';
-import 'package:Kelivo/features/home/widgets/chat_input_bar.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/mcp/mcp_tool_service.dart';
+import 'package:Cuplivo/features/home/controllers/home_page_controller.dart';
+import 'package:Cuplivo/features/home/controllers/scroll_controller.dart';
+import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import '../../../support/temp_directory_cleanup.dart';
 
 class _FakePathProviderPlatform extends PathProviderPlatform {
   _FakePathProviderPlatform(this.path);
@@ -99,7 +100,7 @@ void main() {
     try {
       await repository.close().timeout(const Duration(seconds: 10));
     } catch (_) {}
-    if (await directory.exists()) await directory.delete(recursive: true);
+    await deleteDirectoryWhenReleased(directory, keepLockedLeftovers: true);
   });
 
   Future<HomePageController> pumpHarness(WidgetTester tester) async {
@@ -230,6 +231,10 @@ void main() {
       final after = chatService.getConversation(convo.id)!;
       expect(after.summary, 'User prefers dark mode.');
       expect(after.lastSummarizedMessageCount, greaterThan(0));
+      // Unmount before the temp directory goes away: the controller closes its
+      // database asynchronously in dispose, and Windows refuses to unlink it
+      // until then.
+      await tester.pumpWidget(const SizedBox());
     });
     expect(tester.takeException(), isNull);
   });

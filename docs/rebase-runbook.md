@@ -169,14 +169,21 @@ Units from earlier series that are **gone, and must not come back**:
    the exact work is the set difference: for every file upstream touched, compare its brand-matching
    lines at the old tip against the current tree and take what is new. Classify every survivor against
    the whitelist (`kelivo://workspace|chat|session|skills|tmp|mounts`, `kelivo-file://`,
-   `KelivoOpenURL`, `KelivoFileUri`, `KelivoISH*`, `KelivoApplication`, `KelivoPtyJni`, `kelivo_*` tool
+   `KelivoOpenURL`, `KelivoFileUri`, `KelivoISH*`, `KelivoApplication`, `kelivo_*` tool
    ids, `kelivo.db`, `kelivo_backups`, `kelivo-snapshot-<ms>.zip`, `kelivo.restore-*`, `.kelivo_restore`,
    `kelivo.psycheas.top` / `search.psycheas.top`, `afdian.com/a/kelivo`, `KELIVO_PERF_SCENE`,
    `PackageInfo` mock `appName:`/`packageName:` values, temp-dir prefixes, and the intentional
    `Chevey339/kelivo` attribution in README / CONTEXT / `.github`). On this re-base that reduced 65
    surviving brand lines in 10 files to 9 files' worth of import fixes.
 
-   The whitelist is only a policy until something greps for it, and the sweep is what breaks it: a
+   The whitelist is a judgement per name, and one of its early entries was wrong: `KelivoPtyJni` is a
+   `#define LOG_TAG` string in `android/app/src/main/cpp/termux_pty.cpp`, nothing reads it, and the
+   fork's own identity commit renames it to `CuplivoPtyJni` — a log line is branding, not an
+   identifier. What must not move is the JNI *class* (`PtyJni`, no brand token in it) and the
+   `Java_com_psyche_kelivo_…` symbol names, which follow the package move rather than the brand.
+   `tool/identity/rename.json` carries the corrected list; `tool/identity/verify.py` checks it.
+
+   And it is only a policy until something greps for it, and the sweep is what breaks it: a
    blind `Kelivo` → `Cuplivo` pass over the identity unit's file list rewrote the persisted snapshot
    prefix in `test/shared/widgets/restore_failure_screen_test.dart` to `cuplivo-snapshot-…`, which no
    production code reads — `recovery_file_discovery.dart` matches
@@ -366,44 +373,52 @@ Units from earlier series that are **gone, and must not come back**:
       nowhere in the output. The names the pass must not touch are exactly the ones that are *gone*
       afterwards: `kelivo://…`, `kelivo-file://`, `kelivo.db`, `kelivo_backup_*`, `kelivo-snapshot-*`,
       `.kelivo_restore`, `KelivoLink`, `KelivoFileUri`, `KelivoISH*`, `KelivoApplication`,
-      `KelivoPtyJni`, `kelivo_*` tool ids, `kelivo.psycheas.top`, the other app's bundle ids,
-      `@kelivo/fetch`. A grep can only prove what *remains*.
+      `kelivo_*` tool ids, `kelivo.psycheas.top`, the other app's bundle ids,
+      `@kelivo/fetch`. A grep can only prove what *remains*. (`KelivoPtyJni` is *not* on the list: it
+      is a `#define LOG_TAG`, a log line, and the fork renames it — see rule 4.)
     - **An under-rename is invisible in `git status`.** Files upstream added never conflict, so the
       sweep has to run over `--diff-filter=A`, and a missed file keeps `package:Kelivo/` until the
       analyzer or a test reads it.
 
     So the sweep is a spec in the tree, checked from both directions. `tool/identity/rename.json`
-    (proposed — the directory does not exist yet) would carry `substitutions` (the exact, ordered
-    pairs the identity unit applies: `package:Kelivo/` → `package:Cuplivo/`, `com.psyche.kelivo` →
-    `com.cuplivo.cuplivo`, the ARB key/value brand rule, the path moves), `protected` (every name
-    above, each with a one-line reason and the upstream file set it appears in) and `mechanical` (the
-    files whose content must be exactly `apply(substitutions, upstream)`).
+    carries `substitutions` (the exact, ordered pairs the identity unit applies: `package:Kelivo/` →
+    `package:Cuplivo/`, `com.psyche.kelivo` → `com.cuplivo.cuplivo`), `path_moves` (the Java/Kotlin
+    package path, so a moved file still finds its base blob), `protected` (each name with a minimum
+    presence, optionally a per-file floor, and a one-line reason) and the `l10n` rule.
+    `tool/identity/mechanical.txt` is the derived list: every file whose content must be exactly
+    `apply(substitutions, upstream)`. Measured on this series: 1516 mechanical files, 320
+    hand-resolved, 20 brand tokens a change introduced without classifying them. The check reads the
+    product tree, so it exempts the files that *define* the rule (the spec, the derived list, the
+    script and its tests) — the one place the needles are written on purpose.
 
     Four checks, run per unit — they are greps, not builds — and again at the tip:
 
-    1. **Forward, under-rename.** `git grep -lE 'Kelivo|kelivo'` over `lib test integration_test tool`
-       returns only `protected` names and documents.
-    2. **Inverse, over-rename.** For every `protected` entry, each file that contains it upstream
-       contains it in the fork's tree too, with the same count (after the path map). This asks the
-       name to be *present*, which is the only question a renamed name cannot answer for itself: it
-       catches the scheme case, where upstream has `'kelivo'` twice in
-       `browser_workspace_resources.dart` and the swept tree had none.
-    3. **Substitution exactness.** Every file in `mechanical` equals
-       `apply(substitutions, upstream)`; a file that does not match is either on the hand-resolved
-       list or a defect. This catches a rename that went too far in a file no test reads.
-    4. **The proof.** Inject the known defect — rename `'kelivo'` back to `'cuplivo'` in
-       `browser_workspace_resources.dart` — and show check 2 fails, then revert byte-exact. A check
-       that has never failed is a check nobody wrote.
+    1. **Forward, under-rename.** `package:Kelivo/` occurs nowhere, and no ARB key or value names
+       `Kelivo` outside the two backup-target keys. This is the half that ships silently, so CI runs
+       it on every PR (`verify.py --forward`).
+    2. **Inverse, over-rename.** Every `protected` entry is still present at the floor the spec sets,
+       and in each file the spec pins. This asks the name to be *present*, which is the only question
+       a renamed name cannot answer for itself. The scheme case is the one to keep in mind: upstream
+       has `uri.scheme == 'kelivo'` twice in `browser_workspace_resources.dart`, the swept tree had
+       none, and the constructing side (`replace(scheme: 'kelivo')`) still said `kelivo` — so the
+       entry is the *comparison*, with a count of 2, not the bare literal, whose total in that file is
+       4 and would have stayed above the floor.
+    3. **Substitution exactness.** Every file in `mechanical.txt` equals
+       `apply(substitutions, upstream)`; a file that does not match has drifted, or was hand-resolved
+       and should be regenerated out of the list. This catches a rename that went too far in a file no
+       test reads.
+    4. **The proof.** Inject the known defect — rename the two comparisons back to `'cuplivo'` — and
+       show check 2 fails, then revert byte-exact. A check that has never failed is a check nobody
+       wrote. Done once when the spec was written; redo it when the spec changes shape.
 
-    The spec is *derived*, not typed: a `--derive` mode walks the old-baseline→fork-tip diff, prints
-    every changed line that a substitution explains, and lists every token that looks like a brand or
-    a protocol name and is not yet classified — so adding a name is a decision with a diff behind it.
-    Classify a new name *before* resolving anything, because one range can carry both kinds: the
-    `23bfa30e3`→`00a2b7de0` range adds 35 `package:Kelivo/` imports (rename) and about thirty
-    persisted or protocol names (protect) in the same diff, and the difference is semantic, not
-    textual. `"Kelivo local backup keychain v1"` is the range's trap: it reads like prose and is an
-    HKDF salt, so renaming it would change the derived key, while
-    `kelivo.backup.encryption_password` beside it is a keychain account and must also stay.
+    The spec is *derived*, not typed: `--derive` walks the old-baseline→fork-tip diff, splits it into
+    mechanical and hand-resolved, and lists every brand token the change introduced that nobody
+    classified — so adding a name is a decision with a diff behind it. Classify a new name *before*
+    resolving anything, because one range can carry both kinds: the `23bfa30e3`→`00a2b7de0` range adds
+    35 `package:Kelivo/` imports (rename) and about thirty persisted or protocol names (protect) in
+    the same diff, and the difference is semantic, not textual. `"Kelivo local backup keychain v1"` is
+    the range's trap: it reads like prose and is an HKDF salt, so renaming it would change the derived
+    key, while `kelivo.backup.encryption_password` beside it is a keychain account and must also stay.
 
 ## The CI rule
 
@@ -464,6 +479,10 @@ flutter gen-l10n && git status --short -- lib/l10n      # must be empty
 dart analyze --fatal-infos lib test integration_test
 dart format --output=none --set-exit-if-changed lib test integration_test
 flutter test                                            # only the registered known failures
+
+# the identity sweep, from both directions (rule 19) — after unit 1 and at the tip
+python tool/identity/verify.py                          # forward + inverse + exact
+python tool/identity/verify.py --derive                 # after a retarget: recompute, then --write
 
 # the reverse direction, which none of the gates above can see (rule 17)
 flutter test test/core/database/kelivo_vocabulary_test.dart

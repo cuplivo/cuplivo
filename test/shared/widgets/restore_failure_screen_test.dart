@@ -330,7 +330,7 @@ void main() {
         'kelivo_restore_failure_screen_',
       );
       staging = await Directory.systemTemp.createTemp(
-        'kelivo_restore_failure_staging_',
+        'restore_failure_staging_',
       );
       previousPaths = PathProviderPlatform.instance;
       PathProviderPlatform.instance = _StagingPaths(staging.path);

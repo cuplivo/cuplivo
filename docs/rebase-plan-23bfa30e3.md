@@ -252,6 +252,16 @@ what is left, an **inverse** check that each protected name is still *present* w
 a substitution-exactness check for what went too far, and the proof that the inverse check fails when
 the known defect is injected.
 
+It is in the tree now: `tool/identity/rename.json` (28 protected names, each with a floor and a
+reason), `tool/identity/mechanical.txt` (1515 derived files) and `tool/identity/verify.py`. CI runs
+the forward half on every PR; the full check runs after unit 1 and at the tip. Measured on this
+series: 1515 mechanical files, 313 hand-resolved, 20 brand tokens the change introduced that nobody
+had classified. The spec's first draft was wrong twice, and both are worth keeping: `KelivoPtyJni` is
+a `#define LOG_TAG` the fork's own identity commit renames to `CuplivoPtyJni` (a log line is
+branding), and the bare `'kelivo'` literal's total in `browser_workspace_resources.dart` is four, not
+two, so the entry has to be the *comparison* (`uri.scheme == 'kelivo'`, count 2) — which is exactly
+the pair a sweep breaks when it renames one side and not the other.
+
 ### 8.4 What the retarget re-opens
 
 - **Unit 1** ran the sweep over the new range: 1,563 files still carried `package:Kelivo/`, 37 ARB

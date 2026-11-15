@@ -59,7 +59,10 @@ class _ChatHistoryDesktopDialogState extends State<_ChatHistoryDesktopDialog> {
           (c) =>
               widget.assistantId == null ||
               c.assistantId == widget.assistantId ||
-              c.assistantId == null,
+              // An assistant-less conversation is a legacy global chat — but a
+              // group topic is also assistant-less, and it belongs to its group,
+              // not to whichever assistant's history is open.
+              (c.assistantId == null && c.groupChatId == null),
         )
         .toList();
 

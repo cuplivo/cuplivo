@@ -195,11 +195,11 @@ class SettingsPage extends StatelessWidget {
               _iosNavRow(
                 context,
                 icon: Lucide.Bot,
-                label: l10n.settingsPageAssistant,
+                label: l10n.settingsPageChatOwners,
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => const AssistantSettingsPage(),
+                      builder: (_) => const ChatOwnerSettingsPage(),
                     ),
                   );
                 },

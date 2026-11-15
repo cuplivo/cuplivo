@@ -319,7 +319,15 @@ String? conversationLineForCompression(
 }) {
   final content = message.quotedContent(quoteMarker);
   if (content.trim().isEmpty) return null;
-  return '[source message:${message.id}; role=${message.role}]\n${message.role == 'assistant' ? 'Assistant' : 'User'}: $content';
+  final role = message.role == 'assistant' ? 'Assistant' : 'User';
+  // A group's summary is what the next speakers read instead of the turns it
+  // replaced, so the speaker has to travel with the line: to the compressor
+  // every roster member is an "assistant", and a summary of a group that has
+  // flattened them into one voice is a summary of a different conversation.
+  final speaker = message.senderId == null
+      ? role
+      : '$role[${message.senderId}]';
+  return '[source message:${message.id}; role=${message.role}]\n$speaker: $content';
 }
 
 String buildConversationTextForCompression(

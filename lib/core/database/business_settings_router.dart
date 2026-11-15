@@ -807,6 +807,12 @@ final class BusinessKeyRegistry {
       KeyPolicy.backupOnly,
       PolicyReason.deviceViewState,
     ),
+    'display_separate_chat_owners_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+      'How this device draws the owner list: one mixed assistant/group list, '
+      'or assistants and group chats as two sections.',
+    ),
     'display_show_app_updates_v1': KeyRule(
       KeyPolicy.backupOnly,
       PolicyReason.deviceViewState,
@@ -1434,6 +1440,8 @@ final class BusinessKeyRegistry {
     BusinessEntityKind.memoryEntry: {},
     BusinessEntityKind.workspace: {},
     BusinessEntityKind.skill: {},
+    // A group and its topics are rows; the sidebar's mixed order is this key.
+    BusinessEntityKind.groupChat: {'chat_owner_order_v1'},
     BusinessEntityKind.userProfileField: {},
   };
 
@@ -2023,6 +2031,19 @@ final class BusinessSettingsRouter {
           requiredStrings: const {'id', 'source', 'installedAt', 'updatedAt'},
           booleans: const {'enabled'},
           numbers: const {'useCount'},
+        );
+        return;
+      case BusinessEntityKind.groupChat:
+        // Same shape as a workspace or a skill: an opaque payload that this
+        // router must not interpret, only type-check, so a malformed row is
+        // refused at the import boundary instead of at first use.
+        _validateKnownFields(
+          kind,
+          payload,
+          requiredStrings: const {'id', 'name', 'createdAt', 'updatedAt'},
+          strings: const {'avatar'},
+          numbers: const {'v', 'maxSpeakerTurns'},
+          stringLists: const {'memberIds'},
         );
         return;
       case BusinessEntityKind.userProfileField:

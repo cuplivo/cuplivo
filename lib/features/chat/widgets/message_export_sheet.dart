@@ -85,21 +85,32 @@ String? _modelDisplayNameFromSettings(
   return modelId;
 }
 
+/// The assistant whose words a reply carries.
+///
+/// In a group every reply has its own author; on a 1:1 chat the author is the
+/// conversation's assistant, which is also the one the user has selected.
+Assistant? _authorOfMessage(AssistantProvider assistants, ChatMessage msg) {
+  final senderId = msg.senderId;
+  if (senderId == null) return assistants.currentAssistant;
+  return assistants.getById(senderId);
+}
+
 String _getRoleNameFromDependencies({
   required AppLocalizations l10n,
   required SettingsProvider settings,
   required UserProvider userProvider,
-  required Assistant? assistant,
+  required AssistantProvider assistants,
   required ChatMessage msg,
 }) {
   if (msg.role == 'user') {
     return userProvider.name;
   }
   if (msg.role == 'assistant') {
-    if (assistant != null &&
-        assistant.useAssistantName == true &&
-        assistant.name.trim().isNotEmpty) {
-      return assistant.name.trim();
+    final author = _authorOfMessage(assistants, msg);
+    if (author != null &&
+        author.useAssistantName == true &&
+        author.name.trim().isNotEmpty) {
+      return author.name.trim();
     }
     final modelName = _modelDisplayNameFromSettings(settings, msg);
     if (modelName != null && modelName.isNotEmpty) {
@@ -898,7 +909,9 @@ Future<void> exportChatMessagesMarkdown(
   final settings = context.read<SettingsProvider>();
   final chat = context.read<ChatService>();
   final userProvider = context.read<UserProvider>();
-  final assistant = context.read<AssistantProvider>().currentAssistant;
+  // Read once, before the first await: the roster the author names resolve
+  // from outlives the export, and `context` must not be touched across a gap.
+  final assistants = context.read<AssistantProvider>();
   final thinkingLabel = l10n.messageExportThinkingContentLabel;
   final timeFormatter = DateFormat(
     l10n.messageExportSheetDateTimeWithSecondsPattern,
@@ -930,7 +943,7 @@ Future<void> exportChatMessagesMarkdown(
         l10n: l10n,
         settings: settings,
         userProvider: userProvider,
-        assistant: assistant,
+        assistants: assistants,
         msg: msg,
       );
       buf.writeln('> $time · $roleName');
@@ -1028,7 +1041,9 @@ Future<void> exportChatMessagesTxt(
   final settings = context.read<SettingsProvider>();
   final chat = context.read<ChatService>();
   final userProvider = context.read<UserProvider>();
-  final assistant = context.read<AssistantProvider>().currentAssistant;
+  // Read once, before the first await: the roster the author names resolve
+  // from outlives the export, and `context` must not be touched across a gap.
+  final assistants = context.read<AssistantProvider>();
   final thinkingLabel = l10n.messageExportThinkingContentLabel;
   final timeFormatter = DateFormat(
     l10n.messageExportSheetDateTimeWithSecondsPattern,
@@ -1060,7 +1075,7 @@ Future<void> exportChatMessagesTxt(
         l10n: l10n,
         settings: settings,
         userProvider: userProvider,
-        assistant: assistant,
+        assistants: assistants,
         msg: msg,
       );
       buf.writeln('$time · $roleName');
@@ -2699,7 +2714,10 @@ class _ExportedMessageCard extends StatelessWidget {
     final toolParts = preserveTimeline
         ? _exportToolPartsForMessage(context, message)
         : const <ToolUIPart>[];
-    final assistant = context.read<AssistantProvider>().currentAssistant;
+    final assistant = _authorOfMessage(
+      context.read<AssistantProvider>(),
+      message,
+    );
     final useAssistAvatar =
         isAssistant && (assistant?.useAssistantAvatar == true);
     final useAssistName = isAssistant && (assistant?.useAssistantName == true);
@@ -2919,7 +2937,10 @@ class _ExportedBubble extends StatelessWidget {
     final toolParts = preserveTimeline
         ? _exportToolPartsForMessage(context, message)
         : const <ToolUIPart>[];
-    final assistant = context.read<AssistantProvider>().currentAssistant;
+    final assistant = _authorOfMessage(
+      context.read<AssistantProvider>(),
+      message,
+    );
     final useAssistAvatar =
         isAssistant && (assistant?.useAssistantAvatar == true);
     final useAssistName = isAssistant && (assistant?.useAssistantName == true);

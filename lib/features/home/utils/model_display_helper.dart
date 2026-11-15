@@ -43,6 +43,12 @@ class ModelDisplayInfo {
 /// [SettingsProvider.perChatModelEnabled] is off; pins stay in the database so
 /// turning the setting back on restores each conversation's own model.
 ///
+/// It is skipped for a group topic as well. A group writes every reply with its
+/// speaker's own model, so a pin on the topic cannot mean anything: honouring
+/// one would send every reply with that single model while the composer reports
+/// the roster, and a pin left over from before the conversation became a topic
+/// would do it silently.
+///
 /// This is the only place that chain should be written. Every caller that means
 /// "the model this chat uses" goes through here or [getActiveModelIds].
 ({String? providerKey, String? modelId}) resolveChatModel(
@@ -50,7 +56,10 @@ class ModelDisplayInfo {
   Conversation? conversation,
   Assistant? assistant,
 }) {
-  final pinned = settings.perChatModelEnabled ? conversation : null;
+  final pinned =
+      settings.perChatModelEnabled && conversation?.isGroupConversation != true
+      ? conversation
+      : null;
   final providerKey =
       pinned?.chatModelProvider ??
       assistant?.chatModelProvider ??
@@ -58,6 +67,39 @@ class ModelDisplayInfo {
   final modelId =
       pinned?.chatModelId ?? assistant?.chatModelId ?? settings.currentModelId;
   return (providerKey: providerKey, modelId: modelId);
+}
+
+/// Resolves the model that writes a conversation's title.
+///
+/// The title model is a global preference and wins everywhere. Without it a
+/// 1:1 chat falls back to the model that chat sends with; a group topic has no
+/// chat model of its own — the group's is the director's — so it falls back to
+/// the director model and then to the global default.
+///
+/// This is the only place the title-model chain is written: both the
+/// end-of-round path and the sidebar's "regenerate title" go through it.
+({String? providerKey, String? modelId}) resolveTitleModel(
+  SettingsProvider settings, {
+  Conversation? conversation,
+  Assistant? assistant,
+}) {
+  final titleProvider = settings.titleModelProvider;
+  final titleModel = settings.titleModelId;
+  if (titleProvider != null && titleModel != null) {
+    return (providerKey: titleProvider, modelId: titleModel);
+  }
+  if (conversation?.isGroupConversation == true) {
+    return (
+      providerKey:
+          settings.directorModelProvider ?? settings.currentModelProvider,
+      modelId: settings.directorModelId ?? settings.currentModelId,
+    );
+  }
+  return resolveChatModel(
+    settings,
+    conversation: conversation,
+    assistant: assistant,
+  );
 }
 
 /// Extracts model display information from settings, conversation and assistant.

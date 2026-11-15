@@ -121,6 +121,7 @@ The bridge's git surface has no `checkout`, `reset` or `rm`; units are moved wit
 | 7 | `bbc456ac2` | done: 19 files — `ConversationLink` and the two native handovers (`#1034` folded; it was the same feature on the second platform). analyze clean, gen-l10n idempotent, format clean, 108 cases in the unit's files and 2,450 across `test/features/chat` + `test/features/home` |
 | 8 | `dae39a81c` | done: 34 files, the PDF exporter (2.8k-line emitter, document model, fonts, dialog) with the old line's own landing repairs folded in; the unit's duplicate citation module collapsed onto the baseline's. analyze clean, gen-l10n idempotent, format no changes, 92 export cases and 3,333 across chat/home/shared. §14 records why this unit could not compile as written |
 | 9 | `383b0f18d` | done: 10 files — the visible target set, the manager, the shared `effectiveTranslateLanguage` rule, and five languages the catalog never had. analyze clean, gen-l10n idempotent, format no changes, 31 cases across the translate page (both form factors), the catalog, the manager and the dropdown. §15 records the one place this unit was *older* than the baseline |
+| 10 | `70659cc35` | done: 11 files — the per-assistant opt-out in both assistant layouts, one predicate for the "not in effect yet" note, and the render gate moved to one accessor. analyze clean, gen-l10n idempotent, format no changes, 21 cases in the unit's own five files and 3,207 across assistant/home/backup/sync/models/providers. §16 records the unit whose own test was red against its own code |
 
 The 115 failures this unit started from were four classes, and only one of them was a platform without
 a service:
@@ -154,7 +155,7 @@ that went away with the move. The last one needed the one product change in this
 `@visibleForTesting` `BackupStaging.debugRootOverride`, because `Directory.create` cannot be
 intercepted by `IOOverrides` and a real directory cannot be made to fail on demand.
 
-Next: unit 10, `feat(suggestions)`.
+Next: unit 11, `feat(group-chat)`.
 
 ## 7. Open risks
 
@@ -625,3 +626,39 @@ the thing to transplant — `effectiveTranslateLanguage` here — not its widget
 
 One deferred dependency closed: `translate_language_catalog_test.dart` is unit 4's deferral, and its
 tip version carries `#1068`'s edit, so this unit adds the edited file rather than the unit's own.
+
+## 16. Unit 10: the unit's own test was red against the unit's own code
+
+Every previous unit was repaired because its tree would not compile or because a rule had been
+duplicated. This one is repaired by its own tests, and the two halves are worth separating.
+
+**The analyzer half is rule 21 again, with a new source.** The unit's test file calls
+`HomeViewModel.visibleChatSuggestions` and `debugMaybeGenerateSuggestionsFor`, and the unit adds
+neither; `dart analyze` on the whole tree names both. They were added by `237c9a097` — the replay-repair
+commit unit 8 already knew as the source of its export helpers — which also tightened `isCurrent` to
+resolve the assistant again. A repair commit is not one unit's property, and the range query of rule 22
+is what shows the sharing rather than making it look like a coincidence.
+
+**The test half is new in kind.** With the three symbols transplanted, `dart analyze` was clean and
+twenty of twenty-one cases passed. The twenty-first, "an opt-out while the request is in flight
+discards the reply", failed: the reply landed. The unit's `isCurrent` compares the `Assistant`
+snapshot taken before the async gap, so an opt-out that arrives later is invisible to it, and the
+unit's commit body — "re-reads it inside `isCurrent`, so an opt-out that lands mid-flight drops the
+response" — describes code the commit does not contain. The tip re-resolves the assistant from
+`convo.assistantId` inside `isCurrent`, and that is the version taken.
+
+The method note: **run the unit's tests even when the analyzer is clean, and when one is red, ask
+whether a later commit changed the same expression before touching the test.** The test is the only
+artefact in the unit that says what the feature was supposed to do; the code around it is the part the
+old line changed afterwards.
+
+Two smaller notes. The changelogs conflicted for a reason worth knowing: the source commit's own
+changelog hunk is a *deletion*, produced by a nested `<<<<<<<` in the old line's history — documents
+are carried complete in unit 1, so both files take ours. And one adaptation, not a repair: this
+baseline flow-promotes `conversationId` at that point in `home_page.dart`, so the unit's
+`chat.getConversation(conversationId!)` was asserting what the analyzer already knew (the tip has the
+same line without the `!`).
+
+One thing deliberately *not* taken: the tip's `if (convo.isGroupConversation) return;` at the head of
+the suggestion pass. The tip has it because group-chat followed this unit; it belongs to unit 11, and
+its absence is what unit 11 has to check when it arrives.

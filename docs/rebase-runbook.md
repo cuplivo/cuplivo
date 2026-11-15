@@ -554,6 +554,28 @@ Units from earlier series that are **gone, and must not come back**:
     A file that is both is the normal case for a rebase onto a moving baseline; the mistake is deciding
     per file what only the diff can decide per region.
 
+26. **A unit's own test can be red against the unit's own code, and the fix is the same tip repair.**
+    `dart analyze` proves the tests only *call* APIs that exist; it says nothing about whether the code
+    does what they assert. The suggestions unit (`0efe19988`) is the first case where those diverged:
+
+    - **The analyzer caught half of it.** Three symbols the unit's tests call —
+      `HomeViewModel.visibleChatSuggestions`, `HomeViewModel.debugMaybeGenerateSuggestionsFor`, and the
+      re-resolved assistant inside `isCurrent` — were added by `237c9a097`, the same replay-repair commit
+      unit 8 took its export helpers from. A repair commit is not one unit's property; the range query of
+      rule 22 is what reveals the sharing (`git log -S <symbol> <commit>..<old-tip> -- <path>`).
+    - **The test run caught the other half, and it is the interesting one.** The unit's
+      "an opt-out while the request is in flight discards the reply" failed against the unit's own
+      `isCurrent`, which compared the `Assistant` *snapshot* captured before the async gap — a snapshot
+      that still says "allowed" after an opt-out lands. The unit's message claims it "re-reads it inside
+      `isCurrent`"; the code re-reads nothing. The tip re-resolves through
+      `assistantProvider.resolveConversationAssistant(convo.assistantId)` inside `isCurrent`, and that is
+      the version to take.
+
+    So the check order after a unit's tests come back: a red case is your merge *or* the unit, and the
+    way to tell is whether a later commit changed the same expression — not whether the test looks
+    plausible. Never "fix" it by weakening the test: the test is the only artifact in the unit that ever
+    stated what the feature was supposed to do.
+
 ## The CI rule
 
 `.github/workflows/release.yml` is the only build workflow. Upstream publishes one workflow per

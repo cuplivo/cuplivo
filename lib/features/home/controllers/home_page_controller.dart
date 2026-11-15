@@ -59,6 +59,7 @@ import '../../chat/widgets/chat_message_widget.dart' show ToolUIPart;
 import '../../chat/widgets/message_edit_sheet.dart';
 import '../../chat/widgets/message_more_sheet.dart';
 import '../../chat/widgets/message_export_sheet.dart';
+import '../../chat/widgets/pdf_export_dialog.dart';
 import '../../../desktop/message_edit_dialog.dart';
 import '../../../desktop/hotkeys/chat_action_bus.dart';
 import '../../../desktop/hotkeys/sidebar_tab_bus.dart';
@@ -3162,6 +3163,43 @@ class HomePageController extends ChangeNotifier {
       for (final id in ids)
         if (storedById[id] != null) storedById[id]!,
     ];
+  }
+
+  /// Exports the selected messages as a PDF, from the same selection the share
+  /// sheet uses: the dialog owns the layout and the options, so this only
+  /// assembles the message set and hands it over.
+  Future<void> exportSelectedAsPdf() async {
+    final convo = currentConversation;
+    if (convo == null) return;
+    final context = _context;
+
+    final selected = await _selectedCollapsedMessages(
+      Set<String>.of(_selectedItems),
+    );
+    if (!context.mounted) return;
+    if (selected.isEmpty) {
+      final l10n = AppLocalizations.of(context)!;
+      showAppSnackBar(
+        context,
+        message: l10n.homePageSelectMessagesToShare,
+        type: NotificationType.info,
+      );
+      return;
+    }
+
+    final settings = context.read<SettingsProvider>();
+    cancelSelection();
+    await showPdfExportDialog(
+      context,
+      conversation: convo,
+      messages: selected,
+      showThinkingAndToolCards: settings.showThinkingCards,
+      expandThinkingContent: false,
+      appFontPath: settings.appFontLocalPath,
+      codeFontPath: settings.codeFontLocalPath,
+      appFontFamily: settings.appFontFamily,
+      codeFontFamily: settings.codeFontFamily,
+    );
   }
 
   Future<void> exportSelectedMessages() async {

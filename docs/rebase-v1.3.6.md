@@ -160,6 +160,9 @@ Then `chore(release): Cuplivo 4.7.0` and this record.
 | `python tool/identity/verify.py --forward` | clean against `v1.3.6` |
 | `--exact` at the identity commit | 1516 mechanical + 67 path-moved files, 0 mismatches |
 | units 16–17's own suites | 1206 passed, 27 skipped |
+| `pr-check.yml` at `8f97c4237` | green in 45m45s: format, gen-l10n idempotency, `translate.py check`, identity sweep, analyze, both test suites |
+| `translate.py check` | green measured, not estimated: 0 pending in ru, ko, tr and zh_Hant after the sync |
+| `flutter build ios --release --no-codesign` | green — 12m18s in the dry run, 11m44s in the release run (see §9) |
 
 Two notes on the identity check. `--forward` and `--inverse` are the tip's
 checks; `--exact` is an *identity-commit* check, because the mechanical set is
@@ -168,22 +171,75 @@ defined against the baseline and later units legitimately edit those files
 spot again: upstream's new `built_in_prompt_assembly_test.dart` arrived with
 27 `package:Kelivo/` imports, which no conflict signals.
 
-## 8. Open
+## 8. Open when this record was written
 
-- `translate.py check` cannot go green here, and it is now measured rather than
-  estimated: **82 pending / 5494 messages** in each of ru, ko, tr and zh_Hant,
-  with **71 keys carrying no state entry at all** (`Wrong keys: 71 missing`).
-  The values themselves are there — the replay carried them — so this is the
-  tool's *freshness* record, not missing translations. The old line's
-  `tool/l10n/state/*.json` had an entry for every key (5322 for 5322); ours has
-  5421 for 5494 because `sync` never ran on this line, and the 71 keys the 4.6
-  series added only got their `@description` afterwards — and the fingerprint
-  covers the description. Only 2 of the 73 can be copied from the old line's
-  state with a matching fingerprint; the other 71 need a real `sync`
-  (`KELIVO_L10N_API_KEY`, or `~/.config/kelivo/l10n-api-key`). `pr-check.yml`
-  runs `check` on every push to `master`, so that step is red until it runs.
-- `master` is not moved by this work; the force push, the `v4.7.0` tag and the
-  `release.yml` dispatch are the owner's step (this session's push surface
-  refuses `--force` and `+refspec`).
-- `pubspec.yaml`'s build number and both changelogs are in the release commit;
-  the tag is created after `master` moves.
+Three items were open at the landing; all three are closed now, and §9 says how.
+
+- `translate.py check` was red: **82 pending / 5494 messages** in each locale,
+  with **71 keys carrying no state entry** (`Wrong keys: 71 missing`). The values
+  were there — the replay carried them — so this was the tool's *freshness*
+  record, not missing translations.
+- `master` was not yet moved and the tag was not cut; both were the owner's step.
+- `pubspec.yaml`'s build number and both changelogs were already in the release
+  commit, so only the tag was missing.
+
+## 9. What the landing paid after it was pushed
+
+Five commits followed the landing commit, and the ones that matter were for
+defects **no local gate could have found**. Two of those defects had shipped
+before this pass began.
+
+```
+5ecbfcf01  fix(ios): the project names the source files that exist
+6ecad1d9e  chore(l10n): sync the strings the re-base left stale
+f1f67368b  docs(changelog): the 4.7.0 entry, rewritten
+d1913027b  docs(changelog): drop the protocol-bump claim from 4.7.0
+8f97c4237  fix(l10n): the ru/ko/tr permission strings regain the local-network line
+```
+
+**iOS had been unbuildable since 4.6.0.** `ios/Runner.xcodeproj/project.pbxproj`
+named 15 files `Cuplivo…` — 44 filename literals — while the tree and every source
+that mentions them say `Kelivo…` (211 `KelivoISH`, 21 `KelivoGeneration…`, no
+`Cuplivo…` in either). Xcode stopped at the first one:
+
+```
+Error (Xcode): Build input file cannot be found:
+.../ios/Runner/CuplivoGenerationActivityAttributes.swift
+```
+
+`v4.6.0` (`4cda01e4f`) carries the same mismatch, introduced by the old line's
+identity commit `cdfc60a02`; that release's iOS job was *cancelled* rather than
+failed, which is why nothing said so and why it shipped without an iOS artifact.
+The repair reverts the 44 literals (`5ecbfcf01`) rather than renaming 15 files,
+because the Swift type, the ObjC symbols and their includes all still say
+`Kelivo`. Proof: a sweep of every `path = …;` in the project against the tree
+reports no missing source file, and CI then built the app twice — 12m18s as a dry
+run on `f1f67368b`, 11m44s in the release run.
+
+**The native l10n state attested a file from another lineage.** `check` failed
+next with `Wrong keys: 1 missing ['ios.NSLocalNetworkUsageDescription']`, once per
+locale. The key belongs to the plist entry the LAN sync unit adds, and upstream
+v1.3.6 ships `InfoPlist.strings` for *its own* plist, which has 13 keys, not 14.
+`tool/l10n/state/native_{ru,ko,tr}.json` came from the released line, whose digest
+was computed with the key present, so it matched today's sources and
+`native_sync` returned before writing anything: `sync` could never repair it, and
+only CI's `check` was saying so. The three lines are the released line's own
+(`b091ffa2a`), whose source text is byte-identical to today's plist entry; after
+restoring them, all three locales measure 25 native keys wanted, 25 present,
+nothing extra (`8f97c4237`).
+
+**The sync itself, measured.** `sync` against `api.deepseek.com` with model
+`deepseek-flash` cost 31342 tokens for four locales × 82 messages — 71 keys absent
+from each target ARB and 11 whose source fingerprint had moved.
+`app_zh_Hant.arb` additionally lost 49 `@key` blocks that `app_en.arb` does not
+carry: the tool keeps exactly the template's key set, and `check` had never
+reached zh_Hant because it fails on ru first. The tool writes through a text-mode
+handle, so on Windows all eight rewritten files came back CRLF and each diff read
+10921 lines; they were returned to LF byte by byte before the commit.
+
+**The release.** `v4.7.0` is a lightweight tag on `8f97c4237`, like `v4.6.0`;
+`v4.6.0` stays at `4cda01e4f`. `release.yml` ran from the tag (`43741482320`):
+Android, iOS, Linux, macOS and Windows all green, the release-notes job wrote the
+body from the two changelogs (Chinese block, then English), and eleven assets were
+published — including `Cuplivo_ios_4.7.0+10.ipa`, the first iOS artifact this fork
+has shipped.

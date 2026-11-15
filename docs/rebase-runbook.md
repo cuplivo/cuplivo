@@ -1203,3 +1203,36 @@ Measured cost of the carry, for the next forecast: the pre-flight
 stops; the actual rebase stopped **twice** (identity, 5 files; links, 2 files)
 and the reformat unit was re-derived from `dart format` instead of replayed
 (same five files, one fewer than the 4.6 line's six).
+
+### What the landing paid after it was pushed
+
+Three of the five commits this pass added after its landing fix defects no
+Windows gate can see. They are rules now.
+
+- **The identity sweep renames contents; a project file's `path = …` is not
+  content.** `project.pbxproj` named 15 files `Cuplivo…` while the tree and every
+  source said `Kelivo…`: 44 literals against 211 `KelivoISH` and 21
+  `KelivoGeneration…` in the sources, and zero `Cuplivo…` in either. Xcode stops
+  at the first one ("Build input file cannot be found"), so iOS had been
+  unbuildable since `v4.6.0` — and that release's iOS job was *cancelled* rather
+  than failed, which is the real lesson: a cancelled job is not evidence that a
+  platform builds. Sweep the project's `path = …;` entries against the tree before
+  tagging, and repair by reverting the literals when the sources still carry the
+  old name (renaming the 15 files would mean the Swift type, the ObjC symbols and
+  their includes as well).
+- **A native l10n state attests source freshness, not output completeness.**
+  `InfoPlist.strings` for ru/ko/tr came from upstream v1.3.6 (its own 13-key
+  plist), while `native_*.json` came from the released line, whose digest was
+  computed with the fork's extra key present. The digest matched, so `native_sync`
+  returned before writing and `sync` could never repair the missing key; only
+  `check` said so. Restore the line from the released line when its source text is
+  byte-identical, then re-measure the native key count — 25 wanted, 25 present,
+  nothing extra here.
+- **The tool writes CRLF on Windows.** `write()` opens a text-mode handle, so four
+  ARBs and four state files came back with every line changed — 10921-line diffs
+  each, against a real diff of 1834/1525. Normalise to LF as bytes before staging;
+  the same trap applies to any `Path.write_text` in a script.
+- **A platform no gate covers needs its own dry run before the tag.** Everything
+  else in this repo is exercised on Windows; iOS exists only on CI. A one-platform
+  dispatch (`build_ios=true`, the rest false, `publish_release=false`) is what
+  proved the repair, and it costs 12m18s.

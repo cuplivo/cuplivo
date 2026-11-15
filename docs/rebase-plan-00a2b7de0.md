@@ -122,6 +122,7 @@ The bridge's git surface has no `checkout`, `reset` or `rm`; units are moved wit
 | 8 | `dae39a81c` | done: 34 files, the PDF exporter (2.8k-line emitter, document model, fonts, dialog) with the old line's own landing repairs folded in; the unit's duplicate citation module collapsed onto the baseline's. analyze clean, gen-l10n idempotent, format no changes, 92 export cases and 3,333 across chat/home/shared. §14 records why this unit could not compile as written |
 | 9 | `383b0f18d` | done: 10 files — the visible target set, the manager, the shared `effectiveTranslateLanguage` rule, and five languages the catalog never had. analyze clean, gen-l10n idempotent, format no changes, 31 cases across the translate page (both form factors), the catalog, the manager and the dropdown. §15 records the one place this unit was *older* than the baseline |
 | 10 | `70659cc35` | done: 11 files — the per-assistant opt-out in both assistant layouts, one predicate for the "not in effect yet" note, and the render gate moved to one accessor. analyze clean, gen-l10n idempotent, format no changes, 21 cases in the unit's own five files and 3,207 across assistant/home/backup/sync/models/providers. §16 records the unit whose own test was red against its own code |
+| 11 | `7918424bc` | done: 141 files — the four group-chat commits folded into one unit: topics, the director, the roster, the shared owner order, the composer's roster-following entries, and the group's reasoning/tools/skills panels. analyze clean, gen-l10n idempotent (38 keys × 4 ARBs), format no changes except the six unit-14 files, 461 cases across the unit's surfaces and the full suite green after the six failures it caught were fixed. §17 records the six forward references, the fourth helper collapse, and the two tests rewritten to an invariant |
 
 The 115 failures this unit started from were four classes, and only one of them was a platform without
 a service:
@@ -155,7 +156,7 @@ that went away with the move. The last one needed the one product change in this
 `@visibleForTesting` `BackupStaging.debugRootOverride`, because `Directory.create` cannot be
 intercepted by `IOOverrides` and a real directory cannot be made to fail on demand.
 
-Next: unit 11, `feat(group-chat)`.
+Next: unit 12, `feat(backup)`.
 
 ## 7. Open risks
 
@@ -662,3 +663,57 @@ same line without the `!`).
 One thing deliberately *not* taken: the tip's `if (convo.isGroupConversation) return;` at the head of
 the suggestion pass. The tip has it because group-chat followed this unit; it belongs to unit 11, and
 its absence is what unit 11 has to check when it arrives.
+
+## 17. Unit 11: the repair commit as a per-unit dependency
+
+This unit is four commits folded into one, 141 files, and it drew on `237c9a097` more than any other:
+six of the things it needs only ever landed there. That is now a pattern rather than a surprise, and
+the preflight is cheap — `git log --oneline <unit>..<tip> -- <the unit's paths>`, then read that
+commit's message, which enumerates what it restored.
+
+**The forward references, in the order the analyzer found them:**
+
+- `ChatMessage.senderId` — the model field itself, with its five plumbing points (`toJson`,
+  `fromJson`, `copyWith`, constructor). The database column and its migration were in the unit.
+- The repository's read and edit paths: `senderId: row.senderId` on the way out and
+  `senderId: original.senderId` when an edit creates a version. Without the second, an edited member
+  reply loses its author; three `group_chat_schema_test` cases say so.
+- `ChatService.beginUserMessage` — the repository counterpart (`_repo.beginUserMessage`, with a doc
+  comment naming the group case) was in the tree; the service wrapper was not. Added with the
+  sibling's serialisation and cache updates.
+- `senderId` parameters on `beginRegeneration`, `beginAssistantGeneration` and `addMessage`, plus the
+  `_GatedChatService` fake in `chat_send_race_test.dart` that overrides the last one.
+
+**A baseline rework can make the unit's *test* wrong while its code merges.** Two cases:
+
+- The compression speaker labeller. The unit's test asserts `labelOf` and the bounded/chunked builders
+  the fork's line had; this baseline's builder went with upstream's compaction rework and has neither.
+  The invariant is "a group's summary keeps the voices apart", so the speaker now rides in the line's
+  existing source-message prefix (`Assistant[alice]: …`) and the test was rewritten to that — one
+  production line, no new API.
+- The tablet skills test. Folding `#1072` changed the compact toolbar's overflow from a second "+"
+  (`chatInputBarMoreTooltip`) to an ellipsis (`chatInputBarOverflowTooltip`); this branch's copy of
+  the test still tapped the "+", so it taps the ellipsis now. That is the folded unit's own change
+  reaching its own test, not a weakening.
+
+**The fourth helper collapse.** `lastHumanUserIndex` (a peer's turn) and this baseline's
+`lastUserInputIndex` (injected lore) are orthogonal halves of "the user's own turn", and every provider
+would have had to pick one and lose the other. The peer exclusion went into `isUserInputMessage`, the
+helper was deleted, and the unit's `message_authorship_test.dart` — the first coverage that predicate
+ever had — now asserts both conditions. Rule 24's shape, one layer deeper: not two functions with one
+name, but two functions answering one question.
+
+**Two additions the unit needed and did not carry.** `showConversationSkillsSheet` had no `members`, so
+home_page's group branch would have compiled and written the conversation's shared override for every
+member — §8.1's predicted silent loss; it gains the strip and `scopeToAssistant`. And
+`BusinessKeyRegistry.companionKeys` had no row for `BusinessEntityKind.groupChat`; the registry test is
+what says a kind and its companion arrive together (`chat_owner_order_v1`).
+
+**Smaller adaptations worth knowing.** The desktop reasoning popover was rewritten upstream into an
+80-line `showGeneralDialog` page, so the group popover is a new panel on that page rather than a replay
+of the fork's `_ReasoningContent`/`_HoverRow` pair. `builtInSearchOnly` is upstream's
+`BuiltInToolMode.none`. `assistants_pane.dart` is a `part of` file, so its six group imports belong to
+`desktop_settings_page.dart` — the merge dropped exactly those and the analyzer blames the part.
+
+And one debt from unit 10 closes here: the suggestion pass now begins with
+`if (convo.isGroupConversation) return;`, which is what the tip had and unit 10 deliberately left out.

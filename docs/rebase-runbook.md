@@ -576,6 +576,37 @@ Units from earlier series that are **gone, and must not come back**:
     plausible. Never "fix" it by weakening the test: the test is the only artifact in the unit that ever
     stated what the feature was supposed to do.
 
+27. **The replay-repair commit is a per-unit dependency, and its message is the checklist.** Three
+    units — the PDF export, the suggestions switch and group chat — each turned out to need symbols
+    that only `237c9a097` ever added: `markdownParserOptionsFor` and the export helpers, then
+    `visibleChatSuggestions`/`debugMaybeGenerateSuggestionsFor` and the re-resolved opt-out, then
+    `ChatMessage.senderId`, its repository read and edit carry, `ChatService.beginUserMessage` and
+    the `senderId` parameters. Group chat alone needed six of them, and the repair commit's own body
+    names every one ("Also: ChatMessage.senderId, … the compression text builder …").
+
+    So the preflight for any unit is two commands and five minutes:
+
+        git log --oneline <the-commit>..<old-tip> -- <the unit's paths>
+        git show --format=%B <the one repair commit that keeps appearing>
+
+    Every symbol it lists that the unit's code or tests use is a forward reference. Check each
+    definition exists at the *base* before resolving a single conflict: an intermediate that cannot
+    compile is normal in this line (rule 20), and the analyzer will name the callers rather than the
+    missing definition (rule 21).
+
+    Two shapes to expect once the symbols are in:
+
+    - **A part file's imports belong to its host.** `assistants_pane.dart` starts with
+      `part of '../desktop_settings_page.dart';`, so six group imports the unit added are in the host
+      file, and a merge that drops them makes the analyzer blame the part. Read the `part of` line
+      before adding an import to a file that has no import block.
+    - **A test can assert a mechanism the baseline replaced.** The fork's compression test drove a
+      `labelOf` callback and two builders this baseline's compaction rework does not have; the
+      tablet skills test tapped a "+" that the folded `#1072` turned into an ellipsis. In both cases
+      the test was rewritten to the *invariant* (voices stay apart; the narrow composer's overflow is
+      the one that opens) rather than to the old API — and the invariant is what the new assertion
+      states, so the next re-base can port it again.
+
 ## The CI rule
 
 `.github/workflows/release.yml` is the only build workflow. Upstream publishes one workflow per

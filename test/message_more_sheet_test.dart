@@ -9,10 +9,17 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/features/chat/widgets/message_more_sheet.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:flutter/services.dart';
 
-ChatMessage _message() {
+const mobilePlatforms = TargetPlatformVariant({
+  TargetPlatform.android,
+  TargetPlatform.iOS,
+});
+
+ChatMessage _message({String id = 'message-1', bool isStreaming = false}) {
   return ChatMessage(
-    id: 'message-1',
+    id: id,
+    isStreaming: isStreaming,
     role: 'assistant',
     content: 'hello',
     conversationId: 'conversation-1',
@@ -28,6 +35,8 @@ Future<void> _openMoreSheet(
   double textScale = 1,
   Locale? locale,
   ValueChanged<MessageMoreAction?>? onSelected,
+  String messageId = 'message-1',
+  bool isStreaming = false,
 }) async {
   await tester.pumpWidget(
     ChangeNotifierProvider(
@@ -54,7 +63,7 @@ Future<void> _openMoreSheet(
                 onPressed: () {
                   showMessageMoreSheet(
                     context,
-                    _message(),
+                    _message(id: messageId, isStreaming: isStreaming),
                     hasMultipleVersions: hasMultipleVersions,
                     canCreateBranch: canCreateBranch,
                     canSetContextStart: canSetContextStart,
@@ -107,14 +116,19 @@ void main() {
       expect(find.text(l10n.contextFixedStartDescription), findsNothing);
       expect(find.text(l10n.branchInheritNote), findsNothing);
       final rows = find.byType(IosCardPress);
-      expect(rows, findsNWidgets(8));
+      // The copy-link entry is only offered where the scheme is registered,
+      // which is the two mobile platforms.
+      expect(rows, findsNWidgets(desktop ? 8 : 9));
       final bounds = [
         for (final element in rows.evaluate())
           tester.getRect(find.byWidget(element.widget)),
       ];
       expect(
         bounds.last.bottom - bounds.first.top,
-        lessThanOrEqualTo(desktop ? 330 : 400),
+        // The copy-link row makes the mobile menu one row taller (434.5
+        // measured); the bound stays a fit-on-screen guard, not the menu's
+        // exact height.
+        lessThanOrEqualTo(desktop ? 330 : 448),
       );
       for (final rect in bounds) {
         expect(rect.height, greaterThanOrEqualTo(desktop ? 36 : 44));
@@ -249,4 +263,60 @@ void main() {
 
     expect(find.text('Create Branch'), findsNothing);
   });
+
+  testWidgets('mobile offers the copy entry for the registered scheme', (
+    tester,
+  ) async {
+    await _openMoreSheet(tester, hasMultipleVersions: false);
+
+    expect(find.text('Copy Link'), findsOneWidget);
+  }, variant: mobilePlatforms);
+
+  testWidgets('mobile copies the link anchored on this message', (
+    tester,
+  ) async {
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    String? clipboard;
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        clipboard = (call.arguments as Map)['text'] as String?;
+      }
+      return null;
+    });
+    try {
+      await _openMoreSheet(tester, hasMultipleVersions: false);
+      expect(find.text('Copy Link'), findsOneWidget);
+
+      await tester.tap(find.text('Copy Link'));
+      await tester.pumpAndSettle();
+
+      expect(
+        clipboard,
+        'cuplivo://conversation/conversation-1?message=message-1',
+      );
+      // Let the confirmation toast dismiss before the tree goes away.
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    } finally {
+      messenger.setMockMethodCallHandler(SystemChannels.platform, null);
+    }
+  }, variant: mobilePlatforms);
+
+  testWidgets('mobile offers no link for an id the grammar cannot carry', (
+    tester,
+  ) async {
+    await _openMoreSheet(
+      tester,
+      hasMultipleVersions: false,
+      // Past the cap: the link would be dropped on the way back in.
+      messageId: 'x' * 201,
+    );
+
+    // The sheet is open (its neighbour is there), so the absence below is the
+    // gate and not a sheet that never appeared.
+    expect(find.text('Select Messages'), findsOneWidget);
+    expect(find.text('Copy Link'), findsNothing);
+  }, variant: mobilePlatforms);
 }

@@ -445,27 +445,6 @@ Units from earlier series that are **gone, and must not come back**:
     anything. Wrap it: `json((SELECT json_group_array(...) ...))`. The old line worked only because its
     SQLite propagated the subtype; ours did not, and only the tests said so.
 
-22. **A unit's file set is commit archaeology: ask which commits touched the path *after* the one you
-    are deriving from.** Rule 20 says a broken intermediate is re-derived from the tip; the question
-    that follows is "for which files is the tip still my unit?". One command answers it per path:
-
-        git log --oneline <the-commit-you-derive-from>..<old-tip> -- <path>
-
-    - **Empty** → the tip's file is exactly that commit's state, so take it whole.
-    - **Only commits you have already applied** → likewise. The sync unit's files were `bb079ed2d`
-      alone, which unit 4 had already folded, so five files came across with no merge at all.
-    - **Anything else** → hand-merge, and name which of the later commits each hunk belongs to. That is
-      how `deleteEntity`'s `group:` parameter was recognised as group-chat's and left out of the sync
-      unit.
-
-    The trap is a file whose tip version is **older** than yours. `business_preferences.dart` at the
-    4.6 tip lacks the `close()`/`_closed` guard that upstream's `c66ade4a8` gave this branch, because
-    the old line never had that commit — so "take the tip's file", applied uniformly, would have
-    deleted a baseline repair. The range query does not answer this one; only reading the diff does. A
-    diff that *removes* a guard, a null-check or a cast is the signature: your side is newer, and the
-    file is not this unit's business.
-
-
 21. **An intermediate commit can also be *corrupt*, and then the analyzer blames the callers.** The sync
     unit (`f36104732`) is an intermediate of the 4.6 line, and its blob carries three different kinds of
     damage, none of which `git cherry-pick` reports as a conflict:
@@ -495,6 +474,46 @@ Units from earlier series that are **gone, and must not come back**:
     `pumpPanel`/`_closePanel` helpers that replace it live in a later close-out commit (`b264ef05a`), so
     they were applied inside the unit, nine teardowns included. A ten-minute deadline that fires is
     evidence about the harness, not about the case.
+
+22. **A unit's file set is commit archaeology: ask which commits touched the path *after* the one you
+    are deriving from.** Rule 20 says a broken intermediate is re-derived from the tip; the question
+    that follows is "for which files is the tip still my unit?". One command answers it per path:
+
+        git log --oneline <the-commit-you-derive-from>..<old-tip> -- <path>
+
+    - **Empty** → the tip's file is exactly that commit's state, so take it whole.
+    - **Only commits you have already applied** → likewise. The sync unit's files were `bb079ed2d`
+      alone, which unit 4 had already folded, so five files came across with no merge at all.
+    - **Anything else** → hand-merge, and name which of the later commits each hunk belongs to. That is
+      how `deleteEntity`'s `group:` parameter was recognised as group-chat's and left out of the sync
+      unit.
+
+    The trap is a file whose tip version is **older** than yours. `business_preferences.dart` at the
+    4.6 tip lacks the `close()`/`_closed` guard that upstream's `c66ade4a8` gave this branch, because
+    the old line never had that commit — so "take the tip's file", applied uniformly, would have
+    deleted a baseline repair. The range query does not answer this one; only reading the diff does. A
+    diff that *removes* a guard, a null-check or a cast is the signature: your side is newer, and the
+    file is not this unit's business.
+
+23. **A `--no-commit` fold is not proof the fold is in.** Verify each folded file against the *folded
+    commit's own* version, never against the base:
+
+        git cherry-pick --no-commit <follow-up>
+        git diff <follow-up> -- <the paths it touches>      # must be empty
+
+    The care unit's fold (`#1064` into the care port) reported `Auto-merging` on eleven files and a
+    conflict on two, and came out with **two files byte-identical to the unit's own version** — the
+    fold's rewrites of `proactive_care_alarm_service.dart` and
+    `proactive_care_conversation_policy.dart` were simply absent. The mechanism is the procedure: the
+    first `cherry-pick --no-commit` leaves its result in the index, so the second one's three-way merge
+    runs against an "ours" that did not exist when its patch was written, and a hunk whose context
+    moved can be dropped rather than conflicted. Nothing in git's output says so; `dart analyze` found
+    it, as two call sites passing a parameter that did not exist.
+
+    Resolve such a file with rule 22's tool (is the tip's version still this unit's?) and then diff
+    again. The choice is per file: in the care unit the two service files took the tip's version whole,
+    while `mobile_background.dart`, `BackgroundRuntime.kt` and their test kept this branch's, because
+    the tip's versions carried the next unit's link work.
 
 ## The CI rule
 

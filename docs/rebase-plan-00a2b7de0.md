@@ -117,6 +117,7 @@ The bridge's git surface has no `checkout`, `reset` or `rm`; units are moved wit
 | 3 | `9746532a4` | done: analyze clean, gen-l10n idempotent, full suite green at this tip (`+12840 ~94`); 65 recycle cases, 907 in `test/core/database` + storage + the storage-space pages, 343 in `test/core/services/chat` + the assistant cascade. §10 lists what it deliberately left for units 4, 5 and 11 |
 | 4 | `a9137a796` + `971f8293e` | done: analyze clean across `lib test integration_test`; the sync subsystem replayed with `#1068`'s policy table folded in. 574 cases in the unit's own set, 2,725 in the database/chat/backup/providers set it touches, and the full suite `+13344 ~94` with one failure that was this unit's own comment tripping a text gate. §11 records the repairs the old commit needed, the table's thirteen transposed rows, and what it changes about §10's list |
 | 5 | `a81991887` | done: protocol v8 (the row clock in the announcement, `copyWrittenSinceAgreement`, the business face's clock pair) and the bin's sync half — the staging §10.2 listed. analyze clean, gen-l10n idempotent, format no changes, 526 cases across the sync, recycle and provider suites. §12 records what the unit's source turned out to be |
+| 6 | `4360703f7` | done: 69 files — the cross-platform care port, the roleplay tab, the backgrounded letter (`#1064` folded). analyze clean, gen-l10n idempotent, format clean, 112 care cases + 2,452 in the home/assistant/chat/providers/models set. §13 records the two files whose fold was silently dropped, and the one API the baseline had never had |
 
 The 115 failures this unit started from were four classes, and only one of them was a platform without
 a service:
@@ -150,7 +151,7 @@ that went away with the move. The last one needed the one product change in this
 `@visibleForTesting` `BackupStaging.debugRootOverride`, because `Directory.create` cannot be
 intercepted by `IOOverrides` and a real directory cannot be made to fail on demand.
 
-Next: unit 6, `feat(care)`.
+Next: unit 7, `feat(chat)` — conversation and message links.
 
 ## 7. Open risks
 
@@ -537,3 +538,35 @@ file set is derivable from commit archaeology, and the recipe is the `..` range 
 converts "which of these twenty commits do I take?" into one command per file, and it is the only cheap
 way to tell "the tip's file is my unit plus what I already have" from "the tip's file is my unit plus
 three units I have not replayed".
+
+## 13. Unit 6: the fold that git said it applied
+
+`c89e433b3` (`#1064`, the backgrounded letter) folds into the care unit. Its cherry-pick reported
+`Auto-merging` for eleven files and a conflict for two, and the result was wrong in a way nothing in the
+output hinted at: **two files came out byte-identical to the care commit's own version, with the fold's
+changes simply absent** — `lib/core/services/proactive_care_alarm_service.dart` (the whole
+`assistantStoreLoaded` guard, the plan/omit split, `_omittedSummary`) and
+`lib/core/services/proactive_care_conversation_policy.dart` (`plan`, `ProactiveCareScheduleOmission`,
+`ProactiveCareSchedulePlan`).
+
+This is rule 21's class again, but the mechanism is new, and it is the *fold*, not the source commit:
+the first `cherry-pick --no-commit` leaves its result in the index, and the second one's three-way merge
+then sees a "ours" that never existed when its patch was written. Three of the second commit's hunks
+vanished; nothing failed. The tell was not in git's output but in `dart analyze` — two call sites
+passing a parameter that did not exist.
+
+The repair is rule 22's: take the tip's file, after the range query says the only commits after the base
+that touched it are this fold and the 4.5 close-out's fixes. But the *lesson* is a fold procedure:
+
+- After a `--no-commit` fold, **diff every file the folded commit touches against that commit's own
+  version** (`git diff <fold> -- <paths>`), not against the base. An empty diff is the only proof the
+  fold is in. That is one command and it would have caught this immediately.
+- Where the diff is not empty, the choice is per file, not per commit: here the care files took the
+  tip's version whole, while `mobile_background.dart`, `BackgroundRuntime.kt` and their test kept this
+  branch's version — the tip's has unit 7's link work in it, and the care hunks in ours had applied.
+- `AssistantProvider.isLoaded` is the one *product* addition the unit needed: upstream's newer provider
+  kept the load state private, and the care code's contract ("do not re-arm from a half-loaded store")
+  asks for it. `main.dart` has to wire `proactiveCareAssistantStoreLoaded` as well — the guard compiles
+  and does nothing without it.
+
+Runbook rule 23 carries the fold procedure.

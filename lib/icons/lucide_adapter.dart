@@ -47,6 +47,7 @@ class Lucide {
   static const IconData Monitor = lucide.LucideIcons.monitor;
   static const IconData Heart = lucide.LucideIcons.heart;
   static const IconData Boxes = lucide.LucideIcons.boxes;
+  static const IconData LayoutGrid = lucide.LucideIcons.layoutGrid;
   static const IconData Volume2 = lucide.LucideIcons.volume2;
   static const IconData Terminal = lucide.LucideIcons.terminal;
   static const IconData Database = lucide.LucideIcons.database;
@@ -132,6 +133,8 @@ class Lucide {
   static const IconData chevronDown = lucide.LucideIcons.chevronDown;
   static const IconData panelLeft = lucide.LucideIcons.panelLeft;
   static const IconData panelRight = lucide.LucideIcons.panelRight;
+  static const IconData PanelLeftClose = lucide.LucideIcons.panelLeftClose;
+  static const IconData PanelLeftOpen = lucide.LucideIcons.panelLeftOpen;
   static const IconData Square = lucide.LucideIcons.square;
   static const IconData Download = lucide.LucideIcons.download;
   static const IconData ZoomIn = lucide.LucideIcons.zoomIn;

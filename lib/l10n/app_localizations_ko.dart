@@ -11565,6 +11565,12 @@ class AppLocalizationsKo extends AppLocalizations {
   String get backgroundGenerating => '답변 생성 중';
 
   @override
+  String get backgroundCareLetter => 'Writing a letter';
+
+  @override
+  String get backgroundCareWorking => 'Preparing your letter';
+
+  @override
   String get backgroundThinking => '생각 중';
 
   @override

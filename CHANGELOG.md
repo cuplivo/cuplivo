@@ -20,6 +20,10 @@
 - The backup archive format moved from 3 to 4: a new backup cannot be imported by an older build (#1071 by @cup113)
 - **Backup file names follow the backup target**: `cuplivo_backup_*.zip` for this build, `kelivo_backup_*.zip` for Kelivo; both namings are still discovered and cleaned up, whichever version wrote them (#1078 by @cup113)
 
+### Added
+
+- **Copy a link to a conversation, or to one message**: the conversation menu and the message ⋯ menu now offer **Copy Link**, writing `cuplivo://conversation/<id>` — with `?message=<id>` when copied from a message — which iOS opens straight into that conversation, scrolled to the message. A link is a pointer, not a copy: it resolves where the conversation exists (the device that copied it, or a device LAN sync carried it to), and a link whose conversation is not on this device now says so instead of doing nothing (#981)
+
 ### Fixed
 
 - **A Cuplivo backup could not be imported into Kelivo at all**: the export now has a Kelivo-compatible target, so the `group_chats_v1` entity Kelivo 1.3.4 rejects outright never reaches the archive — even for a user who never created a group (#1071 by @cup113)

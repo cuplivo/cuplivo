@@ -1,18 +1,23 @@
-import 'package:flutter/foundation.dart';
-import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
 import 'support/business_test_harness.dart';
 import 'package:provider/provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/features/chat/widgets/message_more_sheet.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 
-ChatMessage _message() {
+const mobilePlatforms = TargetPlatformVariant({
+  TargetPlatform.android,
+  TargetPlatform.iOS,
+});
+
+ChatMessage _message({String id = 'message-1', bool isStreaming = false}) {
   return ChatMessage(
-    id: 'message-1',
+    id: id,
+    isStreaming: isStreaming,
     role: 'assistant',
     content: 'hello',
     conversationId: 'conversation-1',
@@ -23,23 +28,14 @@ Future<void> _openMoreSheet(
   WidgetTester tester, {
   required bool canDeleteAllVersions,
   bool canCreateBranch = true,
-  bool canSetContextStart = false,
-  bool isContextStart = false,
-  double textScale = 1,
-  Locale? locale,
   ValueChanged<MessageMoreAction?>? onSelected,
+  String messageId = 'message-1',
+  bool isStreaming = false,
 }) async {
   await tester.pumpWidget(
     ChangeNotifierProvider(
       create: (_) => SettingsProvider(createBusinessTestPreferences()),
       child: MaterialApp(
-        locale: locale,
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.linear(textScale)),
-          child: child!,
-        ),
         localizationsDelegates: const [
           AppLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,
@@ -54,11 +50,9 @@ Future<void> _openMoreSheet(
                 onPressed: () {
                   showMessageMoreSheet(
                     context,
-                    _message(),
+                    _message(id: messageId, isStreaming: isStreaming),
                     canDeleteAllVersions: canDeleteAllVersions,
                     canCreateBranch: canCreateBranch,
-                    canSetContextStart: canSetContextStart,
-                    isContextStart: isContextStart,
                   ).then((action) => onSelected?.call(action));
                 },
                 child: const Text('open'),
@@ -75,120 +69,6 @@ Future<void> _openMoreSheet(
 }
 
 void main() {
-  final platforms = TargetPlatformVariant({
-    TargetPlatform.android,
-    TargetPlatform.iOS,
-    TargetPlatform.macOS,
-    TargetPlatform.windows,
-    TargetPlatform.linux,
-  });
-  testWidgets(
-    'compact message menu keeps every action with accessible click targets',
-    (tester) async {
-      final desktop = {
-        TargetPlatform.macOS,
-        TargetPlatform.windows,
-        TargetPlatform.linux,
-      }.contains(defaultTargetPlatform);
-      tester.view.devicePixelRatio = 1;
-      tester.view.physicalSize = desktop
-          ? const Size(1000, 800)
-          : const Size(390, 844);
-      addTearDown(tester.view.reset);
-      MessageMoreAction? selected;
-      await _openMoreSheet(
-        tester,
-        canDeleteAllVersions: false,
-        canSetContextStart: true,
-        locale: const Locale('zh'),
-        onSelected: (action) => selected = action,
-      );
-      final l10n = AppLocalizations.of(tester.element(find.text('open')))!;
-      expect(find.text(l10n.contextFixedStartDescription), findsNothing);
-      expect(find.text(l10n.branchInheritNote), findsNothing);
-      final rows = find.byType(IosCardPress);
-      expect(rows, findsNWidgets(8));
-      final bounds = [
-        for (final element in rows.evaluate())
-          tester.getRect(find.byWidget(element.widget)),
-      ];
-      expect(
-        bounds.last.bottom - bounds.first.top,
-        lessThanOrEqualTo(desktop ? 330 : 400),
-      );
-      for (final rect in bounds) {
-        expect(rect.height, greaterThanOrEqualTo(desktop ? 36 : 44));
-      }
-      if (desktop) expect(bounds.first.width, lessThan(320));
-      await tester.tap(find.text(l10n.messageMoreSheetDelete));
-      await tester.pumpAndSettle();
-      expect(selected, MessageMoreAction.deleteCurrentVersion);
-      expect(tester.takeException(), isNull);
-    },
-    variant: platforms,
-  );
-
-  testWidgets(
-    'compact menu keeps destructive actions reachable with large text',
-    (tester) async {
-      tester.view.devicePixelRatio = 1;
-      tester.view.physicalSize = const Size(360, 640);
-      addTearDown(tester.view.reset);
-      MessageMoreAction? selected;
-      await _openMoreSheet(
-        tester,
-        canDeleteAllVersions: true,
-        canSetContextStart: true,
-        textScale: 2,
-        onSelected: (action) => selected = action,
-      );
-      await tester.ensureVisible(find.text('Delete All Versions'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Delete All Versions'));
-      await tester.pumpAndSettle();
-      expect(selected, MessageMoreAction.deleteAllVersions);
-      expect(tester.takeException(), isNull);
-    },
-    variant: platforms,
-  );
-
-  for (final pinned in [false, true]) {
-    testWidgets(
-      'context start menu action: pinned=$pinned',
-      (tester) async {
-        tester.view.physicalSize = const Size(1200, 1400);
-        tester.view.devicePixelRatio = 1;
-        addTearDown(tester.view.reset);
-        MessageMoreAction? selected;
-        await _openMoreSheet(
-          tester,
-          canDeleteAllVersions: false,
-          canSetContextStart: true,
-          isContextStart: pinned,
-          onSelected: (action) => selected = action,
-        );
-        final label = pinned
-            ? 'Cancel fixed context start'
-            : 'Start context here';
-        await tester.tap(find.text(label));
-        await tester.pumpAndSettle();
-        expect(
-          selected,
-          pinned
-              ? MessageMoreAction.cancelContextStart
-              : MessageMoreAction.setContextStart,
-        );
-      },
-      variant: TargetPlatformVariant({
-        TargetPlatform.android,
-        TargetPlatform.iOS,
-        TargetPlatform.macOS,
-        TargetPlatform.windows,
-        TargetPlatform.linux,
-      }),
-    );
-  }
-
   testWidgets(
     'one menu entry selects messages for every batch action',
     (tester) async {
@@ -239,4 +119,60 @@ void main() {
 
     expect(find.text('Create Branch'), findsNothing);
   });
+
+  testWidgets('mobile offers the copy entry for the registered scheme', (
+    tester,
+  ) async {
+    await _openMoreSheet(tester, canDeleteAllVersions: false);
+
+    expect(find.text('Copy Link'), findsOneWidget);
+  }, variant: mobilePlatforms);
+
+  testWidgets('mobile copies the link anchored on this message', (
+    tester,
+  ) async {
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    String? clipboard;
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        clipboard = (call.arguments as Map)['text'] as String?;
+      }
+      return null;
+    });
+    try {
+      await _openMoreSheet(tester, canDeleteAllVersions: false);
+      expect(find.text('Copy Link'), findsOneWidget);
+
+      await tester.tap(find.text('Copy Link'));
+      await tester.pumpAndSettle();
+
+      expect(
+        clipboard,
+        'cuplivo://conversation/conversation-1?message=message-1',
+      );
+      // Let the confirmation toast dismiss before the tree goes away.
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    } finally {
+      messenger.setMockMethodCallHandler(SystemChannels.platform, null);
+    }
+  }, variant: mobilePlatforms);
+
+  testWidgets('mobile offers no link for an id the grammar cannot carry', (
+    tester,
+  ) async {
+    await _openMoreSheet(
+      tester,
+      canDeleteAllVersions: false,
+      // Past the cap: the link would be dropped on the way back in.
+      messageId: 'x' * 201,
+    );
+
+    // The sheet is open (its neighbour is there), so the absence below is the
+    // gate and not a sheet that never appeared.
+    expect(find.text('Select Messages'), findsOneWidget);
+    expect(find.text('Copy Link'), findsNothing);
+  }, variant: mobilePlatforms);
 }

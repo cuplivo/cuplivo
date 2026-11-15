@@ -4325,6 +4325,8 @@
   "backgroundInterrupted": "后台生成已中断，请打开会话继续。",
   "backgroundRequesting": "正在请求",
   "backgroundGenerating": "正在生成回复",
+  "backgroundCareLetter": "正在写信",
+  "backgroundCareWorking": "正在准备来信",
   "backgroundThinking": "正在思考",
   "backgroundToolRunning": "正在执行工具",
   "backgroundRetrying": "等待重试",

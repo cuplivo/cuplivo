@@ -88,6 +88,7 @@ class BackgroundRuntime(private val context: Context) {
     fun label(key: String, default: String) = labels[key] as? String ?: default
     fun setting(key: String) = settings[key]
     private val scheduledRuns = mutableSetOf<String>()
+    private val careRuns = mutableSetOf<String>()
     val hasScheduledRuns get() = scheduledRuns.isNotEmpty()
     fun shouldRunService() = ((enabled("androidEnabled") && tasks.isNotEmpty()) || hasScheduledRuns) && !blocked
 
@@ -101,6 +102,20 @@ class BackgroundRuntime(private val context: Context) {
     fun endScheduledRun(id: String) {
         scheduledRuns.remove(id)
         reconcileService()
+    }
+
+    /** A proactive-care delivery is not a task of its own before Dart reports
+     * one: it takes the scheduled-task carrier to keep the letter generation
+     * out of the freezer, and the notification says so while that is all there
+     * is. Every care run also holds the service through [beginScheduledRun]. */
+    fun beginCareRun(id: String) {
+        careRuns.add(id)
+        beginScheduledRun(id)
+    }
+
+    fun endCareRun(id: String) {
+        careRuns.remove(id)
+        endScheduledRun(id)
     }
 
     fun configure(messenger: BinaryMessenger) {
@@ -261,8 +276,16 @@ class BackgroundRuntime(private val context: Context) {
     fun buildNotification(): Notification {
         ensureChannel()
         val task = tasks.firstOrNull()
-        val title = if (tasks.size > 1) "${tasks.size} ${label("tasks", "Tasks")}" else task?.title ?: "Kelivo"
-        val content = task?.detail ?: label("working", "Working")
+        // A letter delivery that has not registered its task yet (or already
+        // finished it and is only holding the service for its trailing decision
+        // call) is still a care run: name that state instead of the generic
+        // line, and do not count time on a notification that stands for no task.
+        val careOnly = task == null && careRuns.isNotEmpty()
+        val title = if (tasks.size > 1) "${tasks.size} ${label("tasks", "Tasks")}"
+            else task?.title ?: label("app", "Cuplivo")
+        val content = task?.detail
+            ?: (if (careOnly) label("careWorking", "Preparing your letter") else label("working", "Working"))
+        val timestamp = task?.startedAt ?: System.currentTimeMillis()
         val open = PendingIntent.getActivity(context, 7, openIntent(task?.conversationId ?: ""),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val stop = PendingIntent.getService(context, 8,
@@ -277,7 +300,7 @@ class BackgroundRuntime(private val context: Context) {
                 .setSmallIcon(R.drawable.ic_background_generation)
                 .setContentTitle(title).setContentText(content)
                 .setStyle(style).setOngoing(true).setOnlyAlertOnce(true)
-                .setWhen(task?.startedAt ?: System.currentTimeMillis()).setUsesChronometer(true)
+                .setWhen(timestamp).setUsesChronometer(task != null)
                 .setContentIntent(open).setColorized(false)
                 .addExtras(Bundle().apply { putBoolean("android.requestPromotedOngoing", true) })
                 .addAction(Notification.Action.Builder(
@@ -290,7 +313,7 @@ class BackgroundRuntime(private val context: Context) {
             .setContentTitle(title).setContentText(content)
             .setStyle(NotificationCompat.BigTextStyle().bigText(content))
             .setOngoing(true).setOnlyAlertOnce(true).setSilent(true)
-            .setWhen(task?.startedAt ?: System.currentTimeMillis()).setUsesChronometer(true)
+            .setWhen(timestamp).setUsesChronometer(task != null)
             .setContentIntent(open).setCategory(NotificationCompat.CATEGORY_SERVICE)
             .addAction(R.drawable.ic_background_stop, label("stop", "Stop tasks"), stop)
             .build()

@@ -1154,3 +1154,52 @@ for the request-log teardown the full run surfaced, and this record. `4857da608`
 the working tree is clean. Both backups are pushed: `backup/master-299862c63` (the `master` this
 replaces — the previous landing's tip) and `backup/series-4857da608` (this series, for the next
 re-base). The force-push of `master` is the repository owner's to run.
+
+## Verification of the v1.3.6 replay
+
+Eight upstream commits, and the fork's own line had moved twice since the 4.6
+landing, so this pass is mostly carry: the fifteen units the `00a2b7de0` round
+proved, plus the two commits that round never contained. The record is
+`docs/rebase-v1.3.6.md`; these are the four rules it adds.
+
+- **A new upstream preference key needs a registry row, and the fork's own gate
+  is what says so.** Upstream's optional reply bubble writes
+  `display_show_assistant_body_bubble_v1`; with no row in
+  `BusinessKeyRegistry.rules`, `business_key_registry_sync_test` failed and five
+  widget cases died in `business_preferences.dart:232` (`Unregistered preference
+  key`). The row belongs to the unit that introduces the table (here unit 4), not
+  to the tip: the table is that unit's subject. Policy: `backupOnly` /
+  `deviceViewState` — a view choice this device makes, carried by a backup, not
+  by LAN sync.
+- **`AppDirectories` composes `'<root>/<name>'`, so a scanned row's path is a
+  mixed spelling on Windows.** The scan appends the host separator to that
+  string, giving `<root>/upload\<file>`, while a fixture that builds its own path
+  gives `<root>/upload/<file>`; the two differ by one character and a
+  `ValueKey('storage-image-<path>')` comparison then misses. Normalise **at the
+  key**, never at the entry: the entry path is what the recycle bin and the
+  attachment-usage map compare, and normalising it (tried here, measured) turned
+  an Android storage-filter case red. This is the blast-radius rule with a
+  number on it.
+- **`verify.py --exact` is an identity-commit gate, not a tip gate.** The
+  mechanical set is defined against the baseline, and later units edit those
+  files legitimately (fifteen of them at this tip), so `--exact` at the tip
+  reports drift by construction. Run `--forward` and `--inverse` at the tip;
+  prove `--exact` by comparing the identity commit's blobs with
+  `apply(substitutions, baseline)` — 1516 mechanical plus 67 path-moved files
+  here, zero mismatches.
+- **Carry the commits the last series could not have.** `b091ffa2a` was not an
+  ancestor of the previous landing, so the previous series reproduced
+  `827b54d75` and silently lacked #1083 and #1084 — 4,600 lines that no diff
+  between "old tip" and "new tip" would show, because both ends were missing
+  them. The check is one command per stop: does the new series' content equal the
+  *branch* it claims to reproduce, at the files the branch's last commits touch?
+  For Cuplivo-only trees (sync, recycle, skills) the replay is nearly free — the
+  conflicts here were three imports, `main.dart`'s indentation, and four l10n
+  state files that resolve in our favour (no state entry means "pending", which
+  is where the other 79 messages already wait).
+
+Measured cost of the carry, for the next forecast: the pre-flight
+`merge-tree` census predicted 62 files and 93 conflict rows across the fifteen
+stops; the actual rebase stopped **twice** (identity, 5 files; links, 2 files)
+and the reformat unit was re-derived from `dart format` instead of replayed
+(same five files, one fewer than the 4.6 line's six).

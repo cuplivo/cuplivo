@@ -5707,6 +5707,14 @@
   "backgroundInterrupted": "Background generation was interrupted. Open the chat to continue.",
   "backgroundRequesting": "Connecting",
   "backgroundGenerating": "Generating reply",
+  "backgroundCareLetter": "Writing a letter",
+  "@backgroundCareLetter": {
+    "description": "Notification title while a proactive-care letter is being written, shown on the platform notification."
+  },
+  "backgroundCareWorking": "Preparing your letter",
+  "@backgroundCareWorking": {
+    "description": "Notification body while a proactive-care letter is being generated in the background."
+  },
   "backgroundThinking": "Thinking",
   "backgroundToolRunning": "Running tool",
   "backgroundRetrying": "Waiting to retry",

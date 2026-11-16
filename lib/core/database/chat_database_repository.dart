@@ -6377,10 +6377,11 @@ class ChatDatabaseRepository {
   ///
   /// A row is accepted only where it says it belongs: its conversation column
   /// names this conversation, an extension row carries exactly its family's
-  /// kind, and a row that hangs off a revision names one this conversation keeps.
-  /// A crafted row that names another conversation, another kind, or another
-  /// conversation's revision is dropped — the refusal [_syncForeignMessageIds]
-  /// already makes for messages.
+  /// kind, its owner column agrees when it has one, and a row that hangs off a
+  /// revision names one this conversation keeps. A crafted row that names another
+  /// conversation, another kind, another owner, or another conversation's
+  /// revision is dropped — the refusal [_syncForeignMessageIds] already makes for
+  /// messages.
   Future<bool> _applyConversationDocuments({
     required String conversationId,
     required SyncSubtreePayload payload,
@@ -6400,6 +6401,11 @@ class ChatDatabaseRepository {
       if (keyColumns == null) {
         throw StateError('sync_conflict_target_missing:${family.table}');
       }
+      // Only `extension_entity_rows` has an owner column; a family on any other
+      // table has nothing to check.
+      final ownerColumn = currentSchemaColumns[family.table]!.contains(
+        'owner_id',
+      );
       for (final row in rows) {
         // A row that hangs off a revision is written only when the merge kept
         // that revision: the foreign key is checked at COMMIT, and a dangling
@@ -6411,6 +6417,17 @@ class ChatDatabaseRepository {
         }
         if (row[family.conversationColumn] != conversationId) continue;
         if (family.kind != null && row['kind'] != family.kind) continue;
+        // The row's own statement of who owns it has to agree as well: the
+        // delete that removes a conversation's documents finds them by
+        // `owner_id`, so a row whose conversation column matches while its owner
+        // names someone else would outlive its conversation with no delete left
+        // that could reach it. A null owner is left alone — it is what the older
+        // writers produced, and refusing it would drop rows that sync today.
+        if (ownerColumn &&
+            row['owner_id'] != null &&
+            row['owner_id'] != conversationId) {
+          continue;
+        }
         if (row['payload'] is! String) continue;
         if (keyColumns.any((column) => row[column] is! String)) continue;
         final incomingAt = (row['updated_at'] as num?)?.toInt();

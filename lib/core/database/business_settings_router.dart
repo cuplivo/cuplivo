@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
 import '../models/assistant.dart';
+import '../models/compression_config.dart';
 import 'business_data.dart';
 
 /// What a key does: where it lives, and what carries it.
@@ -1650,7 +1651,7 @@ final class BusinessSettingsRouter {
                   : row.id;
             }
             if (kind == BusinessEntityKind.assistant) {
-              _validateRuntimeAssistant(payload);
+              _validateRuntimePayload(kind, payload, Assistant.fromJson);
             }
             return payload;
           }(),
@@ -1766,8 +1767,24 @@ final class BusinessSettingsRouter {
     final id = hasPayloadId
         ? rawId.toString()
         : rowId ?? _stableGeneratedId(kind.sourceKey, index, payload);
-    if (kind == BusinessEntityKind.assistant) {
-      _validateRuntimeAssistant({...payload, 'id': id});
+    switch (kind) {
+      case BusinessEntityKind.assistant:
+        _validateRuntimePayload(kind, {
+          ...payload,
+          'id': id,
+        }, Assistant.fromJson);
+      case BusinessEntityKind.compressionTemplate:
+        _validateRuntimePayload(kind, {
+          ...payload,
+          'id': id,
+        }, CompressionTemplate.fromJson);
+      case BusinessEntityKind.compressionRecipe:
+        _validateRuntimePayload(kind, {
+          ...payload,
+          'id': id,
+        }, CompressionRecipe.fromJson);
+      default:
+        break;
     }
     String? assistantId;
     if (kind == BusinessEntityKind.assistantMemory) {
@@ -1785,16 +1802,28 @@ final class BusinessSettingsRouter {
     );
   }
 
-  // Validate with the same decoder used by AssistantProvider, before migration
-  // cleanup or exposing a startup snapshot. Keep the original payload intact,
-  // including unknown fields and IDs projected only for runtime use.
-  static void _validateRuntimeAssistant(Map<String, Object?> payload) {
+  // Validate with the same decoder the readers use, before migration cleanup or
+  // exposing a startup snapshot. Keep the original payload intact, including
+  // unknown fields and IDs projected only for runtime use.
+  //
+  // The compression kinds are why this exists at all. `CompressionRepository`
+  // decodes every row of a kind in one loop, so a row these decoders reject is
+  // not a row that looks wrong — it is a library that cannot be listed, and the
+  // page that would let the user delete it reads that same list. The type checks
+  // in [_validateEntityPayload] cannot see it: `formatVersion` is optional there,
+  // `name`/`prompt` are only checked for being strings, and a recipe's `template`
+  // may be absent.
+  static void _validateRuntimePayload(
+    BusinessEntityKind kind,
+    Map<String, Object?> payload,
+    void Function(Map<String, dynamic>) decode,
+  ) {
     try {
-      Assistant.fromJson(payload);
+      decode(payload);
     } catch (error) {
       throw FormatException(
-        BusinessEntityKind.assistant.sourceKey,
-        'assistant=${payload['id']}; $error',
+        kind.sourceKey,
+        '${kind.name}=${payload['id']}; $error',
       );
     }
   }

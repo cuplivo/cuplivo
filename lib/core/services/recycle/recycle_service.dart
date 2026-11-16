@@ -697,10 +697,17 @@ final class RecycleService {
       // in the middle of, so the draft rule below has nothing to say about them.
       // They are not pruned either — a document's payload names no attachments
       // the delete removed, and pruning is the draft's own problem.
+      //
+      // The test is the document list itself, not "anything that is not a
+      // draft". The capture stages exactly [conversationCapturedKinds], and the
+      // guard test pins that to these documents plus the draft, so the two cases
+      // are exhaustive by construction — and a third category added to the
+      // capture list is left out here rather than written back through the rule
+      // that was meant for a document.
       final extensionRows =
           tables['extension_entity_rows'] ?? const <Map<String, Object?>>[];
       for (final row in extensionRows) {
-        if (row['kind'] == ComposerDraftStore.kind) continue;
+        if (!conversationDocumentKinds.contains(row['kind'])) continue;
         await _insertRow(
           'extension_entity_rows',
           row,

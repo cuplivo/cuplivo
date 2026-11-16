@@ -471,6 +471,70 @@ void main() {
       );
     });
 
+    test(
+      'an entry carrying a kind this build has no rule for is not written',
+      () async {
+        // No build stages such an entry: the capture stages exactly
+        // conversationCapturedKinds, and the guard test pins that to the documents
+        // plus the draft. The case is what a widened capture list would produce,
+        // and the restore's job is to leave the row out rather than write it back
+        // through the rule that belongs to a document.
+        await seedConversation('c1');
+        await seedDocuments('c1');
+        await repository.deleteConversation('c1');
+        final staged = (await store.readTables((await binEntries()).single))!;
+        const foreignKind = 'aKindThisBuildDoesNotRestore';
+
+        await store.stageRows(
+          type: RecycleEntryType.conversation,
+          origin: RecycleOrigin.local,
+          reason: RecycleReason.deleted,
+          key: 'c1',
+          title: 'Topic c1',
+          tables: {
+            ...staged,
+            'extension_entity_rows': [
+              ...?staged['extension_entity_rows'],
+              const <String, Object?>{
+                'kind': foreignKind,
+                'id': 'c1',
+                'sort_order': 0,
+                'owner_id': 'c1',
+                'payload': '{}',
+                'updated_at': 0,
+              },
+            ],
+          },
+        );
+
+        RecycleEntry? forged;
+        for (final candidate in await binEntries()) {
+          final tables = await store.readTables(candidate);
+          final rows = tables?['extension_entity_rows'] ?? const [];
+          if (rows.any((row) => row['kind'] == foreignKind)) forged = candidate;
+        }
+        expect(
+          forged,
+          isNotNull,
+          reason: 'the entry the test means to restore',
+        );
+
+        expect(await recycle.restore(forged!), RecycleRestoreOutcome.restored);
+
+        expect(
+          await extensionPayloads('c1', kinds: const {foreignKind}),
+          isEmpty,
+          reason: 'a kind with no restore rule is not written through one',
+        );
+        expect(
+          (await extensionPayloads('c1')).keys,
+          unorderedEquals(conversationDocumentKinds),
+          reason:
+              'the documents the build does have a rule for still came back',
+        );
+      },
+    );
+
     test('the delete list and the capture list are one rule', () {
       expect(
         conversationCapturedKinds,
@@ -492,7 +556,11 @@ void main() {
           ...conversationDocumentKinds,
           ComposerDraftStore.kind,
         }),
-        reason: 'the draft travels under its own delete path, not this one',
+        reason:
+            'the draft travels under its own delete path, not this one — and '
+            'this identity is what makes the restore exhaustive: a document is '
+            'written whole, a draft goes through its gate, and there is no '
+            'third case to fall between them',
       );
     });
 

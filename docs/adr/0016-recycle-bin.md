@@ -262,6 +262,21 @@ deleted, and would put "your deleted conversation" into a peer's storage.
     (`ComposerDraftStore.reloadRestored`): a delete fences an id for the store's whole lifetime, and without
     that seam the composer of the restored conversation cannot open at all.
 
+    **The draft's filter became the rule's own list, and it was hiding three more kinds.** A conversation
+    keeps three documents outside its messages — the history of the operations that compressed or cleared
+    its context (`conversationContext`), its image-context settings (`conversationImageContext`) and its own
+    compression configuration (`conversationCompression`) — and the delete removed all three while the
+    capture staged none of them: delete-and-restore silently dropped them, which is what a bin under a
+    delete the user regrets exists to prevent. The capture therefore no longer names one kind. It stages
+    exactly the kinds the delete removes, both read from one constant
+    (`lib/core/database/conversation_owned_kinds.dart`), and the delete claims those rows by `id` — the
+    column every reader of them uses (`_hasDraft`, `readImageContextSettings`,
+    `CompressionRepository.overrides`, `readContextOperations`) — instead of the `owner_id` that used to be
+    the one place in the app where these rows had a second key. `contextCompressionTask` is the one kind
+    deleted and deliberately not staged, on the same line as `generation_run_rows` (see Not in scope). A
+    restore writes the documents back whole and unconditionally, and leaves the draft's gate and its
+    attachment pruning to the draft it is about.
+
 ## Consequences
 
 - The capture is transactional and the write is not, so the bin is *eventually* consistent with the
@@ -269,7 +284,8 @@ deleted, and would put "your deleted conversation" into a peer's storage.
   it is deliberately the only handle on that timing — production never needs it, because nothing there
   inspects the bin on the operation's own path.
 - Restoring a conversation brings back its messages, message parts, provider artifacts, prompts, asset
-  references and MCP server bindings, and stamps the conversation row `now()`. Its **asset files** are the
+  references, MCP server bindings and its three documents (operation history, image context, compression
+  configuration), and stamps the conversation row `now()`. Its **asset files** are the
   one part the bin does not own: assets are garbage-collected on their own 7-day schedule, so a restore
   after that window returns the text and drops the references whose asset row is gone (a foreign key would
   refuse them, and they would render as broken attachments anyway).
@@ -346,6 +362,8 @@ deleted, and would put "your deleted conversation" into a peer's storage.
   history the user could want back: the delete removes those rows with the messages they target
   (`target_revision_id`), and a restored run would describe a stream no writer is feeding. Decision 3's list
   of tables is therefore what the *capture* recovers, not an exhaustive map of everything a delete touches.
+  `contextCompressionTask` takes the same line one layer up: it is deleted with its conversation and is the
+  one extension kind named as unrecoverable rather than staged.
 - A lazily laid-out preview. The detail page draws its budgeted body as one selectable block, so a
   conversation whose body reaches the 200 KB cap is one very tall paragraph; splitting it into lazy rows or
   lowering the cap are both open, and neither is worth doing before someone measures a frame time.

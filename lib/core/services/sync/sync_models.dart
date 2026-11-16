@@ -284,14 +284,6 @@ String composeConversationDigest(Map<String, String> contributions) {
 String digestFromSortedLines(String sortedLines) =>
     crypto.sha256.convert(utf8.encode(sortedLines)).toString();
 
-/// Digest of a newline-joined digest input in *any* line order: sorts the
-/// lines first, so callers never depend on SQL `group_concat` ordering.
-String digestFromDigestInput(String lines) {
-  if (lines.isEmpty) return emptyConversationDigest;
-  final sorted = lines.split('\n')..sort();
-  return digestFromSortedLines(sorted.join('\n'));
-}
-
 /// The digest input for an empty conversation (no message rows).
 final String emptyConversationDigest = digestFromSortedLines('');
 

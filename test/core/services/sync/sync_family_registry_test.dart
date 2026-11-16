@@ -99,6 +99,13 @@ void main() {
         final v = "WHERE kind = 'tool_call'";
         final w = kind: 'image';
       }
+      void d() {
+        // The entity store takes the kind first, so a kind written this way is
+        // neither a declaration nor a `kind`-named use.
+        store.upsert('composerMigrationDraft', 'x', {});
+        store.listByKind('composerWatchKind');
+        store.delete('a1b2c3d4');
+      }
     ''');
     expect(found.keys.toSet(), {
       // A declaration is a kind whatever its casing: a capture that stopped at
@@ -116,6 +123,10 @@ void main() {
       'composerPublishedFile',
       'composerPrivateFile',
       'composerShareReceipt',
+      // Positional, claimed like a use: the hash in `store.delete` above is not,
+      // which is what keeps a store keyed by hash out of the registry.
+      'composerMigrationDraft',
+      'composerWatchKind',
     });
   });
 

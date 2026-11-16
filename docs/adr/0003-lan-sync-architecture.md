@@ -2143,7 +2143,14 @@ existing hello gate refuses it with the upgrade reason it already carries.
 - **A replaced compression history is visible**: the report counts it, and the losing copy is
   recoverable from the raw messages, not from the document.
 - **A new family costs one entry plus, at most, a payload case** — and the guard refuses the ones
-  nobody classified.
+  nobody classified. It reads four shapes: a declaration (`entityKind =`, `extensionKind:`,
+  `static const …[Kk]ind =`), a camelCase use (`kind =`, `kind:`, `kind.equals`, `kind IN (…)`), and
+  a kind passed positionally to `ExtensionEntityStore` (`upsert`, `get`, `delete`, `listByKind`,
+  `watchKind`). Three review rounds found three blind spots in it — a compound identifier, a capture
+  that stopped at the first non-letter, and a literal in an argument position — so the next fix of
+  this shape should not widen the scan a fourth time: it should make the store take a registered
+  token, where an unregistered kind cannot be written at all. What a source scan cannot see is a kind
+  that never appears as a literal, and there will always be one.
 
 ### Two grains of "this does not travel"
 

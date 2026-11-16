@@ -11,6 +11,8 @@ import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/database/business_repository.dart';
 import 'package:Cuplivo/core/database/business_restore_service.dart';
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/models/compression_config.dart';
 import 'package:Cuplivo/core/services/backup/restore_bundle_staging.dart';
 import 'package:Cuplivo/core/services/instruction_injection_store.dart';
 
@@ -174,6 +176,106 @@ void main() {
           );
           expect(exported, isNot(contains('snapshot_only_v1')));
           expect(exported, isNot(contains('flutter_log_enabled_v1')));
+        } finally {
+          await inspectionDatabase.close();
+        }
+      },
+    );
+
+    test(
+      'a library the archive does not name survives the staged overwrite',
+      () async {
+        // The compression library lived only in the snapshot database until it
+        // became two business kinds, so this archive has every template in its
+        // database half and no key for it in settings.json. Staging replaces the
+        // business tables from that settings half, and a missing key must keep
+        // the archive's own rows rather than read as an empty library.
+        final extracted = Directory(p.join(root.path, 'library-extracted'));
+        final databaseFile = File(
+          p.join(extracted.path, 'database', 'kelivo.db'),
+        );
+        await databaseFile.parent.create(recursive: true);
+        const template = CompressionTemplate(
+          id: 'custom',
+          name: 'My RP',
+          prompt: 'Keep secrets separate {content}',
+        );
+        final database = AppDatabase.open(file: databaseFile);
+        try {
+          await ExtensionEntityStore(database).upsert(
+            CompressionTemplate.entityKind,
+            template.id,
+            template.toJson(),
+          );
+          final now = DateTime.now().microsecondsSinceEpoch;
+          await database.customStatement(
+            'INSERT INTO conversation_rows '
+            '(id, title, created_at, updated_at) VALUES (?, ?, ?, ?);',
+            ['conversation-1', 'Preserved chat', now, now],
+          );
+        } finally {
+          await database.close();
+        }
+        final databaseInfo =
+            await ChatDatabaseRepository.prepareSnapshotForRestore(
+              databaseFile,
+            );
+
+        final settingsFile = File(p.join(extracted.path, 'settings.json'));
+        await settingsFile.writeAsString(
+          jsonEncode({'theme_mode_v1': 'dark'}),
+          flush: true,
+        );
+        final manifestFile = File(p.join(extracted.path, 'manifest.json'));
+        await manifestFile.writeAsString(
+          jsonEncode({
+            'format': 'kelivo-backup',
+            'formatVersion': 2,
+            'payloadKind': 'sqlite',
+            'createdAtUtc': '2026-07-18T00:00:00.000Z',
+            'appVersion': 'test',
+            'includeChats': true,
+            'includeFiles': false,
+            'secretsIncluded': true,
+            'database': {
+              'entry': 'database/kelivo.db',
+              'schemaVersion': databaseInfo.schemaVersion,
+              'conversationCount': databaseInfo.conversationCount,
+              'messageCount': databaseInfo.messageCount,
+            },
+            'entries': {
+              'settings.json': {
+                'bytes': await settingsFile.length(),
+                'sha256': await _sha256(settingsFile),
+              },
+              'database/kelivo.db': {
+                'bytes': await databaseFile.length(),
+                'sha256': await _sha256(databaseFile),
+              },
+            },
+          }),
+          flush: true,
+        );
+
+        final staged = await RestoreBundleStaging.create(
+          appDataDirectory: root,
+          extractedDirectory: extracted,
+          includeChats: true,
+          includeFiles: false,
+          sourceManifestSha256: await _sha256(manifestFile),
+        );
+
+        final inspectionFile = await File(
+          p.join(staged.payloadDirectory.path, 'database', 'kelivo.db'),
+        ).copy(p.join(root.path, 'library-inspection.sqlite'));
+        final inspectionDatabase = AppDatabase.open(file: inspectionFile);
+        try {
+          expect(
+            await ExtensionEntityStore(
+              inspectionDatabase,
+            ).get(CompressionTemplate.entityKind, template.id),
+            isNotNull,
+          );
         } finally {
           await inspectionDatabase.close();
         }

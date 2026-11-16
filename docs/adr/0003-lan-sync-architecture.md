@@ -2142,6 +2142,14 @@ existing hello gate refuses it with the upgrade reason it already carries.
   agree, so only genuinely diverged conversations transfer.
 - **A replaced compression history is visible**: the report counts it, and the losing copy is
   recoverable from the raw messages, not from the document.
+- **An archive from before the promotion keeps its library in either restore mode.** The library's
+  carrier moved from the snapshot database to `settings.json`, so an older archive names neither key
+  while its database half holds every template and recipe. Merge already read key presence;
+  `overwrite` now keeps those two kinds' rows when the archive is silent about them, because the
+  empty list a missing key routes to would delete the archive's only copy. The rule is scoped to the
+  two kinds whose carrier moved: every other kind keeps `overwrite` meaning "exactly what this
+  archive says", memory entries in particular being derived state that must not outlive the history
+  the archive replaced.
 - **A deletion still pending at the upgrade is undone once.** A conversation deleted on one device
   but not yet synced when both upgrade comes back in the first v9 session: this device holds no
   manifest entry for it, so the plan compares the peer's v9 digest with the v8 digest the checkpoint

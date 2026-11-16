@@ -297,4 +297,37 @@ void main() {
       expect(await store.listByKind(CompressionRecipe.entityKind), isEmpty);
     },
   );
+
+  test('a library the archive does not name survives its overwrite', () async {
+    // The library lived only in the snapshot database before it became two
+    // business kinds, so an archive from an earlier build carries every
+    // template in the database half and no key in the settings half. The
+    // missing key is the archive saying nothing, not the archive saying
+    // "none": reading it as an empty library deletes what the archive carries.
+    const template = CompressionTemplate(
+      id: 'custom',
+      name: 'My RP',
+      prompt: 'Keep secrets separate {content}',
+    );
+    await store.upsert(
+      CompressionTemplate.entityKind,
+      template.id,
+      template.toJson(),
+    );
+
+    await BusinessRestoreService(
+      repository,
+    ).overwrite({'theme_mode_v1': 'dark'});
+    expect(
+      await store.listByKind(CompressionTemplate.entityKind),
+      hasLength(1),
+    );
+
+    // A key the archive does carry is still replaced, and an explicit empty
+    // list is the archive saying it has none of that kind.
+    await BusinessRestoreService(
+      repository,
+    ).overwrite({'compression_templates_v1': jsonEncode(const <Object>[])});
+    expect(await store.listByKind(CompressionTemplate.entityKind), isEmpty);
+  });
 }

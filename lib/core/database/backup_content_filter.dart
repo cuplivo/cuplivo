@@ -69,14 +69,24 @@ final class BackupContentFilter {
     preferences: select(snapshot.preferences, scope),
   );
 
+  /// The archive's answer for every business kind: its own rows where the
+  /// archive speaks, the target's rows where it does not.
+  ///
+  /// [keepLocal] names the kinds the caller knows this archive cannot speak
+  /// about even though its settings half is otherwise authoritative — a kind
+  /// whose carrier moved after the archive was written. Those keep the rows
+  /// already there instead of the empty list a missing key routes to.
   static BusinessSnapshot preserveUnselected(
     BusinessSnapshot incoming,
     BusinessSnapshot local,
-    BackupScope scope,
-  ) => BusinessSnapshot(
+    BackupScope scope, {
+    Set<BusinessEntityKind> keepLocal = const {},
+  }) => BusinessSnapshot(
     entities: {
       for (final kind in BusinessEntityKind.values)
-        kind: scope.includes(categoryForKey(kind.sourceKey))
+        kind:
+            scope.includes(categoryForKey(kind.sourceKey)) &&
+                !keepLocal.contains(kind)
             ? incoming.entities[kind]!
             : local.entities[kind]!,
     },

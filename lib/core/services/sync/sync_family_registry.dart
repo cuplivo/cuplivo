@@ -83,7 +83,7 @@ class SyncFamily {
     this.messageRevisionColumn,
     this.orderBy,
     this.isSubtreeRoot = false,
-    this.apply = SyncFamilyApply.specialised,
+    this.apply = SyncFamilyApply.rowLastWriteWins,
     required this.ownership,
     this.deviceLocalReason,
     required this.scope,
@@ -140,6 +140,14 @@ class SyncFamily {
   final bool isSubtreeRoot;
 
   /// Who applies this family's rows when they arrive.
+  ///
+  /// Defaults to [SyncFamilyApply.rowLastWriteWins] on purpose. The other value
+  /// means "one of the four tables the merge body has a rule for", and a family
+  /// that asked for it by accident would be read, sent and digested while nothing
+  /// ever wrote its rows — convergeless and silent. A family that gets the
+  /// row-level rule by accident fails the other way: the applier asks for a
+  /// conflict target and finds none, which is a `StateError` on the first
+  /// session. The guard refuses the explicit form of the mistake too.
   final SyncFamilyApply apply;
 
   final SyncFamilyOwnership ownership;
@@ -200,6 +208,7 @@ const List<SyncFamily> kSyncFamilies = [
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.conversation,
     identity: SyncIdentityContribution.conversationClock,
+    apply: SyncFamilyApply.specialised,
     blobColumns: [
       'title',
       'summary',
@@ -218,6 +227,7 @@ const List<SyncFamily> kSyncFamilies = [
     // No clock column: the binding *is* its (server, ordinal) pair.
     identity: SyncIdentityContribution.rowValues,
     identityColumns: ['server_id', 'ordinal'],
+    apply: SyncFamilyApply.specialised,
   ),
   SyncFamily(
     name: 'messages',
@@ -231,6 +241,7 @@ const List<SyncFamily> kSyncFamilies = [
     clockColumn: 'updated_at',
     fallbackClockColumn: 'timestamp',
     blobColumns: ['translation', 'reasoning_segments_json', 'extras_json'],
+    apply: SyncFamilyApply.specialised,
   ),
   SyncFamily(
     name: 'messageParts',
@@ -244,6 +255,7 @@ const List<SyncFamily> kSyncFamilies = [
     clockColumn: 'updated_at',
     fallbackClockColumn: 'created_at',
     blobColumns: ['payload'],
+    apply: SyncFamilyApply.specialised,
   ),
 
   // ---- the conversation's own documents, and the artifacts it needs --------
@@ -717,6 +729,25 @@ Map<String, List<String>> extensionKindsInSource(String source) {
   return found;
 }
 
+/// The tables the merge body applies by rules of its own: the message union with
+/// its order re-derivation, the parts written with their revision, the binding
+/// set replace, and the conversation row itself.
+///
+/// This is the other half of [SyncFamily.apply]'s default. A family that says
+/// nothing gets the row-level rule, which either works or asks the applier for a
+/// conflict target the table does not have — a `StateError` on the first session.
+/// Asking for `specialised` is therefore the one way to get a family that is read,
+/// sent and digested while nothing ever writes its rows, and this set is what the
+/// guard measures that request against: the body looks its three non-root
+/// families up by table, so a fourth table has no rule and no way to acquire one
+/// by registering.
+const _specialisedTables = {
+  'conversation_rows',
+  'message_rows',
+  'message_part_rows',
+  'conversation_mcp_server_rows',
+};
+
 /// Everything wrong with [families], as one list of sentences. Empty means the
 /// registry holds.
 ///
@@ -771,6 +802,15 @@ List<String> syncFamilyProblems(
           }
         } else if (family.identity == SyncIdentityContribution.none) {
           problems.add('$where: synced but contributes nothing to an identity');
+        }
+        if (family.scope == SyncFamilyScope.conversation &&
+            family.apply == SyncFamilyApply.specialised &&
+            !_specialisedTables.contains(family.table)) {
+          problems.add(
+            '$where: specialised, but the merge body has no rule for '
+            '${family.table} — its rows would be read, sent and digested, and '
+            'never applied',
+          );
         }
     }
     final keyed =

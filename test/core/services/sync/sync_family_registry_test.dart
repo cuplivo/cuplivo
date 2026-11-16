@@ -196,6 +196,32 @@ void main() {
     );
   });
 
+  test(
+    'a specialised family on a table the merge body does not know would fail',
+    () {
+      // The dangerous direction of `SyncFamily.apply`: read, sent and digested,
+      // and no rule writes it — a conversation that re-plans every session and
+      // never converges, with nothing red to say so.
+      final problems = syncFamilyProblems([
+        ...families,
+        const SyncFamily(
+          name: 'ghostSpecialised',
+          table: 'provider_artifact_rows',
+          wireKey: 'ghost',
+          ownership: SyncFamilyOwnership.synced,
+          scope: SyncFamilyScope.conversation,
+          identity: SyncIdentityContribution.rowValues,
+          identityColumns: ['revision_id'],
+          apply: SyncFamilyApply.specialised,
+        ),
+      ], conversationTables: conversationAttachedTables);
+      expect(
+        problems.where((problem) => problem.contains('never applied')),
+        isNotEmpty,
+      );
+    },
+  );
+
   test('a business family that declares an identity would fail', () {
     // A business row's digest is `entityRowDigest(payload, sort_order)`; the
     // registry's `identity` is read only for conversation families. Declaring

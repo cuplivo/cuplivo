@@ -133,6 +133,44 @@ void main() {
         checkpointRowsByConversation: const {},
       ))[conversationId]!;
 
+  test('the wire subtree carries no device-local column', () async {
+    await seedShiftedOrder();
+    // A column whose value is this device's own fact. The physical column stays
+    // (dropping one is not an additive migration) and the applier restores it
+    // from the local row, so the only thing that has to hold is that it never
+    // leaves: a peer value says a snapshot is in context that this device never
+    // sent, and for a conversation this device does not have yet there is no
+    // local row to restore from.
+    await database.customStatement(
+      'UPDATE conversation_rows SET injected_memory_hash = ?, '
+      'last_memory_extracted_order = ? WHERE id = ?;',
+      ['mine000000000001', 4, conversationId],
+    );
+    expect(
+      (await repository.syncReadConversationRow(conversationId))!,
+      contains('injected_memory_hash'),
+      reason: 'the local read still sees it — the strip belongs to the wire',
+    );
+
+    final subtree = await dataPlane.readSubtree(conversationId);
+
+    expect(subtree, isNotNull);
+    expect(
+      subtree!.conversation.containsKey('injected_memory_hash'),
+      isFalse,
+      reason:
+          'the device-local column reached the wire: is readSubtree still on '
+          'syncReadWireConversationRow?',
+    );
+    expect(
+      subtree.conversation['last_memory_extracted_order'],
+      4,
+      reason:
+          'the extraction watermark is a fact about the conversation, not about '
+          'this device, so it travels and joins with max',
+    );
+  });
+
   test('a reorder-only apply still rebuilds the conversation it fixed', () async {
     await seedShiftedOrder();
 

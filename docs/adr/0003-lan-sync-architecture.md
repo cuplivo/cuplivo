@@ -2144,3 +2144,26 @@ existing hello gate refuses it with the upgrade reason it already carries.
   recoverable from the raw messages, not from the document.
 - **A new family costs one entry plus, at most, a payload case** — and the guard refuses the ones
   nobody classified.
+
+### Two grains of "this does not travel"
+
+A *family* can be device-local (`SyncFamilyOwnership.deviceLocal` plus its reason): none of its rows
+are registered to travel. A *column* can be device-local too, and that is a different grain — the row
+travels, one of its columns is this device's own fact. `#1087` established the shape: the read side
+strips it (`syncReadWireConversationRow`) and the applier restores it from the local row, because
+`_upsertSyncRow` writes every column the schema has. An omitted key becomes NULL, so a peer value
+would claim something this device never did, and for a conversation that arrives new there is no
+local row to restore from at all — the strip is the whole protection.
+
+The rule for a future one: strip it on the wire read, restore it in the apply, and keep it out of
+every identity contribution. A device-local value inside a digest would make two devices disagree
+permanently about a conversation neither of them touched. `conversation_rows` contributes
+`conversationClock` — its `updated_at` — so today's column is invisible to the digest by
+construction, and `the wire subtree carries no device-local column` holds the read half of the rule.
+
+One conflation worth naming: the conversation row's merge is not pure LWW.
+`last_memory_extracted_order` is monotone on both sides and joins with `max` in the applier, after
+`mergeConversationRow` has picked a winner. It is not a second merge — the join is symmetric, so both
+peers compute the same value whoever won the row — but "who wins" and "what the row ends up as" are
+now two places. A third such column should become a registration in the family table, not a third
+patch in the applier.

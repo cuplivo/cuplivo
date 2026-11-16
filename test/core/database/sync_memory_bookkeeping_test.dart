@@ -1,5 +1,6 @@
 import 'package:Cuplivo/core/database/app_database.dart';
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/services/sync/sync_family_registry.dart';
 import 'package:Cuplivo/core/services/sync/sync_models.dart';
 import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
@@ -23,6 +24,10 @@ void main() {
   late ChatDatabaseRepository repository;
   const conversationId = 'conv';
 
+  /// A subtree carries rows by registered family, not by named field — the same
+  /// shape `readSubtree` produces.
+  final messageFamily = syncFamilyOfTable('message_rows').name;
+
   setUp(() async {
     database = AppDatabase(NativeDatabase.memory());
     repository = ChatDatabaseRepository(database);
@@ -32,7 +37,7 @@ void main() {
   tearDown(() => database.close());
 
   /// A wire row carries every column of [currentSchemaColumns] except the ones
-  /// that never travel — the same shape `syncReadConversationRow` produces.
+  /// that never travel — the same shape `syncReadWireConversationRow` produces.
   Map<String, dynamic> wireConversationRow({
     required String id,
     required int updatedAtUs,
@@ -87,9 +92,7 @@ void main() {
           updatedAtUs: updatedAtUs,
           watermark: watermark,
         ),
-        messages: const [],
-        parts: const [],
-        mcpServers: const [],
+        families: const {},
       ),
       myDeviceId: 'me',
       peerDeviceId: 'peer',
@@ -205,9 +208,11 @@ void main() {
           updatedAtUs: 2000,
           watermark: -1,
         ),
-        messages: [wireMessageRow(id: 'early', timestampUs: 1000, order: 0)],
-        parts: const [],
-        mcpServers: const [],
+        families: {
+          messageFamily: [
+            wireMessageRow(id: 'early', timestampUs: 1000, order: 0),
+          ],
+        },
       ),
       myDeviceId: 'me',
       peerDeviceId: 'peer',

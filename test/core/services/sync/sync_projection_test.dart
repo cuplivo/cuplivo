@@ -68,7 +68,7 @@ void main() {
     ]);
   });
 
-  test('every row a payload carries is reachable through travellingRows', () {
+  test('every row a payload carries is reachable through its family', () {
     final payload = subtreePayload(
       conversation: {'id': 'c1'},
       messages: [
@@ -83,7 +83,10 @@ void main() {
       ],
     );
     expect(
-      payload.travellingRows.length,
+      [
+        for (final family in syncedConversationFamilies)
+          ...payload.rowsOf(family),
+      ].length,
       1 + 2 + 1 + 1,
       reason: 'the root row plus one per registered family row',
     );

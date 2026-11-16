@@ -24,14 +24,12 @@ void main() {
   late ChatDatabaseRepository repository;
   const conversationId = 'conv';
 
-  final contextFamily = syncFamilyFor(
-    'extension_entity_rows',
-    kind: 'conversationContext',
-  )!;
-  final imageContextFamily = syncFamilyFor(
-    'extension_entity_rows',
-    kind: 'conversationImageContext',
-  )!;
+  SyncFamily documentFamily(String kind) => kSyncFamilies.singleWhere(
+    (family) => family.table == 'extension_entity_rows' && family.kind == kind,
+  );
+
+  final contextFamily = documentFamily('conversationContext');
+  final imageContextFamily = documentFamily('conversationImageContext');
   final artifactsFamily = syncFamilyOfTable('provider_artifact_rows');
 
   setUp(() async {
@@ -329,6 +327,47 @@ void main() {
       isFalse,
       reason:
           'a bothSend echoes our own row back; nothing of ours was replaced',
+    );
+  });
+
+  test('the same document in another key order is not a loss', () async {
+    // The writers build these payloads by spreading different sources, so the
+    // same values can reach the wire in another order. Every value survived, so
+    // nothing was replaced — and the counter is the one place a replaced history
+    // is ever surfaced, where a false positive spends the sentence.
+    await apply(
+      payloadWith({
+        contextFamily.name: [
+          documentRow(
+            kind: contextFamily.kind!,
+            payload: '{"history":[{"from":"a","to":"b"}],"mode":"off"}',
+            updatedAt: 100,
+          ),
+        ],
+      }),
+    );
+
+    final outcome = await apply(
+      payloadWith({
+        contextFamily.name: [
+          documentRow(
+            kind: contextFamily.kind!,
+            payload: '{"mode":"off","history":[{"to":"b","from":"a"}]}',
+            updatedAt: 200,
+          ),
+        ],
+      }),
+    );
+
+    expect(
+      outcome.documentReplaced,
+      isFalse,
+      reason: 'the same document, serialized in another key order',
+    );
+    expect(
+      (await documents(contextFamily)).single['payload'],
+      '{"mode":"off","history":[{"to":"b","from":"a"}]}',
+      reason: 'the peer still wins the row; only the report is order-free',
     );
   });
 

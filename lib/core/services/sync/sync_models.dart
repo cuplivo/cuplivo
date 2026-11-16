@@ -926,13 +926,6 @@ class SyncSubtreePayload {
       ? [conversation]
       : (families[family.name] ?? const []);
 
-  /// Every row this payload carries, whichever family it belongs to.
-  Iterable<Map<String, dynamic>> get travellingRows sync* {
-    for (final family in syncedConversationFamilies) {
-      yield* rowsOf(family);
-    }
-  }
-
   Map<String, dynamic> toJson() => {
     for (final family in syncedConversationFamilies)
       if (family.isSubtreeRoot)

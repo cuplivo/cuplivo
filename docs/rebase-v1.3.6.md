@@ -209,7 +209,9 @@ Error (Xcode): Build input file cannot be found:
 
 `v4.6.0` (`4cda01e4f`) carries the same mismatch, introduced by the old line's
 identity commit `cdfc60a02`; that release's iOS job was *cancelled* rather than
-failed, which is why nothing said so and why it shipped without an iOS artifact.
+failed — macOS was cancelled in the same run — which is why nothing said so. Its
+nine assets are three APKs, four Linux packages and two Windows ones: no `.ipa`,
+no `.dmg`.
 The repair reverts the 44 literals (`5ecbfcf01`) rather than renaming 15 files,
 because the Swift type, the ObjC symbols and their includes all still say
 `Kelivo`. Proof: a sweep of every `path = …;` in the project against the tree
@@ -241,5 +243,5 @@ handle, so on Windows all eight rewritten files came back CRLF and each diff rea
 `v4.6.0` stays at `4cda01e4f`. `release.yml` ran from the tag (`43741482320`):
 Android, iOS, Linux, macOS and Windows all green, the release-notes job wrote the
 body from the two changelogs (Chinese block, then English), and eleven assets were
-published — including `Cuplivo_ios_4.7.0+10.ipa`, the first iOS artifact this fork
-has shipped.
+published — including `Cuplivo_ios_4.7.0+10.ipa`, the first iOS artifact since
+`v4.5.0`; `v4.6.0` shipped neither an `.ipa` nor a `.dmg`.

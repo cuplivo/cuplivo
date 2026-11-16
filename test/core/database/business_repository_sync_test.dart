@@ -639,7 +639,15 @@ void main() {
               'formatVersion': 1,
               'id': 'r1',
               'name': 'Tight',
-              'template': {'id': 't1'},
+              // A whole template: `CompressionRecipe.fromJson` parses this map
+              // with `CompressionTemplate.fromJson`, so a reference would be a
+              // row the library cannot read back once it lands.
+              'template': {
+                'formatVersion': 1,
+                'id': 't1',
+                'name': 'Brief',
+                'prompt': 'Summarise in five lines.',
+              },
               'settings': {'keepRecentUserTurns': 2},
             }),
             'updated_at': at,

@@ -9,6 +9,7 @@ import '../../database/app_database.dart';
 import '../../database/business_data.dart';
 import '../../database/chat_database_repository.dart';
 import '../../database/composer_draft_store.dart';
+import '../../database/conversation_owned_kinds.dart';
 import '../../database/schema_columns.dart';
 import '../../../utils/app_directories.dart';
 import '../../../utils/workspace_paths.dart';
@@ -108,36 +109,32 @@ final class RecycleService {
 
   /// Tables a conversation snapshot recovers, each with the column that ties its
   /// rows to the conversation — and, for a table that hosts more than one kind
-  /// of row, the `kind` that picks this conversation's own.
+  /// of row, the kinds that pick out this conversation's own.
   ///
   /// This list is the whole of a conversation snapshot: a table that is not here
   /// is not recovered. It is deliberately **not** an exhaustive map of what a
-  /// delete removes: `generation_run_rows` goes with the messages it targets and
-  /// is not staged, because a run is bookkeeping for a stream that is happening
-  /// now rather than history a user could want back (ADR-0016, "Not in scope").
-  static const List<({String table, String column, String? kind})>
+  /// delete removes, and only one difference is allowed: the extension kinds come
+  /// from [conversationCapturedKinds], which the delete reads too, so the gap is
+  /// the exclusion written down beside it — a compression task is a stream that
+  /// is happening now rather than history a user could want back, the same line
+  /// ADR-0016 draws for `generation_run_rows`.
+  static const List<({String table, String column, Set<String>? kinds})>
   _conversationTables = [
-    (table: 'conversation_rows', column: 'id', kind: null),
+    (table: 'conversation_rows', column: 'id', kinds: null),
     (
       table: 'conversation_mcp_server_rows',
       column: 'conversation_id',
-      kind: null,
+      kinds: null,
     ),
-    (table: 'message_rows', column: 'conversation_id', kind: null),
-    (table: 'message_part_rows', column: 'conversation_id', kind: null),
-    (table: 'provider_artifact_rows', column: 'conversation_id', kind: null),
-    (table: 'message_prompt_rows', column: 'conversation_id', kind: null),
-    (table: 'message_asset_rows', column: 'conversation_id', kind: null),
-    // The composer draft is one device-local row keyed by the conversation id,
-    // removed by the same delete: it is text the user typed and never sent, so
-    // losing it is losing part of the conversation they deleted by accident. It
-    // is the only extension row a conversation owns, and the kind is named
-    // rather than implied — the id column alone would sweep up any future
-    // device-local row keyed the same way.
+    (table: 'message_rows', column: 'conversation_id', kinds: null),
+    (table: 'message_part_rows', column: 'conversation_id', kinds: null),
+    (table: 'provider_artifact_rows', column: 'conversation_id', kinds: null),
+    (table: 'message_prompt_rows', column: 'conversation_id', kinds: null),
+    (table: 'message_asset_rows', column: 'conversation_id', kinds: null),
     (
       table: 'extension_entity_rows',
       column: 'id',
-      kind: ComposerDraftStore.kind,
+      kinds: conversationCapturedKinds,
     ),
   ];
 
@@ -494,22 +491,33 @@ final class RecycleService {
   /// the whole conversation — a few tens of a millisecond per megabyte, measured
   /// — on the delete's own path.
   Future<String?> _readConversationSubtree(String conversationId) async {
-    final projections = <String>[
-      for (final entry in _conversationTables)
+    // Projections and variables are bound by position, so one loop builds both.
+    // A second comprehension over the same list is exactly how a multi-kind
+    // entry binds its neighbour's parameters into its own WHERE — the failure
+    // that reads as "the capture came back empty" instead of raising.
+    final projections = <String>[];
+    final variables = <Variable<Object>>[];
+    for (final entry in _conversationTables) {
+      final kinds = entry.kinds ?? const <String>{};
+      final columns = [
+        for (final column in currentSchemaColumns[entry.table]!)
+          "'$column', $column",
+      ].join(', ');
+      projections.add(
         "'${entry.table}', json((SELECT COALESCE(json_group_array("
-            'json_object(${[for (final column in currentSchemaColumns[entry.table]!) "'$column', $column"].join(', ')})), json_array()) '
-            'FROM ${entry.table} WHERE ${entry.column} = ?'
-            '${entry.kind == null ? '' : ' AND kind = ?'}))',
-    ];
+        'json_object($columns)), json_array()) '
+        'FROM ${entry.table} WHERE ${entry.column} = ?'
+        '${kinds.isEmpty ? '' : ' AND kind IN (${List.filled(kinds.length, '?').join(', ')})'}))',
+      );
+      variables.add(Variable<String>(conversationId));
+      variables.addAll(<Variable<Object>>[
+        for (final kind in kinds) Variable<String>(kind),
+      ]);
+    }
     final row = await _database
         .customSelect(
           'SELECT json_object(${projections.join(', ')}) AS subtree;',
-          variables: <Variable<Object>>[
-            for (final entry in _conversationTables) ...[
-              Variable<String>(conversationId),
-              if (entry.kind case final kind?) Variable<String>(kind),
-            ],
-          ],
+          variables: variables,
         )
         .getSingleOrNull();
     return row?.read<String>('subtree');
@@ -684,7 +692,25 @@ final class RecycleService {
           conflictTarget: const ['conversation_id', 'server_id'],
         );
       }
-      final drafts = tables['extension_entity_rows'] ?? const [];
+      // A conversation's documents come back whole and with no gate in front of
+      // them: they are part of what the user deleted, not state the composer is
+      // in the middle of, so the draft rule below has nothing to say about them.
+      // They are not pruned either — a document's payload names no attachments
+      // the delete removed, and pruning is the draft's own problem.
+      final extensionRows =
+          tables['extension_entity_rows'] ?? const <Map<String, Object?>>[];
+      for (final row in extensionRows) {
+        if (row['kind'] == ComposerDraftStore.kind) continue;
+        await _insertRow(
+          'extension_entity_rows',
+          row,
+          conflictTarget: const ['kind', 'id'],
+        );
+      }
+      final drafts = [
+        for (final row in extensionRows)
+          if (row['kind'] == ComposerDraftStore.kind) row,
+      ];
       if (drafts.isNotEmpty && !await _hasDraft(conversationId)) {
         // A draft that came back on its own wins: the composer is state the user
         // is in the middle of, and replacing what they have typed would be a

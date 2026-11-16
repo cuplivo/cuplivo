@@ -22,6 +22,7 @@ import '../../features/intelligent_ui/host/ui_source_map.dart';
 import 'package:Cuplivo/core/models/tool_permission_mode.dart';
 import '../models/composer_draft.dart';
 import 'composer_draft_store.dart';
+import 'conversation_owned_kinds.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
@@ -7599,15 +7600,15 @@ class ChatDatabaseRepository {
           _db.conversationRows,
         )..where((t) => t.id.equals(id))).go();
         if (deleted == 0) return;
+        // The kinds are the capture's own list, and the rows are claimed by
+        // `id` — the column every reader of them uses, and the one the capture
+        // queries by. Claiming them by `owner_id` here would leave this the
+        // single place in the app where these rows have a second key, and the
+        // two keys agreeing would be a property of the four writers rather than
+        // of the rule.
         await (_db.delete(_db.extensionEntityRows)..where(
               (row) =>
-                  row.kind.isIn([
-                    ContextOperation.entityKind,
-                    'contextCompressionTask',
-                    CompressionConfig.conversationKind,
-                    ImageContextSettings.entityKind,
-                  ]) &
-                  row.ownerId.equals(id),
+                  row.kind.isIn(conversationDeletedKinds) & row.id.equals(id),
             ))
             .go();
         final now = DateTime.now().toUtc();

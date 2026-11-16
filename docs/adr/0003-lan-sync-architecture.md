@@ -2142,6 +2142,17 @@ existing hello gate refuses it with the upgrade reason it already carries.
   agree, so only genuinely diverged conversations transfer.
 - **A replaced compression history is visible**: the report counts it, and the losing copy is
   recoverable from the raw messages, not from the document.
+- **A deletion still pending at the upgrade is undone once.** A conversation deleted on one device
+  but not yet synced when both upgrade comes back in the first v9 session: this device holds no
+  manifest entry for it, so the plan compares the peer's v9 digest with the v8 digest the checkpoint
+  still carries (or with nothing at all), reads a difference, and answers `peerSends` — "the peer
+  modified it, and an edit beats a delete". The peer reads this device's announced deletion, written
+  in v8 terms, the same way. Nothing can re-baseline it: a digest is composed from the rows a
+  deletion removed. Delete it again — the second deletion propagates normally, because by then both
+  sides speak v9. The direction is safe (nothing is lost; the copy is in the recycle bin), and the
+  alternative — deciding "the digest changed, therefore the content did not" by clock — would delete
+  a conversation a peer had genuinely written to, since a message edit does not move the conversation
+  row's clock.
 - **A new family costs one entry plus, at most, a payload case** — and the guard refuses the ones
   nobody classified. It reads four shapes: a declaration (`entityKind =`, `extensionKind:`,
   `static const …[Kk]ind =`), a camelCase use (`kind =`, `kind:`, `kind.equals`, `kind IN (…)`), and
@@ -2151,6 +2162,12 @@ existing hello gate refuses it with the upgrade reason it already carries.
   this shape should not widen the scan a fourth time: it should make the store take a registered
   token, where an unregistered kind cannot be written at all. What a source scan cannot see is a kind
   that never appears as a literal, and there will always be one.
+- **`apply` defaults to the rule that fails loudly.** A family that says nothing gets
+  `rowLastWriteWins`, which asks the applier for a conflict target and is a `StateError` on the first
+  session if the table has none. The other value — `specialised` — means one of the four tables the
+  merge body has a rule for, and a family that asks for it by accident is read, sent and digested
+  while nothing ever writes its rows: convergeless and silent. The guard refuses that request for any
+  other table, which is the only thing standing between the registry's invitation and that failure.
 
 ### Two grains of "this does not travel"
 

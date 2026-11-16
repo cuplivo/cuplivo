@@ -464,11 +464,18 @@ final class BusinessRepository {
   }
 
   /// Treats the named conversations as already extracted through their current
-  /// max message_order and clears their injection hash (§6.7).
+  /// max message_order (§6.7).
   ///
   /// Scoped to the conversations a merge restore actually touched: bumping the
   /// watermark of an untouched local conversation would silently skip one round
   /// of background extraction for messages the user just sent.
+  ///
+  /// Nothing here touches the memory snapshot: it used to clear the
+  /// conversation's injection hash so the next turn would re-inject, but the
+  /// injection decision no longer reads that column — the carrier's own freeze
+  /// row records where the snapshot is, and a restore either brings those rows
+  /// along or leaves the conversation without a carrier, which sends the
+  /// snapshot to the newest message on its own.
   Future<void> applyPostMergeMemoryConversationState(
     Iterable<String> conversationIds,
   ) async {
@@ -477,7 +484,6 @@ final class BusinessRepository {
     final placeholders = List.filled(ids.length, '?').join(', ');
     await _database.customStatement('''
 UPDATE conversation_rows SET
-  injected_memory_hash = NULL,
   last_memory_extracted_order = COALESCE(
     (SELECT MAX(m.message_order)
      FROM message_rows m

@@ -317,6 +317,18 @@ const List<SyncFamily> kSyncFamilies = [
 
   // ---- never leaves this device, and says why ------------------------------
   SyncFamily(
+    name: 'compressionMigration',
+    table: 'extension_entity_rows',
+    kind: 'compressionMigration',
+    ownership: SyncFamilyOwnership.deviceLocal,
+    deviceLocalReason:
+        'This device has already imported the pre-template compress prompt. The '
+        'templates it produced travel as `compressionTemplate` rows, so the peer '
+        'has nothing to learn from the marker — and re-running the import there '
+        'is its own decision, made against its own settings.',
+    scope: SyncFamilyScope.business,
+  ),
+  SyncFamily(
     name: 'compressionTask',
     table: 'extension_entity_rows',
     kind: 'contextCompressionTask',
@@ -639,6 +651,15 @@ const _kindsOfATableOwningFamily = {'image_ocr_v1'};
 ///   tables in the same files (`message_part_rows.kind` is `text`, `image`,
 ///   `tool_call`); without it the guard would ask for a registration for every
 ///   enum member in the codebase.
+/// * A *positional call* — `store.upsert('…', id, payload)`,
+///   `store.get('…', id)`, `listByKind('…')`, `delete('…')`, `watchKind('…')` —
+///   is claimed under the same camelCase test. `ExtensionEntityStore` takes the
+///   kind as its first argument, so a kind written that way is neither a
+///   declaration nor a `kind`-named use: `compressionMigration` was registered
+///   nowhere while this guard stayed green, the third time a literal walked past
+///   a pattern that promised to see every kind. The camelCase test is also what
+///   keeps a store that keys by hash (`delete('a1b2…')`) from being read as a
+///   kind nobody registered.
 Map<String, List<String>> extensionKindsInSource(String source) {
   final declarations = [
     RegExp(r"""\bentityKind\s*=\s*'([A-Za-z][^']*)'"""),
@@ -654,6 +675,9 @@ Map<String, List<String>> extensionKindsInSource(String source) {
   ];
   final inList = RegExp(r"""\bkind\s+IN\s*\(([^)]*)\)""");
   final quoted = RegExp(r"""'([A-Za-z]\w*)'""");
+  final calls = RegExp(
+    r"""\.(?:upsert|get|delete|listByKind|watchKind)\(\s*'([A-Za-z]\w*)'""",
+  );
   final found = <String, List<String>>{};
   final lines = source.split('\n');
   for (var i = 0; i < lines.length; i++) {
@@ -684,6 +708,10 @@ Map<String, List<String>> extensionKindsInSource(String source) {
           in quoted.allMatches(match.group(1)!).map((m) => m.group(1)!)) {
         if (literal.contains(RegExp('[A-Z]'))) claim(literal);
       }
+    }
+    for (final match in calls.allMatches(line)) {
+      final literal = match.group(1)!;
+      if (literal.contains(RegExp('[A-Z]'))) claim(literal);
     }
   }
   return found;

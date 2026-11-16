@@ -559,15 +559,6 @@ SyncFamily syncFamilyOfTable(String table) {
   throw StateError('unregistered family: $table');
 }
 
-/// The family that names [table] and (when the family shares
-/// `extension_entity_rows`) [kind].
-SyncFamily? syncFamilyFor(String table, {String? kind}) {
-  for (final family in kSyncFamilies) {
-    if (family.table == table && family.kind == kind) return family;
-  }
-  return null;
-}
-
 /// The registered kind names, for the guard that compares them with the source.
 Set<String> get registeredSyncKinds => {
   for (final family in kSyncFamilies)
@@ -605,6 +596,20 @@ Set<String> get conversationAttachedTables => {
       table,
 };
 
+/// Kinds that belong to a table-owning family, and so are nobody's extension
+/// kind.
+///
+/// `provider_artifact_rows` is registered as one family with no kind filter: it
+/// syncs every row of its table whatever its `kind` column says, so its values
+/// need no registration — but a declaration that names one
+/// (`static const String imageOcrArtifactKind = 'image_ocr_v1'`) is shaped
+/// exactly like an extension-kind declaration. Claiming it would demand a family
+/// that must not exist, and a guard whose answer is sometimes "register
+/// this kind that is not a kind" is a guard the next person routes around.
+/// Today the one value is `image_ocr_v1`, declared independently by the
+/// repository and the OCR service.
+const _kindsOfATableOwningFamily = {'image_ocr_v1'};
+
 /// Every kind literal that means an `extension_entity_rows.kind` in [source],
 /// with the line it appears on.
 ///
@@ -618,6 +623,16 @@ Set<String> get conversationAttachedTables => {
 ///   this tree already had was declared as `conversationKind`, and a pattern
 ///   that knew only `kind` could not see it — the family would go unregistered
 ///   while this guard stayed green.
+///
+///   The literal starts at its first letter and runs to the closing quote, so a
+///   declaration is claimed whatever its casing: nothing constrains it to
+///   camelCase, and a capture that stopped at the first non-letter would drop
+///   `composer_draft` or `composerDraft2` silently — the same green guard, the
+///   same unregistered family. It cannot be `[^']+` alone, because a doc comment
+///   quoting the shape (`static const kind = '…'`) reads as a declaration and
+///   would ask for a kind named `…`. Every pattern here is anchored to a
+///   declaration; the camelCase test lives on the *use* patterns below, where it
+///   separates an extension kind from the word-shaped kinds of the other tables.
 /// * A *use* — `kind = '…'`, `kind: '…'`, `kind.equals('…')`, `kind IN (…)` —
 ///   is claimed only when the literal is camelCase. That test is what separates
 ///   an extension kind from the snake_case/word-shaped kinds of the other
@@ -626,24 +641,25 @@ Set<String> get conversationAttachedTables => {
 ///   enum member in the codebase.
 Map<String, List<String>> extensionKindsInSource(String source) {
   final declarations = [
-    RegExp(r"""\bentityKind\s*=\s*'([A-Za-z]+)'"""),
-    RegExp(r"""\bextensionKind\s*:\s*'([A-Za-z]+)'"""),
+    RegExp(r"""\bentityKind\s*=\s*'([A-Za-z][^']*)'"""),
+    RegExp(r"""\bextensionKind\s*:\s*'([A-Za-z][^']*)'"""),
     RegExp(
-      r"""static\s+const\s+(?:String\s+)?\w*[Kk]ind\s*=\s*'([A-Za-z]+)'""",
+      r"""static\s+const\s+(?:String\s+)?\w*[Kk]ind\s*=\s*'([A-Za-z][^']*)'""",
     ),
   ];
   final uses = [
-    RegExp(r"""\bkind\s*=\s*'([A-Za-z]+)'"""),
-    RegExp(r"""\bkind\s*:\s*'([A-Za-z]+)'"""),
-    RegExp(r"""kind\.equals\(\s*'([A-Za-z]+)'\s*\)"""),
+    RegExp(r"""\bkind\s*=\s*'([A-Za-z]\w*)'"""),
+    RegExp(r"""\bkind\s*:\s*'([A-Za-z]\w*)'"""),
+    RegExp(r"""kind\.equals\(\s*'([A-Za-z]\w*)'\s*\)"""),
   ];
   final inList = RegExp(r"""\bkind\s+IN\s*\(([^)]*)\)""");
-  final quoted = RegExp(r"""'([A-Za-z]+)'""");
+  final quoted = RegExp(r"""'([A-Za-z]\w*)'""");
   final found = <String, List<String>>{};
   final lines = source.split('\n');
   for (var i = 0; i < lines.length; i++) {
     final line = lines[i];
     void claim(String literal) {
+      if (_kindsOfATableOwningFamily.contains(literal)) return;
       final locations = found[literal] ??= [];
       final location = 'line ${i + 1}';
       // One line can match two declaration patterns — `static const entityKind`

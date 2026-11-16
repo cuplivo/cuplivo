@@ -6345,10 +6345,14 @@ class ChatDatabaseRepository {
           )) {
             continue;
           }
-          // A loss only when the content differs: a bothSend echoes this
+          // A loss only when the *document* differs: a bothSend echoes this
           // device's own row back at a tied clock, and counting that would tell
-          // the user their work was replaced by itself.
-          if (family.isWholeDocument && local['payload'] != row['payload']) {
+          // the user their work was replaced by itself. Comparing the stored
+          // text would count a re-ordered serialization of the same map too,
+          // which is not a loss — the writers build these payloads by spreading
+          // different sources, so key order is not content.
+          if (family.isWholeDocument &&
+              !_sameDocument(local['payload'], row['payload'])) {
             documentReplaced = true;
           }
         }
@@ -6356,6 +6360,23 @@ class ChatDatabaseRepository {
       }
     }
     return documentReplaced;
+  }
+
+  /// Whether two stored document payloads hold the same JSON value.
+  ///
+  /// A payload this device cannot decode is not a document it can compare, so it
+  /// counts as different — never an exception, which would abort the apply and
+  /// with it the checkpoint.
+  static bool _sameDocument(Object? local, Object? incoming) {
+    if (local is! String || incoming is! String) return local == incoming;
+    try {
+      return const DeepCollectionEquality().equals(
+        jsonDecode(local),
+        jsonDecode(incoming),
+      );
+    } on FormatException {
+      return false;
+    }
   }
 
   /// One row of [table] by the columns that key it, or null when this device

@@ -78,9 +78,14 @@ void main() {
     final found = extensionKindsInSource('''
       class A {
         static const kind = 'composerDraft';
+        static const kind = 'composer_draft';
         static const entityKind = 'conversationContext';
+        static const entityKind = 'conversation_context';
         static const conversationKind = 'conversationCompression';
-        extensionKind: 'skill',
+        static const entryKind = 'composerEntry2';
+        extensionKind: 'skill';
+        extensionKind: 'group_chat';
+        static const String artifactKind = 'image_ocr_v1';
       }
       void b() {
         final r = kind.equals('contextCompressionTask');
@@ -96,15 +101,39 @@ void main() {
       }
     ''');
     expect(found.keys.toSet(), {
+      // A declaration is a kind whatever its casing: a capture that stopped at
+      // the first non-letter would drop these two silently, and the family they
+      // name would travel nowhere while this guard stayed green.
       'composerDraft',
+      'composer_draft',
+      'composerEntry2',
       'conversationContext',
+      'conversation_context',
       'conversationCompression',
       'skill',
+      'group_chat',
       'contextCompressionTask',
       'composerPublishedFile',
       'composerPrivateFile',
       'composerShareReceipt',
     });
+  });
+
+  test('a table-owning family kinds are not extension kinds', () {
+    // `provider_artifact_rows` syncs whole, so `image_ocr_v1` wants no family of
+    // its own — but it is declared with exactly the shape of one. Both files
+    // that name it are scanned, not just the synthetic snippet above.
+    for (final path in [
+      'lib/core/database/chat_database_repository.dart',
+      'lib/features/home/services/ocr_service.dart',
+    ]) {
+      final found = extensionKindsInSource(File(path).readAsStringSync());
+      expect(
+        found.keys,
+        isNot(contains('image_ocr_v1')),
+        reason: '$path declares a provider-artifact kind, not an entity kind',
+      );
+    }
   });
 
   test('a compound-named kind declaration in the tree is a kind', () {

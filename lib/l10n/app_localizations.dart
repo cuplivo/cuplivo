@@ -31350,7 +31350,7 @@ abstract class AppLocalizations {
   /// **'{n} local rows replaced by newer versions on the peer (recoverable in the recycle bin)'**
   String lanSyncReportRowsLost(Object n);
 
-  /// Sync report count of conversations whose own document (compression history, image-context switches or provider artifacts) the peer's newer copy replaced, because those families are stored one document per conversation; n is that count.
+  /// Sync report count of conversations whose compression history, image-context switches or compression settings the peer's newer copy replaced. Each of those is stored as one whole record per conversation, so a divergence is settled by replacing the record, never by merging it field by field; n is a count of conversations, not of records.
   ///
   /// In en, this message translates to:
   /// **'{n} conversations\' compression history or settings replaced by the peer\'s newer copy'**

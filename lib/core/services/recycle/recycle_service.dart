@@ -112,12 +112,15 @@ final class RecycleService {
   /// of row, the kinds that pick out this conversation's own.
   ///
   /// This list is the whole of a conversation snapshot: a table that is not here
-  /// is not recovered. It is deliberately **not** an exhaustive map of what a
-  /// delete removes, and only one difference is allowed: the extension kinds come
-  /// from [conversationCapturedKinds], which the delete reads too, so the gap is
-  /// the exclusion written down beside it — a compression task is a stream that
-  /// is happening now rather than history a user could want back, the same line
-  /// ADR-0016 draws for `generation_run_rows`.
+  /// is not recovered. Its extension kinds are the conversation's documents plus
+  /// its unsent draft ([conversationCapturedKinds]); the conversation's delete
+  /// removes the documents plus the one kind this list leaves out on purpose
+  /// ([conversationDeletedKinds], [conversationUnrecoverableKinds]). The three
+  /// sets derive from one constant, so the two exceptions are named there rather
+  /// than being a difference nobody wrote down: the draft has its own delete path
+  /// (its row is composer state, not part of the conversation), and a compression
+  /// task is a stream that is happening now, not history a user could want back —
+  /// the same line ADR-0016 draws for `generation_run_rows`.
   static const List<({String table, String column, Set<String>? kinds})>
   _conversationTables = [
     (table: 'conversation_rows', column: 'id', kinds: null),

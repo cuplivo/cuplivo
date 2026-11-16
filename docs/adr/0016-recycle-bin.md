@@ -267,9 +267,11 @@ deleted, and would put "your deleted conversation" into a peer's storage.
     its context (`conversationContext`), its image-context settings (`conversationImageContext`) and its own
     compression configuration (`conversationCompression`) — and the delete removed all three while the
     capture staged none of them: delete-and-restore silently dropped them, which is what a bin under a
-    delete the user regrets exists to prevent. The capture therefore no longer names one kind. It stages
-    exactly the kinds the delete removes, both read from one constant
-    (`lib/core/database/conversation_owned_kinds.dart`), and the delete claims those rows by `id` — the
+    delete the user regrets exists to prevent. The capture therefore no longer names one kind: it stages
+    the conversation's documents plus its unsent draft, and the delete removes the documents plus the one
+    kind named as unrecoverable, all of those lists deriving from one file
+    (`lib/core/database/conversation_owned_kinds.dart`) — so the two exceptions are written down there
+    rather than left as a difference nobody named. The delete claims those rows by `id` — the
     column every reader of them uses (`_hasDraft`, `readImageContextSettings`,
     `CompressionRepository.overrides`, `readContextOperations`) — instead of the `owner_id` that used to be
     the one place in the app where these rows had a second key. `contextCompressionTask` is the one kind

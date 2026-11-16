@@ -3,9 +3,9 @@ import '../models/context_operation.dart';
 import '../models/image_context.dart';
 import 'composer_draft_store.dart';
 
-/// The `extension_entity_rows` a conversation owns, as one rule read by both
-/// halves that must not disagree: what its delete removes, and what the recycle
-/// bin stages on the way out.
+/// The `extension_entity_rows` a conversation owns, as one rule read by the three
+/// places that remove them: the conversation's delete, the recycle bin's capture
+/// on the way out, and a bulk reset that claims to replace the local state.
 ///
 /// What a conversation keeps outside its messages — the history of the
 /// operations that compressed or cleared its context, the images it pins and how

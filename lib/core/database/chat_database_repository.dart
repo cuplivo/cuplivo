@@ -7901,8 +7901,24 @@ class ChatDatabaseRepository {
 
   Future<void> _clearChatRows() async {
     genUiStates.invalidateAfterCommit(all: true);
+    // A bulk reset replaces the whole local state, so it removes the same rows a
+    // conversation's delete owns — from the rule those two read, not from a copy
+    // of it: a family added to [conversationDeletedKinds] is removed here as
+    // well instead of outliving a reset that claimed to replace everything.
+    // Beside it are the device-local composer rows this reset has always cleared;
+    // share receipts are not among them, because they outlive deletion until the
+    // native inbox acknowledges them, and that is unchanged here.
+    final kinds = <String>[
+      ComposerDraftStore.kind,
+      ComposerDraftStore.entryKind,
+      ComposerDraftStore.privateFileKind,
+      ComposerDraftStore.publishedFileKind,
+      ...conversationDeletedKinds,
+    ];
     await _db.customStatement(
-      "DELETE FROM extension_entity_rows WHERE kind IN ('composerDraft','composerNewEntry','composerPrivateFile','composerPublishedFile','conversationContext','contextCompressionTask','conversationImageContext','conversationCompression')",
+      'DELETE FROM extension_entity_rows '
+      'WHERE kind IN (${List.filled(kinds.length, '?').join(', ')});',
+      kinds,
     );
     await _db.delete(_db.conversationMcpServerRows).go();
     await _db.delete(_db.messageRows).go();

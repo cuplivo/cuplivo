@@ -145,11 +145,39 @@ void main() {
         'templateId': 'builtin-default',
         'keep': 'tail',
       }, ownerId: ownerId ?? id);
-      await extensions.upsert(ContextOperation.entityKind, id, {
-        'operations': [
-          {'id': 'op-1', 'kind': 'compress', 'anchorGroupId': '$id-m1'},
+      // The context repository writes a JSON *array* of operations
+      // (`_encodeContextOperations`) and its reader casts the payload to `List`,
+      // where the store's `upsert` takes an object — so this row is written with
+      // the writer's own encoding of the model, and the restore test reads it
+      // back through `readContextOperations` to prove the shape survives.
+      await database.customStatement(
+        'INSERT INTO extension_entity_rows'
+        '(kind,id,sort_order,owner_id,payload,updated_at) VALUES(?,?,0,?,?,?) '
+        'ON CONFLICT(kind,id) DO UPDATE SET payload = excluded.payload;',
+        [
+          ContextOperation.entityKind,
+          id,
+          ownerId ?? id,
+          jsonEncode([
+            ContextOperation(
+              id: 'op-1',
+              kind: ContextOperationKind.compress,
+              anchorGroupId: '$id-m1',
+              appliedAfterGroupId: '$id-m1',
+              sourceGroups: ['$id-m0'],
+              dependencies: const [],
+              createdAt: DateTime.utc(2026, 8, 1, 12),
+              summary: 'the first turn',
+              originalSummary: 'the first turn',
+              keepUserMessages: 1,
+              model: 'probe',
+              inputTokens: 11,
+              inputParts: 1,
+            ).toJson(),
+          ]),
+          0,
         ],
-      }, ownerId: ownerId ?? id);
+      );
     }
 
     /// One draft row, as the composer writes it: the conversation id in `id`, the
@@ -350,6 +378,25 @@ void main() {
       expect(await repository.readTombstones(), isEmpty);
     });
 
+    test('a bulk reset removes every kind the conversation rule names', () async {
+      await seedConversation('c1');
+      for (final kind in conversationDeletedKinds) {
+        await extensions.upsert(kind, 'c1', const {
+          'probe': true,
+        }, ownerId: 'c1');
+      }
+
+      await repository.clearAllData();
+
+      expect(
+        await extensionPayloads('c1'),
+        isEmpty,
+        reason:
+            'a reset that claims to replace the local state takes the rows the '
+            'rule names — a kind added to it must not outlive the reset',
+      );
+    });
+
     test('a deleted conversation comes back with its documents', () async {
       await seedConversation('c1');
       await seedDocuments('c1');
@@ -386,6 +433,13 @@ void main() {
       expect(
         await CompressionRepository(extensions).overrides('c1'),
         containsPair('templateId', 'builtin-default'),
+      );
+      expect(
+        (await repository.readContextOperations(
+          'c1',
+        )).map((operation) => operation.id),
+        ['op-1'],
+        reason: 'the payload is not only byte-identical, a reader parses it',
       );
     });
 

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'app_database.dart';
 import '../models/backup_scope.dart';
 import '../models/backup_target.dart';
+import '../models/compression_config.dart';
 import 'backup_content_filter.dart';
 import 'business_data.dart';
 import 'business_repository.dart';
@@ -102,6 +103,7 @@ final class BackupPortability {
     AppDatabase database, {
     BackupScope scope = const BackupScope(),
     BackupTarget target = BackupTarget.cuplivo,
+    bool libraryInSettings = false,
   }) async {
     // Erase removed payloads from SQLite cells as well as its logical rows.
     await database.customStatement('PRAGMA secure_delete = ON;');
@@ -113,6 +115,19 @@ final class BackupPortability {
       await database.customStatement(
         "DELETE FROM extension_entity_rows WHERE kind IN ('externalMounts', 'composerDraft', 'composerNewEntry', 'composerShareReceipt', 'composerPrivateFile');",
       );
+      // One fact, one carrier. The compression library travels in `settings.json`
+      // as two business kinds now, so the same rows in the snapshot database are
+      // a second copy of it: a merge restore imports both — the database's under
+      // `merge-…` ids, the settings' under the original ids — and the user sees
+      // every template twice. An archive written before those keys existed has
+      // the database as its only carrier, which is why the caller states this
+      // rather than it being implied by the table.
+      if (libraryInSettings) {
+        await database.customStatement(
+          'DELETE FROM extension_entity_rows WHERE kind IN (?, ?);',
+          [CompressionTemplate.entityKind, CompressionRecipe.entityKind],
+        );
+      }
       await _dropUnreadableKinds(database, target);
       // Chat history remains readable, but imported chats cannot inherit a
       // directory grant or silently authorize shell execution on this device.

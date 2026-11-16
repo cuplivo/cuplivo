@@ -902,6 +902,9 @@ class DataSync {
           databaseFile,
           scope: scope,
           target: target,
+          // The same call writes `settings.json` from the same scope, so the
+          // library is in that half and must not also stay in this one.
+          libraryInSettings: scope.includes(BackupCategory.instructions),
         );
       }
 
@@ -3486,6 +3489,7 @@ class DataSync {
     File file, {
     BackupScope scope = const BackupScope(),
     BackupTarget target = BackupTarget.cuplivo,
+    bool libraryInSettings = false,
   }) async {
     final database = AppDatabase.open(file: file);
     try {
@@ -3493,6 +3497,7 @@ class DataSync {
         database,
         scope: scope,
         target: target,
+        libraryInSettings: libraryInSettings,
       );
       for (final sql in MessageTimelineIndex.discardStatements) {
         await database.customStatement(sql);
@@ -3502,6 +3507,18 @@ class DataSync {
     }
     await ChatDatabaseRepository.normalizeSnapshotJournal(file);
   }
+
+  /// Whether an archive's `settings.json` is a *complete* carrier of the
+  /// compression library — both keys, not one.
+  ///
+  /// Those keys are what makes the snapshot database's copy of the same rows
+  /// redundant. An archive from a build that did not export them has the database
+  /// as its only carrier, so this is asked of the archive and not assumed; and
+  /// the answer is "both", so a half-carrying archive keeps the database's copy
+  /// and errs towards a duplicate (recoverable) rather than a lost template.
+  static bool _settingsCarryCompressionLibrary(Map<String, dynamic> settings) =>
+      settings.containsKey('compression_templates_v1') &&
+      settings.containsKey('compression_recipes_v1');
 
   /// Reads a backup file's manifest and reports what restoring it would mean.
   ///
@@ -3723,6 +3740,11 @@ class DataSync {
           await _sanitizeBackupDatabase(
             File(p.join(extractDir.path, _databaseEntryName)),
             scope: scope,
+            // This archive's settings half is the same `settings` map the merge
+            // below imports. When it carries the library, the database's copy of
+            // it is one fact in two carriers: an archive made by a build that
+            // exported both would otherwise list every template twice.
+            libraryInSettings: _settingsCarryCompressionLibrary(settings),
           );
           beginNonCancellableCommit();
           _lastMergeReport = await chatService.mergeDatabaseSnapshot(

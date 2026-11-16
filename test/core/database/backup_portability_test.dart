@@ -12,6 +12,7 @@ import 'package:Cuplivo/core/database/business_restore_service.dart';
 import 'package:Cuplivo/core/database/business_settings_router.dart';
 import 'package:Cuplivo/core/database/extension_entity_store.dart';
 import 'package:Cuplivo/core/models/backup_target.dart';
+import 'package:Cuplivo/core/models/compression_config.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/services/backup/data_sync.dart';
 
@@ -241,4 +242,59 @@ void main() {
       'g1',
     );
   });
+
+  test(
+    'the compression library travels in settings, not in the snapshot',
+    () async {
+      const template = CompressionTemplate(
+        id: 'custom',
+        name: 'My RP',
+        prompt: 'Keep secrets separate {content}',
+      );
+      await store.upsert(
+        CompressionTemplate.entityKind,
+        template.id,
+        template.toJson(),
+      );
+      await store.upsert(
+        CompressionRecipe.entityKind,
+        'recipe',
+        CompressionRecipe(
+          id: 'recipe',
+          name: 'Tight',
+          template: template,
+          settings: const CompressionConfig(),
+        ).toJson(),
+      );
+
+      // The settings half carries the two rows as business kinds, so an archive
+      // that writes it has them twice if the database keeps its copy too.
+      final exported = BusinessSettingsRouter.exportSnapshotWithRowIds(
+        BackupPortability.portable(await repository.readSnapshot()),
+      );
+      expect(
+        exported.settings.keys,
+        containsAll([
+          BusinessEntityKind.compressionTemplate.sourceKey,
+          BusinessEntityKind.compressionRecipe.sourceKey,
+        ]),
+      );
+
+      // An archive from a build that exported no such keys keeps the database
+      // copy: it is that archive's only carrier, which is why the caller states
+      // whether its settings carry the library instead of the table implying it.
+      await BackupPortability.sanitizeDatabase(database);
+      expect(
+        await store.listByKind(CompressionTemplate.entityKind),
+        hasLength(1),
+      );
+
+      await BackupPortability.sanitizeDatabase(
+        database,
+        libraryInSettings: true,
+      );
+      expect(await store.listByKind(CompressionTemplate.entityKind), isEmpty);
+      expect(await store.listByKind(CompressionRecipe.entityKind), isEmpty);
+    },
+  );
 }

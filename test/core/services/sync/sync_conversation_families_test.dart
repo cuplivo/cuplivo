@@ -75,11 +75,12 @@ void main() {
     required String payload,
     required int updatedAt,
     String id = conversationId,
+    String? ownerId,
   }) => {
     'kind': kind,
     'id': id,
     'sort_order': 0,
-    'owner_id': id,
+    'owner_id': ownerId ?? id,
     'payload': payload,
     'updated_at': updatedAt,
   };
@@ -369,6 +370,27 @@ void main() {
       '{"mode":"off","history":[{"to":"b","from":"a"}]}',
       reason: 'the peer still wins the row; only the report is order-free',
     );
+  });
+
+  test('a document claiming another owner is dropped', () async {
+    await apply(
+      payloadWith({
+        contextFamily.name: [
+          // The conversation column names this conversation while the owner
+          // names someone else. The delete that removes a conversation's
+          // documents finds them by `owner_id`, so this row would outlive its
+          // conversation with no delete left that could reach it.
+          documentRow(
+            kind: contextFamily.kind!,
+            payload: '{"ops":["orphan"]}',
+            updatedAt: 100,
+            ownerId: 'someone-else',
+          ),
+        ],
+      }),
+    );
+
+    expect(await documents(contextFamily), isEmpty);
   });
 
   test('a document claiming another conversation is dropped', () async {

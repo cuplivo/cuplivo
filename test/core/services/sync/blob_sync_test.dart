@@ -244,6 +244,86 @@ void main() {
       );
     });
 
+    test('a file name carrying an unbalanced parenthesis is still the file', () {
+      // The writer leaves `()` raw and a path may contain them, so a `)` inside
+      // the name must not be read as the Markdown bracket that closes the link.
+      // Both shapes end in `)`: the trim takes the bracket, the name keeps its
+      // own parenthesis.
+      expect(
+        kelivoFileUrisInRows([
+          {'payload': '![shot](kelivo-file:///upload/a)b.png)'},
+        ]),
+        {'kelivo-file:///upload/a)b.png'},
+      );
+      expect(
+        kelivoFileUrisInRows([
+          {'payload': '![shot](kelivo-file:///upload/a(b.png)'},
+        ]),
+        {'kelivo-file:///upload/a(b.png'},
+      );
+    });
+
+    test('a possessive after a reference is prose, not part of the name', () {
+      // `'` is not a path character here: the writer leaves it raw, so a trailing
+      // one is prose far more often than a file name, and a name that really
+      // carries one arrives percent-encoded.
+      expect(
+        kelivoFileUrisInRows([
+          {'payload': "see kelivo-file:///upload/a.png's contents"},
+        ]),
+        {'kelivo-file:///upload/a.png'},
+      );
+      expect(
+        kelivoFileUrisInRows([
+          {'payload': "kelivo-file:///upload/it%27s.png's"},
+        ]),
+        {'kelivo-file:///upload/it%27s.png'},
+      );
+    });
+
+    test('a second reference is not part of the first', () {
+      expect(
+        kelivoFileUrisInRows([
+          {
+            'payload':
+                '![a](kelivo-file:///images/a.png)(kelivo-file:///images/b.png)',
+          },
+        ]),
+        {'kelivo-file:///images/a.png', 'kelivo-file:///images/b.png'},
+      );
+    });
+
+    test('a run that never parses costs the cap, not the value', () {
+      // The shortening loop is bounded by the parse cap, so the scheme followed
+      // by a pasted base64 blob cannot make discovery quadratic in the payload.
+      final blob = 'kelivo-file://${'A' * 320000}';
+      final watch = Stopwatch()..start();
+      expect(
+        kelivoFileUrisInRows([
+          {'payload': blob},
+        ]),
+        isEmpty,
+      );
+      watch.stop();
+      expect(
+        watch.elapsedMilliseconds,
+        lessThan(2000),
+        reason: 'a bounded scan cannot take seconds on 320 KB',
+      );
+    });
+
+    test('a reference longer than the cap is refused, not truncated', () {
+      // A truncated prefix can parse, and a URI that parses is treated as a file
+      // to advertise — so the cap has to refuse the run instead.
+      final long = 'kelivo-file:///upload/${'a' * 1200}.png';
+      expect(
+        kelivoFileUrisInRows([
+          {'payload': long},
+        ]),
+        isEmpty,
+      );
+    });
+
     test('the same file twice in one payload is one reference', () {
       expect(
         kelivoFileUrisInRows([

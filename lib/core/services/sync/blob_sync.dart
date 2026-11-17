@@ -24,13 +24,17 @@ const String kKelivoFileScheme = 'kelivo-file://';
 /// One character a canonical URI's path may contain: RFC 3986 `pchar` plus the
 /// separators a path is built from. Parentheses are in it on purpose — they are
 /// legal sub-delims, which is exactly why a Markdown link around a URI is
-/// ambiguous.
-final RegExp _uriChar = RegExp(r"[A-Za-z0-9\-._~%!$&'()*+,;=:@/]");
+/// ambiguous. `'` is out: the app's writer leaves it raw, so a `'` after a
+/// reference is far more often prose (`kelivo-file:///upload/a.png's`) than a
+/// file name, and a file name that really carries one reaches the parser
+/// percent-encoded (`%27`) when the writer escapes it.
+final RegExp _uriChar = RegExp(r"[A-Za-z0-9\-._~%!$&()*+,;=:@/]");
 
 /// Characters that end a sentence or a quotation far more often than they end a
-/// filename. `)` is absent on purpose: a balanced one is part of the path, and
-/// an unbalanced one already stopped the scan.
-final RegExp _trailingPunctuation = RegExp(r'''[.,;:!?'"(]''');
+/// filename. `)` is here too: a reference wrapped in a Markdown bracket ends
+/// with one, and a path that really ends in `)` keeps it only when the trim
+/// makes the candidate unparseable — see [kelivoFileUriAt].
+final RegExp _trailingPunctuation = RegExp(r'''[.,;:!?'"()]''');
 
 /// Roots a received file blob may land in — the managed roots the sandbox
 /// resolver knows, minus `skills` (directory blobs own that root) and
@@ -99,30 +103,40 @@ Set<String> kelivoFileUrisInRows(
 /// The longest canonical URI that starts at [start] and parses, or null when
 /// nothing there is one.
 ///
-/// Two ambiguities are resolved here, and both are the reason this is a parser:
-/// parentheses are balanced rather than consumed (a URI may legitimately contain
-/// them; the bracket around it may not), and the candidate is shortened until
-/// [KelivoFileUri.decodeToSegments] accepts it, so prose punctuation that is a
-/// legal path character — a trailing `.`, a `,` — does not make the whole
-/// reference unreadable.
+/// A canonical path may contain every character a path is built from,
+/// parentheses included, and the app's writer leaves them raw — so the scan is a
+/// *maximal run* rather than a bracket-aware walk: it stops at the first
+/// character no path can contain, or where the next `kelivo-file://` starts (a
+/// second reference is not part of this one), and prose punctuation is trimmed
+/// from the end until [KelivoFileUri.decodeToSegments] accepts what is left.
+///
+/// That reads both shapes without having to guess which `)` is which:
+///
+///     ![shot](kelivo-file:///upload/a.png)     → …/upload/a.png
+///     ![shot](kelivo-file:///upload/a)b.png)   → …/upload/a)b.png
+///
+/// The first loses its closing bracket to the trim; the second keeps its `)`
+/// because the bracket that ends the run is the second one. The one shape this
+/// reads together is a reference glued to another parenthetical with no
+/// separator (`…/a.png)(more`) — the app's writer puts a space there, and the
+/// alternative, stopping at the first `)`, is what made a file whose name
+/// carries one unreachable.
 String? kelivoFileUriAt(String text, int start) {
   if (!text.startsWith(kKelivoFileScheme, start)) return null;
-  var end = start + kKelivoFileScheme.length;
-  var depth = 0;
-  while (end < text.length) {
-    final char = text[end];
-    if (!_uriChar.hasMatch(char)) break;
-    if (char == '(') {
-      depth++;
-    } else if (char == ')') {
-      if (depth == 0) break;
-      depth--;
-    }
+  final floor = start + kKelivoFileScheme.length;
+  final limit = start + _kMaxUriLength;
+  var end = floor;
+  while (end < text.length && end < limit) {
+    if (!_uriChar.hasMatch(text[end])) break;
+    if (end > floor && text.startsWith(kKelivoFileScheme, end)) break;
     end++;
   }
+  // A run that reached the cap is longer than any real reference. Refuse it
+  // rather than return the truncated prefix — that prefix can parse, and a URI
+  // that parses is treated as a file to advertise.
+  if (end >= limit) return null;
   // A path may legally contain `.` or `,`, so "it parses" alone would keep the
   // full stop of a sentence.
-  final floor = start + kKelivoFileScheme.length;
   while (end > floor && _trailingPunctuation.hasMatch(text[end - 1])) {
     end--;
   }
@@ -132,6 +146,12 @@ String? kelivoFileUriAt(String text, int start) {
   }
   return null;
 }
+
+/// The longest reference [kelivoFileUriAt] will accept. Real references are a
+/// few hundred bytes; the cap is what keeps a pathological run — the scheme
+/// followed by a pasted base64 blob — from making the shortening loop quadratic
+/// in the input rather than in the cap.
+const int _kMaxUriLength = 1024;
 
 /// Whether a file blob for [uri] may be written here (root allowlist).
 bool isAllowedFileBlobUri(String uri) {

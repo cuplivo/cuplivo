@@ -28164,6 +28164,108 @@ abstract class AppLocalizations {
   /// **'Retry'**
   String get retry;
 
+  /// No description provided for @imageJobTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating illustration'**
+  String get imageJobTitle;
+
+  /// No description provided for @imageJobFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Illustration failed'**
+  String get imageJobFailed;
+
+  /// No description provided for @imageJobCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Illustration cancelled'**
+  String get imageJobCancelled;
+
+  /// No description provided for @imageJobInterrupted.
+  ///
+  /// In en, this message translates to:
+  /// **'Illustration interrupted'**
+  String get imageJobInterrupted;
+
+  /// No description provided for @assistantEditLocalToolImageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Drawing'**
+  String get assistantEditLocalToolImageTitle;
+
+  /// No description provided for @defaultModelPageImageModelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Image Model'**
+  String get defaultModelPageImageModelTitle;
+
+  /// No description provided for @defaultModelPageImageModelSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The model that draws pictures inside a reply; leave it unset to turn drawing off.'**
+  String get defaultModelPageImageModelSubtitle;
+
+  /// No description provided for @imageJobPanelCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get imageJobPanelCopy;
+
+  /// No description provided for @imageJobPanelPromptLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt'**
+  String get imageJobPanelPromptLabel;
+
+  /// No description provided for @imageJobPanelModelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get imageJobPanelModelLabel;
+
+  /// No description provided for @imageJobPanelSizeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get imageJobPanelSizeLabel;
+
+  /// No description provided for @imageJobPanelElapsedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Time taken'**
+  String get imageJobPanelElapsedLabel;
+
+  /// No description provided for @imageJobPanelUsageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage'**
+  String get imageJobPanelUsageLabel;
+
+  /// No description provided for @imageJobPanelAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get imageJobPanelAuto;
+
+  /// No description provided for @imageJobPanelOneImage.
+  ///
+  /// In en, this message translates to:
+  /// **'1 image'**
+  String get imageJobPanelOneImage;
+
+  /// No description provided for @imageJobNotConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Not configured · Choose'**
+  String get imageJobNotConfigured;
+
+  /// No description provided for @imageJobToolSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw pictures inside a reply'**
+  String get imageJobToolSubtitle;
+
   /// Header title on the restore failure screen when local copies are being searched for recovery.
   ///
   /// In en, this message translates to:

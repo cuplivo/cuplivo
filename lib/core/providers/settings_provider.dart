@@ -123,6 +123,7 @@ class SettingsProvider extends ChangeNotifier {
   static const String _selectedModelKey = 'selected_model_v1';
   static const String _perChatModelEnabledKey = 'per_chat_model_enabled_v1';
   static const String _titleModelKey = 'title_model_v1';
+  static const String _imageModelKey = 'image_model_v1';
   static const String _titleGenerationEnabledKey =
       'title_generation_enabled_v1';
   static const String _titlePromptKey = 'title_prompt_v1';
@@ -827,6 +828,15 @@ class SettingsProvider extends ChangeNotifier {
       if (parts.length >= 2) {
         _titleModelProvider = parts[0];
         _titleModelId = parts.sublist(1).join('::');
+      }
+    }
+    // load image model
+    final imageSel = prefs.getString(_imageModelKey);
+    if (imageSel != null && imageSel.contains('::')) {
+      final parts = imageSel.split('::');
+      if (parts.length >= 2) {
+        _imageModelProvider = parts[0];
+        _imageModelId = parts.sublist(1).join('::');
       }
     }
     // load proactive care decision model
@@ -3697,6 +3707,12 @@ class SettingsProvider extends ChangeNotifier {
       await prefs.remove(_translateModelKey);
       changed = true;
     }
+    if (_imageModelProvider == providerKey) {
+      _imageModelProvider = null;
+      _imageModelId = null;
+      await prefs.remove(_imageModelKey);
+      changed = true;
+    }
     if (_ocrModelProvider == providerKey) {
       _ocrModelProvider = null;
       _ocrModelId = null;
@@ -3996,6 +4012,45 @@ class SettingsProvider extends ChangeNotifier {
   bool _titleGenerationEnabled = true;
   String? get titleModelProvider => _titleModelProvider;
   String? get titleModelId => _titleModelId;
+
+  // Image (drawing) model: the fallback every assistant falls through to.
+  // Nothing else picks it — not the conversation, and never the text model.
+  String? _imageModelProvider;
+  String? _imageModelId;
+  String? get imageModelProvider => _imageModelProvider;
+  String? get imageModelId => _imageModelId;
+  bool get hasImageModel =>
+      (_imageModelProvider?.trim().isNotEmpty ?? false) &&
+      (_imageModelId?.trim().isNotEmpty ?? false);
+
+  Future<void> setImageModel(String providerKey, String modelId) async {
+    if (!isValidImageModelSelection(providerKey, modelId)) {
+      throw ArgumentError('An image model needs both a provider and a model.');
+    }
+    _imageModelProvider = providerKey;
+    _imageModelId = modelId;
+    notifyListeners();
+    final prefs = _preferences;
+    await prefs.setString(_imageModelKey, '$providerKey::$modelId');
+  }
+
+  Future<void> resetImageModel() async {
+    _imageModelProvider = null;
+    _imageModelId = null;
+    notifyListeners();
+    final prefs = _preferences;
+    await prefs.remove(_imageModelKey);
+  }
+
+  /// Drop the drawing model when its provider disappears, exactly like the
+  /// other per-task models, so a stale pair cannot keep a tool "configured".
+  Future<void> clearImageModelForProvider(String providerKey) async {
+    if (_imageModelProvider != providerKey) return;
+    await resetImageModel();
+  }
+
+  static bool isValidImageModelSelection(String providerKey, String modelId) =>
+      providerKey.trim().isNotEmpty && modelId.trim().isNotEmpty;
   String? get titleModelKey =>
       (_titleModelProvider != null && _titleModelId != null)
       ? '${_titleModelProvider!}::${_titleModelId!}'
@@ -6435,6 +6490,8 @@ Requirements:
     copy._perChatModelEnabled = _perChatModelEnabled;
     copy._titleModelProvider = _titleModelProvider;
     copy._titleModelId = _titleModelId;
+    copy._imageModelProvider = _imageModelProvider;
+    copy._imageModelId = _imageModelId;
     copy._titleGenerationEnabled = _titleGenerationEnabled;
     copy._titlePrompt = _titlePrompt;
     copy._directorModelProvider = _directorModelProvider;

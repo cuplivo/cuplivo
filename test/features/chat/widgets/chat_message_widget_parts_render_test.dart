@@ -8,6 +8,7 @@ import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/providers/tts_provider.dart';
 import 'package:Cuplivo/features/chat/pages/image_viewer_page.dart';
 import 'package:Cuplivo/features/chat/widgets/chat_message_widget.dart';
+import 'package:Cuplivo/features/image_job/widgets/image_job_card.dart';
 import 'package:Cuplivo/features/chat/services/conversation_find_service.dart';
 import 'package:Cuplivo/shared/markdown/markdown_with_code_highlight.dart';
 import 'package:Cuplivo/shared/widgets/app_selection_area.dart';
@@ -1066,5 +1067,45 @@ void main() {
       tester.getSize(find.byType(ChatMessageWidget)).height,
       greaterThan(20),
     );
+  });
+
+  testWidgets('a promised picture is drawn where its Markdown placeholder stands', (
+    tester,
+  ) async {
+    // Round 13: the model writes `![](uri)` at the position it means, and the
+    // picture block belongs *there* — not appended after the last paragraph.
+    // It also must not be drawn twice (block + inline markdown image).
+    const uri = 'kelivo-file:///images/img_abcdefghijklmnopqrst.png';
+    await tester.pumpWidget(
+      _buildHarness(
+        child: ChatMessageWidget(
+          message: ChatMessage(
+            id: 'inline-job-image',
+            role: 'assistant',
+            conversationId: 'c1',
+            parts: const [
+              TextPart('BEFORE_MARK\n\n![]($uri)\n\nAFTER_MARK'),
+              // Completed on purpose: this is the frame that used to throw —
+              // the picture is drawn through the assistant bubble helpers, which
+              // call `context.select`, so they need a context that is building.
+              ImagePart(
+                uri: uri,
+                assetId: 'img_abcdefghijklmnopqrst',
+                jobId: 'job-1',
+              ),
+            ],
+          ),
+          showModelIcon: false,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // No provider misuse, no layout error: the card is built from a context
+    // that is actually building.
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ImageJobCard), findsOneWidget);
+    expectAbove(tester, 'BEFORE_MARK', find.byType(ImageJobCard));
+    expectAbove(tester, find.byType(ImageJobCard), 'AFTER_MARK');
   });
 }

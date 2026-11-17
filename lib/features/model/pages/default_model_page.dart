@@ -77,6 +77,28 @@ class DefaultModelPage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _ModelCard(
+            icon: Lucide.Image,
+            title: l10n.defaultModelPageImageModelTitle,
+            subtitle: l10n.defaultModelPageImageModelSubtitle,
+            modelProvider: settings.imageModelProvider,
+            modelId: settings.imageModelId,
+            disabledWhenUnset: true,
+            showResetWhenUnset: true,
+            onReset: () async {
+              await settings.resetImageModel();
+            },
+            onPick: () async {
+              final sel = await pickConfiguredModel(
+                settings.imageModelProvider,
+                settings.imageModelId,
+              );
+              if (sel != null) {
+                await settings.setImageModel(sel.providerKey, sel.modelId);
+              }
+            },
+          ),
+          const SizedBox(height: 16),
+          _ModelCard(
             icon: Lucide.NotebookTabs,
             title: l10n.defaultModelPageTitleModelTitle,
             subtitle: l10n.defaultModelPageTitleModelSubtitle,

@@ -22,6 +22,8 @@ import '../features/chat/widgets/image_recall_control.dart';
 import '../features/chat/utils/tools_summary.dart';
 import '../features/home/services/local_tool_labels.dart';
 import '../features/home/services/local_tool_toggle.dart';
+import '../features/home/services/local_tools_service.dart';
+import '../features/image_job/widgets/image_model_subrow.dart';
 import '../core/models/assistant.dart';
 import '../features/group_chat/widgets/group_member_strip.dart';
 import '../features/home/utils/model_display_helper.dart';
@@ -76,6 +78,10 @@ Future<void> showDesktopToolsPopover(
       supportsModelTools: supportsModelTools,
       modelSupportsTools: modelSupportsTools,
       members: members,
+      // Alive for as long as the composer is: the popover's own context dies
+      // with its overlay entry, and anything that opens a route (the model
+      // picker) has to outlive that close.
+      hostContext: context,
       onClose: () {
         try {
           entry.remove();
@@ -94,9 +100,14 @@ class _ToolsPopover extends StatefulWidget {
     required this.conversationId,
     required this.supportsModelTools,
     required this.onClose,
+    required this.hostContext,
     this.modelSupportsTools,
     this.members,
   });
+
+  /// A context from above the overlay this popover lives in, so a route opened
+  /// from a row survives the popover closing (see [pickImageModel]).
+  final BuildContext hostContext;
 
   /// Non-null in a group chat: the roster whose member the strip selects.
   final List<Assistant>? members;
@@ -250,6 +261,7 @@ class _ToolsPopoverState extends State<_ToolsPopover>
                           modelSupportsTools: widget.modelSupportsTools,
                           header: _memberStrip,
                           onDone: _close,
+                          hostContext: widget.hostContext,
                         ),
                       ),
                     ),
@@ -323,6 +335,7 @@ class _ToolsContent extends StatelessWidget {
     required this.conversationId,
     required this.supportsModelTools,
     required this.onDone,
+    required this.hostContext,
     this.header,
     this.modelSupportsTools,
   });
@@ -330,6 +343,9 @@ class _ToolsContent extends StatelessWidget {
   final String? conversationId;
   final bool supportsModelTools;
   final VoidCallback onDone;
+
+  /// Alive above the popover's overlay entry; used by rows that open a route.
+  final BuildContext hostContext;
 
   /// Rendered above the rows; a group puts its member strip here.
   final Widget? header;
@@ -442,6 +458,30 @@ class _ToolsContent extends StatelessWidget {
             },
           ),
         );
+        // 绘图 is the one entry with a next level: the model row it grows.
+        if (id == LocalToolNames.generateImage && isEnabled) {
+          rows.add(
+            (context) => ImageModelSubRow(
+              label: imageModelSubRowLabel(
+                AppLocalizations.of(context)!,
+                context.watch<SettingsProvider>(),
+                a,
+              ),
+              configured:
+                  resolveImageModel(
+                    context.read<SettingsProvider>(),
+                    a,
+                  ).binding !=
+                  null,
+              inset: 36,
+              height: 30,
+              fontSize: 12,
+              onTap: () => unawaited(
+                pickImageModel(hostContext, assistant: a, closeFirst: onDone),
+              ),
+            ),
+          );
+        }
       }
       rows.add(
         (context) => ImageRecallControl(

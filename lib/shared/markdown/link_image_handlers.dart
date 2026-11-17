@@ -112,9 +112,20 @@ class KelivoLinkHandler implements LinkHandler {
 }
 
 class KelivoImageBuilder implements ImageBuilder {
-  const KelivoImageBuilder();
+  const KelivoImageBuilder({this.jobImageBuilder});
+
+  /// Draws the application's own block for a destination instead of a picture.
+  ///
+  /// A generated illustration is owned by an image job: while the bytes are
+  /// still missing the block is a skeleton, and once they land it is the same
+  /// block with the picture in it. Returning null means "an ordinary image".
+  final Widget? Function(BuildContext context, String destination)?
+  jobImageBuilder;
+
   @override
   Widget build(BuildContext context, ImageNode image, MarkstreamTheme theme) {
+    final owned = jobImageBuilder?.call(context, image.destination);
+    if (owned != null) return owned;
     final size = markdownImageSizeOf(toPlainText(image));
 
     return _MarkdownImage(

@@ -15974,6 +15974,58 @@ class AppLocalizationsEn extends AppLocalizations {
   String get retry => 'Retry';
 
   @override
+  String get imageJobTitle => 'Generating illustration';
+
+  @override
+  String get imageJobFailed => 'Illustration failed';
+
+  @override
+  String get imageJobCancelled => 'Illustration cancelled';
+
+  @override
+  String get imageJobInterrupted => 'Illustration interrupted';
+
+  @override
+  String get assistantEditLocalToolImageTitle => 'Drawing';
+
+  @override
+  String get defaultModelPageImageModelTitle => 'Image Model';
+
+  @override
+  String get defaultModelPageImageModelSubtitle =>
+      'The model that draws pictures inside a reply; leave it unset to turn drawing off.';
+
+  @override
+  String get imageJobPanelCopy => 'Copy';
+
+  @override
+  String get imageJobPanelPromptLabel => 'Prompt';
+
+  @override
+  String get imageJobPanelModelLabel => 'Model';
+
+  @override
+  String get imageJobPanelSizeLabel => 'Size';
+
+  @override
+  String get imageJobPanelElapsedLabel => 'Time taken';
+
+  @override
+  String get imageJobPanelUsageLabel => 'Usage';
+
+  @override
+  String get imageJobPanelAuto => 'Auto';
+
+  @override
+  String get imageJobPanelOneImage => '1 image';
+
+  @override
+  String get imageJobNotConfigured => 'Not configured · Choose';
+
+  @override
+  String get imageJobToolSubtitle => 'Draw pictures inside a reply';
+
+  @override
   String get recoveryGuideTitle => 'Let’s recover your chats';
 
   @override

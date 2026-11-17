@@ -280,6 +280,7 @@ List<ContextImageRef> imageRefsFromApiMessages(
     for (final part in message.parts) {
       if (part is ImagePart &&
           !part.unavailable &&
+          part.hasBytes &&
           part.uri.trim().isNotEmpty) {
         images.add(const ContextImageRef());
       }

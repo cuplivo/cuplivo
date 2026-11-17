@@ -31,6 +31,7 @@ import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 import 'tools_sheet_row.dart';
 import 'image_recall_control.dart';
+import '../../image_job/widgets/image_model_subrow.dart';
 import '../../group_chat/widgets/group_member_strip.dart';
 import '../../mcp/widgets/mcp_server_avatar.dart';
 import '../../mcp/widgets/mcp_tool_connection_status.dart';
@@ -531,22 +532,12 @@ class _LocalToolsGroup extends StatelessWidget {
         onToggle: onToggle,
         children: [
           for (final id in ids)
-            ToolsSheetRow(
-              key: ChatToolsSheet.localToolKey(id),
-              icon: localToolIcon(id),
-              label: localToolTitle(l10n, id),
-              selected: enabled.contains(id),
-              onTap: () => unawaited(
-                setLocalToolEnabled(
-                  context,
-                  assistant: assistant,
-                  toolId: id,
-                  value: !enabled.contains(id),
-                ),
-              ),
-              trailing: IosSwitch(
-                value: enabled.contains(id),
-                semanticLabel: localToolTitle(l10n, id),
+            if (id == LocalToolNames.generateImage)
+              // 绘图 is the one entry with a next level: on/off on the row, and
+              // *what it draws with* on the row that grows underneath.
+              _ImageToolRow(
+                assistant: assistant,
+                enabled: enabled.contains(id),
                 onChanged: (value) => unawaited(
                   setLocalToolEnabled(
                     context,
@@ -555,8 +546,34 @@ class _LocalToolsGroup extends StatelessWidget {
                     value: value,
                   ),
                 ),
+              )
+            else
+              ToolsSheetRow(
+                key: ChatToolsSheet.localToolKey(id),
+                icon: localToolIcon(id),
+                label: localToolTitle(l10n, id),
+                selected: enabled.contains(id),
+                onTap: () => unawaited(
+                  setLocalToolEnabled(
+                    context,
+                    assistant: assistant,
+                    toolId: id,
+                    value: !enabled.contains(id),
+                  ),
+                ),
+                trailing: IosSwitch(
+                  value: enabled.contains(id),
+                  semanticLabel: localToolTitle(l10n, id),
+                  onChanged: (value) => unawaited(
+                    setLocalToolEnabled(
+                      context,
+                      assistant: assistant,
+                      toolId: id,
+                      value: value,
+                    ),
+                  ),
+                ),
               ),
-            ),
           ToolsSheetRow(
             key: const ValueKey('chat-tools-view-image'),
             icon: Lucide.Image,
@@ -573,6 +590,62 @@ class _LocalToolsGroup extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 绘图: the switch row, plus the model row that grows under it when it is on.
+class _ImageToolRow extends StatelessWidget {
+  const _ImageToolRow({
+    required this.assistant,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final Assistant assistant;
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final settings = context.watch<SettingsProvider>();
+    final label = localToolTitle(l10n, LocalToolNames.generateImage);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ToolsSheetRow(
+          key: ChatToolsSheet.localToolKey(LocalToolNames.generateImage),
+          icon: localToolIcon(LocalToolNames.generateImage),
+          label: label,
+          selected: enabled,
+          onTap: () => onChanged(!enabled),
+          trailing: IosSwitch(
+            value: enabled,
+            semanticLabel: label,
+            onChanged: onChanged,
+          ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: enabled
+              ? Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: ImageModelSubRow(
+                    label: imageModelSubRowLabel(l10n, settings, assistant),
+                    configured:
+                        resolveImageModel(settings, assistant).binding != null,
+                    onTap: () => unawaited(
+                      pickImageModel(context, assistant: assistant),
+                    ),
+                  ),
+                )
+              : const SizedBox(width: double.infinity, height: 0),
+        ),
+      ],
     );
   }
 }

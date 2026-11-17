@@ -28,6 +28,7 @@ class MarkdownWithCodeHighlight extends StatefulWidget {
     this.highlightColor,
     this.uiHost,
     this.detailsStateKey,
+    this.jobImageBuilder,
   });
   final String text;
   final UiHostBinding? uiHost;
@@ -45,6 +46,13 @@ class MarkdownWithCodeHighlight extends StatefulWidget {
   final String? conversationId;
   final List<SourceSpan> highlightRanges;
   final Color? highlightColor;
+
+  /// Draws this application's own block in place of an image the model only
+  /// promised: a generated picture renders where its Markdown placeholder is,
+  /// not at the end of the reply. Return null for an ordinary image.
+  final Widget? Function(BuildContext context, String destination)?
+  jobImageBuilder;
+
   @override
   State<MarkdownWithCodeHighlight> createState() =>
       _MarkdownWithCodeHighlightState();
@@ -53,10 +61,19 @@ class MarkdownWithCodeHighlight extends StatefulWidget {
 class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
   late String _source;
 
+  /// One builder for the life of this document.
+  ///
+  /// A fresh builder on every build made the markdown view rebuild its whole
+  /// tree on each token, which threw away the identity streaming relies on
+  /// (completed citation chips stay put because their subtrees stay identical).
+  /// The callback is a method tear-off, so it compares equal across builds.
+  late KelivoImageBuilder _imageBuilder;
+
   @override
   void initState() {
     super.initState();
     _source = UnicodeSanitizer.sanitize(widget.text);
+    _imageBuilder = KelivoImageBuilder(jobImageBuilder: widget.jobImageBuilder);
   }
 
   @override
@@ -64,6 +81,11 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.text != widget.text) {
       _source = UnicodeSanitizer.sanitize(widget.text);
+    }
+    if (oldWidget.jobImageBuilder != widget.jobImageBuilder) {
+      _imageBuilder = KelivoImageBuilder(
+        jobImageBuilder: widget.jobImageBuilder,
+      );
     }
   }
 
@@ -82,7 +104,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
       extensions: markdownExtensionsFor(context),
       codeHighlighter: KelivoCodeHighlighter.forTheme(theme),
       mathRenderer: const KelivoMathRenderer(),
-      imageBuilder: const KelivoImageBuilder(),
+      imageBuilder: _imageBuilder,
       linkHandler: const KelivoLinkHandler(),
       codeOptions: markdownCodeOptions(settings),
       detailsExpansionState: markdownDetailsExpansionState,

@@ -44,6 +44,10 @@ import '../../browser/models/browser_tool_presentation.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/message_part.dart';
+import '../../image_job/models/image_job.dart';
+import '../../image_job/services/image_job_coordinator.dart';
+import '../../image_job/widgets/image_job_card.dart';
+import '../../image_job/widgets/image_job_panel.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../icons/reasoning_icons.dart';
 // import '../../../theme/design_tokens.dart';
@@ -1434,6 +1438,14 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
   final _localTimelineStorage = PageStorageBucket();
   final _thinkingWidgets = Expando<(Object, Widget)>();
   List<ReasoningSegment>? _currentReasoningSegments;
+
+  /// Uris of this reply's job-backed pictures: the card draws them, so the
+  /// reply's own Markdown placeholder for the same uri must not.
+  final Set<String> _jobImageSources = <String>{};
+
+  /// The subset of [_jobImageSources] the reply's text actually places, and
+  /// which is therefore drawn where the model put it — not at the end.
+  final Set<String> _inlineJobUris = <String>{};
   Future<void> _submitRecoveredAnswer(
     ToolUIPart part,
     AskUserResult result,
@@ -1654,16 +1666,17 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     return 'AI Assistant';
   }
 
-  Assistant? _assistantForMessage() {
+  Assistant? _assistantForMessage({BuildContext? from}) {
     // One member's regexes must not run over another member's words.
     final author = widget.author;
     if (author != null) return author;
+    final ctx = from ?? context;
     try {
-      final chat = context.read<ChatService>();
+      final chat = ctx.read<ChatService>();
       final convo = chat.getConversation(widget.message.conversationId);
       final aId = convo?.assistantId;
       if (aId == null || aId.isEmpty) return null;
-      final ap = context.watch<AssistantProvider>();
+      final ap = ctx.watch<AssistantProvider>();
       return ap.getById(aId);
     } catch (_) {
       return null;
@@ -2919,6 +2932,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
       assistantContent = MarkdownWithCodeHighlight(
         text: visualContent,
         detailsStateKey: detailsStateKey,
+        jobImageBuilder: _buildInlineJobImage,
         highlightRanges: highlights,
         highlightColor: highlightColor,
         uiHost: widget.message.role != 'assistant' || uiSource == null
@@ -3106,7 +3120,153 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     );
   }
 
+  /// The image part behind [imageKey], when an image job created it.
+  ///
+  /// The projection keys an image by its stream id or asset id. A job-backed
+  /// part always carries the asset id it was promised, so the key resolves back
+  /// to the part without threading job state through the timeline blocks. A
+  /// finished job keeps its part (and therefore its header), which is why this
+  /// matches on [ImagePart.jobId] as well as on a live state.
+  ImagePart? _imageJobPartFor(String imageKey) {
+    const prefix = 'image-id:';
+    if (!imageKey.startsWith(prefix)) return null;
+    final id = imageKey.substring(prefix.length).trim();
+    if (id.isEmpty) return null;
+    for (final part in widget.message.parts) {
+      if (part is! ImagePart) continue;
+      if (part.state == null && part.jobId == null) continue;
+      if (part.id == id || part.assetId == id) return part;
+    }
+    return null;
+  }
+
+  /// The job-backed part that promised [destination], if any.
+  ImagePart? _imageJobPartForUri(String destination) {
+    if (destination.isEmpty) return null;
+    for (final part in widget.message.parts) {
+      if (part is! ImagePart || part.jobId == null) continue;
+      if (part.uri == destination) return part;
+    }
+    return null;
+  }
+
+  /// The picture block for a part, drawn wherever it belongs.
+  ///
+  /// Subscribes to the job so the skeleton turns into the picture the moment the
+  /// bytes land, instead of waiting for whatever rebuilt this message last.
+  ///
+  /// The card is built from a context that is *currently* building (the
+  /// `Builder` / `ListenableBuilder` one), never from the one handed to the
+  /// Markdown image callback: that context belongs to the renderer, and provider
+  /// forbids `select`/`watch` on it.
+  Widget _imageJobBlock(
+    ImagePart part, {
+    required String uri,
+    required String imageKey,
+    required List<String> group,
+  }) {
+    final coordinator = imageJobCoordinatorOf(context);
+    Widget card(BuildContext ctx) {
+      final job = coordinator?.jobForAsset(part.assetId);
+      // A promise with no live job was interrupted by the app going away: the
+      // process cannot have kept painting, and a spinner that never ends is a
+      // lie. The persisted state stays `pending` — the file really is absent.
+      var resolved =
+          part.state == ImagePartState.pending &&
+              job == null &&
+              !widget.message.isStreaming
+          ? part.withState(ImagePartState.interrupted)
+          : part;
+      // The live job is authoritative while it exists: this part is a snapshot
+      // from when the reply was laid out, and nothing rebuilds the message when
+      // the bytes land. Without this the skeleton spins until the conversation
+      // is reloaded from the database — which is why switching away and back
+      // was the only way to see the picture.
+      if (job != null && job.state == ImageJobState.completed) {
+        resolved = resolved.withState(null, uri: job.resultUri ?? resolved.uri);
+      }
+      final startedAt = job?.startedAt ?? job?.createdAt;
+      final finishedAt = job?.finishedAt;
+      return ImageJobCard(
+        part: resolved,
+        startedAt: startedAt,
+        elapsed: finishedAt != null && startedAt != null
+            ? finishedAt.difference(startedAt)
+            : resolved.duration,
+        onOpen: () => showImageJobPanel(
+          ctx,
+          ImageJobPanelData(
+            part: resolved,
+            job: job,
+            binding: job == null ? null : coordinator?.bindingFor(job.id),
+          ),
+        ),
+        child: resolved.state == null
+            ? _plainImageBlock(ctx, uri, imageKey: imageKey, group: group)
+            : null,
+      );
+    }
+
+    if (coordinator == null) return Builder(builder: card);
+    return ListenableBuilder(
+      listenable: coordinator,
+      builder: (ctx, _) => card(ctx),
+    );
+  }
+
+  /// Draws a promised picture where its Markdown placeholder stands.
+  ///
+  /// This is the whole point of the round-13 decision: the model writes
+  /// `![](uri)` at the position it means, and the application's block appears
+  /// exactly there — header, skeleton, picture and ⋯ together — instead of being
+  /// appended after the last paragraph. Returning null leaves an ordinary
+  /// Markdown image alone.
+  Widget? _buildInlineJobImage(BuildContext context, String destination) {
+    final part = _imageJobPartForUri(destination);
+    if (part == null) return null;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: _imageJobBlock(
+        part,
+        uri: destination,
+        imageKey: timelineImageBlockKey(
+          imageId: part.id,
+          assetId: part.assetId,
+          sourceOrdinal: 0,
+        ),
+        group: [destination],
+      ),
+    );
+  }
+
   Widget _buildAssistantImageBlock(
+    BuildContext context,
+    String uri, {
+    required String imageKey,
+    required List<String> group,
+  }) {
+    final jobPart = _imageJobPartFor(imageKey);
+    if (jobPart != null) {
+      // The Markdown placeholder already drew this one in place; a second block
+      // here would be the same picture twice.
+      if (_inlineJobUris.contains(jobPart.uri)) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: SizedBox(
+          width: double.infinity,
+          child: _imageJobBlock(
+            jobPart,
+            uri: uri,
+            imageKey: imageKey,
+            group: group,
+          ),
+        ),
+      );
+    }
+    return _plainImageBlock(context, uri, imageKey: imageKey, group: group);
+  }
+
+  Widget _plainImageBlock(
     BuildContext context,
     String uri, {
     required String imageKey,
@@ -3354,6 +3514,20 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
       target: AssistantRegexTransformTarget.visual,
     );
     final visualContent = mappedVisual.text;
+    // A generated picture belongs where the model put its Markdown placeholder:
+    // that placeholder is the call position, and drawing the card there beats
+    // appending it after the last paragraph. The part still exists (it carries
+    // the state, the persistence and the outbound skip); it simply stops
+    // projecting a block of its own when the text already places it.
+    _jobImageSources
+      ..clear()
+      ..addAll([
+        for (final part in widget.message.parts)
+          if (part is ImagePart && part.jobId != null) part.uri,
+      ]);
+    _inlineJobUris
+      ..clear()
+      ..addAll(_jobImageSources.where((uri) => visualContent.contains(uri)));
     final visualTranslation = widget.message.translation != null
         ? _applyVisualAssistantRegexes(
             widget.message.translation!,

@@ -16252,6 +16252,58 @@ class AppLocalizationsRu extends AppLocalizations {
   String get retry => 'Повторить';
 
   @override
+  String get imageJobTitle => 'Создание иллюстрации';
+
+  @override
+  String get imageJobFailed => 'Не удалось создать иллюстрацию';
+
+  @override
+  String get imageJobCancelled => 'Отменено';
+
+  @override
+  String get imageJobInterrupted => 'Прервано';
+
+  @override
+  String get assistantEditLocalToolImageTitle => 'Рисование';
+
+  @override
+  String get defaultModelPageImageModelTitle => 'Модель изображений';
+
+  @override
+  String get defaultModelPageImageModelSubtitle =>
+      'Модель, которая рисует картинки внутри ответа; если не выбрать, рисование выключено.';
+
+  @override
+  String get imageJobPanelCopy => 'Копировать';
+
+  @override
+  String get imageJobPanelPromptLabel => 'Промпт';
+
+  @override
+  String get imageJobPanelModelLabel => 'Модель';
+
+  @override
+  String get imageJobPanelSizeLabel => 'Размер';
+
+  @override
+  String get imageJobPanelElapsedLabel => 'Затрачено';
+
+  @override
+  String get imageJobPanelUsageLabel => 'Расход';
+
+  @override
+  String get imageJobPanelAuto => 'Авто';
+
+  @override
+  String get imageJobPanelOneImage => '1 изображение';
+
+  @override
+  String get imageJobNotConfigured => 'Не настроено · Выбрать';
+
+  @override
+  String get imageJobToolSubtitle => 'Рисует картинки внутри ответа';
+
+  @override
   String get recoveryGuideTitle => 'Восстановим ваши чаты';
 
   @override

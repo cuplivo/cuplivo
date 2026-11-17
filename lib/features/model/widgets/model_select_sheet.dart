@@ -55,12 +55,17 @@ class _ModelProcessingData {
   final List<String> providersOrder;
   final String? limitProviderKey;
 
+  /// Keeps only models that can do the job this picker was opened for (a
+  /// drawing model, say). Null means "everything", the ordinary chat picker.
+  final bool Function(ModelSpec spec)? includeModel;
+
   _ModelProcessingData({
     required this.providerConfigs,
     required this.pinnedModels,
     required this.currentModelKey,
     required this.providersOrder,
     this.limitProviderKey,
+    this.includeModel,
   });
 }
 
@@ -124,7 +129,9 @@ _ModelProcessingResult _processModelsInBackground(_ModelProcessingData data) {
             selected: data.currentModelKey == '$key::$mid',
           );
         }(),
-    ];
+    ].where((item) => data.includeModel?.call(item.info) ?? true).toList();
+    // A provider that offered nothing this picker can use gets no section.
+    if (list.isEmpty) return;
     groups[key] = _ProviderGroup(
       name: name.isNotEmpty ? name : key,
       items: list,
@@ -140,6 +147,13 @@ _ModelProcessingResult _processModelsInBackground(_ModelProcessingData data) {
     final mid = parts.sublist(1).join('::');
     if (data.providerConfigs[pk]?.disabledModels.contains(mid) == true) {
       continue;
+    }
+    final include = data.includeModel;
+    if (include != null) {
+      final cfg = data.providerConfigs[pk];
+      if (cfg != null && !include(ModelSpecResolver.instance.spec(cfg, mid))) {
+        continue;
+      }
     }
     final g = groups[pk];
     if (g == null) continue;
@@ -192,6 +206,7 @@ Future<ModelSelection?> showModelSelector(
   String? initialModelId,
   bool allowInherit = false,
   String? inheritLabel,
+  bool Function(ModelSpec spec)? includeModel,
 }) async {
   if (_modelSelectorOpen) return null;
   _modelSelectorOpen = true;
@@ -208,6 +223,7 @@ Future<ModelSelection?> showModelSelector(
         initialModelId: initialModelId,
         allowInherit: allowInherit,
         inheritLabel: inheritLabel,
+        includeModel: includeModel,
       );
     }
     return await showModalBottomSheet<ModelSelection>(
@@ -223,6 +239,7 @@ Future<ModelSelection?> showModelSelector(
         initialModelId: initialModelId,
         allowInherit: allowInherit,
         inheritLabel: inheritLabel,
+        includeModel: includeModel,
       ),
     );
   } finally {
@@ -344,12 +361,14 @@ class _ModelSelectSheet extends StatefulWidget {
     this.initialModelId,
     this.allowInherit = false,
     this.inheritLabel,
+    this.includeModel,
   });
   final String? limitProviderKey;
   final String? initialProviderKey;
   final String? initialModelId;
   final bool allowInherit;
   final String? inheritLabel;
+  final bool Function(ModelSpec spec)? includeModel;
   @override
   State<_ModelSelectSheet> createState() => _ModelSelectSheetState();
 }
@@ -460,6 +479,7 @@ class _ModelSelectSheetState extends State<_ModelSelectSheet> {
           providerConfigs.keys,
         ),
         limitProviderKey: widget.limitProviderKey,
+        includeModel: widget.includeModel,
       );
 
       final result = _processModelsInBackground(processingData);
@@ -516,6 +536,7 @@ class _ModelSelectSheetState extends State<_ModelSelectSheet> {
         providerConfigs.keys,
       ),
       limitProviderKey: widget.limitProviderKey,
+      includeModel: widget.includeModel,
     );
 
     final result = _processModelsInBackground(processingData);
@@ -1744,6 +1765,7 @@ Future<ModelSelection?> _showDesktopModelSelector(
   String? initialModelId,
   bool allowInherit = false,
   String? inheritLabel,
+  bool Function(ModelSpec spec)? includeModel,
 }) async {
   return showGeneralDialog<ModelSelection>(
     context: context,
@@ -1756,6 +1778,7 @@ Future<ModelSelection?> _showDesktopModelSelector(
       initialModelId: initialModelId,
       allowInherit: allowInherit,
       inheritLabel: inheritLabel,
+      includeModel: includeModel,
     ),
     transitionBuilder: (ctx, anim, _, child) {
       final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
@@ -1777,12 +1800,14 @@ class _DesktopModelSelectDialogBody extends StatefulWidget {
     this.initialModelId,
     this.allowInherit = false,
     this.inheritLabel,
+    this.includeModel,
   });
   final String? limitProviderKey;
   final String? initialProviderKey;
   final String? initialModelId;
   final bool allowInherit;
   final String? inheritLabel;
+  final bool Function(ModelSpec spec)? includeModel;
   @override
   State<_DesktopModelSelectDialogBody> createState() =>
       _DesktopModelSelectDialogBodyState();
@@ -1871,6 +1896,7 @@ class _DesktopModelSelectDialogBodyState
         providerConfigs.keys,
       ),
       limitProviderKey: widget.limitProviderKey,
+      includeModel: widget.includeModel,
     );
     // Synchronous processing is fast enough here
     final result = _processModelsInBackground(data);

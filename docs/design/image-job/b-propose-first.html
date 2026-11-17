@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>方案 B — 先提案，用户批准再画</title>
+<style>
+  :root{
+    --bg:#F7F7F7; --card:#FFFFFF; --ink:#202020; --muted:#6B6B73;
+    --line:rgba(20,20,25,.08); --line-soft:rgba(20,20,25,.05);
+    --primary:#4D5C92; --primary-ink:#2F3B66;
+    --rail:#EDEEF4;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:780px;margin:0 auto;padding:28px 20px 56px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;line-height:1.35;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 22px;max-width:52em}
+  .lede b{color:var(--ink);font-weight:600}
+  .lede code,.closing code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em;
+    background:rgba(20,20,25,.05);border-radius:4px;padding:1px 4px}
+  .stage{display:flex;flex-wrap:wrap;align-items:flex-start;gap:24px;margin:0 0 26px}
+  .phone{width:360px;max-width:100%;flex:none;background:var(--card);border:1px solid var(--line);
+         border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(20,20,25,.07)}
+  .appbar{height:48px;display:flex;align-items:center;padding:0 12px;gap:8px;
+          border-bottom:1px solid var(--line-soft);background:var(--card)}
+  .appbar .title{flex:1;text-align:center;font-size:15px;font-weight:600}
+  .icon{width:20px;height:20px;display:block;color:var(--ink);opacity:.7}
+  .chat{background:var(--bg);padding:10px 0 6px}
+  .row{display:flex;justify-content:flex-end;padding:6px 16px}
+  .bubble{max-width:78%;background:rgba(77,92,146,.09);border-radius:16px;padding:10px 12px;
+          font-size:15px;line-height:1.55}
+  .msg{padding:12px 20px 4px}
+  .msg-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .avatar{width:32px;height:32px;border-radius:50%;background:rgba(77,92,146,.12);
+          color:var(--primary);display:flex;align-items:center;justify-content:center;
+          font-size:14px;font-weight:700;flex:none}
+  .name{font-size:13px;font-weight:500;color:rgba(32,32,32,.72);line-height:1.2}
+  .time{font-size:11px;color:rgba(32,32,32,.45);line-height:1.4}
+  .body{font-size:15.5px;line-height:1.6;margin:0 0 2px}
+  .body + .body{margin-top:10px}
+  .card{margin:12px 0 10px;border:1px solid var(--line);border-radius:12px;background:var(--card);
+        overflow:hidden}
+  .card-head{display:flex;align-items:center;gap:6px;padding:9px 12px;font-size:13px}
+  .card-head .label{font-weight:600;display:flex;align-items:center;gap:6px}
+  .card-head .meta{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .card-head .grow{flex:1}
+  .proposal{border-color:rgba(77,92,146,.22);background:rgba(77,92,146,.035)}
+  .prompt{padding:0 12px 11px;font-size:14px;line-height:1.55;color:#2E2E36}
+  .actions{display:flex;gap:8px;padding:0 12px 11px}
+  .btn{height:32px;border-radius:16px;padding:0 14px;display:inline-flex;align-items:center;
+       justify-content:center;font-size:13px;font-weight:550}
+  .btn.primary{background:var(--primary);color:#fff}
+  .btn.ghost{color:var(--primary);border:1px solid rgba(77,92,146,.25)}
+  .caret{display:inline-block;width:2px;height:1.02em;background:var(--primary);
+         vertical-align:-2px;margin-left:2px;animation:blink 1.3s ease-in-out infinite}
+  @keyframes blink{0%,100%{opacity:.3}50%{opacity:1}}
+  .composer{padding:8px 12px 12px;background:var(--card);border-top:1px solid var(--line-soft);
+            display:flex;align-items:center;gap:8px}
+  .input{flex:1;height:36px;border-radius:18px;border:1px solid var(--line);display:flex;
+         align-items:center;padding:0 12px;font-size:14px;color:rgba(32,32,32,.4);background:var(--card)}
+  .send{width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;
+        align-items:center;justify-content:center;flex:none}
+  .notes{flex:1 1 300px;min-width:280px;max-width:380px}
+  .note{font-size:13px;line-height:1.7;color:var(--muted);margin:0 0 12px}
+  .note b{color:var(--ink);font-weight:600}
+  .note code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;
+             background:rgba(20,20,25,.05);border-radius:4px;padding:1px 4px;color:var(--ink)}
+  h2{font-size:14px;font-weight:650;margin:0 0 8px}
+  section{margin:0 0 22px}
+  ul{margin:0;padding-left:18px}
+  li{font-size:14px;line-height:1.7;margin-bottom:6px;color:#33333a}
+  li b{color:var(--ink);font-weight:600}
+  .cost li{color:#4A4A52}
+  .cost li::marker{color:#B08968}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);
+           padding-top:14px;margin-top:4px}
+  .closing b{color:var(--ink)}
+  @media (max-width:520px){
+    .page{padding:18px 10px 44px}
+    .phone{width:100%}
+    .notes{min-width:0;max-width:none;flex-basis:100%}
+    .msg{padding:12px 16px 4px}
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <p class="kicker">生图 Job · 第一轮 · 变体 B · 未采纳</p>
+  <h1>先提案，用户批准再画</h1>
+  <p class="lede">模型不直接生成，先在调用位置放一张提案卡：写清要画什么、什么比例。<b>这一轮要定的只有一件事：默认由谁按下「开始画」。</b></p>
+
+  <div class="stage">
+    <div class="phone">
+      <div class="appbar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <div class="title">慢下来</div>
+        <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      </div>
+
+      <div class="chat">
+        <div class="row">
+          <div class="bubble">写一条关于「慢下来」的短文，配一张插图。</div>
+        </div>
+
+        <div class="msg">
+          <div class="msg-head">
+            <span class="avatar">C</span>
+            <div>
+              <div class="name">Cuplivo · GPT-5</div>
+              <div class="time">20:41</div>
+            </div>
+          </div>
+
+          <p class="body">慢下来不是停下来。是把日程里被塞满的缝隙重新撑开，让注意力有地方落脚。</p>
+
+          <div class="card proposal">
+            <div class="card-head">
+              <span class="label">配图提案</span>
+              <span class="grow"></span>
+              <span class="meta">3:2</span>
+            </div>
+            <div class="prompt">「霓虹雨夜的旧书店，湿漉漉的招牌映在水洼里，赛博朋克风格插画」</div>
+            <div class="actions">
+              <span class="btn primary">生成插图</span>
+              <span class="btn ghost">这次不要</span>
+            </div>
+          </div>
+
+          <p class="body">一天里总要有几段不被安排的时间。它们不产出什么，但正是它们让产出这件事还值得做。<span class="caret"></span></p>
+        </div>
+      </div>
+
+      <div class="composer">
+        <div class="input">发消息…</div>
+        <div class="send">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <p class="note"><b>模型拿到什么：</b><code>{status:"awaiting_user", proposal_id}</code>，这一轮到此为止 —— 它拿不到图，也不必等图。</p>
+      <p class="note"><b>用户按什么：</b>「生成插图」→ job 从 queued 开始，之后与 A 走同一套状态机；「这次不要」→ declined，不花钱、不留 job。</p>
+      <p class="note"><b>批准之后：</b>同一张卡变成占位、再换成图；失败/取消可重试，和 A 完全一样。</p>
+      <p class="note"><b>一条硬规矩：</b>正文不许承诺「图在下面」—— 图是否存在，不由模型决定。</p>
+    </div>
+  </div>
+
+  <section>
+    <h2>这一版定下的</h2>
+    <ul>
+      <li>工具是<b>proposal</b>而不是 generation：模型只提议，批准才提交 job。</li>
+      <li>提案卡带 prompt 原文和比例，用户在花钱前看得见、改得了（改 prompt 或直接拒绝）。</li>
+      <li>批准后复用同一套 job 生命周期与占位卡；拒绝是终态，不重试。</li>
+      <li>「配图」是显式动作，不是默认行为；模型不把图写进自己的叙述。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>必须接受的代价</h2>
+    <ul class="cost">
+      <li>每张图多一次点击；配图从默认行为变成需要确认的操作。</li>
+      <li>模型这一轮拿不到结果，回复的完成度和图脱钩；要它评论这张图，得再来一轮。</li>
+      <li>用户不点，回复里就没有图；正文若承诺了图，就落空 —— 靠「不许承诺」的提示词规矩兜。</li>
+      <li>工具契约多一个 awaiting_user 状态、一套提案/拒绝态 UI，是在 job 机制之外再加一层。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>分水岭</h2>
+    <p class="note">B 是用户按下「开始画」。好处是花钱前能看一眼 prompt；代价是「配图」永远需要一次确认。</p>
+  </section>
+
+  <p class="closing"><b>两个方案共用的部分：</b>job 生命周期（queued → running → completed / failed / cancelled / interrupted）、原位置换、失败与取消可重试、重启中断、schema 5、先接一个后端。<b>还没定的：</b>工具命名与 <code>await_image</code> 的具体形态、默认后端、图像模型放全局还是按助手、占位卡的具体视觉、VLM 检查、context injection —— 都排在这一轮之后。</p>
+
+</main>
+</body>
+</html>

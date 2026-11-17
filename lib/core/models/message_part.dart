@@ -229,6 +229,13 @@ final class AssistantRoundEndPart extends MessagePart {
   int get hashCode => encodePayload().hashCode;
 }
 
+/// Progress of a promised image whose bytes have not been written yet.
+///
+/// `null` on [ImagePart.state] means the bytes are there (or the part predates
+/// image jobs). Unknown future values decode to `null`, so an older build still
+/// shows the image instead of dropping the part.
+enum ImagePartState { pending, failed, cancelled, interrupted }
+
 final class ImagePart extends MessagePart {
   const ImagePart({
     required this.uri,
@@ -236,6 +243,12 @@ final class ImagePart extends MessagePart {
     this.assetId,
     this.id,
     this.unavailable = false,
+    this.jobId,
+    this.state,
+    this.prompt,
+    this.model,
+    this.failureReason,
+    this.durationMs,
   });
 
   factory ImagePart.fromPayload(String payload) {
@@ -249,6 +262,12 @@ final class ImagePart extends MessagePart {
       mime: _optionalString(map, 'mime'),
       assetId: _optionalString(map, 'assetId'),
       unavailable: _optionalBool(map, 'unavailable'),
+      jobId: _optionalString(map, 'jobId'),
+      state: _decodeImagePartState(_optionalString(map, 'state')),
+      prompt: _optionalString(map, 'prompt'),
+      model: _optionalString(map, 'model'),
+      failureReason: _optionalString(map, 'failureReason'),
+      durationMs: _optionalInt(map, 'durationMs'),
     );
   }
 
@@ -260,6 +279,60 @@ final class ImagePart extends MessagePart {
   final String? id;
   final bool unavailable;
 
+  /// The job that will fill [uri]; written so a restart can tell "still
+  /// painting" from "interrupted".
+  final String? jobId;
+
+  /// `null` once the bytes exist.
+  final ImagePartState? state;
+
+  /// What was asked for. Kept on the part so the panel can show it and 重新生成
+  /// can run again after a restart, when no live job remembers the prompt.
+  final String? prompt;
+
+  /// `providerId::modelId` that drew it. The panel names it after a restart,
+  /// when the resolved binding is gone.
+  final String? model;
+
+  /// Why the attempt failed, in words a person can act on. Kept on the part so
+  /// a failed picture still explains itself after a restart.
+  final String? failureReason;
+
+  /// How long the attempt took, kept on the part so the header still reads
+  /// `(14.5s)` after a restart instead of a bare title. Milliseconds.
+  final int? durationMs;
+
+  /// The duration as a [Duration], or null when this picture never reported one.
+  Duration? get duration =>
+      durationMs == null ? null : Duration(milliseconds: durationMs!);
+
+  /// Whether there are bytes to send.
+  ///
+  /// A part with a [state] is a promise from an image job: the uri is already
+  /// reserved, but the file it names does not exist yet. Nothing may hand that
+  /// to a model — there is no picture to encode — so every outbound path asks
+  /// this instead of re-deriving "is this thing real" from the uri. Whether the
+  /// file passed [unavailable] once it *was* written is a separate question.
+  bool get hasBytes => state == null;
+
+  /// The same image at a new stage. [state] `null` means the bytes are here;
+  /// [uri] moves to wherever the bytes actually landed.
+  ImagePart withState(ImagePartState? state, {String? uri}) {
+    return ImagePart(
+      uri: uri ?? this.uri,
+      mime: mime,
+      assetId: assetId,
+      id: id,
+      unavailable: unavailable,
+      jobId: jobId,
+      state: state,
+      prompt: prompt,
+      model: model,
+      failureReason: failureReason,
+      durationMs: durationMs,
+    );
+  }
+
   @override
   String get kind => 'image';
 
@@ -269,6 +342,12 @@ final class ImagePart extends MessagePart {
     if (mime != null) 'mime': mime,
     if (assetId != null) 'assetId': assetId,
     if (unavailable) 'unavailable': true,
+    if (jobId != null) 'jobId': jobId,
+    if (state != null) 'state': state!.name,
+    if (prompt != null) 'prompt': prompt,
+    if (model != null) 'model': model,
+    if (failureReason != null) 'failureReason': failureReason,
+    if (durationMs != null) 'durationMs': durationMs,
   });
 
   @override
@@ -279,10 +358,28 @@ final class ImagePart extends MessagePart {
           mime == other.mime &&
           assetId == other.assetId &&
           id == other.id &&
-          unavailable == other.unavailable;
+          unavailable == other.unavailable &&
+          jobId == other.jobId &&
+          state == other.state &&
+          prompt == other.prompt &&
+          model == other.model &&
+          failureReason == other.failureReason &&
+          durationMs == other.durationMs;
 
   @override
-  int get hashCode => Object.hash(uri, mime, assetId, id, unavailable);
+  int get hashCode => Object.hash(
+    uri,
+    mime,
+    assetId,
+    id,
+    unavailable,
+    jobId,
+    state,
+    prompt,
+    model,
+    failureReason,
+    durationMs,
+  );
 }
 
 final class FilePart extends MessagePart {
@@ -451,6 +548,25 @@ bool _optionalBool(Map<String, dynamic> map, String key) {
     throw const _MessagePartFormatException('invalid_unavailable');
   }
   return value;
+}
+
+int? _optionalInt(Map<String, dynamic> map, String key) {
+  final value = map[key];
+  if (value == null) return null;
+  if (value is! int || value < 0) {
+    throw const _MessagePartFormatException('invalid_duration');
+  }
+  return value;
+}
+
+/// An unknown value is not a format error: a newer build may write a state this
+/// one does not know, and the image itself is still described by [ImagePart.uri].
+ImagePartState? _decodeImagePartState(String? raw) {
+  if (raw == null) return null;
+  for (final state in ImagePartState.values) {
+    if (state.name == raw) return state;
+  }
+  return null;
 }
 
 /// Whether persisted split triples can drive the historical interleaving

@@ -836,4 +836,93 @@ void main() {
     expect(find.byType(WorkspaceSection), findsOneWidget);
     expect(find.text(workspace.name), findsOneWidget);
   });
+
+  // 绘图 is the one local tool with a second level: the row only turns it on or
+  // off, and what it draws with grows underneath. Three states, two shells.
+  for (final desktop in [false, true]) {
+    testWidgets('drawing shows its model below the switch, desktop=$desktop', (
+      tester,
+    ) async {
+      // Provider writes go through the real preferences store, so they run
+      // outside the fake-async zone (as every other provider write here does).
+      Future<void> setDrawing({
+        bool enabled = true,
+        String? providerId,
+        String? modelId,
+      }) async {
+        await tester.runAsync(() async {
+          final current = assistants.getById(assistantId)!;
+          final ids = current.localToolIds.toSet();
+          if (enabled) {
+            ids.add(LocalToolNames.generateImage);
+          } else {
+            ids.remove(LocalToolNames.generateImage);
+          }
+          await assistants.updateAssistant(
+            current.copyWith(
+              localToolIds: ids.toList(growable: false),
+              imageModelProvider: providerId,
+              clearImageModelProvider: providerId == null,
+              imageModelId: modelId,
+              clearImageModelId: modelId == null,
+            ),
+          );
+        });
+        if (tester.binding.rootElement != null) {
+          await tester.pumpAndSettle();
+        }
+      }
+
+      // The sheet's list is one scrollable; the popover's is another. Both
+      // are the first Scrollable in their own tree, so one helper serves both.
+      Future<void> reveal(Finder finder) async {
+        if (finder.evaluate().isNotEmpty) return;
+        await tester.scrollUntilVisible(
+          finder,
+          250,
+          scrollable: find.byType(Scrollable).first,
+        );
+      }
+
+      await setDrawing(enabled: false);
+      final l10n = await pumpSheet(tester, desktop: desktop);
+      await tester.pumpAndSettle();
+      // The local tools group starts folded on a phone.
+      if (!desktop) {
+        await tester.tap(find.text(l10n.assistantEditPageLocalToolsTab));
+        await tester.pumpAndSettle();
+      }
+
+      final drawingRow = find.text(
+        localToolTitle(l10n, LocalToolNames.generateImage),
+      );
+      final drawPictures = '${l10n.imageJobPanelModelLabel} · gpt-image-1';
+
+      // 开 · 未配: the sub-row says so, and points at the picker.
+      await setDrawing(enabled: true);
+      await tester.pumpAndSettle();
+      await reveal(drawingRow);
+      expect(drawingRow, findsOneWidget);
+      await reveal(find.text(l10n.imageJobNotConfigured));
+      expect(find.text(l10n.imageJobNotConfigured), findsOneWidget);
+
+      // 开 · 已配: the same row now names the model.
+      await setDrawing(
+        enabled: true,
+        providerId: 'openai',
+        modelId: 'gpt-image-1',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.imageJobNotConfigured), findsNothing);
+      await reveal(find.text(drawPictures));
+      expect(find.text(drawPictures), findsOneWidget);
+
+      // 关: the row stays, the next level folds away.
+      await setDrawing(enabled: false, providerId: null, modelId: null);
+      await tester.pumpAndSettle();
+      expect(drawingRow, findsOneWidget);
+      expect(find.text(l10n.imageJobNotConfigured), findsNothing);
+      expect(find.text(drawPictures), findsNothing);
+    });
+  }
 }

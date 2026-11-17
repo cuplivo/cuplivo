@@ -92,6 +92,33 @@ class DesktopDefaultModelPane extends StatelessWidget {
 
                   const SizedBox(height: 16),
                   _ModelCard(
+                    icon: lucide.Lucide.Image,
+                    title: l10n.defaultModelPageImageModelTitle,
+                    subtitle: l10n.defaultModelPageImageModelSubtitle,
+                    modelProvider: settings.imageModelProvider,
+                    modelId: settings.imageModelId,
+                    disabledWhenUnset: true,
+                    showResetWhenUnset: true,
+                    onReset: () async {
+                      await context.read<SettingsProvider>().resetImageModel();
+                    },
+                    onPick: () async {
+                      final settingsProvider = context.read<SettingsProvider>();
+                      final sel = await pickConfiguredModel(
+                        settings.imageModelProvider,
+                        settings.imageModelId,
+                      );
+                      if (sel != null) {
+                        await settingsProvider.setImageModel(
+                          sel.providerKey,
+                          sel.modelId,
+                        );
+                      }
+                    },
+                  ),
+
+                  const SizedBox(height: 16),
+                  _ModelCard(
                     icon: lucide.Lucide.NotebookTabs,
                     title: l10n.defaultModelPageTitleModelTitle,
                     subtitle: l10n.defaultModelPageTitleModelSubtitle,

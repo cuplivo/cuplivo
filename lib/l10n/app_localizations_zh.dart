@@ -15145,6 +15145,57 @@ class AppLocalizationsZh extends AppLocalizations {
   String get retry => '重试';
 
   @override
+  String get imageJobTitle => '生成插图';
+
+  @override
+  String get imageJobFailed => '生成失败';
+
+  @override
+  String get imageJobCancelled => '已取消';
+
+  @override
+  String get imageJobInterrupted => '已中断';
+
+  @override
+  String get assistantEditLocalToolImageTitle => '绘图';
+
+  @override
+  String get defaultModelPageImageModelTitle => '绘图模型';
+
+  @override
+  String get defaultModelPageImageModelSubtitle => '在回复里画图所用的模型；不设置就等于不启用绘图。';
+
+  @override
+  String get imageJobPanelCopy => '复制';
+
+  @override
+  String get imageJobPanelPromptLabel => '提示词';
+
+  @override
+  String get imageJobPanelModelLabel => '模型';
+
+  @override
+  String get imageJobPanelSizeLabel => '尺寸';
+
+  @override
+  String get imageJobPanelElapsedLabel => '用时';
+
+  @override
+  String get imageJobPanelUsageLabel => '用量';
+
+  @override
+  String get imageJobPanelAuto => '自动';
+
+  @override
+  String get imageJobPanelOneImage => '1 张';
+
+  @override
+  String get imageJobNotConfigured => '未配置 · 去选择';
+
+  @override
+  String get imageJobToolSubtitle => '在回复里画图';
+
+  @override
   String get recoveryGuideTitle => '帮你找回聊天记录';
 
   @override
@@ -33048,6 +33099,57 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get retry => '重试';
+
+  @override
+  String get imageJobTitle => '生成插图';
+
+  @override
+  String get imageJobFailed => '生成失败';
+
+  @override
+  String get imageJobCancelled => '已取消';
+
+  @override
+  String get imageJobInterrupted => '已中断';
+
+  @override
+  String get assistantEditLocalToolImageTitle => '绘图';
+
+  @override
+  String get defaultModelPageImageModelTitle => '绘图模型';
+
+  @override
+  String get defaultModelPageImageModelSubtitle => '在回复里画图所用的模型；不设置就等于不启用绘图。';
+
+  @override
+  String get imageJobPanelCopy => '复制';
+
+  @override
+  String get imageJobPanelPromptLabel => '提示词';
+
+  @override
+  String get imageJobPanelModelLabel => '模型';
+
+  @override
+  String get imageJobPanelSizeLabel => '尺寸';
+
+  @override
+  String get imageJobPanelElapsedLabel => '用时';
+
+  @override
+  String get imageJobPanelUsageLabel => '用量';
+
+  @override
+  String get imageJobPanelAuto => '自动';
+
+  @override
+  String get imageJobPanelOneImage => '1 张';
+
+  @override
+  String get imageJobNotConfigured => '未配置 · 去选择';
+
+  @override
+  String get imageJobToolSubtitle => '在回复里画图';
 
   @override
   String get recoveryGuideTitle => '帮你找回聊天记录';
@@ -50964,6 +51066,57 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get retry => '重試';
+
+  @override
+  String get imageJobTitle => '生成插圖';
+
+  @override
+  String get imageJobFailed => '生成失敗';
+
+  @override
+  String get imageJobCancelled => '已取消';
+
+  @override
+  String get imageJobInterrupted => '已中斷';
+
+  @override
+  String get assistantEditLocalToolImageTitle => '繪圖';
+
+  @override
+  String get defaultModelPageImageModelTitle => '繪圖模型';
+
+  @override
+  String get defaultModelPageImageModelSubtitle => '在回覆裡畫圖所用的模型；不設定就等於不啟用繪圖。';
+
+  @override
+  String get imageJobPanelCopy => '複製';
+
+  @override
+  String get imageJobPanelPromptLabel => '提示詞';
+
+  @override
+  String get imageJobPanelModelLabel => '模型';
+
+  @override
+  String get imageJobPanelSizeLabel => '尺寸';
+
+  @override
+  String get imageJobPanelElapsedLabel => '用時';
+
+  @override
+  String get imageJobPanelUsageLabel => '用量';
+
+  @override
+  String get imageJobPanelAuto => '自動';
+
+  @override
+  String get imageJobPanelOneImage => '1 張';
+
+  @override
+  String get imageJobNotConfigured => '未設定 · 去選擇';
+
+  @override
+  String get imageJobToolSubtitle => '在回覆裡畫圖';
 
   @override
   String get recoveryGuideTitle => '幫你找回聊天記錄';

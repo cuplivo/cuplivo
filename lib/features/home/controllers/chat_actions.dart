@@ -55,6 +55,7 @@ import '../../chat/utils/thinking_tag_parser.dart';
 import '../services/context_usage_service.dart';
 import '../services/message_generation_service.dart';
 import '../services/tool_approval_service.dart';
+import '../../image_job/services/image_job_coordinator.dart';
 import 'active_streaming_message_store.dart';
 import 'chat_controller.dart';
 import 'generation_controller.dart';
@@ -1723,13 +1724,33 @@ class ChatActions {
     if (parts.isEmpty) {
       return <MessagePart>[
         TextPart(visibleText ?? _transformAssistantContent(state)),
+        // A picture this reply asked for mid-flight belongs to it, and the
+        // stream cannot have seen the tool that created it.
+        ..._imageJobParts(state.messageId),
       ];
     }
     return state.partSnapshots.update(
-      parts,
+      [...parts, ..._imageJobParts(state.messageId, existing: parts)],
       transform: (text) => _transformAssistantContent(state, text),
       visibleText: visibleText,
     );
+  }
+
+  /// Image parts owned by a live job for this reply, minus ones already there.
+  List<MessagePart> _imageJobParts(
+    String messageId, {
+    List<MessagePart> existing = const <MessagePart>[],
+  }) {
+    final coordinator = imageJobCoordinatorOf(contextProvider);
+    if (coordinator == null) return const <MessagePart>[];
+    final present = <String>{
+      for (final part in existing)
+        if (part is ImagePart && part.assetId != null) part.assetId!,
+    };
+    return [
+      for (final part in coordinator.partsFor(messageId))
+        if (!present.contains(part.assetId)) part,
+    ];
   }
 
   Future<List<MessagePart>> _sanitizeAssistantImageParts(

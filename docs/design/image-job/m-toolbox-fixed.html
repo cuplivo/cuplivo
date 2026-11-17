@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第九轮 — 工具箱（修正版）</title>
+<style>
+  :root{--bg:#F7F7F7;--card:#FFF;--ink:#202020;--muted:#6B6B73;--line:rgba(20,20,25,.08);
+        --line-soft:rgba(20,20,25,.05);--primary:#4D5C92}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:760px;margin:0 auto;padding:26px 20px 44px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 22px;max-width:56em}
+  .lede b{color:var(--ink);font-weight:600}
+  .stage{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+  .card{width:360px;max-width:100%;background:var(--card);border:1px solid var(--line);
+        border-radius:18px;box-shadow:0 10px 28px rgba(20,20,25,.08);padding:14px 16px 16px}
+  .handle{width:40px;height:4px;border-radius:999px;background:rgba(32,32,32,.2);margin:0 auto 12px}
+  .head{display:flex;align-items:center;margin-bottom:10px}
+  .head .t{font-size:15px;font-weight:600;flex:1}
+  .head .x{color:var(--muted);font-size:15px}
+  .row{display:flex;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--line-soft)}
+  .row .name{flex:1;font-size:15px}
+  .chev{color:rgba(32,32,32,.28);font-size:15px;padding:0 2px}
+  .switch{width:40px;height:24px;border-radius:999px;background:rgba(20,20,25,.12);position:relative;flex:none}
+  .switch.on{background:var(--primary)}
+  .switch .knob{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;
+                box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .switch.on .knob{left:18px}
+  .panel{width:320px;max-width:100%;background:var(--card);border:1px solid var(--line);
+         border-radius:16px;box-shadow:0 10px 26px rgba(20,20,25,.10);padding:12px 16px 16px}
+  .panel .t{font-size:14px;font-weight:600;margin-bottom:2px}
+  .panel .s{font-size:12px;color:var(--muted);margin-bottom:6px}
+  .panel .row{padding:11px 0}
+  .notes{flex:1 1 240px;min-width:220px}
+  h2{font-size:13px;font-weight:650;margin:0 0 8px}
+  ul{margin:0 0 14px;padding-left:18px}
+  li{font-size:13.5px;line-height:1.65;color:#3A3A42;margin-bottom:5px}
+  .caption{font-size:12.5px;line-height:1.7;color:var(--muted);margin:10px 2px 0}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);padding-top:14px;margin-top:20px}
+  .closing b{color:var(--ink)}
+  @media (max-width:660px){.page{padding:18px 10px 40px}.card,.panel{width:100%}.notes{flex-basis:100%}}
+</style>
+</head>
+<body>
+<main class="page">
+  <p class="kicker">生图 Job · 第九轮 · 修订 A</p>
+  <h1>工具箱：一行，› 在开关左边</h1>
+  <p class="lede">沿用现在的一行设计，不加副标题。<b>› 放在开关左侧</b>，只有绘图和子代理有；大部分工具没有它，行仍然对齐（开关贴右）。联网是工具箱<b>平级</b>的按钮，不进这个列表。</p>
+
+  <div class="stage">
+    <div class="card">
+      <div class="handle"></div>
+      <div class="head"><div class="t">工具</div><div class="x">✕</div></div>
+
+      <div class="row">
+        <span class="name">绘图</span>
+        <span class="chev">›</span>
+        <div class="switch on"><div class="knob"></div></div>
+      </div>
+      <div class="row">
+        <span class="name">子代理</span>
+        <span class="chev">›</span>
+        <div class="switch"><div class="knob"></div></div>
+      </div>
+      <div class="row">
+        <span class="name">浏览器</span>
+        <div class="switch"><div class="knob"></div></div>
+      </div>
+      <div class="row">
+        <span class="name">时间</span>
+        <div class="switch on"><div class="knob"></div></div>
+      </div>
+      <div class="row">
+        <span class="name">剪贴板</span>
+        <div class="switch on"><div class="knob"></div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="t">点「绘图 ›」进下一级</div>
+      <div class="s">只有一项：用哪个绘图模型。比例、画质都交给模型自己定（auto）。</div>
+      <div class="row">
+        <span class="name">模型</span>
+        <span style="font-size:12.5px;color:var(--muted)">跟随助手 · gpt-image-1</span>
+        <span class="chev">›</span>
+      </div>
+      <div class="caption">「跟随助手」= 用这个助手在设置里选的；选过具体模型就变成显式值。<br>子代理的下一级同样是「一行一项」：委托目标（模型或助手）。</div>
+    </div>
+
+    <div class="notes">
+      <h2>这一版定下的</h2>
+      <ul>
+        <li>工具箱行 = 名称 + （有下一级才有的 ›）+ 开关，不加说明文字。</li>
+        <li>› 在开关左边，没有下一级的工具行不会因此错位。</li>
+        <li>绘图下一级只有「模型」；比例/画质由模型决定（auto），不由用户在这里指定。</li>
+        <li>联网搜索是工具箱平级按钮，不在这个列表里。</li>
+      </ul>
+      <h2>代价</h2>
+      <ul>
+        <li>› 与开关挨着，误触开关会改上下文（点名称行不切换）。</li>
+        <li>「跟随助手」要写当前实际模型，否则用户得回设置页确认。</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="closing"><b>回答你的两个问题：</b>① 主对话模型不能选绘图模型 —— 它只写 prompt，模型由用户配（助手 → 全局）。② 比例不由用户指定：工具参数里只留 prompt，其余走 auto。<b>job 基建</b>按 kind + model 建模，绘图与子代理共用。</p>
+</main>
+</body>
+</html>

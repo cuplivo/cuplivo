@@ -121,7 +121,8 @@ void main() {
 
   testWidgets('a group topic highlights its group, not the last assistant', (
     tester,
-  ) async {    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
     try {
       final chat = _FakeChat();
       final rig = await _pump(tester, chat: chat);

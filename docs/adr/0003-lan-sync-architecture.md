@@ -2188,7 +2188,11 @@ existing hello gate refuses it with the upgrade reason it already carries.
   nobody classified. It reads four shapes: a declaration (`entityKind =`, `extensionKind:`,
   `static const kind =`, `…Kind =`, and the store's own front form `kindWorkspace =`), a camelCase
   use (`kind =`, `kind:`, `kind.equals`, `kind IN (…)`), and a kind passed positionally to
-  `ExtensionEntityStore` (`upsert`, `get`, `delete`, `listByKind`, `watchKind`). The front form is
+  `ExtensionEntityStore` (`upsert`, `get`, `delete`, `listByKind`, `watchKind`). A synced
+  conversation family also names its `conflictTarget` — the applier writes its rows through it — and
+  the guard refuses a family that does not, or one naming a column the table does not have; a
+  `payloadDigest` family on a table without a `payload` column is refused too, because the applier
+  would drop every row it read. The front form is
   claimed with two carve-outs, because the same shape also names things that are not rows at all:
   `provider_artifact_rows` values (`image_ocr_v1`, the table syncs whole) and the blob plane's entry
   kinds (`file`, `skill-dir`). Four review rounds found four blind spots in this scan — a compound

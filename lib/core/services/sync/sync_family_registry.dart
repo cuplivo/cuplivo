@@ -82,6 +82,7 @@ class SyncFamily {
     this.conversationColumn = 'conversation_id',
     this.messageRevisionColumn,
     this.orderBy,
+    this.conflictTarget = const [],
     this.isSubtreeRoot = false,
     this.apply = SyncFamilyApply.rowLastWriteWins,
     required this.ownership,
@@ -133,6 +134,16 @@ class SyncFamily {
   /// `ORDER BY` clause for this family's rows, so a sender and a sender's peer
   /// read the same order. Null when the family has one row per conversation.
   final String? orderBy;
+
+  /// The columns that identify one row of [table] — the `ON CONFLICT` target the
+  /// applier writes through.
+  ///
+  /// It belongs to the registration because the applier is its second reader: a
+  /// family the merge body does not know still has to say how a row of its table
+  /// is keyed, or the first peer apply throws a `StateError` on a user's device
+  /// rather than a test failing. The guard requires it for every synced
+  /// conversation family and checks each column against the schema.
+  final List<String> conflictTarget;
 
   /// Whether this family *is* the subtree root: one row, travelling as the
   /// payload's `conversation` rather than as a list. Exactly one synced
@@ -205,6 +216,7 @@ const List<SyncFamily> kSyncFamilies = [
     wireKey: 'conversation',
     conversationColumn: 'id',
     isSubtreeRoot: true,
+    conflictTarget: ['id'],
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.conversation,
     identity: SyncIdentityContribution.conversationClock,
@@ -222,6 +234,7 @@ const List<SyncFamily> kSyncFamilies = [
     table: 'conversation_mcp_server_rows',
     wireKey: 'mcpServers',
     orderBy: 'ordinal',
+    conflictTarget: ['conversation_id', 'server_id'],
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.conversation,
     // No clock column: the binding *is* its (server, ordinal) pair.
@@ -234,6 +247,7 @@ const List<SyncFamily> kSyncFamilies = [
     table: 'message_rows',
     wireKey: 'messages',
     orderBy: 'message_order, id',
+    conflictTarget: ['id'],
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.conversation,
     identity: SyncIdentityContribution.rowClocks,
@@ -248,6 +262,7 @@ const List<SyncFamily> kSyncFamilies = [
     table: 'message_part_rows',
     wireKey: 'parts',
     orderBy: 'revision_id, ordinal',
+    conflictTarget: ['revision_id', 'ordinal'],
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.conversation,
     identity: SyncIdentityContribution.rowClocks,
@@ -264,6 +279,7 @@ const List<SyncFamily> kSyncFamilies = [
     table: 'provider_artifact_rows',
     wireKey: 'artifacts',
     messageRevisionColumn: 'revision_id',
+    conflictTarget: ['revision_id', 'kind'],
     orderBy: 'revision_id, kind',
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.conversation,
@@ -280,6 +296,7 @@ const List<SyncFamily> kSyncFamilies = [
     kind: 'conversationContext',
     wireKey: 'context',
     conversationColumn: 'id',
+    conflictTarget: ['kind', 'id'],
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.conversation,
     apply: SyncFamilyApply.rowLastWriteWins,
@@ -292,6 +309,7 @@ const List<SyncFamily> kSyncFamilies = [
     kind: 'conversationImageContext',
     wireKey: 'imageContext',
     conversationColumn: 'id',
+    conflictTarget: ['kind', 'id'],
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.conversation,
     apply: SyncFamilyApply.rowLastWriteWins,
@@ -304,6 +322,7 @@ const List<SyncFamily> kSyncFamilies = [
     kind: 'conversationCompression',
     wireKey: 'compression',
     conversationColumn: 'id',
+    conflictTarget: ['kind', 'id'],
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.conversation,
     apply: SyncFamilyApply.rowLastWriteWins,
@@ -818,6 +837,33 @@ List<String> syncFamilyProblems(
           }
         } else if (family.identity == SyncIdentityContribution.none) {
           problems.add('$where: synced but contributes nothing to an identity');
+        }
+        if (family.scope == SyncFamilyScope.conversation) {
+          // The applier writes a conversation family's rows through this target.
+          // A family that does not name one is registered, read, sent and
+          // digested, and then throws on the first peer apply — on a device,
+          // not in a test, which is what this guard exists to prevent.
+          if (family.conflictTarget.isEmpty) {
+            problems.add(
+              '$where: a synced conversation family must name its conflict '
+              'target — the applier writes its rows through it',
+            );
+          }
+          for (final column in family.conflictTarget) {
+            if (!columns.contains(column)) {
+              problems.add(
+                '$where: conflict target column $column is not in '
+                '${family.table}',
+              );
+            }
+          }
+        }
+        if (family.identity == SyncIdentityContribution.payloadDigest &&
+            !columns.contains('payload')) {
+          problems.add(
+            '$where: payloadDigest, but ${family.table} has no payload column — '
+            'the applier would silently drop every row it reads',
+          );
         }
         if (family.scope == SyncFamilyScope.conversation &&
             family.apply == SyncFamilyApply.specialised &&

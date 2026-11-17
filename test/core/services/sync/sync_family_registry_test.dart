@@ -235,6 +235,72 @@ void main() {
     },
   );
 
+  test('a conversation family without a conflict target would fail', () {
+    // The applier writes a family's rows through this target; a registration
+    // that does not name one is read, sent and digested, and then throws on the
+    // first peer apply — on a device instead of in this test.
+    final problems = syncFamilyProblems([
+      ...families,
+      const SyncFamily(
+        name: 'ghostNoTarget',
+        table: 'message_rows',
+        wireKey: 'ghostNoTarget',
+        ownership: SyncFamilyOwnership.synced,
+        scope: SyncFamilyScope.conversation,
+        identity: SyncIdentityContribution.rowClocks,
+        identityColumns: ['id'],
+        clockColumn: 'updated_at',
+      ),
+    ], conversationTables: conversationAttachedTables);
+    expect(
+      problems.where((problem) => problem.contains('conflict target')),
+      isNotEmpty,
+    );
+  });
+
+  test('a conflict target column outside the schema would fail', () {
+    final problems = syncFamilyProblems([
+      ...families,
+      const SyncFamily(
+        name: 'ghostBadColumn',
+        table: 'message_rows',
+        wireKey: 'ghostBadColumn',
+        ownership: SyncFamilyOwnership.synced,
+        scope: SyncFamilyScope.conversation,
+        identity: SyncIdentityContribution.rowClocks,
+        identityColumns: ['id'],
+        clockColumn: 'updated_at',
+        conflictTarget: ['not_a_column'],
+      ),
+    ], conversationTables: conversationAttachedTables);
+    expect(
+      problems.where((problem) => problem.contains('not_a_column')),
+      isNotEmpty,
+    );
+  });
+
+  test('a payloadDigest family on a table with no payload would fail', () {
+    // The applier reads `row['payload']` for every document row and drops one
+    // that is not a string; a registration on such a table would travel and
+    // never land.
+    final problems = syncFamilyProblems([
+      ...families,
+      const SyncFamily(
+        name: 'ghostNoPayload',
+        table: 'conversation_rows',
+        wireKey: 'ghostNoPayload',
+        ownership: SyncFamilyOwnership.synced,
+        scope: SyncFamilyScope.conversation,
+        identity: SyncIdentityContribution.payloadDigest,
+        conflictTarget: ['id'],
+      ),
+    ], conversationTables: conversationAttachedTables);
+    expect(
+      problems.where((problem) => problem.contains('no payload column')),
+      isNotEmpty,
+    );
+  });
+
   test('a business family that declares an identity would fail', () {
     // A business row's digest is `entityRowDigest(payload, sort_order)`; the
     // registry's `identity` is read only for conversation families. Declaring

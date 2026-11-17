@@ -2176,12 +2176,16 @@ existing hello gate refuses it with the upgrade reason it already carries.
   row's clock.
 - **A new family costs one entry plus, at most, a payload case** — and the guard refuses the ones
   nobody classified. It reads four shapes: a declaration (`entityKind =`, `extensionKind:`,
-  `static const …[Kk]ind =`), a camelCase use (`kind =`, `kind:`, `kind.equals`, `kind IN (…)`), and
-  a kind passed positionally to `ExtensionEntityStore` (`upsert`, `get`, `delete`, `listByKind`,
-  `watchKind`). Three review rounds found three blind spots in it — a compound identifier, a capture
-  that stopped at the first non-letter, and a literal in an argument position — so the next fix of
-  this shape should not widen the scan a fourth time: it should make the store take a registered
-  token, where an unregistered kind cannot be written at all. What a source scan cannot see is a kind
+  `static const kind =`, `…Kind =`, and the store's own front form `kindWorkspace =`), a camelCase
+  use (`kind =`, `kind:`, `kind.equals`, `kind IN (…)`), and a kind passed positionally to
+  `ExtensionEntityStore` (`upsert`, `get`, `delete`, `listByKind`, `watchKind`). The front form is
+  claimed with two carve-outs, because the same shape also names things that are not rows at all:
+  `provider_artifact_rows` values (`image_ocr_v1`, the table syncs whole) and the blob plane's entry
+  kinds (`file`, `skill-dir`). Four review rounds found four blind spots in this scan — a compound
+  identifier, a capture that stopped at the first non-letter, a literal in an argument position, and
+  the declaration style the store itself teaches — so the next fix of this shape should not widen
+  the scan a fifth time: it should make the store take a registered token, where an unregistered
+  kind cannot be written at all. What a source scan cannot see is a kind
   that never appears as a literal, and there will always be one.
 - **`apply` defaults to the rule that fails loudly.** A family that says nothing gets
   `rowLastWriteWins`, which asks the applier for a conflict target and is a `StateError` on the first

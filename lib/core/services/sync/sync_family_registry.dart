@@ -634,6 +634,15 @@ Set<String> get conversationAttachedTables => {
 /// repository and the OCR service.
 const _kindsOfATableOwningFamily = {'image_ocr_v1'};
 
+/// Kinds declared in the same `kindXxx` shape that are not rows at all: the blob
+/// plane's entry kinds. `SyncBlobEntry.kindFile` / `kindSkillDir` are compared
+/// and persisted as [SyncBlobEntry] values and never written to
+/// `extension_entity_rows`, so asking for a family for one would be asking for a
+/// family over nothing. The shape is the price of claiming the store's own
+/// `kindWorkspace`; the alternative was leaving the shape the tree teaches
+/// claimed by nothing.
+const _kindsOfTheBlobPlane = {'file', 'skill-dir'};
+
 /// Every kind literal that means an `extension_entity_rows.kind` in [source],
 /// with the line it appears on.
 ///
@@ -677,7 +686,11 @@ Map<String, List<String>> extensionKindsInSource(String source) {
     RegExp(r"""\bentityKind\s*=\s*'([A-Za-z][^']*)'"""),
     RegExp(r"""\bextensionKind\s*:\s*'([A-Za-z][^']*)'"""),
     RegExp(
-      r"""static\s+const\s+(?:String\s+)?\w*[Kk]ind\s*=\s*'([A-Za-z][^']*)'""",
+      // `kind`, `…Kind` and the front form `kindWorkspace` — the last is the
+      // convention `extension_entity_store.dart` itself declares its shared
+      // kinds with, so it is the shape a contributor copies. A pattern that knew
+      // only the two suffix forms would leave that kind claimed by nothing.
+      r"""static\s+const\s+(?:String\s+)?(?:\w*[Kk]ind|[Kk]ind[A-Z]\w*)\s*=\s*'([A-Za-z][^']*)'""",
     ),
   ];
   final uses = [
@@ -695,7 +708,10 @@ Map<String, List<String>> extensionKindsInSource(String source) {
   for (var i = 0; i < lines.length; i++) {
     final line = lines[i];
     void claim(String literal) {
-      if (_kindsOfATableOwningFamily.contains(literal)) return;
+      if (_kindsOfATableOwningFamily.contains(literal) ||
+          _kindsOfTheBlobPlane.contains(literal)) {
+        return;
+      }
       final locations = found[literal] ??= [];
       final location = 'line ${i + 1}';
       // One line can match two declaration patterns — `static const entityKind`

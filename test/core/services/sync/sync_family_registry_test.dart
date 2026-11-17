@@ -86,6 +86,14 @@ void main() {
         extensionKind: 'skill';
         extensionKind: 'group_chat';
         static const String artifactKind = 'image_ocr_v1';
+        // The store's own convention: the word first, not last. It is the shape
+        // a contributor copies from `extension_entity_store.dart`.
+        static const String kindWorkspace = 'workspaceFixture';
+        // Not a kind declaration: `kinds` is the plural word, not a kind name.
+        static const String kinds = 'notAKind';
+        // The same shape, but a blob-plane entry kind, not a row: claiming it
+        // would demand a family over a table that never holds it.
+        static const String kindFile = 'file';
       }
       void b() {
         final r = kind.equals('contextCompressionTask');
@@ -127,7 +135,12 @@ void main() {
       // which is what keeps a store keyed by hash out of the registry.
       'composerMigrationDraft',
       'composerWatchKind',
+      // The store's front-form declaration. A guard that knew only the suffix
+      // forms left exactly the shape the tree itself teaches unclaimed.
+      'workspaceFixture',
     });
+    expect(found.keys, isNot(contains('notAKind')));
+    expect(found.keys, isNot(contains('file')));
   });
 
   test('a table-owning family kinds are not extension kinds', () {

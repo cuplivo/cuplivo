@@ -3527,7 +3527,16 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
       ]);
     _inlineJobUris
       ..clear()
-      ..addAll(_jobImageSources.where((uri) => visualContent.contains(uri)));
+      // The placeholder only draws the card when the Markdown renderer runs. With
+      // assistant Markdown off the body is plain text: the uri is still in the
+      // string, but nothing renders it — and suppressing the part's own block
+      // then leaves the picture nowhere at all (just raw `![](kelivo-…)` in the
+      // prose). Same predicate as the renderer, so the two can never disagree.
+      ..addAll(
+        enableAssistantMarkdown
+            ? _jobImageSources.where((uri) => visualContent.contains(uri))
+            : const <String>[],
+      );
     final visualTranslation = widget.message.translation != null
         ? _applyVisualAssistantRegexes(
             widget.message.translation!,

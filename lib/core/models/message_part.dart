@@ -286,8 +286,8 @@ final class ImagePart extends MessagePart {
   /// `null` once the bytes exist.
   final ImagePartState? state;
 
-  /// What was asked for. Kept on the part so the panel can show it and 重新生成
-  /// can run again after a restart, when no live job remembers the prompt.
+  /// What was asked for. Kept on the part so the panel can still show it after a
+  /// restart, when no live job remembers the prompt.
   final String? prompt;
 
   /// `providerId::modelId` that drew it. The panel names it after a restart,

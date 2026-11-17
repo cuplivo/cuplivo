@@ -25,6 +25,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../shared/responsive/screen_type_helper.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
+import '../../../utils/sandbox_path_resolver.dart';
 import '../models/image_job.dart';
 import '../services/image_model_resolver.dart';
 
@@ -312,7 +313,11 @@ class _ImageSizeState extends State<_ImageSize> {
   Future<void> _resolve() async {
     final ratio = widget.requestedRatio;
     try {
-      final file = File(widget.uri);
+      // The part's uri is whatever the resolver canonicalised, which for a file
+      // under the content root is a `kelivo-file:///…` URI — a bare File() of
+      // that never exists, and the row would quietly report the requested ratio
+      // for every picture. Every other reader in the app runs fix() first.
+      final file = File(SandboxPathResolver.fix(widget.uri));
       if (!await file.exists()) {
         _set(ratio == null || ratio == 'auto' ? _autoLabel() : ratio);
         return;

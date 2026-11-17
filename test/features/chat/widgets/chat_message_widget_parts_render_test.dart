@@ -1108,4 +1108,44 @@ void main() {
     expectAbove(tester, 'BEFORE_MARK', find.byType(ImageJobCard));
     expectAbove(tester, find.byType(ImageJobCard), 'AFTER_MARK');
   });
+
+  testWidgets('with assistant Markdown off the picture still appears', (
+    tester,
+  ) async {
+    // The suppression above is keyed on "the renderer will draw the placeholder
+    // card". With Markdown off there is no renderer: the body is plain text, so
+    // the uri is still a string in the prose but nothing turns it into a picture.
+    // Suppressing the part's own block then left the picture nowhere — the reply
+    // showed raw `![](kelivo-file://…)` and no image.
+    const uri = 'kelivo-file:///images/img_abcdefghijklmnopqrst.png';
+    final settings = SettingsProvider(createBusinessTestPreferences());
+    await settings.loaded;
+    await settings.setEnableAssistantMarkdown(false);
+
+    await tester.pumpWidget(
+      _buildHarness(
+        settings: settings,
+        child: ChatMessageWidget(
+          message: ChatMessage(
+            id: 'inline-job-image-plain',
+            role: 'assistant',
+            conversationId: 'c1',
+            parts: const [
+              TextPart('BEFORE_MARK\n\n![]($uri)\n\nAFTER_MARK'),
+              ImagePart(
+                uri: uri,
+                assetId: 'img_abcdefghijklmnopqrst',
+                jobId: 'job-1',
+              ),
+            ],
+          ),
+          showModelIcon: false,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ImageJobCard), findsOneWidget);
+  });
 }

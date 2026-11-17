@@ -80,8 +80,8 @@ typedef ImageBackendFactory =
 ///
 /// Look it up by its own type: `read<ImageJobCoordinator?>()` asks the provider
 /// tree for a *nullable* provider, finds nothing, and silently answers null —
-/// which made the card believe it had no job, so it never ticked, never
-/// refreshed, and 重新生成 did nothing.
+/// which made the card believe it had no job, so it never ticked and never
+/// refreshed when the bytes landed.
 ImageJobCoordinator? imageJobCoordinatorOf(BuildContext context) {
   try {
     return context.read<ImageJobCoordinator>();

@@ -137,26 +137,6 @@ void main() {
     expect(settled.error, 'The reply contained no image link.');
   });
 
-  test('interruptLive is what a fresh start does to stale live jobs', () async {
-    final gate = Completer<ImageJobOutcome>();
-    final manager = _manager(runner: (_) => gate.future);
-    final live = _create(manager, key: 'live');
-    final queued = _create(manager, key: 'queued');
-    unawaited(manager.start(live.id));
-    await Future<void>.delayed(Duration.zero);
-
-    expect(manager.interruptLive(), 2);
-    expect(manager.byId(live.id)!.state, ImageJobState.interrupted);
-    expect(manager.byId(queued.id)!.state, ImageJobState.interrupted);
-    expect(manager.activeCount('c1'), 0);
-
-    // Terminal jobs are not touched, and interrupted jobs never resume.
-    expect(manager.interruptLive(), 0);
-    gate.complete(const ImageJobOutcome(uri: '/tmp/ignored.png'));
-    expect(manager.byId(live.id)!.state, ImageJobState.interrupted);
-    expect(manager.byId(live.id)!.resultUri, isNull);
-  });
-
   test('job states describe liveness honestly', () {
     const terminal = [
       ImageJobState.completed,

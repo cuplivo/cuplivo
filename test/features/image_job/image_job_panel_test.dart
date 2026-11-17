@@ -17,6 +17,7 @@ ImageJob _job({
   ImageJobState state = ImageJobState.running,
   DateTime? startedAt,
   DateTime? finishedAt,
+  String? requestedRatio,
 }) {
   final start = startedAt ?? DateTime(2026, 11, 17, 12, 0, 0);
   return ImageJob(
@@ -26,6 +27,7 @@ ImageJob _job({
     toolCallId: 't1',
     idempotencyKey: 'key-1',
     prompt: '霓虹雨夜的旧书店',
+    aspectRatio: requestedRatio,
     assetId: 'img_abc',
     uri: '/tmp/img_abc.png',
     state: state,

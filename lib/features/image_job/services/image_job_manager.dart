@@ -11,15 +11,22 @@ typedef ImageJobRunner = Future<ImageJobOutcome> Function(ImageJob job);
 
 /// Owns every live image job and its state machine.
 ///
-/// The manager is in-memory; the durable mirror of a job's state is the
-/// `ImagePart` payload it belongs to (`state` + `jobId`). [interruptLive] is
-/// what turns a stale mirror back into `interrupted` on the next app start.
+/// The manager is in-memory, and the durable mirror of a job's state is the
+/// `ImagePart` payload it belongs to (`state` + `jobId`). Nothing reconciles that
+/// mirror on startup: a fresh process has no live jobs to flip, so a persisted
+/// `pending` part is simply a promise whose job is gone, and the renderer is what
+/// says so (`interrupted` at paint time). The stored `state` stays `pending`,
+/// which is honest — the file really is absent — and `hasBytes` keeps it out of
+/// every outbound path.
 ///
-/// There is deliberately **no concurrency cap**: refusing the third picture in
-/// a conversation punishes the user for something the model did, and a refused
-/// call is not a queue — it is an error the reply has to explain. What actually
-/// ramps cost is a model calling in a loop, and the per-call cancel plus the
-/// panel handle that; the tool description asks for one picture at a time.
+/// There is deliberately **no concurrency cap**, and no per-reply count limit
+/// either: refusing the third picture punishes the user for something the model
+/// did, and a refused call is not a queue — it is an error the reply has to
+/// explain. The risk is real and accepted: a model calling in a loop spends
+/// money, exactly as an agent looping over any other billable tool does. Drawing
+/// cannot recurse (the drawing model has no tools), so the only brake is the tool
+/// description asking for one picture per call. There is also no cancel in the
+/// UI; the 300s timeout bounds a single request, not a loop.
 ///
 /// Finished jobs stay in [_jobs] on purpose: the key is the identity, so a
 /// re-render or a remount must find the *finished* job rather than start a
@@ -106,24 +113,6 @@ class ImageJobManager extends ChangeNotifier {
       ),
     );
     return true;
-  }
-
-  /// Called once on app start: every job the mirror still calls live was
-  /// interrupted by the process going away. Returns how many were flipped.
-  int interruptLive() {
-    var flipped = 0;
-    for (final job in _jobs.values.toList(growable: false)) {
-      if (!job.state.isActive) continue;
-      _set(
-        job.copyWith(
-          state: ImageJobState.interrupted,
-          finishedAt: _clock(),
-          error: null,
-        ),
-      );
-      flipped += 1;
-    }
-    return flipped;
   }
 
   Future<ImageJob> _run(String id) async {

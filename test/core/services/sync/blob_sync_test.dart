@@ -264,9 +264,8 @@ void main() {
     });
 
     test('a possessive after a reference is prose, not part of the name', () {
-      // `'` is not a path character here: the writer leaves it raw, so a trailing
-      // one is prose far more often than a file name, and a name that really
-      // carries one arrives percent-encoded.
+      // `'` is not a path character here: the writer escapes a real one as
+      // `%27`, so a raw `'` after a reference is prose.
       expect(
         kelivoFileUrisInRows([
           {'payload': "see kelivo-file:///upload/a.png's contents"},
@@ -278,6 +277,18 @@ void main() {
           {'payload': "kelivo-file:///upload/it%27s.png's"},
         ]),
         {'kelivo-file:///upload/it%27s.png'},
+      );
+    });
+
+    test("a file name carrying an apostrophe is advertised escaped", () {
+      // The producer's half of the same rule: `encodeComponent` leaves `'` raw,
+      // so `_encodeSegments` escapes it. A reference like this is what the app
+      // writes for `Bob's photo.png`, and it has to stay a file reference.
+      expect(
+        kelivoFileUrisInRows([
+          {'payload': '![photo](kelivo-file:///upload/Bob%27s%20photo.png)'},
+        ]),
+        {'kelivo-file:///upload/Bob%27s%20photo.png'},
       );
     });
 

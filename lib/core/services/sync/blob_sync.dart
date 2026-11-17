@@ -24,17 +24,15 @@ const String kKelivoFileScheme = 'kelivo-file://';
 /// One character a canonical URI's path may contain: RFC 3986 `pchar` plus the
 /// separators a path is built from. Parentheses are in it on purpose — they are
 /// legal sub-delims, which is exactly why a Markdown link around a URI is
-/// ambiguous. `'` is out: the app's writer leaves it raw, so a `'` after a
-/// reference is far more often prose (`kelivo-file:///upload/a.png's`) than a
-/// file name, and a file name that really carries one reaches the parser
-/// percent-encoded (`%27`) when the writer escapes it.
+/// ambiguous. `'` is out: the writer escapes a real one as `%27`, so a raw `'`
+/// after a reference is prose (`kelivo-file:///upload/a.png's`), not a name.
 final RegExp _uriChar = RegExp(r"[A-Za-z0-9\-._~%!$&()*+,;=:@/]");
 
 /// Characters that end a sentence or a quotation far more often than they end a
 /// filename. `)` is here too: a reference wrapped in a Markdown bracket ends
 /// with one, and a path that really ends in `)` keeps it only when the trim
 /// makes the candidate unparseable — see [kelivoFileUriAt].
-final RegExp _trailingPunctuation = RegExp(r'''[.,;:!?'"()]''');
+final RegExp _trailingPunctuation = RegExp(r'''[.,;:!?"()]''');
 
 /// Roots a received file blob may land in — the managed roots the sandbox
 /// resolver knows, minus `skills` (directory blobs own that root) and

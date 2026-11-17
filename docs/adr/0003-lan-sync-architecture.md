@@ -2120,8 +2120,9 @@ candidate, and the file was silently never advertised. Discovery takes the maxim
 characters — cut where the next `kelivo-file://` starts, because a second reference is not part of
 this one — trims prose punctuation from its end, and shortens until the strict parser accepts what is
 left. A name that carries an unbalanced `)` therefore keeps it: the bracket that ends a Markdown
-reference is the last one. `'` is not a path character here, because the writer leaves it raw and a
-trailing one is prose far more often than a name. The run is capped, so a value that mentions the
+reference is the last one. `'` is not a path character here, and the writer is the other half of that
+rule: `encodeComponent` leaves it raw, so `KelivoFileUri` escapes a real one as `%27` — a raw `'`
+after a reference is prose. The run is capped, so a value that mentions the
 scheme and then continues for hundreds of kilobytes costs a bounded scan rather than a quadratic one.
 What the sender cannot serve is returned as a list of misses and logged, instead of skipped.
 

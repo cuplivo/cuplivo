@@ -2146,8 +2146,13 @@ existing hello gate refuses it with the upgrade reason it already carries.
   after the upgrade rewrites every checkpoint entry. That is a local re-read per settled
   conversation; `planRowSync` still compares the two manifests first and answers `none` when they
   agree, so only genuinely diverged conversations transfer.
-- **A replaced compression history is visible**: the report counts it, and the losing copy is
-  recoverable from the raw messages, not from the document.
+- **A replaced document is counted and recoverable.** The report counts the conversations whose
+  compression history, image-context switches or compression settings the peer's newer copy replaced,
+  and the losing row is staged in the recycle bin before the write — the rule the business face
+  already applied to a losing entity row. The bin names these rows by their extension kind, because
+  they are not `BusinessEntityKind` members. A document removed with its *conversation* is a
+  different path: the bin captures the conversation's subtree, and carrying the documents inside that
+  entry is still owed.
 - **A row the decoders reject travels nowhere.** The settings import already refused a payload its
   runtime decoder could not read; the wire gave the same rows a second entrance with no such check.
   One unreadable template is not a row that looks odd — `CompressionRepository` decodes every row of
@@ -2155,6 +2160,11 @@ existing hello gate refuses it with the upgrade reason it already carries.
   user delete it reads that same list. The row is now absent from the manifest, refused on apply and
   left out of the acknowledgement, which is the rule a linked workspace already followed: the peer
   keeps the only copy, and a copy this device cannot read is one it cannot offer, accept or delete.
+- **The apply refuses what SQLite would refuse.** A `conversationContext` payload that is not JSON is
+  parsed by the context index's AFTER trigger, and a provider artifact whose clocks invert violates
+  `CHECK (updated_at >= created_at)`; a refusal inside SQLite aborts the transaction, and with it the
+  checkpoint, so the peer would re-send the same row every session. Both are dropped before the
+  write, like every other bad row in that loop.
 - **An archive from before the promotion keeps its library in either restore mode.** The library's
   carrier moved from the snapshot database to `settings.json`, so an older archive names neither key
   while its database half holds every template and recipe. Merge already read key presence;

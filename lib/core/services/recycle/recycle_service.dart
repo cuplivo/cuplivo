@@ -14,6 +14,7 @@ import '../../database/schema_columns.dart';
 import '../../../utils/app_directories.dart';
 import '../../../utils/workspace_paths.dart';
 import '../skills/skill_body_policy.dart';
+import '../sync/sync_family_registry.dart';
 import 'recycle_store.dart';
 
 export 'recycle_store.dart';
@@ -239,6 +240,54 @@ final class RecycleService {
       );
     } catch (error) {
       debugPrint('recycle: staging ${kind.wireName} $id failed: $error');
+    }
+  }
+
+  /// Stages one row of `extension_entity_rows` by its kind.
+  ///
+  /// The conversation documents — the compression history, the image-context
+  /// switches, the compression settings — are rows of that table whose kinds are
+  /// not [BusinessEntityKind] members, so [stageEntityRow] cannot name them. The
+  /// entry is the same shape; the kind travels as the wire name, and
+  /// [_restoreEntity] resolves it through the registered conversation families
+  /// rather than trusting whatever a bin file carries.
+  Future<void> stageExtensionRow(
+    String kind,
+    String id, {
+    required RecycleOrigin origin,
+    required RecycleReason reason,
+    RecycleGroup? group,
+  }) async {
+    if (id.isEmpty) return;
+    try {
+      final rows = await _database
+          .customSelect(
+            'SELECT * FROM extension_entity_rows WHERE kind = ? AND id = ?;',
+            variables: <Variable<Object>>[
+              Variable<String>(kind),
+              Variable<String>(id),
+            ],
+          )
+          .get();
+      if (rows.isEmpty) return;
+      final row = Map<String, Object?>.from(rows.first.data);
+      final payload = row['payload'];
+      _detach(
+        () => _store.stageRows(
+          type: RecycleEntryType.businessEntity,
+          origin: origin,
+          reason: reason,
+          key: id,
+          title: payload is String ? _entityTitle(payload, id) : id,
+          kindWire: kind,
+          tables: {
+            'extension_entity_rows': [row],
+          },
+          group: group,
+        ),
+      );
+    } catch (error) {
+      debugPrint('recycle: staging $kind $id failed: $error');
     }
   }
 
@@ -751,15 +800,45 @@ final class RecycleService {
 
   Future<_RestoreResult> _restoreEntity(RecycleEntry entry) async {
     final kind = _kindForWire(entry.kindWire);
-    if (kind == null) return _not(RecycleRestoreOutcome.unsupported);
+    // A conversation document: an `extension_entity_rows` row whose kind is not
+    // a business kind. The registry is the only authority on which kinds those
+    // are, so a bin file cannot name a row the app never writes.
+    final documentKind = kind == null
+        ? _documentKindForWire(entry.kindWire)
+        : null;
+    if (kind == null && documentKind == null) {
+      return _not(RecycleRestoreOutcome.unsupported);
+    }
+    final table = kind?.tableName ?? 'extension_entity_rows';
+    final conflictTarget = kind == null
+        ? const <String>['kind', 'id']
+        : kind.extensionKind == null
+        ? <String>[kind.idColumn]
+        : const <String>['kind', 'id'];
+    final rowKind = kind?.extensionKind ?? documentKind;
     final tables = await _store.readTables(entry);
     if (tables == null) return _not(RecycleRestoreOutcome.unreadable);
-    final row = _singleRow(tables, kind.tableName);
+    final row = _singleRow(tables, table);
     if (row == null) return _not(RecycleRestoreOutcome.unreadable);
     final now = DateTime.now().toUtc().microsecondsSinceEpoch;
     final live = <Map<String, Object?>>[];
     final skipped = await _database.transaction(() async {
-      live.addAll(await _entityRows(kind, entry.key));
+      if (kind != null) {
+        live.addAll(await _entityRows(kind, entry.key));
+      } else {
+        final rows = await _database
+            .customSelect(
+              'SELECT * FROM extension_entity_rows WHERE kind = ? AND id = ?;',
+              variables: <Variable<Object>>[
+                Variable<String>(documentKind!),
+                Variable<String>(entry.key),
+              ],
+            )
+            .get();
+        live.addAll([
+          for (final row in rows) Map<String, Object?>.from(row.data),
+        ]);
+      }
       // A row a *deletion* staged that exists again is not this entry's to
       // replace: nothing here is the version it lost to, so writing over it
       // would discard whatever is there now. The same refusal a conversation and
@@ -768,16 +847,14 @@ final class RecycleService {
       // has to replace.
       if (live.isNotEmpty && entry.reason == RecycleReason.deleted) return true;
       await _insertRow(
-        kind.tableName,
+        table,
         row,
-        conflictTarget: kind.extensionKind == null
-            ? <String>[kind.idColumn]
-            : const <String>['kind', 'id'],
+        conflictTarget: conflictTarget,
         overrides: <String, Object?>{
           'updated_at': now,
           // An extension kind travels under its own kind value, never another:
           // the table's primary key is (kind, id).
-          if (kind.extensionKind != null) 'kind': kind.extensionKind!,
+          if (rowKind != null) 'kind': rowKind,
         },
       );
       return false;
@@ -796,12 +873,25 @@ final class RecycleService {
       reason: RecycleReason.overwritten,
       key: entry.key,
       title: payload is String ? _entityTitle(payload, entry.key) : entry.key,
-      kindWire: kind.wireName,
+      kindWire: kind?.wireName ?? documentKind,
       tables: {
-        kind.tableName: [displaced],
+        table: [displaced],
       },
     );
     return (outcome: RecycleRestoreOutcome.restored, keepEntryId: staged?.id);
+  }
+
+  /// A conversation-document kind the registry declares, or null.
+  ///
+  /// These are the kinds [stageExtensionRow] stages; the restore accepts only
+  /// them, so a bin file naming any other extension kind stays unsupported
+  /// rather than writing an arbitrary row into `extension_entity_rows`.
+  static String? _documentKindForWire(String? wire) {
+    if (wire == null) return null;
+    for (final family in syncedConversationFamilies) {
+      if (family.kind == wire) return wire;
+    }
+    return null;
   }
 
   Future<_RestoreResult> _restorePreference(RecycleEntry entry) async {

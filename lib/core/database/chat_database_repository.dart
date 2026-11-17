@@ -5777,20 +5777,12 @@ class ChatDatabaseRepository {
   // writes inside one transaction per conversation.
   // ---------------------------------------------------------------------------
 
-  static const _syncConflictTargets = <String, List<String>>{
-    'conversation_rows': ['id'],
-    'conversation_mcp_server_rows': ['conversation_id', 'server_id'],
-    'message_rows': ['id'],
-    // The document families (D-7): a conversation's compression history, image
-    // context and compression config share `extension_entity_rows` by kind, and
-    // a provider artifact is keyed by the revision it belongs to.
-    'extension_entity_rows': ['kind', 'id'],
-    'provider_artifact_rows': ['revision_id', 'kind'],
-  };
-
-  /// The three families whose apply is not a plain row write — a version group
+  /// The four families whose apply is not a plain row write — a version group
   /// to resolve, an order to re-derive, parts written with their revision — named
   /// once so the merge body reads exactly the rows the registration publishes.
+  static final SyncFamily _conversationFamily = syncFamilyOfTable(
+    'conversation_rows',
+  );
   static final SyncFamily _messageFamily = syncFamilyOfTable('message_rows');
   static final SyncFamily _messagePartFamily = syncFamilyOfTable(
     'message_part_rows',
@@ -6182,13 +6174,21 @@ class ChatDatabaseRepository {
         }
       }
       if (localConversation != null && conversationRowChanged) {
-        await _upsertSyncRow('conversation_rows', conversationRow);
+        await _upsertSyncRow(
+          'conversation_rows',
+          conversationRow,
+          conflictTarget: _conversationFamily.conflictTarget,
+        );
         await _replaceSyncMcpServers(
           conversationId,
           payload.rowsOf(_mcpBindingFamily),
         );
       } else if (localConversation == null) {
-        await _upsertSyncRow('conversation_rows', conversationRow);
+        await _upsertSyncRow(
+          'conversation_rows',
+          conversationRow,
+          conflictTarget: _conversationFamily.conflictTarget,
+        );
         await _replaceSyncMcpServers(
           conversationId,
           payload.rowsOf(_mcpBindingFamily),
@@ -6299,13 +6299,18 @@ class ChatDatabaseRepository {
           ...row,
           'message_order': order[id]!,
           'is_streaming': 0,
-        });
+        }, conflictTarget: _messageFamily.conflictTarget);
         await (_db.delete(
           _db.messagePartRows,
         )..where((part) => part.revisionId.equals(id))).go();
         final parts = partsByRevision[id] ?? const <Map<String, dynamic>>[];
         for (final part in parts) {
-          await _upsertSyncRow('message_part_rows', part, insertOnly: true);
+          await _upsertSyncRow(
+            'message_part_rows',
+            part,
+            insertOnly: true,
+            conflictTarget: _messagePartFamily.conflictTarget,
+          );
         }
       }
       if (needsReorder) {
@@ -6397,8 +6402,10 @@ class ChatDatabaseRepository {
       }
       final rows = payload.rowsOf(family);
       if (rows.isEmpty) continue;
-      final keyColumns = _syncConflictTargets[family.table];
-      if (keyColumns == null) {
+      final keyColumns = family.conflictTarget;
+      if (keyColumns.isEmpty) {
+        // The registration guard refuses this at test time; a build that reached
+        // here anyway is one that would throw on a user's device instead.
         throw StateError('sync_conflict_target_missing:${family.table}');
       }
       // Only `extension_entity_rows` has an owner column; a family on any other
@@ -6429,6 +6436,17 @@ class ChatDatabaseRepository {
           continue;
         }
         if (row['payload'] is! String) continue;
+        // Two shapes are refused by SQLite itself, and a refusal here aborts the
+        // whole apply — and with it the checkpoint, so the peer re-sends every
+        // session. `context_operation_index`'s AFTER trigger runs `json_each`
+        // over a context payload, and `provider_artifact_rows` carries
+        // `CHECK (updated_at >= created_at)`. Both are refused before the write,
+        // like every other bad row in this loop.
+        if (family.kind != null && !_isJsonPayload(row['payload'])) continue;
+        if (family.table == 'provider_artifact_rows' &&
+            !_artifactClocksOrdered(row)) {
+          continue;
+        }
         if (keyColumns.any((column) => row[column] is! String)) continue;
         final incomingAt = (row['updated_at'] as num?)?.toInt();
         if (incomingAt == null) continue;
@@ -6453,9 +6471,23 @@ class ChatDatabaseRepository {
           if (family.isWholeDocument &&
               !_sameDocument(local['payload'], row['payload'])) {
             documentReplaced = true;
+            // The only moment the losing copy still exists: the upsert below
+            // replaces it. The business face stages its losing rows for the same
+            // reason, and a conversation document is a whole record — a
+            // compaction history, the image-context switches — so a report line
+            // alone would leave it unrecoverable.
+            final kind = family.kind;
+            if (kind != null) {
+              await recycle?.stageExtensionRow(
+                kind,
+                conversationId,
+                origin: RecycleOrigin.remote,
+                reason: RecycleReason.overwritten,
+              );
+            }
           }
         }
-        await _upsertSyncRow(family.table, row);
+        await _upsertSyncRow(family.table, row, conflictTarget: keyColumns);
       }
     }
     return documentReplaced;
@@ -6476,6 +6508,30 @@ class ChatDatabaseRepository {
     } on FormatException {
       return false;
     }
+  }
+
+  /// Whether [payload] is text SQLite's JSON functions accept.
+  ///
+  /// Every extension payload is JSON by construction (`ExtensionEntityStore`
+  /// encodes a map), and the context index parses one inside a trigger, so a
+  /// payload that does not parse is a row the write itself would refuse.
+  static bool _isJsonPayload(Object? payload) {
+    if (payload is! String) return false;
+    try {
+      jsonDecode(payload);
+      return true;
+    } on FormatException {
+      return false;
+    }
+  }
+
+  /// Whether a provider artifact's clocks satisfy the table's CHECK
+  /// (`updated_at >= created_at`).
+  static bool _artifactClocksOrdered(Map<String, dynamic> row) {
+    final created = (row['created_at'] as num?)?.toInt();
+    final updated = (row['updated_at'] as num?)?.toInt();
+    if (created == null || updated == null) return false;
+    return updated >= created;
   }
 
   /// One row of [table] by the columns that key it, or null when this device
@@ -6513,6 +6569,7 @@ class ChatDatabaseRepository {
   Future<void> _upsertSyncRow(
     String table,
     Map<String, dynamic> row, {
+    required List<String> conflictTarget,
     bool insertOnly = false,
   }) async {
     final allColumns = currentSchemaColumns[table]!;
@@ -6533,7 +6590,6 @@ class ChatDatabaseRepository {
       );
       return;
     }
-    final conflictTarget = _syncConflictTargets[table]!;
     final updates = columns
         .where((column) => !conflictTarget.contains(column))
         .map((column) => '$column = excluded.$column')
@@ -6558,7 +6614,7 @@ class ChatDatabaseRepository {
         'conversation_id': conversationId,
         'server_id': server['server_id'],
         'ordinal': server['ordinal'],
-      });
+      }, conflictTarget: _mcpBindingFamily.conflictTarget);
     }
   }
 

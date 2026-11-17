@@ -265,6 +265,53 @@ void main() {
     expect(outcome.documentReplaced, isTrue);
   });
 
+  test('a document payload SQLite cannot parse is refused, not thrown', () async {
+    // The context index parses every `conversationContext` payload inside an
+    // AFTER trigger, so a payload that is not JSON makes SQLite refuse the write
+    // — and a refusal there rolls back the whole apply and the checkpoint with
+    // it, so the peer would re-send forever.
+    final outcome = await apply(
+      payloadWith({
+        contextFamily.name: [
+          documentRow(
+            kind: contextFamily.kind!,
+            payload: 'not json at all',
+            updatedAt: 100,
+          ),
+        ],
+      }),
+    );
+
+    expect(outcome.documentReplaced, isFalse);
+    expect(await documents(contextFamily), isEmpty);
+  });
+
+  test('an artifact whose clocks invert is refused, not thrown', () async {
+    // `provider_artifact_rows` carries `CHECK (updated_at >= created_at)`.
+    await apply(
+      subtreePayload(
+        conversation: conversationRow(),
+        messages: [messageRow('m1', 100)],
+      ),
+    );
+
+    final outcome = await apply(
+      subtreePayload(
+        conversation: conversationRow(),
+        messages: [messageRow('m1', 100)],
+        families: {
+          artifactsFamily.name: [
+            artifactRow(revisionId: 'm1', payload: '{}', updatedAt: 1)
+              ..['created_at'] = 5,
+          ],
+        },
+      ),
+    );
+
+    expect(outcome.documentReplaced, isFalse);
+    expect(await documents(artifactsFamily), isEmpty);
+  });
+
   test('an older document is refused', () async {
     await apply(
       payloadWith({

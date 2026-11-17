@@ -247,6 +247,11 @@ class _CrossReferencingPlane extends SyncDataPlane {
     if (subtree == null || extra.isEmpty) return subtree;
     return subtreePayload(
       conversation: subtree.conversation,
+      // The families this double does not name are carried through, not rebuilt:
+      // a payload composed from three families drops the conversation's
+      // documents, which the same side's manifest still counts, so the sender
+      // would re-plan `iSend` every session and the peer would never receive them.
+      families: subtree.families,
       messages: [
         ...subtree.rowsOf(syncFamilyOfTable('message_rows')),
         ...extra,
@@ -6482,6 +6487,39 @@ void main() {
       'conv-b-m0',
     }, reason: "the other conversation's row must not move, nor gain a ghost");
     expect(await _messageIds(b, 'conv-a'), {'conv-a-m0', 'conv-a-m1'});
+  });
+
+  test('the crafted-row double still sends the conversation documents', () async {
+    // The double rebuilds the payload from the families it names, and the
+    // manifest the same side publishes is computed from the database. Before it
+    // spread the real families, a conversation that owned a document travelled
+    // with a payload missing it: the peer never received the document, and the
+    // sender's checkpoint — composed from the payload — disagreed with its own
+    // next manifest, so the conversation was re-planned `iSend` forever.
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, craftedRows: () => const []);
+    await b.start(root);
+    sides.addAll([a, b]);
+    final pin = b.engine.openPairing();
+    await a.engine.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await _seedConversation(a, id: 'conv-doc', contents: ['hello']);
+    await ExtensionEntityStore(a.database).upsert(
+      'conversationCompression',
+      'conv-doc',
+      const {'formatVersion': 1, 'operations': <Object>[]},
+      ownerId: 'conv-doc',
+    );
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    expect(
+      await ExtensionEntityStore(
+        b.database,
+      ).get('conversationCompression', 'conv-doc'),
+      isNotNull,
+      reason: 'the crafted double dropped the document family from the payload',
+    );
   });
 
   // ---- slice 3: blobs ----

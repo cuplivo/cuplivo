@@ -28164,103 +28164,103 @@ abstract class AppLocalizations {
   /// **'Retry'**
   String get retry;
 
-  /// No description provided for @imageJobTitle.
+  /// Header of the card that holds a picture the assistant is generating inside its reply; the UI appends the elapsed time.
   ///
   /// In en, this message translates to:
   /// **'Generating illustration'**
   String get imageJobTitle;
 
-  /// No description provided for @imageJobFailed.
+  /// Header of the same card when the picture could not be generated; a sentence explaining why follows it.
   ///
   /// In en, this message translates to:
   /// **'Illustration failed'**
   String get imageJobFailed;
 
-  /// No description provided for @imageJobCancelled.
+  /// Header of the same card when generation was stopped before it finished.
   ///
   /// In en, this message translates to:
   /// **'Illustration cancelled'**
   String get imageJobCancelled;
 
-  /// No description provided for @imageJobInterrupted.
+  /// Header of the same card when the app closed before the picture arrived; nothing is retried automatically.
   ///
   /// In en, this message translates to:
   /// **'Illustration interrupted'**
   String get imageJobInterrupted;
 
-  /// No description provided for @assistantEditLocalToolImageTitle.
+  /// Name of the drawing capability in the assistant's local-tool list.
   ///
   /// In en, this message translates to:
   /// **'Drawing'**
   String get assistantEditLocalToolImageTitle;
 
-  /// No description provided for @defaultModelPageImageModelTitle.
+  /// Settings row for choosing the model that draws pictures.
   ///
   /// In en, this message translates to:
   /// **'Image Model'**
   String get defaultModelPageImageModelTitle;
 
-  /// No description provided for @defaultModelPageImageModelSubtitle.
+  /// Explains that the drawing model is optional and that leaving it unset turns drawing off.
   ///
   /// In en, this message translates to:
   /// **'The model that draws pictures inside a reply; leave it unset to turn drawing off.'**
   String get defaultModelPageImageModelSubtitle;
 
-  /// No description provided for @imageJobPanelCopy.
+  /// Button that copies the prompt to the clipboard; a confirmation toast follows.
   ///
   /// In en, this message translates to:
   /// **'Copy'**
   String get imageJobPanelCopy;
 
-  /// No description provided for @imageJobPanelPromptLabel.
+  /// Label of the prompt that produced the picture.
   ///
   /// In en, this message translates to:
   /// **'Prompt'**
   String get imageJobPanelPromptLabel;
 
-  /// No description provided for @imageJobPanelModelLabel.
+  /// Label of the model that drew the picture.
   ///
   /// In en, this message translates to:
   /// **'Model'**
   String get imageJobPanelModelLabel;
 
-  /// No description provided for @imageJobPanelSizeLabel.
+  /// Label of the picture's pixel size, or of the requested aspect ratio when the file cannot be read.
   ///
   /// In en, this message translates to:
   /// **'Size'**
   String get imageJobPanelSizeLabel;
 
-  /// No description provided for @imageJobPanelElapsedLabel.
+  /// Label of how long the picture took to generate.
   ///
   /// In en, this message translates to:
   /// **'Time taken'**
   String get imageJobPanelElapsedLabel;
 
-  /// No description provided for @imageJobPanelUsageLabel.
+  /// Label of what the picture consumed: today a count of pictures, later possibly a token count.
   ///
   /// In en, this message translates to:
   /// **'Usage'**
   String get imageJobPanelUsageLabel;
 
-  /// No description provided for @imageJobPanelAuto.
+  /// Value of the size row when the request left the aspect ratio to the model.
   ///
   /// In en, this message translates to:
   /// **'Auto'**
   String get imageJobPanelAuto;
 
-  /// No description provided for @imageJobPanelOneImage.
+  /// Value of the usage row: this reply produced a single picture.
   ///
   /// In en, this message translates to:
   /// **'1 image'**
   String get imageJobPanelOneImage;
 
-  /// No description provided for @imageJobNotConfigured.
+  /// Shown when drawing is switched on but no image model is chosen; tapping it opens the model picker.
   ///
   /// In en, this message translates to:
   /// **'Not configured · Choose'**
   String get imageJobNotConfigured;
 
-  /// No description provided for @imageJobToolSubtitle.
+  /// One-line description of the drawing tool in the tools list.
   ///
   /// In en, this message translates to:
   /// **'Draw pictures inside a reply'**

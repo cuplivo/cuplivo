@@ -15486,16 +15486,16 @@ class AppLocalizationsKo extends AppLocalizations {
   String get retry => '다시 시도';
 
   @override
-  String get imageJobTitle => '일러스트 생성';
+  String get imageJobTitle => '일러스트 생성 중';
 
   @override
   String get imageJobFailed => '일러스트 생성 실패';
 
   @override
-  String get imageJobCancelled => '취소됨';
+  String get imageJobCancelled => '일러스트 취소됨';
 
   @override
-  String get imageJobInterrupted => '중단됨';
+  String get imageJobInterrupted => '일러스트 중단됨';
 
   @override
   String get assistantEditLocalToolImageTitle => '그리기';
@@ -15505,7 +15505,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get defaultModelPageImageModelSubtitle =>
-      '답장 안에 그림을 그리는 모델입니다. 설정하지 않으면 그리기가 꺼집니다.';
+      '답변 안에서 그림을 그리는 모델입니다. 설정하지 않으면 그리기가 꺼집니다.';
 
   @override
   String get imageJobPanelCopy => '복사';
@@ -15529,13 +15529,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get imageJobPanelAuto => '자동';
 
   @override
-  String get imageJobPanelOneImage => '1장';
+  String get imageJobPanelOneImage => '이미지 1장';
 
   @override
-  String get imageJobNotConfigured => '설정 안 됨 · 선택';
+  String get imageJobNotConfigured => '설정되지 않음 · 선택';
 
   @override
-  String get imageJobToolSubtitle => '답장 안에 그림을 그림';
+  String get imageJobToolSubtitle => '답변 안에서 그림 그리기';
 
   @override
   String get recoveryGuideTitle => '채팅을 복구해 보겠습니다';

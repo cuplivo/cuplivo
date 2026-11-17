@@ -16073,13 +16073,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get imageJobTitle => 'İllüstrasyon oluşturuluyor';
 
   @override
-  String get imageJobFailed => 'İllüstrasyon oluşturulamadı';
+  String get imageJobFailed => 'İllüstrasyon başarısız oldu';
 
   @override
-  String get imageJobCancelled => 'İptal edildi';
+  String get imageJobCancelled => 'İllüstrasyon iptal edildi';
 
   @override
-  String get imageJobInterrupted => 'Kesildi';
+  String get imageJobInterrupted => 'İllüstrasyon kesintiye uğradı';
 
   @override
   String get assistantEditLocalToolImageTitle => 'Çizim';
@@ -16089,7 +16089,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get defaultModelPageImageModelSubtitle =>
-      'Yanıtın içinde resim çizen model; seçilmezse çizim kapalıdır.';
+      'Yanıt içinde resim çizen model; ayarlanmazsa çizim devre dışı kalır.';
 
   @override
   String get imageJobPanelCopy => 'Kopyala';
@@ -16116,10 +16116,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get imageJobPanelOneImage => '1 görsel';
 
   @override
-  String get imageJobNotConfigured => 'Ayarlanmadı · Seç';
+  String get imageJobNotConfigured => 'Yapılandırılmadı · Seç';
 
   @override
-  String get imageJobToolSubtitle => 'Yanıtın içinde resim çizer';
+  String get imageJobToolSubtitle => 'Yanıt içinde resim çiz';
 
   @override
   String get recoveryGuideTitle => 'Sohbetlerinizi kurtaralım';

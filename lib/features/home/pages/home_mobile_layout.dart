@@ -13,6 +13,7 @@ import '../../../icons/lucide_adapter.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/assistant_provider.dart';
+import '../../../core/models/chat_owner.dart';
 import '../../../core/services/haptics.dart';
 import '../../../shared/animations/widgets.dart';
 import '../../../shared/widgets/ios_tactile.dart';
@@ -39,6 +40,7 @@ class HomeMobileScaffold extends StatelessWidget {
     required this.onDismissKeyboard,
     required this.onSelectConversation,
     required this.onNewConversation,
+    required this.onOpenOwner,
     required this.onOpenMiniMap,
     required this.onCreateNewConversation,
     required this.onToggleTemporaryConversation,
@@ -66,6 +68,10 @@ class HomeMobileScaffold extends StatelessWidget {
   final VoidCallback onDismissKeyboard;
   final void Function(String id) onSelectConversation;
   final VoidCallback onNewConversation;
+
+  /// One owner tap, whichever kind it was: the page decides which conversation
+  /// it means.
+  final Future<void> Function(ChatOwner owner) onOpenOwner;
   final VoidCallback onOpenMiniMap;
   final Future<void> Function() onCreateNewConversation;
   final Future<void> Function() onToggleTemporaryConversation;
@@ -120,6 +126,7 @@ class HomeMobileScaffold extends StatelessWidget {
           onSelectConversation(id);
           if (closeDrawer) drawerController.close();
         },
+        onOpenOwner: onOpenOwner,
         onNewConversation: ({closeDrawer = true}) async {
           await onCreateNewConversation();
           if (closeDrawer) drawerController.close();

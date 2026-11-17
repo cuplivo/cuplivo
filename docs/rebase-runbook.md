@@ -815,7 +815,7 @@ resolution.
 | image | #925/#946 compression editor, #992 crop + #1012 focus, #1067 viewer paging, #1070 view-image test |
 | sync | LAN sync, #1068 policy table |
 | care | care port, #1064 backgrounded letter |
-| group-chat | #1052 topics, #1069 group exit, #1072 phone composer |
+| group-chat | #1052 topics, #1092 owner switch (replaces #1069 group exit: the owner pipeline owns those hunks), #1072 phone composer |
 | markdown-image | #1075 render, #1077 per-tab input |
 
 The fold conflicts were 0-1 files each except sync's policy table (7) and the group-chat quick entries

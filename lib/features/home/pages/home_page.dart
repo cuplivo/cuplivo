@@ -1100,6 +1100,7 @@ class _HomePageState extends State<HomePage>
       onNewConversation: () async {
         await _controller.createNewConversationAnimated();
       },
+      onOpenOwner: _controller.openOwner,
       onOpenMiniMap: _openMiniMap,
       onCreateNewConversation: () async {
         await _controller.createNewConversationAnimated();
@@ -1244,6 +1245,8 @@ class _HomePageState extends State<HomePage>
         _controller.closeCompactSidebar();
         await _controller.createNewConversationAnimated();
       },
+      onOpenOwner: _controller.openOwner,
+      onRevealTopics: _controller.revealTopics,
       onCreateNewConversation: () async {
         await _controller.createNewConversationAnimated();
         if (mounted) _controller.forceScrollToBottomSoon(animate: false);

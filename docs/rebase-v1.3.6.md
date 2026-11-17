@@ -137,7 +137,7 @@ d42fe35ac  feat(chat): one link for a conversation and a message (#1013, #1034)
 77ede69d6  feat(export): a PDF laid out from markstream's tree, no WebView and no second renderer (#1028)
 494c43c03  feat(translate): the visible target set is the user's, Bengali included (#1039)
 2616f068e  feat(suggestions): a chat-suggestions switch per assistant (#1024, #1040)
-221bdf909  feat(group-chat): topics, the director, the roster, and one owner order (#1052, #1074, #1072, #1081)
+221bdf909  feat(group-chat): topics, the director, the roster, and one owner order (#1052, #1069, #1074, #1072, #1081)
 d8c4169a5  feat(backup): a backup written for a named reader — Kelivo can import it again (#1071)
 4bc556672  feat(markdown-image): one clean picture, one tab's input (#1075, #1077)
 7aeff339d  refactor(sync): a premise is re-read where it is used (#1083)
@@ -146,6 +146,17 @@ bbf2b9b89  style: reformat the files the pinned SDK lays out differently
 ```
 
 Then `chore(release): Cuplivo 4.7.0` and this record.
+
+**After this landing.** `refactor/group-chat-switch` (#1092) replaces #1069's `side_drawer`,
+`home_page_controller`, `home_page`/layout and group-backdrop hunks with one owner pipeline
+(`ownerOfConversation` + `HomePageController.openOwner` + `revealTopics`). The next re-base
+replays the #1092 unit instead of those hunks: replaying #1069 as well would conflict on the same
+files and would re-add a parameter chain the pipeline deleted. The interface it must keep is in
+`docs/design/group-chat-switch/implementation-plan.md`.
+
+| #1092 unit | members | sha |
+|---|---|---|
+| owner-switch | #1092: `ownerOfConversation`/`ownerOfChat`, `openOwner`, `revealTopics`, drawer scope + highlight + generating owner, group backdrop, `desktop_sidebar.dart` removed | `f3ef1b97e` |
 
 ## 7. The definition of done, as measured
 

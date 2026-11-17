@@ -219,6 +219,7 @@ void main() {
                   onDismissKeyboard: () {},
                   onSelectConversation: (id) => onSelectConversation?.call(id),
                   onNewConversation: () {},
+                  onOpenOwner: (owner) async {},
                   onOpenMiniMap: () {},
                   onCreateNewConversation: () async {},
                   onToggleTemporaryConversation: () async {},
@@ -671,6 +672,10 @@ void main() {
           title: 'Second topic',
           assistantId: second,
         );
+        // The list's scope is the owner of the open chat. This test varies the
+        // *selected* assistant instead, which is the scope only while no chat is
+        // open, so it starts from exactly that state.
+        service.setCurrentConversation(null);
       });
       await pumpDrawer(tester, service, assistantProvider: assistants);
       await tester.pumpAndSettle();

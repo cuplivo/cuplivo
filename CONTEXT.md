@@ -854,9 +854,11 @@ contradicts one of them is a bug, not a preference.
 - **Migration path from 3.x (从 3.x 迁移)**: 3.x's 「数据迁移 → 导出 Kelivo 兼容备份」
   (`backupMigrateExportLabel`) produces the full backup this line can restore; the plain backup
   export is not that file.
-- **Removed 3.x features (未随行的 3.x 功能)**: group chat, the multi-AI side-by-side comparison,
-  the delete-recovery / recycle bin and subagent delegation were not re-implemented on the new
-  baseline; `CHANGELOG*.md` records them per release.
+- **Removed 3.x features (未随行的 3.x 功能)**: the multi-AI side-by-side comparison, the
+  delete-recovery / recycle bin and subagent delegation were not re-implemented on the new
+  baseline; `CHANGELOG*.md` records them per release. Group chat is not on that list any more:
+  it came back at 4.6.0 as Cuplivo's own implementation (`docs/design/group-chat/`), not as a
+  3.x carry-over.
 
 ## Community channels (社区入口)
 

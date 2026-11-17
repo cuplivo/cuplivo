@@ -154,6 +154,10 @@ replays the #1092 unit instead of those hunks: replaying #1069 as well would con
 files and would re-add a parameter chain the pipeline deleted. The interface it must keep is in
 `docs/design/group-chat-switch/implementation-plan.md`.
 
+| #1092 unit | members | sha |
+|---|---|---|
+| owner-switch | #1092: `ownerOfConversation`/`ownerOfChat`, `openOwner`, `revealTopics`, drawer scope + highlight + generating owner, group backdrop, `desktop_sidebar.dart` removed | `f3ef1b97e` |
+
 ## 7. The definition of done, as measured
 
 | check | this tree |

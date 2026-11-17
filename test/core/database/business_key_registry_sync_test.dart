@@ -43,6 +43,7 @@ void main() {
       'custom_theme_selected_v1',
       'custom_themes_v1',
       'group_director_model_v1',
+      'image_model_v1',
       'instruction_injections_active_ids_by_assistant_v1',
       'mcp_presentation_v1',
       'memory_extract_prompt_en_v1',

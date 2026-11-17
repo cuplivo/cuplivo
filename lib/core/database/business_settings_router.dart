@@ -246,6 +246,11 @@ final class BusinessKeyRegistry {
       KeyPolicy.synced,
       PolicyReason.newDeviceConfiguration,
     ),
+    'image_model_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+      'The model that draws pictures inside a reply. Unset turns drawing off, and that is a configuration a new device wants as its own — the same family as every other *_model_v1 key.',
+    ),
     'memory_extract_prompt_en_v1': KeyRule(
       KeyPolicy.synced,
       PolicyReason.newDeviceConfiguration,

@@ -99,3 +99,6 @@ internationalization.md
 
 # Clarity round/test artefacts: screenshots and review output stay local.
 /.clarity/
+# Tool caches redirected into the workspace during sandboxed runs.
+/.gh-cache/
+

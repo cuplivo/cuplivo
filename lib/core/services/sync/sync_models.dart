@@ -72,14 +72,16 @@ import 'sync_limits.dart';
 /// every other shape change.
 ///
 /// v8: the deletion announcement carries the conversation row's clock beside the
-/// digest ([SyncAnnouncedDeletion]). The digest is computed from the message
-/// rows, so it cannot see a row write that left every message untouched — which
-/// is exactly what a restore from the recycle bin is: the row goes back with
-/// `now()` while the messages come back byte-identical. Without the clock, the
-/// announcing peer deletes the restored conversation again at the next session.
-/// A v7 peer would read the pair as a digest string (`toString`), match nothing,
-/// and silently stop honouring announced deletions, so this is refused at hello
-/// like every other shape change.
+/// digest ([SyncAnnouncedDeletion]). v8's digest was computed from the message
+/// rows alone, so it could not see a row write that left every message untouched
+/// — which is exactly what a restore from the recycle bin is: the row goes back
+/// with `now()` while the messages come back byte-identical. Without the clock,
+/// the announcing peer deletes the restored conversation again at the next
+/// session. (v9 composes the digest from every travelling family, so a document
+/// write is visible there; the clock stays, because a rename is still a row write
+/// that moves no family's content.) A v7 peer would read the pair as a digest
+/// string (`toString`), match nothing, and silently stop honouring announced
+/// deletions, so this is refused at hello like every other shape change.
 const int kSyncProtocolVersion = 9;
 
 /// Wall-clock divergence (milliseconds) beyond which a session report carries
@@ -220,14 +222,6 @@ String syncFamilyDigestInput(
       final lines = <String>[
         for (final row in rows)
           family.identityColumns.map((column) => row[column]).join(':'),
-      ]..sort();
-      return lines.join('\n');
-    case SyncIdentityContribution.payloadDigest:
-      final lines = <String>[
-        for (final row in rows)
-          crypto.sha256
-              .convert(utf8.encode('${row['payload'] ?? ''}'))
-              .toString(),
       ]..sort();
       return lines.join('\n');
   }

@@ -17425,6 +17425,15 @@ class AppLocalizationsTr extends AppLocalizations {
   String get recycleBinKindSkill => 'Beceri';
 
   @override
+  String get recycleBinKindCompressionHistory => 'Sıkıştırma geçmişi';
+
+  @override
+  String get recycleBinKindImageContext => 'Görsel bağlamı';
+
+  @override
+  String get recycleBinKindCompressionSettings => 'Sıkıştırma ayarları';
+
+  @override
   String get recycleBinKindConfig => 'Yapılandırma';
 
   @override

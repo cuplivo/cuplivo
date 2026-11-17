@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:Cuplivo/core/database/business_data.dart';
+import 'package:Cuplivo/core/database/conversation_owned_kinds.dart';
 import 'package:Cuplivo/core/services/sync/sync_family_registry.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -279,7 +280,7 @@ void main() {
     );
   });
 
-  test('a payloadDigest family on a table with no payload would fail', () {
+  test('a whole-document family on a table with no payload would fail', () {
     // The applier reads `row['payload']` for every document row and drops one
     // that is not a string; a registration on such a table would travel and
     // never land.
@@ -291,13 +292,34 @@ void main() {
         wireKey: 'ghostNoPayload',
         ownership: SyncFamilyOwnership.synced,
         scope: SyncFamilyScope.conversation,
-        identity: SyncIdentityContribution.payloadDigest,
+        identity: SyncIdentityContribution.rowClocks,
+        identityColumns: ['id'],
+        clockColumn: 'updated_at',
+        isWholeDocument: true,
         conflictTarget: ['id'],
       ),
     ], conversationTables: conversationAttachedTables);
     expect(
       problems.where((problem) => problem.contains('no payload column')),
       isNotEmpty,
+    );
+  });
+
+  test('every conversation-scope extension kind is captured or written off', () {
+    // The bin's capture and the conversation's delete read
+    // `conversationDocumentKinds`, which is derived from this registry — so a new
+    // synced document joins them without a second list. A device-local
+    // conversation kind does not travel, which makes the bin its only way back:
+    // it has to be named as unrecoverable, or a delete leaves a row describing a
+    // conversation that is gone.
+    final kinds = {
+      for (final family in kSyncFamilies)
+        if (family.scope == SyncFamilyScope.conversation && family.kind != null)
+          family.kind!,
+    };
+    expect(
+      kinds.difference(conversationDocumentKinds),
+      conversationUnrecoverableKinds,
     );
   });
 
@@ -314,7 +336,7 @@ void main() {
         kind: 'ghostEntityKind',
         ownership: SyncFamilyOwnership.synced,
         scope: SyncFamilyScope.business,
-        identity: SyncIdentityContribution.payloadDigest,
+        identity: SyncIdentityContribution.rowClocks,
       ),
     ]);
     expect(

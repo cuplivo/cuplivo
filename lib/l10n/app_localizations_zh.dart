@@ -16414,6 +16414,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get recycleBinKindSkill => '技能';
 
   @override
+  String get recycleBinKindCompressionHistory => '压缩历史';
+
+  @override
+  String get recycleBinKindImageContext => '图片上下文';
+
+  @override
+  String get recycleBinKindCompressionSettings => '压缩设置';
+
+  @override
   String get recycleBinKindConfig => '配置';
 
   @override
@@ -34322,6 +34331,15 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get recycleBinKindSkill => '技能';
+
+  @override
+  String get recycleBinKindCompressionHistory => '压缩历史';
+
+  @override
+  String get recycleBinKindImageContext => '图片上下文';
+
+  @override
+  String get recycleBinKindCompressionSettings => '压缩设置';
 
   @override
   String get recycleBinKindConfig => '配置';
@@ -52243,6 +52261,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get recycleBinKindSkill => '技能';
+
+  @override
+  String get recycleBinKindCompressionHistory => '壓縮歷史';
+
+  @override
+  String get recycleBinKindImageContext => '圖片上下文';
+
+  @override
+  String get recycleBinKindCompressionSettings => '壓縮設定';
 
   @override
   String get recycleBinKindConfig => '設定';

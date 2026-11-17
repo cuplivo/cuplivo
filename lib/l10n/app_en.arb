@@ -22504,6 +22504,18 @@
   "@recycleBinKindSkill": {
     "description": "Kind label on a recycle-bin entry that is a skill — an installed skill's folder of files, deleted as one item."
   },
+  "recycleBinKindCompressionHistory": "Compression history",
+  "@recycleBinKindCompressionHistory": {
+    "description": "Recycle-bin label for a conversation's record of context operations (compressions and clears), which sync may replace with the peer's newer copy."
+  },
+  "recycleBinKindImageContext": "Image context",
+  "@recycleBinKindImageContext": {
+    "description": "Recycle-bin label for a conversation's pinned images and image-recall switches, which sync may replace with the peer's newer copy."
+  },
+  "recycleBinKindCompressionSettings": "Compression settings",
+  "@recycleBinKindCompressionSettings": {
+    "description": "Recycle-bin label for a conversation's own compression configuration, which sync may replace with the peer's newer copy."
+  },
   "recycleBinKindConfig": "Configuration",
   "@recycleBinKindConfig": {
     "description": "Fallback kind label for a recycle-bin entry whose stored type is not otherwise recognised."

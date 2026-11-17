@@ -25,6 +25,7 @@ void main() {
   late RecycleService recycle;
   late ChatDatabaseRepository repository;
   const conversationId = 'conv';
+  const conversationTitle = 'Compressed chat';
 
   final compressionFamily = kSyncFamilies.singleWhere(
     (family) =>
@@ -40,7 +41,9 @@ void main() {
     repository = ChatDatabaseRepository(database, recycle: recycle);
     await repository.ensureReady();
     await repository.putMigrationBatch(
-      conversations: [Conversation(id: conversationId, title: conversationId)],
+      conversations: [
+        Conversation(id: conversationId, title: conversationTitle),
+      ],
       messages: const [],
       toolEventsByMessageId: const {},
       geminiSignaturesByMessageId: const {},
@@ -54,7 +57,7 @@ void main() {
 
   Map<String, dynamic> conversationRow() => {
     'id': conversationId,
-    'title': conversationId,
+    'title': conversationTitle,
     'created_at': 1,
     'updated_at': 1,
     'is_pinned': 0,
@@ -111,6 +114,11 @@ void main() {
     expect(entry.type, RecycleEntryType.businessEntity);
     expect(entry.kindWire, 'conversationCompression');
     expect(entry.key, conversationId);
+    expect(
+      entry.title,
+      conversationTitle,
+      reason: 'the payload names nothing; the conversation title is the label',
+    );
     expect(entry.origin, RecycleOrigin.remote);
     expect(entry.reason, RecycleReason.overwritten);
 

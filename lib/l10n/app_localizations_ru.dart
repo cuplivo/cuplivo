@@ -17618,6 +17618,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get recycleBinKindSkill => 'Навык';
 
   @override
+  String get recycleBinKindCompressionHistory => 'История сжатия';
+
+  @override
+  String get recycleBinKindImageContext => 'Контекст изображений';
+
+  @override
+  String get recycleBinKindCompressionSettings => 'Настройки сжатия';
+
+  @override
   String get recycleBinKindConfig => 'Конфигурация';
 
   @override

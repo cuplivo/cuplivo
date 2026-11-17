@@ -684,12 +684,13 @@ void main() {
     expect(jsonDecode(read.single['payload'] as String)['name'], 'Brief');
   });
 
-  test('a row this build cannot read back travels nowhere', () async {
+  test('a row this build cannot read back is refused, not deleted', () async {
     // `CompressionRepository` decodes every template of the kind in one loop, so
     // one unreadable row is an unlistable library — and the page that would let
-    // the user delete it reads that same list. The rule that keeps a linked
-    // workspace off the wire has to keep such a row off it too: absent from the
-    // manifest, refused on apply, not acknowledged.
+    // the user delete it reads that same list. The row is refused on apply, but it
+    // stays in the manifest: hiding it there is how a peer reads "deleted", and
+    // the peer's copy may still be readable. Refused-but-unacknowledged leaves the
+    // peer offering it instead of deleting its own.
     final store = ExtensionEntityStore(database);
     await store.upsert(CompressionTemplate.entityKind, 'bad', {
       'id': 'bad',
@@ -698,7 +699,8 @@ void main() {
     });
     expect(
       (await repository.syncEntityRefs()).where((ref) => ref.id == 'bad'),
-      isEmpty,
+      hasLength(1),
+      reason: 'the manifest still names it, so no peer reads a deletion',
     );
     await store.delete(CompressionTemplate.entityKind, 'bad');
 

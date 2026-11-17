@@ -16797,6 +16797,15 @@ class AppLocalizationsKo extends AppLocalizations {
   String get recycleBinKindSkill => '스킬';
 
   @override
+  String get recycleBinKindCompressionHistory => '압축 기록';
+
+  @override
+  String get recycleBinKindImageContext => '이미지 컨텍스트';
+
+  @override
+  String get recycleBinKindCompressionSettings => '압축 설정';
+
+  @override
   String get recycleBinKindConfig => '구성';
 
   @override

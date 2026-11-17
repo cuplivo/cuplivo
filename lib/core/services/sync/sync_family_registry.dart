@@ -59,10 +59,6 @@ enum SyncIdentityContribution {
   /// One `key:value…` line per row, for a family that has no clock column — its
   /// values *are* its state.
   rowValues,
-
-  /// One digest over the row's payload: the family is a whole document, so the
-  /// payload is the only thing that can distinguish two revisions.
-  payloadDigest,
 }
 
 /// One family of rows, registered once.
@@ -93,6 +89,7 @@ class SyncFamily {
     this.clockColumn,
     this.fallbackClockColumn,
     this.blobColumns = const [],
+    this.isWholeDocument = false,
   });
 
   /// Stable name, used in failure messages and tests. Not a wire value.
@@ -196,11 +193,16 @@ class SyncFamily {
   bool get isSynced => ownership == SyncFamilyOwnership.synced;
 
   /// Whether this family's row *is* a whole document (D-7): one row per
-  /// conversation whose payload is the document itself, which is why its
-  /// identity is the payload digest. A family of keyed rows — the provider
+  /// conversation whose payload is the document itself. The report counts a
+  /// conversation once when one of these was replaced, and the applier requires
+  /// such a row to carry a `payload`. A family of keyed rows — the provider
   /// artifacts — is not one, however it is applied.
-  bool get isWholeDocument =>
-      identity == SyncIdentityContribution.payloadDigest;
+  ///
+  /// It is a field rather than "identity == payloadDigest" because the identity
+  /// is now the row clock: the manifest used to SHA-256 every document payload on
+  /// every session (6.5 ms/MB, on the app isolate), while the clock the LWW
+  /// comparison already reads is what actually decides the document's version.
+  final bool isWholeDocument;
 }
 
 /// Every family of rows this build knows about.
@@ -300,7 +302,10 @@ const List<SyncFamily> kSyncFamilies = [
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.conversation,
     apply: SyncFamilyApply.rowLastWriteWins,
-    identity: SyncIdentityContribution.payloadDigest,
+    identity: SyncIdentityContribution.rowClocks,
+    identityColumns: ['id'],
+    clockColumn: 'updated_at',
+    isWholeDocument: true,
     blobColumns: ['payload'],
   ),
   SyncFamily(
@@ -313,7 +318,10 @@ const List<SyncFamily> kSyncFamilies = [
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.conversation,
     apply: SyncFamilyApply.rowLastWriteWins,
-    identity: SyncIdentityContribution.payloadDigest,
+    identity: SyncIdentityContribution.rowClocks,
+    identityColumns: ['id'],
+    clockColumn: 'updated_at',
+    isWholeDocument: true,
     blobColumns: ['payload'],
   ),
   SyncFamily(
@@ -326,7 +334,10 @@ const List<SyncFamily> kSyncFamilies = [
     ownership: SyncFamilyOwnership.synced,
     scope: SyncFamilyScope.conversation,
     apply: SyncFamilyApply.rowLastWriteWins,
-    identity: SyncIdentityContribution.payloadDigest,
+    identity: SyncIdentityContribution.rowClocks,
+    identityColumns: ['id'],
+    clockColumn: 'updated_at',
+    isWholeDocument: true,
     blobColumns: ['payload'],
   ),
   SyncFamily(
@@ -858,11 +869,10 @@ List<String> syncFamilyProblems(
             }
           }
         }
-        if (family.identity == SyncIdentityContribution.payloadDigest &&
-            !columns.contains('payload')) {
+        if (family.isWholeDocument && !columns.contains('payload')) {
           problems.add(
-            '$where: payloadDigest, but ${family.table} has no payload column — '
-            'the applier would silently drop every row it reads',
+            '$where: a whole document, but ${family.table} has no payload '
+            'column — the applier would silently drop every row it reads',
           );
         }
         if (family.scope == SyncFamilyScope.conversation &&

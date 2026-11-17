@@ -30462,6 +30462,24 @@ abstract class AppLocalizations {
   /// **'Skill'**
   String get recycleBinKindSkill;
 
+  /// Recycle-bin label for a conversation's record of context operations (compressions and clears), which sync may replace with the peer's newer copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Compression history'**
+  String get recycleBinKindCompressionHistory;
+
+  /// Recycle-bin label for a conversation's pinned images and image-recall switches, which sync may replace with the peer's newer copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Image context'**
+  String get recycleBinKindImageContext;
+
+  /// Recycle-bin label for a conversation's own compression configuration, which sync may replace with the peer's newer copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Compression settings'**
+  String get recycleBinKindCompressionSettings;
+
   /// Fallback kind label for a recycle-bin entry whose stored type is not otherwise recognised.
   ///
   /// In en, this message translates to:

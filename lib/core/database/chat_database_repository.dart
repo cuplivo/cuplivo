@@ -5879,31 +5879,6 @@ class ChatDatabaseRepository {
         );
       case SyncIdentityContribution.rowValues:
         return _syncDigestInputs(family, line: _syncKeyExpr(family));
-      case SyncIdentityContribution.payloadDigest:
-        final rows = await _db
-            .customSelect(
-              'SELECT ${family.conversationColumn} AS conversation_id, payload '
-              'FROM ${family.table}'
-              '${family.kind == null ? '' : ' WHERE kind = ?'};',
-              variables: <Variable<Object>>[
-                if (family.kind != null) Variable<String>(family.kind!),
-              ],
-            )
-            .get();
-        final byConversation = <String, List<String>>{};
-        for (final row in rows) {
-          (byConversation[row.read<String>('conversation_id')] ??= []).add(
-            sha256.convert(utf8.encode(row.read<String>('payload'))).toString(),
-          );
-        }
-        return [
-          for (final entry in byConversation.entries)
-            (
-              conversationId: entry.key,
-              digestInput: (entry.value..sort()).join('\n'),
-              rowCount: entry.value.length,
-            ),
-        ];
     }
   }
 
@@ -6339,6 +6314,9 @@ class ChatDatabaseRepository {
       // dropped, which the deferred foreign key only reports at COMMIT.
       final documentReplaced = await _applyConversationDocuments(
         conversationId: conversationId,
+        conversationTitle: conversationRow['title'] is String
+            ? conversationRow['title'] as String
+            : null,
         payload: payload,
         myDeviceId: myDeviceId,
         peerDeviceId: peerDeviceId,
@@ -6389,6 +6367,7 @@ class ChatDatabaseRepository {
   /// messages.
   Future<bool> _applyConversationDocuments({
     required String conversationId,
+    required String? conversationTitle,
     required SyncSubtreePayload payload,
     required String myDeviceId,
     required String peerDeviceId,
@@ -6483,6 +6462,9 @@ class ChatDatabaseRepository {
                 conversationId,
                 origin: RecycleOrigin.remote,
                 reason: RecycleReason.overwritten,
+                // The document payload carries no name of its own; the
+                // conversation's title is what makes the bin row readable.
+                title: conversationTitle,
               );
             }
           }

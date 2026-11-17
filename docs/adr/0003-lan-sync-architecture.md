@@ -2089,21 +2089,24 @@ the schema grows a table carrying `conversation_id` or `revision_id` with no fam
 `synced`, or `deviceLocal` with a reason — there is no third answer.
 
 **A conversation's identity is composed from the families.** Every `synced` conversation family
-contributes what its entry says: one `key:clock` line per row, one `key:value` line per row where
-the family has no clock, or one digest per document where the family is stored as a whole document
-per conversation. The family's name is part of the text, so two families contributing the same
-lines cannot compose the same identity. The conversation row's own clock still rides beside the
-digest in the manifest entry, for the row-only writes the digest cannot see. Two readers implement
-this one rule — an SQL aggregate per family for the manifest (a manifest must not materialise a row
-per message) and a Dart re-read for a checkpoint — and a test holds them equal on a conversation
-that has something in every family.
+contributes what its entry says: one `key:clock` line per row, or one `key:value` line per row where
+the family has no clock. A whole document is one row per conversation, so its line is its id and its
+`updated_at` — the clock the LWW comparison already reads, which is what decides that document's
+version. (The first shape hashed every document payload on every manifest build: 6.5 ms/MB, on the
+app isolate, per session. The clock is the same fact without the read.) The family's name is part of
+the text, so two families contributing the same lines cannot compose the same identity. The
+conversation row's own clock still rides beside the digest in the manifest entry, for the row-only
+writes the digest cannot see. Two readers implement this one rule — an SQL aggregate per family for
+the manifest (a manifest must not materialise a row per message) and a Dart re-read for a checkpoint —
+and a test holds them equal on a conversation that has something in every family.
 
 **A document family is applied whole.** The compression history, the image context and the
 compression configuration are one row per conversation whose payload is the entire document
 (`readContextOperations` reads one row whose payload is the whole operation array), so there is no
 row set to merge: the newer `updated_at` wins and an exact tie falls to the higher deviceId, as on
-the business face. A local document that loses is **replaced and counted** (`documentsReplaced`,
-carried from the apply outcome to the session report and the card). Those families were
+the business face. A local document that loses is **replaced and counted** (`documentReplaced` on the
+apply outcome, `conversationsWithDocumentsReplaced` on the session report and the card). Those
+families were
 device-local until this version, so the first sessions after the upgrade are exactly when both
 sides hold their own copy; the newer one winning is fine as a rule and unacceptable as a secret. A
 row is accepted only where it says it belongs — its conversation column names this conversation,
@@ -2150,9 +2153,10 @@ existing hello gate refuses it with the upgrade reason it already carries.
   compression history, image-context switches or compression settings the peer's newer copy replaced,
   and the losing row is staged in the recycle bin before the write — the rule the business face
   already applied to a losing entity row. The bin names these rows by their extension kind, because
-  they are not `BusinessEntityKind` members. A document removed with its *conversation* is a
-  different path: the bin captures the conversation's subtree, and carrying the documents inside that
-  entry is still owed.
+  they are not `BusinessEntityKind` members. A document removed with its *conversation* is the other
+  path: the bin's conversation entry carries it (#1093), and the kinds that entry captures are
+  derived from this same registration — a new synced conversation document is captured and deleted
+  without a second list to edit.
 - **A row the decoders reject travels nowhere.** The settings import already refused a payload its
   runtime decoder could not read; the wire gave the same rows a second entrance with no such check.
   One unreadable template is not a row that looks odd — `CompressionRepository` decodes every row of
@@ -2191,7 +2195,7 @@ existing hello gate refuses it with the upgrade reason it already carries.
   `ExtensionEntityStore` (`upsert`, `get`, `delete`, `listByKind`, `watchKind`). A synced
   conversation family also names its `conflictTarget` — the applier writes its rows through it — and
   the guard refuses a family that does not, or one naming a column the table does not have; a
-  `payloadDigest` family on a table without a `payload` column is refused too, because the applier
+  whole-document family on a table without a `payload` column is refused too, because the applier
   would drop every row it read. The front form is
   claimed with two carve-outs, because the same shape also names things that are not rows at all:
   `provider_artifact_rows` values (`image_ocr_v1`, the table syncs whole) and the blob plane's entry

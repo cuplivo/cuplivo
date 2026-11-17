@@ -90,8 +90,6 @@ void main() {
         return {...row, family.clockColumn!: 99};
       case SyncIdentityContribution.rowValues:
         return {...row, family.identityColumns.last: 7};
-      case SyncIdentityContribution.payloadDigest:
-        return {...row, 'payload': '{"changed":true}'};
       case SyncIdentityContribution.none:
       case SyncIdentityContribution.conversationClock:
         fail('${family.name} contributes no identity to change');

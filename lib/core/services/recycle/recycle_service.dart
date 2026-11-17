@@ -117,12 +117,12 @@ final class RecycleService {
   /// its unsent draft ([conversationCapturedKinds]); the conversation's delete
   /// removes the documents plus the one kind this list leaves out on purpose
   /// ([conversationDeletedKinds], [conversationUnrecoverableKinds]). The three
-  /// sets derive from one constant, so the two exceptions are named there rather
-  /// than being a difference nobody wrote down: the draft has its own delete path
-  /// (its row is composer state, not part of the conversation), and a compression
-  /// task is a stream that is happening now, not history a user could want back —
-  /// the same line ADR-0016 draws for `generation_run_rows`.
-  static const List<({String table, String column, Set<String>? kinds})>
+  /// sets derive from the sync registration, so the two exceptions are named
+  /// there rather than being a difference nobody wrote down: the draft has its
+  /// own delete path (its row is composer state, not part of the conversation),
+  /// and a compression task is a stream that is happening now, not history a user
+  /// could want back — the same line ADR-0016 draws for `generation_run_rows`.
+  static final List<({String table, String column, Set<String>? kinds})>
   _conversationTables = [
     (table: 'conversation_rows', column: 'id', kinds: null),
     (
@@ -251,11 +251,16 @@ final class RecycleService {
   /// entry is the same shape; the kind travels as the wire name, and
   /// [_restoreEntity] resolves it through the registered conversation families
   /// rather than trusting whatever a bin file carries.
+  ///
+  /// [title] is the conversation's own title when the caller has it: none of these
+  /// payloads carries a name, so without it three documents replaced in one
+  /// conversation would sit in the bin as three rows with the same UUID title.
   Future<void> stageExtensionRow(
     String kind,
     String id, {
     required RecycleOrigin origin,
     required RecycleReason reason,
+    String? title,
     RecycleGroup? group,
   }) async {
     if (id.isEmpty) return;
@@ -278,7 +283,7 @@ final class RecycleService {
           origin: origin,
           reason: reason,
           key: id,
-          title: payload is String ? _entityTitle(payload, id) : id,
+          title: title ?? (payload is String ? _entityTitle(payload, id) : id),
           kindWire: kind,
           tables: {
             'extension_entity_rows': [row],

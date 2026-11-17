@@ -17327,6 +17327,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recycleBinKindSkill => 'Skill';
 
   @override
+  String get recycleBinKindCompressionHistory => 'Compression history';
+
+  @override
+  String get recycleBinKindImageContext => 'Image context';
+
+  @override
+  String get recycleBinKindCompressionSettings => 'Compression settings';
+
+  @override
   String get recycleBinKindConfig => 'Configuration';
 
   @override

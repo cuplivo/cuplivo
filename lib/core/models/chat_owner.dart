@@ -78,3 +78,37 @@ ChatOwner? ownerOfChat({
       ? null
       : ChatOwner.assistant(resolvedAssistantId);
 }
+
+/// The conversation to open once the chat being viewed is gone.
+///
+/// The successor comes from the same scope the list was showing, so deleting one
+/// of a group's topics lands on another topic of that group. Choosing by
+/// `assistantId == currentAssistantId` was a second derivation of ownership, and
+/// it could never match a group topic — a group topic carries no assistant — so
+/// deleting one left the group for whatever 1:1 that assistant happened to have.
+///
+/// Null means the scope has nothing left (or the gone chat had no owner); the
+/// caller decides what starting over means.
+Conversation? nextConversationAfterDelete(
+  Iterable<Conversation> conversations, {
+  required ChatOwner? scope,
+  required Set<String> excludeIds,
+  required bool Function(String groupId) isLiveGroup,
+  required String? Function(String? assistantId) resolveAssistantId,
+}) {
+  if (scope == null) return null;
+  Conversation? best;
+  for (final conversation in conversations) {
+    if (excludeIds.contains(conversation.id)) continue;
+    final owner = ownerOfConversation(
+      conversation,
+      isLiveGroup: isLiveGroup,
+      resolveAssistantId: resolveAssistantId,
+    );
+    if (owner != scope) continue;
+    if (best == null || conversation.updatedAt.isAfter(best.updatedAt)) {
+      best = conversation;
+    }
+  }
+  return best;
+}

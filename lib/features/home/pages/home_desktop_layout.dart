@@ -541,9 +541,7 @@ class HomeDesktopScaffold extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         baseColor: Colors.transparent,
         padding: const EdgeInsets.all(2),
-        onTap: _isDesktop
-            ? () => _revealAssistantTopics(context)
-            : onToggleSidebar,
+        onTap: _isDesktop ? () => _revealAssistantTopics() : onToggleSidebar,
         onLongPress: !_isDesktop && assistant != null
             ? () {
                 AssistantEntryActions.openAssistantSettings(
@@ -564,7 +562,7 @@ class HomeDesktopScaffold extends StatelessWidget {
   /// Revealing the topics is one step with one implementation (the controller's
   /// [HomePageController.revealTopics]); this layout only decides that its header
   /// avatar is a place to ask for it.
-  void _revealAssistantTopics(BuildContext context) => onRevealTopics();
+  void _revealAssistantTopics() => onRevealTopics();
 
   List<Widget> _buildActions(BuildContext context, bool topicsOnRight) {
     final l10n = AppLocalizations.of(context)!;

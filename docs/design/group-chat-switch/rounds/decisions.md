@@ -121,3 +121,23 @@ T1–T4 门禁、5 条守卫注入、文档收尾）。守卫记录：`rounds/gu
   群行的 `_AssistantInlineTile` 补上 `loading:`（此前群行根本没有这个参数，所以永远不显示）。
 - 守卫：`owner_tap_wiring_test` › a generating group topic puts the dot on its group row
   （群话题在生成时只有群行亮，助手行不亮，默认助手没有被改写）。
+
+## 评审轮（PR #1094）｜两条非阻断意见的处理
+
+评审给出两条 Sev 2 / Occ 3，都没有阻断。逐条处理：
+
+1. **删掉打开的群话题后跳到了助手的 1:1 —— 采纳并修了。**
+   `_nextRecentConversationExcluding` 仍用 `c.assistantId == currentAssistantId` 选「下一个会话」。
+   群话题的 `assistantId` 恒为 null，所以同群的其他话题永远不是候选，删除后用户被甩出群。
+   这正是本轮在清掉的「同一决定第二份实现」，只是它在本轮改写的文件里留了下来（评审指出该行是
+   既有代码，但正是本轮把它的前提判成了假）。
+   - 修法：新增纯函数 `nextConversationAfterDelete`（scope = 当前会话的归属，排除被删的 id，
+     没有打开的会话时沿用列表的兜底口径），抽屉与移动菜单的两处副本都改走它。
+   - 守卫：注入第 6 条（scope 改回默认助手）→ `deleting the open group topic picks another
+     topic of it` 红 → 哈希还原。
+2. **开关现在也管群，而文案只说助手 —— 维持原决定，不改文案。**
+   这是追加轮里你明确定的（「不用改 l10n，就直接叫助手就行了」）。评审的意见我记录在这里，
+   并承认它的代价：开关打开时，群行不再表示「打开该群最近的话题」，而用户没有任何文案提示。
+   若要给提示，唯一零 UI 成本的做法是改 `@displaySettingsPageNewChatOnAssistantSwitchTitle`
+   的 ARB `description`（翻译者/维护者可见，应用内不显示）。它仍然是一次 ARB 改动，
+   按你的口径**没有做**；需要时一行就能加。

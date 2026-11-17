@@ -159,6 +159,11 @@ class SideDrawer extends StatefulWidget {
   @visibleForTesting
   static void Function(String seedId)? debugEnterSelectionMode;
 
+  /// Testing hook: the id the drawer would open after the open chat leaves,
+  /// chosen from the scope the list is showing.
+  @visibleForTesting
+  static String? Function(Set<String> excludeIds)? debugNextConversationInScope;
+
   /// Enter-animation delay for a sidebar tile at [indexInSection].
   ///
   /// Caps absolute-index stagger so virtualized deep rows never wait multiple
@@ -230,6 +235,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     SideDrawer.debugRequestConversationListHostRebuild =
         _debugRequestConversationListHostRebuild;
     SideDrawer.debugEnterSelectionMode = _enterSelectionMode;
+    SideDrawer.debugNextConversationInScope = _debugNextConversationInScope;
     _attachCloseTicker(widget.closePickerTicker);
     _mobileSearchFocusNode.addListener(() {
       if (_isDesktop) return;
@@ -370,34 +376,21 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
               label: l10n.sideDrawerMenuMoveTo,
               onTap: () async {
                 if (widget.loadingConversationIds.contains(chat.id)) return;
-                final conv = chatService.getConversation(chat.id);
                 final movingCurrent =
                     chatService.currentConversationId == chat.id;
                 final keepSidebarOpenOnTopicTap = context
                     .read<SettingsProvider>()
                     .keepSidebarOpenOnTopicTap;
-                // Pre-compute next recent conversation for current assistant
-                String? nextId;
-                try {
-                  final ap = context.read<AssistantProvider>();
-                  final currentAid = ap.currentAssistantId;
-                  if (currentAid != null) {
-                    final all = chatService.getAllConversations();
-                    final candidates =
-                        all
-                            .where(
-                              (c) =>
-                                  c.assistantId == currentAid &&
-                                  c.id != chat.id,
-                            )
-                            .toList()
-                          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-                    if (candidates.isNotEmpty) nextId = candidates.first.id;
-                  }
-                } catch (_) {}
+                // The chat that leaves this scope, chosen the same way a delete
+                // chooses one: one rule, one implementation.
+                final nextId = _nextRecentConversationExcluding(chatService, {
+                  chat.id,
+                });
                 final targetId = await showAssistantMoveSelector(
                   context,
-                  excludeAssistantId: conv?.assistantId,
+                  excludeAssistantId: chatService
+                      .getConversation(chat.id)
+                      ?.assistantId,
                 );
                 if (!mounted) return;
                 if (targetId != null) {
@@ -905,25 +898,37 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     if (mounted) setState(() {});
   }
 
+  /// The conversation to show once the open chat stops being the open chat.
+  ///
+  /// The scope is the open chat's owner — the same answer the list is scoped by.
+  /// The previous predicate (`assistantId == currentAssistantId`) was a fourth
+  /// derivation of ownership, and it could never match a group topic, so deleting
+  /// one topic of a group left the group for a 1:1 of the fallback assistant.
   String? _nextRecentConversationExcluding(
     ChatService chatService,
     Set<String> excludeIds,
   ) {
     try {
-      final ap = context.read<AssistantProvider>();
-      final currentAid = ap.currentAssistantId;
-      if (currentAid == null) return null;
-      final candidates =
-          chatService
-              .getAllConversations()
-              .where(
-                (c) =>
-                    c.assistantId == currentAid && !excludeIds.contains(c.id),
-              )
-              .toList()
-            ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-      if (candidates.isEmpty) return null;
-      return candidates.first.id;
+      final assistants = context.read<AssistantProvider>();
+      final groups = context.read<GroupChatProvider>();
+      final open = _currentConversationOf(chatService);
+      // Same reading of "no chat open" as the list itself: the fallback assistant
+      // is the scope then.
+      final openOwner = open == null
+          ? null
+          : _ownerOf(open, assistants: assistants, groups: groups);
+      final fallbackId = assistants.currentAssistantId;
+      final scope =
+          openOwner ??
+          (fallbackId == null ? null : ChatOwner.assistant(fallbackId));
+      return nextConversationAfterDelete(
+        chatService.getAllConversations(),
+        scope: scope,
+        excludeIds: excludeIds,
+        isLiveGroup: (id) => groups.byId(id) != null,
+        resolveAssistantId: (id) =>
+            assistants.resolveConversationAssistant(id)?.id,
+      )?.id;
     } catch (_) {
       return null;
     }
@@ -961,6 +966,9 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
       );
     }
   }
+
+  String? _debugNextConversationInScope(Set<String> excludeIds) =>
+      _nextRecentConversationExcluding(context.read<ChatService>(), excludeIds);
 
   Future<void> _renameChat(BuildContext context, ChatItem chat) async {
     final controller = TextEditingController(text: chat.title);
@@ -1092,6 +1100,12 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     }
     if (identical(SideDrawer.debugEnterSelectionMode, _enterSelectionMode)) {
       SideDrawer.debugEnterSelectionMode = null;
+    }
+    if (identical(
+      SideDrawer.debugNextConversationInScope,
+      _debugNextConversationInScope,
+    )) {
+      SideDrawer.debugNextConversationInScope = null;
     }
     _unbindHostDrawer();
     _assistantPickerEntry?.remove();

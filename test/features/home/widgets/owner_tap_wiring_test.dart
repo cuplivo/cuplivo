@@ -94,6 +94,44 @@ void main() {
     }
   });
 
+  testWidgets('deleting the open group topic picks another topic of it', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    try {
+      final chat = _FakeChat();
+      final rig = await _pump(tester, chat: chat, topicsOnly: true);
+      final older = Conversation(
+        title: 'Older topic',
+        updatedAt: DateTime(2026, 1, 1),
+        extras: {Conversation.groupChatIdKey: rig.gamma},
+      );
+      final open = Conversation(
+        title: 'Open topic',
+        updatedAt: DateTime(2026, 1, 5),
+        extras: {Conversation.groupChatIdKey: rig.gamma},
+      );
+      // The fallback assistant's newest chat: what a predicate keyed on
+      // `currentAssistantId` picks, and the wrong answer here.
+      final assistantChat = Conversation(
+        title: 'Alpha chat',
+        assistantId: rig.alpha,
+        updatedAt: DateTime(2026, 1, 4),
+      );
+      chat.seed(older);
+      chat.seed(assistantChat);
+      chat.seed(open);
+      chat.setCurrent(open.id);
+      await tester.pumpAndSettle();
+
+      // The successor comes from the scope the list shows, so the group keeps
+      // the user inside the group instead of dropping them into a 1:1.
+      expect(SideDrawer.debugNextConversationInScope!({open.id}), older.id);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   testWidgets('a generating group topic puts the dot on its group row', (
     tester,
   ) async {

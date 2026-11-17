@@ -234,7 +234,7 @@ reveal 改成 post-frame 回调（修掉切到群时 tab 先闪上一个助手�
 | `createNewConversationAnimated(owner:)` 取代 `groupChatId:` | ✅（全仓无调用点用过 `groupChatId`） |
 | 删除 `lib/desktop/desktop_sidebar.dart`（无 import 的旁路入口） | ✅ |
 | T1/T2/T3/T4 门禁 + 两条永久守卫 | ✅（含「开关给群一个新话题」「点一下在下一帧揭示」两格） |
-| 5 条守卫注入 | ✅ 记录见 `rounds/guard-injections.md` |
+| 5 条守卫注入 | ✅ 记录见 `rounds/guard-injections.md`（评审后再加第 6 条：删群话题后的下一个会话） |
 | `dart analyze --fatal-infos lib test integration_test` | ✅ No issues found |
 | `flutter test test/features/ test/desktop/ test/core/` | ✅ 11952 passed, 86 skipped（追加轮之前） |
 | Windows 调试构建 | ✅ `build\windows\x64\runner\Debug\cuplivo.exe`（追加轮后重新构建） |

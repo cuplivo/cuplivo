@@ -19,6 +19,18 @@
 
 五条全部按预期失败；还原后三个文件的哈希与注入前完全相同。
 
+## 第 6 条（评审后追加）｜删掉打开的群话题后的「下一个会话」
+
+| # | 注入 | 应红的测试 | 实测 | 不变量 |
+| --- | --- | --- | --- | --- |
+| 6 | `_nextRecentConversationExcluding` 的 scope 改回「默认助手」（忽略当前会话的归属） | `owner_tap_wiring_test` › deleting the open group topic picks another topic of it | 红：挑中了助手的 1:1 而不是同群的另一个话题 | I4 列表跟随归属 |
+
+注入前 `side_drawer.dart` = `83177EA2…19F7A`，还原后同一哈希。
+
+这条与评审的发现一致：删除后的「下一个会话」用的还是 `assistantId == currentAssistantId`，
+而群话题的 `assistantId` 为 null，所以它永远不会成为候选——删除群话题会把用户甩到助手的 1:1。
+现在它走 `nextConversationAfterDelete`（同一套归属判断），顺带把移动菜单里那份副本也删掉了。
+
 ## 两条永久守卫（不是一次性注入）
 
 - **「＋」与「点 owner」对照**：`owner_open_test` › a new chat from a dead group topic carries

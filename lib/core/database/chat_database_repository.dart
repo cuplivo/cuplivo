@@ -7600,7 +7600,9 @@ class ChatDatabaseRepository {
           _db.conversationRows,
         )..where((t) => t.id.equals(id))).go();
         if (deleted == 0) return;
-        // The kinds are the capture's own list, and the rows are claimed by
+        // The kinds are the delete's own list: the capture stages the documents
+        // plus the draft, and this removes the documents plus the one kind named
+        // as unrecoverable ([conversationDeletedKinds]). The rows are claimed by
         // `id` — the column every reader of them uses, and the one the capture
         // queries by. Claiming them by `owner_id` here would leave this the
         // single place in the app where these rows have a second key, and the

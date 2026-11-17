@@ -252,10 +252,11 @@ deleted, and would put "your deleted conversation" into a peer's storage.
     `extension_entity_rows` entry (`kind = composerDraft`, id = the conversation id), and the delete removes
     it in the same transaction that removes the conversation — so a restore that left it out handed back a
     conversation whose composer was empty, which is losing text the user typed and never sent. It travels in
-    the same one-statement capture, filtered by that kind rather than by the id alone (a future device-local
-    row keyed the same way should be a decision, not an accident), and a restore writes it back only when no
-    live draft exists: the composer is state the user is in the middle of, and replacing what they have
-    typed would be a worse surprise than an older unsent message staying lost. What the bin cannot carry is
+    the same one-statement capture, filtered by the kinds that capture names rather than by the id alone (a
+    future device-local row keyed the same way should be a decision, not an accident), and a restore writes
+    it back only when no live draft exists: the composer is state the user is in the middle of, and replacing
+    what they have typed would be a worse surprise than an older unsent message staying lost. What the bin
+    cannot carry is
     the draft's private attachment files — the delete empties that directory too — so a restored
     `images`/`documents` reference whose file is gone is dropped instead of being drawn as a broken chip;
     the text, the selection and the citation stay. The device-local store also has to take the id back

@@ -1767,24 +1767,9 @@ final class BusinessSettingsRouter {
     final id = hasPayloadId
         ? rawId.toString()
         : rowId ?? _stableGeneratedId(kind.sourceKey, index, payload);
-    switch (kind) {
-      case BusinessEntityKind.assistant:
-        _validateRuntimePayload(kind, {
-          ...payload,
-          'id': id,
-        }, Assistant.fromJson);
-      case BusinessEntityKind.compressionTemplate:
-        _validateRuntimePayload(kind, {
-          ...payload,
-          'id': id,
-        }, CompressionTemplate.fromJson);
-      case BusinessEntityKind.compressionRecipe:
-        _validateRuntimePayload(kind, {
-          ...payload,
-          'id': id,
-        }, CompressionRecipe.fromJson);
-      default:
-        break;
+    final decode = runtimePayloadDecoder(kind);
+    if (decode != null) {
+      _validateRuntimePayload(kind, {...payload, 'id': id}, decode);
     }
     String? assistantId;
     if (kind == BusinessEntityKind.assistantMemory) {
@@ -1800,6 +1785,41 @@ final class BusinessSettingsRouter {
       payload: jsonEncode(payload),
       assistantId: assistantId,
     );
+  }
+
+  /// The decoder the runtime reads [kind]'s payloads with, or null when the kind
+  /// has none.
+  ///
+  /// One table, because the rows reach the app through more than one entrance: a
+  /// settings import and a LAN-sync apply must be held to the same reader. The
+  /// compression kinds are why this matters — `CompressionRepository` decodes
+  /// every template of the kind in one loop, so a row these decoders reject is
+  /// not a row that looks odd, it is a library that cannot be listed at all.
+  static void Function(Map<String, dynamic>)? runtimePayloadDecoder(
+    BusinessEntityKind kind,
+  ) => switch (kind) {
+    BusinessEntityKind.assistant => Assistant.fromJson,
+    BusinessEntityKind.compressionTemplate => CompressionTemplate.fromJson,
+    BusinessEntityKind.compressionRecipe => CompressionRecipe.fromJson,
+    _ => null,
+  };
+
+  /// Whether [payload] — the stored JSON string of one row — is a row this build
+  /// can read back for [kind].
+  ///
+  /// A kind with no runtime decoder is readable here by construction; its
+  /// per-field checks belong to the import path.
+  static bool isReadablePayload(BusinessEntityKind kind, String payload) {
+    final decode = runtimePayloadDecoder(kind);
+    if (decode == null) return true;
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is! Map) return false;
+      decode(Map<String, dynamic>.from(decoded));
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   // Validate with the same decoder the readers use, before migration cleanup or

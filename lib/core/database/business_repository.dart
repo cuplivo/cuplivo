@@ -653,7 +653,18 @@ WHERE id IN ($placeholders);
     String id,
     Object? payload,
   ) {
-    if (kind != BusinessEntityKind.workspace) return false;
+    if (kind != BusinessEntityKind.workspace) {
+      // A row this build cannot read back is a row it neither offers nor
+      // accepts. The compression kinds are why: `CompressionRepository` decodes
+      // every template of the kind in one loop, so one unreadable row is an
+      // unlistable library, and the page that would let the user delete it reads
+      // that same list. The settings import refuses such a row already; the wire
+      // is the other entrance into these rows, and gives the same answer here —
+      // the row is absent from the manifest, refused on apply, and not in the
+      // acknowledgement, so the peer keeps the only copy that could not be read.
+      return payload is! String ||
+          !BusinessSettingsRouter.isReadablePayload(kind, payload);
+    }
     if (!isSafeWorkspaceId(id)) return true;
     // A workspace payload is a JSON object or the row is not one either: every
     // reader below decodes it and would otherwise be reading a shape the store

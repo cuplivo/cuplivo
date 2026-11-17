@@ -2147,6 +2147,13 @@ existing hello gate refuses it with the upgrade reason it already carries.
   agree, so only genuinely diverged conversations transfer.
 - **A replaced compression history is visible**: the report counts it, and the losing copy is
   recoverable from the raw messages, not from the document.
+- **A row the decoders reject travels nowhere.** The settings import already refused a payload its
+  runtime decoder could not read; the wire gave the same rows a second entrance with no such check.
+  One unreadable template is not a row that looks odd — `CompressionRepository` decodes every row of
+  the kind in one loop, so it is a library that cannot be listed, and the page that would let the
+  user delete it reads that same list. The row is now absent from the manifest, refused on apply and
+  left out of the acknowledgement, which is the rule a linked workspace already followed: the peer
+  keeps the only copy, and a copy this device cannot read is one it cannot offer, accept or delete.
 - **An archive from before the promotion keeps its library in either restore mode.** The library's
   carrier moved from the snapshot database to `settings.json`, so an older archive names neither key
   while its database half holds every template and recipe. Merge already read key presence;

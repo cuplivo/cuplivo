@@ -5203,7 +5203,7 @@
   "lanSyncReportWorkspacesKept": "{count} çalışma alanı klasörü diskte tutuldu (kapalı veya eşitlenmemiş dosyalar içeriyor)",
   "lanSyncReportDeletesBlocked": "{count} silme işlemi atlandı (yerel kopya değişti)",
   "lanSyncReportRowsLost": "{n} yerel kayıt, eşteki daha yeni sürümlerle değiştirildi (geri dönüşüm kutusundan kurtarılabilir)",
-  "lanSyncReportDocumentsReplaced": "{n} sohbetin sıkıştırma geçmişi veya ayarları eşteki daha yeni sürümle değiştirildi",
+  "lanSyncReportDocumentsReplaced": "{n} sohbetin sıkıştırma geçmişi, görsel bağlam ayarları veya sıkıştırma ayarları eşteki daha yeni sürümle değiştirildi",
   "lanSyncReportClockSkew": "Saatler yaklaşık {n} dk farklı — cihaz saatini düzeltip yeniden eşitleyin",
   "lanSyncReportUnreachable": "Eşitleme başarısız: diğer cihaza ulaşılamadı. Çevrimdışı olabilir ya da başka bir ağda olabilir — QR kodunu yeniden okutun veya kartındaki adresi düzenleyin.",
   "lanSyncReportNoEndpoint": "Eşitleme başarısız: diğer cihaz için kayıtlı adres yok. QR kodunu yeniden okutun veya kartına adresi girin.",

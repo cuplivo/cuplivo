@@ -17986,7 +17986,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String lanSyncReportDocumentsReplaced(Object n) {
-    return '$n sohbetin sıkıştırma geçmişi veya ayarları eşteki daha yeni sürümle değiştirildi';
+    return '$n sohbetin sıkıştırma geçmişi, görsel bağlam ayarları veya sıkıştırma ayarları eşteki daha yeni sürümle değiştirildi';
   }
 
   @override

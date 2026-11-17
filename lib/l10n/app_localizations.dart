@@ -31353,7 +31353,7 @@ abstract class AppLocalizations {
   /// Sync report count of conversations whose compression history, image-context switches or compression settings the peer's newer copy replaced. Each of those is stored as one whole record per conversation, so a divergence is settled by replacing the record, never by merging it field by field; n is a count of conversations, not of records.
   ///
   /// In en, this message translates to:
-  /// **'{n} conversations\' compression history or settings replaced by the peer\'s newer copy'**
+  /// **'{n} conversations\' compression history, image-context switches or compression settings replaced by the peer\'s newer copy'**
   String lanSyncReportDocumentsReplaced(Object n);
 
   /// Sync report warning that the two devices' clocks differ, so the times of the sync cannot be trusted; n is the difference in minutes.

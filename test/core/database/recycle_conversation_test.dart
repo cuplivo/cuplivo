@@ -378,22 +378,39 @@ void main() {
       expect(await repository.readTombstones(), isEmpty);
     });
 
-    test('a bulk reset removes every kind the conversation rule names', () async {
+    test('a bulk reset removes every extension kind it claims to', () async {
+      // The kinds a reset culls: what a conversation's delete owns, plus the
+      // device-local composer rows it has always cleared beside them. Seeded
+      // from the named groups, so dropping one from `_clearChatRows` fails here
+      // instead of leaving a row that points at a private directory the same
+      // reset has just deleted — `ComposerDraftStore.overwrite` clears caches and
+      // that directory, never the rows.
+      const composerKinds = <String>{
+        ComposerDraftStore.kind,
+        ComposerDraftStore.entryKind,
+        ComposerDraftStore.privateFileKind,
+        ComposerDraftStore.publishedFileKind,
+      };
       await seedConversation('c1');
-      for (final kind in conversationDeletedKinds) {
+      for (final kind in {...conversationDeletedKinds, ...composerKinds}) {
         await extensions.upsert(kind, 'c1', const {
           'probe': true,
         }, ownerId: 'c1');
       }
+      // A share receipt is the one extension row a reset leaves: it is waiting
+      // for the native inbox's acknowledgement, not for the conversation.
+      await extensions.upsert(ComposerDraftStore.receiptKind, 'c1', const {
+        'probe': true,
+      }, ownerId: 'c1');
 
       await repository.clearAllData();
 
       expect(
         await extensionPayloads('c1'),
-        isEmpty,
+        {ComposerDraftStore.receiptKind: '{"probe":true}'},
         reason:
-            'a reset that claims to replace the local state takes the rows the '
-            'rule names — a kind added to it must not outlive the reset',
+            'a reset that claims to replace the local state takes every kind it '
+            'culls and leaves the receipt that is waiting on the inbox',
       );
     });
 

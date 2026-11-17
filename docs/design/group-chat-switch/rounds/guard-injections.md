@@ -45,6 +45,18 @@
 页面上，绕过了原来两个回调里的 `closeCompactSidebar()`。修法是把「关掉遮挡当前会话的东西」
 放进管道本身（不是包一层 tear-off），于是任何入口都自带这一步。
 
+## 第 9–11 条（第三次评审后）
+
+| # | 注入 | 应红的测试 | 实测 | 不变量 |
+| --- | --- | --- | --- | --- |
+| 9 | `_openOwner` 改回「先 await 切换、再 `maybePop`」 | `owner_tap_wiring_test` › a phone closes the drawer before the switch finishes | 红：切换永不完成时抽屉一直开着 | I3（一次点击的收尾属于点击本身） |
+| 10 | 把 `desktopAutoSwitchTopics` 的 gate 放回 `revealTopics()` | `owner_open_test` › reveal works with the setting off | 红：bus 无事件 | I5（设置只约束它管的那一步） |
+| 11 | 头部指示器改回「只看 listScope」（群也画点） | `owner_tap_wiring_test` › the header never claims a group topic's generation | 红：2 个点（头部 + 会话行） | I4（指示器属于实际在生成的 owner） |
+
+注入前 `side_drawer.dart` = `B22BD75B…3BBE`、`home_page_controller.dart` = `8A699866…ACD4`，
+还原后两者相同。第 11 条第二次注入（收窄后的实现）在 `side_drawer.dart` = `467EB286…E2A0`
+上重做，同样是 2 个点，还原后哈希一致。
+
 ## 两条永久守卫（不是一次性注入）
 
 - **「＋」与「点 owner」对照**：`owner_open_test` › a new chat from a dead group topic carries

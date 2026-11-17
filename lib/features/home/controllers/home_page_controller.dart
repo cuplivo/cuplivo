@@ -2059,7 +2059,7 @@ class HomePageController extends ChangeNotifier {
     // A callback rather than an awaited frame: [openOwner] stays awaitable by
     // callers (and by tests) instead of blocking until something pumps.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_context.mounted) revealTopics();
+      if (_context.mounted) _revealAfterOwnerTap();
     });
   }
 
@@ -3631,25 +3631,36 @@ class HomePageController extends ChangeNotifier {
   /// topics-on-the-right layout: the only reveal lived inside a branch that
   /// layout never takes.
   ///
+  /// This is the mechanism, not the policy: *auto switch to topics* belongs to
+  /// the owner tap (`_revealAfterOwnerTap`), because the avatar and the hotkey
+  /// mean "show me the list" whether or not that setting is on.
+  ///
   /// A phone has no topics tab (the drawer is the list), so this does nothing
-  /// there, and the setting is desktop-only.
+  /// there.
   void revealTopics() {
     if (!isDesktopPlatform) return;
     final settings = _context.read<SettingsProvider>();
-    if (!settings.desktopAutoSwitchTopics) return;
     if (settings.desktopTopicPosition == DesktopTopicPosition.right) {
       DesktopSidePanelController.instance.open(kind: SidePanelTabKind.topics);
       return;
     }
-    // A compact window's sidebar is an overlay too: opening it to show the list
+    if (!tabletSidebarOpen) toggleTabletSidebar();
+    DesktopSidebarTabBus.instance.switchToTopics();
+  }
+
+  /// What an owner tap does about the list — and that is a setting: with *auto
+  /// switch to topics* off, a tap leaves the list exactly as it was.
+  void _revealAfterOwnerTap() {
+    if (!_context.read<SettingsProvider>().desktopAutoSwitchTopics) return;
+    if (!isDesktopPlatform) return;
+    // A compact window's sidebar is an overlay: opening it to show the list
     // would cover the chat the tap just opened. The tab still switches, so the
     // next time the overlay is opened it already sits on topics.
     if (_compactDesktop) {
       DesktopSidebarTabBus.instance.switchToTopics();
       return;
     }
-    if (!tabletSidebarOpen) toggleTabletSidebar();
-    DesktopSidebarTabBus.instance.switchToTopics();
+    revealTopics();
   }
 
   void updateSidebarWidth(double dx) {

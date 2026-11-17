@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:Cuplivo/core/database/extension_entity_store.dart';
 import 'package:Cuplivo/core/models/chat_owner.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
@@ -11,6 +13,7 @@ import 'package:Cuplivo/core/providers/update_provider.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/features/home/widgets/side_drawer.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/interactive_drawer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -141,7 +144,6 @@ void main() {
       final rig = await _pump(
         tester,
         chat: chat,
-        topicsOnly: false,
         loadingGroupTopic: 'Group topic',
       );
 
@@ -152,6 +154,73 @@ void main() {
       expect(_loadingOwnerNames(tester), ['Gamma']);
       expect(_selectedOwnerNames(tester), ['Gamma']);
       expect(rig.assistants.currentAssistantId, rig.alpha);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('the header never claims a group topic\'s generation', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    try {
+      final chat = _FakeChat();
+      final rig = await _pump(
+        tester,
+        chat: chat,
+        // The mixed owner list, which is what a phone shows: the header naming
+        // the fallback assistant is on screen together with the rows.
+        assistantsOnly: false,
+        loadingGroupTopic: 'Group topic',
+      );
+
+      // One generation, one dot. The header names the fallback assistant, so a
+      // dot there would report the group's activity on a row that does not own
+      // it — and report it twice.
+      expect(
+        find.byWidgetPredicate(
+          (widget) => widget.runtimeType.toString() == '_LoadingDot',
+        ),
+        findsOneWidget,
+      );
+      expect(rig.assistants.currentAssistantId, rig.alpha);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('a phone closes the drawer before the switch finishes', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    try {
+      final never = Completer<void>();
+      final opened = <ChatOwner>[];
+      final rig = await _pump(
+        tester,
+        chat: _FakeChat(),
+        inInteractiveDrawer: true,
+        onOpenOwner: (owner) {
+          opened.add(owner);
+          return never.future;
+        },
+      );
+      final drawer = rig.drawerController!;
+      unawaited(drawer.open());
+      await tester.pumpAndSettle();
+      rig.rebuildHost!();
+      await tester.pump();
+      expect(drawer.isOpen, isTrue);
+
+      // One tap, run the way a row runs it.
+      unawaited(SideDrawer.debugOpenOwner!(ChatOwner.assistant(rig.alpha)));
+      await tester.pumpAndSettle();
+
+      expect(opened, [ChatOwner.assistant(rig.alpha)]);
+      // The switch behind the drawer never finishes here. The drawer is the list
+      // the user just left, so it must not stay on screen for the whole
+      // fade-out/fetch/fade-in — nor forever, if that switch throws.
+      expect(drawer.isOpen, isFalse);
     } finally {
       debugDefaultTargetPlatformOverride = null;
     }
@@ -221,11 +290,24 @@ List<String> _selectedOwnerNames(WidgetTester tester) {
 }
 
 class _Rig {
-  _Rig({required this.alpha, required this.gamma, required this.assistants});
+  _Rig({
+    required this.alpha,
+    required this.gamma,
+    required this.assistants,
+    this.drawerController,
+    this.rebuildHost,
+  });
 
   final String alpha;
   final String gamma;
   final AssistantProvider assistants;
+
+  /// Present only when the drawer was mounted inside a real
+  /// [InteractiveDrawer], which is what owns the phone's close-on-pop.
+  final InteractiveDrawerController? drawerController;
+
+  /// Rebuilds that host, the way the phone layout does when the drawer opens.
+  final VoidCallback? rebuildHost;
 }
 
 class _FakeChat extends ChatService {
@@ -268,6 +350,8 @@ Future<_Rig> _pump(
   WidgetTester tester, {
   required ChatService chat,
   bool topicsOnly = false,
+  bool? assistantsOnly,
+  bool inInteractiveDrawer = false,
   String? loadingGroupTopic,
   Future<void> Function(ChatOwner owner)? onOpenOwner,
   void Function(String id)? onSelectConversation,
@@ -280,6 +364,8 @@ Future<_Rig> _pump(
 
   late AssistantProvider assistants;
   late GroupChatProvider groups;
+  InteractiveDrawerController? drawerController;
+  VoidCallback? rebuildHost;
   late String alpha;
   late String gamma;
 
@@ -321,6 +407,27 @@ Future<_Rig> _pump(
     );
     await owners.loaded;
 
+    final drawer = SideDrawer(
+      userName: 'User',
+      assistantName: 'Assistant',
+      embedded: !inInteractiveDrawer,
+      desktopAssistantsOnly: assistantsOnly ?? !topicsOnly,
+      desktopTopicsOnly: topicsOnly,
+      globalSearchMode: false,
+      globalSearchQuery: '',
+      loadingConversationIds: loadingIds,
+      showBottomBar: false,
+      onOpenOwner: onOpenOwner,
+      onSelectConversation: onSelectConversation == null
+          ? null
+          : (id, {closeDrawer = true}) => onSelectConversation(id),
+      onNewConversation: onNewConversation == null
+          ? null
+          : ({closeDrawer = true}) => onNewConversation(),
+    );
+    drawerController = inInteractiveDrawer
+        ? InteractiveDrawerController()
+        : null;
     await tester.pumpWidget(
       MultiProvider(
         providers: [
@@ -337,31 +444,34 @@ Future<_Rig> _pump(
           locale: const Locale('en'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SideDrawer(
-              userName: 'User',
-              assistantName: 'Assistant',
-              embedded: true,
-              desktopAssistantsOnly: !topicsOnly,
-              desktopTopicsOnly: topicsOnly,
-              globalSearchMode: false,
-              globalSearchQuery: '',
-              loadingConversationIds: loadingIds,
-              showBottomBar: false,
-              onOpenOwner: onOpenOwner,
-              onSelectConversation: onSelectConversation == null
-                  ? null
-                  : (id, {closeDrawer = true}) => onSelectConversation(id),
-              onNewConversation: onNewConversation == null
-                  ? null
-                  : ({closeDrawer = true}) => onNewConversation(),
-            ),
-          ),
+          home: drawerController == null
+              ? Scaffold(body: drawer)
+              : StatefulBuilder(
+                  builder: (context, setState) {
+                    // The host rebuilds when the drawer opens (it holds the open
+                    // flag), and that rebuild is what refreshes the drawer's
+                    // PopScope; the test drives the same rebuild.
+                    rebuildHost = () => setState(() {});
+                    return InteractiveDrawer(
+                      controller: drawerController!,
+                      side: DrawerSide.left,
+                      drawerWidth: 320,
+                      drawer: drawer,
+                      child: const Scaffold(body: SizedBox.expand()),
+                    );
+                  },
+                ),
         ),
       ),
     );
   });
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
-  return _Rig(alpha: alpha, gamma: gamma, assistants: assistants);
+  return _Rig(
+    alpha: alpha,
+    gamma: gamma,
+    assistants: assistants,
+    drawerController: drawerController,
+    rebuildHost: rebuildHost,
+  );
 }

@@ -415,12 +415,9 @@ void main() {
       panel.setContext(conversationId: '', topicsOnRight: false);
     });
 
-    testWidgets('topics on the left, setting on, sidebar open: switches tab', (
-      tester,
-    ) async {
+    testWidgets('reveal switches the tab on the left', (tester) async {
       await runAsDesktop(() async {
         final rig = await pumpRig(tester);
-        await rig.settings.setDesktopAutoSwitchTopics(true);
         rig.controller.revealTopics();
         // The tab bus is a broadcast stream: the event lands a microtask later.
         await tester.pump();
@@ -428,12 +425,9 @@ void main() {
       });
     });
 
-    testWidgets('topics on the left, setting on, sidebar closed: opens it', (
-      tester,
-    ) async {
+    testWidgets('reveal opens a closed sidebar', (tester) async {
       await runAsDesktop(() async {
         final rig = await pumpRig(tester);
-        await rig.settings.setDesktopAutoSwitchTopics(true);
         rig.controller.toggleTabletSidebar();
         expect(rig.controller.tabletSidebarOpen, isFalse);
 
@@ -445,23 +439,22 @@ void main() {
       });
     });
 
-    testWidgets('topics on the left, setting off: nothing moves', (
-      tester,
-    ) async {
+    // The avatar and the hotkey mean "show me the list". Only an owner tap reads
+    // *auto switch to topics*; gating the avatar on it made the avatar dead with
+    // stock settings.
+    testWidgets('reveal works with the setting off', (tester) async {
       await runAsDesktop(() async {
         final rig = await pumpRig(tester);
         await rig.settings.setDesktopAutoSwitchTopics(false);
         rig.controller.revealTopics();
-        expect(busEvents, isEmpty);
+        await tester.pump();
+        expect(busEvents, [1]);
       });
     });
 
-    testWidgets('topics on the right, setting on: opens the panel on topics', (
-      tester,
-    ) async {
+    testWidgets('reveal opens the right panel on topics', (tester) async {
       await runAsDesktop(() async {
         final rig = await pumpRig(tester);
-        await rig.settings.setDesktopAutoSwitchTopics(true);
         await rig.settings.setDesktopTopicPosition(DesktopTopicPosition.right);
         final panel = DesktopSidePanelController.instance;
         panel.setContext(conversationId: 'seed', topicsOnRight: true);
@@ -474,12 +467,11 @@ void main() {
       });
     });
 
-    testWidgets('topics on the right, panel already open on files', (
+    testWidgets('reveal moves a right panel already open on files', (
       tester,
     ) async {
       await runAsDesktop(() async {
         final rig = await pumpRig(tester);
-        await rig.settings.setDesktopAutoSwitchTopics(true);
         await rig.settings.setDesktopTopicPosition(DesktopTopicPosition.right);
         final panel = DesktopSidePanelController.instance;
         panel.setContext(conversationId: 'seed', topicsOnRight: true);
@@ -493,16 +485,60 @@ void main() {
       });
     });
 
-    testWidgets('topics on the right, setting off: nothing moves', (
+    testWidgets('a tap with the setting off leaves the list alone', (
       tester,
     ) async {
       await runAsDesktop(() async {
         final rig = await pumpRig(tester);
         await rig.settings.setDesktopAutoSwitchTopics(false);
+        await rig.settings.setNewChatOnAssistantSwitch(false);
+        final own = rig.chat.seed(
+          title: 'A chat',
+          assistantId: rig.assistantA,
+          updatedAt: DateTime(2026, 1, 2),
+        );
+        rig.chat.seed(
+          title: 'B chat',
+          assistantId: rig.assistantB,
+          updatedAt: DateTime(2026, 1, 3),
+        );
+        await rig.startIn(own);
+
+        await rig.controller.openOwner(ChatOwner.assistant(rig.assistantB));
+        await tester.pump();
+        await tester.pump();
+        await settle(tester);
+
+        expect(busEvents, isEmpty);
+      });
+    });
+
+    testWidgets('a tap with the setting off never opens the right panel', (
+      tester,
+    ) async {
+      await runAsDesktop(() async {
+        final rig = await pumpRig(tester);
+        await rig.settings.setDesktopAutoSwitchTopics(false);
+        await rig.settings.setNewChatOnAssistantSwitch(false);
         await rig.settings.setDesktopTopicPosition(DesktopTopicPosition.right);
         final panel = DesktopSidePanelController.instance;
+        panel.setContext(conversationId: 'seed', topicsOnRight: true);
+        final own = rig.chat.seed(
+          title: 'A chat',
+          assistantId: rig.assistantA,
+          updatedAt: DateTime(2026, 1, 2),
+        );
+        rig.chat.seed(
+          title: 'B chat',
+          assistantId: rig.assistantB,
+          updatedAt: DateTime(2026, 1, 3),
+        );
+        await rig.startIn(own);
 
-        rig.controller.revealTopics();
+        await rig.controller.openOwner(ChatOwner.assistant(rig.assistantB));
+        await tester.pump();
+        await tester.pump();
+        await settle(tester);
 
         expect(panel.isOpen, isFalse);
         expect(busEvents, isEmpty);

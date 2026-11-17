@@ -164,6 +164,12 @@ class SideDrawer extends StatefulWidget {
   @visibleForTesting
   static String? Function(Set<String> excludeIds)? debugNextConversationInScope;
 
+  /// Testing hook: run one owner tap as a row would, so the drawer's ordering
+  /// (dismiss first, then switch) can be asserted without depending on which
+  /// row happens to be on screen.
+  @visibleForTesting
+  static Future<void> Function(ChatOwner owner)? debugOpenOwner;
+
   /// Enter-animation delay for a sidebar tile at [indexInSection].
   ///
   /// Caps absolute-index stagger so virtualized deep rows never wait multiple
@@ -236,6 +242,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
         _debugRequestConversationListHostRebuild;
     SideDrawer.debugEnterSelectionMode = _enterSelectionMode;
     SideDrawer.debugNextConversationInScope = _debugNextConversationInScope;
+    SideDrawer.debugOpenOwner = _openOwner;
     _attachCloseTicker(widget.closePickerTicker);
     _mobileSearchFocusNode.addListener(() {
       if (_isDesktop) return;
@@ -1106,6 +1113,9 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
       _debugNextConversationInScope,
     )) {
       SideDrawer.debugNextConversationInScope = null;
+    }
+    if (identical(SideDrawer.debugOpenOwner, _openOwner)) {
+      SideDrawer.debugOpenOwner = null;
     }
     _unbindHostDrawer();
     _assistantPickerEntry?.remove();
@@ -2817,10 +2827,10 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                                         ),
                                       ),
                                     ),
-                                    if (listScope != null &&
-                                        loadingOwnerKeys.contains(
-                                          listScope.key,
-                                        )) ...[
+                                    if (_headerShowsLoading(
+                                      listScope,
+                                      loadingOwnerKeys,
+                                    )) ...[
                                       const SizedBox(width: 8),
                                       _LoadingDot(),
                                     ],
@@ -3248,9 +3258,23 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
         .read<SettingsProvider>()
         .keepSidebarOpenOnAssistantTap;
     if (closeDrawer) _closeAssistantPicker();
+    // Dismiss first, then switch. The switch behind the drawer takes several
+    // frames (fade out, fetch, fade in), and a drawer that stays on screen for
+    // all of it — or forever, if the switch throws — is the list the user just
+    // left. On the desktop layouts `maybePop` finds no drawer route and returns
+    // without doing anything.
+    if (closeDrawer && mounted) Navigator.of(context).maybePop();
     await widget.onOpenOwner?.call(owner);
-    if (!mounted || !closeDrawer) return;
-    Navigator.of(context).maybePop();
+  }
+
+  /// The header names the fallback assistant, so it may only claim that
+  /// assistant's own activity: a group topic's generation belongs to its group
+  /// row, and a dot here as well would report one generation twice — on a row
+  /// that does not own it. (The assistant case keeps its long-standing reading:
+  /// the dot follows the list's owner.)
+  bool _headerShowsLoading(ChatOwner? listScope, Set<String> loadingOwnerKeys) {
+    if (listScope == null || listScope.isGroup) return false;
+    return loadingOwnerKeys.contains(listScope.key);
   }
 
   void _openAssistantSettings(String id) {

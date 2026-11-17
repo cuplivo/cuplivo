@@ -2027,6 +2027,12 @@ class HomePageController extends ChangeNotifier {
     // window: there is nothing to open.
     if (owner.isGroup && !_hasGroupChat(owner.id)) return;
     if (!owner.isGroup && assistants.getById(owner.id) == null) return;
+    // A narrow desktop window shows the sidebar as a modal overlay over the chat,
+    // not as a route: the drawer's own dismissal is a PopScope a phone wraps
+    // itself in, and it cannot reach this panel (the page is the first route, so
+    // `maybePop` bubbles). Left open, it hides the chat the tap just opened. The
+    // guard inside makes this inert on a phone, a tablet and a wide window.
+    closeCompactSidebar();
     // The switch is about the tap on an owner, not about one kind: a group's
     // topic is a conversation too, so "start a new one when I switch" answers
     // the same way for both. Its title still says 助手 — the row was written for
@@ -3633,6 +3639,13 @@ class HomePageController extends ChangeNotifier {
     if (!settings.desktopAutoSwitchTopics) return;
     if (settings.desktopTopicPosition == DesktopTopicPosition.right) {
       DesktopSidePanelController.instance.open(kind: SidePanelTabKind.topics);
+      return;
+    }
+    // A compact window's sidebar is an overlay too: opening it to show the list
+    // would cover the chat the tap just opened. The tab still switches, so the
+    // next time the overlay is opened it already sits on topics.
+    if (_compactDesktop) {
+      DesktopSidebarTabBus.instance.switchToTopics();
       return;
     }
     if (!tabletSidebarOpen) toggleTabletSidebar();

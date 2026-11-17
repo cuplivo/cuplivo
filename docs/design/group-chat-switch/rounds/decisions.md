@@ -141,3 +141,29 @@ T1–T4 门禁、5 条守卫注入、文档收尾）。守卫记录：`rounds/gu
    若要给提示，唯一零 UI 成本的做法是改 `@displaySettingsPageNewChatOnAssistantSwitchTitle`
    的 ARB `description`（翻译者/维护者可见，应用内不显示）。它仍然是一次 ARB 改动，
    按你的口径**没有做**；需要时一行就能加。
+
+## 评审轮之二（第二次评审）｜窄窗口的覆盖层
+
+评审只给出一条 Sev 3 / Occ 4，但它是我引入的真回归：
+
+- **现象**：桌面窗口窄于 `AppBreakpoints.tablet`（900px）时，侧栏是覆盖层（`AnimatedPositioned`
+  + `ModalBarrier`），不是路由。点 owner 后聊天区切换了，覆盖层还盖着，要再点一次遮罩。
+- **成因**：那条关闭动作原本在页面的 `onSelectConversation` / `onNewConversation` 里；本轮把
+  owner 点击直接接到 `openOwner`，`maybePop()` 对覆盖层无效（首页是第一个路由，
+  `RoutePopDisposition.bubble`，什么都不做）。
+- **修法**：把 `closeCompactSidebar()` 放进 `openOwner` 本身（不在页面包一层 tear-off）——
+  于是它是管道的一步，任何新入口都自带；内部 guard 让它在手机、平板、宽窗口上都是空操作。
+- **连带**：`revealTopics` 在窄窗口不再为了「显示话题」而*重新打开*覆盖层（那会盖住刚打开的
+  聊天）；tab 仍然切到话题，下次打开覆盖层时就在话题页。这条与旧行为一致（旧代码也是切 tab
+  后由回调关掉覆盖层）。
+- 守卫：注入 7 / 8 两条，各自让对应测试变红，哈希还原（`rounds/guard-injections.md`）。
+
+### 评审留作「待确认」的两条，我的结论
+
+1. **`isGroupConversation` 与死群话题**：它的定义是「有 groupChatId」，不是「群还活着」；有若干
+   调用点（`model_select_sheet`、`home_view_model` 的群回合判定、`chat_service`）因此把死群话题
+   仍当群会话处理。这与 I1（死群话题按普通会话归属）在**行为**层面不完全一致，但它属于
+   「模型选择 / 重放」那一轴，不是本轮的归属轴，且改动面会跨出本轮范围。记在这里作为后续事项，
+   不在本 PR 里顺手改。
+2. **`_syncDefaultAssistant` 是切换后唯一写入者**：这是第 2b 轮定的——选中由已提交会话派生，
+   点击时不写。评审确认的「切换前写」正是被删掉的那条平行决定。

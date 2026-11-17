@@ -538,6 +538,71 @@ void main() {
       });
     });
 
+    testWidgets('a narrow desktop closes its sidebar overlay on a tap', (
+      tester,
+    ) async {
+      await runAsDesktop(() async {
+        final rig = await pumpRig(tester);
+        await rig.settings.setNewChatOnAssistantSwitch(false);
+        final own = rig.chat.seed(
+          title: 'A chat',
+          assistantId: rig.assistantA,
+          updatedAt: DateTime(2026, 1, 2),
+        );
+        final other = rig.chat.seed(
+          title: 'B chat',
+          assistantId: rig.assistantB,
+          updatedAt: DateTime(2026, 1, 3),
+        );
+        await rig.startIn(own);
+        // A narrow window: the sidebar is a modal overlay over the chat, not a
+        // route, so the drawer's PopScope dismissal cannot reach it.
+        rig.controller.setCompactDesktopLayout(true);
+        rig.controller.toggleTabletSidebar();
+        expect(rig.controller.tabletSidebarOpen, isTrue);
+
+        await rig.controller.openOwner(ChatOwner.assistant(rig.assistantB));
+        await settle(tester);
+
+        expect(rig.controller.currentConversation?.id, other.id);
+        expect(rig.controller.tabletSidebarOpen, isFalse);
+      });
+    });
+
+    testWidgets('a narrow desktop does not reopen the overlay to reveal', (
+      tester,
+    ) async {
+      await runAsDesktop(() async {
+        final rig = await pumpRig(tester);
+        await rig.settings.setDesktopAutoSwitchTopics(true);
+        await rig.settings.setNewChatOnAssistantSwitch(false);
+        final own = rig.chat.seed(
+          title: 'A chat',
+          assistantId: rig.assistantA,
+          updatedAt: DateTime(2026, 1, 2),
+        );
+        rig.chat.seed(
+          title: 'B chat',
+          assistantId: rig.assistantB,
+          updatedAt: DateTime(2026, 1, 3),
+        );
+        await rig.startIn(own);
+        rig.controller.setCompactDesktopLayout(true);
+        rig.controller.toggleTabletSidebar();
+        expect(rig.controller.tabletSidebarOpen, isTrue);
+
+        await rig.controller.openOwner(ChatOwner.assistant(rig.assistantB));
+        await tester.pump();
+        await tester.pump();
+        await settle(tester);
+
+        // Revealing must not cover the chat that was just opened; the tab still
+        // ends up on topics for the next time the overlay is opened.
+        expect(rig.controller.tabletSidebarOpen, isFalse);
+        expect(busEvents, [1]);
+      });
+    });
+
     testWidgets('a phone has no topics tab: nothing moves', (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
       try {

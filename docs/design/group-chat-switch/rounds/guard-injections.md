@@ -31,6 +31,20 @@
 而群话题的 `assistantId` 为 null，所以它永远不会成为候选——删除群话题会把用户甩到助手的 1:1。
 现在它走 `nextConversationAfterDelete`（同一套归属判断），顺带把移动菜单里那份副本也删掉了。
 
+## 第 7、8 条（第二次评审后）｜窄窗口的侧栏覆盖层
+
+| # | 注入 | 应红的测试 | 实测 | 不变量 |
+| --- | --- | --- | --- | --- |
+| 7 | 去掉 `openOwner` 里的 `closeCompactSidebar()` | `owner_open_test` › a narrow desktop closes its sidebar overlay on a tap | 红：`tabletSidebarOpen` 仍为 true | I3（一次点击的收尾属于管道） |
+| 8 | 去掉 `revealTopics` 的 `_compactDesktop` 分支（允许它重新打开覆盖层） | `owner_open_test` › a narrow desktop does not reopen the overlay to reveal | 红：`tabletSidebarOpen` 变回 true | I5 设置不制造遮挡 |
+
+注入前 `home_page_controller.dart` = `95ECB67D…4712`，还原后同一哈希。
+
+评审发现的是我引入的回归：窄窗口（< `AppBreakpoints.tablet`）下侧栏是 `AnimatedPositioned`
+覆盖层 + `ModalBarrier`，不是路由，所以抽屉的 `maybePop()` 到不了它；而 `openOwner` 直接接在
+页面上，绕过了原来两个回调里的 `closeCompactSidebar()`。修法是把「关掉遮挡当前会话的东西」
+放进管道本身（不是包一层 tear-off），于是任何入口都自带这一步。
+
 ## 两条永久守卫（不是一次性注入）
 
 - **「＋」与「点 owner」对照**：`owner_open_test` › a new chat from a dead group topic carries

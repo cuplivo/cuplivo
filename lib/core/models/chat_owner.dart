@@ -1,3 +1,5 @@
+import 'conversation.dart';
+
 /// One row of the sidebar's chat list: an assistant, or a group chat.
 ///
 /// Both kinds share a single ordered list (and a single drag order), because a
@@ -31,4 +33,48 @@ class ChatOwner {
 
   @override
   String toString() => key;
+}
+
+/// The one answer to "who owns this conversation".
+///
+/// The sidebar's list scope, the owner row that is highlighted, the assistant a
+/// new 1:1 remembers, and the chat's own backdrop all ask this — a second
+/// derivation is how a group topic ended up listed under one owner while it was
+/// painted as another.
+///
+/// A group row that no longer exists owns nothing: its topics fall through to
+/// the assistant half and are shown, answered and painted as ordinary
+/// conversations, rather than disappearing from every list. Both predicates are
+/// injected because the answer has to be the same in places that have no
+/// providers (tests, reduced hosts) and in places where a missing group list
+/// means "unknown" rather than "gone".
+ChatOwner? ownerOfConversation(
+  Conversation? conversation, {
+  required bool Function(String groupId) isLiveGroup,
+  required String? Function(String? assistantId) resolveAssistantId,
+}) => ownerOfChat(
+  groupChatId: conversation?.groupChatId,
+  assistantId: conversation?.assistantId,
+  isLiveGroup: isLiveGroup,
+  resolveAssistantId: resolveAssistantId,
+);
+
+/// [ownerOfConversation] from the two fields that decide ownership.
+///
+/// Callers that watch the open chat need this shape: a provider selector over
+/// the whole [Conversation] notifies on *any* switch, while the list only has to
+/// change when the owner does — two topics of one group are one list.
+ChatOwner? ownerOfChat({
+  required String? groupChatId,
+  required String? assistantId,
+  required bool Function(String groupId) isLiveGroup,
+  required String? Function(String? assistantId) resolveAssistantId,
+}) {
+  if (groupChatId != null && isLiveGroup(groupChatId)) {
+    return ChatOwner.group(groupChatId);
+  }
+  final resolvedAssistantId = resolveAssistantId(assistantId);
+  return resolvedAssistantId == null
+      ? null
+      : ChatOwner.assistant(resolvedAssistantId);
 }

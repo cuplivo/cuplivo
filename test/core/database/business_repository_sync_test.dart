@@ -4,7 +4,9 @@ import 'package:Cuplivo/core/database/app_database.dart';
 import 'package:Cuplivo/core/database/business_data.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/core/database/compression_repository.dart';
 import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/models/compression_config.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -680,5 +682,52 @@ void main() {
       't1',
     });
     expect(jsonDecode(read.single['payload'] as String)['name'], 'Brief');
+  });
+
+  test('a row this build cannot read back travels nowhere', () async {
+    // `CompressionRepository` decodes every template of the kind in one loop, so
+    // one unreadable row is an unlistable library — and the page that would let
+    // the user delete it reads that same list. The rule that keeps a linked
+    // workspace off the wire has to keep such a row off it too: absent from the
+    // manifest, refused on apply, not acknowledged.
+    final store = ExtensionEntityStore(database);
+    await store.upsert(CompressionTemplate.entityKind, 'bad', {
+      'id': 'bad',
+      'name': 'Mine',
+      'prompt': '',
+    });
+    expect(
+      (await repository.syncEntityRefs()).where((ref) => ref.id == 'bad'),
+      isEmpty,
+    );
+    await store.delete(CompressionTemplate.entityKind, 'bad');
+
+    final at = DateTime.now().microsecondsSinceEpoch;
+    final applied = await repository.syncApplyBusinessRows(
+      entities: {
+        'compressionTemplate': [
+          {
+            'kind': 'compressionTemplate',
+            'id': 'bad2',
+            'sort_order': 0,
+            'owner_id': null,
+            'payload': jsonEncode({'id': 'bad2', 'name': 'Mine', 'prompt': ''}),
+            'updated_at': at,
+          },
+        ],
+      },
+      preferences: const [],
+      myDeviceId: 'me',
+      peerDeviceId: 'peer',
+    );
+    expect(applied.entityRowsWritten, 0);
+    expect(
+      applied.acceptedKeys,
+      isNot(contains('compressionTemplate\u0000bad2')),
+    );
+
+    // The refusal is what keeps the library listable: the row never landed.
+    final templates = await CompressionRepository(store).templates();
+    expect(templates.map((template) => template.id), isNot(contains('bad2')));
   });
 }

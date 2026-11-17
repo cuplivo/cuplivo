@@ -17340,7 +17340,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String lanSyncReportDocumentsReplaced(Object n) {
-    return '상대 기기의 최신 버전으로 대체된 대화 $n개의 압축 기록 또는 설정';
+    return '상대 기기의 최신 버전으로 대체된 대화 $n개의 압축 기록, 이미지 컨텍스트 설정 또는 압축 설정';
   }
 
   @override

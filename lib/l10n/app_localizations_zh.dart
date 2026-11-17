@@ -16951,7 +16951,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String lanSyncReportDocumentsReplaced(Object n) {
-    return '$n 个会话的压缩历史或设置被对端较新的版本替换';
+    return '$n 个会话的压缩历史、图片上下文开关或压缩设置被对端较新的版本替换';
   }
 
   @override
@@ -34861,7 +34861,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String lanSyncReportDocumentsReplaced(Object n) {
-    return '$n 个会话的压缩历史或设置被对端较新的版本替换';
+    return '$n 个会话的压缩历史、图片上下文开关或压缩设置被对端较新的版本替换';
   }
 
   @override
@@ -52782,7 +52782,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String lanSyncReportDocumentsReplaced(Object n) {
-    return '$n 個對話的壓縮歷史或設定被對端較新的版本取代';
+    return '$n 個對話的壓縮歷史、圖片上下文開關或壓縮設定被對端較新的版本取代';
   }
 
   @override

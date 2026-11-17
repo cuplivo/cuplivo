@@ -23096,7 +23096,7 @@
   "@lanSyncReportRowsLost": {
     "description": "Sync report count of local records replaced by newer versions from the other device, noting they can be recovered from the recycle bin; n is that count."
   },
-  "lanSyncReportDocumentsReplaced": "{n} conversations' compression history or settings replaced by the peer's newer copy",
+  "lanSyncReportDocumentsReplaced": "{n} conversations' compression history, image-context switches or compression settings replaced by the peer's newer copy",
   "@lanSyncReportDocumentsReplaced": {
     "description": "Sync report count of conversations whose compression history, image-context switches or compression settings the peer's newer copy replaced. Each of those is stored as one whole record per conversation, so a divergence is settled by replacing the record, never by merging it field by field; n is a count of conversations, not of records."
   },

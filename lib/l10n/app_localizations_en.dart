@@ -17887,7 +17887,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String lanSyncReportDocumentsReplaced(Object n) {
-    return '$n conversations\' compression history or settings replaced by the peer\'s newer copy';
+    return '$n conversations\' compression history, image-context switches or compression settings replaced by the peer\'s newer copy';
   }
 
   @override

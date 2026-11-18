@@ -15492,9 +15492,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get imageJobFailed => '일러스트 생성 실패';
 
   @override
-  String get imageJobCancelled => '일러스트 취소됨';
-
-  @override
   String get imageJobInterrupted => '일러스트 중단됨';
 
   @override

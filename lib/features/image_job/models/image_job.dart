@@ -4,27 +4,24 @@
 /// [toolCallId] are the owner, and the persisted mirror of its state lives in
 /// that message part's payload (see `ImagePart.state` / `ImagePart.jobId`).
 ///
-/// States are a closed set. `queued -> running -> completed | failed` and any
-/// non-terminal state can move to `cancelled` or `interrupted`:
+/// States are a closed set: `queued -> running -> completed | failed`.
 ///
-/// * `cancelled`  – the user cancelled; a late runner result is discarded.
-/// * `interrupted` – the app died while the job was live; terminal, never
-///   resumed automatically.
+/// Nothing cancels a job (there is no cancel entry in the UI, by decision), and a
+/// process that dies takes its jobs with it — a fresh process has no live job to
+/// mark, and the renderer derives `ImagePartState.interrupted` from a persisted
+/// `pending` part with no job behind it. So the enum deliberately has no
+/// `cancelled` / `interrupted`: a state nothing can produce is a table a future
+/// editor will trust and then wait for.
 library;
 
 enum ImageJobState {
   queued,
   running,
   completed,
-  failed,
-  cancelled,
-  interrupted;
+  failed;
 
   bool get isTerminal => switch (this) {
-    ImageJobState.completed ||
-    ImageJobState.failed ||
-    ImageJobState.cancelled ||
-    ImageJobState.interrupted => true,
+    ImageJobState.completed || ImageJobState.failed => true,
     ImageJobState.queued || ImageJobState.running => false,
   };
 

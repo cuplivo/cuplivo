@@ -43,7 +43,15 @@ ResolvedModel resolveImageModel(
     assistantModelId: assistant?.imageModelId,
     globalProviderId: settings.imageModelProvider,
     globalModelId: settings.imageModelId,
+    // A stored pair whose provider is gone must not outrank the global default:
+    // it would resolve to a guessed base URL with an empty key, and the card
+    // would show a 401 instead of "not configured".
+    isValid: _stillConfigured(settings),
   );
+}
+
+bool Function(ModelBinding) _stillConfigured(SettingsProvider settings) {
+  return (binding) => settings.providerConfigs.containsKey(binding.providerId);
 }
 
 /// Pick the model this assistant draws with and store it on the assistant.
@@ -71,14 +79,23 @@ Future<void> pickImageModel(
     initialProviderKey: current.binding?.providerId,
     initialModelId: current.binding?.modelId,
     includeModel: modelCanDrawPicture,
+    // Without this the assistant's choice is a one-way door: once the sub-row
+    // has written a pair there is no way back to "follow the global default",
+    // and a pair whose provider later disappears would keep winning.
+    allowInherit: true,
   );
   if (selection == null) return;
   final latest = assistants.getById(assistant.id) ?? assistant;
   await assistants.updateAssistant(
-    latest.copyWith(
-      imageModelProvider: selection.providerKey,
-      imageModelId: selection.modelId,
-    ),
+    selection.isInherit
+        ? latest.copyWith(
+            clearImageModelProvider: true,
+            clearImageModelId: true,
+          )
+        : latest.copyWith(
+            imageModelProvider: selection.providerKey,
+            imageModelId: selection.modelId,
+          ),
   );
 }
 

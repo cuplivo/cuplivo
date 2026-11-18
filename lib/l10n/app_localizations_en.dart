@@ -15980,9 +15980,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get imageJobFailed => 'Illustration failed';
 
   @override
-  String get imageJobCancelled => 'Illustration cancelled';
-
-  @override
   String get imageJobInterrupted => 'Illustration interrupted';
 
   @override

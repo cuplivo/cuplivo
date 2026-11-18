@@ -204,7 +204,13 @@ String? firstMarkdownImageUrl(String? text) {
   return null;
 }
 
-final RegExp _markdownImage = RegExp(r'!\[[^\]]*\]\(([^)]*)\)');
+/// The destination of an image link: everything up to whitespace or `)`.
+///
+/// Stopping at whitespace is what keeps a CommonMark title out of the URL —
+/// `![](x.png "a title")` used to arrive as `x.png "a title"`, which asked for a
+/// picture at a path that does not exist. The three title spellings (`"…"`,
+/// `'…'`, `(…)`) all sit behind that space, so none of them needs parsing.
+final RegExp _markdownImage = RegExp(r'!\[[^\]]*\]\(\s*(<[^>]*>|[^)\s]+)');
 
 String? _mimeFromFormat(String format) {
   switch (format) {
@@ -221,20 +227,6 @@ String? _mimeFromFormat(String format) {
     default:
       return null;
   }
-}
-
-/// Size to ask an images API for, or `null` to let it choose.
-///
-/// Only ratios whose size this shape accepts are sent: asking for a size the
-/// family rejects turns a working picture into a 400. Anything unmapped (and
-/// `auto`) is omitted, so the backend decides — which is never wrong.
-String? imagesApiSize(String? aspectRatio) {
-  return switch (aspectRatio) {
-    '1:1' => '1024x1024',
-    '3:2' => '1536x1024',
-    '2:3' => '1024x1536',
-    _ => null,
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -423,12 +415,27 @@ final class ImagesApiBackend extends _HttpImageBackend {
     required super.baseUrl,
     required super.modelId,
     required super.headers,
+    this.supportsEdits = true,
     super.client,
     super.extraBody,
   });
 
+  /// Whether this model takes input images at all. The rule is the app's own
+  /// (`providers/openai_images.dart` `_supportsOpenAIImageEdits`: the spec's
+  /// `input` contains `Modality.image`), passed in here instead of guessed from
+  /// the model id — a text-to-image-only model (`dall-e-3`) answers `/images/edits`
+  /// with a 400, and the honest outcome is our refusal, not the provider's error.
+  final bool supportsEdits;
+
   @override
   Future<ImageGenerationResult> generate(ImageGenerationRequest request) async {
+    if (request.hasReferences && !supportsEdits) {
+      throw const ImageBackendException(
+        ImageBackendFailure.badPayload,
+        'This drawing model cannot take reference images; ask for the picture '
+        'without them.',
+      );
+    }
     final body = request.hasReferences
         ? await _postEdits(request)
         : await _postGenerations(request);
@@ -449,11 +456,13 @@ final class ImagesApiBackend extends _HttpImageBackend {
   }
 
   Map<String, dynamic> _baseBody(ImageGenerationRequest request) {
+    // No `size`, deliberately: the app's own images-API client
+    // (`providers/openai_images.dart`) never sends one either, and the accepted
+    // enum is per model (dall-e-3 refuses `1536x1024`, gpt-image-1 accepts it).
+    // A model-blind table here turned a working picture into a 400, and
+    // `aspect_ratio` still does its real job — the skeleton's ratio and the
+    // prompt — without pretending to know what each family accepts.
     final body = <String, dynamic>{'model': modelId, 'prompt': request.prompt};
-    final size = request.wantsAutoRatio
-        ? null
-        : imagesApiSize(request.aspectRatio);
-    if (size != null) body['size'] = size;
     CustomRequestMerger.applyBody(body, extraBody);
     return body;
   }
@@ -678,6 +687,9 @@ ImageBackend imageBackendFor(
       baseUrl: config.baseUrl,
       modelId: upstreamId,
       headers: headers,
+      // Same rule as the app's images client: a model takes reference images
+      // only when its spec declares image *input*.
+      supportsEdits: _supportsEdits(config, modelId),
       client: client,
       extraBody: extraBody,
     );
@@ -704,5 +716,22 @@ ModelType _modelType(ProviderConfig config, String modelId) {
     return ModelSpecResolver.instance.spec(config, modelId).type;
   } catch (_) {
     return ModelType.chat;
+  }
+}
+
+/// Whether [modelId] accepts input images (so `/images/edits` is meaningful).
+///
+/// Mirrors `_supportsOpenAIImageEdits` in `providers/openai_images.dart`, which is
+/// the app's own copy of this decision; that one guards the chat-side image path,
+/// this one guards a job. Unknown models answer `false`: refusing to send an edit
+/// the provider would reject is better than a 400 the user cannot act on.
+bool _supportsEdits(ProviderConfig config, String modelId) {
+  try {
+    return ModelSpecResolver.instance
+        .spec(config, modelId)
+        .input
+        .contains(Modality.image);
+  } catch (_) {
+    return false;
   }
 }

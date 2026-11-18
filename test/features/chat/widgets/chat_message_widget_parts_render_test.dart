@@ -1148,4 +1148,45 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byType(ImageJobCard), findsOneWidget);
   });
+
+  testWidgets('a promised picture quoted in code is still drawn somewhere', (
+    tester,
+  ) async {
+    // The suppression asks "did the Markdown renderer draw the card here?". A uri
+    // inside a fence, inside inline code, or in a plain link is *text*: the
+    // renderer never calls the image builder for it. Suppressing the part's own
+    // block then left the picture nowhere at all — while an ordinary (non-job)
+    // image part in the same message still got its block.
+    const uri = 'kelivo-file:///images/img_abcdefghijklmnopqrst.png';
+    for (final body in <String>[
+      'BEFORE_MARK\n\n```\n![]($uri)\n```\n\nAFTER_MARK',
+      'BEFORE_MARK\n\n`![]($uri)`\n\nAFTER_MARK',
+      'BEFORE_MARK\n\n[the picture]($uri)\n\nAFTER_MARK',
+    ]) {
+      await tester.pumpWidget(
+        _buildHarness(
+          child: ChatMessageWidget(
+            message: ChatMessage(
+              id: 'quoted-job-image',
+              role: 'assistant',
+              conversationId: 'c1',
+              parts: [
+                TextPart(body),
+                const ImagePart(
+                  uri: uri,
+                  assetId: 'img_abcdefghijklmnopqrst',
+                  jobId: 'job-1',
+                ),
+              ],
+            ),
+            showModelIcon: false,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(tester.takeException(), isNull, reason: body);
+      expect(find.byType(ImageJobCard), findsOneWidget, reason: body);
+    }
+  });
 }

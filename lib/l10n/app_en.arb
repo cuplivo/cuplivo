@@ -7952,10 +7952,6 @@
   "@imageJobFailed": {
     "description": "Header of the same card when the picture could not be generated; a sentence explaining why follows it."
   },
-  "imageJobCancelled": "Illustration cancelled",
-  "@imageJobCancelled": {
-    "description": "Header of the same card when generation was stopped before it finished."
-  },
   "imageJobInterrupted": "Illustration interrupted",
   "@imageJobInterrupted": {
     "description": "Header of the same card when the app closed before the picture arrived; nothing is retried automatically."

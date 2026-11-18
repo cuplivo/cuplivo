@@ -15151,9 +15151,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get imageJobFailed => '生成失败';
 
   @override
-  String get imageJobCancelled => '已取消';
-
-  @override
   String get imageJobInterrupted => '已中断';
 
   @override
@@ -33105,9 +33102,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get imageJobFailed => '生成失败';
-
-  @override
-  String get imageJobCancelled => '已取消';
 
   @override
   String get imageJobInterrupted => '已中断';
@@ -51072,9 +51066,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get imageJobFailed => '生成失敗';
-
-  @override
-  String get imageJobCancelled => '已取消';
 
   @override
   String get imageJobInterrupted => '已中斷';

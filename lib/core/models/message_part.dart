@@ -234,7 +234,12 @@ final class AssistantRoundEndPart extends MessagePart {
 /// `null` on [ImagePart.state] means the bytes are there (or the part predates
 /// image jobs). Unknown future values decode to `null`, so an older build still
 /// shows the image instead of dropping the part.
-enum ImagePartState { pending, failed, cancelled, interrupted }
+///
+/// `pending` is what the job writes; `failed` is what it writes when the picture
+/// could not be made; `interrupted` is never written — the renderer derives it
+/// when a persisted `pending` part has no live job behind it (the app died).
+/// There is no `cancelled`: nothing in the product can cancel a job.
+enum ImagePartState { pending, failed, interrupted }
 
 final class ImagePart extends MessagePart {
   const ImagePart({

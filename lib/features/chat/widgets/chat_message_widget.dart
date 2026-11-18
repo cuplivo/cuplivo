@@ -65,6 +65,7 @@ import '../../../utils/protected_text.dart';
 import '../../../utils/source_text_map.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/providers/tts_provider.dart';
+import '../../../shared/markdown/image_destinations.dart';
 import '../../../shared/markdown/markdown_with_code_highlight.dart';
 import '../../../shared/markdown/quote_syntax.dart';
 import '../controllers/quote_editing_controller.dart' show buildQuoteTextSpan;
@@ -3525,16 +3526,21 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
         for (final part in widget.message.parts)
           if (part is ImagePart && part.jobId != null) part.uri,
       ]);
+    // What the Markdown renderer will hand its image builder — the renderer's own
+    // parse, not a substring test. "Mentions the uri" and "draws the uri" differ
+    // in a fence, in inline code, and in a plain link; where they differ, the
+    // part's block is the only thing left that can show the picture, so the
+    // suppression must not fire. Only asked when the reply has a promised
+    // picture at all, because parsing the body twice is not free.
+    final renderedImages =
+        enableAssistantMarkdown && _jobImageSources.isNotEmpty
+        ? markdownImageDestinations(visualContent)
+        : const <String>{};
     _inlineJobUris
       ..clear()
-      // The placeholder only draws the card when the Markdown renderer runs. With
-      // assistant Markdown off the body is plain text: the uri is still in the
-      // string, but nothing renders it — and suppressing the part's own block
-      // then leaves the picture nowhere at all (just raw `![](kelivo-…)` in the
-      // prose). Same predicate as the renderer, so the two can never disagree.
       ..addAll(
         enableAssistantMarkdown
-            ? _jobImageSources.where((uri) => visualContent.contains(uri))
+            ? _jobImageSources.where(renderedImages.contains)
             : const <String>[],
       );
     final visualTranslation = widget.message.translation != null

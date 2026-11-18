@@ -51,6 +51,39 @@ void main() {
     expect(resolved.isConfigured, false);
   });
 
+  test(
+    'a stored pair whose provider is gone falls through to the global one',
+    () {
+      // The assistant's pair is stored on the assistant and can outlive its
+      // provider. Letting it win resolved to a guessed base URL with an empty key,
+      // and the card showed the provider's 401 instead of "not configured".
+      final resolved = resolveModelBinding(
+        assistantProviderId: 'deleted-provider',
+        assistantModelId: 'gpt-image-1',
+        globalProviderId: 'openai',
+        globalModelId: 'gpt-image-1',
+        isValid: (binding) => binding.providerId == 'openai',
+      );
+
+      expect(resolved.source, ModelSource.global);
+      expect(resolved.binding?.providerId, 'openai');
+    },
+  );
+
+  test(
+    'a stored pair the caller rejects does not stop the fall-through chain',
+    () {
+      final resolved = resolveModelBinding(
+        assistantProviderId: 'deleted-provider',
+        assistantModelId: 'gpt-image-1',
+        isValid: (_) => false,
+      );
+
+      expect(resolved.source, ModelSource.none);
+      expect(resolved.binding, isNull);
+    },
+  );
+
   test('ids are trimmed so a stray space cannot look configured', () {
     final resolved = resolveModelBinding(
       globalProviderId: '  openai ',

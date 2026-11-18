@@ -54,7 +54,6 @@ class ImageJobCard extends StatelessWidget {
       null => l10n.imageJobTitle,
       ImagePartState.pending => l10n.imageJobTitle,
       ImagePartState.failed => l10n.imageJobFailed,
-      ImagePartState.cancelled => l10n.imageJobCancelled,
       ImagePartState.interrupted => l10n.imageJobInterrupted,
     };
 

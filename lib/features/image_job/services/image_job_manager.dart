@@ -100,21 +100,6 @@ class ImageJobManager extends ChangeNotifier {
     return _run(id);
   }
 
-  /// A cancelled job stays cancelled: a runner that finishes afterwards is
-  /// discarded, because the user already saw the cancellation.
-  bool cancel(String id) {
-    final job = _jobs[id];
-    if (job == null || !job.state.isActive) return false;
-    _set(
-      job.copyWith(
-        state: ImageJobState.cancelled,
-        finishedAt: _clock(),
-        error: null,
-      ),
-    );
-    return true;
-  }
-
   Future<ImageJob> _run(String id) async {
     try {
       final outcome = await _runner(_jobs[id]!).timeout(jobTimeout);

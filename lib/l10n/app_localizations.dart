@@ -28176,12 +28176,6 @@ abstract class AppLocalizations {
   /// **'Illustration failed'**
   String get imageJobFailed;
 
-  /// Header of the same card when generation was stopped before it finished.
-  ///
-  /// In en, this message translates to:
-  /// **'Illustration cancelled'**
-  String get imageJobCancelled;
-
   /// Header of the same card when the app closed before the picture arrived; nothing is retried automatically.
   ///
   /// In en, this message translates to:

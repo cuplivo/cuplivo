@@ -16076,9 +16076,6 @@ class AppLocalizationsTr extends AppLocalizations {
   String get imageJobFailed => 'İllüstrasyon başarısız oldu';
 
   @override
-  String get imageJobCancelled => 'İllüstrasyon iptal edildi';
-
-  @override
   String get imageJobInterrupted => 'İllüstrasyon kesintiye uğradı';
 
   @override

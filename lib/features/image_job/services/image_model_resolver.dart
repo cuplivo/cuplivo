@@ -56,18 +56,26 @@ enum ModelSource {
 ///
 /// An id pair only counts when *both* halves are non-empty — a provider without
 /// a model (or the reverse) is a half-configured row and must not silently win.
+///
+/// [isValid] is the caller's answer to "does this pair still exist?". The
+/// assistant's choice is a stored pair, and a stored pair can outlive its
+/// provider (deleted, disabled, another device's export): without this hook the
+/// dead pair keeps winning over the global default that is still configured, and
+/// the job fails with a transport error instead of the tool's honest
+/// "not configured" refusal. A rejected pair falls through to the next level.
 ResolvedModel resolveModelBinding({
   String? assistantProviderId,
   String? assistantModelId,
   String? globalProviderId,
   String? globalModelId,
+  bool Function(ModelBinding binding)? isValid,
 }) {
   final assistant = _binding(assistantProviderId, assistantModelId);
-  if (assistant != null) {
+  if (assistant != null && (isValid == null || isValid(assistant))) {
     return ResolvedModel(binding: assistant, source: ModelSource.assistant);
   }
   final global = _binding(globalProviderId, globalModelId);
-  if (global != null) {
+  if (global != null && (isValid == null || isValid(global))) {
     return ResolvedModel(binding: global, source: ModelSource.global);
   }
   return const ResolvedModel(binding: null, source: ModelSource.none);

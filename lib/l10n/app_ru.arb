@@ -4674,7 +4674,6 @@
   "retry": "Повторить",
   "imageJobTitle": "Создание иллюстрации",
   "imageJobFailed": "Не удалось создать иллюстрацию",
-  "imageJobCancelled": "Иллюстрация отменена",
   "imageJobInterrupted": "Иллюстрация прервана",
   "assistantEditLocalToolImageTitle": "Рисование",
   "defaultModelPageImageModelTitle": "Модель изображений",

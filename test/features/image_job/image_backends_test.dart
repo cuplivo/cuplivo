@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 import 'package:Cuplivo/features/image_job/services/image_backends.dart';
 
@@ -135,20 +137,89 @@ void main() {
       expect(firstMarkdownImageUrl('![](   )'), isNull);
       expect(firstMarkdownImageUrl(null), isNull);
     });
+
+    test('a Markdown title is not part of the URL', () {
+      // `![](x.png "title")` is legal CommonMark. Keeping the title asked for a
+      // picture at a path that does not exist, failing a reply that had one.
+      expect(
+        firstMarkdownImageUrl('![a](https://cdn.example/x.png "a title")'),
+        'https://cdn.example/x.png',
+      );
+      expect(
+        firstMarkdownImageUrl("![a](https://cdn.example/x.png 'a title')"),
+        'https://cdn.example/x.png',
+      );
+      expect(
+        firstMarkdownImageUrl('![a](https://cdn.example/x.png (a title))'),
+        'https://cdn.example/x.png',
+      );
+    });
   });
 
-  group('imagesApiSize', () {
-    test('auto and unmapped ratios are omitted so the backend decides', () {
-      expect(imagesApiSize(null), isNull);
-      expect(imagesApiSize('auto'), isNull);
-      expect(imagesApiSize('16:9'), isNull);
+  group('the images body', () {
+    test('never carries a size, whatever ratio was asked for', () async {
+      // The accepted size enum is per model — dall-e-3 rejects `1536x1024` with a
+      // 400 — so the only safe value is none at all, which is what the app's own
+      // images client sends. `aspect_ratio` still drives our skeleton and the
+      // prompt; it must not pretend to know the provider's enum.
+      final client = MockClient((request) async {
+        expect(request.body, isNot(contains('"size"')));
+        return http.Response('{"data":[{"b64_json":"${_pngBase64()}"}]}', 200);
+      });
+      for (final ratio in <String?>[
+        '1:1',
+        '3:2',
+        '2:3',
+        '16:9',
+        'auto',
+        null,
+      ]) {
+        final backend = ImagesApiBackend(
+          baseUrl: 'https://api.test/v1',
+          modelId: 'dall-e-3',
+          headers: const {'Authorization': 'Bearer k'},
+          client: client,
+        );
+        await backend.generate(
+          ImageGenerationRequest(prompt: 'a cat', aspectRatio: ratio),
+        );
+      }
     });
 
-    test('the three ratios this shape accepts map to their sizes', () {
-      expect(imagesApiSize('1:1'), '1024x1024');
-      expect(imagesApiSize('3:2'), '1536x1024');
-      expect(imagesApiSize('2:3'), '1024x1536');
-    });
+    test(
+      'references are refused before a request when the model takes no input '
+      'images',
+      () async {
+        var sent = 0;
+        final backend = ImagesApiBackend(
+          baseUrl: 'https://api.test/v1',
+          modelId: 'dall-e-3',
+          headers: const {'Authorization': 'Bearer k'},
+          supportsEdits: false,
+          client: MockClient((_) async {
+            sent += 1;
+            return http.Response('{}', 200);
+          }),
+        );
+
+        await expectLater(
+          backend.generate(
+            const ImageGenerationRequest(
+              prompt: 'a cat',
+              references: [ImageReference(uri: '/tmp/ref.png')],
+            ),
+          ),
+          throwsA(
+            isA<ImageBackendException>().having(
+              (error) => error.failure,
+              'failure',
+              ImageBackendFailure.badPayload,
+            ),
+          ),
+        );
+        expect(sent, 0, reason: 'the provider would only answer 400');
+      },
+    );
   });
 
   group('decodeDataUrl', () {

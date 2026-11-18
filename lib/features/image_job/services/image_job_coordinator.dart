@@ -31,6 +31,7 @@ import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../utils/app_directories.dart';
 import '../../../utils/sandbox_path_resolver.dart';
+import '../../../utils/serial_queue.dart';
 import '../models/image_job.dart';
 import 'image_backends.dart';
 import 'image_job_manager.dart';
@@ -309,8 +310,6 @@ class ImageJobCoordinator extends ChangeNotifier {
     final state = switch (job.state) {
       ImageJobState.completed => null,
       ImageJobState.failed => ImagePartState.failed,
-      ImageJobState.cancelled => ImagePartState.cancelled,
-      ImageJobState.interrupted => ImagePartState.interrupted,
       ImageJobState.queued || ImageJobState.running => ImagePartState.pending,
     };
     return ImagePart(
@@ -336,11 +335,41 @@ class ImageJobCoordinator extends ChangeNotifier {
 
   /// Replace the part carrying this asset, or append it when the message has
   /// none yet.
-  Future<void> _persist(ImagePart part) async {
+  ///
+  /// Writes for one message are chained, never concurrent. `_persist` rebuilds
+  /// the *whole* parts list, so two transitions of the same reply that both read
+  /// the same pre-image would each write a list that omits the other's part — and
+  /// `_mirror`'s dedupe (`_written[job.id] == job.state`) means nothing would
+  /// ever put the missing one back. Chaining makes the second read see the first
+  /// write. Residual window: the streaming reply writes its own parts outside this
+  /// chain, so a chunk landing between our read and our write can still be
+  /// overwritten by our (slightly older) snapshot.
+  Future<void> _persist(ImagePart part) {
     final jobId = part.jobId;
     final job = jobId == null ? null : manager.byId(jobId);
-    if (job == null) return;
-    final message = _messageById(job.conversationId, job.messageId);
+    if (job == null) return Future<void>.value();
+    final messageId = job.messageId;
+    final conversationId = job.conversationId;
+    return _writes
+        .run(messageId, () => _writePart(conversationId, messageId, part))
+        .catchError((Object error) {
+          // A failed write must not leave the dedupe claiming this state was
+          // persisted: clearing it lets the next notify try again.
+          _written.remove(jobId);
+        });
+  }
+
+  /// One chain per message id, so two transitions of the same reply cannot write
+  /// a parts list built from the same pre-image.
+  final SerialQueue _writes = SerialQueue();
+
+  Future<void> _writePart(
+    String conversationId,
+    String messageId,
+    ImagePart part,
+  ) async {
+    // Read *inside* the chain: this is the list that is actually stored now.
+    final message = _messageById(conversationId, messageId);
     if (message == null) return;
     final next = <MessagePart>[];
     var replaced = false;
@@ -354,7 +383,7 @@ class ImageJobCoordinator extends ChangeNotifier {
     }
     if (!replaced) next.add(part);
     if (listEquals(next, message.parts)) return;
-    await _chat.updateMessage(job.messageId, parts: next);
+    await _chat.updateMessage(messageId, parts: next);
   }
 
   ChatMessage? _messageById(String conversationId, String messageId) {

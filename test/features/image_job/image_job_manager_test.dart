@@ -85,24 +85,6 @@ void main() {
     },
   );
 
-  test('cancel wins over a runner that finishes afterwards', () async {
-    final gate = Completer<ImageJobOutcome>();
-    final manager = _manager(runner: (_) => gate.future);
-    final job = _create(manager);
-
-    final running = manager.start(job.id);
-    await Future<void>.delayed(Duration.zero);
-    expect(manager.byId(job.id)!.state, ImageJobState.running);
-    expect(manager.cancel(job.id), true);
-
-    gate.complete(const ImageJobOutcome(uri: '/tmp/late.png'));
-    final settled = await running;
-
-    expect(settled.state, ImageJobState.cancelled);
-    expect(settled.resultUri, isNull);
-    expect(manager.cancel(job.id), false);
-  });
-
   test('a job that outlives the timeout fails, it does not hang', () async {
     final gate = Completer<ImageJobOutcome>();
     final manager = _manager(
@@ -138,12 +120,10 @@ void main() {
   });
 
   test('job states describe liveness honestly', () {
-    const terminal = [
-      ImageJobState.completed,
-      ImageJobState.failed,
-      ImageJobState.cancelled,
-      ImageJobState.interrupted,
-    ];
+    // Four values, and every one of them is reachable: nothing cancels a job,
+    // and a process that dies takes its jobs with it (the renderer derives
+    // `interrupted` for the part, not for the job).
+    const terminal = [ImageJobState.completed, ImageJobState.failed];
     for (final state in terminal) {
       expect(state.isTerminal, true);
       expect(state.isActive, false);

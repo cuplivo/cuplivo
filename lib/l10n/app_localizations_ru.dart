@@ -16258,9 +16258,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get imageJobFailed => 'Не удалось создать иллюстрацию';
 
   @override
-  String get imageJobCancelled => 'Иллюстрация отменена';
-
-  @override
   String get imageJobInterrupted => 'Иллюстрация прервана';
 
   @override

@@ -184,6 +184,20 @@ void main() {
     assistants = AssistantProvider(preferences: assistantPreferences);
     await assistants.loaded;
     await settings.loaded;
+    // The sub-row resolves against the configured providers: a stored pair whose
+    // provider is not configured is exactly the dead-binding case that must fall
+    // through to the global default, so a realistic fixture has to register it.
+    await settings.setProviderConfig(
+      'openai',
+      ProviderConfig(
+        id: 'openai',
+        enabled: true,
+        name: 'OpenAI',
+        baseUrl: 'https://api.openai.com/v1',
+        apiKey: 'sk-test',
+        models: const ['gpt-image-1'],
+      ),
+    );
   });
 
   tearDown(() async {

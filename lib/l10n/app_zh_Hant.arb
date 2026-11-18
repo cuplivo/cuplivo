@@ -4674,7 +4674,6 @@
   "retry": "重試",
   "imageJobTitle": "正在生成插圖",
   "imageJobFailed": "生成失敗",
-  "imageJobCancelled": "已取消",
   "imageJobInterrupted": "已中斷",
   "assistantEditLocalToolImageTitle": "繪圖",
   "defaultModelPageImageModelTitle": "繪圖模型",

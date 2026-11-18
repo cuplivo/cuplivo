@@ -30564,6 +30564,12 @@ abstract class AppLocalizations {
   /// **'This file\'s workspace was deleted, so there is no folder to put it back into.'**
   String get recycleBinRestoreNoWorkspace;
 
+  /// Toast explaining that the entry belongs to a conversation that no longer exists, so the record has nowhere to go back to. Restoring the conversation from the bin brings it back.
+  ///
+  /// In en, this message translates to:
+  /// **'This entry\'s conversation was deleted, so there is nothing to put it back into.'**
+  String get recycleBinRestoreNoConversation;
+
   /// Toast shown when restoring a recycle-bin entry failed for any other reason.
   ///
   /// In en, this message translates to:

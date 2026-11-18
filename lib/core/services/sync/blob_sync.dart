@@ -28,11 +28,14 @@ const String kKelivoFileScheme = 'kelivo-file://';
 /// after a reference is prose (`kelivo-file:///upload/a.png's`), not a name.
 final RegExp _uriChar = RegExp(r"[A-Za-z0-9\-._~%!$&()*+,;=:@/]");
 
-/// Characters that end a sentence or a quotation far more often than they end a
-/// filename. `)` is here too: a reference wrapped in a Markdown bracket ends
-/// with one, and a path that really ends in `)` keeps it only when the trim
-/// makes the candidate unparseable — see [kelivoFileUriAt].
-final RegExp _trailingPunctuation = RegExp(r'''[.,;:!?"()]''');
+/// Characters that end a sentence far more often than they end a filename.
+///
+/// `)` is not among them: a bracket is decided by counting, not by class — a
+/// reference wrapped in a Markdown link ends with one, and so does a name like
+/// `notes(1)`. An opening `(` is here, because one that ends a run closes
+/// nothing (`…/a.png( see`). `?`, `"` and `'` cannot be here: none of the three
+/// is in [_uriChar], so a run never ends with one.
+final RegExp _trailingProse = RegExp(r'''[.,;:!(]''');
 
 /// Roots a received file blob may land in — the managed roots the sandbox
 /// resolver knows, minus `skills` (directory blobs own that root) and
@@ -60,10 +63,9 @@ String? defaultBlobPathResolver(String uri) =>
 /// is what made an inline image unreachable: `)` is a legal path character, so
 /// `![…](kelivo-file:///a.png)` matched the closing bracket too, the strict
 /// parser then rejected the whole candidate, and the file was silently never
-/// advertised. Here parentheses are balanced — a `)` that closes more than it
-/// opened belongs to the Markdown around the URI — and the tail is then
-/// shortened: first by punctuation that ends a sentence rather than a filename,
-/// then until the strict parser accepts what is left.
+/// advertised. Here the run is maximal and its tail is trimmed by the framing it
+/// sits in — see [kelivoFileUriAt] — and what is left is shortened until the
+/// strict parser accepts it.
 ///
 /// [columns] is the family's declared blob columns ([SyncFamily.blobColumns]) —
 /// which columns may reference a file is a property of the family, not a guess
@@ -105,20 +107,26 @@ Set<String> kelivoFileUrisInRows(
 /// parentheses included, and the app's writer leaves them raw — so the scan is a
 /// *maximal run* rather than a bracket-aware walk: it stops at the first
 /// character no path can contain, or where the next `kelivo-file://` starts (a
-/// second reference is not part of this one), and prose punctuation is trimmed
-/// from the end until [KelivoFileUri.decodeToSegments] accepts what is left.
+/// second reference is not part of this one). Prose is then trimmed off its tail
+/// by the rules in [_trimProseTail], and what is left is shortened until
+/// [KelivoFileUri.decodeToSegments] accepts it.
 ///
-/// That reads both shapes without having to guess which `)` is which:
+/// Four shapes, and no guessing which `)` is which:
 ///
-///     ![shot](kelivo-file:///upload/a.png)     → …/upload/a.png
-///     ![shot](kelivo-file:///upload/a)b.png)   → …/upload/a)b.png
+///     ![shot](kelivo-file:///upload/a.png)      → …/upload/a.png
+///     ![shot](kelivo-file:///upload/a)b.png)    → …/upload/a)b.png
+///     {"u":"kelivo-file:///upload/notes(1)"}    → …/upload/notes(1)
+///     {"u":"kelivo-file:///upload/report,"}     → …/upload/report,
 ///
-/// The first loses its closing bracket to the trim; the second keeps its `)`
-/// because the bracket that ends the run is the second one. The one shape this
-/// reads together is a reference glued to another parenthetical with no
-/// separator (`…/a.png)(more`) — the app's writer puts a space there, and the
-/// alternative, stopping at the first `)`, is what made a file whose name
-/// carries one unreachable.
+/// The first two are prose: a trailing `)` there is the link's bracket, and the
+/// second keeps its own `)` only because the bracket that ends the run is the one
+/// after it. The last two are whole JSON values, where the `"` says the run is
+/// the value — so the tail is the name, and a balanced bracket pair survives.
+///
+/// The one shape this reads together is a reference glued to another
+/// parenthetical with no separator (`…/a.png)(more`) — the app's writer puts a
+/// space there, and the alternative, stopping at the first `)`, is what made a
+/// file whose name carries one unreachable.
 String? kelivoFileUriAt(String text, int start) {
   if (!text.startsWith(kKelivoFileScheme, start)) return null;
   final floor = start + kKelivoFileScheme.length;
@@ -134,15 +142,51 @@ String? kelivoFileUriAt(String text, int start) {
   // that parses is treated as a file to advertise.
   if (end >= limit) return null;
   // A path may legally contain `.` or `,`, so "it parses" alone would keep the
-  // full stop of a sentence.
-  while (end > floor && _trailingPunctuation.hasMatch(text[end - 1])) {
-    end--;
-  }
-  for (var stop = end; stop > floor; stop--) {
+  // full stop of a sentence — but a run that ends where a JSON string ends is
+  // the whole value, and there the punctuation is the name. Reading a real
+  // sentence that way costs one `missing` line; reading a real name the other
+  // way costs the file.
+  final endsValue = end < text.length && text[end] == '"';
+  var stop = _trimTail(text, floor, end, wholeValue: endsValue);
+  for (; stop > floor; stop--) {
     final candidate = text.substring(start, stop);
     if (KelivoFileUri.decodeToSegments(candidate) != null) return candidate;
   }
   return null;
+}
+
+/// Where a run of [text] from [floor] to [end] ends once prose is trimmed off.
+///
+/// In prose a trailing `)` is the bracket that closes the Markdown link around
+/// the reference, so it goes with everything in [_trailingProse] — `…/a.png)`,
+/// `…/a(b.png)` and `…/a.png, and` all lose their tail.
+///
+/// A run that ends where a JSON string ends ([wholeValue]) is the whole value, so
+/// there the punctuation is the name and only an *excess* bracket is trimmed: a
+/// balanced pair belongs to the name (`notes(1)`), while `notes(1))` keeps the
+/// pair and loses the link's bracket. Counting is what makes those two separable
+/// at all; a name that both ends in `)` and carries an unmatched `(` is the one
+/// shape the count reads as prose.
+int _trimTail(String text, int floor, int end, {required bool wholeValue}) {
+  if (!wholeValue) {
+    while (end > floor) {
+      final last = text[end - 1];
+      if (last != ')' && !_trailingProse.hasMatch(last)) break;
+      end--;
+    }
+    return end;
+  }
+  var opens = 0;
+  var closes = 0;
+  for (var i = floor; i < end; i++) {
+    if (text[i] == '(') opens++;
+    if (text[i] == ')') closes++;
+  }
+  while (end > floor && text[end - 1] == ')' && closes > opens) {
+    end--;
+    closes--;
+  }
+  return end;
 }
 
 /// The longest reference [kelivoFileUriAt] will accept. Real references are a

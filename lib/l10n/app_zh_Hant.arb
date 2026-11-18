@@ -5072,6 +5072,7 @@
   "recycleBinRestoreUnreadable": "暫存的副本已損壞，無法還原",
   "recycleBinRestoreUnsupported": "目前版本無法還原該條目",
   "recycleBinRestoreNoWorkspace": "該檔案所屬的工作區已被刪除，沒有可以放回的位置。",
+  "recycleBinRestoreNoConversation": "該條目的對話已被刪除，沒有可以放回的位置。",
   "recycleBinRestoreFailed": "還原失敗",
   "recycleBinFilterAll": "全部",
   "recycleBinFilterConversation": "對話",

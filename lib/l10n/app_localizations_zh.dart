@@ -16465,6 +16465,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get recycleBinRestoreNoWorkspace => '该文件所属的工作区已被删除，没有可以放回的位置。';
 
   @override
+  String get recycleBinRestoreNoConversation => '该条目的对话已被删除，没有可以放回的位置。';
+
+  @override
   String get recycleBinRestoreFailed => '恢复失败';
 
   @override
@@ -34382,6 +34385,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get recycleBinRestoreNoWorkspace => '该文件所属的工作区已被删除，没有可以放回的位置。';
+
+  @override
+  String get recycleBinRestoreNoConversation => '该条目的对话已被删除，没有可以放回的位置。';
 
   @override
   String get recycleBinRestoreFailed => '恢复失败';
@@ -52312,6 +52318,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get recycleBinRestoreNoWorkspace => '該檔案所屬的工作區已被刪除，沒有可以放回的位置。';
+
+  @override
+  String get recycleBinRestoreNoConversation => '該條目的對話已被刪除，沒有可以放回的位置。';
 
   @override
   String get recycleBinRestoreFailed => '還原失敗';

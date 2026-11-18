@@ -5072,6 +5072,7 @@
   "recycleBinRestoreUnreadable": "Bekletilen kopya bozuk, geri yüklenemiyor",
   "recycleBinRestoreUnsupported": "Bu sürüm o öğeyi geri yükleyemiyor",
   "recycleBinRestoreNoWorkspace": "Bu dosyanın çalışma alanı silinmiş, geri koyacak bir klasör yok.",
+  "recycleBinRestoreNoConversation": "Bu kaydın sohbeti silindiği için geri koyulacak bir yer yok.",
   "recycleBinRestoreFailed": "O öğe geri yüklenemedi",
   "recycleBinFilterAll": "Tümü",
   "recycleBinFilterConversation": "Sohbetler",

@@ -16848,6 +16848,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get recycleBinRestoreNoWorkspace => '이 파일의 작업 공간이 삭제되어 되돌릴 폴더가 없어요.';
 
   @override
+  String get recycleBinRestoreNoConversation =>
+      '이 항목의 대화가 삭제되어 되돌려 놓을 곳이 없습니다.';
+
+  @override
   String get recycleBinRestoreFailed => '이 항목을 복원하지 못했어요';
 
   @override

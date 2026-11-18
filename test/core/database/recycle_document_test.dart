@@ -135,6 +135,42 @@ void main() {
     expect((await recycle.list()).single.kindWire, 'conversationCompression');
   });
 
+  test(
+    'a document whose conversation is gone is refused, not orphaned',
+    () async {
+      await apply('{"formatVersion":1,"history":["mine"]}', 100);
+      await apply('{"formatVersion":1,"history":["theirs"]}', 200);
+      await recycle.settle();
+
+      await repository.deleteConversation(conversationId);
+      await recycle.settle();
+      expect(
+        await document(),
+        isEmpty,
+        reason: "the delete takes the conversation's documents with it",
+      );
+
+      final entry = (await recycle.list()).singleWhere(
+        (candidate) => candidate.kindWire == compressionFamily.kind,
+      );
+      expect(
+        await recycle.restore(entry),
+        RecycleRestoreOutcome.conversationGone,
+        reason:
+            'extension_entity_rows has no foreign key to the conversation, so a '
+            'row written here would outlive the only thing that could read it',
+      );
+      expect(await document(), isEmpty);
+      await recycle.settle();
+      expect(
+        (await recycle.list()).map((candidate) => candidate.id),
+        contains(entry.id),
+        reason:
+            'the entry waits for the conversation rather than being consumed',
+      );
+    },
+  );
+
   test('a document that did not change is not staged', () async {
     await apply('{"formatVersion":1,"history":["same"]}', 100);
     await apply('{"formatVersion":1,"history":["same"]}', 200);

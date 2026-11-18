@@ -5072,6 +5072,7 @@
   "recycleBinRestoreUnreadable": "Сохранённая копия повреждена, восстановить её нельзя",
   "recycleBinRestoreUnsupported": "Эта версия не умеет восстанавливать такую запись",
   "recycleBinRestoreNoWorkspace": "Рабочая область этого файла удалена, возвращать его некуда.",
+  "recycleBinRestoreNoConversation": "Диалог, к которому относится эта запись, удалён — возвращать её некуда.",
   "recycleBinRestoreFailed": "Не удалось восстановить запись",
   "recycleBinFilterAll": "Все",
   "recycleBinFilterConversation": "Чаты",

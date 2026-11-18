@@ -6342,6 +6342,7 @@
   "recycleBinRestoreUnreadable": "暂存的副本已损坏，无法恢复",
   "recycleBinRestoreUnsupported": "当前版本无法恢复该条目",
   "recycleBinRestoreNoWorkspace": "该文件所属的工作区已被删除，没有可以放回的位置。",
+  "recycleBinRestoreNoConversation": "该条目的对话已被删除，没有可以放回的位置。",
   "recycleBinRestoreFailed": "恢复失败",
   "recycleBinFilterAll": "全部",
   "recycleBinFilterConversation": "对话",

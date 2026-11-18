@@ -22572,6 +22572,10 @@
   "@recycleBinRestoreNoWorkspace": {
     "description": "Toast explaining that the entry's workspace folder no longer exists, so there is nowhere to put the file back."
   },
+  "recycleBinRestoreNoConversation": "This entry's conversation was deleted, so there is nothing to put it back into.",
+  "@recycleBinRestoreNoConversation": {
+    "description": "Toast explaining that the entry belongs to a conversation that no longer exists, so the record has nowhere to go back to. Restoring the conversation from the bin brings it back."
+  },
   "recycleBinRestoreFailed": "Could not restore that entry",
   "@recycleBinRestoreFailed": {
     "description": "Toast shown when restoring a recycle-bin entry failed for any other reason."

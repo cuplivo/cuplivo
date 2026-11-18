@@ -711,27 +711,35 @@ const _kindsOfTheBlobPlane = {'file', 'skill-dir'};
 ///   a pattern that promised to see every kind. The camelCase test is also what
 ///   keeps a store that keys by hash (`delete('a1b2…')`) from being read as a
 ///   kind nobody registered.
+/// * A *quote* is either spelling. Every pattern here reads `'…'` and `"…"`: Dart
+///   has two, the formatter does not normalise them, and this repo does not
+///   enable `prefer_single_quotes` — so a pattern anchored on one quote would
+///   leave a kind written as `static const kind = "…"` claimed by nothing while
+///   the guard stayed green, which is the fifth time a literal walked past a
+///   pattern that promised to see every kind. Reading both spellings does not
+///   make the scan total (an interpolated kind is still invisible); what would is
+///   the store taking a registered token instead of a string.
 Map<String, List<String>> extensionKindsInSource(String source) {
   final declarations = [
-    RegExp(r"""\bentityKind\s*=\s*'([A-Za-z][^']*)'"""),
-    RegExp(r"""\bextensionKind\s*:\s*'([A-Za-z][^']*)'"""),
+    RegExp(r"""\bentityKind\s*=\s*['"]([A-Za-z][^'"]*)['"]"""),
+    RegExp(r"""\bextensionKind\s*:\s*['"]([A-Za-z][^'"]*)['"]"""),
     RegExp(
       // `kind`, `…Kind` and the front form `kindWorkspace` — the last is the
       // convention `extension_entity_store.dart` itself declares its shared
       // kinds with, so it is the shape a contributor copies. A pattern that knew
       // only the two suffix forms would leave that kind claimed by nothing.
-      r"""static\s+const\s+(?:String\s+)?(?:\w*[Kk]ind|[Kk]ind[A-Z]\w*)\s*=\s*'([A-Za-z][^']*)'""",
+      r"""static\s+const\s+(?:String\s+)?(?:\w*[Kk]ind|[Kk]ind[A-Z]\w*)\s*=\s*['"]([A-Za-z][^'"]*)['"]""",
     ),
   ];
   final uses = [
-    RegExp(r"""\bkind\s*=\s*'([A-Za-z]\w*)'"""),
-    RegExp(r"""\bkind\s*:\s*'([A-Za-z]\w*)'"""),
-    RegExp(r"""kind\.equals\(\s*'([A-Za-z]\w*)'\s*\)"""),
+    RegExp(r"""\bkind\s*=\s*['"]([A-Za-z]\w*)['"]"""),
+    RegExp(r"""\bkind\s*:\s*['"]([A-Za-z]\w*)['"]"""),
+    RegExp(r"""kind\.equals\(\s*['"]([A-Za-z]\w*)['"]\s*\)"""),
   ];
   final inList = RegExp(r"""\bkind\s+IN\s*\(([^)]*)\)""");
-  final quoted = RegExp(r"""'([A-Za-z]\w*)'""");
+  final quoted = RegExp(r"""['"]([A-Za-z]\w*)['"]""");
   final calls = RegExp(
-    r"""\.(?:upsert|get|delete|listByKind|watchKind)\(\s*'([A-Za-z]\w*)'""",
+    r"""\.(?:upsert|get|delete|listByKind|watchKind)\(\s*['"]([A-Za-z]\w*)['"]""",
   );
   final found = <String, List<String>>{};
   final lines = source.split('\n');

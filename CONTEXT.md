@@ -574,9 +574,12 @@ contradicts one of them is a bug, not a preference.
 - **What the plan compares**: each face's digest covers the whole state that face means. A
   conversation's digest is **composed from every synced family** — `id:clock` lines for its
   messages, its parts and its provider artifacts, `server:ordinal` lines for its MCP bindings, and
-  one digest per document for the compression history, the image context and the compression
+  `id:updated_at` lines for the compression history, the image context and the compression
   configuration — with each family's **name** in the text, so two families contributing the same
-  lines cannot compose the same identity. The conversation row's own clock is compared *alongside*
+  lines cannot compose the same identity. A document is identified by its own clock rather than by
+  a digest of its payload, because the payload *is* the state: hashing it would make both sides
+  read it just to answer whether it changed, and the row's `updated_at` already answers that. The
+  conversation row's own clock is compared *alongside*
   it, because a rename, a pin or a version selection moves nothing the digest looks at and could
   never transfer. An entity's digest covers its payload **and** the list position it occupies
   (`sort_order`), because a drag rewrites every position while leaving every payload untouched. A

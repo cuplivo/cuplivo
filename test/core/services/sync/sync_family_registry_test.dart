@@ -183,6 +183,34 @@ void main() {
     expect(found.keys.toSet().difference(registeredSyncKinds), {'ghostFamily'});
   });
 
+  test('a kind is claimed in either quote spelling', () {
+    // Dart has two spellings of a string literal and nothing here normalises
+    // them: the formatter leaves quotes alone and `prefer_single_quotes` is off.
+    // A pattern anchored on one quote leaves the other claimed by nothing — the
+    // fifth time a literal walked past a pattern that promised to see every kind,
+    // and the reason both are read rather than the single spelling assumed.
+    final found = extensionKindsInSource('''
+      class A {
+        static const kind = "composerGhost";
+        static const String conversationKind = "composerGhostDoc";
+        extensionKind: "composerGhostFamily";
+        final s = "WHERE kind = 'composerGhostSingle'";
+        final t = 'WHERE kind = "composerGhostDouble"';
+      }
+      void b() {
+        store.upsert("composerGhostCall", 'x', {});
+      }
+    ''');
+    expect(found.keys.toSet(), {
+      'composerGhost',
+      'composerGhostDoc',
+      'composerGhostFamily',
+      'composerGhostSingle',
+      'composerGhostDouble',
+      'composerGhostCall',
+    });
+  });
+
   test('an unregistered conversation table would fail the build', () {
     final problems = syncFamilyProblems(
       families,

@@ -17675,6 +17675,10 @@ class AppLocalizationsRu extends AppLocalizations {
       'Рабочая область этого файла удалена, возвращать его некуда.';
 
   @override
+  String get recycleBinRestoreNoConversation =>
+      'Диалог, к которому относится эта запись, удалён — возвращать её некуда.';
+
+  @override
   String get recycleBinRestoreFailed => 'Не удалось восстановить запись';
 
   @override

@@ -17384,6 +17384,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'This file\'s workspace was deleted, so there is no folder to put it back into.';
 
   @override
+  String get recycleBinRestoreNoConversation =>
+      'This entry\'s conversation was deleted, so there is nothing to put it back into.';
+
+  @override
   String get recycleBinRestoreFailed => 'Could not restore that entry';
 
   @override

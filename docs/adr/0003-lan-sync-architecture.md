@@ -2161,9 +2161,14 @@ existing hello gate refuses it with the upgrade reason it already carries.
   runtime decoder could not read; the wire gave the same rows a second entrance with no such check.
   One unreadable template is not a row that looks odd — `CompressionRepository` decodes every row of
   the kind in one loop, so it is a library that cannot be listed, and the page that would let the
-  user delete it reads that same list. The row is now absent from the manifest, refused on apply and
-  left out of the acknowledgement, which is the rule a linked workspace already followed: the peer
-  keeps the only copy, and a copy this device cannot read is one it cannot offer, accept or delete.
+  user delete it reads that same list. The refusal is the apply's, not the manifest's: the row still
+  appears in the manifest and the peer still offers it, because absence from a manifest is a
+  *deletion* signal — `planBusinessSync` reads a row this device no longer lists as one it must
+  delete — and a row this device cannot read is not a row it deleted. The apply skips the row and
+  leaves it out of the acknowledgement, so the peer re-offers it next session instead of removing
+  the only copy that can be read. That is the rule a linked workspace already followed, in the one
+  direction that survives: the peer keeps the copy, and neither side deletes on the strength of a
+  refusal.
 - **The apply refuses what SQLite would refuse.** A `conversationContext` payload that is not JSON is
   parsed by the context index's AFTER trigger, and a provider artifact whose clocks invert violates
   `CHECK (updated_at >= created_at)`; a refusal inside SQLite aborts the transaction, and with it the

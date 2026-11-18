@@ -17483,6 +17483,10 @@ class AppLocalizationsTr extends AppLocalizations {
       'Bu dosyanın çalışma alanı silinmiş, geri koyacak bir klasör yok.';
 
   @override
+  String get recycleBinRestoreNoConversation =>
+      'Bu kaydın sohbeti silindiği için geri koyulacak bir yer yok.';
+
+  @override
   String get recycleBinRestoreFailed => 'O öğe geri yüklenemedi';
 
   @override

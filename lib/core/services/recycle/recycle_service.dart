@@ -40,6 +40,14 @@ enum RecycleRestoreOutcome {
   /// as an orphan, so recreating it would only lose the file a second time.
   workspaceGone,
 
+  /// A conversation document whose conversation is gone. These rows are keyed by
+  /// the conversation's id and `extension_entity_rows` has no foreign key to
+  /// `conversation_rows`, so writing one back after the delete would leave a row
+  /// no screen can reach — the state [conversationDeletedKinds] exists to
+  /// prevent. The entry is kept rather than consumed: restoring the conversation
+  /// brings its documents with it, and this entry is restorable again after.
+  conversationGone,
+
   /// This build cannot restore that kind of entry.
   unsupported,
 
@@ -825,6 +833,22 @@ final class RecycleService {
     if (tables == null) return _not(RecycleRestoreOutcome.unreadable);
     final row = _singleRow(tables, table);
     if (row == null) return _not(RecycleRestoreOutcome.unreadable);
+    // A document is a row *of* a conversation — its id is the conversation's, and
+    // deleting the conversation deleted it. Nothing here recreates the parent, so
+    // a document whose conversation is gone would be written into a table no
+    // reader reaches it from. Refused, and the entry kept: restoring the
+    // conversation restores its documents, which makes this entry moot.
+    if (documentKind != null) {
+      final conversation = await _database
+          .customSelect(
+            'SELECT 1 FROM conversation_rows WHERE id = ?;',
+            variables: <Variable<Object>>[Variable<String>(entry.key)],
+          )
+          .getSingleOrNull();
+      if (conversation == null) {
+        return _not(RecycleRestoreOutcome.conversationGone);
+      }
+    }
     final now = DateTime.now().toUtc().microsecondsSinceEpoch;
     final live = <Map<String, Object?>>[];
     final skipped = await _database.transaction(() async {

@@ -226,6 +226,39 @@ void main() {
       );
     });
 
+    test('a whole JSON value keeps a tail that would be prose in a sentence', () {
+      // The framing is the evidence: a `"` right after the run says the run is
+      // the value, so a trailing `,`, `!` or a balanced bracket pair there is the
+      // name. Trimming it advertises a path that does not exist — the real file
+      // never travels and only the wrong URI reaches the sender's log.
+      expect(
+        kelivoFileUrisInRows([
+          {'payload': '{"u":"kelivo-file:///upload/report,"}'},
+        ]),
+        {'kelivo-file:///upload/report,'},
+      );
+      expect(
+        kelivoFileUrisInRows([
+          {'payload': '{"u":"kelivo-file:///upload/hello!"}'},
+        ]),
+        {'kelivo-file:///upload/hello!'},
+      );
+      expect(
+        kelivoFileUrisInRows([
+          {'payload': '{"u":"kelivo-file:///upload/notes(1)"}'},
+        ]),
+        {'kelivo-file:///upload/notes(1)'},
+      );
+      // A link's bracket around a whole value is still the link's, and counting
+      // is what tells it apart from the name's own pair.
+      expect(
+        kelivoFileUrisInRows([
+          {'payload': '{"text":"![shot](kelivo-file:///upload/notes(1))"}'},
+        ]),
+        {'kelivo-file:///upload/notes(1)'},
+      );
+    });
+
     test('sentence punctuation is not part of the path', () {
       expect(
         kelivoFileUrisInRows([

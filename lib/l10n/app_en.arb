@@ -8004,9 +8004,9 @@
   "@imageJobNotConfigured": {
     "description": "Shown when drawing is switched on but no image model is chosen; tapping it opens the model picker."
   },
-  "imageJobToolSubtitle": "Draw pictures inside a reply",
-  "@imageJobToolSubtitle": {
-    "description": "One-line description of the drawing tool in the tools list."
+  "imageModelFollowGlobal": "Use the default image model",
+  "@imageModelFollowGlobal": {
+    "description": "Row in the model picker that clears this assistant's own drawing model so it follows the global default in Settings."
   },
   "recoveryGuideTitle": "Let’s recover your chats",
   "recoveryGuideBody": "Cuplivo paused loading your data. We’ll look for local copies so you can choose what to recover. Existing files will be kept.",

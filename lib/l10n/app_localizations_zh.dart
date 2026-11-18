@@ -15190,7 +15190,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get imageJobNotConfigured => '未配置 · 去选择';
 
   @override
-  String get imageJobToolSubtitle => '在回复里画图';
+  String get imageModelFollowGlobal => '使用默认绘图模型';
 
   @override
   String get recoveryGuideTitle => '帮你找回聊天记录';
@@ -33143,7 +33143,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get imageJobNotConfigured => '未配置 · 去选择';
 
   @override
-  String get imageJobToolSubtitle => '在回复里画图';
+  String get imageModelFollowGlobal => '使用默认绘图模型';
 
   @override
   String get recoveryGuideTitle => '帮你找回聊天记录';
@@ -51107,7 +51107,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get imageJobNotConfigured => '未設定 · 去選擇';
 
   @override
-  String get imageJobToolSubtitle => '在回覆裡畫圖';
+  String get imageModelFollowGlobal => '使用預設繪圖模型';
 
   @override
   String get recoveryGuideTitle => '幫你找回聊天記錄';

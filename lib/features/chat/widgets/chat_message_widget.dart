@@ -45,6 +45,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/message_part.dart';
 import '../../image_job/models/image_job.dart';
+import '../../image_job/services/image_backends.dart' show aspectOfRatio;
 import '../../image_job/services/image_job_coordinator.dart';
 import '../../image_job/widgets/image_job_card.dart';
 import '../../image_job/widgets/image_job_panel.dart';
@@ -3191,6 +3192,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
       return ImageJobCard(
         part: resolved,
         startedAt: startedAt,
+        requestedAspect: aspectOfRatio(job?.aspectRatio),
         elapsed: finishedAt != null && startedAt != null
             ? finishedAt.difference(startedAt)
             : resolved.duration,

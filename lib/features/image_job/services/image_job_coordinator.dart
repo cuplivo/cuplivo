@@ -177,18 +177,27 @@ class ImageJobCoordinator extends ChangeNotifier {
       );
     }
 
-    final resolved = resolveModelBinding(
-      assistantProviderId: assistant?.imageModelProvider,
-      assistantModelId: assistant?.imageModelId,
-      globalProviderId: _settings.imageModelProvider,
-      globalModelId: _settings.imageModelId,
-    );
+    final resolved = resolveImageModelFor(_settings, assistant);
     final binding = resolved.binding;
     if (binding == null) {
       return const ImageJobRefused(
         'image_model_not_configured',
         'No image model is configured. Ask the user to pick one in '
             'Settings → Default model → Image model.',
+      );
+    }
+    // A text model can be stored in the drawing row by an import or a sync even
+    // though no picker offers it. Refusing here names the problem, instead of
+    // spending a provider round-trip on a chat model that was never going to
+    // return a picture.
+    if (!SettingsProvider.canDrawPictures(
+      _settings.getProviderConfig(binding.providerId),
+      binding.modelId,
+    )) {
+      return const ImageJobRefused(
+        'image_model_cannot_draw',
+        'That model cannot draw pictures. Ask the user to pick an image model '
+            'in Settings → Default model → Image model.',
       );
     }
 

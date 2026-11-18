@@ -16298,7 +16298,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get imageJobNotConfigured => 'Не настроено · Выбрать';
 
   @override
-  String get imageJobToolSubtitle => 'Рисовать картинки в ответе';
+  String get imageModelFollowGlobal =>
+      'Использовать модель изображений по умолчанию';
 
   @override
   String get recoveryGuideTitle => 'Восстановим ваши чаты';

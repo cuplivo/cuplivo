@@ -4687,7 +4687,7 @@
   "imageJobPanelAuto": "Otomatik",
   "imageJobPanelOneImage": "1 görsel",
   "imageJobNotConfigured": "Yapılandırılmadı · Seç",
-  "imageJobToolSubtitle": "Yanıt içinde resim çiz",
+  "imageModelFollowGlobal": "Varsayılan görsel modelini kullan",
   "recoveryGuideTitle": "Sohbetlerinizi kurtaralım",
   "recoveryGuideBody": "Cuplivo verilerinizi yüklemeyi duraklattı. Kurtarmak istediklerinizi seçebilmeniz için yerel kopyaları arayacağız. Mevcut dosyalar korunacak.",
   "recoverySpaceTitle": "Biraz boş alana ihtiyaç var",

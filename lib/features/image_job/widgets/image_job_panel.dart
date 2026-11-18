@@ -27,6 +27,7 @@ import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import '../models/image_job.dart';
+import '../services/image_job_coordinator.dart' show imageJobCoordinatorOf;
 import '../services/image_model_resolver.dart';
 
 /// Everything the panel needs, resolved once by the caller that has them.
@@ -117,10 +118,27 @@ class _ImageJobPanelBodyState extends State<ImageJobPanelBody> {
 
   @override
   Widget build(BuildContext context) {
+    // The panel is opened with a snapshot — a resolved `ImageJobPanelData` — and
+    // `ImageJob` is immutable, so a picture that finishes while the sheet is open
+    // would never update "Time taken" or the real pixel size. Subscribe to the
+    // coordinator like the card does and read the *live* job each build.
+    final coordinator = imageJobCoordinatorOf(context);
+    if (coordinator == null) return Builder(builder: _body);
+    return ListenableBuilder(
+      listenable: coordinator,
+      builder: (context, _) => _body(context),
+    );
+  }
+
+  Widget _body(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     final part = data.part;
-    final job = data.job;
+    final coordinator = imageJobCoordinatorOf(context);
+    final assetId = part.assetId;
+    final job =
+        (assetId == null ? null : coordinator?.jobForAsset(assetId)) ??
+        data.job;
     final startedAt = job?.startedAt ?? job?.createdAt;
     final finishedAt = job?.finishedAt;
     final elapsed = startedAt == null || finishedAt == null
@@ -181,7 +199,11 @@ class _ImageJobPanelBodyState extends State<ImageJobPanelBody> {
         _KvRow(
           label: l10n.imageJobPanelSizeLabel,
           value: null,
-          child: _ImageSize(uri: part.uri, requestedRatio: job?.aspectRatio),
+          child: _ImageSize(
+            uri: part.uri,
+            requestedRatio: job?.aspectRatio,
+            revision: finishedAt?.microsecondsSinceEpoch,
+          ),
         ),
         if (elapsed != null)
           _KvRow(
@@ -292,10 +314,15 @@ class _KvRow extends StatelessWidget {
 /// A promise has no size yet, so it shows the ratio that was asked for — the
 /// only honest answer before the bytes exist.
 class _ImageSize extends StatefulWidget {
-  const _ImageSize({required this.uri, this.requestedRatio});
+  const _ImageSize({required this.uri, this.requestedRatio, this.revision});
 
   final String uri;
   final String? requestedRatio;
+
+  /// Changes when the picture may have landed (the job's finish stamp). The
+  /// probe runs once per revision, so an open panel picks up the real pixels
+  /// instead of keeping the requested ratio forever.
+  final int? revision;
 
   @override
   State<_ImageSize> createState() => _ImageSizeState();
@@ -308,6 +335,14 @@ class _ImageSizeState extends State<_ImageSize> {
   void initState() {
     super.initState();
     unawaited(_resolve());
+  }
+
+  @override
+  void didUpdateWidget(covariant _ImageSize oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.uri != widget.uri || oldWidget.revision != widget.revision) {
+      unawaited(_resolve());
+    }
   }
 
   Future<void> _resolve() async {

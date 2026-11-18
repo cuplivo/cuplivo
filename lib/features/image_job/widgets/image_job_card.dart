@@ -19,6 +19,7 @@ class ImageJobCard extends StatelessWidget {
     required this.part,
     this.elapsed,
     this.startedAt,
+    this.requestedAspect,
     this.onOpen,
     this.child,
   });
@@ -32,6 +33,14 @@ class ImageJobCard extends StatelessWidget {
   /// counts up from here, so generating shows progress instead of a bare title
   /// that suddenly acquires `(14.5s)` at the end.
   final DateTime? startedAt;
+
+  /// The proportions the request asked for, if it asked for any.
+  ///
+  /// The skeleton reserves this shape, so "I asked for 16:9" is visible the
+  /// moment the call is made instead of only when the picture lands. `null` —
+  /// `auto`, or no job left to ask — falls back to a neutral 3:2: nobody knows
+  /// the size before the model picks it.
+  final double? requestedAspect;
 
   final VoidCallback? onOpen;
 
@@ -115,7 +124,9 @@ class ImageJobCard extends StatelessWidget {
                 if (onOpen != null)
                   Semantics(
                     button: true,
-                    label: title,
+                    // The action, not the status: a reader should hear "show
+                    // menu", not "Illustration failed" twice.
+                    label: MaterialLocalizations.of(context).showMenuTooltip,
                     child: InkResponse(
                       onTap: onOpen,
                       radius: 16,
@@ -135,7 +146,7 @@ class ImageJobCard extends StatelessWidget {
           if (hasPicture)
             child!
           else if (isPending)
-            const _ImageJobSkeleton()
+            _ImageJobSkeleton(aspect: requestedAspect ?? 3 / 2)
           else
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
@@ -243,15 +254,18 @@ class _ElapsedLabelState extends State<_ElapsedLabel> {
 }
 
 /// Fixed-ratio placeholder: the reply's height must not change when the bytes
-/// land, so the skeleton is drawn at the same ratio the picture was asked for.
+/// land, so the skeleton is drawn at the ratio the request asked for (3:2 when
+/// it asked for nothing — `auto` means nobody knows yet).
 class _ImageJobSkeleton extends StatelessWidget {
-  const _ImageJobSkeleton();
+  const _ImageJobSkeleton({required this.aspect});
+
+  final double aspect;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return AspectRatio(
-      aspectRatio: 3 / 2,
+      aspectRatio: aspect,
       child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(

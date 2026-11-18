@@ -156,12 +156,30 @@ void main() {
     });
   });
 
+  group('the ratio', () {
+    test('maps the schema enum to numbers, and auto to nothing', () {
+      expect(aspectOfRatio('1:1'), 1);
+      expect(aspectOfRatio('3:2'), closeTo(1.5, 1e-9));
+      expect(aspectOfRatio('2:3'), closeTo(2 / 3, 1e-9));
+      expect(aspectOfRatio('16:9'), closeTo(16 / 9, 1e-9));
+      // Nobody knows the size before the model picks one.
+      expect(aspectOfRatio('auto'), isNull);
+      expect(aspectOfRatio(null), isNull);
+    });
+
+    test('travels in the instruction on both wire shapes', () {
+      expect(promptWithRatio('a cat', '16:9'), 'a cat\n\nAspect ratio: 16:9.');
+      expect(promptWithRatio('a cat', 'auto'), 'a cat');
+      expect(promptWithRatio('a cat', null), 'a cat');
+    });
+  });
+
   group('the images body', () {
     test('never carries a size, whatever ratio was asked for', () async {
       // The accepted size enum is per model — dall-e-3 rejects `1536x1024` with a
       // 400 — so the only safe value is none at all, which is what the app's own
-      // images client sends. `aspect_ratio` still drives our skeleton and the
-      // prompt; it must not pretend to know the provider's enum.
+      // images client sends. The ratio still travels, in the prompt (see
+      // `promptWithRatio`), and the card's skeleton reserves it.
       final client = MockClient((request) async {
         expect(request.body, isNot(contains('"size"')));
         return http.Response('{"data":[{"b64_json":"${_pngBase64()}"}]}', 200);
@@ -185,6 +203,37 @@ void main() {
         );
       }
     });
+
+    test(
+      'carries the requested ratio in the prompt, and nothing for auto',
+      () async {
+        final bodies = <Map<String, dynamic>>[];
+        final client = MockClient((request) async {
+          bodies.add(jsonDecode(request.body) as Map<String, dynamic>);
+          return http.Response(
+            '{"data":[{"b64_json":"${_pngBase64()}"}]}',
+            200,
+          );
+        });
+        for (final ratio in <String?>['16:9', 'auto', null]) {
+          final backend = ImagesApiBackend(
+            baseUrl: 'https://api.test/v1',
+            modelId: 'gpt-image-1',
+            headers: const {'Authorization': 'Bearer k'},
+            client: client,
+          );
+          await backend.generate(
+            ImageGenerationRequest(prompt: 'a cat', aspectRatio: ratio),
+          );
+        }
+
+        expect(bodies[0]['prompt'], 'a cat\n\nAspect ratio: 16:9.');
+        // `auto` adds nothing: a model that picks its own size must not be told
+        // to honour a ratio nobody chose.
+        expect(bodies[1]['prompt'], 'a cat');
+        expect(bodies[2]['prompt'], 'a cat');
+      },
+    );
 
     test(
       'references are refused before a request when the model takes no input '

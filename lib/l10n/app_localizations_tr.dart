@@ -16116,7 +16116,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get imageJobNotConfigured => 'Yapılandırılmadı · Seç';
 
   @override
-  String get imageJobToolSubtitle => 'Yanıt içinde resim çiz';
+  String get imageModelFollowGlobal => 'Varsayılan görsel modelini kullan';
 
   @override
   String get recoveryGuideTitle => 'Sohbetlerinizi kurtaralım';

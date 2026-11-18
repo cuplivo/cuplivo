@@ -4687,7 +4687,7 @@
   "imageJobPanelAuto": "Авто",
   "imageJobPanelOneImage": "1 изображение",
   "imageJobNotConfigured": "Не настроено · Выбрать",
-  "imageJobToolSubtitle": "Рисовать картинки в ответе",
+  "imageModelFollowGlobal": "Использовать модель изображений по умолчанию",
   "recoveryGuideTitle": "Восстановим ваши чаты",
   "recoveryGuideBody": "Cuplivo приостановил загрузку данных. Мы поищем локальные копии, чтобы вы могли выбрать, что восстановить. Существующие файлы будут сохранены.",
   "recoverySpaceTitle": "Требуется свободное место",

@@ -16020,7 +16020,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get imageJobNotConfigured => 'Not configured · Choose';
 
   @override
-  String get imageJobToolSubtitle => 'Draw pictures inside a reply';
+  String get imageModelFollowGlobal => 'Use the default image model';
 
   @override
   String get recoveryGuideTitle => 'Let’s recover your chats';

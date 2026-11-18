@@ -5830,7 +5830,7 @@
   "imageJobPanelAuto": "自动",
   "imageJobPanelOneImage": "1 张",
   "imageJobNotConfigured": "未配置 · 去选择",
-  "imageJobToolSubtitle": "在回复里画图",
+  "imageModelFollowGlobal": "使用默认绘图模型",
   "recoveryGuideTitle": "帮你找回聊天记录",
   "recoveryGuideBody": "Cuplivo 暂时无法载入数据，已暂停操作。我们会查找本地副本，供你选择恢复。现有文件会保留。",
   "recoverySpaceTitle": "需要一些存储空间",

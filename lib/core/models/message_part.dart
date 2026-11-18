@@ -311,6 +311,29 @@ final class ImagePart extends MessagePart {
   Duration? get duration =>
       durationMs == null ? null : Duration(milliseconds: durationMs!);
 
+  /// The same picture with its location or availability replaced.
+  ///
+  /// Restore and path-rewrite passes touch every attachment; rebuilding the part
+  /// field by field there is how an illustration lost its job state, prompt,
+  /// model, reason and duration. `state` is not cosmetic: `hasBytes` derives
+  /// from it, so a stripped `pending` part would be sent to a provider as if its
+  /// bytes existed.
+  ImagePart copyWith({String? uri, bool? unavailable}) {
+    return ImagePart(
+      uri: uri ?? this.uri,
+      mime: mime,
+      assetId: assetId,
+      id: id,
+      unavailable: unavailable ?? this.unavailable,
+      jobId: jobId,
+      state: state,
+      prompt: prompt,
+      model: model,
+      failureReason: failureReason,
+      durationMs: durationMs,
+    );
+  }
+
   /// Whether there are bytes to send.
   ///
   /// A part with a [state] is a promise from an image job: the uri is already

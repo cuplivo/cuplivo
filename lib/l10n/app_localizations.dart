@@ -28254,11 +28254,11 @@ abstract class AppLocalizations {
   /// **'Not configured · Choose'**
   String get imageJobNotConfigured;
 
-  /// One-line description of the drawing tool in the tools list.
+  /// Row in the model picker that clears this assistant's own drawing model so it follows the global default in Settings.
   ///
   /// In en, this message translates to:
-  /// **'Draw pictures inside a reply'**
-  String get imageJobToolSubtitle;
+  /// **'Use the default image model'**
+  String get imageModelFollowGlobal;
 
   /// Header title on the restore failure screen when local copies are being searched for recovery.
   ///

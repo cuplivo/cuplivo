@@ -58,6 +58,39 @@ void main() {
       expect(done.encodePayload(), isNot(contains('"state"')));
     });
 
+    test('a restore pass keeps every job field it was not asked to change', () {
+      // Availability is local restore bookkeeping. Rebuilding the part field by
+      // field there used to erase the job, which also flipped `hasBytes` back to
+      // true for a picture that was still only a promise.
+      const part = ImagePart(
+        uri: '/data/assets/asset-3.png',
+        mime: 'image/png',
+        assetId: 'asset-3',
+        jobId: 'job-3',
+        state: ImagePartState.pending,
+        prompt: 'a cat',
+        model: 'gpt-image-1',
+        durationMs: 12600,
+      );
+
+      final moved = part.copyWith(
+        uri: '/data/assets/asset-3-restored.png',
+        unavailable: true,
+      );
+
+      expect(moved.jobId, 'job-3');
+      expect(moved.state, ImagePartState.pending);
+      expect(moved.prompt, 'a cat');
+      expect(moved.model, 'gpt-image-1');
+      expect(moved.durationMs, 12600);
+      expect(moved.assetId, 'asset-3');
+      expect(moved.mime, 'image/png');
+      expect(moved.uri, '/data/assets/asset-3-restored.png');
+      expect(moved.unavailable, isTrue);
+      // The promise is still a promise: no bytes to send yet.
+      expect(moved.hasBytes, isFalse);
+    });
+
     test('a failed job stays distinguishable from a missing file', () {
       const failed = ImagePart(
         uri: '/data/assets/asset-2.png',

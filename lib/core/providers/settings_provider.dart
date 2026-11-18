@@ -646,6 +646,16 @@ class SettingsProvider extends ChangeNotifier {
         .contains(ReasoningLevel.max);
   }
 
+  /// Whether `provider + model` can actually draw a picture.
+  ///
+  /// The same rule the pickers filter by and the job refuses by, so a value that
+  /// arrived from a sync or an import cannot smuggle a text model into the
+  /// drawing row by skipping the picker.
+  static bool canDrawPictures(ProviderConfig config, String modelId) {
+    final spec = ModelSpecResolver.instance.spec(config, modelId);
+    return spec.type == ModelType.image || spec.output.contains(Modality.image);
+  }
+
   // Explicitly ensure a provider config exists in memory (without persisting to storage).
   // Useful for seeding first-run defaults.
   ProviderConfig ensureProviderConfig(String key, {String? defaultName}) {
@@ -4026,6 +4036,9 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setImageModel(String providerKey, String modelId) async {
     if (!isValidImageModelSelection(providerKey, modelId)) {
       throw ArgumentError('An image model needs both a provider and a model.');
+    }
+    if (!canDrawPictures(getProviderConfig(providerKey), modelId)) {
+      throw ArgumentError('That model cannot draw pictures.');
     }
     _imageModelProvider = providerKey;
     _imageModelId = modelId;

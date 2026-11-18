@@ -15532,7 +15532,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get imageJobNotConfigured => '설정되지 않음 · 선택';
 
   @override
-  String get imageJobToolSubtitle => '답변 안에서 그림 그리기';
+  String get imageModelFollowGlobal => '기본 이미지 모델 사용';
 
   @override
   String get recoveryGuideTitle => '채팅을 복구해 보겠습니다';

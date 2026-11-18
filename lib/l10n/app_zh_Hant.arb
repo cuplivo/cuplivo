@@ -4687,7 +4687,7 @@
   "imageJobPanelAuto": "自動",
   "imageJobPanelOneImage": "1 張",
   "imageJobNotConfigured": "未設定 · 去選擇",
-  "imageJobToolSubtitle": "在回覆裡畫圖",
+  "imageModelFollowGlobal": "使用預設繪圖模型",
   "recoveryGuideTitle": "幫你找回聊天記錄",
   "recoveryGuideBody": "Cuplivo 暫時無法載入資料，已暫停操作。我們會尋找本機副本，供你選擇還原。現有檔案會保留。",
   "recoverySpaceTitle": "需要一些儲存空間",

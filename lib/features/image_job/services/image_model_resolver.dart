@@ -9,6 +9,9 @@
 /// `kind + model`, and the model is resolved here, not chosen by the text model.
 library;
 
+import '../../../core/models/assistant.dart';
+import '../../../core/providers/settings_provider.dart';
+
 final class ModelBinding {
   const ModelBinding({required this.providerId, required this.modelId});
 
@@ -86,4 +89,22 @@ ModelBinding? _binding(String? providerId, String? modelId) {
   final model = modelId?.trim() ?? '';
   if (provider.isEmpty || model.isEmpty) return null;
   return ModelBinding(providerId: provider, modelId: model);
+}
+
+/// The resolution the app actually runs for a drawing job: the pure rule above
+/// plus the one thing only [SettingsProvider] knows — whether the provider a
+/// stored pair names still exists. The sub-row and the coordinator both call
+/// this, so what the row promises and what the tool does cannot disagree.
+ResolvedModel resolveImageModelFor(
+  SettingsProvider settings,
+  Assistant? assistant,
+) {
+  return resolveModelBinding(
+    assistantProviderId: assistant?.imageModelProvider,
+    assistantModelId: assistant?.imageModelId,
+    globalProviderId: settings.imageModelProvider,
+    globalModelId: settings.imageModelId,
+    isValid: (binding) =>
+        settings.providerConfigs.containsKey(binding.providerId),
+  );
 }

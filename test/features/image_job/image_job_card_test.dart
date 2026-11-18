@@ -47,6 +47,24 @@ void main() {
     expect(skeleton.width / skeleton.height, closeTo(1.5, 0.01));
   });
 
+  testWidgets('the skeleton reserves the ratio the request asked for', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        ImageJobCard(
+          part: _part(ImagePartState.pending),
+          requestedAspect: 16 / 9,
+        ),
+      ),
+    );
+
+    // "I asked for a wide picture" is visible while it is being drawn, rather
+    // than only after the bytes arrive and the block reflows.
+    final skeleton = tester.getSize(find.byType(AspectRatio));
+    expect(skeleton.width / skeleton.height, closeTo(16 / 9, 0.01));
+  });
+
   testWidgets('a failed job explains itself and offers no action', (
     tester,
   ) async {

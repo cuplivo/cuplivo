@@ -33,26 +33,12 @@ String imageModelSubRowLabel(
 }
 
 /// The same resolution the coordinator runs, so the row cannot promise a model
-/// the tool would refuse.
+/// the tool would refuse. Defined once in the resolver, re-exported here because
+/// three UI call sites already import this file for the label.
 ResolvedModel resolveImageModel(
   SettingsProvider settings,
   Assistant? assistant,
-) {
-  return resolveModelBinding(
-    assistantProviderId: assistant?.imageModelProvider,
-    assistantModelId: assistant?.imageModelId,
-    globalProviderId: settings.imageModelProvider,
-    globalModelId: settings.imageModelId,
-    // A stored pair whose provider is gone must not outrank the global default:
-    // it would resolve to a guessed base URL with an empty key, and the card
-    // would show a 401 instead of "not configured".
-    isValid: _stillConfigured(settings),
-  );
-}
-
-bool Function(ModelBinding) _stillConfigured(SettingsProvider settings) {
-  return (binding) => settings.providerConfigs.containsKey(binding.providerId);
-}
+) => resolveImageModelFor(settings, assistant);
 
 /// Pick the model this assistant draws with and store it on the assistant.
 ///
@@ -82,7 +68,12 @@ Future<void> pickImageModel(
     // Without this the assistant's choice is a one-way door: once the sub-row
     // has written a pair there is no way back to "follow the global default",
     // and a pair whose provider later disappears would keep winning.
+    //
+    // The label is not "Follow assistant": for a drawing model the tier above is
+    // the global default in Settings — the assistant *is* the tier being
+    // overridden here.
     allowInherit: true,
+    inheritLabel: AppLocalizations.of(pickerHost)!.imageModelFollowGlobal,
   );
   if (selection == null) return;
   final latest = assistants.getById(assistant.id) ?? assistant;

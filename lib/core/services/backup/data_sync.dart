@@ -127,14 +127,7 @@ List<MessagePart> _normalizeAttachmentPartUris(List<MessagePart> parts) {
       final uri = SandboxPathResolver.canonicalize(part.uri);
       if (uri != part.uri) {
         changed = true;
-        out.add(
-          ImagePart(
-            uri: uri,
-            mime: part.mime,
-            assetId: part.assetId,
-            unavailable: part.unavailable,
-          ),
-        );
+        out.add(part.copyWith(uri: uri));
       } else {
         out.add(part);
       }
@@ -171,14 +164,7 @@ List<MessagePart> _remapRestoredAttachmentPartUris(List<MessagePart> parts) {
           part.uri;
       if (uri != part.uri) {
         changed = true;
-        out.add(
-          ImagePart(
-            uri: uri,
-            mime: part.mime,
-            assetId: part.assetId,
-            unavailable: part.unavailable,
-          ),
-        );
+        out.add(part.copyWith(uri: uri));
       } else {
         out.add(part);
       }
@@ -218,14 +204,7 @@ List<MessagePart> recomputeAttachmentAvailability(
     if (part is ImagePart) {
       final unavailable = _unavailableForUri(part.uri, exists);
       if (unavailable != part.unavailable) changed = true;
-      out.add(
-        ImagePart(
-          uri: part.uri,
-          mime: part.mime,
-          assetId: part.assetId,
-          unavailable: unavailable,
-        ),
-      );
+      out.add(part.copyWith(unavailable: unavailable));
     } else if (part is FilePart) {
       final unavailable = _unavailableForUri(part.uri, exists);
       if (unavailable != part.unavailable) changed = true;

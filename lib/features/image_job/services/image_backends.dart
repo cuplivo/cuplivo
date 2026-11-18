@@ -456,13 +456,15 @@ final class ImagesApiBackend extends _HttpImageBackend {
   }
 
   Map<String, dynamic> _baseBody(ImageGenerationRequest request) {
-    // No `size`, deliberately: the app's own images-API client
-    // (`providers/openai_images.dart`) never sends one either, and the accepted
-    // enum is per model (dall-e-3 refuses `1536x1024`, gpt-image-1 accepts it).
-    // A model-blind table here turned a working picture into a 400, and
-    // `aspect_ratio` still does its real job — the skeleton's ratio and the
-    // prompt — without pretending to know what each family accepts.
-    final body = <String, dynamic>{'model': modelId, 'prompt': request.prompt};
+    // No `size`, deliberately: the accepted enum is per model (dall-e-3 refuses
+    // `1536x1024`, gpt-image-1 accepts it), so a model-blind table here turned a
+    // working picture into a 400 — and the app's own images client sends no size
+    // either. The ratio still travels, in the only place both shapes understand:
+    // the instruction (see `promptWithRatio`).
+    final body = <String, dynamic>{
+      'model': modelId,
+      'prompt': promptWithRatio(request.prompt, request.aspectRatio),
+    };
     CustomRequestMerger.applyBody(body, extraBody);
     return body;
   }
@@ -617,10 +619,8 @@ final class ChatImageBackend extends _HttpImageBackend {
 
   /// The ratio has no request field on this shape, so it travels with the
   /// instruction. `auto` adds nothing: a chat model composes on its own.
-  String _promptFor(ImageGenerationRequest request) {
-    if (request.wantsAutoRatio) return request.prompt;
-    return '${request.prompt}\n\nAspect ratio: ${request.aspectRatio}.';
-  }
+  String _promptFor(ImageGenerationRequest request) =>
+      promptWithRatio(request.prompt, request.aspectRatio);
 
   Future<String?> _asDataUrl(ImageReference reference) async {
     try {
@@ -659,6 +659,34 @@ final class ChatImageBackend extends _HttpImageBackend {
 /// picker should not be a list of ways to fail.
 bool modelCanDrawPicture(ModelSpec spec) =>
     spec.type == ModelType.image || spec.output.contains(Modality.image);
+
+/// The ratio as a number, or `null` when nobody promised one.
+///
+/// One definition for the card's skeleton and the panel's size fallback: both
+/// have to answer "how wide did we say this picture would be" before any bytes
+/// exist, and `auto` genuinely has no answer — the model decides at generation
+/// time, so the caller falls back to a neutral default and accepts one reflow
+/// when the real picture arrives with different proportions.
+double? aspectOfRatio(String? ratio) => switch (ratio) {
+  '1:1' => 1,
+  '3:2' => 3 / 2,
+  '2:3' => 2 / 3,
+  '16:9' => 16 / 9,
+  _ => null,
+};
+
+/// The prompt a backend sends, with the requested ratio appended when there is
+/// one.
+///
+/// Neither wire shape has a portable ratio field (a per-model `size` table is
+/// what produced a 400 on dall-e-3), so the instruction is the only place both
+/// understand. It is a soft constraint: a model that only honours its own sizes
+/// will ignore it, which is why the skeleton reserves what was asked for and the
+/// card reflows once if the picture comes back differently proportioned.
+String promptWithRatio(String prompt, String? aspectRatio) {
+  if (aspectRatio == null || aspectRatio == 'auto') return prompt;
+  return '$prompt\n\nAspect ratio: $aspectRatio.';
+}
 
 /// Build the backend for one configured `provider + model`.
 ///

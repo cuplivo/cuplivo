@@ -844,7 +844,7 @@
   "backupPageWorldBooksLabel": "World books",
   "backupPageMemoriesLabel": "Memories",
   "backupPageQuickPhrasesLabel": "Quick phrases",
-  "backupPageInstructionsLabel": "Prompt injections",
+  "backupPageInstructionsLabel": "Prompt library",
   "backupPageWorkspacesLabel": "Workspaces",
   "backupPageSearchServicesLabel": "Search services",
   "backupPageSpeechServicesLabel": "Speech services",
@@ -9942,7 +9942,7 @@
     "description": "Backup category label for quick phrases."
   },
   "@backupPageInstructionsLabel": {
-    "description": "Backup category label for prompt injections (instruction snippets)."
+    "description": "Backup category label for the prompt material it carries: Instruction Injection cards, and the compression library\u2019s summary templates and recipes. It must name the material, not one of the two features that write it."
   },
   "@backupPageWorkspacesLabel": {
     "description": "Backup category label for workspaces."

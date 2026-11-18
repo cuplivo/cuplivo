@@ -1747,7 +1747,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupPageQuickPhrasesLabel => '快捷短语';
 
   @override
-  String get backupPageInstructionsLabel => '提示词注入';
+  String get backupPageInstructionsLabel => '提示词库';
 
   @override
   String get backupPageWorkspacesLabel => '工作区';
@@ -19669,7 +19669,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backupPageQuickPhrasesLabel => '快捷短语';
 
   @override
-  String get backupPageInstructionsLabel => '提示词注入';
+  String get backupPageInstructionsLabel => '提示词库';
 
   @override
   String get backupPageWorkspacesLabel => '工作区';
@@ -37596,7 +37596,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backupPageQuickPhrasesLabel => '快捷短語';
 
   @override
-  String get backupPageInstructionsLabel => '提示詞注入';
+  String get backupPageInstructionsLabel => '提示詞庫';
 
   @override
   String get backupPageWorkspacesLabel => '工作區';

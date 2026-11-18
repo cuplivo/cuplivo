@@ -1834,7 +1834,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get backupPageQuickPhrasesLabel => 'Hızlı ifadeler';
 
   @override
-  String get backupPageInstructionsLabel => 'İstem enjeksiyonları';
+  String get backupPageInstructionsLabel => 'İstem kitaplığı';
 
   @override
   String get backupPageWorkspacesLabel => 'Çalışma alanları';

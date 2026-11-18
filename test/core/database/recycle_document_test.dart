@@ -33,6 +33,12 @@ void main() {
         family.kind == 'conversationCompression',
   );
 
+  final imageFamily = kSyncFamilies.singleWhere(
+    (family) =>
+        family.table == 'extension_entity_rows' &&
+        family.kind == 'conversationImageContext',
+  );
+
   setUp(() async {
     root = await Directory.systemTemp.createTemp('kelivo_recycle_document_');
     database = AppDatabase(NativeDatabase.memory());
@@ -77,8 +83,9 @@ void main() {
   Map<String, dynamic> documentRow({
     required String payload,
     required int updatedAt,
+    SyncFamily? family,
   }) => {
-    'kind': compressionFamily.kind,
+    'kind': (family ?? compressionFamily).kind,
     'id': conversationId,
     'sort_order': 0,
     'owner_id': conversationId,
@@ -86,23 +93,28 @@ void main() {
     'updated_at': updatedAt,
   };
 
+  Future<SyncSubtreeApplyOutcome> applyFamilies(
+    Map<String, List<Map<String, dynamic>>> families,
+  ) => repository.syncApplySubtree(
+    payload: subtreePayload(
+      conversation: conversationRow(),
+      families: families,
+    ),
+    myDeviceId: 'me',
+    peerDeviceId: 'peer',
+    checkpointRows: const {},
+  );
+
   Future<SyncSubtreeApplyOutcome> apply(String payload, int at) =>
-      repository.syncApplySubtree(
-        payload: subtreePayload(
-          conversation: conversationRow(),
-          families: {
-            compressionFamily.name: [
-              documentRow(payload: payload, updatedAt: at),
-            ],
-          },
-        ),
-        myDeviceId: 'me',
-        peerDeviceId: 'peer',
-        checkpointRows: const {},
-      );
+      applyFamilies({
+        compressionFamily.name: [documentRow(payload: payload, updatedAt: at)],
+      });
 
   Future<List<Map<String, dynamic>>> document() =>
       repository.syncReadFamilyRows(compressionFamily, conversationId);
+
+  Future<List<Map<String, dynamic>>> imageDocument() =>
+      repository.syncReadFamilyRows(imageFamily, conversationId);
 
   test('a document the peer replaces is staged and can be restored', () async {
     await apply('{"formatVersion":1,"history":["mine"]}', 100);
@@ -168,6 +180,72 @@ void main() {
         reason:
             'the entry waits for the conversation rather than being consumed',
       );
+    },
+  );
+
+  test(
+    'two documents of one conversation are two entries, one restore spares the other',
+    () async {
+      // The shape the upgrade window produces: both devices hold their own copy of
+      // both documents, and the peer's newer copy wins both. These rows are keyed
+      // by the conversation's id, so an entry identity of (type, key) collapsed the
+      // two — the second document was never listed, and restoring the first purged
+      // its only copy from disk.
+      Map<String, List<Map<String, dynamic>>> both(String history, int at) => {
+        compressionFamily.name: [
+          documentRow(
+            payload: '{"formatVersion":1,"history":["$history"]}',
+            updatedAt: at,
+          ),
+        ],
+        imageFamily.name: [
+          documentRow(
+            payload: '{"formatVersion":1,"history":["$history"]}',
+            updatedAt: at,
+            family: imageFamily,
+          ),
+        ],
+      };
+
+      await applyFamilies(both('mine', 100));
+      await applyFamilies(both('theirs', 200));
+      await recycle.settle();
+
+      final entries = await recycle.list();
+      expect(
+        entries,
+        hasLength(2),
+        reason: 'two rows, two recoverable records',
+      );
+      expect(entries.map((entry) => entry.kindWire).toSet(), {
+        compressionFamily.kind,
+        imageFamily.kind,
+      });
+
+      final compression = entries.singleWhere(
+        (entry) => entry.kindWire == compressionFamily.kind,
+      );
+      expect(
+        await recycle.restore(compression),
+        RecycleRestoreOutcome.restored,
+      );
+      await recycle.settle();
+
+      final after = await recycle.list();
+      expect(
+        after.where((entry) => entry.kindWire == imageFamily.kind),
+        hasLength(1),
+        reason:
+            'the image-context copy is a different row: restoring the compression '
+            'history must not delete the only copy of it',
+      );
+      expect((await imageDocument()).single['payload'], contains('theirs'));
+
+      final image = after.singleWhere(
+        (entry) => entry.kindWire == imageFamily.kind,
+      );
+      expect(await recycle.restore(image), RecycleRestoreOutcome.restored);
+      expect((await imageDocument()).single['payload'], contains('mine'));
     },
   );
 

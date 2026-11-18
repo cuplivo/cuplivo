@@ -670,7 +670,12 @@ final class RecycleService {
         RecycleEntryType.skillBody => await _restoreSkillBody(entry),
       };
       if (outcome == RecycleRestoreOutcome.restored) {
-        await _store.purgeKey(entry.type, entry.key, exceptId: keepEntryId);
+        await _store.purgeKey(
+          entry.type,
+          entry.key,
+          kindWire: entry.kindWire,
+          exceptId: keepEntryId,
+        );
       }
       return outcome;
     } catch (error, stack) {

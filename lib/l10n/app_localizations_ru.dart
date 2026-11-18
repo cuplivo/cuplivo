@@ -1858,7 +1858,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get backupPageQuickPhrasesLabel => 'Быстрые фразы';
 
   @override
-  String get backupPageInstructionsLabel => 'Внедрения промптов';
+  String get backupPageInstructionsLabel => 'Библиотека промптов';
 
   @override
   String get backupPageWorkspacesLabel => 'Рабочие области';

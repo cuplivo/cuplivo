@@ -576,16 +576,25 @@ class RecycleStore {
 
   /// Every staged entry, newest first.
   ///
-  /// Entries that share a [RecycleEntry.key] collapse to the newest one: a row
+  /// Entries that stage the *same record* collapse to the newest one: a row
   /// deleted twice, or a merge that lost the same row in two sessions, must not
   /// appear as two recoverable items that would then fight over one row.
+  ///
+  /// The record is (type, key, kind), not (type, key). A conversation document is
+  /// keyed by its conversation's id, so the three documents of one conversation
+  /// share a key while being three different rows: collapsing them hid two of
+  /// them from the list, and restoring the visible one purged the others' only
+  /// copies. `kindWire` is the discriminator the restore itself already uses to
+  /// pick the row it writes.
+  ///
   /// Unreadable directories are left for [evict] to reclaim, so listing stays
   /// read-only.
   Future<List<RecycleEntry>> list() async {
     final scan = await _scan();
     final newest = <String, RecycleEntry>{};
     for (final entry in scan.entries) {
-      final dedupeKey = '${entry.type.wire}\u0000${entry.key}';
+      final dedupeKey =
+          '${entry.type.wire}\u0000${entry.key}\u0000${entry.kindWire ?? ''}';
       final existing = newest[dedupeKey];
       if (existing == null || entry.deletedAt.isAfter(existing.deletedAt)) {
         newest[dedupeKey] = entry;
@@ -651,8 +660,15 @@ class RecycleStore {
     await _deleteQuietly(directory);
   }
 
-  /// Removes every entry that staged [key] — what a restore owes the bin, so a
-  /// recovered row cannot also be restored again into a second copy.
+  /// Removes every entry that staged the same record as ([type], [key],
+  /// [kindWire]) — what a restore owes the bin, so a recovered row cannot also
+  /// be restored again into a second copy.
+  ///
+  /// [kindWire] is required for the same reason [list] counts it: it is part of
+  /// the record's identity, and a conversation's three documents share its id, so
+  /// a purge that matched on (type, key) alone would delete the staged copies of
+  /// the documents the restore did not touch. A kind-less entry (a conversation, a
+  /// skill body) passes the null its own entries carry.
   ///
   /// [exceptId] keeps one entry: a restore that replaced a live row stages the
   /// version it displaced, and that entry is the *result* of the restore rather
@@ -660,12 +676,16 @@ class RecycleStore {
   Future<int> purgeKey(
     RecycleEntryType type,
     String key, {
+    required String? kindWire,
     String? exceptId,
   }) async {
     final scan = await _scan();
     var removed = 0;
     for (final entry in scan.entries) {
-      if (entry.type != type || entry.key != key || entry.id == exceptId) {
+      if (entry.type != type ||
+          entry.key != key ||
+          entry.kindWire != kindWire ||
+          entry.id == exceptId) {
         continue;
       }
       await purge(entry);

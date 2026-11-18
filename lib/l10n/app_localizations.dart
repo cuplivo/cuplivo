@@ -3448,10 +3448,10 @@ abstract class AppLocalizations {
   /// **'Quick phrases'**
   String get backupPageQuickPhrasesLabel;
 
-  /// Backup category label for prompt injections (instruction snippets).
+  /// Backup category label for the prompt material it carries: Instruction Injection cards, and the compression library’s summary templates and recipes. It must name the material, not one of the two features that write it.
   ///
   /// In en, this message translates to:
-  /// **'Prompt injections'**
+  /// **'Prompt library'**
   String get backupPageInstructionsLabel;
 
   /// Backup category label for workspaces.

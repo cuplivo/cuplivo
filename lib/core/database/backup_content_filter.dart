@@ -40,7 +40,11 @@ final class BackupContentFilter {
     }
     // The compression library is a prompt library: a template is what the
     // summariser is told, and a recipe is that template with the settings it was
-    // saved under. Exact keys, not a `compression_` prefix — `compression_
+    // saved under. That makes the category broader than the one feature that
+    // named it, so its label names the material ("Prompt library") rather than
+    // Instruction Injection — a toggle that reads as one feature while restoring
+    // two is how a user overwrites a library they did not know it carried.
+    // Exact keys, not a `compression_` prefix — `compression_
     // defaults_v1` is a preference and keeps its own category.
     if (key == 'compression_templates_v1' || key == 'compression_recipes_v1') {
       return BackupCategory.instructions;

@@ -1788,7 +1788,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get backupPageQuickPhrasesLabel => '빠른 문구';
 
   @override
-  String get backupPageInstructionsLabel => '프롬프트 주입';
+  String get backupPageInstructionsLabel => '프롬프트 라이브러리';
 
   @override
   String get backupPageWorkspacesLabel => '작업 공간';

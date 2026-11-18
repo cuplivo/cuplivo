@@ -1826,7 +1826,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backupPageQuickPhrasesLabel => 'Quick phrases';
 
   @override
-  String get backupPageInstructionsLabel => 'Prompt injections';
+  String get backupPageInstructionsLabel => 'Prompt library';
 
   @override
   String get backupPageWorkspacesLabel => 'Workspaces';

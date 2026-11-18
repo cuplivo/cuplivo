@@ -125,7 +125,10 @@ contradicts one of them is a bug, not a preference.
   blobs; every business entity kind — assistant, provider, MCP server, world book, quick
   phrase, memory entry, search/TTS service, instruction injection, tag, skill, user profile
   field, and **workspace** (its record; its files ride a face of their own, see Workspace
-  carriage); and the `syncedPreference` keys below.
+  carriage); and the `syncedPreference` keys below. A conversation also carries its **own**
+  families — its compression history, its image-context switches and pins, its compression
+  configuration, and the provider artifacts a native continuation needs — and the compression
+  library (templates and recipes) is a business kind like the world books.
 - **A workspace rides as a record, and — when managed — as files (工作区)**: the *record* (name,
   kind, bindings, position) is an ordinary entity row and travels like any other. A **managed**
   workspace's directory also travels, on its own file face and under its own rules (Workspace
@@ -133,6 +136,14 @@ contradicts one of them is a bug, not a preference.
   nothing on the peer, so its row is filtered out at the row level — the one entity kind with a
   per-row exclusion, and it has to stay that way, because a row that never entered the manifest
   cannot be read as a deletion.
+- **A family is a registration (家族登记)**: what crosses devices, how it enters a
+  conversation's identity, and which of its columns may reference a file are **one entry** in
+  `sync_family_registry.dart` — table, scope, kind filter, identity rule, blob columns, and
+  `synced` or `deviceLocal` *with a reason*. The subtree read, the payload's keys, the blob scan
+  and the digest all read that entry, so a family that starts travelling is an entry rather than
+  five edits; and a guard fails when the source grows an `extension_entity_rows` kind, or the
+  schema grows a table hanging off a conversation, that nobody registered. "Nobody said" is not
+  one of the two answers.
 - **Skill = record + directory blob**: a skill rides sync as two pieces — its entity
   record (LWW for settings) and its on-disk directory as one zip blob keyed by a directory
   hash (sha256 over sorted (relative path, file digest); the record's `updatedAt` does not
@@ -561,12 +572,18 @@ contradicts one of them is a bug, not a preference.
   by the same table — present on one side, newer clock, tie to the higher deviceId — and travel
   in the same batch, so one session moves a conversation and the assistant it references.
 - **What the plan compares**: each face's digest covers the whole state that face means. A
-  conversation's digest covers its message rows (`id:COALESCE(updated_at, timestamp)` lines), so
-  the conversation row's own clock is compared *alongside* it — otherwise a rename, a pin or a
-  version selection moves nothing the plan looks at and can never transfer. An entity's digest
-  covers its payload **and** the list position it occupies (`sort_order`), because a drag rewrites
-  every position while leaving every payload untouched. A preference has no position and hashes its
-  value alone.
+  conversation's digest is **composed from every synced family** — `id:clock` lines for its
+  messages, its parts and its provider artifacts, `server:ordinal` lines for its MCP bindings, and
+  `id:updated_at` lines for the compression history, the image context and the compression
+  configuration — with each family's **name** in the text, so two families contributing the same
+  lines cannot compose the same identity. A document is identified by its own clock rather than by
+  a digest of its payload, because the payload *is* the state: hashing it would make both sides
+  read it just to answer whether it changed, and the row's `updated_at` already answers that. The
+  conversation row's own clock is compared *alongside*
+  it, because a rename, a pin or a version selection moves nothing the digest looks at and could
+  never transfer. An entity's digest covers its payload **and** the list position it occupies
+  (`sort_order`), because a drag rewrites every position while leaving every payload untouched. A
+  preference has no position and hashes its value alone.
 - **Business rows carry their own clock**: an applied row keeps the peer's `updated_at`
   (never stamped with local time); that timestamp is what the next session compares. Deletions
   ride the per-peer checkpoint, as message deletions do.

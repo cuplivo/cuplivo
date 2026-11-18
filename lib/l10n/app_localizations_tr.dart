@@ -1834,7 +1834,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get backupPageQuickPhrasesLabel => 'Hızlı ifadeler';
 
   @override
-  String get backupPageInstructionsLabel => 'İstem enjeksiyonları';
+  String get backupPageInstructionsLabel => 'İstem kitaplığı';
 
   @override
   String get backupPageWorkspacesLabel => 'Çalışma alanları';
@@ -17425,6 +17425,15 @@ class AppLocalizationsTr extends AppLocalizations {
   String get recycleBinKindSkill => 'Beceri';
 
   @override
+  String get recycleBinKindCompressionHistory => 'Sıkıştırma geçmişi';
+
+  @override
+  String get recycleBinKindImageContext => 'Görsel bağlamı';
+
+  @override
+  String get recycleBinKindCompressionSettings => 'Sıkıştırma ayarları';
+
+  @override
   String get recycleBinKindConfig => 'Yapılandırma';
 
   @override
@@ -17472,6 +17481,10 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String get recycleBinRestoreNoWorkspace =>
       'Bu dosyanın çalışma alanı silinmiş, geri koyacak bir klasör yok.';
+
+  @override
+  String get recycleBinRestoreNoConversation =>
+      'Bu kaydın sohbeti silindiği için geri koyulacak bir yer yok.';
 
   @override
   String get recycleBinRestoreFailed => 'O öğe geri yüklenemedi';
@@ -17982,6 +17995,11 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String lanSyncReportRowsLost(Object n) {
     return '$n yerel kayıt, eşteki daha yeni sürümlerle değiştirildi (geri dönüşüm kutusundan kurtarılabilir)';
+  }
+
+  @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return '$n sohbetin sıkıştırma geçmişi, görsel bağlam ayarları veya sıkıştırma ayarları eşteki daha yeni sürümle değiştirildi';
   }
 
   @override

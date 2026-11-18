@@ -3448,10 +3448,10 @@ abstract class AppLocalizations {
   /// **'Quick phrases'**
   String get backupPageQuickPhrasesLabel;
 
-  /// Backup category label for prompt injections (instruction snippets).
+  /// Backup category label for the prompt material it carries: Instruction Injection cards, and the compression library’s summary templates and recipes. It must name the material, not one of the two features that write it.
   ///
   /// In en, this message translates to:
-  /// **'Prompt injections'**
+  /// **'Prompt library'**
   String get backupPageInstructionsLabel;
 
   /// Backup category label for workspaces.
@@ -30462,6 +30462,24 @@ abstract class AppLocalizations {
   /// **'Skill'**
   String get recycleBinKindSkill;
 
+  /// Recycle-bin label for a conversation's record of context operations (compressions and clears), which sync may replace with the peer's newer copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Compression history'**
+  String get recycleBinKindCompressionHistory;
+
+  /// Recycle-bin label for a conversation's pinned images and image-recall switches, which sync may replace with the peer's newer copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Image context'**
+  String get recycleBinKindImageContext;
+
+  /// Recycle-bin label for a conversation's own compression configuration, which sync may replace with the peer's newer copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Compression settings'**
+  String get recycleBinKindCompressionSettings;
+
   /// Fallback kind label for a recycle-bin entry whose stored type is not otherwise recognised.
   ///
   /// In en, this message translates to:
@@ -30545,6 +30563,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This file\'s workspace was deleted, so there is no folder to put it back into.'**
   String get recycleBinRestoreNoWorkspace;
+
+  /// Toast explaining that the entry belongs to a conversation that no longer exists, so the record has nowhere to go back to. Restoring the conversation from the bin brings it back.
+  ///
+  /// In en, this message translates to:
+  /// **'This entry\'s conversation was deleted, so there is nothing to put it back into.'**
+  String get recycleBinRestoreNoConversation;
 
   /// Toast shown when restoring a recycle-bin entry failed for any other reason.
   ///
@@ -31349,6 +31373,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{n} local rows replaced by newer versions on the peer (recoverable in the recycle bin)'**
   String lanSyncReportRowsLost(Object n);
+
+  /// Sync report count of conversations whose compression history, image-context switches or compression settings the peer's newer copy replaced. Each of those is stored as one whole record per conversation, so a divergence is settled by replacing the record, never by merging it field by field; n is a count of conversations, not of records.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} conversations\' compression history, image-context switches or compression settings replaced by the peer\'s newer copy'**
+  String lanSyncReportDocumentsReplaced(Object n);
 
   /// Sync report warning that the two devices' clocks differ, so the times of the sync cannot be trusted; n is the difference in minutes.
   ///

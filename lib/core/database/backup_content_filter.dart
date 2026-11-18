@@ -38,6 +38,17 @@ final class BackupContentFilter {
     if (key.startsWith('instruction_injection')) {
       return BackupCategory.instructions;
     }
+    // The compression library is a prompt library: a template is what the
+    // summariser is told, and a recipe is that template with the settings it was
+    // saved under. That makes the category broader than the one feature that
+    // named it, so its label names the material ("Prompt library") rather than
+    // Instruction Injection — a toggle that reads as one feature while restoring
+    // two is how a user overwrites a library they did not know it carried.
+    // Exact keys, not a `compression_` prefix — `compression_
+    // defaults_v1` is a preference and keeps its own category.
+    if (key == 'compression_templates_v1' || key == 'compression_recipes_v1') {
+      return BackupCategory.instructions;
+    }
     if (key.startsWith('search_')) return BackupCategory.searchServices;
     if (key.startsWith('tts_') || key.startsWith('asr_')) {
       return BackupCategory.speechServices;
@@ -62,14 +73,24 @@ final class BackupContentFilter {
     preferences: select(snapshot.preferences, scope),
   );
 
+  /// The archive's answer for every business kind: its own rows where the
+  /// archive speaks, the target's rows where it does not.
+  ///
+  /// [keepLocal] names the kinds the caller knows this archive cannot speak
+  /// about even though its settings half is otherwise authoritative — a kind
+  /// whose carrier moved after the archive was written. Those keep the rows
+  /// already there instead of the empty list a missing key routes to.
   static BusinessSnapshot preserveUnselected(
     BusinessSnapshot incoming,
     BusinessSnapshot local,
-    BackupScope scope,
-  ) => BusinessSnapshot(
+    BackupScope scope, {
+    Set<BusinessEntityKind> keepLocal = const {},
+  }) => BusinessSnapshot(
     entities: {
       for (final kind in BusinessEntityKind.values)
-        kind: scope.includes(categoryForKey(kind.sourceKey))
+        kind:
+            scope.includes(categoryForKey(kind.sourceKey)) &&
+                !keepLocal.contains(kind)
             ? incoming.entities[kind]!
             : local.entities[kind]!,
     },

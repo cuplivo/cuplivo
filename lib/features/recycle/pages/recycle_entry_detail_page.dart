@@ -690,6 +690,9 @@ class _RecycleEntryDetailPageState extends State<RecycleEntryDetailPage> {
       'world_book_rows' => l10n.recycleBinKindWorldBook,
       'assistant_memory_rows' ||
       'memory_entry_rows' => l10n.recycleBinKindMemory,
+      'conversationContext' => l10n.recycleBinKindCompressionHistory,
+      'conversationImageContext' => l10n.recycleBinKindImageContext,
+      'conversationCompression' => l10n.recycleBinKindCompressionSettings,
       _ => l10n.recycleBinKindConfig,
     },
   };

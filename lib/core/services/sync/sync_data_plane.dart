@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import '../../database/business_data.dart';
 import '../../database/business_preferences.dart';
 import '../../database/business_repository.dart';
@@ -9,6 +11,7 @@ import '../recycle/recycle_service.dart';
 import '../skills/skill_directory_sync.dart';
 import 'blob_sync.dart';
 import '../business_state_reloader.dart';
+import 'sync_family_registry.dart';
 import 'sync_merge.dart';
 import 'sync_models.dart';
 import 'workspace_content_sync.dart';
@@ -73,6 +76,17 @@ class SyncDataPlane {
   /// `BusinessEntityKind`.
   static String get skillWire => BusinessEntityKind.skill.wireName;
 
+  /// The two families this class still reads by name: the preference rows, which
+  /// travel beside the entity map rather than inside it, and the part rows, which
+  /// are what a landed asset reference hangs off.
+  static final SyncFamily _preferenceFamily = syncFamilyOfTable(
+    'preference_rows',
+  );
+  static final SyncFamily _messagePartFamily = syncFamilyOfTable(
+    'message_part_rows',
+  );
+  static final SyncFamily _messageFamily = syncFamilyOfTable('message_rows');
+
   /// Sentinel directory hash for a skill whose body this device does not have.
   /// It is a legal digest value, so it rides the ordinary combined digest and
   /// makes "record without body" compare unequal to any real directory hash.
@@ -83,10 +97,25 @@ class SyncDataPlane {
   /// Conversation, entity and preference state of this device, as a manifest.
   Future<SyncManifest> buildManifest() async {
     final refs = await repository.syncConversationRefs();
-    final digestInputs = await repository.syncMessageDigestInputs();
-    final byConversation = {
-      for (final row in digestInputs) row.conversationId: row,
-    };
+    // One query per travelling family, composed into each conversation's
+    // identity. Which families, and what each contributes, is the registration's
+    // answer — so a family that starts travelling enters the digest without this
+    // method naming it.
+    final contributions = <String, Map<String, String>>{};
+    final messageCounts = <String, int>{};
+    for (final family in syncedConversationFamilies) {
+      if (family.isSubtreeRoot ||
+          family.identity == SyncIdentityContribution.none) {
+        continue;
+      }
+      for (final input in await repository.syncFamilyDigestInputs(family)) {
+        (contributions[input.conversationId] ??= {})[family.name] =
+            input.digestInput;
+        if (family == _messageFamily) {
+          messageCounts[input.conversationId] = input.rowCount;
+        }
+      }
+    }
     final entityRefs = await businessRepository.syncEntityRefs();
     final preferenceRefs = await businessRepository.syncPreferenceRefs();
     // A skill's manifest digest combines its record payload with its directory
@@ -118,11 +147,10 @@ class SyncDataPlane {
         for (final ref in refs)
           ref.conversationId: SyncManifestEntry(
             updatedAtUs: ref.updatedAtUs,
-            messageCount: byConversation[ref.conversationId]?.messageCount ?? 0,
-            digest: switch (byConversation[ref.conversationId]) {
-              null => emptyConversationDigest,
-              final row => digestFromDigestInput(row.digestInput),
-            },
+            messageCount: messageCounts[ref.conversationId] ?? 0,
+            digest: composeConversationDigest(
+              contributions[ref.conversationId] ?? const {},
+            ),
           ),
       },
       entities: entities,
@@ -138,17 +166,24 @@ class SyncDataPlane {
   }
 
   /// One conversation as a wire subtree, or null when it no longer exists.
+  ///
+  /// Every family in [syncedConversationFamilies] is read, and nothing else is:
+  /// what a subtree carries is the registration's answer, so a family that
+  /// starts travelling is read here without touching this method.
   Future<SyncSubtreePayload?> readSubtree(String conversationId) async {
     final conversation = await repository.syncReadWireConversationRow(
       conversationId,
     );
     if (conversation == null) return null;
-    return SyncSubtreePayload(
-      conversation: conversation,
-      messages: await repository.syncReadMessageRows(conversationId),
-      parts: await repository.syncReadMessagePartRows(conversationId),
-      mcpServers: await repository.syncReadMcpServerRows(conversationId),
-    );
+    final families = <String, List<Map<String, dynamic>>>{};
+    for (final family in syncedConversationFamilies) {
+      if (family.isSubtreeRoot) continue;
+      families[family.name] = await repository.syncReadFamilyRows(
+        family,
+        conversationId,
+      );
+    }
+    return SyncSubtreePayload(conversation: conversation, families: families);
   }
 
   /// Whether a generation is writing to this conversation right now. Such a
@@ -169,6 +204,7 @@ class SyncDataPlane {
     return buildCheckpointConversation(
       conversationRow: conversation,
       messageRows: await repository.syncReadMessageRows(conversationId),
+      digest: await repository.syncConversationDigest(conversationId),
     );
   }
 
@@ -656,21 +692,40 @@ class SyncDataPlane {
     required List<SyncSubtreePayload> subtrees,
     required SyncBusinessPayload business,
   }) async {
-    final rows = <Map<String, dynamic>>[
-      for (final subtree in subtrees) ...[
-        subtree.conversation,
-        ...subtree.messages,
-        ...subtree.parts,
-        ...subtree.mcpServers,
-      ],
-      for (final entityRows in business.entities.values) ...entityRows,
-      ...business.preferences,
-    ];
-    final entries = await buildFileBlobEntries(
-      kelivoFileUrisInRows(rows),
+    final uris = <String>{};
+    for (final subtree in subtrees) {
+      for (final family in syncedConversationFamilies) {
+        uris.addAll(
+          kelivoFileUrisInRows(
+            subtree.rowsOf(family),
+            columns: family.blobColumns,
+          ),
+        );
+      }
+    }
+    for (final family in syncedBusinessFamilies) {
+      final rows = family == _preferenceFamily
+          ? business.preferences
+          : (business.entities[family.kind ?? family.table] ?? const []);
+      uris.addAll(kelivoFileUrisInRows(rows, columns: family.blobColumns));
+    }
+    final files = await buildFileBlobEntries(
+      uris,
       fileHasher,
       resolve: blobPathResolver,
     );
+    if (files.missing.isNotEmpty) {
+      // The sender's own window already shows these files as unavailable; what
+      // this line adds is that the reference travelled and the bytes did not,
+      // with the URIs — so a missing blob is a fact in the log rather than a
+      // file the peer never asked for. The card's `blobsMissing` is the
+      // receiver's half of the same story.
+      debugPrint(
+        'sync blob: ${files.missing.length} referenced files cannot be served '
+        'here: ${files.missing.take(5).join(', ')}',
+      );
+    }
+    final entries = <SyncBlobEntry>[...files.entries];
     // One directory entry per skill record being sent: the receiver verifies
     // its re-hash against this value before swapping the directory in.
     final sentSkillIds = {
@@ -761,7 +816,7 @@ class SyncDataPlane {
       final revisions = outcomes[conversationId]?.appliedRevisionIds;
       if (revisions == null || revisions.isEmpty) continue;
       final byRevision = <String, List<({String uri, String kind})>>{};
-      for (final part in subtree.parts) {
+      for (final part in subtree.rowsOf(_messagePartFamily)) {
         final revisionId = part['revision_id'];
         final payload = part['payload'];
         if (revisionId is! String || payload is! String) continue;

@@ -1826,7 +1826,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backupPageQuickPhrasesLabel => 'Quick phrases';
 
   @override
-  String get backupPageInstructionsLabel => 'Prompt injections';
+  String get backupPageInstructionsLabel => 'Prompt library';
 
   @override
   String get backupPageWorkspacesLabel => 'Workspaces';
@@ -17327,6 +17327,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recycleBinKindSkill => 'Skill';
 
   @override
+  String get recycleBinKindCompressionHistory => 'Compression history';
+
+  @override
+  String get recycleBinKindImageContext => 'Image context';
+
+  @override
+  String get recycleBinKindCompressionSettings => 'Compression settings';
+
+  @override
   String get recycleBinKindConfig => 'Configuration';
 
   @override
@@ -17373,6 +17382,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get recycleBinRestoreNoWorkspace =>
       'This file\'s workspace was deleted, so there is no folder to put it back into.';
+
+  @override
+  String get recycleBinRestoreNoConversation =>
+      'This entry\'s conversation was deleted, so there is nothing to put it back into.';
 
   @override
   String get recycleBinRestoreFailed => 'Could not restore that entry';
@@ -17883,6 +17896,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String lanSyncReportRowsLost(Object n) {
     return '$n local rows replaced by newer versions on the peer (recoverable in the recycle bin)';
+  }
+
+  @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return '$n conversations\' compression history, image-context switches or compression settings replaced by the peer\'s newer copy';
   }
 
   @override

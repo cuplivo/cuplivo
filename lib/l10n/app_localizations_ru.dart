@@ -1858,7 +1858,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get backupPageQuickPhrasesLabel => 'Быстрые фразы';
 
   @override
-  String get backupPageInstructionsLabel => 'Внедрения промптов';
+  String get backupPageInstructionsLabel => 'Библиотека промптов';
 
   @override
   String get backupPageWorkspacesLabel => 'Рабочие области';
@@ -17618,6 +17618,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get recycleBinKindSkill => 'Навык';
 
   @override
+  String get recycleBinKindCompressionHistory => 'История сжатия';
+
+  @override
+  String get recycleBinKindImageContext => 'Контекст изображений';
+
+  @override
+  String get recycleBinKindCompressionSettings => 'Настройки сжатия';
+
+  @override
   String get recycleBinKindConfig => 'Конфигурация';
 
   @override
@@ -17664,6 +17673,10 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get recycleBinRestoreNoWorkspace =>
       'Рабочая область этого файла удалена, возвращать его некуда.';
+
+  @override
+  String get recycleBinRestoreNoConversation =>
+      'Диалог, к которому относится эта запись, удалён — возвращать её некуда.';
 
   @override
   String get recycleBinRestoreFailed => 'Не удалось восстановить запись';
@@ -18175,6 +18188,11 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String lanSyncReportRowsLost(Object n) {
     return 'Заменено более новыми записями с другого устройства: $n (можно вернуть в корзине)';
+  }
+
+  @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return 'Заменено более новой версией с другого устройства: история сжатия, настройки контекста изображений или настройки сжатия $n диалогов';
   }
 
   @override

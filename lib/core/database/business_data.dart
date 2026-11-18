@@ -52,6 +52,22 @@ enum BusinessEntityKind {
   userProfileField(
     sourceKey: 'user_profile_fields_v1',
     tableName: 'user_profile_field_rows',
+  ),
+  // The compression library: a template is a prompt the user wrote for the
+  // summariser, a recipe is that template plus the settings it was saved with.
+  // Both are global — shared by every conversation that names one — so they
+  // belong beside the world books rather than inside a conversation's subtree,
+  // and a new device that lacks a template its conversations reference shows
+  // `compressionTemplateMissing` for no reason the user can act on.
+  compressionTemplate(
+    sourceKey: 'compression_templates_v1',
+    tableName: 'extension_entity_rows',
+    extensionKind: 'compressionTemplate',
+  ),
+  compressionRecipe(
+    sourceKey: 'compression_recipes_v1',
+    tableName: 'extension_entity_rows',
+    extensionKind: 'compressionRecipe',
   );
 
   const BusinessEntityKind({

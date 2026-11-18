@@ -1788,7 +1788,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get backupPageQuickPhrasesLabel => '빠른 문구';
 
   @override
-  String get backupPageInstructionsLabel => '프롬프트 주입';
+  String get backupPageInstructionsLabel => '프롬프트 라이브러리';
 
   @override
   String get backupPageWorkspacesLabel => '작업 공간';
@@ -16797,6 +16797,15 @@ class AppLocalizationsKo extends AppLocalizations {
   String get recycleBinKindSkill => '스킬';
 
   @override
+  String get recycleBinKindCompressionHistory => '압축 기록';
+
+  @override
+  String get recycleBinKindImageContext => '이미지 컨텍스트';
+
+  @override
+  String get recycleBinKindCompressionSettings => '압축 설정';
+
+  @override
   String get recycleBinKindConfig => '구성';
 
   @override
@@ -16837,6 +16846,10 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get recycleBinRestoreNoWorkspace => '이 파일의 작업 공간이 삭제되어 되돌릴 폴더가 없어요.';
+
+  @override
+  String get recycleBinRestoreNoConversation =>
+      '이 항목의 대화가 삭제되어 되돌려 놓을 곳이 없습니다.';
 
   @override
   String get recycleBinRestoreFailed => '이 항목을 복원하지 못했어요';
@@ -17336,6 +17349,11 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String lanSyncReportRowsLost(Object n) {
     return '상대 기기의 최신 버전으로 대체된 로컬 기록 $n개(휴지통에서 복원 가능)';
+  }
+
+  @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return '상대 기기의 최신 버전으로 대체된 대화 $n개의 압축 기록, 이미지 컨텍스트 설정 또는 압축 설정';
   }
 
   @override

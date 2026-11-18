@@ -844,7 +844,7 @@
   "backupPageWorldBooksLabel": "World books",
   "backupPageMemoriesLabel": "Memories",
   "backupPageQuickPhrasesLabel": "Quick phrases",
-  "backupPageInstructionsLabel": "Prompt injections",
+  "backupPageInstructionsLabel": "Prompt library",
   "backupPageWorkspacesLabel": "Workspaces",
   "backupPageSearchServicesLabel": "Search services",
   "backupPageSpeechServicesLabel": "Speech services",
@@ -9942,7 +9942,7 @@
     "description": "Backup category label for quick phrases."
   },
   "@backupPageInstructionsLabel": {
-    "description": "Backup category label for prompt injections (instruction snippets)."
+    "description": "Backup category label for the prompt material it carries: Instruction Injection cards, and the compression library\u2019s summary templates and recipes. It must name the material, not one of the two features that write it."
   },
   "@backupPageWorkspacesLabel": {
     "description": "Backup category label for workspaces."
@@ -22504,6 +22504,18 @@
   "@recycleBinKindSkill": {
     "description": "Kind label on a recycle-bin entry that is a skill — an installed skill's folder of files, deleted as one item."
   },
+  "recycleBinKindCompressionHistory": "Compression history",
+  "@recycleBinKindCompressionHistory": {
+    "description": "Recycle-bin label for a conversation's record of context operations (compressions and clears), which sync may replace with the peer's newer copy."
+  },
+  "recycleBinKindImageContext": "Image context",
+  "@recycleBinKindImageContext": {
+    "description": "Recycle-bin label for a conversation's pinned images and image-recall switches, which sync may replace with the peer's newer copy."
+  },
+  "recycleBinKindCompressionSettings": "Compression settings",
+  "@recycleBinKindCompressionSettings": {
+    "description": "Recycle-bin label for a conversation's own compression configuration, which sync may replace with the peer's newer copy."
+  },
   "recycleBinKindConfig": "Configuration",
   "@recycleBinKindConfig": {
     "description": "Fallback kind label for a recycle-bin entry whose stored type is not otherwise recognised."
@@ -22559,6 +22571,10 @@
   "recycleBinRestoreNoWorkspace": "This file's workspace was deleted, so there is no folder to put it back into.",
   "@recycleBinRestoreNoWorkspace": {
     "description": "Toast explaining that the entry's workspace folder no longer exists, so there is nowhere to put the file back."
+  },
+  "recycleBinRestoreNoConversation": "This entry's conversation was deleted, so there is nothing to put it back into.",
+  "@recycleBinRestoreNoConversation": {
+    "description": "Toast explaining that the entry belongs to a conversation that no longer exists, so the record has nowhere to go back to. Restoring the conversation from the bin brings it back."
   },
   "recycleBinRestoreFailed": "Could not restore that entry",
   "@recycleBinRestoreFailed": {
@@ -23095,6 +23111,10 @@
   "lanSyncReportRowsLost": "{n} local rows replaced by newer versions on the peer (recoverable in the recycle bin)",
   "@lanSyncReportRowsLost": {
     "description": "Sync report count of local records replaced by newer versions from the other device, noting they can be recovered from the recycle bin; n is that count."
+  },
+  "lanSyncReportDocumentsReplaced": "{n} conversations' compression history, image-context switches or compression settings replaced by the peer's newer copy",
+  "@lanSyncReportDocumentsReplaced": {
+    "description": "Sync report count of conversations whose compression history, image-context switches or compression settings the peer's newer copy replaced. Each of those is stored as one whole record per conversation, so a divergence is settled by replacing the record, never by merging it field by field; n is a count of conversations, not of records."
   },
   "lanSyncReportClockSkew": "Clocks differ by ~{n} min — fix the device clock, then sync again",
   "@lanSyncReportClockSkew": {

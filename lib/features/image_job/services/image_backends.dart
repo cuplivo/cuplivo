@@ -61,8 +61,6 @@ final class ImageGenerationRequest {
   final List<ImageReference> references;
 
   bool get hasReferences => references.isNotEmpty;
-
-  bool get wantsAutoRatio => aspectRatio == null || aspectRatio == 'auto';
 }
 
 /// The bytes, plus what they are.

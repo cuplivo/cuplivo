@@ -3,18 +3,22 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:Cuplivo/core/services/sync/sync_admission.dart';
+import 'package:Cuplivo/core/services/sync/sync_client.dart';
 import 'package:Cuplivo/core/services/sync/sync_identity.dart';
 import 'package:Cuplivo/core/services/sync/sync_models.dart';
 import 'package:Cuplivo/core/services/sync/sync_server.dart';
 import 'package:Cuplivo/core/services/sync/sync_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// The lanes one listener serves, and what may run beside what.
+/// The lanes one listener serves, what may run beside what, and what a request's
+/// budget is spent on at both ends.
 ///
 /// These cells use a real [SyncServer] over loopback TLS and a handler that
 /// answers instantly, so what they measure is the *lane*, not an engine: a
 /// request whose body never finishes arriving holds the write lane for as long
-/// as the test likes, and every other request is observed against that.
+/// as the test likes, and every other request is observed against that. The last
+/// cell turns the same trick around: a peer that accepts a push and never reads
+/// it is what a transfer budget is for.
 ///
 /// The engine-level halves of the same table (a ring of three devices, a
 /// cancelled handler that must not write) live in
@@ -306,6 +310,74 @@ void main() {
       handler.helloGateLostWhenReleased,
       isTrue,
       reason: 'the handler must be able to see that its budget is gone',
+    );
+  });
+
+  test('a push the peer never reads ends inside its budget', () async {
+    // The client's half of the same defect. `addStream` sat outside every timer,
+    // so a peer that accepted a push and stopped reading left the upload (and
+    // the session behind it) pending forever. The budget belongs to the whole
+    // transfer, and the request is aborted when it runs out — a `.timeout` alone
+    // leaves the socket open for the next request to queue behind.
+    final peer = await HttpServer.bindSecure(
+      InternetAddress.loopbackIPv4,
+      0,
+      identity.buildContext(),
+      requestClientCertificate: false,
+    );
+    addTearDown(() => peer.close(force: true));
+    // Accepted and never read: this is the peer that stops reading, and the
+    // socket's own buffers are what the client gets to fill.
+    peer.listen((request) {});
+
+    final directory = await Directory.systemTemp.createTemp('sync-push-');
+    addTearDown(() => directory.delete(recursive: true));
+    final payload = File('${directory.path}${Platform.pathSeparator}x.bin');
+    await payload.writeAsBytes(List.filled(32 * 1024 * 1024, 7));
+
+    final session = SyncClient(identity: identity).openSession(
+      SyncPeerRecord(
+        deviceId: identity.deviceId,
+        certPem: identity.certPem,
+        secret: secret,
+        name: 'self',
+        platform: 'test',
+      ),
+      host: '127.0.0.1',
+      port: peer.port,
+      blobDeadline: const Duration(milliseconds: 500),
+    );
+    addTearDown(session.close);
+
+    final watch = Stopwatch()..start();
+    Object? failure;
+    try {
+      await session
+          .pushBlob(
+            entry: SyncBlobEntry(
+              kind: SyncBlobEntry.kindFile,
+              key: 'file:///managed/x.bin',
+              contentHash: blobHash,
+              byteSize: 32 * 1024 * 1024,
+            ),
+            source: payload,
+            size: 32 * 1024 * 1024,
+          )
+          .timeout(const Duration(seconds: 10));
+    } catch (error) {
+      failure = error;
+    }
+    watch.stop();
+
+    expect(
+      failure,
+      isA<SyncClientException>(),
+      reason: 'the transfer must end by its own budget, not hang',
+    );
+    expect(
+      watch.elapsed,
+      lessThan(const Duration(seconds: 5)),
+      reason: 'and end near the budget it was given',
     );
   });
 }

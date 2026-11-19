@@ -7,6 +7,7 @@ import 'package:archive/archive_io.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../utils/app_directories.dart';
+import 'backup_archive_naming.dart';
 
 /// Finds retained data without moving, opening or deleting any candidate.
 /// Restrict traversal to data roots, snapshot folders and app-local trash.
@@ -18,10 +19,13 @@ abstract final class RecoveryFileDiscovery {
     caseSensitive: false,
   ).hasMatch(name);
 
-  static bool isSnapshotArchive(String name) => RegExp(
-    r'^(?:kelivo-snapshot-|kelivo_backup_).+\.zip$',
-    caseSensitive: false,
-  ).hasMatch(name);
+  /// A local snapshot, or an archive any build wrote — both archive prefixes.
+  static bool isSnapshotArchive(String name) {
+    final lower = name.toLowerCase();
+    return lower.endsWith('.zip') &&
+        (lower.startsWith('kelivo-snapshot-') ||
+            BackupArchiveNaming.isReadable(lower));
+  }
 
   static bool isDatabaseCopy(String name) =>
       !_databaseSidecars.any(name.endsWith) &&
@@ -227,7 +231,7 @@ abstract final class RecoveryFileDiscovery {
                   name.startsWith('database_installation_receipt_') ||
                   name.startsWith('.kelivo_database_history') ||
                   name.endsWith('.hive') ||
-                  name.startsWith('kelivo_backup_'))) {
+                  BackupArchiveNaming.isReadable(name))) {
             return true;
           }
           if (entry is Directory &&

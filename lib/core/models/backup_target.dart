@@ -5,25 +5,43 @@
 /// vocabulary is not merely unable to use it — `BusinessSettingsRouter`'s row-id
 /// routing throws `FormatException` on an entity source key it has no kind for,
 /// which fails the restore *after* every compatibility check on the archive has
-/// passed. That is what made a Cuplivo backup unreadable to Kelivo v1.3.4 once
-/// `group_chats_v1` was added: neither the archive format nor the database
-/// schema moved, so nothing declined the archive on its way in.
+/// passed. That is what made a Cuplivo backup unreadable to Kelivo (every
+/// release from v1.3.2 to the v1.3.6 baseline) once `group_chats_v1` was added:
+/// neither the archive format nor the database schema moved, so nothing declined
+/// the archive on its way in.
 ///
 /// The numbers are data, one constant per release and never edited in place, so
 /// an archive written for one release keeps its meaning when the next one is
 /// pinned beside it. Generate a new one from that release's own tree —
 /// `git show <kelivo-tag>:lib/core/database/business_data.dart` for the source
-/// keys and `.../lib/core/models/backup_scope.dart` for the categories — and let
+/// keys, `.../lib/core/models/backup_scope.dart` for the categories, and
+/// `.../lib/core/database/app_database.dart` for the schema — and let
 /// `test/core/database/kelivo_vocabulary_test.dart` hold the line.
 final class KelivoVocabulary {
   const KelivoVocabulary._({
+    required this.release,
     required this.archiveFormatVersion,
+    required this.schemaVersion,
     required this.entitySourceKeys,
     required this.categories,
   });
 
+  /// The release this constant was read from, and the floor the target's label
+  /// names. The label is built from it, so it cannot say a version the pin does
+  /// not hold.
+  final String release;
+
   /// The newest archive format that release reads.
   final int archiveFormatVersion;
+
+  /// The SQL schema that release opens.
+  ///
+  /// The target stamps every archive with the schema this build writes, so a
+  /// release below this number can never restore one. It is the axis
+  /// `kelivo_vocabulary_test.dart` asserts against
+  /// `AppDatabase.currentSchemaVersion`: a schema bump makes the label false
+  /// unless the floor moves with it.
+  final int schemaVersion;
 
   /// Every `BusinessEntityKind.sourceKey` that release knows.
   final Set<String> entitySourceKeys;
@@ -33,10 +51,19 @@ final class KelivoVocabulary {
 
   bool knowsSourceKey(String key) => entitySourceKeys.contains(key);
 
-  /// Kelivo v1.3.4 (`4a7da9b6f`, 2026-11-02): the baseline this line sits on,
-  /// and the release a Cuplivo user would go back to.
-  static const v1_3_4 = KelivoVocabulary._(
+  /// Kelivo v1.3.2 (`b1702b3a9`, 2026-10-26): the floor of the Kelivo target,
+  /// and the first release that opens schema 5. v1.3.1 (`4742d2e28`) is at
+  /// schema 3, so it cannot restore a database this build writes.
+  ///
+  /// A floor is also a range, and the range was measured rather than assumed:
+  /// every release from v1.3.2 to the v1.3.6 baseline (`c2b48958d`) carries
+  /// these same entity keys and categories at archive format 3 — `git diff` of
+  /// `business_data.dart` and `backup_scope.dart` is empty across the whole
+  /// window — so an archive built for this vocabulary imports into any of them.
+  static const v1_3_2 = KelivoVocabulary._(
+    release: '1.3.2',
     archiveFormatVersion: 3,
+    schemaVersion: 5,
     entitySourceKeys: {
       'assistants_v1',
       'provider_configs_v1',
@@ -84,8 +111,9 @@ enum BackupTarget {
   /// This build: every kind, and the current archive format.
   cuplivo(null),
 
-  /// The last Kelivo release, for a user taking their data back.
-  kelivoV1_3_4(KelivoVocabulary.v1_3_4);
+  /// The Kelivo line, written for the floor release [KelivoVocabulary.v1_3_2]
+  /// names — and therefore readable by every release from there on.
+  kelivo(KelivoVocabulary.v1_3_2);
 
   const BackupTarget(this.vocabulary);
 
@@ -95,6 +123,10 @@ enum BackupTarget {
   bool knowsSourceKey(String key) => vocabulary?.knowsSourceKey(key) ?? true;
 
   static BackupTarget? fromName(Object? name) {
+    // 4.7.0 persisted the release inside the token. That choice was "the Kelivo
+    // target", not "v1.3.4", so it must not read back as [cuplivo]: the next
+    // archive would then carry group chats and stop importing there.
+    if (name == 'kelivoV1_3_4') return kelivo;
     for (final target in values) {
       if (target.name == name) return target;
     }

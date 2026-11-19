@@ -47,6 +47,7 @@ import 'restore_workspace_lock.dart';
 import 'restore_business_lease.dart';
 import 'backup_staging.dart';
 import 'backup_partials.dart';
+import 'backup_archive_naming.dart';
 import 'backup_cancel_token.dart';
 import 'backup_encryption.dart';
 import 'backup_isolate_runner.dart';
@@ -832,11 +833,14 @@ class DataSync {
   }) async {
     await BackupStaging.sweep();
     final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+    // The archive is named for the reader it is written for; a crash leaves a
+    // staging directory with the same name, swept by the same prefix rule.
+    final archiveName = BackupArchiveNaming.fileNameFor(target, timestamp);
     final workDir = await BackupStaging.createDirectory(
-      'kelivo_backup_$timestamp',
+      p.basenameWithoutExtension(archiveName),
     );
 
-    final outPath = p.join(workDir.path, 'kelivo_backup_$timestamp.zip');
+    final outPath = p.join(workDir.path, archiveName);
     final outFile = File(outPath);
     if (await outFile.exists()) await outFile.delete();
 
@@ -2004,23 +2008,11 @@ class DataSync {
         continue;
       }
 
-      // If mtime is null, try to extract from filename (format: kelivo_backup_2025-01-19T12-34-56.123456.zip)
+      // If mtime is null, try to extract it from the name — the writer stamps
+      // it as `cuplivo_backup_2025-01-19T12-34-56.123456.zip` (or the Kelivo
+      // prefix), and both prefixes parse.
       if (!partialsOnly && mtime == null) {
-        final match = RegExp(
-          r'kelivo_backup_(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d+)\.(?:zip|kbackup)',
-        ).firstMatch(name);
-        if (match != null) {
-          try {
-            // Replace hyphens in time part back to colons
-            final timestamp = match
-                .group(1)!
-                .replaceAll(
-                  RegExp(r'T(\d{2})-(\d{2})-(\d{2})'),
-                  'T\$1:\$2:\$3',
-                );
-            mtime = DateTime.parse(timestamp);
-          } catch (_) {}
-        }
+        mtime = BackupArchiveNaming.timestampFromFileName(name);
       }
 
       // Skip directories

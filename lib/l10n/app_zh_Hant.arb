@@ -545,7 +545,7 @@
   "backupPageTargetTitle": "備份目標",
   "backupPageTargetCuplivo": "Cuplivo",
   "backupPageTargetCuplivoNote": "目前版本可還原的全部內容，含群組聊天",
-  "backupPageTargetKelivo": "Kelivo 1.3.4",
+  "backupPageTargetKelivo": "Kelivo {version}+",
   "backupPageTargetKelivoNote": "可在 Kelivo 中匯入，但會遺失群組聊天資料",
   "backupPageBackupManagementDescription": "選擇備份和匯入的內容，適用於本機、WebDAV 和 S3。匯入時保留未選取的內容。技能和工作區包含各自的檔案。",
   "backupPageAssistantsLabel": "助手",

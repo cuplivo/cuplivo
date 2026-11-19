@@ -25,6 +25,7 @@ import 'package:Cuplivo/core/database/business_restore_service.dart';
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
 import 'package:Cuplivo/core/database/schema_migrations.dart';
 import 'package:Cuplivo/core/services/backup/backup_archive_format.dart';
+import 'package:Cuplivo/core/services/backup/backup_archive_naming.dart';
 import 'package:Cuplivo/core/models/backup.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
@@ -3529,7 +3530,7 @@ void main() {
     test('a Kelivo-target export names no entity key that release lacks', () async {
       // The reverse direction, which every other test in this tree leaves out:
       // Cuplivo restores its own archives, so a key the fork adds round-trips
-      // perfectly and only breaks on the older reader. Kelivo v1.3.4 throws
+      // perfectly and only breaks on the older reader. Kelivo v1.3.2 throws
       // FormatException on `group_chats_v1` in its row-id routing, after every
       // compatibility check on the archive has passed.
       final forThisBuild = await DataSync.exportBusinessSettingsFrom(
@@ -3537,7 +3538,7 @@ void main() {
       );
       final forKelivo = await DataSync.exportBusinessSettingsFrom(
         businessRepository,
-        target: BackupTarget.kelivoV1_3_4,
+        target: BackupTarget.kelivo,
       );
 
       // The guard is only a guard if the key is really there without it.
@@ -3557,7 +3558,7 @@ void main() {
       expect(forKelivo.entityRowIds.keys, contains('assistants_v1'));
       expect(
         forKelivo.entityRowIds.keys.toSet().difference(
-          KelivoVocabulary.v1_3_4.entitySourceKeys,
+          KelivoVocabulary.v1_3_2.entitySourceKeys,
         ),
         isEmpty,
       );
@@ -3571,8 +3572,14 @@ void main() {
               businessRepository: businessRepository,
               chatService: ChatService(),
             ).exportToFile(
-              _withoutChatsOrAssets.copyWith(target: BackupTarget.kelivoV1_3_4),
+              _withoutChatsOrAssets.copyWith(target: BackupTarget.kelivo),
             );
+        // The name carries the reader too: a departing user picks the file they
+        // can take back, and the extension is all either app lists by.
+        expect(
+          p.basename(zipFile.path),
+          startsWith(BackupArchiveNaming.kelivoPrefix),
+        );
         final archive = ZipDecoder().decodeBytes(await zipFile.readAsBytes());
         final manifest =
             jsonDecode(
@@ -3592,6 +3599,18 @@ void main() {
         );
       },
     );
+
+    test('a Cuplivo-target export is named for this build', () async {
+      final zipFile = await DataSync(
+        businessRepository: businessRepository,
+        chatService: ChatService(),
+      ).exportToFile(_withoutChatsOrAssets);
+      addTearDown(() => DataSync.cleanupTemporaryBackupFile(zipFile));
+      expect(
+        p.basename(zipFile.path),
+        startsWith(BackupArchiveNaming.cuplivoPrefix),
+      );
+    });
 
     test('accepts a newer settings-only backup with unknown entries', () async {
       // A settings-only backup carries no database block at all, so a

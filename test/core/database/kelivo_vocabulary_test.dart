@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:Cuplivo/core/database/app_database.dart';
 import 'package:Cuplivo/core/database/business_data.dart';
 import 'package:Cuplivo/core/database/kelivo_vocabulary.dart';
-import 'package:Cuplivo/core/models/backup_scope.dart';
-import 'package:Cuplivo/core/models/backup_target.dart';
+import 'package:Cuplivo/core/models/backup.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/services/backup/backup_archive_format.dart';
 
@@ -19,19 +19,19 @@ import 'package:Cuplivo/core/services/backup/backup_archive_format.dart';
 /// which readers the archive is for. These tests make that decision unavoidable:
 /// a new kind fails here until someone writes down what happens to it.
 void main() {
-  final pinned = KelivoVocabulary.v1_3_4;
+  final pinned = KelivoVocabulary.v1_3_2;
 
   test('every business kind is readable by the pinned release or dispositioned', () {
-    final unreadable = unreadableEntitySourceKeys(BackupTarget.kelivoV1_3_4);
+    final unreadable = unreadableEntitySourceKeys(BackupTarget.kelivo);
 
     expect(
       unreadable,
       unreadableKindDispositions.keys.toSet(),
       reason:
-          'A BusinessEntityKind that Kelivo v1.3.4 cannot read must be listed in '
-          'unreadableKindDispositions with what its users lose. Adding a kind '
-          'without an entry here is how #1052 shipped a backup no Kelivo build '
-          'could restore (the manifest named group_chats_v1 and '
+          'A BusinessEntityKind that Kelivo ${pinned.release} cannot read must be '
+          'listed in unreadableKindDispositions with what its users lose. Adding '
+          'a kind without an entry here is how #1052 shipped a backup no Kelivo '
+          'build could restore (the manifest named group_chats_v1 and '
           'BusinessSettingsRouter threw on it), and no gate noticed.',
     );
   });
@@ -41,7 +41,7 @@ void main() {
     // stored in its own table would instead leave a table the older reader
     // rejects structurally, which is a different repair than this one — so the
     // sanitizer refuses such a kind instead of silently keeping its rows.
-    final unreadable = unreadableEntitySourceKeys(BackupTarget.kelivoV1_3_4);
+    final unreadable = unreadableEntitySourceKeys(BackupTarget.kelivo);
     for (final kind in BusinessEntityKind.values) {
       if (!unreadable.contains(kind.sourceKey)) continue;
       expect(droppableExtensionKind(kind), kind.extensionKind);
@@ -53,7 +53,7 @@ void main() {
   });
 
   test('the link strip follows the table, not one hardcoded kind', () {
-    final unreadable = unreadableEntitySourceKeys(BackupTarget.kelivoV1_3_4);
+    final unreadable = unreadableEntitySourceKeys(BackupTarget.kelivo);
     final dropped = [
       for (final kind in BusinessEntityKind.values)
         if (unreadable.contains(kind.sourceKey)) kind,
@@ -80,7 +80,8 @@ void main() {
         {'group_chats_v1'},
         reason:
             'Update KelivoVocabulary with a new frozen constant for a newer '
-            'Kelivo release rather than editing v1_3_4 in place.',
+            'Kelivo release rather than editing v1_3_2 in place, and move the '
+            'label floor with it.',
       );
     },
   );
@@ -100,6 +101,54 @@ void main() {
         reason:
             '${target.name} declares archive format '
             '${vocabulary.archiveFormatVersion}, which this build cannot write.',
+      );
+    }
+  });
+
+  test('this build writes no schema the floor release cannot open', () {
+    // The one axis the pin did not carry. The Kelivo target stamps every
+    // archive with the schema this build writes, so the day that number moves
+    // past what the floor release opens, the label "${pinned.release}+" becomes
+    // false — for every archive the target writes, not just the ones with new
+    // content. The failure is the decision point: keep writing the pinned
+    // schema, move the floor (and the label, which is derived from it), or
+    // retire the target.
+    expect(
+      AppDatabase.currentSchemaVersion,
+      lessThanOrEqualTo(pinned.schemaVersion),
+      reason:
+          'The Kelivo target writes schema ${AppDatabase.currentSchemaVersion}, '
+          'which Kelivo ${pinned.release} (schema ${pinned.schemaVersion}) '
+          'cannot open. Raising pinned.schemaVersion alone would make the '
+          'label lie: a floor release must open every schema this build writes.',
+    );
+  });
+
+  test('the label floor is derived from the pin, not restated in the UI', () {
+    // The tile builds its row from this string; 4.7.0 shipped a literal that
+    // stopped at 1.3.4 while the archive worked through 1.3.6. Asserting the
+    // pin's release here keeps the label honest without pinning the ARB text.
+    expect(pinned.release, '1.3.2');
+    expect(BackupTarget.kelivo.vocabulary, same(pinned));
+  });
+
+  test('the token 4.7.0 persisted still reads as the Kelivo target', () {
+    // 4.7.0 wrote `target.name`, which was `kelivoV1_3_4`, into every WebDAV and
+    // S3 config. An unrecognised token falls back to cuplivo, so without the
+    // alias the user's standing choice would silently flip and their next
+    // backup would gain the group chats Kelivo cannot read.
+    expect(BackupTarget.fromName('kelivoV1_3_4'), BackupTarget.kelivo);
+    for (final target in BackupTarget.values) {
+      expect(BackupTarget.fromName(target.name), target);
+      expect(
+        WebDavConfig.fromJsonString(
+          WebDavConfig(target: target).toJsonString(),
+        ).target,
+        target,
+      );
+      expect(
+        S3Config.fromJsonString(S3Config(target: target).toJsonString()).target,
+        target,
       );
     }
   });
@@ -125,7 +174,7 @@ void main() {
 
     final kept = withoutUnreadableEntityKeys(<String, Object>{
       for (final key in {...entityKeys, ...otherKeys}) key: key,
-    }, BackupTarget.kelivoV1_3_4);
+    }, BackupTarget.kelivo);
 
     expect(kept.keys, isNot(contains('group_chats_v1')));
     // Preference keys are not entity keys: they must survive untouched, or the

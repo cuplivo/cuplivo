@@ -3382,11 +3382,11 @@ abstract class AppLocalizations {
   /// **'Everything this version can restore, group chats included'**
   String get backupPageTargetCuplivoNote;
 
-  /// Backup target option: an archive Kelivo 1.3.4 can import.
+  /// Backup target option: an archive every Kelivo release from {version} on can import.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo 1.3.4'**
-  String get backupPageTargetKelivo;
+  /// **'Kelivo {version}+'**
+  String backupPageTargetKelivo(String version);
 
   /// One-line explanation under the Kelivo backup target: it imports there, but group chats are not in it.
   ///

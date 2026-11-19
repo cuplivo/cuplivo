@@ -108,6 +108,10 @@ class _SuccessBreakdown extends StatelessWidget {
     // a workspace file that could not be fetched is owed by the same rule.
     final withheld =
         report.deferred > 0 ||
+        // A conversation this device left out of the push is owed to the next
+        // round exactly like a deferred one; it has its own count only because
+        // the reason is different.
+        report.conversationsOmittedForSize > 0 ||
         report.blobsMissing > 0 ||
         report.workspaceFilesMissing > 0 ||
         // A deletion this device planned and the local edit beat: the row the
@@ -241,6 +245,17 @@ class _SuccessBreakdown extends StatelessWidget {
         (
           Lucide.Folder,
           l10n.lanSyncReportWorkspacesOmitted(report.workspacesOmitted),
+        ),
+      // A conversation the push budget left behind: nothing was deleted, but it
+      // is not syncing either, and making it smaller is the user's move — so it
+      // is named rather than folded into the deferred count, which waits on a
+      // generation to stop.
+      if (report.conversationsOmittedForSize > 0)
+        (
+          Lucide.Hourglass,
+          l10n.lanSyncReportConversationsOmittedForSize(
+            report.conversationsOmittedForSize,
+          ),
         ),
       // A folder something protected from a peer-driven deletion is a fact the
       // user has to be told: the workspace is gone from the app, and its files

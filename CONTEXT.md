@@ -568,6 +568,18 @@ contradicts one of them is a bug, not a preference.
   a session needs, and it is cheap enough to ask every ten seconds. It is what replaced the bare
   TCP connect that used to decide the online dot: that probe could answer while every session
   failed, because "the port is open" is not "this peer will talk to me".
+- **A push has a byte budget (一次推送的字节预算)**: one push is one JSON document, and the
+  receiver counts it after decompression, refusing 413 past `kSyncMaxBodyBytes`. A refused push
+  fails the whole round and the next round rebuilds the same body, so an over-cap push is a pair
+  that stops converging. Before the batch is built, `sync_budget.dart` measures the parts that
+  travel whatever the conversation list is — business rows, the asset manifest, the skill hashes,
+  the workspace tables — and admits conversations in plan order against what is left
+  (`kSyncDeltaByteBudget`, with half of it as one conversation's ceiling). A conversation that
+  does not fit is **deferred, not failed**: it stays out of the push, its checkpoint does not
+  move, and the next session retries it while everything else still travels. The report names the
+  count (`conversationsOmittedForSize`) because the remedy is the user's — a smaller compression
+  history. Not fragmented: a conversation too large for any push still arrives when the peer
+  *pulls* it, which is the fetch response's unbounded path (ADR-0003's known limitation).
 - **One plan, two faces**: conversations and business rows (entities + preferences) are decided
   by the same table — present on one side, newer clock, tie to the higher deviceId — and travel
   in the same batch, so one session moves a conversation and the assistant it references.

@@ -1,3 +1,4 @@
+import '../models/dsh_provider_settings.dart';
 import '../models/dsh_remote.dart';
 import 'dsh_gateway_models.dart';
 
@@ -163,3 +164,14 @@ abstract interface class DshSessionHandle {
 /// `null` until then (connecting then fails with
 /// [DshFailure.notConfigured] instead of pretending to work).
 typedef DshGatewayFactory = DshGateway Function(String remoteId);
+
+/// Optional adapter capability: the remote's provider settings can be read and
+/// written through a [DshProviderSettingsGateway].
+///
+/// It is deliberately separate from [DshGateway] so every existing fake gateway
+/// stays valid; `DshConnectionsProvider.providerSettingsFor` exposes it to the
+/// 模型 tab and returns null for adapters that only speak the chat contract.
+abstract interface class DshProviderSettingsHost {
+  /// The settings seam for this live remote, or null while it cannot be used.
+  DshProviderSettingsGateway? get providerSettings;
+}

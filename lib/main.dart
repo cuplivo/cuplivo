@@ -1130,11 +1130,8 @@ class MyApp extends StatelessWidget {
           create: (ctx) {
             final connections = ctx.read<DshConnectionsProvider>();
             return DshChatControllersProvider(
-              factory: (remote, sessionId) => DshGatewayChatSession(
-                connections: connections,
-                remote: remote,
-                sessionId: sessionId,
-              ),
+              (remote, sessionId) =>
+                  DshGatewayChatSession(connections, remote, sessionId),
             );
           },
         ),

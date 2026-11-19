@@ -1,5 +1,5 @@
-import '../../core/database/business_preferences.dart';
-import '../../core/services/json_blob_store.dart';
+import '../../../core/database/business_preferences.dart';
+import '../../../core/services/json_blob_store.dart';
 import '../models/dsh_remote.dart';
 
 /// Persistence for the remote DeepSeek Harness connection records.

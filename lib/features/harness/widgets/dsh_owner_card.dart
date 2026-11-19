@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:Cuplivo/theme/app_font_weights.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
-import '../../l10n/app_localizations.dart';
+import '../../../l10n/app_localizations.dart';
 import '../models/dsh_remote.dart';
 import '../state/dsh_gateway.dart';
 import 'dsh_link_status_dot.dart';

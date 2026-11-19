@@ -49,10 +49,12 @@ class DshClientSessionHandle implements DshSessionHandle {
   Stream<DshSessionView> get views => _views.stream;
 
   /// Subscribes to the store and emits the first view. Idempotent.
-  Future<void> start() async {
-    if (_closed) return;
-    _changes ??= _store.changes.listen((_) => _emit());
-    _emit();
+  Future<void> start() {
+    if (!_closed) {
+      _changes ??= _store.changes.listen((_) => _emit());
+      _emit();
+    }
+    return Future<void>.value();
   }
 
   void setLinkFailure(DshFailure? failure) {

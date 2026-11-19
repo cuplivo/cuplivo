@@ -29,7 +29,9 @@ class HarnessHomeController extends ChangeNotifier {
     required HarnessSessionCatalog catalog,
     HarnessWorkspaceFiles Function(String sessionId)? workspaceFilesForSession,
   }) : _catalog = catalog,
-       _workspaceFilesForSession = workspaceFilesForSession;
+       _workspaceFilesForSession = workspaceFilesForSession {
+    _catalog.addListener(_onCatalogChanged);
+  }
 
   final DshRemote remote;
   final HarnessSessionCatalog _catalog;
@@ -158,10 +160,15 @@ class HarnessHomeController extends ChangeNotifier {
 
   void toggleRailExpanded() => setRailExpanded(!_railExpanded);
 
+  /// A catalog read (sessions/workspaces/mutations) redraws the drawer and the
+  /// rail even when the link status did not change.
+  void _onCatalogChanged() => notifyListeners();
+
   @override
   void dispose() {
-    // The catalog belongs to the state layer (one per remote, shared with the
-    // chat slice), so this controller never disposes it.
+    // The catalog belongs to the state layer (one per remote), so this
+    // controller detaches from it but never disposes it.
+    _catalog.removeListener(_onCatalogChanged);
     super.dispose();
   }
 }

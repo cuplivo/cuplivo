@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:Cuplivo/features/harness/pages/assistant/models/dsh_provider_settings.dart';
+import 'package:Cuplivo/features/harness/models/dsh_provider_settings.dart';
 import 'package:Cuplivo/features/harness/pages/assistant/models/dsh_provider_settings_controller.dart';
 import 'package:Cuplivo/features/harness/state/dsh_gateway.dart';
 import 'package:Cuplivo/features/harness/widgets/dsh_filled_button.dart';
@@ -115,7 +115,9 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
           _entry = resolved;
           if (!_initialized) _adoptEntry(resolved);
         }
-        if (_entry == null && !_isNew && controller.isLoading) {
+        if (_entry == null &&
+            !_isNew &&
+            (!controller.hasLoaded || controller.isLoading)) {
           return _pageScaffold(
             title: l10n.dshProviderDetailModels,
             child: DshModelsStatePanel(
@@ -246,12 +248,9 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
         configured || (_apiKeyController.text.trim().isNotEmpty);
     final catalogModels = widget.catalogGroup?.models ?? const <DshModel>[];
     final profileModels = entry?.profile.models ?? const <DshProviderModel>[];
-    final modelsForDisplay = _editableModels ? profileModels : catalogModels;
-    final adapterDefaultNote =
-        !_editableModels &&
-        profileModels.isEmpty &&
-        modelsForDisplay.isNotEmpty;
-    final modelsFromCatalogOnly = !_editableModels;
+    // A non-custom route declares no models of its own: the adapter supplies
+    // the catalog. The cards are read-only, but their ids/names are the host's.
+    final adapterDefaultNote = !_editableModels && profileModels.isEmpty;
     final modelEditors = _models;
 
     return _pageScaffold(
@@ -263,7 +262,7 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
             size: 19,
             tooltip: l10n.dshProviderDetailDeleteProvider,
             semanticLabel: l10n.dshProviderDetailDeleteProvider,
-            onTap: _saving ? null : () => _confirmDelete(context),
+            onTap: _saving ? null : _confirmDelete,
           ),
       ],
       child: ListView(
@@ -464,7 +463,7 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
               ),
             )
           else if (!_editableModels)
-            for (final model in modelsForDisplay)
+            for (final model in catalogModels)
               _ReadOnlyCatalogModelCard(model: model)
           else
             _buildEditableModels(modelEditors),
@@ -472,20 +471,6 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
             const SizedBox(height: 8),
             Text(
               l10n.dshProviderDetailModelsFirstConfig,
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.5),
-              ),
-            ),
-          ],
-          if (modelsFromCatalogOnly &&
-              !_editableModels &&
-              modelsForDisplay.isEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              l10n.dshProviderDetailModelsAdapterDefault,
               style: TextStyle(
                 fontSize: 12,
                 color: Theme.of(
@@ -523,9 +508,8 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
       physics: const NeverScrollableScrollPhysics(),
       buildDefaultDragHandles: false,
       itemCount: editors.length,
-      onReorder: (oldIndex, newIndex) {
+      onReorderItem: (oldIndex, newIndex) {
         setState(() {
-          if (newIndex > oldIndex) newIndex -= 1;
           final editor = editors.removeAt(oldIndex);
           editors.insert(newIndex, editor);
         });
@@ -555,7 +539,7 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
 
   void _addModel() {
     setState(() {
-      _models = [..._models, _DshModelEditor.empty(_models.length)];
+      _models = [..._models, _DshModelEditor.empty()];
     });
   }
 
@@ -670,7 +654,7 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
     };
   }
 
-  Future<void> _confirmDelete(BuildContext context) async {
+  Future<void> _confirmDelete() async {
     final l10n = AppLocalizations.of(context)!;
     final entry = _entry;
     final controller = _controller;
@@ -732,6 +716,7 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
 
 class _ProviderHeader extends StatelessWidget {
   const _ProviderHeader({
+    super.key,
     required this.displayName,
     required this.providerId,
     required this.providerIconId,
@@ -785,7 +770,7 @@ class _ProviderHeader extends StatelessWidget {
 }
 
 class _FieldLabel extends StatelessWidget {
-  const _FieldLabel({required this.text});
+  const _FieldLabel({super.key, required this.text});
 
   final String text;
 
@@ -808,7 +793,7 @@ class _FieldLabel extends StatelessWidget {
 }
 
 class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.text});
+  const _SectionLabel({super.key, required this.text});
 
   final String text;
 
@@ -827,6 +812,7 @@ class _SectionLabel extends StatelessWidget {
 
 class _CollapsibleSection extends StatelessWidget {
   const _CollapsibleSection({
+    super.key,
     required this.title,
     required this.expanded,
     required this.onToggle,
@@ -883,6 +869,7 @@ class _CollapsibleSection extends StatelessWidget {
 
 class _ProtocolChip extends StatelessWidget {
   const _ProtocolChip({
+    super.key,
     required this.label,
     required this.selected,
     required this.onTap,
@@ -918,7 +905,7 @@ class _ProtocolChip extends StatelessWidget {
 }
 
 class _OAuthNote extends StatelessWidget {
-  const _OAuthNote({required this.env});
+  const _OAuthNote({super.key, required this.env});
 
   final List<String> env;
 
@@ -952,7 +939,7 @@ class _OAuthNote extends StatelessWidget {
 
 /// Read-only model card for models that come from the live catalog.
 class _ReadOnlyCatalogModelCard extends StatelessWidget {
-  const _ReadOnlyCatalogModelCard({required this.model});
+  const _ReadOnlyCatalogModelCard({super.key, required this.model});
 
   final DshModel model;
 
@@ -968,7 +955,7 @@ class _ReadOnlyCatalogModelCard extends StatelessWidget {
 }
 
 class _ReadOnlyModelCard extends StatelessWidget {
-  const _ReadOnlyModelCard({required this.model, this.subtitle});
+  const _ReadOnlyModelCard({super.key, required this.model, this.subtitle});
 
   final DshModel model;
   final String? subtitle;
@@ -1061,7 +1048,7 @@ class _DshModelEditor {
     );
   }
 
-  factory _DshModelEditor.empty(int seed) {
+  factory _DshModelEditor.empty() {
     return _DshModelEditor(
       keyId: _nextKey++,
       idController: TextEditingController(),
@@ -1112,6 +1099,7 @@ class _DshModelEditor {
 /// efforts.
 class _DshModelEditorCard extends StatelessWidget {
   const _DshModelEditorCard({
+    super.key,
     required this.editor,
     required this.index,
     required this.editable,

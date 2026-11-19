@@ -399,6 +399,7 @@ class _HarnessConversationViewState extends State<HarnessConversationView> {
     try {
       await session.reload();
     } catch (_) {
+      if (!mounted) return;
       _showSnack(AppLocalizations.of(context)!.dshOperationFailed);
     }
   }

@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import '../state/dsh_connections_provider.dart';
-import '../state/dsh_gateway.dart';
+import '../../state/dsh_connections_provider.dart';
+import '../../state/dsh_gateway.dart';
 import 'harness_home_models.dart';
 import 'harness_session_catalog.dart';
 
@@ -76,10 +76,61 @@ class DshHarnessSessionCatalog extends HarnessSessionCatalog {
     final gateway = _requireGateway();
     try {
       final session = await gateway.createSession(workspaceId: workspaceId);
+      _mergeCreatedSession(session, workspaceId);
       return session.id;
     } on DshGatewayException catch (error) {
       throw HarnessCatalogException(cause: error);
     }
+  }
+
+  /// Inserts a just-created row locally so the drawer does not look like the
+  /// create failed while the Host's catalog projection catches up. The next
+  /// read of the remote replaces this list with the authoritative ordering.
+  void _mergeCreatedSession(
+    DshSessionSummary session,
+    String? requestedWorkspaceId,
+  ) {
+    final workspaceId = session.workspaceId ?? requestedWorkspaceId;
+    final summary = HarnessSessionSummary(
+      sessionId: session.id,
+      title: session.title,
+      updatedAt: session.updatedAt,
+      running: session.running,
+      pinned: session.pinned,
+      workspaceId: workspaceId,
+    );
+    if (workspaceId == null) {
+      _ungrouped = <HarnessSessionSummary>[summary, ..._ungrouped];
+      _available = true;
+      notifyListeners();
+      return;
+    }
+    final groups = <HarnessWorkspaceGroup>[];
+    var found = false;
+    for (final group in _workspaces) {
+      if (group.workspaceId != workspaceId) {
+        groups.add(group);
+        continue;
+      }
+      found = true;
+      groups.add(
+        group.copyWith(
+          sessions: <HarnessSessionSummary>[summary, ...group.sessions],
+        ),
+      );
+    }
+    if (!found) {
+      groups.add(
+        HarnessWorkspaceGroup(
+          workspaceId: workspaceId,
+          title: '',
+          sessions: <HarnessSessionSummary>[summary],
+        ),
+      );
+    }
+    _workspaces = groups;
+    _available = true;
+    notifyListeners();
   }
 
   @override

@@ -13,6 +13,8 @@ class _FakeSession extends DshChatSession {
   });
 
   DshPromptSendResult sendResult;
+
+  @override
   bool canSend;
   bool throwOnSend;
   final List<String> prompts = <String>[];

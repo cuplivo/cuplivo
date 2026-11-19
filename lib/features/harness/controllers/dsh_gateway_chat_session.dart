@@ -22,13 +22,7 @@ import 'package:Cuplivo/features/harness/state/dsh_gateway_models.dart' as gw;
 /// - model/write methods complete only after the server accepted the write, so
 ///   `ChatInputBar` clears the draft only on a real acceptance.
 class DshGatewayChatSession extends chat.DshChatSession {
-  DshGatewayChatSession({
-    required DshConnectionsProvider connections,
-    required DshRemote remote,
-    required String sessionId,
-  }) : _connections = connections,
-       _remote = remote,
-       _sessionId = sessionId {
+  DshGatewayChatSession(this._connections, this._remote, this._sessionId) {
     _connections.addListener(_handleConnectionsChanged);
     unawaited(_attach());
   }

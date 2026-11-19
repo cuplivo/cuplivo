@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/theme/app_font_weights.dart';
 
 /// The Cuplivo-style centred state used by the DSH 模型 surfaces.

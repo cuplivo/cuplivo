@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:Cuplivo/features/harness/pages/assistant/models/dsh_provider_settings.dart';
+import 'package:Cuplivo/features/harness/models/dsh_provider_settings.dart';
 import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/shared/widgets/ios_form_text_field.dart';
@@ -160,6 +160,7 @@ class DshReasoningEffortsEditor extends StatelessWidget {
 
 class _DshEffortChip extends StatelessWidget {
   const _DshEffortChip({
+    super.key,
     required this.choice,
     required this.enabled,
     required this.onRemove,

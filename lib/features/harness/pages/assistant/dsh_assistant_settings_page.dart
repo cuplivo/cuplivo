@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/services/haptics.dart';
-import '../../../icons/lucide_adapter.dart';
-import '../../../l10n/app_localizations.dart';
-import '../../../shared/responsive/screen_type_helper.dart';
-import '../../../shared/widgets/ios_form_text_field.dart';
-import '../../../shared/widgets/ios_settings_rows.dart';
-import '../../../shared/widgets/section_card.dart';
-import '../../../shared/widgets/snackbar.dart';
-import '../../../theme/app_font_weights.dart';
-import '../../../theme/app_semantic_colors.dart';
-import '../models/dsh_remote.dart';
-import '../models/dsh_web_ui_link.dart';
+import '../../../../core/services/haptics.dart';
+import '../../../../icons/lucide_adapter.dart';
+import '../../../../l10n/app_localizations.dart';
+import '../../../../shared/responsive/screen_type_helper.dart';
+import '../../../../shared/widgets/ios_form_text_field.dart';
+import '../../../../shared/widgets/ios_settings_rows.dart';
+import '../../../../shared/widgets/section_card.dart';
+import '../../../../shared/widgets/snackbar.dart';
+import '../../../../theme/app_font_weights.dart';
+import '../../../../theme/app_semantic_colors.dart';
+import '../../models/dsh_remote.dart';
+import '../../models/dsh_web_ui_link.dart';
 import 'models/dsh_models_tab_body.dart';
-import '../state/dsh_connections_provider.dart';
-import '../state/dsh_gateway.dart';
-import '../widgets/dsh_failure_text.dart';
-import '../widgets/dsh_filled_button.dart';
-import '../widgets/dsh_link_status_dot.dart';
-import '../widgets/dsh_whale_mark.dart';
+import '../../state/dsh_connections_provider.dart';
+import '../../state/dsh_gateway.dart';
+import '../../widgets/dsh_failure_text.dart';
+import '../../widgets/dsh_filled_button.dart';
+import '../../widgets/dsh_link_status_dot.dart';
+import '../../widgets/dsh_whale_mark.dart';
 
 /// One remote DeepSeek Harness, as the user configures it.
 ///

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import 'dsh_provider_settings.dart';
+import '../../../models/dsh_provider_settings.dart';
 
 /// The load/save state machine behind the DSH provider list and detail page.
 ///

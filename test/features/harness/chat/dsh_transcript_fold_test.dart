@@ -141,7 +141,7 @@ void main() {
       );
 
       expect(folded.messages.single.timestamp, isNotNull);
-      expect(folded.messages.single.timestamp!.millisecondsSinceEpoch, 0);
+      expect(folded.messages.single.timestamp.millisecondsSinceEpoch, 0);
     });
   });
 

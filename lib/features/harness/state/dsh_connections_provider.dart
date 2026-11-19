@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../core/providers/chat_owners_provider.dart';
+import '../../../core/providers/chat_owners_provider.dart';
+import '../models/dsh_provider_settings.dart';
 import '../models/dsh_remote.dart';
 import '../models/dsh_web_ui_link.dart';
 import '../services/dsh_credential_store.dart';
@@ -118,6 +119,16 @@ class DshConnectionsProvider extends ChangeNotifier
   /// The live gateway of one remote, or null when it is not connected. Later
   /// slices (home, chat) open sessions and write session state through this.
   DshGateway? gatewayFor(String id) => _gateways[id];
+
+  /// The provider-settings seam for one remote when its adapter implements it.
+  ///
+  /// The 模型 tab passes this into `DshModelsTabBody`; null means the build has
+  /// no settings adapter and the tab shows the remote's live model catalog
+  /// read-only instead of inventing editable data.
+  DshProviderSettingsGateway? providerSettingsFor(String id) {
+    final gateway = _gateways[id];
+    return gateway is DshProviderSettingsHost ? gateway.providerSettings : null;
+  }
 
   Future<void> _load() async {
     try {

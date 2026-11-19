@@ -87,8 +87,9 @@ class _DshModelPickerState extends State<DshModelPicker> {
   List<DshModelProviderGroup> _visibleGroups() {
     final groups = widget.catalog.groups
         .where((group) {
-          if (_providerFilter != null && group.id != _providerFilter)
+          if (_providerFilter != null && group.id != _providerFilter) {
             return false;
+          }
           if (group.models.isEmpty) return false;
           return _matchesGroup(group) || group.models.any(_matchesModel);
         })

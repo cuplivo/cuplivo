@@ -6,8 +6,8 @@
 /// `settings/mutate` and `credentials/set` (docs/cuplivo-dsh/protocol.md
 /// §4.4). This file is the *typed contract* the UI codes against: the adapter
 /// that translates it into those calls lives in the foundation's services
-/// layer and is injected later. Until it is wired, [DshModelsTabBody] still
-/// lists the remote's live model catalog and the detail page says so instead
+/// layer and is injected later. Until it is wired, the 模型 tab still lists the
+/// remote's live model catalog and the provider detail page says so instead
 /// of inventing data.
 ///
 /// Nothing here is persisted by Cuplivo: a load is a read of the remote host,

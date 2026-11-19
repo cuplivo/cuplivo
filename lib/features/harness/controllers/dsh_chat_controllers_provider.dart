@@ -22,8 +22,7 @@ typedef DshChatSessionFactory =
 /// owning the controller: `context.watch<DshChatControllersProvider>()` then
 /// `viewState(remoteId, sessionId)`.
 class DshChatControllersProvider extends ChangeNotifier {
-  DshChatControllersProvider({required DshChatSessionFactory factory})
-    : _factory = factory;
+  DshChatControllersProvider(this._factory);
 
   final DshChatSessionFactory _factory;
   final Map<String, DshChatSession> _sessions = <String, DshChatSession>{};

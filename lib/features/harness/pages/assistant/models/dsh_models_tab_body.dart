@@ -1,10 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:Cuplivo/features/harness/pages/assistant/models/dsh_add_provider_page.dart';
 import 'package:Cuplivo/features/harness/pages/assistant/models/dsh_provider_detail_page.dart';
-import 'package:Cuplivo/features/harness/pages/assistant/models/dsh_provider_settings.dart';
+import 'package:Cuplivo/features/harness/models/dsh_provider_settings.dart';
 import 'package:Cuplivo/features/harness/pages/assistant/models/dsh_provider_settings_controller.dart';
 import 'package:Cuplivo/features/harness/state/dsh_connections_provider.dart';
 import 'package:Cuplivo/features/harness/state/dsh_gateway.dart';
@@ -206,6 +205,15 @@ class _DshModelsTabBodyState extends State<DshModelsTabBody> {
       catalogGroups: catalog?.models.providers ?? const <DshProviderGroup>[],
       query: _query,
     );
+    // A failed `session/modelCatalog` read is a per-section failure, not an
+    // empty list: say so instead of pretending the host has no providers.
+    DshCatalogFailure? modelsFailure;
+    for (final failure in catalog?.failures ?? const <DshCatalogFailure>[]) {
+      if (failure.section == DshCatalogSection.models) {
+        modelsFailure = failure;
+        break;
+      }
+    }
 
     final card = <Widget>[
       const SizedBox(height: 8),
@@ -220,20 +228,27 @@ class _DshModelsTabBodyState extends State<DshModelsTabBody> {
           _searchController.clear();
           setState(() => _query = '');
         },
-        onAdd: () => _openAddProvider(context, controller, catalog),
+        onAdd: () => _openAddProvider(controller, catalog),
       ),
       const SizedBox(height: 12),
       // Adding a provider is the first row of the reference list; it stays
       // visible while searching so the creation flow never gets filtered out.
       DshProviderCustomCard(
         key: const Key('dsh-models-custom-provider'),
-        onTap: () => _openDetail(context, controller, createCustom: true),
+        onTap: () => _openDetail(controller, createCustom: true),
       ),
       const SizedBox(height: 10),
     ];
 
     Widget content;
-    if (controller != null && controller.isLoading && settingsEntries == null) {
+    if (controller != null && !controller.hasLoaded) {
+      content = DshModelsStatePanel(
+        icon: Lucide.Loader,
+        title: l10n.dshModelsLoading,
+      );
+    } else if (controller != null &&
+        controller.isLoading &&
+        settingsEntries == null) {
       content = DshModelsStatePanel(
         icon: Lucide.Loader,
         title: l10n.dshModelsLoading,
@@ -255,7 +270,7 @@ class _DshModelsTabBodyState extends State<DshModelsTabBody> {
               title: l10n.dshModelsNotConnectedTitle,
               body: dshFailureText(l10n, status.failure),
               actionLabel: l10n.dshModelsRefresh,
-              onAction: () => _refreshCatalog(context, connections),
+              onAction: () => _refreshCatalog(connections),
             )
           : DshModelsStatePanel(
               icon: status.isConnecting ? Lucide.Loader : Lucide.Link2,
@@ -268,6 +283,14 @@ class _DshModelsTabBodyState extends State<DshModelsTabBody> {
       content = DshModelsStatePanel(
         icon: Lucide.Loader,
         title: l10n.dshModelsLoading,
+      );
+    } else if (rows.isEmpty && modelsFailure != null) {
+      content = DshModelsStatePanel(
+        icon: Lucide.CloudOff,
+        title: l10n.dshModelsLoadFailed,
+        body: dshFailureText(l10n, modelsFailure.failure),
+        actionLabel: l10n.dshModelsRefresh,
+        onAction: () => _refreshCatalog(connections),
       );
     } else if (rows.isEmpty) {
       final searching = _query.trim().isNotEmpty;
@@ -284,7 +307,7 @@ class _DshModelsTabBodyState extends State<DshModelsTabBody> {
             _DshProviderRowTile(
               key: ValueKey<String>('dsh-provider-row-${row.providerId}'),
               row: row,
-              onTap: () => _openDetail(context, controller, row: row),
+              onTap: () => _openDetail(controller, row: row),
             ),
             const SizedBox(height: 10),
           ],
@@ -304,10 +327,7 @@ class _DshModelsTabBodyState extends State<DshModelsTabBody> {
     );
   }
 
-  Future<void> _refreshCatalog(
-    BuildContext context,
-    DshConnectionsProvider? connections,
-  ) async {
+  Future<void> _refreshCatalog(DshConnectionsProvider? connections) async {
     if (connections == null || _refreshingCatalog) return;
     setState(() => _refreshingCatalog = true);
     try {
@@ -317,8 +337,21 @@ class _DshModelsTabBodyState extends State<DshModelsTabBody> {
     }
   }
 
+  /// The live catalog group behind a settings row, so the detail page can show
+  /// the adapter's model list read-only when the profile itself declares none.
+  DshProviderGroup? _catalogGroupFor(String? providerId) {
+    if (providerId == null || providerId.isEmpty) return null;
+    final catalog = context.read<DshConnectionsProvider?>()?.catalogFor(
+      widget.remoteId,
+    );
+    for (final group
+        in catalog?.models.providers ?? const <DshProviderGroup>[]) {
+      if (group.id == providerId) return group;
+    }
+    return null;
+  }
+
   Future<void> _openAddProvider(
-    BuildContext context,
     DshProviderSettingsController? controller,
     DshCatalogSnapshot? catalog,
   ) async {
@@ -347,16 +380,15 @@ class _DshModelsTabBodyState extends State<DshModelsTabBody> {
     );
     if (!mounted || picked == null) return;
     if (picked.isCustom) {
-      await _openDetail(context, controller, createCustom: true);
+      await _openDetail(controller, createCustom: true);
       return;
     }
     final entry = picked.entry;
     final group = picked.group;
-    await _openDetail(context, controller, entry: entry, group: group);
+    await _openDetail(controller, entry: entry, group: group);
   }
 
   Future<void> _openDetail(
-    BuildContext context,
     DshProviderSettingsController? controller, {
     DshProviderListRow? row,
     DshProviderEntry? entry,
@@ -370,7 +402,10 @@ class _DshModelsTabBodyState extends State<DshModelsTabBody> {
           settings: widget.settings,
           controller: controller,
           entry: entry ?? row?.entry,
-          catalogGroup: group ?? row?.group,
+          catalogGroup:
+              group ??
+              row?.group ??
+              _catalogGroupFor(entry?.id ?? row?.providerId),
           createCustom: createCustom,
         ),
       ),
@@ -393,16 +428,11 @@ class _DshProviderRowTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    // The reference card carries only name + 启用 pill + chevron; the host's
+    // diagnostic line is the one exception, because an unusable provider must
+    // say why instead of hiding the reason.
     final diagnostic = row.diagnostic?.trim() ?? '';
-    final subtitle = diagnostic.isNotEmpty
-        ? diagnostic
-        : row.modelCount > 0
-        ? l10n.dshModelsModelCount.replaceAll(
-            '{count}',
-            row.modelCount.toString(),
-          )
-        : null;
+    final subtitle = diagnostic.isEmpty ? null : diagnostic;
     return DshProviderCard(
       providerId: row.providerId,
       displayName: row.displayName,

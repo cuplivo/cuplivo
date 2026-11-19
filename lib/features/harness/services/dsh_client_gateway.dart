@@ -8,10 +8,12 @@ import 'package:Cuplivo/core/dsh/dsh_mux.dart' as dsh;
 import 'package:Cuplivo/core/dsh/dsh_models.dart' as dsh;
 import 'package:Cuplivo/core/dsh/dsh_transport.dart' as dsh;
 
+import '../models/dsh_provider_settings.dart';
 import '../models/dsh_remote.dart';
 import '../state/dsh_gateway.dart';
 import 'dsh_client_gateway_mapping.dart';
 import 'dsh_client_session_handle.dart';
+import 'dsh_provider_settings_adapter.dart';
 
 /// The real [DshGateway]: one DeepSeek Harness connection over
 /// `lib/core/dsh/`.
@@ -26,7 +28,7 @@ import 'dsh_client_session_handle.dart';
 /// * [disconnect] is idempotent and also safe after a failed [connect];
 /// * the gateway never writes credentials: it returns the minted cookie in
 ///   [DshConnectResult] and the provider persists it.
-class DshClientGateway implements DshGateway {
+class DshClientGateway implements DshGateway, DshProviderSettingsHost {
   DshClientGateway({
     dsh.DshHttpClient? httpClient,
     this.muxOptions = const dsh.DshMuxOptions(),
@@ -55,6 +57,10 @@ class DshClientGateway implements DshGateway {
   final Map<String, dsh.DshSessionProjections> _projections =
       <String, dsh.DshSessionProjections>{};
   final Map<String, bool> _running = <String, bool>{};
+
+  /// Which workspace each known session belongs to; protocol summaries do not
+  /// carry it, so a session upsert must be told or it would move to ungrouped.
+  final Map<String, String> _sessionWorkspaceIds = <String, String>{};
   final Map<String, DshClientSessionHandle> _handles =
       <String, DshClientSessionHandle>{};
   final Map<String, DshSessionControl> _lastControls =
@@ -77,6 +83,10 @@ class DshClientGateway implements DshGateway {
 
   @override
   Stream<DshRemoteUpdate> get updates => _updates.stream;
+
+  @override
+  DshProviderSettingsGateway? get providerSettings =>
+      DshClientProviderSettings(client: _requireClient);
 
   // ---------------------------------------------------------------------------
   // Connect / disconnect / retry
@@ -201,6 +211,9 @@ class DshClientGateway implements DshGateway {
         ], expectedRevision: namespace?.revision);
       }
       _generalSettings = settings;
+      // The written value is only local until the next `settings/describe`;
+      // a refresh keeps the provider's catalog copy honest.
+      _emitInvalidated('general settings were written');
     } on dsh.DshException catch (error) {
       throw dshGatewayExceptionFromClient(error);
     }
@@ -220,13 +233,19 @@ class DshClientGateway implements DshGateway {
         cwd: cwd,
         workspaceId: workspaceId,
       );
-      return DshSessionSummary(
+      final summary = DshSessionSummary(
         id: session.sessionId,
         title: '',
         workspaceId: workspaceId,
         cwd: cwd,
         updatedAt: DateTime.now(),
       );
+      // The sidebar can show the new row before `api-session/added` arrives;
+      // the Host event later upserts the authoritative summary.
+      _summaries[summary.id] = summary;
+      if (workspaceId != null) _sessionWorkspaceIds[summary.id] = workspaceId;
+      _emitSessionUpsert(summary.id, summary: summary);
+      return summary;
     } on dsh.DshException catch (error) {
       throw dshGatewayExceptionFromClient(error);
     }
@@ -237,6 +256,10 @@ class DshClientGateway implements DshGateway {
     final client = _requireClient();
     try {
       await client.catalog.renameSession(sessionId, title);
+      // `saveTitle` returns no snapshot; the authoritative title arrives as a
+      // `session/control` projection, which only the chat view folds. A cheap
+      // refresh keeps the sidebar row in step with the chat header.
+      _emitInvalidated('a session was renamed');
     } on dsh.DshException catch (error) {
       throw dshGatewayExceptionFromClient(error);
     }
@@ -520,6 +543,21 @@ class DshClientGateway implements DshGateway {
           dsh.DshWorkspaceReplaceUpdate(:final baseline):
         _archived = baseline.archivedSessionIds.toSet();
         _pinned = baseline.pinnedSessionIds.toSet();
+        _sessionWorkspaceIds
+          ..clear()
+          ..addAll({
+            for (final workspace in baseline.items)
+              for (final sessionId in workspace.sessionIds)
+                sessionId: workspace.workspaceId,
+          });
+      case dsh.DshWorkspaceUpsertUpdate(:final workspace):
+        for (final sessionId in workspace.sessionIds) {
+          _sessionWorkspaceIds[sessionId] = workspace.workspaceId;
+        }
+      case dsh.DshWorkspaceRemoveUpdate(:final workspaceId):
+        _sessionWorkspaceIds.removeWhere(
+          (sessionId, owner) => owner == workspaceId,
+        );
       default:
         break;
     }
@@ -597,6 +635,13 @@ class DshClientGateway implements DshGateway {
       });
     _archived = source.archivedSessionIds.toSet();
     _pinned = source.pinnedSessionIds.toSet();
+    _sessionWorkspaceIds
+      ..clear()
+      ..addAll({
+        for (final workspace in source.workspaces)
+          for (final sessionId in workspace.sessionIds)
+            sessionId: workspace.workspaceId,
+      });
     // A refresh replaces the session set; drop control state for sessions the
     // remote no longer lists so a replayed control cannot resurrect them.
     final sessionIds = _summaries.keys.toSet();
@@ -688,7 +733,12 @@ class DshClientGateway implements DshGateway {
     if (_updates.isClosed) return;
     _updates.add(
       DshCatalogPatchUpdate(
-        mapDshSessionAdded(source, archivedIds: _archived, pinnedIds: _pinned),
+        mapDshSessionAdded(
+          source,
+          workspaceId: _sessionWorkspaceIds[sessionId],
+          archivedIds: _archived,
+          pinnedIds: _pinned,
+        ),
       ),
     );
   }
@@ -757,6 +807,7 @@ class DshClientGateway implements DshGateway {
     _summaries.clear();
     _projections.clear();
     _running.clear();
+    _sessionWorkspaceIds.clear();
     _lastControls.clear();
     _publishLink(const DshLinkStatus.idle());
   }

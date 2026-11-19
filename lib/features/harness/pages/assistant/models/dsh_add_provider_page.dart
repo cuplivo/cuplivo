@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:Cuplivo/features/harness/pages/assistant/models/dsh_provider_settings.dart';
+import 'package:Cuplivo/features/harness/models/dsh_provider_settings.dart';
 import 'package:Cuplivo/features/harness/state/dsh_gateway.dart';
 import 'package:Cuplivo/features/harness/widgets/chat/dsh_picker_scaffold.dart';
 import 'package:Cuplivo/features/harness/widgets/models/dsh_models_states.dart';

@@ -354,12 +354,14 @@ DshSessionControl mapDshSessionControl({
 
 DshSessionUpsert mapDshSessionAdded(
   dsh.DshSessionSummary source, {
+  String? workspaceId,
   Set<String> archivedIds = const <String>{},
   Set<String> pinnedIds = const <String>{},
 }) {
   return DshSessionUpsert(
     mapDshSessionSummary(
       source,
+      workspaceId: workspaceId,
       archivedIds: archivedIds,
       pinnedIds: pinnedIds,
     ),

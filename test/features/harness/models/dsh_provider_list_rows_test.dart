@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:Cuplivo/features/harness/pages/assistant/models/dsh_models_tab_body.dart';
-import 'package:Cuplivo/features/harness/pages/assistant/models/dsh_provider_settings.dart';
+import 'package:Cuplivo/features/harness/models/dsh_provider_settings.dart';
 import 'package:Cuplivo/features/harness/state/dsh_gateway.dart';
 
 DshProviderEntry _entry({

@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:Cuplivo/features/harness/pages/assistant/models/dsh_models_tab_body.dart';
 import 'package:Cuplivo/features/harness/pages/assistant/models/dsh_provider_detail_page.dart';
-import 'package:Cuplivo/features/harness/pages/assistant/models/dsh_provider_settings.dart';
+import 'package:Cuplivo/features/harness/models/dsh_provider_settings.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 
 class _FakeSettingsGateway implements DshProviderSettingsGateway {
@@ -192,7 +192,10 @@ void main() {
     await typeInto('dsh-provider-detail-api-key', 'test-key');
     await tester.pump();
 
-    await tester.tap(find.byKey(const Key('dsh-provider-detail-save')));
+    final saveButton = find.byKey(const Key('dsh-provider-detail-save'));
+    await tester.ensureVisible(saveButton);
+    await tester.pumpAndSettle();
+    await tester.tap(saveButton);
     await tester.pumpAndSettle();
 
     expect(gateway.savedEntry?.id, 'my-gateway');

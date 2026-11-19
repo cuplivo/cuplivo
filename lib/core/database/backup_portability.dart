@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'app_database.dart';
-import 'chat_database_repository.dart';
 import '../models/backup_scope.dart';
 import '../models/backup_target.dart';
 import '../models/compression_config.dart';
@@ -134,13 +133,15 @@ final class BackupPortability {
       await _dropUnreadableKinds(database, target);
       // Chat history remains readable, but imported chats cannot inherit a
       // directory grant or silently authorize shell execution on this device.
-      // Both branches read the same key set the sync wire does: the grants are
-      // stripped from every archive, and the local path of a binding whose
-      // workspace row did not travel goes with the binding itself.
+      // The grants are stripped from every archive, from the one spelling the
+      // sync wire uses; a binding whose workspace row did not travel goes with
+      // its own facts, because the id names nothing in the restored database and
+      // the folder, the tools-used flag and the grant have no subject left.
       final grantKeys = ToolPermissionMode.grantExtrasKeys;
       final danglingKeys = {
-        ...ChatDatabaseRepository.syncLocalExtrasKeys,
+        ...grantKeys,
         WorkspaceBinding.keyId,
+        WorkspaceBinding.keyCwd,
         WorkspaceBinding.keyToolsUsed,
       };
       // The filter is generated from the keys each branch can remove, so a key

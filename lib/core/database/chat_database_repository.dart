@@ -5933,22 +5933,27 @@ class ChatDatabaseRepository {
 
   /// Conversation `extras_json` keys that are this device's own facts.
   ///
-  /// A grant says *this device* approved, and `workspace.cwd` is *this device's*
-  /// path to a directory — neither is shared state, so neither crosses. They
-  /// happen to live inside one JSON column that travels whole, which is why the
-  /// rule has two halves: the wire read strips them ([syncReadWireConversationRow])
-  /// and the applier merges them back key by key from the local row. A strip
-  /// alone would erase the grant the first time a peer wins the row; a merge
-  /// alone would let the grant travel. Everything else in the bag — the title
-  /// flags, `workspace.id` — is shared and follows the winner.
+  /// A grant says *this device* approved — `tools.permission_mode`, plus the
+  /// `workspace.allowAll` an older build honoured — so it is not shared state and
+  /// must not cross. The keys live inside one JSON column that travels whole,
+  /// which is why the rule has two halves: the wire read strips them
+  /// ([syncReadWireConversationRow]) and the applier merges them back key by key
+  /// from the local row. A strip alone would erase the grant the first time a
+  /// peer wins the row; a merge alone would let the grant travel.
+  ///
+  /// `workspace.cwd` is deliberately *not* in the set, although it sits beside
+  /// the grants: it is a workspace-relative folder (`FileBrowserOps` validates
+  /// the picker's value as one, `WorkspacePaths.normalizeCwd` resolves it against
+  /// the workspace root), and the workspace's content is itself synced, so the
+  /// same relative folder exists on the peer. Stripping it would drop the
+  /// conversation onto the workspace root there. It follows the winner like the
+  /// rest of the bag, and a rebind is then handled by construction.
   ///
   /// Public because the backup sanitizer strips the same keys from an archive
   /// (`BackupPortability.sanitizeDatabase`); two spellings of this list is how
   /// one of the halves gets forgotten.
-  static const Set<String> syncLocalExtrasKeys = {
-    ...ToolPermissionMode.grantExtrasKeys,
-    WorkspaceBinding.keyCwd,
-  };
+  static const Set<String> syncLocalExtrasKeys =
+      ToolPermissionMode.grantExtrasKeys;
 
   /// The conversation's identity as this device sees it now, composed from every
   /// synced family by re-reading its rows.
@@ -6183,8 +6188,8 @@ class ChatDatabaseRepository {
         }
 
         // Same rule, one column deeper (see [syncLocalExtrasKeys]): the winner's
-        // extras follow the winner key by key, except for the keys that are this
-        // device's own, which come back from the local row. Written as part of
+        // extras follow the winner key by key, except for the grants, which are
+        // this device's own and come back from the local row. Written as part of
         // the same upsert so `updated_at` stays the winner's — a second write
         // would move the conversation's clock and make both peers re-push.
         if (conversationRowChanged) {
@@ -9441,9 +9446,10 @@ class ChatDatabaseRepository {
 
   /// [incoming] extras with this device's keys put back from [local].
   ///
-  /// Key by key, never column by column: everything else in the bag is shared
-  /// state and has to follow the winner. [restore] is false when the winner
-  /// named a different workspace — see [_sameWorkspaceBinding].
+  /// Key by key, never column by column: everything else in the bag — the title
+  /// flags, `workspace.id`, the binding's folder — is shared state and has to
+  /// follow the winner. [restore] is false when the winner named a different
+  /// workspace — see [_sameWorkspaceBinding].
   static String _mergeLocalExtras({
     required Object? incoming,
     required Object? local,
@@ -9452,7 +9458,12 @@ class ChatDatabaseRepository {
     final theirs = _decodeExtrasObject(incoming);
     // Unreadable extras take no decision here: keep what this device has rather
     // than overwrite it from a value nothing can read.
-    if (theirs == null) return local is String ? local : '{}';
+    if (theirs == null) {
+      debugPrint(
+        '[sync] peer extras are not a JSON object; keeping the local bag',
+      );
+      return local is String ? local : '{}';
+    }
     final mine = _decodeExtrasObject(local) ?? <String, dynamic>{};
     for (final key in syncLocalExtrasKeys) {
       theirs.remove(key);
@@ -9464,10 +9475,9 @@ class ChatDatabaseRepository {
   /// Whether [winner] and [local] name the same workspace binding.
   ///
   /// A grant is issued against the conversation *and* its binding: writing a
-  /// binding clears it on this device (`WorkspaceBinding.applyTo`). Restoring
-  /// one across a rebind would carry an approval to a directory the user never
-  /// approved, and would pair the new binding with the old `workspace.cwd` — a
-  /// path that belongs to another workspace.
+  /// binding clears it on this device (`WorkspaceBinding.applyTo`), so restoring
+  /// one across a rebind would carry an approval to a workspace the user never
+  /// approved.
   static bool _sameWorkspaceBinding({
     required Map<String, dynamic> winner,
     required Map<String, dynamic> local,

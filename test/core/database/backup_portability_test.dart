@@ -10,11 +10,11 @@ import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/database/business_repository.dart';
 import 'package:Cuplivo/core/database/business_restore_service.dart';
 import 'package:Cuplivo/core/database/business_settings_router.dart';
-import 'package:Cuplivo/core/database/chat_database_repository.dart';
 import 'package:Cuplivo/core/database/extension_entity_store.dart';
 import 'package:Cuplivo/core/models/backup_target.dart';
 import 'package:Cuplivo/core/models/compression_config.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/tool_permission_mode.dart';
 import 'package:Cuplivo/core/services/backup/data_sync.dart';
 
 Map<String, Object> _workspace(String id, {bool linked = false}) => {
@@ -177,31 +177,49 @@ void main() {
     },
   );
 
-  test('the sanitizer strips the keys the sync wire strips', () async {
-    // One list, three readers: the archive's half is derived from the sync half,
-    // so a key added there reaches the sanitizer without a second edit. Asserted
-    // by behaviour rather than by comparing two constants — an archive whose only
-    // binding is dangling loses every key of the set, and nothing else.
-    await database.customStatement(
-      'INSERT INTO conversation_rows (id, title, created_at, updated_at, extras_json) VALUES (?, ?, 0, 0, ?)',
-      [
-        'dangling',
-        'dangling',
-        jsonEncode({
-          'workspace.id': 'gone',
-          for (final key in ChatDatabaseRepository.syncLocalExtrasKeys)
-            key: 'marker',
-          'other.feature': 'keep',
-        }),
-      ],
-    );
+  test(
+    'grants leave every archive, and a dangling binding leaves with them',
+    () async {
+      // One list, two branches: the grants are the set the sync wire strips, and
+      // they are derived here rather than repeated; a binding whose workspace row
+      // did not travel takes its own facts with it, because the id names nothing
+      // in the restored database. Both halves are asserted by behaviour, so a
+      // key added to the grant set reaches the sanitizer without a second edit.
+      final grants = {
+        for (final key in ToolPermissionMode.grantExtrasKeys) key: 'marker',
+      };
+      for (final row in <(String, Map<String, Object?>)>[
+        (
+          'bound',
+          {'workspace.id': 'managed', ...grants, 'other.feature': 'keep'},
+        ),
+        (
+          'dangling',
+          {'workspace.id': 'gone', ...grants, 'other.feature': 'keep'},
+        ),
+      ]) {
+        await database.customStatement(
+          'INSERT INTO conversation_rows (id, title, created_at, updated_at, extras_json) VALUES (?, ?, 0, 0, ?)',
+          [row.$1, row.$1, jsonEncode(row.$2)],
+        );
+      }
 
-    await BackupPortability.sanitizeDatabase(database);
+      await BackupPortability.sanitizeDatabase(database);
 
-    expect(await _conversationExtras(database), {
-      'dangling': {'other.feature': 'keep'},
-    });
-  });
+      final extras = await _conversationExtras(database);
+      for (final id in ['bound', 'dangling']) {
+        expect(
+          extras[id]!.keys,
+          isNot(anyElement(isIn(ToolPermissionMode.grantExtrasKeys))),
+          reason: id,
+        );
+        expect(extras[id]!['other.feature'], 'keep', reason: id);
+      }
+      // The live binding keeps its folder: the workspace row travels, so the
+      // relative folder still names a directory in the archive.
+      expect(extras['bound']!['workspace.id'], 'managed');
+    },
+  );
 
   test(
     'a Kelivo-target sanitization drops the group rows and their chat links',

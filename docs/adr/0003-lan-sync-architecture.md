@@ -2243,29 +2243,43 @@ patch in the applier.
 ### The third grain: a key inside a column that does travel
 
 The conversation-grant fix added the narrowest grain of the same question. The conversation row's
-`extras_json` is one column of shared state, and three of its keys are not: `tools.permission_mode`
-and the older build's `workspace.allowAll` say *this device* approved, and `workspace.cwd` is *this
-device's* path. The row travels; those keys do not.
+`extras_json` is one column of shared state, and two of its keys are not: `tools.permission_mode` and
+the older build's `workspace.allowAll`. The row travels; the grant does not.
 
 The column-level shape above cannot be reused here, because the column is shared: omitting it on the
 wire would drop the title flags and `workspace.id` with it. So the rule is per key, and it still has
-the two halves — the wire read removes the keys, the applier deletes whatever arrived and puts back
-only the keys the local row already held. Both halves are load-bearing in a way that is easy to get
-wrong: a strip alone loses the grant the first time a peer wins the row, and a merge alone lets the
-grant cross. "Delete first, then restore" is also what protects against a peer on the older build,
-which still puts its grant on the wire, and it is the whole protection for a conversation that
+the two halves — the wire read removes the grant keys, the applier deletes whatever arrived and puts
+back only the keys the local row already held. Both halves are load-bearing in a way that is easy to
+get wrong: a strip alone loses the grant the first time a peer wins the row, and a merge alone lets
+the grant cross. "Delete first, then restore" is also what protects against a peer on the older
+build, which still puts its grant on the wire, and it is the whole protection for a conversation that
 arrives new, where there is no local row to restore from.
 
 One condition on the restore, the only state this grain has: the winner's `workspace.id` must equal
 the local one. A grant is issued against the binding (writing a binding clears it,
-`WorkspaceBinding.applyTo`), so restoring across a rebind would carry an approval to a directory the
-user never approved — and would pair the new binding with the old `workspace.cwd`, a path belonging
-to another workspace.
+`WorkspaceBinding.applyTo`), so restoring one across a rebind would carry an approval to a workspace
+the user never approved.
+
+The first cut of this rule also took `workspace.cwd`, on the reading that a path is this device's own
+fact. That reading was wrong, and the reason is worth keeping: the key stored next to a device fact
+may look like one and not be. `workspace.cwd` is a **workspace-relative** folder — the picker
+validates it as one (`FileBrowserOps.isValidRelativePath`) and `WorkspacePaths.normalizeCwd` resolves
+it against the workspace root — and a managed workspace's *content* is itself a synced plane, so the
+same relative folder exists on the peer. Stripping it dropped the peer's conversation onto the
+workspace root and changed where its file and shell tools resolved; the archive has always kept it
+for the same reason. It follows the winner like the rest of the bag, and a rebind then needs no
+special case: the winner's folder belongs to the winner's binding.
 
 Nothing here moves an identity: `conversation_rows` contributes its clock, not its column values, so
 a key only one device holds cannot make the two disagree, and the extras merge rides the winner's own
 upsert rather than a second write that would bump `updated_at`. No protocol field changed either, so
-the schema version does not move: an older peer still syncs, and its grant is stripped on arrival
-rather than trusted. The key set is public (`ChatDatabaseRepository.syncLocalExtrasKeys`) because the
-backup sanitizer strips the same keys from an archive, and the sanitizer derives its removal lists from
-these sets rather than repeating the literals — the fourth copy of a key is the one nobody updates.
+the schema version does not move. The key set is `ToolPermissionMode.grantExtrasKeys`, and the backup
+sanitizer derives its removal lists from it rather than repeating the literals — the fourth copy of a
+key is the one nobody updates.
+
+**A mixed-version pair costs the older device its own grant, once.** A build without the restore half
+writes the stripped bag over its `extras_json` when it accepts a row from this one, so a grant it held
+is gone and has to be given again. The other direction is safe by construction, because the strip runs
+on arrival. Nothing can carry "keep yours" without a protocol field, so this is a rollout note rather
+than a code path: the cost is one re-grant per conversation, and the next tool call asks instead of
+running.

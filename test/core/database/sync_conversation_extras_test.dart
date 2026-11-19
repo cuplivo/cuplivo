@@ -106,21 +106,28 @@ void main() {
   }
 
   // One list, three readers: the sync halves and the backup sanitizer strip the
-  // grant keys, the path, and nothing else. The backup half of this claim is
-  // asserted in `backup_portability_test.dart`.
-  test('the device-local extras set is the grants plus the path', () {
+  // grant keys, and nothing else. The backup half of this claim is asserted in
+  // `backup_portability_test.dart`.
+  test('the device-local extras set is the grants and nothing else', () {
     expect(ChatDatabaseRepository.syncLocalExtrasKeys, {
       ...ToolPermissionMode.grantExtrasKeys,
-      WorkspaceBinding.keyCwd,
     });
+    // `workspace.cwd` sits beside them in the bag but is a *workspace-relative*
+    // folder — the picker validates it as one and it resolves against the
+    // workspace root — so the peer's tools must land in the same folder. It
+    // travels; it is not a grant.
+    expect(
+      ChatDatabaseRepository.syncLocalExtrasKeys,
+      isNot(contains(WorkspaceBinding.keyCwd)),
+    );
   });
 
-  test('the wire row carries no grant and no local path', () async {
+  test('the wire row carries no grant, and the folder still travels', () async {
     await seedLocal(
       extras: {
         'tools.permission_mode': 'fullAccess',
         'workspace.allowAll': true,
-        'workspace.cwd': r'D:\projects\mine',
+        'workspace.cwd': 'src',
         'workspace.id': 'w1',
         'other.feature': 'keep',
       },
@@ -129,19 +136,15 @@ void main() {
     final extras = await wireExtras();
     expect(extras, isNot(contains('tools.permission_mode')));
     expect(extras, isNot(contains('workspace.allowAll')));
-    expect(extras, isNot(contains('workspace.cwd')));
-    // `workspace.id` names a row that does sync, so it still travels.
+    // `workspace.id` names a row that does sync, and `workspace.cwd` is the
+    // folder inside it: both travel.
     expect(extras['workspace.id'], 'w1');
+    expect(extras['workspace.cwd'], 'src');
     expect(extras['other.feature'], 'keep');
   });
 
-  test('extras holding only local keys travel as an empty object', () async {
-    await seedLocal(
-      extras: {
-        'tools.permission_mode': 'fullAccess',
-        'workspace.cwd': '/tmp/mine',
-      },
-    );
+  test('a bag holding only a grant travels as an empty object', () async {
+    await seedLocal(extras: {'tools.permission_mode': 'fullAccess'});
     expect(await wireExtras(), isEmpty);
   });
 
@@ -150,21 +153,26 @@ void main() {
       extras: {
         'tools.permission_mode': 'fullAccess',
         'workspace.allowAll': true,
-        'workspace.cwd': '/tmp/mine',
+        'workspace.cwd': 'mine',
         'workspace.id': 'w1',
       },
     );
 
     final row = await apply(
       updatedAtUs: 2000,
-      extras: jsonEncode({'workspace.id': 'w1', 'peer.feature': true}),
+      extras: jsonEncode({
+        'workspace.id': 'w1',
+        'workspace.cwd': 'theirs',
+        'peer.feature': true,
+      }),
     );
 
     final extras = row['extras'] as Map;
     // The grant is still this device's.
     expect(extras['tools.permission_mode'], 'fullAccess');
     expect(extras['workspace.allowAll'], true);
-    expect(extras['workspace.cwd'], '/tmp/mine');
+    // The folder is shared state, so the winner's folder is the one that counts.
+    expect(extras['workspace.cwd'], 'theirs');
     // And the rest of the bag followed the winner, key by key.
     expect(extras['peer.feature'], true);
     // The winner's clock is what both peers compare next session.
@@ -180,15 +188,16 @@ void main() {
         'workspace.id': 'w1',
         'tools.permission_mode': 'fullAccess',
         'workspace.allowAll': true,
-        'workspace.cwd': r'D:\elsewhere',
+        'workspace.cwd': 'elsewhere',
       }),
     );
 
     final extras = row['extras'] as Map;
     expect(extras, isNot(contains('tools.permission_mode')));
     expect(extras, isNot(contains('workspace.allowAll')));
-    expect(extras, isNot(contains('workspace.cwd')));
     expect(extras['workspace.id'], 'w1');
+    // The folder is not a grant, so it arrives with the row.
+    expect(extras['workspace.cwd'], 'elsewhere');
   });
 
   test('a conversation arriving from a peer arrives without a grant', () async {
@@ -199,7 +208,7 @@ void main() {
         'workspace.id': 'w1',
         'tools.permission_mode': 'fullAccess',
         'workspace.allowAll': true,
-        'workspace.cwd': r'D:\elsewhere',
+        'workspace.cwd': 'src',
         'peer.feature': true,
       }),
     );
@@ -207,19 +216,20 @@ void main() {
     final extras = row['extras'] as Map;
     expect(extras, isNot(contains('tools.permission_mode')));
     expect(extras, isNot(contains('workspace.allowAll')));
-    expect(extras, isNot(contains('workspace.cwd')));
     expect(extras['workspace.id'], 'w1');
+    expect(extras['workspace.cwd'], 'src');
     expect(extras['peer.feature'], true);
   });
 
-  test('a rebind does not carry the grant or the old path over', () async {
+  test('a rebind does not carry the grant over', () async {
     // A grant is issued against the conversation *and* its binding: writing a
     // new binding clears it on this device, so a rebind arriving from a peer
-    // must not restore it — nor pair the new workspace with the old directory.
+    // must not restore it. The folder follows the winner, so the old binding's
+    // folder goes with the old binding.
     await seedLocal(
       extras: {
         'workspace.id': 'w1',
-        'workspace.cwd': '/tmp/old',
+        'workspace.cwd': 'old',
         'tools.permission_mode': 'fullAccess',
       },
     );
@@ -263,5 +273,60 @@ void main() {
     );
     final extras = await wireExtras();
     expect(extras['tools.permission_mode.extra'], 'fullAccess');
+  });
+
+  test('the folder reaches the peer, and both digests still agree', () async {
+    // `workspace.cwd` is a workspace-*relative* folder — the picker validates it
+    // as one, `WorkspacePaths.normalizeCwd` resolves it against the workspace
+    // root — so the peer must receive it: without it the conversation's tools
+    // resolve against the workspace root there while they resolve against `src`
+    // here. Two real databases and the real wire read, so the rule is held end
+    // to end rather than through a helper.
+    await seedLocal(
+      extras: {
+        'workspace.id': 'w1',
+        'workspace.cwd': 'src',
+        'tools.permission_mode': 'fullAccess',
+      },
+    );
+
+    final peerDatabase = AppDatabase(NativeDatabase.memory());
+    final peer = ChatDatabaseRepository(peerDatabase);
+    await peer.ensureReady();
+    try {
+      final wire = await repository.syncReadWireConversationRow(conversationId);
+      expect(wire, isNotNull);
+      await peer.syncApplySubtree(
+        payload: SyncSubtreePayload(conversation: wire!, families: const {}),
+        myDeviceId: 'peer',
+        peerDeviceId: 'me',
+        checkpointRows: const {},
+      );
+
+      final peerExtras =
+          jsonDecode(
+                (await peer.syncReadConversationRow(
+                      conversationId,
+                    ))!['extras_json']
+                    as String,
+              )
+              as Map<String, dynamic>;
+      final peerBinding = WorkspaceBinding.fromExtras(peerExtras);
+      expect(peerBinding.workspaceId, 'w1');
+      expect(peerBinding.cwd, 'src');
+      expect(
+        peerExtras.keys,
+        isNot(anyElement(isIn(ToolPermissionMode.grantExtrasKeys))),
+      );
+
+      // The extras are device-local, so a key only one device holds must not
+      // move the identity either: the strip cannot start a re-push loop.
+      expect(
+        await peer.syncConversationDigest(conversationId),
+        await repository.syncConversationDigest(conversationId),
+      );
+    } finally {
+      await peerDatabase.close();
+    }
   });
 }

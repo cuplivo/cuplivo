@@ -1799,7 +1799,9 @@ class AppLocalizationsTr extends AppLocalizations {
       'Bu sürümün geri yükleyebildiği her şey, grup sohbetleri dahil';
 
   @override
-  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
 
   @override
   String get backupPageTargetKelivoNote =>

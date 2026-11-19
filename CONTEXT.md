@@ -39,9 +39,11 @@ contradicts one of them is a bug, not a preference.
   - `kelivo_backups`, `kelivo.db`, `kelivo.restore-*`, `.kelivo_restore`, `kelivo-schedule`,
     `kelivo_background` and other persisted keys/format ids.
   - Backup archive names are not legacy but reader-facing: a writer names the file for its target
-    (`cuplivo_backup_*` for this build, `kelivo_backup_*` for Kelivo 1.3.4), and every reader accepts
-    both, so a file from either version is still discovered, reclaimed and restorable. The local
-    snapshot prefix `kelivo-snapshot-` is untouched — older builds' recovery reads it.
+    (`cuplivo_backup_*` for this build, `kelivo_backup_*` for the Kelivo 1.3.2+ target), and every
+    reader accepts both, so a file from either version is still discovered, reclaimed and restorable.
+    The local snapshot prefix `kelivo-snapshot-` is untouched — older builds' recovery reads it —
+    while an exported copy is minted as `cuplivo-snapshot-*`, and the auto-backup written into the
+    user's own folder is `cuplivo_auto_*` (the 4.7.0 `kelivo_auto_*` names stay owned by retention).
   - `kelivo.psycheas.top`, `search.psycheas.top`, `afdian.com/a/kelivo`, `kelivo-helper` — external
     infrastructure Cuplivo does not control.
   - `KelivoImageSettingsMapper` and "Kelivo backup" interop terms — they describe the upstream

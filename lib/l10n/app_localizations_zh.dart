@@ -1713,7 +1713,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupPageTargetCuplivoNote => '当前版本可恢复的全部内容，含群聊';
 
   @override
-  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
 
   @override
   String get backupPageTargetKelivoNote => '可在 Kelivo 中导入，但会丢失群聊数据';
@@ -19635,7 +19637,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backupPageTargetCuplivoNote => '当前版本可恢复的全部内容，含群聊';
 
   @override
-  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
 
   @override
   String get backupPageTargetKelivoNote => '可在 Kelivo 中导入，但会丢失群聊数据';
@@ -37562,7 +37566,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backupPageTargetCuplivoNote => '目前版本可還原的全部內容，含群組聊天';
 
   @override
-  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
 
   @override
   String get backupPageTargetKelivoNote => '可在 Kelivo 中匯入，但會遺失群組聊天資料';

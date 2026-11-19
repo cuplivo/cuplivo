@@ -81,14 +81,22 @@ not be deleted either.
    table in decision 2 — and it carries the same standing role for this removal that
    `kelivo_vocabulary_test.dart` carries for the backup vocabulary (runbook rule 17, now rule 18).
 
-6. **A backup file is named for its reader.** The target a backup is written for now also decides the
-   file prefix: `cuplivo_backup_*` for this build, `kelivo_backup_*` for Kelivo 1.3.4. It is not a
-   wire format — WebDAV, S3 and Kelivo's own list filter by extension (`.zip` / `.kbackup`) — but it
-   is what the user sees in their cloud folder and what this build's recovery discovery matches, and
-   a name that says "kelivo" about an archive written for Cuplivo was the same confusion in a
-   smaller place. Readers accept both prefixes, so an archive written before this change is still
-   discovered, reclaimed and restorable. The local snapshot keeps its `kelivo-snapshot-<stamp>.zip`
-   name: that one is a recovery contract with older builds.
+6. **A file the user handles is named for the reader it is for.** `BackupArchiveNaming` owns the
+   rule: the archive prefix follows the target (`cuplivo_backup_*` for this build, `kelivo_backup_*`
+   for a Kelivo release), and every other name this build mints for a file a person sees — the
+   exported copy of a local snapshot (`cuplivo-snapshot-*` / `cuplivo-recovered-*`) and the
+   auto-backup written into the user's own folder (`cuplivo_auto_*`) — says Cuplivo, because those
+   files are only ever for this build. The name is not a wire format: WebDAV, S3 and Kelivo's own
+   list filter by extension (`.zip` / `.kbackup`), and nothing inside the archive names its target —
+   the prefix is the only signal there is. Every
+   reader — recovery discovery, prior-data evidence, upload partials, staging sweeps, the remote
+   mtime fallback and storage usage — accepts both archive prefixes, because 4.7.0 wrote only the
+   Kelivo one and an unrecognised name fails silently (unclaimed debris, an unlisted archive, a
+   backup missing from the storage total). `LocalFolderBackup` does the same for the auto-backup
+   prefix, and keeps the 4.7.0 names in its manifest rather than filtering them out: there the
+   silent failure is an existing backup dropping out of retention. The local snapshot keeps its
+   on-disk `kelivo-snapshot-<stamp>.zip` — that one is a recovery contract with older builds and
+   with Kelivo itself — while *exporting* one mints the Cuplivo name.
 
 ## Consequences
 
@@ -102,8 +110,10 @@ not be deleted either.
   default" is off, as for any user-added provider.
 - A user who was relying on the free models sees them disappear with the config. There is nothing to
   restore: the service is unreachable and its credential was never shipped to this line.
-- A backup file's name now tells the truth about which build can import it, and both namings remain
-  readable, so no existing archive is orphaned by the change.
+- A backup file's name now tells the truth about which build can import it, and both archive
+  prefixes remain readable, so no existing archive is orphaned by the change. The same rule covers
+  the two other files a user handles — an exported local copy and the auto-backup in their folder —
+  and both eras of the auto-backup name stay under this installation's retention.
 
 ## Not in scope
 

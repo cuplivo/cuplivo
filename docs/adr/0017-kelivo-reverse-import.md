@@ -15,10 +15,10 @@ The group-chat unit (`5136e617b`, #1052) added `BusinessEntityKind.groupChat`, a
 `exportSnapshotWithRowIds` writes a key for every kind, so every backup since carries
 `"group_chats_v1": []` — the empty list is not the problem; the key is. Nothing on the compatibility
 axes moved with it, so nothing declined the archive on the way in: archive format stayed 3 and
-`AppDatabase.currentSchemaVersion` stayed 5, which is exactly what Kelivo v1.3.4 (`4a7da9b6f`) reads as
-*its own*. The result was that **no Cuplivo backup could be restored into Kelivo, including for a user
-who had never created a group**, and the failure surfaced as a `FormatException` part-way through a
-restore rather than as a refusal.
+`AppDatabase.currentSchemaVersion` stayed 5, which is exactly what every Kelivo release from v1.3.2 on
+reads as *its own*. The result was that **no Cuplivo backup could be restored into Kelivo, including
+for a user who had never created a group**, and the failure surfaced as a `FormatException` part-way
+through a restore rather than as a refusal.
 
 Two mechanisms existed for exactly this and neither covers it:
 
@@ -34,9 +34,22 @@ all: `flutter test` stays entirely green while the archive is unusable.
 ## Decisions
 
 1. **The export has a target, and the target is data.** `BackupTarget.cuplivo` writes every kind in
-   the current format. `BackupTarget.kelivoV1_3_4` writes only the kinds, categories and archive
-   format frozen in `KelivoVocabulary.v1_3_4` — one constant per release, never edited in place,
-   generated from that release's own tree (`business_data.dart`, `backup_scope.dart`).
+   the current format. `BackupTarget.kelivo` writes only the kinds, categories and archive format
+   frozen in `KelivoVocabulary.v1_3_2` — one constant per release, never edited in place, generated
+   from that release's own tree (`business_data.dart`, `backup_scope.dart`, `app_database.dart`).
+   The constant is the *floor* of the range the target claims: v1.3.2 is the first release that opens
+   SQL schema 5, and every release from there to the v1.3.6 baseline carries the same vocabulary at the
+   same archive format, so an archive built for the floor imports into all of them. The label
+   「Kelivo {version}+」 is built from `KelivoVocabulary.release`, not typed beside it.
+
+   The pin's `manifestRootKeys` is the fourth axis, and it is why the writer keeps `skippedEntries`
+   out of an archive written for a foreign reader. That reader stages a candidate before restoring
+   and then compares the manifest's root key set **exactly**; its unknown-key trim only runs for an
+   archive that declares a newer build, which a format-3 archive does not. So a root key its rewrite
+   does not remove and its validator does not expect is refused after the user has already consented
+   to the restore. `skippedEntries` is such a key — a diagnostic upstream added in 1.3.6, newer than
+   the floor — and the source key set is now pinned beside the entity keys, the categories and the
+   format number rather than discovered in a departing user's restore.
 
 2. **One list decides what is unreadable, and three call sites read it.**
    `unreadableEntitySourceKeys(target)` is the difference between `BusinessEntityKind.values` and the
@@ -70,7 +83,12 @@ all: `flutter test` stays entirely green while the archive is unusable.
 4. **The vocabulary is pinned by a test, not by a comment.**
    `test/core/database/kelivo_vocabulary_test.dart` refuses a `BusinessEntityKind` that is neither in
    the pinned vocabulary nor in `unreadableKindDispositions`, so a new kind — the next #1052 — cannot
-   ship without someone writing down what a Kelivo user loses.
+   ship without someone writing down what a Kelivo user loses. It also asserts the schema axis, which
+   the pin did not carry before #1095: the target stamps every archive with
+   `AppDatabase.currentSchemaVersion`, so a schema bump that leaves the floor behind makes the label
+   false for *every* archive the target writes. That failure is the decision point — keep the pinned
+   schema, move the floor (and the label with it), or retire the target — never a number to raise
+   quietly.
 
 5. **Group chats do not travel backwards, and that is said out loud.** A group has no Kelivo
    equivalent; its rows and the `groupChat.id` link leave with the archive, while the conversations
@@ -97,5 +115,9 @@ all: `flutter test` stays entirely green while the archive is unusable.
 - Adding a business kind now costs a disposition line: in the vocabulary if the release knows it,
   otherwise a sentence about what the older reader loses. This is the check that makes the
   rebase-runbook's rule 17 mechanical.
-- Pinning a later Kelivo release means adding a constant next to `v1_3_4` and re-generating it from
-  that tag — never editing the old one, or archives already written change meaning.
+- Pinning a later Kelivo release means adding a constant next to `v1_3_2` and re-generating it from
+  that tag — never editing the old one, or archives already written change meaning. The floor only
+  moves when the target itself must move (a schema bump past the floor); the label follows the
+  constant, so it cannot be updated on its own. A config written before the tokens were unversioned
+  (`kelivoV1_3_4`, shipped in 4.7.0) still reads back as the Kelivo target rather than falling back to
+  Cuplivo, which would put group chats back into a departing user's archive.

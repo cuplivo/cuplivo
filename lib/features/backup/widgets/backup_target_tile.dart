@@ -94,7 +94,11 @@ class BackupTargetTile extends StatelessWidget {
   static String targetLabel(AppLocalizations l10n, BackupTarget target) =>
       switch (target) {
         BackupTarget.cuplivo => l10n.backupPageTargetCuplivo,
-        BackupTarget.kelivoV1_3_4 => l10n.backupPageTargetKelivo,
+        // The release comes from the pin, so the row cannot name a version the
+        // vocabulary does not hold — see KelivoVocabulary.release.
+        BackupTarget.kelivo => l10n.backupPageTargetKelivo(
+          target.vocabulary!.release,
+        ),
       };
 }
 
@@ -117,8 +121,8 @@ class _BackupTargetPicker extends StatelessWidget {
         l10n.backupPageTargetCuplivoNote,
       ),
       (
-        BackupTarget.kelivoV1_3_4,
-        l10n.backupPageTargetKelivo,
+        BackupTarget.kelivo,
+        BackupTargetTile.targetLabel(l10n, BackupTarget.kelivo),
         l10n.backupPageTargetKelivoNote,
       ),
     ];

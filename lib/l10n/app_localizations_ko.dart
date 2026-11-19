@@ -1753,7 +1753,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get backupPageTargetCuplivoNote => '이 버전에서 복원할 수 있는 모든 항목, 그룹 채팅 포함';
 
   @override
-  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
 
   @override
   String get backupPageTargetKelivoNote =>

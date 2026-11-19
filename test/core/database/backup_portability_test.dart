@@ -271,7 +271,7 @@ void main() {
 
       await BackupPortability.sanitizeDatabase(
         database,
-        target: BackupTarget.kelivoV1_3_4,
+        target: BackupTarget.kelivo,
       );
 
       expect(await store.get(kind, 'g1'), isNull);

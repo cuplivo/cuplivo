@@ -545,7 +545,7 @@
   "backupPageTargetTitle": "Цель резервной копии",
   "backupPageTargetCuplivo": "Cuplivo",
   "backupPageTargetCuplivoNote": "Всё, что эта версия может восстановить, включая групповые чаты",
-  "backupPageTargetKelivo": "Kelivo 1.3.4",
+  "backupPageTargetKelivo": "Kelivo {version}+",
   "backupPageTargetKelivoNote": "Импортируется в Kelivo, но групповые чаты теряются",
   "backupPageBackupManagementDescription": "Выберите, что копировать и импортировать. Применяется к локальным, WebDAV и S3 резервным копиям. Невыбранное содержимое при импорте остаётся без изменений. Навыки и рабочие области включают собственные файлы.",
   "backupPageAssistantsLabel": "Ассистенты",

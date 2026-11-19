@@ -1791,7 +1791,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Everything this version can restore, group chats included';
 
   @override
-  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
 
   @override
   String get backupPageTargetKelivoNote =>

@@ -1,13 +1,18 @@
 # 计划书 — 准入、期限与取消
 
+这份文件是**计划**：目标、决定、提交切分。设计本身在
+[`docs/design/lan-sync-admission/a-three-lanes.md`](docs/design/lan-sync-admission/a-three-lanes.md)，
+决定的历史在 [`docs/adr/0003-lan-sync-architecture.md`](docs/adr/0003-lan-sync-architecture.md) 的
+`Amendment (2026-11, admission)`。两处都改过而这里没跟上的句子，以那两处为准——计划记的是当时怎么
+想的，不是系统现在是什么样。
+
 | | |
 |---|---|
-| worktree | `D:\Projects\.worktrees\089wkfcf\cuplivo-refactor-lan-sync-admission` |
 | branch | `refactor/lan-sync-admission` |
 | base | `04c1e594e`（#1088 之后） |
 | 覆盖 | N1（未鉴权 `/pair` 占全局串行）、N2（上传与 drain 无期限）、O1（只读路由被写 beat 挡住 → 环形互等）、O2（超时不取消）；**无协议变更** |
-| 状态 | 五个 commit + 环形验收（`a1f081c73` … `cd562c1c3`）；评审第一轮的五条已在 `review-1` commit 里回应；待评审 |
-| 骨架 | `docs/design/lan-sync-admission/a-three-lanes.md`（伪代码、不变量、失效模式、17 格状态表） |
+| 状态 | 已交付；评审第一轮五条、第二轮四条按提交记录回应（见分支历史） |
+| 骨架 | `docs/design/lan-sync-admission/a-three-lanes.md`（伪代码、不变量、失效模式、状态表与用例名） |
 
 ## 0. 一句话
 
@@ -54,7 +59,7 @@
 
 ## 5. 状态表（一格一测）
 
-完整 17 格在骨架文档 §7（编号即用例名，一格一测）。这里是四组锚点：
+完整的格在骨架文档 §7（每格点名它落在哪个用例；这一节只是写计划时的四组锚点，不是清单）。
 
 | 情形 | 期望 |
 |---|---|
@@ -79,8 +84,8 @@
 
 - `dart analyze --fatal-infos lib test integration_test`；`dart format`（CI 钉住的 Dart 版本）
 - `flutter test test/core/services/sync` + 完整 `sync_engine_integration_test.dart`（它已有 `/sync/ping` 旁跑、半发 `/pair` 等用例，是本 PR 的回归网）
-- 新增并发测试进新文件 `sync_admission_test.dart`（骨架 §7 的 17 格，编号即用例名）
-- 注入证明（三条，各自 `git hash-object` 还原核对）：注掉检查点提交点前的 `check()` → "超时后不写检查点"那格红；把 `GET /sync/blob` 改回写车道 → 环形那格红；去掉 `/pair` 车道 → 并发那格红
+- 新增并发测试进新文件 `sync_admission_test.dart`（骨架 §7 逐格点名用例）
+- 注入证明（实际做了五条，各自按 sha256 还原核对）：注掉检查点提交点前的 `check()` → "超时后不写检查点"那格红；把 `GET /sync/blob` 改回写车道 → 环形那格红；去掉 `/pair` 车道 → 并发那格红；把 `addStream` 放回计时器外 → 上传那格红；上限抬到 99 → 拒绝消失
 
 ## 8. 风险与回滚
 
@@ -88,4 +93,4 @@
 - **R2** 取消打断事务——D-3 已把它限制在事务边界之间；测试要覆盖"事务中途不取消"。
 - **R3** `/pair` 车道上限可能误伤正常配对（用户连点扫描）。上限要按"几个并发配对算正常"来定，并有拒绝文案。
 - **R4** 这是四个 PR 里唯一动并发骨架的：放最后合，冲突面最小（`sync_engine.dart` 里它碰会话/取消，前三个碰批次构建与 hello）。
-- **回滚**：五个 commit 可按需单独 revert；分道回退到全局链即恢复今天的行为（并恢复环形互等）。
+- **回滚**：commit 可按需单独 revert；分道回退到全局链即恢复今天的行为（并恢复环形互等）。

@@ -589,6 +589,134 @@ void main() {
       reason: 'and end near the 400 ms budget, not hang',
     );
   });
+
+  test('a cancelled write handler cannot commit beside the next one', () async {
+    // The write lane orders *responses*, not handler lifetimes: a handler the
+    // deadline abandoned keeps running until its next await or check. What keeps
+    // that safe is the gate — only a live admission commits — and this cell is
+    // that claim, stated as what the code does rather than as "no two handlers
+    // overlap", which the lane cannot promise once it has answered 504.
+    final handler = _RecordingHandler()
+      ..helloGate = Completer<void>()
+      ..gateIgnoresAdmission = true
+      ..recordCommit = true;
+    final server = await startServer(
+      handler,
+      deadlineFor: (_) => const Duration(milliseconds: 300),
+    );
+    final http = client();
+
+    Future<HttpClientResponse> hello() async {
+      final request = await http.postUrl(
+        Uri.parse('https://127.0.0.1:${server.port!}/sync/hello'),
+      );
+      authenticate(request);
+      request.headers.contentType = ContentType.json;
+      request.write(jsonEncode(handler.helloBody()));
+      return request.close();
+    }
+
+    final first = hello();
+    await _waitUntil(
+      () => handler.hellos == 1,
+      what: 'the first hello reached the handler',
+    );
+    final firstResponse = await first;
+    await firstResponse.drain<void>();
+    expect(firstResponse.statusCode, HttpStatus.gatewayTimeout);
+
+    // The lane admits the next write while the abandoned one is still inside its
+    // handler — the overlap, measured rather than assumed.
+    final second = await hello();
+    await second.drain<void>();
+    expect(second.statusCode, HttpStatus.ok);
+
+    // One handler committed, and it was the live one.
+    expect(handler.commits, [true]);
+
+    handler.helloGate!.complete();
+    await _waitUntil(
+      () => handler.commits.length == 2,
+      what: 'the abandoned handler reached its commit point',
+    );
+    expect(handler.commits, [true, false]);
+  });
+
+  test('every route takes the lane its effect names', () async {
+    // `SyncServer._classify` is one row per route and the dispatch is an
+    // exhaustive switch over it, so a route cannot be served without a lane. This
+    // cell is the other half: the lane a row claims is the lane *observed* — with
+    // the write lane held by a stalled body, a write route waits and nothing else
+    // does. Without it a row flipped by hand (a `PUT` called a read) would pass
+    // every other test in this file, because they only exercise the routes they
+    // care about.
+    final cases = <(String, String, bool)>[
+      ('POST', '/sync/hello', true),
+      ('PUT', '/sync/subtrees', true),
+      ('POST', '/sync/subtrees', true),
+      ('POST', '/sync/revoke', true),
+      ('PUT', SyncServer.workspaceFilePath, true),
+      ('PUT', '${SyncServer.blobPathPrefix}$blobHash', true),
+      // A method the route does not serve answers its 405 beside the lanes: it
+      // must not queue on the lane the right method would have taken.
+      ('GET', '/sync/hello', false),
+      ('DELETE', '/sync/hello', false),
+      ('GET', '/sync/subtrees', false),
+      ('GET', '/sync/revoke', false),
+      ('POST', SyncServer.workspaceFilePath, false),
+      ('GET', '${SyncServer.blobPathPrefix}$blobHash', false),
+      // Its own lanes, and no path at all.
+      ('POST', '/sync/ping', false),
+      ('POST', '/pair', false),
+      ('GET', '/pair', false),
+      ('GET', '/nothing-here', false),
+    ];
+    for (final (method, path, writes) in cases) {
+      final handler = _RecordingHandler();
+      final server = await startServer(handler, deadline: null);
+      final holder = await holdWriteLane(server.port!);
+      final http = client();
+      final request = await http.openUrl(
+        method,
+        Uri.parse('https://127.0.0.1:${server.port!}$path'),
+      );
+      authenticate(request);
+      request.headers.contentType = ContentType.json;
+      if (method != 'GET') {
+        // A body each route can parse: the held lane releases the queued request
+        // when it is destroyed, and a 500 from a request this cell never looks at
+        // would be noise in the suite's output.
+        request.write(
+          jsonEncode(path == '/sync/hello' ? handler.helloBody() : {}),
+        );
+      }
+      final pending = request.close();
+      pending.ignore();
+      HttpClientResponse? answered;
+      try {
+        answered = await pending.timeout(const Duration(seconds: 1));
+      } on TimeoutException {
+        answered = null;
+      }
+      if (writes) {
+        expect(
+          answered,
+          isNull,
+          reason: '$method $path writes, so it must wait for the write lane',
+        );
+      } else {
+        expect(
+          answered,
+          isNotNull,
+          reason:
+              '$method $path writes nothing, so it must not wait for the '
+              'write lane',
+        );
+        await answered!.drain<void>();
+      }
+      holder.destroy();
+    }
+  });
 }
 
 /// Polls [condition] until it holds, or fails naming what never happened.
@@ -624,7 +752,22 @@ class _RecordingHandler implements SyncServerHandler {
   int workspaceFetches = 0;
 
   /// Held open by a test that wants a write handler to outlive its budget.
+  ///
+  /// It holds the **first** hello only, so a test can hold one handler past its
+  /// deadline and still let the next request through the same route.
   Completer<void>? helloGate;
+
+  /// Wait for [helloGate] without consulting the admission — the shape the
+  /// engine's reverse-dial awaits have, where the deadline abandons the handler
+  /// rather than unwinding it.
+  bool gateIgnoresAdmission = false;
+
+  /// Record whether this handler's own commit point was allowed. True is a live
+  /// admission; false is the refusal a cancelled handler gets.
+  bool recordCommit = false;
+
+  /// One entry per handler that reached its commit point, in arrival order.
+  final List<bool> commits = [];
 
   /// How long the hello handler takes before answering — a beat that can be cut
   /// short by what a queue wait left of the budget.
@@ -653,13 +796,25 @@ class _RecordingHandler implements SyncServerHandler {
     hellos++;
     final delay = helloDelay;
     if (delay != null) await Future<void>.delayed(delay);
-    final gate = helloGate;
+    final gate = hellos == 1 ? helloGate : null;
     if (gate != null) {
+      if (gateIgnoresAdmission) {
+        await gate.future;
+      } else {
+        try {
+          await admission.io(() => gate.future);
+        } on SyncAdmissionLost {
+          helloGateLostWhenReleased = admission.isLost;
+          rethrow;
+        }
+      }
+    }
+    if (recordCommit) {
       try {
-        await admission.io(() => gate.future);
+        admission.check();
+        commits.add(true);
       } on SyncAdmissionLost {
-        helloGateLostWhenReleased = admission.isLost;
-        rethrow;
+        commits.add(false);
       }
     }
     return SyncHello(
@@ -693,19 +848,22 @@ class _RecordingHandler implements SyncServerHandler {
     return null;
   }
 
+  /// Answered, not thrown: the lane table's cell releases a queued write when it
+  /// destroys the held lane, and a throw there would print a 500 from a request
+  /// the test never looks at.
   @override
   Future<SyncDeltaBatch> handleFetchSubtrees(
     String peerDeviceId,
     SyncFetchRequest request, {
     required SyncAdmission admission,
-  }) async => throw UnimplementedError();
+  }) async => const SyncDeltaBatch(<SyncSubtreePayload>[]);
 
   @override
   Future<SyncApplyAck> handleApplySubtrees(
     String peerDeviceId,
     SyncDeltaBatch batch, {
     required SyncAdmission admission,
-  }) async => throw UnimplementedError();
+  }) async => const SyncApplyAck(applied: 0);
 
   @override
   Future<bool> handlePutWorkspaceFile(

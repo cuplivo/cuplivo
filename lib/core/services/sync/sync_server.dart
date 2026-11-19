@@ -219,6 +219,11 @@ class SyncPairAnswer {
 /// The lanes a request can be served on, decided by `SyncServer._laneOf`.
 enum _Lane { ping, pair, read, write }
 
+/// Every route this listener serves. One row per route in [_classify], and the
+/// subject of [_route]'s exhaustive switch: adding a route is adding an arm
+/// there, and that arm cannot compile without a lane here.
+enum _Route { ping, pair, hello, subtrees, revoke, workspaceFile, blob }
+
 /// HTTPS server for LAN sync.
 ///
 /// One listener serves both pairing and sync routes, authenticated in two
@@ -434,29 +439,28 @@ class SyncServer {
 
   /// Which lane one request belongs to: **by effect, not by path**.
   ///
-  /// The one place that decides *which lane*, and the reason `_writesState`
-  /// below deliberately does not know about `/pair`: the pairing route is
-  /// classified by *authentication*, not by effect (it is the one route with no
-  /// secret to check), so it is decided here and only here. A second answer for
-  /// it inside `_writesState` would be dead code that reads as authority.
-  _Lane _laneOf(HttpRequest request) {
-    if (request.uri.path == pingPath) return _Lane.ping;
-    if (request.uri.path == '/pair') return _Lane.pair;
-    return _writesState(request.method, request.uri.path)
-        ? _Lane.write
-        : _Lane.read;
-  }
+  /// Reads the same table [_route] dispatches from, so a route is classified
+  /// exactly once — the lane and the handler are two answers about one row.
+  _Lane _laneOf(HttpRequest request) =>
+      _classify(request.method, request.uri.path)?.$2 ?? _Lane.read;
 
-  /// Whether this route, with this method, can change what this device holds.
+  /// Every route this listener serves: which one it is, and which lane it takes.
   ///
-  /// The one place that decides *read or write*, for every route but `/pair`
-  /// (see [_laneOf]). A route is classified by what it *does* rather than where
-  /// it lives: `POST /sync/wsfile` streams a file this device advertised (a
-  /// read) while `PUT` on the same path lands one (a write), and a
-  /// `GET /sync/hello` writes nothing even though every `POST` there installs a
-  /// session. A route this does not name writes nothing, so an unknown path
-  /// answers its 404 beside the lanes instead of queueing on the one that
-  /// matters.
+  /// One table, read by [_laneOf] and by [_route]. It used to be two — a
+  /// `_writesState` that answered read/write and a `switch` that answered
+  /// "which handler" — and the gap between them was **fail-open**: a mutating
+  /// route added to the dispatch and forgotten in `_writesState` ran on the
+  /// concurrent read lane, beside a write beat, with nothing failing loudly. The
+  /// enum is what closes it: the dispatch is an exhaustive `switch` over it, so
+  /// a route cannot be served without a row here, and a row cannot exist without
+  /// a lane.
+  ///
+  /// Classification is by *effect*, not by path: `POST /sync/wsfile` streams a
+  /// file this device advertised (a read) while `PUT` on the same path lands one
+  /// (a write), and `GET /sync/hello` writes nothing even though every `POST`
+  /// there installs a session. A method a route does not serve still gets a row
+  /// — on the read lane, where it answers its 405 — so a wrong method can never
+  /// queue on the lane it would have taken.
   ///
   /// What the read lane's concurrency rests on, and both facts predate it:
   /// a read resolves against state that is *swapped whole* when it changes
@@ -464,14 +468,27 @@ class SyncServer {
   /// write runs a network await inside a database transaction (`_fetchOne` is
   /// network, then file, then DB) — so a read waiting on the database waits for
   /// one transaction, not for a transfer.
-  static bool _writesState(String method, String path) {
-    return switch (path) {
-      '/sync/hello' => method == 'POST',
-      '/sync/subtrees' => method == 'POST' || method == 'PUT',
-      '/sync/revoke' => method == 'POST',
-      workspaceFilePath => method == 'PUT',
-      _ => path.startsWith(blobPathPrefix) && method == 'PUT',
-    };
+  static (_Route, _Lane)? _classify(String method, String path) {
+    if (path == pingPath) return (_Route.ping, _Lane.ping);
+    if (path == '/pair') return const (_Route.pair, _Lane.pair);
+    if (path == '/sync/hello') {
+      return (_Route.hello, method == 'POST' ? _Lane.write : _Lane.read);
+    }
+    if (path == '/sync/subtrees') {
+      final writes = method == 'POST' || method == 'PUT';
+      return (_Route.subtrees, writes ? _Lane.write : _Lane.read);
+    }
+    if (path == '/sync/revoke') {
+      return (_Route.revoke, method == 'POST' ? _Lane.write : _Lane.read);
+    }
+    if (path == workspaceFilePath) {
+      return (_Route.workspaceFile, method == 'PUT' ? _Lane.write : _Lane.read);
+    }
+    if (path.startsWith(blobPathPrefix)) {
+      return (_Route.blob, method == 'PUT' ? _Lane.write : _Lane.read);
+    }
+    // Served by nothing: it answers its 404 beside the lanes.
+    return null;
   }
 
   /// One request, on whichever lane the loop put it, bounded by its budget.
@@ -596,7 +613,8 @@ class SyncServer {
     _ => _dataDeadline,
   };
 
-  /// Routes one already-authenticated request.
+  /// Routes one already-authenticated request, over the same table that chose
+  /// its lane.
   ///
   /// [peerDeviceId] is null only for `/pair`, the one route that answers before
   /// any authentication exists. The authentication decision itself is made once,
@@ -606,34 +624,39 @@ class SyncServer {
     String? peerDeviceId,
     SyncAdmission admission,
   ) async {
-    if (request.uri.path == '/pair') {
+    final match = _classify(request.method, request.uri.path);
+    if (match == null) {
+      _safeRespond(request, HttpStatus.notFound, {'error': 'not_found'});
+      return;
+    }
+    final route = match.$1;
+    if (route == _Route.pair) {
       await _handlePair(request, admission);
       return;
     }
     final peer = peerDeviceId;
-    if (!request.uri.path.startsWith('/sync/') || peer == null) {
+    if (peer == null) {
       _safeRespond(request, HttpStatus.notFound, {'error': 'not_found'});
       return;
     }
-    switch (request.uri.path) {
-      case '/sync/hello':
-        await _handleHello(request, peer, admission);
-        break;
-      case '/sync/subtrees':
-        await _handleSubtrees(request, peer, admission);
-        break;
-      case '/sync/revoke':
-        await _handleRevoke(request, peer, admission);
-        break;
-      case workspaceFilePath:
-        await _handleWorkspaceFile(request, peer, admission);
-        break;
-      default:
-        if (request.uri.path.startsWith(blobPathPrefix)) {
-          await _handleBlob(request, peer, admission);
-          break;
-        }
+    switch (route) {
+      case _Route.ping:
+        // Answered at the loop, on its own lane: it never reaches this method,
+        // and the arm is here so the switch stays exhaustive over the table.
         _safeRespond(request, HttpStatus.notFound, {'error': 'not_found'});
+      case _Route.pair:
+        // Handled above, before the peer is needed: pairing has no secret yet.
+        _safeRespond(request, HttpStatus.notFound, {'error': 'not_found'});
+      case _Route.hello:
+        await _handleHello(request, peer, admission);
+      case _Route.subtrees:
+        await _handleSubtrees(request, peer, admission);
+      case _Route.revoke:
+        await _handleRevoke(request, peer, admission);
+      case _Route.workspaceFile:
+        await _handleWorkspaceFile(request, peer, admission);
+      case _Route.blob:
+        await _handleBlob(request, peer, admission);
     }
   }
 

@@ -2339,8 +2339,9 @@ path. A route neither names writes nothing.
 | anything else | nothing | read (answers 404/405 beside the lanes) |
 
 **The write lane stays device-wide.** Splitting it per peer was considered and rejected (see below):
-the ring is broken by the read lane alone, and one writer at a time is the invariant the session map,
-the checkpoint file and the apply path were designed around.
+the ring is broken by the read lane alone, and *the order of commits* is the invariant the session
+map, the checkpoint file and the apply path were designed around — one request admitted at a time, and
+one *committable* admission at a time (the next bullet says why those are two claims).
 
 **A request's budget starts when the listener reads it, and it is measured on the monotonic clock.**
 `SyncAdmission` carries both the budget and the right to write; a request that waited behind a long
@@ -2364,11 +2365,23 @@ object:
   argument has already started — a gate that refuses it would leave its error unlistened.
 * `ioStream()` for the same reason, chunk by chunk.
 
+**The lane orders answers; the gate orders commits.** A handler the deadline abandoned keeps
+running until its next await or check — the lane admits the next write the moment the 504 is written —
+so "no two write handlers overlap" is not what holds, and an earlier draft of this amendment said it
+did. What holds is weaker and testable: only a live admission commits. Every state change sits behind
+`check()`, so an abandoned handler's next commit point refuses, and two writes are never *committed*
+concurrently. A cancelled beat may still finish the unit it was inside — one file or blob landing —
+which is idempotent, content-addressed and re-planned by the next session, because the checkpoint
+that would have recorded it is behind the check.
+
 **Cancellation is per unit.** `applySubtrees` checks between conversations, the workspace apply
-between files, the blob pull between blobs — where the untried remainder is recorded as *failed*
-rather than dropped, because an entry the outcome does not name leaves the checkpoint's pending set
-and would never be asked for again. The deletion loops check once, before they start: each deletion
-re-reads the row it would remove, so stopping there is the same as not having started.
+between files, the blob pull between blobs, so what a cancelled beat stops on is one unit — and what
+that unit committed stays: a conversation's transaction, a file's rename, a blob's placement are
+idempotent against the plan that asked for them, and the next session re-plans them. The untried
+remainder is *not* recorded anywhere, and that is deliberate: a cancelled beat writes no checkpoint,
+so a bookkeeping entry naming it would never be persisted — the retry set comes back from the peer's
+next manifest. The deletion loops check once, before they start: each deletion re-reads the row it
+would remove, so stopping there is the same as not having started.
 
 **Authentication is decided once, at dispatch.** A `/sync/*` request that cannot name a paired caller
 is answered 401 before it joins any queue — including the probe's: the identity is checked before the
@@ -2423,11 +2436,18 @@ to point one lane over.
   refusal path (`ping_busy`'s shape) is what it would take.
 * **A paired peer's write flood now queues other peers behind it**, because the write lane is
   device-wide. That is the price of the lane key; it is not worse than the single chain it replaced.
+* **A push refused while it was queued spends its own transfer budget.** A request whose deadline runs
+  out in the queue is answered 504 when the lane reaches it, and the peer is still inside
+  `addStream`, where it cannot read a status: measured with a 4 MB push behind a held lane, the
+  client ends in `transfer_timeout` rather than 504. Answering before the body arrives does not help
+  — the peer is blocked on a socket nobody is reading — and draining the body first delays the 504
+  that a *stalled* body is owed, which is the case the deadline exists for. The peer has spent the
+  send either way and retries next session; what it loses is the reason.
 
 ### Consequences for earlier claims
 
 * Slice 3's "the data routes run one at a time — they share session state and a checkpoint file" holds
-  unchanged, now stated as a lane rather than as the loop.
+  as "their commits are ordered": a lane for the answers, a gate for the commits.
 * Slice 19's probe lane is unchanged; its authentication moved to the dispatch point, so the route no
   longer decides pairing itself.
 * The "Every request has a deadline, on both planes" bullet (slice 5) is now "from admission", and the

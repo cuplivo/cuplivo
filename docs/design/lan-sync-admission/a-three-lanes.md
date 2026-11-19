@@ -165,7 +165,11 @@ await _transfer((left) async {
 
 ## 5. 不变量
 
-- **I-1 写不并发。** 设备上任何两个写处理器不重叠。A 用一条车道达成，和今天一致。
+- **I-1 提交不并发。** 两个写处理器的**提交**永不重叠：每个提交点都过 `check()`，被取消的处理器到
+  下一个提交点必然被拒。注意这不是"两个处理器不重叠"——车道排的是**应答**，504 一写出去，下一个
+  写请求就被放行，被放弃的处理器还在跑（它可能跑完一笔落盘/落 blob，那是幂等、下一轮会重规划的，
+  真正记账的检查点在 `check()` 后面）。第一版把 I-1 写成"处理器不重叠"是假的；这一格
+  （`a cancelled write handler cannot commit beside the next one`）钉的是能成立的那一条。
 - **I-2 读只读已发布的快照。** 读处理器能看到的一切，都在发布点整份替换，绝不原地拼：
   `WorkspaceContentSync.publish` 先建整张新表再赋值（`_served[peer] = served`），会话字段在发布
   之后不可变，`_publishedBlobs`/`_publishedSkillIds` 只在同步段里改。违反它，读车道并发就会
@@ -190,6 +194,7 @@ await _transfer((left) async {
 ## 7. 状态表 —— 一格一测
 
 一格一个用例，下面第三列就是用例名（原写的"编号就是用例名"是假的，第一版交付时还没有这些用例）。
+表外另有两格，测的是机制而不是某一格情形：`every route takes the lane its effect names`（路由与车道同一张表，16 个 method×path 逐条观测）和 I-1 那一格（被取消的处理器提交不了）。
 
 | # | 情形 | 用例（`test/core/services/sync/`） |
 |---|---|---|

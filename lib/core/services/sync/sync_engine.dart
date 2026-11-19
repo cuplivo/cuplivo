@@ -3156,12 +3156,11 @@ class SyncEngine implements SyncServerHandler {
     for (var i = 0; i < wanted.length; i++) {
       final entry = wanted[i];
       if (cancelled?.call() ?? false) {
-        // The ones not tried are *not* silently dropped: an entry the outcome
-        // does not name would leave the checkpoint's pending set, and a blob
-        // nobody remembers owing is a blob never asked for again.
-        for (final rest in wanted.skip(i)) {
-          outcome.failed[rest.target] = rest;
-        }
+        // Stop here rather than pull into a beat the peer has already been told
+        // is over. The ones not tried are *not* recorded as failed: a cancelled
+        // beat writes no checkpoint, so nothing would carry that record — the
+        // retry set this beat would have advanced is behind the same gate, and
+        // what is still owed comes back from the peer's next manifest.
         break;
       }
       onProgress?.call(i, wanted.length);

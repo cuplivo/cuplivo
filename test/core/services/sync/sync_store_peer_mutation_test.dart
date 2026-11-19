@@ -100,4 +100,68 @@ void main() {
     expect(after?.customName, 'after-the-failure');
     expect((await store.readPeer('peer-1'))!.customName, 'after-the-failure');
   });
+
+  test('a pairing write and a session mutation of one peer both land', () async {
+    // Pairing writes the record whole (`savePeer` — the record's *origin*), and
+    // it happens on its own lane, so it can be in flight beside a session that
+    // is mutating the same record. Both went through one temporary path until
+    // `savePeer` joined the record's write chain: the loser's rename is what
+    // Windows refuses, and the record on disk kept the OLD secret while memory
+    // held the new one — a paired device that answers 401 after the next launch.
+    await store.savePeer(record());
+    for (var round = 0; round < 40; round++) {
+      final rotated = record()..secret = 'secret-$round';
+      final pairing = store.savePeer(rotated);
+      final session = store.mutatePeer('peer-1', (peer) {
+        peer.lastSyncedAt = DateTime.now();
+        return true;
+      });
+      // Neither may throw: a refusal here is a pairing answered 500 after the
+      // PIN was spent, or a session that ends on a 500 after its checkpoint.
+      await Future.wait([pairing, session]);
+
+      final after = (await store.readPeer('peer-1'))!;
+      expect(
+        after.secret,
+        'secret-$round',
+        reason: 'the pairing record is what the listener authenticates with',
+      );
+      expect(after.lastSyncedAt, isNotNull, reason: 'the session write landed');
+    }
+  });
+
+  test('a mutation issued after the pairing wins the field it set', () async {
+    // The chain decides the order, so a mutation queued behind a pairing reads
+    // what the pairing wrote — which is the point of reading inside the section.
+    await store.savePeer(record());
+    final pairing = store.savePeer(record()..secret = 'rotated');
+    final session = store.mutatePeer('peer-1', (peer) {
+      peer.customName = 'named-later';
+      return true;
+    });
+    await Future.wait([pairing, session]);
+
+    final after = (await store.readPeer('peer-1'))!;
+    expect(after.secret, 'rotated');
+    expect(after.customName, 'named-later');
+  });
+
+  test(
+    'a revocation and a mutation of one peer do not leave it half-there',
+    () async {
+      await store.savePeer(record());
+      final session = store.mutatePeer('peer-1', (peer) {
+        peer.lastSyncedAt = DateTime.now();
+        return true;
+      });
+      final revocation = store.deletePeer('peer-1');
+      await Future.wait([session, revocation]);
+
+      // Whatever the order, the record is either gone (the revocation ran last) or
+      // present with both writes applied (the mutation ran last) — never re-created
+      // by a write that started before the delete and finished after it.
+      final after = await store.readPeer('peer-1');
+      if (after != null) expect(after.lastSyncedAt, isNotNull);
+    },
+  );
 }

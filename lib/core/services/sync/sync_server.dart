@@ -188,6 +188,9 @@ class SyncPairAnswer {
   };
 }
 
+/// The lanes a request can be served on, decided by `SyncServer._writesState`.
+enum _Lane { ping, read, write }
+
 /// HTTPS server for LAN sync.
 ///
 /// One listener serves both pairing and sync routes, authenticated in two
@@ -323,33 +326,75 @@ class SyncServer {
   }
 
   Future<void> _serve(HttpServer server) async {
-    // The data routes still run one at a time — they share session state and a
-    // checkpoint file — but the *loop* must not block waiting for one: a data
-    // beat can run for twenty minutes, and a request the loop never reads is a
-    // request the liveness probe cannot answer. The serial lane is therefore a
-    // chained future, and the probe is dispatched straight from the loop.
-    var serial = Future<void>.value();
+    // The *loop* must not block waiting for a request: a data beat can run for
+    // twenty minutes, and a request the loop never reads is a request nothing
+    // can answer. Each request is handed to a lane straight from the loop.
+    var writeTail = Future<void>.value();
     await for (final request in server) {
-      if (request.uri.path == pingPath) {
-        // Idempotent, no session state, bounded concurrency: safe beside the
-        // lane. A probe queued behind a running session would report the peer
-        // offline for the whole session, every tick, for every peer.
-        unawaited(_servePing(request));
-        continue;
+      switch (_laneOf(request)) {
+        case _Lane.ping:
+          // Idempotent, no session state, bounded concurrency: safe beside the
+          // lanes. A probe queued behind a running session would report the
+          // peer offline for the whole session, every tick, for every peer.
+          unawaited(_servePing(request));
+        case _Lane.read:
+          // A read serves what a running write *published*, never what it is in
+          // the middle of building, so it needs no place in the write order.
+          // This is what a peer's blob pull rides on: a session's push beat
+          // pulls attachments from the other side, and that pull used to queue
+          // behind this device's own inbound session — three devices then
+          // waited on each other in a ring.
+          unawaited(_serveOne(request));
+        case _Lane.write:
+          writeTail = writeTail.then((_) => _serveOne(request));
       }
-      serial = serial.then((_) => _serveSerial(request));
     }
-    await serial;
+    await writeTail;
   }
 
-  /// One request on the serial lane, bounded by its route deadline.
+  /// Which lane one request belongs to: **by effect, not by path**.
+  _Lane _laneOf(HttpRequest request) {
+    if (request.uri.path == pingPath) return _Lane.ping;
+    return _writesState(request.method, request.uri.path)
+        ? _Lane.write
+        : _Lane.read;
+  }
+
+  /// Whether this route, with this method, can change what this device holds.
+  ///
+  /// The one place that decides. A route is classified by what it *does* rather
+  /// than where it lives: `POST /sync/wsfile` streams a file this device
+  /// advertised (a read) while `PUT` on the same path lands one (a write), and
+  /// a `GET /sync/hello` writes nothing even though every `POST` there installs
+  /// a session. A route this does not name writes nothing, so an unknown path
+  /// answers its 404 beside the lanes instead of queueing on the one that
+  /// matters.
+  ///
+  /// What the read lane's concurrency rests on, and both facts predate it:
+  /// a read resolves against state that is *swapped whole* when it changes
+  /// (`WorkspaceContentSync.publish` builds a new table and assigns it), and no
+  /// write runs a network await inside a database transaction (`_fetchOne` is
+  /// network, then file, then DB) — so a read waiting on the database waits for
+  /// one transaction, not for a transfer.
+  static bool _writesState(String method, String path) {
+    if (path == '/pair') return method == 'POST';
+    return switch (path) {
+      '/sync/hello' => method == 'POST',
+      '/sync/subtrees' => method == 'POST' || method == 'PUT',
+      '/sync/revoke' => method == 'POST',
+      workspaceFilePath => method == 'PUT',
+      _ => path.startsWith(blobPathPrefix) && method == 'PUT',
+    };
+  }
+
+  /// One request, on whichever lane the loop put it, bounded by its deadline.
   ///
   /// Each route runs under a deadline: a stalled peer (Wi-Fi gone, process
   /// killed) or a body that stops arriving mid-request is answered and
   /// abandoned instead of holding the lane. This method never throws — the
-  /// lane is a future chain, and one uncaught error would break every request
-  /// queued behind it.
-  Future<void> _serveSerial(HttpRequest request) async {
+  /// write lane is a future chain, and one uncaught error would break every
+  /// request queued behind it.
+  Future<void> _serveOne(HttpRequest request) async {
     try {
       await _route(request).timeout(_deadlineFor(request.uri.path));
     } on TimeoutException {

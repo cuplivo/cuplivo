@@ -79,6 +79,7 @@ class BasicSection extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
               child: SegmentedTabs(
+                shrinkLabels: true,
                 tabs: [
                   SegmentedTab(label: l10n.modelDetailSheetChatType),
                   SegmentedTab(label: l10n.modelDetailSheetEmbeddingType),

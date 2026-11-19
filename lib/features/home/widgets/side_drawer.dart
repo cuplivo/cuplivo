@@ -2825,6 +2825,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                                   ? SystemMouseCursors.click
                                   : SystemMouseCursors.basic,
                               child: IosCardPress(
+                                key: const Key('dsh-assistant-picker-toggle'),
                                 baseColor: (() {
                                   final embedded = widget.embedded;
                                   final base = embedded

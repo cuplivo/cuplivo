@@ -211,12 +211,15 @@ Future<void> _runRealScenario(
   await pumpFrames(tester, frames: 20);
 
   // R5: the drawer now lists the remote owner; tapping it enters harness mode.
+  // On a phone the drawer body is the conversation list, so the owner rows live
+  // in the inline assistant picker that the current-assistant header expands.
   await _openDrawer(tester);
+  await _expandAssistantPickerForOwners(tester);
   final ownerRow = find.byKey(const Key('dsh-owner-row'));
   await _pumpUntilFound(
     tester,
     ownerRow,
-    what: 'the DeepSeek Harness owner row in the drawer (R5)',
+    what: 'the DeepSeek Harness owner row in the expanded picker (R5)',
   );
   await tester.ensureVisible(ownerRow);
   await pumpFrames(tester, frames: 4);
@@ -522,6 +525,33 @@ Future<void> _openDrawer(WidgetTester tester) async {
   tester.widget<HomeMobileScaffold>(scaffold).drawerController.jumpTo(1.0);
   await pumpFrames(tester, frames: 8);
   expect(find.byType(SideDrawer), findsWidgets, reason: 'the open side drawer');
+}
+
+/// Expands the current-assistant header tile so the inline owner list (the only
+/// place a phone can reach a remote's harness home from) renders, then waits for
+/// the DSH owner row.
+///
+/// This is the user gesture on a phone: drawer → tap the current-assistant tile
+/// (`dsh-assistant-picker-toggle`) → the assistants/groups/remotes list expands
+/// above the conversations → tap the DeepSeek Harness row. It is idempotent so
+/// a drawer that is already expanded skips the tap.
+Future<void> _expandAssistantPickerForOwners(WidgetTester tester) async {
+  final ownerRow = find.byKey(const Key('dsh-owner-row'));
+  if (ownerRow.evaluate().isNotEmpty) return;
+  final toggle = find.byKey(const Key('dsh-assistant-picker-toggle'));
+  expect(
+    toggle,
+    findsOneWidget,
+    reason: 'the current-assistant header tile on the local drawer',
+  );
+  await tester.tap(toggle);
+  // The inline list is revealed inside AnimatedSize (260 ms) + AnimatedSwitcher
+  // (220 ms); the keyed row appears as soon as the switcher builds it.
+  await _pumpUntilFound(
+    tester,
+    ownerRow,
+    what: 'the DSH owner row after expanding the assistant picker',
+  );
 }
 
 /// Whether the mobile home drawer has finished closing.

@@ -83,7 +83,7 @@ class DesktopSidePanelController extends ChangeNotifier {
     _lastSavedOpen = preferences.getBool(SidePanelGeometry.keyOpen);
     _lastSavedWidth = (preferences.get(SidePanelGeometry.keyWidth) as num?)
         ?.toDouble();
-    _lastSavedKind = preferences.getString(SidePanelGeometry.keyLastKind);
+    _lastSavedKind = preferences.getString(SidePanelGeometry.keyLastTab);
     _expanded = false;
     _topicsOnRight =
         preferences.getString('desktop_topic_position_v1') == 'right';
@@ -105,7 +105,7 @@ class DesktopSidePanelController extends ChangeNotifier {
             SidePanelGeometry.maxWidth,
           )
         : SidePanelGeometry.defaultWidth;
-    final savedKind = preferences.getString(SidePanelGeometry.keyLastKind);
+    final savedKind = preferences.getString(SidePanelGeometry.keyLastTab);
     _lastKind =
         SidePanelTabKind.values
             .where((kind) => kind.name == savedKind)
@@ -143,7 +143,7 @@ class DesktopSidePanelController extends ChangeNotifier {
       _enqueue(() async {
         await preferences.setBool(SidePanelGeometry.keyOpen, open);
         await preferences.setDouble(SidePanelGeometry.keyWidth, width);
-        await preferences.setString(SidePanelGeometry.keyLastKind, kind);
+        await preferences.setString(SidePanelGeometry.keyLastTab, kind);
         // Mark completion only when every migrated setting is durable.
         return preferences.setBool(SidePanelGeometry.keyMigrated, true);
       });
@@ -531,7 +531,7 @@ class DesktopSidePanelController extends ChangeNotifier {
     }
     if (_lastSavedKind != kind) {
       _lastSavedKind = kind;
-      _enqueue(() => prefs.setString(SidePanelGeometry.keyLastKind, kind));
+      _enqueue(() => prefs.setString(SidePanelGeometry.keyLastTab, kind));
     }
     if (_lastSavedTabs != tabs) {
       _lastSavedTabs = tabs;

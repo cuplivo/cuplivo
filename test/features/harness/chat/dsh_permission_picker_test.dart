@@ -3,7 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:Cuplivo/features/harness/controllers/dsh_chat_session.dart';
 import 'package:Cuplivo/features/harness/widgets/chat/dsh_permission_picker.dart';
-import 'package:Cuplivo/l10n/app_localizations.dart';
+
+import 'dsh_picker_test_host.dart';
 
 const DshPermissionState _state = DshPermissionState(
   options: <DshPermissionOption>[
@@ -32,9 +33,7 @@ Future<void> pumpPickerHost(
   required void Function(String?) onResult,
 }) async {
   await tester.pumpWidget(
-    MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
+    await buildDshPickerTestApp(
       home: Scaffold(
         body: Builder(
           builder: (context) => Center(

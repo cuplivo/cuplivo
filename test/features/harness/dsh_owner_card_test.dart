@@ -63,6 +63,7 @@ void main() {
     await tester.pumpWidget(
       host(
         DshOwnerCard(
+          key: const Key('dsh-owner-card'),
           remote: remote(),
           subtitle: 'DeepSeek Harness over a remote connection',
           onTap: () => taps++,

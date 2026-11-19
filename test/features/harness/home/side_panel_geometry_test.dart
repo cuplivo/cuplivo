@@ -17,7 +17,7 @@ void main() {
       const keys = [
         SidePanelGeometry.keyOpen,
         SidePanelGeometry.keyWidth,
-        SidePanelGeometry.keyLastKind,
+        SidePanelGeometry.keyLastTab,
         SidePanelGeometry.keyTabs,
         SidePanelGeometry.keyMigrated,
       ];

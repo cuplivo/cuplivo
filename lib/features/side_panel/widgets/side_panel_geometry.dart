@@ -51,11 +51,18 @@ abstract final class SidePanelGeometry {
   /// The five keys are spelled out below because they are persisted names: an
   /// external scan of the source (`business_key_registry_sync_test`) has to be
   /// able to name every key the app writes, and an interpolation is not a name.
+  ///
+  /// [keyLastTab] deliberately avoids a `…Kind` name even though its value is a
+  /// `SidePanelTabKind.name`: the sync guard reads a `static const …Kind`
+  /// declaration as an `extension_entity_rows` kind, and a preference key is not
+  /// one. The persisted string keeps its historical spelling.
   static const String prefsPrefix = 'desktop_side_panel_';
 
   static const String keyOpen = 'desktop_side_panel_open_v1';
   static const String keyWidth = 'desktop_side_panel_width_v1';
-  static const String keyLastKind = 'desktop_side_panel_last_kind_v1';
+
+  /// The tab kind the panel last showed (`SidePanelTabKind.name`).
+  static const String keyLastTab = 'desktop_side_panel_last_kind_v1';
   static const String keyTabs = 'desktop_side_panel_tabs_v1';
   static const String keyMigrated = 'desktop_side_panel_migrated_v1';
 

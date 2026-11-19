@@ -130,8 +130,10 @@ class DshRemote {
           other.baseUrl == baseUrl &&
           other.authority == authority &&
           other.secure == secure &&
-          other.createdAt == createdAt &&
-          other.lastConnectedAt == lastConnectedAt &&
+          other.createdAt.microsecondsSinceEpoch ==
+              createdAt.microsecondsSinceEpoch &&
+          other.lastConnectedAt?.microsecondsSinceEpoch ==
+              lastConnectedAt?.microsecondsSinceEpoch &&
           other.lastError == lastError;
 
   @override
@@ -141,8 +143,8 @@ class DshRemote {
     baseUrl,
     authority,
     secure,
-    createdAt,
-    lastConnectedAt,
+    createdAt.microsecondsSinceEpoch,
+    lastConnectedAt?.microsecondsSinceEpoch,
     lastError,
   );
 

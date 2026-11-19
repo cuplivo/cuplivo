@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 
+import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/features/harness/pages/assistant/models/dsh_models_tab_body.dart';
 import 'package:Cuplivo/features/harness/pages/assistant/models/dsh_provider_detail_page.dart';
 import 'package:Cuplivo/features/harness/models/dsh_provider_settings.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
+
+import '../../../support/business_test_harness.dart';
 
 class _FakeSettingsGateway implements DshProviderSettingsGateway {
   _FakeSettingsGateway(this.entries);
@@ -80,22 +84,40 @@ DshProviderEntry _entry({required String id, required String name}) {
   );
 }
 
-Widget _app(Widget child) {
-  return MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: Scaffold(body: child),
+/// Pumps one DSH models surface with the providers its widget tree reads.
+///
+/// [IosCardPress] reads `SettingsProvider` for its haptic preference, so every
+/// tap-capable surface in this file needs one above it, exactly like the app.
+Future<void> pumpSlice(WidgetTester tester, Widget child) async {
+  late SettingsProvider settings;
+  await tester.runAsync(() async {
+    settings = SettingsProvider(createBusinessTestPreferences());
+    await settings.loaded;
+  });
+  addTearDown(settings.dispose);
+  await tester.pumpWidget(
+    ChangeNotifierProvider<SettingsProvider>.value(
+      value: settings,
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(body: child),
+      ),
+    ),
   );
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   testWidgets('the tab body lists providers with 自定义提供商 first', (tester) async {
     final gateway = _FakeSettingsGateway(<DshProviderEntry>[
       _entry(id: 'anthropic', name: 'Anthropic'),
       _entry(id: 'deepseek-official', name: 'DeepSeek'),
     ]);
-    await tester.pumpWidget(
-      _app(DshModelsTabBody(remoteId: 'remote-1', settings: gateway)),
+    await pumpSlice(
+      tester,
+      DshModelsTabBody(remoteId: 'remote-1', settings: gateway),
     );
     await tester.pumpAndSettle();
 
@@ -128,8 +150,9 @@ void main() {
     final gateway = _FakeSettingsGateway(<DshProviderEntry>[
       _entry(id: 'anthropic', name: 'Anthropic'),
     ]);
-    await tester.pumpWidget(
-      _app(DshModelsTabBody(remoteId: 'remote-1', settings: gateway)),
+    await pumpSlice(
+      tester,
+      DshModelsTabBody(remoteId: 'remote-1', settings: gateway),
     );
     await tester.pumpAndSettle();
 
@@ -146,8 +169,9 @@ void main() {
   testWidgets('without the settings seam the detail page is honest', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      _app(const DshProviderDetailPage(remoteId: 'remote-1', entry: null)),
+    await pumpSlice(
+      tester,
+      const DshProviderDetailPage(remoteId: 'remote-1', entry: null),
     );
     await tester.pumpAndSettle();
 
@@ -162,13 +186,12 @@ void main() {
     tester,
   ) async {
     final gateway = _FakeSettingsGateway(const <DshProviderEntry>[]);
-    await tester.pumpWidget(
-      _app(
-        DshProviderDetailPage(
-          remoteId: 'remote-1',
-          settings: gateway,
-          createCustom: true,
-        ),
+    await pumpSlice(
+      tester,
+      DshProviderDetailPage(
+        remoteId: 'remote-1',
+        settings: gateway,
+        createCustom: true,
       ),
     );
     await tester.pumpAndSettle();
@@ -192,8 +215,14 @@ void main() {
     await typeInto('dsh-provider-detail-api-key', 'test-key');
     await tester.pump();
 
+    // The save action is below the fold once the form expands; scroll the page
+    // (the first Scrollable is the detail ListView) until it is built/tappable.
     final saveButton = find.byKey(const Key('dsh-provider-detail-save'));
-    await tester.ensureVisible(saveButton);
+    await tester.scrollUntilVisible(
+      saveButton,
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
     await tester.tap(saveButton);
     await tester.pumpAndSettle();

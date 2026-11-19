@@ -805,7 +805,7 @@ class SyncServer {
     final body = await _readJson(
       request,
       admission,
-      maxBytes: _syncMaxBodyBytes,
+      maxBytes: kSyncMaxBodyBytes,
     );
     if (body == null) {
       _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_json'});
@@ -1089,7 +1089,7 @@ class SyncServer {
       final body = await _readJson(
         request,
         admission,
-        maxBytes: _syncMaxBodyBytes,
+        maxBytes: kSyncMaxBodyBytes,
       );
       if (body == null) {
         _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_json'});
@@ -1107,7 +1107,7 @@ class SyncServer {
       final body = await _readJson(
         request,
         admission,
-        maxBytes: _syncMaxBodyBytes,
+        maxBytes: kSyncMaxBodyBytes,
       );
       if (body == null) {
         _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_json'});
@@ -1149,12 +1149,10 @@ class SyncServer {
   /// request (certificate PEM + metadata) is a few KB.
   static const int _pairMaxBodyBytes = 64 * 1024;
 
-  /// Cap on an authenticated `/sync/*` JSON body, counted after decompression.
-  /// Only a paired peer reaches these routes, so the cap is not a defense
-  /// against a hostile LAN host — it bounds what a buggy or wedged peer can
-  /// make this device allocate. A push body carries rows (skill bodies travel
-  /// as blobs, not in the body), so this sits far above any real batch.
-  static const int _syncMaxBodyBytes = 256 * 1024 * 1024;
+  // The cap on an authenticated `/sync/*` JSON body, counted after
+  // decompression, is [kSyncMaxBodyBytes]. It lives in `sync_limits.dart`
+  // because the client's push budget is derived from it: a sender that built a
+  // body this side refuses would stall the pair for good.
 
   /// Cap on a workspace file request body: one workspace id and one relative
   /// path. A path can be long, but nothing legitimate here is a kilobyte.

@@ -122,3 +122,46 @@ const int kMaxWorkspaceBytes = 200 * 1024 * 1024;
 /// ten workspaces' worth is the largest table the drop rule is expected to
 /// represent.
 const int kMaxWorkspaceLedgerEntries = 10 * kMaxWorkspaceFiles;
+
+// ---- one push's bytes ----
+
+/// The largest `/sync/*` JSON body this side accepts, counted after
+/// decompression (`sync_server.dart`, `_readJson`). A body past it answers 413,
+/// and a 413 fails the whole round while the next round rebuilds the same
+/// body — so this is the number past which a pair stops converging.
+///
+/// It lives here rather than beside the server because the client's budget is
+/// *derived* from it: the two have to agree, and a cap only the server knows is
+/// how a sender ends up building a body the other side refuses.
+const int kSyncMaxBodyBytes = 256 * 1024 * 1024;
+
+/// The share of [kSyncMaxBodyBytes] one push may use: 60%. The rest is
+/// headroom, and it is not slack for the batch's content — the body is
+/// *measured* before it is built (`sync_budget.dart`), so its content cannot
+/// exceed the budget. It is what the send path itself needs and no budget can
+/// see: the batch's row maps, the JSON text, its UTF-8 buffer and the gzip
+/// buffer are all alive before a byte reaches the socket, so a body at the cap
+/// costs the sender several times the cap in memory. Sixty rather than eighty
+/// because this runs on phones.
+///
+/// Named for what it holds: the *budget*, not the headroom. A name carrying the
+/// other side of the ratio would make "give the send path more headroom" a
+/// change that halves it.
+const int kSyncDeltaBudgetPercent = 60;
+
+/// How many bytes one push may carry, all parts together: conversation
+/// subtrees, business rows, the asset manifest, skill hashes and the workspace
+/// tables. `sync_budget.dart` measures everything but the subtrees and admits
+/// subtrees against the remainder.
+const int kSyncDeltaByteBudget =
+    kSyncMaxBodyBytes * kSyncDeltaBudgetPercent ~/ 100;
+
+/// How large one conversation may be to ride in a push: half the push budget.
+///
+/// Derived, not chosen twice: without this bound one huge conversation fits
+/// under the push budget only by displacing every other conversation from the
+/// round, and with only the push budget a batch of ordinary conversations can
+/// still add up past it. One bound per question — this one answers "is this
+/// conversation too big to send at all", [kSyncDeltaByteBudget] answers "does
+/// this batch still fit".
+const int kSyncMaxConversationBytes = kSyncDeltaByteBudget ~/ 2;

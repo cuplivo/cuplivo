@@ -107,5 +107,5 @@ class DshWebUiLink {
   /// Never includes [launchToken]: a token belongs to one connect attempt and
   /// must not leak through logs or error messages.
   @override
-  String toString() => 'DshWebUiLink($baseUrl, token: ${hasLaunchToken})';
+  String toString() => 'DshWebUiLink($baseUrl, token: $hasLaunchToken)';
 }

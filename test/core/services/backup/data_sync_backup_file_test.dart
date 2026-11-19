@@ -3600,6 +3600,35 @@ void main() {
       },
     );
 
+    test('a Kelivo-target manifest carries no key the floor release refuses', () {
+      // That reader stages the candidate and then compares the root key set
+      // exactly. `skippedEntries` is newer than the floor (upstream added it
+      // after v1.3.5), and the reader's unknown-key trim only runs for a
+      // manifest that declares a newer build — so an omission recorded here
+      // would surface as a refusal after the user consented to the restore.
+      final forKelivo = DataSync.debugBuildManifestJson(
+        target: BackupTarget.kelivo,
+        skippedEntries: const ['upload/omitted.bin'],
+      );
+      expect(
+        forKelivo.keys.toSet().difference(
+          KelivoVocabulary.v1_3_2.manifestRootKeys,
+        ),
+        isEmpty,
+        reason:
+            'A root key the floor release does not accept is refused by its '
+            'exact candidate check, not ignored.',
+      );
+      expect(forKelivo, isNot(contains('skippedEntries')));
+
+      // This build's own archive keeps the diagnostic; its reader knows the key.
+      final forThisBuild = DataSync.debugBuildManifestJson(
+        target: BackupTarget.cuplivo,
+        skippedEntries: const ['upload/omitted.bin'],
+      );
+      expect(forThisBuild['skippedEntries'], ['upload/omitted.bin']);
+    });
+
     test('a Cuplivo-target export is named for this build', () async {
       final zipFile = await DataSync(
         businessRepository: businessRepository,

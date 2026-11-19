@@ -967,6 +967,7 @@ class DataSync {
               businessEntityRowIds: businessExport.entityRowIds,
               scope: scope,
               formatVersion: _formatVersionFor(target),
+              target: target,
               assetRootPaths: assetRootPaths,
               publishedDraftFiles: publishedDraftFiles,
             ),
@@ -1230,6 +1231,34 @@ class DataSync {
   static Future<void> debugCleanupPreviousBackupTempFiles(Directory tmp) =>
       BackupStaging.sweep(temporary: tmp);
 
+  /// Builds a manifest with a forced omission, so the root key set a target
+  /// produces can be asserted without inducing an unreadable directory.
+  @visibleForTesting
+  static Map<String, dynamic> debugBuildManifestJson({
+    required BackupTarget target,
+    required List<String> skippedEntries,
+  }) {
+    return jsonDecode(
+          _buildBackupManifestJson(
+            entries: const {},
+            snapshotInfo: (
+              schemaVersion: AppDatabase.currentSchemaVersion,
+              conversationCount: 0,
+              messageCount: 0,
+            ),
+            includeChats: true,
+            includeFiles: true,
+            appVersion: 'test',
+            businessEntityRowIds: const {},
+            scope: const BackupScope(),
+            skippedEntries: skippedEntries,
+            formatVersion: _formatVersionFor(target),
+            target: target,
+          ),
+        )
+        as Map<String, dynamic>;
+  }
+
   static ({int verifiedBytes, List<String> skippedEntries})
   _packAndVerifyInIsolate(BackupIsolateContext ctx, _BackupPackArgs args) {
     final packed = _packZipSync(
@@ -1244,6 +1273,7 @@ class DataSync {
       businessEntityRowIds: args.businessEntityRowIds,
       scope: args.scope,
       formatVersion: args.formatVersion,
+      target: args.target,
       assetRootPaths: args.assetRootPaths,
       publishedDraftFiles: args.publishedDraftFiles,
       ctx: ctx,
@@ -1322,6 +1352,7 @@ class DataSync {
     required Map<String, List<String>> businessEntityRowIds,
     required BackupScope scope,
     required int formatVersion,
+    required BackupTarget target,
     required Map<String, String> assetRootPaths,
     Set<String> publishedDraftFiles = const {},
     BackupIsolateContext? ctx,
@@ -1436,6 +1467,7 @@ class DataSync {
         scope: scope,
         skippedEntries: skippedEntries.toList(),
         formatVersion: formatVersion,
+        target: target,
       );
       final manifestFile = File(manifestPath)
         ..writeAsStringSync(manifestJson, flush: true);
@@ -2089,6 +2121,9 @@ class DataSync {
 
   /// Manifest keys this build understands. Anything else is dropped from a
   /// backup that declares a newer schema, and rejected in any other backup.
+  ///
+  /// `skippedEntries` stays here for archives 4.7.0 wrote; this build only
+  /// writes it into its own archives (see [_buildBackupManifestJson]).
   static const _knownManifestKeys = <String>{
     'format',
     'formatVersion',
@@ -2494,6 +2529,7 @@ class DataSync {
     required BackupScope scope,
     required List<String> skippedEntries,
     required int formatVersion,
+    required BackupTarget target,
   }) {
     return jsonEncode({
       'format': _backupFormat,
@@ -2514,7 +2550,15 @@ class DataSync {
       'secretsIncluded': true,
       'businessEntityRowIds': businessEntityRowIds,
       'scope': scope.toJson(),
-      if (skippedEntries.isNotEmpty) 'skippedEntries': skippedEntries,
+      // A diagnostic, and one this build's own archives only. A Kelivo reader
+      // checks the manifest's root key set exactly; `skippedEntries` is newer
+      // than the Kelivo target's floor release (upstream added it after
+      // v1.3.5), and its unknown-key trim only runs for a manifest that
+      // declares a newer build — so an extra key here makes that reader refuse
+      // the restore after the user consented. The omissions are still reported
+      // to the user by the export progress.
+      if (target == BackupTarget.cuplivo && skippedEntries.isNotEmpty)
+        'skippedEntries': skippedEntries,
       if (snapshotInfo != null)
         'database': {
           'entry': _databaseEntryName,
@@ -4113,6 +4157,7 @@ class _BackupPackArgs {
     required this.businessEntityRowIds,
     required this.scope,
     required this.formatVersion,
+    required this.target,
     required this.assetRootPaths,
     this.publishedDraftFiles = const {},
   });
@@ -4127,6 +4172,12 @@ class _BackupPackArgs {
   final String appVersion;
   final Map<String, List<String>> businessEntityRowIds;
   final BackupScope scope;
+
+  /// The reader this archive is written for. [formatVersion] is derived from it,
+  /// but the manifest also needs the reader itself: `skippedEntries` is only
+  /// safe in an archive this build will read back.
+  final BackupTarget target;
+
   final int formatVersion;
   final Map<String, String> assetRootPaths;
   final Set<String> publishedDraftFiles;

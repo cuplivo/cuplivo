@@ -324,7 +324,12 @@ Units from earlier series that are **gone, and must not come back**:
       or `List<String>` (`BackupSettingsValidator.validateValue`) — and note that a value it *would*
       reject fails the same archive in our own build too, so this axis is the one the gates do see;
     - an added `conversation.extras` key is opaque to the reader (and a group conversation's null
-      `assistantId` is legal upstream), so it rides along as baggage, not as a break.
+      `assistantId` is legal upstream), so it rides along as baggage, not as a break;
+    - an added **root key in the manifest** reaches a check unlike any of the above: the reader
+      stages a candidate and compares the root key set *exactly*, and its unknown-key trim only runs
+      for an archive that declares a newer build. A key outside `KelivoVocabulary.manifestRootKeys`
+      is therefore refused **after** the user consented. `skippedEntries` (upstream 1.3.6) is the
+      case that shipped; the writer may only add such a key to an archive this build reads back.
 
     Per re-base, after the gates: `test/core/database/kelivo_vocabulary_test.dart` is the mechanical
     check — it refuses a `BusinessEntityKind` that is neither in the pinned vocabulary nor in

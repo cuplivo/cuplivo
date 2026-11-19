@@ -14,9 +14,11 @@
 /// an archive written for one release keeps its meaning when the next one is
 /// pinned beside it. Generate a new one from that release's own tree —
 /// `git show <kelivo-tag>:lib/core/database/business_data.dart` for the source
-/// keys, `.../lib/core/models/backup_scope.dart` for the categories, and
-/// `.../lib/core/database/app_database.dart` for the schema — and let
-/// `test/core/database/kelivo_vocabulary_test.dart` hold the line.
+/// keys, `.../lib/core/models/backup_scope.dart` for the categories,
+/// `.../lib/core/database/app_database.dart` for the schema, and
+/// `.../lib/core/services/backup/restore_bundle_staging.dart` for the manifest's
+/// root key set — and let `test/core/database/kelivo_vocabulary_test.dart` hold
+/// the line.
 final class KelivoVocabulary {
   const KelivoVocabulary._({
     required this.release,
@@ -24,6 +26,7 @@ final class KelivoVocabulary {
     required this.schemaVersion,
     required this.entitySourceKeys,
     required this.categories,
+    required this.manifestRootKeys,
   });
 
   /// The release this constant was read from, and the floor the target's label
@@ -49,6 +52,18 @@ final class KelivoVocabulary {
   /// Every `BackupCategory.name` that release's manifest scope declares.
   final Set<String> categories;
 
+  /// Every root key that release accepts in a source manifest.
+  ///
+  /// It is the union of two sets, because the reader stages a candidate before
+  /// restoring: the keys its candidate rewrite removes (`scope`,
+  /// `secretsIncluded`, `businessEntityRowIds`, `minimumReadableFormatVersion`)
+  /// and the keys its candidate validator requires exactly (`format`,
+  /// `formatVersion`, `payloadKind`, `createdAtUtc`, `appVersion`,
+  /// `includeChats`, `includeFiles`, `assetRoots`, `database`, `entries`). A
+  /// source key outside that union survives the rewrite and is then refused by
+  /// the exact check — after the user has already consented to the restore.
+  final Set<String> manifestRootKeys;
+
   bool knowsSourceKey(String key) => entitySourceKeys.contains(key);
 
   /// Kelivo v1.3.2 (`b1702b3a9`, 2026-10-26): the floor of the Kelivo target,
@@ -60,6 +75,11 @@ final class KelivoVocabulary {
   /// these same entity keys and categories at archive format 3 — `git diff` of
   /// `business_data.dart` and `backup_scope.dart` is empty across the whole
   /// window — so an archive built for this vocabulary imports into any of them.
+  ///
+  /// [manifestRootKeys] is the fourth axis and comes from the same tag's own
+  /// restore code, not from the data files: the reader stages a candidate and
+  /// then compares the manifest's root key set exactly, so a key outside this
+  /// set is refused after the user has agreed to the restore.
   static const v1_3_2 = KelivoVocabulary._(
     release: '1.3.2',
     archiveFormatVersion: 3,
@@ -97,6 +117,22 @@ final class KelivoVocabulary {
       'searchServices',
       'speechServices',
       'settings',
+    },
+    manifestRootKeys: {
+      'format',
+      'formatVersion',
+      'payloadKind',
+      'createdAtUtc',
+      'appVersion',
+      'includeChats',
+      'includeFiles',
+      'assetRoots',
+      'database',
+      'entries',
+      'scope',
+      'secretsIncluded',
+      'businessEntityRowIds',
+      'minimumReadableFormatVersion',
     },
   );
 }

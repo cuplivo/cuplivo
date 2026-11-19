@@ -42,6 +42,15 @@ all: `flutter test` stays entirely green while the archive is unusable.
    same archive format, so an archive built for the floor imports into all of them. The label
    「Kelivo {version}+」 is built from `KelivoVocabulary.release`, not typed beside it.
 
+   The pin's `manifestRootKeys` is the fourth axis, and it is why the writer keeps `skippedEntries`
+   out of an archive written for a foreign reader. That reader stages a candidate before restoring
+   and then compares the manifest's root key set **exactly**; its unknown-key trim only runs for an
+   archive that declares a newer build, which a format-3 archive does not. So a root key its rewrite
+   does not remove and its validator does not expect is refused after the user has already consented
+   to the restore. `skippedEntries` is such a key — a diagnostic upstream added in 1.3.6, newer than
+   the floor — and the source key set is now pinned beside the entity keys, the categories and the
+   format number rather than discovered in a departing user's restore.
+
 2. **One list decides what is unreadable, and three call sites read it.**
    `unreadableEntitySourceKeys(target)` is the difference between `BusinessEntityKind.values` and the
    target's vocabulary; the settings export strips those keys from both halves of the archive, and

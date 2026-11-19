@@ -217,7 +217,7 @@ class SyncPairAnswer {
 }
 
 /// The lanes a request can be served on, decided by `SyncServer._writesState`.
-enum _Lane { ping, read, write }
+enum _Lane { ping, pair, read, write }
 
 /// HTTPS server for LAN sync.
 ///
@@ -359,36 +359,86 @@ class SyncServer {
     // can answer. Each request is handed to a lane straight from the loop, and
     // its budget starts here — at the instant the listener read it — so the time
     // it spends queued is time it has spent.
+    //
+    // Authentication is decided here too, once, before any lane: a `/sync/*`
+    // request that cannot name a paired caller is answered 401 without ever
+    // occupying a place in a queue. Answering it on the write lane — which is
+    // where an unauthenticated `POST /sync/hello` used to be refused — let a
+    // stranger's flood of forged requests queue in front of a paired peer's.
     var writeTail = Future<void>.value();
     await for (final request in server) {
       final admission = SyncAdmission(
         enteredAt: DateTime.now(),
         budget: _deadlineFor(request.uri.path),
       );
-      switch (_laneOf(request)) {
-        case _Lane.ping:
-          // Idempotent, no session state, bounded concurrency: safe beside the
-          // lanes. A probe queued behind a running session would report the
-          // peer offline for the whole session, every tick, for every peer.
-          unawaited(_servePing(request));
-        case _Lane.read:
-          // A read serves what a running write *published*, never what it is in
-          // the middle of building, so it needs no place in the write order.
-          // This is what a peer's blob pull rides on: a session's push beat
-          // pulls attachments from the other side, and that pull used to queue
-          // behind this device's own inbound session — three devices then
-          // waited on each other in a ring.
-          unawaited(_serveOne(request, admission));
-        case _Lane.write:
-          writeTail = writeTail.then((_) => _serveOne(request, admission));
+      final lane = _laneOf(request);
+      if (lane == _Lane.ping) {
+        // Idempotent, no session state, bounded concurrency: safe beside the
+        // lanes. A probe queued behind a running session would report the peer
+        // offline for the whole session, every tick, for every peer.
+        unawaited(_servePing(request, _authenticatedPeer(request)));
+        continue;
+      }
+      if (lane == _Lane.pair) {
+        // Unauthenticated by nature — a pairing has no secret yet — so it
+        // answers on a lane of its own, capped: a stranger who fills it gets a
+        // 503 that says so, and neither the data routes nor this device's own
+        // ability to pair is held behind it.
+        unawaited(_servePair(request, admission));
+        continue;
+      }
+      final peer = request.uri.path.startsWith('/sync/')
+          ? _authenticatedPeer(request)
+          : null;
+      if (peer == null && request.uri.path.startsWith('/sync/')) {
+        _safeRespond(request, HttpStatus.unauthorized, {
+          'error': SyncRefusalReason.notPaired.wire,
+        });
+        continue;
+      }
+      if (lane == _Lane.read) {
+        // A read serves what a running write *published*, never what it is in
+        // the middle of building, so it needs no place in the write order. This
+        // is what a peer's blob pull rides on: a session's push beat pulls
+        // attachments from the other side, and that pull used to queue behind
+        // this device's own inbound session — three devices then waited on each
+        // other in a ring.
+        unawaited(_serveOne(request, peer, admission));
+      } else {
+        writeTail = writeTail.then((_) => _serveOne(request, peer, admission));
       }
     }
     await writeTail;
   }
 
+  /// How many `/pair` requests this listener answers at once.
+  int _pairsInFlight = 0;
+
+  /// One pairing request, on the capped pairing lane.
+  ///
+  /// Past the cap the caller is answered 503 `pair_busy`: a refusal it can act
+  /// on ("try again", or the other device is busy), not a place in a queue it
+  /// cannot see. The refusal is the same shape `ping_busy` has, because it says
+  /// the same thing — the listener is loaded, not that the peer is wrong.
+  Future<void> _servePair(HttpRequest request, SyncAdmission admission) async {
+    if (_pairsInFlight >= kMaxPairRequestsInFlight) {
+      _safeRespond(request, HttpStatus.serviceUnavailable, {
+        'error': 'pair_busy',
+      });
+      return;
+    }
+    _pairsInFlight++;
+    try {
+      await _serveOne(request, null, admission);
+    } finally {
+      _pairsInFlight--;
+    }
+  }
+
   /// Which lane one request belongs to: **by effect, not by path**.
   _Lane _laneOf(HttpRequest request) {
     if (request.uri.path == pingPath) return _Lane.ping;
+    if (request.uri.path == '/pair') return _Lane.pair;
     return _writesState(request.method, request.uri.path)
         ? _Lane.write
         : _Lane.read;
@@ -433,10 +483,14 @@ class SyncServer {
   /// A request whose budget ran out while it waited is answered 504 without
   /// reaching its handler. This method never throws — the write lane is a future
   /// chain, and one uncaught error would break every request queued behind it.
-  Future<void> _serveOne(HttpRequest request, SyncAdmission admission) async {
+  Future<void> _serveOne(
+    HttpRequest request,
+    String? peerDeviceId,
+    SyncAdmission admission,
+  ) async {
     try {
       admission.check();
-      await admission.io(() => _route(request, admission));
+      await admission.io(() => _route(request, peerDeviceId, admission));
     } on SyncAdmissionLost {
       _safeRespond(request, HttpStatus.gatewayTimeout, {'error': 'timeout'});
     } on _RequestBodyTooLarge {
@@ -458,14 +512,19 @@ class SyncServer {
     }
   }
 
-  /// Answers one liveness probe beside the serial request lane.
+  /// Answers one liveness probe beside the request lanes.
   ///
   /// Idempotent by construction: no body, no session lookup, no write. The
   /// answer is the point — an authenticated status line proves both halves a
   /// sync needs (the address answers *and* this device's secret is still good),
   /// which a bare TCP connect cannot say. The caller measures the latency
   /// itself, so the response carries nothing.
-  Future<void> _servePing(HttpRequest request) async {
+  ///
+  /// [peerDeviceId] is the caller's authenticated identity, decided once at the
+  /// loop: null is a request that cannot name a paired caller, and a probe that
+  /// then answered anything but 401 would let a stranger use this route as a
+  /// reachability oracle.
+  Future<void> _servePing(HttpRequest request, String? peerDeviceId) async {
     if (_pingsInFlight >= kMaxPingsInFlight) {
       _safeRespond(request, HttpStatus.serviceUnavailable, {
         'error': 'ping_busy',
@@ -480,7 +539,7 @@ class SyncServer {
         });
         return;
       }
-      if (_authenticatedPeer(request) == null) {
+      if (peerDeviceId == null) {
         _safeRespond(request, HttpStatus.unauthorized, {
           'error': SyncRefusalReason.notPaired.wire,
         });
@@ -541,38 +600,41 @@ class SyncServer {
     _ => _dataDeadline,
   };
 
-  Future<void> _route(HttpRequest request, SyncAdmission admission) async {
+  /// Routes one already-authenticated request.
+  ///
+  /// [peerDeviceId] is null only for `/pair`, the one route that answers before
+  /// any authentication exists. The authentication decision itself is made once,
+  /// at the loop (see [_serve]) — not here as well.
+  Future<void> _route(
+    HttpRequest request,
+    String? peerDeviceId,
+    SyncAdmission admission,
+  ) async {
     if (request.uri.path == '/pair') {
       await _handlePair(request, admission);
       return;
     }
-    if (!request.uri.path.startsWith('/sync/')) {
+    final peer = peerDeviceId;
+    if (!request.uri.path.startsWith('/sync/') || peer == null) {
       _safeRespond(request, HttpStatus.notFound, {'error': 'not_found'});
-      return;
-    }
-    final peerDeviceId = _authenticatedPeer(request);
-    if (peerDeviceId == null) {
-      _safeRespond(request, HttpStatus.unauthorized, {
-        'error': SyncRefusalReason.notPaired.wire,
-      });
       return;
     }
     switch (request.uri.path) {
       case '/sync/hello':
-        await _handleHello(request, peerDeviceId, admission);
+        await _handleHello(request, peer, admission);
         break;
       case '/sync/subtrees':
-        await _handleSubtrees(request, peerDeviceId, admission);
+        await _handleSubtrees(request, peer, admission);
         break;
       case '/sync/revoke':
-        await _handleRevoke(request, peerDeviceId, admission);
+        await _handleRevoke(request, peer, admission);
         break;
       case workspaceFilePath:
-        await _handleWorkspaceFile(request, peerDeviceId, admission);
+        await _handleWorkspaceFile(request, peer, admission);
         break;
       default:
         if (request.uri.path.startsWith(blobPathPrefix)) {
-          await _handleBlob(request, peerDeviceId, admission);
+          await _handleBlob(request, peer, admission);
           break;
         }
         _safeRespond(request, HttpStatus.notFound, {'error': 'not_found'});

@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:Cuplivo/core/services/sync/sync_admission.dart';
 import 'package:Cuplivo/core/services/sync/sync_client.dart';
 import 'package:Cuplivo/core/services/sync/sync_identity.dart';
+import 'package:Cuplivo/core/services/sync/sync_limits.dart';
 import 'package:Cuplivo/core/services/sync/sync_models.dart';
 import 'package:Cuplivo/core/services/sync/sync_server.dart';
 import 'package:Cuplivo/core/services/sync/sync_store.dart';
@@ -380,6 +381,98 @@ void main() {
       reason: 'and end near the budget it was given',
     );
   });
+  test('pairing has its own capped lane, and cannot hold the data plane', () async {
+    // `/pair` is the one face that answers before any authentication exists, so
+    // it cannot share the data lanes: a stranger filling it must not be able to
+    // stop this device syncing — nor to stop the *user* pairing, which is the
+    // route they reach for exactly when something is broken.
+    final handler = _RecordingHandler()..pairGate = Completer<void>();
+    addTearDown(() {
+      if (!handler.pairGate!.isCompleted) handler.pairGate!.complete();
+    });
+    final server = await startServer(handler, deadline: null);
+    final http = client();
+    final pairBody = jsonEncode({
+      'pin': '000000',
+      'deviceId': identity.deviceId,
+      'deviceName': 'stranger',
+      'platform': 'test',
+      'certPem': identity.certPem,
+    });
+
+    Future<HttpClientResponse> postPair() async {
+      final request = await http.postUrl(
+        Uri.parse('https://127.0.0.1:${server.port!}/pair'),
+      );
+      request.headers.contentType = ContentType.json;
+      request.write(pairBody);
+      return request.close();
+    }
+
+    // Fill the pairing lane; every one of these reaches the handler and waits.
+    final held = <Future<HttpClientResponse>>[];
+    for (var i = 0; i < kMaxPairRequestsInFlight; i++) {
+      held.add(postPair());
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    expect(handler.pairs, kMaxPairRequestsInFlight);
+
+    // One past the cap is refused, with a status the caller can act on.
+    final over = await postPair();
+    final overBody = await over.transform(utf8.decoder).join();
+    expect(over.statusCode, HttpStatus.serviceUnavailable);
+    expect(overBody, contains('pair_busy'));
+    expect(handler.pairs, kMaxPairRequestsInFlight, reason: 'never reached it');
+
+    // The data plane is untouched, in both directions: a read answers beside the
+    // full pairing lane, and so does a write.
+    final blob = await getBlob(http, server.port!);
+    await blob.drain<void>();
+    expect(blob.statusCode, HttpStatus.notFound);
+
+    final hello = await http.postUrl(
+      Uri.parse('https://127.0.0.1:${server.port!}/sync/hello'),
+    );
+    authenticate(hello);
+    hello.headers.contentType = ContentType.json;
+    hello.write(jsonEncode(handler.helloBody()));
+    final helloResponse = await hello.close().timeout(
+      const Duration(seconds: 5),
+    );
+    await helloResponse.drain<void>();
+    expect(helloResponse.statusCode, HttpStatus.ok);
+    expect(handler.hellos, 1);
+
+    handler.pairGate!.complete();
+    for (final response in held) {
+      await (await response).drain<void>();
+    }
+  });
+
+  test('an unauthenticated request never joins a queue', () async {
+    // The other half of N1: a forged `POST /sync/hello` used to be answered 401
+    // *on the write lane*, so a stranger could fill the queue in front of a
+    // paired peer's beat with requests that were only ever going to be refused.
+    final handler = _RecordingHandler();
+    final server = await startServer(handler, deadline: null);
+    final holder = await holdWriteLane(server.port!);
+
+    final http = client();
+    final request = await http.postUrl(
+      Uri.parse('https://127.0.0.1:${server.port!}/sync/hello'),
+    );
+    request.headers.set(SyncServer.deviceHeader, 'stranger');
+    request.headers.set(SyncServer.tokenHeader, 'not-the-secret');
+    request.headers.contentType = ContentType.json;
+    request.write(jsonEncode(handler.helloBody()));
+
+    final response = await request.close().timeout(const Duration(seconds: 2));
+    await response.drain<void>();
+
+    expect(response.statusCode, HttpStatus.unauthorized);
+    expect(handler.hellos, 0);
+    holder.destroy();
+  });
 }
 
 /// A handler that answers every route immediately, counting what it was asked.
@@ -389,6 +482,10 @@ void main() {
 class _RecordingHandler implements SyncServerHandler {
   int hellos = 0;
   int blobFetches = 0;
+  int pairs = 0;
+
+  /// Held open by a test that wants the pairing lane full.
+  Completer<void>? pairGate;
   int workspaceFetches = 0;
 
   /// Held open by a test that wants a write handler to outlive its budget.
@@ -501,7 +598,18 @@ class _RecordingHandler implements SyncServerHandler {
     SyncPairRequest request,
     String? initiatorHost, {
     required SyncAdmission admission,
-  }) async => null;
+  }) async {
+    pairs++;
+    final gate = pairGate;
+    if (gate != null) {
+      try {
+        await admission.io(() => gate.future);
+      } on SyncAdmissionLost {
+        rethrow;
+      }
+    }
+    return null;
+  }
 
   @override
   Future<void> handleRevoke(

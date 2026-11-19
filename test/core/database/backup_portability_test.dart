@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -176,6 +177,26 @@ void main() {
       }
     },
   );
+
+  test('a key with a quote cannot close the SQL literal around it', () async {
+    // The sanitizer interpolates key names into SQL, and the keys are constants
+    // today — so this is the one property of that statement a reviewer cannot
+    // check by reading it, and the one that would break silently the day a key
+    // gains a quote. Two quotes, two escaping layers: `"` closes the JSON path's
+    // label, `'` closes the SQL literal around the path.
+    for (final key in <String>["a'b", 'a"b', 'a"b\'c']) {
+      final literal = BackupPortability.extrasSqlLiteral(key);
+      final row = await database
+          .customSelect(
+            'SELECT json_extract(?, $literal) AS value_;',
+            variables: [
+              Variable.withString(jsonEncode({key: 1})),
+            ],
+          )
+          .getSingle();
+      expect(row.read<int>('value_'), 1, reason: key);
+    }
+  });
 
   test(
     'grants leave every archive, and a dangling binding leaves with them',

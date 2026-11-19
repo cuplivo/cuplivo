@@ -2283,3 +2283,13 @@ is gone and has to be given again. The other direction is safe by construction, 
 on arrival. Nothing can carry "keep yours" without a protocol field, so this is a rollout note rather
 than a code path: the cost is one re-grant per conversation, and the next tool call asks instead of
 running.
+
+**The boundary of this rule**, stated because the next reader will ask why one approval travels while
+the other does not: a *workspace's* policy is not a grant. `shellNeedsApproval` rides inside the
+workspace row beside `disabledTools` and `defaultCwd`, and the receiving device does not ask where a
+policy was authored (`business_repository.dart` filters only linked and malformed workspace rows). What
+bounds it is what the flag does: `workspace_tools_service.dart` requires approval whenever the runtime
+is not sandboxed, whatever the flag says, so a loosened copy skips a prompt *inside* a sandbox rather
+than widening what the sandbox confines. Whether the flag should be device-local is a product question
+about policy versus grant, and it is not decided by this rule — a policy that turns out to be the same
+kind of fact needs its own argument.

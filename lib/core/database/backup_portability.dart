@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import 'app_database.dart';
 import '../models/backup_scope.dart';
 import '../models/backup_target.dart';
@@ -150,7 +152,7 @@ final class BackupPortability {
       final filterKeys = {...grantKeys, WorkspaceBinding.keyId};
       final touched = [
         for (final key in filterKeys)
-          "json_type(extras_json, '${_jsonPath(key)}') IS NOT NULL",
+          'json_type(extras_json, ${extrasSqlLiteral(key)}) IS NOT NULL',
       ].join(' OR ');
       await database.customStatement('''
         UPDATE conversation_rows SET extras_json = CASE
@@ -168,15 +170,27 @@ final class BackupPortability {
     });
   }
 
-  /// A SQLite JSON path for [key], as its `json_*` functions take it.
+  /// [key]'s member path in `extras_json`, as a SQL string literal.
   ///
   /// The keys are code constants naming extras members, never user data, so
-  /// interpolating them follows the same rule `currentSchemaColumns` does; the
-  /// quote is escaped anyway, so a key cannot close the literal around it.
+  /// interpolating them follows the rule `currentSchemaColumns` does. Two quote
+  /// characters still have to be escaped, and they are different ones: `"` closes
+  /// the JSON path's label, `'` closes the SQL literal wrapped around that path.
+  /// Missing either turns the statement into something else, which is why
+  /// `backup_portability_test.dart` runs a quote-bearing key through SQLite
+  /// rather than trusting the format string.
+  @visibleForTesting
+  static String extrasSqlLiteral(String key) =>
+      _sqlStringLiteral(_jsonPath(key));
+
   static String _jsonPath(String key) => '\$."${key.replaceAll('"', r'\"')}"';
 
+  /// [value] as a single-quoted SQL string literal.
+  static String _sqlStringLiteral(String value) =>
+      "'${value.replaceAll("'", "''")}'";
+
   static String _jsonRemoveArguments(Set<String> keys) =>
-      [for (final key in keys) "'${_jsonPath(key)}'"].join(', ');
+      [for (final key in keys) extrasSqlLiteral(key)].join(', ');
 
   /// Takes every kind [target] cannot read out of the archive: its rows, and
   /// every conversation link that points at them.

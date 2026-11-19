@@ -268,7 +268,7 @@ class DshClientProviderSettings implements DshProviderSettingsGateway {
       // the endpoint. Discovery itself is advisory (the user picks models).
       final settingsNs = routeId.isEmpty
           ? 'llm-pi-ai'
-          : _settingsNamespaceFor(client, routeId);
+          : await _settingsNamespaceFor(client, routeId);
       final discovered = await client.catalog.discoverModels(
         settingsNs,
         dsh.DshModelDiscoveryRequest(

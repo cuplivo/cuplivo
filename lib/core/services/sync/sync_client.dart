@@ -31,6 +31,16 @@ class SyncClientException implements Exception {
   String toString() => 'SyncClientException($statusCode): $message';
 }
 
+/// A transfer's budget ran out between two awaits.
+///
+/// A class of its own so the expiry is recognisable where it is thrown
+/// (`left()`), rather than being reported as a peer refusal: the request must be
+/// aborted on this path exactly as on a timed-out await, and `_transfer` cannot
+/// see an exception it cannot name.
+class _TransferBudgetSpent implements Exception {
+  const _TransferBudgetSpent();
+}
+
 /// Default request budgets (see [SyncClientSession]). The control beats answer
 /// in milliseconds on a LAN; the data beats are sized for a large push.
 const Duration kSyncHelloDeadline = Duration(seconds: 60);
@@ -539,9 +549,12 @@ class SyncClientSession {
   /// budget belongs to the transfer, so a peer that reads a byte a minute is as
   /// gone as one that reads nothing.
   ///
-  /// The request is *aborted* when the budget runs out. `.timeout` alone only
-  /// stops waiting: the socket stays open, the peer keeps the connection, and
-  /// this session's next request queues behind it.
+  /// The request is *aborted* when the budget runs out, whichever way it ran
+  /// out. `.timeout` alone only stops waiting: the socket stays open, the peer
+  /// keeps the connection, and this session's next request queues behind it.
+  /// The budget can also be found already spent by the *next* `left()` — an
+  /// await can complete in the same turn its timer would have fired — so both
+  /// ways out abort.
   ///
   /// [body] receives the remaining budget as a function rather than a duration,
   /// so each await inside it spends what is actually left.
@@ -553,9 +566,7 @@ class SyncClientSession {
     final watch = Stopwatch()..start();
     Duration left() {
       final remaining = budget - watch.elapsed;
-      if (remaining <= Duration.zero) {
-        throw const SyncClientException('transfer_timeout');
-      }
+      if (remaining <= Duration.zero) throw const _TransferBudgetSpent();
       return remaining;
     }
 
@@ -563,6 +574,9 @@ class SyncClientSession {
       await body(left);
     } on TimeoutException {
       request.abort(TimeoutException('transfer_timeout', budget));
+      throw const SyncClientException('transfer_timeout');
+    } on _TransferBudgetSpent {
+      request.abort(const SyncClientException('transfer_timeout'));
       throw const SyncClientException('transfer_timeout');
     } finally {
       watch.stop();
@@ -600,7 +614,14 @@ class SyncClientSession {
       await request.addStream(source.openRead()).timeout(left());
       final response = await request.close().timeout(left());
       if (response.statusCode != HttpStatus.noContent) {
-        await response.drain<void>().timeout(left());
+        // The refusal *is* the answer, so a body that then stalls must not turn
+        // it into a generic timeout: the socket is aborted and the peer's status
+        // is what the caller hears.
+        try {
+          await response.drain<void>().timeout(left());
+        } on TimeoutException {
+          request.abort(const SyncClientException('transfer_timeout'));
+        }
         throw SyncClientException(
           'workspace_push_refused',
           statusCode: response.statusCode,
@@ -637,7 +658,14 @@ class SyncClientSession {
       await request.addStream(source.openRead()).timeout(left());
       final response = await request.close().timeout(left());
       if (response.statusCode != HttpStatus.noContent) {
-        await response.drain<void>().timeout(left());
+        // The refusal *is* the answer, so a body that then stalls must not turn
+        // it into a generic timeout: the socket is aborted and the peer's status
+        // is what the caller hears.
+        try {
+          await response.drain<void>().timeout(left());
+        } on TimeoutException {
+          request.abort(const SyncClientException('transfer_timeout'));
+        }
         throw SyncClientException(
           'blob_push_refused',
           statusCode: response.statusCode,

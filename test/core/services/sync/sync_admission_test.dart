@@ -406,6 +406,11 @@ void main() {
       );
       request.headers.contentType = ContentType.json;
       request.write(pairBody);
+      // Flushed one at a time, and then waited for by condition: four TLS
+      // handshakes fired at once against a freshly bound listener can be
+      // aborted under a full test run, and a fixed sleep either hides that or
+      // reports it as "the lane is empty".
+      await request.flush();
       return request.close();
     }
 
@@ -414,8 +419,11 @@ void main() {
     for (var i = 0; i < kMaxPairRequestsInFlight; i++) {
       held.add(postPair());
     }
-    await Future<void>.delayed(const Duration(milliseconds: 200));
-    expect(handler.pairs, kMaxPairRequestsInFlight);
+    await _waitUntil(
+      () => handler.pairs == kMaxPairRequestsInFlight,
+      what:
+          'all $kMaxPairRequestsInFlight pairing requests reached the handler',
+    );
 
     // One past the cap is refused, with a status the caller can act on.
     final over = await postPair();
@@ -473,6 +481,133 @@ void main() {
     expect(handler.hellos, 0);
     holder.destroy();
   });
+
+  test('a request that waited keeps only what is left of its budget', () async {
+    // A queued request does not get a second budget. It runs — with the budget
+    // the wait left it — so a beat that would fit in a fresh budget is cut short
+    // here, and the caller is told 504. (`a request queued behind a beat has
+    // already spent its budget` is the other end: nothing left, so it never runs.)
+    final handler = _RecordingHandler()
+      ..helloDelay = const Duration(milliseconds: 400);
+    final server = await startServer(
+      handler,
+      deadlineFor: (path) => path == '/sync/hello'
+          ? const Duration(milliseconds: 600)
+          : const Duration(minutes: 30),
+    );
+    final holder = await holdWriteLane(server.port!);
+
+    final http = client();
+    final request = await http.postUrl(
+      Uri.parse('https://127.0.0.1:${server.port!}/sync/hello'),
+    );
+    authenticate(request);
+    request.headers.contentType = ContentType.json;
+    request.write(jsonEncode(handler.helloBody()));
+    final pending = request.close();
+
+    // Spend most of the hello's budget while it waits, then let it run.
+    await Future<void>.delayed(const Duration(milliseconds: 450));
+    holder.destroy();
+    final watch = Stopwatch()..start();
+    final response = await pending.timeout(const Duration(seconds: 5));
+    await response.drain<void>();
+    watch.stop();
+
+    expect(
+      response.statusCode,
+      HttpStatus.gatewayTimeout,
+      reason: '400 ms of work does not fit in the ~150 ms the wait left',
+    );
+    expect(handler.hellos, 1, reason: 'it did run — unlike a spent budget');
+    expect(
+      watch.elapsed,
+      lessThan(const Duration(milliseconds: 550)),
+      reason: 'and was cut at what was left, not given a fresh 600 ms',
+    );
+  });
+
+  test('an error body that never ends is not waited out', () async {
+    // A refusal is drained so the connection can be reused, and a body that then
+    // stops arriving used to leave that drain pending forever — the peer had
+    // answered, and the caller still hung.
+    final peer = await HttpServer.bindSecure(
+      InternetAddress.loopbackIPv4,
+      0,
+      identity.buildContext(),
+      requestClientCertificate: false,
+    );
+    addTearDown(() => peer.close(force: true));
+    peer.listen((request) {
+      request.response.statusCode = HttpStatus.notFound;
+      // Headers out, body opened and never finished.
+      request.response.write('{"error":');
+      unawaited(request.response.flush());
+    });
+
+    final directory = await Directory.systemTemp.createTemp('sync-drain-');
+    addTearDown(() => directory.delete(recursive: true));
+    final destination = File('${directory.path}${Platform.pathSeparator}x.bin');
+
+    final session = SyncClient(identity: identity).openSession(
+      SyncPeerRecord(
+        deviceId: identity.deviceId,
+        certPem: identity.certPem,
+        secret: secret,
+        name: 'self',
+        platform: 'test',
+      ),
+      host: '127.0.0.1',
+      port: peer.port,
+      blobDeadline: const Duration(milliseconds: 400),
+    );
+    addTearDown(session.close);
+
+    final watch = Stopwatch()..start();
+    Object? failure;
+    try {
+      await session
+          .fetchBlob(
+            SyncBlobEntry(
+              kind: SyncBlobEntry.kindFile,
+              key: 'file:///managed/x.bin',
+              contentHash: blobHash,
+              byteSize: 4,
+            ),
+            destination,
+          )
+          .timeout(const Duration(seconds: 10));
+    } catch (error) {
+      failure = error;
+    }
+    watch.stop();
+
+    expect(failure, isNotNull, reason: 'the drain must end by its budget');
+    expect(
+      watch.elapsed,
+      lessThan(const Duration(seconds: 5)),
+      reason: 'and end near the 400 ms budget, not hang',
+    );
+  });
+}
+
+/// Polls [condition] until it holds, or fails naming what never happened.
+///
+/// A fixed sleep is the wrong synchronisation for "the listener has read these
+/// requests yet": under a full test run it is either too short (a false red) or
+/// too long (a slow suite), and it reports the wait rather than the fact.
+Future<void> _waitUntil(
+  bool Function() condition, {
+  required String what,
+  Duration timeout = const Duration(seconds: 10),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (!condition()) {
+    if (DateTime.now().isAfter(deadline)) {
+      fail('timed out after $timeout waiting until $what');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
 }
 
 /// A handler that answers every route immediately, counting what it was asked.
@@ -490,6 +625,10 @@ class _RecordingHandler implements SyncServerHandler {
 
   /// Held open by a test that wants a write handler to outlive its budget.
   Completer<void>? helloGate;
+
+  /// How long the hello handler takes before answering — a beat that can be cut
+  /// short by what a queue wait left of the budget.
+  Duration? helloDelay;
 
   /// What the hello's admission said once its `io()` gave up — the fact a
   /// cancelled handler has to be able to observe.
@@ -512,6 +651,8 @@ class _RecordingHandler implements SyncServerHandler {
     required SyncAdmission admission,
   }) async {
     hellos++;
+    final delay = helloDelay;
+    if (delay != null) await Future<void>.delayed(delay);
     final gate = helloGate;
     if (gate != null) {
       try {

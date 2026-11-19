@@ -2266,8 +2266,11 @@ stopped reading held the upload forever, and seven `response.drain()` calls had 
 
 ### Decision
 
-**A route is classified by effect, not by path.** `SyncServer._writesState` is the one place that
-decides; a route it does not name writes nothing.
+**A route is classified by effect, not by path.** `SyncServer._laneOf` is the one place that decides
+*which lane*, and `_writesState` the one place that decides *read or write* for everything but
+`/pair` — that route is classified by authentication rather than by effect (it is the one route with
+no secret to check), and one answer for it rather than two is why `_writesState` does not know the
+path. A route neither names writes nothing.
 
 | route | effect | lane |
 |---|---|---|
@@ -2286,9 +2289,13 @@ decides; a route it does not name writes nothing.
 the ring is broken by the read lane alone, and one writer at a time is the invariant the session map,
 the checkpoint file and the apply path were designed around.
 
-**A request's budget starts when the listener reads it.** It is spent through `SyncAdmission`, which
-carries both the budget and the right to write; a request that waited behind a long beat starts
-already spent and is answered 504 at dequeue instead of getting a fresh one.
+**A request's budget starts when the listener reads it, and it is measured on the monotonic clock.**
+`SyncAdmission` carries both the budget and the right to write; a request that waited behind a long
+beat starts already spent and is answered 504 at dequeue instead of getting a fresh one. A stopwatch,
+not the wall clock: a budget is how much *work* a request may spend, so an NTP correction must not
+decide that a request which is making progress has run out — and its mirror image, a backward step
+buying a request extra time, is the same bug. (The pre-amendment `.timeout()` ran on a `Timer`, which
+was monotonic for the same reason.)
 
 **Cancellation is a right that is checked, not a future that is ignored.** Three operations, one
 object:
@@ -2311,9 +2318,10 @@ and would never be asked for again. The deletion loops check once, before they s
 re-reads the row it would remove, so stopping there is the same as not having started.
 
 **Authentication is decided once, at dispatch.** A `/sync/*` request that cannot name a paired caller
-is answered 401 before it joins any queue. Refusing it *on the write lane* — where an unauthenticated
-`POST /sync/hello` used to land — let a stranger's forged flood queue in front of a paired peer's
-beat with requests that were only ever going to be refused.
+is answered 401 before it joins any queue — including the probe's: the identity is checked before the
+request is dispatched to a lane, and `_servePing` no longer decides pairing itself. Refusing it *on
+the write lane* — where an unauthenticated `POST /sync/hello` used to land — let a stranger's forged
+flood queue in front of a paired peer's beat with requests that were only ever going to be refused.
 
 **Pairing has its own lane, capped.** It is the one face that answers before any authentication
 exists, so it cannot share the data lanes: past `kMaxPairRequestsInFlight` the caller is answered 503
@@ -2323,8 +2331,10 @@ derived from the endpoint cap — pairing is bounded by a human standing in fron
 
 **A transfer has one budget on the client too.** `pushBlob` and `pushWorkspaceFile` run inside
 `_transfer`: one stopwatch from the first byte sent to the last drain, each await spending what is
-actually left, and the request **aborted** on expiry — a `.timeout` alone stops waiting but keeps the
-socket, and the session's next request queues behind it.
+actually left, and the request **aborted** however the budget is found spent — a `.timeout` alone
+stops waiting but keeps the socket, and the session's next request queues behind it. Two ways out on
+purpose: the await's own timer, and the next `left()` finding nothing left (an await can complete in
+the same turn its timer would have fired).
 
 ### What the read lane's concurrency rests on
 

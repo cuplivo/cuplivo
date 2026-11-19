@@ -2,7 +2,9 @@
 
 **已采纳**（2026-11-19，决定 D-1a）。落地后与本文的差别：`_Admission` 叫 `sync_admission.dart`
 里的 `SyncAdmission`；`_WriteLane` 没有成为一个类，写车道仍是 `_serve` 里的那条 future 链；
-`gate.io` 收的是回调而不是 future（一个已经启动的 future 被 gate 拒绝时会留下无人监听的错误）。
+`gate.io` 收的是回调而不是 future（一个已经启动的 future 被 gate 拒绝时会留下无人监听的错误）；
+预算用 `Stopwatch` 量（单调钟，见 §2 的注）；车道判定在 `_laneOf`，`_writesState` 只管读/写、
+不认 `/pair`（见 §1 的注）。
 ADR 的正式文本见 `docs/adr/0003-lan-sync-architecture.md` 的 "Amendment (2026-11, admission)"。
 
 > 读不排队；写互相排队；`/pair` 自成一队。预算从**入队**起算；超时不是"不再等这个 future"，
@@ -84,6 +86,9 @@ class _Admission {
   }
 }
 ```
+
+（落地时的两处修正：`remaining` 用 `Stopwatch` 量而不是 `DateTime.now()`——预算是"允许花多少工作"，
+一次 NTP 校时不该判定一个正在推进的请求已经超时；`io` 收回调而不是 future，见 §6 F-3。）
 
 ```dart
 class _WriteLane {
@@ -184,35 +189,37 @@ await _transfer((left) async {
 
 ## 7. 状态表 —— 一格一测
 
-新文件 `test/core/services/sync/sync_admission_test.dart`；编号就是用例名。
+一格一个用例，下面第三列就是用例名（原写的"编号就是用例名"是假的，第一版交付时还没有这些用例）。
 
-| # | 情形 | 期望 |
+| # | 情形 | 用例（`test/core/services/sync/`） |
 |---|---|---|
-| 1 | 写 beat 进行中，对端 `GET /sync/blob` | 立即应答（G0） |
-| 2 | 写 beat 进行中，对端 `POST /sync/wsfile` | 立即应答（G0） |
-| 3 | A→B、B→C、C→A 各缺附件 | 一轮内收敛，不环等（G0） |
-| 4 | 写 beat 进行中，另一 peer 的 hello | 排队；不并发写（I-1） |
-| 5 | 排队 29 min、执行 2 min | 出队只剩 1 min，超时 504（G2） |
-| 6 | 排队就耗尽预算 | 不入执行，504，零副作用 |
-| 7 | fetch beat 超时后原 future 恢复 | 不写检查点、不摘会话、不写报告（G1） |
-| 8 | push beat 超时 | 会话不装（G1） |
-| 9 | PUT 落盘前超时 | 工作区不变，临时文件没了 |
-| 10 | `/pair` 超时 | 不装 peer：对端再试仍能配上（F-6） |
-| 11 | 读与同 peer 写并发 | 答案是旧表或新表，绝不是两者混合（I-2） |
-| 12 | 未鉴权的 hello 洪水 | 就地 401，写车道零排队 |
-| 13 | 8 个 `/pair` 并发 | 第 5 个 503 `pair_busy`，数据面照常（G4） |
-| 14 | 上传时对端不读 socket | `addStream` 在预算内断，会话可重试（G3） |
-| 15 | 错误响应正文不结束 | `drain` 有期限（G3） |
-| 16 | 事务中途超时 | 当前事务跑完，下一个不开（D-3） |
-| 17 | ping 仍在进行中的 beat 旁应答 | 回归 slice 19 |
+| 1 | 写 beat 进行中，对端 `GET /sync/blob` | `sync_admission_test.dart`：a blob fetch is answered while a write beat holds the lane |
+| 2 | 写 beat 进行中，对端 `POST /sync/wsfile` | 同上：the read direction of /sync/wsfile answers beside a write |
+| 3 | A→B、B→C、C→A 各缺附件 | `sync_engine_integration_test.dart`：a ring of three devices does not wait on itself |
+| 4 | 写 beat 进行中，同一 peer 的写 | `sync_admission_test.dart`：a write is still queued behind the one in flight |
+| 5 | 排队 450 ms、执行 400 ms（预算 600 ms） | 同上：a request that waited keeps only what is left of its budget |
+| 6 | 排队就耗尽预算 | 同上：a request queued behind a beat has already spent its budget |
+| 7 | fetch beat 超时后原 future 恢复 | `sync_engine_integration_test.dart`：a fetch beat the deadline abandoned writes no checkpoint |
+| 8 | hello 超时 | 同上：a hello the deadline abandoned installs no session |
+| 9 | PUT 落盘前超时 | 同上：a pushed file is written only for the version the session asked for（末段的 spent-gate） |
+| 10 | `/pair` 超时 | 同上：a pairing the deadline abandoned installs nothing |
+| 11 | 读与写并发时不看到半张表 | `workspace_content_sync_test.dart`：a published table is replaced whole, never merged |
+| 12 | 未鉴权的 hello | `sync_admission_test.dart`：an unauthenticated request never joins a queue |
+| 13 | 4 个 `/pair` 并发 | 同上：pairing has its own capped lane, and cannot hold the data plane |
+| 14 | 上传时对端不读 socket | 同上：a push the peer never reads ends inside its budget |
+| 15 | 错误响应正文不结束 | 同上：an error body that never ends is not waited out |
+| 16 | 事务中途取消 | `sync_engine_integration_test.dart`：a cancelled apply finishes the conversation it is on, then stops |
+| 17 | ping 仍在进行中的 beat 旁应答 | 同上：/sync/ping is answered beside a beat that is still running（既有） |
 
-#1、#2、#4–#6、#12–#17 落在 `sync_admission_test.dart`；#3 需要三个引擎，落在
-`sync_engine_integration_test.dart` 的 "a ring of three devices does not wait on itself"；
-#7–#11 也各有一格引擎层的用例。
+提交点没有编号，也各有一格：hello 安装（#8）、`/pair` 记录（#10）、`revoke` 删除
+（`a revoke the deadline abandoned forgets nothing`）、文件 rename（#9）、blob 放置
+（`a pushed blob is written only for the hash the session asked for` 末段）、检查点（#7）、
+每个对话事务（#16）。删除循环只有一次检查、且每条删除都重读它所删的行，所以"循环中途取消"这一格
+不存在——它唯一可达的状态是"继续删完，再拒绝检查点"，而检查点那一头由 #7 覆盖。
 
-注入证明（G5）：(a) 注掉提交点 #8 的 `check()` → #7 红；(b) `GET /sync/blob` 改回写车道 → #3 红
-（整格 30 秒挂死）；(c) 去掉 `/pair` 车道 → #13 红；(d) 把 `addStream` 放回计时器外 → #14 红；
-(e) 上限抬到 99 → #13 红。各自按 sha256 还原核对。
+注入证明（G5）：(a) 注掉检查点前的 `check()` → #7 红；(b) `GET /sync/blob` 改回写车道 → #3 红
+（整格挂死到框架 30 秒超时）；(c) `/pair` 放回写车道 → #13 红；(d) 把 `addStream` 放回计时器外 →
+#14 红；(e) 上限抬到 99 → #13 红。各自按 sha256 还原核对。
 
 ## 8. 与变体 B 的那一处差别
 

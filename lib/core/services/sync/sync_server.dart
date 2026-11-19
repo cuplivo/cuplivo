@@ -216,7 +216,7 @@ class SyncPairAnswer {
   };
 }
 
-/// The lanes a request can be served on, decided by `SyncServer._writesState`.
+/// The lanes a request can be served on, decided by `SyncServer._laneOf`.
 enum _Lane { ping, pair, read, write }
 
 /// HTTPS server for LAN sync.
@@ -367,18 +367,8 @@ class SyncServer {
     // stranger's flood of forged requests queue in front of a paired peer's.
     var writeTail = Future<void>.value();
     await for (final request in server) {
-      final admission = SyncAdmission(
-        enteredAt: DateTime.now(),
-        budget: _deadlineFor(request.uri.path),
-      );
+      final admission = SyncAdmission(budget: _deadlineFor(request.uri.path));
       final lane = _laneOf(request);
-      if (lane == _Lane.ping) {
-        // Idempotent, no session state, bounded concurrency: safe beside the
-        // lanes. A probe queued behind a running session would report the peer
-        // offline for the whole session, every tick, for every peer.
-        unawaited(_servePing(request, _authenticatedPeer(request)));
-        continue;
-      }
       if (lane == _Lane.pair) {
         // Unauthenticated by nature — a pairing has no secret yet — so it
         // answers on a lane of its own, capped: a stranger who fills it gets a
@@ -394,6 +384,13 @@ class SyncServer {
         _safeRespond(request, HttpStatus.unauthorized, {
           'error': SyncRefusalReason.notPaired.wire,
         });
+        continue;
+      }
+      if (lane == _Lane.ping) {
+        // Idempotent, no session state, bounded concurrency: safe beside the
+        // lanes. A probe queued behind a running session would report the peer
+        // offline for the whole session, every tick, for every peer.
+        unawaited(_servePing(request, peer!));
         continue;
       }
       if (lane == _Lane.read) {
@@ -436,6 +433,12 @@ class SyncServer {
   }
 
   /// Which lane one request belongs to: **by effect, not by path**.
+  ///
+  /// The one place that decides *which lane*, and the reason `_writesState`
+  /// below deliberately does not know about `/pair`: the pairing route is
+  /// classified by *authentication*, not by effect (it is the one route with no
+  /// secret to check), so it is decided here and only here. A second answer for
+  /// it inside `_writesState` would be dead code that reads as authority.
   _Lane _laneOf(HttpRequest request) {
     if (request.uri.path == pingPath) return _Lane.ping;
     if (request.uri.path == '/pair') return _Lane.pair;
@@ -446,11 +449,12 @@ class SyncServer {
 
   /// Whether this route, with this method, can change what this device holds.
   ///
-  /// The one place that decides. A route is classified by what it *does* rather
-  /// than where it lives: `POST /sync/wsfile` streams a file this device
-  /// advertised (a read) while `PUT` on the same path lands one (a write), and
-  /// a `GET /sync/hello` writes nothing even though every `POST` there installs
-  /// a session. A route this does not name writes nothing, so an unknown path
+  /// The one place that decides *read or write*, for every route but `/pair`
+  /// (see [_laneOf]). A route is classified by what it *does* rather than where
+  /// it lives: `POST /sync/wsfile` streams a file this device advertised (a
+  /// read) while `PUT` on the same path lands one (a write), and a
+  /// `GET /sync/hello` writes nothing even though every `POST` there installs a
+  /// session. A route this does not name writes nothing, so an unknown path
   /// answers its 404 beside the lanes instead of queueing on the one that
   /// matters.
   ///
@@ -461,7 +465,6 @@ class SyncServer {
   /// network, then file, then DB) — so a read waiting on the database waits for
   /// one transaction, not for a transfer.
   static bool _writesState(String method, String path) {
-    if (path == '/pair') return method == 'POST';
     return switch (path) {
       '/sync/hello' => method == 'POST',
       '/sync/subtrees' => method == 'POST' || method == 'PUT',
@@ -521,10 +524,9 @@ class SyncServer {
   /// itself, so the response carries nothing.
   ///
   /// [peerDeviceId] is the caller's authenticated identity, decided once at the
-  /// loop: null is a request that cannot name a paired caller, and a probe that
-  /// then answered anything but 401 would let a stranger use this route as a
-  /// reachability oracle.
-  Future<void> _servePing(HttpRequest request, String? peerDeviceId) async {
+  /// loop before this is dispatched: an unauthenticated probe is answered 401
+  /// there, so it never takes one of the lane's slots.
+  Future<void> _servePing(HttpRequest request, String peerDeviceId) async {
     if (_pingsInFlight >= kMaxPingsInFlight) {
       _safeRespond(request, HttpStatus.serviceUnavailable, {
         'error': 'ping_busy',
@@ -536,12 +538,6 @@ class SyncServer {
       if (request.method != 'POST') {
         _safeRespond(request, HttpStatus.methodNotAllowed, {
           'error': 'post_only',
-        });
-        return;
-      }
-      if (peerDeviceId == null) {
-        _safeRespond(request, HttpStatus.unauthorized, {
-          'error': SyncRefusalReason.notPaired.wire,
         });
         return;
       }

@@ -810,7 +810,12 @@ class _Side {
   /// A request's gate, as the listener builds one: the whole budget still
   /// ahead, which is what a test that is not about a deadline needs.
   SyncAdmission gate({Duration budget = const Duration(minutes: 5)}) =>
-      SyncAdmission(enteredAt: DateTime.now(), budget: budget);
+      SyncAdmission(budget: budget);
+
+  /// A gate whose budget is already gone — the state the listener hands a
+  /// handler the deadline has abandoned.
+  SyncAdmission spentGate({Duration budget = const Duration(minutes: 30)}) =>
+      SyncAdmission(budget: budget, alreadySpent: budget * 2);
 
   SyncHello hello({
     int? schemaVersion,
@@ -1626,10 +1631,7 @@ void main() {
       await b.engine.handleFetchSubtrees(
         a.identity.deviceId,
         const SyncFetchRequest(),
-        admission: SyncAdmission(
-          enteredAt: DateTime.now().subtract(const Duration(minutes: 31)),
-          budget: const Duration(minutes: 30),
-        ),
+        admission: b.spentGate(),
       );
     } catch (error) {
       cancelled = error;
@@ -1662,6 +1664,142 @@ void main() {
     expect(File(checkpointPath).existsSync(), isTrue);
     expect(b.engine.hasResponderSession(a.identity.deviceId), isFalse);
   });
+
+  test('a hello the deadline abandoned installs no session', () async {
+    // The other commit point of the responder role: installing the session is
+    // what makes every later beat of the exchange possible, so it is the point a
+    // cancelled hello must stop at. The peer is told 504 and re-drives; a session
+    // left behind here would answer its next hello with `busy` instead.
+    final (a, b) = await pair();
+    Object? cancelled;
+    try {
+      await b.engine.handleHello(
+        a.identity.deviceId,
+        a.hello(),
+        admission: b.spentGate(budget: const Duration(seconds: 60)),
+      );
+    } catch (error) {
+      cancelled = error;
+    }
+
+    expect(cancelled, isA<SyncAdmissionLost>());
+    expect(
+      b.engine.hasResponderSession(a.identity.deviceId),
+      isFalse,
+      reason: 'a cancelled hello leaves no session to refuse the retry',
+    );
+
+    // And the retry lands: the same hello with a live budget opens the session.
+    expect(
+      await b.engine.handleHello(
+        a.identity.deviceId,
+        a.hello(),
+        admission: b.gate(),
+      ),
+      isA<SyncHello>(),
+    );
+    expect(b.engine.hasResponderSession(a.identity.deviceId), isTrue);
+  });
+
+  test('a pairing the deadline abandoned installs nothing', () async {
+    // `/pair` writes a peer record and a secret, and the initiator only learns
+    // the secret from the answer. A pairing abandoned at the deadline must
+    // therefore install neither: a record here would show a paired device whose
+    // every request this side refuses 401, and only a re-pair would fix it.
+    final a = _Side('a');
+    await a.start(root);
+    sides.add(a);
+    final pin = a.engine.openPairing();
+    const strangerId = 'stranger-device';
+    final request = SyncPairRequest(
+      pin: pin,
+      deviceId: strangerId,
+      deviceName: 'stranger',
+      platform: 'test',
+      certPem: 'not-a-real-pem',
+    );
+
+    Object? cancelled;
+    try {
+      await a.engine.handlePair(
+        request,
+        '127.0.0.1',
+        admission: a.spentGate(budget: const Duration(seconds: 60)),
+      );
+    } catch (error) {
+      cancelled = error;
+    }
+
+    expect(cancelled, isA<SyncAdmissionLost>());
+    expect(await a.store.findPeer(strangerId), isNull);
+    expect(
+      a.engine.isPairingOpen,
+      isTrue,
+      reason:
+          'a cancellation before the PIN is spent leaves the window the '
+          'user is standing at open',
+    );
+
+    // The same request with a live gate does pair, so the gate is what refused.
+    expect(
+      await a.engine.handlePair(request, '127.0.0.1', admission: a.gate()),
+      isA<SyncPairAnswer>(),
+    );
+    expect(await a.store.findPeer(strangerId), isNotNull);
+  });
+
+  test('a revoke the deadline abandoned forgets nothing', () async {
+    // Unpair propagation is one commit: the session, the publication, the record
+    // and the in-memory secret. A revoke abandoned at the deadline must leave the
+    // pairing exactly as it was — the peer's next session finds it too and asks
+    // again, so stopping early is the safe half.
+    final (a, b) = await pair();
+    Object? cancelled;
+    try {
+      await b.engine.handleRevoke(
+        a.identity.deviceId,
+        admission: b.spentGate(budget: const Duration(seconds: 30)),
+      );
+    } catch (error) {
+      cancelled = error;
+    }
+    expect(cancelled, isA<SyncAdmissionLost>());
+    expect(
+      await b.store.findPeer(a.identity.deviceId),
+      isNotNull,
+      reason: 'a cancelled revoke keeps the pairing it was asked to drop',
+    );
+
+    await b.engine.handleRevoke(a.identity.deviceId, admission: b.gate());
+    expect(await b.store.findPeer(a.identity.deviceId), isNull);
+  });
+
+  test(
+    'a cancelled apply finishes the conversation it is on, then stops',
+    () async {
+      // Cancellation lands between transactions, never inside one: the apply checks
+      // before each conversation, so a beat that dies mid-push keeps what it already
+      // wrote (the next session re-plans it) and starts nothing new.
+      final (a, b) = await pair();
+      await _seedConversation(a, id: 'conv-c1', contents: ['one']);
+      await _seedConversation(a, id: 'conv-c2', contents: ['two']);
+      final first = (await a.dataPlane.readSubtree('conv-c1'))!;
+      final second = (await a.dataPlane.readSubtree('conv-c2'))!;
+
+      var asked = 0;
+      final outcomes = await b.dataPlane.applySubtrees(
+        [first, second],
+        myDeviceId: b.identity.deviceId,
+        peerDeviceId: a.identity.deviceId,
+        checkpointRowsByConversation: const {},
+        cancelled: () => asked++ > 0,
+      );
+
+      expect(outcomes.keys, {'conv-c1'});
+      expect(await _conversationIds(b), contains('conv-c1'));
+      expect(await _conversationIds(b), isNot(contains('conv-c2')));
+    },
+  );
 
   test('/sync/ping authenticates and is idempotent', () async {
     final (a, b) = await pair();
@@ -5932,6 +6070,29 @@ void main() {
     expect(await push('a.txt', 3, 'aaa'), isFalse);
     expect(await b.workspaceFileContent('w1', 'a.txt'), isNull);
 
+    // The commit point: the requested version, delivered under a gate whose
+    // budget is gone. The body arrives and is staged; the rename into the
+    // workspace must not happen, and the request set must stay intact.
+    Object? cancelled;
+    try {
+      await b.engine.handlePutWorkspaceFile(
+        a.identity.deviceId,
+        'w1',
+        'a.txt',
+        size: 2,
+        body: Stream.value(utf8.encode('aa')),
+        admission: b.spentGate(),
+      );
+    } catch (error) {
+      cancelled = error;
+    }
+    expect(cancelled, isA<SyncAdmissionLost>());
+    expect(
+      await b.workspaceFileContent('w1', 'a.txt'),
+      isNull,
+      reason: 'a cancelled put lands nothing',
+    );
+
     expect(await push('a.txt', 2, 'aa'), isTrue);
     expect(await b.workspaceFileContent('w1', 'a.txt'), 'aa');
     // Delivered once: the pair left the request set, so a replayed body is not a
@@ -6190,6 +6351,29 @@ void main() {
     expect(decoyHash, isNotNull);
     expect(await push(hash: decoyHash!, body: 'two!'), isFalse);
     expect(await target.exists(), isFalse);
+
+    // The commit point: the exact entry the session asked for, under a gate whose
+    // budget is gone. The body lands in staging and the placement must not run.
+    Object? cancelled;
+    try {
+      await b.engine.handlePutBlob(
+        a.identity.deviceId,
+        entry.contentHash,
+        kind: SyncBlobEntry.kindFile,
+        key: entry.key,
+        size: 4,
+        body: Stream.value(utf8.encode('one!')),
+        admission: b.spentGate(),
+      );
+    } catch (error) {
+      cancelled = error;
+    }
+    expect(cancelled, isA<SyncAdmissionLost>());
+    expect(
+      await target.exists(),
+      isFalse,
+      reason: 'a cancelled blob push places nothing',
+    );
 
     expect(await push(), isTrue);
     expect(await target.readAsString(), 'one!');

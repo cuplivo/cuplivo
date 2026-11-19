@@ -23,38 +23,46 @@
 ///   must be read-only.
 ///
 /// One gate belongs to one request. It is never reset: `remaining` only shrinks.
+///
+/// The elapsed time is read from a [Stopwatch], not from the wall clock. A
+/// budget is how much *work* a request may spend, so an NTP correction — or a
+/// phone re-syncing after a tunnel — must not decide that a request which is
+/// making progress has run out; the converse, a backward step buying a request
+/// extra time, is the same bug from the other side. A stopwatch also cannot be
+/// moved by anything outside this process.
 library;
 
 class SyncAdmission {
-  SyncAdmission({
-    required this.enteredAt,
-    required this.budget,
-    DateTime Function()? now,
-  }) : _now = now ?? DateTime.now;
-
-  /// When the listener read this request. The budget is measured from here,
-  /// queue time included.
-  final DateTime enteredAt;
+  SyncAdmission({required this.budget, Duration alreadySpent = Duration.zero})
+    : _spentBefore = alreadySpent,
+      _watch = Stopwatch()..start();
 
   /// The route's whole budget (see `SyncServer._deadlineFor`).
   final Duration budget;
 
-  final DateTime Function() _now;
+  /// Time already gone before this gate existed — zero in production, where the
+  /// gate is built at admission. It exists so a test can hand a handler a gate
+  /// whose budget is already spent, without waiting one out.
+  final Duration _spentBefore;
+
+  final Stopwatch _watch;
 
   bool _lost = false;
 
   /// Whether the deadline already took this request's right to write.
   bool get isLost => _lost;
 
+  Duration get _spent => _spentBefore + _watch.elapsed;
+
   /// What is left of the budget, never negative.
   Duration get remaining {
-    final left = budget - _now().difference(enteredAt);
+    final left = budget - _spent;
     return left.isNegative ? Duration.zero : left;
   }
 
-  /// Whether this handler may still write. False once the deadline passed, or
+  /// Whether this handler may still write. False once the budget is spent, or
   /// once anything declared the request abandoned.
-  bool get alive => !_lost && _now().isBefore(enteredAt.add(budget));
+  bool get alive => !_lost && _spent < budget;
 
   /// Abandons the request. The handler keeps running until its next `check()`
   /// or `io()`, and everything it would have written after that is refused.

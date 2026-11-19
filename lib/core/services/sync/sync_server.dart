@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:basic_utils/basic_utils.dart';
 import 'package:crypto/crypto.dart' as crypto;
 
+import 'sync_admission.dart';
 import 'sync_identity.dart';
 import 'sync_limits.dart';
 import 'sync_local_addresses.dart';
@@ -13,6 +14,14 @@ import 'sync_store.dart';
 
 /// Handler surface the sync engine implements behind [SyncServer]. The server
 /// is transport only: mTLS, routing, JSON/gzip codecs, certificate pinning.
+///
+/// Every method takes the request's [SyncAdmission]. It is the only way the
+/// handler can know that the deadline already took this request: the transport
+/// answers 504 at the deadline, and a handler that has not been told would keep
+/// writing after its peer was told the request is over. A handler must call
+/// `check()` at each commit point (before installing a session, writing a
+/// checkpoint, landing a file — never inside a transaction) and must run every
+/// await that can hang through `io()`/`ioStream()`.
 abstract class SyncServerHandler {
   /// Returns this device's hello, or a refusal. [peerDeviceId] is the pinned
   /// identity of the caller.
@@ -24,14 +33,16 @@ abstract class SyncServerHandler {
     String peerDeviceId,
     SyncHello initiatorHello, {
     String? remoteAddress,
+    required SyncAdmission admission,
   });
 
   /// Everything this device owes the initiator for the request's conversations
   /// and business rows.
   Future<SyncDeltaBatch> handleFetchSubtrees(
     String peerDeviceId,
-    SyncFetchRequest request,
-  );
+    SyncFetchRequest request, {
+    required SyncAdmission admission,
+  });
 
   /// Applies what the initiator sent (conversation subtrees + business rows).
   /// Returns the acknowledgement the initiator's checkpoint advance needs:
@@ -39,13 +50,18 @@ abstract class SyncServerHandler {
   /// deferred as a whole.
   Future<SyncApplyAck> handleApplySubtrees(
     String peerDeviceId,
-    SyncDeltaBatch batch,
-  );
+    SyncDeltaBatch batch, {
+    required SyncAdmission admission,
+  });
 
   /// The local file backing one blob this device published, or null when the
   /// hash is unknown here (or the file is gone). The server only ever streams
   /// a file the handler names — a request never supplies a path.
-  Future<File?> handleFetchBlob(String peerDeviceId, String contentHash);
+  Future<File?> handleFetchBlob(
+    String peerDeviceId,
+    String contentHash, {
+    required SyncAdmission admission,
+  });
 
   /// The local file backing one `(workspace, path)` this device advertised in
   /// its file table for that peer, or null when it did not advertise it — or
@@ -58,8 +74,9 @@ abstract class SyncServerHandler {
   Future<File?> handleFetchWorkspaceFile(
     String peerDeviceId,
     String workspaceId,
-    String relPath,
-  );
+    String relPath, {
+    required SyncAdmission admission,
+  });
 
   /// Receives one workspace file this device asked the caller to push, as the
   /// raw request body (slice 23).
@@ -79,6 +96,7 @@ abstract class SyncServerHandler {
     String relPath, {
     required int size,
     required Stream<List<int>> body,
+    required SyncAdmission admission,
   });
 
   /// Receives one blob this device asked the caller to push, as the raw request
@@ -99,6 +117,7 @@ abstract class SyncServerHandler {
     required String key,
     required int size,
     required Stream<List<int>> body,
+    required SyncAdmission admission,
   });
 
   /// Pairing: validate the PIN, persist the peer, answer with our identity.
@@ -107,16 +126,25 @@ abstract class SyncServerHandler {
   /// [initiatorHost] is the address the initiator connected from (as this
   /// server saw it) and [request.listenPort] the initiator's own sync
   /// listener — together they let the responder store a usable endpoint.
+  ///
+  /// This route writes a peer record and a secret, so its admission matters more
+  /// than most: a pairing abandoned at the deadline must not install the peer,
+  /// because the peer never receives the answer and would hold a pairing this
+  /// device granted but it cannot prove.
   Future<SyncPairAnswer?> handlePair(
     SyncPairRequest request,
-    String? initiatorHost,
-  );
+    String? initiatorHost, {
+    required SyncAdmission admission,
+  });
 
   /// Unpair propagation (slice 5): a paired peer presented its secret and
   /// asks this device to forget it. The handler drops the caller's peer
   /// record; only the caller's — the secret authenticates exactly that
   /// identity.
-  Future<void> handleRevoke(String peerDeviceId);
+  Future<void> handleRevoke(
+    String peerDeviceId, {
+    required SyncAdmission admission,
+  });
 }
 
 class SyncPairRequest {
@@ -328,9 +356,15 @@ class SyncServer {
   Future<void> _serve(HttpServer server) async {
     // The *loop* must not block waiting for a request: a data beat can run for
     // twenty minutes, and a request the loop never reads is a request nothing
-    // can answer. Each request is handed to a lane straight from the loop.
+    // can answer. Each request is handed to a lane straight from the loop, and
+    // its budget starts here — at the instant the listener read it — so the time
+    // it spends queued is time it has spent.
     var writeTail = Future<void>.value();
     await for (final request in server) {
+      final admission = SyncAdmission(
+        enteredAt: DateTime.now(),
+        budget: _deadlineFor(request.uri.path),
+      );
       switch (_laneOf(request)) {
         case _Lane.ping:
           // Idempotent, no session state, bounded concurrency: safe beside the
@@ -344,9 +378,9 @@ class SyncServer {
           // pulls attachments from the other side, and that pull used to queue
           // behind this device's own inbound session — three devices then
           // waited on each other in a ring.
-          unawaited(_serveOne(request));
+          unawaited(_serveOne(request, admission));
         case _Lane.write:
-          writeTail = writeTail.then((_) => _serveOne(request));
+          writeTail = writeTail.then((_) => _serveOne(request, admission));
       }
     }
     await writeTail;
@@ -387,17 +421,23 @@ class SyncServer {
     };
   }
 
-  /// One request, on whichever lane the loop put it, bounded by its deadline.
+  /// One request, on whichever lane the loop put it, bounded by its budget.
   ///
-  /// Each route runs under a deadline: a stalled peer (Wi-Fi gone, process
-  /// killed) or a body that stops arriving mid-request is answered and
-  /// abandoned instead of holding the lane. This method never throws — the
-  /// write lane is a future chain, and one uncaught error would break every
-  /// request queued behind it.
-  Future<void> _serveOne(HttpRequest request) async {
+  /// The deadline is spent through [SyncAdmission], not through a bare
+  /// `.timeout()`: it must both end the wait here *and* take the handler's right
+  /// to write, because a `.timeout()` alone leaves the abandoned handler running
+  /// — writing a checkpoint, installing a session — after the peer has been told
+  /// the request is over. The budget is what is *left* of the request's, so a
+  /// request that queued behind a long beat starts already spent.
+  ///
+  /// A request whose budget ran out while it waited is answered 504 without
+  /// reaching its handler. This method never throws — the write lane is a future
+  /// chain, and one uncaught error would break every request queued behind it.
+  Future<void> _serveOne(HttpRequest request, SyncAdmission admission) async {
     try {
-      await _route(request).timeout(_deadlineFor(request.uri.path));
-    } on TimeoutException {
+      admission.check();
+      await admission.io(() => _route(request, admission));
+    } on SyncAdmissionLost {
       _safeRespond(request, HttpStatus.gatewayTimeout, {'error': 'timeout'});
     } on _RequestBodyTooLarge {
       _safeRespond(request, HttpStatus.requestEntityTooLarge, {
@@ -501,9 +541,9 @@ class SyncServer {
     _ => _dataDeadline,
   };
 
-  Future<void> _route(HttpRequest request) async {
+  Future<void> _route(HttpRequest request, SyncAdmission admission) async {
     if (request.uri.path == '/pair') {
-      await _handlePair(request);
+      await _handlePair(request, admission);
       return;
     }
     if (!request.uri.path.startsWith('/sync/')) {
@@ -519,20 +559,20 @@ class SyncServer {
     }
     switch (request.uri.path) {
       case '/sync/hello':
-        await _handleHello(request, peerDeviceId);
+        await _handleHello(request, peerDeviceId, admission);
         break;
       case '/sync/subtrees':
-        await _handleSubtrees(request, peerDeviceId);
+        await _handleSubtrees(request, peerDeviceId, admission);
         break;
       case '/sync/revoke':
-        await _handleRevoke(request, peerDeviceId);
+        await _handleRevoke(request, peerDeviceId, admission);
         break;
       case workspaceFilePath:
-        await _handleWorkspaceFile(request, peerDeviceId);
+        await _handleWorkspaceFile(request, peerDeviceId, admission);
         break;
       default:
         if (request.uri.path.startsWith(blobPathPrefix)) {
-          await _handleBlob(request, peerDeviceId);
+          await _handleBlob(request, peerDeviceId, admission);
           break;
         }
         _safeRespond(request, HttpStatus.notFound, {'error': 'not_found'});
@@ -603,7 +643,7 @@ class SyncServer {
     return address == null ? null : normalizeHost(address);
   }
 
-  Future<void> _handlePair(HttpRequest request) async {
+  Future<void> _handlePair(HttpRequest request, SyncAdmission admission) async {
     if (request.method != 'POST') {
       _safeRespond(request, HttpStatus.methodNotAllowed, {
         'error': 'post_only',
@@ -616,7 +656,7 @@ class SyncServer {
     // anything past the cap is answered, not buffered.
     final Map<String, dynamic>? body;
     try {
-      body = await _readJson(request, maxBytes: _pairMaxBodyBytes);
+      body = await _readJson(request, admission, maxBytes: _pairMaxBodyBytes);
     } on _RequestBodyTooLarge {
       _safeRespond(request, HttpStatus.requestEntityTooLarge, {
         'error': 'body_too_large',
@@ -654,7 +694,11 @@ class SyncServer {
       _safeRespond(request, HttpStatus.forbidden, {'error': 'id_mismatch'});
       return;
     }
-    final answer = await handler.handlePair(pairRequest, _remoteHost(request));
+    final answer = await handler.handlePair(
+      pairRequest,
+      _remoteHost(request),
+      admission: admission,
+    );
     if (answer == null) {
       _safeRespond(request, HttpStatus.forbidden, {'error': 'invalid_pin'});
       return;
@@ -662,14 +706,22 @@ class SyncServer {
     _respondJson(request, HttpStatus.ok, answer.toJson());
   }
 
-  Future<void> _handleHello(HttpRequest request, String peerDeviceId) async {
+  Future<void> _handleHello(
+    HttpRequest request,
+    String peerDeviceId,
+    SyncAdmission admission,
+  ) async {
     if (request.method != 'POST') {
       _safeRespond(request, HttpStatus.methodNotAllowed, {
         'error': 'post_only',
       });
       return;
     }
-    final body = await _readJson(request, maxBytes: _syncMaxBodyBytes);
+    final body = await _readJson(
+      request,
+      admission,
+      maxBytes: _syncMaxBodyBytes,
+    );
     if (body == null) {
       _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_json'});
       return;
@@ -678,6 +730,7 @@ class SyncServer {
       peerDeviceId,
       SyncHello.fromJson(body),
       remoteAddress: _remoteHost(request),
+      admission: admission,
     );
     if (result is SyncHelloRefusal) {
       _respondJson(request, HttpStatus.conflict, result.toJson());
@@ -694,9 +747,13 @@ class SyncServer {
   /// (if any) backs a served hash, and a peer-supplied file entry is only ever
   /// remembered for a managed blob root, so a request can never read an
   /// arbitrary path off this device.
-  Future<void> _handleBlob(HttpRequest request, String peerDeviceId) async {
+  Future<void> _handleBlob(
+    HttpRequest request,
+    String peerDeviceId,
+    SyncAdmission admission,
+  ) async {
     if (request.method == 'PUT') {
-      await _receiveBlob(request, peerDeviceId);
+      await _receiveBlob(request, peerDeviceId, admission);
       return;
     }
     if (request.method != 'GET') {
@@ -712,14 +769,25 @@ class SyncServer {
       _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_hash'});
       return;
     }
-    final file = await handler.handleFetchBlob(peerDeviceId, hash);
-    await _streamFile(request, file, error: 'blob_unavailable');
+    final file = await admission.io(
+      () => handler.handleFetchBlob(peerDeviceId, hash, admission: admission),
+    );
+    await _streamFile(
+      request,
+      file,
+      admission: admission,
+      error: 'blob_unavailable',
+    );
   }
 
   /// Receives one pushed blob. The hash is the route's subject, the entry's
   /// kind and key are in headers, and the body is the raw bytes with a declared
   /// length — nothing is buffered as JSON, so an attachment streams through.
-  Future<void> _receiveBlob(HttpRequest request, String peerDeviceId) async {
+  Future<void> _receiveBlob(
+    HttpRequest request,
+    String peerDeviceId,
+    SyncAdmission admission,
+  ) async {
     if (request.headers.value(HttpHeaders.contentEncodingHeader) != null) {
       // The bytes are the content the hash names; a coded body would have to be
       // decoded before its length or its digest meant anything.
@@ -754,7 +822,11 @@ class SyncServer {
       kind: kind,
       key: key,
       size: size,
-      body: request,
+      // The body is the one await here that can hang forever: a peer that sends
+      // a length and then stops arriving. Wrapped so the handler's own read
+      // throws at the budget instead of holding the lane.
+      body: admission.ioStream(request),
+      admission: admission,
     );
     await _respondNoContent(
       request,
@@ -775,9 +847,10 @@ class SyncServer {
   Future<void> _handleWorkspaceFile(
     HttpRequest request,
     String peerDeviceId,
+    SyncAdmission admission,
   ) async {
     if (request.method == 'PUT') {
-      await _receiveWorkspaceFile(request, peerDeviceId);
+      await _receiveWorkspaceFile(request, peerDeviceId, admission);
       return;
     }
     if (request.method != 'POST') {
@@ -786,7 +859,11 @@ class SyncServer {
       });
       return;
     }
-    final body = await _readJson(request, maxBytes: _workspaceFileMaxBodyBytes);
+    final body = await _readJson(
+      request,
+      admission,
+      maxBytes: _workspaceFileMaxBodyBytes,
+    );
     if (body == null) {
       _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_json'});
       return;
@@ -800,12 +877,20 @@ class SyncServer {
       _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_request'});
       return;
     }
-    final file = await handler.handleFetchWorkspaceFile(
-      peerDeviceId,
-      workspaceId,
-      relPath,
+    final file = await admission.io(
+      () => handler.handleFetchWorkspaceFile(
+        peerDeviceId,
+        workspaceId,
+        relPath,
+        admission: admission,
+      ),
     );
-    await _streamFile(request, file, error: 'workspace_file_unavailable');
+    await _streamFile(
+      request,
+      file,
+      admission: admission,
+      error: 'workspace_file_unavailable',
+    );
   }
 
   /// Receives one pushed workspace file. The metadata is in the headers and the
@@ -814,6 +899,7 @@ class SyncServer {
   Future<void> _receiveWorkspaceFile(
     HttpRequest request,
     String peerDeviceId,
+    SyncAdmission admission,
   ) async {
     if (request.headers.value(HttpHeaders.contentEncodingHeader) != null) {
       // The body is bytes, not a codec: a compressed one would have to be
@@ -845,7 +931,8 @@ class SyncServer {
       workspaceId,
       relPath,
       size: size,
-      body: request,
+      body: admission.ioStream(request),
+      admission: admission,
     );
     await _respondNoContent(
       request,
@@ -871,6 +958,7 @@ class SyncServer {
   Future<void> _streamFile(
     HttpRequest request,
     File? file, {
+    required SyncAdmission admission,
     required String error,
   }) async {
     if (file == null || !await file.exists()) {
@@ -882,8 +970,18 @@ class SyncServer {
       request.response.statusCode = HttpStatus.ok;
       request.response.headers.contentType = ContentType.binary;
       request.response.headers.set(HttpHeaders.contentLengthHeader, '$length');
-      await request.response.addStream(file.openRead());
-      await request.response.close();
+      // A peer that stops reading never completes `addStream`, so this is the
+      // await that would hold the read lane forever without the budget.
+      await admission.io(
+        () => request.response.addStream(admission.ioStream(file.openRead())),
+      );
+      await admission.io(() => request.response.close());
+    } on SyncAdmissionLost {
+      // The budget died mid-file: the caller was told 504 by `_serveOne`, and
+      // the rest of the file is not owed to it.
+      try {
+        await request.response.close();
+      } catch (_) {}
     } catch (_) {
       // The peer hung up mid-stream; nothing to salvage.
       try {
@@ -892,9 +990,17 @@ class SyncServer {
     }
   }
 
-  Future<void> _handleSubtrees(HttpRequest request, String peerDeviceId) async {
+  Future<void> _handleSubtrees(
+    HttpRequest request,
+    String peerDeviceId,
+    SyncAdmission admission,
+  ) async {
     if (request.method == 'PUT') {
-      final body = await _readJson(request, maxBytes: _syncMaxBodyBytes);
+      final body = await _readJson(
+        request,
+        admission,
+        maxBytes: _syncMaxBodyBytes,
+      );
       if (body == null) {
         _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_json'});
         return;
@@ -902,12 +1008,17 @@ class SyncServer {
       final ack = await handler.handleApplySubtrees(
         peerDeviceId,
         SyncDeltaBatch.fromJson(body),
+        admission: admission,
       );
       _respondJson(request, HttpStatus.ok, ack.toJson());
       return;
     }
     if (request.method == 'POST') {
-      final body = await _readJson(request, maxBytes: _syncMaxBodyBytes);
+      final body = await _readJson(
+        request,
+        admission,
+        maxBytes: _syncMaxBodyBytes,
+      );
       if (body == null) {
         _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_json'});
         return;
@@ -915,6 +1026,7 @@ class SyncServer {
       final batch = await handler.handleFetchSubtrees(
         peerDeviceId,
         SyncFetchRequest.fromJson(body),
+        admission: admission,
       );
       _respondJson(request, HttpStatus.ok, batch.toJson());
       return;
@@ -925,14 +1037,18 @@ class SyncServer {
   /// Unpair propagation. The auth gate already proved the caller holds the
   /// paired secret, so this is the minimal "forget me" — one status, no body
   /// semantics to version.
-  Future<void> _handleRevoke(HttpRequest request, String peerDeviceId) async {
+  Future<void> _handleRevoke(
+    HttpRequest request,
+    String peerDeviceId,
+    SyncAdmission admission,
+  ) async {
     if (request.method != 'POST') {
       _safeRespond(request, HttpStatus.methodNotAllowed, {
         'error': 'post_only',
       });
       return;
     }
-    await handler.handleRevoke(peerDeviceId);
+    await handler.handleRevoke(peerDeviceId, admission: admission);
     _safeRespond(request, HttpStatus.ok, {'revoked': true});
   }
 
@@ -961,8 +1077,13 @@ class SyncServer {
   /// allows a single listen, and abandoning it mid-stream aborts the
   /// connection before the refusal can be delivered), while nothing past the
   /// cap is buffered.
+  ///
+  /// The body is read through the request's admission: a client that announces
+  /// a length and then stops arriving used to hold the route (and, before the
+  /// lanes, the whole listener) until the peer went away.
   Future<Map<String, dynamic>?> _readJson(
-    HttpRequest request, {
+    HttpRequest request,
+    SyncAdmission admission, {
     int? maxBytes,
   }) async {
     final buffer = <int>[];
@@ -972,7 +1093,7 @@ class SyncServer {
       final source = request.headers.value('content-encoding') == 'gzip'
           ? gzip.decoder.bind(request)
           : request;
-      await for (final chunk in source) {
+      await for (final chunk in admission.ioStream(source)) {
         received += chunk.length;
         if (maxBytes != null && received > maxBytes) {
           if (!tooLarge) buffer.clear();
@@ -981,6 +1102,10 @@ class SyncServer {
         }
         buffer.addAll(chunk);
       }
+    } on SyncAdmissionLost {
+      // Not a decode failure: the request is over, and the caller must hear
+      // 504 rather than the 400 a truncated body would otherwise mean.
+      rethrow;
     } catch (_) {
       return null;
     }

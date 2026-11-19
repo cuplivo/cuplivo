@@ -227,10 +227,15 @@ class SyncDataPlane {
     required String myDeviceId,
     required String peerDeviceId,
     required Map<String, Map<String, int>> checkpointRowsByConversation,
+    bool Function()? cancelled,
   }) async {
     final outcomes = <String, SyncSubtreeApplyOutcome>{};
     final touched = <String>{};
     for (final subtree in subtrees) {
+      // Between conversations, never inside one: each apply is its own
+      // transaction, and a cancellation that landed in the middle of one would
+      // leave a conversation half-written — worse than finishing it.
+      if (cancelled?.call() ?? false) break;
       final conversationId = subtree.conversation['id'] as String;
       final outcome = await repository.syncApplySubtree(
         payload: subtree,
@@ -659,6 +664,7 @@ class SyncDataPlane {
     required Map<String, Map<String, SyncAgreedFile>> ledger,
     required bool allowDeletes,
     WorkspaceFileFetcher? fetch,
+    bool Function()? cancelled,
   }) async {
     final content = workspaceContent;
     // No content support (conversation-only tests): the ledger is carried
@@ -673,6 +679,7 @@ class SyncDataPlane {
       ledger: ledger,
       allowDeletes: allowDeletes,
       fetch: fetch,
+      cancelled: cancelled,
     );
   }
 

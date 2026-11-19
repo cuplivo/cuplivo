@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:Cuplivo/core/services/sync/sync_admission.dart';
 import 'package:Cuplivo/core/services/sync/sync_identity.dart';
 import 'package:Cuplivo/core/services/sync/sync_models.dart';
 import 'package:Cuplivo/core/services/sync/sync_server.dart';
@@ -50,6 +51,7 @@ void main() {
   Future<SyncServer> startServer(
     _RecordingHandler handler, {
     Duration? deadline,
+    Duration Function(String path)? deadlineFor,
   }) async {
     final directory = await Directory.systemTemp.createTemp('sync-admission-');
     final store = SyncStore(directory);
@@ -57,7 +59,7 @@ void main() {
       identity: identity,
       store: store,
       handler: handler,
-      deadlineFor: deadline == null ? null : (_) => deadline,
+      deadlineFor: deadlineFor ?? (deadline == null ? null : (_) => deadline),
     );
     addTearDown(() async {
       await server.stop();
@@ -236,6 +238,76 @@ void main() {
     await response.drain<void>();
     expect(response.statusCode, HttpStatus.notFound);
   });
+
+  test('a request queued behind a beat has already spent its budget', () async {
+    // The budget starts when the listener reads the request, not when its turn
+    // comes: a request that waited thirty minutes behind a beat does not then
+    // get thirty minutes of its own.
+    final handler = _RecordingHandler();
+    final server = await startServer(
+      handler,
+      deadlineFor: (path) => path == '/sync/hello'
+          ? const Duration(milliseconds: 400)
+          : const Duration(minutes: 30),
+    );
+    final holder = await holdWriteLane(server.port!);
+
+    final http = client();
+    final request = await http.postUrl(
+      Uri.parse('https://127.0.0.1:${server.port!}/sync/hello'),
+    );
+    authenticate(request);
+    request.headers.contentType = ContentType.json;
+    request.write(jsonEncode(handler.helloBody()));
+    // Not awaited: it is queued, and the lane is held.
+    final pending = request.close();
+
+    // Outlive the hello's budget by a margin, then let the lane go.
+    await Future<void>.delayed(const Duration(milliseconds: 700));
+    holder.destroy();
+
+    final response = await pending.timeout(const Duration(seconds: 5));
+    await response.drain<void>();
+
+    expect(response.statusCode, HttpStatus.gatewayTimeout);
+    expect(
+      handler.hellos,
+      0,
+      reason:
+          'a request whose budget ran out while it waited never reaches '
+          'its handler',
+    );
+  });
+
+  test('a handler that outlives its budget is told, not just outlived', () async {
+    // The old route `.timeout()` answered 504 and left the handler running with
+    // no way to know: it went on to install a session and write a checkpoint
+    // after its peer had been told the request was over. The gate is what the
+    // handler reads to know.
+    final handler = _RecordingHandler()..helloGate = Completer<void>();
+    final server = await startServer(
+      handler,
+      deadline: const Duration(milliseconds: 300),
+    );
+
+    final http = client();
+    final request = await http.postUrl(
+      Uri.parse('https://127.0.0.1:${server.port!}/sync/hello'),
+    );
+    authenticate(request);
+    request.headers.contentType = ContentType.json;
+    request.write(jsonEncode(handler.helloBody()));
+
+    final response = await request.close().timeout(const Duration(seconds: 5));
+    await response.drain<void>();
+
+    expect(response.statusCode, HttpStatus.gatewayTimeout);
+    expect(
+      handler.helloGateLostWhenReleased,
+      isTrue,
+      reason: 'the handler must be able to see that its budget is gone',
+    );
+  });
 }
 
 /// A handler that answers every route immediately, counting what it was asked.
@@ -246,6 +318,13 @@ class _RecordingHandler implements SyncServerHandler {
   int hellos = 0;
   int blobFetches = 0;
   int workspaceFetches = 0;
+
+  /// Held open by a test that wants a write handler to outlive its budget.
+  Completer<void>? helloGate;
+
+  /// What the hello's admission said once its `io()` gave up — the fact a
+  /// cancelled handler has to be able to observe.
+  bool? helloGateLostWhenReleased;
 
   Map<String, dynamic> helloBody() => {
     'protocolVersion': kSyncProtocolVersion,
@@ -261,8 +340,18 @@ class _RecordingHandler implements SyncServerHandler {
     String peerDeviceId,
     SyncHello initiatorHello, {
     String? remoteAddress,
+    required SyncAdmission admission,
   }) async {
     hellos++;
+    final gate = helloGate;
+    if (gate != null) {
+      try {
+        await admission.io(() => gate.future);
+      } on SyncAdmissionLost {
+        helloGateLostWhenReleased = admission.isLost;
+        rethrow;
+      }
+    }
     return SyncHello(
       protocolVersion: kSyncProtocolVersion,
       schemaVersion: 1,
@@ -274,7 +363,11 @@ class _RecordingHandler implements SyncServerHandler {
   }
 
   @override
-  Future<File?> handleFetchBlob(String peerDeviceId, String contentHash) async {
+  Future<File?> handleFetchBlob(
+    String peerDeviceId,
+    String contentHash, {
+    required SyncAdmission admission,
+  }) async {
     blobFetches++;
     return null;
   }
@@ -283,8 +376,9 @@ class _RecordingHandler implements SyncServerHandler {
   Future<File?> handleFetchWorkspaceFile(
     String peerDeviceId,
     String workspaceId,
-    String relPath,
-  ) async {
+    String relPath, {
+    required SyncAdmission admission,
+  }) async {
     workspaceFetches++;
     return null;
   }
@@ -292,14 +386,16 @@ class _RecordingHandler implements SyncServerHandler {
   @override
   Future<SyncDeltaBatch> handleFetchSubtrees(
     String peerDeviceId,
-    SyncFetchRequest request,
-  ) async => throw UnimplementedError();
+    SyncFetchRequest request, {
+    required SyncAdmission admission,
+  }) async => throw UnimplementedError();
 
   @override
   Future<SyncApplyAck> handleApplySubtrees(
     String peerDeviceId,
-    SyncDeltaBatch batch,
-  ) async => throw UnimplementedError();
+    SyncDeltaBatch batch, {
+    required SyncAdmission admission,
+  }) async => throw UnimplementedError();
 
   @override
   Future<bool> handlePutWorkspaceFile(
@@ -308,6 +404,7 @@ class _RecordingHandler implements SyncServerHandler {
     String relPath, {
     required int size,
     required Stream<List<int>> body,
+    required SyncAdmission admission,
   }) async {
     await body.drain<void>();
     return true;
@@ -321,6 +418,7 @@ class _RecordingHandler implements SyncServerHandler {
     required String key,
     required int size,
     required Stream<List<int>> body,
+    required SyncAdmission admission,
   }) async {
     await body.drain<void>();
     return true;
@@ -329,9 +427,13 @@ class _RecordingHandler implements SyncServerHandler {
   @override
   Future<SyncPairAnswer?> handlePair(
     SyncPairRequest request,
-    String? initiatorHost,
-  ) async => null;
+    String? initiatorHost, {
+    required SyncAdmission admission,
+  }) async => null;
 
   @override
-  Future<void> handleRevoke(String peerDeviceId) async {}
+  Future<void> handleRevoke(
+    String peerDeviceId, {
+    required SyncAdmission admission,
+  }) async {}
 }

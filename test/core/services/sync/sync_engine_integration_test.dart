@@ -17,6 +17,7 @@ import 'package:Cuplivo/core/services/recycle/recycle_service.dart';
 import 'package:Cuplivo/core/services/skills/skill_directory_sync.dart';
 import 'package:Cuplivo/core/services/sync/blob_sync.dart';
 import 'package:Cuplivo/core/services/business_state_reloader.dart';
+import 'package:Cuplivo/core/services/sync/sync_admission.dart';
 import 'package:Cuplivo/core/services/sync/sync_client.dart';
 import 'package:Cuplivo/core/services/sync/sync_data_plane.dart';
 import 'package:Cuplivo/core/services/sync/sync_endpoint_prober.dart';
@@ -181,6 +182,7 @@ class _MidApplyWritePlane extends SyncDataPlane {
     required String myDeviceId,
     required String peerDeviceId,
     required Map<String, Map<String, int>> checkpointRowsByConversation,
+    bool Function()? cancelled,
   }) async {
     if (!_fired && subtrees.isNotEmpty) {
       _fired = true;
@@ -191,6 +193,7 @@ class _MidApplyWritePlane extends SyncDataPlane {
       myDeviceId: myDeviceId,
       peerDeviceId: peerDeviceId,
       checkpointRowsByConversation: checkpointRowsByConversation,
+      cancelled: cancelled,
     );
   }
 }
@@ -803,6 +806,11 @@ class _Side {
     }
     return record;
   }
+
+  /// A request's gate, as the listener builds one: the whole budget still
+  /// ahead, which is what a test that is not about a deadline needs.
+  SyncAdmission gate({Duration budget = const Duration(minutes: 5)}) =>
+      SyncAdmission(enteredAt: DateTime.now(), budget: budget);
 
   SyncHello hello({
     int? schemaVersion,
@@ -1514,14 +1522,23 @@ void main() {
     // arriving used to hold it forever, so no pairing and no sync request was
     // ever served again. The route deadline frees the loop; the short budget
     // here is the test seam for the same path.
+    //
+    // The *second* request gets a long budget on purpose: it queues behind the
+    // stalled one, and since a request's budget starts when the listener reads
+    // it, a second short budget would be spent by the wait. That is the point of
+    // the accounting (`sync_admission_test.dart` has that cell); what this test
+    // still proves is that the loop keeps answering while a body stalls.
     final b = _Side('b');
     await b.start(root);
     sides.add(b);
+    var readRequests = 0;
     final server = SyncServer(
       identity: b.identity,
       store: b.store,
       handler: b.engine,
-      deadlineFor: (_) => const Duration(milliseconds: 300),
+      deadlineFor: (_) => readRequests++ == 0
+          ? const Duration(milliseconds: 300)
+          : const Duration(seconds: 30),
     );
     final port = await server.start(address: '127.0.0.1', requestedPort: 0);
     addTearDown(server.stop);
@@ -1570,6 +1587,80 @@ void main() {
     final head = latin1.decode(raw.take(512).toList(), allowInvalid: true);
     expect(head, contains('504'));
     socket.destroy();
+  });
+
+  test('a fetch beat the deadline abandoned writes no checkpoint', () async {
+    // G1. The old route `.timeout()` answered 504 and left the handler running:
+    // it went on to write the checkpoint and remove the session, advancing state
+    // the peer had been told never arrived. The gate is what stops it, and the
+    // commit point is the checkpoint write.
+    final (a, b) = await pair();
+    expect(
+      await b.engine.handleHello(
+        a.identity.deviceId,
+        a.hello(),
+        admission: b.gate(),
+      ),
+      isA<SyncHello>(),
+    );
+    await b.engine.handleApplySubtrees(
+      a.identity.deviceId,
+      const SyncDeltaBatch([]),
+      admission: b.gate(),
+    );
+
+    final checkpointPath =
+        '${b.store.root.path}${Platform.pathSeparator}checkpoints'
+        '${Platform.pathSeparator}${a.identity.deviceId}.json.gz';
+    expect(
+      File(checkpointPath).existsSync(),
+      isFalse,
+      reason: 'nothing before the fetch beat writes the checkpoint',
+    );
+
+    // A gate whose budget is already spent, exactly as the listener would hand
+    // one to a handler the deadline had abandoned. Everything the beat does
+    // before its commit point is allowed; the checkpoint is not.
+    Object? cancelled;
+    try {
+      await b.engine.handleFetchSubtrees(
+        a.identity.deviceId,
+        const SyncFetchRequest(),
+        admission: SyncAdmission(
+          enteredAt: DateTime.now().subtract(const Duration(minutes: 31)),
+          budget: const Duration(minutes: 30),
+        ),
+      );
+    } catch (error) {
+      cancelled = error;
+    }
+
+    // The state first, and deliberately: with the commit-point check removed the
+    // beat completes normally and writes the file, so this is the assertion that
+    // names the defect. (The throw is the transport's half — `_serveOne` answers
+    // 504 on it — and is asserted below.)
+    expect(
+      File(checkpointPath).existsSync(),
+      isFalse,
+      reason: 'a cancelled fetch beat must not write the checkpoint',
+    );
+    expect(cancelled, isA<SyncAdmissionLost>());
+    expect(
+      b.engine.hasResponderSession(a.identity.deviceId),
+      isTrue,
+      reason:
+          'nor remove the session it did not finish — the peer retries on it',
+    );
+
+    // And the session is still usable: the same beat, with a live budget,
+    // commits. Without this a gate that killed the session would pass above.
+    await b.engine.handleFetchSubtrees(
+      a.identity.deviceId,
+      const SyncFetchRequest(),
+      admission: b.gate(),
+    );
+    expect(File(checkpointPath).existsSync(), isTrue);
+    expect(b.engine.hasResponderSession(a.identity.deviceId), isFalse);
   });
 
   test('/sync/ping authenticates and is idempotent', () async {
@@ -1720,6 +1811,7 @@ void main() {
         platform: 'test',
         manifest: await a.dataPlane.buildManifest(),
       ),
+      admission: b.gate(),
     );
     expect(hello, isA<SyncHello>(), reason: 'the session was accepted');
     final refused = await b.engine.syncWithPeer(bPeer);
@@ -1731,10 +1823,12 @@ void main() {
     await b.engine.handleApplySubtrees(
       a.identity.deviceId,
       const SyncDeltaBatch([]),
+      admission: b.gate(),
     );
     await b.engine.handleFetchSubtrees(
       a.identity.deviceId,
       const SyncFetchRequest(),
+      admission: b.gate(),
     );
 
     // (2) An initiator round in flight here that has not heard the peer's hello
@@ -1764,6 +1858,7 @@ void main() {
         platform: 'test',
         manifest: await b.dataPlane.buildManifest(),
       ),
+      admission: a.gate(),
     );
     expect(answer, isA<SyncHello>(), reason: 'the arriving hello wins');
     // The yielded round reports that it was superseded, and records nothing:
@@ -1787,6 +1882,7 @@ void main() {
         platform: 'test',
         manifest: await b.dataPlane.buildManifest(),
       ),
+      admission: a.gate(),
     );
     expect(again, isA<SyncHello>());
   });
@@ -1852,11 +1948,19 @@ void main() {
         listenPort: a.port,
       );
       expect(
-        await a.engine.handleHello(b.identity.deviceId, helloAtA),
+        await a.engine.handleHello(
+          b.identity.deviceId,
+          helloAtA,
+          admission: a.gate(),
+        ),
         isA<SyncHello>(),
       );
       expect(
-        await b.engine.handleHello(a.identity.deviceId, helloAtB),
+        await b.engine.handleHello(
+          a.identity.deviceId,
+          helloAtB,
+          admission: b.gate(),
+        ),
         isA<SyncHello>(),
       );
 
@@ -1905,7 +2009,11 @@ void main() {
     await pairSides(a, b);
 
     expect(
-      await a.engine.handleHello(b.identity.deviceId, b.hello()),
+      await a.engine.handleHello(
+        b.identity.deviceId,
+        b.hello(),
+        admission: a.gate(),
+      ),
       isA<SyncHello>(),
       reason: 'this device answers B, so it holds a live session for it',
     );
@@ -1919,6 +2027,7 @@ void main() {
     await a.engine.handleApplySubtrees(
       b.identity.deviceId,
       const SyncDeltaBatch([]),
+      admission: a.gate(),
     );
     clock = clock.add(const Duration(seconds: 1));
     final peer = await a.peer(b);
@@ -1943,6 +2052,7 @@ void main() {
     final batch = await a.engine.handleFetchSubtrees(
       b.identity.deviceId,
       const SyncFetchRequest(),
+      admission: a.gate(),
     );
     expect(batch.subtrees, isEmpty);
   });
@@ -1962,7 +2072,11 @@ void main() {
       await pairSides(a, b);
 
       expect(
-        await a.engine.handleHello(b.identity.deviceId, b.hello()),
+        await a.engine.handleHello(
+          b.identity.deviceId,
+          b.hello(),
+          admission: a.gate(),
+        ),
         isA<SyncHello>(),
       );
       final peer = await a.peer(b);
@@ -4419,7 +4533,11 @@ void main() {
     expect(report.success, isTrue, reason: report.summary);
 
     expect(
-      await a.engine.handleFetchBlob(b.identity.deviceId, 'a' * 64),
+      await a.engine.handleFetchBlob(
+        b.identity.deviceId,
+        'a' * 64,
+        admission: a.gate(),
+      ),
       isNull,
       reason: 'the blob route must not serve a path the peer named',
     );
@@ -4968,6 +5086,7 @@ void main() {
       final unknownProtocol = await a.engine.handleHello(
         b.identity.deviceId,
         b.hello(protocolVersion: kSyncProtocolVersion + 1),
+        admission: a.gate(),
       );
       expect(unknownProtocol, isA<SyncHelloRefusal>());
       expect(
@@ -4980,6 +5099,7 @@ void main() {
       final olderProtocol = await a.engine.handleHello(
         b.identity.deviceId,
         b.hello(protocolVersion: kSyncProtocolVersion - 1),
+        admission: a.gate(),
       );
       expect(olderProtocol, isA<SyncHelloRefusal>());
       expect(
@@ -4990,6 +5110,7 @@ void main() {
       final newerSchema = await a.engine.handleHello(
         b.identity.deviceId,
         b.hello(schemaVersion: a.dataPlane.schemaVersion + 1),
+        admission: a.gate(),
       );
       expect(newerSchema, isA<SyncHelloRefusal>());
       expect(
@@ -5000,6 +5121,7 @@ void main() {
       final unpaired = await a.engine.handleHello(
         'nobody-in-the-peer-store',
         b.hello(deviceId: 'nobody-in-the-peer-store'),
+        admission: a.gate(),
       );
       expect(unpaired, isA<SyncHelloRefusal>());
       expect(
@@ -5019,6 +5141,7 @@ void main() {
       final mismatch = await a.engine.handleHello(
         b.identity.deviceId,
         b.hello(deviceId: c.identity.deviceId),
+        admission: a.gate(),
       );
       expect(mismatch, isA<SyncHelloRefusal>());
       expect(
@@ -5030,6 +5153,7 @@ void main() {
       final accepted = await a.engine.handleHello(
         b.identity.deviceId,
         b.hello(),
+        admission: a.gate(),
       );
       expect(accepted, isA<SyncHello>());
     },
@@ -5616,7 +5740,11 @@ void main() {
       reason: 'the responder serves the pulls its own response invited',
     );
     expect(
-      await b.engine.handleHello(a.identity.deviceId, a.hello()),
+      await b.engine.handleHello(
+        a.identity.deviceId,
+        a.hello(),
+        admission: b.gate(),
+      ),
       isA<SyncHello>(),
     );
     expect(
@@ -5636,7 +5764,11 @@ void main() {
     // the shape a mismatched or broken peer produces, and the one that used to be
     // answered from a session whose workspace ledger did not exist yet.
     expect(
-      await a.engine.handleHello(b.identity.deviceId, b.hello()),
+      await a.engine.handleHello(
+        b.identity.deviceId,
+        b.hello(),
+        admission: a.gate(),
+      ),
       isA<SyncHello>(),
     );
 
@@ -5644,6 +5776,7 @@ void main() {
       a.engine.handleFetchSubtrees(
         b.identity.deviceId,
         const SyncFetchRequest(),
+        admission: a.gate(),
       ),
       throwsA(isA<SyncRequestRefusal>()),
     );
@@ -5757,7 +5890,11 @@ void main() {
     // cannot fetch it, and asks for it — the request set that authorizes the
     // write, built from what A itself advertised.
     expect(
-      await b.engine.handleHello(a.identity.deviceId, a.hello()),
+      await b.engine.handleHello(
+        a.identity.deviceId,
+        a.hello(),
+        admission: b.gate(),
+      ),
       isA<SyncHello>(),
     );
     final ack = await b.engine.handleApplySubtrees(
@@ -5768,6 +5905,7 @@ void main() {
           'w1': {'a.txt': stamp},
         },
       ),
+      admission: b.gate(),
     );
     expect(ack.workspaceRequests, hasLength(1));
     expect(ack.workspaceRequests.single.workspaceId, 'w1');
@@ -5781,6 +5919,7 @@ void main() {
           relPath,
           size: size,
           body: Stream.value(utf8.encode(body)),
+          admission: b.gate(),
         );
 
     // A pair nobody asked for: refused, and nothing reaches the disk. This is the
@@ -5802,6 +5941,7 @@ void main() {
     await b.engine.handleFetchSubtrees(
       a.identity.deviceId,
       const SyncFetchRequest(),
+      admission: b.gate(),
     );
     final ledger = (await b.store.loadCheckpoint(
       a.identity.deviceId,
@@ -5833,7 +5973,11 @@ void main() {
     // — so the push beat asks for both. That request set authorizes the writes
     // the upload phase is about to spend.
     expect(
-      await b.engine.handleHello(a.identity.deviceId, a.hello()),
+      await b.engine.handleHello(
+        a.identity.deviceId,
+        a.hello(),
+        admission: b.gate(),
+      ),
       isA<SyncHello>(),
     );
     final ack = await b.engine.handleApplySubtrees(
@@ -5844,6 +5988,7 @@ void main() {
           'w1': {'a.txt': stamp, 'b.txt': stamp},
         },
       ),
+      admission: b.gate(),
     );
     expect(ack.workspaceRequests, hasLength(2));
 
@@ -5859,13 +6004,14 @@ void main() {
       'a.txt',
       size: 2,
       body: body.stream,
+      admission: b.gate(),
     );
     clock = clock.add(const Duration(minutes: 3));
     // The cheapest way one of this device's rounds touches the sweeper: a hello
     // from a device it is not paired with is refused, but only after the sweep
     // at its top.
     expect(
-      await b.engine.handleHello('f' * 64, a.hello()),
+      await b.engine.handleHello('f' * 64, a.hello(), admission: b.gate()),
       isA<SyncHelloRefusal>(),
       reason: 'only here to run the sweep, not to open a session',
     );
@@ -5883,6 +6029,7 @@ void main() {
         'b.txt',
         size: 2,
         body: Stream.value(utf8.encode('bb')),
+        admission: b.gate(),
       ),
       isTrue,
       reason: 'the sweep may not take the request set out of a live upload',
@@ -5891,6 +6038,7 @@ void main() {
       b.engine.handleFetchSubtrees(
         a.identity.deviceId,
         const SyncFetchRequest(),
+        admission: b.gate(),
       ),
       completes,
       reason: 'the session the upload ran inside is still there to finalise',
@@ -5984,12 +6132,17 @@ void main() {
     // plans the blob from the manifest A advertised, cannot fetch it, and asks
     // for it — the request set that authorizes the write.
     expect(
-      await b.engine.handleHello(a.identity.deviceId, a.hello()),
+      await b.engine.handleHello(
+        a.identity.deviceId,
+        a.hello(),
+        admission: b.gate(),
+      ),
       isA<SyncHello>(),
     );
     final ack = await b.engine.handleApplySubtrees(
       a.identity.deviceId,
       SyncDeltaBatch(const <SyncSubtreePayload>[], assets: [entry]),
+      admission: b.gate(),
     );
     expect(ack.blobRequests, hasLength(1));
     expect(ack.blobRequests.single.contentHash, entry.contentHash);
@@ -6008,6 +6161,7 @@ void main() {
       key: key,
       size: size,
       body: Stream.value(utf8.encode(body)),
+      admission: b.gate(),
     );
 
     // A target nobody asked for: refused, and nothing reaches the disk. The
@@ -6046,6 +6200,7 @@ void main() {
     await b.engine.handleFetchSubtrees(
       a.identity.deviceId,
       const SyncFetchRequest(),
+      admission: b.gate(),
     );
     final checkpoint = await b.store.loadCheckpoint(a.identity.deviceId);
     expect(
@@ -6115,7 +6270,11 @@ void main() {
     // from and still count the bytes twice.
     final (a, b) = await pair();
     expect(
-      await b.engine.handleHello(a.identity.deviceId, a.hello()),
+      await b.engine.handleHello(
+        a.identity.deviceId,
+        a.hello(),
+        admission: b.gate(),
+      ),
       isA<SyncHello>(),
     );
     const batch = SyncDeltaBatch(<SyncSubtreePayload>[]);
@@ -6123,11 +6282,16 @@ void main() {
     final first = await b.engine.handleApplySubtrees(
       a.identity.deviceId,
       batch,
+      admission: b.gate(),
     );
     expect(first.workspaceRequests, isEmpty);
 
     await expectLater(
-      b.engine.handleApplySubtrees(a.identity.deviceId, batch),
+      b.engine.handleApplySubtrees(
+        a.identity.deviceId,
+        batch,
+        admission: b.gate(),
+      ),
       throwsA(
         isA<SyncRequestRefusal>().having(
           (refusal) => refusal.error,
@@ -6141,6 +6305,7 @@ void main() {
     await b.engine.handleFetchSubtrees(
       a.identity.deviceId,
       const SyncFetchRequest(),
+      admission: b.gate(),
     );
   });
 
@@ -7673,7 +7838,11 @@ void main() {
 
       // B's hello lands while that dial is unanswered: A yields and answers.
       expect(
-        await engine.handleHello(b.identity.deviceId, b.hello()),
+        await engine.handleHello(
+          b.identity.deviceId,
+          b.hello(),
+          admission: a.gate(),
+        ),
         isA<SyncHello>(),
       );
       await silent.close(force: true);

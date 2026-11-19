@@ -198,6 +198,16 @@ void main() {
       expect((outcome as DecisionAnswer).choice, 'b');
     });
 
+    test('a single answer wrapped under answers is still that answer', () {
+      final outcome = OpenAiDecisionsDialect.decode(
+        body: {
+          'answers': {'type': 'choice', 'name': 'next_speaker', 'choice': 'b'},
+        },
+        question: choice,
+      );
+      expect((outcome as DecisionAnswer).choice, 'b');
+    });
+
     test('a refusal is a failed request, not a malformed answer', () {
       final outcome = OpenAiDecisionsDialect.decode(
         body: [

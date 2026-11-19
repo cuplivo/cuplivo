@@ -102,6 +102,7 @@ abstract final class OpenAiDecisionsDialect {
     if (body is Map) {
       final nested = body['answers'];
       if (nested is List) return nested;
+      if (nested is Map) return [nested];
       return [body];
     }
     return const [];

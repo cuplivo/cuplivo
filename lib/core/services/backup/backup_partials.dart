@@ -28,10 +28,13 @@ class BackupPartials {
   ///
   /// Built from the naming rule so a prefix the writer can produce is never
   /// missing here: an unrecognised partial is debris the sweep will not
-  /// reclaim, and nothing reports it.
+  /// reclaim, and nothing reports it. Case-insensitive for the same reason the
+  /// naming rule is — a store that changes a name's case must not hand the
+  /// sweep an object it refuses to own.
   static final _remoteName = RegExp(
     '^(?:${BackupArchiveNaming.readablePrefixes.map(RegExp.escape).join('|')})'
     r'[\w.-]+\.(?:zip|kbackup)\.partial$',
+    caseSensitive: false,
   );
 
   static bool isRemoteName(String name) => _remoteName.hasMatch(name);

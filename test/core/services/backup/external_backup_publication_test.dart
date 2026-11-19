@@ -92,13 +92,20 @@ void main() {
           'kelivo_backup_no_date.zip.partial': null,
           'kelivo_backup_final.zip': older,
           'cuplivo_backup_old.zip.partial': older,
+          // The store can change case; the sweep must still own it.
+          'CUPLIVO_BACKUP_cased.zip.partial': older,
           'foreign.zip.partial': older,
         },
         remove: (n) async => deleted.add(n),
       );
       expect(
         deleted,
-        unorderedEquals([marked, old, 'cuplivo_backup_old.zip.partial']),
+        unorderedEquals([
+          marked,
+          old,
+          'cuplivo_backup_old.zip.partial',
+          'CUPLIVO_BACKUP_cased.zip.partial',
+        ]),
       );
       finish.complete();
       await publish;

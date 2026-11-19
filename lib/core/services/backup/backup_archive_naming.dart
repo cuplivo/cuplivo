@@ -57,6 +57,9 @@ final class BackupArchiveNaming {
   static final _timestamped = RegExp(
     '^(?:${readablePrefixes.map(RegExp.escape).join('|')})'
     r'(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d+)\.(?:zip|kbackup)$',
+    // One case rule for every reader: a store that hands [isReadable] a name in
+    // another case must not make this half of the rule miss it.
+    caseSensitive: false,
   );
 
   static DateTime? timestampFromFileName(String name) {
@@ -64,10 +67,12 @@ final class BackupArchiveNaming {
     if (match == null) return null;
     // replaceAllMapped, not replaceAll: Dart's replacement string is literal,
     // so a `$1` there never expanded and this fallback silently returned null.
+    // The separator is matched case-insensitively too, so a lower-cased name
+    // still normalises to the `T` DateTime.parse expects.
     final stamp = match
         .group(1)!
         .replaceAllMapped(
-          RegExp(r'T(\d{2})-(\d{2})-(\d{2})'),
+          RegExp(r'T(\d{2})-(\d{2})-(\d{2})', caseSensitive: false),
           (part) => 'T${part[1]}:${part[2]}:${part[3]}',
         );
     return DateTime.tryParse(stamp);

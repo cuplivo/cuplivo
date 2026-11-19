@@ -144,6 +144,19 @@ contradicts one of them is a bug, not a preference.
   five edits; and a guard fails when the source grows an `extension_entity_rows` kind, or the
   schema grows a table hanging off a conversation, that nobody registered. "Nobody said" is not
   one of the two answers.
+- **A grant is device-local (授予不过线)**: "this device approved" lives in the conversation row's
+  `extras_json` — `tools.permission_mode`, plus the `workspace.allowAll` an older build honoured.
+  That column travels whole under row-level LWW, so the rule has two halves: the wire read strips the
+  grant keys and the applier merges them back from the local row key by key. Either half alone is a
+  bug of its own kind — a strip alone loses the grant the first time a peer wins the row, a merge
+  alone lets the grant cross — and neither crosses a **rebind** of `workspace.id`, because a grant is
+  issued against a binding and a new binding clears it here as well (`WorkspaceBinding.applyTo`).
+  The **folder** beside it does not follow suit: `workspace.cwd` is a workspace-*relative* path
+  (`FileBrowserOps` validates the picker's value as one, `WorkspacePaths.normalizeCwd` resolves it
+  against the workspace root) and the workspace's content is itself synced, so the peer must keep the
+  same folder — stripping it would drop the conversation onto the workspace root there. One key set
+  (`ToolPermissionMode.grantExtrasKeys`) serves both halves and the backup sanitizer; no protocol
+  field changed, so the schema version does not move.
 - **Skill = record + directory blob**: a skill rides sync as two pieces — its entity
   record (LWW for settings) and its on-disk directory as one zip blob keyed by a directory
   hash (sha256 over sorted (relative path, file digest); the record's `updatedAt` does not

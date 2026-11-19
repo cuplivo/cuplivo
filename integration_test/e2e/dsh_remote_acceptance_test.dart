@@ -52,7 +52,7 @@ void main() {
       '"urlConfigured":$hasUrl,"tokenConfigured":$hasToken}',
     );
 
-    await bootSeededApp(tester, binding);
+    await bootSeededApp(tester, binding, appLocale: 'zh_CN');
     final l10n = _l10n(tester);
 
     // R1: drawer → 助手与群聊 → create menu, where the third owner kind is

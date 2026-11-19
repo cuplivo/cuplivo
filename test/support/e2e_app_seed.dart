@@ -45,7 +45,10 @@ class E2eFixturePaths extends PathProviderPlatform {
 ///
 /// Keep this as the single place that describes the acceptance fixture: every
 /// scenario shares it, so a screen starts from the same deterministic state.
-Future<void> seedE2eDatabase(Directory root) async {
+Future<void> seedE2eDatabase(
+  Directory root, {
+  String appLocale = 'en_US',
+}) async {
   final database = AppDatabase.open(
     file: File('${root.path}/${AppDatabase.databaseFileName}'),
   );
@@ -54,10 +57,11 @@ Future<void> seedE2eDatabase(Directory root) async {
   try {
     final business = BusinessRepository(database);
     await business.writeMigrationReceipt();
-    // Deterministic first frame: English, light, conversation-first home.
+    // Deterministic first frame: light, conversation-first home. The locale
+    // follows the scenario: review screenshots use the reference language.
     await business.setPreference('display_new_chat_on_launch_v1', false);
     await business.setPreference('theme_mode_v1', 'light');
-    await business.setPreference('app_locale_v1', 'en_US');
+    await business.setPreference('app_locale_v1', appLocale);
     await business.setPreference('use_dynamic_color_v1', false);
     // Both checks fire after the first frame and make real network calls;
     // they must not run during a hermetic acquisition run.

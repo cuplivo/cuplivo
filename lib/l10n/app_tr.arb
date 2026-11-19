@@ -5204,7 +5204,7 @@
   "lanSyncReportWorkspaceConflicts": "{count} çalışma alanı dosyası düzenlemesi değiştirildi",
   "lanSyncReportWorkspaceMissing": "{count} çalışma alanı dosyası uygulanamadı",
   "lanSyncReportWorkspacesOmitted": "{count} çalışma alanı dosya eşitlemiyor",
-  "lanSyncReportConversationsOmittedForSize": "Eşitlenemeyecek kadar büyük sohbet: {count} (geçmişini kısaltın)",
+  "lanSyncReportConversationsOmittedForSize": "Bu gönderime sığmayan sohbet: {count}",
   "lanSyncReportWorkspacesKept": "{count} çalışma alanı klasörü diskte tutuldu (kapalı veya eşitlenmemiş dosyalar içeriyor)",
   "lanSyncReportDeletesBlocked": "{count} silme işlemi atlandı (yerel kopya değişti)",
   "lanSyncReportRowsLost": "{n} yerel kayıt, eşteki daha yeni sürümlerle değiştirildi (geri dönüşüm kutusundan kurtarılabilir)",

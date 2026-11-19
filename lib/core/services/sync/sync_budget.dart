@@ -84,10 +84,19 @@ int pushEnvelopeBytes({
 /// The encode is a second copy of a body that can reach the budget, which is why
 /// it lives behind the assert (release strips it) and why it is a function of its
 /// own: a guard nobody can test is a guard nobody checks.
-void assertPushFits(SyncDeltaBatch batch, int budget) {
+///
+/// [envelopeBytes] is the measured fixed part of the same push, and it makes the
+/// promise honest rather than paranoid. The fixed part is measured, not capped
+/// (ADR-0003): when it alone is past the budget, admission can admit nothing and
+/// the body *is* that part — a state only the receiving side's 256 MB cap may
+/// refuse. The bound then becomes "no larger than the fixed part", so a debug
+/// build does not fail a round release would have let the peer answer.
+void assertPushFits(SyncDeltaBatch batch, int budget, {int? envelopeBytes}) {
   final bytes = wireBytesOf(batch.toJson());
-  if (bytes > budget) {
-    throw StateError('push body $bytes B exceeds the $budget B budget');
+  final fixedPart = envelopeBytes ?? 0;
+  final bound = fixedPart > budget ? fixedPart : budget;
+  if (bytes > bound) {
+    throw StateError('push body $bytes B exceeds the $bound B budget');
   }
 }
 

@@ -1136,9 +1136,16 @@ class SyncServer {
   /// connection before the refusal can be delivered), while nothing past the
   /// cap is buffered.
   ///
-  /// The body is read through the request's admission: a client that announces
-  /// a length and then stops arriving used to hold the route (and, before the
-  /// lanes, the whole listener) until the peer went away.
+  /// The read is *not* wrapped in the admission's stream deadline, and that is
+  /// deliberate. Cancelling a request body's subscription makes the server drop
+  /// the connection, which takes the 504 down with it — a peer that announces a
+  /// length and then stalls still deserves to be told the request is over (the
+  /// half-sent `/pair` case is exactly this). Such a route opens no beat and
+  /// commits nothing before its body is parsed, so an abandoned read leaves no
+  /// state behind; the route's own `io()` is what returns the 504. Bodies that
+  /// stream *inside* a handler (the two `PUT`s) are bounded with `ioStream`,
+  /// where unwinding matters and a peer that is not reading its own upload is
+  /// not owed an answer.
   Future<Map<String, dynamic>?> _readJson(
     HttpRequest request,
     SyncAdmission admission, {
@@ -1151,7 +1158,7 @@ class SyncServer {
       final source = request.headers.value('content-encoding') == 'gzip'
           ? gzip.decoder.bind(request)
           : request;
-      await for (final chunk in admission.ioStream(source)) {
+      await for (final chunk in source) {
         received += chunk.length;
         if (maxBytes != null && received > maxBytes) {
           if (!tooLarge) buffer.clear();
@@ -1160,13 +1167,12 @@ class SyncServer {
         }
         buffer.addAll(chunk);
       }
-    } on SyncAdmissionLost {
-      // Not a decode failure: the request is over, and the caller must hear
-      // 504 rather than the 400 a truncated body would otherwise mean.
-      rethrow;
     } catch (_) {
       return null;
     }
+    // A body that finished arriving after the deadline took the request must not
+    // reach its handler: the peer has been told the request is over.
+    admission.check();
     if (tooLarge) throw const _RequestBodyTooLarge();
     try {
       return jsonDecode(utf8.decode(buffer)) as Map<String, dynamic>;

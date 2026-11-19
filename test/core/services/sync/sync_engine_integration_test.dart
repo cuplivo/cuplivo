@@ -1582,13 +1582,28 @@ void main() {
     // And the stalled request itself is answered with the timeout status. The
     // five-second guard is what makes a regression fail fast instead of
     // hanging: with the deadline gone, the answer only arrives after the
-    // production budget. The bytes are read raw — the body is gzipped JSON, but
-    // the status line is plain ASCII.
-    final raw = await socket
-        .cast<List<int>>()
-        .expand((chunk) => chunk)
-        .toList()
-        .timeout(const Duration(seconds: 5));
+    // production budget. The status line is read out of the bytes rather than
+    // waiting for the socket to close — whether the connection is reused or
+    // dropped is not this test's subject, and a keep-alive connection that
+    // stays open would turn a correct answer into a false failure.
+    final raw = <int>[];
+    final answered = Completer<void>();
+    final subscription = socket.listen(
+      (chunk) {
+        raw.addAll(chunk);
+        final head = latin1.decode(raw.take(512).toList(), allowInvalid: true);
+        if (head.contains('504') && !answered.isCompleted) answered.complete();
+      },
+      onError: (_) {
+        if (!answered.isCompleted) answered.complete();
+      },
+      onDone: () {
+        if (!answered.isCompleted) answered.complete();
+      },
+      cancelOnError: true,
+    );
+    await answered.future.timeout(const Duration(seconds: 5), onTimeout: () {});
+    await subscription.cancel();
     final head = latin1.decode(raw.take(512).toList(), allowInvalid: true);
     expect(head, contains('504'));
     socket.destroy();

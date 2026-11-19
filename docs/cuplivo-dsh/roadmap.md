@@ -1,0 +1,133 @@
+# Cuplivo as a remote control for DeepSeek Harness — roadmap
+
+Status: planning (this document is the delivery contract for the feature branch
+`feat/cuplivo-dsh`; it is updated as phases land).
+
+## 1. Objective
+
+Give Cuplivo a second kind of assistant: a **remote DeepSeek Harness (DSH)**.
+Cuplivo connects to a DSH `dsh web` server (URL carrying a launch token), and
+natively renders the official DSH surfaces while the *Dsh* server keeps every
+session, message and setting. Cuplivo is a remote control, not a second store:
+
+- no DSH session/message data is persisted by Cuplivo; only the connection
+  record needed to reach the server is local;
+- official DSH UI surfaces are re-created in Flutter with Cuplivo's own
+  rendering pipeline and design system;
+- plugin-provided UI (panels, settings pages, drawer entries) is hosted inside
+  a WebView;
+- every rendering choice follows Cuplivo's existing settings;
+- capability parity both ways: no button in Cuplivo that DSH cannot serve, and
+  no DSH capability left unreachable.
+
+The product brief, including the reference screenshots, lives outside the
+repository and is not committed. This document is the engineering breakdown.
+
+## 2. Delivery rules (from the brief, restated as gates)
+
+1. **No local Cuplivo build or test runs.** Validation goes through the
+   repository's GitHub Actions: `pr-check.yml` for analyze/format/l10n/tests
+   and the on-demand Android E2E (`.github/workflows/e2e-android.yml`, `/e2e`
+   comment) for UI acceptance.
+2. **One E2E acceptance scenario per PR**, under
+   `integration_test/e2e/<name>_test.dart`, capturing the important frames.
+3. **UI quality first.** The E2E screenshots must be compared against the
+   brief's reference images before the PR is declared done; where the brief is
+   silent, use Cuplivo's native design language.
+4. **Decoupled, legible code.** A protocol client with no Flutter imports, a
+   state layer, and presentation that reuses Cuplivo components — no
+   copy-pasted ad-hoc widgets, no speculative abstraction.
+5. **The E2E run must exercise a real DSH server**, not only mocks, so the
+   acceptance screenshots show a real remote turn. A hermetic fallback is only
+   acceptable when the real endpoint is unavailable, and must be stated in the
+   PR.
+6. **Never commit secrets or private infrastructure** (tokens, API keys, IPs,
+   hostnames used only for testing). The temporary test key from the brief is
+   used through secrets/environment only.
+7. The PR body is written in Chinese, includes the E2E screenshots, and
+   explains the architecture and the verification evidence.
+
+## 3. Workstreams
+
+| id | workstream | owner | deliverable |
+|----|------------|-------|-------------|
+| P1 | DSH protocol ground truth | `dsh-protocol` | `docs/cuplivo-dsh/protocol.md` |
+| P2 | Client reference study + Cuplivo client design | `dsh-client-reference` | `docs/cuplivo-dsh/client-reference.md` |
+| P3 | Cuplivo integration map | `cuplivo-recon` | `docs/cuplivo-dsh/cuplivo-integration.md` |
+| P4 | E2E infra: us-vps DSH + CI wiring | `e2e-infra` | `docs/cuplivo-dsh/e2e-infra.md` |
+| P0 | Architecture contract, integration, PR | Lead | this doc + branch + PR |
+
+## 4. Implementation phases
+
+0. **Research and contract** — P1–P4 land; the Lead fixes the module layout,
+   public interfaces and data flow in `docs/cuplivo-dsh/architecture.md`.
+1. **DSH client** — a pure-Dart client: launch-token login, unary RPC,
+   `remote.mux` WebSocket, session activation/watch, catalog reads (models,
+   providers, workspaces, plugins, commands, skills, engine settings), prompt
+   send/cancel, remote transcript projection. No Flutter imports.
+2. **Remote assistant identity and persistence** — a DSH assistant kind with a
+   connection record, the creation flow (new assistant sheet → *DeepSeek
+   Harness* → *连接到一个新的 DeepSeek Harness* → *直接连接*), connection
+   settings, and the assistant list entry.
+3. **Settings pages for the DSH assistant** — 连接设置 / 通用设置 / 模型 /
+   plugin surfaces; only the two ungoverned general settings are exposed; models
+   and providers mirror the server; plugin settings pages are Tab entry
+   (Flutter) + page body (WebView).
+4. **Home and sidebar** — DSH assistant in the drawer, workspace grouping,
+   remote session list, plugin/automation entries, new-session creation.
+5. **Chat** — Cuplivo-native rendering of remote turns and tool events, the
+   input box with remote model / reasoning effort / permission mode and the
+   DSH plus-menu, the new right-rail button replacing the minimap.
+6. **Right rail** — push the conversation off-screen (no stacking), WebView
+   panels for plugin contributions, Flutter-native entries for official ones.
+7. **Hardening** — l10n for every new string, accessibility, desktop/mobile
+   layouts, error/empty/loading states, reconnection, token rejection.
+8. **Acceptance** — one E2E scenario covering the new surfaces, screenshots,
+   PR checks green, PR body in Chinese with evidence.
+
+## 5. Verification strategy
+
+- `pr-check.yml`: `dart format` on changed files, `flutter gen-l10n` output
+  committed exactly, `tool/l10n/translate.py check`, identity sweep, analyze,
+  full test suite. Every push runs it; iterate until green.
+- E2E: push an acceptance scenario, comment `/e2e` on the PR; inspect the
+  sticky comment screenshots and video; fold UI corrections back into the
+  branch and re-run.
+- Protocol correctness: probes run against a real DSH server during research
+  (outside the repository); the final E2E run against a real server is the
+  integration proof. Unit tests for pure-Dart client protocol bits live in the
+  repo and run in `pr-check.yml` (no local runs).
+
+## 6. Risks and mitigations
+
+| risk | mitigation |
+|------|------------|
+| Protocol drift between the installed DSH 0.2.2-rc.1 and the reference client | P1 captures the installed `.d.ts` contract; feature-detect optional endpoints |
+| No local build/test loop, slow E2E feedback | batch changes into coherent commits; keep the E2E scenario tolerant of seed data; rely on `pr-check` for unit/analyze |
+| E2E cannot reach the real DSH (firewall/TLS/fork security) | P4 owns connectivity; hermetic stub fallback documented in the PR if unavoidable |
+| Renderer assumptions (Cuplivo's chat model expects local DB rows) | P3 maps the seams; phase 1 introduces a projection independent of Drift |
+| New strings vs. l10n CI (all locales) | follow the `tool/l10n` contract from P3; run `flutter gen-l10n` output as generated |
+| Scope creep into a second product | capability parity only for what the brief names; plugin UI stays in WebView |
+
+## 7. PR plan
+
+- Branch: `feat/cuplivo-dsh`, one PR against `master`.
+- Commit sequence: protocol client → remote assistant/persistence → settings →
+  home/sidebar → chat → right rail → l10n/polish → E2E scenario → docs.
+- PR is opened as a draft once the first coherent slice lands (CI feedback
+  early), and finalized after green checks + E2E screenshots.
+- The PR text is Chinese, ends with the verification evidence (run links,
+  screenshots) and notes the AGPL-3.0 reference acknowledgement for design
+  inspiration.
+
+## 8. Working rules clarifications (owner, 2026-11-19)
+
+- **Local test/build runs are completely forbidden** (no `flutter test`,
+  `flutter build`, `flutter run`, no local analyze as a substitute for CI).
+  Formatting and l10n codegen (`dart format`, `flutter gen-l10n`,
+  `translate.py sync`, `flutter pub get` for tooling) remain allowed; every
+  behavioural verdict comes from GitHub Actions.
+- The product brief's **reference images may live in the repository temporarily**
+  for development/review at `docs/cuplivo-dsh/reference/` (untracked via the
+  local git exclude; never committed to the PR). Final acceptance must compare
+  the E2E screenshots against those images, surface by surface.

@@ -10,6 +10,7 @@ import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/database/business_repository.dart';
 import 'package:Cuplivo/core/database/business_restore_service.dart';
 import 'package:Cuplivo/core/database/business_settings_router.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
 import 'package:Cuplivo/core/database/extension_entity_store.dart';
 import 'package:Cuplivo/core/models/backup_target.dart';
 import 'package:Cuplivo/core/models/compression_config.dart';
@@ -175,6 +176,32 @@ void main() {
       }
     },
   );
+
+  test('the sanitizer strips the keys the sync wire strips', () async {
+    // One list, three readers: the archive's half is derived from the sync half,
+    // so a key added there reaches the sanitizer without a second edit. Asserted
+    // by behaviour rather than by comparing two constants — an archive whose only
+    // binding is dangling loses every key of the set, and nothing else.
+    await database.customStatement(
+      'INSERT INTO conversation_rows (id, title, created_at, updated_at, extras_json) VALUES (?, ?, 0, 0, ?)',
+      [
+        'dangling',
+        'dangling',
+        jsonEncode({
+          'workspace.id': 'gone',
+          for (final key in ChatDatabaseRepository.syncLocalExtrasKeys)
+            key: 'marker',
+          'other.feature': 'keep',
+        }),
+      ],
+    );
+
+    await BackupPortability.sanitizeDatabase(database);
+
+    expect(await _conversationExtras(database), {
+      'dangling': {'other.feature': 'keep'},
+    });
+  });
 
   test(
     'a Kelivo-target sanitization drops the group rows and their chat links',

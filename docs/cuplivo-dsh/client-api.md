@@ -318,7 +318,10 @@ The mux opens `$events` first on every socket and waits for
 `{type:'ready',clientId,host:{home}}`; only then is the generation live and
 queued stream `open` frames are sent. Server `error` frames close the logical
 stream with `DshRemoteException`; losing the socket voids everything and
-auto-reopen streams get a fresh opener on the next generation. Pending
+auto-reopen streams get a fresh opener on the next generation. `DshMux.close()`
+is a normal local shutdown: open streams complete **without** an error (only
+generation loss for a non-reopen stream, or a remote `error` frame, errors a
+stream). Pending
 waterfalls are kept for `hostRequestGrace` after a new ready; those not
 redelivered (same `eventId`) are retracted. `answerHostRequest` also emits a
 local `DshHostRequestCancelled` after a successful answer so a UI can drop the
@@ -600,7 +603,7 @@ class DshSessionStore {
 
   Stream<void> get changes;   // broadcast repaint tick; no Flutter types
   bool get isRunning;
-  Future<void> start({bool activate = true}); // subscribes watch() and folds all updates
+  Future<void> start({bool activate = true}); // subscribes watch() and folds all updates; `changes` fires a microtask later
   Future<DshPromptReceipt> prompt(DshPrompt prompt, {String mode = 'queue'});
   Future<void> cancel();
   Future<void> answerApproval(String eventId, DshApprovalDecision decision);
@@ -683,9 +686,10 @@ Fold rules (from `protocol.md` §5.2–§5.6):
   `callId` and carries `meta`; `approval/asked|decided` annotate the card and
   are not separate rows;
 - live assistant frames build `DshDraft` (text/reasoning accumulate; tool-call
-  deltas become live tool rows); `attemptId` is authoritative, `revision` is a
-  per-frame counter; an `end` frame drops the draft and the durable message
-  follows;
+  deltas accumulate `argumentsDelta` in arrival order and become live tool
+  rows); `attemptId` is authoritative, `revision` is a per-frame counter; a
+  chunk whose attempt is not the active draft is dropped as stale; an `end`
+  frame drops the draft and the durable message follows;
 - waterfalls become `pendingApprovals`/`pendingQuestions`; `cancel`, settle and
   `approval/decided` remove them; reconnecting keeps them until the Host
   retracts;

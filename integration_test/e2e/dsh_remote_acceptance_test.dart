@@ -199,6 +199,38 @@ Future<void> _runRealScenario(
   await pumpFrames(tester, frames: 20);
   await capture(tester, binding, 'r2_settings_connection');
 
+  // R8: the 通用设置 tab, switched through the existing pill strip. Switching
+  // adds no route, so the three pops below still land on the home surface.
+  final generalTab = find.descendant(
+    of: tabs,
+    matching: find.text(l10n.dshTabGeneral),
+  );
+  await _pumpUntilFound(tester, generalTab, what: 'the 通用设置 tab (R8)');
+  await tester.ensureVisible(generalTab.first);
+  await tester.tap(generalTab.first);
+  await pumpFrames(tester, frames: 20);
+  // R8's scope: only the default-permission row and the session-log toggle.
+  expect(
+    find.text(l10n.dshDefaultPermissionLabel),
+    findsWidgets,
+    reason: 'R8 选择新会话的默认权限限制',
+  );
+  expect(
+    find.text(l10n.dshUploadSessionLogLabel),
+    findsWidgets,
+    reason: 'R8 在使用官方模型API时上传Session Log',
+  );
+  await capture(tester, binding, 'r8_general_settings');
+
+  // Back to 连接设置 before the pops; the tab strip stays where R2 left it.
+  final connectionTab = find.descendant(
+    of: tabs,
+    matching: find.text(l10n.dshTabConnection),
+  );
+  await tester.ensureVisible(connectionTab.first);
+  await tester.tap(connectionTab.first);
+  await pumpFrames(tester, frames: 20);
+
   // Back to the owner list, then to the home surface (settings page → home).
   await _popRoute(tester);
   await _popRoute(tester);
@@ -222,6 +254,10 @@ Future<void> _runRealScenario(
     what: 'the DeepSeek Harness owner row in the expanded picker (R5)',
   );
   await tester.ensureVisible(ownerRow);
+  await pumpFrames(tester, frames: 20);
+  // R4: the local sidebar lists the remote as an owner (whale avatar and the
+  // pencil setting), above the conversation list, under the search field.
+  await capture(tester, binding, 'r4_local_sidebar');
   await pumpFrames(tester, frames: 4);
   await tester.tap(ownerRow);
 

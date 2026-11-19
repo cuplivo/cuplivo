@@ -174,6 +174,20 @@ void main() {
     },
   );
 
+  test('close() completes open streams without an error', () async {
+    mux = DshMux(transport, options: fastOptions());
+    await mux.ready;
+    final stream = await mux.open('session/follow');
+    final errors = <Object>[];
+    var done = false;
+    stream.items.listen((_) {}, onError: errors.add, onDone: () => done = true);
+    await mux.close();
+    await pumpEventQueue();
+    expect(errors, isEmpty);
+    expect(done, isTrue);
+    expect(stream.isClosed, isTrue);
+  });
+
   test('a non-autoReopen stream fails on generation loss', () async {
     mux = DshMux(transport, options: fastOptions(maxAttempts: 1));
     await mux.ready;

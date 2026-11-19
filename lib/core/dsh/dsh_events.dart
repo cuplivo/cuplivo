@@ -188,7 +188,13 @@ class DshSessionEvent {
   String? get surfaceOp =>
       _env.surfaceOpRaw is String ? _env.surfaceOpRaw as String : null;
 
-  bool get isAppendOrigin => surfaceOp == null || surfaceOp == 'append';
+  bool get isAppendOrigin {
+    final raw = _env.surfaceOpRaw;
+    // Replacements are objects (`{kind: 'replace', replaces: [...]}`), not the
+    // string `append`; any other non-null marker is model-only as well.
+    if (raw == null) return true;
+    return raw == 'append';
+  }
 
   List<int> get sourceEventSeqs => _env.sourceEventSeqs;
   bool get ignorable => _env.ignorable;

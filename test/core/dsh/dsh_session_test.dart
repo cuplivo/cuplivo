@@ -409,6 +409,9 @@ void main() {
       var changes = 0;
       final sub = store.changes.listen((_) => changes += 1);
       await store.start(activate: true);
+      // `changes` is a broadcast stream; delivery is a microtask after the
+      // update is folded, so drain the queue before asserting.
+      await pumpEventQueue();
 
       expect(store.transcript.snapshot, isNotNull);
       expect(store.transcript.permissionPreset, 'workspace-write');

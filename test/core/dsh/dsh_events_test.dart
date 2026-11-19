@@ -84,7 +84,7 @@ void main() {
 
       expect(assistant.first, isA<DshAssistantStreamStart>());
       expect(assistant.first.revision, 1);
-      expect(assistant.whereType<DshAssistantStreamChunkFrame>(), hasLength(9));
+      expect(assistant.whereType<DshAssistantStreamChunkFrame>(), hasLength(8));
       final textDeltas = assistant
           .whereType<DshAssistantStreamChunkFrame>()
           .where((frame) => frame.chunk is DshTextDeltaChunk)

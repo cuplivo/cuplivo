@@ -75,6 +75,20 @@ final class DshEndpoint {
         field: 'url',
       );
     }
+    // `Uri.parse` happily percent-encodes spaces inside the authority
+    // (`not a url at all` -> host `not%20a%20url%20at%20all`); reject anything
+    // that is not a plain DNS name / IPv4 / IPv6 literal instead of dialing it.
+    final host = uri.host;
+    final looksLikeIpv6 = host.contains(':');
+    final validHost = looksLikeIpv6
+        ? RegExp(r'^[0-9a-fA-F:.]+$').hasMatch(host)
+        : RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(host);
+    if (!validHost) {
+      throw const DshEndpointException(
+        'That does not look like a URL',
+        field: 'url',
+      );
+    }
     if (uri.scheme != 'http' && uri.scheme != 'https') {
       throw DshEndpointException(
         'Unsupported URL scheme "${uri.scheme}"',
@@ -182,8 +196,7 @@ final class DshEndpoint {
         'not a Remote endpoint name',
       );
     }
-    final prefix = mountPath;
-    return _resolvePath('$prefix/api/$clean');
+    return _resolvePath('/api/$clean');
   }
 
   /// `ws(s)://<authority><mount>/api/remote.mux`.
@@ -235,7 +248,7 @@ final class DshEndpoint {
 
   static String _trimTrailingPunctuation(String value) {
     var text = value;
-    const trailing = '.,;:)]}>';
+    const trailing = '.,;:)]}>`';
     while (text.isNotEmpty && trailing.contains(text[text.length - 1])) {
       text = text.substring(0, text.length - 1);
     }

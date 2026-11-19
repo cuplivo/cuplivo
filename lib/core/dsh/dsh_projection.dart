@@ -376,19 +376,13 @@ class DshTranscript {
         _activeTurn ??= frame.turn;
       case DshAssistantStreamChunkFrame(:final chunk):
         final existing = _draft;
-        if (existing == null || existing.attemptId != frame.attemptId) {
-          _draft = DshDraft(
-            attemptId: frame.attemptId,
-            revision: revision,
-            turn: existing?.turn ?? _activeTurn ?? 0,
-            step: existing?.step ?? 0,
-          );
-        } else {
-          // `revision` is a per-frame counter, not per-attempt: keep the latest
-          // one to drop out-of-order frames without resetting the draft.
-          if (revision < existing.revision) return;
-          _draft = existing.copyWith(revision: revision);
-        }
+        // A chunk for another attempt (or before the attempt's start/baseline)
+        // is stale: applying it would resurrect text the Host already voided.
+        if (existing == null || existing.attemptId != frame.attemptId) return;
+        // `revision` is a per-frame counter, not per-attempt: keep the latest
+        // one to drop out-of-order frames without resetting the draft.
+        if (revision < existing.revision) return;
+        _draft = existing.copyWith(revision: revision);
         _applyChunk(chunk);
       case DshAssistantStreamEnd():
         final draft = _draft;
@@ -563,7 +557,14 @@ class DshTranscript {
           (call) => (id.isNotEmpty && call.id == id) || call.index == index,
         );
         if (position < 0) {
-          calls.add(DshLiveToolCall(index: index, id: id, name: name ?? ''));
+          calls.add(
+            DshLiveToolCall(
+              index: index,
+              id: id,
+              name: name ?? '',
+              arguments: argumentsDelta,
+            ),
+          );
           position = calls.length - 1;
         } else {
           final call = calls[position];

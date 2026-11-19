@@ -32,7 +32,12 @@ Each numbered step ends with `capture(..., '<name>')`; the names match
    ready; screenshot `r3_connected_card`.
 5. Open the DSH assistant settings page via the card's pencil; assert the four
    tabs (连接设置/通用设置/模型/内容) (R2); screenshot `r2_settings_connection`.
-6. Back; open the DSH owner in the drawer → harness mode. Assert the drawer
+   Switch to 通用设置 and assert the two toggles (R8): screenshot
+   `r8_general_settings`; switch back to 连接设置.
+6. Back to the owner list, then home; open the local drawer and tap the
+   current-assistant header tile so the inline owner picker lists every owner:
+   assert the `DeepSeek Harness` row with its whale avatar/pencil (R4);
+   screenshot `r4_local_sidebar`. Tap the row → harness mode. Assert the drawer
    sections (插件/自动化任务/更多 + workspace + session rows) (R5); screenshot
    `r5_dsh_drawer`.
 7. Create a new session and send a short prompt (e.g. `你好，请用一句话介绍你自己`),
@@ -43,7 +48,9 @@ Each numbered step ends with `capture(..., '<name>')`; the names match
    changed) and the rail cards render (R7, with 浏览器 intentionally absent —
    capability parity) ; screenshot `r7_right_rail`.
 9. Open 模型 settings from the assistant settings page; assert provider rows
-   (R9) and the 自定义提供商 row first (R10); screenshot `r9_models`.
+   (R9) and the 自定义提供商 row first (R10); screenshot `r9_models`; open the
+   add-provider picker (R10) and the custom provider detail form (R11);
+   screenshots `r10_add_provider`, `r11_provider_detail`.
 10. `expect(tester.takeException(), isNull)` and a final capture
     `final_state`.
 

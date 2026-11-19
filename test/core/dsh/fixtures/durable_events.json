@@ -1,16 +1,198 @@
-{"events":[
-  {"type":"turn/start","seq":1,"time":1795110874472,"data":{"turn":1}},
-  {"type":"step/start","seq":2,"time":1795110874474,"data":{"turn":1,"step":1}},
-  {"type":"tool/call","seq":3,"time":1795110874500,"data":{"turn":1,"step":1,"callId":"call_1","name":"read","arguments":"{\"path\":\"/workspace/demo/notes.txt\"}"}},
-  {"type":"approval/asked","seq":4,"time":1795110874510,"data":{"id":"approval-1","toolName":"shell","callId":"call_1","reason":"Run a command"}},
-  {"type":"approval/decided","seq":5,"time":1795110874520,"data":{"id":"approval-1","outcome":"allowed-once"}},
-  {"type":"tool/result","seq":6,"time":1795110874530,"data":{"turn":1,"step":1,"message":{"role":"tool","content":[{"type":"text","text":"hello from a probe"}],"source":{"kind":"tool","callId":"call_1"},"toolCallId":"call_1","isError":false,"id":"tool-result-1"},"meta":{"path":"/workspace/demo/notes.txt"}}},
-  {"type":"assistant/message","seq":7,"time":1795110874540,"data":{"turn":1,"step":2,"message":{"role":"assistant","content":[{"type":"reasoning","text":"checking"},{"type":"text","text":"Pink pixel."}],"source":{"kind":"model","provider":"deepseek-official","model":"deepseek-flash"},"id":"assistant-1"},"usage":{"inputTokens":10,"outputTokens":4,"cacheReadTokens":0,"cacheWriteTokens":0,"totalTokens":14}}},
-  {"type":"step/end","seq":8,"time":1795110874550,"data":{"turn":1,"step":2}},
-  {"type":"turn/end","seq":9,"time":1795110874560,"data":{"turn":1,"reason":{"kind":"completed"}}},
-  {"type":"session/title","seq":10,"time":1795110874570,"data":{"title":"Probe title"}},
-  {"type":"permission/preset","seq":11,"time":1795110874580,"data":{"preset":"read-only"}},
-  {"type":"model/selection","seq":12,"time":1795110874590,"data":{"provider":"deepseek-official","model":"deepseek-pro","reasoningEffort":"high"}},
-  {"type":"unknown/plugin-event","seq":13,"time":1795110874600,"data":{"whatever":1}},
-  {"type":"assistant/message","seq":14,"time":1795110874610,"data":{"turn":1,"step":2,"message":{"role":"assistant","content":[{"type":"text","text":"replacement context"}],"source":{"kind":"model"},"id":"assistant-2"},"surfaceOp":{"kind":"replace","replaces":[7]}}}
-]}
+{
+  "events": [
+    {
+      "type": "turn/start",
+      "seq": 1,
+      "time": 1795110874472,
+      "data": {
+        "turn": 1
+      }
+    },
+    {
+      "type": "step/start",
+      "seq": 2,
+      "time": 1795110874474,
+      "data": {
+        "turn": 1,
+        "step": 1
+      }
+    },
+    {
+      "type": "tool/call",
+      "seq": 3,
+      "time": 1795110874500,
+      "data": {
+        "turn": 1,
+        "step": 1,
+        "callId": "call_1",
+        "name": "read",
+        "arguments": "{\"path\":\"/workspace/demo/notes.txt\"}"
+      }
+    },
+    {
+      "type": "approval/asked",
+      "seq": 4,
+      "time": 1795110874510,
+      "data": {
+        "id": "approval-1",
+        "toolName": "shell",
+        "callId": "call_1",
+        "reason": "Run a command"
+      }
+    },
+    {
+      "type": "approval/decided",
+      "seq": 5,
+      "time": 1795110874520,
+      "data": {
+        "id": "approval-1",
+        "outcome": "allowed-once"
+      }
+    },
+    {
+      "type": "tool/result",
+      "seq": 6,
+      "time": 1795110874530,
+      "data": {
+        "turn": 1,
+        "step": 1,
+        "message": {
+          "role": "tool",
+          "content": [
+            {
+              "type": "text",
+              "text": "hello from a probe"
+            }
+          ],
+          "source": {
+            "kind": "tool",
+            "callId": "call_1"
+          },
+          "toolCallId": "call_1",
+          "isError": false,
+          "id": "tool-result-1"
+        },
+        "meta": {
+          "path": "/workspace/demo/notes.txt"
+        }
+      }
+    },
+    {
+      "type": "assistant/message",
+      "seq": 7,
+      "time": 1795110874540,
+      "data": {
+        "turn": 1,
+        "step": 2,
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "reasoning",
+              "text": "checking"
+            },
+            {
+              "type": "text",
+              "text": "Pink pixel."
+            }
+          ],
+          "source": {
+            "kind": "model",
+            "provider": "deepseek-official",
+            "model": "deepseek-flash"
+          },
+          "id": "assistant-1"
+        },
+        "usage": {
+          "inputTokens": 10,
+          "outputTokens": 4,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0,
+          "totalTokens": 14
+        }
+      }
+    },
+    {
+      "type": "step/end",
+      "seq": 8,
+      "time": 1795110874550,
+      "data": {
+        "turn": 1,
+        "step": 2
+      }
+    },
+    {
+      "type": "turn/end",
+      "seq": 9,
+      "time": 1795110874560,
+      "data": {
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      }
+    },
+    {
+      "type": "session/title",
+      "seq": 10,
+      "time": 1795110874570,
+      "data": {
+        "title": "Probe title"
+      }
+    },
+    {
+      "type": "permission/preset",
+      "seq": 11,
+      "time": 1795110874580,
+      "data": {
+        "preset": "read-only"
+      }
+    },
+    {
+      "type": "model/selection",
+      "seq": 12,
+      "time": 1795110874590,
+      "data": {
+        "provider": "deepseek-official",
+        "model": "deepseek-pro",
+        "reasoningEffort": "high"
+      }
+    },
+    {
+      "type": "unknown/plugin-event",
+      "seq": 13,
+      "time": 1795110874600,
+      "data": {
+        "whatever": 1
+      }
+    },
+    {
+      "type": "assistant/message",
+      "seq": 14,
+      "time": 1795110874610,
+      "data": {
+        "turn": 1,
+        "step": 2,
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "replacement context"
+            }
+          ],
+          "source": {
+            "kind": "model"
+          },
+          "id": "assistant-2"
+        }
+      },
+      "surfaceOp": {
+        "kind": "replace",
+        "replaces": [
+          7
+        ]
+      }
+    }
+  ]
+}

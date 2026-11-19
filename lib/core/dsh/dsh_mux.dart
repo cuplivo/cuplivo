@@ -269,7 +269,7 @@ class DshMux {
     final streams = _streams.values.toList(growable: false);
     _streams.clear();
     for (final stream in streams) {
-      await stream._closeLocal(error);
+      await stream._closeLocal();
     }
     final socket = _socket;
     _socket = null;
@@ -610,11 +610,12 @@ class DshStream {
     }
   }
 
-  Future<void> _closeLocal(DshException error) async {
+  /// Local shutdown: complete silently. Caller-initiated `close()` is not an
+  /// error for a consumer that is merely being torn down.
+  Future<void> _closeLocal() async {
     if (_closed) return;
     _closed = true;
     _mux._streams.remove(id);
-    _controller.addError(error);
     await _controller.close();
   }
 

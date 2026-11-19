@@ -1528,22 +1528,19 @@ void main() {
     // ever served again. The route deadline frees the loop; the short budget
     // here is the test seam for the same path.
     //
-    // The *second* request gets a long budget on purpose: it queues behind the
-    // stalled one, and since a request's budget starts when the listener reads
-    // it, a second short budget would be spent by the wait. That is the point of
-    // the accounting (`sync_admission_test.dart` has that cell); what this test
-    // still proves is that the loop keeps answering while a body stalls.
+    // *Both* requests get the short budget, deliberately. Pairing has a lane of
+    // its own (`sync_admission_test.dart` holds that), so the complete request
+    // is not queued behind the stalled one and answers well inside 300 ms —
+    // while a budget that depended on which connection the loop happened to read
+    // first would make this test's meaning depend on that order.
     final b = _Side('b');
     await b.start(root);
     sides.add(b);
-    var readRequests = 0;
     final server = SyncServer(
       identity: b.identity,
       store: b.store,
       handler: b.engine,
-      deadlineFor: (_) => readRequests++ == 0
-          ? const Duration(milliseconds: 300)
-          : const Duration(seconds: 30),
+      deadlineFor: (_) => const Duration(milliseconds: 300),
     );
     final port = await server.start(address: '127.0.0.1', requestedPort: 0);
     addTearDown(server.stop);

@@ -2293,3 +2293,68 @@ is not sandboxed, whatever the flag says, so a loosened copy skips a prompt *ins
 than widening what the sandbox confines. Whether the flag should be device-local is a product question
 about policy versus grant, and it is not decided by this rule — a policy that turns out to be the same
 kind of fact needs its own argument.
+
+## A push has a byte budget
+
+One push is one JSON document (`SyncDeltaBatch`), and the receiving side counts it **after
+decompression** against `kSyncMaxBodyBytes` (`sync_server.dart`). Past that cap it answers 413 and
+the whole round fails — and the next round rebuilds the same body from the same rows, so an
+over-cap push is not a slow pair: it is a pair that never syncs again, with one "failed" line on the
+card to show for it. The conversations that made the body big are exactly the ones carrying the
+documents v9 started sending, so the failure arrives with the feature that makes it likely.
+
+The client therefore builds a batch that fits, decided before the batch exists:
+
+- `sync_budget.dart` measures the part that travels whatever the conversation list is — business
+  rows, the asset manifest, the skill hashes, the workspace tables — by serialising it once
+  (`pushEnvelopeBytes`). The asset manifest is built for *every planned* conversation, which is an
+  upper bound of the one that will be sent, so the measurement cannot be beaten by the final batch.
+- Conversations are admitted in plan order against `kSyncDeltaByteBudget - envelope`, each costing
+  its own serialised length plus one comma. The identity is exact — `body = envelope + Σ(size + 1)
+  − 1` — so the bound is arithmetic, not headroom. `kSyncMaxConversationBytes` (half the budget)
+  stops one huge conversation from displacing the rest of the round.
+- A conversation that does not fit is **deferred, not failed**. It stays out of `outgoing`, its
+  checkpoint entry stays at `prior`, and the next session retries it while the other conversations
+  still travel. The report names the count (`conversationsOmittedForSize`): most of them are
+  the plan's tail and ride the next round on their own, and a conversation past the
+  per-conversation limit is the one case the user has to act on.
+
+Two things this does **not** do, both deliberate:
+
+- **No fragmentation.** A conversation larger than `kSyncMaxConversationBytes` cannot ride in any
+  push. It still arrives when the peer *pulls* it: the fetch response is a response body, which the
+  receiver never caps, and the peer's own plan requests it. So the conversation converges as long as
+  the peer dials — and an install where only one side ever dials keeps it one-sided. That is the
+  known limitation, and the reason the panel says the conversation *did not fit in this push*
+  rather than *lost*.
+- **The fetch response is not budgeted.** The 256 MB cap is a request-body cap; a 200 MB response is
+  read whole by the client. Bounding that direction needs its own admission point and its own state
+  table (the responder cannot report an omission — the response is never acknowledged), which is a
+  separate change. Until then a library large enough to matter can still hurt the *pulling* side.
+
+And one edge the measurement cannot fix: **the parts that travel whatever the conversations are can
+themselves exceed the budget.** The envelope is measured, not capped — workspace tables top out at
+20,000 ledger entries and the asset manifest grows with the blobs the rows reference, so a fixed part
+above 153.6 MB admits no conversation at all and the body is still only refused at the 256 MB cap.
+Reaching it takes a pathological library; shrinking it needs the business/asset faces to be admitted
+too, which is a different change.
+
+The send path's own copies are why the budget is 60% of the cap: the batch's row maps, the JSON
+text, its UTF-8 buffer and the gzip buffer are all alive before a byte reaches the socket. The very
+batch that leaves is measured once more under `assert` (`assertPushFits`), so a future edit that
+measures one list and sends another fails on the sender instead of as a 413 on the peer.
+
+### The rule the budget exposed in the checkpoint
+
+Deferring a send was already a thing (a conversation being generated is not pushed). The budget adds
+a second, *durable* reason, and that turned a latent bug into a deterministic one: the checkpoint's
+`iSend` arm refused to advance for a skipped send, but the `bothSend` arm advanced from the peer's
+apply alone. An entry built that way recorded the post-merge local state as "the peer has this" —
+including rows the peer never received — so the next session planned `peerSends`, fetched a copy
+without those rows, and the merge deleted them (local-only, clock equal to the recorded one). Two
+sessions turned "not sent this round" into data loss.
+
+The rule is now one question, asked by both send arms: **did this device's copy cross the wire** —
+`sentSubtrees` (the batch this beat built) plus `sendsConfirmed` (a fetch response is never
+acked). `sync_engine_integration_test.dart` holds the proof twice: a conversation omitted on the
+`bothSend` path keeps the edit it did not send, with a prior entry and without one.

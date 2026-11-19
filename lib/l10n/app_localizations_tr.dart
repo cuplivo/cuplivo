@@ -17985,6 +17985,11 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportConversationsOmittedForSize(Object count) {
+    return 'Eşitlenemeyecek kadar büyük sohbet: $count (geçmişini kısaltın)';
+  }
+
+  @override
   String lanSyncReportWorkspacesKept(Object count) {
     return '$count çalışma alanı klasörü diskte tutuldu (kapalı veya eşitlenmemiş dosyalar içeriyor)';
   }

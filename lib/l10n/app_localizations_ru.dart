@@ -18178,6 +18178,11 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportConversationsOmittedForSize(Object count) {
+    return 'Слишком больших для синхронизации чатов: $count (сократите историю)';
+  }
+
+  @override
   String lanSyncReportWorkspacesKept(Object count) {
     return 'Папок рабочей области сохранено на диске: $count (синхронизация выключена или в папке есть несинхронизированные файлы)';
   }

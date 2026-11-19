@@ -6474,6 +6474,7 @@
   "lanSyncReportWorkspaceConflicts": "{count} 处工作区文件修改被覆盖",
   "lanSyncReportWorkspaceMissing": "{count} 个工作区文件未能应用",
   "lanSyncReportWorkspacesOmitted": "{count} 个工作区未同步文件",
+  "lanSyncReportConversationsOmittedForSize": "{count} 个对话太大，无法同步（可精简其历史）",
   "lanSyncReportWorkspacesKept": "已保留 {count} 个工作区文件夹（开关已关闭或含未同步文件）",
   "lanSyncReportDeletesBlocked": "{count} 项删除已略过（本机内容已变更）",
   "lanSyncReportRowsLost": "{n} 条本地记录被对端更新的版本覆盖（可在回收站恢复）",

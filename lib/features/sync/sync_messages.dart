@@ -199,6 +199,7 @@ String syncReportMessage(AppLocalizations l10n, SyncSessionReport report) {
     deletedConversations: report.conversationsDeletedLocally,
     deletedBlocked: report.deletedBlocked,
     deferred: report.deferred,
+    conversationsOmittedForSize: report.conversationsOmittedForSize,
     entityRows: report.entityRows,
     preferenceRows: report.preferenceRows,
     blobsMoved: report.blobsMoved,
@@ -229,6 +230,7 @@ String _syncCountsMessage(
   required int deletedConversations,
   int deletedBlocked = 0,
   required int deferred,
+  int conversationsOmittedForSize = 0,
   required int entityRows,
   required int preferenceRows,
   int blobsMoved = 0,
@@ -292,6 +294,12 @@ String _syncCountsMessage(
     if (workspaceFoldersKept > 0)
       l10n.lanSyncReportWorkspacesKept(workspaceFoldersKept),
     if (deferred > 0) l10n.lanSyncReportDeferred(deferred),
+    // The size budget's own count, beside the deferred one: both mean "not this
+    // round", and only this one means "the conversation is bigger than a push".
+    if (conversationsOmittedForSize > 0)
+      l10n.lanSyncReportConversationsOmittedForSize(
+        conversationsOmittedForSize,
+      ),
     if (clockSkewMs != null)
       l10n.lanSyncReportClockSkew((clockSkewMs.abs() / 60000).round()),
   ];

@@ -30,4 +30,31 @@ void main() {
   test('a reverse dial cannot cost more than the address memory', () {
     expect(kMaxReverseDialCandidates, lessThanOrEqualTo(kMaxPeerEndpoints));
   });
+
+  test('one push stays under the body cap the receiving side enforces', () {
+    expect(
+      kSyncDeltaByteBudget,
+      lessThan(kSyncMaxBodyBytes),
+      reason: 'the budget is derived from the cap, with room for the send path',
+    );
+    expect(
+      kSyncDeltaBudgetPercent,
+      inInclusiveRange(1, 99),
+      reason: 'a share of 0 or 100 makes one of the two bounds meaningless',
+    );
+    expect(kSyncDeltaByteBudget, lessThanOrEqualTo(kSyncMaxBodyBytes));
+  });
+
+  test('a conversation is at most half a push, and two of them still fit', () {
+    expect(
+      kSyncMaxConversationBytes,
+      greaterThan(0),
+      reason: 'a cap of zero would send nothing at all',
+    );
+    expect(
+      2 * kSyncMaxConversationBytes,
+      lessThanOrEqualTo(kSyncDeltaByteBudget),
+      reason: 'one conversation may not displace the rest of the round',
+    );
+  });
 }

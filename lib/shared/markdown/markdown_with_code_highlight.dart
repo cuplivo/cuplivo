@@ -49,8 +49,10 @@ class MarkdownWithCodeHighlight extends StatefulWidget {
 
   /// Draws this application's own block in place of an image the model only
   /// promised: a generated picture renders where its Markdown placeholder is,
-  /// not at the end of the reply. Return null for an ordinary image.
-  final Widget? Function(BuildContext context, String destination)?
+  /// not at the end of the reply. Return null for an ordinary image. The offset
+  /// is the node's position in the source, so two mentions of one uri can be
+  /// told apart.
+  final Widget? Function(BuildContext context, String destination, int offset)?
   jobImageBuilder;
 
   @override

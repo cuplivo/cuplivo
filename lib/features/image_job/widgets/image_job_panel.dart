@@ -145,11 +145,7 @@ class _ImageJobPanelBodyState extends State<ImageJobPanelBody> {
     final job =
         (assetId == null ? null : coordinator?.jobForAsset(assetId)) ??
         data.job;
-    final startedAt = job?.startedAt ?? job?.createdAt;
-    final finishedAt = job?.finishedAt;
-    final elapsed = startedAt == null || finishedAt == null
-        ? null
-        : finishedAt.difference(startedAt);
+    final elapsed = job == null ? null : jobDuration(job);
     final muted = cs.onSurface.withValues(alpha: 0.6);
     final body = TextStyle(fontSize: 13, color: cs.onSurface);
 
@@ -208,7 +204,7 @@ class _ImageJobPanelBodyState extends State<ImageJobPanelBody> {
           child: _ImageSize(
             uri: part.uri,
             requestedRatio: job?.aspectRatio,
-            revision: finishedAt?.microsecondsSinceEpoch,
+            revision: job?.finishedAt?.microsecondsSinceEpoch,
           ),
         ),
         if (elapsed != null)

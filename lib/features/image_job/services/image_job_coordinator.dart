@@ -1,18 +1,23 @@
 /// Owns the whole life of "a picture the reply promised".
 ///
-/// One place decides all four things that must agree:
+/// One place decides the things that must agree:
 ///
 /// * which `provider + model` draws it (assistant choice, then the global
-///   default — never the conversation, never the text model);
+///   default — never the conversation, never the text model), refusing a pair
+///   the spec says cannot draw and falling through to the default when the
+///   stored one names a provider that no longer exists;
 /// * where the bytes will land, fixed at creation so the `uri` the model was
 ///   handed never moves;
 /// * what the message shows meanwhile, which is an [ImagePart] whose `state`
-///   says pending / failed / cancelled / completed;
-/// * when a late runner result must be thrown away (cancel / interrupt).
+///   says `pending`, `failed`, or nothing at all once the bytes are there.
+///   Nothing cancels a job and a dead process leaves no job behind, so there is
+///   no third value to write — `interrupted` is derived by the renderer from a
+///   persisted `pending` part with no live job.
 ///
 /// The durable mirror of a job is its [ImagePart]: the part is what the
 /// renderer reads, what the outbox skips, and what a restart explains. The
-/// in-memory job is the live handle on the same thing.
+/// in-memory job is the live handle on the same thing, and it wins whenever the
+/// two disagree — the part is written from snapshots, the job is not.
 library;
 
 import 'dart:async';
@@ -295,11 +300,7 @@ class ImageJobCoordinator extends ChangeNotifier {
       ),
     );
     await _writeBytes(job.uri, result.bytes);
-    return ImageJobOutcome(
-      uri: job.uri,
-      assetId: job.assetId,
-      mime: result.mime,
-    );
+    return ImageJobOutcome(uri: job.uri, mime: result.mime);
   }
 
   /// Every transition passes through here exactly once (the manager notifies
@@ -338,12 +339,7 @@ class ImageJobCoordinator extends ChangeNotifier {
     );
   }
 
-  Duration? _durationOf(ImageJob job) {
-    final finished = job.finishedAt;
-    final started = job.startedAt ?? job.createdAt;
-    if (finished == null) return null;
-    return finished.difference(started);
-  }
+  Duration? _durationOf(ImageJob job) => jobDuration(job);
 
   /// The authoritative shape of a reply's parts, for a writer about to commit
   /// them.

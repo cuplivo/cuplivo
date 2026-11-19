@@ -344,8 +344,13 @@ final class ImagePart extends MessagePart {
   bool get hasBytes => state == null;
 
   /// The same image at a new stage. [state] `null` means the bytes are here;
-  /// [uri] moves to wherever the bytes actually landed.
-  ImagePart withState(ImagePartState? state, {String? uri}) {
+  /// [uri] moves to wherever the bytes actually landed; [failureReason] lets a
+  /// live job explain a failure the persisted snapshot never saw.
+  ImagePart withState(
+    ImagePartState? state, {
+    String? uri,
+    String? failureReason,
+  }) {
     return ImagePart(
       uri: uri ?? this.uri,
       mime: mime,
@@ -356,7 +361,7 @@ final class ImagePart extends MessagePart {
       state: state,
       prompt: prompt,
       model: model,
-      failureReason: failureReason,
+      failureReason: failureReason ?? this.failureReason,
       durationMs: durationMs,
     );
   }

@@ -1,7 +1,8 @@
 import 'package:markstream/markstream.dart';
 
 /// Every image destination the Markdown renderer will actually hand to its
-/// `ImageBuilder` for [source].
+/// `ImageBuilder` for [source], with the source offset of its **first**
+/// occurrence.
 ///
 /// This exists because "the reply mentions this uri" and "the reply draws this
 /// uri as a picture" are different questions, and the answer to the second one
@@ -10,15 +11,20 @@ import 'package:markstream/markstream.dart';
 /// uri inside a fenced block, inside inline code, or sitting in a link label is
 /// text, not a picture, and a substring test cannot tell that apart.
 ///
-/// `CodeBlockNode` keeps its contents as raw text rather than image nodes, so a
-/// destination written inside a fence never appears here — which is exactly the
-/// distinction the caller needs and cannot get from `String.contains`.
-Set<String> markdownImageDestinations(String source) {
-  if (source.isEmpty) return const <String>{};
+/// The offset is what tells two mentions of the same uri apart. A reply that
+/// writes the placeholder twice must draw one illustration, not two, and
+/// document order is the only reliable answer: the node the builder receives
+/// carries its own span, so the first one can own the card. `CodeBlockNode`
+/// keeps its contents as raw text rather than image nodes, so a destination
+/// written inside a fence never appears here.
+Map<String, int> markdownImageFirstOffsets(String source) {
+  if (source.isEmpty) return const <String, int>{};
   final document = const MarkdownParser().parse(source, streaming: false);
-  final out = <String>{};
+  final out = <String, int>{};
   void walk(MarkdownNode node) {
-    if (node is ImageNode) out.add(node.destination);
+    if (node is ImageNode) {
+      out.putIfAbsent(node.destination, () => node.span.start);
+    }
     for (final child in node.children) {
       walk(child);
     }
@@ -27,3 +33,8 @@ Set<String> markdownImageDestinations(String source) {
   walk(document);
   return out;
 }
+
+/// The destinations alone, for callers that only ask "does the renderer draw
+/// this uri at all".
+Set<String> markdownImageDestinations(String source) =>
+    markdownImageFirstOffsets(source).keys.toSet();

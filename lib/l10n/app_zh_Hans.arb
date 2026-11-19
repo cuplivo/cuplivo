@@ -5815,7 +5815,7 @@
   "selectionRegenerate": "重新生成",
   "translating": "正在翻译…",
   "retry": "重试",
-  "imageJobTitle": "生成插图",
+  "imageJobTitle": "插图",
   "imageJobFailed": "生成失败",
   "imageJobInterrupted": "已中断",
   "assistantEditLocalToolImageTitle": "绘图",

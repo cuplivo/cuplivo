@@ -31,4 +31,21 @@ void main() {
   test('the same uri written twice is one destination', () {
     expect(markdownImageDestinations('![]($uri)\n\ntext\n\n![]($uri)'), {uri});
   });
+
+  test('the first mention keeps the offset, later ones do not', () {
+    // The offset is the identity that lets the renderer give the card to the
+    // first mention only: the node it builds carries its own span.start.
+    const body = 'BEFORE\n\n![]($uri)\n\nMIDDLE\n\n![]($uri)\n\nAFTER';
+    final offsets = markdownImageFirstOffsets(body);
+
+    expect(offsets.keys, [uri]);
+    final first = offsets[uri]!;
+    expect(body.substring(first, first + 3), '![]');
+    expect(first, body.indexOf('![]'));
+    expect(body.indexOf('![]', first + 1), greaterThan(first));
+  });
+
+  test('nothing to parse is nothing to draw', () {
+    expect(markdownImageFirstOffsets(''), isEmpty);
+  });
 }

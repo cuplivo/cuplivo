@@ -1448,6 +1448,11 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
   /// The subset of [_jobImageSources] the reply's text actually places, and
   /// which is therefore drawn where the model put it — not at the end.
   final Set<String> _inlineJobUris = <String>{};
+
+  /// Source offset of each placeable uri's first mention. A reply may write the
+  /// same placeholder twice; only the first one owns the card, or the reply
+  /// shows two illustrations (two skeletons, two ⋯) for one job.
+  Map<String, int> _jobImageFirstOffsets = const <String, int>{};
   Future<void> _submitRecoveredAnswer(
     ToolUIPart part,
     AskUserResult result,
@@ -3186,15 +3191,21 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
       if (job != null && job.state == ImageJobState.completed) {
         resolved = resolved.withState(null, uri: job.resultUri ?? resolved.uri);
       }
-      final startedAt = job?.startedAt ?? job?.createdAt;
-      final finishedAt = job?.finishedAt;
+      // Same reasoning one state over: a failed job is terminal, but the part is
+      // a snapshot, so the card would keep spinning if the mirror's write never
+      // landed. The job's own sentence goes on it too — that is what the header
+      // shows.
+      if (job != null && job.state == ImageJobState.failed) {
+        resolved = resolved.withState(
+          ImagePartState.failed,
+          failureReason: job.error,
+        );
+      }
       return ImageJobCard(
         part: resolved,
-        startedAt: startedAt,
+        startedAt: job?.startedAt ?? job?.createdAt,
         requestedAspect: aspectOfRatio(job?.aspectRatio),
-        elapsed: finishedAt != null && startedAt != null
-            ? finishedAt.difference(startedAt)
-            : resolved.duration,
+        elapsed: job == null ? resolved.duration : jobDuration(job),
         onOpen: () => showImageJobPanel(
           ctx,
           ImageJobPanelData(
@@ -3223,9 +3234,25 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
   /// exactly there — header, skeleton, picture and ⋯ together — instead of being
   /// appended after the last paragraph. Returning null leaves an ordinary
   /// Markdown image alone.
-  Widget? _buildInlineJobImage(BuildContext context, String destination) {
+  Widget? _buildInlineJobImage(
+    BuildContext context,
+    String destination,
+    int offset,
+  ) {
     final part = _imageJobPartForUri(destination);
     if (part == null) return null;
+    // The same promise may be written twice. Only its first mention owns the
+    // card; a later one is the same picture, so it draws the picture itself (or
+    // nothing while there still is none) instead of a second skeleton with a
+    // second ⋯.
+    final first = _jobImageFirstOffsets[destination];
+    if (first != null && first != offset) {
+      final job = imageJobCoordinatorOf(context)?.jobForAsset(part.assetId);
+      final complete = part.hasBytes || job?.state == ImageJobState.completed;
+      // `null` means "an ordinary Markdown image", which is the renderer's own
+      // picture widget — exactly what a repeated mention should show.
+      return complete ? null : const SizedBox.shrink();
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: _imageJobBlock(
@@ -3535,13 +3562,14 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     // picture at all, because parsing the body twice is not free.
     final renderedImages =
         enableAssistantMarkdown && _jobImageSources.isNotEmpty
-        ? markdownImageDestinations(visualContent)
-        : const <String>{};
+        ? markdownImageFirstOffsets(visualContent)
+        : const <String, int>{};
+    _jobImageFirstOffsets = renderedImages;
     _inlineJobUris
       ..clear()
       ..addAll(
         enableAssistantMarkdown
-            ? _jobImageSources.where(renderedImages.contains)
+            ? _jobImageSources.where(renderedImages.containsKey)
             : const <String>[],
       );
     final visualTranslation = widget.message.translation != null

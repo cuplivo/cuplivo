@@ -3,6 +3,8 @@
 > 状态：**已定稿**（4 轮 clarity round，2026-11-16）。分支 `feat/image-job`，基线 schema 5。
 >
 > 机制与 UI 按轮次落定（§5）；每轮的产物与结论见 §11。仍未定的只剩 §8 的四项，不阻塞第一版。
+>
+> **修订（2026-11-19）**：本文是**计划与讨论记录**，前半部分（§2–§4、§6 早期草稿）里的 `cancel` / `cancelled` / `interrupted` 生命周期**已不存在于代码**。现状：job 只有 `queued → running → completed | failed`；`interrupted` 是渲染层派生，不落库。以 §5.3 收口说明、`handoff.md` §9 与 `p-tool-contract.md` 为准。
 
 ---
 
@@ -128,7 +130,7 @@
 - 工具描述用「生成一张图辅助回复 + 非阻塞 + 立刻拿到 uri 可写进正文 + 不要声称看过」那段，英文；不写"你看不到"以外的解释。
 - 返回只有 `{status, asset_id, uri}`；**没有 `visible_to_you`**。
 - 参数：`prompt`（必填）、`aspect_ratio`（默认 auto，只在构图重要时给）、`reference_image_ids`（可选，仅限本对话；空=文生图，非空=图生图）。**不给画质**：比例是构图决策，画质是成本决策。
-- **不加并发上限**；超时默认 300s，可由 provider 既有超时覆盖。**界面不提供取消**（300s 兜底；`ImageJobManager.cancel` 保留给内部与测试）。
+- **不加并发上限**；超时默认 300s，可由 provider 既有超时覆盖。**没有取消，也没有取消入口**（300s 兜底）—— `ImageJobManager.cancel` 与 `ImageJobState.cancelled` 已删除，不留给内部也不留给测试。
 - **占位不发回模型**：出站序列化跳过 `state != null` 的图片块；完成后是普通 `ImagePart`。
 - 模型要看图，只走已有的看图工具；不强制、不特殊声明。
 - 两个后端 adapter：`/images/generations` 形状与 Gemini chat 形状（从正文取第一个 markdown 图片链接再下载）。

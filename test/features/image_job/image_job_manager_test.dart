@@ -51,8 +51,34 @@ void main() {
     for (var i = 0; i < 5; i++) {
       _create(manager, key: 'job-$i');
     }
-    expect(manager.activeCount('c1'), 5);
     expect(manager.jobs.length, 5);
+  });
+
+  group('jobDuration', () {
+    test('a job still running has no duration', () {
+      expect(jobDuration(_create(_manager())), isNull);
+    });
+
+    test('a backwards clock step reports zero, not a negative', () {
+      // `startedAt`/`finishedAt` are wall-clock readings. A negative durationMs
+      // is not cosmetic: `ImagePart` decodes it as `invalid_duration`, so the
+      // whole part hydrates as MalformedPart and the picture disappears.
+      final job = _create(_manager()).copyWith(
+        startedAt: DateTime(2026, 11, 18, 12, 0, 30),
+        finishedAt: DateTime(2026, 11, 18, 12, 0, 0),
+      );
+
+      expect(jobDuration(job), Duration.zero);
+    });
+
+    test('an ordinary job measures from start to finish', () {
+      final job = _create(_manager()).copyWith(
+        startedAt: DateTime(2026, 11, 18, 12, 0, 0),
+        finishedAt: DateTime(2026, 11, 18, 12, 0, 12, 600),
+      );
+
+      expect(jobDuration(job), const Duration(milliseconds: 12600));
+    });
   });
 
   test('a finished job stays, so a re-render does not pay twice', () async {
@@ -99,7 +125,6 @@ void main() {
     expect(settled.errorCode, 'timeout');
     // The card shows this line, so it has to be a sentence, not a category.
     expect(settled.error, contains('seconds'));
-    expect(manager.activeCount('c1'), 0);
   });
 
   test('a throwing runner is a provider failure, not a crash', () async {
@@ -141,9 +166,8 @@ void main() {
     const terminal = [ImageJobState.completed, ImageJobState.failed];
     for (final state in terminal) {
       expect(state.isTerminal, true);
-      expect(state.isActive, false);
     }
-    expect(ImageJobState.queued.isActive, true);
-    expect(ImageJobState.running.isActive, true);
+    expect(ImageJobState.queued.isTerminal, false);
+    expect(ImageJobState.running.isTerminal, false);
   });
 }

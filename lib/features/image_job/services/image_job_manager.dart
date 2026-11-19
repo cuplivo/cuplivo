@@ -52,12 +52,6 @@ class ImageJobManager extends ChangeNotifier {
 
   ImageJob? byId(String id) => _jobs[id];
 
-  int activeCount(String conversationId) => _jobs.values
-      .where(
-        (job) => job.conversationId == conversationId && job.state.isActive,
-      )
-      .length;
-
   /// Idempotent by construction: the key *is* the job id, so a re-render or a
   /// remount hands back the job it already had instead of paying twice.
   ImageJob create({

@@ -24,9 +24,6 @@ enum ImageJobState {
     ImageJobState.completed || ImageJobState.failed => true,
     ImageJobState.queued || ImageJobState.running => false,
   };
-
-  /// Whether the placeholder for this job should still show progress.
-  bool get isActive => !isTerminal;
 }
 
 const Object _unset = Object();
@@ -127,9 +124,26 @@ final class ImageJob {
 
 /// What a successful runner hands back: the bytes now exist at [uri].
 final class ImageJobOutcome {
-  const ImageJobOutcome({required this.uri, this.assetId, this.mime});
+  const ImageJobOutcome({required this.uri, this.mime});
 
   final String uri;
-  final String? assetId;
+
+  /// The type the backend returned. The job carries the asset id already, so
+  /// repeating it here would be a second source for the same fact.
   final String? mime;
+}
+
+/// How long a job took, never negative.
+///
+/// `startedAt` and `finishedAt` are wall-clock readings, so a clock step
+/// backwards (NTP, a manual change) makes the difference negative — and that is
+/// not cosmetic: `ImagePart` decodes a negative `durationMs` as
+/// `invalid_duration`, so the whole part hydrates as `MalformedPart` and the
+/// picture stops rendering for good. Clamped where it is computed.
+Duration? jobDuration(ImageJob job) {
+  final finished = job.finishedAt;
+  if (finished == null) return null;
+  final started = job.startedAt ?? job.createdAt;
+  final elapsed = finished.difference(started);
+  return elapsed.isNegative ? Duration.zero : elapsed;
 }

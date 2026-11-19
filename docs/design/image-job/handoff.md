@@ -8,6 +8,8 @@
 一句话：文本模型在回复中途调用独立绘图模型，调用位置先占位，图完成后**原地替换**；文字不被阻塞；失败/中断有明确状态；重启不自动重跑；schema 仍是 5。
 
 > **注意（2026-11-17 收口）**：本页 §7–§8 里出现的「编辑提示词」「重新生成」「取消」「重试」**都已从产品里删除**，只保留信息与复制。以 §9 为准，别照着旧段落实现。
+>
+> **注意（2026-11-19）**：删除范围后来扩到了**代码**：`ImageJobManager.cancel`、`ImageJobState.cancelled/interrupted`、`ImagePartState.cancelled` 都已不存在。job 只有 `queued → running → completed | failed`；`interrupted` 由渲染层从「持久化 `pending` + 无活 job」派生，不落库。本页 §4 的验收条款已按此更新。
 
 **看到效果 = clarity test 的那个场景能跑通**：助手写一段话并配图 → 骨架出现 → 图原地替换 → 卡头能看到模型 → 杀掉重进未完成的显示"已中断"。不是"测试绿了"。
 
@@ -37,7 +39,7 @@
 
 ```
 lib/features/image_job/models/image_job.dart          ImageJob / 状态机 / ImageJobOutcome
-lib/features/image_job/services/image_job_manager.dart 幂等(id=key) / 取消 / 超时 / 中断 / ChangeNotifier
+lib/features/image_job/services/image_job_manager.dart 幂等(id=key) / 超时 / 失败 / ChangeNotifier（没有取消：见 §9）
 lib/features/image_job/services/image_model_resolver.dart  两层解析 + 半配置/空白不算
 lib/features/image_job/widgets/image_job_card.dart    卡头、3:2 骨架、失败原因、⋯(onOpen)
 lib/features/image_job/widgets/image_job_panel.dart   只读信息 + 复制
@@ -52,8 +54,8 @@ lib/l10n/*.arb (7 语言) + gen-l10n                    imageJob* 一套
 
 1. **adapter**：`image_backends.dart` —— `Future<Uint8List> generate(ImageGenerationRequest)`；两个实现：`/images/generations`（b64 / url）与 Gemini chat（取正文第一个 `![](url)` 再下载）。解析写成纯函数。
    *验收*：解析单测（b64、url、gemini 抽取、回复无图 → `no_image`），不联网。
-2. **协调器**：`image_job_coordinator.dart` —— `allocateAsset(idemKey)` → `create` → `start` → 完成写回 `state: null` + 新 uri；失败/取消/中断写回对应 state。
-   *验收*：用假 adapter 驱动，断言 part 的三种终态；取消后迟到结果不覆盖。
+2. **协调器**：`image_job_coordinator.dart` —— `allocateAsset(idemKey)` → `create` → `start` → 完成写回 `state: null` + 真实 mime + 新 uri；失败写回 `failed` 和原因。
+   *验收*：用假 adapter 驱动，断言完成的 part 带 mime、失败的 part 带原因；`freshenImageParts` 保证「活 job 胜过冻结快照」。
 3. **工具注册**：`LocalToolNames.generate_image` + schema（照 `p-tool-contract.md` §1）+ 本地工具清单/标签；未配置模型 → 返回可执行错误，不建 job；参考图越界 → 拒绝。
    *验收*：schema 快照 + handler 单测。
 4. **出站序列化**：拼请求时跳过 `state != null` 的图块。
@@ -146,13 +148,14 @@ lib/l10n/*.arb (7 语言) + gen-l10n                    imageJob* 一套
 
 编辑提示词 sheet（`showImageJobPromptEditor` / `ImageJobPromptEditAction`）、面板内联编辑态、面板的编辑/取消/重新生成、卡片重试与 `_retryImageJob`、`retryPart` / `updatePrompt` / `regenerateWithPrompt` / `_messageOwningPart` / `ImagePart.withPrompt`、协调器的 `cancel()` 与 `retry()`、7 个 ARB 里 5 个只为这些入口存在的键（`imageJobPanelEdit/Cancel/Regenerate/EditTitle/SaveOnly`），新增 `imageJobPanelUsageLabel`。
 
-**为什么连「取消」也不留**：它和重试是同一类"和正在进行的请求较劲"；300s 超时兜底。`ImageJobManager.cancel` 仍在（有单测），只是界面不再暴露。
+**为什么连「取消」也不留**：它和重试是同一类"和正在进行的请求较劲"；300s 超时兜底。`ImageJobManager.cancel` 与 `ImageJobState.cancelled` 一并删除 —— 留一个没有入口、只有单测的状态，是下一个人会相信并等待的表。
 
 **顺带补的两件**
 
 - `ImagePart.durationMs` 落盘（payload 加字段，schema 仍是 5），重启后卡头仍写 `(14.5s)`。
 - 卡片判"完成"以**活着的 job** 为准（`job.state == completed` → 按 `resultUri` 渲染）：part 是回复排版那一刻的快照，字节落盘只写 DB、不会重建消息 —— 这是"一直转圈、切会话才出图"的根因。
 - `imageJobCoordinatorOf(context)` 用非空类型查找再兜 null。原来 `read<ImageJobCoordinator?>()` 查的是可空类型，provider 里没有，静默返回 null，于是卡片拿不到 job：不计时、不刷新、动作全部无声失败。
+- **骨架会先出现在回复末尾，再迁到占位处** —— 这不是 bug：模型只能在工具返回**之后**才写出 `![](uri)`，所以在那之前 part 只会在回复末尾投影成一个块；占位一出现，块就被抑制、卡片画在占位处。两次渲染之间可能看到一次位移，属于流式的必然。
 
 **门禁**：`dart analyze --fatal-infos lib test` 干净；`test/features/image_job` + `test/core/models` + `test/features/chat/widgets` **990 条绿**；clarity test #7 通过（`clarity-test-mwkq4bop-66e923`）。
 

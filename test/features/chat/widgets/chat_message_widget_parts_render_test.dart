@@ -1149,6 +1149,40 @@ void main() {
     expect(find.byType(ImageJobCard), findsOneWidget);
   });
 
+  testWidgets('a placeholder written twice still draws one card', (
+    tester,
+  ) async {
+    // Nothing stops the model from writing the same uri in the body and again in
+    // a closing line. Each match used to get a whole card: two skeletons, two ⋯,
+    // both opening the same panel. The first mention owns the card; a later one
+    // is the same picture.
+    const uri = 'kelivo-file:///images/img_abcdefghijklmnopqrst.png';
+    await tester.pumpWidget(
+      _buildHarness(
+        child: ChatMessageWidget(
+          message: ChatMessage(
+            id: 'twice-job-image',
+            role: 'assistant',
+            conversationId: 'c1',
+            parts: const [
+              TextPart('BEFORE_MARK\n\n![]($uri)\n\nAFTER_MARK\n\n![]($uri)'),
+              ImagePart(
+                uri: uri,
+                assetId: 'img_abcdefghijklmnopqrst',
+                jobId: 'job-1',
+              ),
+            ],
+          ),
+          showModelIcon: false,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ImageJobCard), findsOneWidget);
+  });
+
   testWidgets('a promised picture quoted in code is still drawn somewhere', (
     tester,
   ) async {

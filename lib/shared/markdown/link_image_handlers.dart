@@ -119,12 +119,18 @@ class KelivoImageBuilder implements ImageBuilder {
   /// A generated illustration is owned by an image job: while the bytes are
   /// still missing the block is a skeleton, and once they land it is the same
   /// block with the picture in it. Returning null means "an ordinary image".
-  final Widget? Function(BuildContext context, String destination)?
+  /// The offset is the node's own position in the source, so a reply that writes
+  /// the same placeholder twice can give the block to the first mention only.
+  final Widget? Function(BuildContext context, String destination, int offset)?
   jobImageBuilder;
 
   @override
   Widget build(BuildContext context, ImageNode image, MarkstreamTheme theme) {
-    final owned = jobImageBuilder?.call(context, image.destination);
+    final owned = jobImageBuilder?.call(
+      context,
+      image.destination,
+      image.span.start,
+    );
     if (owned != null) return owned;
     final size = markdownImageSizeOf(toPlainText(image));
 

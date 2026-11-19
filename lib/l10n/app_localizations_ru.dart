@@ -16252,7 +16252,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get retry => 'Повторить';
 
   @override
-  String get imageJobTitle => 'Создание иллюстрации';
+  String get imageJobTitle => 'Иллюстрация';
 
   @override
   String get imageJobFailed => 'Не удалось создать иллюстрацию';

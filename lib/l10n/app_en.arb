@@ -7944,7 +7944,7 @@
   "selectionRegenerate": "Regenerate",
   "translating": "Translating…",
   "retry": "Retry",
-  "imageJobTitle": "Generating illustration",
+  "imageJobTitle": "Illustration",
   "@imageJobTitle": {
     "description": "Header of the card that holds a picture the assistant is generating inside its reply; the UI appends the elapsed time."
   },

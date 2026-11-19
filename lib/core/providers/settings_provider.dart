@@ -3717,6 +3717,10 @@ class SettingsProvider extends ChangeNotifier {
       await prefs.remove(_translateModelKey);
       changed = true;
     }
+    // The drawing model: dropped like every other per-task model, so a stale
+    // pair cannot keep a tool "configured". This inline rule is the only copy —
+    // the assistant-level tier is swept by
+    // `AssistantProvider.clearModelSelectionsForProvider`.
     if (_imageModelProvider == providerKey) {
       _imageModelProvider = null;
       _imageModelId = null;
@@ -4053,13 +4057,6 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = _preferences;
     await prefs.remove(_imageModelKey);
-  }
-
-  /// Drop the drawing model when its provider disappears, exactly like the
-  /// other per-task models, so a stale pair cannot keep a tool "configured".
-  Future<void> clearImageModelForProvider(String providerKey) async {
-    if (_imageModelProvider != providerKey) return;
-    await resetImageModel();
   }
 
   static bool isValidImageModelSelection(String providerKey, String modelId) =>

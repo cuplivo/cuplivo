@@ -1266,7 +1266,10 @@ class ChatActions {
     final toolEvents = _copyToolEvents(message.id);
     Future<void> writeFinal() async {
       await chatService.finalizeGenerationRunSilent(
-        message: message,
+        // Ran here, not where the snapshot was taken: the checkpoint queue's
+        // tail can be a quarter second, and a picture finishing inside that
+        // window is `pending` in the snapshot the reply is about to commit.
+        message: _freshenImageParts(message),
         toolEvents: toolEvents,
         generationRunId: cursor?.runId,
         expectedState: cursor?.state,
@@ -1751,6 +1754,19 @@ class ChatActions {
       for (final part in coordinator.partsFor(messageId))
         if (!present.contains(part.assetId)) part,
     ];
+  }
+
+  /// The reply's parts with every picture's live state folded in.
+  ///
+  /// The finalize write is the last reader of a snapshot that may be older than
+  /// the picture it contains; the coordinator's job map is the authority there,
+  /// exactly as it is for the renderer.
+  ChatMessage _freshenImageParts(ChatMessage message) {
+    final coordinator = imageJobCoordinatorOf(contextProvider);
+    if (coordinator == null) return message;
+    final parts = coordinator.freshenParts(message.parts);
+    if (identical(parts, message.parts)) return message;
+    return message.copyWith(parts: parts);
   }
 
   Future<List<MessagePart>> _sanitizeAssistantImageParts(

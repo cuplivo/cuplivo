@@ -4672,7 +4672,7 @@
   "selectionRegenerate": "Сгенерировать заново",
   "translating": "Перевод…",
   "retry": "Повторить",
-  "imageJobTitle": "Создание иллюстрации",
+  "imageJobTitle": "Иллюстрация",
   "imageJobFailed": "Не удалось создать иллюстрацию",
   "imageJobInterrupted": "Иллюстрация прервана",
   "assistantEditLocalToolImageTitle": "Рисование",

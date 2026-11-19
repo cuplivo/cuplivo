@@ -28167,7 +28167,7 @@ abstract class AppLocalizations {
   /// Header of the card that holds a picture the assistant is generating inside its reply; the UI appends the elapsed time.
   ///
   /// In en, this message translates to:
-  /// **'Generating illustration'**
+  /// **'Illustration'**
   String get imageJobTitle;
 
   /// Header of the same card when the picture could not be generated; a sentence explaining why follows it.

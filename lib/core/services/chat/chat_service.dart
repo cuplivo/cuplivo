@@ -2483,8 +2483,11 @@ class ChatService extends ChangeNotifier {
     for (final part in message.parts) {
       if (part is ImagePart) {
         // Unavailable placeholders stay in history for UI but must not enter
-        // asset sync — missing files would otherwise dirty/throw forever.
-        if (part.unavailable) continue;
+        // asset sync — missing files would otherwise dirty/throw forever. A
+        // promise is the same case one level earlier: `state != null` means no
+        // bytes exist yet, and this walk must not be the one place that asks the
+        // filesystem about a file nobody wrote.
+        if (part.unavailable || !part.hasBytes) continue;
         final uri = part.uri.trim();
         if (uri.isEmpty || uri.startsWith('http') || uri.startsWith('data:')) {
           continue;

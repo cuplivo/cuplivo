@@ -15486,7 +15486,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get retry => '다시 시도';
 
   @override
-  String get imageJobTitle => '일러스트 생성 중';
+  String get imageJobTitle => '일러스트';
 
   @override
   String get imageJobFailed => '일러스트 생성 실패';

@@ -16070,7 +16070,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get retry => 'Yeniden dene';
 
   @override
-  String get imageJobTitle => 'İllüstrasyon oluşturuluyor';
+  String get imageJobTitle => 'İllüstrasyon';
 
   @override
   String get imageJobFailed => 'İllüstrasyon başarısız oldu';

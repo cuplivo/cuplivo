@@ -1668,17 +1668,16 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     return 'AI Assistant';
   }
 
-  Assistant? _assistantForMessage({BuildContext? from}) {
+  Assistant? _assistantForMessage() {
     // One member's regexes must not run over another member's words.
     final author = widget.author;
     if (author != null) return author;
-    final ctx = from ?? context;
     try {
-      final chat = ctx.read<ChatService>();
+      final chat = context.read<ChatService>();
       final convo = chat.getConversation(widget.message.conversationId);
       final aId = convo?.assistantId;
       if (aId == null || aId.isEmpty) return null;
-      final ap = ctx.watch<AssistantProvider>();
+      final ap = context.watch<AssistantProvider>();
       return ap.getById(aId);
     } catch (_) {
       return null;

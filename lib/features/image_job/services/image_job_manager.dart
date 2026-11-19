@@ -109,6 +109,9 @@ class ImageJobManager extends ChangeNotifier {
         current.copyWith(
           state: ImageJobState.completed,
           resultUri: outcome.uri,
+          // Carried, not dropped: the promised file is named `.png` whatever came
+          // back, so the type has to travel on the job or it is lost for good.
+          mime: outcome.mime,
           finishedAt: _clock(),
         ),
       );

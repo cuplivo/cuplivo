@@ -51062,7 +51062,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get retry => '重試';
 
   @override
-  String get imageJobTitle => '正在生成插圖';
+  String get imageJobTitle => '生成插圖';
 
   @override
   String get imageJobFailed => '生成失敗';

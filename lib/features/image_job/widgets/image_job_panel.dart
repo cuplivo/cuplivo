@@ -52,8 +52,14 @@ Future<void> showImageJobPanel(BuildContext context, ImageJobPanelData data) {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         clipBehavior: Clip.antiAlias,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 340),
-          child: Padding(
+          // A prompt is unbounded text: without a ceiling the column grows past
+          // the window and the tail of it is unreachable. The phone branch has
+          // always scrolled; this one did not.
+          constraints: BoxConstraints(
+            maxWidth: 340,
+            maxHeight: MediaQuery.sizeOf(ctx).height * 0.8,
+          ),
+          child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
             child: ImageJobPanelBody(data: data),
           ),

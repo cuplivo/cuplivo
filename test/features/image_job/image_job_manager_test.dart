@@ -119,6 +119,21 @@ void main() {
     expect(settled.error, 'The reply contained no image link.');
   });
 
+  test('the backend\'s mime travels on the job', () async {
+    // The promised file is named `.png` whatever came back, so the type has to
+    // ride on the job — otherwise a JPEG is stored and re-sent as `image/png`.
+    final manager = _manager(
+      runner: (_) async =>
+          const ImageJobOutcome(uri: '/tmp/out.png', mime: 'image/jpeg'),
+    );
+    final job = _create(manager);
+
+    final settled = await manager.start(job.id);
+
+    expect(settled.state, ImageJobState.completed);
+    expect(settled.mime, 'image/jpeg');
+  });
+
   test('job states describe liveness honestly', () {
     // Four values, and every one of them is reachable: nothing cancels a job,
     // and a process that dies takes its jobs with it (the renderer derives

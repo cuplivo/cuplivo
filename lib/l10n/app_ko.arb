@@ -4672,7 +4672,7 @@
   "selectionRegenerate": "다시 생성",
   "translating": "번역 중…",
   "retry": "다시 시도",
-  "imageJobTitle": "일러스트 생성 중",
+  "imageJobTitle": "일러스트",
   "imageJobFailed": "일러스트 생성 실패",
   "imageJobInterrupted": "일러스트 중단됨",
   "assistantEditLocalToolImageTitle": "그리기",

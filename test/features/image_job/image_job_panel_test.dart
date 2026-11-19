@@ -80,7 +80,10 @@ void main() {
           builder: (context, child) =>
               AppSnackBarOverlay(child: child ?? const SizedBox.shrink()),
           home: Scaffold(
-            body: SingleChildScrollView(child: ImageJobPanelBody(data: data)),
+            // Deliberately not wrapped in a scroll view: the body has to survive
+            // a bare Scaffold the way it survives the real shell, or the harness
+            // hides the overflow the desktop dialog used to have.
+            body: ImageJobPanelBody(data: data),
           ),
         ),
       ),
@@ -189,6 +192,59 @@ void main() {
     expect(find.text('gpt-image-1'), findsOneWidget);
     expect(find.text('霓虹雨夜的旧书店'), findsOneWidget);
   });
+
+  testWidgets(
+    'the desktop dialog scrolls a long prompt instead of overflowing',
+    (tester) async {
+      // The phone shell has always scrolled. The desktop one wrapped the same
+      // unbounded column in a Dialog with no ceiling, so a long prompt painted
+      // past the window. This opens the real shell, not the body.
+      tester.view.physicalSize = const Size(1400, 700);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final longPrompt = '很长的提示词。' * 400;
+      await tester.pumpWidget(
+        ChangeNotifierProvider<SettingsProvider>.value(
+          value: settings,
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (context, child) =>
+                AppSnackBarOverlay(child: child ?? const SizedBox.shrink()),
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: Center(
+                  child: TextButton(
+                    onPressed: () => showImageJobPanel(
+                      context,
+                      ImageJobPanelData(part: _part(prompt: longPrompt)),
+                    ),
+                    child: const Text('open'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      final scrollable = find.descendant(
+        of: find.byType(Dialog),
+        matching: find.byType(Scrollable),
+      );
+      expect(scrollable, findsOneWidget);
+      // Reachable, not merely unbounded: there is something to scroll.
+      final position = tester.state<ScrollableState>(scrollable).position;
+      expect(position.maxScrollExtent, greaterThan(0));
+
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 
   test('the model row prefers the configured name over the raw id', () {
     expect(

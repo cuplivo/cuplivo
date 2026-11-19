@@ -15974,7 +15974,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get retry => 'Retry';
 
   @override
-  String get imageJobTitle => 'Generating illustration';
+  String get imageJobTitle => 'Illustration';
 
   @override
   String get imageJobFailed => 'Illustration failed';

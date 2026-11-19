@@ -323,6 +323,9 @@ class ImageJobCoordinator extends ChangeNotifier {
     };
     return ImagePart(
       uri: job.resultUri ?? job.uri,
+      // The real type, so a JPEG/WebP is not re-sent to a model as `image/png`
+      // just because the promised path ends in `.png`.
+      mime: job.mime,
       assetId: job.assetId,
       jobId: job.id,
       state: state,
@@ -341,6 +344,19 @@ class ImageJobCoordinator extends ChangeNotifier {
     if (finished == null) return null;
     return finished.difference(started);
   }
+
+  /// The authoritative shape of a reply's parts, for a writer about to commit
+  /// them.
+  ///
+  /// A reply is written from a snapshot taken while it streamed, so a picture
+  /// that finished between the snapshot and the commit comes back as `pending`.
+  /// Nothing would repair that afterwards: the mirror has already recorded
+  /// `completed`, and no further transition is coming — so the picture would be
+  /// skipped by every outbound walk (no bytes) and read as "interrupted" after a
+  /// restart, while its file sits on disk. The renderer's rule applies to the
+  /// writer too: a live job's state beats a frozen copy.
+  List<MessagePart> freshenParts(List<MessagePart> parts) =>
+      freshenImageParts(parts, manager.byId, _partFor);
 
   /// Replace the part carrying this asset, or append it when the message has
   /// none yet.
@@ -466,4 +482,37 @@ class ImageJobCoordinator extends ChangeNotifier {
   /// `img_` + 20 hex, the same shape every other image handle in the app has.
   String _assetIdFor(String idempotencyKey) =>
       'img_${sha256.convert(utf8.encode(idempotencyKey)).toString().substring(0, 20)}';
+}
+
+/// [freshenParts]'s rule, pure: hand it the parts and how to answer "what does
+/// this job say now" and it returns the list a writer should commit.
+///
+/// Kept out of the coordinator so it can be tested without a `ChatService`; the
+/// interesting cases are all about disagreement, not about the wiring.
+List<MessagePart> freshenImageParts(
+  List<MessagePart> parts,
+  ImageJob? Function(String jobId) jobFor,
+  ImagePart Function(ImageJob job) partFor,
+) {
+  var changed = false;
+  final out = <MessagePart>[];
+  for (final part in parts) {
+    final jobId = part is ImagePart ? part.jobId : null;
+    final job = jobId == null ? null : jobFor(jobId);
+    if (job == null) {
+      out.add(part);
+      continue;
+    }
+    final live = partFor(job);
+    if (live.state == (part as ImagePart).state &&
+        live.uri == part.uri &&
+        live.mime == part.mime) {
+      out.add(part);
+      continue;
+    }
+    // The job wins: the snapshot is older than the state it describes.
+    out.add(live);
+    changed = true;
+  }
+  return changed ? out : parts;
 }

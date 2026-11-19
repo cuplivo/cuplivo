@@ -4672,7 +4672,7 @@
   "selectionRegenerate": "Yeniden oluştur",
   "translating": "Çevriliyor…",
   "retry": "Yeniden dene",
-  "imageJobTitle": "İllüstrasyon oluşturuluyor",
+  "imageJobTitle": "İllüstrasyon",
   "imageJobFailed": "İllüstrasyon başarısız oldu",
   "imageJobInterrupted": "İllüstrasyon kesintiye uğradı",
   "assistantEditLocalToolImageTitle": "Çizim",

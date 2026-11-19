@@ -47,6 +47,7 @@ final class ImageJob {
     this.error,
     this.errorCode,
     this.resultUri,
+    this.mime,
     this.startedAt,
     this.finishedAt,
   });
@@ -74,6 +75,13 @@ final class ImageJob {
   /// `timeout` or `provider_error`, for code that branches on the kind.
   final String? errorCode;
   final String? resultUri;
+
+  /// The type the backend actually returned. The promised path keeps a `.png`
+  /// name because the model already wrote that exact uri into the reply, so this
+  /// is the only place the real type survives — readers must not infer it from
+  /// the extension.
+  final String? mime;
+
   final DateTime createdAt;
   final DateTime? startedAt;
   final DateTime? finishedAt;
@@ -84,6 +92,7 @@ final class ImageJob {
     Object? error = _unset,
     Object? errorCode = _unset,
     Object? resultUri = _unset,
+    Object? mime = _unset,
     DateTime? startedAt,
     DateTime? finishedAt,
   }) {
@@ -106,6 +115,7 @@ final class ImageJob {
       resultUri: identical(resultUri, _unset)
           ? this.resultUri
           : resultUri as String?,
+      mime: identical(mime, _unset) ? this.mime : mime as String?,
       startedAt: startedAt ?? this.startedAt,
       finishedAt: finishedAt ?? this.finishedAt,
     );

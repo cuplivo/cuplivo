@@ -776,6 +776,8 @@ class ChatInputBar extends StatefulWidget {
     this.onToggleOcr,
     this.conversationId,
     this.sendButtonTooltip,
+    this.composerFieldKey,
+    this.sendButtonKey,
     this.leading,
     this.onTapLeading,
     this.leadingTooltip,
@@ -863,6 +865,16 @@ class ChatInputBar extends StatefulWidget {
   final String? chatModelProviderKey;
   final String? chatModelId;
   final String? sendButtonTooltip;
+
+  /// Optional stable keys for integration tests that drive this composer from
+  /// outside its own widget tree (the DSH chat slice's E2E scenario).
+  ///
+  /// [composerFieldKey] wraps the text editor (the test enters text through a
+  /// descendant `EditableText`); [sendButtonKey] sits on the compact send
+  /// button. Both are null for every existing caller, so nothing changes for
+  /// the local chat.
+  final Key? composerFieldKey;
+  final Key? sendButtonKey;
 
   /// Replaces the model-select slot at the start of the composer.
   ///
@@ -4955,6 +4967,7 @@ class _ChatInputBarState extends State<ChatInputBar>
                                                   .watch<SettingsProvider>()
                                                   .enterToSendOnMobile;
                                               return GestureDetector(
+                                                key: widget.composerFieldKey,
                                                 behavior: HitTestBehavior
                                                     .deferToChild,
                                                 // onSecondaryTapDown: (details) {
@@ -5199,6 +5212,7 @@ class _ChatInputBarState extends State<ChatInputBar>
                                                     const SizedBox(width: 8),
                                                   ],
                                                   _CompactSendButton(
+                                                    key: widget.sendButtonKey,
                                                     enabled:
                                                         hasInput &&
                                                         !_composerLocked &&
@@ -5652,6 +5666,7 @@ class _ContextUsageInputControl extends StatelessWidget {
 // New compact send button for the integrated input bar
 class _CompactSendButton extends StatelessWidget {
   const _CompactSendButton({
+    super.key,
     required this.enabled,
     required this.onSend,
     required this.color,

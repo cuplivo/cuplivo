@@ -33119,6 +33119,882 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Picks who speaks next in a group chat. A fast, low-cost model is the best fit.'**
   String get defaultModelPageDirectorModelSubtitle;
+
+  /// The DeepSeek Harness product name. Brand name: identical in every locale; used as the create-menu row label, the default assistant name and the fallback for an unnamed remote record.
+  ///
+  /// In en, this message translates to:
+  /// **'DeepSeek Harness'**
+  String get dshProductName;
+
+  /// Title of the sheet/dialog shown after tapping the DeepSeek Harness row in the create menu; lists the connection methods. Phase 1 has only the direct row.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to a new DeepSeek Harness'**
+  String get dshConnectSheetTitle;
+
+  /// The direct-connection row in the engine sheet: connect to the WebUI URL of a DeepSeek Harness on the same LAN or exposed on the public network.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct connection'**
+  String get dshConnectModeDirect;
+
+  /// Generic cancel action used by the DeepSeek Harness engine dialog and the delete-confirmation dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get dshCancel;
+
+  /// The filled action at the bottom of the DeepSeek Harness connection card; creates and connects a new remote, or updates and reconnects an existing one.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get dshConfirm;
+
+  /// Label above the editable name field in the DeepSeek Harness connection settings card.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant name'**
+  String get dshAssistantNameLabel;
+
+  /// Subtitle of a DeepSeek Harness owner card in 助手与群聊 and of the owner row in the sidebar; states that this assistant is a remote connection.
+  ///
+  /// In en, this message translates to:
+  /// **'DeepSeek Harness over a remote connection'**
+  String get dshAssistantSubtitle;
+
+  /// Label above the URL field that accepts the WebUI link printed by `dsh web`, including the launch token.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the DeepSeek Harness WebUI link'**
+  String get dshWebUiUrlLabel;
+
+  /// Placeholder of the WebUI link field. The token is a truncated example from the product brief, not a real credential.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…'**
+  String get dshWebUiUrlHint;
+
+  /// Small hint under the WebUI link field explaining when a direct connection works.
+  ///
+  /// In en, this message translates to:
+  /// **'For a DeepSeek Harness on the same LAN, or one exposed on the public network.'**
+  String get dshWebUiUrlHelper;
+
+  /// First tab of the DeepSeek Harness assistant settings page: name and WebUI URL.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection'**
+  String get dshTabConnection;
+
+  /// Second tab of the DeepSeek Harness assistant settings page: the two settings Cuplivo exposes for the remote.
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get dshTabGeneral;
+
+  /// Third tab of the DeepSeek Harness assistant settings page; the remote model/provider catalog lands here.
+  ///
+  /// In en, this message translates to:
+  /// **'Models'**
+  String get dshTabModels;
+
+  /// Fourth tab of the DeepSeek Harness assistant settings page; plugin-provided content settings land here.
+  ///
+  /// In en, this message translates to:
+  /// **'Content'**
+  String get dshTabContent;
+
+  /// General-settings row on the DeepSeek Harness assistant settings page: chooses the remote's own default permission preset for new sessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Default permission limit for new sessions'**
+  String get dshDefaultPermissionLabel;
+
+  /// General-settings switch on the DeepSeek Harness assistant settings page: mirrors the remote's session-log upload setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload session logs when using the official model API'**
+  String get dshUploadSessionLogLabel;
+
+  /// Value shown for the default-permission row when no preset is chosen and the server's own default applies.
+  ///
+  /// In en, this message translates to:
+  /// **'DeepSeek Harness default'**
+  String get dshPermissionUnset;
+
+  /// Title of the sheet that picks the remote permission preset applied to new sessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Default permission for new sessions'**
+  String get dshPermissionPickerTitle;
+
+  /// Link status label: no live connection to this DeepSeek Harness.
+  ///
+  /// In en, this message translates to:
+  /// **'Not connected'**
+  String get dshStatusIdle;
+
+  /// Link status label while a connect/reconnect attempt is running.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get dshStatusConnecting;
+
+  /// Link status label: the DeepSeek Harness link is ready.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get dshStatusReady;
+
+  /// Notice on the General tab of the DeepSeek Harness assistant settings page while the remote is not connected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to DeepSeek Harness to change these settings.'**
+  String get dshGeneralNotConnected;
+
+  /// Placeholder body of the Models tab of the DeepSeek Harness assistant settings page until the model slice lands.
+  ///
+  /// In en, this message translates to:
+  /// **'DeepSeek Harness models and providers will be managed here.'**
+  String get dshModelsPlaceholder;
+
+  /// Placeholder body of the Content tab of the DeepSeek Harness assistant settings page until that slice lands.
+  ///
+  /// In en, this message translates to:
+  /// **'Plugin-provided content settings will appear here.'**
+  String get dshContentPlaceholder;
+
+  /// Inline failure shown when no protocol adapter is registered (fine-grained foundation builds/tests).
+  ///
+  /// In en, this message translates to:
+  /// **'The DeepSeek Harness client is not wired up yet, so connecting is unavailable.'**
+  String get dshErrorNotConfigured;
+
+  /// Inline failure shown when the remote host does not answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach that DeepSeek Harness. Check the address and the network.'**
+  String get dshErrorUnreachable;
+
+  /// Inline failure shown when the stored cookie is no longer valid; the user must paste a fresh WebUI link with the current launch token.
+  ///
+  /// In en, this message translates to:
+  /// **'The connection was refused. Paste the WebUI link again.'**
+  String get dshErrorAuth;
+
+  /// Inline failure shown when the server answers with an unexpected protocol shape.
+  ///
+  /// In en, this message translates to:
+  /// **'DeepSeek Harness returned a response this app does not understand.'**
+  String get dshErrorProtocol;
+
+  /// Inline failure shown when a capability is absent from the installed DeepSeek Harness version.
+  ///
+  /// In en, this message translates to:
+  /// **'This DeepSeek Harness version does not support that feature.'**
+  String get dshErrorUnsupported;
+
+  /// Generic inline failure for a DeepSeek Harness operation whose cause has no specific message.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection failed. Try again later.'**
+  String get dshErrorUnknown;
+
+  /// Validation message on the DeepSeek Harness connection form when the name field is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an assistant name.'**
+  String get dshErrorNameRequired;
+
+  /// Validation message on the DeepSeek Harness connection form when the pasted WebUI link cannot be parsed.
+  ///
+  /// In en, this message translates to:
+  /// **'That link is not valid. Paste the WebUI link printed by DeepSeek Harness.'**
+  String get dshErrorInvalidLink;
+
+  /// Tooltip of the delete action in the DeepSeek Harness assistant settings page app bar.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete DeepSeek Harness'**
+  String get dshRemoteDeleteTooltip;
+
+  /// Title of the confirmation dialog that removes a remote DeepSeek Harness connection from Cuplivo.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete DeepSeek Harness?'**
+  String get dshRemoteDeleteTitle;
+
+  /// Body of the delete-confirmation dialog: the remote keeps all of its own sessions and settings.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes the connection from Cuplivo only. Nothing on DeepSeek Harness is deleted.'**
+  String get dshRemoteDeleteContent;
+
+  /// Destructive confirmation button that removes a remote DeepSeek Harness connection.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get dshRemoteDeleteConfirm;
+
+  /// Sidebar entry in DeepSeek Harness mode that opens the plugin list.
+  ///
+  /// In en, this message translates to:
+  /// **'Plugins'**
+  String get dshSidebarPlugins;
+
+  /// Sidebar entry in DeepSeek Harness mode that opens scheduled tasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Automations'**
+  String get dshSidebarAutomations;
+
+  /// Sidebar entry in DeepSeek Harness mode that opens the remaining destinations.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get dshSidebarMore;
+
+  /// Label of the new-session row in the DeepSeek Harness sidebar and the fallback title of a session the host has not titled.
+  ///
+  /// In en, this message translates to:
+  /// **'New session'**
+  String get dshNewSession;
+
+  /// Tooltip of the app bar new-session button in DeepSeek Harness mode.
+  ///
+  /// In en, this message translates to:
+  /// **'New session'**
+  String get dshNewSessionTooltip;
+
+  /// Fallback label for a DeepSeek Harness workspace whose title is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Default workspace'**
+  String get dshDefaultWorkspace;
+
+  /// Empty state of the DeepSeek Harness sidebar when the host reports no sessions.
+  ///
+  /// In en, this message translates to:
+  /// **'No sessions yet'**
+  String get dshSessionsEmpty;
+
+  /// Loading state of the DeepSeek Harness sidebar while the remote session list is read.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading sessions…'**
+  String get dshSessionsLoading;
+
+  /// Error state of the DeepSeek Harness sidebar when the session list read failed; retry sits next to it.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t load the remote sessions'**
+  String get dshSessionsFailed;
+
+  /// Unavailable state of the DeepSeek Harness sidebar when no protocol adapter is wired.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote sessions aren’t available in this build'**
+  String get dshCatalogUnavailable;
+
+  /// Second line of the unavailable sidebar state explaining what is missing.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect the DeepSeek Harness client to list its sessions here.'**
+  String get dshCatalogUnavailableHint;
+
+  /// Generic toast when a DeepSeek Harness session action is refused or fails.
+  ///
+  /// In en, this message translates to:
+  /// **'That didn’t work. Try again.'**
+  String get dshOperationFailed;
+
+  /// Title of the dialog that renames a remote DeepSeek Harness session.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename session'**
+  String get dshSessionRenameTitle;
+
+  /// Menu action that forks a remote DeepSeek Harness session.
+  ///
+  /// In en, this message translates to:
+  /// **'Create branch'**
+  String get dshSessionFork;
+
+  /// Menu action that archives a remote DeepSeek Harness session.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive'**
+  String get dshSessionArchive;
+
+  /// Toast after a remote session was archived.
+  ///
+  /// In en, this message translates to:
+  /// **'Session archived'**
+  String get dshSessionArchived;
+
+  /// Toast after a remote session was deleted; only shown when the host serves delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Session deleted'**
+  String get dshSessionDeleted;
+
+  /// Title of the DeepSeek Harness right panel’s Start page.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get dshRailStart;
+
+  /// Right-panel tool card that opens the open session’s workspace files.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace files'**
+  String get dshRailWorkspaceFiles;
+
+  /// Subtitle of the workspace-files tool card.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse the files of this session’s workspace'**
+  String get dshRailWorkspaceFilesSubtitle;
+
+  /// Keyboard shortcut label shown on the workspace-files tool card (official DSH surface shortcut).
+  ///
+  /// In en, this message translates to:
+  /// **'Ctrl + P'**
+  String get dshRailWorkspaceFilesShortcut;
+
+  /// Right-panel tool card that opens a terminal for the open session.
+  ///
+  /// In en, this message translates to:
+  /// **'New terminal'**
+  String get dshRailNewTerminal;
+
+  /// Subtitle of the new-terminal tool card.
+  ///
+  /// In en, this message translates to:
+  /// **'Run commands in the session workspace'**
+  String get dshRailNewTerminalSubtitle;
+
+  /// Keyboard shortcut label shown on the new-terminal tool card.
+  ///
+  /// In en, this message translates to:
+  /// **'Ctrl + `'**
+  String get dshRailNewTerminalShortcut;
+
+  /// Right-panel tool card that opens the remaining panel entries.
+  ///
+  /// In en, this message translates to:
+  /// **'More tools'**
+  String get dshRailMoreTools;
+
+  /// Empty state of the right panel’s More tools page.
+  ///
+  /// In en, this message translates to:
+  /// **'No other tools from this host'**
+  String get dshRailMoreToolsEmpty;
+
+  /// Second line of the More tools empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'Plugin panels appear here when the host reports them.'**
+  String get dshRailMoreToolsEmptyHint;
+
+  /// Section heading above plugin-contributed right-panel entries.
+  ///
+  /// In en, this message translates to:
+  /// **'Plugins'**
+  String get dshRailPluginsSection;
+
+  /// Tooltip of the right panel action that gives it the whole width.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand panel'**
+  String get dshRailExpand;
+
+  /// Tooltip of the right panel action that docks it again.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse panel'**
+  String get dshRailCollapse;
+
+  /// Tooltip of the right panel close action.
+  ///
+  /// In en, this message translates to:
+  /// **'Close panel'**
+  String get dshRailClose;
+
+  /// Back action inside a right-panel page that returns to the Start page.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to start'**
+  String get dshRailBackToStart;
+
+  /// Tooltip of the app bar button that opens the DeepSeek Harness right panel.
+  ///
+  /// In en, this message translates to:
+  /// **'Right panel'**
+  String get dshRailToggle;
+
+  /// Right-panel file browser and terminal state when no remote session is open.
+  ///
+  /// In en, this message translates to:
+  /// **'Open a session first'**
+  String get dshFilesNoSession;
+
+  /// Unavailable state of the workspace-files page when no file API is wired.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote file browsing isn’t available in this build'**
+  String get dshFilesUnavailable;
+
+  /// Second line of the workspace-files unavailable state.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect the DeepSeek Harness client to browse workspace files here.'**
+  String get dshFilesUnavailableHint;
+
+  /// Tooltip of the back action in the workspace-file browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Parent folder'**
+  String get dshFilesParentFolder;
+
+  /// Tooltip of the back action that leaves a file preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to files'**
+  String get dshFilesBackToFiles;
+
+  /// Preview state for a binary or unreadable workspace file.
+  ///
+  /// In en, this message translates to:
+  /// **'This file can’t be previewed'**
+  String get dshFilesPreviewUnavailable;
+
+  /// Notice above a text preview when the host returned a page instead of the whole file.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the first page of this file.'**
+  String get dshFilesTruncated;
+
+  /// Terminal page state: the remote terminal surface is not wired yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote terminals aren’t available in this build'**
+  String get dshTerminalUnavailable;
+
+  /// Second line of the terminal unavailable state.
+  ///
+  /// In en, this message translates to:
+  /// **'DeepSeek Harness terminals arrive with the workspace slice.'**
+  String get dshTerminalUnavailableHint;
+
+  /// Home empty state when the remote link is not ready.
+  ///
+  /// In en, this message translates to:
+  /// **'DeepSeek Harness is not connected'**
+  String get dshHomeOfflineTitle;
+
+  /// Second line of the offline home state.
+  ///
+  /// In en, this message translates to:
+  /// **'Check the connection in the assistant settings, then try again.'**
+  String get dshHomeOfflineHint;
+
+  /// Button that retries connecting to or reading the remote.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get dshHomeRetry;
+
+  /// Home empty state when the remote is connected but no session is selected.
+  ///
+  /// In en, this message translates to:
+  /// **'No session open'**
+  String get dshHomeNoSession;
+
+  /// Placeholder page body for a DeepSeek Harness destination whose Flutter page lands in a later slice.
+  ///
+  /// In en, this message translates to:
+  /// **'This surface isn’t available in this build'**
+  String get dshSurfaceUnavailable;
+
+  /// Second line of the placeholder page.
+  ///
+  /// In en, this message translates to:
+  /// **'It will arrive with a later DeepSeek Harness slice.'**
+  String get dshSurfaceUnavailableHint;
+
+  /// Title of the DSH remote model picker sheet/dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a model'**
+  String get dshModelPickerTitle;
+
+  /// Search field hint in the DSH model picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Search providers or models'**
+  String get dshModelPickerSearchHint;
+
+  /// Provider filter pill that shows every provider group in the DSH model picker.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get dshModelPickerAllProviders;
+
+  /// Section header for providers the DeepSeek Harness server could not list models for.
+  ///
+  /// In en, this message translates to:
+  /// **'Providers that failed to load'**
+  String get dshModelPickerFailuresSection;
+
+  /// Empty state of the DSH model picker.
+  ///
+  /// In en, this message translates to:
+  /// **'This server offers no models right now.'**
+  String get dshModelPickerEmpty;
+
+  /// Badge on a model row saying the model supports reasoning effort selection.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning'**
+  String get dshModelReasoningBadge;
+
+  /// Title of the DSH reasoning-effort picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning effort'**
+  String get dshReasoningPickerTitle;
+
+  /// Marker next to the reasoning effort the server uses by default.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get dshReasoningDefaultTag;
+
+  /// Empty state when the selected model advertises no reasoning efforts.
+  ///
+  /// In en, this message translates to:
+  /// **'This model has no adjustable reasoning effort.'**
+  String get dshReasoningPickerNone;
+
+  /// Snackbar shown when the server refused a reasoning-effort change.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not change the reasoning effort.'**
+  String get dshReasoningChangeFailed;
+
+  /// Snackbar shown when the server refused a model switch.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not switch the model.'**
+  String get dshModelChangeFailed;
+
+  /// Title of the read-only model details dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Model details'**
+  String get dshModelDetailsTitle;
+
+  /// Row label in the model details dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider'**
+  String get dshModelDetailsProvider;
+
+  /// Row label in the model details dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning effort'**
+  String get dshModelDetailsEffort;
+
+  /// Row label in the model details dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Model ID'**
+  String get dshModelDetailsId;
+
+  /// Explains that the model configuration is owned by the remote server.
+  ///
+  /// In en, this message translates to:
+  /// **'Model and reasoning settings live on DeepSeek Harness; Cuplivo only requests them.'**
+  String get dshModelDetailsNote;
+
+  /// Title of the DSH session permission picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Permissions'**
+  String get dshPermissionTitle;
+
+  /// Permission preset that only reads.
+  ///
+  /// In en, this message translates to:
+  /// **'Read only'**
+  String get dshPermissionReadOnly;
+
+  /// Description of the read-only permission preset.
+  ///
+  /// In en, this message translates to:
+  /// **'The assistant can read files and answer, but cannot change anything.'**
+  String get dshPermissionReadOnlyDesc;
+
+  /// Permission preset that writes only inside the session workspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace write'**
+  String get dshPermissionWorkspaceWrite;
+
+  /// Description of the workspace-write permission preset.
+  ///
+  /// In en, this message translates to:
+  /// **'The assistant can create and edit files inside the session workspace.'**
+  String get dshPermissionWorkspaceWriteDesc;
+
+  /// Permission preset that allows commands anywhere the server can reach.
+  ///
+  /// In en, this message translates to:
+  /// **'Full access'**
+  String get dshPermissionFullAccess;
+
+  /// Description of the full-access permission preset.
+  ///
+  /// In en, this message translates to:
+  /// **'The assistant can run commands and change files anywhere the DeepSeek Harness host allows.'**
+  String get dshPermissionFullAccessDesc;
+
+  /// Small tag next to a destructive permission preset.
+  ///
+  /// In en, this message translates to:
+  /// **'Risky'**
+  String get dshPermissionRiskTag;
+
+  /// Title of the blocking confirmation before switching to a destructive permission preset.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow full access?'**
+  String get dshPermissionRiskTitle;
+
+  /// Body of the blocking confirmation before switching to a destructive permission preset.
+  ///
+  /// In en, this message translates to:
+  /// **'This lets the assistant run commands and change files on the DeepSeek Harness host without asking again. Only continue if you trust this server and this session.'**
+  String get dshPermissionRiskBody;
+
+  /// Checkbox the user must tick before confirming a destructive permission preset.
+  ///
+  /// In en, this message translates to:
+  /// **'I understand the risk'**
+  String get dshPermissionRiskAcknowledge;
+
+  /// Confirm button of the destructive permission risk dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get dshPermissionRiskConfirm;
+
+  /// Shown while a permission change is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Applying…'**
+  String get dshPermissionChanging;
+
+  /// Empty state when the server composes no permission presets.
+  ///
+  /// In en, this message translates to:
+  /// **'This server exposes no permission presets.'**
+  String get dshPermissionNoPresets;
+
+  /// Snackbar shown when the server refused a permission change.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not change the permission.'**
+  String get dshPermissionChangeFailed;
+
+  /// Title of the DSH composer plus menu.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get dshPlusSheetTitle;
+
+  /// Plus-menu row showing the session workspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace'**
+  String get dshPlusWorkspace;
+
+  /// Plus-menu workspace subtitle when the server reports no workspace.
+  ///
+  /// In en, this message translates to:
+  /// **'The server did not report a workspace for this session.'**
+  String get dshPlusWorkspaceUnknown;
+
+  /// Plus-menu row opening the session permission picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission'**
+  String get dshPlusPermission;
+
+  /// Plus-menu row opening the read-only model details.
+  ///
+  /// In en, this message translates to:
+  /// **'Model details'**
+  String get dshPlusModelDetails;
+
+  /// Plus-menu row that opens the right rail with plugin panels.
+  ///
+  /// In en, this message translates to:
+  /// **'Plugin panel (right rail)'**
+  String get dshPlusPluginPanel;
+
+  /// Explains why the plugin entry opens the rail rather than a page URL.
+  ///
+  /// In en, this message translates to:
+  /// **'DSH plugins have no standalone page; they contribute panels inside the Web UI.'**
+  String get dshPlusPluginPanelSubtitle;
+
+  /// Plus-menu row opening the DSH assistant settings.
+  ///
+  /// In en, this message translates to:
+  /// **'DSH settings'**
+  String get dshPlusSettings;
+
+  /// Header of a tool-approval card above the composer.
+  ///
+  /// In en, this message translates to:
+  /// **'Approval needed to continue'**
+  String get dshApprovalTitle;
+
+  /// Approval card button that allows this one tool call.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow once'**
+  String get dshApprovalAllow;
+
+  /// Approval card button that denies the tool call.
+  ///
+  /// In en, this message translates to:
+  /// **'Deny'**
+  String get dshApprovalDeny;
+
+  /// Header of a user-question card above the composer.
+  ///
+  /// In en, this message translates to:
+  /// **'The assistant needs your answer'**
+  String get dshQuestionTitle;
+
+  /// Submits the answers of a user-question card.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit'**
+  String get dshQuestionSubmit;
+
+  /// Declines a user-question card.
+  ///
+  /// In en, this message translates to:
+  /// **'Decline'**
+  String get dshQuestionReject;
+
+  /// Hint of the free-form answer field for a question without options.
+  ///
+  /// In en, this message translates to:
+  /// **'Type your answer'**
+  String get dshQuestionFreeformHint;
+
+  /// Empty transcript state in the remote chat.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a conversation with DeepSeek Harness'**
+  String get dshChatEmptyTitle;
+
+  /// Explains that a remote session lives on the server.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages are stored and executed by the DeepSeek Harness server, not by Cuplivo.'**
+  String get dshChatEmptyBody;
+
+  /// Banner over a transcript whose live link is down.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection lost — showing the last received content.'**
+  String get dshStaleBanner;
+
+  /// Number of prompts the server queued behind the running turn.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} queued'**
+  String dshQueuedCount(int count);
+
+  /// Snackbar title when the server rejected a prompt; the draft is restored.
+  ///
+  /// In en, this message translates to:
+  /// **'Message not sent'**
+  String get dshSendFailedTitle;
+
+  /// Shown when no chat controller can be resolved for the open session.
+  ///
+  /// In en, this message translates to:
+  /// **'The chat session is unavailable. Reconnect the assistant.'**
+  String get dshControllerUnavailable;
+
+  /// Page title of the plugin WebView host.
+  ///
+  /// In en, this message translates to:
+  /// **'Plugin panel'**
+  String get dshPluginPanelTitle;
+
+  /// Honest note explaining there is no per-plugin URL.
+  ///
+  /// In en, this message translates to:
+  /// **'DeepSeek Harness plugins are slots inside its Web UI and have no standalone address, so this page shows the full Web UI for this server.'**
+  String get dshWebPanelNoPluginUrl;
+
+  /// Loading state of the plugin WebView page.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening the DeepSeek Harness Web UI…'**
+  String get dshWebPanelLoading;
+
+  /// Title of the 401 state of the plugin WebView page.
+  ///
+  /// In en, this message translates to:
+  /// **'The WebUI session has expired'**
+  String get dshWebPanelUnauthorizedTitle;
+
+  /// Body of the 401 state of the plugin WebView page.
+  ///
+  /// In en, this message translates to:
+  /// **'The launch token changes when dsh web restarts. Reconnect the assistant with a fresh WebUI link, then open this page again.'**
+  String get dshWebPanelUnauthorizedBody;
+
+  /// Title of the network-error state of the plugin WebView page.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the Web UI'**
+  String get dshWebPanelNetworkTitle;
+
+  /// Body of the network-error state of the plugin WebView page.
+  ///
+  /// In en, this message translates to:
+  /// **'Check that the DeepSeek Harness host is reachable from this device and that the address still matches the running server.'**
+  String get dshWebPanelNetworkBody;
+
+  /// Title shown on platforms without an embedded WebView.
+  ///
+  /// In en, this message translates to:
+  /// **'This platform cannot embed the Web UI'**
+  String get dshWebPanelUnsupportedTitle;
+
+  /// Body shown on platforms without an embedded WebView.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the DeepSeek Harness WebUI in a browser on this device instead.'**
+  String get dshWebPanelUnsupportedBody;
+
+  /// Button in the 401 state that opens the assistant connection settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnect'**
+  String get dshWebPanelReconnect;
 }
 
 class _AppLocalizationsDelegate

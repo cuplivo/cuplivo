@@ -17926,6 +17926,457 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       '决定群聊里下一位发言者，建议选择快速且低成本的模型';
+
+  @override
+  String get dshProductName => 'DeepSeek Harness';
+
+  @override
+  String get dshConnectSheetTitle => '连接到一个新的DeepSeek Harness';
+
+  @override
+  String get dshConnectModeDirect => '直接连接';
+
+  @override
+  String get dshCancel => '取消';
+
+  @override
+  String get dshConfirm => '确认';
+
+  @override
+  String get dshAssistantNameLabel => '助手名称';
+
+  @override
+  String get dshAssistantSubtitle => '远程连接的 DeepSeek Harness';
+
+  @override
+  String get dshWebUiUrlLabel => '请输入DeepSeek Harness的WebUI访问链接';
+
+  @override
+  String get dshWebUiUrlHint => '例如127.0.0.1:3080/?token=PEaxKDfNOHzbHp……';
+
+  @override
+  String get dshWebUiUrlHelper =>
+      '适用于与DeepSeek Harness处于同一局域网，或DeepSeek Harness暴露在公网上';
+
+  @override
+  String get dshTabConnection => '连接设置';
+
+  @override
+  String get dshTabGeneral => '通用设置';
+
+  @override
+  String get dshTabModels => '模型';
+
+  @override
+  String get dshTabContent => '内容';
+
+  @override
+  String get dshDefaultPermissionLabel => '选择新会话的默认权限限制';
+
+  @override
+  String get dshUploadSessionLogLabel => '在使用官方模型API时上传Session Log';
+
+  @override
+  String get dshPermissionUnset => 'DeepSeek Harness 默认';
+
+  @override
+  String get dshPermissionPickerTitle => '新会话的默认权限限制';
+
+  @override
+  String get dshStatusIdle => '未连接';
+
+  @override
+  String get dshStatusConnecting => '正在连接…';
+
+  @override
+  String get dshStatusReady => '已连接';
+
+  @override
+  String get dshGeneralNotConnected => '连接 DeepSeek Harness 后可修改这些设置。';
+
+  @override
+  String get dshModelsPlaceholder => 'DeepSeek Harness 的模型与提供商设置将在这里提供。';
+
+  @override
+  String get dshContentPlaceholder => '插件提供的内容设置将在这里提供。';
+
+  @override
+  String get dshErrorNotConfigured => 'DeepSeek Harness 协议客户端尚未接入，连接暂时不可用。';
+
+  @override
+  String get dshErrorUnreachable => '无法连接到该 DeepSeek Harness，请检查地址与网络。';
+
+  @override
+  String get dshErrorAuth => '连接被拒绝，请重新粘贴 WebUI 访问链接。';
+
+  @override
+  String get dshErrorProtocol => 'DeepSeek Harness 返回了无法识别的响应。';
+
+  @override
+  String get dshErrorUnsupported => '当前 DeepSeek Harness 版本不支持该功能。';
+
+  @override
+  String get dshErrorUnknown => '连接失败，请稍后重试。';
+
+  @override
+  String get dshErrorNameRequired => '请输入助手名称。';
+
+  @override
+  String get dshErrorInvalidLink =>
+      '链接格式不正确，请粘贴 DeepSeek Harness 启动时显示的 WebUI 访问链接。';
+
+  @override
+  String get dshRemoteDeleteTooltip => '删除 DeepSeek Harness';
+
+  @override
+  String get dshRemoteDeleteTitle => '删除 DeepSeek Harness？';
+
+  @override
+  String get dshRemoteDeleteContent =>
+      '仅从 Cuplivo 移除此连接，不会删除 DeepSeek Harness 上的任何数据。';
+
+  @override
+  String get dshRemoteDeleteConfirm => '删除';
+
+  @override
+  String get dshSidebarPlugins => '插件';
+
+  @override
+  String get dshSidebarAutomations => '自动化任务';
+
+  @override
+  String get dshSidebarMore => '更多';
+
+  @override
+  String get dshNewSession => '新会话';
+
+  @override
+  String get dshNewSessionTooltip => '新建会话';
+
+  @override
+  String get dshDefaultWorkspace => '默认工作区';
+
+  @override
+  String get dshSessionsEmpty => '暂无会话';
+
+  @override
+  String get dshSessionsLoading => '正在加载会话…';
+
+  @override
+  String get dshSessionsFailed => '无法加载远程会话';
+
+  @override
+  String get dshCatalogUnavailable => '此构建暂未接通远程会话';
+
+  @override
+  String get dshCatalogUnavailableHint => '接入 DeepSeek Harness 客户端后可在这里列出会话。';
+
+  @override
+  String get dshOperationFailed => '操作未成功，请重试。';
+
+  @override
+  String get dshSessionRenameTitle => '重命名会话';
+
+  @override
+  String get dshSessionFork => '创建分支';
+
+  @override
+  String get dshSessionArchive => '归档';
+
+  @override
+  String get dshSessionArchived => '会话已归档';
+
+  @override
+  String get dshSessionDeleted => '会话已删除';
+
+  @override
+  String get dshRailStart => '开始';
+
+  @override
+  String get dshRailWorkspaceFiles => '工作区文件';
+
+  @override
+  String get dshRailWorkspaceFilesSubtitle => '浏览该会话工作区的文件';
+
+  @override
+  String get dshRailWorkspaceFilesShortcut => 'Ctrl + P';
+
+  @override
+  String get dshRailNewTerminal => '新建终端';
+
+  @override
+  String get dshRailNewTerminalSubtitle => '在会话工作区运行命令';
+
+  @override
+  String get dshRailNewTerminalShortcut => 'Ctrl + `';
+
+  @override
+  String get dshRailMoreTools => '更多工具';
+
+  @override
+  String get dshRailMoreToolsEmpty => '该主机暂无其他工具';
+
+  @override
+  String get dshRailMoreToolsEmptyHint => '插件面板会在主机上报后出现在这里。';
+
+  @override
+  String get dshRailPluginsSection => '插件';
+
+  @override
+  String get dshRailExpand => '展开面板';
+
+  @override
+  String get dshRailCollapse => '收起面板';
+
+  @override
+  String get dshRailClose => '关闭面板';
+
+  @override
+  String get dshRailBackToStart => '返回开始';
+
+  @override
+  String get dshRailToggle => '右侧面板';
+
+  @override
+  String get dshFilesNoSession => '请先打开一个会话';
+
+  @override
+  String get dshFilesUnavailable => '此构建暂未接通远程文件浏览';
+
+  @override
+  String get dshFilesUnavailableHint => '接入 DeepSeek Harness 客户端后可在这里浏览工作区文件。';
+
+  @override
+  String get dshFilesParentFolder => '上级目录';
+
+  @override
+  String get dshFilesBackToFiles => '返回文件列表';
+
+  @override
+  String get dshFilesPreviewUnavailable => '无法预览该文件';
+
+  @override
+  String get dshFilesTruncated => '仅显示该文件的开头部分。';
+
+  @override
+  String get dshTerminalUnavailable => '此构建暂未接通远程终端';
+
+  @override
+  String get dshTerminalUnavailableHint => 'DeepSeek Harness 终端将随工作区功能接入。';
+
+  @override
+  String get dshHomeOfflineTitle => 'DeepSeek Harness 未连接';
+
+  @override
+  String get dshHomeOfflineHint => '请在助手设置中检查连接后重试。';
+
+  @override
+  String get dshHomeRetry => '重试';
+
+  @override
+  String get dshHomeNoSession => '没有打开的会话';
+
+  @override
+  String get dshSurfaceUnavailable => '此构建暂未提供该页面';
+
+  @override
+  String get dshSurfaceUnavailableHint => '该页面将随后续 DeepSeek Harness 功能接入。';
+
+  @override
+  String get dshModelPickerTitle => '选择模型';
+
+  @override
+  String get dshModelPickerSearchHint => '搜索提供商或模型';
+
+  @override
+  String get dshModelPickerAllProviders => '全部';
+
+  @override
+  String get dshModelPickerFailuresSection => '加载失败的提供商';
+
+  @override
+  String get dshModelPickerEmpty => '该服务器当前没有提供可用的模型。';
+
+  @override
+  String get dshModelReasoningBadge => '推理';
+
+  @override
+  String get dshReasoningPickerTitle => '推理强度';
+
+  @override
+  String get dshReasoningDefaultTag => '默认';
+
+  @override
+  String get dshReasoningPickerNone => '此模型没有可调的推理强度。';
+
+  @override
+  String get dshReasoningChangeFailed => '无法更改推理强度。';
+
+  @override
+  String get dshModelChangeFailed => '无法切换模型。';
+
+  @override
+  String get dshModelDetailsTitle => '模型详情';
+
+  @override
+  String get dshModelDetailsProvider => '提供商';
+
+  @override
+  String get dshModelDetailsEffort => '推理强度';
+
+  @override
+  String get dshModelDetailsId => '模型 ID';
+
+  @override
+  String get dshModelDetailsNote =>
+      '模型与推理设置保存在 DeepSeek Harness 上，Cuplivo 只负责请求。';
+
+  @override
+  String get dshPermissionTitle => '权限';
+
+  @override
+  String get dshPermissionReadOnly => '只可查看';
+
+  @override
+  String get dshPermissionReadOnlyDesc => '助手可以读取文件并回答，但不能修改任何内容。';
+
+  @override
+  String get dshPermissionWorkspaceWrite => '工作区内修改';
+
+  @override
+  String get dshPermissionWorkspaceWriteDesc => '助手可以在会话工作区内创建和修改文件。';
+
+  @override
+  String get dshPermissionFullAccess => '全部权限';
+
+  @override
+  String get dshPermissionFullAccessDesc =>
+      '助手可以在 DeepSeek Harness 主机允许的范围内执行命令并修改任意文件。';
+
+  @override
+  String get dshPermissionRiskTag => '高风险';
+
+  @override
+  String get dshPermissionRiskTitle => '允许全部权限？';
+
+  @override
+  String get dshPermissionRiskBody =>
+      '这会允许助手在 DeepSeek Harness 主机上执行命令并修改文件，且不再逐次询问。请确认你信任该服务器和本次会话后再继续。';
+
+  @override
+  String get dshPermissionRiskAcknowledge => '我了解风险';
+
+  @override
+  String get dshPermissionRiskConfirm => '继续';
+
+  @override
+  String get dshPermissionChanging => '正在应用…';
+
+  @override
+  String get dshPermissionNoPresets => '该服务器没有提供可选的权限级别。';
+
+  @override
+  String get dshPermissionChangeFailed => '无法更改权限。';
+
+  @override
+  String get dshPlusSheetTitle => '更多';
+
+  @override
+  String get dshPlusWorkspace => '工作区';
+
+  @override
+  String get dshPlusWorkspaceUnknown => '服务器未提供此会话的工作区信息。';
+
+  @override
+  String get dshPlusPermission => '权限';
+
+  @override
+  String get dshPlusModelDetails => '模型详情';
+
+  @override
+  String get dshPlusPluginPanel => '插件面板（右栏）';
+
+  @override
+  String get dshPlusPluginPanelSubtitle => 'DSH 插件没有独立页面，它们以面板形式出现在网页界面中。';
+
+  @override
+  String get dshPlusSettings => 'DSH 设置';
+
+  @override
+  String get dshApprovalTitle => '需要你的批准才能继续';
+
+  @override
+  String get dshApprovalAllow => '允许一次';
+
+  @override
+  String get dshApprovalDeny => '拒绝';
+
+  @override
+  String get dshQuestionTitle => '助手需要你的回答';
+
+  @override
+  String get dshQuestionSubmit => '提交';
+
+  @override
+  String get dshQuestionReject => '拒绝回答';
+
+  @override
+  String get dshQuestionFreeformHint => '输入你的回答';
+
+  @override
+  String get dshChatEmptyTitle => '开始与 DeepSeek Harness 对话';
+
+  @override
+  String get dshChatEmptyBody =>
+      '消息由 DeepSeek Harness 服务器保存与执行，Cuplivo 不保存这些数据。';
+
+  @override
+  String get dshStaleBanner => '连接已断开，当前显示最后一次收到的内容。';
+
+  @override
+  String dshQueuedCount(int count) {
+    return '$count 条排队中';
+  }
+
+  @override
+  String get dshSendFailedTitle => '消息未发送';
+
+  @override
+  String get dshControllerUnavailable => '聊天会话不可用，请重新连接该助手。';
+
+  @override
+  String get dshPluginPanelTitle => '插件面板';
+
+  @override
+  String get dshWebPanelNoPluginUrl =>
+      'DeepSeek Harness 的插件是网页界面中的插槽，没有独立地址，因此这里显示该服务器的完整网页界面。';
+
+  @override
+  String get dshWebPanelLoading => '正在打开 DeepSeek Harness 网页界面…';
+
+  @override
+  String get dshWebPanelUnauthorizedTitle => '网页登录已失效';
+
+  @override
+  String get dshWebPanelUnauthorizedBody =>
+      'dsh web 重启后启动令牌会变化。请使用新的 WebUI 链接重新连接该助手，然后再次打开此页面。';
+
+  @override
+  String get dshWebPanelNetworkTitle => '无法打开网页界面';
+
+  @override
+  String get dshWebPanelNetworkBody =>
+      '请确认此设备能访问 DeepSeek Harness 主机，且地址仍与正在运行的服务器一致。';
+
+  @override
+  String get dshWebPanelUnsupportedTitle => '当前平台不支持内嵌网页';
+
+  @override
+  String get dshWebPanelUnsupportedBody =>
+      '请改用此设备上的浏览器打开 DeepSeek Harness 网页界面。';
+
+  @override
+  String get dshWebPanelReconnect => '重新连接';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -35850,6 +36301,117 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       '决定群聊里下一位发言者，建议选择快速且低成本的模型';
+
+  @override
+  String get dshProductName => 'DeepSeek Harness';
+
+  @override
+  String get dshConnectSheetTitle => '连接到一个新的DeepSeek Harness';
+
+  @override
+  String get dshConnectModeDirect => '直接连接';
+
+  @override
+  String get dshCancel => '取消';
+
+  @override
+  String get dshConfirm => '确认';
+
+  @override
+  String get dshAssistantNameLabel => '助手名称';
+
+  @override
+  String get dshAssistantSubtitle => '远程连接的 DeepSeek Harness';
+
+  @override
+  String get dshWebUiUrlLabel => '请输入DeepSeek Harness的WebUI访问链接';
+
+  @override
+  String get dshWebUiUrlHint => '例如127.0.0.1:3080/?token=PEaxKDfNOHzbHp……';
+
+  @override
+  String get dshWebUiUrlHelper =>
+      '适用于与DeepSeek Harness处于同一局域网，或DeepSeek Harness暴露在公网上';
+
+  @override
+  String get dshTabConnection => '连接设置';
+
+  @override
+  String get dshTabGeneral => '通用设置';
+
+  @override
+  String get dshTabModels => '模型';
+
+  @override
+  String get dshTabContent => '内容';
+
+  @override
+  String get dshDefaultPermissionLabel => '选择新会话的默认权限限制';
+
+  @override
+  String get dshUploadSessionLogLabel => '在使用官方模型API时上传Session Log';
+
+  @override
+  String get dshPermissionUnset => 'DeepSeek Harness 默认';
+
+  @override
+  String get dshPermissionPickerTitle => '新会话的默认权限限制';
+
+  @override
+  String get dshStatusIdle => '未连接';
+
+  @override
+  String get dshStatusConnecting => '正在连接…';
+
+  @override
+  String get dshStatusReady => '已连接';
+
+  @override
+  String get dshGeneralNotConnected => '连接 DeepSeek Harness 后可修改这些设置。';
+
+  @override
+  String get dshModelsPlaceholder => 'DeepSeek Harness 的模型与提供商设置将在这里提供。';
+
+  @override
+  String get dshContentPlaceholder => '插件提供的内容设置将在这里提供。';
+
+  @override
+  String get dshErrorNotConfigured => 'DeepSeek Harness 协议客户端尚未接入，连接暂时不可用。';
+
+  @override
+  String get dshErrorUnreachable => '无法连接到该 DeepSeek Harness，请检查地址与网络。';
+
+  @override
+  String get dshErrorAuth => '连接被拒绝，请重新粘贴 WebUI 访问链接。';
+
+  @override
+  String get dshErrorProtocol => 'DeepSeek Harness 返回了无法识别的响应。';
+
+  @override
+  String get dshErrorUnsupported => '当前 DeepSeek Harness 版本不支持该功能。';
+
+  @override
+  String get dshErrorUnknown => '连接失败，请稍后重试。';
+
+  @override
+  String get dshErrorNameRequired => '请输入助手名称。';
+
+  @override
+  String get dshErrorInvalidLink =>
+      '链接格式不正确，请粘贴 DeepSeek Harness 启动时显示的 WebUI 访问链接。';
+
+  @override
+  String get dshRemoteDeleteTooltip => '删除 DeepSeek Harness';
+
+  @override
+  String get dshRemoteDeleteTitle => '删除 DeepSeek Harness？';
+
+  @override
+  String get dshRemoteDeleteContent =>
+      '仅从 Cuplivo 移除此连接，不会删除 DeepSeek Harness 上的任何数据。';
+
+  @override
+  String get dshRemoteDeleteConfirm => '删除';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -53796,4 +54358,115 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       '決定群組聊天中下一位發言者，建議選擇快速且低成本的模型';
+
+  @override
+  String get dshProductName => 'DeepSeek Harness';
+
+  @override
+  String get dshConnectSheetTitle => '連線至新的 DeepSeek Harness';
+
+  @override
+  String get dshConnectModeDirect => '直接連線';
+
+  @override
+  String get dshCancel => '取消';
+
+  @override
+  String get dshConfirm => '確認';
+
+  @override
+  String get dshAssistantNameLabel => '助手名稱';
+
+  @override
+  String get dshAssistantSubtitle => '透過遠端連線的 DeepSeek Harness';
+
+  @override
+  String get dshWebUiUrlLabel => '貼上 DeepSeek Harness 的 WebUI 連結';
+
+  @override
+  String get dshWebUiUrlHint => '例如 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…';
+
+  @override
+  String get dshWebUiUrlHelper =>
+      '適用於與 DeepSeek Harness 位於同一區域網路，或 DeepSeek Harness 已公開於公網的情況。';
+
+  @override
+  String get dshTabConnection => '連線設定';
+
+  @override
+  String get dshTabGeneral => '一般設定';
+
+  @override
+  String get dshTabModels => '模型';
+
+  @override
+  String get dshTabContent => '內容';
+
+  @override
+  String get dshDefaultPermissionLabel => '選擇新工作階段的預設權限限制';
+
+  @override
+  String get dshUploadSessionLogLabel => '使用官方模型 API 時上傳 Session Log';
+
+  @override
+  String get dshPermissionUnset => 'DeepSeek Harness 預設';
+
+  @override
+  String get dshPermissionPickerTitle => '新工作階段的預設權限限制';
+
+  @override
+  String get dshStatusIdle => '未連線';
+
+  @override
+  String get dshStatusConnecting => '正在連線…';
+
+  @override
+  String get dshStatusReady => '已連線';
+
+  @override
+  String get dshGeneralNotConnected => '連線 DeepSeek Harness 後即可修改這些設定。';
+
+  @override
+  String get dshModelsPlaceholder => 'DeepSeek Harness 的模型與供應商設定將在這裡提供。';
+
+  @override
+  String get dshContentPlaceholder => '外掛提供的内容設定將在這裡顯示。';
+
+  @override
+  String get dshErrorNotConfigured => 'DeepSeek Harness 協定用戶端尚未接入，暫時無法連線。';
+
+  @override
+  String get dshErrorUnreachable => '無法連線至該 DeepSeek Harness，請檢查位址與網路。';
+
+  @override
+  String get dshErrorAuth => '連線遭拒，請重新貼上 WebUI 連結。';
+
+  @override
+  String get dshErrorProtocol => 'DeepSeek Harness 傳回了本應用程式無法辨識的回應。';
+
+  @override
+  String get dshErrorUnsupported => '目前的 DeepSeek Harness 版本不支援此功能。';
+
+  @override
+  String get dshErrorUnknown => '連線失敗，請稍後再試。';
+
+  @override
+  String get dshErrorNameRequired => '請輸入助手名稱。';
+
+  @override
+  String get dshErrorInvalidLink =>
+      '連結格式不正確，請貼上 DeepSeek Harness 啟動時顯示的 WebUI 連結。';
+
+  @override
+  String get dshRemoteDeleteTooltip => '刪除 DeepSeek Harness';
+
+  @override
+  String get dshRemoteDeleteTitle => '刪除 DeepSeek Harness？';
+
+  @override
+  String get dshRemoteDeleteContent =>
+      '僅從 Cuplivo 移除此連線，不會刪除 DeepSeek Harness 上的任何資料。';
+
+  @override
+  String get dshRemoteDeleteConfirm => '刪除';
 }

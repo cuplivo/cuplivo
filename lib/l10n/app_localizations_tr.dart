@@ -19039,4 +19039,489 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       'Grup sohbetinde sıradaki konuşmacıyı belirler. Hızlı ve düşük maliyetli bir model en uygun seçimdir.';
+
+  @override
+  String get dshProductName => 'DeepSeek Harness';
+
+  @override
+  String get dshConnectSheetTitle => 'Yeni bir DeepSeek Harness\'e bağlan';
+
+  @override
+  String get dshConnectModeDirect => 'Doğrudan bağlantı';
+
+  @override
+  String get dshCancel => 'İptal';
+
+  @override
+  String get dshConfirm => 'Onayla';
+
+  @override
+  String get dshAssistantNameLabel => 'Asistan adı';
+
+  @override
+  String get dshAssistantSubtitle => 'Uzak bağlantı üzerinden DeepSeek Harness';
+
+  @override
+  String get dshWebUiUrlLabel =>
+      'DeepSeek Harness WebUI bağlantısını yapıştırın';
+
+  @override
+  String get dshWebUiUrlHint => 'ör. 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…';
+
+  @override
+  String get dshWebUiUrlHelper =>
+      'Aynı yerel ağdaki veya genel ağa açılmış bir DeepSeek Harness için geçerlidir.';
+
+  @override
+  String get dshTabConnection => 'Bağlantı';
+
+  @override
+  String get dshTabGeneral => 'Genel';
+
+  @override
+  String get dshTabModels => 'Modeller';
+
+  @override
+  String get dshTabContent => 'İçerik';
+
+  @override
+  String get dshDefaultPermissionLabel =>
+      'Yeni sohbetler için varsayılan izin sınırı';
+
+  @override
+  String get dshUploadSessionLogLabel =>
+      'Resmi model API\'si kullanılırken oturum günlüklerini yükle';
+
+  @override
+  String get dshPermissionUnset => 'DeepSeek Harness varsayılanı';
+
+  @override
+  String get dshPermissionPickerTitle => 'Yeni sohbetler için varsayılan izin';
+
+  @override
+  String get dshStatusIdle => 'Bağlı değil';
+
+  @override
+  String get dshStatusConnecting => 'Bağlanıyor…';
+
+  @override
+  String get dshStatusReady => 'Bağlı';
+
+  @override
+  String get dshGeneralNotConnected =>
+      'Bu ayarları değiştirmek için DeepSeek Harness\'e bağlanın.';
+
+  @override
+  String get dshModelsPlaceholder =>
+      'DeepSeek Harness modelleri ve sağlayıcıları burada yönetilecek.';
+
+  @override
+  String get dshContentPlaceholder =>
+      'Eklenti tarafından sağlanan içerik ayarları burada görünecek.';
+
+  @override
+  String get dshErrorNotConfigured =>
+      'DeepSeek Harness istemcisi henüz bağlanmadığı için bağlantı kullanılamıyor.';
+
+  @override
+  String get dshErrorUnreachable =>
+      'Bu DeepSeek Harness\'e ulaşılamadı. Adresi ve ağı kontrol edin.';
+
+  @override
+  String get dshErrorAuth =>
+      'Bağlantı reddedildi. WebUI bağlantısını yeniden yapıştırın.';
+
+  @override
+  String get dshErrorProtocol =>
+      'DeepSeek Harness, bu uygulamanın anlayamadığı bir yanıt döndürdü.';
+
+  @override
+  String get dshErrorUnsupported =>
+      'Bu DeepSeek Harness sürümü bu özelliği desteklemiyor.';
+
+  @override
+  String get dshErrorUnknown =>
+      'Bağlantı başarısız oldu. Daha sonra tekrar deneyin.';
+
+  @override
+  String get dshErrorNameRequired => 'Bir asistan adı girin.';
+
+  @override
+  String get dshErrorInvalidLink =>
+      'Bu bağlantı geçerli değil. DeepSeek Harness tarafından yazdırılan WebUI bağlantısını yapıştırın.';
+
+  @override
+  String get dshRemoteDeleteTooltip => 'DeepSeek Harness\'i sil';
+
+  @override
+  String get dshRemoteDeleteTitle => 'DeepSeek Harness silinsin mi?';
+
+  @override
+  String get dshRemoteDeleteContent =>
+      'Bu yalnızca bağlantıyı Cuplivo\'dan kaldırır. DeepSeek Harness üzerinde hiçbir şey silinmez.';
+
+  @override
+  String get dshRemoteDeleteConfirm => 'Sil';
+
+  @override
+  String get dshSidebarPlugins => 'Plugins';
+
+  @override
+  String get dshSidebarAutomations => 'Automations';
+
+  @override
+  String get dshSidebarMore => 'More';
+
+  @override
+  String get dshNewSession => 'New session';
+
+  @override
+  String get dshNewSessionTooltip => 'New session';
+
+  @override
+  String get dshDefaultWorkspace => 'Default workspace';
+
+  @override
+  String get dshSessionsEmpty => 'No sessions yet';
+
+  @override
+  String get dshSessionsLoading => 'Loading sessions…';
+
+  @override
+  String get dshSessionsFailed => 'Couldn’t load the remote sessions';
+
+  @override
+  String get dshCatalogUnavailable =>
+      'Remote sessions aren’t available in this build';
+
+  @override
+  String get dshCatalogUnavailableHint =>
+      'Connect the DeepSeek Harness client to list its sessions here.';
+
+  @override
+  String get dshOperationFailed => 'That didn’t work. Try again.';
+
+  @override
+  String get dshSessionRenameTitle => 'Rename session';
+
+  @override
+  String get dshSessionFork => 'Create branch';
+
+  @override
+  String get dshSessionArchive => 'Archive';
+
+  @override
+  String get dshSessionArchived => 'Session archived';
+
+  @override
+  String get dshSessionDeleted => 'Session deleted';
+
+  @override
+  String get dshRailStart => 'Start';
+
+  @override
+  String get dshRailWorkspaceFiles => 'Workspace files';
+
+  @override
+  String get dshRailWorkspaceFilesSubtitle =>
+      'Browse the files of this session’s workspace';
+
+  @override
+  String get dshRailWorkspaceFilesShortcut => 'Ctrl + P';
+
+  @override
+  String get dshRailNewTerminal => 'New terminal';
+
+  @override
+  String get dshRailNewTerminalSubtitle =>
+      'Run commands in the session workspace';
+
+  @override
+  String get dshRailNewTerminalShortcut => 'Ctrl + `';
+
+  @override
+  String get dshRailMoreTools => 'More tools';
+
+  @override
+  String get dshRailMoreToolsEmpty => 'No other tools from this host';
+
+  @override
+  String get dshRailMoreToolsEmptyHint =>
+      'Plugin panels appear here when the host reports them.';
+
+  @override
+  String get dshRailPluginsSection => 'Plugins';
+
+  @override
+  String get dshRailExpand => 'Expand panel';
+
+  @override
+  String get dshRailCollapse => 'Collapse panel';
+
+  @override
+  String get dshRailClose => 'Close panel';
+
+  @override
+  String get dshRailBackToStart => 'Back to start';
+
+  @override
+  String get dshRailToggle => 'Right panel';
+
+  @override
+  String get dshFilesNoSession => 'Open a session first';
+
+  @override
+  String get dshFilesUnavailable =>
+      'Remote file browsing isn’t available in this build';
+
+  @override
+  String get dshFilesUnavailableHint =>
+      'Connect the DeepSeek Harness client to browse workspace files here.';
+
+  @override
+  String get dshFilesParentFolder => 'Parent folder';
+
+  @override
+  String get dshFilesBackToFiles => 'Back to files';
+
+  @override
+  String get dshFilesPreviewUnavailable => 'This file can’t be previewed';
+
+  @override
+  String get dshFilesTruncated => 'Showing the first page of this file.';
+
+  @override
+  String get dshTerminalUnavailable =>
+      'Remote terminals aren’t available in this build';
+
+  @override
+  String get dshTerminalUnavailableHint =>
+      'DeepSeek Harness terminals arrive with the workspace slice.';
+
+  @override
+  String get dshHomeOfflineTitle => 'DeepSeek Harness is not connected';
+
+  @override
+  String get dshHomeOfflineHint =>
+      'Check the connection in the assistant settings, then try again.';
+
+  @override
+  String get dshHomeRetry => 'Retry';
+
+  @override
+  String get dshHomeNoSession => 'No session open';
+
+  @override
+  String get dshSurfaceUnavailable =>
+      'This surface isn’t available in this build';
+
+  @override
+  String get dshSurfaceUnavailableHint =>
+      'It will arrive with a later DeepSeek Harness slice.';
+
+  @override
+  String get dshModelPickerTitle => 'Choose a model';
+
+  @override
+  String get dshModelPickerSearchHint => 'Search providers or models';
+
+  @override
+  String get dshModelPickerAllProviders => 'All';
+
+  @override
+  String get dshModelPickerFailuresSection => 'Providers that failed to load';
+
+  @override
+  String get dshModelPickerEmpty => 'This server offers no models right now.';
+
+  @override
+  String get dshModelReasoningBadge => 'Reasoning';
+
+  @override
+  String get dshReasoningPickerTitle => 'Reasoning effort';
+
+  @override
+  String get dshReasoningDefaultTag => 'Default';
+
+  @override
+  String get dshReasoningPickerNone =>
+      'This model has no adjustable reasoning effort.';
+
+  @override
+  String get dshReasoningChangeFailed =>
+      'Could not change the reasoning effort.';
+
+  @override
+  String get dshModelChangeFailed => 'Could not switch the model.';
+
+  @override
+  String get dshModelDetailsTitle => 'Model details';
+
+  @override
+  String get dshModelDetailsProvider => 'Provider';
+
+  @override
+  String get dshModelDetailsEffort => 'Reasoning effort';
+
+  @override
+  String get dshModelDetailsId => 'Model ID';
+
+  @override
+  String get dshModelDetailsNote =>
+      'Model and reasoning settings live on DeepSeek Harness; Cuplivo only requests them.';
+
+  @override
+  String get dshPermissionTitle => 'Permissions';
+
+  @override
+  String get dshPermissionReadOnly => 'Read only';
+
+  @override
+  String get dshPermissionReadOnlyDesc =>
+      'The assistant can read files and answer, but cannot change anything.';
+
+  @override
+  String get dshPermissionWorkspaceWrite => 'Workspace write';
+
+  @override
+  String get dshPermissionWorkspaceWriteDesc =>
+      'The assistant can create and edit files inside the session workspace.';
+
+  @override
+  String get dshPermissionFullAccess => 'Full access';
+
+  @override
+  String get dshPermissionFullAccessDesc =>
+      'The assistant can run commands and change files anywhere the DeepSeek Harness host allows.';
+
+  @override
+  String get dshPermissionRiskTag => 'Risky';
+
+  @override
+  String get dshPermissionRiskTitle => 'Allow full access?';
+
+  @override
+  String get dshPermissionRiskBody =>
+      'This lets the assistant run commands and change files on the DeepSeek Harness host without asking again. Only continue if you trust this server and this session.';
+
+  @override
+  String get dshPermissionRiskAcknowledge => 'I understand the risk';
+
+  @override
+  String get dshPermissionRiskConfirm => 'Continue';
+
+  @override
+  String get dshPermissionChanging => 'Applying…';
+
+  @override
+  String get dshPermissionNoPresets =>
+      'This server exposes no permission presets.';
+
+  @override
+  String get dshPermissionChangeFailed => 'Could not change the permission.';
+
+  @override
+  String get dshPlusSheetTitle => 'More';
+
+  @override
+  String get dshPlusWorkspace => 'Workspace';
+
+  @override
+  String get dshPlusWorkspaceUnknown =>
+      'The server did not report a workspace for this session.';
+
+  @override
+  String get dshPlusPermission => 'Permission';
+
+  @override
+  String get dshPlusModelDetails => 'Model details';
+
+  @override
+  String get dshPlusPluginPanel => 'Plugin panel (right rail)';
+
+  @override
+  String get dshPlusPluginPanelSubtitle =>
+      'DSH plugins have no standalone page; they contribute panels inside the Web UI.';
+
+  @override
+  String get dshPlusSettings => 'DSH settings';
+
+  @override
+  String get dshApprovalTitle => 'Approval needed to continue';
+
+  @override
+  String get dshApprovalAllow => 'Allow once';
+
+  @override
+  String get dshApprovalDeny => 'Deny';
+
+  @override
+  String get dshQuestionTitle => 'The assistant needs your answer';
+
+  @override
+  String get dshQuestionSubmit => 'Submit';
+
+  @override
+  String get dshQuestionReject => 'Decline';
+
+  @override
+  String get dshQuestionFreeformHint => 'Type your answer';
+
+  @override
+  String get dshChatEmptyTitle => 'Start a conversation with DeepSeek Harness';
+
+  @override
+  String get dshChatEmptyBody =>
+      'Messages are stored and executed by the DeepSeek Harness server, not by Cuplivo.';
+
+  @override
+  String get dshStaleBanner =>
+      'Connection lost — showing the last received content.';
+
+  @override
+  String dshQueuedCount(int count) {
+    return '$count queued';
+  }
+
+  @override
+  String get dshSendFailedTitle => 'Message not sent';
+
+  @override
+  String get dshControllerUnavailable =>
+      'The chat session is unavailable. Reconnect the assistant.';
+
+  @override
+  String get dshPluginPanelTitle => 'Plugin panel';
+
+  @override
+  String get dshWebPanelNoPluginUrl =>
+      'DeepSeek Harness plugins are slots inside its Web UI and have no standalone address, so this page shows the full Web UI for this server.';
+
+  @override
+  String get dshWebPanelLoading => 'Opening the DeepSeek Harness Web UI…';
+
+  @override
+  String get dshWebPanelUnauthorizedTitle => 'The WebUI session has expired';
+
+  @override
+  String get dshWebPanelUnauthorizedBody =>
+      'The launch token changes when dsh web restarts. Reconnect the assistant with a fresh WebUI link, then open this page again.';
+
+  @override
+  String get dshWebPanelNetworkTitle => 'Could not open the Web UI';
+
+  @override
+  String get dshWebPanelNetworkBody =>
+      'Check that the DeepSeek Harness host is reachable from this device and that the address still matches the running server.';
+
+  @override
+  String get dshWebPanelUnsupportedTitle =>
+      'This platform cannot embed the Web UI';
+
+  @override
+  String get dshWebPanelUnsupportedBody =>
+      'Open the DeepSeek Harness WebUI in a browser on this device instead.';
+
+  @override
+  String get dshWebPanelReconnect => 'Reconnect';
 }

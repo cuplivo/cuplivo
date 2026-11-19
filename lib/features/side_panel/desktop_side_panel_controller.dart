@@ -9,10 +9,10 @@ import '../../core/database/business_preferences.dart';
 import '../../core/services/browser/browser_service.dart';
 import '../browser/models/browser_agent_activity.dart';
 import 'models/side_panel_tab.dart';
+import 'widgets/side_panel_geometry.dart';
 
 export 'models/side_panel_tab.dart';
-
-enum SidePanelPresentation { hidden, docked, overlay, expanded }
+export 'widgets/side_panel_geometry.dart';
 
 /// One desktop surface. BrowserStore owns web documents; this controller owns
 /// presentation and references to those documents, never native engines.
@@ -23,10 +23,12 @@ class DesktopSidePanelController extends ChangeNotifier {
   }
 
   static final instance = DesktopSidePanelController();
-  static const defaultWidth = 520.0;
-  static const minWidth = 360.0;
-  static const dockThreshold = 849.0;
-  static const _prefix = 'desktop_side_panel_';
+
+  /// Widths/thresholds live in [SidePanelGeometry]; these aliases keep the
+  /// widget's existing references on the controller it already owns.
+  static const minWidth = SidePanelGeometry.minWidth;
+  static const defaultWidth = SidePanelGeometry.defaultWidth;
+  static const dockThreshold = SidePanelGeometry.dockThreshold;
   final BrowserService browser;
   BusinessPreferences? _preferences;
   final Map<String, List<SidePanelTab>> _resources = {};
@@ -78,29 +80,32 @@ class DesktopSidePanelController extends ChangeNotifier {
     _active.clear();
     _closed.clear();
     _lastSavedTabs = null;
-    _lastSavedOpen = preferences.getBool('${_prefix}open_v1');
-    _lastSavedWidth = (preferences.get('${_prefix}width_v1') as num?)
+    _lastSavedOpen = preferences.getBool(SidePanelGeometry.keyOpen);
+    _lastSavedWidth = (preferences.get(SidePanelGeometry.keyWidth) as num?)
         ?.toDouble();
-    _lastSavedKind = preferences.getString('${_prefix}last_kind_v1');
+    _lastSavedKind = preferences.getString(SidePanelGeometry.keyLastKind);
     _expanded = false;
     _topicsOnRight =
         preferences.getString('desktop_topic_position_v1') == 'right';
-    final migrated = preferences.getBool('${_prefix}migrated_v1') == true;
+    final migrated = preferences.getBool(SidePanelGeometry.keyMigrated) == true;
     final oldFiles =
         preferences.getBool('desktop_workspace_bar_open_v1') == true;
     final oldTopics =
         _topicsOnRight &&
         (preferences.getBool('desktop_right_sidebar_open_v1') ?? true);
     _open =
-        preferences.getBool('${_prefix}open_v1') ??
+        preferences.getBool(SidePanelGeometry.keyOpen) ??
         (!migrated && (oldFiles || oldTopics));
     final storedWidth =
-        preferences.get('${_prefix}width_v1') ??
+        preferences.get(SidePanelGeometry.keyWidth) ??
         (!migrated ? preferences.get('desktop_right_sidebar_width_v1') : null);
     _width = storedWidth is num && storedWidth.isFinite
-        ? storedWidth.toDouble().clamp(minWidth, 900)
-        : defaultWidth;
-    final savedKind = preferences.getString('${_prefix}last_kind_v1');
+        ? storedWidth.toDouble().clamp(
+            SidePanelGeometry.minWidth,
+            SidePanelGeometry.maxWidth,
+          )
+        : SidePanelGeometry.defaultWidth;
+    final savedKind = preferences.getString(SidePanelGeometry.keyLastKind);
     _lastKind =
         SidePanelTabKind.values
             .where((kind) => kind.name == savedKind)
@@ -108,7 +113,7 @@ class DesktopSidePanelController extends ChangeNotifier {
         (!migrated && oldTopics
             ? SidePanelTabKind.topics
             : SidePanelTabKind.files);
-    final raw = preferences.getString('${_prefix}tabs_v1');
+    final raw = preferences.getString(SidePanelGeometry.keyTabs);
     if (raw != null) {
       try {
         final data = jsonDecode(raw);
@@ -136,11 +141,11 @@ class DesktopSidePanelController extends ChangeNotifier {
     if (!migrated) {
       final open = _open, width = _width, kind = _lastKind.name;
       _enqueue(() async {
-        await preferences.setBool('${_prefix}open_v1', open);
-        await preferences.setDouble('${_prefix}width_v1', width);
-        await preferences.setString('${_prefix}last_kind_v1', kind);
+        await preferences.setBool(SidePanelGeometry.keyOpen, open);
+        await preferences.setDouble(SidePanelGeometry.keyWidth, width);
+        await preferences.setString(SidePanelGeometry.keyLastKind, kind);
         // Mark completion only when every migrated setting is durable.
-        return preferences.setBool('${_prefix}migrated_v1', true);
+        return preferences.setBool(SidePanelGeometry.keyMigrated, true);
       });
     }
     _browserChanged();
@@ -192,23 +197,22 @@ class DesktopSidePanelController extends ChangeNotifier {
         'files';
   }
 
-  SidePanelPresentation presentationFor(double availableWidth) {
-    if (!_open) return SidePanelPresentation.hidden;
-    if (_expanded) return SidePanelPresentation.expanded;
-    return availableWidth >= dockThreshold
-        ? SidePanelPresentation.docked
-        : SidePanelPresentation.overlay;
-  }
+  /// Delegates to the one geometry decision shared with every right panel.
+  SidePanelPresentation presentationFor(double availableWidth) =>
+      SidePanelGeometry.presentationFor(
+        open: _open,
+        expanded: _expanded,
+        availableWidth: availableWidth,
+      );
 
   static double maxWidthFor(double availableWidth) =>
-      math.max(minWidth, math.min(900, availableWidth - 489));
+      SidePanelGeometry.maxWidthFor(availableWidth);
 
-  double widthFor(double availableWidth) =>
-      switch (presentationFor(availableWidth)) {
-        SidePanelPresentation.expanded => availableWidth,
-        SidePanelPresentation.overlay => math.min(_width, availableWidth),
-        _ => _width.clamp(minWidth, maxWidthFor(availableWidth)),
-      };
+  double widthFor(double availableWidth) => SidePanelGeometry.widthFor(
+    presentation: presentationFor(availableWidth),
+    preferredWidth: _width,
+    availableWidth: availableWidth,
+  );
 
   static int resourceCapacity(double width, int pinnedCount) =>
       math.max(0, ((width - pinnedCount * 70 - 140) / 108).floor());
@@ -411,7 +415,10 @@ class DesktopSidePanelController extends ChangeNotifier {
 
   void setPreferredWidth(double value) {
     if (!value.isFinite) return;
-    _width = value.clamp(minWidth, 900);
+    _width = value.clamp(
+      SidePanelGeometry.minWidth,
+      SidePanelGeometry.maxWidth,
+    );
     _changed();
   }
 
@@ -516,19 +523,19 @@ class DesktopSidePanelController extends ChangeNotifier {
     });
     if (_lastSavedOpen != open) {
       _lastSavedOpen = open;
-      _enqueue(() => prefs.setBool('${_prefix}open_v1', open));
+      _enqueue(() => prefs.setBool(SidePanelGeometry.keyOpen, open));
     }
     if (_lastSavedWidth != width) {
       _lastSavedWidth = width;
-      _enqueue(() => prefs.setDouble('${_prefix}width_v1', width));
+      _enqueue(() => prefs.setDouble(SidePanelGeometry.keyWidth, width));
     }
     if (_lastSavedKind != kind) {
       _lastSavedKind = kind;
-      _enqueue(() => prefs.setString('${_prefix}last_kind_v1', kind));
+      _enqueue(() => prefs.setString(SidePanelGeometry.keyLastKind, kind));
     }
     if (_lastSavedTabs != tabs) {
       _lastSavedTabs = tabs;
-      _enqueue(() => prefs.setString('${_prefix}tabs_v1', tabs));
+      _enqueue(() => prefs.setString(SidePanelGeometry.keyTabs, tabs));
     }
   }
 

@@ -48,7 +48,7 @@ capture), `docs/cuplivo-dsh/client-reference.md` (client-layer design),
 | `dsh_transport.dart` | `DshCookie`, HTTP/WebSocket carrier (`DshTransport`, `DshHttpTransport`, `DshIoHttpClient`), login, upload, request/asset timeouts |
 | `dsh_rpc.dart` | `DshRpc`: `{type:'client-request'…}` envelope, `server-response` decode, error mapping, one retry for idempotent reads, `dshUuidV4()` |
 | `dsh_mux.dart` | `DshMux`: `/api/remote.mux` connection, generations, `$events` ready + host requests, logical streams, reconnect backoff, keepalive, disposal |
-| `dsh_events.dart` | wire event vocabulary: session log events, `session/follow` frames/snapshot, assistant-stream frames/chunks, host events, approvals/questions, mux frames, workspace updates |
+| `dsh_events.dart` | wire event vocabulary: `DshConnectionState`, session log events, `session/follow` snapshot frames, assistant-stream frames/chunks, host events, approvals/questions, mux frames, workspace updates, `DshSessionUpdate` |
 | `dsh_models.dart` | tolerant JSON helpers + domain models: messages/parts/usage, session summaries/state/projections, model catalog, providers, permissions, commands, skills, plugins, settings, account, credentials |
 | `dsh_catalog.dart` | typed reads/writes for sessions, workspaces, models, providers, plugins, commands, skills, permission presets, settings, account; live `session/control` + `workspace/follow` watchers; capability probes |
 | `dsh_session.dart` | one session handle: `watch()` (snapshot + live events + host requests), prompt (text/images/files), cancel, model/reasoning/permission writes, approvals/questions, history paging, commands/skills, upload, dispose; `DshSessionStore` = handle + `DshTranscript` + change stream for the UI controller |
@@ -209,8 +209,7 @@ abstract interface class DshHttpClient {
 class DshIoHttpClient implements DshHttpClient { ... } // dart:io HttpClient / WebSocket
 ```
 
-Behaviour: 10 s TCP/TLS connect, 30 s default request timeout, 120 s for
-`llm` discovery/upload; `HttpClient.autoUncompress = true`; no `Origin`,
+Behaviour: 10 s TCP/TLS connect, 30 s default request timeout, 10 minutes for attachment upload, 120 s for `llm/discoverModels`; `HttpClient.autoUncompress = true`; no `Origin`,
 `Referer`, or `Sec-Fetch-*` headers; `Host` always the endpoint authority;
 `WebSocket` opened with `dart:io` (deflate negotiated transparently), client
 `pingInterval` 15 s for dead-link detection. `login()` does **not** follow the
@@ -221,32 +220,45 @@ Behaviour: 10 s TCP/TLS connect, 30 s default request timeout, 120 s for
 ```dart
 class DshRpc {
   DshRpc(this.transport, {this.timeout = const Duration(seconds: 30)});
+  final DshTransport transport;
+  final Duration timeout;
 
   /// Sends `{"type":"client-request","rpcId":uuid,"method":endpoint,
   /// "payload":{"args":args}}`, decodes `server-response`, returns `value`.
-  /// idempotent: true retries once on DshTransportException (catalog reads).
-  Future<Object?> call(String endpoint, [Map<String, Object?> args = const {}],
-      {Duration? timeout, bool idempotent = false});
+  Future<Object?> call(
+    String endpoint, {
+    Map<String, Object?> args = const {},
+    Duration? timeout,
+    bool idempotent = false, // retries once on a retryable transport failure
+  });
 }
 
 String dshUuidV4(); // rpcIds, streamIds, prompt requestIds
 ```
 
-Status/envelope mapping: 200+`ok:true`→value (absent→null); 200+`ok:false`→
-`DshRemoteException`; 401/403→`DshAuthException`; 404→`DshUnsupportedException`;
-405/413/415/400→`DshProtocolException`; 5xx/network/timeout→
-`DshTransportException`; wrong `type`/`rpcId`/missing `result`→
-`DshProtocolException` (a gateway validation answer echoing
-`rpcId:"invalid-request"` is accepted as an error).
+Mapping: 200+`ok:true` → `value` (absent → `null`); 200+`ok:false` →
+`DshRemoteException(code, message, details)`; 401/403 → `DshAuthException`;
+404 → `DshUnsupportedException`; 400/405/413/415 → `DshProtocolException`;
+5xx/network/timeout → `DshTransportException`; wrong `type`/`rpcId`/missing
+`result`/non-object body → `DshProtocolException`. A gateway validation answer
+echoing `rpcId:"invalid-request"` is accepted as a normal (error) result.
+`idempotent: true` is for reads only (`list`, `page`, `state`, `projections`,
+`describe`, catalogs); never for `session/prompt`, whose inbox admission may
+already have landed.
 
 ## 7. Mux (`dsh_mux.dart`)
 
+`DshConnectionState` is declared in `dsh_events.dart` (shared by mux, session
+and store): `idle, connecting, connected, reconnecting, unauthorized, closed`.
+
 ```dart
-enum DshConnectionState { idle, connecting, connected, reconnecting, unauthorized, closed }
+const String dshRemoteMuxPath = '/api/remote.mux';
+const String dshHostEventsEndpoint = r'$events';
+const String dshHostEventResultEndpoint = r'$events/result';
 
 class DshMuxGeneration {
-  final int number;     // 1, 2, … per successful ready handshake
-  final String clientId; // goes into every $events/result answer
+  final int number;       // 1, 2, … per successful ready handshake
+  final String clientId;  // goes into every $events/result answer
   final String home;
 }
 
@@ -254,133 +266,159 @@ class DshMuxOptions {
   const DshMuxOptions({
     this.readyTimeout = const Duration(seconds: 15),
     this.pingInterval = const Duration(seconds: 15),
-    this.retryCaps = const [500ms, 1s, 2s, 4s, 8s, 10s],
+    this.retryCaps = const [500ms, 1s, 2s, 4s, 8s, 10s], // 50–100 % jitter
     this.autoReconnect = true,
-    this.maxAttempts,          // null = retry forever
-    this.retryDelay,           // test hook; overrides retryCaps
+    this.maxAttempts,      // null = retry forever
+    this.retryDelay,       // test hook: Duration Function(int attempt)
     this.hostRequestGrace = const Duration(seconds: 3),
   });
 }
 
 class DshMux {
   DshMux(this.transport, {this.options = const DshMuxOptions(), DshRpc? rpc});
+  final DshRpc rpc;
 
   DshConnectionState get state;
-  DshMuxGeneration? get generation;     // null until first ready
+  DshMuxGeneration? get generation;        // null until first ready
   DshException? get lastError;
-  Stream<DshConnectionState> get states; // broadcast
-  Stream<DshHostEvent> get hostEvents;   // deduped, ready not included
-  List<DshHostRequest> get pendingRequests; // approvals/questions still awaiting an answer
+  Stream<DshConnectionState> get states;   // broadcast
+  Stream<DshHostEvent> get hostEvents;     // ready excluded
+  List<DshHostRequest> get pendingRequests;
 
-  /// Resolves with the first ready generation; starts the socket if needed.
-  Future<DshMuxGeneration> ready;
+  Future<DshMuxGeneration> get ready;      // starts the socket if needed
 
-  /// Open one logical stream. Waits for the first generation. With
-  /// autoReopen:true (default) the same [DshStream] continues across
-  /// reconnects — its baseline is re-delivered by the Host, so consumers must
-  /// treat a new baseline as a full replacement. With false, the stream fails
-  /// with DshTransportException and the caller reopens.
-  Future<DshStream> open(String endpoint, [Map<String, Object?> args = const {}],
-      {bool autoReopen = true});
+  /// Opens one logical stream now (frames wait for the next ready). With
+  /// autoReopen (default) the same DshStream survives reconnects; the Host
+  /// re-delivers a baseline, which consumers must treat as replace.
+  Future<DshStream> open(String endpoint, {
+    Map<String, Object?> args = const {},
+    bool autoReopen = true,
+  });
 
-  /// Answer an approval/question waterfall through `$events/result` using the
-  /// current generation's clientId. Retries once when the Host reports a stale
-  /// client (a reconnect happened mid-answer).
+  /// `$events/result` with the current generation's clientId; retries once if
+  /// the generation changed mid-flight (Host reports an unknown clientId).
   Future<void> answerHostRequest(String eventId, Map<String, Object?> outcome);
 
-  /// Manual reconnect after `unauthorized`/`maxAttempts` exhaustion.
-  Future<void> reconnect();
+  Future<DshMuxGeneration> reconnect(); // after unauthorized/exhaustion
   Future<void> close();
 }
 
 class DshStream {
-  String get id;
-  String get endpoint;
-  Stream<Object?> get items;  // decoded `value` of each item frame; errors are DshRemoteException
+  final String id;
+  final String endpoint;
+  final Map<String, Object?> args;
+  final bool autoReopen;
+  Stream<Object?> get items; // decoded `value` of each item frame
   bool get isClosed;
-  Future<void> cancel();      // client→host cancel (mandatory cleanup)
+  Future<void> cancel();     // client→host cancel (cleanup)
 }
 ```
 
-Frame protocol implemented exactly as captured (§3.2 of `protocol.md`):
-`open`/`item`/`end`/`cancel` uplink; `item`/`end`/`error` downlink. The mux opens
-`$events` first on every generation, waits for `{type:'ready'}`, and only then
-considers the generation live. Server `error` frames close that logical stream
-with `DshRemoteException`. `pendingRequests` are keyed by `eventId`; a new
-generation keeps prior pendings for `hostRequestGrace` (Host redelivers them),
-then retracts the ones that did not reappear; a `cancel` frame retracts one
-immediately.
+The mux opens `$events` first on every socket and waits for
+`{type:'ready',clientId,host:{home}}`; only then is the generation live and
+queued stream `open` frames are sent. Server `error` frames close the logical
+stream with `DshRemoteException`; losing the socket voids everything and
+auto-reopen streams get a fresh opener on the next generation. Pending
+waterfalls are kept for `hostRequestGrace` after a new ready; those not
+redelivered (same `eventId`) are retracted. `answerHostRequest` also emits a
+local `DshHostRequestCancelled` after a successful answer so a UI can drop the
+card immediately.
 
 ## 8. Wire events and models (`dsh_events.dart`, `dsh_models.dart`)
 
-`dsh_models.dart` exports tolerant JSON helpers (all public, reused by the
-feature layer where it parses raw plugin JSON):
-`jsonMap`, `jsonList`, `jsonString`, `jsonInt`, `jsonBool`, `jsonEpochMs`,
-`jsonStringList`, `tryDecodeJson`.
+`dsh_models.dart` exports tolerant JSON helpers (public; the feature layer
+reuses them for plugin JSON): `jsonMap`, `jsonList`, `jsonString`, `jsonInt`,
+`jsonDouble`, `jsonBool`, `jsonEpochMs`, `jsonIsoDateTime`, `jsonStringList`,
+`tryDecodeJson`.
 
-Models actually needed by the feature layer (all immutable, all keep `raw` JSON
-where forward compatibility matters):
+Models (immutable; `raw` kept where forward compatibility matters):
 
 - messages: `DshPart` (`DshTextPart`, `DshReasoningPart`, `DshImagePart`,
   `DshFilePart`, `DshToolCallPart`, `DshUnknownPart`), `DshMessage`,
-  `DshImageAttachment`, `DshFileAttachment`, `DshTokenUsage`, `DshLlmFailure`
-- sessions: `DshSessionSummary` (title/model/tokenUsage/blank/running/cwd/
-  workspace-relevant projections), `DshSessionCreated`, `DshSessionHeader`,
-  `DshSessionState`, `DshQueuedItem`, `DshSessionProjections` (typed getters +
-  raw `values`), `DshProjectionHints`, `DshHistoryPage`
-- models: `DshModelSelection`, `DshReasoningEffort`, `DshReasoningInfo`,
-  `DshModelInfo`, `DshProviderGroup`, `DshModelCatalog`, `DshModelCatalogFailure`
-- providers: `DshProviderInfo`, `DshConfigurableProvider`
-- permissions: `DshPermissionPreset`, `DshPermissionPresetCatalog`
-- workspaces: `DshWorkspace`, `DshWorkspaceBaseline`
-- commands/skills: `DshCommandDescriptor`, `DshCommandResult`,
+  `DshMessageSource`, `DshImageAttachment`, `DshFileAttachment`,
+  `DshTokenUsage` (step shape) and `DshSessionUsage` (projection shape; note
+  `uncachedInputTokens`, not `inputTokens`), `DshLlmFailure`
+- sessions: `DshSessionSummary` (+`DshProjectionHints`), `DshSessionCreated`,
+  `DshSessionHeader` (`version`, `isReadable` for version > 4), `DshSessionState`,
+  `DshQueuedItem`, `DshSessionProjections` (typed getters + `values`),
+  `DshImageLimits`, `DshHistoryPage` (raw `records`, used by the session layer),
+  `DshSessionAttachment`, `DshUploadReceipt`
+- models/providers: `DshModelSelection`, `DshReasoningEffort`,
+  `DshReasoningInfo`, `DshModelInfo`, `DshProviderGroup`, `DshModelCatalog`,
+  `DshModelCatalogFailure`, `DshProviderInfo`, `DshConfigurableProvider`,
+  `DshModelDiscoveryRequest`, `DshDiscoveredModel`
+- permissions/commands/skills: `DshApprovalOutcome`, `DshPermissionPreset`,
+  `DshPermissionPresetCatalog`, `DshCommandDescriptor`, `DshCommandResult`,
   `DshCommandExecution`, `DshSkill`
-- plugins: `DshLocalizedText`, `DshPluginInventory`, `DshPluginInventoryEntry`,
-  `DshAgentPresetPluginGroup`, `DshPresetPluginRow`, `DshPluginBundleInfo`,
-  `DshPluginInfo`, `DshPluginChangeResult`
+- workspaces: `DshWorkspace`, `DshWorkspaceBaseline`, `DshWorkspaceValue`,
+  `DshWorkspaceCreated`
+- plugins: `DshLocalizedText` (resolve locale → language → `en`), `DshPluginInventory`,
+  `DshPluginInventoryEntry`, `DshPresetPluginRow`, `DshAgentPresetPluginGroup`,
+  `DshPluginBundleInfo`, `DshPluginInfo`, `DshPluginChangeResult`
 - settings/account: `DshSettingsDescription`, `DshSettingsNamespace`,
-  `DshSettingsSecret`, `DshSettingsPathOp`, `DshAccountState`,
-  `DshCredentialInfo`
+  `DshSettingsSecret`, `DshSettingsPathOp` (`DshSettingsSetOp`,
+  `DshSettingsUnsetOp`), `DshCredentialInfo`, `DshAccountState`, `DshAccountLinks`
+- session control: `DshSessionControlUpdate` sealed →
+  `DshSessionControlBaseline(Map<String, DshSessionProjections>)` and
+  `DshSessionControlProjection(sessionId, List<DshSessionControlChange>, seq)`.
+  Each change carries `key` + complete new `value`; `key`/`value` getters are
+  conveniences for the single-change frame.
 
 `dsh_events.dart` exports:
 
-- `DshSessionSnapshot { header, cursor, records, hasMore, projections, assistantStream }`
-- `DshSessionEvent` sealed hierarchy for the event catalogue an UI renders:
-  `turn/start`, `turn/end`, `step/start`, `step/end`, `user/message`,
-  `assistant/message`, `assistant/attempt`, `tool/call`, `tool/result`,
-  `session/title`, `model/selection`, `permission/preset`, `sandbox/mode`,
-  `approval/policy`, `approval/asked`, `approval/decided`, `command/run`,
-  `command/done`, `agent/inbox/spliced`, `llm/retry`, `session/error`,
-  `working-directory/change`, plus `DshUnknownSessionEvent` (kept, not rendered).
-  Every event exposes `seq`, `time`, `type`, `surfaceOp`, `sourceEventSeqs`,
-  `ignorable`, `raw`.
-- live assistant stream: `DshAssistantStreamFrame` (`start`/`chunk`/`end`) and
-  `DshStreamChunk` (`block-start`, `text-delta`, `reasoning-delta`,
-  `tool-call-delta`, `block-end`, `usage`, `finish`), with `revision`/`index`.
-  `DshAssistantStreamStart`, `DshAssistantStreamEnd`, `DshAssistantStreamBaseline`.
-- host events: `DshHostReady`, `DshHostEmit` (+ typed convenience subclasses for
-  `api-session/added|removed|status|activity|error`, `commands/change`,
-  `settings/document-updated`, `llm/models-updated`, `permission-presets/
-  catalog-changed`, `plugin-manager/*`, `schedule/changed`, … all also readable
-  as generic emit), `DshHostWaterfall`, `DshHostRequestCancelled`.
-- requests: `DshHostRequest` sealed → `DshApprovalRequest` (eventId, sessionId,
-  toolName, callId, reason, displayReason), `DshUserQuestionRequest` (eventId,
-  sessionId, questions, wait), `DshUserQuestion`, `DshQuestionOption`,
-  `DshQuestionAnswer`, `DshApprovalDecision` (`allowOnce('allowed-once')`,
-  `reject('rejected')`, `pass`/delegate via `next`), `DshApprovalOutcome`.
-- mux frames: `DshMuxFrame` (`DshMuxItem`, `DshMuxEnd`, `DshMuxError`,
-  `DshMuxUnknown`) — used by tests and diagnostics.
-- workspace updates: `DshWorkspaceUpdate` sealed (`baseline`, `replace`,
-  `upsert`, `remove`, `order`, `archived`, `pinned`).
+- mux frames: `DshMuxFrame` → `DshMuxItem`, `DshMuxEnd`, `DshMuxError`,
+  `DshMuxUnknown`
+- follow snapshot: `DshSessionSnapshot { header, cursor, records, hasMore,
+  projections, assistantStream }`, `DshAssistantStreamBaseline`,
+  `DshAssistantStreamAttempt`
+- durable events: `DshSessionEvent` sealed hierarchy with ``seq``, ``time``,
+  ``type``, ``surfaceOp``, ``isAppendOrigin``, ``sourceEventSeqs``,
+  ``ignorable``, ``raw``: `DshTurnStarted`, `DshTurnEnded` (→ `DshTurnEndReason`
+  with `DshLlmFailure`), `DshStepStarted`, `DshStepEnded`, `DshUserMessageEvent`
+  (`isHumanPrompt`), `DshAssistantMessageEvent`, `DshAssistantAttemptEvent`,
+  `DshToolCallEvent`, `DshToolResultEvent`, `DshTitleEvent`,
+  `DshModelSelectionEvent`, `DshPermissionPresetEvent`, `DshSandboxModeEvent`,
+  `DshApprovalPolicyEvent`, `DshApprovalAskedEvent`, `DshApprovalDecidedEvent`,
+  `DshCommandRunEvent`, `DshCommandDoneEvent`, `DshInboxSplicedEvent`,
+  `DshLlmRetryEvent`, `DshWorkingDirectoryChangedEvent`,
+  `DshAgentPresetSelectedEvent`, and `DshUnknownSessionEvent` (kept for
+  ordering; never rendered)
+- live assistant stream: `DshAssistantStreamFrame` → `DshAssistantStreamStart`,
+  `DshAssistantStreamChunkFrame`, `DshAssistantStreamEnd`,
+  `DshAssistantStreamUnknown`; `DshAssistantStreamOutcome` →
+  `DshAssistantStreamCommitted(eventType, seq)` / `DshAssistantStreamAbandoned`;
+  `DshStreamChunk` → `DshBlockStartChunk`, `DshTextDeltaChunk`,
+  `DshReasoningDeltaChunk`, `DshToolCallDeltaChunk`, `DshBlockEndChunk`,
+  `DshUsageChunk`, `DshFinishChunk` (+`DshFinishReason`), `DshUnknownChunk`.
+  `revision` is a **per-frame counter** used only to drop out-of-order frames;
+  `attemptId` identifies the attempt.
+- host events: `DshHostEvent` sealed → `DshHostReady(clientId, home)`,
+  `DshHostEmit(event, args)` (helpers: `arg0`, `sessionSummary`, `running`,
+  `revision`, `namespace`, `name`), `DshHostUnknown`; host requests:
+  `DshHostRequest` → `DshApprovalRequest` (eventId, sessionId, toolName, callId,
+  reason, displayReason, `describe(locale)`), `DshUserQuestionRequest`
+  (questions, wait) with `DshUserQuestion`, `DshQuestionOption`, `DshQuestionWait`,
+  `DshUnknownHostRequest`; `DshHostRequestCancelled`. Answers:
+  `DshApprovalDecision` (`allowOnce`/`rejected`), `DshQuestionAnswer`
+  (`selected` = option **labels**).
+- workspace updates: `DshWorkspaceUpdate` sealed → `DshWorkspaceBaselineUpdate`,
+  `DshWorkspaceReplaceUpdate`, `DshWorkspaceUpsertUpdate`,
+  `DshWorkspaceRemoveUpdate`, `DshWorkspaceOrderUpdate`,
+  `DshWorkspaceArchivedUpdate`, `DshWorkspacePinnedUpdate`; parser
+  `DshWorkspaceUpdate.tryParse(Object?)` returns null for unknown frames.
+- session watch updates: `DshSessionUpdate` sealed →
+  `DshSessionSnapshotUpdate`, `DshSessionEventUpdate`,
+  `DshSessionAssistantFrameUpdate`, `DshSessionHostRequestUpdate`,
+  `DshSessionConnectionUpdate(state, error)`.
 
 ## 9. Catalog (`dsh_catalog.dart`)
 
 ```dart
 class DshCatalogSnapshot {
-  final List<DshSessionSummary> sessions;          // newest first
+  final List<DshSessionSummary> sessions;     // stored order (UI sorts)
   final List<DshWorkspace> workspaces;
   final List<String> archivedSessionIds;
-  final List<String> pinnedSessionIds;
+  final List<String> pinnedSessionIds;        // most-recent-first
   final DshModelCatalog models;
   final List<DshProviderInfo> providers;
   final List<DshConfigurableProvider> configurableProviders;
@@ -393,15 +431,21 @@ class DshCatalogSnapshot {
 }
 
 class DshCapabilities {
-  final Map<String, bool> known;     // endpoint -> present
-  bool supports(String endpoint);    // unknown endpoints: false until probed
+  Map<String, bool> get known;      // probed/read endpoints
+  bool? lookup(String endpoint);    // null = never probed
+  bool supports(String endpoint);   // unknown => false (feature hidden)
+  void record(String endpoint, bool present);
 }
 
 class DshCatalog {
   DshCatalog(DshRpc rpc, DshMux mux);
   final DshCapabilities capabilities;
 
-  Future<DshCatalogSnapshot> load({bool includePlugins = true, bool includeSettings = true, bool includeAccount = true});
+  Future<DshCatalogSnapshot> load({
+    bool includePlugins = true,
+    bool includeSettings = true,
+    bool includeAccount = true,
+  });
 
   // sessions
   Future<List<DshSessionSummary>> listSessions();
@@ -411,316 +455,324 @@ class DshCatalog {
   Future<DshSessionState> sessionState(String sessionId);
   Future<DshSessionProjections?> sessionProjections(String sessionId);
 
-  // workspaces (list has no unary endpoint: it is the follow baseline)
-  Future<DshWorkspaceBaseline> loadWorkspaces();
-  Stream<DshWorkspaceUpdate> watchWorkspaces();      // baseline + increments, auto-reopen
-  Future<DshWorkspace> createWorkspace(String path);
+  // workspaces (no unary list: the follow baseline is the list)
+  Future<DshWorkspaceBaseline> loadWorkspaces();       // opens, reads baseline, cancels
+  Stream<DshWorkspaceUpdate> watchWorkspaces();
+  Future<DshWorkspaceCreated> createWorkspace(String path);
   Future<DshWorkspace> renameWorkspace(String workspaceId, String title);
   Future<void> deleteWorkspace(String workspaceId);
   Future<List<String>> reorderWorkspaces(String workspaceId, {String? beforeWorkspaceId});
-  Future<List<String>> reorderWorkspaceSessions(String workspaceId, String sessionId, {String? beforeSessionId});
+  Future<DshWorkspace> reorderWorkspaceSessions(String workspaceId, String sessionId, {String? beforeSessionId});
   Future<DshWorkspace?> initializeDefaultWorkspace();
   Future<List<String>> archiveSession(String sessionId, {bool? stopActivity});
   Future<List<String>> unarchiveSession(String sessionId);
   Future<List<String>> pinSession(String sessionId, {required bool pinned});
 
-  // models / providers
+  // models / providers / credentials
   Future<DshModelCatalog> loadModelCatalog();
   Future<DshModelSelection> selectModel(String sessionId, DshModelSelection selection);
   Future<void> initializeDefaultModel();
   Future<List<DshProviderInfo>> listProviders();
   Future<List<DshConfigurableProvider>> listConfigurableProviders();
-  Future<List<DshDiscoveredModel>> discoverModels(String settingsNs, DshModelDiscoveryRequest request);
+  Future<List<DshDiscoveredModel>> discoverModels(String settingsNs, DshModelDiscoveryRequest request, {Duration timeout = const Duration(seconds: 120)});
   Future<Map<String, DshCredentialInfo>> describeCredentials(List<String> refs);
   Future<void> setCredential(String ref, String value);
   Future<void> unsetCredential(String ref);
 
-  // permissions
+  // permissions / commands / skills
   Future<DshPermissionPresetCatalog> loadPermissionPresets();
-  Future<DshCommandExecution> setSessionPermission(String sessionId, String preset);
+  Future<DshCommandExecution> setSessionPermission(String sessionId, String preset); // /permission command
+  Future<List<DshCommandDescriptor>> listCommands(String sessionId);
+  Future<DshCommandExecution> executeCommand(String sessionId, String line, {List<Map<String, Object?>> submittedAttachments = const []});
+  Future<List<DshSkill>> listSkills(String sessionId);
 
   // settings
   Future<DshSettingsDescription> describeSettings();
   Future<DshSettingsNamespace> updateSettings(String ns, Map<String, Object?> patch, {int? expectedRevision});
-  Future<DshSettingsNamespace> mutateSettings(String ns, List<DshSettingsPathOp> ops, {int? expectedRevision});
   Future<DshSettingsNamespace> replaceSettings(String ns, Map<String, Object?> section, {int? expectedRevision});
-  /// Convenience for the two native general settings.
-  Future<void> setDefaultPermissionPreset(String preset);
-  Future<void> setSessionLogUpload(bool enabled);
+  Future<DshSettingsNamespace> mutateSettings(String ns, List<DshSettingsPathOp> ops, {int? expectedRevision});
+  Future<void> setDefaultPermissionPreset(String preset); // permission.defaultPreset
+  Future<void> setSessionLogUpload(bool enabled);        // session-log-deepseek.enabled
 
-  // commands / skills / plugins / account
-  Future<List<DshCommandDescriptor>> listCommands(String sessionId);
-  Future<DshCommandExecution> executeCommand(String sessionId, String line, {List<Map<String, Object?>> submittedAttachments = const []});
-  Future<List<DshSkill>> listSkills(String sessionId);
+  // plugins / account
   Future<DshPluginInventory> loadPluginInventory();
   Future<List<DshPluginBundleInfo>> listPluginBundles();
   Future<List<DshPluginInfo>> listPlugins();
+  Future<DshPluginChangeResult> setBundleEnabled(String name, bool enabled);
+  Future<DshPluginChangeResult> setPluginEnabled(String entryId, bool enabled);
   Future<DshAccountState> accountState();
 
   // live control surface
-  Stream<DshSessionControlUpdate> watchSessionControl(); // baseline replaces; projection frames patch
+  Stream<DshSessionControlUpdate> watchSessionControl();
 
-  // feature detection
-  Future<bool> supports(String endpoint);  // cached: call with {}; 404 => false, any answer => true
+  // capability probe (cached): call with {}; 404 => false, any mounted answer => true
+  Future<bool> supports(String endpoint);
 }
 ```
 
-`load()` performs the reads in parallel where safe, tolerates absent optional
-endpoints (capability false, empty collection, never an exception for a 404),
-and propagates auth/transport failures. Catalog writes are settings/command
-mutations (there is no provider CRUD or workspace/list endpoint in 0.2.2).
-
-`DshSessionControlUpdate` is sealed: `DshSessionControlBaseline`
-(`Map<String, DshSessionProjections>`) or `DshSessionControlProjection`
-(`sessionId`, `key`, `value`, `seq`).
+`load()` issues independent reads concurrently (sessions, workspaces, models,
+providers, presets, plugins, settings, account), records a capability flag per
+endpoint, tolerates absent optional endpoints (capability false + empty
+collection) and propagates auth/transport faults. `session/list` is required: a
+404 there fails the load because the surface cannot function.
+`watchWorkspaces()` / `watchSessionControl()` reopen after a generation loss and
+re-emit the Host baseline; consumers replace local state wholesale.
+There is **no** provider CRUD, workspace/list or workspace/select endpoint in
+0.2.2; configuration writes go through `settings/*` with the revision CAS.
 
 ## 10. Session handle (`dsh_session.dart`)
 
 ```dart
-enum DshPromptMode { queue, steer }
-
-class DshSession {
-  final String id;
-
-  // --- host events for this session are delivered inside watch() by default
-  Stream<DshSessionUpdate> watch({
-    bool assistantStream = true,
-    bool activate = true,             // promote a cold session before its first prompt
-    int maxMessages = 500,
-    DshTurnWindow turnWindow = const DshTurnWindow(minMessages: 50, minTurns: 2),
+class DshSessionOptions {
+  const DshSessionOptions({
+    this.maxMessages = 100,             // opening snapshot window
+    this.turnWindowMinMessages = 100,
+    this.turnWindowMinTurns = 10,
+    this.historyPageMessages = 60,      // session/page size
+    this.snapshotTimeout = const Duration(seconds: 20),
+    this.promptTimeout = const Duration(seconds: 30),
+    this.assistantStream = true,
   });
-
-  Future<void> prompt({
-    required String text,
-    List<DshImageInput> images = const [],
-    List<String> fileReceiptIds = const [],
-    DshPromptMode mode = DshPromptMode.queue,
-    String? requestId,               // caller may supply for optimistic matching
-    String? clientTimeZone,          // default: local IANA name
-  });
-  Future<void> cancel();
-
-  Future<DshModelSelection> setModel(DshModelSelection selection);
-  Future<DshCommandExecution> setPermissionPreset(String preset);
-  Future<DshCommandExecution> executeCommand(String line);
-  Future<List<DshCommandDescriptor>> listCommands();
-  Future<List<DshSkill>> listSkills();
-  Future<String> rename(String title);
-
-  Future<void> answerApproval(DshApprovalRequest request, DshApprovalDecision decision);
-  Future<void> answerQuestions(DshUserQuestionRequest request, List<DshQuestionAnswer> answers);
-  Future<void> rejectQuestions(DshUserQuestionRequest request, {String message = 'declined'});
-  Future<void> delegateHostRequest(DshHostRequest request); // kind: 'next'
-
-  Future<DshSessionState> state();
-  Future<DshSessionProjections?> projections();
-  Future<DshHistoryPage> loadOlderHistory({int? beforeSeq, int maxMessages = 200, DshTurnWindow? turnWindow});
-  Future<DshUploadReceipt> uploadFile(List<int> bytes, {String? name, String? mediaType});
-  Future<List<int>> fetchAttachment(DshImageAttachment attachment);
-  Future<void> close();
 }
 
-sealed class DshSessionUpdate {}
-final class DshSessionSnapshotUpdate extends DshSessionUpdate { final DshSessionSnapshot snapshot; }
-final class DshSessionEventUpdate extends DshSessionUpdate { final DshSessionEvent event; }
-final class DshSessionAssistantFrameUpdate extends DshSessionUpdate { final DshAssistantStreamFrame frame; }
-final class DshSessionHostRequestUpdate extends DshSessionUpdate { final DshHostEvent event; }
-final class DshSessionConnectionUpdate extends DshSessionUpdate { final DshConnectionState state; final DshException? error; }
+class DshSession {
+  DshSession({required this.sessionId, required this.mux, required this.rpc,
+      required this.transport, this.options = const DshSessionOptions()});
+  static Future<DshSession> open({required mux, required rpc, required transport,
+      required String sessionId, bool activate = false, options});
+
+  final String sessionId;
+  Stream<DshSessionUpdate> get updates;   // broadcast; snapshot-first
+  DshSessionSnapshot? get snapshot;
+  DshSessionHeader? get header;
+  DshSessionProjections get projections;
+  int get lastEventSeq;                   // -1 before the snapshot
+  bool get hasMoreHistory;
+  Future<void> get ready;
+
+  Future<void> watch({bool activate = false}); // idempotent; completes on snapshot
+  Future<DshPromptReceipt> prompt(DshPrompt prompt, {String? requestId, String mode = 'queue'});
+  Future<void> cancel();
+  Future<void> updateQueue(String itemId, {required String action, DshPrompt? edit});
+
+  Future<void> answerApproval(String eventId, DshApprovalDecision decision);
+  Future<void> answerQuestions(String eventId, List<DshQuestionAnswer> answers);
+
+  Future<DshModelSelection> setModel(DshModelSelection selection);
+  Future<DshCommandExecution> setPermission(String preset); // /permission payload
+  Future<DshSessionState> currentState();
+  Future<DshUploadReceipt> uploadAttachment(Uint8List bytes, {String? name, String? mediaType});
+  Future<Uint8List> attachmentBytes(DshImageAttachment attachment);
+  Future<DshSessionHistoryPage> loadOlder();
+  Future<void> dispose();
+}
+
+class DshPrompt {
+  const DshPrompt({this.text, this.images = const [], this.files = const []});
+}
+class DshImageInput { Uint8List bytes; String mediaType; String? name; } // inlined base64
+class DshFileInput  { String receiptId; }                               // uploadFileBinary receipt
+class DshPromptReceipt { String requestId; bool accepted; }             // matches source.rpcId
+class DshSessionHistoryPage { List<DshSessionEvent> events; bool hasMore; }
 ```
 
-`watch()` contract: first item is always a `snapshot`; after it durable events
-arrive in contiguous `seq` order (duplicates dropped, holes filled from
-`session/page`); assistant frames carry `revision`; host requests for this
-session are forwarded including ones pending when the stream opens; after a
-reconnect a fresh snapshot is emitted and the generation's pending host requests
-are re-forwarded (dedupe by `eventId` in the projection layer). `watch()` may be
-called once per session; `close()` cancels it.
+`watch()` is the activation path: `openSession(id)` → `watch(activate: true)`
+before the first `prompt()` on a cold session. The stream is **not resumable**:
+each generation begins with a snapshot (emitted as `DshSessionSnapshotUpdate`),
+then contiguous committed events; a live `seq` jump is filled from
+`session/page` before the live event is forwarded, duplicates are dropped, and
+events for this session's approvals/questions are forwarded as
+`DshSessionHostRequestUpdate` plus connection transitions as
+`DshSessionConnectionUpdate`. Prompt images are sent inline as base64
+(`{type:'image',mediaType,data,name}`); files as
+`{type:'file',receiptId}` from `POST /api/session/uploadFileBinary`.
+Approval answers are plain strings (`allowed-once`/`rejected`); the waterfall
+`next` envelope is `{kind:'next'}`; question answers are
+`{answers:[{id,selected,custom?}]}`.
 
-Prompting a cold session: `watch(activate: true)` is the supported promotion path
-(the session log is read passively, the Agent is activated by the follow), so
-`openSession(id)` → `watch()` → `prompt()` is the normal flow.
+### `DshSessionStore` — the state object the feature layer owns
+
+```dart
+class DshSessionStore {
+  DshSessionStore({required DshSession session, DshTranscript? transcript});
+  final DshSession session;
+  final DshTranscript transcript;
+
+  Stream<void> get changes;   // broadcast repaint tick; no Flutter types
+  bool get isRunning;
+  Future<void> start({bool activate = true}); // subscribes watch() and folds all updates
+  Future<DshPromptReceipt> prompt(DshPrompt prompt, {String mode = 'queue'});
+  Future<void> cancel();
+  Future<void> answerApproval(String eventId, DshApprovalDecision decision);
+  Future<void> answerQuestions(String eventId, List<DshQuestionAnswer> answers);
+  Future<DshSessionHistoryPage> loadOlder(); // also prepends into the transcript
+  Future<void> setModel(DshModelSelection selection);
+  Future<void> setPermission(String preset);
+  Future<void> dispose();
+}
+```
+
+The Flutter controller is a thin `ChangeNotifier` mapping `changes` to
+`notifyListeners()`. Store errors arrive as stream errors on `updates` and are
+recorded on the transcript connection state; they do not kill the store.
 
 ## 11. Projection (`dsh_projection.dart`)
 
 ```dart
 class DshTranscript {
-  DshTranscript({this.locale = 'en'});
-
-  void apply(DshSessionUpdate update);   // feed every watch() update
+  // feeding
+  void applySnapshot(DshSessionSnapshot snapshot); // full rebuild (also reconnect)
+  void prepend(List<DshSessionEvent> events);      // older history, ascending seq
+  void applyEvent(DshSessionEvent event);
+  void applyProjection(String key, Object? value, int seq); // session/control frame
+  void applyAssistantFrame(DshAssistantStreamFrame frame);
   void applyHostEvent(DshHostEvent event);
-  void markDisconnected(DshException? error);
-  void markConnected();
+  void setConnection(DshConnectionState state, {DshException? error});
 
-  // state (all read-only)
+  // state (read-only)
   DshSessionHeader? get header;
-  int get cursor;
-  bool get running;            // a turn is executing
-  bool get streaming;          // a live assistant attempt is being folded
-  bool get stale;              // disconnected, showing last known transcript
-  bool get hasOlderHistory;
-  String? get title;           // session/title event > projection title
-  DshModelSelection? get selectedModel;   // projection `next`
-  String? get permissionPreset;           // projection `permissions.currentValue`
-  DshSessionProjections? get projections;
-  List<DshTranscriptItem> get items;
-  List<DshApprovalRequest> get pendingApprovals;   // live, not the audit trail
+  DshConnectionState get connection;
+  DshException? get connectionError;
+  DshSessionProjections get projections;
+  DshSessionSnapshot? get snapshot;
+  String? get title;                       // null => "New chat"
+  String? get permissionPreset;
+  DshModelSelection? get modelSelection;   // projection `next`
+  DshImageLimits get imageLimits;
+  int? get activeTurn;
+  bool get isRunning;
+  DshTurnEndReason? get lastTurnReason;
+  DshLlmFailure? get lastFailure;
+  DshTokenUsage? get usage;
+  DshDraft? get draft;                     // transient live step
+  List<DshChatRow> get rows;
+  List<DshApprovalRequest> get pendingApprovals;
   List<DshUserQuestionRequest> get pendingQuestions;
-  DshTokenUsage? get usage;    // projection tokenUsage
+  List<DshApprovalRequest> get decidedApprovals;
+  bool get awaitingInput;
+  DshUserMessageRow? get firstUserMessage;
 }
 
-sealed class DshTranscriptItem { String get key; }
-final class DshUserMessageItem extends DshTranscriptItem {
-  final int seq; final DateTime time; final String text;
-  final List<DshImageAttachment> images; final List<DshFileAttachment> files;
-  final String? requestId; final String sourceKind;
+sealed class DshChatRow { int get seq; }
+final class DshUserMessageRow { DshMessage message; String text; images; files; String? requestId; }
+final class DshAssistantMessageRow { DshMessage message; int turn, step; DshTokenUsage? usage; bool interrupted; String text, reasoning; }
+enum DshToolState { running, succeeded, failed, cancelled }
+final class DshToolRow {
+  String callId, name, arguments;           // arguments = raw JSON text
+  DshToolState state; String? resultText; Object? meta;
+  DshApprovalOutcome? approvalOutcome;     // ask/decided audits
+  Map<String, Object?>? decodedArguments;
 }
-final class DshAssistantMessageItem extends DshTranscriptItem {
-  final String id;             // 'a<seq>' durable, 'd<attemptId>' live draft
-  final String? rowKey;        // 'm<turn>.<step>' shared by draft and committed row
-  final int? seq; final DateTime? time;
-  final String text; final String reasoning;
-  final bool streaming; final bool interrupted;
-  final DshTokenUsage? usage; final String? provider; final String? model;
-  final List<String> toolCallIds;   // tool cards that belong to this message
-}
-enum DshToolStatus { streaming, running, awaitingApproval, succeeded, failed, denied, cancelled }
-final class DshToolItem extends DshTranscriptItem {
-  final String callId; final String name; final String arguments; // raw JSON text
-  final DshToolStatus status; final int? seq;
-  final List<DshPart> resultParts; final String? resultText;
-  final DshLlmFailure? failure; final DshApprovalOutcome? approvalOutcome;
-  final DshApprovalRequest? pendingApproval; final Object? meta;
-}
-final class DshNoticeItem extends DshTranscriptItem {
-  enum DshNoticeKind { error, aborted, interrupted, retry, command, approval, info }
-  final int? seq; final DateTime? time; final DshNoticeKind kind; final String text;
+
+class DshDraft {
+  String attemptId; int revision, turn, step;
+  String text, reasoning;
+  List<DshLiveToolCall> toolCalls;         // streaming tool cards
+  DshTokenUsage? usage; DshLlmFailure? failure; bool active;
 }
 ```
 
 Fold rules (from `protocol.md` §5.2–§5.6):
-- snapshot replaces everything (header, cursor, projection values, items);
-  after reconnect it is authoritative and the stale flag clears;
-- durable `user/message` renders only when `surfaceOp` is append/absent and
-  `source.kind == 'user'`; injected context is not a chat row;
-- `assistant/message` renders text+reasoning; its `tool-call` blocks become
-  `DshToolItem`s; `tool/call` starts a card and `tool/result` settles it by
-  `callId`; a call with no result while `running` is running, otherwise
-  `cancelled`;
-- `turn/end.reason.kind == 'error'` becomes a `DshNoticeItem` inside the turn;
-  `aborted`/`interrupted` become notices and mark open cards;
-- live `assistant-stream` frames build a draft `DshAssistantMessageItem`
-  (`streaming: true`, `rowKey` shared with the eventual durable message) and
-  streaming tool cards; a higher `revision` voids the current draft; `end`
-  committed/abandoned drops the draft (the durable event is the replacement);
-- `approval/asked|decided` update tool cards (awaitingApproval/denied) and are
-  not rendered as separate rows; live waterfalls populate
-  `pendingApprovals`/`pendingQuestions`, `cancel`/settle removes them;
-- unknown events are kept for ordering and never rendered; an event gap does not
-  throw (the session watch fills it, the projection stays append-only).
 
-The projection is intentionally independent of Cuplivo DB models and Flutter:
-the chat feature maps `DshTranscriptItem` to its widgets.
+- a snapshot replaces header, projection values and rows; it is also the
+  reconnect path;
+- only append-origin events become rows (`surfaceOp` replacement is model
+  context and skipped); a `user/message` row requires `source.kind == 'user'`;
+- `assistant/message` is the durable answer (text + collapsed reasoning); tool
+  calls become `DshToolRow`s keyed by `callId`, `tool/result` settles them by
+  `callId` and carries `meta`; `approval/asked|decided` annotate the card and
+  are not separate rows;
+- live assistant frames build `DshDraft` (text/reasoning accumulate; tool-call
+  deltas become live tool rows); `attemptId` is authoritative, `revision` is a
+  per-frame counter; an `end` frame drops the draft and the durable message
+  follows;
+- waterfalls become `pendingApprovals`/`pendingQuestions`; `cancel`, settle and
+  `approval/decided` remove them; reconnecting keeps them until the Host
+  retracts;
+- unknown events, chunks, parts and projection keys are ignored; gaps are
+  filled by the session layer so the fold stays ordered.
 
-### `DshSessionStore` — the state object the feature layer owns
-
-`DshTranscript` is a reducer; the session handle is the transport. The feature
-layer gets both wrapped in one pure-Dart store (also in `dsh_session.dart`) so a
-chat controller only has to listen and read:
-
-```dart
-class DshSessionStore {
-  DshSessionStore(this.session, {String locale = 'en'});
-
-  final DshSession session;
-  final DshTranscript transcript;     // items + all state getters of §11
-  DshConnectionState get connection;
-  bool get started;
-
-  /// Subscribes watch() and folds every update. Idempotent.
-  Future<void> start({
-    bool assistantStream = true,
-    bool activate = true,
-    int maxMessages = 500,
-    DshTurnWindow turnWindow = const DshTurnWindow(minMessages: 50, minTurns: 2),
-  });
-
-  /// Emits after each applied update (a UI repaint tick). No Flutter types.
-  Stream<void> get changes;
-
-  Future<void> prompt({...});          // delegates to session
-  Future<void> cancel();
-  Future<void> dispose();              // closes watch + store
-}
-```
-
-`changes` is a broadcast stream; the Flutter controller maps it to
-`notifyListeners()`. All errors from `watch()` surface as a `DshNoticeItem`
-(or the `stale` flag for connection loss) instead of terminating the store.
+The feature layer maps `DshChatRow`/`DshDraft` to widgets; it must not import
+anything above the wire vocabulary.
 
 ## 12. Client entry (`dsh_client.dart`)
 
 ```dart
 class DshClient {
-  DshClient(this.endpoint, {DshTransport? transport, DshMuxOptions muxOptions = const DshMuxOptions()});
+  DshClient(this.endpoint, {
+    DshTransport? transport,
+    DshHttpClient? httpClient,
+    DshMuxOptions muxOptions = const DshMuxOptions(),
+    Duration connectTimeout = const Duration(seconds: 10),
+    Duration requestTimeout = const Duration(seconds: 30),
+  });
 
-  final DshEndpoint endpoint;
+  final DshEndpoint endpoint;       // token-free after pair()
   final DshTransport transport;
+  final DshMuxOptions muxOptions;
   late final DshRpc rpc;
   late final DshMux mux;
   late final DshCatalog catalog;
 
-  DshCookie? get cookie;
+  DshCookie? get cookie;             // persist in secure storage, per remote
   DshConnectionState get state;
+  DshException? get lastError;
   Stream<DshConnectionState> get states;
   Stream<DshHostEvent> get hostEvents;
+  DshCatalogSnapshot? get catalogSnapshot;
+  bool get isClosed;
 
-  /// One-shot pairing: token → v1 cookie → verify GET /. The token is not
-  /// retained after this call.
-  Future<DshCookie> login(String token);
+  Future<DshCookie> login(String token);   // v1 cookie + verify GET /
+  void useCookie(DshCookie cookie);        // resume without a token
+  Future<void> verify();
+  Future<DshMuxGeneration> connect();      // mux ready (first generation)
 
-  /// Resume a stored cookie without a token (no login).
-  void useCookie(DshCookie cookie);
-
-  /// Open the mux and wait for the first ready generation.
-  Future<DshMuxGeneration> connect();
-
-  /// Read the whole catalog once (see DshCatalogSnapshot).
   Future<DshCatalogSnapshot> loadCatalog({bool includePlugins = true, bool includeSettings = true, bool includeAccount = true});
 
   Future<DshSession> createSession({String? cwd, String? workspaceId, String? agentPreset});
-  DshSession openSession(String sessionId);
-
+  DshSession openSession(String sessionId, {DshSessionOptions options = const DshSessionOptions()});
+  Future<DshSessionStore> store(String sessionId, {bool activate = true, DshSessionOptions options = const DshSessionOptions(), DshTranscript? transcript});
+  Future<void> closeSession(String sessionId);
   Future<void> close();
+
+  /// parse URL → login or stored cookie → verify → connect.
+  static Future<DshClient> pair(String input, {
+    DshCookie? storedCookie,
+    DshHttpClient? httpClient,
+    DshMuxOptions muxOptions = const DshMuxOptions(),
+  });
 }
 ```
 
-Typical feature-layer lifecycle:
+Typical lifecycle:
 
 ```dart
-final endpoint = DshEndpoint.parse(pastedUrl);          // form validation
-final client = DshClient(endpoint);
-final cookie = await client.login(endpoint.token!);      // then persist cookie
-await client.connect();                                  // mux ready
-final snapshot = await client.loadCatalog();             // first paint data
-final session = client.openSession(snapshot.sessions.first.sessionId);
-final transcript = DshTranscript();
-session.watch().listen(transcript.apply);
-await session.prompt(text: 'hello');
+final client = await DshClient.pair(pastedUrl);       // login + verify + ready
+final cookie = client.cookie;                         // persist in secure storage
+final catalog = await client.loadCatalog();           // first paint data
+final store = await client.store(sessionId);          // follows + transcript
+store.changes.listen((_) => repaint());
+await store.prompt(DshPrompt(text: 'hello'));
 ...
+await store.dispose();
 await client.close();
 ```
 
-Resume path: `DshClient(endpoint.withoutToken())`, `useCookie(storedCookie)`,
-`connect()`. A 401 anywhere means the stored cookie is stale → UI asks for a new
-WebUI URL; never retry a rejected token.
+Resume path: `DshClient.pair(storedUrl, storedCookie: cookie)` (no token in the
+URL). A 401/403 anywhere means the stored cookie is stale: ask for a fresh WebUI
+URL; never retry a rejected token. `pair()` keeps only the cookie in
+`transport` — `client.endpoint.token` is null after pairing.
 
 ## 13. What is deliberately not in this client
 
-- No DSH data persistence, no cache, no offline mode.
-- No `/connect` v2 operator login (the v1 browser cookie covers API + mux +
-  WebView and is the only cookie a WebView can reuse).
+- No DSH data persistence/cache/offline mode; the only stored secret is the
+  cookie the feature layer keeps.
+- No `/connect` v2 operator login: the v1 browser cookie covers `/api`, the mux
+  **and** the WebView SPA (needed to host plugin pages).
 - No terminal/PTY, schedules/goals, account sign-in, speech, plugin market,
-  workspace-file editing: out of the brief's scope; their endpoints are still
-  readable through `DshRpc.call` and `DshCatalog.supports` if a later phase
-  needs them.
-- No plugin-panel URL: DSH has none (the WebView hosts the full SPA).
+  workspace-file editing: out of the brief's scope. Their endpoints remain
+  reachable through `DshRpc.call` / `DshCatalog.supports` if a later phase needs
+  them.
+- No plugin-panel URL: DSH has none; the WebView hosts the full SPA.
+- No transcript rendering decisions (markdown, tool widgets): the projection is
+  data-only and Flutter-free.

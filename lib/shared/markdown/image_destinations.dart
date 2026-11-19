@@ -33,8 +33,3 @@ Map<String, int> markdownImageFirstOffsets(String source) {
   walk(document);
   return out;
 }
-
-/// The destinations alone, for callers that only ask "does the renderer draw
-/// this uri at all".
-Set<String> markdownImageDestinations(String source) =>
-    markdownImageFirstOffsets(source).keys.toSet();

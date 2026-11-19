@@ -1795,11 +1795,9 @@ class ChatActions {
         continue;
       }
       out.add(
-        ImagePart(
+        part.copyWith(
           uri: SandboxPathResolver.canonicalize(saved),
           mime: part.mime ?? (mime.isEmpty ? 'image/png' : mime),
-          assetId: part.assetId,
-          unavailable: part.unavailable,
         ),
       );
     }

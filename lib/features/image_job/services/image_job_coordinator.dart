@@ -30,7 +30,6 @@ import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/models/assistant.dart';
-import '../../../core/models/chat_message.dart';
 import '../../../core/models/message_part.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
@@ -153,15 +152,13 @@ class ImageJobCoordinator extends ChangeNotifier {
 
   /// Creation: idempotent, refuses what it cannot do, and starts the picture.
   ///
-  /// [messageId] is normally omitted: tools run inside the reply that is being
-  /// generated, and that reply is found by its own streaming flag. Retry passes
-  /// it explicitly because it runs long after the stream ended.
+  /// The reply is found from the streaming flag rather than passed in: a tool
+  /// only ever runs inside the reply that is being generated.
   Future<ImageJobStart> begin({
     required String conversationId,
     required String toolCallId,
     required String prompt,
     Assistant? assistant,
-    String? messageId,
     String? aspectRatio,
     List<String> referenceImageIds = const <String>[],
   }) async {
@@ -173,8 +170,7 @@ class ImageJobCoordinator extends ChangeNotifier {
       );
     }
 
-    final targetMessageId =
-        messageId ?? _generatingAssistantMessageId(conversationId);
+    final targetMessageId = _generatingAssistantMessageId(conversationId);
     if (targetMessageId == null) {
       return const ImageJobRefused(
         'no_target_message',
@@ -316,30 +312,8 @@ class ImageJobCoordinator extends ChangeNotifier {
     if (changed) notifyListeners();
   }
 
-  ImagePart _partFor(ImageJob job) {
-    final state = switch (job.state) {
-      ImageJobState.completed => null,
-      ImageJobState.failed => ImagePartState.failed,
-      ImageJobState.queued || ImageJobState.running => ImagePartState.pending,
-    };
-    return ImagePart(
-      uri: job.resultUri ?? job.uri,
-      // The real type, so a JPEG/WebP is not re-sent to a model as `image/png`
-      // just because the promised path ends in `.png`.
-      mime: job.mime,
-      assetId: job.assetId,
-      jobId: job.id,
-      state: state,
-      prompt: job.prompt,
-      model: _modelKeyFor(job),
-      failureReason: state == ImagePartState.failed ? job.error : null,
-      // Kept on the part, not only in the job: the job map dies with the
-      // process, and the header should still say how long it took.
-      durationMs: _durationOf(job)?.inMilliseconds,
-    );
-  }
-
-  Duration? _durationOf(ImageJob job) => jobDuration(job);
+  ImagePart _partFor(ImageJob job) =>
+      imagePartForJob(job, modelKey: _modelKeyFor(job));
 
   /// The authoritative shape of a reply's parts, for a writer about to commit
   /// them.
@@ -352,7 +326,7 @@ class ImageJobCoordinator extends ChangeNotifier {
   /// restart, while its file sits on disk. The renderer's rule applies to the
   /// writer too: a live job's state beats a frozen copy.
   List<MessagePart> freshenParts(List<MessagePart> parts) =>
-      freshenImageParts(parts, manager.byId, _partFor);
+      freshenImageParts(parts, manager.byId, partFor: _partFor);
 
   /// Replace the part carrying this asset, or append it when the message has
   /// none yet.
@@ -370,27 +344,27 @@ class ImageJobCoordinator extends ChangeNotifier {
     final job = jobId == null ? null : manager.byId(jobId);
     if (job == null) return Future<void>.value();
     final messageId = job.messageId;
-    final conversationId = job.conversationId;
-    return _writes
-        .run(messageId, () => _writePart(conversationId, messageId, part))
-        .catchError((Object error) {
-          // A failed write must not leave the dedupe claiming this state was
-          // persisted: clearing it lets the next notify try again.
-          _written.remove(jobId);
-        });
+    return _writes.run(messageId, () => _writePart(messageId, part)).catchError(
+      (Object error) {
+        // A failed write must not leave the dedupe claiming this state was
+        // persisted: clearing it lets the next notify try again.
+        _written.remove(jobId);
+      },
+    );
   }
 
   /// One chain per message id, so two transitions of the same reply cannot write
   /// a parts list built from the same pre-image.
   final SerialQueue _writes = SerialQueue();
 
-  Future<void> _writePart(
-    String conversationId,
-    String messageId,
-    ImagePart part,
-  ) async {
+  Future<void> _writePart(String messageId, ImagePart part) async {
     // Read *inside* the chain: this is the list that is actually stored now.
-    final message = _messageById(conversationId, messageId);
+    // The read is durable on purpose — the reply may have left the message cache
+    // while the picture was still being painted, and a cache-only read made the
+    // completed mirror a silent no-op: the row kept `pending`, nothing would
+    // ever rewrite it, and after a restart the picture read as "interrupted"
+    // while its file sat on disk.
+    final message = await _chat.getMessageById(messageId);
     if (message == null) return;
     final next = <MessagePart>[];
     var replaced = false;
@@ -405,13 +379,6 @@ class ImageJobCoordinator extends ChangeNotifier {
     if (!replaced) next.add(part);
     if (listEquals(next, message.parts)) return;
     await _chat.updateMessage(messageId, parts: next);
-  }
-
-  ChatMessage? _messageById(String conversationId, String messageId) {
-    for (final message in _chat.getMessages(conversationId)) {
-      if (message.id == messageId) return message;
-    }
-    return null;
   }
 
   /// The assistant reply that is being generated right now.
@@ -480,6 +447,34 @@ class ImageJobCoordinator extends ChangeNotifier {
       'img_${sha256.convert(utf8.encode(idempotencyKey)).toString().substring(0, 20)}';
 }
 
+/// The part a job's state mirrors into.
+///
+/// Pure, and the only implementation: the coordinator writes it, `freshenParts`
+/// repairs with it, and the tests assert it instead of keeping a copy that
+/// silently stops matching when a field is added.
+ImagePart imagePartForJob(ImageJob job, {String? modelKey}) {
+  final state = switch (job.state) {
+    ImageJobState.completed => null,
+    ImageJobState.failed => ImagePartState.failed,
+    ImageJobState.queued || ImageJobState.running => ImagePartState.pending,
+  };
+  return ImagePart(
+    uri: job.resultUri ?? job.uri,
+    // The real type, so a JPEG/WebP is not re-sent to a model as `image/png`
+    // just because the promised path ends in `.png`.
+    mime: job.mime,
+    assetId: job.assetId,
+    jobId: job.id,
+    state: state,
+    prompt: job.prompt,
+    model: modelKey,
+    failureReason: state == ImagePartState.failed ? job.error : null,
+    // Kept on the part, not only in the job: the job map dies with the process,
+    // and the header should still say how long it took.
+    durationMs: jobDuration(job)?.inMilliseconds,
+  );
+}
+
 /// [freshenParts]'s rule, pure: hand it the parts and how to answer "what does
 /// this job say now" and it returns the list a writer should commit.
 ///
@@ -487,9 +482,9 @@ class ImageJobCoordinator extends ChangeNotifier {
 /// interesting cases are all about disagreement, not about the wiring.
 List<MessagePart> freshenImageParts(
   List<MessagePart> parts,
-  ImageJob? Function(String jobId) jobFor,
-  ImagePart Function(ImageJob job) partFor,
-) {
+  ImageJob? Function(String jobId) jobFor, {
+  ImagePart Function(ImageJob job)? partFor,
+}) {
   var changed = false;
   final out = <MessagePart>[];
   for (final part in parts) {
@@ -499,7 +494,7 @@ List<MessagePart> freshenImageParts(
       out.add(part);
       continue;
     }
-    final live = partFor(job);
+    final live = (partFor ?? imagePartForJob)(job);
     if (live.state == (part as ImagePart).state &&
         live.uri == part.uri &&
         live.mime == part.mime) {

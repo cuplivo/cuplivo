@@ -158,16 +158,4 @@ void main() {
     expect(settled.state, ImageJobState.completed);
     expect(settled.mime, 'image/jpeg');
   });
-
-  test('job states describe liveness honestly', () {
-    // Four values, and every one of them is reachable: nothing cancels a job,
-    // and a process that dies takes its jobs with it (the renderer derives
-    // `interrupted` for the part, not for the job).
-    const terminal = [ImageJobState.completed, ImageJobState.failed];
-    for (final state in terminal) {
-      expect(state.isTerminal, true);
-    }
-    expect(ImageJobState.queued.isTerminal, false);
-    expect(ImageJobState.running.isTerminal, false);
-  });
 }

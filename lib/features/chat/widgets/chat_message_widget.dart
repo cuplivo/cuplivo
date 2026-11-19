@@ -1448,11 +1448,6 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
   /// The subset of [_jobImageSources] the reply's text actually places, and
   /// which is therefore drawn where the model put it — not at the end.
   final Set<String> _inlineJobUris = <String>{};
-
-  /// Source offset of each placeable uri's first mention. A reply may write the
-  /// same placeholder twice; only the first one owns the card, or the reply
-  /// shows two illustrations (two skeletons, two ⋯) for one job.
-  Map<String, int> _jobImageFirstOffsets = const <String, int>{};
   Future<void> _submitRecoveredAnswer(
     ToolUIPart part,
     AskUserResult result,
@@ -3234,18 +3229,23 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
   /// exactly there — header, skeleton, picture and ⋯ together — instead of being
   /// appended after the last paragraph. Returning null leaves an ordinary
   /// Markdown image alone.
+  ///
+  /// The callback stays a method tear-off: markstream's host compares it by
+  /// identity to decide whether to rebuild its tree, and a fresh closure every
+  /// frame throws away the subtree identity streaming relies on.
   Widget? _buildInlineJobImage(
     BuildContext context,
     String destination,
     int offset,
+    String document,
   ) {
     final part = _imageJobPartForUri(destination);
     if (part == null) return null;
-    // The same promise may be written twice. Only its first mention owns the
-    // card; a later one is the same picture, so it draws the picture itself (or
-    // nothing while there still is none) instead of a second skeleton with a
-    // second ⋯.
-    final first = _jobImageFirstOffsets[destination];
+    // The same promise may be written twice *in one document*. Only its first
+    // mention there owns the card; a later one is the same picture, so it draws
+    // the picture itself (or nothing while there still is none) instead of a
+    // second skeleton with a second ⋯.
+    final first = _firstImageOffsetsIn(document)[destination];
     if (first != null && first != offset) {
       final job = imageJobCoordinatorOf(context)?.jobForAsset(part.assetId);
       final complete = part.hasBytes || job?.state == ImageJobState.completed;
@@ -3267,6 +3267,26 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
       ),
     );
   }
+
+  /// Source offset of each placeable uri's first mention in one rendered
+  /// document.
+  ///
+  /// The question "is this the first mention" only has an answer inside a
+  /// document: offsets from the whole reply and offsets from a bubble are
+  /// different coordinate systems, and comparing them made the only mention in a
+  /// later block look like a repeat — so nothing was drawn at all. Memoised for
+  /// the text most recently asked about, which is the one being laid out.
+  Map<String, int> _firstImageOffsetsIn(String document) {
+    if (_jobImageSources.isEmpty) return const <String, int>{};
+    if (_ownershipDocument == document) return _ownershipOffsets;
+    final offsets = markdownImageFirstOffsets(document);
+    _ownershipDocument = document;
+    _ownershipOffsets = offsets;
+    return offsets;
+  }
+
+  String? _ownershipDocument;
+  Map<String, int> _ownershipOffsets = const <String, int>{};
 
   Widget _buildAssistantImageBlock(
     BuildContext context,
@@ -3558,13 +3578,14 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     // parse, not a substring test. "Mentions the uri" and "draws the uri" differ
     // in a fence, in inline code, and in a plain link; where they differ, the
     // part's block is the only thing left that can show the picture, so the
-    // suppression must not fire. Only asked when the reply has a promised
-    // picture at all, because parsing the body twice is not free.
+    // suppression must not fire. Asked once per reply: this only decides whether
+    // the *part's own block* is redundant, which is a question about the reply as
+    // a whole. Ownership *within* a document is a separate question and is
+    // answered in `_firstImageOffsetsIn`.
     final renderedImages =
         enableAssistantMarkdown && _jobImageSources.isNotEmpty
         ? markdownImageFirstOffsets(visualContent)
         : const <String, int>{};
-    _jobImageFirstOffsets = renderedImages;
     _inlineJobUris
       ..clear()
       ..addAll(

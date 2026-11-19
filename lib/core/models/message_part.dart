@@ -318,10 +318,10 @@ final class ImagePart extends MessagePart {
   /// model, reason and duration. `state` is not cosmetic: `hasBytes` derives
   /// from it, so a stripped `pending` part would be sent to a provider as if its
   /// bytes existed.
-  ImagePart copyWith({String? uri, bool? unavailable}) {
+  ImagePart copyWith({String? uri, bool? unavailable, String? mime}) {
     return ImagePart(
       uri: uri ?? this.uri,
-      mime: mime,
+      mime: mime ?? this.mime,
       assetId: assetId,
       id: id,
       unavailable: unavailable ?? this.unavailable,

@@ -14,17 +14,7 @@
 /// editor will trust and then wait for.
 library;
 
-enum ImageJobState {
-  queued,
-  running,
-  completed,
-  failed;
-
-  bool get isTerminal => switch (this) {
-    ImageJobState.completed || ImageJobState.failed => true,
-    ImageJobState.queued || ImageJobState.running => false,
-  };
-}
+enum ImageJobState { queued, running, completed, failed }
 
 const Object _unset = Object();
 

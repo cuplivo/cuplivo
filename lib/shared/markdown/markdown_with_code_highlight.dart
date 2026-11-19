@@ -49,10 +49,19 @@ class MarkdownWithCodeHighlight extends StatefulWidget {
 
   /// Draws this application's own block in place of an image the model only
   /// promised: a generated picture renders where its Markdown placeholder is,
-  /// not at the end of the reply. Return null for an ordinary image. The offset
-  /// is the node's position in the source, so two mentions of one uri can be
-  /// told apart.
-  final Widget? Function(BuildContext context, String destination, int offset)?
+  /// not at the end of the reply. Return null for an ordinary image.
+  ///
+  /// The last argument is the document this image belongs to, and the offset is
+  /// the node's position in it. Both matter: a reply is rendered as several
+  /// documents (one per block, or one per paragraph when the split option is on),
+  /// and a node's offset only means something inside the document that produced
+  /// it.
+  final Widget? Function(
+    BuildContext context,
+    String destination,
+    int offset,
+    String document,
+  )?
   jobImageBuilder;
 
   @override
@@ -75,7 +84,10 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
   void initState() {
     super.initState();
     _source = UnicodeSanitizer.sanitize(widget.text);
-    _imageBuilder = KelivoImageBuilder(jobImageBuilder: widget.jobImageBuilder);
+    _imageBuilder = KelivoImageBuilder(
+      jobImageBuilder: widget.jobImageBuilder,
+      document: () => _source,
+    );
   }
 
   @override
@@ -87,6 +99,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
     if (oldWidget.jobImageBuilder != widget.jobImageBuilder) {
       _imageBuilder = KelivoImageBuilder(
         jobImageBuilder: widget.jobImageBuilder,
+        document: () => _source,
       );
     }
   }

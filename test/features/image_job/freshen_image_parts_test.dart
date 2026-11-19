@@ -4,25 +4,6 @@ import 'package:Cuplivo/core/models/message_part.dart';
 import 'package:Cuplivo/features/image_job/models/image_job.dart';
 import 'package:Cuplivo/features/image_job/services/image_job_coordinator.dart';
 
-/// The coordinator's `_partFor`, for a test that does not need a `ChatService`.
-ImagePart _partFor(ImageJob job) {
-  final state = switch (job.state) {
-    ImageJobState.completed => null,
-    ImageJobState.failed => ImagePartState.failed,
-    ImageJobState.queued || ImageJobState.running => ImagePartState.pending,
-  };
-  return ImagePart(
-    uri: job.resultUri ?? job.uri,
-    mime: job.mime,
-    assetId: job.assetId,
-    jobId: job.id,
-    state: state,
-    prompt: job.prompt,
-    model: 'openai::gpt-image-1',
-    failureReason: state == ImagePartState.failed ? job.error : null,
-  );
-}
-
 ImageJob _job({
   String id = 'job-1',
   ImageJobState state = ImageJobState.completed,
@@ -61,7 +42,7 @@ void main() {
       ];
       final jobs = <String, ImageJob>{'job-1': _job(mime: 'image/jpeg')};
 
-      final freshened = freshenImageParts(snapshot, (id) => jobs[id], _partFor);
+      final freshened = freshenImageParts(snapshot, (id) => jobs[id]);
 
       final part = freshened[1] as ImagePart;
       expect(part.state, isNull);
@@ -82,7 +63,7 @@ void main() {
       ];
       final jobs = <String, ImageJob>{'job-1': _job()};
 
-      expect(freshenImageParts(parts, (id) => jobs[id], _partFor), same(parts));
+      expect(freshenImageParts(parts, (id) => jobs[id]), same(parts));
     });
 
     test('a job nobody knows leaves its part alone', () {
@@ -96,7 +77,7 @@ void main() {
         ),
       ];
 
-      expect(freshenImageParts(parts, (_) => null, _partFor), same(parts));
+      expect(freshenImageParts(parts, (_) => null), same(parts));
     });
 
     test('a failed job explains itself even when the snapshot did not', () {
@@ -112,8 +93,7 @@ void main() {
         state: ImageJobState.failed,
       ).copyWith(error: 'The reply contained no image link.');
 
-      final part =
-          freshenImageParts(parts, (_) => failed, _partFor).single as ImagePart;
+      final part = freshenImageParts(parts, (_) => failed).single as ImagePart;
 
       expect(part.state, ImagePartState.failed);
       expect(part.failureReason, 'The reply contained no image link.');

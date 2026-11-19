@@ -1149,6 +1149,46 @@ void main() {
     expect(find.byType(ImageJobCard), findsOneWidget);
   });
 
+  testWidgets('a placeholder in the second text block still draws its card', (
+    tester,
+  ) async {
+    // The card's ownership is decided per rendered document. A reply with a text
+    // block, a tool call and another text block renders each block as its own
+    // Markdown document, and markstream reports offsets in that document — so an
+    // offset taken from the whole body matched nothing and the only mention
+    // looked like a repeat: no skeleton while painting, no failure sentence, no
+    // card at all. This is the ordinary shape of an illustrated reply.
+    const uri = 'kelivo-file:///images/img_abcdefghijklmnopqrst.png';
+    await tester.pumpWidget(
+      _buildHarness(
+        child: ChatMessageWidget(
+          message: ChatMessage(
+            id: 'second-block-job-image',
+            role: 'assistant',
+            conversationId: 'c1',
+            parts: const [
+              TextPart('BEFORE_MARK'),
+              ToolCallPart(
+                '{"id":"call-1","name":"generate_image","arguments":{},"content":"done"}',
+              ),
+              TextPart('![]($uri)\n\nAFTER_MARK'),
+              ImagePart(
+                uri: uri,
+                assetId: 'img_abcdefghijklmnopqrst',
+                jobId: 'job-1',
+              ),
+            ],
+          ),
+          showModelIcon: false,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ImageJobCard), findsOneWidget);
+  });
+
   testWidgets('a placeholder written twice still draws one card', (
     tester,
   ) async {

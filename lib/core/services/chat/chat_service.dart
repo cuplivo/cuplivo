@@ -4067,6 +4067,21 @@ class ChatService extends ChangeNotifier {
     _touchMessageCache(updatedMessage.conversationId);
   }
 
+  /// One message by id, from the in-memory cache when it is still there and from
+  /// storage otherwise.
+  ///
+  /// The message cache is bounded (720 entries / 8 MB) and drops finished
+  /// replies. A writer that runs *later* — an image job finishing tens of seconds
+  /// after its reply was finalized — therefore cannot assume its message is still
+  /// cached, and a cache-only read turns that write into a silent no-op.
+  Future<ChatMessage?> getMessageById(String messageId) async {
+    final temporary = _cachedTemporaryMessage(messageId);
+    if (temporary != null) return temporary;
+    final cached = _cachedMessage(messageId);
+    if (cached != null) return cached;
+    return _repo.getMessage(messageId);
+  }
+
   Future<void> updateMessage(
     String messageId, {
     String? content,

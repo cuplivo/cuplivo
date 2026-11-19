@@ -5497,5 +5497,13 @@
   "groupChatDirectorFallbackWarning": "6dd24ec21e7c30559295e17724450491e4ab3fe8e094c75cdc7f47a62854fe1e",
   "groupChatUnavailableWarning": "e18753b58bbbb722500085019b7ba5553f412917e8285a866456de826acce719",
   "defaultModelPageDirectorModelTitle": "485a1fbb9e3286fa2ba28e642e7ec867a8d18cfcf8ded8a026e0e8436de72174",
-  "defaultModelPageDirectorModelSubtitle": "2e9381ede31f33aaa734a94492d98886b4e7b01a35b2642fdfd5277b60ba6719"
+  "defaultModelPageDirectorModelSubtitle": "2e9381ede31f33aaa734a94492d98886b4e7b01a35b2642fdfd5277b60ba6719",
+  "modelDetailSheetDecisionType": "668e33e069ab6ea0ca3d4d078fb56c283b43665b0eec7a159b3133b2e58f33e7",
+  "modelDetailSheetDecisionDialectLabel": "82b1c0e79d8b580b3a7ee1fb80833ddd73bb7f4b53c7a81e9ca2d17e106fcaec",
+  "modelDetailSheetDecisionUrlLabel": "cfbadf487c8f511fc96e6384fead97e4191342a6011487fc9ba709ec20001592",
+  "modelDetailSheetDecisionUrlHint": "58531a458778bedb67fbda4e5d5c31c865146b57bd9077736598904615a5fa5a",
+  "modelDetailSheetDecisionUrlHelp": "e5a2a2d9962dab2440fa7a2698bef98c2f829dc396c0a00a088646608564e734",
+  "modelDetailSheetDecisionUrlFill": "1ea2efd0c4879934c875267e0d99f63307c609186bd08bea565116e2a50d694c",
+  "modelDetailSheetDecisionUrlCurrent": "271bc7a44790baa38ac1780a1fbbf2cbcde476d73cfe0fadc9f776a429fe91f1",
+  "modelDetailSheetDecisionUrlBailian": "f6bc48a350eb351416a394cb9ce612c31d56d1d69475a7ee372a072217e5dfc6"
 }

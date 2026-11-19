@@ -2239,3 +2239,134 @@ One conflation worth naming: the conversation row's merge is not pure LWW.
 peers compute the same value whoever won the row — but "who wins" and "what the row ends up as" are
 now two places. A third such column should become a registration in the family table, not a third
 patch in the applier.
+
+## Amendment (2026-11, admission): three lanes, one budget, and what cancelling means
+
+### Context
+
+The listener served every request on one arrival-ordered chain, with two exceptions bolted on: the
+liveness probe (slice 19) and, later, nothing else. Two questions had never been answered together —
+*who may run beside whom*, and *what happens when the caller stops waiting* — and the answers had
+been added one call site at a time.
+
+Three defects were the same missing design:
+
+* A read queued behind a write. A session's push beat pulls attachments from the peer, so the pull is
+  a `GET` against the peer's own listener — and that listener was busy serving *its* inbound session.
+  Three devices (A→B, B→C, C→A, each missing an attachment) therefore waited on each other in a ring
+  that no one link could break.
+* The deadline ended the caller's wait, not the handler. A route that timed out answered 504 and kept
+  running: it installed the session, wrote the checkpoint and landed the file afterwards. The peer had
+  been told the request was over; the device kept acting as though it were not.
+* The budget started at dequeue, so "queued for thirty minutes, then ran for thirty more" was a legal
+  state.
+
+The client had the fourth: `addStream` sat outside every timer, so a peer that accepted a push and
+stopped reading held the upload forever, and seven `response.drain()` calls had no deadline at all.
+
+### Decision
+
+**A route is classified by effect, not by path.** `SyncServer._writesState` is the one place that
+decides; a route it does not name writes nothing.
+
+| route | effect | lane |
+|---|---|---|
+| `GET /sync/blob/<hash>` | reads a published file | read (concurrent) |
+| `POST /sync/wsfile` | reads an advertised file | read (concurrent) |
+| `POST /sync/ping` | nothing | ping (capped, slice 19) |
+| `POST /pair` | writes the peer record | pair (**capped**, `kMaxPairRequestsInFlight`) |
+| `POST /sync/hello` | installs a session | write (one, device-wide) |
+| `PUT /sync/subtrees` | applies, lands files | write |
+| `POST /sync/subtrees` | deletes, writes the checkpoint, ends the session | write |
+| `POST /sync/revoke` | deletes the peer record | write |
+| `PUT /sync/blob/<h>`, `PUT /sync/wsfile` | lands a file | write |
+| anything else | nothing | read (answers 404/405 beside the lanes) |
+
+**The write lane stays device-wide.** Splitting it per peer was considered and rejected (see below):
+the ring is broken by the read lane alone, and one writer at a time is the invariant the session map,
+the checkpoint file and the apply path were designed around.
+
+**A request's budget starts when the listener reads it.** It is spent through `SyncAdmission`, which
+carries both the budget and the right to write; a request that waited behind a long beat starts
+already spent and is answered 504 at dequeue instead of getting a fresh one.
+
+**Cancellation is a right that is checked, not a future that is ignored.** Three operations, one
+object:
+
+* `check()` at a **commit point** refuses everything after it. The commit points are the state
+  changes, never a transaction interior: the session install, the peer record (and its secret), the
+  record delete, the staged file's rename, the checkpoint write that also ends the session, and each
+  conversation transaction of an apply. Everything committed before a cancellation stays — those
+  writes are idempotent against the plan that asked for them, so the next session redoes them.
+* `io()` around an await that can hang (a body that stops arriving, a peer that stops reading) so the
+  handler unwinds and its `finally` runs: the beat counter comes back to zero, the staged file is
+  deleted, the session is not left half-claimed. It takes a callback, because a future passed as an
+  argument has already started — a gate that refuses it would leave its error unlistened.
+* `ioStream()` for the same reason, chunk by chunk.
+
+**Cancellation is per unit.** `applySubtrees` checks between conversations, the workspace apply
+between files, the blob pull between blobs — where the untried remainder is recorded as *failed*
+rather than dropped, because an entry the outcome does not name leaves the checkpoint's pending set
+and would never be asked for again. The deletion loops check once, before they start: each deletion
+re-reads the row it would remove, so stopping there is the same as not having started.
+
+**Authentication is decided once, at dispatch.** A `/sync/*` request that cannot name a paired caller
+is answered 401 before it joins any queue. Refusing it *on the write lane* — where an unauthenticated
+`POST /sync/hello` used to land — let a stranger's forged flood queue in front of a paired peer's
+beat with requests that were only ever going to be refused.
+
+**Pairing has its own lane, capped.** It is the one face that answers before any authentication
+exists, so it cannot share the data lanes: past `kMaxPairRequestsInFlight` the caller is answered 503
+`pair_busy`, the same refusal language `ping_busy` uses. The cap is four and is deliberately not
+derived from the endpoint cap — pairing is bounded by a human standing in front of two devices, while
+`kMaxPeerEndpoints` is a memory of networks.
+
+**A transfer has one budget on the client too.** `pushBlob` and `pushWorkspaceFile` run inside
+`_transfer`: one stopwatch from the first byte sent to the last drain, each await spending what is
+actually left, and the request **aborted** on expiry — a `.timeout` alone stops waiting but keeps the
+socket, and the session's next request queues behind it.
+
+### What the read lane's concurrency rests on
+
+Two facts that predate this amendment and are now load-bearing, which is why they are written down in
+`_writesState`'s comment:
+
+* **A read serves a published snapshot, never a table being built.** `WorkspaceContentSync.publish`
+  constructs the whole table and assigns it, so a reader sees the old one or the new one and never a
+  half-filled map. A read that answers a version the peer planned against a moment ago is a miss it
+  retries, not a corrupt transfer.
+* **No write holds a database transaction across a network await.** `_fetchOne` is network, then
+  file, then DB. A transaction that waited on a socket would put the read lane behind a transfer, and
+  the ring would come back with the database as its medium.
+
+### Rejected: one write lane per peer
+
+The obvious reading of "the ring waits on the write chain" is that the chain is too coarse. It is the
+wrong half: what crossed the ring was a *read*, so separating reads breaks it, and per-peer writes buy
+nothing that G0 asked for. They would make concurrent writes normal — the session map, the checkpoint
+file and the apply path all rest on "one writer at a time" — and the ADR's own sentence about why the
+data routes are serial ("they share session state and a checkpoint file") would have to be weakened to
+a per-peer claim. That is a decision to take on measured contention, not on a diagnosis that turned out
+to point one lane over.
+
+### Known limits
+
+* **A skill's zip is built in place in the serving cache**, so a `GET` that lands while the same
+  archive is being rebuilt can read a short file. The receiver re-hashes an extracted body and refuses
+  it, so the transfer fails and is retried — not corruption, but it is a window this amendment opens,
+  and it is why `zipToCache` is the place a later slice may need an atomic rename.
+* **The read lane is not capped.** One paired peer can hold as many reads open as its sockets allow.
+  Today's traffic is one pull at a time per session, so a cap would be a number without a basis; the
+  refusal path (`ping_busy`'s shape) is what it would take.
+* **A paired peer's write flood now queues other peers behind it**, because the write lane is
+  device-wide. That is the price of the lane key; it is not worse than the single chain it replaced.
+
+### Consequences for earlier claims
+
+* Slice 3's "the data routes run one at a time — they share session state and a checkpoint file" holds
+  unchanged, now stated as a lane rather than as the loop.
+* Slice 19's probe lane is unchanged; its authentication moved to the dispatch point, so the route no
+  longer decides pairing itself.
+* The "Every request has a deadline, on both planes" bullet (slice 5) is now "from admission", and the
+  deadline *cancels* rather than merely returning.
+* Slice 19's and slice 24's descriptions of the request loop are superseded by the lane table above.

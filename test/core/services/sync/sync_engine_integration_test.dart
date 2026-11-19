@@ -7105,6 +7105,98 @@ void main() {
     );
   });
 
+  test('a ring of three devices does not wait on itself', () async {
+    // The shape that deadlocked the single request chain, and the reason the read
+    // lane exists. Each device's push beat pulls the attachment its peer
+    // advertised, and that pull is a request against the peer's own listener —
+    // which is busy with *its* inbound session. A→B, B→C, C→A, each missing the
+    // one attachment its sender holds: with one lane every link waits for the
+    // next to finish answering, and none can.
+    final a = _Side('a');
+    final b = _Side('b');
+    final c = _Side('c');
+    await a.start(root);
+    await b.start(root);
+    await c.start(root);
+    sides.addAll([a, b, c]);
+    await pairSides(a, b);
+    await pairSides(b, c);
+    await pairSides(c, a);
+
+    /// One conversation whose only attachment exists on [side], so the receiver
+    /// has no copy to fall back on: it must pull, over the sender's listener.
+    Future<void> seed(_Side side, String conversationId) async {
+      final image = File(
+        '${side.dir.path}${Platform.pathSeparator}images'
+        '${Platform.pathSeparator}$conversationId.png',
+      );
+      await image.parent.create(recursive: true);
+      await image.writeAsString(conversationId, flush: true);
+      final message = ChatMessage(
+        id: '$conversationId-m0',
+        conversationId: conversationId,
+        role: 'user',
+        content: '',
+        parts: [
+          ImagePart(
+            uri: 'kelivo-file:///images/$conversationId.png',
+            mime: 'image/png',
+          ),
+        ],
+      );
+      await side.repository.putMigrationBatch(
+        conversations: [
+          Conversation(
+            id: conversationId,
+            title: conversationId,
+          ).copyWith(messageIds: [message.id]),
+        ],
+        messages: [(message: message, messageOrder: 0)],
+        toolEventsByMessageId: const {},
+        geminiSignaturesByMessageId: const {},
+      );
+    }
+
+    await seed(a, 'conv-a');
+    await seed(b, 'conv-b');
+    await seed(c, 'conv-c');
+
+    // All three at once, which is what closes the ring: each device is a
+    // responder to one peer and an initiator to the next while the third beats.
+    final reports = await Future.wait([
+      a.engine.syncWithPeer(await a.peer(b)),
+      b.engine.syncWithPeer(await b.peer(c)),
+      c.engine.syncWithPeer(await c.peer(a)),
+    ]).timeout(const Duration(seconds: 90));
+
+    for (final report in reports) {
+      expect(report.success, isTrue, reason: report.summary);
+    }
+    // Each attachment reached the device that was missing it — the pull that the
+    // ring would have starved.
+    expect(
+      await File(
+        '${b.dir.path}${Platform.pathSeparator}images'
+        '${Platform.pathSeparator}conv-a.png',
+      ).readAsString(),
+      'conv-a',
+    );
+    expect(
+      await File(
+        '${c.dir.path}${Platform.pathSeparator}images'
+        '${Platform.pathSeparator}conv-b.png',
+      ).readAsString(),
+      'conv-b',
+    );
+    expect(
+      await File(
+        '${a.dir.path}${Platform.pathSeparator}images'
+        '${Platform.pathSeparator}conv-c.png',
+      ).readAsString(),
+      'conv-c',
+    );
+  });
+
   test(
     'three devices converge through a middle hop, without re-flooding',
     () async {

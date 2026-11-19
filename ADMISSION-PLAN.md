@@ -6,7 +6,7 @@
 | branch | `refactor/lan-sync-admission` |
 | base | `04c1e594e`（#1088 之后） |
 | 覆盖 | N1（未鉴权 `/pair` 占全局串行）、N2（上传与 drain 无期限）、O1（只读路由被写 beat 挡住 → 环形互等）、O2（超时不取消）；**无协议变更** |
-| 状态 | 五个 commit 已落地（`a1f081c73` `6b90cebce` `b0355e3b7` `999a91575` + 本 commit）；待评审 |
+| 状态 | 五个 commit 已落地（`a1f081c73` `6b90cebce` `b0355e3b7` `999a91575` + 文档），外加一格环形验收测试；待评审 |
 | 骨架 | `docs/design/lan-sync-admission/a-three-lanes.md`（伪代码、不变量、失效模式、17 格状态表） |
 
 ## 0. 一句话

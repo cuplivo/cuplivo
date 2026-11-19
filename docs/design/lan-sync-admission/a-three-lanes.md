@@ -206,8 +206,13 @@ await _transfer((left) async {
 | 16 | 事务中途超时 | 当前事务跑完，下一个不开（D-3） |
 | 17 | ping 仍在进行中的 beat 旁应答 | 回归 slice 19 |
 
-注入证明（G5）：(a) 注掉提交点 #8 的 `check()` → #7 红；(b) `GET /sync/blob` 改回写车道 → #1/#3 红；
-(c) 去掉 `/pair` 车道 → #13 红。各自 `git hash-object` 还原核对。
+#1、#2、#4–#6、#12–#17 落在 `sync_admission_test.dart`；#3 需要三个引擎，落在
+`sync_engine_integration_test.dart` 的 "a ring of three devices does not wait on itself"；
+#7–#11 也各有一格引擎层的用例。
+
+注入证明（G5）：(a) 注掉提交点 #8 的 `check()` → #7 红；(b) `GET /sync/blob` 改回写车道 → #3 红
+（整格 30 秒挂死）；(c) 去掉 `/pair` 车道 → #13 红；(d) 把 `addStream` 放回计时器外 → #14 红；
+(e) 上限抬到 99 → #13 红。各自按 sha256 还原核对。
 
 ## 8. 与变体 B 的那一处差别
 

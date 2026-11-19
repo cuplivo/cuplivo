@@ -174,6 +174,60 @@ Keep scenarios short so the recording stays reviewable.
 6. The recording is present and covers this scenario, not a fixed app tour.
 7. `python3 tool/e2e/test_build_report.py` passes in `pr-check.yml`.
 
+## Real-DSH acceptance endpoint
+
+The Android E2E run can exercise a **real DeepSeek Harness server** for
+same-repository PRs. The `request` job resolves the PR head repository through
+the pull API (or `pull_request` metadata); only when it is this repository does
+the `run` job receive `E2E_DSH_URL` and `E2E_DSH_TOKEN` from repository secrets
+of the same names. A fork PR, and any run where the head origin cannot be
+proven to be this repository, gets neither value.
+
+The values reach the app as compile-time Dart defines from a `0600` JSON file
+(`--dart-define-from-file`), never as command-line arguments, and the file is
+deleted right after the build. A scenario reads them with
+`String.fromEnvironment('E2E_DSH_URL')` / `String.fromEnvironment('E2E_DSH_TOKEN')`:
+
+| defines | scenario contract |
+|---|---|
+| both empty | hermetic run: boot, navigate and capture as usual; skip only the assertions that need a live server (or use the in-process stub); must pass |
+| both set | real run: connect, create a session, send one prompt, assert the streamed answer, capture the screenshots |
+| exactly one set | misconfiguration: fail with a clear message instead of silently running hermetically |
+
+`E2E_DSH_URL` is the base root (`https://<host>:<port>`, no token, no trailing
+slash); `E2E_DSH_TOKEN` is the DSH launch token (minted per DSH process, so it
+rotates with every server restart). Compose the connection URL in the scenario
+as `$E2E_DSH_URL/?token=$E2E_DSH_TOKEN` when the connection form takes the
+tokenized URL.
+
+Two preflight steps run before the build and fail in seconds when the endpoint
+is unreachable or the token is stale. A step after the run deletes any artifact
+that contains the token and fails the job, because `e2e-logs`, screenshots,
+video and the review APK are published. The endpoint is operator
+infrastructure: its address and token live outside this repository.
+
+### Requesting a real-endpoint run
+
+A same-repository PR gets a real-endpoint run by asking for E2E the normal way
+(`/e2e` comment, `run-e2e` label, or a workflow dispatch with the PR number).
+Nothing else is needed: the request job resolves the PR head repository through
+the pull API, and a same-repository head receives `E2E_DSH_URL` /
+`E2E_DSH_TOKEN` from repository secrets automatically. A fork PR never
+receives them and runs the hermetic path.
+
+The endpoint is operator infrastructure and can be rotated or down. When it
+is, the run fails in seconds at **Preflight the real-DSH endpoint** with the
+reason (rejected launch token versus unreachable host) instead of failing later
+inside the emulator, and the hermetic fallback still produces UI evidence.
+
+### After this wiring lands on master
+
+A feature PR needs no per-PR configuration: `/e2e` runs the default branch's
+workflow, so once the wiring is on `master` a comment on a same-repository
+feature PR exercises the real endpoint with the scenario from that PR's head
+commit. Refresh `E2E_DSH_TOKEN` only after the DSH server itself restarted;
+the workflow preflight names that condition when the token is stale.
+
 ## Limits
 
 - One acceptance target per PR; multiple changed scenario files are rejected
@@ -185,7 +239,9 @@ Keep scenarios short so the recording stays reviewable.
   walkthrough.
 - The pull-files API is paginated; PRs with more than 3000 changed files are out
   of scope for this repository.
-- Flake policy: the run is hermetic (no network, no credentials, seeded
-  database, fixed device profile, bounded pumps). Do not add automatic retries
-  to hide flicker; quarantine a provably harness-flaky step with an issue link,
-  following `docs/flaky-tests.md`.
+- Flake policy: the run is hermetic by default (no network, no credentials,
+  seeded database, fixed device profile, bounded pumps) and stays that way on
+  fork PRs; a same-repository run may additionally reach the real DSH endpoint
+  described above. Do not add automatic retries to hide flicker; quarantine a
+  provably harness-flaky step with an issue link, following
+  `docs/flaky-tests.md`.

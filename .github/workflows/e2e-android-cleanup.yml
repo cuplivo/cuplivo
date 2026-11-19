@@ -1,0 +1,61 @@
+name: Android E2E cleanup
+
+# Removes the per-PR screenshot/video branch. Same-repository PRs are handled
+# immediately on close; a weekly sweep covers fork PRs (whose `pull_request`
+# token is read-only) and runs that were interrupted before cleanup.
+on:
+  pull_request:
+    types: [closed]
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number whose artifact branch should be deleted'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    name: Delete E2E artifact branches
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Delete branches for closed pull requests
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          CLOSED_PR: ${{ github.event.pull_request.number }}
+          INPUT_PR: ${{ github.event.inputs.pr_number }}
+        run: |
+          set -uo pipefail
+          delete_branch() {
+            local branch="$1"
+            echo "Deleting $branch"
+            gh api -X DELETE "repos/$REPO/git/refs/heads/$branch" >/dev/null || true
+          }
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            if printf '%s' "$INPUT_PR" | grep -Eq '^[0-9]+$'; then
+              delete_branch "e2e-artifacts-pr-$INPUT_PR"
+            fi
+            exit 0
+          fi
+          if [ "$EVENT_NAME" = "pull_request" ] && printf '%s' "$CLOSED_PR" | grep -Eq '^[0-9]+$'; then
+            delete_branch "e2e-artifacts-pr-$CLOSED_PR"
+            exit 0
+          fi
+          # Scheduled sweep. Some fork-authored PRs never ran this workflow
+          # with a write token, so inspect each artifact branch's PR directly.
+          branches="$(gh api --paginate "repos/$REPO/branches?per_page=100" --jq '.[].name' \
+            | grep -E '^e2e-artifacts-pr-[0-9]+$' || true)"
+          for branch in $branches; do
+            number="${branch##*-}"
+            state="$(gh api "repos/$REPO/pulls/$number" --jq '.state' 2>/dev/null || echo closed)"
+            if [ "$state" = "closed" ]; then
+              delete_branch "$branch"
+            fi
+          done

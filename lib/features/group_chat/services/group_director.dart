@@ -6,6 +6,9 @@ import '../../../core/models/chat_message.dart';
 import '../../../core/models/group_chat.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
+import '../../../core/services/decision/decision_client.dart';
+import '../../../core/services/decision/decision_outcome.dart';
+import '../../../core/services/decision/decision_question.dart';
 import '../../../core/services/model_spec/model_spec_resolver.dart';
 import 'group_transcript.dart';
 
@@ -59,6 +62,10 @@ class GroupDirector {
 
   static const String selectSpeakerTool = 'select_speaker';
   static const String endTurnTool = 'end_turn';
+
+  /// The end-turn option in the decision-model path, where a round ends by
+  /// choosing an option instead of calling a tool.
+  static const String endTurnChoice = 'end_round';
 
   static const int _maxTranscriptChars = 6000;
 
@@ -136,6 +143,18 @@ class GroupDirector {
     return ModelSpecResolver.instance.spec(config, model.modelId).supportsTool;
   }
 
+  /// Whether the director slot points at a decision model — one that answers a
+  /// typed question instead of calling a tool. Such a model is asked exactly
+  /// once per step and never needs the tool-call contract.
+  bool get usesDecisionModel {
+    final model = resolveModel();
+    if (model == null) return false;
+    return DecisionClient.canDecide(
+      settings.getProviderConfig(model.providerKey),
+      model.modelId,
+    );
+  }
+
   /// One decision. Returns [GroupDirectorUnavailable] rather than throwing: a
   /// director that cannot answer is a normal state, not an error.
   ///
@@ -157,6 +176,18 @@ class GroupDirector {
     if (members.isEmpty) return const GroupDirectorUnavailable('no_members');
     if (remainingTurns <= 0) {
       return const GroupDirectorUnavailable('turn_limit');
+    }
+    // A decision model answers the roster as one choice question: no tools, no
+    // generation, one request.
+    if (usesDecisionModel) {
+      return _decideByChoiceModel(
+        group: group,
+        members: members,
+        transcript: transcript,
+        spokeThisRound: spokeThisRound,
+        resolve: resolve,
+        isCancelled: isCancelled,
+      );
     }
     if (!supportsTools) return const GroupDirectorUnavailable('no_tools');
 
@@ -254,6 +285,92 @@ class GroupDirector {
       if (failure == 'timeout') break;
     }
     return GroupDirectorUnavailable(failure);
+  }
+
+  /// One choice question, answered by a decision model.
+  ///
+  /// The roster and the transcript travel as `state`; the answer is one option
+  /// id. An id the options did not offer is reported as a failure the round can
+  /// explain — the caller falls back to its first member — rather than becoming
+  /// a speaker nobody named.
+  Future<GroupDirectorDecision> _decideByChoiceModel({
+    required GroupChat group,
+    required List<Assistant> members,
+    required List<ChatMessage> transcript,
+    required Set<String> spokeThisRound,
+    required Assistant? Function(String? senderId) resolve,
+    bool Function()? isCancelled,
+  }) async {
+    final model = resolveModel();
+    if (model == null) return const GroupDirectorUnavailable('no_model');
+    if (isCancelled?.call() ?? false) {
+      return const GroupDirectorUnavailable('cancelled');
+    }
+    final remaining = [
+      for (final member in members)
+        if (!spokeThisRound.contains(member.id)) member,
+    ];
+    // Everyone had a turn: the round is over without asking anyone.
+    if (remaining.isEmpty) return const GroupDirectorEndTurn();
+
+    // Rules are made into the option set, not spelled out in instructions: a
+    // decision model cannot pick a member it was never offered, and the
+    // instructions stay a constant string.
+    final options = <String, String>{
+      for (final member in remaining)
+        member.id: '${_displayName(member)} — has not replied yet.',
+      endTurnChoice: 'End the round: no further reply is needed.',
+    };
+    // Prefix stability: everything that never changes inside a round comes
+    // first (group, roster), the append-only transcript follows, and the
+    // options — the only per-step part — travel last as criteria.
+    final outcome = await DecisionClient.ask(
+      config: settings.getProviderConfig(model.providerKey),
+      modelId: model.modelId,
+      question: ChoiceQuestion(
+        key: 'next_speaker',
+        instructions:
+            'Which member of this group should reply next to the latest user '
+            'message? Choose exactly one option. Members who already replied '
+            'this round are not offered; choose "$endTurnChoice" when no '
+            'further reply should follow.',
+        state: <String, Object?>{
+          'group': group.name,
+          'members': [
+            for (final member in members)
+              {'id': member.id, 'name': _displayName(member)},
+          ],
+          'transcript': GroupTranscript.forDirector(
+            transcript,
+            resolve: resolve,
+            maxChars: _maxTranscriptChars,
+            collapseRepeatedSpeakers: false,
+          ),
+        },
+        options: options,
+      ),
+      timeout: decisionTimeout,
+    );
+    if (isCancelled?.call() ?? false) {
+      return const GroupDirectorUnavailable('cancelled');
+    }
+    switch (outcome) {
+      case DecisionAnswer(:final choice):
+        if (choice == endTurnChoice) return const GroupDirectorEndTurn();
+        if (choice != null && options.containsKey(choice)) {
+          return GroupDirectorSpeak(choice);
+        }
+        return const GroupDirectorUnavailable('unknown_speaker');
+      case DecisionUnavailable(:final failure):
+        return GroupDirectorUnavailable(
+          failure == DecisionFailure.timeout ? 'timeout' : 'failed',
+        );
+    }
+  }
+
+  static String _displayName(Assistant member) {
+    final name = member.name.trim();
+    return name.isEmpty ? member.id : name;
   }
 
   /// The one thing the second attempt adds: the rule the first answer missed

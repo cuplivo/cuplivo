@@ -7273,6 +7273,54 @@ abstract class AppLocalizations {
   /// **'Embedding'**
   String get modelDetailSheetEmbeddingType;
 
+  /// No description provided for @modelDetailSheetDecisionType.
+  ///
+  /// In en, this message translates to:
+  /// **'Decision'**
+  String get modelDetailSheetDecisionType;
+
+  /// No description provided for @modelDetailSheetDecisionDialectLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Decision API'**
+  String get modelDetailSheetDecisionDialectLabel;
+
+  /// No description provided for @modelDetailSheetDecisionUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Decision URL'**
+  String get modelDetailSheetDecisionUrlLabel;
+
+  /// No description provided for @modelDetailSheetDecisionUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty: appended to the provider URL'**
+  String get modelDetailSheetDecisionUrlHint;
+
+  /// No description provided for @modelDetailSheetDecisionUrlHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Some providers serve decision models on their own endpoint; enter the path to override the default address.'**
+  String get modelDetailSheetDecisionUrlHelp;
+
+  /// No description provided for @modelDetailSheetDecisionUrlFill.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill'**
+  String get modelDetailSheetDecisionUrlFill;
+
+  /// No description provided for @modelDetailSheetDecisionUrlCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get modelDetailSheetDecisionUrlCurrent;
+
+  /// No description provided for @modelDetailSheetDecisionUrlBailian.
+  ///
+  /// In en, this message translates to:
+  /// **'Bailian'**
+  String get modelDetailSheetDecisionUrlBailian;
+
   /// Section header and field label for supported input modalities (text/image/audio) in the model spec form.
   ///
   /// In en, this message translates to:

@@ -147,11 +147,18 @@ class GroupTranscript {
   }
 
   /// The compact transcript the director reads: role, author, text.
+  ///
+  /// [collapseRepeatedSpeakers] folds consecutive replies from one member into
+  /// a single line, which keeps a chat model's budget for distinct voices. The
+  /// decision path turns it off: a decision model may answer from a cached
+  /// prefix, and folding rewrites bytes an earlier request already sent, so the
+  /// cache would never hit again.
   static List<Map<String, String>> forDirector(
     List<ChatMessage> messages, {
     required Assistant? Function(String? senderId) resolve,
     int maxMessages = 12,
     int maxChars = 6000,
+    bool collapseRepeatedSpeakers = true,
   }) {
     final selected = <Map<String, String>>[];
     String? lastName;
@@ -167,7 +174,7 @@ class GroupTranscript {
           : null;
       // Consecutive replies from the same member are one voice; collapsing them
       // keeps the director's budget for distinct speakers.
-      if (name != null && name == lastName) {
+      if (collapseRepeatedSpeakers && name != null && name == lastName) {
         selected.last['text'] = '${selected.last['text']}\n$text';
       } else {
         selected.add({

@@ -2239,3 +2239,33 @@ One conflation worth naming: the conversation row's merge is not pure LWW.
 peers compute the same value whoever won the row — but "who wins" and "what the row ends up as" are
 now two places. A third such column should become a registration in the family table, not a third
 patch in the applier.
+
+### The third grain: a key inside a column that does travel
+
+The conversation-grant fix added the narrowest grain of the same question. The conversation row's
+`extras_json` is one column of shared state, and three of its keys are not: `tools.permission_mode`
+and the older build's `workspace.allowAll` say *this device* approved, and `workspace.cwd` is *this
+device's* path. The row travels; those keys do not.
+
+The column-level shape above cannot be reused here, because the column is shared: omitting it on the
+wire would drop the title flags and `workspace.id` with it. So the rule is per key, and it still has
+the two halves — the wire read removes the keys, the applier deletes whatever arrived and puts back
+only the keys the local row already held. Both halves are load-bearing in a way that is easy to get
+wrong: a strip alone loses the grant the first time a peer wins the row, and a merge alone lets the
+grant cross. "Delete first, then restore" is also what protects against a peer on the older build,
+which still puts its grant on the wire, and it is the whole protection for a conversation that
+arrives new, where there is no local row to restore from.
+
+One condition on the restore, the only state this grain has: the winner's `workspace.id` must equal
+the local one. A grant is issued against the binding (writing a binding clears it,
+`WorkspaceBinding.applyTo`), so restoring across a rebind would carry an approval to a directory the
+user never approved — and would pair the new binding with the old `workspace.cwd`, a path belonging
+to another workspace.
+
+Nothing here moves an identity: `conversation_rows` contributes its clock, not its column values, so
+a key only one device holds cannot make the two disagree, and the extras merge rides the winner's own
+upsert rather than a second write that would bump `updated_at`. No protocol field changed either, so
+the schema version does not move: an older peer still syncs, and its grant is stripped on arrival
+rather than trusted. The key set is public (`ChatDatabaseRepository.syncLocalExtrasKeys`) because the
+backup sanitizer strips the same keys from an archive, and the sanitizer derives its removal lists from
+these sets rather than repeating the literals — the fourth copy of a key is the one nobody updates.

@@ -207,125 +207,152 @@ class _HarnessConversationViewState extends State<HarnessConversationView> {
     final permissions = state.permissions;
     final notice = folded.notices.isEmpty ? null : folded.notices.last;
 
-    return Column(
-      children: [
-        Expanded(
-          child: KeyedSubtree(
-            key: const ValueKey<String>('dsh-transcript'),
-            child: folded.messages.isEmpty
-                ? _DshEmptyTranscript(
-                    title: l10n.dshChatEmptyTitle,
-                    body: l10n.dshChatEmptyBody,
-                    busy: state.busy,
-                  )
-                : MessageListView(
-                    key: const ValueKey<String>('dsh-transcript-list'),
-                    scrollController: _scrollController,
-                    listController: _listController,
-                    messages: folded.messages,
-                    byGroup: grouping.byGroup,
-                    versionSelections: grouping.versionSelections,
-                    reasoning: folded.reasoning,
-                    reasoningSegments: folded.reasoningSegments,
-                    contentSplits: folded.contentSplits,
-                    toolParts: folded.toolParts,
-                    translations: const {},
-                    selecting: false,
-                    selectedItems: const <String>{},
-                    dividerPadding: EdgeInsets.zero,
-                    topContentPadding: 12,
-                    bottomContentPadding: 12,
-                    processingFilesMessageId: _processingFiles,
-                    chatFontScale: settings.chatFontScale,
-                    collapseThinking: settings.autoCollapseThinking,
-                    collapseThinkingSteps: settings.collapseThinkingSteps,
-                    showThinkingCards: settings.showThinkingCards,
-                    showToolCards: settings.showToolCards,
-                    showProducedFiles: settings.showProducedFiles,
-                    showToolResultSummary: settings.showToolResultSummary,
-                    hideToolResultImages: settings.hideToolResultImages,
-                    showBrowserPageCards: settings.showBrowserPageCards,
-                    collapsedCodeLines: settings.autoCollapseCodeBlock
-                        ? settings.autoCollapseCodeBlockLines
-                        : null,
-                    wrapCodeBlocks:
-                        Platform.isMacOS ||
-                        Platform.isWindows ||
-                        Platform.isLinux ||
-                        settings.mobileCodeBlockWrap,
-                    showModelIcon: settings.showModelIcon,
-                    showUserAvatar: settings.showUserAvatar,
-                    showTokenStats: settings.showTokenStats,
-                  ),
-          ),
-        ),
-        _buildStatusBanners(context, state, notice),
-        if (state.approvals.isNotEmpty || state.questions.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-            child: DshPendingRequestPanel(
-              approvals: state.approvals,
-              questions: state.questions,
-              onAnswerApproval: (approval, allow) =>
-                  unawaited(_answerApproval(approval, allow)),
-              onAnswerQuestions: (request, answers) =>
-                  unawaited(_answerQuestions(request, answers)),
-              onRejectQuestions: (request) =>
-                  unawaited(_rejectQuestions(request)),
+    // Both home scaffolds mount the harness body as the `Scaffold.body` of a
+    // scaffold with `extendBodyBehindAppBar: true`, so the transcript has to
+    // clear the chrome app bar itself (the local chat body receives the same
+    // inset from the page).
+    final transcriptTopPadding =
+        MediaQuery.paddingOf(context).top + kToolbarHeight + 12;
+
+    // This view is the host's full-height body, but a Column hands its non-flex
+    // children unbounded height — `ChatInputBar`'s expanding composer asserts on
+    // exactly that. Bound the composer (and the pending-request stack) to a
+    // share of the host height instead of using Expanded/Flexible, which would
+    // take transcript space away permanently; the local home page bounds the
+    // same bar the same way through its overlay slot.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final composerMaxHeight = constraints.maxHeight * 0.55;
+        final pendingMaxHeight = constraints.maxHeight * 0.30;
+        return Column(
+          children: [
+            Expanded(
+              child: KeyedSubtree(
+                key: const ValueKey<String>('dsh-transcript'),
+                child: folded.messages.isEmpty
+                    ? _DshEmptyTranscript(
+                        title: l10n.dshChatEmptyTitle,
+                        body: l10n.dshChatEmptyBody,
+                        busy: state.busy,
+                      )
+                    : MessageListView(
+                        key: const ValueKey<String>('dsh-transcript-list'),
+                        scrollController: _scrollController,
+                        listController: _listController,
+                        messages: folded.messages,
+                        byGroup: grouping.byGroup,
+                        versionSelections: grouping.versionSelections,
+                        reasoning: folded.reasoning,
+                        reasoningSegments: folded.reasoningSegments,
+                        contentSplits: folded.contentSplits,
+                        toolParts: folded.toolParts,
+                        translations: const {},
+                        selecting: false,
+                        selectedItems: const <String>{},
+                        dividerPadding: EdgeInsets.zero,
+                        topContentPadding: transcriptTopPadding,
+                        bottomContentPadding: 12,
+                        processingFilesMessageId: _processingFiles,
+                        chatFontScale: settings.chatFontScale,
+                        collapseThinking: settings.autoCollapseThinking,
+                        collapseThinkingSteps: settings.collapseThinkingSteps,
+                        showThinkingCards: settings.showThinkingCards,
+                        showToolCards: settings.showToolCards,
+                        showProducedFiles: settings.showProducedFiles,
+                        showToolResultSummary: settings.showToolResultSummary,
+                        hideToolResultImages: settings.hideToolResultImages,
+                        showBrowserPageCards: settings.showBrowserPageCards,
+                        collapsedCodeLines: settings.autoCollapseCodeBlock
+                            ? settings.autoCollapseCodeBlockLines
+                            : null,
+                        wrapCodeBlocks:
+                            Platform.isMacOS ||
+                            Platform.isWindows ||
+                            Platform.isLinux ||
+                            settings.mobileCodeBlockWrap,
+                        showModelIcon: settings.showModelIcon,
+                        showUserAvatar: settings.showUserAvatar,
+                        showTokenStats: settings.showTokenStats,
+                      ),
+              ),
             ),
-          ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-          child: Row(
-            children: [
-              if (permissions != null)
-                DshPermissionChip(
-                  permissions: permissions,
-                  enabled: !state.isSending,
-                  onTap: () => unawaited(_openPermissionPicker()),
+            _buildStatusBanners(context, state, notice),
+            if (state.approvals.isNotEmpty || state.questions.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: pendingMaxHeight),
+                  child: SingleChildScrollView(
+                    child: DshPendingRequestPanel(
+                      approvals: state.approvals,
+                      questions: state.questions,
+                      onAnswerApproval: (approval, allow) =>
+                          unawaited(_answerApproval(approval, allow)),
+                      onAnswerQuestions: (request, answers) =>
+                          unawaited(_answerQuestions(request, answers)),
+                      onRejectQuestions: (request) =>
+                          unawaited(_rejectQuestions(request)),
+                    ),
+                  ),
                 ),
-              const Spacer(),
-              if (state.queuedPromptCount > 0)
-                _DshQueuePill(count: state.queuedPromptCount),
-            ],
-          ),
-        ),
-        ChatInputBar(
-          key: _composerBarKey,
-          composerFieldKey: const Key('dsh-composer'),
-          sendButtonKey: const Key('dsh-send'),
-          controller: _draftController,
-          focusNode: _focusNode,
-          conversationId: null,
-          // The remote model is not a local provider: passing its ids would
-          // make ChatInputBar resolve Cuplivo's own provider config (image
-          // routing, local tools) for a model it does not own. The pill and the
-          // reasoning button carry the remote state explicitly instead.
-          leading: _DshComposerModelPill(
-            model: model,
-            selection: state.modelSelection,
-            fallbackLabel: l10n.dshModelPickerTitle,
-          ),
-          leadingExtent: _leadingExtent(model?.displayName),
-          leadingTooltip: l10n.dshModelPickerTitle,
-          onTapLeading: () => unawaited(_requestModelPicker()),
-          supportsReasoning: model?.supportsReasoning ?? false,
-          reasoning: dshReasoningRequestForEffort(effort?.id),
-          reasoningActive: effort != null && effort.id != 'off',
-          onConfigureReasoning: model?.supportsReasoning == true
-              ? () => unawaited(_openReasoningPicker())
-              : null,
-          loading: state.busy,
-          onStop: state.running ? () => unawaited(_cancelTurn()) : null,
-          onSend: _handleSend,
-          showWorkspaceButton: false,
-          showToolsButton: false,
-          showQuickPhraseButton: false,
-          hasQueuedInput: false,
-          showMoreButton: true,
-          onMore: () => unawaited(_openPlusSheet()),
-        ),
-      ],
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+              child: Row(
+                children: [
+                  if (permissions != null)
+                    DshPermissionChip(
+                      permissions: permissions,
+                      enabled: !state.isSending,
+                      onTap: () => unawaited(_openPermissionPicker()),
+                    ),
+                  const Spacer(),
+                  if (state.queuedPromptCount > 0)
+                    _DshQueuePill(count: state.queuedPromptCount),
+                ],
+              ),
+            ),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: composerMaxHeight),
+              child: ChatInputBar(
+                key: _composerBarKey,
+                composerFieldKey: const Key('dsh-composer'),
+                sendButtonKey: const Key('dsh-send'),
+                controller: _draftController,
+                focusNode: _focusNode,
+                conversationId: null,
+                // The remote model is not a local provider: passing its ids would
+                // make ChatInputBar resolve Cuplivo's own provider config (image
+                // routing, local tools) for a model it does not own. The pill and the
+                // reasoning button carry the remote state explicitly instead.
+                leading: _DshComposerModelPill(
+                  model: model,
+                  selection: state.modelSelection,
+                  fallbackLabel: l10n.dshModelPickerTitle,
+                ),
+                leadingExtent: _leadingExtent(model?.displayName),
+                leadingTooltip: l10n.dshModelPickerTitle,
+                onTapLeading: () => unawaited(_requestModelPicker()),
+                supportsReasoning: model?.supportsReasoning ?? false,
+                reasoning: dshReasoningRequestForEffort(effort?.id),
+                reasoningActive: effort != null && effort.id != 'off',
+                onConfigureReasoning: model?.supportsReasoning == true
+                    ? () => unawaited(_openReasoningPicker())
+                    : null,
+                loading: state.busy,
+                onStop: state.running ? () => unawaited(_cancelTurn()) : null,
+                onSend: _handleSend,
+                showWorkspaceButton: false,
+                showToolsButton: false,
+                showQuickPhraseButton: false,
+                hasQueuedInput: false,
+                showMoreButton: true,
+                onMore: () => unawaited(_openPlusSheet()),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

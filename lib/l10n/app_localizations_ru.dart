@@ -19279,8 +19279,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get dshWebUiUrlLabel => 'Вставьте ссылку WebUI DeepSeek Harness';
 
   @override
-  String get dshWebUiUrlHint =>
-      'например, 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…';
+  String get dshWebUiUrlHint => 'например, 127.0.0.1:3080/?token=ваш-токен';
 
   @override
   String get dshWebUiUrlHelper =>

@@ -24462,7 +24462,7 @@
   "@dshWebUiUrlLabel": {
     "description": "Label above the URL field that accepts the WebUI link printed by `dsh web`, including the launch token."
   },
-  "dshWebUiUrlHint": "e.g. 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…",
+  "dshWebUiUrlHint": "e.g. 127.0.0.1:3080/?token=your-token",
   "@dshWebUiUrlHint": {
     "description": "Placeholder of the WebUI link field. The token is a truncated example from the product brief, not a real credential."
   },
@@ -25318,5 +25318,7 @@
     "description": "Subtitle under the about row in the DeepSeek Harness more menu."
   },
   "dshProviderDetailMaxTokensHint": "256K",
-  "@dshProviderDetailMaxTokensHint": {"description": "Placeholder example in the max-output-token field of a DSH model row."}
+  "@dshProviderDetailMaxTokensHint": {
+    "description": "Placeholder example in the max-output-token field of a DSH model row."
+  }
 }

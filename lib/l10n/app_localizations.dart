@@ -33171,7 +33171,7 @@ abstract class AppLocalizations {
   /// Placeholder of the WebUI link field. The token is a truncated example from the product brief, not a real credential.
   ///
   /// In en, this message translates to:
-  /// **'e.g. 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…'**
+  /// **'e.g. 127.0.0.1:3080/?token=your-token'**
   String get dshWebUiUrlHint;
 
   /// Small hint under the WebUI link field explaining when a direct connection works.

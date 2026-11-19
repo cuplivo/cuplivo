@@ -17952,7 +17952,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dshWebUiUrlLabel => '请输入DeepSeek Harness的WebUI访问链接';
 
   @override
-  String get dshWebUiUrlHint => '例如127.0.0.1:3080/?token=PEaxKDfNOHzbHp……';
+  String get dshWebUiUrlHint => '例如127.0.0.1:3080/?token=你的访问令牌';
 
   @override
   String get dshWebUiUrlHelper =>
@@ -36558,7 +36558,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get dshWebUiUrlLabel => '请输入DeepSeek Harness的WebUI访问链接';
 
   @override
-  String get dshWebUiUrlHint => '例如127.0.0.1:3080/?token=PEaxKDfNOHzbHp……';
+  String get dshWebUiUrlHint => '例如127.0.0.1:3080/?token=你的访问令牌';
 
   @override
   String get dshWebUiUrlHelper =>
@@ -55186,7 +55186,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get dshWebUiUrlLabel => '貼上 DeepSeek Harness 的 WebUI 連結';
 
   @override
-  String get dshWebUiUrlHint => '例如 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…';
+  String get dshWebUiUrlHint => '例如 127.0.0.1:3080/?token=你的存取權杖';
 
   @override
   String get dshWebUiUrlHelper =>

@@ -5506,7 +5506,7 @@
   "dshAssistantNameLabel": "Asistan adı",
   "dshAssistantSubtitle": "Uzak bağlantı üzerinden DeepSeek Harness",
   "dshWebUiUrlLabel": "DeepSeek Harness WebUI bağlantısını yapıştırın",
-  "dshWebUiUrlHint": "ör. 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…",
+  "dshWebUiUrlHint": "örn. 127.0.0.1:3080/?token=your-token",
   "dshWebUiUrlHelper": "Aynı yerel ağdaki veya genel ağa açılmış bir DeepSeek Harness için geçerlidir.",
   "dshTabConnection": "Bağlantı",
   "dshTabGeneral": "Genel",

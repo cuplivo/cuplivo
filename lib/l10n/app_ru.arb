@@ -5506,7 +5506,7 @@
   "dshAssistantNameLabel": "Имя ассистента",
   "dshAssistantSubtitle": "DeepSeek Harness через удалённое подключение",
   "dshWebUiUrlLabel": "Вставьте ссылку WebUI DeepSeek Harness",
-  "dshWebUiUrlHint": "например, 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…",
+  "dshWebUiUrlHint": "например, 127.0.0.1:3080/?token=ваш-токен",
   "dshWebUiUrlHelper": "Подходит для DeepSeek Harness в той же локальной сети или доступного из публичной сети.",
   "dshTabConnection": "Подключение",
   "dshTabGeneral": "Общие",

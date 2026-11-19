@@ -18972,7 +18972,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dshWebUiUrlLabel => 'Paste the DeepSeek Harness WebUI link';
 
   @override
-  String get dshWebUiUrlHint => 'e.g. 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…';
+  String get dshWebUiUrlHint => 'e.g. 127.0.0.1:3080/?token=your-token';
 
   @override
   String get dshWebUiUrlHelper =>

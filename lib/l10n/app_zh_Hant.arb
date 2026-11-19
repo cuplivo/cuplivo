@@ -5506,7 +5506,7 @@
   "dshAssistantNameLabel": "助手名稱",
   "dshAssistantSubtitle": "透過遠端連線的 DeepSeek Harness",
   "dshWebUiUrlLabel": "貼上 DeepSeek Harness 的 WebUI 連結",
-  "dshWebUiUrlHint": "例如 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…",
+  "dshWebUiUrlHint": "例如 127.0.0.1:3080/?token=你的存取權杖",
   "dshWebUiUrlHelper": "適用於與 DeepSeek Harness 位於同一區域網路，或 DeepSeek Harness 已公開於公網的情況。",
   "dshTabConnection": "連線設定",
   "dshTabGeneral": "一般設定",

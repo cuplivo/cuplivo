@@ -173,7 +173,7 @@ CI **不跑** codegen（`.github/workflows/pr-check.yml` 无 build_runner/drift 
 1. `+` 菜单点「DeepSeek Harness」→ 弹出「连接到一个新的 DeepSeek Harness」，给出**连接方式选择**；第一阶段只提供「直接连接」一个选项（未来可加“扫码/局域网发现/公网中转”等，UI 预留）。
 2. 点「直接连接」→ 进入连接表单（参考图 `image-01a1f4ab`），并显示一行小字：**“适用于与 DeepSeek Harness 处于同一局域网，或 DeepSeek Harness 暴露在公网上”**。
    - 字段 1：助手名称（默认 `DeepSeek Harness`，`IosFormTextField`；设置页可改）
-   - 字段 2：**WebUI 访问链接**（一整串，含 `?token=`）——DSH 启动时打印 `dsh web: http://127.0.0.1:3080/?token=…`（`dsh-web-app/lib/index.js` 的 `announceReady`），用户整串粘贴；占位符照参考图给例 `例如 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…`
+   - 字段 2：**WebUI 访问链接**（一整串，含 `?token=`）——DSH 启动时打印 `dsh web: http://127.0.0.1:3080/?token=…`（`dsh-web-app/lib/index.js` 的 `announceReady`），用户整串粘贴；占位符给例 `例如 127.0.0.1:3080/?token=你的访问令牌`（参考图里的占位串含疑似真实令牌前缀，不照抄）
    - 主按钮「确认」：解析 URL → 去掉 `token` 得 `baseUrl`/`authority` → 用 `GET /?token=…` 换 v1 浏览器 cookie（§8.2；**不用** `/connect` 的 v2）→ 调 `session.list`/`GET /api/...` 探活（空列表也算成功）→ 成功才创建 **`DshRemote` 连接记录 + `ChatOwner.harness(id)`**（`DshRemoteStore.add`），随后 **push DSH 助手设置页**（目标图 4 的“连接成功后”）。失败在按钮上方显示具体错误（DNS/拒绝连接/401/证书），**不要创建半成品记录**。实际入口文件：`lib/features/harness/pages/connect/dsh_connect_mode_sheet.dart`、`lib/features/harness/pages/assistant/dsh_assistant_settings_page.dart`、`lib/features/harness/state/dsh_connections_provider.dart`。
 3. 创建成功后，助手与群聊列表行（`ChatOwnerKind.harness`）显示品牌头像/鲸鱼标、名称和副标题 **“远程连接的 DeepSeek Harness”**（参考图 `image-01a1f451`；目标说明该行小字是 AI 生成、可能有错乱，以这句话为准）。
 

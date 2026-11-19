@@ -5506,7 +5506,7 @@
   "dshAssistantNameLabel": "어시스턴트 이름",
   "dshAssistantSubtitle": "원격 연결을 통한 DeepSeek Harness",
   "dshWebUiUrlLabel": "DeepSeek Harness WebUI 링크를 붙여넣으세요",
-  "dshWebUiUrlHint": "예: 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…",
+  "dshWebUiUrlHint": "예: 127.0.0.1:3080/?token=your-token",
   "dshWebUiUrlHelper": "같은 LAN에 있는 DeepSeek Harness 또는 공용 네트워크에 노출된 DeepSeek Harness에 사용할 수 있습니다.",
   "dshTabConnection": "연결",
   "dshTabGeneral": "일반",

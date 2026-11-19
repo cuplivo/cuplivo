@@ -6929,7 +6929,7 @@
   "dshAssistantNameLabel": "助手名称",
   "dshAssistantSubtitle": "远程连接的 DeepSeek Harness",
   "dshWebUiUrlLabel": "请输入DeepSeek Harness的WebUI访问链接",
-  "dshWebUiUrlHint": "例如127.0.0.1:3080/?token=PEaxKDfNOHzbHp……",
+  "dshWebUiUrlHint": "例如127.0.0.1:3080/?token=你的访问令牌",
   "dshWebUiUrlHelper": "适用于与DeepSeek Harness处于同一局域网，或DeepSeek Harness暴露在公网上",
   "dshTabConnection": "连接设置",
   "dshTabGeneral": "通用设置",

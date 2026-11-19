@@ -19,7 +19,8 @@ class ModalityAbilitySection extends StatelessWidget {
       builder: (context, _) {
         final l10n = AppLocalizations.of(context)!;
         final spec = controller.spec;
-        final hideChatFields = spec.type == ModelType.embedding;
+        final hideChatFields =
+            spec.type == ModelType.embedding || spec.type == ModelType.decision;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

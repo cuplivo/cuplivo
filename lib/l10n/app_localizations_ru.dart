@@ -4030,6 +4030,32 @@ class AppLocalizationsRu extends AppLocalizations {
   String get modelDetailSheetEmbeddingType => 'Эмбеддинг';
 
   @override
+  String get modelDetailSheetDecisionType => 'Решение';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => 'API решений';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => 'Адрес решений';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint =>
+      'Пусто — дополняется к адресу провайдера';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp =>
+      'Некоторые провайдеры дают доступ к моделям решений по отдельному адресу — укажите путь, чтобы переопределить адрес по умолчанию.';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => 'Заполнить';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => 'Текущий';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => 'Байлянь';
+
+  @override
   String get modelDetailSheetInputModesLabel => 'Режимы ввода';
 
   @override

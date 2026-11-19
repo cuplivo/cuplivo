@@ -686,7 +686,10 @@ Future<void> _pumpUntilFound(
 }
 
 NavigatorState _rootNavigator(WidgetTester tester) {
-  return Navigator.of(tester.element(find.byType(HomeMobileScaffold)));
+  // Routes below the top one stay in the tree but offstage; the home scaffold
+  // is under the root navigator throughout the scenario.
+  final home = find.byType(HomeMobileScaffold, skipOffstage: false);
+  return Navigator.of(tester.element(home.first), rootNavigator: true);
 }
 
 /// Pops the top route through the root navigator (the app bar back buttons are

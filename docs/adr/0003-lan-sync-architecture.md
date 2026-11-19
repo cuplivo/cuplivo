@@ -2303,3 +2303,35 @@ The rule is now one question, asked by both send arms: **did this device's copy 
 `sentSubtrees` (the batch this beat built) plus `sendsConfirmed` (a fetch response is never
 acked). `sync_engine_integration_test.dart` holds the proof twice: a conversation omitted on the
 `bothSend` path keeps the edit it did not send, with a prior entry and without one.
+
+### The same question, asked of an arrival
+
+The rule above is about what this device *sent*. The entry for a conversation the peer sends has the
+same requirement, and had the same defect: whether `peerSends` or `bothSend`, it was composed from the
+apply's post-merge snapshot. That snapshot starts from a local read taken **inside** the apply
+transaction, so a row the user wrote between the hello and the apply — a window that spans the push
+beat and the whole blob pull — is in it. The entry then recorded that row as peer-held, and the next
+session, planning from a checkpoint that already matched its own digest, fetched a copy without the
+row and deleted it here. Same data loss, other direction, longer window.
+
+The rule is now symmetric, in bytes:
+
+- **`peerSends` records the payload that arrived** — the same construction the sender's `iSend` arm
+  makes of the same payload, so one transfer produces one entry, identical on both sides. A row this
+  device wrote while the session ran is in neither payload and cannot be claimed.
+- **`bothSend` is the merge of two payloads**, which no single payload describes, so its entry stays
+  the apply's snapshot — but only when that snapshot holds nothing the two payloads and the previous
+  agreement cannot account for. A row from neither waits a round: the entry keeps the previous one and
+  the next session sends it. What this cannot see is a mid-session write in a family the checkpoint
+  does not index (an artifact row, which carries no message clock); that costs one round of
+  convergence, never a deletion.
+
+`sync_engine_integration_test.dart` holds both halves: the receiver's mid-session write survives and
+travels one round later, for `peerSends` and for `bothSend`.
+
+### And the guard knows about the edge it cannot fix
+
+The send-site guard (`assertPushFits`) takes the measured fixed part as its bound when that part is
+larger than the budget: a round whose envelope alone is over the budget admits no conversation and its
+body *is* the envelope, which only the receiver's 256 MB cap may refuse. A debug build must not fail a
+round release lets the peer answer.

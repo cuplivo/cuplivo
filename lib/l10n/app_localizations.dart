@@ -31356,10 +31356,10 @@ abstract class AppLocalizations {
   /// **'{count} workspaces not syncing files'**
   String lanSyncReportWorkspacesOmitted(Object count);
 
-  /// Sync report count of conversations this device left out of a push because they did not fit in one; nothing was deleted, the next session retries them, and a conversation larger than the single-conversation limit only arrives when the other device pulls it. count is that number of conversations.
+  /// Sync report count of conversations this device left out of a push because the round's byte budget had no room for them. Most are ordinary conversations that ride in the next session; only a conversation larger than the single-conversation limit has to be pulled by the other device instead. Nothing was deleted. count is that number of conversations.
   ///
   /// In en, this message translates to:
-  /// **'{count} conversations too large to sync (trim their history)'**
+  /// **'{count} conversations did not fit in this push'**
   String lanSyncReportConversationsOmittedForSize(Object count);
 
   /// Sync report count of workspace folders left on disk because the workspace's sync switch is off, or because the folder holds files the two devices never agreed on; count is that number.

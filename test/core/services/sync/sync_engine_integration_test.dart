@@ -5103,6 +5103,165 @@ void main() {
         expect(await _conversationIds(b), {'conv-big'});
       },
     );
+
+    test(
+      'one conversation is one row, omitted and unserved together',
+      () async {
+        // A `bothSend` conversation the push left out *and* the peer could not
+        // serve (it is generating there) is one conversation. Both numbers used
+        // to name it: the omission from the budget and the fetch's miss.
+        final (a, b) = await budgetPair();
+        await _seedConversation(a, id: 'conv-a', contents: ['shared']);
+        final first = await a.engine.syncWithPeer(await a.peer(b));
+        expect(first.success, isTrue, reason: first.summary);
+
+        await a.repository.putMessage(
+          ChatMessage(
+            id: 'conv-a-big',
+            conversationId: 'conv-a',
+            role: 'user',
+            content: 'x' * 4000,
+          ),
+        );
+        await b.repository.putMessage(
+          ChatMessage(
+            id: 'conv-a-bonly',
+            conversationId: 'conv-a',
+            role: 'user',
+            content: 'written on b',
+          ),
+        );
+        await _setStreaming(b, 'conv-a', streaming: true);
+
+        final report = await a.engine.syncWithPeer(await a.peer(b));
+        expect(report.success, isTrue, reason: report.summary);
+        expect(
+          report.conversationsOmittedForSize,
+          1,
+          reason: 'it did not fit the push',
+        );
+        expect(
+          report.deferred,
+          0,
+          reason: 'and the peer could not serve it either — still one row',
+        );
+      },
+    );
+  });
+
+  test('a write during the session is not recorded as the peer\'s', () async {
+    // The window is the push beat plus the whole blob pull, and a user types in
+    // it. The apply reads its base inside its own transaction, so that row is
+    // part of the post-merge snapshot — and an entry built from the snapshot
+    // recorded it as peer-held. The next session then served the peer's copy
+    // without it and deleted it here.
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(
+      root,
+      midApplyWrite: (conversationId) async {
+        await a.repository.putMessage(
+          ChatMessage(
+            id: 'conv-a-typed',
+            conversationId: conversationId,
+            role: 'user',
+            content: 'typed while the session ran',
+          ),
+        );
+      },
+    );
+    await b.start(root);
+    sides.addAll([a, b]);
+    await pairSides(a, b);
+
+    await _seedConversation(a, id: 'conv-a', contents: ['a1']);
+    await a.engine.syncWithPeer(await a.peer(b));
+    await b.repository.putMessage(
+      ChatMessage(
+        id: 'conv-a-b',
+        conversationId: 'conv-a',
+        role: 'user',
+        content: 'written on b',
+      ),
+    );
+
+    // A is the receiver here (peerSends) and types while B's copy is fetched.
+    final received = await a.engine.syncWithPeer(await a.peer(b));
+    expect(received.success, isTrue, reason: received.summary);
+    expect(
+      await _messageIds(a, 'conv-a'),
+      containsAll(<String>['conv-a-b', 'conv-a-typed']),
+    );
+
+    // The row is here and the entry never claimed it, so the next session
+    // carries it instead of reading its absence from B's copy as a deletion.
+    final next = await a.engine.syncWithPeer(await a.peer(b));
+    expect(next.success, isTrue, reason: next.summary);
+    expect(
+      await _messageIds(a, 'conv-a'),
+      contains('conv-a-typed'),
+      reason: 'the peer never received it, so it is not a deletion here',
+    );
+    expect(
+      await _messageIds(b, 'conv-a'),
+      contains('conv-a-typed'),
+      reason: 'and it travels, one round later',
+    );
+  });
+
+  test('a write during a bothSend session is not recorded either', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(
+      root,
+      midApplyWrite: (conversationId) async {
+        await a.repository.putMessage(
+          ChatMessage(
+            id: 'conv-a-typed',
+            conversationId: conversationId,
+            role: 'user',
+            content: 'typed while the session ran',
+          ),
+        );
+      },
+    );
+    await b.start(root);
+    sides.addAll([a, b]);
+    await pairSides(a, b);
+
+    await _seedConversation(a, id: 'conv-a', contents: ['a1']);
+    await a.engine.syncWithPeer(await a.peer(b));
+    await a.repository.putMessage(
+      ChatMessage(
+        id: 'conv-a-aonly',
+        conversationId: 'conv-a',
+        role: 'user',
+        content: 'written on a',
+      ),
+    );
+    await b.repository.putMessage(
+      ChatMessage(
+        id: 'conv-a-bonly',
+        conversationId: 'conv-a',
+        role: 'user',
+        content: 'written on b',
+      ),
+    );
+
+    final both = await a.engine.syncWithPeer(await a.peer(b));
+    expect(both.success, isTrue, reason: both.summary);
+
+    final next = await a.engine.syncWithPeer(await a.peer(b));
+    expect(next.success, isTrue, reason: next.summary);
+    expect(
+      await _messageIds(a, 'conv-a'),
+      containsAll(<String>['conv-a-aonly', 'conv-a-typed']),
+    );
+    expect(
+      await _messageIds(b, 'conv-a'),
+      contains('conv-a-typed'),
+      reason: 'the entry waited a round, then the next push carried it',
+    );
   });
 
   test('a peer deletion the peer deferred is retried, not undone', () async {

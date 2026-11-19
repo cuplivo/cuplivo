@@ -5204,7 +5204,7 @@
   "lanSyncReportWorkspaceConflicts": "작업 공간 파일 {count}건의 수정이 대체됨",
   "lanSyncReportWorkspaceMissing": "작업 공간 파일 {count}개를 적용하지 못했어요",
   "lanSyncReportWorkspacesOmitted": "파일을 동기화하지 않는 작업 공간 {count}개",
-  "lanSyncReportConversationsOmittedForSize": "너무 커서 동기화할 수 없는 대화 {count}개 (기록을 줄이세요)",
+  "lanSyncReportConversationsOmittedForSize": "이번 전송에 담지 못한 대화 {count}개",
   "lanSyncReportWorkspacesKept": "작업 공간 폴더 {count}개를 디스크에 유지했습니다(동기화가 꺼져 있거나 동기화되지 않은 파일 포함)",
   "lanSyncReportDeletesBlocked": "삭제 {count}건을 건너뛰었습니다(로컬 사본이 변경됨)",
   "lanSyncReportRowsLost": "상대 기기의 최신 버전으로 대체된 로컬 기록 {n}개(휴지통에서 복원 가능)",

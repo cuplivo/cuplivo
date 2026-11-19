@@ -17338,7 +17338,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String lanSyncReportConversationsOmittedForSize(Object count) {
-    return '너무 커서 동기화할 수 없는 대화 $count개 (기록을 줄이세요)';
+    return '이번 전송에 담지 못한 대화 $count개';
   }
 
   @override

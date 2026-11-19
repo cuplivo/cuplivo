@@ -17984,7 +17984,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String lanSyncReportConversationsOmittedForSize(Object count) {
-    return 'Eşitlenemeyecek kadar büyük sohbet: $count (geçmişini kısaltın)';
+    return 'Bu gönderime sığmayan sohbet: $count';
   }
 
   @override

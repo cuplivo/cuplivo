@@ -5204,7 +5204,7 @@
   "lanSyncReportWorkspaceConflicts": "{count} 處工作區檔案修改被覆蓋",
   "lanSyncReportWorkspaceMissing": "{count} 個工作區檔案未能套用",
   "lanSyncReportWorkspacesOmitted": "{count} 個工作區未同步檔案",
-  "lanSyncReportConversationsOmittedForSize": "{count} 個對話太大，無法同步（可精簡其歷史）",
+  "lanSyncReportConversationsOmittedForSize": "{count} 個對話沒能放進本輪推送",
   "lanSyncReportWorkspacesKept": "已保留 {count} 個工作區資料夾（開關已關閉或含未同步檔案）",
   "lanSyncReportDeletesBlocked": "已略過 {count} 項刪除（本機內容已變更）",
   "lanSyncReportRowsLost": "{n} 條本地記錄被對端更新的版本覆蓋（可在回收站還原）",

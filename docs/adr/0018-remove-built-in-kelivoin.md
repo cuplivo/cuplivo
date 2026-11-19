@@ -87,7 +87,8 @@ not be deleted either.
    exported copy of a local snapshot (`cuplivo-snapshot-*` / `cuplivo-recovered-*`) and the
    auto-backup written into the user's own folder (`cuplivo_auto_*`) — says Cuplivo, because those
    files are only ever for this build. The name is not a wire format: WebDAV, S3 and Kelivo's own
-   list filter by extension (`.zip` / `.kbackup`), and the manifest carries the target. Every
+   list filter by extension (`.zip` / `.kbackup`), and nothing inside the archive names its target —
+   the prefix is the only signal there is. Every
    reader — recovery discovery, prior-data evidence, upload partials, staging sweeps, the remote
    mtime fallback and storage usage — accepts both archive prefixes, because 4.7.0 wrote only the
    Kelivo one and an unrecognised name fails silently (unclaimed debris, an unlisted archive, a

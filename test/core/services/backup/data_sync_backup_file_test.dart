@@ -2669,6 +2669,18 @@ void main() {
             items.map((item) => item.displayName),
             contains(p.basename(archivePath)),
           );
+          if (!useS3) {
+            // This PROPFIND returns no getlastmodified, so the listing has to
+            // fall back to the timestamp in the archive's name. Pinned here
+            // rather than at the parser: dropping the call in the listing is
+            // the regression, and it would leave the file sorting as undated.
+            expect(
+              items
+                  .singleWhere((i) => i.displayName.endsWith('.kbackup'))
+                  .lastModified,
+              isNotNull,
+            );
+          }
           if (useS3) {
             denyBucketListing = true;
             final manifestItems = await s3.listRemote();

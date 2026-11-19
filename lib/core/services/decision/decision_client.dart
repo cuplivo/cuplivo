@@ -92,7 +92,17 @@ abstract final class DecisionClient {
     CancelToken? cancelToken,
   }) async {
     final dialect = DecisionDialectSetting.of(config, modelId);
-    final uri = endpointFor(config, modelId, dialect);
+    // A stored address is parsed on every request and nothing validates it on
+    // save, so an unparsable one (`https://[::1/…`) has to degrade the way an
+    // unreachable one does — not throw past the caller's fallback and leave the
+    // round with no speaker at all.
+    final Uri uri;
+    try {
+      uri = endpointFor(config, modelId, dialect);
+    } on FormatException {
+      debugPrint('[Decision] unparsable address for $modelId');
+      return const DecisionUnavailable(DecisionFailure.request);
+    }
     final body = switch (dialect) {
       DecisionDialect.systemOne => SystemOneDialect.encode(
         model: apiModelId(config, modelId),

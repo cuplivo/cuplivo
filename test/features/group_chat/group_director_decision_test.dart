@@ -8,6 +8,7 @@ import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/group_chat.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/chat_api_service.dart';
 import 'package:Cuplivo/features/group_chat/services/group_director.dart';
 
 /// The director on a decision model: one choice question instead of a tool
@@ -23,6 +24,9 @@ void main() {
   // What the fake decision endpoint answers with.
   late int status;
   late Map<String, dynamic> answer;
+
+  /// How long the fake endpoint takes to answer, for the Stop test.
+  late Duration delay;
 
   final members = [
     Assistant(id: 'a', name: 'A'),
@@ -58,6 +62,7 @@ void main() {
     HttpOverrides.global = null;
     requests.clear();
     status = 200;
+    delay = Duration.zero;
     answer = {
       'answers': {
         'next_speaker': {
@@ -77,8 +82,15 @@ void main() {
       ));
       request.response.statusCode = status;
       request.response.headers.contentType = ContentType.json;
-      request.response.write(jsonEncode(answer));
-      await request.response.close();
+      if (delay > Duration.zero) {
+        await Future<void>.delayed(delay);
+      }
+      try {
+        request.response.write(jsonEncode(answer));
+        await request.response.close();
+      } catch (_) {
+        // The client aborted: closing a response nobody reads is expected.
+      }
     });
 
     final prefs = createBusinessTestPreferences();
@@ -151,6 +163,31 @@ void main() {
         questionOf(requests.single)['criteria'] as Map<String, dynamic>;
     expect(criteria.keys, containsAll(['b', 'c', GroupDirector.endTurnChoice]));
     expect(criteria.keys, isNot(contains('a')));
+  });
+
+  test('Stop aborts the decision request instead of waiting it out', () async {
+    delay = const Duration(seconds: 3);
+    const requestId = 'conversation-1';
+    final stopwatch = Stopwatch()..start();
+    final pending = GroupDirector(settings: settings).decide(
+      group: group,
+      members: members,
+      transcript: transcript,
+      spokeThisRound: const {},
+      resolve: resolve,
+      remainingTurns: 3,
+      requestId: requestId,
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    // Exactly what the Stop button does for a chat stream.
+    ChatApiService.cancelRequest(requestId);
+    final decision = await pending;
+    stopwatch.stop();
+
+    // Production also flips `isCancelled`, so the round reads "cancelled";
+    // what matters here is that the request was aborted, not waited out.
+    expect(decision, isA<GroupDirectorUnavailable>());
+    expect(stopwatch.elapsed, lessThan(const Duration(milliseconds: 1500)));
   });
 
   test(
@@ -253,7 +290,13 @@ void main() {
       final question =
           (requests.single.body['questions'] as List).single as Map;
       expect(question['name'], 'next_speaker');
-      expect(requests.single.body['input'], isA<Map>());
+      // `input` is the text a decisions endpoint evaluates, so the state is
+      // encoded rather than sent as a nested object.
+      expect(requests.single.body['input'], isA<String>());
+      expect(
+        jsonDecode(requests.single.body['input'] as String),
+        containsPair('group', '阅读会'),
+      );
     },
   );
 

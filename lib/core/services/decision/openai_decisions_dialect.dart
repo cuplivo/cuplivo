@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../../providers/settings_provider.dart';
 import 'decision_outcome.dart';
 import 'decision_question.dart';
@@ -5,13 +7,18 @@ import 'decision_question.dart';
 /// OpenAI's `/v1/decisions` wire format.
 ///
 /// Same question, different field names: `input` instead of `state`, a
-/// `questions` **array** whose items carry `name`, `predicate` instead of
-/// `noul`, `choices: [{value, description}]` instead of a criteria map, and an
-/// `answers` **array** matched by `name` whose probabilities are an array of
-/// objects rather than a map.
+/// `questions` **array** whose items carry `name` and `type`, `choices:
+/// [{value, description}]` instead of a criteria map, and an answer whose
+/// probabilities are an array of objects rather than a map.
 ///
-/// Contract from the Decisions guide snapshot (2026-10, gpt-6-luna); the guide
-/// itself labels its examples illustrative, so only field names and shapes are
+/// `input` is the text to evaluate, not a JSON document, so the state travels
+/// as an encoded string. The answer is an **array** of answers in question
+/// order for a `questions` request, and a bare object when a single question is
+/// asked directly — both are accepted.
+///
+/// Contract from the Decisions guide snapshot (2026-10, gpt-6-luna) and the
+/// `llm-openai-decisions` plugin's documented request/response shapes; the
+/// guide labels its examples illustrative, so only field names and shapes are
 /// relied on here, never a promised value.
 abstract final class OpenAiDecisionsDialect {
   static Uri endpoint(ProviderConfig config) {
@@ -27,7 +34,7 @@ abstract final class OpenAiDecisionsDialect {
   }) {
     return <String, dynamic>{
       'model': model,
-      'input': question.state,
+      'input': jsonEncode(question.state),
       'questions': [_encodeQuestion(question)],
     };
   }
@@ -55,11 +62,8 @@ abstract final class OpenAiDecisionsDialect {
     required Object? body,
     required DecisionQuestion question,
   }) {
-    if (body is! Map) {
-      return const DecisionUnavailable(DecisionFailure.malformed);
-    }
-    final answers = body['answers'];
-    if (answers is! List) {
+    final answers = _answers(body);
+    if (answers.isEmpty) {
       return const DecisionUnavailable(DecisionFailure.malformed);
     }
     Map? answer;
@@ -69,13 +73,38 @@ abstract final class OpenAiDecisionsDialect {
         break;
       }
     }
+    // One question and one answer: the name is redundant, so a server that
+    // omits it is still answering what was asked. A *different* name is an
+    // answer to another question, and guessing there would name the wrong
+    // speaker.
+    if (answer == null &&
+        answers.length == 1 &&
+        answers.first is Map &&
+        !(answers.first as Map).containsKey('name')) {
+      answer = answers.first as Map;
+    }
     if (answer == null) {
       return const DecisionUnavailable(DecisionFailure.malformed);
+    }
+    if (answer['type'] == 'refusal') {
+      return const DecisionUnavailable(DecisionFailure.request);
     }
     return switch (question) {
       YesNoQuestion() => _decodeYesNo(answer),
       ChoiceQuestion() => _decodeChoice(answer),
     };
+  }
+
+  /// The answers this body carries: a bare array, an object wrapping one under
+  /// `answers`, or a single answer object.
+  static List<Object?> _answers(Object? body) {
+    if (body is List) return body;
+    if (body is Map) {
+      final nested = body['answers'];
+      if (nested is List) return nested;
+      return [body];
+    }
+    return const [];
   }
 
   static DecisionOutcome _decodeYesNo(Map answer) {

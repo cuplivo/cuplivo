@@ -107,7 +107,6 @@ class BasicSection extends StatelessWidget {
             if (spec.type == ModelType.decision) ...[
               SpecFieldHeader(
                 label: l10n.modelDetailSheetDecisionDialectLabel,
-                source: SpecSource.override,
                 overridden: false,
               ),
               Padding(
@@ -129,7 +128,6 @@ class BasicSection extends StatelessWidget {
               ),
               SpecFieldHeader(
                 label: l10n.modelDetailSheetDecisionUrlLabel,
-                source: SpecSource.override,
                 overridden: false,
                 trailing: IconButton(
                   key: const ValueKey('decision-url-help'),

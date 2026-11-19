@@ -187,6 +187,7 @@ class GroupDirector {
         spokeThisRound: spokeThisRound,
         resolve: resolve,
         isCancelled: isCancelled,
+        requestId: requestId,
       );
     }
     if (!supportsTools) return const GroupDirectorUnavailable('no_tools');
@@ -300,6 +301,7 @@ class GroupDirector {
     required Set<String> spokeThisRound,
     required Assistant? Function(String? senderId) resolve,
     bool Function()? isCancelled,
+    String? requestId,
   }) async {
     final model = resolveModel();
     if (model == null) return const GroupDirectorUnavailable('no_model');
@@ -324,33 +326,48 @@ class GroupDirector {
     // Prefix stability: everything that never changes inside a round comes
     // first (group, roster), the append-only transcript follows, and the
     // options — the only per-step part — travel last as criteria.
-    final outcome = await DecisionClient.ask(
-      config: settings.getProviderConfig(model.providerKey),
-      modelId: model.modelId,
-      question: ChoiceQuestion(
-        key: 'next_speaker',
-        instructions:
-            'Which member of this group should reply next to the latest user '
-            'message? Choose exactly one option. Members who already replied '
-            'this round are not offered; choose "$endTurnChoice" when no '
-            'further reply should follow.',
-        state: <String, Object?>{
-          'group': group.name,
-          'members': [
-            for (final member in members)
-              {'id': member.id, 'name': _displayName(member)},
-          ],
-          'transcript': GroupTranscript.forDirector(
-            transcript,
-            resolve: resolve,
-            maxChars: _maxTranscriptChars,
-            collapseRepeatedSpeakers: false,
-          ),
-        },
-        options: options,
-      ),
-      timeout: decisionTimeout,
-    );
+    // Stop has to abort this request, not be waited out: register the round's
+    // token under the conversation the same way a speaker's stream does, and
+    // drop it once the answer is in.
+    final cancelKey = (requestId ?? '').trim();
+    final cancelToken = cancelKey.isEmpty
+        ? null
+        : ChatApiService.registerCancelToken(cancelKey);
+    final DecisionOutcome outcome;
+    try {
+      outcome = await DecisionClient.ask(
+        config: settings.getProviderConfig(model.providerKey),
+        modelId: model.modelId,
+        question: ChoiceQuestion(
+          key: 'next_speaker',
+          instructions:
+              'Which member of this group should reply next to the latest user '
+              'message? Choose exactly one option. Members who already replied '
+              'this round are not offered; choose "$endTurnChoice" when no '
+              'further reply should follow.',
+          state: <String, Object?>{
+            'group': group.name,
+            'members': [
+              for (final member in members)
+                {'id': member.id, 'name': _displayName(member)},
+            ],
+            'transcript': GroupTranscript.forDirector(
+              transcript,
+              resolve: resolve,
+              maxChars: _maxTranscriptChars,
+              collapseRepeatedSpeakers: false,
+            ),
+          },
+          options: options,
+        ),
+        timeout: decisionTimeout,
+        cancelToken: cancelToken,
+      );
+    } finally {
+      if (cancelToken != null) {
+        ChatApiService.releaseCancelToken(cancelKey, cancelToken);
+      }
+    }
     if (isCancelled?.call() ?? false) {
       return const GroupDirectorUnavailable('cancelled');
     }

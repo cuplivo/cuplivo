@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:Cuplivo/core/providers/settings_provider.dart';
@@ -102,7 +104,10 @@ void main() {
         question: choice,
       );
       expect(body['model'], 'gpt-6-luna');
-      expect(body['input'], {'group': 'g'});
+      // `input` is the text being evaluated, not a JSON document, so the state
+      // travels encoded.
+      expect(body['input'], isA<String>());
+      expect(jsonDecode(body['input'] as String), {'group': 'g'});
       final question =
           (body['questions'] as List).single as Map<String, dynamic>;
       expect(question['type'], 'choice');
@@ -166,6 +171,41 @@ void main() {
         (outcome as DecisionUnavailable).failure,
         DecisionFailure.malformed,
       );
+    });
+
+    test('the answer is the array itself, not an object wrapping it', () {
+      final outcome = OpenAiDecisionsDialect.decode(
+        body: [
+          {
+            'type': 'choice',
+            'name': 'next_speaker',
+            'choice': 'b',
+            'probabilities': [
+              {'value': 'b', 'probability': 1.0},
+            ],
+          },
+        ],
+        question: choice,
+      );
+      expect((outcome as DecisionAnswer).choice, 'b');
+    });
+
+    test('a single question may be answered by a bare object', () {
+      final outcome = OpenAiDecisionsDialect.decode(
+        body: {'type': 'choice', 'name': 'next_speaker', 'choice': 'b'},
+        question: choice,
+      );
+      expect((outcome as DecisionAnswer).choice, 'b');
+    });
+
+    test('a refusal is a failed request, not a malformed answer', () {
+      final outcome = OpenAiDecisionsDialect.decode(
+        body: [
+          {'type': 'refusal', 'name': 'next_speaker'},
+        ],
+        question: choice,
+      );
+      expect((outcome as DecisionUnavailable).failure, DecisionFailure.request);
     });
   });
 
@@ -243,6 +283,22 @@ void main() {
         ).toString(),
         'https://example.test/v1/systemone',
       );
+    });
+
+    test('an address the parser rejects degrades instead of throwing', () async {
+      final cfg = config(
+        overrides: {
+          'judge': {'type': 'decision', 'decisionUrl': 'https://[::1/api/x'},
+        },
+      );
+      // Nothing validates the stored address, and it is re-parsed per request:
+      // the round has to lose its director, not its fallback.
+      final outcome = await DecisionClient.ask(
+        config: cfg,
+        modelId: 'judge',
+        question: choice,
+      );
+      expect((outcome as DecisionUnavailable).failure, DecisionFailure.request);
     });
 
     test('a whole URL, host+path, or a bare path all resolve', () {

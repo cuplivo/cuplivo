@@ -103,13 +103,15 @@ import '../controllers/home_page_controller.dart';
 import '../../harness/controllers/dsh_chat_controllers_provider.dart';
 import '../../harness/controllers/dsh_chat_session.dart';
 import '../../harness/pages/chat/harness_conversation_view.dart';
-import '../../harness/pages/home/harness_entry_page.dart';
+import '../../harness/pages/home/harness_more_page.dart';
 import '../../harness/pages/home/harness_home_chrome.dart';
 import '../../harness/pages/home/harness_home_controller.dart';
 import '../../harness/pages/home/harness_home_gateway_adapter.dart';
 import '../../harness/pages/home/harness_home_models.dart';
 import '../../harness/pages/home/harness_right_rail.dart';
 import '../../harness/pages/home/harness_session_catalog.dart';
+import '../../harness/pages/plugins/dsh_plugin_web_page.dart';
+import '../../harness/services/dsh_credential_store.dart';
 import '../../harness/pages/assistant/dsh_assistant_settings_page.dart';
 import '../../harness/widgets/chat/dsh_model_picker.dart';
 import '../../harness/state/dsh_connections_provider.dart';
@@ -1118,6 +1120,12 @@ class _HomePageState extends State<HomePage>
     _harnessCatalog = catalog;
     _harnessController = next;
     next?.addListener(_onHarnessChanged);
+    if (next == null) {
+      // Leaving the surface resets the drawer it may have left half-open; the
+      // value survives a detached controller, so an explicit reset keeps the
+      // next remote from inheriting it.
+      _harnessRailController.jumpTo(0);
+    }
     _updateHarnessRail();
   }
 
@@ -1175,11 +1183,21 @@ class _HomePageState extends State<HomePage>
   void _updateHarnessRail() {
     final open = _harnessController?.railOpen ?? false;
     if (open && _harnessRailController.isClosed) {
-      unawaited(_harnessRailController.open());
+      _animateHarnessRailDrawer(_harnessRailController.open);
     }
     if (!open && _harnessRailController.isOpen) {
-      unawaited(_harnessRailController.close());
+      _animateHarnessRailDrawer(_harnessRailController.close);
     }
+  }
+
+  /// Drives the mobile right drawer from the rail state.
+  ///
+  /// Only the mobile scaffold mounts a right `InteractiveDrawer`; the
+  /// tablet/desktop host lays the rail out with geometry instead. An
+  /// unattached controller is therefore the normal desktop case, not a fault,
+  /// so the expected "not attached" failure is swallowed here.
+  void _animateHarnessRailDrawer(Future<void> Function() action) {
+    unawaited(action().catchError((Object _) {}));
   }
 
   void _showHarnessError(HarnessCatalogException error) {
@@ -1248,16 +1266,66 @@ class _HomePageState extends State<HomePage>
   }
 
   Future<void> _openHarnessEntry(DshSidebarEntry entry) async {
+    final harness = _harnessController;
+    if (harness == null) return;
     final l10n = AppLocalizations.of(context)!;
-    final (String title, IconData icon) = switch (entry) {
-      DshSidebarEntry.plugins => (l10n.dshSidebarPlugins, Lucide.Boxes),
-      DshSidebarEntry.automations => (l10n.dshSidebarAutomations, Lucide.clock),
-      DshSidebarEntry.more => (l10n.dshSidebarMore, Lucide.LayoutGrid),
-    };
+    final remote = harness.remote;
     if (_drawerController.isOpen) _drawerController.close();
-    await Navigator.of(context).push(
+    final navigator = Navigator.of(context);
+
+    // 插件 / 自动化任务 interiors are the chat slice's WebView host: DSH
+    // contributes React slots inside its single-page app and exposes no
+    // per-panel route, so the panel is the Host's own WebUI authenticated by
+    // the stored v1 browser cookie. 更多 stays a native menu placeholder.
+    if (entry != DshSidebarEntry.more) {
+      final cookie = await const SecureDshCredentialStore().readCookie(
+        remote.id,
+      );
+      if (!mounted) return;
+      await navigator.push(
+        MaterialPageRoute<void>(
+          builder: (_) => DshPluginWebPage(
+            remote: remote,
+            title: entry == DshSidebarEntry.plugins
+                ? l10n.dshSidebarPlugins
+                : l10n.dshSidebarAutomations,
+            cookie: cookie,
+            onRequestReconnect: () {
+              // A rotated cookie only needs the assistant settings page, where
+              // a fresh WebUI link can be pasted; the WebView host cannot fix
+              // it itself.
+              navigator.pop();
+              navigator.push(
+                MaterialPageRoute<void>(
+                  builder: (_) =>
+                      DshAssistantSettingsPage.edit(remoteId: remote.id),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      return;
+    }
+
+    // 更多 is R5's native menu; 返回本地助手 is the one in-surface way back to
+    // the local assistant surface (leaving harness mode and disposing its
+    // remote controller).
+    await navigator.push(
       MaterialPageRoute<void>(
-        builder: (_) => HarnessEntryPage(title: title, icon: icon),
+        builder: (_) => HarnessMorePage(
+          remoteName: remote.name.trim(),
+          onBackToLocalAssistants: () {
+            navigator.pop();
+            _controller.exitHarnessMode();
+          },
+          onOpenSettings: () => navigator.push(
+            MaterialPageRoute<void>(
+              builder: (_) =>
+                  DshAssistantSettingsPage.edit(remoteId: remote.id),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1558,14 +1626,10 @@ class _HomePageState extends State<HomePage>
   }
 
   String? _harnessModelSubtitle(DshChatViewState view) {
-    final model = view.currentModel;
-    if (model == null) return null;
-    final provider = view.modelCatalog
-        .groupFor(view.modelSelection)
-        ?.name
-        .trim();
-    final name = model.displayName;
-    return (provider == null || provider.isEmpty) ? name : '$name ($provider)';
+    // The chat slice owns the `model (provider)` formatting for this surface;
+    // empty means the catalog has not loaded, so the bar shows the title only.
+    final display = view.modelDisplay.trim();
+    return display.isEmpty ? null : display;
   }
 
   Widget _buildPage(BuildContext context) {

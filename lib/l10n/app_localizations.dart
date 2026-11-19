@@ -33995,6 +33995,444 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reconnect'**
   String get dshWebPanelReconnect;
+
+  /// Search field of the DSH models settings tab; matches the exact reference screenshot label.
+  ///
+  /// In en, this message translates to:
+  /// **'Search providers or groups'**
+  String get dshModelsSearchHint;
+
+  /// Tooltip/label of the + action that opens the DSH provider picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Add provider'**
+  String get dshModelsAddProvider;
+
+  /// Row that starts the custom provider creation flow in the DSH provider list.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom provider'**
+  String get dshModelsCustomProviderTitle;
+
+  /// Subtitle of the custom provider row in the DSH provider picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure a gateway or self-hosted endpoint by hand.'**
+  String get dshModelsCustomProviderSubtitle;
+
+  /// Pill on a DSH provider row whose models are usable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get dshModelsProviderEnabled;
+
+  /// Pill on a DSH provider row whose catalog or credential failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable'**
+  String get dshModelsProviderUnavailable;
+
+  /// Empty state title of the DSH models settings tab.
+  ///
+  /// In en, this message translates to:
+  /// **'No providers yet'**
+  String get dshModelsEmptyTitle;
+
+  /// Empty state body of the DSH models settings tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a provider on this DeepSeek Harness to give its agents a model.'**
+  String get dshModelsEmptyBody;
+
+  /// Shown when the DSH connection is not ready, so the provider list cannot be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to load providers'**
+  String get dshModelsNotConnectedTitle;
+
+  /// Explains that the provider list lives on the remote host.
+  ///
+  /// In en, this message translates to:
+  /// **'Cuplivo reads this list from the DeepSeek Harness host.'**
+  String get dshModelsNotConnectedBody;
+
+  /// Loading state of the DSH provider list.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading providers…'**
+  String get dshModelsLoading;
+
+  /// Error title when the DSH catalog has no model section.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t load the provider list'**
+  String get dshModelsLoadFailed;
+
+  /// Empty search result in the DSH provider list.
+  ///
+  /// In en, this message translates to:
+  /// **'No providers match that search'**
+  String get dshModelsSearchEmpty;
+
+  /// Button that re-reads the remote catalog for the provider list.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get dshModelsRefresh;
+
+  /// Subtitle on a DSH provider row or a section that summarizes how many models the provider offers.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} models'**
+  String dshModelsModelCount(int count);
+
+  /// Honest capability state shown by the DSH provider detail page while the settings adapter is not wired.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider settings aren’t available in this build'**
+  String get dshModelsSettingsUnavailableTitle;
+
+  /// Body of the provider-settings-unavailable state.
+  ///
+  /// In en, this message translates to:
+  /// **'The connection works, but editing providers needs the settings adapter that ships next. You can still browse the remote’s models.'**
+  String get dshModelsSettingsUnavailableBody;
+
+  /// Field label for a DSH provider credential.
+  ///
+  /// In en, this message translates to:
+  /// **'API key'**
+  String get dshProviderDetailApiKey;
+
+  /// Placeholder of the DSH provider credential field.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty to use the saved credential'**
+  String get dshProviderDetailApiKeyHint;
+
+  /// Help text behind the ? next to the DSH provider credential field.
+  ///
+  /// In en, this message translates to:
+  /// **'Stored on DeepSeek Harness only; Cuplivo never keeps the value.'**
+  String get dshProviderDetailApiKeyHelp;
+
+  /// Status line when the DSH provider credential reference is configured.
+  ///
+  /// In en, this message translates to:
+  /// **'A credential is saved'**
+  String get dshProviderDetailCredentialConfigured;
+
+  /// Status line when the DSH provider credential reference is missing.
+  ///
+  /// In en, this message translates to:
+  /// **'No credential saved yet'**
+  String get dshProviderDetailCredentialMissing;
+
+  /// Collapsible section title on the DSH provider detail page.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom settings'**
+  String get dshProviderDetailCustomSettings;
+
+  /// Field label for a DSH provider base URL override.
+  ///
+  /// In en, this message translates to:
+  /// **'API address'**
+  String get dshProviderDetailApiAddress;
+
+  /// Placeholder of the DSH provider base URL field.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty to use the provider default'**
+  String get dshProviderDetailApiAddressHint;
+
+  /// Label of the protocol picker for a custom DSH provider.
+  ///
+  /// In en, this message translates to:
+  /// **'API protocol'**
+  String get dshProviderDetailApiProtocol;
+
+  /// Protocol option for a custom DSH provider.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenAI Chat Completions'**
+  String get dshProviderDetailProtocolOpenAiChat;
+
+  /// Protocol option for a custom DSH provider.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenAI Responses'**
+  String get dshProviderDetailProtocolOpenAiResponses;
+
+  /// Protocol option for a custom DSH provider.
+  ///
+  /// In en, this message translates to:
+  /// **'Anthropic Messages'**
+  String get dshProviderDetailProtocolAnthropic;
+
+  /// Protocol hint under the base URL field of an Anthropic-compatible DSH provider.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an API address that speaks the Anthropic Messages protocol.'**
+  String get dshProviderDetailApiAddressHintAnthropic;
+
+  /// Protocol hint under the base URL field of an OpenAI-compatible DSH provider.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an API address that speaks the OpenAI protocol.'**
+  String get dshProviderDetailApiAddressHintOpenAi;
+
+  /// Shown under the base URL field when the DSH host derives the endpoint from an environment variable.
+  ///
+  /// In en, this message translates to:
+  /// **'Defaults to the {env} environment variable.'**
+  String dshProviderDetailEnvHint(String env);
+
+  /// Section title of the model list on the DSH provider detail page.
+  ///
+  /// In en, this message translates to:
+  /// **'Model catalog'**
+  String get dshProviderDetailModels;
+
+  /// Shown when a DSH provider profile declares no models and the adapter supplies them.
+  ///
+  /// In en, this message translates to:
+  /// **'Using the adapter’s default models'**
+  String get dshProviderDetailModelsAdapterDefault;
+
+  /// Empty state inside the model catalog section.
+  ///
+  /// In en, this message translates to:
+  /// **'No models added yet'**
+  String get dshProviderDetailModelsEmpty;
+
+  /// Hint shown before a provider has any credential, matching the reference image's hidden model list.
+  ///
+  /// In en, this message translates to:
+  /// **'Save a credential first; the model list appears afterwards.'**
+  String get dshProviderDetailModelsFirstConfig;
+
+  /// Action that appends a model row to the DSH provider profile.
+  ///
+  /// In en, this message translates to:
+  /// **'Add model'**
+  String get dshProviderDetailAddModel;
+
+  /// Field label for a model id inside the DSH model catalog.
+  ///
+  /// In en, this message translates to:
+  /// **'Model ID'**
+  String get dshProviderDetailModelId;
+
+  /// Field label for a model display name inside the DSH model catalog.
+  ///
+  /// In en, this message translates to:
+  /// **'Display name'**
+  String get dshProviderDetailModelName;
+
+  /// Numeric field label for a model's context window.
+  ///
+  /// In en, this message translates to:
+  /// **'Context window'**
+  String get dshProviderDetailContextWindow;
+
+  /// Numeric field label for a model's output token cap.
+  ///
+  /// In en, this message translates to:
+  /// **'Max output tokens'**
+  String get dshProviderDetailMaxTokens;
+
+  /// Label of the input modality checkboxes on a model row.
+  ///
+  /// In en, this message translates to:
+  /// **'Input types'**
+  String get dshProviderDetailInputTypes;
+
+  /// Text input modality checkbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Text'**
+  String get dshProviderDetailInputText;
+
+  /// Image input modality checkbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Image'**
+  String get dshProviderDetailInputImage;
+
+  /// Delete affordance on a model row.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete model'**
+  String get dshProviderDetailDeleteModel;
+
+  /// Per-model reasoning effort editor title for a custom DSH provider.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning efforts'**
+  String get dshProviderDetailReasoningEfforts;
+
+  /// Explains the reasoning effort list under a model row.
+  ///
+  /// In en, this message translates to:
+  /// **'Effort levels this model accepts; add the API values DeepSeek Harness should send.'**
+  String get dshProviderDetailReasoningEffortsHint;
+
+  /// Action that appends a reasoning effort choice to a model.
+  ///
+  /// In en, this message translates to:
+  /// **'Add effort'**
+  String get dshProviderDetailAddReasoningEffort;
+
+  /// Field label for a reasoning effort id.
+  ///
+  /// In en, this message translates to:
+  /// **'Effort ID'**
+  String get dshProviderDetailEffortId;
+
+  /// Field label for a reasoning effort display name.
+  ///
+  /// In en, this message translates to:
+  /// **'Effort name'**
+  String get dshProviderDetailEffortName;
+
+  /// Primary action of the DSH provider detail page.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get dshProviderDetailSave;
+
+  /// Snackbar after a provider profile is written on the remote host.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider saved'**
+  String get dshProviderDetailSaved;
+
+  /// Snackbar when the DSH settings write fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t save the provider. Try again.'**
+  String get dshProviderDetailSaveFailed;
+
+  /// Shown when settings/mutate reports a revision conflict.
+  ///
+  /// In en, this message translates to:
+  /// **'This provider changed on DeepSeek Harness. The newest values were reloaded; apply your change again.'**
+  String get dshProviderDetailConflict;
+
+  /// Menu item that removes a custom DSH provider.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete provider'**
+  String get dshProviderDetailDeleteProvider;
+
+  /// Confirmation title before deleting a custom DSH provider.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this provider?'**
+  String get dshProviderDetailDeleteConfirmTitle;
+
+  /// Confirmation body before deleting a custom DSH provider.
+  ///
+  /// In en, this message translates to:
+  /// **'It will be removed from DeepSeek Harness. Sessions that used it keep their history.'**
+  String get dshProviderDetailDeleteConfirmBody;
+
+  /// Page title of the custom DSH provider creation form.
+  ///
+  /// In en, this message translates to:
+  /// **'New custom provider'**
+  String get dshProviderDetailCustomProviderTitle;
+
+  /// Field label for a custom provider's unique id.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider ID'**
+  String get dshProviderDetailProviderId;
+
+  /// Placeholder of the custom provider id field.
+  ///
+  /// In en, this message translates to:
+  /// **'Unique id, e.g. my-gateway'**
+  String get dshProviderDetailProviderIdHint;
+
+  /// Field label for a provider's display name.
+  ///
+  /// In en, this message translates to:
+  /// **'Display name'**
+  String get dshProviderDetailDisplayName;
+
+  /// Field label for the custom provider endpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Base URL'**
+  String get dshProviderDetailBaseUrl;
+
+  /// Placeholder of the custom provider endpoint field.
+  ///
+  /// In en, this message translates to:
+  /// **'https://api.example.com'**
+  String get dshProviderDetailBaseUrlHint;
+
+  /// Action that asks the endpoint for its model list.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch models'**
+  String get dshProviderDetailDiscover;
+
+  /// Result when model discovery returns nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'The endpoint returned no models'**
+  String get dshProviderDetailDiscoverEmpty;
+
+  /// Result when model discovery fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t fetch models from that endpoint'**
+  String get dshProviderDetailDiscoverFailed;
+
+  /// Validation message when a model row has a blank id.
+  ///
+  /// In en, this message translates to:
+  /// **'Every model needs an ID.'**
+  String get dshProviderDetailInvalidModelId;
+
+  /// Validation message when the provider form is incomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill in the required fields first.'**
+  String get dshProviderDetailRequiredFields;
+
+  /// More menu row that leaves DeepSeek Harness mode and shows the local assistant surface again.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to local assistants'**
+  String get dshMoreBackToLocal;
+
+  /// More menu row that opens the connected DeepSeek Harness assistant settings page.
+  ///
+  /// In en, this message translates to:
+  /// **'DeepSeek Harness settings'**
+  String get dshMoreOpenSettings;
+
+  /// More menu row that opens the app version dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'About version'**
+  String get dshMoreAbout;
+
+  /// Subtitle under the about row in the DeepSeek Harness more menu.
+  ///
+  /// In en, this message translates to:
+  /// **'The app version installed on this device.'**
+  String get dshMoreAboutHint;
+
+  /// Placeholder example in the max-output-token field of a DSH model row.
+  ///
+  /// In en, this message translates to:
+  /// **'256K'**
+  String get dshProviderDetailMaxTokensHint;
 }
 
 class _AppLocalizationsDelegate

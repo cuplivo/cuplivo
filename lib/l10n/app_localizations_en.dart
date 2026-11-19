@@ -19429,4 +19429,246 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dshWebPanelReconnect => 'Reconnect';
+
+  @override
+  String get dshModelsSearchHint => 'Search providers or groups';
+
+  @override
+  String get dshModelsAddProvider => 'Add provider';
+
+  @override
+  String get dshModelsCustomProviderTitle => 'Custom provider';
+
+  @override
+  String get dshModelsCustomProviderSubtitle =>
+      'Configure a gateway or self-hosted endpoint by hand.';
+
+  @override
+  String get dshModelsProviderEnabled => 'Enabled';
+
+  @override
+  String get dshModelsProviderUnavailable => 'Unavailable';
+
+  @override
+  String get dshModelsEmptyTitle => 'No providers yet';
+
+  @override
+  String get dshModelsEmptyBody =>
+      'Add a provider on this DeepSeek Harness to give its agents a model.';
+
+  @override
+  String get dshModelsNotConnectedTitle => 'Connect to load providers';
+
+  @override
+  String get dshModelsNotConnectedBody =>
+      'Cuplivo reads this list from the DeepSeek Harness host.';
+
+  @override
+  String get dshModelsLoading => 'Loading providers…';
+
+  @override
+  String get dshModelsLoadFailed => 'Couldn’t load the provider list';
+
+  @override
+  String get dshModelsSearchEmpty => 'No providers match that search';
+
+  @override
+  String get dshModelsRefresh => 'Refresh';
+
+  @override
+  String dshModelsModelCount(int count) {
+    return '$count models';
+  }
+
+  @override
+  String get dshModelsSettingsUnavailableTitle =>
+      'Provider settings aren’t available in this build';
+
+  @override
+  String get dshModelsSettingsUnavailableBody =>
+      'The connection works, but editing providers needs the settings adapter that ships next. You can still browse the remote’s models.';
+
+  @override
+  String get dshProviderDetailApiKey => 'API key';
+
+  @override
+  String get dshProviderDetailApiKeyHint =>
+      'Leave empty to use the saved credential';
+
+  @override
+  String get dshProviderDetailApiKeyHelp =>
+      'Stored on DeepSeek Harness only; Cuplivo never keeps the value.';
+
+  @override
+  String get dshProviderDetailCredentialConfigured => 'A credential is saved';
+
+  @override
+  String get dshProviderDetailCredentialMissing => 'No credential saved yet';
+
+  @override
+  String get dshProviderDetailCustomSettings => 'Custom settings';
+
+  @override
+  String get dshProviderDetailApiAddress => 'API address';
+
+  @override
+  String get dshProviderDetailApiAddressHint =>
+      'Leave empty to use the provider default';
+
+  @override
+  String get dshProviderDetailApiProtocol => 'API protocol';
+
+  @override
+  String get dshProviderDetailProtocolOpenAiChat => 'OpenAI Chat Completions';
+
+  @override
+  String get dshProviderDetailProtocolOpenAiResponses => 'OpenAI Responses';
+
+  @override
+  String get dshProviderDetailProtocolAnthropic => 'Anthropic Messages';
+
+  @override
+  String get dshProviderDetailApiAddressHintAnthropic =>
+      'Enter an API address that speaks the Anthropic Messages protocol.';
+
+  @override
+  String get dshProviderDetailApiAddressHintOpenAi =>
+      'Enter an API address that speaks the OpenAI protocol.';
+
+  @override
+  String dshProviderDetailEnvHint(String env) {
+    return 'Defaults to the $env environment variable.';
+  }
+
+  @override
+  String get dshProviderDetailModels => 'Model catalog';
+
+  @override
+  String get dshProviderDetailModelsAdapterDefault =>
+      'Using the adapter’s default models';
+
+  @override
+  String get dshProviderDetailModelsEmpty => 'No models added yet';
+
+  @override
+  String get dshProviderDetailModelsFirstConfig =>
+      'Save a credential first; the model list appears afterwards.';
+
+  @override
+  String get dshProviderDetailAddModel => 'Add model';
+
+  @override
+  String get dshProviderDetailModelId => 'Model ID';
+
+  @override
+  String get dshProviderDetailModelName => 'Display name';
+
+  @override
+  String get dshProviderDetailContextWindow => 'Context window';
+
+  @override
+  String get dshProviderDetailMaxTokens => 'Max output tokens';
+
+  @override
+  String get dshProviderDetailInputTypes => 'Input types';
+
+  @override
+  String get dshProviderDetailInputText => 'Text';
+
+  @override
+  String get dshProviderDetailInputImage => 'Image';
+
+  @override
+  String get dshProviderDetailDeleteModel => 'Delete model';
+
+  @override
+  String get dshProviderDetailReasoningEfforts => 'Reasoning efforts';
+
+  @override
+  String get dshProviderDetailReasoningEffortsHint =>
+      'Effort levels this model accepts; add the API values DeepSeek Harness should send.';
+
+  @override
+  String get dshProviderDetailAddReasoningEffort => 'Add effort';
+
+  @override
+  String get dshProviderDetailEffortId => 'Effort ID';
+
+  @override
+  String get dshProviderDetailEffortName => 'Effort name';
+
+  @override
+  String get dshProviderDetailSave => 'Save';
+
+  @override
+  String get dshProviderDetailSaved => 'Provider saved';
+
+  @override
+  String get dshProviderDetailSaveFailed =>
+      'Couldn’t save the provider. Try again.';
+
+  @override
+  String get dshProviderDetailConflict =>
+      'This provider changed on DeepSeek Harness. The newest values were reloaded; apply your change again.';
+
+  @override
+  String get dshProviderDetailDeleteProvider => 'Delete provider';
+
+  @override
+  String get dshProviderDetailDeleteConfirmTitle => 'Delete this provider?';
+
+  @override
+  String get dshProviderDetailDeleteConfirmBody =>
+      'It will be removed from DeepSeek Harness. Sessions that used it keep their history.';
+
+  @override
+  String get dshProviderDetailCustomProviderTitle => 'New custom provider';
+
+  @override
+  String get dshProviderDetailProviderId => 'Provider ID';
+
+  @override
+  String get dshProviderDetailProviderIdHint => 'Unique id, e.g. my-gateway';
+
+  @override
+  String get dshProviderDetailDisplayName => 'Display name';
+
+  @override
+  String get dshProviderDetailBaseUrl => 'Base URL';
+
+  @override
+  String get dshProviderDetailBaseUrlHint => 'https://api.example.com';
+
+  @override
+  String get dshProviderDetailDiscover => 'Fetch models';
+
+  @override
+  String get dshProviderDetailDiscoverEmpty =>
+      'The endpoint returned no models';
+
+  @override
+  String get dshProviderDetailDiscoverFailed =>
+      'Couldn’t fetch models from that endpoint';
+
+  @override
+  String get dshProviderDetailInvalidModelId => 'Every model needs an ID.';
+
+  @override
+  String get dshProviderDetailRequiredFields =>
+      'Fill in the required fields first.';
+
+  @override
+  String get dshMoreBackToLocal => 'Back to local assistants';
+
+  @override
+  String get dshMoreOpenSettings => 'DeepSeek Harness settings';
+
+  @override
+  String get dshMoreAbout => 'About version';
+
+  @override
+  String get dshMoreAboutHint => 'The app version installed on this device.';
+
+  @override
+  String get dshProviderDetailMaxTokensHint => '256K';
 }

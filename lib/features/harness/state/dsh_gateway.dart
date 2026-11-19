@@ -28,7 +28,8 @@ abstract interface class DshGateway {
   /// Logs in and returns the first catalog snapshot.
   ///
   /// Exactly one of [launchToken] (a fresh WebUI link) and [storedCookie] (a
-  /// reconnect) is normally provided; a cookie wins when both are present.
+  /// reconnect) is normally provided; a launch token wins when both are
+  /// present, because a fresh login is the stronger credential.
   Future<DshConnectResult> connect({
     required DshRemote remote,
     String? launchToken,
@@ -118,8 +119,11 @@ abstract interface class DshSessionHandle {
   /// Selects the session's next model/reasoning effort.
   Future<void> selectModel(DshModelSelection selection);
 
-  /// Persists a model as the default for new sessions (DSH
-  /// `initializeDefaultModel`).
+  /// Runs the Host's default-model bootstrap (DSH `initializeDefaultModel`).
+  ///
+  /// DSH 0.2.2's endpoint takes no selection and only ensures the deployment
+  /// default exists, so [selection] is advisory; `selectModel` is what changes
+  /// a session's next model.
   Future<void> initializeDefaultModel(DshModelSelection selection);
 
   /// Applies a permission preset through the server's command path.

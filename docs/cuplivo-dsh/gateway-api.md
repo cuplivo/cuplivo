@@ -14,8 +14,9 @@ The feature layer needs a small, stable, mockable surface:
 
 - `state/` imports only `models/` + `services/` (no `package:flutter` in the
   adapter except what the provider needs), and never `lib/core/dsh/`;
-- one adapter implementation (`lib/features/harness/services/`, later slice)
-  maps client types → the view models below. A wire change stops there;
+- one adapter implementation
+  (`lib/features/harness/services/dsh_client_gateway.dart`, landed) maps client
+  types → the view models below. A wire change stops there;
 - the state layer stays testable with fakes (no sockets, no cookie jar).
 
 ## Surface
@@ -131,6 +132,130 @@ construct one.
 - The launch token is a `connect` argument and is never stored, logged or put in
   a view model.
 - v2 `/connect` is not used (one mux per v2 peer, no WebView cookie).
+
+## Adapter implementation (landed)
+
+`lib/features/harness/services/` holds the only code that imports `lib/core/dsh/`:
+
+| file | responsibility | client surface (`client-api.md`) |
+|---|---|---|
+| `dsh_client_gateway.dart` | `DshClientGateway implements DshGateway`: pairing, catalog read, live streams, session/control + workspace patches, general settings writes, workspace-file RPCs | §3 `DshClient.pair`/`connect`/`loadCatalog`, §7 `DshCatalog`/`DshRpc`, §9 catalog + live control, §12 files |
+| `dsh_client_gateway_mapping.dart` | pure functions from client models to the view models (catalog join, control projection, workspace patches, transcript rows, host requests, file entries); no sockets, no Flutter | §9–§12 domain types |
+| `dsh_client_session_handle.dart` | `DshClientSessionHandle implements DshSessionHandle`: subscribes `DshSessionStore.changes`, re-folds `session/control` projections, emits folded `DshSessionView`s, translates prompt/answer/permission calls | §10/§11 `DshSessionStore` |
+
+`main.dart` registers the factory beside the provider:
+`gatewayFactory: (_) => DshClientGateway()`.
+
+### Connect / reconnect
+
+1. `DshEndpoint.parse(remote.baseUrl)` validates the stored origin.
+2. With a launch token: `DshClient.pair(<indexUri>?token=…)` (login → verify →
+   mux ready); the token is not retained after pairing.
+3. Without one: the stored `DshCookie` is decoded (JSON in the secure store),
+   its `authority` is compared with the stored origin before it is sent, and
+   `DshClient.pair(baseUrl, storedCookie: …)` resumes.
+4. `loadCatalog(includePlugins: true, includeSettings: true, includeAccount:
+   false)` → `mapDshCatalog` → `DshConnectResult(catalog, cookie: <DshCookie
+   JSON>)`; only then are the live streams subscribed. Between the two the
+   adapter runs the protocol's idempotent `session/initializeDefaultModel`
+   bootstrap and tolerates a Host that does not expose it. `retry()` calls
+   `mux.reconnect()` and re-reads the catalog, then emits
+   `DshCatalogInvalidated`.
+5. `DshConnectionState` → `DshLinkStatus` (connecting/reconnecting →
+   `connecting`; unauthorized → `failed(auth)`; closed → idle) and open session
+   handles get the corresponding `DshFailure` so their transcript stays
+   rendered with a stale/error banner.
+
+### Updates stream
+
+- `catalog.watchSessionControl()`: a baseline seeds every session; each
+  projection frame is merged and emitted as `DshSessionControlUpdate`, and the
+  same frame is applied to an open handle's `DshTranscript` (so a title or
+  permission change made elsewhere appears without a snapshot). The last
+  control per session is cached and replayed to the first listener, because the
+  provider subscribes only after `connect` returns.
+- `catalog.watchWorkspaces()`: upsert/remove/order map to
+  `DshWorkspaceUpsert`/`DshWorkspaceRemoved`/`DshWorkspaceOrder`; a
+  baseline/replace (first frame or after a reconnect) and the archived/pinned
+  sets have no patch shape, so they emit `DshCatalogInvalidated` and the
+  provider answers with `refreshCatalog()`.
+- `client.hostEvents`: `api-session/added` upserts the session summary;
+  `api-session/status` updates the running flag and emits a control projection.
+  Approvals/questions stay inside the session store (they are per-session
+  waterfalls).
+
+### Catalog mapping notes
+
+- Session summaries are joined into their workspace from
+  `DshWorkspace.sessionIds`; ids in no workspace become `ungroupedSessions`;
+  `archivedSessionIds`/`pinnedSessionIds` set the per-session flags.
+- Permission presets come from `permissionPresets/catalog.options`; the
+  general-settings default is `defaultPreset`, the Session-Log switch is
+  `settings.namespace('session-log-deepseek').value.enabled`.
+- Provider lookup failures are listed as disabled provider groups
+  (`failureMessage`) instead of hidden rows.
+- Capabilities come from `DshCapabilities.supports(...)`: `session/modelCatalog`
+  → models, `workspace/follow` → workspaces, `pluginInventory/list` → plugins,
+  `workspaceFiles/list` → sessionFiles, `commands/list`/`skills/list` →
+  commands/skills. `approvals` is set for any connected Host (mux waterfalls
+  are not HTTP probes). Endpoints the Host rejects (the client records
+  `known == false`) become entries in `DshCatalogSnapshot.failures` for their
+  section instead of failing the whole catalog.
+- `commands`/`skills` are session-scoped on the wire
+  (`commands/list {agentId}`, `skills/list {request.sessionId}`), while the
+  gateway snapshot carries one global roster. The adapter asks the first listed
+  session with `agentAvailable` (best effort, after the catalog batch) so the
+  composer plus menu has the server's roster; a Host that does not expose
+  either endpoint records a per-section failure instead. A session whose preset narrows the roster is not
+  represented — the seam has no per-session command read yet (see gaps).
+
+### General settings writes
+
+`updateGeneralSettings` diffs the request against the last read and writes both
+changed paths through `settings/mutate` with the namespace's current revision
+(from one `settings/describe`): `permission.defaultPreset` (`set`, or `unset`
+for null) and `session-log-deepseek.enabled`. Two separate writes; a partial
+failure surfaces as `DshGatewayException` and the provider does not update its
+cached general settings.
+
+### Workspace files
+
+The client deliberately has no workspace-file API, so the adapter calls the
+protocol endpoints through the public `DshRpc.call`:
+
+| seam | wire call | args |
+|---|---|---|
+| `listFiles(sessionId, path)` | `workspaceFiles/list` | `{workspaceFileScopeId, path: path.isEmpty ? '.' : path}` |
+| `readTextFile(sessionId, path)` | `workspaceFiles/read` | `{workspaceFileScopeId, path, range: {offset: 0}}` |
+| `statFile(sessionId, path)` | `workspaceFiles/stat` | `{workspaceFileScopeId, path}` |
+
+Entries map `{name, type, size?}` to `DshFileEntry`; child paths are joined with
+`/` from the workspace-relative listing path (`''` is the root the home adapter
+uses). `statFile` reports `isDirectory: false` (the wire result has no type).
+
+### Deliberate gaps in the client (not worked around in `lib/core/dsh/`)
+
+1. **`workspaceFiles/readBytes`** is a binary multipart response and the client
+   transport exposes only JSON envelopes, so `readFileBytes` throws
+   `DshFailure.unsupported`; the right rail falls back to text preview. A real
+   byte API belongs in `lib/core/dsh` (client-core).
+2. **`session/initializeDefaultModel` is a bootstrap, not a setter**; the
+   endpoint takes no arguments and only ensures the deployment default
+   selection is initialised (the official UI calls it once after connect — the
+   adapter does the same). `DshSessionHandle.initializeDefaultModel(selection)`
+   therefore ignores its argument; the session `selectModel` call is what
+   changes a session's next model. The seam parameter should be dropped; DSH
+   0.2.2 exposes no "set default model" RPC.
+3. **No decline waterfall for host questions**: `rejectQuestions` answers with
+   an empty answer list, the closest 0.2.2 wire form; there is no
+   `user-questions/reject` call.
+4. **Approval decisions carry no note**; `answerApproval(note: …)` is accepted
+   for seam symmetry and dropped (the wire has only `allowed-once|rejected`).
+5. **Session-scoped commands/skills** (see above): the adapter fills the global
+   snapshot from the first agent-available session, which is a representative roster, not
+   the exact one an arbitrary open session may see. A per-session read belongs
+   in the seam (`DshSessionHandle` gaining commands/skills) or in a catalog
+   helper when a slice needs it.
 
 ## Deliberately not here (documented TODOs)
 

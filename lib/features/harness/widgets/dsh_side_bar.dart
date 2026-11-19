@@ -192,6 +192,7 @@ class _DshSideBarState extends State<DshSideBar> {
                         cs,
                         workspaceId: null,
                         emphasized: true,
+                        key: const Key('dsh-new-session'),
                       ),
                   ],
                 ),

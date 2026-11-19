@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:Cuplivo/core/dsh/dsh_endpoint.dart';
 import 'package:Cuplivo/core/dsh/dsh_errors.dart';
 import 'package:Cuplivo/core/dsh/dsh_events.dart';
@@ -46,7 +44,7 @@ void main() {
   });
 
   test(
-    'ready handshake defines the generation and opens $events first',
+    'ready handshake defines the generation and opens the event stream first',
     () async {
       mux = DshMux(transport, options: fastOptions());
       final generation = await mux.ready;

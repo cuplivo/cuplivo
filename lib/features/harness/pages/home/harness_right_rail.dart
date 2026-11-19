@@ -205,9 +205,32 @@ class _RailStartPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
       children: [
+        // R7's Start page opens with its compass/start glyph above the cards.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(2, 0, 2, 10),
+          child: Row(
+            children: [
+              Icon(
+                Lucide.Compass,
+                size: 16,
+                color: cs.onSurface.withValues(alpha: 0.55),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                l10n.dshRailStart,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: AppFontWeights.medium,
+                  color: cs.onSurface.withValues(alpha: 0.55),
+                ),
+              ),
+            ],
+          ),
+        ),
         _RailToolCard(
           icon: Lucide.FolderOpen,
           title: l10n.dshRailWorkspaceFiles,

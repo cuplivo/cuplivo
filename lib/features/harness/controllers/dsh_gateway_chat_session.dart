@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
-
 import 'package:Cuplivo/features/harness/controllers/dsh_chat_session.dart'
     as chat;
 import 'package:Cuplivo/features/harness/models/dsh_remote.dart';
@@ -48,6 +46,13 @@ class DshGatewayChatSession extends chat.DshChatSession {
   bool _catalogLoading = false;
   gw.DshFailure? _linkFailure;
   chat.DshChatViewState _state = const chat.DshChatViewState();
+  Timer? _streamFlush;
+
+  /// The adapter folds a *full* view per frame, so a token-by-token stream can
+  /// notify faster than the list should rebuild. Streaming frames coalesce into
+  /// one repaint per [streamingFrameInterval]; anything that is not a live
+  /// draft (durable message, error, request) paints immediately.
+  static const Duration streamingFrameInterval = Duration(milliseconds: 50);
 
   @override
   chat.DshChatViewState get state => _state;
@@ -96,7 +101,13 @@ class DshGatewayChatSession extends chat.DshChatSession {
         if (_disposed) return;
         _view = view;
         _linkFailure = null;
-        _rebuild();
+        if (view.streaming) {
+          _scheduleStreamingRebuild();
+        } else {
+          _streamFlush?.cancel();
+          _streamFlush = null;
+          _rebuild();
+        }
       },
       onError: (Object error) {
         if (_disposed) return;
@@ -108,6 +119,14 @@ class DshGatewayChatSession extends chat.DshChatSession {
     );
   }
 
+  void _scheduleStreamingRebuild() {
+    if (_streamFlush != null) return;
+    _streamFlush = Timer(streamingFrameInterval, () {
+      _streamFlush = null;
+      _rebuild();
+    });
+  }
+
   void _handleConnectionsChanged() {
     if (_disposed) return;
     _rebuild();
@@ -116,6 +135,8 @@ class DshGatewayChatSession extends chat.DshChatSession {
   @override
   void dispose() {
     _disposed = true;
+    _streamFlush?.cancel();
+    _streamFlush = null;
     _connections.removeListener(_handleConnectionsChanged);
     unawaited(_views?.cancel());
     final handle = _handle;

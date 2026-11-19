@@ -13,6 +13,7 @@ import '../../../theme/app_font_weights.dart';
 import '../../../theme/app_semantic_colors.dart';
 import '../models/dsh_remote.dart';
 import '../models/dsh_web_ui_link.dart';
+import 'models/dsh_models_tab_body.dart';
 import '../state/dsh_connections_provider.dart';
 import '../state/dsh_gateway.dart';
 import '../widgets/dsh_failure_text.dart';
@@ -169,11 +170,7 @@ class _DshAssistantSettingsPageState extends State<DshAssistantSettingsPage> {
                         catalog: catalog,
                         connections: connections,
                       ),
-                      _PlaceholderTab(
-                        icon: Lucide.Boxes,
-                        title: l10n.dshTabModels,
-                        body: l10n.dshModelsPlaceholder,
-                      ),
+                      DshModelsTabBody(remoteId: _remoteId ?? ''),
                       _PlaceholderTab(
                         icon: Lucide.LayoutGrid,
                         title: l10n.dshTabContent,

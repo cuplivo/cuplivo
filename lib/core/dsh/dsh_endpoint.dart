@@ -197,8 +197,9 @@ final class DshEndpoint {
   Uri uploadUri(String sessionId, {String? name, String? mediaType}) {
     final query = <String, String>{'sessionId': sessionId};
     if (name != null && name.isNotEmpty) query['name'] = name;
-    if (mediaType != null && mediaType.isNotEmpty)
+    if (mediaType != null && mediaType.isNotEmpty) {
       query['mediaType'] = mediaType;
+    }
     return apiUri('session/uploadFileBinary').replace(queryParameters: query);
   }
 

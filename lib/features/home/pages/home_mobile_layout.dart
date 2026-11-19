@@ -168,9 +168,12 @@ class HomeMobileScaffold extends StatelessWidget {
     return InteractiveDrawer(
       controller: harness.railController,
       side: DrawerSide.right,
-      drawerWidth: harness.railExpanded ? width : width * 0.9,
+      // Near-full width: the drawer translates its child with progress, so the
+      // conversation is pushed off-screen instead of sitting under a panel
+      // (R7's rule; `width` when the rail asked for the whole screen).
+      drawerWidth: harness.railExpanded ? width : width * 0.94,
       scrimColor: cs.onSurface,
-      maxScrimOpacity: 0.12,
+      maxScrimOpacity: 0.08,
       barrierDismissible: true,
       drawer: harness.rail,
       child: scaffold,

@@ -18377,6 +18377,237 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dshWebPanelReconnect => '重新连接';
+
+  @override
+  String get dshModelsSearchHint => '搜索供应商或分组';
+
+  @override
+  String get dshModelsAddProvider => '添加供应商';
+
+  @override
+  String get dshModelsCustomProviderTitle => '自定义提供商';
+
+  @override
+  String get dshModelsCustomProviderSubtitle => '手动配置网关或自建端点。';
+
+  @override
+  String get dshModelsProviderEnabled => '启用';
+
+  @override
+  String get dshModelsProviderUnavailable => '不可用';
+
+  @override
+  String get dshModelsEmptyTitle => '还没有供应商';
+
+  @override
+  String get dshModelsEmptyBody => '请在这台 DeepSeek Harness 上添加供应商，代理才能使用模型。';
+
+  @override
+  String get dshModelsNotConnectedTitle => '连接后才能读取供应商';
+
+  @override
+  String get dshModelsNotConnectedBody =>
+      'Cuplivo 会从 DeepSeek Harness 主机读取这份列表。';
+
+  @override
+  String get dshModelsLoading => '正在加载供应商…';
+
+  @override
+  String get dshModelsLoadFailed => '无法加载供应商列表';
+
+  @override
+  String get dshModelsSearchEmpty => '没有匹配的供应商';
+
+  @override
+  String get dshModelsRefresh => '刷新';
+
+  @override
+  String dshModelsModelCount(int count) {
+    return '$count 个模型';
+  }
+
+  @override
+  String get dshModelsSettingsUnavailableTitle => '当前版本还不支持编辑供应商设置';
+
+  @override
+  String get dshModelsSettingsUnavailableBody =>
+      '连接可用，但编辑供应商需要后续版本提供的设置适配器。你仍然可以浏览远程模型。';
+
+  @override
+  String get dshProviderDetailApiKey => 'API 密钥';
+
+  @override
+  String get dshProviderDetailApiKeyHint => '留空使用已保存凭据';
+
+  @override
+  String get dshProviderDetailApiKeyHelp =>
+      '仅保存在 DeepSeek Harness 上，Cuplivo 不会保留该值。';
+
+  @override
+  String get dshProviderDetailCredentialConfigured => '已保存凭据';
+
+  @override
+  String get dshProviderDetailCredentialMissing => '还没有保存凭据';
+
+  @override
+  String get dshProviderDetailCustomSettings => '自定义设置';
+
+  @override
+  String get dshProviderDetailApiAddress => 'API 地址';
+
+  @override
+  String get dshProviderDetailApiAddressHint => '留空使用供应商默认值';
+
+  @override
+  String get dshProviderDetailApiProtocol => 'API 协议';
+
+  @override
+  String get dshProviderDetailProtocolOpenAiChat => 'OpenAI Chat Completions';
+
+  @override
+  String get dshProviderDetailProtocolOpenAiResponses => 'OpenAI Responses';
+
+  @override
+  String get dshProviderDetailProtocolAnthropic => 'Anthropic Messages';
+
+  @override
+  String get dshProviderDetailApiAddressHintAnthropic =>
+      '请填写兼容 Anthropic Messages 协议的 API 地址。';
+
+  @override
+  String get dshProviderDetailApiAddressHintOpenAi =>
+      '请填写兼容 OpenAI 协议的 API 地址。';
+
+  @override
+  String dshProviderDetailEnvHint(String env) {
+    return '默认使用环境变量 $env。';
+  }
+
+  @override
+  String get dshProviderDetailModels => '模型目录';
+
+  @override
+  String get dshProviderDetailModelsAdapterDefault => '正在使用适配器默认模型';
+
+  @override
+  String get dshProviderDetailModelsEmpty => '还没有模型';
+
+  @override
+  String get dshProviderDetailModelsFirstConfig => '请先保存凭据，随后会显示模型列表。';
+
+  @override
+  String get dshProviderDetailAddModel => '添加模型';
+
+  @override
+  String get dshProviderDetailModelId => '模型 ID';
+
+  @override
+  String get dshProviderDetailModelName => '显示名称';
+
+  @override
+  String get dshProviderDetailContextWindow => '上下文窗口';
+
+  @override
+  String get dshProviderDetailMaxTokens => '最大输出 token 数';
+
+  @override
+  String get dshProviderDetailInputTypes => '输入类型';
+
+  @override
+  String get dshProviderDetailInputText => '文本';
+
+  @override
+  String get dshProviderDetailInputImage => '图片';
+
+  @override
+  String get dshProviderDetailDeleteModel => '删除模型';
+
+  @override
+  String get dshProviderDetailReasoningEfforts => '思考强度';
+
+  @override
+  String get dshProviderDetailReasoningEffortsHint =>
+      '该模型接受的思考强度；请填写 DeepSeek Harness 应发送的 API 值。';
+
+  @override
+  String get dshProviderDetailAddReasoningEffort => '添加思考强度';
+
+  @override
+  String get dshProviderDetailEffortId => '强度 ID';
+
+  @override
+  String get dshProviderDetailEffortName => '强度名称';
+
+  @override
+  String get dshProviderDetailSave => '保存';
+
+  @override
+  String get dshProviderDetailSaved => '供应商已保存';
+
+  @override
+  String get dshProviderDetailSaveFailed => '保存供应商失败，请重试。';
+
+  @override
+  String get dshProviderDetailConflict =>
+      '该供应商已在 DeepSeek Harness 上被修改，最新值已重新加载；请再次应用你的修改。';
+
+  @override
+  String get dshProviderDetailDeleteProvider => '删除供应商';
+
+  @override
+  String get dshProviderDetailDeleteConfirmTitle => '删除此供应商？';
+
+  @override
+  String get dshProviderDetailDeleteConfirmBody =>
+      '它将从 DeepSeek Harness 中移除；使用过它的会话仍保留历史。';
+
+  @override
+  String get dshProviderDetailCustomProviderTitle => '新建自定义提供商';
+
+  @override
+  String get dshProviderDetailProviderId => '供应商 ID';
+
+  @override
+  String get dshProviderDetailProviderIdHint => '唯一 ID，例如 my-gateway';
+
+  @override
+  String get dshProviderDetailDisplayName => '显示名称';
+
+  @override
+  String get dshProviderDetailBaseUrl => 'API 地址';
+
+  @override
+  String get dshProviderDetailBaseUrlHint => 'https://api.example.com';
+
+  @override
+  String get dshProviderDetailDiscover => '获取模型';
+
+  @override
+  String get dshProviderDetailDiscoverEmpty => '该端点没有返回任何模型';
+
+  @override
+  String get dshProviderDetailDiscoverFailed => '无法从该端点获取模型';
+
+  @override
+  String get dshProviderDetailInvalidModelId => '每个模型都需要 ID。';
+
+  @override
+  String get dshProviderDetailRequiredFields => '请先填写必填项。';
+
+  @override
+  String get dshMoreBackToLocal => '返回本地助手';
+
+  @override
+  String get dshMoreOpenSettings => 'DSH 设置';
+
+  @override
+  String get dshMoreAbout => '关于版本';
+
+  @override
+  String get dshMoreAboutHint => '本机安装的 Cuplivo 版本。';
+
+  @override
+  String get dshProviderDetailMaxTokensHint => '256K';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -36412,6 +36643,577 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get dshRemoteDeleteConfirm => '删除';
+
+  @override
+  String get dshSidebarPlugins => '插件';
+
+  @override
+  String get dshSidebarAutomations => '自动化任务';
+
+  @override
+  String get dshSidebarMore => '更多';
+
+  @override
+  String get dshNewSession => '新会话';
+
+  @override
+  String get dshNewSessionTooltip => '新建会话';
+
+  @override
+  String get dshDefaultWorkspace => '默认工作区';
+
+  @override
+  String get dshSessionsEmpty => '暂无会话';
+
+  @override
+  String get dshSessionsLoading => '正在加载会话…';
+
+  @override
+  String get dshSessionsFailed => '无法加载远程会话';
+
+  @override
+  String get dshCatalogUnavailable => '此构建暂未接通远程会话';
+
+  @override
+  String get dshCatalogUnavailableHint => '接入 DeepSeek Harness 客户端后可在这里列出会话。';
+
+  @override
+  String get dshOperationFailed => '操作未成功，请重试。';
+
+  @override
+  String get dshSessionRenameTitle => '重命名会话';
+
+  @override
+  String get dshSessionFork => '创建分支';
+
+  @override
+  String get dshSessionArchive => '归档';
+
+  @override
+  String get dshSessionArchived => '会话已归档';
+
+  @override
+  String get dshSessionDeleted => '会话已删除';
+
+  @override
+  String get dshRailStart => '开始';
+
+  @override
+  String get dshRailWorkspaceFiles => '工作区文件';
+
+  @override
+  String get dshRailWorkspaceFilesSubtitle => '浏览该会话工作区的文件';
+
+  @override
+  String get dshRailWorkspaceFilesShortcut => 'Ctrl + P';
+
+  @override
+  String get dshRailNewTerminal => '新建终端';
+
+  @override
+  String get dshRailNewTerminalSubtitle => '在会话工作区运行命令';
+
+  @override
+  String get dshRailNewTerminalShortcut => 'Ctrl + `';
+
+  @override
+  String get dshRailMoreTools => '更多工具';
+
+  @override
+  String get dshRailMoreToolsEmpty => '该主机暂无其他工具';
+
+  @override
+  String get dshRailMoreToolsEmptyHint => '插件面板会在主机上报后出现在这里。';
+
+  @override
+  String get dshRailPluginsSection => '插件';
+
+  @override
+  String get dshRailExpand => '展开面板';
+
+  @override
+  String get dshRailCollapse => '收起面板';
+
+  @override
+  String get dshRailClose => '关闭面板';
+
+  @override
+  String get dshRailBackToStart => '返回开始';
+
+  @override
+  String get dshRailToggle => '右侧面板';
+
+  @override
+  String get dshFilesNoSession => '请先打开一个会话';
+
+  @override
+  String get dshFilesUnavailable => '此构建暂未接通远程文件浏览';
+
+  @override
+  String get dshFilesUnavailableHint => '接入 DeepSeek Harness 客户端后可在这里浏览工作区文件。';
+
+  @override
+  String get dshFilesParentFolder => '上级目录';
+
+  @override
+  String get dshFilesBackToFiles => '返回文件列表';
+
+  @override
+  String get dshFilesPreviewUnavailable => '无法预览该文件';
+
+  @override
+  String get dshFilesTruncated => '仅显示该文件的开头部分。';
+
+  @override
+  String get dshTerminalUnavailable => '此构建暂未接通远程终端';
+
+  @override
+  String get dshTerminalUnavailableHint => 'DeepSeek Harness 终端将随工作区功能接入。';
+
+  @override
+  String get dshHomeOfflineTitle => 'DeepSeek Harness 未连接';
+
+  @override
+  String get dshHomeOfflineHint => '请在助手设置中检查连接后重试。';
+
+  @override
+  String get dshHomeRetry => '重试';
+
+  @override
+  String get dshHomeNoSession => '没有打开的会话';
+
+  @override
+  String get dshSurfaceUnavailable => '此构建暂未提供该页面';
+
+  @override
+  String get dshSurfaceUnavailableHint => '该页面将随后续 DeepSeek Harness 功能接入。';
+
+  @override
+  String get dshModelPickerTitle => '选择模型';
+
+  @override
+  String get dshModelPickerSearchHint => '搜索提供商或模型';
+
+  @override
+  String get dshModelPickerAllProviders => '全部';
+
+  @override
+  String get dshModelPickerFailuresSection => '加载失败的提供商';
+
+  @override
+  String get dshModelPickerEmpty => '该服务器当前没有提供可用的模型。';
+
+  @override
+  String get dshModelReasoningBadge => '推理';
+
+  @override
+  String get dshReasoningPickerTitle => '推理强度';
+
+  @override
+  String get dshReasoningDefaultTag => '默认';
+
+  @override
+  String get dshReasoningPickerNone => '此模型没有可调的推理强度。';
+
+  @override
+  String get dshReasoningChangeFailed => '无法更改推理强度。';
+
+  @override
+  String get dshModelChangeFailed => '无法切换模型。';
+
+  @override
+  String get dshModelDetailsTitle => '模型详情';
+
+  @override
+  String get dshModelDetailsProvider => '提供商';
+
+  @override
+  String get dshModelDetailsEffort => '推理强度';
+
+  @override
+  String get dshModelDetailsId => '模型 ID';
+
+  @override
+  String get dshModelDetailsNote =>
+      '模型与推理设置保存在 DeepSeek Harness 上，Cuplivo 只负责请求。';
+
+  @override
+  String get dshPermissionTitle => '权限';
+
+  @override
+  String get dshPermissionReadOnly => '只可查看';
+
+  @override
+  String get dshPermissionReadOnlyDesc => '助手可以读取文件并回答，但不能修改任何内容。';
+
+  @override
+  String get dshPermissionWorkspaceWrite => '工作区内修改';
+
+  @override
+  String get dshPermissionWorkspaceWriteDesc => '助手可以在会话工作区内创建和修改文件。';
+
+  @override
+  String get dshPermissionFullAccess => '全部权限';
+
+  @override
+  String get dshPermissionFullAccessDesc =>
+      '助手可以在 DeepSeek Harness 主机允许的范围内执行命令并修改任意文件。';
+
+  @override
+  String get dshPermissionRiskTag => '高风险';
+
+  @override
+  String get dshPermissionRiskTitle => '允许全部权限？';
+
+  @override
+  String get dshPermissionRiskBody =>
+      '这会允许助手在 DeepSeek Harness 主机上执行命令并修改文件，且不再逐次询问。请确认你信任该服务器和本次会话后再继续。';
+
+  @override
+  String get dshPermissionRiskAcknowledge => '我了解风险';
+
+  @override
+  String get dshPermissionRiskConfirm => '继续';
+
+  @override
+  String get dshPermissionChanging => '正在应用…';
+
+  @override
+  String get dshPermissionNoPresets => '该服务器没有提供可选的权限级别。';
+
+  @override
+  String get dshPermissionChangeFailed => '无法更改权限。';
+
+  @override
+  String get dshPlusSheetTitle => '更多';
+
+  @override
+  String get dshPlusWorkspace => '工作区';
+
+  @override
+  String get dshPlusWorkspaceUnknown => '服务器未提供此会话的工作区信息。';
+
+  @override
+  String get dshPlusPermission => '权限';
+
+  @override
+  String get dshPlusModelDetails => '模型详情';
+
+  @override
+  String get dshPlusPluginPanel => '插件面板（右栏）';
+
+  @override
+  String get dshPlusPluginPanelSubtitle => 'DSH 插件没有独立页面，它们以面板形式出现在网页界面中。';
+
+  @override
+  String get dshPlusSettings => 'DSH 设置';
+
+  @override
+  String get dshApprovalTitle => '需要你的批准才能继续';
+
+  @override
+  String get dshApprovalAllow => '允许一次';
+
+  @override
+  String get dshApprovalDeny => '拒绝';
+
+  @override
+  String get dshQuestionTitle => '助手需要你的回答';
+
+  @override
+  String get dshQuestionSubmit => '提交';
+
+  @override
+  String get dshQuestionReject => '拒绝回答';
+
+  @override
+  String get dshQuestionFreeformHint => '输入你的回答';
+
+  @override
+  String get dshChatEmptyTitle => '开始与 DeepSeek Harness 对话';
+
+  @override
+  String get dshChatEmptyBody =>
+      '消息由 DeepSeek Harness 服务器保存与执行，Cuplivo 不保存这些数据。';
+
+  @override
+  String get dshStaleBanner => '连接已断开，当前显示最后一次收到的内容。';
+
+  @override
+  String dshQueuedCount(int count) {
+    return '$count 条排队中';
+  }
+
+  @override
+  String get dshSendFailedTitle => '消息未发送';
+
+  @override
+  String get dshControllerUnavailable => '聊天会话不可用，请重新连接该助手。';
+
+  @override
+  String get dshPluginPanelTitle => '插件面板';
+
+  @override
+  String get dshWebPanelNoPluginUrl =>
+      'DeepSeek Harness 的插件是网页界面中的插槽，没有独立地址，因此这里显示该服务器的完整网页界面。';
+
+  @override
+  String get dshWebPanelLoading => '正在打开 DeepSeek Harness 网页界面…';
+
+  @override
+  String get dshWebPanelUnauthorizedTitle => '网页登录已失效';
+
+  @override
+  String get dshWebPanelUnauthorizedBody =>
+      'dsh web 重启后启动令牌会变化。请使用新的 WebUI 链接重新连接该助手，然后再次打开此页面。';
+
+  @override
+  String get dshWebPanelNetworkTitle => '无法打开网页界面';
+
+  @override
+  String get dshWebPanelNetworkBody =>
+      '请确认此设备能访问 DeepSeek Harness 主机，且地址仍与正在运行的服务器一致。';
+
+  @override
+  String get dshWebPanelUnsupportedTitle => '当前平台不支持内嵌网页';
+
+  @override
+  String get dshWebPanelUnsupportedBody =>
+      '请改用此设备上的浏览器打开 DeepSeek Harness 网页界面。';
+
+  @override
+  String get dshWebPanelReconnect => '重新连接';
+
+  @override
+  String get dshModelsSearchHint => '搜索供应商或分组';
+
+  @override
+  String get dshModelsAddProvider => '添加供应商';
+
+  @override
+  String get dshModelsCustomProviderTitle => '自定义提供商';
+
+  @override
+  String get dshModelsCustomProviderSubtitle => '手动配置网关或自建端点。';
+
+  @override
+  String get dshModelsProviderEnabled => '启用';
+
+  @override
+  String get dshModelsProviderUnavailable => '不可用';
+
+  @override
+  String get dshModelsEmptyTitle => '还没有供应商';
+
+  @override
+  String get dshModelsEmptyBody => '请在这台 DeepSeek Harness 上添加供应商，代理才能使用模型。';
+
+  @override
+  String get dshModelsNotConnectedTitle => '连接后才能读取供应商';
+
+  @override
+  String get dshModelsNotConnectedBody =>
+      'Cuplivo 会从 DeepSeek Harness 主机读取这份列表。';
+
+  @override
+  String get dshModelsLoading => '正在加载供应商…';
+
+  @override
+  String get dshModelsLoadFailed => '无法加载供应商列表';
+
+  @override
+  String get dshModelsSearchEmpty => '没有匹配的供应商';
+
+  @override
+  String get dshModelsRefresh => '刷新';
+
+  @override
+  String dshModelsModelCount(int count) {
+    return '$count 个模型';
+  }
+
+  @override
+  String get dshModelsSettingsUnavailableTitle => '当前版本还不支持编辑供应商设置';
+
+  @override
+  String get dshModelsSettingsUnavailableBody =>
+      '连接可用，但编辑供应商需要后续版本提供的设置适配器。你仍然可以浏览远程模型。';
+
+  @override
+  String get dshProviderDetailApiKey => 'API 密钥';
+
+  @override
+  String get dshProviderDetailApiKeyHint => '留空使用已保存凭据';
+
+  @override
+  String get dshProviderDetailApiKeyHelp =>
+      '仅保存在 DeepSeek Harness 上，Cuplivo 不会保留该值。';
+
+  @override
+  String get dshProviderDetailCredentialConfigured => '已保存凭据';
+
+  @override
+  String get dshProviderDetailCredentialMissing => '还没有保存凭据';
+
+  @override
+  String get dshProviderDetailCustomSettings => '自定义设置';
+
+  @override
+  String get dshProviderDetailApiAddress => 'API 地址';
+
+  @override
+  String get dshProviderDetailApiAddressHint => '留空使用供应商默认值';
+
+  @override
+  String get dshProviderDetailApiProtocol => 'API 协议';
+
+  @override
+  String get dshProviderDetailProtocolOpenAiChat => 'OpenAI Chat Completions';
+
+  @override
+  String get dshProviderDetailProtocolOpenAiResponses => 'OpenAI Responses';
+
+  @override
+  String get dshProviderDetailProtocolAnthropic => 'Anthropic Messages';
+
+  @override
+  String get dshProviderDetailApiAddressHintAnthropic =>
+      '请填写兼容 Anthropic Messages 协议的 API 地址。';
+
+  @override
+  String get dshProviderDetailApiAddressHintOpenAi =>
+      '请填写兼容 OpenAI 协议的 API 地址。';
+
+  @override
+  String dshProviderDetailEnvHint(String env) {
+    return '默认使用环境变量 $env。';
+  }
+
+  @override
+  String get dshProviderDetailModels => '模型目录';
+
+  @override
+  String get dshProviderDetailModelsAdapterDefault => '正在使用适配器默认模型';
+
+  @override
+  String get dshProviderDetailModelsEmpty => '还没有模型';
+
+  @override
+  String get dshProviderDetailModelsFirstConfig => '请先保存凭据，随后会显示模型列表。';
+
+  @override
+  String get dshProviderDetailAddModel => '添加模型';
+
+  @override
+  String get dshProviderDetailModelId => '模型 ID';
+
+  @override
+  String get dshProviderDetailModelName => '显示名称';
+
+  @override
+  String get dshProviderDetailContextWindow => '上下文窗口';
+
+  @override
+  String get dshProviderDetailMaxTokens => '最大输出 token 数';
+
+  @override
+  String get dshProviderDetailInputTypes => '输入类型';
+
+  @override
+  String get dshProviderDetailInputText => '文本';
+
+  @override
+  String get dshProviderDetailInputImage => '图片';
+
+  @override
+  String get dshProviderDetailDeleteModel => '删除模型';
+
+  @override
+  String get dshProviderDetailReasoningEfforts => '思考强度';
+
+  @override
+  String get dshProviderDetailReasoningEffortsHint =>
+      '该模型接受的思考强度；请填写 DeepSeek Harness 应发送的 API 值。';
+
+  @override
+  String get dshProviderDetailAddReasoningEffort => '添加思考强度';
+
+  @override
+  String get dshProviderDetailEffortId => '强度 ID';
+
+  @override
+  String get dshProviderDetailEffortName => '强度名称';
+
+  @override
+  String get dshProviderDetailSave => '保存';
+
+  @override
+  String get dshProviderDetailSaved => '供应商已保存';
+
+  @override
+  String get dshProviderDetailSaveFailed => '保存供应商失败，请重试。';
+
+  @override
+  String get dshProviderDetailConflict =>
+      '该供应商已在 DeepSeek Harness 上被修改，最新值已重新加载；请再次应用你的修改。';
+
+  @override
+  String get dshProviderDetailDeleteProvider => '删除供应商';
+
+  @override
+  String get dshProviderDetailDeleteConfirmTitle => '删除此供应商？';
+
+  @override
+  String get dshProviderDetailDeleteConfirmBody =>
+      '它将从 DeepSeek Harness 中移除；使用过它的会话仍保留历史。';
+
+  @override
+  String get dshProviderDetailCustomProviderTitle => '新建自定义提供商';
+
+  @override
+  String get dshProviderDetailProviderId => '供应商 ID';
+
+  @override
+  String get dshProviderDetailProviderIdHint => '唯一 ID，例如 my-gateway';
+
+  @override
+  String get dshProviderDetailDisplayName => '显示名称';
+
+  @override
+  String get dshProviderDetailBaseUrl => 'API 地址';
+
+  @override
+  String get dshProviderDetailBaseUrlHint => 'https://api.example.com';
+
+  @override
+  String get dshProviderDetailDiscover => '获取模型';
+
+  @override
+  String get dshProviderDetailDiscoverEmpty => '该端点没有返回任何模型';
+
+  @override
+  String get dshProviderDetailDiscoverFailed => '无法从该端点获取模型';
+
+  @override
+  String get dshProviderDetailInvalidModelId => '每个模型都需要 ID。';
+
+  @override
+  String get dshProviderDetailRequiredFields => '请先填写必填项。';
+
+  @override
+  String get dshMoreBackToLocal => '返回本地助手';
+
+  @override
+  String get dshMoreOpenSettings => 'DSH 设置';
+
+  @override
+  String get dshMoreAbout => '关于版本';
+
+  @override
+  String get dshMoreAboutHint => '本机安装的 Cuplivo 版本。';
+
+  @override
+  String get dshProviderDetailMaxTokensHint => '256K';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -54469,4 +55271,575 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get dshRemoteDeleteConfirm => '刪除';
+
+  @override
+  String get dshSidebarPlugins => '外掛';
+
+  @override
+  String get dshSidebarAutomations => '自動化任務';
+
+  @override
+  String get dshSidebarMore => '更多';
+
+  @override
+  String get dshNewSession => '新工作階段';
+
+  @override
+  String get dshNewSessionTooltip => '新增工作階段';
+
+  @override
+  String get dshDefaultWorkspace => '預設工作區';
+
+  @override
+  String get dshSessionsEmpty => '尚無工作階段';
+
+  @override
+  String get dshSessionsLoading => '正在載入工作階段…';
+
+  @override
+  String get dshSessionsFailed => '無法載入遠端工作階段';
+
+  @override
+  String get dshCatalogUnavailable => '此版本未提供遠端工作階段';
+
+  @override
+  String get dshCatalogUnavailableHint => '連線 DeepSeek Harness 用戶端後即可在此列出工作階段。';
+
+  @override
+  String get dshOperationFailed => '操作未成功，請再試一次。';
+
+  @override
+  String get dshSessionRenameTitle => '重新命名工作階段';
+
+  @override
+  String get dshSessionFork => '建立分支';
+
+  @override
+  String get dshSessionArchive => '封存';
+
+  @override
+  String get dshSessionArchived => '工作階段已封存';
+
+  @override
+  String get dshSessionDeleted => '工作階段已刪除';
+
+  @override
+  String get dshRailStart => '開始';
+
+  @override
+  String get dshRailWorkspaceFiles => '工作區檔案';
+
+  @override
+  String get dshRailWorkspaceFilesSubtitle => '瀏覽此工作階段工作區的檔案';
+
+  @override
+  String get dshRailWorkspaceFilesShortcut => 'Ctrl + P';
+
+  @override
+  String get dshRailNewTerminal => '新增終端機';
+
+  @override
+  String get dshRailNewTerminalSubtitle => '在工作區中執行命令';
+
+  @override
+  String get dshRailNewTerminalShortcut => 'Ctrl + `';
+
+  @override
+  String get dshRailMoreTools => '更多工具';
+
+  @override
+  String get dshRailMoreToolsEmpty => '此主機沒有其他工具';
+
+  @override
+  String get dshRailMoreToolsEmptyHint => '當主機回報外掛面板時，會顯示在這裡。';
+
+  @override
+  String get dshRailPluginsSection => '外掛';
+
+  @override
+  String get dshRailExpand => '展開面板';
+
+  @override
+  String get dshRailCollapse => '收合面板';
+
+  @override
+  String get dshRailClose => '關閉面板';
+
+  @override
+  String get dshRailBackToStart => '返回開始';
+
+  @override
+  String get dshRailToggle => '右側面板';
+
+  @override
+  String get dshFilesNoSession => '請先開啟工作階段';
+
+  @override
+  String get dshFilesUnavailable => '此版本未提供遠端檔案瀏覽';
+
+  @override
+  String get dshFilesUnavailableHint => '連線 DeepSeek Harness 用戶端後即可在此瀏覽工作區檔案。';
+
+  @override
+  String get dshFilesParentFolder => '上層資料夾';
+
+  @override
+  String get dshFilesBackToFiles => '返回檔案清單';
+
+  @override
+  String get dshFilesPreviewUnavailable => '無法預覽此檔案';
+
+  @override
+  String get dshFilesTruncated => '僅顯示此檔案的第一頁。';
+
+  @override
+  String get dshTerminalUnavailable => '此版本暫未提供遠端終端';
+
+  @override
+  String get dshTerminalUnavailableHint => 'DeepSeek Harness 終端將隨工作區功能一併推出。';
+
+  @override
+  String get dshHomeOfflineTitle => 'DeepSeek Harness 未連線';
+
+  @override
+  String get dshHomeOfflineHint => '請在助手設定中檢查連線後重試。';
+
+  @override
+  String get dshHomeRetry => '重試';
+
+  @override
+  String get dshHomeNoSession => '沒有開啟的會話';
+
+  @override
+  String get dshSurfaceUnavailable => '此版本暫未提供此頁面';
+
+  @override
+  String get dshSurfaceUnavailableHint => '此頁面將隨後續 DeepSeek Harness 功能推出。';
+
+  @override
+  String get dshModelPickerTitle => '選擇模型';
+
+  @override
+  String get dshModelPickerSearchHint => '搜尋供應商或模型';
+
+  @override
+  String get dshModelPickerAllProviders => '全部';
+
+  @override
+  String get dshModelPickerFailuresSection => '載入失敗的供應商';
+
+  @override
+  String get dshModelPickerEmpty => '此伺服器目前沒有提供可用的模型。';
+
+  @override
+  String get dshModelReasoningBadge => '推理';
+
+  @override
+  String get dshReasoningPickerTitle => '推理強度';
+
+  @override
+  String get dshReasoningDefaultTag => '預設';
+
+  @override
+  String get dshReasoningPickerNone => '此模型沒有可調整的推理強度。';
+
+  @override
+  String get dshReasoningChangeFailed => '無法變更推理強度。';
+
+  @override
+  String get dshModelChangeFailed => '無法切換模型。';
+
+  @override
+  String get dshModelDetailsTitle => '模型詳細資料';
+
+  @override
+  String get dshModelDetailsProvider => '供應商';
+
+  @override
+  String get dshModelDetailsEffort => '推理強度';
+
+  @override
+  String get dshModelDetailsId => '模型 ID';
+
+  @override
+  String get dshModelDetailsNote =>
+      '模型與推理設定儲存在 DeepSeek Harness 上，Cuplivo 僅負責請求。';
+
+  @override
+  String get dshPermissionTitle => '權限';
+
+  @override
+  String get dshPermissionReadOnly => '僅可檢視';
+
+  @override
+  String get dshPermissionReadOnlyDesc => '助手可以讀取檔案並回答，但不能修改任何內容。';
+
+  @override
+  String get dshPermissionWorkspaceWrite => '工作區內寫入';
+
+  @override
+  String get dshPermissionWorkspaceWriteDesc => '助手可以在會話工作區內建立和編輯檔案。';
+
+  @override
+  String get dshPermissionFullAccess => '完整存取';
+
+  @override
+  String get dshPermissionFullAccessDesc =>
+      '助手可以在 DeepSeek Harness 主機允許的範圍內執行命令並修改任意檔案。';
+
+  @override
+  String get dshPermissionRiskTag => '高風險';
+
+  @override
+  String get dshPermissionRiskTitle => '允許完整存取？';
+
+  @override
+  String get dshPermissionRiskBody =>
+      '這會允許助手在 DeepSeek Harness 主機上執行命令並修改檔案，且不再逐次詢問。請確認你信任此伺服器和本次會話後再繼續。';
+
+  @override
+  String get dshPermissionRiskAcknowledge => '我了解風險';
+
+  @override
+  String get dshPermissionRiskConfirm => '繼續';
+
+  @override
+  String get dshPermissionChanging => '正在套用…';
+
+  @override
+  String get dshPermissionNoPresets => '此伺服器沒有提供可選的權限預設。';
+
+  @override
+  String get dshPermissionChangeFailed => '無法變更權限。';
+
+  @override
+  String get dshPlusSheetTitle => '更多';
+
+  @override
+  String get dshPlusWorkspace => '工作區';
+
+  @override
+  String get dshPlusWorkspaceUnknown => '伺服器未提供此工作階段的工作區資訊。';
+
+  @override
+  String get dshPlusPermission => '權限';
+
+  @override
+  String get dshPlusModelDetails => '模型詳情';
+
+  @override
+  String get dshPlusPluginPanel => '外掛面板（右欄）';
+
+  @override
+  String get dshPlusPluginPanelSubtitle => 'DSH 外掛沒有獨立頁面，它們以面板形式出現在網頁介面中。';
+
+  @override
+  String get dshPlusSettings => 'DSH 設定';
+
+  @override
+  String get dshApprovalTitle => '需要你的批准才能繼續';
+
+  @override
+  String get dshApprovalAllow => '允許一次';
+
+  @override
+  String get dshApprovalDeny => '拒絕';
+
+  @override
+  String get dshQuestionTitle => '助手需要你的回答';
+
+  @override
+  String get dshQuestionSubmit => '提交';
+
+  @override
+  String get dshQuestionReject => '拒絕回答';
+
+  @override
+  String get dshQuestionFreeformHint => '輸入你的回答';
+
+  @override
+  String get dshChatEmptyTitle => '開始與 DeepSeek Harness 對話';
+
+  @override
+  String get dshChatEmptyBody =>
+      '訊息由 DeepSeek Harness 伺服器儲存與執行，Cuplivo 不儲存這些資料。';
+
+  @override
+  String get dshStaleBanner => '連線已中斷，目前顯示最後一次收到的內容。';
+
+  @override
+  String dshQueuedCount(int count) {
+    return '$count 則排隊中';
+  }
+
+  @override
+  String get dshSendFailedTitle => '訊息未傳送';
+
+  @override
+  String get dshControllerUnavailable => '聊天工作階段無法使用，請重新連線該助手。';
+
+  @override
+  String get dshPluginPanelTitle => '外掛面板';
+
+  @override
+  String get dshWebPanelNoPluginUrl =>
+      'DeepSeek Harness 的外掛是網頁介面中的插槽，沒有獨立位址，因此這裡顯示該伺服器的完整網頁介面。';
+
+  @override
+  String get dshWebPanelLoading => '正在開啟 DeepSeek Harness 網頁介面…';
+
+  @override
+  String get dshWebPanelUnauthorizedTitle => '網頁登入已失效';
+
+  @override
+  String get dshWebPanelUnauthorizedBody =>
+      'dsh web 重新啟動後啟動權杖會變更。請使用新的 WebUI 連結重新連線該助手，然後再次開啟此頁面。';
+
+  @override
+  String get dshWebPanelNetworkTitle => '無法開啟網頁介面';
+
+  @override
+  String get dshWebPanelNetworkBody =>
+      '請確認此裝置能存取 DeepSeek Harness 主機，且位址仍與正在執行的伺服器一致。';
+
+  @override
+  String get dshWebPanelUnsupportedTitle => '目前平台不支援內嵌網頁';
+
+  @override
+  String get dshWebPanelUnsupportedBody =>
+      '請改用此裝置上的瀏覽器開啟 DeepSeek Harness 網頁介面。';
+
+  @override
+  String get dshWebPanelReconnect => '重新連線';
+
+  @override
+  String get dshModelsSearchHint => '搜尋供應商或分組';
+
+  @override
+  String get dshModelsAddProvider => '新增供應商';
+
+  @override
+  String get dshModelsCustomProviderTitle => '自訂供應商';
+
+  @override
+  String get dshModelsCustomProviderSubtitle => '手動設定閘道或自建端點。';
+
+  @override
+  String get dshModelsProviderEnabled => '啟用';
+
+  @override
+  String get dshModelsProviderUnavailable => '無法使用';
+
+  @override
+  String get dshModelsEmptyTitle => '尚無供應商';
+
+  @override
+  String get dshModelsEmptyBody => '請在這台 DeepSeek Harness 上新增供應商，代理才能使用模型。';
+
+  @override
+  String get dshModelsNotConnectedTitle => '連線後才能讀取供應商';
+
+  @override
+  String get dshModelsNotConnectedBody =>
+      'Cuplivo 會從 DeepSeek Harness 主機讀取這份清單。';
+
+  @override
+  String get dshModelsLoading => '正在載入供應商…';
+
+  @override
+  String get dshModelsLoadFailed => '無法載入供應商清單';
+
+  @override
+  String get dshModelsSearchEmpty => '沒有符合搜尋的供應商';
+
+  @override
+  String get dshModelsRefresh => '重新整理';
+
+  @override
+  String dshModelsModelCount(int count) {
+    return '$count 個模型';
+  }
+
+  @override
+  String get dshModelsSettingsUnavailableTitle => '此版本無法使用供應商設定';
+
+  @override
+  String get dshModelsSettingsUnavailableBody =>
+      '連線正常，但編輯供應商需要後續版本提供的設定轉接器。你仍可瀏覽遠端的模型。';
+
+  @override
+  String get dshProviderDetailApiKey => 'API 金鑰';
+
+  @override
+  String get dshProviderDetailApiKeyHint => '留空以使用已儲存的憑證';
+
+  @override
+  String get dshProviderDetailApiKeyHelp =>
+      '僅儲存在 DeepSeek Harness 上；Cuplivo 不會保留該值。';
+
+  @override
+  String get dshProviderDetailCredentialConfigured => '已儲存憑證';
+
+  @override
+  String get dshProviderDetailCredentialMissing => '尚未儲存憑證';
+
+  @override
+  String get dshProviderDetailCustomSettings => '自訂設定';
+
+  @override
+  String get dshProviderDetailApiAddress => 'API 位址';
+
+  @override
+  String get dshProviderDetailApiAddressHint => '留空以使用供應商預設值';
+
+  @override
+  String get dshProviderDetailApiProtocol => 'API 協定';
+
+  @override
+  String get dshProviderDetailProtocolOpenAiChat => 'OpenAI Chat Completions';
+
+  @override
+  String get dshProviderDetailProtocolOpenAiResponses => 'OpenAI Responses';
+
+  @override
+  String get dshProviderDetailProtocolAnthropic => 'Anthropic Messages';
+
+  @override
+  String get dshProviderDetailApiAddressHintAnthropic =>
+      '請填寫相容於 Anthropic Messages 協定的 API 位址。';
+
+  @override
+  String get dshProviderDetailApiAddressHintOpenAi =>
+      '請填寫相容於 OpenAI 協定的 API 位址。';
+
+  @override
+  String dshProviderDetailEnvHint(String env) {
+    return '預設使用環境變數 $env。';
+  }
+
+  @override
+  String get dshProviderDetailModels => '模型目錄';
+
+  @override
+  String get dshProviderDetailModelsAdapterDefault => '正在使用轉接器預設模型';
+
+  @override
+  String get dshProviderDetailModelsEmpty => '尚未新增模型';
+
+  @override
+  String get dshProviderDetailModelsFirstConfig => '請先儲存憑證，之後會顯示模型清單。';
+
+  @override
+  String get dshProviderDetailAddModel => '新增模型';
+
+  @override
+  String get dshProviderDetailModelId => '模型 ID';
+
+  @override
+  String get dshProviderDetailModelName => '顯示名稱';
+
+  @override
+  String get dshProviderDetailContextWindow => '上下文視窗';
+
+  @override
+  String get dshProviderDetailMaxTokens => '最大輸出 token 數';
+
+  @override
+  String get dshProviderDetailInputTypes => '輸入類型';
+
+  @override
+  String get dshProviderDetailInputText => '文字';
+
+  @override
+  String get dshProviderDetailInputImage => '圖片';
+
+  @override
+  String get dshProviderDetailDeleteModel => '刪除模型';
+
+  @override
+  String get dshProviderDetailReasoningEfforts => '思考強度';
+
+  @override
+  String get dshProviderDetailReasoningEffortsHint =>
+      '此模型接受的思考強度；請填寫 DeepSeek Harness 應傳送的 API 值。';
+
+  @override
+  String get dshProviderDetailAddReasoningEffort => '新增思考強度';
+
+  @override
+  String get dshProviderDetailEffortId => '強度 ID';
+
+  @override
+  String get dshProviderDetailEffortName => '強度名稱';
+
+  @override
+  String get dshProviderDetailSave => '儲存';
+
+  @override
+  String get dshProviderDetailSaved => '供應商已儲存';
+
+  @override
+  String get dshProviderDetailSaveFailed => '無法儲存供應商，請再試一次。';
+
+  @override
+  String get dshProviderDetailConflict =>
+      '此供應商已在 DeepSeek Harness 上變更，最新值已重新載入；請再次套用你的變更。';
+
+  @override
+  String get dshProviderDetailDeleteProvider => '刪除供應商';
+
+  @override
+  String get dshProviderDetailDeleteConfirmTitle => '刪除此供應商？';
+
+  @override
+  String get dshProviderDetailDeleteConfirmBody =>
+      '它將從 DeepSeek Harness 中移除；使用過它的工作階段仍會保留歷史記錄。';
+
+  @override
+  String get dshProviderDetailCustomProviderTitle => '新增自訂供應商';
+
+  @override
+  String get dshProviderDetailProviderId => '供應商 ID';
+
+  @override
+  String get dshProviderDetailProviderIdHint => '唯一 ID，例如 my-gateway';
+
+  @override
+  String get dshProviderDetailDisplayName => '顯示名稱';
+
+  @override
+  String get dshProviderDetailBaseUrl => 'API 位址';
+
+  @override
+  String get dshProviderDetailBaseUrlHint => 'https://api.example.com';
+
+  @override
+  String get dshProviderDetailDiscover => '取得模型';
+
+  @override
+  String get dshProviderDetailDiscoverEmpty => '此端點未傳回任何模型';
+
+  @override
+  String get dshProviderDetailDiscoverFailed => '無法從此端點取得模型';
+
+  @override
+  String get dshProviderDetailInvalidModelId => '每個模型都需要 ID。';
+
+  @override
+  String get dshProviderDetailRequiredFields => '請先填寫必填欄位。';
+
+  @override
+  String get dshMoreBackToLocal => '返回本地助手';
+
+  @override
+  String get dshMoreOpenSettings => 'DeepSeek Harness 設定';
+
+  @override
+  String get dshMoreAbout => '關於版本';
+
+  @override
+  String get dshMoreAboutHint => '本機安裝的應用程式版本。';
+
+  @override
+  String get dshProviderDetailMaxTokensHint => '256K';
 }

@@ -297,8 +297,10 @@ class _HarnessConversationViewState extends State<HarnessConversationView> {
           controller: _draftController,
           focusNode: _focusNode,
           conversationId: null,
-          chatModelProviderKey: state.modelSelection?.providerId,
-          chatModelId: state.modelSelection?.modelId,
+          // The remote model is not a local provider: passing its ids would
+          // make ChatInputBar resolve Cuplivo's own provider config (image
+          // routing, local tools) for a model it does not own. The pill and the
+          // reasoning button carry the remote state explicitly instead.
           leading: _DshComposerModelPill(
             model: model,
             selection: state.modelSelection,

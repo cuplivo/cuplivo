@@ -24767,127 +24767,556 @@
     "description": "Second line of the placeholder page."
   },
   "dshModelPickerTitle": "Choose a model",
-  "@dshModelPickerTitle": {"description": "Title of the DSH remote model picker sheet/dialog."},
+  "@dshModelPickerTitle": {
+    "description": "Title of the DSH remote model picker sheet/dialog."
+  },
   "dshModelPickerSearchHint": "Search providers or models",
-  "@dshModelPickerSearchHint": {"description": "Search field hint in the DSH model picker."},
+  "@dshModelPickerSearchHint": {
+    "description": "Search field hint in the DSH model picker."
+  },
   "dshModelPickerAllProviders": "All",
-  "@dshModelPickerAllProviders": {"description": "Provider filter pill that shows every provider group in the DSH model picker."},
+  "@dshModelPickerAllProviders": {
+    "description": "Provider filter pill that shows every provider group in the DSH model picker."
+  },
   "dshModelPickerFailuresSection": "Providers that failed to load",
-  "@dshModelPickerFailuresSection": {"description": "Section header for providers the DeepSeek Harness server could not list models for."},
+  "@dshModelPickerFailuresSection": {
+    "description": "Section header for providers the DeepSeek Harness server could not list models for."
+  },
   "dshModelPickerEmpty": "This server offers no models right now.",
-  "@dshModelPickerEmpty": {"description": "Empty state of the DSH model picker."},
+  "@dshModelPickerEmpty": {
+    "description": "Empty state of the DSH model picker."
+  },
   "dshModelReasoningBadge": "Reasoning",
-  "@dshModelReasoningBadge": {"description": "Badge on a model row saying the model supports reasoning effort selection."},
+  "@dshModelReasoningBadge": {
+    "description": "Badge on a model row saying the model supports reasoning effort selection."
+  },
   "dshReasoningPickerTitle": "Reasoning effort",
-  "@dshReasoningPickerTitle": {"description": "Title of the DSH reasoning-effort picker."},
+  "@dshReasoningPickerTitle": {
+    "description": "Title of the DSH reasoning-effort picker."
+  },
   "dshReasoningDefaultTag": "Default",
-  "@dshReasoningDefaultTag": {"description": "Marker next to the reasoning effort the server uses by default."},
+  "@dshReasoningDefaultTag": {
+    "description": "Marker next to the reasoning effort the server uses by default."
+  },
   "dshReasoningPickerNone": "This model has no adjustable reasoning effort.",
-  "@dshReasoningPickerNone": {"description": "Empty state when the selected model advertises no reasoning efforts."},
+  "@dshReasoningPickerNone": {
+    "description": "Empty state when the selected model advertises no reasoning efforts."
+  },
   "dshReasoningChangeFailed": "Could not change the reasoning effort.",
-  "@dshReasoningChangeFailed": {"description": "Snackbar shown when the server refused a reasoning-effort change."},
+  "@dshReasoningChangeFailed": {
+    "description": "Snackbar shown when the server refused a reasoning-effort change."
+  },
   "dshModelChangeFailed": "Could not switch the model.",
-  "@dshModelChangeFailed": {"description": "Snackbar shown when the server refused a model switch."},
+  "@dshModelChangeFailed": {
+    "description": "Snackbar shown when the server refused a model switch."
+  },
   "dshModelDetailsTitle": "Model details",
-  "@dshModelDetailsTitle": {"description": "Title of the read-only model details dialog."},
+  "@dshModelDetailsTitle": {
+    "description": "Title of the read-only model details dialog."
+  },
   "dshModelDetailsProvider": "Provider",
-  "@dshModelDetailsProvider": {"description": "Row label in the model details dialog."},
+  "@dshModelDetailsProvider": {
+    "description": "Row label in the model details dialog."
+  },
   "dshModelDetailsEffort": "Reasoning effort",
-  "@dshModelDetailsEffort": {"description": "Row label in the model details dialog."},
+  "@dshModelDetailsEffort": {
+    "description": "Row label in the model details dialog."
+  },
   "dshModelDetailsId": "Model ID",
-  "@dshModelDetailsId": {"description": "Row label in the model details dialog."},
+  "@dshModelDetailsId": {
+    "description": "Row label in the model details dialog."
+  },
   "dshModelDetailsNote": "Model and reasoning settings live on DeepSeek Harness; Cuplivo only requests them.",
-  "@dshModelDetailsNote": {"description": "Explains that the model configuration is owned by the remote server."},
+  "@dshModelDetailsNote": {
+    "description": "Explains that the model configuration is owned by the remote server."
+  },
   "dshPermissionTitle": "Permissions",
-  "@dshPermissionTitle": {"description": "Title of the DSH session permission picker."},
+  "@dshPermissionTitle": {
+    "description": "Title of the DSH session permission picker."
+  },
   "dshPermissionReadOnly": "Read only",
-  "@dshPermissionReadOnly": {"description": "Permission preset that only reads."},
+  "@dshPermissionReadOnly": {
+    "description": "Permission preset that only reads."
+  },
   "dshPermissionReadOnlyDesc": "The assistant can read files and answer, but cannot change anything.",
-  "@dshPermissionReadOnlyDesc": {"description": "Description of the read-only permission preset."},
+  "@dshPermissionReadOnlyDesc": {
+    "description": "Description of the read-only permission preset."
+  },
   "dshPermissionWorkspaceWrite": "Workspace write",
-  "@dshPermissionWorkspaceWrite": {"description": "Permission preset that writes only inside the session workspace."},
+  "@dshPermissionWorkspaceWrite": {
+    "description": "Permission preset that writes only inside the session workspace."
+  },
   "dshPermissionWorkspaceWriteDesc": "The assistant can create and edit files inside the session workspace.",
-  "@dshPermissionWorkspaceWriteDesc": {"description": "Description of the workspace-write permission preset."},
+  "@dshPermissionWorkspaceWriteDesc": {
+    "description": "Description of the workspace-write permission preset."
+  },
   "dshPermissionFullAccess": "Full access",
-  "@dshPermissionFullAccess": {"description": "Permission preset that allows commands anywhere the server can reach."},
+  "@dshPermissionFullAccess": {
+    "description": "Permission preset that allows commands anywhere the server can reach."
+  },
   "dshPermissionFullAccessDesc": "The assistant can run commands and change files anywhere the DeepSeek Harness host allows.",
-  "@dshPermissionFullAccessDesc": {"description": "Description of the full-access permission preset."},
+  "@dshPermissionFullAccessDesc": {
+    "description": "Description of the full-access permission preset."
+  },
   "dshPermissionRiskTag": "Risky",
-  "@dshPermissionRiskTag": {"description": "Small tag next to a destructive permission preset."},
+  "@dshPermissionRiskTag": {
+    "description": "Small tag next to a destructive permission preset."
+  },
   "dshPermissionRiskTitle": "Allow full access?",
-  "@dshPermissionRiskTitle": {"description": "Title of the blocking confirmation before switching to a destructive permission preset."},
+  "@dshPermissionRiskTitle": {
+    "description": "Title of the blocking confirmation before switching to a destructive permission preset."
+  },
   "dshPermissionRiskBody": "This lets the assistant run commands and change files on the DeepSeek Harness host without asking again. Only continue if you trust this server and this session.",
-  "@dshPermissionRiskBody": {"description": "Body of the blocking confirmation before switching to a destructive permission preset."},
+  "@dshPermissionRiskBody": {
+    "description": "Body of the blocking confirmation before switching to a destructive permission preset."
+  },
   "dshPermissionRiskAcknowledge": "I understand the risk",
-  "@dshPermissionRiskAcknowledge": {"description": "Checkbox the user must tick before confirming a destructive permission preset."},
+  "@dshPermissionRiskAcknowledge": {
+    "description": "Checkbox the user must tick before confirming a destructive permission preset."
+  },
   "dshPermissionRiskConfirm": "Continue",
-  "@dshPermissionRiskConfirm": {"description": "Confirm button of the destructive permission risk dialog."},
+  "@dshPermissionRiskConfirm": {
+    "description": "Confirm button of the destructive permission risk dialog."
+  },
   "dshPermissionChanging": "Applying…",
-  "@dshPermissionChanging": {"description": "Shown while a permission change is in flight."},
+  "@dshPermissionChanging": {
+    "description": "Shown while a permission change is in flight."
+  },
   "dshPermissionNoPresets": "This server exposes no permission presets.",
-  "@dshPermissionNoPresets": {"description": "Empty state when the server composes no permission presets."},
+  "@dshPermissionNoPresets": {
+    "description": "Empty state when the server composes no permission presets."
+  },
   "dshPermissionChangeFailed": "Could not change the permission.",
-  "@dshPermissionChangeFailed": {"description": "Snackbar shown when the server refused a permission change."},
+  "@dshPermissionChangeFailed": {
+    "description": "Snackbar shown when the server refused a permission change."
+  },
   "dshPlusSheetTitle": "More",
-  "@dshPlusSheetTitle": {"description": "Title of the DSH composer plus menu."},
+  "@dshPlusSheetTitle": {
+    "description": "Title of the DSH composer plus menu."
+  },
   "dshPlusWorkspace": "Workspace",
-  "@dshPlusWorkspace": {"description": "Plus-menu row showing the session workspace."},
+  "@dshPlusWorkspace": {
+    "description": "Plus-menu row showing the session workspace."
+  },
   "dshPlusWorkspaceUnknown": "The server did not report a workspace for this session.",
-  "@dshPlusWorkspaceUnknown": {"description": "Plus-menu workspace subtitle when the server reports no workspace."},
+  "@dshPlusWorkspaceUnknown": {
+    "description": "Plus-menu workspace subtitle when the server reports no workspace."
+  },
   "dshPlusPermission": "Permission",
-  "@dshPlusPermission": {"description": "Plus-menu row opening the session permission picker."},
+  "@dshPlusPermission": {
+    "description": "Plus-menu row opening the session permission picker."
+  },
   "dshPlusModelDetails": "Model details",
-  "@dshPlusModelDetails": {"description": "Plus-menu row opening the read-only model details."},
+  "@dshPlusModelDetails": {
+    "description": "Plus-menu row opening the read-only model details."
+  },
   "dshPlusPluginPanel": "Plugin panel (right rail)",
-  "@dshPlusPluginPanel": {"description": "Plus-menu row that opens the right rail with plugin panels."},
+  "@dshPlusPluginPanel": {
+    "description": "Plus-menu row that opens the right rail with plugin panels."
+  },
   "dshPlusPluginPanelSubtitle": "DSH plugins have no standalone page; they contribute panels inside the Web UI.",
-  "@dshPlusPluginPanelSubtitle": {"description": "Explains why the plugin entry opens the rail rather than a page URL."},
+  "@dshPlusPluginPanelSubtitle": {
+    "description": "Explains why the plugin entry opens the rail rather than a page URL."
+  },
   "dshPlusSettings": "DSH settings",
-  "@dshPlusSettings": {"description": "Plus-menu row opening the DSH assistant settings."},
+  "@dshPlusSettings": {
+    "description": "Plus-menu row opening the DSH assistant settings."
+  },
   "dshApprovalTitle": "Approval needed to continue",
-  "@dshApprovalTitle": {"description": "Header of a tool-approval card above the composer."},
+  "@dshApprovalTitle": {
+    "description": "Header of a tool-approval card above the composer."
+  },
   "dshApprovalAllow": "Allow once",
-  "@dshApprovalAllow": {"description": "Approval card button that allows this one tool call."},
+  "@dshApprovalAllow": {
+    "description": "Approval card button that allows this one tool call."
+  },
   "dshApprovalDeny": "Deny",
-  "@dshApprovalDeny": {"description": "Approval card button that denies the tool call."},
+  "@dshApprovalDeny": {
+    "description": "Approval card button that denies the tool call."
+  },
   "dshQuestionTitle": "The assistant needs your answer",
-  "@dshQuestionTitle": {"description": "Header of a user-question card above the composer."},
+  "@dshQuestionTitle": {
+    "description": "Header of a user-question card above the composer."
+  },
   "dshQuestionSubmit": "Submit",
-  "@dshQuestionSubmit": {"description": "Submits the answers of a user-question card."},
+  "@dshQuestionSubmit": {
+    "description": "Submits the answers of a user-question card."
+  },
   "dshQuestionReject": "Decline",
-  "@dshQuestionReject": {"description": "Declines a user-question card."},
+  "@dshQuestionReject": {
+    "description": "Declines a user-question card."
+  },
   "dshQuestionFreeformHint": "Type your answer",
-  "@dshQuestionFreeformHint": {"description": "Hint of the free-form answer field for a question without options."},
+  "@dshQuestionFreeformHint": {
+    "description": "Hint of the free-form answer field for a question without options."
+  },
   "dshChatEmptyTitle": "Start a conversation with DeepSeek Harness",
-  "@dshChatEmptyTitle": {"description": "Empty transcript state in the remote chat."},
+  "@dshChatEmptyTitle": {
+    "description": "Empty transcript state in the remote chat."
+  },
   "dshChatEmptyBody": "Messages are stored and executed by the DeepSeek Harness server, not by Cuplivo.",
-  "@dshChatEmptyBody": {"description": "Explains that a remote session lives on the server."},
+  "@dshChatEmptyBody": {
+    "description": "Explains that a remote session lives on the server."
+  },
   "dshStaleBanner": "Connection lost — showing the last received content.",
-  "@dshStaleBanner": {"description": "Banner over a transcript whose live link is down."},
+  "@dshStaleBanner": {
+    "description": "Banner over a transcript whose live link is down."
+  },
   "dshQueuedCount": "{count} queued",
-  "@dshQueuedCount": {"description": "Number of prompts the server queued behind the running turn.", "placeholders": {"count": {"type": "int"}}},
+  "@dshQueuedCount": {
+    "description": "Number of prompts the server queued behind the running turn.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "dshSendFailedTitle": "Message not sent",
-  "@dshSendFailedTitle": {"description": "Snackbar title when the server rejected a prompt; the draft is restored."},
+  "@dshSendFailedTitle": {
+    "description": "Snackbar title when the server rejected a prompt; the draft is restored."
+  },
   "dshControllerUnavailable": "The chat session is unavailable. Reconnect the assistant.",
-  "@dshControllerUnavailable": {"description": "Shown when no chat controller can be resolved for the open session."},
+  "@dshControllerUnavailable": {
+    "description": "Shown when no chat controller can be resolved for the open session."
+  },
   "dshPluginPanelTitle": "Plugin panel",
-  "@dshPluginPanelTitle": {"description": "Page title of the plugin WebView host."},
+  "@dshPluginPanelTitle": {
+    "description": "Page title of the plugin WebView host."
+  },
   "dshWebPanelNoPluginUrl": "DeepSeek Harness plugins are slots inside its Web UI and have no standalone address, so this page shows the full Web UI for this server.",
-  "@dshWebPanelNoPluginUrl": {"description": "Honest note explaining there is no per-plugin URL."},
+  "@dshWebPanelNoPluginUrl": {
+    "description": "Honest note explaining there is no per-plugin URL."
+  },
   "dshWebPanelLoading": "Opening the DeepSeek Harness Web UI…",
-  "@dshWebPanelLoading": {"description": "Loading state of the plugin WebView page."},
+  "@dshWebPanelLoading": {
+    "description": "Loading state of the plugin WebView page."
+  },
   "dshWebPanelUnauthorizedTitle": "The WebUI session has expired",
-  "@dshWebPanelUnauthorizedTitle": {"description": "Title of the 401 state of the plugin WebView page."},
+  "@dshWebPanelUnauthorizedTitle": {
+    "description": "Title of the 401 state of the plugin WebView page."
+  },
   "dshWebPanelUnauthorizedBody": "The launch token changes when dsh web restarts. Reconnect the assistant with a fresh WebUI link, then open this page again.",
-  "@dshWebPanelUnauthorizedBody": {"description": "Body of the 401 state of the plugin WebView page."},
+  "@dshWebPanelUnauthorizedBody": {
+    "description": "Body of the 401 state of the plugin WebView page."
+  },
   "dshWebPanelNetworkTitle": "Could not open the Web UI",
-  "@dshWebPanelNetworkTitle": {"description": "Title of the network-error state of the plugin WebView page."},
+  "@dshWebPanelNetworkTitle": {
+    "description": "Title of the network-error state of the plugin WebView page."
+  },
   "dshWebPanelNetworkBody": "Check that the DeepSeek Harness host is reachable from this device and that the address still matches the running server.",
-  "@dshWebPanelNetworkBody": {"description": "Body of the network-error state of the plugin WebView page."},
+  "@dshWebPanelNetworkBody": {
+    "description": "Body of the network-error state of the plugin WebView page."
+  },
   "dshWebPanelUnsupportedTitle": "This platform cannot embed the Web UI",
-  "@dshWebPanelUnsupportedTitle": {"description": "Title shown on platforms without an embedded WebView."},
+  "@dshWebPanelUnsupportedTitle": {
+    "description": "Title shown on platforms without an embedded WebView."
+  },
   "dshWebPanelUnsupportedBody": "Open the DeepSeek Harness WebUI in a browser on this device instead.",
-  "@dshWebPanelUnsupportedBody": {"description": "Body shown on platforms without an embedded WebView."},
+  "@dshWebPanelUnsupportedBody": {
+    "description": "Body shown on platforms without an embedded WebView."
+  },
   "dshWebPanelReconnect": "Reconnect",
-  "@dshWebPanelReconnect": {"description": "Button in the 401 state that opens the assistant connection settings."}
+  "@dshWebPanelReconnect": {
+    "description": "Button in the 401 state that opens the assistant connection settings."
+  },
+  "dshModelsSearchHint": "Search providers or groups",
+  "@dshModelsSearchHint": {
+    "description": "Search field of the DSH models settings tab; matches the exact reference screenshot label."
+  },
+  "dshModelsAddProvider": "Add provider",
+  "@dshModelsAddProvider": {
+    "description": "Tooltip/label of the + action that opens the DSH provider picker."
+  },
+  "dshModelsCustomProviderTitle": "Custom provider",
+  "@dshModelsCustomProviderTitle": {
+    "description": "Row that starts the custom provider creation flow in the DSH provider list."
+  },
+  "dshModelsCustomProviderSubtitle": "Configure a gateway or self-hosted endpoint by hand.",
+  "@dshModelsCustomProviderSubtitle": {
+    "description": "Subtitle of the custom provider row in the DSH provider picker."
+  },
+  "dshModelsProviderEnabled": "Enabled",
+  "@dshModelsProviderEnabled": {
+    "description": "Pill on a DSH provider row whose models are usable."
+  },
+  "dshModelsProviderUnavailable": "Unavailable",
+  "@dshModelsProviderUnavailable": {
+    "description": "Pill on a DSH provider row whose catalog or credential failed."
+  },
+  "dshModelsEmptyTitle": "No providers yet",
+  "@dshModelsEmptyTitle": {
+    "description": "Empty state title of the DSH models settings tab."
+  },
+  "dshModelsEmptyBody": "Add a provider on this DeepSeek Harness to give its agents a model.",
+  "@dshModelsEmptyBody": {
+    "description": "Empty state body of the DSH models settings tab."
+  },
+  "dshModelsNotConnectedTitle": "Connect to load providers",
+  "@dshModelsNotConnectedTitle": {
+    "description": "Shown when the DSH connection is not ready, so the provider list cannot be read."
+  },
+  "dshModelsNotConnectedBody": "Cuplivo reads this list from the DeepSeek Harness host.",
+  "@dshModelsNotConnectedBody": {
+    "description": "Explains that the provider list lives on the remote host."
+  },
+  "dshModelsLoading": "Loading providers…",
+  "@dshModelsLoading": {
+    "description": "Loading state of the DSH provider list."
+  },
+  "dshModelsLoadFailed": "Couldn’t load the provider list",
+  "@dshModelsLoadFailed": {
+    "description": "Error title when the DSH catalog has no model section."
+  },
+  "dshModelsSearchEmpty": "No providers match that search",
+  "@dshModelsSearchEmpty": {
+    "description": "Empty search result in the DSH provider list."
+  },
+  "dshModelsRefresh": "Refresh",
+  "@dshModelsRefresh": {
+    "description": "Button that re-reads the remote catalog for the provider list."
+  },
+  "dshModelsModelCount": "{count} models",
+  "@dshModelsModelCount": {
+    "description": "Subtitle on a DSH provider row or a section that summarizes how many models the provider offers.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dshModelsSettingsUnavailableTitle": "Provider settings aren’t available in this build",
+  "@dshModelsSettingsUnavailableTitle": {
+    "description": "Honest capability state shown by the DSH provider detail page while the settings adapter is not wired."
+  },
+  "dshModelsSettingsUnavailableBody": "The connection works, but editing providers needs the settings adapter that ships next. You can still browse the remote’s models.",
+  "@dshModelsSettingsUnavailableBody": {
+    "description": "Body of the provider-settings-unavailable state."
+  },
+  "dshProviderDetailApiKey": "API key",
+  "@dshProviderDetailApiKey": {
+    "description": "Field label for a DSH provider credential."
+  },
+  "dshProviderDetailApiKeyHint": "Leave empty to use the saved credential",
+  "@dshProviderDetailApiKeyHint": {
+    "description": "Placeholder of the DSH provider credential field."
+  },
+  "dshProviderDetailApiKeyHelp": "Stored on DeepSeek Harness only; Cuplivo never keeps the value.",
+  "@dshProviderDetailApiKeyHelp": {
+    "description": "Help text behind the ? next to the DSH provider credential field."
+  },
+  "dshProviderDetailCredentialConfigured": "A credential is saved",
+  "@dshProviderDetailCredentialConfigured": {
+    "description": "Status line when the DSH provider credential reference is configured."
+  },
+  "dshProviderDetailCredentialMissing": "No credential saved yet",
+  "@dshProviderDetailCredentialMissing": {
+    "description": "Status line when the DSH provider credential reference is missing."
+  },
+  "dshProviderDetailCustomSettings": "Custom settings",
+  "@dshProviderDetailCustomSettings": {
+    "description": "Collapsible section title on the DSH provider detail page."
+  },
+  "dshProviderDetailApiAddress": "API address",
+  "@dshProviderDetailApiAddress": {
+    "description": "Field label for a DSH provider base URL override."
+  },
+  "dshProviderDetailApiAddressHint": "Leave empty to use the provider default",
+  "@dshProviderDetailApiAddressHint": {
+    "description": "Placeholder of the DSH provider base URL field."
+  },
+  "dshProviderDetailApiProtocol": "API protocol",
+  "@dshProviderDetailApiProtocol": {
+    "description": "Label of the protocol picker for a custom DSH provider."
+  },
+  "dshProviderDetailProtocolOpenAiChat": "OpenAI Chat Completions",
+  "@dshProviderDetailProtocolOpenAiChat": {
+    "description": "Protocol option for a custom DSH provider."
+  },
+  "dshProviderDetailProtocolOpenAiResponses": "OpenAI Responses",
+  "@dshProviderDetailProtocolOpenAiResponses": {
+    "description": "Protocol option for a custom DSH provider."
+  },
+  "dshProviderDetailProtocolAnthropic": "Anthropic Messages",
+  "@dshProviderDetailProtocolAnthropic": {
+    "description": "Protocol option for a custom DSH provider."
+  },
+  "dshProviderDetailApiAddressHintAnthropic": "Enter an API address that speaks the Anthropic Messages protocol.",
+  "@dshProviderDetailApiAddressHintAnthropic": {
+    "description": "Protocol hint under the base URL field of an Anthropic-compatible DSH provider."
+  },
+  "dshProviderDetailApiAddressHintOpenAi": "Enter an API address that speaks the OpenAI protocol.",
+  "@dshProviderDetailApiAddressHintOpenAi": {
+    "description": "Protocol hint under the base URL field of an OpenAI-compatible DSH provider."
+  },
+  "dshProviderDetailEnvHint": "Defaults to the {env} environment variable.",
+  "@dshProviderDetailEnvHint": {
+    "description": "Shown under the base URL field when the DSH host derives the endpoint from an environment variable.",
+    "placeholders": {
+      "env": {
+        "type": "String"
+      }
+    }
+  },
+  "dshProviderDetailModels": "Model catalog",
+  "@dshProviderDetailModels": {
+    "description": "Section title of the model list on the DSH provider detail page."
+  },
+  "dshProviderDetailModelsAdapterDefault": "Using the adapter’s default models",
+  "@dshProviderDetailModelsAdapterDefault": {
+    "description": "Shown when a DSH provider profile declares no models and the adapter supplies them."
+  },
+  "dshProviderDetailModelsEmpty": "No models added yet",
+  "@dshProviderDetailModelsEmpty": {
+    "description": "Empty state inside the model catalog section."
+  },
+  "dshProviderDetailModelsFirstConfig": "Save a credential first; the model list appears afterwards.",
+  "@dshProviderDetailModelsFirstConfig": {
+    "description": "Hint shown before a provider has any credential, matching the reference image's hidden model list."
+  },
+  "dshProviderDetailAddModel": "Add model",
+  "@dshProviderDetailAddModel": {
+    "description": "Action that appends a model row to the DSH provider profile."
+  },
+  "dshProviderDetailModelId": "Model ID",
+  "@dshProviderDetailModelId": {
+    "description": "Field label for a model id inside the DSH model catalog."
+  },
+  "dshProviderDetailModelName": "Display name",
+  "@dshProviderDetailModelName": {
+    "description": "Field label for a model display name inside the DSH model catalog."
+  },
+  "dshProviderDetailContextWindow": "Context window",
+  "@dshProviderDetailContextWindow": {
+    "description": "Numeric field label for a model's context window."
+  },
+  "dshProviderDetailMaxTokens": "Max output tokens",
+  "@dshProviderDetailMaxTokens": {
+    "description": "Numeric field label for a model's output token cap."
+  },
+  "dshProviderDetailInputTypes": "Input types",
+  "@dshProviderDetailInputTypes": {
+    "description": "Label of the input modality checkboxes on a model row."
+  },
+  "dshProviderDetailInputText": "Text",
+  "@dshProviderDetailInputText": {
+    "description": "Text input modality checkbox."
+  },
+  "dshProviderDetailInputImage": "Image",
+  "@dshProviderDetailInputImage": {
+    "description": "Image input modality checkbox."
+  },
+  "dshProviderDetailDeleteModel": "Delete model",
+  "@dshProviderDetailDeleteModel": {
+    "description": "Delete affordance on a model row."
+  },
+  "dshProviderDetailReasoningEfforts": "Reasoning efforts",
+  "@dshProviderDetailReasoningEfforts": {
+    "description": "Per-model reasoning effort editor title for a custom DSH provider."
+  },
+  "dshProviderDetailReasoningEffortsHint": "Effort levels this model accepts; add the API values DeepSeek Harness should send.",
+  "@dshProviderDetailReasoningEffortsHint": {
+    "description": "Explains the reasoning effort list under a model row."
+  },
+  "dshProviderDetailAddReasoningEffort": "Add effort",
+  "@dshProviderDetailAddReasoningEffort": {
+    "description": "Action that appends a reasoning effort choice to a model."
+  },
+  "dshProviderDetailEffortId": "Effort ID",
+  "@dshProviderDetailEffortId": {
+    "description": "Field label for a reasoning effort id."
+  },
+  "dshProviderDetailEffortName": "Effort name",
+  "@dshProviderDetailEffortName": {
+    "description": "Field label for a reasoning effort display name."
+  },
+  "dshProviderDetailSave": "Save",
+  "@dshProviderDetailSave": {
+    "description": "Primary action of the DSH provider detail page."
+  },
+  "dshProviderDetailSaved": "Provider saved",
+  "@dshProviderDetailSaved": {
+    "description": "Snackbar after a provider profile is written on the remote host."
+  },
+  "dshProviderDetailSaveFailed": "Couldn’t save the provider. Try again.",
+  "@dshProviderDetailSaveFailed": {
+    "description": "Snackbar when the DSH settings write fails."
+  },
+  "dshProviderDetailConflict": "This provider changed on DeepSeek Harness. The newest values were reloaded; apply your change again.",
+  "@dshProviderDetailConflict": {
+    "description": "Shown when settings/mutate reports a revision conflict."
+  },
+  "dshProviderDetailDeleteProvider": "Delete provider",
+  "@dshProviderDetailDeleteProvider": {
+    "description": "Menu item that removes a custom DSH provider."
+  },
+  "dshProviderDetailDeleteConfirmTitle": "Delete this provider?",
+  "@dshProviderDetailDeleteConfirmTitle": {
+    "description": "Confirmation title before deleting a custom DSH provider."
+  },
+  "dshProviderDetailDeleteConfirmBody": "It will be removed from DeepSeek Harness. Sessions that used it keep their history.",
+  "@dshProviderDetailDeleteConfirmBody": {
+    "description": "Confirmation body before deleting a custom DSH provider."
+  },
+  "dshProviderDetailCustomProviderTitle": "New custom provider",
+  "@dshProviderDetailCustomProviderTitle": {
+    "description": "Page title of the custom DSH provider creation form."
+  },
+  "dshProviderDetailProviderId": "Provider ID",
+  "@dshProviderDetailProviderId": {
+    "description": "Field label for a custom provider's unique id."
+  },
+  "dshProviderDetailProviderIdHint": "Unique id, e.g. my-gateway",
+  "@dshProviderDetailProviderIdHint": {
+    "description": "Placeholder of the custom provider id field."
+  },
+  "dshProviderDetailDisplayName": "Display name",
+  "@dshProviderDetailDisplayName": {
+    "description": "Field label for a provider's display name."
+  },
+  "dshProviderDetailBaseUrl": "Base URL",
+  "@dshProviderDetailBaseUrl": {
+    "description": "Field label for the custom provider endpoint."
+  },
+  "dshProviderDetailBaseUrlHint": "https://api.example.com",
+  "@dshProviderDetailBaseUrlHint": {
+    "description": "Placeholder of the custom provider endpoint field."
+  },
+  "dshProviderDetailDiscover": "Fetch models",
+  "@dshProviderDetailDiscover": {
+    "description": "Action that asks the endpoint for its model list."
+  },
+  "dshProviderDetailDiscoverEmpty": "The endpoint returned no models",
+  "@dshProviderDetailDiscoverEmpty": {
+    "description": "Result when model discovery returns nothing."
+  },
+  "dshProviderDetailDiscoverFailed": "Couldn’t fetch models from that endpoint",
+  "@dshProviderDetailDiscoverFailed": {
+    "description": "Result when model discovery fails."
+  },
+  "dshProviderDetailInvalidModelId": "Every model needs an ID.",
+  "@dshProviderDetailInvalidModelId": {
+    "description": "Validation message when a model row has a blank id."
+  },
+  "dshProviderDetailRequiredFields": "Fill in the required fields first.",
+  "@dshProviderDetailRequiredFields": {
+    "description": "Validation message when the provider form is incomplete."
+  },
+  "dshMoreBackToLocal": "Back to local assistants",
+  "@dshMoreBackToLocal": {
+    "description": "More menu row that leaves DeepSeek Harness mode and shows the local assistant surface again."
+  },
+  "dshMoreOpenSettings": "DeepSeek Harness settings",
+  "@dshMoreOpenSettings": {
+    "description": "More menu row that opens the connected DeepSeek Harness assistant settings page."
+  },
+  "dshMoreAbout": "About version",
+  "@dshMoreAbout": {
+    "description": "More menu row that opens the app version dialog."
+  },
+  "dshMoreAboutHint": "The app version installed on this device.",
+  "@dshMoreAboutHint": {
+    "description": "Subtitle under the about row in the DeepSeek Harness more menu."
+  },
+  "dshProviderDetailMaxTokensHint": "256K",
+  "@dshProviderDetailMaxTokensHint": {"description": "Placeholder example in the max-output-token field of a DSH model row."}
 }

@@ -63,6 +63,7 @@ import 'core/providers/group_chat_provider.dart';
 import 'core/providers/chat_owners_provider.dart';
 import 'features/harness/controllers/dsh_chat_controllers_provider.dart';
 import 'features/harness/controllers/dsh_gateway_chat_session.dart';
+import 'features/harness/services/dsh_client_gateway.dart';
 import 'features/harness/services/dsh_credential_store.dart';
 import 'features/harness/services/dsh_remote_store.dart';
 import 'features/harness/state/dsh_connections_provider.dart';
@@ -1107,14 +1108,18 @@ class MyApp extends StatelessWidget {
           ),
         ),
         // Remote DeepSeek Harness records and their live links. The protocol
-        // adapter factory is wired here once `lib/core/dsh/` exists; until
-        // then connecting fails with a localized "not wired" state while
-        // create/rename/delete/order work. It is created before
-        // ChatOwnersProvider because the shared owner order reads its ids.
+        // adapter factory creates one gateway per remote over the
+        // Flutter-free client in `lib/core/dsh/`; the provider owns cookie
+        // persistence, the catalog cache and the per-remote state. Created
+        // before ChatOwnersProvider because the shared owner order reads its
+        // ids.
         ChangeNotifierProvider(
           create: (_) => DshConnectionsProvider(
             store: DshRemoteStore(businessPreferences),
             credentials: const SecureDshCredentialStore(),
+            // The protocol adapter: one gateway per remote id, over the
+            // Flutter-free DSH client in `lib/core/dsh/`.
+            gatewayFactory: (_) => DshClientGateway(),
           ),
         ),
         // Chat controllers for open DSH sessions, one per (remote, session).

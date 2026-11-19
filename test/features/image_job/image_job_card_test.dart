@@ -38,7 +38,12 @@ void main() {
       ),
     );
 
-    expect(find.text('生成插图'), findsOneWidget);
+    // The key, not a literal: the title is a noun that the locales spell
+    // differently, and a hardcoded string here only tests the fixture.
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(ImageJobCard)),
+    )!;
+    expect(find.text(l10n.imageJobTitle), findsOneWidget);
     expect(find.text('(12.6s)'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     expect(find.byType(TextButton), findsNothing);

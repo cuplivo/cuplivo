@@ -7273,49 +7273,49 @@ abstract class AppLocalizations {
   /// **'Embedding'**
   String get modelDetailSheetEmbeddingType;
 
-  /// No description provided for @modelDetailSheetDecisionType.
+  /// Model type segment and model tag for a decision model: it answers typed yes/no or choice questions with probabilities and never generates chat text.
   ///
   /// In en, this message translates to:
   /// **'Decision'**
   String get modelDetailSheetDecisionType;
 
-  /// No description provided for @modelDetailSheetDecisionDialectLabel.
+  /// Label of the segmented control that picks which decision protocol a decision model speaks (System One or OpenAI decisions).
   ///
   /// In en, this message translates to:
   /// **'Decision API'**
   String get modelDetailSheetDecisionDialectLabel;
 
-  /// No description provided for @modelDetailSheetDecisionUrlLabel.
+  /// Label of the optional field that overrides the endpoint address of a decision model.
   ///
   /// In en, this message translates to:
   /// **'Decision URL'**
   String get modelDetailSheetDecisionUrlLabel;
 
-  /// No description provided for @modelDetailSheetDecisionUrlHint.
+  /// Placeholder of the decision address field: leaving it empty appends the dialect's default path to the provider URL.
   ///
   /// In en, this message translates to:
   /// **'Empty: appended to the provider URL'**
   String get modelDetailSheetDecisionUrlHint;
 
-  /// No description provided for @modelDetailSheetDecisionUrlHelp.
+  /// First paragraph of the help sheet behind the info icon next to the decision address field: some providers serve decision models on a separate endpoint, so the default address has to be overridden.
   ///
   /// In en, this message translates to:
   /// **'Some providers serve decision models on their own endpoint; enter the path to override the default address.'**
   String get modelDetailSheetDecisionUrlHelp;
 
-  /// No description provided for @modelDetailSheetDecisionUrlFill.
+  /// Button in the decision address help sheet that writes the shown example path into the address field.
   ///
   /// In en, this message translates to:
   /// **'Fill'**
   String get modelDetailSheetDecisionUrlFill;
 
-  /// No description provided for @modelDetailSheetDecisionUrlCurrent.
+  /// Small tag in the decision address help sheet marking the example row that matches the current provider's host.
   ///
   /// In en, this message translates to:
   /// **'Current'**
   String get modelDetailSheetDecisionUrlCurrent;
 
-  /// No description provided for @modelDetailSheetDecisionUrlBailian.
+  /// Name of Alibaba's Bailian model platform, used as the provider name of a decision address example.
   ///
   /// In en, this message translates to:
   /// **'Bailian'**

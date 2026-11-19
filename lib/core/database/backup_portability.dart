@@ -1,9 +1,12 @@
 import 'dart:convert';
 
 import 'app_database.dart';
+import 'chat_database_repository.dart';
 import '../models/backup_scope.dart';
 import '../models/backup_target.dart';
 import '../models/compression_config.dart';
+import '../models/tool_permission_mode.dart';
+import '../models/workspace_binding.dart';
 import 'backup_content_filter.dart';
 import 'business_data.dart';
 import 'business_repository.dart';
@@ -131,6 +134,23 @@ final class BackupPortability {
       await _dropUnreadableKinds(database, target);
       // Chat history remains readable, but imported chats cannot inherit a
       // directory grant or silently authorize shell execution on this device.
+      // Both branches read the same key set the sync wire does: the grants are
+      // stripped from every archive, and the local path of a binding whose
+      // workspace row did not travel goes with the binding itself.
+      final grantKeys = ToolPermissionMode.grantExtrasKeys;
+      final danglingKeys = {
+        ...ChatDatabaseRepository.syncLocalExtrasKeys,
+        WorkspaceBinding.keyId,
+        WorkspaceBinding.keyToolsUsed,
+      };
+      // The filter is generated from the keys each branch can remove, so a key
+      // added to either set reaches the WHERE as well: a `json_remove` that names
+      // a key the filter never looks at returns before it runs.
+      final filterKeys = {...grantKeys, WorkspaceBinding.keyId};
+      final touched = [
+        for (final key in filterKeys)
+          "json_type(extras_json, '${_jsonPath(key)}') IS NOT NULL",
+      ].join(' OR ');
       await database.customStatement('''
         UPDATE conversation_rows SET extras_json = CASE
           WHEN json_extract(extras_json, '\$."workspace.id"') IS NOT NULL
@@ -139,18 +159,23 @@ final class BackupPortability {
               WHERE kind = 'workspace'
                 AND id = json_extract(extras_json, '\$."workspace.id"')
             )
-          THEN json_remove(extras_json, '\$."workspace.id"',
-            '\$."workspace.cwd"', '\$."workspace.tools_used"',
-            '\$."workspace.allowAll"', '\$."tools.permission_mode"')
-          ELSE json_remove(extras_json, '\$."workspace.allowAll"', '\$."tools.permission_mode"')
+          THEN json_remove(extras_json, ${_jsonRemoveArguments(danglingKeys)})
+          ELSE json_remove(extras_json, ${_jsonRemoveArguments(grantKeys)})
         END
-        WHERE json_valid(extras_json)
-          AND (json_type(extras_json, '\$."workspace.id"') IS NOT NULL
-            OR json_type(extras_json, '\$."workspace.allowAll"') IS NOT NULL
-            OR json_type(extras_json, '\$."tools.permission_mode"') IS NOT NULL);
+        WHERE json_valid(extras_json) AND ($touched);
       ''');
     });
   }
+
+  /// A SQLite JSON path for [key], as its `json_*` functions take it.
+  ///
+  /// The keys are code constants naming extras members, never user data, so
+  /// interpolating them follows the same rule `currentSchemaColumns` does; the
+  /// quote is escaped anyway, so a key cannot close the literal around it.
+  static String _jsonPath(String key) => '\$."${key.replaceAll('"', r'\"')}"';
+
+  static String _jsonRemoveArguments(Set<String> keys) =>
+      [for (final key in keys) "'${_jsonPath(key)}'"].join(', ');
 
   /// Takes every kind [target] cannot read out of the archive: its rows, and
   /// every conversation link that points at them.

@@ -2239,6 +2239,59 @@ One conflation worth naming: the conversation row's merge is not pure LWW.
 peers compute the same value whoever won the row — but "who wins" and "what the row ends up as" are
 now two places. A third such column should become a registration in the family table, not a third
 patch in the applier.
+### The third grain: a key inside a column that does travel
+
+The conversation-grant fix added the narrowest grain of the same question. The conversation row's
+`extras_json` is one column of shared state, and two of its keys are not: `tools.permission_mode` and
+the older build's `workspace.allowAll`. The row travels; the grant does not.
+
+The column-level shape above cannot be reused here, because the column is shared: omitting it on the
+wire would drop the title flags and `workspace.id` with it. So the rule is per key, and it still has
+the two halves — the wire read removes the grant keys, the applier deletes whatever arrived and puts
+back only the keys the local row already held. Both halves are load-bearing in a way that is easy to
+get wrong: a strip alone loses the grant the first time a peer wins the row, and a merge alone lets
+the grant cross. "Delete first, then restore" is also what protects against a peer on the older
+build, which still puts its grant on the wire, and it is the whole protection for a conversation that
+arrives new, where there is no local row to restore from.
+
+One condition on the restore, the only state this grain has: the winner's `workspace.id` must equal
+the local one. A grant is issued against the binding (writing a binding clears it,
+`WorkspaceBinding.applyTo`), so restoring one across a rebind would carry an approval to a workspace
+the user never approved.
+
+The first cut of this rule also took `workspace.cwd`, on the reading that a path is this device's own
+fact. That reading was wrong, and the reason is worth keeping: the key stored next to a device fact
+may look like one and not be. `workspace.cwd` is a **workspace-relative** folder — the picker
+validates it as one (`FileBrowserOps.isValidRelativePath`) and `WorkspacePaths.normalizeCwd` resolves
+it against the workspace root — and a managed workspace's *content* is itself a synced plane, so the
+same relative folder exists on the peer. Stripping it dropped the peer's conversation onto the
+workspace root and changed where its file and shell tools resolved; the archive has always kept it
+for the same reason. It follows the winner like the rest of the bag, and a rebind then needs no
+special case: the winner's folder belongs to the winner's binding.
+
+Nothing here moves an identity: `conversation_rows` contributes its clock, not its column values, so
+a key only one device holds cannot make the two disagree, and the extras merge rides the winner's own
+upsert rather than a second write that would bump `updated_at`. No protocol field changed either, so
+the schema version does not move. The key set is `ToolPermissionMode.grantExtrasKeys`, and the backup
+sanitizer derives its removal lists from it rather than repeating the literals — the fourth copy of a
+key is the one nobody updates.
+
+**A mixed-version pair costs the older device its own grant, once.** A build without the restore half
+writes the stripped bag over its `extras_json` when it accepts a row from this one, so a grant it held
+is gone and has to be given again. The other direction is safe by construction, because the strip runs
+on arrival. Nothing can carry "keep yours" without a protocol field, so this is a rollout note rather
+than a code path: the cost is one re-grant per conversation, and the next tool call asks instead of
+running.
+
+**The boundary of this rule**, stated because the next reader will ask why one approval travels while
+the other does not: a *workspace's* policy is not a grant. `shellNeedsApproval` rides inside the
+workspace row beside `disabledTools` and `defaultCwd`, and the receiving device does not ask where a
+policy was authored (`business_repository.dart` filters only linked and malformed workspace rows). What
+bounds it is what the flag does: `workspace_tools_service.dart` requires approval whenever the runtime
+is not sandboxed, whatever the flag says, so a loosened copy skips a prompt *inside* a sandbox rather
+than widening what the sandbox confines. Whether the flag should be device-local is a product question
+about policy versus grant, and it is not decided by this rule — a policy that turns out to be the same
+kind of fact needs its own argument.
 
 ## Amendment (2026-11, admission): three lanes, one budget, and what cancelling means
 

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -14,6 +15,7 @@ import 'package:Cuplivo/core/database/extension_entity_store.dart';
 import 'package:Cuplivo/core/models/backup_target.dart';
 import 'package:Cuplivo/core/models/compression_config.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/tool_permission_mode.dart';
 import 'package:Cuplivo/core/services/backup/data_sync.dart';
 
 Map<String, Object> _workspace(String id, {bool linked = false}) => {
@@ -173,6 +175,70 @@ void main() {
           expect(extras.keys, ['other.feature']);
         }
       }
+    },
+  );
+
+  test('a key with a quote cannot close the SQL literal around it', () async {
+    // The sanitizer interpolates key names into SQL, and the keys are constants
+    // today — so this is the one property of that statement a reviewer cannot
+    // check by reading it, and the one that would break silently the day a key
+    // gains a quote. Two quotes, two escaping layers: `"` closes the JSON path's
+    // label, `'` closes the SQL literal around the path.
+    for (final key in <String>["a'b", 'a"b', 'a"b\'c']) {
+      final literal = BackupPortability.extrasSqlLiteral(key);
+      final row = await database
+          .customSelect(
+            'SELECT json_extract(?, $literal) AS value_;',
+            variables: [
+              Variable.withString(jsonEncode({key: 1})),
+            ],
+          )
+          .getSingle();
+      expect(row.read<int>('value_'), 1, reason: key);
+    }
+  });
+
+  test(
+    'grants leave every archive, and a dangling binding leaves with them',
+    () async {
+      // One list, two branches: the grants are the set the sync wire strips, and
+      // they are derived here rather than repeated; a binding whose workspace row
+      // did not travel takes its own facts with it, because the id names nothing
+      // in the restored database. Both halves are asserted by behaviour, so a
+      // key added to the grant set reaches the sanitizer without a second edit.
+      final grants = {
+        for (final key in ToolPermissionMode.grantExtrasKeys) key: 'marker',
+      };
+      for (final row in <(String, Map<String, Object?>)>[
+        (
+          'bound',
+          {'workspace.id': 'managed', ...grants, 'other.feature': 'keep'},
+        ),
+        (
+          'dangling',
+          {'workspace.id': 'gone', ...grants, 'other.feature': 'keep'},
+        ),
+      ]) {
+        await database.customStatement(
+          'INSERT INTO conversation_rows (id, title, created_at, updated_at, extras_json) VALUES (?, ?, 0, 0, ?)',
+          [row.$1, row.$1, jsonEncode(row.$2)],
+        );
+      }
+
+      await BackupPortability.sanitizeDatabase(database);
+
+      final extras = await _conversationExtras(database);
+      for (final id in ['bound', 'dangling']) {
+        expect(
+          extras[id]!.keys,
+          isNot(anyElement(isIn(ToolPermissionMode.grantExtrasKeys))),
+          reason: id,
+        );
+        expect(extras[id]!['other.feature'], 'keep', reason: id);
+      }
+      // The live binding keeps its folder: the workspace row travels, so the
+      // relative folder still names a directory in the archive.
+      expect(extras['bound']!['workspace.id'], 'managed');
     },
   );
 

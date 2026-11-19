@@ -18259,7 +18259,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String lanSyncReportConversationsOmittedForSize(Object count) {
-    return 'Слишком больших для синхронизации чатов: $count (сократите историю)';
+    return 'Не вошло в эту отправку чатов: $count';
   }
 
   @override

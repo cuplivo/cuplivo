@@ -1232,7 +1232,11 @@ class SyncEngine implements SyncServerHandler {
       // test builds only (release strips it): the encode is a second copy of a
       // body that can reach the budget.
       assert(() {
-        assertPushFits(pushBatch, deltaByteBudget);
+        assertPushFits(
+          pushBatch,
+          deltaByteBudget,
+          envelopeBytes: envelopeBytes,
+        );
         return true;
       }());
       final ack = await session.pushDelta(pushBatch);
@@ -1485,6 +1489,10 @@ class SyncEngine implements SyncServerHandler {
         failedDeletes: failedDeletes,
         peerDeferredConversations: peerDeferred,
         sentSubtrees: sentSubtrees,
+        receivedSubtrees: {
+          for (final subtree in incoming.subtrees)
+            subtree.conversation['id'] as String: subtree,
+        },
       );
       final nextBusiness = await _advanceBusinessCheckpoint(
         previous: previous,
@@ -1542,13 +1550,16 @@ class SyncEngine implements SyncServerHandler {
           sent: outgoing.length,
           received: outcomes.length,
           outcomes: outcomes.values,
-          // Deferred is what a live generation held back or what the read could
-          // not deliver — "the peer's copy is not here yet". A conversation the
-          // push budget left behind is *not* folded in: it has its own count
-          // (`conversationsOmittedForSize`), and folding it would draw one
-          // conversation twice on the card while the two numbers stopped
-          // partitioning the same set.
-          deferred: skippedSends.length + missingIncoming.length,
+          // One conversation, one row. Deferred is what a live generation held
+          // back or what the fetch did not deliver, minus the conversations the
+          // budget already names: a `bothSend` conversation this push left
+          // behind *and* the peer could not serve is one conversation, and it
+          // belongs to the specific count, not to both. The two numbers then
+          // partition the set they describe.
+          deferred: {
+            ...skippedSends,
+            ...missingIncoming,
+          }.difference(sizeOmitted).length,
           conversationsOmittedForSize: sizeOmitted.length,
           deletedLocally: deleted.length,
           deletedBlocked: blockedDeletes.length + blockedBusinessDeletes.length,
@@ -1850,6 +1861,15 @@ class SyncEngine implements SyncServerHandler {
           if (!session.blobPull.landedSkillIds.contains(id)) id,
       };
       session.skillConflicts = adoptions.conflicts;
+
+      // Kept for the checkpoint advance one beat later: a `peerSends` entry
+      // describes the payload that arrived, never the local state the merge
+      // leaves behind (which also carries rows written here mid-session), and
+      // the fetch beat no longer has this batch in hand.
+      session.receivedSubtrees = {
+        for (final subtree in batch.subtrees)
+          subtree.conversation['id'] as String: subtree,
+      };
 
       outcomes = await dataPlane.applySubtrees(
         batch.subtrees,
@@ -2236,6 +2256,8 @@ class SyncEngine implements SyncServerHandler {
       // advance unconfirmed state here either.
       peerDeferredConversations: session.initiatorHello.unappliedConversations
           .toSet(),
+      // What the initiator pushed, for the arms that record an arrival.
+      receivedSubtrees: session.receivedSubtrees,
       // The fetch response is never acknowledged, so a conversation this beat
       // sends back is not state the peer holds. Advancing it would make the
       // next session read the peer's missing copy as a deletion and destroy
@@ -2354,7 +2376,10 @@ class SyncEngine implements SyncServerHandler {
       sent: outgoing.length,
       received: session.outcomes.length,
       outcomes: session.outcomes.values,
-      deferred: skipped.length + missing.length,
+      // One conversation, one row: a conversation this side skipped *and* the
+      // initiator never received crossed in neither direction, but it is still
+      // one conversation.
+      deferred: {...skipped, ...missing}.length,
       deletedLocally: deleted.length,
       deletedBlocked: blockedDeletes.length + blockedBusinessDeletes.length,
       business: businessRead.payload,
@@ -2535,6 +2560,12 @@ class SyncEngine implements SyncServerHandler {
   /// flight was never sent, and recording it as peer-seen would make the next
   /// merge delete it here.
   ///
+  /// [receivedSubtrees] is the other direction, and it is the same argument:
+  /// a `peerSends` entry describes the payload that arrived, never the local
+  /// state the merge left behind, which also carries rows written here while
+  /// the session ran. `bothSend` is the one arm that cannot be described by a
+  /// single payload; see the case below for what it does instead.
+  ///
   /// [sendsConfirmed] is false for the responder's fetch beat, whose response
   /// is never acknowledged: a conversation this device *sent* back is not
   /// state the peer holds, and advancing it would make the next session read
@@ -2549,6 +2580,7 @@ class SyncEngine implements SyncServerHandler {
     required Set<String> failedDeletes,
     Set<String> peerDeferredConversations = const {},
     Map<String, SyncSubtreePayload> sentSubtrees = const {},
+    Map<String, SyncSubtreePayload> receivedSubtrees = const {},
     bool sendsConfirmed = true,
   }) async {
     final next = <String, SyncCheckpointConversation>{};
@@ -2599,16 +2631,28 @@ class SyncEngine implements SyncServerHandler {
             );
           }
         case SyncConvAction.peerSends || SyncConvAction.bothSend:
-          // A `bothSend` conversation has a half in flight, and only a payload
-          // that crossed the wire may be recorded as received. The apply below
-          // describes the peer's copy merged into local state — including rows
-          // only this device has — so an entry built from it while this
-          // device's copy sat out the round claims the peer holds rows it never
-          // received, and the next apply then deletes them (local-only, clock
-          // equal to the recorded one). `peerSends` owes no send of its own, so
-          // there is nothing to ask; a generating conversation and one this
-          // round's budget left behind are the same case, neither is in
-          // [sentSubtrees].
+          // Two questions, one per arm, and both about what crossed the wire.
+          //
+          // `bothSend` has a half of its own in flight, and only a payload that
+          // crossed may be recorded as received: an entry built from the apply
+          // while this device's copy sat out the round claims the peer holds
+          // rows it never received, and the next apply then deletes them. A
+          // generating conversation and one this round's budget left behind are
+          // the same case — neither is in [sentSubtrees].
+          //
+          // The entry itself must describe the *payload*, never the local state
+          // a merge left behind. The apply reads its base inside its own
+          // transaction, so a row written here while the session ran — the push
+          // beat plus the whole blob pull — is in that snapshot; an entry built
+          // from it claims the peer has a row it has never seen, and the next
+          // session deletes it here. `peerSends` therefore records the payload
+          // that arrived, which is also exactly what the sender's `iSend` arm
+          // recorded for it: one transfer, one entry, on both sides.
+          // `bothSend` is the merge of two payloads, which no single payload
+          // describes; its snapshot is that merge plus mid-session writes, so
+          // an entry that would claim a row belonging to neither payload nor
+          // the last agreement waits a round instead.
+          final received = receivedSubtrees[id];
           final myHalfCrossed =
               item.action != SyncConvAction.bothSend ||
               (sendsConfirmed && sentSubtrees.containsKey(id));
@@ -2617,6 +2661,23 @@ class SyncEngine implements SyncServerHandler {
               outcome == null ||
               outcome.deferred ||
               peerDeferredConversations.contains(id)) {
+            if (prior != null) next[id] = prior;
+            break;
+          }
+          if (item.action == SyncConvAction.peerSends) {
+            if (received == null) {
+              if (prior != null) next[id] = prior;
+              break;
+            }
+            next[id] = _entryFor(received);
+            break;
+          }
+          if (_snapshotClaimsUnsentRows(
+            outcome,
+            prior,
+            sentSubtrees[id],
+            received,
+          )) {
             if (prior != null) next[id] = prior;
             break;
           }
@@ -2654,6 +2715,47 @@ class SyncEngine implements SyncServerHandler {
       }
     }
     return SyncCheckpoint(next);
+  }
+
+  /// The checkpoint entry one payload makes: what crossed the wire, nothing
+  /// else.
+  ///
+  /// The sender's `iSend` arm composes the same entry for the same payload, so
+  /// the two sides of one transfer record the same agreement — and a row this
+  /// device wrote while the session ran is in neither.
+  static SyncCheckpointConversation _entryFor(SyncSubtreePayload payload) =>
+      buildCheckpointConversation(
+        conversationRow: payload.conversation,
+        messageRows: payload.rowsOf(_messageFamily),
+        digest: composeConversationDigest(identityContributionsOf(payload)),
+      );
+
+  /// Whether the apply's post-merge snapshot carries a message row that neither
+  /// payload of this session nor the last agreement knows.
+  ///
+  /// Such a row was written here while the session was in flight: the apply
+  /// reads its base inside its own transaction, so the snapshot is the merge of
+  /// the two payloads *plus* whatever landed between the hello and the apply.
+  /// Recording it would make the peer's silence in a later payload read as a
+  /// deletion, so the entry waits a round instead — the row is here, and the
+  /// next session sends it.
+  static bool _snapshotClaimsUnsentRows(
+    SyncSubtreeApplyOutcome outcome,
+    SyncCheckpointConversation? prior,
+    SyncSubtreePayload? sent,
+    SyncSubtreePayload? received,
+  ) {
+    final known = <String>{
+      ...?prior?.rows.keys,
+      if (sent != null)
+        for (final row in sent.rowsOf(_messageFamily)) row['id'] as String,
+      if (received != null)
+        for (final row in received.rowsOf(_messageFamily)) row['id'] as String,
+    };
+    for (final row in outcome.messageRows) {
+      if (!known.contains(row['id'])) return true;
+    }
+    return false;
   }
 
   /// The peer-observed row state for the conversations in [conversationIds],
@@ -4391,6 +4493,12 @@ class _ResponderSession {
   /// unanswered dial. Such a session is a bet on the peer's client still being
   /// alive to drive it — see [SyncEngine.kYieldedSessionTtl].
   final bool yielded;
+
+  /// The conversations the initiator pushed this session, by id. The fetch
+  /// beat's checkpoint advance records an arrival from these — the payload that
+  /// crossed — rather than from the post-merge local state, which also carries
+  /// rows written here while the session ran.
+  Map<String, SyncSubtreePayload> receivedSubtrees = const {};
 
   /// When this session's first beat arrived *or ended*, or null while the peer's
   /// client has not touched it yet (the state [SyncEngine.kYieldedSessionTtl]

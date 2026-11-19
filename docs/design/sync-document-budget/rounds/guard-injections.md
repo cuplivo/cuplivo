@@ -43,3 +43,28 @@
 
 注入前同一哈希 `5D1A0149…AA69`，还原后一致。断言本身另有一条纯函数测试
 （`sync_budget_test.dart` › the batch about to be sent is checked against the budget）：恰好等于预算通过，少一个字节抛错。
+
+## 第 7、8 条｜一次传输两端记同一件事
+
+评审的 #1：接收臂的检查点条目来自 apply 的**合并快照**，而快照的底是事务内读出来的本地消息——会话窗口里
+写下的行因此被记成"对端已有"，下一轮删掉。修法是 `peerSends` 按 payload 建条目、`bothSend` 见不到的就停一轮。
+
+一次注入同时破两半：接收臂的条目退回快照（`received = null` + 两个新守卫都关掉），即本 PR 之前的形状。
+
+| # | 注入 | 应红的测试 | 实测 | 不变量 |
+| --- | --- | --- | --- | --- |
+| 7 | `peerSends` 走快照建条目 | › a write during the session is not recorded as the peer's | 红：`Expected: contains 'conv-a-typed'` / `Actual: Set:['conv-a-m0','conv-a-b']` —— 会话里写的行被下一轮删掉 | 条目描述"过线的那份" |
+| 8 | `bothSend` 的脏快照守卫关掉 | › a write during a bothSend session is not recorded either | 红：`Expected: contains all of ['conv-a-aonly','conv-a-typed']` / `Actual: Set:['conv-a-m0','conv-a-aonly','conv-a-bonly']` | 同上 |
+
+注入前 `sync_engine.dart` = `ED48DB73F97401346F73BCFF9156597A173191BF4185E29E1DE30EAD1682ACBF`（198,806 字节），
+还原后同一哈希。
+
+## 第 9 条｜评审留下的 probe：发送点断言与"固定部分自身超预算"的对立
+
+评审留了一个未跟踪的 probe（`probe_envelope_over_budget_test.dart`）：fixed part 自己就超预算时，
+`admitConversations` 一条也不收，而那轮 body 仍然是 fixed part —— `assertPushFits` 于是**在 debug/测试里**
+把一轮 release 只是"交给 256 MB 上限拒绝"的同步判成失败。它是真的：断言把 ADR 承认的边界变成了崩溃。
+
+现在断言接受这个边界：fixed part 比预算大时，边界就是 fixed part 本身。probe 被收编成正式断言
+（`sync_budget_test.dart` › the batch about to be sent is checked against the budget：`envelopeBytes` 大于
+预算时通过、小于预算时仍按预算判错），probe 文件删除。

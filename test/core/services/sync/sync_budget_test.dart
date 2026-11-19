@@ -92,6 +92,22 @@ void main() {
       throwsStateError,
       reason: 'one byte over the budget is a refused round on the peer',
     );
+    // The documented edge: the fixed part alone is past the budget, so admission
+    // admitted nothing and the body *is* that part. Only the receiver's cap may
+    // refuse it, so the guard's bound becomes the fixed part — a debug build
+    // must not fail a round release would have let the peer answer.
+    expect(
+      () => assertPushFits(batch, 1, envelopeBytes: bytes + 1),
+      returnsNormally,
+      reason:
+          'a body no larger than its own envelope cannot be the sender\'s '
+          'fault',
+    );
+    expect(
+      () => assertPushFits(batch, 1, envelopeBytes: bytes - 1),
+      throwsStateError,
+      reason: 'and once the envelope fits, the budget is the bound again',
+    );
   });
 
   test(

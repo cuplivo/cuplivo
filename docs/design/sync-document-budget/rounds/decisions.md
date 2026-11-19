@@ -83,3 +83,18 @@
 一条自查：**`translate.py check` 的 Dart 校验器**（`validate.dart`）在沙箱里跑不起来（子进程管道被拒）。
 能本地复核的部分都复核了：四个 locale `pending=0`、key 集合与 en 一致、`zh_Hans == zh`、占位符只剩 `{count}`、
 ru/ko/tr 无残留汉字、换行数与 URL 未变；ICU 语法由 `flutter gen-l10n` 全量解析通过证明。
+
+## 评审轮之二｜三条意见，全部成立
+
+| # | 意见 | 处理 |
+| --- | --- | --- |
+| 1 | 接收臂（`peerSends` / `bothSend`）的检查点条目来自合并快照，会话窗口里写的行被记成"对端已有"，下一轮删掉 | **修**：`peerSends` 按收到的 payload 建条目（与对端 `iSend` 对同一 payload 建出的条目逐字节相同）；`bothSend` 是两份 payload 的合并、单一 payload 描述不了，于是只要快照里有"两份 payload 与上次约定都不认识"的消息行，这一轮不推进、留 `prior`，下一轮连那行一起发出去。响应方 push beat 的 payload 存进 `_ResponderSession.receivedSubtrees`，fetch beat 用它建条目 |
+| 2 | 卡片说"太大，无法同步（可精简历史）"，但多数只是"本轮没塞下"，下一轮自己就发了 | 文案改中性：`{count} conversations did not fit in this push`（五处 + 描述）；不再给错误建议 |
+| 3 | 一个会话既被体积跳过、又被对端拒发时，两个计数各算一次 | 计数按**集合**切分：`deferred = {skippedSends ∪ missingIncoming} \ sizeOmitted`；响应方的 `skipped` / `missing` 同理去重 |
+
+评审留下的三个文件都处理了：`probe_bothsend_unsent_row_test.dart` 与 `probe_bothsend_midapply_snippet.txt` 删除
+（它证明的场景已由两格正式集成测试覆盖），`probe_envelope_over_budget_test.dart` 收编成正式断言
+（它暴露的是真的：发送点断言会把 ADR 承认的边界变成 debug 下的失败，现在放过该边界）。
+
+**残留（写进 ADR）**：`bothSend` 的脏快照检测只看消息行（检查点不索引别的族），窗口里多写一条 artifact
+会让那一轮白同步一次，不删数据。

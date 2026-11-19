@@ -17025,7 +17025,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String lanSyncReportConversationsOmittedForSize(Object count) {
-    return '$count 个对话太大，无法同步（可精简其历史）';
+    return '$count 个对话没能放进本轮推送';
   }
 
   @override
@@ -35029,7 +35029,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String lanSyncReportConversationsOmittedForSize(Object count) {
-    return '$count 个对话太大，无法同步（可精简其历史）';
+    return '$count 个对话没能放进本轮推送';
   }
 
   @override
@@ -53044,7 +53044,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String lanSyncReportConversationsOmittedForSize(Object count) {
-    return '$count 個對話太大，無法同步（可精簡其歷史）';
+    return '$count 個對話沒能放進本輪推送';
   }
 
   @override

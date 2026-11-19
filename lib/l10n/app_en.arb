@@ -23206,9 +23206,9 @@
   "@lanSyncReportWorkspacesOmitted": {
     "description": "Sync report count of workspaces whose files were not synced at all; count is that number."
   },
-  "lanSyncReportConversationsOmittedForSize": "{count} conversations too large to sync (trim their history)",
+  "lanSyncReportConversationsOmittedForSize": "{count} conversations did not fit in this push",
   "@lanSyncReportConversationsOmittedForSize": {
-    "description": "Sync report count of conversations this device left out of a push because they did not fit in one; nothing was deleted, the next session retries them, and a conversation larger than the single-conversation limit only arrives when the other device pulls it. count is that number of conversations."
+    "description": "Sync report count of conversations this device left out of a push because the round's byte budget had no room for them. Most are ordinary conversations that ride in the next session; only a conversation larger than the single-conversation limit has to be pulled by the other device instead. Nothing was deleted. count is that number of conversations."
   },
   "lanSyncReportWorkspacesKept": "{count} workspace folders kept on disk (switched off, or holding unsynced files)",
   "@lanSyncReportWorkspacesKept": {

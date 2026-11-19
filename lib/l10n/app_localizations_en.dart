@@ -17966,7 +17966,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String lanSyncReportConversationsOmittedForSize(Object count) {
-    return '$count conversations too large to sync (trim their history)';
+    return '$count conversations did not fit in this push';
   }
 
   @override

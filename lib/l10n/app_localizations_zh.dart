@@ -15145,7 +15145,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get retry => '重试';
 
   @override
-  String get imageJobTitle => '生成插图';
+  String get imageJobTitle => '插图';
 
   @override
   String get imageJobFailed => '生成失败';
@@ -33098,7 +33098,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get retry => '重试';
 
   @override
-  String get imageJobTitle => '生成插图';
+  String get imageJobTitle => '插图';
 
   @override
   String get imageJobFailed => '生成失败';
@@ -51062,7 +51062,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get retry => '重試';
 
   @override
-  String get imageJobTitle => '生成插圖';
+  String get imageJobTitle => '插圖';
 
   @override
   String get imageJobFailed => '生成失敗';

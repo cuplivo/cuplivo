@@ -20,11 +20,10 @@ import 'dsh_client_gateway_mapping.dart';
 class DshClientSessionHandle implements DshSessionHandle {
   DshClientSessionHandle({
     required this.sessionId,
-    required dsh.DshClient client,
-    required dsh.DshSessionStore store,
+    required this._client,
+    required this._store,
     this.onClosed,
-  }) : _client = client,
-       _store = store;
+  });
 
   @override
   final String sessionId;

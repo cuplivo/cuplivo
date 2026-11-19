@@ -157,6 +157,7 @@ class _ChatOwnerSettingsPageState extends State<ChatOwnerSettingsPage> {
             child: Tooltip(
               message: l10n.settingsPageChatOwnersCreate,
               child: _TactileIconButton(
+                key: const ValueKey('dsh-create-action'),
                 icon: Lucide.Plus,
                 color: cs.onSurface,
                 size: 22,
@@ -675,6 +676,7 @@ class _GroupCard extends StatelessWidget {
 // --- iOS-style tactile helpers ---
 class _TactileIconButton extends StatefulWidget {
   const _TactileIconButton({
+    super.key,
     required this.icon,
     required this.color,
     required this.onTap,

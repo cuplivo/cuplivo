@@ -130,6 +130,7 @@ class _DshSideBarState extends State<DshSideBar> {
                       context,
                       l10n,
                       cs,
+                      key: const Key('dsh-entry-plugins'),
                       icon: Lucide.Boxes,
                       label: l10n.dshSidebarPlugins,
                       onTap: () => widget.onOpenEntry(DshSidebarEntry.plugins),
@@ -138,6 +139,7 @@ class _DshSideBarState extends State<DshSideBar> {
                       context,
                       l10n,
                       cs,
+                      key: const Key('dsh-entry-automations'),
                       icon: Lucide.clock,
                       label: l10n.dshSidebarAutomations,
                       onTap: () =>
@@ -147,6 +149,7 @@ class _DshSideBarState extends State<DshSideBar> {
                       context,
                       l10n,
                       cs,
+                      key: const Key('dsh-entry-more'),
                       icon: Lucide.LayoutGrid,
                       label: l10n.dshSidebarMore,
                       onTap: () => widget.onOpenEntry(DshSidebarEntry.more),
@@ -259,8 +262,10 @@ class _DshSideBarState extends State<DshSideBar> {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
+    Key? key,
   }) {
     return IosCardPress(
+      key: key,
       borderRadius: BorderRadius.circular(10),
       baseColor: Colors.transparent,
       onTap: onTap,
@@ -418,7 +423,6 @@ class _WorkspaceSections extends StatelessWidget {
       for (final session in entry.sessions) {
         children.add(
           _sessionRow(
-            context,
             session,
             workspaceId: group.workspaceId,
             key: sessionKeyAssigned ? null : const Key('dsh-session-row'),
@@ -440,7 +444,6 @@ class _WorkspaceSections extends StatelessWidget {
       for (final session in ungrouped) {
         children.add(
           _sessionRow(
-            context,
             session,
             workspaceId: null,
             key: sessionKeyAssigned ? null : const Key('dsh-session-row'),
@@ -492,12 +495,10 @@ class _WorkspaceSections extends StatelessWidget {
   }
 
   Widget _sessionRow(
-    BuildContext context,
     HarnessSessionSummary session, {
     required String? workspaceId,
     Key? key,
   }) {
-    final cs = Theme.of(context).colorScheme;
     final selected = session.sessionId == selectedSessionId;
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),

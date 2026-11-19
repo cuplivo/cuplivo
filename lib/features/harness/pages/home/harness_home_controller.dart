@@ -26,10 +26,9 @@ enum HarnessRailPage { start, workspaceFiles, terminal, moreTools }
 class HarnessHomeController extends ChangeNotifier {
   HarnessHomeController({
     required this.remote,
-    required HarnessSessionCatalog catalog,
-    HarnessWorkspaceFiles Function(String sessionId)? workspaceFilesForSession,
-  }) : _catalog = catalog,
-       _workspaceFilesForSession = workspaceFilesForSession {
+    required this._catalog,
+    this._workspaceFilesForSession,
+  }) {
     _catalog.addListener(_onCatalogChanged);
   }
 

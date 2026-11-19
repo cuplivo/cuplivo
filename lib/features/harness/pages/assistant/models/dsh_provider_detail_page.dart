@@ -425,50 +425,50 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
             ),
           ),
           const SizedBox(height: 18),
-          Row(
-            children: [
-              _SectionLabel(text: l10n.dshProviderDetailModels),
-              const Spacer(),
-              if (_editableModels)
-                IosIconButton(
-                  icon: Lucide.Plus,
-                  size: 17,
-                  tooltip: l10n.dshProviderDetailAddModel,
-                  semanticLabel: l10n.dshProviderDetailAddModel,
-                  onTap: _saving ? null : _addModel,
-                ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          if (adapterDefaultNote) ...[
-            Text(
-              l10n.dshProviderDetailModelsAdapterDefault,
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.55),
-              ),
+          if (hasCredential) ...[
+            Row(
+              children: [
+                _SectionLabel(text: l10n.dshProviderDetailModels),
+                const Spacer(),
+                if (_editableModels)
+                  IosIconButton(
+                    icon: Lucide.Plus,
+                    size: 17,
+                    tooltip: l10n.dshProviderDetailAddModel,
+                    semanticLabel: l10n.dshProviderDetailAddModel,
+                    onTap: _saving ? null : _addModel,
+                  ),
+              ],
             ),
-            const SizedBox(height: 8),
-          ],
-          if (_editableModels && modelEditors.isEmpty)
-            Text(
-              l10n.dshProviderDetailModelsEmpty,
-              style: TextStyle(
-                fontSize: 13,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.5),
+            const SizedBox(height: 4),
+            if (adapterDefaultNote) ...[
+              Text(
+                l10n.dshProviderDetailModelsAdapterDefault,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.55),
+                ),
               ),
-            )
-          else if (!_editableModels)
-            for (final model in catalogModels)
-              _ReadOnlyCatalogModelCard(model: model)
-          else
-            _buildEditableModels(modelEditors),
-          if (!hasCredential) ...[
-            const SizedBox(height: 8),
+              const SizedBox(height: 8),
+            ],
+            if (_editableModels && modelEditors.isEmpty)
+              Text(
+                l10n.dshProviderDetailModelsEmpty,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.5),
+                ),
+              )
+            else if (!_editableModels)
+              for (final model in catalogModels)
+                _ReadOnlyCatalogModelCard(model: model)
+            else
+              _buildEditableModels(modelEditors),
+          ] else
             Text(
               l10n.dshProviderDetailModelsFirstConfig,
               style: TextStyle(
@@ -478,7 +478,6 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
                 ).colorScheme.onSurface.withValues(alpha: 0.5),
               ),
             ),
-          ],
           const SizedBox(height: 24),
           if (_inlineError != null) ...[
             Text(
@@ -613,6 +612,7 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
         );
         return;
       }
+      var adopted = saved;
       if (credential.isNotEmpty) {
         final ok = await controller.setCredential(credentialRef, credential);
         if (!mounted) return;
@@ -622,12 +622,13 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
           });
           return;
         }
+        adopted = saved.copyWith(configured: true);
         _apiKeyController.clear();
       }
       if (!mounted) return;
-      _entry = saved;
+      _entry = adopted;
       _initialized = false;
-      _adoptEntry(saved);
+      _adoptEntry(adopted);
       showAppSnackBar(
         context,
         message: l10n.dshProviderDetailSaved,
@@ -716,7 +717,6 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
 
 class _ProviderHeader extends StatelessWidget {
   const _ProviderHeader({
-    super.key,
     required this.displayName,
     required this.providerId,
     required this.providerIconId,
@@ -770,7 +770,7 @@ class _ProviderHeader extends StatelessWidget {
 }
 
 class _FieldLabel extends StatelessWidget {
-  const _FieldLabel({super.key, required this.text});
+  const _FieldLabel({required this.text});
 
   final String text;
 
@@ -793,7 +793,7 @@ class _FieldLabel extends StatelessWidget {
 }
 
 class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({super.key, required this.text});
+  const _SectionLabel({required this.text});
 
   final String text;
 
@@ -812,7 +812,6 @@ class _SectionLabel extends StatelessWidget {
 
 class _CollapsibleSection extends StatelessWidget {
   const _CollapsibleSection({
-    super.key,
     required this.title,
     required this.expanded,
     required this.onToggle,
@@ -869,7 +868,6 @@ class _CollapsibleSection extends StatelessWidget {
 
 class _ProtocolChip extends StatelessWidget {
   const _ProtocolChip({
-    super.key,
     required this.label,
     required this.selected,
     required this.onTap,
@@ -905,7 +903,7 @@ class _ProtocolChip extends StatelessWidget {
 }
 
 class _OAuthNote extends StatelessWidget {
-  const _OAuthNote({super.key, required this.env});
+  const _OAuthNote({required this.env});
 
   final List<String> env;
 
@@ -939,7 +937,7 @@ class _OAuthNote extends StatelessWidget {
 
 /// Read-only model card for models that come from the live catalog.
 class _ReadOnlyCatalogModelCard extends StatelessWidget {
-  const _ReadOnlyCatalogModelCard({super.key, required this.model});
+  const _ReadOnlyCatalogModelCard({required this.model});
 
   final DshModel model;
 
@@ -955,7 +953,7 @@ class _ReadOnlyCatalogModelCard extends StatelessWidget {
 }
 
 class _ReadOnlyModelCard extends StatelessWidget {
-  const _ReadOnlyModelCard({super.key, required this.model, this.subtitle});
+  const _ReadOnlyModelCard({required this.model, this.subtitle});
 
   final DshModel model;
   final String? subtitle;
@@ -1099,7 +1097,6 @@ class _DshModelEditor {
 /// efforts.
 class _DshModelEditorCard extends StatelessWidget {
   const _DshModelEditorCard({
-    super.key,
     required this.editor,
     required this.index,
     required this.editable,

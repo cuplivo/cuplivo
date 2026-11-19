@@ -268,3 +268,39 @@ uses). `statFile` reports `isDirectory: false` (the wire result has no type).
 - **Uploads and attachment bytes**: later chat slice (client §10).
 - **Provider/model CRUD**: DSH 0.2.2 has no remote CRUD endpoints; the model tab
   writes settings through the adapter, not through this interface today.
+
+## Provider-settings adapter (R11 seam)
+
+The 模型 tab codes against `DshProviderSettingsGateway`
+(`lib/features/harness/models/dsh_provider_settings.dart`). It is a **separate,
+optional capability**, not part of `DshGateway`, so existing fakes stay valid:
+
+```dart
+// state/dsh_gateway.dart
+abstract interface class DshProviderSettingsHost {
+  DshProviderSettingsGateway? get providerSettings;
+}
+```
+
+`DshClientGateway implements DshGateway, DshProviderSettingsHost` and returns a
+`DshClientProviderSettings` bound to its live `DshClient`
+(`lib/features/harness/services/dsh_provider_settings_adapter.dart`). The state
+layer exposes it as `DshConnectionsProvider.providerSettingsFor(remoteId)`
+(null for adapters that only speak the chat contract); the page injects that
+into `DshModelsTabBody(settings:)`. No ARB keys belong to this seam.
+
+Wire mapping (protocol §4.4):
+
+| seam call | client call | notes |
+|---|---|---|
+| `load()` | `llm/listConfigurableProviders` → `settings/describe` → `credentials/describe` (64-ref chunks) | profile is `settingsPath` inside `settingsNs` (`[]` = whole namespace, `['providers', id]` for pi-ai); `revision` is the namespace CAS token; credential ref = profile `apiKeyEnv` else `<ROUTE>_API_KEY`; `declared` → deletable custom route; `error` → `DshProviderEntry.error` |
+| `save(draft)` | `settings/mutate` `set` at `draft.settingsPath` with `expectedRevision` | one `describe` first: stale `draft.expectedRevision` fails as `conflict` before writing; a new route uses the fresh namespace revision. Existing unknown profile fields survive because the write merges the current profile JSON; `models` are rewritten only for new/`declared` routes (shipped routes keep the Host's array); `api` is added for new routes and updated only when already stored; clearing the address removes `baseURL` |
+| `delete(entry)` | `settings/mutate` `unset` at `entry.settingsPath` | only `declared` routes; conflict maps like `save` |
+| `setCredential` / `clearCredential` | `credentials/set` / `credentials/unset` | plain value never returned or persisted locally |
+| `discover(draft)` | `llm/discoverModels` `{settingsNs, request:{provider?, baseURL, api, apiKey?}}` | `settingsNs` is the known route's namespace, else `llm-pi-ai`; advisory result only |
+
+Failure mapping: `settings/conflict` → `DshProviderSettingsFailure.conflict`,
+`*/rejected` (`credential/rejected`, `settings/rejected`,
+`llm/model-discovery-rejected`) → `rejected`, 404/unsupported → `unsupported`,
+transport/auth/closed → `unreachable`, everything else `unknown`; no raw
+`DshException` crosses the seam.

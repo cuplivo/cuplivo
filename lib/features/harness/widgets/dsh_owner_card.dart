@@ -95,7 +95,7 @@ class _DshOwnerCardState extends State<DshOwnerCard> {
                             : widget.remote.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: AppFontWeights.emphasis,
                         ),

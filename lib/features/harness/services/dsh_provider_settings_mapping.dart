@@ -6,7 +6,6 @@
 // edits, and turns an edited profile back into `settings/mutate` JSON. No
 // sockets, no clocks, no Flutter — the adapter owns those.
 
-import 'package:Cuplivo/core/dsh/dsh_catalog.dart' as dsh;
 import 'package:Cuplivo/core/dsh/dsh_errors.dart' as dsh;
 import 'package:Cuplivo/core/dsh/dsh_models.dart' as dsh;
 
@@ -38,8 +37,9 @@ DshProviderSettingsException dshProviderSettingsExceptionFromClient(
 
 DshProviderSettingsFailure _failureForCode(String code) {
   final normalized = code.toLowerCase();
-  if (normalized.contains('conflict'))
+  if (normalized.contains('conflict')) {
     return DshProviderSettingsFailure.conflict;
+  }
   if (normalized.contains('credential') || normalized.contains('rejected')) {
     return DshProviderSettingsFailure.rejected;
   }

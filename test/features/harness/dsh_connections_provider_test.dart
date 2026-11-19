@@ -29,9 +29,8 @@ class _MemoryCredentials implements DshCredentialStore {
 }
 
 class _FakeGateway implements DshGateway {
-  _FakeGateway({this.connectResult, this.connectError});
+  _FakeGateway({this.connectError});
 
-  final DshConnectResult? connectResult;
   final DshGatewayException? connectError;
   final StreamController<DshRemoteUpdate> _updates =
       StreamController<DshRemoteUpdate>.broadcast();
@@ -55,8 +54,7 @@ class _FakeGateway implements DshGateway {
     lastStoredCookie = storedCookie;
     final error = connectError;
     if (error != null) throw error;
-    return connectResult ??
-        const DshConnectResult(catalog: DshCatalogSnapshot(), cookie: 'c1');
+    return const DshConnectResult(catalog: DshCatalogSnapshot(), cookie: 'c1');
   }
 
   @override

@@ -5534,6 +5534,7 @@ class _LegacyListArea extends StatelessWidget {
 
 class _AssistantInlineTile extends StatefulWidget {
   const _AssistantInlineTile({
+    super.key,
     required this.avatar,
     required this.name,
     required this.textColor,

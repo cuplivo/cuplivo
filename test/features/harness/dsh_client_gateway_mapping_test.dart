@@ -259,7 +259,7 @@ void main() {
 
     test('baselines invalidate instead of patching', () {
       final patch = mapDshWorkspaceUpdate(
-        DshWorkspaceBaselineUpdate(
+        dsh.DshWorkspaceBaselineUpdate(
           dsh.DshWorkspaceBaseline.fromJson({
             'items': const [],
             'archivedSessionIds': const [],

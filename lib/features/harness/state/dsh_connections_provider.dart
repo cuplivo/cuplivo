@@ -27,20 +27,18 @@ import 'dsh_gateway.dart';
 /// feature. A remote is listed under `harness:<id>` keys in the same
 /// `chat_owner_order_v1` list as assistants and groups.
 ///
-/// The provider starts with no gateway factory (the pure-Dart client under
-/// `lib/core/dsh/` is adapted to [DshGateway] in `lib/features/harness/services/`
-/// later); connecting then fails with [DshFailure.notConfigured] instead of
-/// pretending to work. Everything else — create, rename, delete, the owner
-/// order, the cookie reference — works today.
+/// The gateway factory is injected (`main.dart` passes the adapter over
+/// `lib/core/dsh/`); without one, connecting fails with
+/// [DshFailure.notConfigured] instead of pretending to work. Everything else —
+/// create, rename, delete, the owner order, the cookie reference — works
+/// without a live protocol adapter.
 class DshConnectionsProvider extends ChangeNotifier
     implements HarnessOwnerSource {
   DshConnectionsProvider({
-    required DshRemoteStore store,
-    required DshCredentialStore credentials,
-    DshGatewayFactory? gatewayFactory,
-  }) : _store = store,
-       _credentials = credentials,
-       _gatewayFactory = gatewayFactory {
+    required this._store,
+    required this._credentials,
+    this._gatewayFactory,
+  }) {
     loaded = _load();
   }
 
@@ -126,8 +124,9 @@ class DshConnectionsProvider extends ChangeNotifier
   /// no settings adapter and the tab shows the remote's live model catalog
   /// read-only instead of inventing editable data.
   DshProviderSettingsGateway? providerSettingsFor(String id) {
-    final gateway = _gateways[id];
-    return gateway is DshProviderSettingsHost ? gateway.providerSettings : null;
+    final Object? gateway = _gateways[id];
+    if (gateway is DshProviderSettingsHost) return gateway.providerSettings;
+    return null;
   }
 
   Future<void> _load() async {

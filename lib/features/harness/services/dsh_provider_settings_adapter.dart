@@ -9,7 +9,7 @@
 
 import 'dart:math' as math;
 
-import 'package:Cuplivo/core/dsh/dsh_catalog.dart' as dsh;
+import 'package:Cuplivo/core/dsh/dsh_client.dart' as dsh;
 import 'package:Cuplivo/core/dsh/dsh_errors.dart' as dsh;
 import 'package:Cuplivo/core/dsh/dsh_models.dart' as dsh;
 
@@ -24,9 +24,9 @@ import 'dsh_provider_settings_mapping.dart';
 /// must not keep talking to the old socket.
 class DshClientProviderSettings implements DshProviderSettingsGateway {
   DshClientProviderSettings({
-    required dsh.DshClient Function() client,
+    required this._client,
     this.discoveryTimeout = const Duration(seconds: 120),
-  }) : _client = client;
+  });
 
   final dsh.DshClient Function() _client;
   final Duration discoveryTimeout;

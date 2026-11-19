@@ -30,11 +30,11 @@ import 'dsh_provider_settings_adapter.dart';
 ///   [DshConnectResult] and the provider persists it.
 class DshClientGateway implements DshGateway, DshProviderSettingsHost {
   DshClientGateway({
-    dsh.DshHttpClient? httpClient,
+    this._httpClient,
     this.muxOptions = const dsh.DshMuxOptions(),
     this.includePlugins = true,
     this.includeSettings = true,
-  }) : _httpClient = httpClient {
+  }) {
     _updates = StreamController<DshRemoteUpdate>.broadcast(
       onListen: _replayControls,
     );
@@ -84,9 +84,13 @@ class DshClientGateway implements DshGateway, DshProviderSettingsHost {
   @override
   Stream<DshRemoteUpdate> get updates => _updates.stream;
 
+  /// One adapter per gateway: the 模型 tab compares the seam by identity, so a
+  /// fresh adapter on every build would reload the provider list each time.
+  DshProviderSettingsGateway? _providerSettings;
+
   @override
   DshProviderSettingsGateway? get providerSettings =>
-      DshClientProviderSettings(client: _requireClient);
+      _providerSettings ??= DshClientProviderSettings(client: _requireClient);
 
   // ---------------------------------------------------------------------------
   // Connect / disconnect / retry
@@ -117,7 +121,7 @@ class DshClientGateway implements DshGateway, DshProviderSettingsHost {
           authority: endpoint.authority,
         );
         if (cookie == null) {
-          throw const DshAuthException(
+          throw const dsh.DshAuthException(
             'No stored cookie: paste the full dsh web URL including ?token=',
           );
         }
@@ -233,19 +237,25 @@ class DshClientGateway implements DshGateway, DshProviderSettingsHost {
         cwd: cwd,
         workspaceId: workspaceId,
       );
-      final summary = DshSessionSummary(
-        id: session.sessionId,
-        title: '',
-        workspaceId: workspaceId,
-        cwd: cwd,
+      final source = dsh.DshSessionSummary(
+        sessionId: session.sessionId,
         updatedAt: DateTime.now(),
+        cwd: cwd,
+        raw: const <String, Object?>{},
       );
       // The sidebar can show the new row before `api-session/added` arrives;
       // the Host event later upserts the authoritative summary.
-      _summaries[summary.id] = summary;
-      if (workspaceId != null) _sessionWorkspaceIds[summary.id] = workspaceId;
-      _emitSessionUpsert(summary.id, summary: summary);
-      return summary;
+      _summaries[source.sessionId] = source;
+      if (workspaceId != null) {
+        _sessionWorkspaceIds[source.sessionId] = workspaceId;
+      }
+      _emitSessionUpsert(source.sessionId, summary: source);
+      return mapDshSessionSummary(
+        source,
+        workspaceId: workspaceId,
+        archivedIds: _archived,
+        pinnedIds: _pinned,
+      );
     } on dsh.DshException catch (error) {
       throw dshGatewayExceptionFromClient(error);
     }
@@ -745,7 +755,9 @@ class DshClientGateway implements DshGateway, DshProviderSettingsHost {
 
   void _emitInvalidated(String detail) {
     if (!_updates.isClosed) {
-      _updates.add(DshCatalogInvalidated(detail: detail));
+      _updates.add(
+        DshCatalogPatchUpdate(DshCatalogInvalidated(detail: detail)),
+      );
     }
   }
 

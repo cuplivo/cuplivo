@@ -151,6 +151,7 @@ class _RailHeader extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(left: 4),
               child: IosIconButton(
+                key: const Key('dsh-rail-back'),
                 icon: Lucide.ArrowLeft,
                 size: 18,
                 minSize: 40,
@@ -163,6 +164,7 @@ class _RailHeader extends StatelessWidget {
           Expanded(
             child: Text(
               title,
+              key: const Key('dsh-rail-title'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -173,6 +175,7 @@ class _RailHeader extends StatelessWidget {
             ),
           ),
           IosIconButton(
+            key: const Key('dsh-rail-expand'),
             icon: expanded ? Lucide.Minimize2 : Lucide.Maximize2,
             size: 17,
             minSize: 40,
@@ -181,6 +184,7 @@ class _RailHeader extends StatelessWidget {
             tooltip: expanded ? l10n.dshRailCollapse : l10n.dshRailExpand,
           ),
           IosIconButton(
+            key: const Key('dsh-rail-close'),
             icon: Lucide.X,
             size: 18,
             minSize: 40,
@@ -232,6 +236,7 @@ class _RailStartPage extends StatelessWidget {
           ),
         ),
         _RailToolCard(
+          key: const Key('dsh-rail-workspace-files'),
           icon: Lucide.FolderOpen,
           title: l10n.dshRailWorkspaceFiles,
           subtitle: l10n.dshRailWorkspaceFilesSubtitle,
@@ -240,6 +245,7 @@ class _RailStartPage extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         _RailToolCard(
+          key: const Key('dsh-rail-new-terminal'),
           icon: Lucide.Terminal,
           title: l10n.dshRailNewTerminal,
           subtitle: l10n.dshRailNewTerminalSubtitle,
@@ -248,6 +254,7 @@ class _RailStartPage extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         _RailToolCard(
+          key: const Key('dsh-rail-more-tools'),
           icon: Lucide.LayoutGrid,
           title: l10n.dshRailMoreTools,
           onTap: () => onShowPage(HarnessRailPage.moreTools),
@@ -272,6 +279,7 @@ class _RailStartPage extends StatelessWidget {
 
 class _RailToolCard extends StatelessWidget {
   const _RailToolCard({
+    super.key,
     required this.icon,
     required this.title,
     required this.onTap,

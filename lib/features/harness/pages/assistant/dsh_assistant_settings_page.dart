@@ -4,22 +4,20 @@ import 'package:provider/provider.dart';
 import '../../../../core/services/haptics.dart';
 import '../../../../icons/lucide_adapter.dart';
 import '../../../../l10n/app_localizations.dart';
-import '../../../../shared/responsive/screen_type_helper.dart';
 import '../../../../shared/widgets/ios_form_text_field.dart';
-import '../../../../shared/widgets/ios_settings_rows.dart';
 import '../../../../shared/widgets/section_card.dart';
 import '../../../../shared/widgets/snackbar.dart';
 import '../../../../theme/app_font_weights.dart';
 import '../../../../theme/app_semantic_colors.dart';
 import '../../models/dsh_remote.dart';
 import '../../models/dsh_web_ui_link.dart';
-import 'models/dsh_models_tab_body.dart';
 import '../../state/dsh_connections_provider.dart';
 import '../../state/dsh_gateway.dart';
 import '../../widgets/dsh_failure_text.dart';
 import '../../widgets/dsh_filled_button.dart';
 import '../../widgets/dsh_link_status_dot.dart';
 import '../../widgets/dsh_whale_mark.dart';
+import 'models/dsh_models_tab_body.dart';
 
 /// One remote DeepSeek Harness, as the user configures it.
 ///
@@ -109,9 +107,6 @@ class _DshAssistantSettingsPageState extends State<DshAssistantSettingsPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final connections = context.watch<DshConnectionsProvider?>();
-    final remote = _remoteId == null
-        ? null
-        : connections?.remoteById(_remoteId!);
     final status = _remoteId == null
         ? const DshLinkStatus.idle()
         : (connections?.linkStatus(_remoteId!) ?? const DshLinkStatus.idle());
@@ -170,7 +165,12 @@ class _DshAssistantSettingsPageState extends State<DshAssistantSettingsPage> {
                         catalog: catalog,
                         connections: connections,
                       ),
-                      DshModelsTabBody(remoteId: _remoteId ?? ''),
+                      DshModelsTabBody(
+                        remoteId: _remoteId ?? '',
+                        settings: connections?.providerSettingsFor(
+                          _remoteId ?? '',
+                        ),
+                      ),
                       _PlaceholderTab(
                         icon: Lucide.LayoutGrid,
                         title: l10n.dshTabContent,
@@ -293,7 +293,7 @@ class _DshAssistantSettingsPageState extends State<DshAssistantSettingsPage> {
                 busy: _submitting,
                 onPressed: _submit,
               ),
-              if (!isCreate && connections != null) ...[
+              if (!_isCreate && connections != null) ...[
                 const SizedBox(height: 10),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -345,7 +345,7 @@ class _DshAssistantSettingsPageState extends State<DshAssistantSettingsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(
-                  Lucide.Info,
+                  Lucide.BadgeInfo,
                   size: 18,
                   color: cs.onSurface.withValues(alpha: 0.55),
                 ),
@@ -475,33 +475,11 @@ class _DshAssistantSettingsPageState extends State<DshAssistantSettingsPage> {
       _success = null;
     });
     try {
-      DshRemote? remote = _remoteId == null
-          ? null
-          : connections.remoteById(_remoteId!);
-      if (remote == null) {
-        remote = await connections.createRemote(name: name, link: link);
-        if (!mounted) return;
-        setState(() => _remoteId = remote!.id);
-      } else if (remote.name != name ||
-          remote.baseUrl != link.baseUrl ||
-          remote.authority != link.authority ||
-          remote.secure != link.secure) {
-        remote = await connections.updateRemote(
-          remote.copyWith(
-            name: name,
-            baseUrl: link.baseUrl,
-            authority: link.authority,
-            secure: link.secure,
-          ),
-        );
-        if (!mounted) return;
-      }
-      final connectedRemote = remote;
-      if (connectedRemote == null) {
-        throw StateError('remote record missing after save');
-      }
+      final remote = await _resolveRemote(connections, name: name, link: link);
+      if (!mounted) return;
+      if (_remoteId != remote.id) setState(() => _remoteId = remote.id);
       final status = await connections.connect(
-        connectedRemote.id,
+        remote.id,
         launchToken: link.launchToken,
       );
       if (!mounted) return;
@@ -524,6 +502,37 @@ class _DshAssistantSettingsPageState extends State<DshAssistantSettingsPage> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  /// Returns the local record for this form, creating or updating it first.
+  ///
+  /// A record can disappear while the page is open (deleted from the owner
+  /// list in another window); that case creates it again, exactly like the
+  /// create flow, rather than leaving the page without a target.
+  Future<DshRemote> _resolveRemote(
+    DshConnectionsProvider connections, {
+    required String name,
+    required DshWebUiLink link,
+  }) async {
+    final id = _remoteId;
+    final existing = id == null ? null : connections.remoteById(id);
+    if (existing == null) {
+      return connections.createRemote(name: name, link: link);
+    }
+    if (existing.name == name &&
+        existing.baseUrl == link.baseUrl &&
+        existing.authority == link.authority &&
+        existing.secure == link.secure) {
+      return existing;
+    }
+    return connections.updateRemote(
+      existing.copyWith(
+        name: name,
+        baseUrl: link.baseUrl,
+        authority: link.authority,
+        secure: link.secure,
+      ),
+    );
   }
 
   Future<void> _confirmDelete(DshConnectionsProvider? connections) async {
@@ -586,7 +595,6 @@ class _DshSettingsTabStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return Container(
       height: 44,
       decoration: BoxDecoration(

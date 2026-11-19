@@ -104,6 +104,7 @@ class DshModelsSearchBar extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
           ),
           child: IosIconButton(
+            key: const ValueKey('dsh-models-add-provider'),
             icon: Lucide.Plus,
             size: 22,
             padding: EdgeInsets.zero,

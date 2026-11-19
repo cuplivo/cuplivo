@@ -1,5 +1,3 @@
-import 'package:flutter/widgets.dart';
-
 import 'package:Cuplivo/l10n/app_localizations.dart';
 
 import '../models/dsh_remote.dart';

@@ -1523,16 +1523,14 @@ class _HomePageState extends State<HomePage>
     String sessionId,
     DshChatViewState view,
   ) async {
+    final chatControllers = context.read<DshChatControllersProvider?>();
     final picked = await showDshModelPicker(
       context,
       catalog: view.modelCatalog,
       current: view.modelSelection,
     );
     if (picked == null || !mounted) return;
-    final session = context.read<DshChatControllersProvider?>()?.peek(
-      harness.remote,
-      sessionId,
-    );
+    final session = chatControllers?.peek(harness.remote, sessionId);
     if (session == null) return;
     try {
       await session.selectModel(picked);

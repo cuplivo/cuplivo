@@ -139,16 +139,19 @@ class _HarnessMorePageState extends State<HarnessMorePage> {
           SectionCard(
             children: [
               _MoreRow(
+                key: const Key('dsh-more-back-to-local'),
                 icon: Lucide.ArrowLeft,
                 label: l10n.dshMoreBackToLocal,
                 onTap: widget.onBackToLocalAssistants,
               ),
               _MoreRow(
+                key: const Key('dsh-more-settings'),
                 icon: Lucide.Settings,
                 label: l10n.dshMoreOpenSettings,
                 onTap: widget.onOpenSettings,
               ),
               _MoreRow(
+                key: const Key('dsh-more-about'),
                 icon: Lucide.BadgeInfo,
                 label: l10n.dshMoreAbout,
                 onTap: () => _showAbout(context),
@@ -163,6 +166,7 @@ class _HarnessMorePageState extends State<HarnessMorePage> {
 
 class _MoreRow extends StatelessWidget {
   const _MoreRow({
+    super.key,
     required this.icon,
     required this.label,
     required this.onTap,

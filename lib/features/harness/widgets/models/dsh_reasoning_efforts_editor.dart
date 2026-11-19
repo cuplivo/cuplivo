@@ -160,7 +160,6 @@ class DshReasoningEffortsEditor extends StatelessWidget {
 
 class _DshEffortChip extends StatelessWidget {
   const _DshEffortChip({
-    super.key,
     required this.choice,
     required this.enabled,
     required this.onRemove,

@@ -54,7 +54,7 @@ repository and is not committed. This document is the engineering breakdown.
 | P1 | DSH protocol ground truth | `dsh-protocol` | `docs/cuplivo-dsh/protocol.md` |
 | P2 | Client reference study + Cuplivo client design | `dsh-client-reference` | `docs/cuplivo-dsh/client-reference.md` |
 | P3 | Cuplivo integration map | `cuplivo-recon` | `docs/cuplivo-dsh/cuplivo-integration.md` |
-| P4 | E2E infra: us-vps DSH + CI wiring | `e2e-infra` | `docs/cuplivo-dsh/e2e-infra.md` |
+| P4 | E2E infra: e2e-vps DSH + CI wiring | `e2e-infra` | `docs/cuplivo-dsh/e2e-infra.md` |
 | P0 | Architecture contract, integration, PR | Lead | this doc + branch + PR |
 
 ## 4. Implementation phases

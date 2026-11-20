@@ -2410,7 +2410,7 @@ permission command call, error text mapping.
 ### 9.8 P8 — acceptance
 
 - [ ] One E2E scenario (`integration_test/e2e/dsh_remote_acceptance_test.dart`)
-      running against the real us-vps Host: connect → owner card → drawer
+      running against the real e2e-vps Host: connect → owner card → drawer
       workspaces/sessions → open a seeded session → streaming answer → tool
       card + approval → stop/queue → model & effort sheet → permission switch →
       settings 通用设置 two rows → models provider page → plugin WebView opens →
@@ -2515,7 +2515,7 @@ because it reuses Cuplivo's shell and renderer (that is the point of the design)
    design assumes it.
 9. **Brand**: the whale glyph is already used for the DeepSeek provider; reuse
    it for the harness avatar (current implementation) or use a neutral icon?
-10. **E2E seed data**: which sessions/workspaces the us-vps Host must have so
+10. **E2E seed data**: which sessions/workspaces the e2e-vps Host must have so
     the screenshots match the reference images (P4 owns the environment).
 
 ---

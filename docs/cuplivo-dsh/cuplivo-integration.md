@@ -739,7 +739,7 @@ showCustomBottomSheet(
 - 工作流 `.github/workflows/e2e-android.yml`；文档 `docs/e2e-android.md`；约定：**一个 PR 只能改一个** `integration_test/e2e/<name>_test.dart`，从 `integration_test/e2e/acceptance_support.dart` 的 `bootSeededApp` 启动，fixture 在 `test/support/e2e_app_seed.dart`（生产入口 + 临时目录 + Drift 种子），截图 1–3 张，driver `test_driver/e2e_review.dart` 上传 APK/截图/录屏；示例 `integration_test/e2e/example_acceptance_test.dart`（打开设置页并截图）。
 - DSH 的 e2e 特殊点：**不能依赖真实 DSH 服务器**（CI 环境无，且不许硬编码 IP/key）。两种做法：
   1. 在 e2e fixture 里起一个**本地 mock DSH**（Dart 起 `HttpServer`，实现 `/connect`、`session.list`、`session.projections`、最小 follow 流）——推荐，稳定且能覆盖 UI；e2e fixture 已有“替换 path_provider 后跑生产 app”的先例，加本地 HTTP server 只是多一个后台任务。
-  2. 连接真实 us-vps 上的 DSH：需要 repo secrets（URL/token），且 token 进程重启即失效 → 不适合 CI。仅手动验证时使用，**绝不能把 key/IP 写进代码**（identity sweep 会扫）。
+  2. 连接真实 e2e-vps 上的 DSH：需要 repo secrets（URL/token），且 token 进程重启即失效 → 不适合 CI。仅手动验证时使用，**绝不能把 key/IP 写进代码**（identity sweep 会扫）。
 - e2e 只验证**新增 UI 是否符合参考图**（目标明确：不负责回归）；建议场景：设置›助手与群聊›+›DeepSeek Harness›直接连接（输入 mock URL）→ 连接成功行出现 → 选中助手 → 会话页出现模型胶囊/权限选择器 → 打开右栏截图。
 - PR 正文用中文，附截图（目标要求）。
 

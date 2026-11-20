@@ -34,7 +34,7 @@ Flutter entry (plugin UI only).
   - Card A: leading circular avatar (DSH whale mark), label `助手名称`, text
     field with the current name.
   - Card B: label `请输入DeepSeek Harness的WebUI访问链接`; one text field with
-    placeholder `例如127.0.0.1:3080/?token=PEaxKDfNOHzbHp……`; full-width filled
+    placeholder `例如127.0.0.1:3080/?token=你的访问令牌……`; full-width filled
     button `确认`.
 - The tab strip scrolls horizontally when the four tabs do not fit.
 

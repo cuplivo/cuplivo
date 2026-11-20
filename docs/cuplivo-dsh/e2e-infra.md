@@ -1,7 +1,7 @@
 # Real-DSH Android E2E infrastructure
 
 Status: **part A live and verified; part B prepared and awaiting approval.**
-The real DeepSeek Harness instance is running on the disposable `us-vps1` VPS
+The real DeepSeek Harness instance is running on the disposable `e2e-vps` VPS
 and was exercised end to end (launch token → operator cookie → RPC → WebSocket
 mux → real streamed model answer) from a host outside that VPS. The workflow
 change that feeds the endpoint into the Android E2E build is written and
@@ -26,7 +26,7 @@ GitHub Actions runner (ubuntu-24.04, Android API 36 emulator)
         │  HTTPS 443? no: TLS on <e2e-dsh-port> only
         │  Host: <e2e-dsh-host>:<e2e-dsh-port>
         ▼
-nginx on us-vps1  — public entry point, existing publicly-trusted certificate
+nginx on e2e-vps  — public entry point, existing publicly-trusted certificate
         │  plain HTTP, loopback only
         ▼
 127.0.0.1:3080  dsh --profile web (0.2.2-rc.1, Node 22.22.1)
@@ -52,8 +52,8 @@ Why this shape:
 
 ## 2. Reproducible VPS setup
 
-Target: Ubuntu 24.04, 2 vCPU / 2 GiB RAM / 30 GiB disk, `us-vps1` in the
-operator's SSH config (`ssh us-vps1`). Every command below is run on that VPS
+Target: Ubuntu 24.04, 2 vCPU / 2 GiB RAM / 30 GiB disk, `e2e-vps` in the
+operator's SSH config (`ssh e2e-vps`). Every command below is run on that VPS
 as root unless stated otherwise. Replace `<e2e-dsh-host>` with the public
 hostname whose certificate and DNS record point at this machine, and
 `<e2e-dsh-port>` with the dedicated TLS port (8443 in the current setup).
@@ -380,7 +380,7 @@ operator's machine (never inside the repository):
 
 # Reset: clear sessions/projections but keep the workspace and profile, then
 # refresh the secrets from the new process token.
-ssh us-vps1 dsh-e2e-reset
+ssh e2e-vps dsh-e2e-reset
 /root/research/e2e-infra/publish-secrets.sh
 ```
 
@@ -502,7 +502,7 @@ Create in `cuplivo/cuplivo` → Settings → Secrets and variables → Actions:
 | name | kind | value |
 |---|---|---|
 | `E2E_DSH_URL` | repository secret | the base root, e.g. `https://<e2e-dsh-host>:<e2e-dsh-port>` |
-| `E2E_DSH_TOKEN` | repository secret | the current launch token (`ssh us-vps1 dsh-e2e-url`) |
+| `E2E_DSH_TOKEN` | repository secret | the current launch token (`ssh e2e-vps dsh-e2e-url`) |
 
 Both are secrets, not variables, so the values are masked in logs. The operator
 can set them without exposing the values:
@@ -628,7 +628,7 @@ printf '%s' "$TOKEN"    | gh secret set E2E_DSH_TOKEN -R cuplivo/cuplivo
 +            303|307) echo "DSH endpoint accepted the launch token." ;;
 +            401|403)
 +              echo "::error::The DSH endpoint rejected the launch token (HTTP $status)."
-+              echo "::error::The token is minted per DSH process: refresh the E2E_DSH_TOKEN secret with 'ssh us-vps1 dsh-e2e-url' and re-run."
++              echo "::error::The token is minted per DSH process: refresh the E2E_DSH_TOKEN secret with 'ssh e2e-vps dsh-e2e-url' and re-run."
 +              exit 1
 +              ;;
 +            000|'')
@@ -916,7 +916,7 @@ downstream frames through nginx.
 
 | item | state |
 |---|---|
-| DSH 0.2.2-rc.1 installed on us-vps1, isolated home, web profile | done |
+| DSH 0.2.2-rc.1 installed on e2e-vps, isolated home, web profile | done |
 | systemd unit (`enabled`, `Restart=always`, resource/hardening fences) | done |
 | DeepSeek provider using the temporary test key | done — real turns recorded |
 | TLS front on the dedicated port, loopback-only DSH listener | done |

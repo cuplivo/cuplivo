@@ -551,26 +551,44 @@ async function main() {
     }
 
     // 5. The official 更多 entry. The menu is a transient Radix popover: poll
-    // for it instead of asserting one frame, and accept the menu rows either as
-    // menu items or as their text in the page body. The landing starts from a
-    // fresh root page: the previous rail landing changed the SPA's route, and
-    // DSH restores the last workspace/rail state on a reload, while a plain
-    // navigation to the base root is the state the app's 更多 row opens from.
-    await send('Page.navigate', { url: baseUrl });
-    if (!(await waitReady())) {
-      throw new Error('the Host did not return to its root page for the 更多 landing');
-    }
-    let moreState = await state();
-    await evaluateScript(scripts.moreMenuLanding, 'more-menu landing');
+    // for it instead of asserting one frame, and retry the whole landing (fresh
+    // root each time) because the previous rail landing left the SPA restoring
+    // its rail page, which can swallow the first attempt. The 更多 row lives in
+    // the left drawer, so close the right rail first when the restore reopened
+    // it, and let the restored page settle before the script runs.
     const moreMarkers = /Browse other plugins|Create your plugin|浏览更多插件|创建你的插件|他のプラグイン|다른 플러그인/i;
-    for (let attempt = 0; attempt < 20; attempt += 1) {
+    let moreState = await state();
+    let moreOk = false;
+    for (let attempt = 1; attempt <= 3 && !moreOk; attempt += 1) {
+      await send('Page.navigate', { url: baseUrl });
+      if (!(await waitReady())) {
+        throw new Error(`the Host did not return to its root page for the 更多 landing (attempt ${attempt})`);
+      }
+      await sleep(900);
+      await evaluate(
+        `(() => {
+          const close = document.querySelector('[data-sidebar-right-close]');
+          if (close) close.click();
+        })()`,
+      );
       await sleep(400);
-      moreState = await state();
-      if (moreState.menuItems.length > 0 || moreMarkers.test(moreState.bodyText)) break;
+      const landingPosts = await evaluateScript(
+        scripts.moreMenuLanding,
+        `more-menu landing (attempt ${attempt})`,
+      );
+      log(
+        `更多 landing attempt ${attempt} posts: ${JSON.stringify(landingPosts.map((post) => String(post.payload).slice(0, 120)))}`,
+      );
+      for (let wait = 0; wait < 20; wait += 1) {
+        await sleep(400);
+        moreState = await state();
+        if (moreState.menuItems.length > 0 || moreMarkers.test(moreState.bodyText)) break;
+      }
+      moreOk = moreState.menuItems.length > 0 || moreMarkers.test(moreState.bodyText);
     }
     check(
       'the 更多 landing opens the official more menu',
-      moreState.menuItems.length > 0 || moreMarkers.test(moreState.bodyText),
+      moreOk,
       moreState.menuItems.join(' | ') || moreState.bodyText.slice(0, 200),
     );
     await capture('05-more-menu');

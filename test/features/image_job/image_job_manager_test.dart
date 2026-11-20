@@ -111,6 +111,34 @@ void main() {
     },
   );
 
+  test('a runner that outlives the timeout sees it is no longer wanted', () async {
+    // `Future.timeout` completes the manager's wrapper, not the runner's future:
+    // a late answer keeps running and would write its bytes at the promised path
+    // for a job the user was told had failed. The coordinator checks liveness
+    // before writing; this pins the contract that check relies on — by the time
+    // the runner continues, the job is already terminal.
+    late ImageJobState stateSeenByRunner;
+    // `late` so the runner can read the manager it is being installed on.
+    late final ImageJobManager manager;
+    manager = _manager(
+      timeout: const Duration(milliseconds: 20),
+      runner: (job) async {
+        await Future<void>.delayed(const Duration(milliseconds: 120));
+        stateSeenByRunner = manager.byId(job.id)!.state;
+        return const ImageJobOutcome(uri: '/tmp/late.png');
+      },
+    );
+    final job = _create(manager);
+
+    final settled = await manager.start(job.id);
+    expect(settled.state, ImageJobState.failed);
+    expect(settled.errorCode, 'timeout');
+
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    expect(stateSeenByRunner, ImageJobState.failed);
+    expect(manager.byId(job.id)!.resultUri, isNull);
+  });
+
   test('a job that outlives the timeout fails, it does not hang', () async {
     final gate = Completer<ImageJobOutcome>();
     final manager = _manager(

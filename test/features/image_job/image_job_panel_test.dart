@@ -40,6 +40,7 @@ ImageJob _job({
 ImagePart _part({
   ImagePartState? state = ImagePartState.pending,
   String? prompt = '霓虹雨夜的旧书店',
+  int? durationMs,
 }) {
   return ImagePart(
     uri: '/tmp/img_abc.png',
@@ -48,6 +49,7 @@ ImagePart _part({
     state: state,
     prompt: prompt,
     model: 'openai::gpt-image-1',
+    durationMs: durationMs,
   );
 }
 
@@ -191,6 +193,22 @@ void main() {
 
     expect(find.text('gpt-image-1'), findsOneWidget);
     expect(find.text('霓虹雨夜的旧书店'), findsOneWidget);
+  });
+
+  testWidgets('a restored picture still shows how long it took', (
+    tester,
+  ) async {
+    // The duration lives on the part exactly so it survives a restart; reading
+    // the live job unconditionally dropped 用时 for every picture drawn in an
+    // earlier session, while the card header kept showing it.
+    final l10n = await pumpBody(
+      tester,
+      ImageJobPanelData(part: _part(state: null, durationMs: 12600)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(l10n.imageJobPanelElapsedLabel), findsOneWidget);
+    expect(find.text('12.6s'), findsOneWidget);
   });
 
   testWidgets(

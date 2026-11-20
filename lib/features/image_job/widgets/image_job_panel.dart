@@ -145,7 +145,11 @@ class _ImageJobPanelBodyState extends State<ImageJobPanelBody> {
     final job =
         (assetId == null ? null : coordinator?.jobForAsset(assetId)) ??
         data.job;
-    final elapsed = job == null ? null : jobDuration(job);
+    // The same expression the card uses: the part carries the duration exactly so
+    // it survives a restart, and the live job only fills in what the part cannot
+    // know. Preferring the job unconditionally dropped 用时 for every picture
+    // drawn in an earlier session.
+    final elapsed = job == null ? part.duration : jobDuration(job);
     final muted = cs.onSurface.withValues(alpha: 0.6);
     final body = TextStyle(fontSize: 13, color: cs.onSurface);
 

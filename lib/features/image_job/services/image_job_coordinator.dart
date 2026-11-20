@@ -295,6 +295,14 @@ class ImageJobCoordinator extends ChangeNotifier {
         references: _references[job.id] ?? const <ImageReference>[],
       ),
     );
+    // The manager's timeout completes its *wrapper*, not this future: the answer
+    // can arrive after the job was failed and the user was told so. Writing here
+    // would leave a paid-for file at the promised path whose part says `failed` —
+    // never rendered, never sent, and swept by nothing. Check liveness between
+    // receiving the bytes and committing them.
+    if (manager.byId(job.id)?.state != ImageJobState.running) {
+      throw StateError('image job ${job.id} is no longer running');
+    }
     await _writeBytes(job.uri, result.bytes);
     return ImageJobOutcome(uri: job.uri, mime: result.mime);
   }
@@ -341,16 +349,39 @@ class ImageJobCoordinator extends ChangeNotifier {
   /// overwritten by our (slightly older) snapshot.
   Future<void> _persist(ImagePart part) {
     final jobId = part.jobId;
-    final job = jobId == null ? null : manager.byId(jobId);
+    if (jobId == null) return Future<void>.value();
+    final job = manager.byId(jobId);
     if (job == null) return Future<void>.value();
     final messageId = job.messageId;
-    return _writes.run(messageId, () => _writePart(messageId, part)).catchError(
-      (Object error) {
-        // A failed write must not leave the dedupe claiming this state was
-        // persisted: clearing it lets the next notify try again.
-        _written.remove(jobId);
-      },
-    );
+    return _writes
+        .run(messageId, () => _writeWithRetry(messageId, part, jobId))
+        .catchError((Object error) {
+          // Nothing left to try. Clearing the dedupe is still right: it lets a
+          // later transition (another job in this reply, another reply) rewrite
+          // this part, and keeps `_written` from claiming a write that failed.
+          _written.remove(jobId);
+        });
+  }
+
+  /// Write once, then once more after a beat.
+  ///
+  /// `_mirror` runs only on a state transition, and a terminal job has none left —
+  /// so "the next notify will retry" was not true, and a single failed write left
+  /// the row `pending` for good (after a restart the picture read as "interrupted"
+  /// while its file sat on disk). Bounded on purpose: a persistent failure is a
+  /// real failure, and the caller clears the dedupe so a later write can still fix
+  /// the row.
+  Future<void> _writeWithRetry(
+    String messageId,
+    ImagePart part,
+    String jobId,
+  ) async {
+    try {
+      await _writePart(messageId, part);
+    } catch (_) {
+      await Future<void>.delayed(const Duration(seconds: 1));
+      await _writePart(messageId, part);
+    }
   }
 
   /// One chain per message id, so two transitions of the same reply cannot write

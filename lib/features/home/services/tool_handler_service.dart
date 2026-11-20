@@ -720,7 +720,17 @@ class ToolHandlerService {
                 tool: name,
               );
             }
-            final coordinator = contextProvider.read<ImageJobCoordinator>();
+            // Same lookup as the renderer and the sub-row: the coordinator is
+            // optional, and a missing one must answer with a tool error instead
+            // of throwing out of a tool call.
+            final coordinator = imageJobCoordinatorOf(contextProvider);
+            if (coordinator == null) {
+              return _toolError(
+                error: 'tool_disabled',
+                message: 'Image generation is not available right now.',
+                tool: name,
+              );
+            }
             final start = await coordinator.begin(
               conversationId: conversationId,
               toolCallId: toolCallId ?? '',

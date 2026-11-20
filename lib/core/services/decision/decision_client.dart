@@ -52,19 +52,33 @@ abstract final class DecisionClient {
   }
 
   /// Reads an override the way a person types one: a whole URL, host-and-path,
-  /// or a bare path.
+  /// a bare path, or a path whose leading slash was forgotten.
   ///
   /// A bare path is resolved against the provider's **origin**, not its base
   /// URL: the decision endpoint sits beside `/v1`, not under it, so
   /// `/api/alpha/decisions` against `https://openrouter.ai/api/v1` must become
   /// `https://openrouter.ai/api/alpha/decisions`. A missing scheme borrows the
   /// provider's, so a self-hosted `http` gateway keeps its scheme.
+  ///
+  /// `api/alpha/decisions` is read as that path rather than as a host named
+  /// `api`: a first segment with no dot, no port and not `localhost` is not a
+  /// hostname anyone means here, and reading it as one silently addresses
+  /// `https://api/alpha/decisions`.
   static Uri resolveDecisionUrl(String raw, {required String providerBaseUrl}) {
     final value = raw.trim();
     final base = Uri.tryParse(providerBaseUrl.trim());
     final scheme = (base != null && base.scheme.isNotEmpty)
         ? base.scheme
         : 'https';
+    Uri? origin() {
+      if (base == null || base.host.isEmpty) return null;
+      return Uri(
+        scheme: scheme,
+        host: base.host,
+        port: base.hasPort ? base.port : null,
+      );
+    }
+
     if (RegExp(
       r'^[a-z][a-z0-9+.\-]*://',
       caseSensitive: false,
@@ -73,13 +87,17 @@ abstract final class DecisionClient {
     }
     if (value.startsWith('//')) return Uri.parse('$scheme:$value');
     if (value.startsWith('/')) {
-      if (base == null || base.host.isEmpty) return Uri.parse(value);
-      final origin = Uri(
-        scheme: scheme,
-        host: base.host,
-        port: base.hasPort ? base.port : null,
-      );
-      return origin.resolve(value);
+      final at = origin();
+      return at == null ? Uri.parse(value) : at.resolve(value);
+    }
+    final firstSegment = value.split('/').first;
+    final forgottenSlash =
+        firstSegment.toLowerCase() != 'localhost' &&
+        !firstSegment.contains('.') &&
+        !firstSegment.contains(':');
+    if (forgottenSlash) {
+      final at = origin();
+      if (at != null) return at.resolve('/$value');
     }
     return Uri.parse('$scheme://$value');
   }

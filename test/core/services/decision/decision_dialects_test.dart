@@ -343,6 +343,30 @@ void main() {
         ).toString(),
         'http://127.0.0.1:8099/compatible-mode/v1/systemone',
       );
+      // A path typed without its leading slash is a path, not a host named
+      // `api`.
+      expect(
+        DecisionClient.resolveDecisionUrl(
+          'api/alpha/decisions',
+          providerBaseUrl: base,
+        ).toString(),
+        'https://openrouter.ai/api/alpha/decisions',
+      );
+      // …while a real host still is one, dotted or dotted-free.
+      expect(
+        DecisionClient.resolveDecisionUrl(
+          'localhost/api/x',
+          providerBaseUrl: base,
+        ).toString(),
+        'https://localhost/api/x',
+      );
+      expect(
+        DecisionClient.resolveDecisionUrl(
+          'kev.local/api/x',
+          providerBaseUrl: base,
+        ).toString(),
+        'https://kev.local/api/x',
+      );
     });
   });
 }

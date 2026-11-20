@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:Cuplivo/features/home/widgets/message_list_view.dart';
+import 'package:flutter/foundation.dart';
 import 'package:Cuplivo/main.dart' as app;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';

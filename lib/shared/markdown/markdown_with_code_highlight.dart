@@ -29,6 +29,7 @@ class MarkdownWithCodeHighlight extends StatefulWidget {
     this.uiHost,
     this.detailsStateKey,
     this.jobImageBuilder,
+    this.documentStart = -1,
   });
   final String text;
   final UiHostBinding? uiHost;
@@ -61,8 +62,12 @@ class MarkdownWithCodeHighlight extends StatefulWidget {
     String destination,
     int offset,
     String document,
+    int documentStart,
   )?
   jobImageBuilder;
+
+  /// Where this document starts in the reply, in reply coordinates.
+  final int documentStart;
 
   @override
   State<MarkdownWithCodeHighlight> createState() =>
@@ -87,6 +92,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
     _imageBuilder = KelivoImageBuilder(
       jobImageBuilder: widget.jobImageBuilder,
       document: () => _source,
+      documentStart: widget.documentStart,
     );
   }
 
@@ -96,10 +102,12 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
     if (oldWidget.text != widget.text) {
       _source = UnicodeSanitizer.sanitize(widget.text);
     }
-    if (oldWidget.jobImageBuilder != widget.jobImageBuilder) {
+    if (oldWidget.jobImageBuilder != widget.jobImageBuilder ||
+        oldWidget.documentStart != widget.documentStart) {
       _imageBuilder = KelivoImageBuilder(
         jobImageBuilder: widget.jobImageBuilder,
         document: () => _source,
+        documentStart: widget.documentStart,
       );
     }
   }

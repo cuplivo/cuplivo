@@ -1149,6 +1149,79 @@ void main() {
     expect(find.byType(ImageJobCard), findsOneWidget);
   });
 
+  testWidgets('one promise written in two text blocks still draws one card', (
+    tester,
+  ) async {
+    // Ownership is a property of the reply, not of the bubble that happens to be
+    // rendering: the same uri in two blocks used to give each block its own card
+    // (two headers, two ⋯, both opening the same panel). The first mention in
+    // reply coordinates owns it.
+    const uri = 'kelivo-file:///images/img_abcdefghijklmnopqrst.png';
+    await tester.pumpWidget(
+      _buildHarness(
+        child: ChatMessageWidget(
+          message: ChatMessage(
+            id: 'two-blocks-job-image',
+            role: 'assistant',
+            conversationId: 'c1',
+            parts: const [
+              TextPart('![]($uri)'),
+              ToolCallPart(
+                '{"id":"call-1","name":"generate_image","arguments":{},"content":"done"}',
+              ),
+              TextPart('Here it is again:\n\n![]($uri)'),
+              ImagePart(
+                uri: uri,
+                assetId: 'img_abcdefghijklmnopqrst',
+                jobId: 'job-1',
+              ),
+            ],
+          ),
+          showModelIcon: false,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ImageJobCard), findsOneWidget);
+  });
+
+  testWidgets('one promise in two split paragraphs still draws one card', (
+    tester,
+  ) async {
+    const uri = 'kelivo-file:///images/img_abcdefghijklmnopqrst.png';
+    final settings = SettingsProvider(createBusinessTestPreferences());
+    await settings.loaded;
+    await settings.setAssistantBubbleSplitParagraphs(true);
+
+    await tester.pumpWidget(
+      _buildHarness(
+        settings: settings,
+        child: ChatMessageWidget(
+          message: ChatMessage(
+            id: 'split-paragraph-job-image',
+            role: 'assistant',
+            conversationId: 'c1',
+            parts: const [
+              TextPart('![]($uri)\n\nAgain:\n\n![]($uri)'),
+              ImagePart(
+                uri: uri,
+                assetId: 'img_abcdefghijklmnopqrst',
+                jobId: 'job-1',
+              ),
+            ],
+          ),
+          showModelIcon: false,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ImageJobCard), findsOneWidget);
+  });
+
   testWidgets('a placeholder in the second text block still draws its card', (
     tester,
   ) async {

@@ -2906,6 +2906,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     Object? detailsStateKey,
     UiTextSlice? uiSource,
     SourceTextMap? sourceMap,
+    int documentStart = -1,
   }) {
     final bool isDesktop =
         defaultTargetPlatform == TargetPlatform.macOS ||
@@ -2934,6 +2935,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
         text: visualContent,
         detailsStateKey: detailsStateKey,
         jobImageBuilder: _buildInlineJobImage,
+        documentStart: documentStart,
         highlightRanges: highlights,
         highlightColor: highlightColor,
         uiHost: widget.message.role != 'assistant' || uiSource == null
@@ -3070,6 +3072,10 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     final detailsBlockKey = sourceMap == null
         ? blockKey
         : ('source', sourceMap.sourceRange(0, 0).start);
+    // Where this block sits in the reply. A node's offset is relative to its own
+    // document, so ownership needs both halves; -1 means "cannot be
+    // established", and the caller then draws the card rather than hiding it.
+    final blockStart = _ownershipContent?.indexOf(visualContent) ?? -1;
     return <Widget>[
       for (var i = 0; i < parts.length; i++)
         _buildAssistantTextBlock(
@@ -3080,6 +3086,9 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
           citationIndexResolver,
           findBlock: findBlock,
           findParagraph: parts[i].blockMap,
+          documentStart: blockStart < 0
+              ? -1
+              : blockStart + (parts[i].blockMap?.sourceRange(0, 0).start ?? 0),
           contentKey: parts.length == 1 ? '' : '$blockKey.$i',
           detailsStateKey: (widget.message.id, detailsBlockKey, i),
           sourceMap: sourceMap == null
@@ -3100,6 +3109,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     Object? detailsStateKey,
     UiTextSlice? uiSource,
     SourceTextMap? sourceMap,
+    int documentStart = -1,
   }) {
     return _assistantBlockWidth(
       context,
@@ -3116,6 +3126,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
           detailsStateKey: detailsStateKey,
           uiSource: uiSource,
           sourceMap: sourceMap,
+          documentStart: documentStart,
         ),
       ),
     );
@@ -3238,15 +3249,25 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     String destination,
     int offset,
     String document,
+    int documentStart,
   ) {
     final part = _imageJobPartForUri(destination);
     if (part == null) return null;
-    // The same promise may be written twice *in one document*. Only its first
-    // mention there owns the card; a later one is the same picture, so it draws
-    // the picture itself (or nothing while there still is none) instead of a
-    // second skeleton with a second ⋯.
-    final first = _firstImageOffsetsIn(document)[destination];
-    if (first != null && first != offset) {
+    // One picture, one card — decided in *reply* coordinates, because a reply
+    // renders as several documents (one per text block, one per paragraph when
+    // the split option is on) and a node's offset only means something inside
+    // its own document. The document's start is where its text sits in the
+    // reply; adding the node's offset puts both systems in one.
+    //
+    // When that start cannot be established (a trimmed slice, a transformed
+    // document), the card is drawn: a duplicate is a blemish, a missing picture
+    // is the bug this whole path exists to avoid.
+    final firstInReply = _replyImageOffsets()[destination];
+    final owns =
+        firstInReply == null ||
+        documentStart < 0 ||
+        documentStart + offset == firstInReply;
+    if (!owns) {
       final job = imageJobCoordinatorOf(context)?.jobForAsset(part.assetId);
       final complete = part.hasBytes || job?.state == ImageJobState.completed;
       // `null` means "an ordinary Markdown image", which is the renderer's own
@@ -3268,25 +3289,41 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     );
   }
 
-  /// Source offset of each placeable uri's first mention in one rendered
-  /// document.
+  /// The reply's own image offsets, by the renderer's parse — one answer per
+  /// reply text, not per document and not per build.
   ///
-  /// The question "is this the first mention" only has an answer inside a
-  /// document: offsets from the whole reply and offsets from a bubble are
-  /// different coordinate systems, and comparing them made the only mention in a
-  /// later block look like a repeat — so nothing was drawn at all. Memoised for
-  /// the text most recently asked about, which is the one being laid out.
-  Map<String, int> _firstImageOffsetsIn(String document) {
-    if (_jobImageSources.isEmpty) return const <String, int>{};
-    if (_ownershipDocument == document) return _ownershipOffsets;
-    final offsets = markdownImageFirstOffsets(document);
-    _ownershipDocument = document;
-    _ownershipOffsets = offsets;
+  /// Two guards, because this runs on every build of a reply that is drawing: a
+  /// substring test is a *necessary* condition (a rendered image must spell its
+  /// destination in the source), so a reply that has not written the placeholder
+  /// yet — the whole painting window — pays one scan instead of a parse; and the
+  /// answer is memoised on the text, so a rebuild that changed nothing pays
+  /// nothing.
+  Map<String, int> _replyImageOffsets() {
+    final content = _ownershipContent;
+    if (content == null || _jobImageSources.isEmpty) {
+      return const <String, int>{};
+    }
+    if (_offsetsForContent == content) return _replyOffsets;
+    final candidates = _jobImageSources.where(content.contains).toSet();
+    final offsets = candidates.isEmpty
+        ? const <String, int>{}
+        : markdownImageFirstOffsets(content).entries
+              .where((entry) => candidates.contains(entry.key))
+              .fold(
+                <String, int>{},
+                (out, entry) => out..[entry.key] = entry.value,
+              );
+    _offsetsForContent = content;
+    _replyOffsets = offsets;
     return offsets;
   }
 
-  String? _ownershipDocument;
-  Map<String, int> _ownershipOffsets = const <String, int>{};
+  /// The reply text the Markdown renderer is laying out, for coordinate
+  /// arithmetic. Set once per build, before the bubbles are built.
+  String? _ownershipContent;
+
+  String? _offsetsForContent;
+  Map<String, int> _replyOffsets = const <String, int>{};
 
   Widget _buildAssistantImageBlock(
     BuildContext context,
@@ -3574,25 +3611,13 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
         for (final part in widget.message.parts)
           if (part is ImagePart && part.jobId != null) part.uri,
       ]);
-    // What the Markdown renderer will hand its image builder — the renderer's own
-    // parse, not a substring test. "Mentions the uri" and "draws the uri" differ
-    // in a fence, in inline code, and in a plain link; where they differ, the
-    // part's block is the only thing left that can show the picture, so the
-    // suppression must not fire. Asked once per reply: this only decides whether
-    // the *part's own block* is redundant, which is a question about the reply as
-    // a whole. Ownership *within* a document is a separate question and is
-    // answered in `_firstImageOffsetsIn`.
-    final renderedImages =
-        enableAssistantMarkdown && _jobImageSources.isNotEmpty
-        ? markdownImageFirstOffsets(visualContent)
-        : const <String, int>{};
+    // Which of this reply's promised pictures the text actually places, and
+    // where. `_replyImageOffsets` refuses to parse a reply that cannot contain
+    // one and remembers the answer for the text it just looked at.
+    _ownershipContent = enableAssistantMarkdown ? visualContent : null;
     _inlineJobUris
       ..clear()
-      ..addAll(
-        enableAssistantMarkdown
-            ? _jobImageSources.where(renderedImages.containsKey)
-            : const <String>[],
-      );
+      ..addAll(_replyImageOffsets().keys);
     final visualTranslation = widget.message.translation != null
         ? _applyVisualAssistantRegexes(
             widget.message.translation!,

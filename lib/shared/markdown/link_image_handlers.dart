@@ -112,7 +112,11 @@ class KelivoLinkHandler implements LinkHandler {
 }
 
 class KelivoImageBuilder implements ImageBuilder {
-  const KelivoImageBuilder({this.jobImageBuilder, this.document});
+  const KelivoImageBuilder({
+    this.jobImageBuilder,
+    this.document,
+    this.documentStart = -1,
+  });
 
   /// Draws the application's own block for a destination instead of a picture.
   ///
@@ -126,6 +130,7 @@ class KelivoImageBuilder implements ImageBuilder {
     String destination,
     int offset,
     String document,
+    int documentStart,
   )?
   jobImageBuilder;
 
@@ -136,6 +141,10 @@ class KelivoImageBuilder implements ImageBuilder {
   /// streaming depends on.
   final String Function()? document;
 
+  /// Where [document] starts in the reply, so its node offsets can be read in
+  /// reply coordinates. `-1` when the caller cannot establish it.
+  final int documentStart;
+
   @override
   Widget build(BuildContext context, ImageNode image, MarkstreamTheme theme) {
     final owned = jobImageBuilder?.call(
@@ -143,6 +152,7 @@ class KelivoImageBuilder implements ImageBuilder {
       image.destination,
       image.span.start,
       document?.call() ?? '',
+      documentStart,
     );
     if (owned != null) return owned;
     final size = markdownImageSizeOf(toPlainText(image));

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 
@@ -29,7 +28,9 @@ abstract interface class DshTerminalRuntimeHost {
 /// unsupported.
 class DshWorkspaceRuntime implements WorkspaceRuntime {
   DshWorkspaceRuntime({required DshClient client, required String sessionId})
+    // ignore: prefer_initializing_formals
     : _client = client,
+      // ignore: prefer_initializing_formals
       _sessionId = sessionId;
 
   final DshClient _client;
@@ -66,10 +67,10 @@ class DshWorkspaceRuntime implements WorkspaceRuntime {
 
   @override
   Future<RuntimeStatus> status() async {
-    final environment = await environment();
+    final environmentInfo = await environment();
     return RuntimeStatus(
       ready: true,
-      reason: environment.cwd == null
+      reason: environmentInfo.cwd == null
           ? 'the Host did not report a terminal working directory'
           : null,
       engine: 'dsh',
@@ -85,7 +86,7 @@ class DshWorkspaceRuntime implements WorkspaceRuntime {
     required int cols,
     required int rows,
   }) async {
-    final environment = await environment();
+    final environmentInfo = await environment();
     final session = _session;
     final info = await session.createTerminal(cols: cols, rows: rows);
     _createdTerminalIds.add(info.id);
@@ -93,7 +94,7 @@ class DshWorkspaceRuntime implements WorkspaceRuntime {
     return DshPtySession(
       attachment: attachment,
       initialInfo: info,
-      environment: environment,
+      environment: environmentInfo,
     );
   }
 
@@ -154,6 +155,7 @@ class DshPtySession implements PtySession {
     required DshTerminalEnvironment environment,
   }) : _attachment = attachment,
        _info = ValueNotifier<DshTerminalInfo?>(initialInfo),
+       // ignore: prefer_initializing_formals
        _environment = environment {
     _writable = ValueNotifier<bool>(true);
     _frames = _attachment.frames.listen(

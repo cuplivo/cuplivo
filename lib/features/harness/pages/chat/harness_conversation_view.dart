@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
@@ -63,13 +65,15 @@ class HarnessConversationView extends StatefulWidget {
   /// opens the picker itself.
   final VoidCallback? onRequestModelPicker;
 
-  /// Plus-menu 工作区 row; hidden when null (no workspace UI on this host).
+  /// Host entry point retained for the app-bar/drawer chrome. The v2 plus menu
+  /// mirrors the remote composer's 添加/指令 structure, which has no workspace
+  /// row; the host's own surfaces still pass these through.
   final VoidCallback? onOpenWorkspace;
 
-  /// Plus-menu 插件面板 row: the host shows its right rail.
+  /// Host entry point retained for the app-bar/drawer chrome (no v2 plus row).
   final VoidCallback? onOpenRightRail;
 
-  /// Plus-menu DSH 设置 row.
+  /// Host entry point retained for the app-bar/drawer chrome (no v2 plus row).
   final VoidCallback? onOpenAssistantSettings;
 
   @override

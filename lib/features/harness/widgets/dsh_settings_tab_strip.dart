@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/services/haptics.dart';
-import '../../../icons/lucide_adapter.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../theme/app_semantic_colors.dart';
 import '../pages/assistant/dsh_settings_tabs.dart';

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:path/path.dart' as p;
 
 import 'package:Cuplivo/features/harness/models/dsh_remote.dart';

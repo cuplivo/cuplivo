@@ -30,7 +30,8 @@ DshProviderSettingsException dshProviderSettingsExceptionFromClient(
     dsh.DshClosedException() => DshProviderSettingsFailure.unreachable,
     dsh.DshRemoteException(:final code) => _failureForCode(code),
     dsh.DshProtocolException() ||
-    dsh.DshEndpointException() => DshProviderSettingsFailure.unknown,
+    dsh.DshEndpointException() ||
+    dsh.DshFileException() => DshProviderSettingsFailure.unknown,
   };
   return DshProviderSettingsException(failure, detail: error.message);
 }

@@ -88,13 +88,16 @@ Future<DshTerminalLaunch> launchDshTerminal({
       cause: 'the remote is not connected',
     );
   }
-  if (gateway is! DshTerminalRuntimeHost) {
+  final host = gateway is DshTerminalRuntimeHost
+      ? gateway as DshTerminalRuntimeHost
+      : null;
+  if (host == null) {
     throw const DshTerminalLaunchException(
       DshTerminalLaunchFailure.noGateway,
       cause: 'this gateway has no terminal adapter',
     );
   }
-  final runtime = gateway.terminalRuntimeFor(sessionId);
+  final runtime = host.terminalRuntimeFor(sessionId);
   if (runtime == null) {
     throw const DshTerminalLaunchException(
       DshTerminalLaunchFailure.noRuntime,

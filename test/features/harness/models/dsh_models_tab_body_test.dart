@@ -170,6 +170,14 @@ void main() {
   testWidgets('an existing provider renders the editable R11 model rows', (
     tester,
   ) async {
+    // Tall surface: the R11 body is one scrollable form and the save action is
+    // always part of it (never gated on dirtiness); a phone-sized surface would
+    // simply build it below the fold.
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     final gateway = _FakeSettingsGateway(<DshProviderEntry>[
       _entry(id: 'deepseek-official', name: 'DeepSeek'),
     ]);

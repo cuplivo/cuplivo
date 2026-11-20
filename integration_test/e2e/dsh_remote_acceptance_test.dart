@@ -2240,8 +2240,10 @@ Future<void> _pumpUntilToolCall(
 /// target. The test binding's text input is attached to that client instead,
 /// which is the same path a phone's IME uses to insert text and press Enter.
 Future<void> _typeIntoTerminal(WidgetTester tester, String line) async {
-  await tester.testTextInput.enterText(line);
+  tester.testTextInput.enterText(line);
   await pumpFrames(tester, frames: 12);
+  // `receiveAction` is a guarded test API and returns a Future: without the
+  // await the following pump raises a Guarded function conflict.
   await tester.testTextInput.receiveAction(TextInputAction.newline);
   await pumpFrames(tester, frames: 40);
 }

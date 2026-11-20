@@ -600,15 +600,16 @@ jobs:
           disable-spellchecker: true
           emulator-boot-timeout: 420
           # The v2 scenario loads the official DSH single-page app in the
-          # WebView. On the profile's default 2 GB the guest lowmemorykiller
-          # killed the WebView renderer within seconds ("Renderer process ...
-          # crash detected", the DOM probe never ran), so the AVD gets enough
-          # RAM and cores for the Flutter app plus the Chromium renderer.
+          # WebView. The AVD needs enough RAM for the Flutter app plus the
+          # Chromium renderer, and the emulator's Vulkan path (swiftshader)
+          # kills that renderer within seconds on the hosted runners, so it is
+          # disabled here: with it the WebView reports "Renderer process ...
+          # crash detected (code -1)" and the injected DOM script never runs.
           cores: 4
           emulator-options: >-
             -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
             -no-snapshot -camera-back none -camera-front none
-            -memory 4096 -partition-size 4096
+            -feature -Vulkan -memory 4096 -partition-size 4096
           script: bash tool/e2e/run_android_e2e.sh
 
       - name: Build the artifact report

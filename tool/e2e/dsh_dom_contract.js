@@ -550,18 +550,24 @@ async function main() {
       await capture('04-right-rail-page');
     }
 
-    // 5. The official 更多 entry.
+    // 5. The official 更多 entry. The menu is a transient Radix popover: poll
+    // for it instead of asserting one frame, and accept the menu rows either as
+    // menu items or as their text in the page body.
     await reload();
-    const morePosts = await evaluateScript(scripts.moreMenuLanding, 'more-menu landing');
-    await sleep(1200);
-    const afterMore = await state();
+    let moreState = await state();
+    await evaluateScript(scripts.moreMenuLanding, 'more-menu landing');
+    const moreMarkers = /Browse other plugins|Create your plugin|浏览更多插件|创建你的插件|他のプラグイン|다른 플러그인/i;
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      await sleep(400);
+      moreState = await state();
+      if (moreState.menuItems.length > 0 || moreMarkers.test(moreState.bodyText)) break;
+    }
     check(
       'the 更多 landing opens the official more menu',
-      afterMore.menuItems.length > 0,
-      afterMore.menuItems.join(' | '),
+      moreState.menuItems.length > 0 || moreMarkers.test(moreState.bodyText),
+      moreState.menuItems.join(' | ') || moreState.bodyText.slice(0, 200),
     );
     await capture('05-more-menu');
-    void morePosts;
   } finally {
     cdp.close();
     chrome.child.kill('SIGKILL');

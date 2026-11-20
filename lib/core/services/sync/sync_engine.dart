@@ -2547,11 +2547,14 @@ class SyncEngine implements SyncServerHandler {
           // conversation would rebuild exactly the entry already in hand.
           //
           // A refresh is a *live* read, though, and the manifests attest an
-          // older instant: a row written while the session ran is in the entry
-          // but in neither manifest, and recording it makes the next session
-          // read the peer's silence as a deletion of it. The stamp taken before
-          // the manifest was read draws that line, and a refresh that crosses it
-          // waits a round instead — with the row in both manifests next time,
+          // older instant. Two clocks are read out of it, and neither may run
+          // ahead of what the peer saw: the message clocks (the ledger the
+          // deletion oracle consults) and the conversation row's own clock,
+          // which is the *only* carrier of a rename, a pin or a version
+          // selection — the digest covers the families below the root, never
+          // the row — and the delete branch reads it to tell an edit from an
+          // untouched copy. So a refresh with either clock newer than the
+          // manifest waits a round: with the write in both manifests next time,
           // the entry heals or the row travels, and nothing is deleted.
           final mine = myManifest.conversations[id];
           if (prior != null &&
@@ -2564,7 +2567,8 @@ class SyncEngine implements SyncServerHandler {
           final entry = await dataPlane.checkpointFromLocal(id);
           final staledBySession =
               entry != null &&
-              entry.rows.values.any((clock) => clock > manifestReadAtUs);
+              (entry.rows.values.any((clock) => clock > manifestReadAtUs) ||
+                  (mine != null && entry.updatedAtUs > mine.updatedAtUs));
           if (entry != null && !staledBySession) {
             next[id] = entry;
           } else if (prior != null) {

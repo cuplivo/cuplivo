@@ -29,8 +29,13 @@
 | 5 | `continue` 改成 `break` | › an over-budget conversation does not end the walk | 红：`[]`（后面两条也被饿死） | D-4 顺序 + 跳过语义 |
 | — | 三条叠加 | › CJK bytes decide, not Dart length | 红：`444`（字符数）而不是 `888`（字节数） | G4 |
 
-注入前 `sync_budget.dart` = `04A221222E7DE21160FAB7D01295F71A985A7680AF177D6BF42FB38EC84239F3`，
-还原后同一哈希。运行：`flutter test test/core/services/sync/sync_budget_test.dart`，6 红 / 3 绿。
+注入前 `sync_budget.dart` = `429D0A5AC04993FC74BD4B175D64DD65965C35B88592D735008804E00F5F8087`（6,036 字节），
+还原后同一哈希。运行：`flutter test test/core/services/sync/sync_budget_test.dart`，6 红 / 4 绿。
+
+> 这条在第四轮评审后被重跑过一次：原先记录的是 `04A22122…C84239F3`，那是**注入当时**的工作树状态——之后
+> 这个文件又改过（`assertPushFits` 的 `envelopeBytes` 参数），所以那个哈希对不上任何一个提交（评审逐个版本
+> 算过：`1FA995368` 是 `1B957F…`，`7776A81C6`/`8B542E3EE` 是 `429D0A…`）。现在记录的是当前树的哈希，
+> 结果与当时一致（注入目标的那三个函数逐字节没变）。
 
 ## 第 6 条｜发送前那一次实测（`assertPushFits`）
 
@@ -85,3 +90,25 @@
 
 这格测试的第一版把第三轮交给响应方发起，注入下仍然是绿的——删除只发生在**取回**一份不含该行的副本的那一侧，
 而响应方是自己发出去、不会删。改成本机发起后才红。
+
+## 第 11 条｜heal 的边界要盯**两个**时钟
+
+第四轮评审指出：`none` 的刷新只看消息时钟，而条目的 `updatedAtUs` 是会话行自己的 `updated_at`——改名、
+置顶、选版本只移动它（digest 根本看不到，`syncConversationDigest` 不含 root 族）。实测确认：窗口里改名后，
+B 刷新出来的条目时钟比约定晚 359 µs（`Expected: (null or <1795176986511469>)` / `Actual: <1795176986870311>`）。
+
+修法是把这个时钟也纳入边界：`entry.updatedAtUs > mine.updatedAtUs`（`mine` 是 hello 时的 manifest 条目，
+正是对端看到的那一刻）。
+
+| # | 注入 | 应红的测试 | 实测 | 不变量 |
+| --- | --- | --- | --- | --- |
+| 11 | 边界退回只看消息时钟 | › a rename during a heal is not recorded as the agreement | 红：`Actual: <1795177207053633>` —— 条目把窗口里的改名记成了"已约定" | 条目只描述过线的那份 |
+
+注入前 `sync_engine.dart` = `D9CE4C64D3C27480FD21F192000B1864ADD4014791F78BB93490F191E1ED6A84`（201,204 字节），
+还原后同一哈希。
+
+**评审给的那条后果没有复现**：它说下一轮会按被污染的时钟判成 `iDelete`，把本地副本删掉。把同一格的不变量断言
+临时去掉、在**未修**的树上跑（一个 60 秒的 probe），删除**没有**发生——对端的删除公告携带的是**它自己**的
+（诚实的）检查点时钟（`_announcementKills` / `_conversationDeletionStillStands` 的公告分支），所以那一路被挡住了。
+但条目仍然在撒谎，而挡住删除的是隔着一千行的另一个机制；这一条把它修在源头，并且把这格测试的第二个断言
+（删除后副本仍在）留在里面，作为"今天由公告挡下"的钉子。

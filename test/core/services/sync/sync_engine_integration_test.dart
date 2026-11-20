@@ -5319,6 +5319,69 @@ void main() {
     );
   });
 
+  test('a rename during a heal is not recorded as the agreement', () async {
+    // The heal's stamp vets message clocks. The entry's own clock is the
+    // conversation row's, which a rename, a pin or a version selection moves on
+    // its own — the digest never sees it. Recorded as the agreement, the entry
+    // claims a write the peer never acknowledged.
+    final a = _Side('a');
+    final b = _Side('b');
+    await b.start(
+      root,
+      midApplyWrite: (conversationId) async {
+        await b.chatService.renameConversation(
+          'conv-c',
+          'renamed while healing',
+        );
+      },
+    );
+    await a.start(root);
+    sides.addAll([a, b]);
+    await pairSides(a, b);
+
+    // B holds conv-c and serves it in a fetch, so B's own entry stays at prior.
+    await _seedConversation(b, id: 'conv-c', contents: ['c1']);
+    await b.chatService.reloadAfterExternalChange();
+    final pulled = await a.engine.syncWithPeer(await a.peer(b));
+    expect(pulled.success, isTrue, reason: pulled.summary);
+    final agreement = (await a.store.loadCheckpoint(
+      b.identity.deviceId,
+    )).conversations['conv-c']!;
+
+    // A gives the next session something B applies; the rename lands while B
+    // heals conv-c from its live read.
+    await _seedConversation(a, id: 'conv-z', contents: ['z1']);
+    final healed = await a.engine.syncWithPeer(await a.peer(b));
+    expect(healed.success, isTrue, reason: healed.summary);
+    expect(
+      (await b.repository.syncReadConversationRow('conv-c'))!['title'],
+      'renamed while healing',
+    );
+    final entry = (await b.store.loadCheckpoint(
+      a.identity.deviceId,
+    )).conversations['conv-c'];
+    expect(
+      entry?.updatedAtUs,
+      anyOf(isNull, agreement.updatedAtUs),
+      reason:
+          'a mid-session rename is not the agreed clock: the entry either '
+          'inherits the agreement or waits a round',
+    );
+
+    // And the consequence the poisoned clock would have: A deletes conv-c, and
+    // B's copy was renamed after the agreement, so the edit beats the delete.
+    // (The announcement carries A's own honest clock, which is what blocks it
+    // today — the entry above is the invariant, this is the behaviour.)
+    await a.repository.deleteConversation('conv-c');
+    final next = await a.engine.syncWithPeer(await a.peer(b));
+    expect(next.success, isTrue, reason: next.summary);
+    expect(
+      await b.repository.syncReadConversationRow('conv-c'),
+      isNotNull,
+      reason: 'the rename landed after the agreement: edit beats delete',
+    );
+  });
+
   test('a peer deletion the peer deferred is retried, not undone', () async {
     final (a, b) = await pair();
     await _seedConversation(a, id: 'conv-a', contents: ['a1']);

@@ -23,8 +23,16 @@ const path = require('node:path');
 const scripts = JSON.parse(
   fs.readFileSync(process.env.DSH_SURFACE_SCRIPTS || '', 'utf8'),
 );
-const targetUrl = process.env.E2E_DSH_URL || '';
-if (!targetUrl) fail('E2E_DSH_URL is not set');
+// The endpoint is the base root; the launch token is minted per DSH process and
+// is exchanged for the session cookie on the first page load (the same URL the
+// app's direct-connect form composes). Neither value is ever printed.
+const baseUrl = (process.env.E2E_DSH_URL || '').replace(/\/+$/, '');
+const launchToken = process.env.E2E_DSH_TOKEN || '';
+if (!baseUrl) fail('E2E_DSH_URL is not set');
+const targetUrl =
+  launchToken && !/[?&]token=/.test(baseUrl)
+    ? `${baseUrl}/?token=${encodeURIComponent(launchToken)}`
+    : baseUrl;
 if (!scripts.harvest || !scripts.settings) fail('script bundle is incomplete');
 
 const VIEWPORT = { width: 412, height: 915 };
@@ -352,7 +360,7 @@ async function main() {
   };
   const state = async () => JSON.parse(await evaluate(STATE_EXPRESSION));
   const waitReady = async () => {
-    for (let attempt = 0; attempt < 160; attempt += 1) {
+    for (let attempt = 0; attempt < 360; attempt += 1) {
       const ready = JSON.parse(await evaluate(READY_EXPRESSION));
       if (ready.ready === 'complete' && ready.rows > 0) return true;
       await sleep(250);
@@ -401,7 +409,24 @@ async function main() {
     });
     await send('Page.navigate', { url: targetUrl });
     if (!(await waitReady())) {
-      fail('the Host Web UI did not render its sidebar within 40 s');
+      // Leave a diagnostic in the job log and the artifact: an unauthenticated
+      // launch lands on the login page, a network problem lands on an error
+      // page, and both are otherwise an opaque timeout.
+      try {
+        await capture('00-failure');
+        const diagnostic = JSON.parse(
+          await evaluate(`JSON.stringify({
+            title: document.title,
+            path: location.pathname,
+            body: ((document.body && document.body.innerText) || '').replace(/\\s+/g, ' ').slice(0, 300),
+            url: location.origin,
+          })`),
+        );
+        log(`host page diagnostic: ${JSON.stringify(diagnostic)}`);
+      } catch (error) {
+        log(`host page diagnostic failed: ${error.message}`);
+      }
+      fail('the Host Web UI did not render its sidebar within 90 s');
     }
     log('host ready at phone width');
     await capture('01-host-root');

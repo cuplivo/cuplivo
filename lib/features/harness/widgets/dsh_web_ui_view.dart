@@ -85,6 +85,16 @@ typedef DshWebUiScriptMessageCallback = void Function(String message);
 /// injected here — browser pages only accept `v1`. A 401/403 from the Host means
 /// the launch token/cookie rotated (`dsh web` restart) and the assistant has to
 /// be reconnected; [onRequestReconnect] is the honest recovery affordance.
+/// Android platform-view composition for the embedded official Web UI.
+///
+/// Hybrid composition renders the WebView through a virtual display, which
+/// crashes the Chromium renderer on the software-rendered Android emulator the
+/// E2E runs on. The texture path is selected for that acceptance run through a
+/// dart-define; shipping builds keep the Flutter default.
+const bool _textureComposition = bool.fromEnvironment(
+  'DSH_E2E_TEXTURE_COMPOSITION',
+);
+
 class DshWebUiView extends StatefulWidget {
   const DshWebUiView({
     super.key,
@@ -377,6 +387,7 @@ class DshWebUiViewState extends State<DshWebUiView> {
             transparentBackground: false,
             supportZoom: false,
             isInspectable: kDebugMode,
+            useHybridComposition: !_textureComposition,
           ),
           onWebViewCreated: _onWebViewCreated,
           onLoadStart: _onLoadStart,

@@ -518,6 +518,10 @@ jobs:
           if [ -n "${E2E_DSH_DEFINES_FILE:-}" ]; then
             defines+=("--dart-define-from-file=$E2E_DSH_DEFINES_FILE")
           fi
+          # Hybrid composition (virtual display) kills the Chromium renderer on
+          # the software-rendered emulator, so the acceptance run composes the
+          # embedded official WebUI as a texture instead.
+          defines+=("--dart-define=DSH_E2E_TEXTURE_COMPOSITION=true")
           flutter build apk --debug \
             --target="$E2E_TARGET" \
             --target-platform=android-x64 \

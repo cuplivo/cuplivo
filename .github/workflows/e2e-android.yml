@@ -78,6 +78,7 @@ jobs:
       target: ${{ steps.decide.outputs.target }}
       target_count: ${{ steps.decide.outputs.target_count }}
       reason: ${{ steps.decide.outputs.reason }}
+      same_repo: ${{ steps.decide.outputs.same_repo }}
     steps:
       - name: Decide whether to run
         id: decide
@@ -112,6 +113,11 @@ jobs:
           target=""
           target_count=0
           reason=""
+          # Whether the checked-out revision belongs to this repository. The
+          # real-DSH endpoint and token are handed to the build only then: an
+          # issue_comment run carries the repository's secrets even when the PR
+          # head lives in a fork, so the origin must be resolved from the API.
+          same_repo=false
 
           emit() {
             {
@@ -125,6 +131,7 @@ jobs:
               echo "target=$target"
               echo "target_count=$target_count"
               echo "reason=$reason"
+              echo "same_repo=$same_repo"
             } >> "$GITHUB_OUTPUT"
           }
 
@@ -138,6 +145,8 @@ jobs:
             pr_head_sha="$(printf '%s' "$pr_json" | jq -r '.head.sha')"
             pr_head_ref="$(printf '%s' "$pr_json" | jq -r '.head.ref')"
             pr_author="$(printf '%s' "$pr_json" | jq -r '.user.login')"
+            # A deleted fork repository yields null; that is not this repo.
+            pr_head_repo="$(printf '%s' "$pr_json" | jq -r '.head.repo.full_name // ""')"
             return 0
           }
 
@@ -150,6 +159,12 @@ jobs:
                 target="$DISPATCH_TARGET"
                 head_sha="$GITHUB_SHA"
                 checkout_ref="${DISPATCH_REF:-$GITHUB_REF_NAME}"
+                # A PR ref may name fork code; only ordinary refs of this
+                # repository are allowed to receive the DSH credential.
+                case "$checkout_ref" in
+                  refs/pull/*) same_repo=false ;;
+                  *) same_repo=true ;;
+                esac
                 echo "Manual run on $checkout_ref (no PR comment)."
               else
                 if ! printf '%s' "$pr_number" | grep -Eq '^[0-9]+$'; then
@@ -164,6 +179,9 @@ jobs:
                   exit 0
                 fi
                 run=true
+                if [ "${pr_head_repo,,}" = "${REPO,,}" ] && [ -n "$pr_head_repo" ]; then
+                  same_repo=true
+                fi
                 target="$DISPATCH_TARGET"
                 head_sha="$pr_head_sha"
                 checkout_ref="refs/pull/$pr_number/head"
@@ -177,8 +195,10 @@ jobs:
               checkout_ref="refs/pull/$pr_number/head"
               requested_by="$GITHUB_ACTOR_NAME"
               can_comment=true
+              same_repo=true
               if [ "$PR_IS_FORK" = "true" ]; then
                 can_comment=false
+                same_repo=false
                 echo "Fork PR: artifacts only (pull_request token is read-only)."
               fi
               run=true
@@ -221,6 +241,9 @@ jobs:
                 exit 0
               fi
               run=true
+              if [ "${pr_head_repo,,}" = "${REPO,,}" ] && [ -n "$pr_head_repo" ]; then
+                same_repo=true
+              fi
               head_sha="$pr_head_sha"
               checkout_ref="refs/pull/$pr_number/head"
               can_comment=true
@@ -370,6 +393,13 @@ jobs:
       E2E_PR_NUMBER: ${{ needs.request.outputs.pr_number }}
       E2E_HEAD_SHA: ${{ needs.request.outputs.head_sha }}
       E2E_REQUESTED_BY: ${{ needs.request.outputs.requested_by }}
+      # Real-DSH acceptance endpoint. Both values come from repository secrets
+      # and are handed to a same-repository build only: a fork PR's code must
+      # never see the launch token, and on a fork `pull_request` run GitHub
+      # supplies no repository secrets at all. Empty means "hermetic scenario
+      # only" -- the acceptance test must still run and pass without them.
+      E2E_DSH_URL: ${{ needs.request.outputs.same_repo == 'true' && secrets.E2E_DSH_URL || '' }}
+      E2E_DSH_TOKEN: ${{ needs.request.outputs.same_repo == 'true' && secrets.E2E_DSH_TOKEN || '' }}
     steps:
       - name: Checkout the requested revision
         uses: actions/checkout@v6
@@ -377,6 +407,57 @@ jobs:
           ref: ${{ needs.request.outputs.checkout_ref || github.sha }}
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Preflight the real-DSH endpoint
+        # Fail in seconds instead of after a 15-minute emulator run when the
+        # endpoint is down or the launch token rotated with a DSH restart.
+        if: env.E2E_DSH_URL != '' && env.E2E_DSH_TOKEN != ''
+        run: |
+          set -uo pipefail
+          status="$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' \
+            "$E2E_DSH_URL/?token=$E2E_DSH_TOKEN" || true)"
+          case "$status" in
+            303|307) echo "DSH endpoint accepted the launch token." ;;
+            401|403)
+              echo "::error::The DSH endpoint rejected the launch token (HTTP $status)."
+              echo "::error::The token is minted per DSH process: refresh the E2E_DSH_TOKEN secret with 'ssh us-vps1 dsh-e2e-url' and re-run."
+              exit 1
+              ;;
+            000|'')
+              echo "::error::The DSH endpoint did not answer (no HTTP response). Check that the host is up and the TLS front is reachable."
+              exit 1
+              ;;
+            *)
+              echo "::error::The DSH endpoint answered HTTP $status; a valid launch token returns 303."
+              exit 1
+              ;;
+          esac
+
+      - name: Preflight the real-DSH API
+        # The app talks to the Remote API with the operator cookie, not the
+        # launch token, so prove that exchange too before building.
+        if: env.E2E_DSH_URL != '' && env.E2E_DSH_TOKEN != ''
+        run: |
+          set -uo pipefail
+          jar="$RUNNER_TEMP/e2e_dsh_cookies.txt"
+          code="$(curl -sS --max-time 15 -c "$jar" -o /dev/null -w '%{http_code}' \
+            "$E2E_DSH_URL/connect?token=$E2E_DSH_TOKEN&interactions=answer" || true)"
+          if [ "$code" != "302" ]; then
+            echo "::error::The DSH /connect token exchange failed (HTTP ${code:-none}); expected 302."
+            exit 1
+          fi
+          rid="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+          body="{\"type\":\"client-request\",\"rpcId\":\"$rid\",\"method\":\"session/list\",\"payload\":{\"args\":{\"_request\":{}}}}"
+          reply="$(curl -sS --max-time 20 -b "$jar" -H 'content-type: application/json' \
+            -X POST "$E2E_DSH_URL/api/session/list" --data "$body" -w '\n%{http_code}' || true)"
+          rpc_code="${reply##*$'\n'}"
+          rpc_body="${reply%$'\n'*}"
+          rm -f "$jar"
+          if [ "$rpc_code" != "200" ] || ! printf '%s' "$rpc_body" | grep -q '"ok":true'; then
+            echo "::error::The DSH Remote API preflight failed (HTTP ${rpc_code:-none})."
+            exit 1
+          fi
+          echo "DSH API preflight passed (token -> cookie -> session/list)."
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -400,15 +481,52 @@ jobs:
       - name: Record start time
         run: echo "E2E_START=$(date +%s)" >> "$GITHUB_ENV"
 
+      - name: Prepare the real-DSH dart-defines file
+        # The launch token is a live credential. It reaches the compiler from a
+        # 0600 JSON file rather than argv, so it never appears in a process
+        # list or a logged command line, and the file is deleted right after
+        # the build. The review APK is built without it.
+        if: env.E2E_DSH_URL != '' && env.E2E_DSH_TOKEN != ''
+        run: |
+          set -euo pipefail
+          define_file="$RUNNER_TEMP/e2e_dsh_defines.json"
+          umask 077
+          python3 - "$define_file" <<'PY'
+          import json, os, sys
+
+          path = sys.argv[1]
+          with open(path, "w", encoding="utf-8") as handle:
+              json.dump(
+                  {
+                      "E2E_DSH_URL": os.environ["E2E_DSH_URL"],
+                      "E2E_DSH_TOKEN": os.environ["E2E_DSH_TOKEN"],
+                  },
+                  handle,
+              )
+          os.chmod(path, 0o600)
+          PY
+          echo "E2E_DSH_DEFINES_FILE=$define_file" >> "$GITHUB_ENV"
+
       - name: Build the E2E test APK (x86_64)
         id: build_e2e_apk
         run: |
           set -euo pipefail
           mkdir -p build/e2e
+          # One entry per accepted dart-defined value. Empty on fork PRs and on
+          # hosts without the endpoint, which keeps the build hermetic there.
+          defines=()
+          if [ -n "${E2E_DSH_DEFINES_FILE:-}" ]; then
+            defines+=("--dart-define-from-file=$E2E_DSH_DEFINES_FILE")
+          fi
           flutter build apk --debug \
             --target="$E2E_TARGET" \
-            --target-platform=android-x64
+            --target-platform=android-x64 \
+            "${defines[@]}"
           cp build/app/outputs/flutter-apk/app-debug.apk build/e2e/e2e-test-x64.apk
+
+      - name: Remove the real-DSH dart-defines file
+        if: always() && env.E2E_DSH_DEFINES_FILE != ''
+        run: rm -f -- "$E2E_DSH_DEFINES_FILE"
 
       - name: Build the manual-review APK (arm64)
         id: build_review_apk
@@ -516,6 +634,24 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           if [ -f build/e2e/summary.md ]; then
             cat build/e2e/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Keep the DSH launch token out of published artifacts
+        # E2E logs, screenshots, video and the review APK are published; a
+        # credential must never be in them. The x64 test APK is the one file
+        # that legitimately carries the compiled defines and it is not
+        # uploaded, so it is excluded; a hit anywhere else (a scenario that
+        # printed the URL, or a review APK that inherited the defines) fails
+        # the job and removes the offending files.
+        if: always() && env.E2E_DSH_TOKEN != ''
+        run: |
+          set -uo pipefail
+          found="$(grep -rlF --exclude=e2e-test-x64.apk -- "$E2E_DSH_TOKEN" build/e2e 2>/dev/null || true)"
+          if [ -n "$found" ]; then
+            echo "::error::The DSH launch token reached E2E artifacts; deleting the offending files."
+            printf '%s\n' "$found"
+            printf '%s\n' "$found" | xargs -r rm -f
+            exit 1
           fi
 
       - name: Upload screenshots

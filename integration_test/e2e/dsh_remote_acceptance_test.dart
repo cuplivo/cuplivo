@@ -586,7 +586,7 @@ Future<void> _runRealScenario(
   FocusManager.instance.primaryFocus?.unfocus();
   await pumpFrames(tester, frames: 12);
   expect(
-    _providerRows().length,
+    _providerRows().evaluate().length,
     greaterThan(1),
     reason: 'clearing the R11 search restores the full models list',
   );

@@ -953,15 +953,13 @@ class _OAuthNote extends StatelessWidget {
 }
 
 class _ReadOnlyModelCard extends StatelessWidget {
-  const _ReadOnlyModelCard({required this.model, this.subtitle});
+  const _ReadOnlyModelCard({required this.model});
 
   final DshModel model;
-  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final subtitleText = subtitle?.trim() ?? '';
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -996,18 +994,6 @@ class _ReadOnlyModelCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (subtitleText.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitleText,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: cs.onSurface.withValues(alpha: 0.45),
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
               ],
             ),
           ),

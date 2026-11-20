@@ -67,7 +67,16 @@ class GroupDirector {
   /// choosing an option instead of calling a tool.
   static const String endTurnChoice = 'end_round';
 
-  static const int _maxTranscriptChars = 6000;
+  /// What the decision path reads. The choice is local — which member answers
+  /// the latest message — so a short, fixed-shape window is enough, and a line
+  /// already sent keeps its bytes on the next step of the round.
+  static const int _maxTranscriptChars = 4000;
+  static const int _maxTranscriptMessageChars = 1200;
+  static const int _maxTranscriptMessages = 6;
+
+  /// The chat director keeps the longer view it always had: its model reads the
+  /// transcript as ordinary chat history, not as a question to answer.
+  static const int _chatTranscriptChars = 6000;
 
   static final List<Map<String, dynamic>> toolDefs = [
     {
@@ -204,7 +213,7 @@ class GroupDirector {
     final history = GroupTranscript.forDirector(
       transcript,
       resolve: resolve,
-      maxChars: _maxTranscriptChars,
+      maxChars: _chatTranscriptChars,
     );
     final config = settings.getProviderConfig(model.providerKey);
     final systemPrompt = _systemPrompt(
@@ -354,7 +363,9 @@ class GroupDirector {
             'transcript': GroupTranscript.forDirector(
               transcript,
               resolve: resolve,
+              maxMessages: _maxTranscriptMessages,
               maxChars: _maxTranscriptChars,
+              maxCharsPerMessage: _maxTranscriptMessageChars,
               collapseRepeatedSpeakers: false,
             ),
           },

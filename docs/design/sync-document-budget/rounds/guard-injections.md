@@ -68,3 +68,20 @@
 现在断言接受这个边界：fixed part 比预算大时，边界就是 fixed part 本身。probe 被收编成正式断言
 （`sync_budget_test.dart` › the batch about to be sent is checked against the budget：`envelopeBytes` 大于
 预算时通过、小于预算时仍按预算判错），probe 文件删除。
+
+## 第 10 条｜`none` 的 heal 也是一次实时读
+
+第三个写者：`none` 臂在两侧 manifest 一致时刷新条目，而刷新的来源是**实时读**。会话窗口里写的行会进条目，
+下一轮按"检查点即当前状态"计划出 `peerSends`，拉到不含该行的副本后删掉它。
+
+注入：把刷新边界关掉（`staledBySession = entry != null && false`），即回到本 PR 之前的形状。
+
+| # | 注入 | 应红的测试 | 实测 | 不变量 |
+| --- | --- | --- | --- | --- |
+| 10 | `none` 的刷新不再看 manifest 戳 | › a none heal does not record a row written during the session | 红：`Expected: contains 'conv-x-typed'` / `Actual: Set:['conv-x-m0']` —— 下一轮把窗口里写的行删掉 | 条目只描述过线的那份 |
+
+注入前 `sync_engine.dart` = `54A5C22026493A6DBFD5D3E4AC3FF2399816A0862C6CE9FF8AAB1C532C2FA455`（200,907 字节），
+还原后同一哈希。
+
+这格测试的第一版把第三轮交给响应方发起，注入下仍然是绿的——删除只发生在**取回**一份不含该行的副本的那一侧，
+而响应方是自己发出去、不会删。改成本机发起后才红。

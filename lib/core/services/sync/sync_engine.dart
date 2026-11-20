@@ -132,11 +132,13 @@ class SyncSessionReport {
   /// admitted the batch without them, their checkpoints stayed at `prior`, and
   /// the next round retries them.
   ///
-  /// Counted separately from [deferred] because the reason is actionable and
-  /// the number is the only place that says so: a deferred conversation waits
-  /// for a generation to stop, while one omitted for size waits for the user to
-  /// trim the history that makes it big — and a conversation that silently
-  /// stops syncing is the one thing this face must never do.
+  /// Counted separately from [deferred] because the reason is its own: a
+  /// deferred conversation waits for a generation to stop or a fetch to deliver,
+  /// while one omitted for size was measured against this round. Most of them
+  /// are the plan's tail and ride the next session on their own; only a
+  /// conversation past the single-conversation ceiling has to be pulled by the
+  /// other device instead. Nothing was deleted either way, and a conversation
+  /// that silently stops syncing is the one thing this face must never do.
   final int conversationsOmittedForSize;
 
   /// Workspace content in either direction (slice 18), counted the same way the
@@ -936,6 +938,10 @@ class SyncEngine implements SyncServerHandler {
     // checkpoint write alive behind the session that superseded it.
     round.session = session;
     try {
+      // The instant before the read, which is what the manifest can attest: a
+      // row written after it is in neither manifest, and the `none` heal below
+      // must not claim it.
+      final manifestReadAtUs = clockUs();
       final myManifest = await dataPlane.buildManifest();
       if (round.cancelled) return null;
       final myClockUs = clockUs();
@@ -1493,6 +1499,7 @@ class SyncEngine implements SyncServerHandler {
           for (final subtree in incoming.subtrees)
             subtree.conversation['id'] as String: subtree,
         },
+        manifestReadAtUs: manifestReadAtUs,
       );
       final nextBusiness = await _advanceBusinessCheckpoint(
         previous: previous,
@@ -1700,6 +1707,10 @@ class SyncEngine implements SyncServerHandler {
       round.cancel();
     }
 
+    // Before the read, for the same reason the initiator stamps its own: the
+    // manifest attests the state at this instant, and the `none` heal must not
+    // claim a row written after it.
+    final manifestReadAtUs = clockUs();
     final myManifest = await dataPlane.buildManifest();
     // One pair, epoch first: see [SyncStore.loadSession].
     final opened = await store.loadSession(initiatorHello.deviceId);
@@ -1745,6 +1756,7 @@ class SyncEngine implements SyncServerHandler {
       checkpoint: checkpoint,
       epochAtHello: myEpoch,
       startedAt: now(),
+      manifestReadAtUs: manifestReadAtUs,
       myHosts: _myHosts,
       initiatorHost: remoteAddress,
       clockSkewMs: _clockSkewMs(myClockUs, initiatorHello.clockUs),
@@ -2258,6 +2270,7 @@ class SyncEngine implements SyncServerHandler {
           .toSet(),
       // What the initiator pushed, for the arms that record an arrival.
       receivedSubtrees: session.receivedSubtrees,
+      manifestReadAtUs: session.manifestReadAtUs,
       // The fetch response is never acknowledged, so a conversation this beat
       // sends back is not state the peer holds. Advancing it would make the
       // next session read the peer's missing copy as a deletion and destroy
@@ -2566,6 +2579,11 @@ class SyncEngine implements SyncServerHandler {
   /// the session ran. `bothSend` is the one arm that cannot be described by a
   /// single payload; see the case below for what it does instead.
   ///
+  /// [manifestReadAtUs] is when this device's manifest was read, stamped before
+  /// the read. The `none` arm is the third writer of an entry and its only
+  /// source is a live re-read, so the stamp is what keeps a mid-session row out
+  /// of it — see that arm for the rule.
+  ///
   /// [sendsConfirmed] is false for the responder's fetch beat, whose response
   /// is never acknowledged: a conversation this device *sent* back is not
   /// state the peer holds, and advancing it would make the next session read
@@ -2582,6 +2600,7 @@ class SyncEngine implements SyncServerHandler {
     Map<String, SyncSubtreePayload> sentSubtrees = const {},
     Map<String, SyncSubtreePayload> receivedSubtrees = const {},
     bool sendsConfirmed = true,
+    required int manifestReadAtUs,
   }) async {
     final next = <String, SyncCheckpointConversation>{};
     for (final item in plan) {
@@ -2599,6 +2618,14 @@ class SyncEngine implements SyncServerHandler {
           // both are computed from the same rows this refresh would read: when
           // they match the entry, re-reading every message of every settled
           // conversation would rebuild exactly the entry already in hand.
+          //
+          // A refresh is a *live* read, though, and the manifests attest an
+          // older instant: a row written while the session ran is in the entry
+          // but in neither manifest, and recording it makes the next session
+          // read the peer's silence as a deletion of it. The stamp taken before
+          // the manifest was read draws that line, and a refresh that crosses it
+          // waits a round instead — with the row in both manifests next time,
+          // the entry heals or the row travels, and nothing is deleted.
           final mine = myManifest.conversations[id];
           if (prior != null &&
               mine != null &&
@@ -2608,7 +2635,10 @@ class SyncEngine implements SyncServerHandler {
             break;
           }
           final entry = await dataPlane.checkpointFromLocal(id);
-          if (entry != null) {
+          final staledBySession =
+              entry != null &&
+              entry.rows.values.any((clock) => clock > manifestReadAtUs);
+          if (entry != null && !staledBySession) {
             next[id] = entry;
           } else if (prior != null) {
             next[id] = prior;
@@ -4444,6 +4474,7 @@ class _ResponderSession {
     required this.checkpoint,
     required this.epochAtHello,
     required this.startedAt,
+    required this.manifestReadAtUs,
     required this.myHosts,
     this.initiatorHost,
     this.clockSkewMs,
@@ -4467,6 +4498,11 @@ class _ResponderSession {
   /// (see [SyncStore.saveCheckpointUnlessReplaced]).
   final int epochAtHello;
   final DateTime startedAt;
+
+  /// The moment this side's own manifest was read, stamped *before* the read.
+  /// A `none` heal is a live re-read, so this is the line between "the peer can
+  /// attest to this row" and "written while the session ran".
+  final int manifestReadAtUs;
 
   /// The address the initiator connected from, as this listener saw it: with
   /// `initiatorHello.listenPort` it is the endpoint used to pull blobs back.

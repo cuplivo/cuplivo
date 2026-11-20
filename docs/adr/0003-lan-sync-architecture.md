@@ -2561,3 +2561,24 @@ The send-site guard (`assertPushFits`) takes the measured fixed part as its boun
 larger than the budget: a round whose envelope alone is over the budget admits no conversation and its
 body *is* the envelope, which only the receiver's 256 MB cap may refuse. A debug build must not fail a
 round release lets the peer answer.
+
+### The third writer: a heal is a live read too
+
+`none` is the arm where both manifests agree and the entry is refreshed, and its source is a live
+re-read — the one place a checkpoint entry is built from "however the row looks now" rather than from
+a payload. The same window therefore applies: a message written while the session ran is in the
+refresh and in neither manifest, so the entry claims the peer holds it, and the next session — whose
+plan reads that checkpoint as current — fetches a copy without the row and deletes it here.
+
+The refresh cannot simply be dropped: it is what records that the peer has seen these rows, and
+without it a peer's deletion of a row in a settled conversation would never be applied, because the
+ledger only knows what to delete from what an earlier agreement claimed. So the line is drawn with a
+stamp taken **before** the manifest is read: a refresh whose rows include one written after that
+instant waits a round, keeping the previous entry — or none, which is safe, since no entry means no
+deletions inferred. The next session finds the row in both manifests and either heals or sends it.
+
+`sync_engine_integration_test.dart` holds it (`a none heal does not record a row written during the
+session`); disabling the stamp turns the cell into the loss — the following session deletes the row.
+What the stamp cannot see is a mid-session rename: the conversation row's clock and digest move but no
+indexed row does, so the entry claims a title the peer has not seen, and the next merge lets the
+local row's newer clock win — one redundant round, never a loss.

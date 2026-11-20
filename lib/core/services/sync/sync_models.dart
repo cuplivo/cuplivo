@@ -781,8 +781,10 @@ class SyncPeerReport {
   /// so their checkpoints did not move and the next session retries them.
   ///
   /// Persisted with the rest of the card because that is what the panel reads
-  /// (`sync_report_breakdown.dart`), and named for the user because the fix is
-  /// theirs: the conversation is otherwise healthy, just bigger than one push.
+  /// (`sync_report_breakdown.dart`), and named for the user because the number
+  /// is the only trace of a conversation that did not travel: most are the
+  /// plan's tail and ride the next session by themselves, while one past the
+  /// single-conversation ceiling arrives only when the peer pulls it.
   final int conversationsOmittedForSize;
 
   /// Signed clock divergence against this peer in milliseconds, present only

@@ -12,8 +12,15 @@ import 'harness_home_controller.dart';
 import 'harness_home_models.dart';
 import 'harness_session_catalog.dart';
 
-/// One extra rail entry contributed by the remote (a plugin panel, once the
-/// gateway reports plugin slots). Official tool cards are built in.
+/// One extra rail entry contributed by the remote (a plugin rail card).
+///
+/// Built-in tool cards are constructed by the rail; these arrive from the
+/// harvested official-WebUI rail labels (see `harness_surface_entries.dart`),
+/// so no
+/// plugin name lives in Cuplivo. The card renders with the entry's own label
+/// and a generic icon, carries the `dsh-rail-entry-<id>` key, and its [onTap]
+/// opens the official WebUI landed on that card — the rail never embeds the
+/// WebUI (see `docs/cuplivo-dsh/v2-reuse-map.md` §4).
 @immutable
 class HarnessRailExtraEntry {
   const HarnessRailExtraEntry({
@@ -54,6 +61,8 @@ class HarnessRightRail extends StatelessWidget {
     required this.onShowPage,
     required this.onShowStart,
     this.extraEntries = const <HarnessRailExtraEntry>[],
+    this.terminalPanelBuilder,
+    this.onPreviewWorkspaceFile,
   });
 
   final HarnessRailPage page;
@@ -70,6 +79,23 @@ class HarnessRightRail extends StatelessWidget {
   final ValueChanged<HarnessRailPage> onShowPage;
   final VoidCallback onShowStart;
   final List<HarnessRailExtraEntry> extraEntries;
+
+  /// Replaces the honest 新建终端 placeholder with the host's real terminal
+  /// panel when the terminal slice supplies one.
+  ///
+  /// Null keeps the current placeholder: no terminal API is wired in this
+  /// build, so the card must not pretend a shell exists.
+  final Widget Function(BuildContext context, HarnessSessionSummary? session)?
+  terminalPanelBuilder;
+
+  /// Opens a workspace file the rail cannot preview inline.
+  ///
+  /// The preview slice owns the full page. Image files and files the Host
+  /// returns as text keep the rail's own read-only preview; a binary kind (the
+  /// set below) or a `readText` the Host refuses is handed to this callback
+  /// instead of being shown as an unavailable preview. Null keeps exactly the
+  /// pre-preview behaviour.
+  final ValueChanged<HarnessWorkspaceFileEntry>? onPreviewWorkspaceFile;
 
   @override
   Widget build(BuildContext context) {
@@ -101,25 +127,42 @@ class HarnessRightRail extends StatelessWidget {
     );
   }
 
-  String _pageTitle(AppLocalizations l10n) => switch (page) {
-    HarnessRailPage.start => l10n.dshRailStart,
-    HarnessRailPage.workspaceFiles => l10n.dshRailWorkspaceFiles,
-    HarnessRailPage.terminal => l10n.dshRailNewTerminal,
-    HarnessRailPage.moreTools => l10n.dshRailMoreTools,
-  };
+  String _pageTitle(AppLocalizations l10n) {
+    final label = page.label?.trim() ?? '';
+    if (label.isNotEmpty) return label;
+    return switch (page.id) {
+      'start' => l10n.dshRailStart,
+      'workspaceFiles' => l10n.dshRailWorkspaceFiles,
+      'terminal' => l10n.dshRailNewTerminal,
+      'moreTools' => l10n.dshRailMoreTools,
+      // A plugin page Cuplivo cannot name statically still has a title once the
+      // caller passes one; without it the Start title is the honest fallback
+      // (the body below lands on Start too).
+      _ => l10n.dshRailStart,
+    };
+  }
 
-  Widget _pageBody(BuildContext context) => switch (page) {
-    HarnessRailPage.start => _RailStartPage(
-      extraEntries: extraEntries,
-      onShowPage: onShowPage,
-    ),
-    HarnessRailPage.workspaceFiles => _RailWorkspaceFilesPage(
-      session: session,
-      workspaceFiles: workspaceFiles,
-    ),
-    HarnessRailPage.terminal => _RailTerminalPage(session: session),
-    HarnessRailPage.moreTools => _RailMoreToolsPage(extraEntries: extraEntries),
-  };
+  Widget _pageBody(BuildContext context) {
+    if (page == HarnessRailPage.workspaceFiles) {
+      return _RailWorkspaceFilesPage(
+        session: session,
+        workspaceFiles: workspaceFiles,
+        onPreviewWorkspaceFile: onPreviewWorkspaceFile,
+      );
+    }
+    if (page == HarnessRailPage.terminal) {
+      final builder = terminalPanelBuilder;
+      return builder?.call(context, session) ??
+          _RailTerminalPage(session: session);
+    }
+    if (page == HarnessRailPage.moreTools) {
+      return _RailMoreToolsPage(extraEntries: extraEntries);
+    }
+    // Start, and any id-based page without a native body: the plugin card's own
+    // tap opens the official WebUI page, so landing on Start here is the
+    // non-dead fallback.
+    return _RailStartPage(extraEntries: extraEntries, onShowPage: onShowPage);
+  }
 }
 
 class _RailHeader extends StatelessWidget {
@@ -265,6 +308,7 @@ class _RailStartPage extends StatelessWidget {
           for (final entry in extraEntries) ...[
             const SizedBox(height: 8),
             _RailToolCard(
+              key: ValueKey<String>('dsh-rail-entry-${entry.id}'),
               icon: entry.icon,
               title: entry.title,
               subtitle: entry.subtitle,
@@ -377,10 +421,14 @@ class _RailWorkspaceFilesPage extends StatefulWidget {
   const _RailWorkspaceFilesPage({
     required this.session,
     required this.workspaceFiles,
+    this.onPreviewWorkspaceFile,
   });
 
   final HarnessSessionSummary? session;
   final HarnessWorkspaceFiles? workspaceFiles;
+
+  /// Handed to the preview slice for kinds the rail cannot render inline.
+  final ValueChanged<HarnessWorkspaceFileEntry>? onPreviewWorkspaceFile;
 
   @override
   State<_RailWorkspaceFilesPage> createState() =>
@@ -395,6 +443,46 @@ class _RailWorkspaceFilesPageState extends State<_RailWorkspaceFilesPage> {
     'gif',
     'webp',
     'bmp',
+  };
+
+  /// Extensions the rail must not try to read as text.
+  ///
+  /// The preview slice owns these kinds; the rail hands them over without
+  /// reading a byte. Anything outside this set is attempted with `readText`, and
+  /// a refusal from the Host (unsupported/too large) is handed over the same
+  /// way. Keep the list refusal-shaped, not text-shaped: a new text kind must
+  /// not silently become a full-page detour.
+  static const Set<String> _binaryExtensions = {
+    'pdf',
+    'doc',
+    'docx',
+    'xls',
+    'xlsx',
+    'ppt',
+    'pptx',
+    'zip',
+    'gz',
+    'tar',
+    '7z',
+    'apk',
+    'ipa',
+    'bin',
+    'exe',
+    'dll',
+    'so',
+    'dylib',
+    'wasm',
+    'db',
+    'sqlite',
+    'woff',
+    'woff2',
+    'ttf',
+    'otf',
+    'mp3',
+    'mp4',
+    'mov',
+    'wav',
+    'ogg',
   };
 
   String _path = '';
@@ -469,6 +557,16 @@ class _RailWorkspaceFilesPageState extends State<_RailWorkspaceFilesPage> {
   Future<void> _openPreview(HarnessWorkspaceFileEntry entry) async {
     final files = widget.workspaceFiles;
     if (files == null) return;
+    final extension = entry.name.contains('.')
+        ? entry.name.split('.').last.toLowerCase()
+        : '';
+    final onPreview = widget.onPreviewWorkspaceFile;
+    // A kind the rail cannot read by construction goes straight to the preview
+    // page; nothing is fetched or guessed here.
+    if (onPreview != null && _binaryExtensions.contains(extension)) {
+      onPreview(entry);
+      return;
+    }
     setState(() {
       _preview = entry;
       _previewText = null;
@@ -476,9 +574,6 @@ class _RailWorkspaceFilesPageState extends State<_RailWorkspaceFilesPage> {
       _previewUnavailable = false;
       _previewLoading = true;
     });
-    final extension = entry.name.contains('.')
-        ? entry.name.split('.').last.toLowerCase()
-        : '';
     try {
       if (_imageExtensions.contains(extension)) {
         final bytes = await files.readBytes(entry.path);
@@ -497,6 +592,14 @@ class _RailWorkspaceFilesPageState extends State<_RailWorkspaceFilesPage> {
       });
     } catch (error) {
       if (!mounted) return;
+      if (onPreview != null) {
+        // The Host refused the text read (unsupported kind / too large): the
+        // preview slice can still render it (or state why it cannot), so the
+        // rail leaves its own preview state before that page opens.
+        setState(_closePreview);
+        onPreview(entry);
+        return;
+      }
       setState(() {
         _previewUnavailable = true;
         _previewLoading = false;
@@ -770,6 +873,7 @@ class _RailMoreToolsPage extends StatelessWidget {
       children: [
         for (final entry in extraEntries) ...[
           _RailToolCard(
+            key: ValueKey<String>('dsh-rail-entry-${entry.id}'),
             icon: entry.icon,
             title: entry.title,
             subtitle: entry.subtitle,

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:Cuplivo/core/dsh/dsh_client.dart' as dsh;
 import 'package:Cuplivo/core/dsh/dsh_errors.dart' as dsh;
@@ -96,20 +97,91 @@ class DshClientSessionHandle implements DshSessionHandle {
     DshPromptMode mode = DshPromptMode.queue,
     List<DshPromptAttachment> attachments = const <DshPromptAttachment>[],
   }) {
+    final images = <dsh.DshImageInput>[
+      for (final attachment in attachments)
+        if (attachment.isImage &&
+            attachment.bytes != null &&
+            attachment.bytes!.isNotEmpty)
+          dsh.DshImageInput(
+            bytes: Uint8List.fromList(attachment.bytes!),
+            mediaType: attachment.mediaType ?? 'image/png',
+            name: attachment.name,
+          ),
+    ];
     final files = [
       for (final attachment in attachments)
-        if (attachment.receiptId.trim().isNotEmpty)
+        if (!attachment.isImage && attachment.receiptId.trim().isNotEmpty)
           dsh.DshFileInput(attachment.receiptId),
     ];
     return _run(
       () => _store.prompt(
-        dsh.DshPrompt(text: text.trim().isEmpty ? null : text, files: files),
+        dsh.DshPrompt(
+          text: text.trim().isEmpty ? null : text,
+          images: images,
+          files: files,
+        ),
         mode: switch (mode) {
           DshPromptMode.queue => 'queue',
           DshPromptMode.steer => 'steer',
         },
       ),
     );
+  }
+
+  @override
+  Future<DshUploadReceipt> uploadAttachment(
+    List<int> bytes, {
+    String? name,
+    String? mediaType,
+  }) async {
+    try {
+      final receipt = await _store.session.uploadAttachment(
+        Uint8List.fromList(bytes),
+        name: name,
+        mediaType: mediaType,
+      );
+      return DshUploadReceipt(
+        receiptId: receipt.receiptId,
+        name: receipt.file?.name ?? receipt.image?.name ?? name,
+        mediaType: receipt.image?.mediaType ?? mediaType,
+        width: receipt.image?.width,
+        height: receipt.image?.height,
+      );
+    } on dsh.DshException catch (error) {
+      throw dshGatewayExceptionFromClient(error);
+    }
+  }
+
+  @override
+  Future<List<int>> attachmentBytes(DshPromptAttachment attachment) async {
+    try {
+      final bytes = await _store.session.attachmentBytes(
+        dsh.DshImageAttachment(
+          attachmentId: attachment.receiptId,
+          mediaType: attachment.mediaType ?? 'application/octet-stream',
+          bytes: attachment.bytes?.length,
+          width: attachment.width,
+          height: attachment.height,
+          name: attachment.name,
+        ),
+      );
+      return bytes;
+    } on dsh.DshException catch (error) {
+      throw dshGatewayExceptionFromClient(error);
+    }
+  }
+
+  @override
+  Future<DshCommandOutcome> executeCommand(String line) async {
+    try {
+      final execution = await _store.session.executeCommand(line);
+      return DshCommandOutcome(
+        success: execution.result.success,
+        text: execution.result.text,
+      );
+    } on dsh.DshException catch (error) {
+      throw dshGatewayExceptionFromClient(error);
+    }
   }
 
   @override

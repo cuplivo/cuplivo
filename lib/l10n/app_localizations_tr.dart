@@ -19066,7 +19066,7 @@ class AppLocalizationsTr extends AppLocalizations {
       'DeepSeek Harness WebUI bağlantısını yapıştırın';
 
   @override
-  String get dshWebUiUrlHint => 'örn. 127.0.0.1:3080/?token=your-token';
+  String get dshWebUiUrlHint => 'örn. 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…';
 
   @override
   String get dshWebUiUrlHelper =>
@@ -19080,9 +19080,6 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get dshTabModels => 'Modeller';
-
-  @override
-  String get dshTabContent => 'İçerik';
 
   @override
   String get dshDefaultPermissionLabel =>
@@ -19114,10 +19111,6 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String get dshModelsPlaceholder =>
       'DeepSeek Harness modelleri ve sağlayıcıları burada yönetilecek.';
-
-  @override
-  String get dshContentPlaceholder =>
-      'Eklenti tarafından sağlanan içerik ayarları burada görünecek.';
 
   @override
   String get dshErrorNotConfigured =>
@@ -19770,4 +19763,104 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get dshProviderDetailMaxTokensHint => '256K';
+
+  @override
+  String get dshTabPlugins => 'Yerleşik eklentiler';
+
+  @override
+  String get dshTabAgentPresets => 'Agent ön ayarları';
+
+  @override
+  String get dshPluginsReadOnly =>
+      'Eklentiler uzak DeepSeek Harness tarafından yönetilir; bu liste salt okunur.';
+
+  @override
+  String get dshPluginsEmpty => 'Bu Host yerleşik eklenti bildirmiyor.';
+
+  @override
+  String get dshPluginsEnabled => 'Etkin';
+
+  @override
+  String get dshPluginsDisabled => 'Devre dışı';
+
+  @override
+  String dshPluginsPhase(String phase) {
+    return 'Aşama: $phase';
+  }
+
+  @override
+  String get dshAgentPresetsReadOnly =>
+      'Agent ön ayarları uzak DeepSeek Harness\'a aittir; bu bileşim salt okunur.';
+
+  @override
+  String get dshAgentPresetsEmpty => 'Bu Host Agent ön ayarı bildirmiyor.';
+
+  @override
+  String get dshAgentPresetsDefault => 'Varsayılan';
+
+  @override
+  String get dshPlusSectionAdd => 'Ekle';
+
+  @override
+  String get dshPlusSectionCommands => 'Komutlar';
+
+  @override
+  String get dshPlusAttachFile => 'Dosya';
+
+  @override
+  String get dshPlusAttachFileSubtitle => 'Görsel veya dosya';
+
+  @override
+  String get dshPlusTarget => 'Hedef';
+
+  @override
+  String get dshPlusPlan => 'Plan';
+
+  @override
+  String get dshPlusFeedback => 'Geri bildirim';
+
+  @override
+  String get dshPlusCompress => 'Sıkıştır';
+
+  @override
+  String get dshPlusModel => 'Model';
+
+  @override
+  String get dshPlusDownloadLog => 'Günlüğü indir';
+
+  @override
+  String get dshPlusWireMissing => 'Sunucu bunun için bir API sunmuyor.';
+
+  @override
+  String get dshPlusPickPhoto => 'Fotoğraflar';
+
+  @override
+  String get dshPlusPickFile => 'Dosyalar';
+
+  @override
+  String get dshSlashCommandsTitle => 'Komutlar';
+
+  @override
+  String get dshAttachmentTooManyImages => 'Bu sunucu için çok fazla görsel.';
+
+  @override
+  String get dshAttachmentImageTooLarge =>
+      'Bir görsel bu sunucunun boyut sınırını aşıyor.';
+
+  @override
+  String get dshAttachmentImagesTooLarge =>
+      'Görsellerin toplamı bu sunucunun sınırını aşıyor.';
+
+  @override
+  String get dshAttachmentUnsupportedType =>
+      'Sunucu bu görsel türünü kabul etmiyor.';
+
+  @override
+  String get dshAttachmentReadFailed => 'Dosya okunamadı.';
+
+  @override
+  String get dshAttachmentUploadFailed => 'Dosya yüklenemedi.';
+
+  @override
+  String get dshAttachmentUploading => 'Ek yükleniyor…';
 }

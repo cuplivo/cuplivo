@@ -79,6 +79,13 @@ DateTime _renderTimestamp(DateTime? timestamp) {
   return timestamp.toLocal();
 }
 
+String _attachmentName(DshMessageAttachment attachment) {
+  final name = (attachment.name ?? '').trim();
+  if (name.isNotEmpty) return name;
+  final id = attachment.id.trim();
+  return id.isEmpty ? 'attachment' : id;
+}
+
 List<stream_ctrl.ReasoningSegmentData> _foldReasoning(
   List<DshReasoningSegment> segments,
 ) {
@@ -128,7 +135,23 @@ DshFoldedTranscript foldDshTranscript({
           ChatMessage(
             id: item.id,
             role: 'user',
-            parts: <MessagePart>[TextPart(item.text)],
+            parts: <MessagePart>[
+              if (item.text.trim().isNotEmpty) TextPart(item.text),
+              for (final attachment in item.attachments)
+                if (attachment.isImage)
+                  ImagePart(
+                    uri: attachment.dataUri ?? '',
+                    mime: attachment.mediaType,
+                    unavailable: !attachment.isRenderableImage,
+                  )
+                else
+                  FilePart(
+                    uri: 'dsh-attachment:${attachment.id}',
+                    name: _attachmentName(attachment),
+                    mime: attachment.mediaType,
+                    unavailable: true,
+                  ),
+            ],
             timestamp: _renderTimestamp(item.timestamp),
             conversationId: conversationId,
           ),

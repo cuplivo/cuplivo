@@ -24462,7 +24462,7 @@
   "@dshWebUiUrlLabel": {
     "description": "Label above the URL field that accepts the WebUI link printed by `dsh web`, including the launch token."
   },
-  "dshWebUiUrlHint": "e.g. 127.0.0.1:3080/?token=your-token",
+  "dshWebUiUrlHint": "e.g. 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…",
   "@dshWebUiUrlHint": {
     "description": "Placeholder of the WebUI link field. The token is a truncated example from the product brief, not a real credential."
   },
@@ -24481,10 +24481,6 @@
   "dshTabModels": "Models",
   "@dshTabModels": {
     "description": "Third tab of the DeepSeek Harness assistant settings page; the remote model/provider catalog lands here."
-  },
-  "dshTabContent": "Content",
-  "@dshTabContent": {
-    "description": "Fourth tab of the DeepSeek Harness assistant settings page; plugin-provided content settings land here."
   },
   "dshDefaultPermissionLabel": "Default permission limit for new sessions",
   "@dshDefaultPermissionLabel": {
@@ -24521,10 +24517,6 @@
   "dshModelsPlaceholder": "DeepSeek Harness models and providers will be managed here.",
   "@dshModelsPlaceholder": {
     "description": "Placeholder body of the Models tab of the DeepSeek Harness assistant settings page until the model slice lands."
-  },
-  "dshContentPlaceholder": "Plugin-provided content settings will appear here.",
-  "@dshContentPlaceholder": {
-    "description": "Placeholder body of the Content tab of the DeepSeek Harness assistant settings page until that slice lands."
   },
   "dshErrorNotConfigured": "The DeepSeek Harness client is not wired up yet, so connecting is unavailable.",
   "@dshErrorNotConfigured": {
@@ -25320,5 +25312,134 @@
   "dshProviderDetailMaxTokensHint": "256K",
   "@dshProviderDetailMaxTokensHint": {
     "description": "Placeholder example in the max-output-token field of a DSH model row."
+  },
+  "dshTabPlugins": "Built-in plugins",
+  "@dshTabPlugins": {
+    "description": "Fourth tab of the DeepSeek Harness assistant settings page: the Host's built-in plugin inventory, shown read-only."
+  },
+  "dshTabAgentPresets": "Agent presets",
+  "@dshTabAgentPresets": {
+    "description": "Fifth tab of the DeepSeek Harness assistant settings page: the agent preset compositions the Host reports, shown read-only."
+  },
+  "dshPluginsReadOnly": "Plugins are managed by the remote DeepSeek Harness; this list is read-only.",
+  "@dshPluginsReadOnly": {
+    "description": "Banner above the built-in plugin list; explains the list is read-only because plugin management RPCs are not used in this slice."
+  },
+  "dshPluginsEmpty": "This Host reports no built-in plugins.",
+  "@dshPluginsEmpty": {
+    "description": "Empty state of the built-in plugins tab when the Host reports no plugins."
+  },
+  "dshPluginsEnabled": "Enabled",
+  "@dshPluginsEnabled": {
+    "description": "Status text for an enabled built-in plugin row."
+  },
+  "dshPluginsDisabled": "Disabled",
+  "@dshPluginsDisabled": {
+    "description": "Status text for a disabled built-in plugin row or an inactive preset plugin row."
+  },
+  "dshPluginsPhase": "Phase: {phase}",
+  "@dshPluginsPhase": {
+    "description": "Loader phase line under a built-in plugin row; phase is the raw Loader phase string reported by the Host.",
+    "placeholders": {
+      "phase": {
+        "type": "String"
+      }
+    }
+  },
+  "dshAgentPresetsReadOnly": "Agent presets are owned by the remote DeepSeek Harness; this composition is read-only.",
+  "@dshAgentPresetsReadOnly": {
+    "description": "Banner above the read-only agent preset groups in the Agent presets tab."
+  },
+  "dshAgentPresetsEmpty": "This Host reports no Agent presets.",
+  "@dshAgentPresetsEmpty": {
+    "description": "Empty state of the Agent presets tab when the Host reports no groups."
+  },
+  "dshAgentPresetsDefault": "Default",
+  "@dshAgentPresetsDefault": {
+    "description": "Badge on the agent preset group the Host marks as default."
+  },
+  "dshPlusSectionAdd": "Add",
+  "dshPlusSectionCommands": "Commands",
+  "dshPlusAttachFile": "File",
+  "dshPlusAttachFileSubtitle": "Image or file",
+  "dshPlusTarget": "Goal",
+  "dshPlusPlan": "Plan",
+  "dshPlusFeedback": "Feedback",
+  "dshPlusCompress": "Compact",
+  "dshPlusModel": "Model",
+  "dshPlusDownloadLog": "Download log",
+  "dshPlusWireMissing": "The server exposes no API for this.",
+  "dshPlusPickPhoto": "Photos",
+  "dshPlusPickFile": "Files",
+  "dshSlashCommandsTitle": "Commands",
+  "dshAttachmentTooManyImages": "Too many images for this server.",
+  "dshAttachmentImageTooLarge": "An image exceeds this server's size limit.",
+  "dshAttachmentImagesTooLarge": "The images together exceed this server's limit.",
+  "dshAttachmentUnsupportedType": "The server does not accept this image type.",
+  "dshAttachmentReadFailed": "The file could not be read.",
+  "dshAttachmentUploadFailed": "The file could not be uploaded.",
+  "dshAttachmentUploading": "Uploading attachment…",
+  "@dshPlusSectionAdd": {
+    "description": "Section header label in the '+' tools sheet grouping add/attach actions; a heading, not a button."
+  },
+  "@dshPlusSectionCommands": {
+    "description": "Section header label in the '+' tools sheet grouping command rows such as compact and model."
+  },
+  "@dshPlusAttachFile": {
+    "description": "Title of the action menu/sheet for attaching content; also used as a row label in the '+' sheet."
+  },
+  "@dshPlusAttachFileSubtitle": {
+    "description": "Subtitle under the attach row in the '+' sheet, hinting it accepts an image or file."
+  },
+  "@dshPlusTarget": {
+    "description": "Row label in the '+' sheet for a goal/target action, shown with a map-pin icon."
+  },
+  "@dshPlusPlan": {
+    "description": "Disabled row label in the '+' sheet for a plan action, shown with a checklist icon."
+  },
+  "@dshPlusFeedback": {
+    "description": "Row label in the '+' sheet opening a feedback action, shown with a warning message icon."
+  },
+  "@dshPlusCompress": {
+    "description": "Row label in the '+' sheet for compacting/compressing the conversation; subtitle shows a warning when unavailable."
+  },
+  "@dshPlusModel": {
+    "description": "Row label in the '+' sheet for choosing the model; the current model name appears as subtitle."
+  },
+  "@dshPlusDownloadLog": {
+    "description": "Row label in the '+' sheet that downloads the log, shown with a download icon."
+  },
+  "@dshPlusWireMissing": {
+    "description": "Subtitle on disabled '+' sheet rows indicating the server provides no API for that action."
+  },
+  "@dshPlusPickPhoto": {
+    "description": "Action sheet item label to pick photos for attachment, shown with an image icon."
+  },
+  "@dshPlusPickFile": {
+    "description": "Action sheet item label to pick files for attachment, shown with a file icon."
+  },
+  "@dshSlashCommandsTitle": {
+    "description": "Title text at the top of the slash-commands sheet listing available commands."
+  },
+  "@dshAttachmentTooManyImages": {
+    "description": "Error message shown when selected images exceed the server's image count limit."
+  },
+  "@dshAttachmentImageTooLarge": {
+    "description": "Error message shown when a single image exceeds the server's size limit."
+  },
+  "@dshAttachmentImagesTooLarge": {
+    "description": "Error message shown when the combined size of images exceeds the server's limit."
+  },
+  "@dshAttachmentUnsupportedType": {
+    "description": "Error message shown when the server rejects the image's file type."
+  },
+  "@dshAttachmentReadFailed": {
+    "description": "Error message shown when a selected file cannot be read locally."
+  },
+  "@dshAttachmentUploadFailed": {
+    "description": "Error message shown when uploading an attachment to the server fails."
+  },
+  "@dshAttachmentUploading": {
+    "description": "Status text indicating an attachment is currently being uploaded."
   }
 }

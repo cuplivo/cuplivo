@@ -470,15 +470,33 @@ class DshPluginEntry {
   const DshPluginEntry({
     required this.id,
     required this.title,
+    this.moduleName = '',
+    this.localizedTitle = const <String, String>{},
     this.description,
     this.enabled = true,
+    this.phase,
     this.diagnostic,
   });
 
   final String id;
+
+  /// Display title resolved to English, or the module name when the plugin
+  /// reports no `meta.title`.
   final String title;
+
+  /// Module name from the Host inventory (`@scope/plugin`); the 内置插件 row
+  /// shows it under the title.
+  final String moduleName;
+
+  /// `meta.title` values exactly as the plugin authored them, so a settings
+  /// tab can use the plugin's own localized label instead of a Cuplivo key.
+  final Map<String, String> localizedTitle;
   final String? description;
   final bool enabled;
+
+  /// Loader phase (`pending`, `loading`, `active`, `failed`, `unloading`);
+  /// null when the Host does not report one.
+  final String? phase;
 
   /// Non-null when the plugin is installed but unhealthy; the row shows it.
   final String? diagnostic;
@@ -489,31 +507,141 @@ class DshPluginEntry {
       other is DshPluginEntry &&
           other.id == id &&
           other.title == title &&
+          other.moduleName == moduleName &&
+          mapEquals(other.localizedTitle, localizedTitle) &&
           other.description == description &&
           other.enabled == enabled &&
+          other.phase == phase &&
           other.diagnostic == diagnostic;
 
   @override
-  int get hashCode => Object.hash(id, title, description, enabled, diagnostic);
+  int get hashCode => Object.hash(
+    id,
+    title,
+    moduleName,
+    Object.hashAll(localizedTitle.entries),
+    description,
+    enabled,
+    phase,
+    diagnostic,
+  );
+}
+
+/// One plugin row inside an agent preset composition (read-only).
+@immutable
+class DshAgentPresetPlugin {
+  const DshAgentPresetPlugin({
+    required this.moduleName,
+    this.title,
+    this.localizedTitle = const <String, String>{},
+    this.enabled = true,
+    this.conditional = false,
+    this.condition,
+    this.phase,
+  });
+
+  final String moduleName;
+  final String? title;
+  final Map<String, String> localizedTitle;
+  final bool enabled;
+
+  /// The row's `!!js` disabled expression needs a Loader context to evaluate.
+  final bool conditional;
+  final String? condition;
+  final String? phase;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DshAgentPresetPlugin &&
+          other.moduleName == moduleName &&
+          other.title == title &&
+          mapEquals(other.localizedTitle, localizedTitle) &&
+          other.enabled == enabled &&
+          other.conditional == conditional &&
+          other.condition == condition &&
+          other.phase == phase;
+
+  @override
+  int get hashCode => Object.hash(
+    moduleName,
+    title,
+    Object.hashAll(localizedTitle.entries),
+    enabled,
+    conditional,
+    condition,
+    phase,
+  );
+}
+
+/// One agent preset's plugin composition as `pluginInventory/list` reports it.
+@immutable
+class DshAgentPresetGroup {
+  const DshAgentPresetGroup({
+    required this.id,
+    this.name,
+    this.isDefault = false,
+    this.broken,
+    this.plugins = const <DshAgentPresetPlugin>[],
+  });
+
+  final String id;
+  final String? name;
+  final bool isDefault;
+
+  /// Why the composition cannot be read (the plugin list is empty then).
+  final String? broken;
+  final List<DshAgentPresetPlugin> plugins;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DshAgentPresetGroup &&
+          other.id == id &&
+          other.name == name &&
+          other.isDefault == isDefault &&
+          other.broken == broken &&
+          listEquals(other.plugins, plugins);
+
+  @override
+  int get hashCode =>
+      Object.hash(id, name, isDefault, broken, Object.hashAll(plugins));
 }
 
 /// One command the remote advertises for the composer's plus menu.
 @immutable
 class DshCommand {
-  const DshCommand({required this.name, this.description});
+  const DshCommand({
+    required this.name,
+    this.description,
+    this.inputHint,
+    this.takesAttachments = false,
+  });
 
   final String name;
   final String? description;
+
+  /// The Host's hint for the argument the command expects (e.g. a preset name),
+  /// or null for a command that runs on its own.
+  final String? inputHint;
+
+  /// True when the command's input definition accepts attachments.
+  final bool takesAttachments;
+
+  bool get takesInput => (inputHint ?? '').trim().isNotEmpty;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is DshCommand &&
           other.name == name &&
-          other.description == description;
+          other.description == description &&
+          other.inputHint == inputHint &&
+          other.takesAttachments == takesAttachments;
 
   @override
-  int get hashCode => Object.hash(name, description);
+  int get hashCode =>
+      Object.hash(name, description, inputHint, takesAttachments);
 }
 
 /// One skill the remote advertises.
@@ -608,6 +736,7 @@ class DshCatalogSnapshot {
     this.workspaces = const <DshWorkspace>[],
     this.ungroupedSessions = const <DshSessionSummary>[],
     this.plugins = const <DshPluginEntry>[],
+    this.agentPresets = const <DshAgentPresetGroup>[],
     this.commands = const <DshCommand>[],
     this.skills = const <DshSkill>[],
     this.capabilities = const DshCapabilities(),
@@ -624,6 +753,10 @@ class DshCatalogSnapshot {
   /// the drawer still lists them.
   final List<DshSessionSummary> ungroupedSessions;
   final List<DshPluginEntry> plugins;
+
+  /// Agent preset compositions reported by `pluginInventory/list`; read-only
+  /// in v2 because the `agentPresets/*` RPCs are not in core yet.
+  final List<DshAgentPresetGroup> agentPresets;
   final List<DshCommand> commands;
   final List<DshSkill> skills;
   final DshCapabilities capabilities;
@@ -656,6 +789,7 @@ class DshCatalogSnapshot {
     List<DshWorkspace>? workspaces,
     List<DshSessionSummary>? ungroupedSessions,
     List<DshPluginEntry>? plugins,
+    List<DshAgentPresetGroup>? agentPresets,
     List<DshCommand>? commands,
     List<DshSkill>? skills,
     DshCapabilities? capabilities,
@@ -669,6 +803,7 @@ class DshCatalogSnapshot {
       workspaces: workspaces ?? this.workspaces,
       ungroupedSessions: ungroupedSessions ?? this.ungroupedSessions,
       plugins: plugins ?? this.plugins,
+      agentPresets: agentPresets ?? this.agentPresets,
       commands: commands ?? this.commands,
       skills: skills ?? this.skills,
       capabilities: capabilities ?? this.capabilities,
@@ -829,20 +964,140 @@ final class DshSessionControlUpdate extends DshRemoteUpdate {
 /// How a prompt is submitted while a turn is running.
 enum DshPromptMode { queue, steer }
 
-/// One attachment reference handed to a prompt. File bytes were uploaded by the
-/// chat slice through [DshGateway.uploadFile] (a later slice); this is the
-/// receipt/name pair the prompt needs.
+/// Whether one prompt attachment travels inline (image) or as an upload receipt
+/// (any other file).
+enum DshAttachmentKind { image, file }
+
+/// One attachment reference handed to a prompt, or one already on a user row.
+///
+/// Files are uploaded first and referenced by the `uploadFileBinary` receipt;
+/// images travel inline as base64 in `session/prompt` and are referenced by the
+/// stored attachment id when they come back as history.
 @immutable
 class DshPromptAttachment {
   const DshPromptAttachment({
     required this.receiptId,
+    this.kind = DshAttachmentKind.file,
     this.name,
     this.mediaType,
+    this.bytes,
+    this.width,
+    this.height,
+  });
+
+  /// Upload receipt id (files) or stored attachment id (images).
+  final String receiptId;
+  final DshAttachmentKind kind;
+  final String? name;
+  final String? mediaType;
+
+  /// Inline image bytes, when the caller already holds them. They are sent in
+  /// the prompt's image part, never re-uploaded.
+  final List<int>? bytes;
+  final int? width;
+  final int? height;
+
+  bool get isImage => kind == DshAttachmentKind.image;
+
+  /// True when a composer can build a prompt part from this reference.
+  bool get isPromptReady =>
+      receiptId.trim().isNotEmpty && (!isImage || (bytes?.isNotEmpty ?? false));
+}
+
+/// The Host's in-band outcome of one `commands/execute` call.
+///
+/// Commands answer success/failure in the payload rather than as an RPC error,
+/// so the composer shows [text] instead of treating a refusal as a link failure.
+@immutable
+class DshCommandOutcome {
+  const DshCommandOutcome({required this.success, this.text});
+
+  final bool success;
+  final String? text;
+}
+
+/// One accepted `uploadFileBinary` response: the receipt id the prompt's file
+/// part carries.
+@immutable
+class DshUploadReceipt {
+  const DshUploadReceipt({
+    required this.receiptId,
+    this.name,
+    this.mediaType,
+    this.width,
+    this.height,
   });
 
   final String receiptId;
   final String? name;
   final String? mediaType;
+  final int? width;
+  final int? height;
+}
+
+// ---------------------------------------------------------------------------
+// Context pressure / composer limits (session projections)
+// ---------------------------------------------------------------------------
+
+/// `contextPressure` projection: the Host's own token pressure for the session.
+///
+/// `pressureTokens / contextWindow` is the ring's ratio; [projectedTokens] is
+/// the Host's projected total after the next prompt and is shown as a secondary
+/// line, never mixed into the ratio.
+@immutable
+class DshContextPressure {
+  const DshContextPressure({
+    this.pressureTokens,
+    this.projectedTokens,
+    this.contextWindow,
+  });
+
+  final int? pressureTokens;
+  final int? projectedTokens;
+  final int? contextWindow;
+
+  bool get hasWindow => (contextWindow ?? 0) > 0;
+
+  bool get isValid =>
+      hasWindow && pressureTokens != null && pressureTokens! >= 0;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DshContextPressure &&
+          other.pressureTokens == pressureTokens &&
+          other.projectedTokens == projectedTokens &&
+          other.contextWindow == contextWindow;
+
+  @override
+  int get hashCode =>
+      Object.hash(pressureTokens, projectedTokens, contextWindow);
+}
+
+/// `imageLimits` projection: the Host's composer image budget.
+@immutable
+class DshImageLimits {
+  const DshImageLimits({
+    this.maxImageBytes,
+    this.maxImagesPerMessage,
+    this.maxMessageImageBytes,
+    this.maxImagePixels,
+    this.maxImageDimension,
+    this.mediaTypes = const <String>[],
+  });
+
+  final int? maxImageBytes;
+  final int? maxImagesPerMessage;
+  final int? maxMessageImageBytes;
+  final int? maxImagePixels;
+  final int? maxImageDimension;
+  final List<String> mediaTypes;
+
+  /// The media types the Host accepts, or Cuplivo's own narrow default when the
+  /// Host sent none (the protocol allows omitting the list).
+  List<String> get acceptedMediaTypes => mediaTypes.isEmpty
+      ? const <String>['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+      : mediaTypes;
 }
 
 @immutable
@@ -1040,6 +1295,8 @@ class DshSessionView {
     this.pendingApprovals = const <DshApprovalRequest>[],
     this.pendingQuestions = const <DshQuestionRequest>[],
     this.usage,
+    this.contextPressure,
+    this.imageLimits,
     this.error,
   });
 
@@ -1060,6 +1317,13 @@ class DshSessionView {
   final List<DshApprovalRequest> pendingApprovals;
   final List<DshQuestionRequest> pendingQuestions;
   final DshTokenUsage? usage;
+
+  /// The Host's own token pressure for the context ring; null when the
+  /// projection is absent, which hides the ring instead of guessing a window.
+  final DshContextPressure? contextPressure;
+
+  /// The Host's composer image budget; null when the projection is absent.
+  final DshImageLimits? imageLimits;
 
   /// Non-null while the live link is broken; the transcript stays rendered.
   final DshFailure? error;
@@ -1093,10 +1357,25 @@ class DshFileStat {
     required this.isDirectory,
     this.size,
     this.modifiedAt,
+    this.absolutePath,
+    this.version,
+    this.mediaType,
   });
 
   final String path;
   final bool isDirectory;
   final int? size;
   final DateTime? modifiedAt;
+
+  /// Absolute Host path returned by `workspaceFiles/stat`; `GET /api/file`
+  /// consumes it for the WebView-based previews (PDF/office).
+  final String? absolutePath;
+
+  /// Cache/version token for `GET /api/file?path=…&v=…`.
+  final String? version;
+
+  /// Host-reported media type, when the workspace listing carries one.
+  final String? mediaType;
+
+  bool get hasAbsolutePath => absolutePath != null && absolutePath!.isNotEmpty;
 }

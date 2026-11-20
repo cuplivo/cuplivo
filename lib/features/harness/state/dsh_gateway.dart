@@ -114,6 +114,28 @@ abstract interface class DshSessionHandle {
     List<DshPromptAttachment> attachments = const <DshPromptAttachment>[],
   });
 
+  /// Uploads raw file bytes and returns the receipt a file prompt part needs.
+  ///
+  /// Images never go through here: `session/prompt` carries them inline.
+  Future<DshUploadReceipt> uploadAttachment(
+    List<int> bytes, {
+    String? name,
+    String? mediaType,
+  });
+
+  /// Fetches one stored attachment's bytes for rendering.
+  ///
+  /// The request carries the full stored reference (id + media type + size
+  /// facts), which is what `session/attachment` validates.
+  Future<List<int>> attachmentBytes(DshPromptAttachment attachment);
+
+  /// Executes one slash-command line (`commands/execute`).
+  ///
+  /// Used by the composer's slash command list and by the plus menu's
+  /// compress/permission rows; the returned execution keeps the Host's in-band
+  /// success/failure text.
+  Future<DshCommandOutcome> executeCommand(String line);
+
   /// Cancels the running turn.
   Future<void> cancel();
 

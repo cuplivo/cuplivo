@@ -145,6 +145,11 @@ class TerminalSession {
   double fontSize;
   bool exited = false;
   int? exitCode;
+
+  /// True when the backing PTY reports that it refuses input (`writable:false`
+  /// in a DSH terminal snapshot). The surface hides the key bar and the
+  /// session's input paths drop keystrokes instead of pretending to type.
+  bool readOnly = false;
   bool ctrlModifier = false;
   bool altModifier = false;
 
@@ -182,17 +187,17 @@ class TerminalSession {
 
   /// Types [text] into the shell input line (no trailing newline).
   void appendInput(String text) {
-    if (text.isEmpty || exited) return;
+    if (text.isEmpty || exited || readOnly) return;
     terminal.textInput(text);
   }
 
   void sendText(String text) {
-    if (text.isEmpty || exited) return;
+    if (text.isEmpty || exited || readOnly) return;
     terminal.textInput(text);
   }
 
   void sendKey(TerminalKey key, {bool applyModifiers = true}) {
-    if (exited) return;
+    if (exited || readOnly) return;
     final ctrl = applyModifiers && ctrlModifier;
     final alt = applyModifiers && altModifier;
     terminal.keyInput(key, ctrl: ctrl, alt: alt);
@@ -202,7 +207,7 @@ class TerminalSession {
   }
 
   void pasteText(String text) {
-    if (text.isEmpty || exited) return;
+    if (text.isEmpty || exited || readOnly) return;
     terminal.paste(text);
   }
 
@@ -374,7 +379,7 @@ class TerminalSessionManager extends ChangeNotifier {
 
     terminal.onOutput = (data) {
       final payload = _applyStickyModifiers(session, data);
-      if (payload.isEmpty || session.exited) return;
+      if (payload.isEmpty || session.exited || session.readOnly) return;
       unawaited(pty.write(Uint8List.fromList(utf8.encode(payload))));
     };
     terminal.onResize = (width, height, pixelWidth, pixelHeight) {

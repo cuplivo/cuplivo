@@ -512,6 +512,127 @@ class DshUsage {
 }
 
 /// One rendered entry of the remote session log.
+/// One attachment shown on a user prompt row, already resolved for rendering.
+///
+/// The transcript never carries wire types: [dataUri] is filled only after the
+/// authenticated `session/attachment` fetch succeeded, so the shared chat
+/// renderer can draw inline images with no remote provider.
+@immutable
+class DshMessageAttachment {
+  const DshMessageAttachment({
+    required this.id,
+    this.name,
+    this.mediaType,
+    this.isImage = false,
+    this.dataUri,
+    this.unavailable = false,
+  });
+
+  final String id;
+  final String? name;
+  final String? mediaType;
+  final bool isImage;
+
+  /// `data:<mime>;base64,…` when the bytes were fetched, else null.
+  final String? dataUri;
+
+  /// True when this image could not be fetched (or is still fetching).
+  final bool unavailable;
+
+  bool get isRenderableImage => isImage && (dataUri?.isNotEmpty ?? false);
+}
+
+/// The Host's `contextPressure` readout for the composer ring.
+@immutable
+class DshContextPressure {
+  const DshContextPressure({
+    this.pressureTokens,
+    this.projectedTokens,
+    this.contextWindow,
+  });
+
+  final int? pressureTokens;
+  final int? projectedTokens;
+  final int? contextWindow;
+
+  bool get hasWindow => (contextWindow ?? 0) > 0;
+}
+
+/// The Host's composer image budget (`imageLimits` projection).
+@immutable
+class DshImageLimits {
+  const DshImageLimits({
+    this.maxImageBytes,
+    this.maxImagesPerMessage,
+    this.maxMessageImageBytes,
+    this.maxImagePixels,
+    this.maxImageDimension,
+    this.mediaTypes = const <String>[],
+  });
+
+  final int? maxImageBytes;
+  final int? maxImagesPerMessage;
+  final int? maxMessageImageBytes;
+  final int? maxImagePixels;
+  final int? maxImageDimension;
+  final List<String> mediaTypes;
+}
+
+/// One command in the Host's `commands/list` catalog.
+@immutable
+class DshSlashCommand {
+  const DshSlashCommand({
+    required this.name,
+    this.description,
+    this.inputHint,
+    this.takesAttachments = false,
+  });
+
+  /// Lowercase name without the leading slash.
+  final String name;
+  final String? description;
+
+  /// The Host's argument hint; null ends the command (it runs as-is).
+  final String? inputHint;
+  final bool takesAttachments;
+
+  bool get takesInput => (inputHint ?? '').trim().isNotEmpty;
+}
+
+/// The in-band outcome of a `commands/execute` call.
+@immutable
+class DshCommandResult {
+  const DshCommandResult({required this.success, this.text});
+
+  final bool success;
+  final String? text;
+}
+
+/// One attachment the composer prepared for `session/prompt`.
+@immutable
+class DshPromptAttachment {
+  const DshPromptAttachment.image({
+    required this.bytes,
+    this.name,
+    this.mediaType,
+  }) : receiptId = '',
+       isImage = true;
+
+  const DshPromptAttachment.file({
+    required this.receiptId,
+    this.name,
+    this.mediaType,
+  }) : bytes = null,
+       isImage = false;
+
+  /// Upload receipt id for files; empty for inline images.
+  final String receiptId;
+  final List<int>? bytes;
+  final String? name;
+  final String? mediaType;
+  final bool isImage;
+}
+
 sealed class DshChatItem {
   const DshChatItem({required this.id, this.timestamp});
 
@@ -530,6 +651,7 @@ final class DshUserMessageItem extends DshChatItem {
     required super.id,
     super.timestamp,
     required this.text,
+    this.attachments = const <DshMessageAttachment>[],
     this.pending = false,
     this.failed = false,
   });
@@ -541,6 +663,10 @@ final class DshUserMessageItem extends DshChatItem {
 
   /// True when the Host rejected the prompt; the composer restores the draft.
   final bool failed;
+
+  /// Attachments that travelled with this prompt (image inline, files promoted
+  /// to upload receipts), resolved for the transcript renderer.
+  final List<DshMessageAttachment> attachments;
 }
 
 /// One assistant reply (a durable message or the live streaming draft).
@@ -736,6 +862,9 @@ class DshChatViewState {
     this.permissions,
     this.approvals = const <DshPendingApproval>[],
     this.questions = const <DshPendingQuestion>[],
+    this.contextPressure,
+    this.imageLimits,
+    this.commands = const <DshSlashCommand>[],
   });
 
   /// The session log projection, oldest first.
@@ -773,6 +902,15 @@ class DshChatViewState {
   final DshPermissionState? permissions;
   final List<DshPendingApproval> approvals;
   final List<DshPendingQuestion> questions;
+
+  /// `contextPressure`: the composer ring's numerator/window; null hides it.
+  final DshContextPressure? contextPressure;
+
+  /// `imageLimits`: the composer's inline-image budget; null when unreported.
+  final DshImageLimits? imageLimits;
+
+  /// `commands/list`: every user-invocable slash command the Host advertises.
+  final List<DshSlashCommand> commands;
 
   /// The catalog model behind [modelSelection]/the catalog default.
   DshModelOption? get currentModel => modelCatalog.modelFor(modelSelection);
@@ -831,6 +969,9 @@ class DshChatViewState {
     DshModelSelection? modelSelection,
     DshModelCatalog? modelCatalog,
     DshPermissionState? permissions,
+    DshContextPressure? contextPressure,
+    DshImageLimits? imageLimits,
+    List<DshSlashCommand>? commands,
     List<DshPendingApproval>? approvals,
     List<DshPendingQuestion>? questions,
   }) {
@@ -847,6 +988,9 @@ class DshChatViewState {
       modelSelection: modelSelection ?? this.modelSelection,
       modelCatalog: modelCatalog ?? this.modelCatalog,
       permissions: permissions ?? this.permissions,
+      contextPressure: contextPressure ?? this.contextPressure,
+      imageLimits: imageLimits ?? this.imageLimits,
+      commands: commands ?? this.commands,
       approvals: approvals ?? this.approvals,
       questions: questions ?? this.questions,
     );
@@ -888,7 +1032,27 @@ abstract class DshChatSession extends ChangeNotifier {
   bool get canSend;
 
   /// Submits one prompt. Only an accepted result may clear the composer.
-  Future<DshPromptSendResult> sendPrompt(String text);
+  Future<DshPromptSendResult> sendPrompt(
+    String text, {
+    List<DshPromptAttachment> attachments = const <DshPromptAttachment>[],
+  });
+
+  /// Uploads one file's bytes and returns the receipt id for its prompt part.
+  ///
+  /// The composer's attachment service uses this for non-image files; images
+  /// travel inline and never hit the upload endpoint.
+  Future<String> uploadAttachment(
+    List<int> bytes, {
+    String? name,
+    String? mediaType,
+  });
+
+  /// Executes one slash-command line through the Host's command path.
+  ///
+  /// The composer's slash list and the plus menu's compress row use this; a
+  /// refusal is returned as [DshCommandResult.success] false, not thrown as a
+  /// link failure.
+  Future<DshCommandResult> runCommand(String line);
 
   /// Requests cancellation of the running turn.
   Future<void> cancelTurn();

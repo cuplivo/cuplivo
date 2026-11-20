@@ -17952,7 +17952,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dshWebUiUrlLabel => '请输入DeepSeek Harness的WebUI访问链接';
 
   @override
-  String get dshWebUiUrlHint => '例如127.0.0.1:3080/?token=你的访问令牌';
+  String get dshWebUiUrlHint => '例如127.0.0.1:3080/?token=PEaxKDfNOHzbHp…';
 
   @override
   String get dshWebUiUrlHelper =>
@@ -17966,9 +17966,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dshTabModels => '模型';
-
-  @override
-  String get dshTabContent => '内容';
 
   @override
   String get dshDefaultPermissionLabel => '选择新会话的默认权限限制';
@@ -17996,9 +17993,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dshModelsPlaceholder => 'DeepSeek Harness 的模型与提供商设置将在这里提供。';
-
-  @override
-  String get dshContentPlaceholder => '插件提供的内容设置将在这里提供。';
 
   @override
   String get dshErrorNotConfigured => 'DeepSeek Harness 协议客户端尚未接入，连接暂时不可用。';
@@ -18608,6 +18602,102 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dshProviderDetailMaxTokensHint => '256K';
+
+  @override
+  String get dshTabPlugins => '内置插件';
+
+  @override
+  String get dshTabAgentPresets => 'Agent 预设';
+
+  @override
+  String get dshPluginsReadOnly => '插件由远程 DeepSeek Harness 管理；此列表为只读。';
+
+  @override
+  String get dshPluginsEmpty => '此 Host 没有报告内置插件。';
+
+  @override
+  String get dshPluginsEnabled => '已启用';
+
+  @override
+  String get dshPluginsDisabled => '已停用';
+
+  @override
+  String dshPluginsPhase(String phase) {
+    return '阶段：$phase';
+  }
+
+  @override
+  String get dshAgentPresetsReadOnly =>
+      'Agent 预设由远程 DeepSeek Harness 管理；此插件组合为只读。';
+
+  @override
+  String get dshAgentPresetsEmpty => '此 Host 没有报告 Agent 预设。';
+
+  @override
+  String get dshAgentPresetsDefault => '默认';
+
+  @override
+  String get dshPlusSectionAdd => '添加';
+
+  @override
+  String get dshPlusSectionCommands => '指令';
+
+  @override
+  String get dshPlusAttachFile => '文件';
+
+  @override
+  String get dshPlusAttachFileSubtitle => '图片或文件';
+
+  @override
+  String get dshPlusTarget => '目标';
+
+  @override
+  String get dshPlusPlan => '计划';
+
+  @override
+  String get dshPlusFeedback => '反馈';
+
+  @override
+  String get dshPlusCompress => '压缩';
+
+  @override
+  String get dshPlusModel => '模型';
+
+  @override
+  String get dshPlusDownloadLog => '下载日志';
+
+  @override
+  String get dshPlusWireMissing => '服务器没有提供这个操作的接口。';
+
+  @override
+  String get dshPlusPickPhoto => '照片';
+
+  @override
+  String get dshPlusPickFile => '文件';
+
+  @override
+  String get dshSlashCommandsTitle => '命令';
+
+  @override
+  String get dshAttachmentTooManyImages => '图片数量超过服务器限制。';
+
+  @override
+  String get dshAttachmentImageTooLarge => '有图片超过服务器的大小限制。';
+
+  @override
+  String get dshAttachmentImagesTooLarge => '图片总大小超过服务器限制。';
+
+  @override
+  String get dshAttachmentUnsupportedType => '服务器不接受这种图片类型。';
+
+  @override
+  String get dshAttachmentReadFailed => '无法读取这个文件。';
+
+  @override
+  String get dshAttachmentUploadFailed => '文件上传失败。';
+
+  @override
+  String get dshAttachmentUploading => '正在上传附件…';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -36558,7 +36648,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get dshWebUiUrlLabel => '请输入DeepSeek Harness的WebUI访问链接';
 
   @override
-  String get dshWebUiUrlHint => '例如127.0.0.1:3080/?token=你的访问令牌';
+  String get dshWebUiUrlHint => '例如127.0.0.1:3080/?token=PEaxKDfNOHzbHp…';
 
   @override
   String get dshWebUiUrlHelper =>
@@ -36572,9 +36662,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get dshTabModels => '模型';
-
-  @override
-  String get dshTabContent => '内容';
 
   @override
   String get dshDefaultPermissionLabel => '选择新会话的默认权限限制';
@@ -36602,9 +36689,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get dshModelsPlaceholder => 'DeepSeek Harness 的模型与提供商设置将在这里提供。';
-
-  @override
-  String get dshContentPlaceholder => '插件提供的内容设置将在这里提供。';
 
   @override
   String get dshErrorNotConfigured => 'DeepSeek Harness 协议客户端尚未接入，连接暂时不可用。';
@@ -37214,6 +37298,102 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get dshProviderDetailMaxTokensHint => '256K';
+
+  @override
+  String get dshTabPlugins => '内置插件';
+
+  @override
+  String get dshTabAgentPresets => 'Agent 预设';
+
+  @override
+  String get dshPluginsReadOnly => '插件由远程 DeepSeek Harness 管理；此列表为只读。';
+
+  @override
+  String get dshPluginsEmpty => '此 Host 没有报告内置插件。';
+
+  @override
+  String get dshPluginsEnabled => '已启用';
+
+  @override
+  String get dshPluginsDisabled => '已停用';
+
+  @override
+  String dshPluginsPhase(String phase) {
+    return '阶段：$phase';
+  }
+
+  @override
+  String get dshAgentPresetsReadOnly =>
+      'Agent 预设由远程 DeepSeek Harness 管理；此插件组合为只读。';
+
+  @override
+  String get dshAgentPresetsEmpty => '此 Host 没有报告 Agent 预设。';
+
+  @override
+  String get dshAgentPresetsDefault => '默认';
+
+  @override
+  String get dshPlusSectionAdd => '添加';
+
+  @override
+  String get dshPlusSectionCommands => '指令';
+
+  @override
+  String get dshPlusAttachFile => '文件';
+
+  @override
+  String get dshPlusAttachFileSubtitle => '图片或文件';
+
+  @override
+  String get dshPlusTarget => '目标';
+
+  @override
+  String get dshPlusPlan => '计划';
+
+  @override
+  String get dshPlusFeedback => '反馈';
+
+  @override
+  String get dshPlusCompress => '压缩';
+
+  @override
+  String get dshPlusModel => '模型';
+
+  @override
+  String get dshPlusDownloadLog => '下载日志';
+
+  @override
+  String get dshPlusWireMissing => '服务器没有提供这个操作的接口。';
+
+  @override
+  String get dshPlusPickPhoto => '照片';
+
+  @override
+  String get dshPlusPickFile => '文件';
+
+  @override
+  String get dshSlashCommandsTitle => '命令';
+
+  @override
+  String get dshAttachmentTooManyImages => '图片数量超过服务器限制。';
+
+  @override
+  String get dshAttachmentImageTooLarge => '有图片超过服务器的大小限制。';
+
+  @override
+  String get dshAttachmentImagesTooLarge => '图片总大小超过服务器限制。';
+
+  @override
+  String get dshAttachmentUnsupportedType => '服务器不接受这种图片类型。';
+
+  @override
+  String get dshAttachmentReadFailed => '无法读取这个文件。';
+
+  @override
+  String get dshAttachmentUploadFailed => '文件上传失败。';
+
+  @override
+  String get dshAttachmentUploading => '正在上传附件…';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -55186,7 +55366,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get dshWebUiUrlLabel => '貼上 DeepSeek Harness 的 WebUI 連結';
 
   @override
-  String get dshWebUiUrlHint => '例如 127.0.0.1:3080/?token=你的存取權杖';
+  String get dshWebUiUrlHint => '例如 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…';
 
   @override
   String get dshWebUiUrlHelper =>
@@ -55200,9 +55380,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get dshTabModels => '模型';
-
-  @override
-  String get dshTabContent => '內容';
 
   @override
   String get dshDefaultPermissionLabel => '選擇新工作階段的預設權限限制';
@@ -55230,9 +55407,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get dshModelsPlaceholder => 'DeepSeek Harness 的模型與供應商設定將在這裡提供。';
-
-  @override
-  String get dshContentPlaceholder => '外掛提供的内容設定將在這裡顯示。';
 
   @override
   String get dshErrorNotConfigured => 'DeepSeek Harness 協定用戶端尚未接入，暫時無法連線。';
@@ -55842,4 +56016,100 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get dshProviderDetailMaxTokensHint => '256K';
+
+  @override
+  String get dshTabPlugins => '內建外掛';
+
+  @override
+  String get dshTabAgentPresets => 'Agent 預設集';
+
+  @override
+  String get dshPluginsReadOnly => '外掛由遠端 DeepSeek Harness 管理；此清單為唯讀。';
+
+  @override
+  String get dshPluginsEmpty => '此 Host 未回報任何內建外掛。';
+
+  @override
+  String get dshPluginsEnabled => '已啟用';
+
+  @override
+  String get dshPluginsDisabled => '已停用';
+
+  @override
+  String dshPluginsPhase(String phase) {
+    return '階段：$phase';
+  }
+
+  @override
+  String get dshAgentPresetsReadOnly =>
+      'Agent 預設集由遠端 DeepSeek Harness 管理；此組合為唯讀。';
+
+  @override
+  String get dshAgentPresetsEmpty => '此 Host 未回報任何 Agent 預設集。';
+
+  @override
+  String get dshAgentPresetsDefault => '預設';
+
+  @override
+  String get dshPlusSectionAdd => '新增';
+
+  @override
+  String get dshPlusSectionCommands => '指令';
+
+  @override
+  String get dshPlusAttachFile => '檔案';
+
+  @override
+  String get dshPlusAttachFileSubtitle => '圖片或檔案';
+
+  @override
+  String get dshPlusTarget => '目標';
+
+  @override
+  String get dshPlusPlan => '計畫';
+
+  @override
+  String get dshPlusFeedback => '意見回饋';
+
+  @override
+  String get dshPlusCompress => '壓縮';
+
+  @override
+  String get dshPlusModel => '模型';
+
+  @override
+  String get dshPlusDownloadLog => '下載日誌';
+
+  @override
+  String get dshPlusWireMissing => '伺服器未提供此操作的 API。';
+
+  @override
+  String get dshPlusPickPhoto => '照片';
+
+  @override
+  String get dshPlusPickFile => '檔案';
+
+  @override
+  String get dshSlashCommandsTitle => '指令';
+
+  @override
+  String get dshAttachmentTooManyImages => '圖片數量超過此伺服器的限制。';
+
+  @override
+  String get dshAttachmentImageTooLarge => '有圖片超過此伺服器的大小限制。';
+
+  @override
+  String get dshAttachmentImagesTooLarge => '圖片總大小超過此伺服器的限制。';
+
+  @override
+  String get dshAttachmentUnsupportedType => '伺服器不接受這種圖片類型。';
+
+  @override
+  String get dshAttachmentReadFailed => '無法讀取此檔案。';
+
+  @override
+  String get dshAttachmentUploadFailed => '無法上傳此檔案。';
+
+  @override
+  String get dshAttachmentUploading => '正在上傳附件…';
 }

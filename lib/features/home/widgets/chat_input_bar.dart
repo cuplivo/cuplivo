@@ -732,6 +732,7 @@ class ChatInputBar extends StatefulWidget {
     this.onConfigureReasoning,
     this.reasoningButtonKey,
     this.onOpenContextUsage,
+    this.contextUsageOverride,
     this.moreOpen = false,
     this.focusNode,
     this.modelIcon,
@@ -806,6 +807,15 @@ class ChatInputBar extends StatefulWidget {
   final VoidCallback? onConfigureReasoning;
   final GlobalKey? reasoningButtonKey;
   final VoidCallback? onOpenContextUsage;
+
+  /// A caller-owned context usage snapshot for a remote conversation.
+  ///
+  /// Local chats resolve usage from [ContextUsageService] through the provider
+  /// tree, keyed by `conversationId`; a remote-composer host (DeepSeek Harness)
+  /// has neither, so it hands the mapped snapshot in here. When non-null the
+  /// ring renders from this value and the `conversationId` gate is relaxed —
+  /// only for the override path; local composers behave exactly as before.
+  final ContextUsageSnapshot? contextUsageOverride;
   final bool moreOpen;
   final FocusNode? focusNode;
   final Widget? modelIcon;
@@ -5186,12 +5196,16 @@ class _ChatInputBarState extends State<ChatInputBar>
                                                     ),
                                                     const SizedBox(width: 8),
                                                   ],
-                                                  if (!isMobileLayout &&
-                                                      (widget
-                                                              .conversationId
-                                                              ?.isNotEmpty ??
-                                                          false))
+                                                  if (widget.contextUsageOverride !=
+                                                          null ||
+                                                      (!isMobileLayout &&
+                                                          (widget
+                                                                  .conversationId
+                                                                  ?.isNotEmpty ??
+                                                              false)))
                                                     _ContextUsageInputControl(
+                                                      contextUsageOverride: widget
+                                                          .contextUsageOverride,
                                                       onTap: widget
                                                           .onOpenContextUsage,
                                                     ),
@@ -5645,18 +5659,23 @@ class _CompactIconButton extends StatelessWidget {
 }
 
 class _ContextUsageInputControl extends StatelessWidget {
-  const _ContextUsageInputControl({this.onTap});
+  const _ContextUsageInputControl({this.onTap, this.contextUsageOverride});
 
   final VoidCallback? onTap;
 
+  /// Remote-composer override; when null the local service is read instead.
+  final ContextUsageSnapshot? contextUsageOverride;
+
   @override
   Widget build(BuildContext context) {
-    final usage = context.watch<ContextUsageService?>();
-    if (usage == null) return const SizedBox.shrink();
+    final snapshot =
+        contextUsageOverride ?? context.watch<ContextUsageService?>()?.current;
+    if (snapshot == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: ContextUsageRing(
-        snapshot: usage.current,
+        key: const ValueKey<String>('dsh-context-ring'),
+        snapshot: snapshot,
         onTap: () => onTap?.call(),
       ),
     );

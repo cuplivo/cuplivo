@@ -2,17 +2,31 @@ import 'package:flutter/foundation.dart';
 
 import 'package:Cuplivo/core/models/chat_input_data.dart';
 import 'package:Cuplivo/features/harness/controllers/dsh_chat_session.dart';
+import 'package:Cuplivo/features/harness/services/dsh_attachment_upload_service.dart';
+
+/// Builds the prompt attachments for one composer submission (images inline,
+/// files uploaded). Throws [DshAttachmentFailure] when an item is refused.
+typedef DshAttachmentPreparer =
+    Future<List<DshPromptAttachment>> Function(ChatInputData input);
 
 /// The outcome of one composer submission, with the Host's rejection text when
 /// there is one.
 @immutable
 class DshComposerSubmissionResult {
-  const DshComposerSubmissionResult(this.result, {this.message});
+  const DshComposerSubmissionResult(
+    this.result, {
+    this.message,
+    this.attachmentFailure,
+  });
 
   final ChatInputSubmissionResult result;
 
   /// Host-supplied rejection text, already user-readable.
   final String? message;
+
+  /// Set when the composer's own attachment preparation refused the send; the
+  /// chat surface localizes the kind and keeps the draft.
+  final DshAttachmentFailure? attachmentFailure;
 
   bool get rejected => result == ChatInputSubmissionResult.rejected;
 }
@@ -31,9 +45,13 @@ class DshComposerSubmissionResult {
 /// (`session/prompt` with `mode:'queue'`), and a queued remote prompt is still
 /// accepted by the Host, so it reports `sent` here.
 class DshComposerSubmission {
-  const DshComposerSubmission(this.session);
+  const DshComposerSubmission(this.session, {this.attachmentPreparer});
 
   final DshChatSession session;
+
+  /// Optional attachment preparation (the remote composer supplies an upload
+  /// service; a plain text-only test passes null).
+  final DshAttachmentPreparer? attachmentPreparer;
 
   /// `ChatInputBar.onSend` entry point.
   Future<ChatInputSubmissionResult> submit(ChatInputData input) async {
@@ -46,7 +64,9 @@ class DshComposerSubmission {
     ChatInputData input,
   ) async {
     final text = input.text.trim();
-    if (text.isEmpty) {
+    final hasAttachments =
+        input.imagePaths.isNotEmpty || input.documents.isNotEmpty;
+    if (text.isEmpty && !hasAttachments) {
       return const DshComposerSubmissionResult(
         ChatInputSubmissionResult.rejected,
       );
@@ -56,8 +76,29 @@ class DshComposerSubmission {
         ChatInputSubmissionResult.rejected,
       );
     }
+    var attachments = const <DshPromptAttachment>[];
+    final preparer = attachmentPreparer;
+    if (preparer != null && hasAttachments) {
+      try {
+        attachments = await preparer(input);
+      } on DshAttachmentFailure catch (failure) {
+        return DshComposerSubmissionResult(
+          ChatInputSubmissionResult.rejected,
+          attachmentFailure: failure,
+        );
+      } catch (_) {
+        return const DshComposerSubmissionResult(
+          ChatInputSubmissionResult.rejected,
+        );
+      }
+      if (attachments.isEmpty && text.isEmpty) {
+        return const DshComposerSubmissionResult(
+          ChatInputSubmissionResult.rejected,
+        );
+      }
+    }
     try {
-      final result = await session.sendPrompt(text);
+      final result = await session.sendPrompt(text, attachments: attachments);
       if (result.isAccepted) {
         return const DshComposerSubmissionResult(
           ChatInputSubmissionResult.sent,

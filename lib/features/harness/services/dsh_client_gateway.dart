@@ -13,6 +13,8 @@ import '../models/dsh_remote.dart';
 import '../state/dsh_gateway.dart';
 import 'dsh_client_gateway_mapping.dart';
 import 'dsh_client_session_handle.dart';
+import 'dsh_file_preview_host.dart';
+import 'dsh_terminal_runtime.dart';
 import 'dsh_provider_settings_adapter.dart';
 
 /// The real [DshGateway]: one DeepSeek Harness connection over
@@ -28,7 +30,12 @@ import 'dsh_provider_settings_adapter.dart';
 /// * [disconnect] is idempotent and also safe after a failed [connect];
 /// * the gateway never writes credentials: it returns the minted cookie in
 ///   [DshConnectResult] and the provider persists it.
-class DshClientGateway implements DshGateway, DshProviderSettingsHost {
+class DshClientGateway
+    implements
+        DshGateway,
+        DshProviderSettingsHost,
+        DshFilePreviewHost,
+        DshTerminalRuntimeHost {
   DshClientGateway({
     this._httpClient,
     this.muxOptions = const dsh.DshMuxOptions(),
@@ -381,32 +388,42 @@ class DshClientGateway implements DshGateway, DshProviderSettingsHost {
   Future<DshFileStat> statFile(String sessionId, String path) async {
     final client = _requireClient();
     try {
-      final value = await client.rpc.call(
-        'workspaceFiles/stat',
-        args: {
-          'workspaceFileScopeId': sessionId,
-          'path': workspaceFilePathForWire(path),
-        },
-        idempotent: true,
+      final stat = await client.statWorkspaceFile(
+        sessionId,
+        workspaceFilePathForWire(path),
+        timeout: const Duration(seconds: 20),
       );
-      return mapWorkspaceFileStat(dsh.jsonMap(value), path);
+      return mapWorkspaceFileStat(stat, path);
     } on dsh.DshException catch (error) {
       throw dshGatewayExceptionFromClient(error);
     }
   }
 
   @override
-  Future<List<int>> readFileBytes(String sessionId, String path) {
-    // `workspaceFiles/readBytes` answers a binary multipart body; the client
-    // transport exposes only the JSON envelope, so the adapter cannot decode it
-    // without reaching into the transport (client-core's file). The right-rail
-    // preview falls back to text on this failure.
-    throw const DshGatewayException(
-      DshFailure.unsupported,
-      detail:
-          'workspaceFiles/readBytes is a multipart binary response and the '
-          'DSH client exposes no byte-read API yet',
-    );
+  Future<List<int>> readFileBytes(String sessionId, String path) async {
+    final client = _requireClient();
+    try {
+      return await client.readFileBytes(
+        sessionId,
+        workspaceFilePathForWire(path),
+        timeout: const Duration(seconds: 30),
+      );
+    } on dsh.DshException catch (error) {
+      throw dshGatewayExceptionFromClient(error);
+    }
+  }
+
+  @override
+  Uri? fileUri(String absolutePath, {String? version}) {
+    if (absolutePath.isEmpty) return null;
+    return _client?.endpoint.fileUri(absolutePath, version: version);
+  }
+
+  @override
+  DshWorkspaceRuntime? terminalRuntimeFor(String sessionId) {
+    final client = _client;
+    if (client == null || sessionId.isEmpty) return null;
+    return DshWorkspaceRuntime(client: client, sessionId: sessionId);
   }
 
   // ---------------------------------------------------------------------------

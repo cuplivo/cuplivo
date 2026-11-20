@@ -42,6 +42,16 @@ class DshGatewayChatSession extends chat.DshChatSession {
   chat.DshChatViewState _state = const chat.DshChatViewState();
   Timer? _streamFlush;
 
+  /// Stored attachment bytes already fetched through
+  /// `session/attachment`, keyed by attachment id. A null value means the fetch
+  /// was attempted and failed (the transcript then renders an honest
+  /// unavailable chip instead of retrying on every frame).
+  final Map<String, List<int>?> _attachmentBytes = <String, List<int>?>{};
+  final Set<String> _attachmentFetches = <String>{};
+
+  /// Bound on fetched image payloads kept in memory; oldest evicted first.
+  static const int attachmentCacheLimit = 16;
+
   /// The adapter folds a *full* view per frame, so a token-by-token stream can
   /// notify faster than the list should rebuild. Streaming frames coalesce into
   /// one repaint per [streamingFrameInterval]; anything that is not a live
@@ -155,11 +165,16 @@ class DshGatewayChatSession extends chat.DshChatSession {
     final items = <chat.DshChatItem>[];
     for (final entry in view.entries) {
       if (entry is gw.DshUserEntry) {
+        _prefetchAttachmentImages(entry.attachments);
         items.add(
           chat.DshUserMessageItem(
             id: entry.key,
             timestamp: entry.time,
             text: entry.text,
+            attachments: [
+              for (final attachment in entry.attachments)
+                _mapAttachment(attachment),
+            ],
           ),
         );
         continue;
@@ -434,6 +449,70 @@ class DshGatewayChatSession extends chat.DshChatSession {
     };
   }
 
+  chat.DshMessageAttachment _mapAttachment(gw.DshPromptAttachment source) {
+    final bytes = _attachmentBytes[source.receiptId];
+    final mediaType = source.mediaType?.trim() ?? '';
+    final fetchedBytes = bytes != null && bytes.isNotEmpty ? bytes : null;
+    String? dataUri;
+    if (fetchedBytes != null) {
+      final mime = mediaType.isEmpty ? 'image/png' : mediaType;
+      dataUri = 'data:$mime;base64,${base64Encode(fetchedBytes)}';
+    }
+    return chat.DshMessageAttachment(
+      id: source.receiptId,
+      name: source.name,
+      mediaType: source.mediaType,
+      isImage: source.isImage,
+      dataUri: dataUri,
+      unavailable: source.isImage && dataUri == null,
+    );
+  }
+
+  /// Fetches stored image bytes once per attachment for the transcript.
+  ///
+  /// Images in a user row are references (`attachmentId`) rather than payloads,
+  /// so the row can only show them after the authenticated `session/attachment`
+  /// call succeeded. The fetch is fire-and-forget; its completion rebuilds the
+  /// view, and a failure is cached so a broken attachment is not re-requested
+  /// on every streaming frame.
+  void _prefetchAttachmentImages(List<gw.DshPromptAttachment> attachments) {
+    final handle = _handle;
+    if (handle == null) return;
+    for (final attachment in attachments) {
+      if (!attachment.isImage) continue;
+      final id = attachment.receiptId.trim();
+      if (id.isEmpty ||
+          _attachmentBytes.containsKey(id) ||
+          !_attachmentFetches.add(id)) {
+        continue;
+      }
+      unawaited(
+        handle
+            .attachmentBytes(attachment)
+            .then<void>(
+              (bytes) {
+                _attachmentBytes[id] = bytes;
+              },
+              onError: (Object _) {
+                _attachmentBytes[id] = null;
+              },
+            )
+            .whenComplete(() {
+              _attachmentFetches.remove(id);
+              if (_disposed) return;
+              _evictAttachmentCache();
+              _rebuild();
+            }),
+      );
+    }
+  }
+
+  void _evictAttachmentCache() {
+    while (_attachmentBytes.length > attachmentCacheLimit) {
+      _attachmentBytes.remove(_attachmentBytes.keys.first);
+    }
+  }
+
   void _rebuild() {
     if (_disposed) return;
     final catalog = _connections.catalogFor(_remoteId);
@@ -454,8 +533,78 @@ class DshGatewayChatSession extends chat.DshChatSession {
       permissions: _mapPermissions(catalog),
       approvals: _mapApprovals(),
       questions: _mapQuestions(),
+      contextPressure: _mapContextPressure(view?.contextPressure),
+      imageLimits: _mapImageLimits(view?.imageLimits),
+      commands: _mapCommands(catalog?.commands),
     );
     notifyListeners();
+  }
+
+  @override
+  Future<String> uploadAttachment(
+    List<int> bytes, {
+    String? name,
+    String? mediaType,
+  }) async {
+    final receipt = await _requireHandle().uploadAttachment(
+      bytes,
+      name: name,
+      mediaType: mediaType,
+    );
+    return receipt.receiptId;
+  }
+
+  @override
+  Future<chat.DshCommandResult> runCommand(String line) async {
+    final handle = _handle;
+    if (handle == null || !canSend) {
+      return const chat.DshCommandResult(success: false);
+    }
+    try {
+      final outcome = await handle.executeCommand(line);
+      return chat.DshCommandResult(
+        success: outcome.success,
+        text: outcome.text,
+      );
+    } on DshGatewayException catch (error) {
+      return chat.DshCommandResult(success: false, text: error.detail);
+    } catch (_) {
+      return const chat.DshCommandResult(success: false);
+    }
+  }
+
+  chat.DshContextPressure? _mapContextPressure(gw.DshContextPressure? source) {
+    if (source == null || !source.hasWindow) return null;
+    return chat.DshContextPressure(
+      pressureTokens: source.pressureTokens,
+      projectedTokens: source.projectedTokens,
+      contextWindow: source.contextWindow,
+    );
+  }
+
+  chat.DshImageLimits? _mapImageLimits(gw.DshImageLimits? source) {
+    if (source == null) return null;
+    return chat.DshImageLimits(
+      maxImageBytes: source.maxImageBytes,
+      maxImagesPerMessage: source.maxImagesPerMessage,
+      maxMessageImageBytes: source.maxMessageImageBytes,
+      maxImagePixels: source.maxImagePixels,
+      maxImageDimension: source.maxImageDimension,
+      mediaTypes: source.acceptedMediaTypes,
+    );
+  }
+
+  List<chat.DshSlashCommand> _mapCommands(List<gw.DshCommand>? commands) {
+    return [
+      for (final command in commands ?? const <gw.DshCommand>[])
+        if (command.name.trim().isNotEmpty)
+          chat.DshSlashCommand(
+            name: command.name,
+            description: command.description,
+            inputHint: command.inputHint,
+            takesAttachments: command.takesAttachments,
+          ),
+    ];
   }
 
   DshSessionHandle _requireHandle() {
@@ -471,7 +620,11 @@ class DshGatewayChatSession extends chat.DshChatSession {
   // -------------------------------------------------------------------------
 
   @override
-  Future<chat.DshPromptSendResult> sendPrompt(String text) async {
+  Future<chat.DshPromptSendResult> sendPrompt(
+    String text, {
+    List<chat.DshPromptAttachment> attachments =
+        const <chat.DshPromptAttachment>[],
+  }) async {
     if (!canSend) {
       return const chat.DshPromptSendResult.rejected(null);
     }
@@ -479,7 +632,26 @@ class DshGatewayChatSession extends chat.DshChatSession {
     _sending = true;
     _rebuild();
     try {
-      await handle.prompt(text);
+      await handle.prompt(
+        text,
+        attachments: [
+          for (final attachment in attachments)
+            if (attachment.isImage)
+              gw.DshPromptAttachment(
+                receiptId: '',
+                kind: gw.DshAttachmentKind.image,
+                name: attachment.name,
+                mediaType: attachment.mediaType,
+                bytes: attachment.bytes,
+              )
+            else if (attachment.receiptId.trim().isNotEmpty)
+              gw.DshPromptAttachment(
+                receiptId: attachment.receiptId,
+                name: attachment.name,
+                mediaType: attachment.mediaType,
+              ),
+        ],
+      );
       return const chat.DshPromptSendResult.accepted();
     } on DshGatewayException catch (error) {
       return chat.DshPromptSendResult.rejected(error.detail);

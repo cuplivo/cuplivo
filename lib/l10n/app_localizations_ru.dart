@@ -19279,7 +19279,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get dshWebUiUrlLabel => 'Вставьте ссылку WebUI DeepSeek Harness';
 
   @override
-  String get dshWebUiUrlHint => 'например, 127.0.0.1:3080/?token=ваш-токен';
+  String get dshWebUiUrlHint =>
+      'например, 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…';
 
   @override
   String get dshWebUiUrlHelper =>
@@ -19293,9 +19294,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get dshTabModels => 'Модели';
-
-  @override
-  String get dshTabContent => 'Контент';
 
   @override
   String get dshDefaultPermissionLabel =>
@@ -19328,10 +19326,6 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get dshModelsPlaceholder =>
       'Здесь будут управляться модели и провайдеры DeepSeek Harness.';
-
-  @override
-  String get dshContentPlaceholder =>
-      'Здесь появятся настройки контента, предоставляемые плагинами.';
 
   @override
   String get dshErrorNotConfigured =>
@@ -19986,4 +19980,107 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get dshProviderDetailMaxTokensHint => '256K';
+
+  @override
+  String get dshTabPlugins => 'Встроенные плагины';
+
+  @override
+  String get dshTabAgentPresets => 'Пресеты агентов';
+
+  @override
+  String get dshPluginsReadOnly =>
+      'Плагинами управляет удалённый DeepSeek Harness; этот список доступен только для чтения.';
+
+  @override
+  String get dshPluginsEmpty => 'Этот Host не сообщает о встроенных плагинах.';
+
+  @override
+  String get dshPluginsEnabled => 'Включено';
+
+  @override
+  String get dshPluginsDisabled => 'Отключено';
+
+  @override
+  String dshPluginsPhase(String phase) {
+    return 'Этап: $phase';
+  }
+
+  @override
+  String get dshAgentPresetsReadOnly =>
+      'Пресетами агентов управляет удалённый DeepSeek Harness; эта композиция доступна только для чтения.';
+
+  @override
+  String get dshAgentPresetsEmpty =>
+      'Этот Host не сообщает о пресетах агентов.';
+
+  @override
+  String get dshAgentPresetsDefault => 'По умолчанию';
+
+  @override
+  String get dshPlusSectionAdd => 'Добавить';
+
+  @override
+  String get dshPlusSectionCommands => 'Команды';
+
+  @override
+  String get dshPlusAttachFile => 'Файл';
+
+  @override
+  String get dshPlusAttachFileSubtitle => 'Изображение или файл';
+
+  @override
+  String get dshPlusTarget => 'Цель';
+
+  @override
+  String get dshPlusPlan => 'План';
+
+  @override
+  String get dshPlusFeedback => 'Отзыв';
+
+  @override
+  String get dshPlusCompress => 'Сжать';
+
+  @override
+  String get dshPlusModel => 'Модель';
+
+  @override
+  String get dshPlusDownloadLog => 'Скачать журнал';
+
+  @override
+  String get dshPlusWireMissing =>
+      'Сервер не предоставляет API для этого действия.';
+
+  @override
+  String get dshPlusPickPhoto => 'Фото';
+
+  @override
+  String get dshPlusPickFile => 'Файлы';
+
+  @override
+  String get dshSlashCommandsTitle => 'Команды';
+
+  @override
+  String get dshAttachmentTooManyImages =>
+      'Слишком много изображений для этого сервера.';
+
+  @override
+  String get dshAttachmentImageTooLarge =>
+      'Одно из изображений превышает ограничение размера на этом сервере.';
+
+  @override
+  String get dshAttachmentImagesTooLarge =>
+      'Изображения вместе превышают ограничение этого сервера.';
+
+  @override
+  String get dshAttachmentUnsupportedType =>
+      'Сервер не принимает этот тип изображений.';
+
+  @override
+  String get dshAttachmentReadFailed => 'Не удалось прочитать файл.';
+
+  @override
+  String get dshAttachmentUploadFailed => 'Не удалось загрузить файл.';
+
+  @override
+  String get dshAttachmentUploading => 'Загрузка вложения…';
 }

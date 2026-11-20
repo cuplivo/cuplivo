@@ -41,6 +41,8 @@ DshFailure dshFailureFromClient(dsh.DshException? error) {
     dsh.DshEndpointException() => DshFailure.protocol,
     dsh.DshProtocolException() => DshFailure.protocol,
     dsh.DshClosedException() => DshFailure.unreachable,
+    dsh.DshFileException(:final statusCode) =>
+      statusCode == 404 ? DshFailure.unsupported : DshFailure.unknown,
     dsh.DshRemoteException(:final code) =>
       code.contains('auth') || code.contains('unauthorized')
           ? DshFailure.auth
@@ -182,7 +184,12 @@ DshSessionSummary mapDshSessionSummary(
 }
 
 DshCommand mapDshCommand(dsh.DshCommandDescriptor source) {
-  return DshCommand(name: source.name, description: source.description);
+  return DshCommand(
+    name: source.name,
+    description: source.description,
+    inputHint: source.inputHint,
+    takesAttachments: source.inputAttachments,
+  );
 }
 
 DshSkill mapDshSkill(dsh.DshSkill source) {
@@ -197,9 +204,36 @@ DshPluginEntry mapDshPluginEntry(dsh.DshPluginInventoryEntry source) {
   return DshPluginEntry(
     id: source.entryId.isNotEmpty ? source.entryId : source.moduleName,
     title: source.title?.resolve('en') ?? source.moduleName,
+    moduleName: source.moduleName,
+    localizedTitle: source.title?.values ?? const <String, String>{},
     description: source.description?.resolve('en'),
     enabled: source.enabled,
+    phase: source.fiberPhase,
     diagnostic: source.diagnostic,
+  );
+}
+
+DshAgentPresetPlugin mapDshAgentPresetPlugin(dsh.DshPresetPluginRow source) {
+  return DshAgentPresetPlugin(
+    moduleName: source.moduleName,
+    title: source.title?.resolve('en'),
+    localizedTitle: source.title?.values ?? const <String, String>{},
+    enabled: source.enabled,
+    conditional: source.conditional,
+    condition: source.condition,
+    phase: source.fiberPhase,
+  );
+}
+
+DshAgentPresetGroup mapDshAgentPresetGroup(
+  dsh.DshAgentPresetPluginGroup source,
+) {
+  return DshAgentPresetGroup(
+    id: source.id,
+    name: source.name,
+    isDefault: source.isDefault,
+    broken: source.broken,
+    plugins: [for (final row in source.rows) mapDshAgentPresetPlugin(row)],
   );
 }
 
@@ -314,6 +348,10 @@ DshCatalogSnapshot mapDshCatalog(dsh.DshCatalogSnapshot source) {
     ],
     plugins: [
       for (final entry in source.plugins.entries) mapDshPluginEntry(entry),
+    ],
+    agentPresets: [
+      for (final group in source.plugins.agentPresets)
+        mapDshAgentPresetGroup(group),
     ],
     capabilities: _mapCapabilities(source.capabilities),
     failures: _mapCatalogFailures(source.capabilities),
@@ -502,8 +540,11 @@ List<DshPromptAttachment> _attachmentsOf(dsh.DshUserMessageRow row) {
     for (final image in row.images)
       DshPromptAttachment(
         receiptId: image.attachmentId,
+        kind: DshAttachmentKind.image,
         name: image.name,
         mediaType: image.mediaType,
+        width: image.width,
+        height: image.height,
       ),
     for (final file in row.files)
       DshPromptAttachment(receiptId: file.attachmentId, name: file.name),
@@ -629,7 +670,37 @@ DshSessionView mapDshSessionView({
     pendingApprovals: pendingApprovals,
     pendingQuestions: pendingQuestions,
     usage: _mapUsage(transcript.usage),
+    contextPressure: mapDshContextPressure(
+      transcript.projections['contextPressure'],
+    ),
+    imageLimits: mapDshImageLimits(transcript.projections['imageLimits']),
     error: error,
+  );
+}
+
+/// Maps the raw `contextPressure` projection; null when absent so the ring is
+/// hidden rather than fed a guessed window.
+DshContextPressure? mapDshContextPressure(Object? json) {
+  final map = dsh.jsonMap(json);
+  if (map.isEmpty) return null;
+  return DshContextPressure(
+    pressureTokens: dsh.jsonInt(map['pressureTokens']),
+    projectedTokens: dsh.jsonInt(map['projectedTokens']),
+    contextWindow: dsh.jsonInt(map['contextWindow']),
+  );
+}
+
+/// Maps the raw `imageLimits` projection; null when absent.
+DshImageLimits? mapDshImageLimits(Object? json) {
+  final map = dsh.jsonMap(json);
+  if (map.isEmpty) return null;
+  return DshImageLimits(
+    maxImageBytes: dsh.jsonInt(map['maxImageBytes']),
+    maxImagesPerMessage: dsh.jsonInt(map['maxImagesPerMessage']),
+    maxMessageImageBytes: dsh.jsonInt(map['maxMessageImageBytes']),
+    maxImagePixels: dsh.jsonInt(map['maxImagePixels']),
+    maxImageDimension: dsh.jsonInt(map['maxImageDimension']),
+    mediaTypes: dsh.jsonStringList(map['mediaTypes']),
   );
 }
 
@@ -656,10 +727,13 @@ DshFileEntry mapWorkspaceFileEntry(Map<String, Object?> json, String path) {
   );
 }
 
-DshFileStat mapWorkspaceFileStat(Map<String, Object?> json, String path) {
+DshFileStat mapWorkspaceFileStat(dsh.DshFileStat stat, String path) {
   return DshFileStat(
     path: path,
     isDirectory: false,
-    size: dsh.jsonInt(json['bytes']),
+    size: stat.bytes,
+    absolutePath: stat.hasAbsolutePath ? stat.absolutePath : null,
+    version: stat.version,
+    mediaType: stat.mediaType,
   );
 }

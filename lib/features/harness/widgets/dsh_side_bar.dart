@@ -9,20 +9,71 @@ import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
 import '../pages/home/harness_home_models.dart';
+import '../pages/home/harness_surface_entries.dart';
+import '../services/dsh_surface_harvest.dart';
 import '../pages/home/harness_session_catalog.dart';
 import 'dsh_whale_mark.dart';
 
-/// The three official entry rows R5 asks for above the workspace sections.
-enum DshSidebarEntry { plugins, automations, more }
+/// Stable ids of the DSH built-in entry rows.
+///
+/// These three are the only ids Cuplivo itself names, because the built-ins are
+/// the rows R5 renders before the official-WebUI harvest has reported anything.
+/// A harvested row's id is derived from its label (see [dshSurfaceEntryId]).
+abstract final class DshSidebarEntryIds {
+  static const String plugins = 'plugins';
+  static const String automations = 'automations';
+  static const String more = 'more';
+}
+
+/// One row of R5's entry list above the workspace sections.
+///
+/// The list is data, not a widget tree: with a harvest snapshot the rows are the
+/// official sidebar labels in official order; before one arrives they are the
+/// three localized DSH built-ins. [isHarvested] decides only where a tap lands
+/// (the official WebUI landed on the row's own label vs. a built-in surface),
+/// never whether the row renders.
+@immutable
+class DshSidebarEntrySpec {
+  const DshSidebarEntrySpec({
+    required this.id,
+    required this.label,
+    required this.icon,
+    this.isHarvested = false,
+  });
+
+  /// Stable id; also the `dsh-sidebar-entry-<id>` key suffix.
+  final String id;
+
+  /// Localized label for built-ins, the remote's own label for harvested rows.
+  final String label;
+
+  final IconData icon;
+
+  /// True for rows read from the official WebUI's sidebar.
+  final bool isHarvested;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DshSidebarEntrySpec &&
+          other.id == id &&
+          other.label == label &&
+          other.icon == icon &&
+          other.isHarvested == isHarvested;
+
+  @override
+  int get hashCode => Object.hash(id, label, icon, isHarvested);
+}
 
 /// The DeepSeek Harness sidebar body (R5).
 ///
 /// The existing drawer keeps its shared chrome in remote mode — the search
 /// field, the history/close action and the bottom user bar — and this widget is
-/// everything between them: the remote owner row, the three official entries,
-/// workspace sections with their session rows and the `新会话` row. That
-/// grouping is why the remote list is its own widget instead of another
-/// pinned/date mode inside the local conversation list.
+/// everything between them: the remote owner row, the official entry rows (the
+/// harvest snapshot once a remote page has been opened, the DSH built-ins
+/// before that), workspace sections with their session rows and the `新会话`
+/// row. That grouping is why the remote list is its own widget instead of
+/// another pinned/date mode inside the local conversation list.
 ///
 /// The drawer passes the shared search field's [query] in; a non-empty query
 /// filters session titles locally and hides workspaces with no match.
@@ -35,6 +86,7 @@ class DshSideBar extends StatefulWidget {
     required this.onSelectSession,
     required this.onNewSession,
     required this.onOpenEntry,
+    this.harvestedEntries = const <DshSurfaceEntry>[],
     this.query = '',
   });
 
@@ -53,8 +105,22 @@ class DshSideBar extends StatefulWidget {
   /// Creates a session, in [workspaceId] when the row belongs to one.
   final Future<void> Function({String? workspaceId}) onNewSession;
 
-  /// Opens the Flutter entry page for 插件 / 自动化任务 / 更多.
-  final ValueChanged<DshSidebarEntry> onOpenEntry;
+  /// Opens the surface one entry row stands for.
+  ///
+  /// Every row is an official-WebUI page: a harvested row lands on its own
+  /// label, the built-in 更多 row lands on DSH's `PanelMoreMenu`, and the
+  /// pre-harvest 插件 / 自动化任务 built-ins open the WebUI root.
+  final ValueChanged<DshSidebarEntrySpec> onOpenEntry;
+
+  /// The official sidebar entries the harvest read for this remote, in the
+  /// official order (e.g. 插件 / 搜索服务 / 自动化任务).
+  ///
+  /// 更多 is not part of the official panel list (it is DSH's own
+  /// `PanelMoreMenu`), so Cuplivo always keeps exactly one built-in 更多 row
+  /// after the harvested rows. Empty until a remote page has been opened once,
+  /// so the section renders only the 插件 / 自动化任务 / 更多 built-ins — never a
+  /// fabricated plugin row and no placeholder text.
+  final List<DshSurfaceEntry> harvestedEntries;
 
   /// The shared search field's current text.
   final String query;
@@ -126,34 +192,8 @@ class _DshSideBarState extends State<DshSideBar> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _entryRow(
-                      context,
-                      l10n,
-                      cs,
-                      key: const Key('dsh-entry-plugins'),
-                      icon: Lucide.Boxes,
-                      label: l10n.dshSidebarPlugins,
-                      onTap: () => widget.onOpenEntry(DshSidebarEntry.plugins),
-                    ),
-                    _entryRow(
-                      context,
-                      l10n,
-                      cs,
-                      key: const Key('dsh-entry-automations'),
-                      icon: Lucide.clock,
-                      label: l10n.dshSidebarAutomations,
-                      onTap: () =>
-                          widget.onOpenEntry(DshSidebarEntry.automations),
-                    ),
-                    _entryRow(
-                      context,
-                      l10n,
-                      cs,
-                      key: const Key('dsh-entry-more'),
-                      icon: Lucide.LayoutGrid,
-                      label: l10n.dshSidebarMore,
-                      onTap: () => widget.onOpenEntry(DshSidebarEntry.more),
-                    ),
+                    for (final entry in _entrySpecs(l10n))
+                      _sidebarEntryRow(context, entry, cs),
                     const SizedBox(height: 8),
                     _WorkspaceSections(
                       catalog: catalog,
@@ -255,9 +295,87 @@ class _DshSideBarState extends State<DshSideBar> {
     );
   }
 
+  /// R5's entry rows: the three DSH built-ins plus whatever the harvest
+  /// discovered on this remote's WebUI.
+  ///
+  /// Discovered rows whose label repeats a built-in are dropped: the official
+  /// sidebar lists its built-ins in the same DOM region the harvest reads, so a
+  /// harvested row for 插件 / 自动化任务 / 更多 would otherwise render twice.
+  List<DshSidebarEntrySpec> _entrySpecs(AppLocalizations l10n) {
+    // 更多 is not a panellist row, so it is never in the harvest: exactly one
+    // built-in 更多 row stays at the end, in both modes. Pre-harvest the two
+    // DSH plugin built-ins come first; afterwards the official rows replace
+    // them and only 更多 is Cuplivo's own.
+    final more = DshSidebarEntrySpec(
+      id: DshSidebarEntryIds.more,
+      label: l10n.dshSidebarMore,
+      icon: Lucide.LayoutGrid,
+    );
+    final harvested = widget.harvestedEntries;
+    if (harvested.isEmpty) {
+      return <DshSidebarEntrySpec>[
+        DshSidebarEntrySpec(
+          id: DshSidebarEntryIds.plugins,
+          label: l10n.dshSidebarPlugins,
+          icon: Lucide.Boxes,
+        ),
+        DshSidebarEntrySpec(
+          id: DshSidebarEntryIds.automations,
+          label: l10n.dshSidebarAutomations,
+          icon: Lucide.clock,
+        ),
+        more,
+      ];
+    }
+    final rows = dshHarvestedEntries(
+      harvested,
+      // Defensive: if a future host ever lists 更多 as a row, the built-in row
+      // still stays the only one.
+      excludedLabels: <String>{l10n.dshSidebarMore},
+    );
+    return <DshSidebarEntrySpec>[
+      for (final row in rows)
+        DshSidebarEntrySpec(
+          id: row.id,
+          label: row.label,
+          icon: _iconForHarvestedLabel(row.label, l10n),
+          isHarvested: true,
+        ),
+      more,
+    ];
+  }
+
+  /// Official rows keep their familiar DSH icon when the harvested label is the
+  /// same localized text a built-in uses; a plugin-only row gets the generic
+  /// plugin mark. The label itself is never rewritten.
+  IconData _iconForHarvestedLabel(String label, AppLocalizations l10n) {
+    if (label == l10n.dshSidebarPlugins) return Lucide.Boxes;
+    if (label == l10n.dshSidebarAutomations) return Lucide.clock;
+    if (label == l10n.dshSidebarMore) return Lucide.LayoutGrid;
+    return Lucide.Box;
+  }
+
+  Widget _sidebarEntryRow(
+    BuildContext context,
+    DshSidebarEntrySpec entry,
+    ColorScheme cs,
+  ) {
+    final row = _entryRow(
+      context,
+      cs,
+      key: ValueKey<String>('dsh-sidebar-entry-${entry.id}'),
+      icon: entry.icon,
+      label: entry.label,
+      onTap: () => widget.onOpenEntry(entry),
+    );
+    if (entry.isHarvested) return row;
+    // The e2e scenario's pre-spec anchors stay addressable; the canonical key is
+    // on the row itself, this wrapper only forwards a tap to it.
+    return KeyedSubtree(key: Key('dsh-entry-${entry.id}'), child: row);
+  }
+
   Widget _entryRow(
     BuildContext context,
-    AppLocalizations l10n,
     ColorScheme cs, {
     required IconData icon,
     required String label,

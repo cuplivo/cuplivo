@@ -18972,7 +18972,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dshWebUiUrlLabel => 'Paste the DeepSeek Harness WebUI link';
 
   @override
-  String get dshWebUiUrlHint => 'e.g. 127.0.0.1:3080/?token=your-token';
+  String get dshWebUiUrlHint => 'e.g. 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…';
 
   @override
   String get dshWebUiUrlHelper =>
@@ -18986,9 +18986,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dshTabModels => 'Models';
-
-  @override
-  String get dshTabContent => 'Content';
 
   @override
   String get dshDefaultPermissionLabel =>
@@ -19020,10 +19017,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get dshModelsPlaceholder =>
       'DeepSeek Harness models and providers will be managed here.';
-
-  @override
-  String get dshContentPlaceholder =>
-      'Plugin-provided content settings will appear here.';
 
   @override
   String get dshErrorNotConfigured =>
@@ -19671,4 +19664,104 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dshProviderDetailMaxTokensHint => '256K';
+
+  @override
+  String get dshTabPlugins => 'Built-in plugins';
+
+  @override
+  String get dshTabAgentPresets => 'Agent presets';
+
+  @override
+  String get dshPluginsReadOnly =>
+      'Plugins are managed by the remote DeepSeek Harness; this list is read-only.';
+
+  @override
+  String get dshPluginsEmpty => 'This Host reports no built-in plugins.';
+
+  @override
+  String get dshPluginsEnabled => 'Enabled';
+
+  @override
+  String get dshPluginsDisabled => 'Disabled';
+
+  @override
+  String dshPluginsPhase(String phase) {
+    return 'Phase: $phase';
+  }
+
+  @override
+  String get dshAgentPresetsReadOnly =>
+      'Agent presets are owned by the remote DeepSeek Harness; this composition is read-only.';
+
+  @override
+  String get dshAgentPresetsEmpty => 'This Host reports no Agent presets.';
+
+  @override
+  String get dshAgentPresetsDefault => 'Default';
+
+  @override
+  String get dshPlusSectionAdd => 'Add';
+
+  @override
+  String get dshPlusSectionCommands => 'Commands';
+
+  @override
+  String get dshPlusAttachFile => 'File';
+
+  @override
+  String get dshPlusAttachFileSubtitle => 'Image or file';
+
+  @override
+  String get dshPlusTarget => 'Goal';
+
+  @override
+  String get dshPlusPlan => 'Plan';
+
+  @override
+  String get dshPlusFeedback => 'Feedback';
+
+  @override
+  String get dshPlusCompress => 'Compact';
+
+  @override
+  String get dshPlusModel => 'Model';
+
+  @override
+  String get dshPlusDownloadLog => 'Download log';
+
+  @override
+  String get dshPlusWireMissing => 'The server exposes no API for this.';
+
+  @override
+  String get dshPlusPickPhoto => 'Photos';
+
+  @override
+  String get dshPlusPickFile => 'Files';
+
+  @override
+  String get dshSlashCommandsTitle => 'Commands';
+
+  @override
+  String get dshAttachmentTooManyImages => 'Too many images for this server.';
+
+  @override
+  String get dshAttachmentImageTooLarge =>
+      'An image exceeds this server\'s size limit.';
+
+  @override
+  String get dshAttachmentImagesTooLarge =>
+      'The images together exceed this server\'s limit.';
+
+  @override
+  String get dshAttachmentUnsupportedType =>
+      'The server does not accept this image type.';
+
+  @override
+  String get dshAttachmentReadFailed => 'The file could not be read.';
+
+  @override
+  String get dshAttachmentUploadFailed => 'The file could not be uploaded.';
+
+  @override
+  String get dshAttachmentUploading => 'Uploading attachment…';
 }

@@ -144,6 +144,41 @@ void main() {
       expect(folded.messages.single.timestamp.millisecondsSinceEpoch, 0);
     });
 
+    test('user attachments fold into image and file parts', () {
+      final folded = foldDshTranscript(
+        conversationId: conversationId,
+        state: DshChatViewState(
+          items: <DshChatItem>[
+            DshUserMessageItem(
+              id: 'u1',
+              text: '',
+              attachments: <DshMessageAttachment>[
+                const DshMessageAttachment(
+                  id: 'img1',
+                  mediaType: 'image/png',
+                  isImage: true,
+                  dataUri: 'data:image/png;base64,AA==',
+                ),
+                const DshMessageAttachment(
+                  id: 'file1',
+                  name: 'notes.txt',
+                  isImage: false,
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+
+      final parts = folded.messages.single.parts;
+      expect(parts, hasLength(2));
+      expect(parts[0], isA<ImagePart>());
+      expect((parts[0] as ImagePart).uri, 'data:image/png;base64,AA==');
+      expect(parts[1], isA<FilePart>());
+      expect((parts[1] as FilePart).name, 'notes.txt');
+      expect((parts[1] as FilePart).unavailable, isTrue);
+    });
+
     test('a UTC wire time is rendered as a local timestamp', () {
       final wire = DateTime.fromMillisecondsSinceEpoch(1000, isUtc: true);
       final folded = foldDshTranscript(

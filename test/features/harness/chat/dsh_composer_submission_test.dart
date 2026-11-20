@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:Cuplivo/core/models/chat_input_data.dart';
 import 'package:Cuplivo/features/harness/controllers/dsh_chat_session.dart';
 import 'package:Cuplivo/features/harness/controllers/dsh_composer_submission.dart';
+import 'package:Cuplivo/features/harness/services/dsh_attachment_upload_service.dart';
 
 /// A session double: no network, no Flutter bindings.
 class _FakeSession extends DshChatSession {
@@ -18,16 +19,33 @@ class _FakeSession extends DshChatSession {
   bool canSend;
   bool throwOnSend;
   final List<String> prompts = <String>[];
+  final List<List<DshPromptAttachment>> promptsAttachments =
+      <List<DshPromptAttachment>>[];
 
   @override
   DshChatViewState get state => const DshChatViewState();
 
   @override
-  Future<DshPromptSendResult> sendPrompt(String text) async {
+  Future<DshPromptSendResult> sendPrompt(
+    String text, {
+    List<DshPromptAttachment> attachments = const <DshPromptAttachment>[],
+  }) async {
     prompts.add(text);
+    promptsAttachments.add(attachments);
     if (throwOnSend) throw StateError('transport closed');
     return sendResult;
   }
+
+  @override
+  Future<String> uploadAttachment(
+    List<int> bytes, {
+    String? name,
+    String? mediaType,
+  }) async => 'receipt:${name ?? ''}';
+
+  @override
+  Future<DshCommandResult> runCommand(String line) async =>
+      const DshCommandResult(success: true);
 
   @override
   Future<void> cancelTurn() async {}
@@ -86,6 +104,62 @@ void main() {
     expect(result.message, 'model is unavailable');
     expect(session.prompts, hasLength(1));
   });
+
+  test('prepared attachments travel with the prompt', () async {
+    final session = _FakeSession();
+    final submission = DshComposerSubmission(
+      session,
+      attachmentPreparer: (input) async => const <DshPromptAttachment>[
+        DshPromptAttachment.file(receiptId: 'receipt-1', name: 'a.txt'),
+      ],
+    );
+
+    final result = await submission.submitWithReason(input('hello'));
+
+    expect(result.result, ChatInputSubmissionResult.sent);
+    expect(session.promptsAttachments.single, hasLength(1));
+    expect(session.promptsAttachments.single.single.receiptId, 'receipt-1');
+  });
+
+  test('an attachment refusal keeps the draft and reports the kind', () async {
+    final session = _FakeSession();
+    final submission = DshComposerSubmission(
+      session,
+      attachmentPreparer: (input) async => throw const DshAttachmentFailure(
+        DshAttachmentFailureKind.imageTooLarge,
+        fileName: 'a.png',
+      ),
+    );
+
+    final result = await submission.submitWithReason(input('hello'));
+
+    expect(result.result, ChatInputSubmissionResult.rejected);
+    expect(
+      result.attachmentFailure?.kind,
+      DshAttachmentFailureKind.imageTooLarge,
+    );
+    expect(session.prompts, isEmpty);
+  });
+
+  test(
+    'an attachment-only send is allowed when preparation yields parts',
+    () async {
+      final session = _FakeSession();
+      final submission = DshComposerSubmission(
+        session,
+        attachmentPreparer: (input) async => const <DshPromptAttachment>[
+          DshPromptAttachment.file(receiptId: 'receipt-1'),
+        ],
+      );
+
+      final result = await submission.submitWithReason(
+        const ChatInputData(text: ''),
+      );
+
+      expect(result.result, ChatInputSubmissionResult.sent);
+      expect(session.prompts.single, isEmpty);
+    },
+  );
 
   test('a session that cannot send is rejected before any prompt', () async {
     final session = _FakeSession(canSend: false);

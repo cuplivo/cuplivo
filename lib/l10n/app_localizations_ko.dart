@@ -18382,7 +18382,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get dshWebUiUrlLabel => 'DeepSeek Harness WebUI 링크를 붙여넣으세요';
 
   @override
-  String get dshWebUiUrlHint => '예: 127.0.0.1:3080/?token=your-token';
+  String get dshWebUiUrlHint => '예: 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…';
 
   @override
   String get dshWebUiUrlHelper =>
@@ -18396,9 +18396,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get dshTabModels => '모델';
-
-  @override
-  String get dshTabContent => '콘텐츠';
 
   @override
   String get dshDefaultPermissionLabel => '새 세션의 기본 권한 제한';
@@ -18427,9 +18424,6 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get dshModelsPlaceholder =>
       'DeepSeek Harness의 모델과 공급자 설정이 여기에서 관리됩니다.';
-
-  @override
-  String get dshContentPlaceholder => '플러그인이 제공하는 콘텐츠 설정이 여기에 표시됩니다.';
 
   @override
   String get dshErrorNotConfigured =>
@@ -19052,4 +19046,101 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get dshProviderDetailMaxTokensHint => '256K';
+
+  @override
+  String get dshTabPlugins => '내장 플러그인';
+
+  @override
+  String get dshTabAgentPresets => '에이전트 프리셋';
+
+  @override
+  String get dshPluginsReadOnly =>
+      '플러그인은 원격 DeepSeek Harness에서 관리됩니다. 이 목록은 읽기 전용입니다.';
+
+  @override
+  String get dshPluginsEmpty => '이 Host는 내장 플러그인을 보고하지 않았습니다.';
+
+  @override
+  String get dshPluginsEnabled => '사용함';
+
+  @override
+  String get dshPluginsDisabled => '사용 안 함';
+
+  @override
+  String dshPluginsPhase(String phase) {
+    return '단계: $phase';
+  }
+
+  @override
+  String get dshAgentPresetsReadOnly =>
+      '에이전트 프리셋은 원격 DeepSeek Harness에서 관리됩니다. 이 구성은 읽기 전용입니다.';
+
+  @override
+  String get dshAgentPresetsEmpty => '이 Host는 에이전트 프리셋을 보고하지 않았습니다.';
+
+  @override
+  String get dshAgentPresetsDefault => '기본';
+
+  @override
+  String get dshPlusSectionAdd => '추가';
+
+  @override
+  String get dshPlusSectionCommands => '명령';
+
+  @override
+  String get dshPlusAttachFile => '파일';
+
+  @override
+  String get dshPlusAttachFileSubtitle => '이미지 또는 파일';
+
+  @override
+  String get dshPlusTarget => '목표';
+
+  @override
+  String get dshPlusPlan => '계획';
+
+  @override
+  String get dshPlusFeedback => '피드백';
+
+  @override
+  String get dshPlusCompress => '압축';
+
+  @override
+  String get dshPlusModel => '모델';
+
+  @override
+  String get dshPlusDownloadLog => '로그 다운로드';
+
+  @override
+  String get dshPlusWireMissing => '서버에서 이 작업을 위한 API를 제공하지 않습니다.';
+
+  @override
+  String get dshPlusPickPhoto => '사진';
+
+  @override
+  String get dshPlusPickFile => '파일';
+
+  @override
+  String get dshSlashCommandsTitle => '명령';
+
+  @override
+  String get dshAttachmentTooManyImages => '이 서버의 이미지 개수 제한을 초과했습니다.';
+
+  @override
+  String get dshAttachmentImageTooLarge => '서버의 크기 제한을 초과하는 이미지가 있습니다.';
+
+  @override
+  String get dshAttachmentImagesTooLarge => '이미지 전체 크기가 서버의 제한을 초과했습니다.';
+
+  @override
+  String get dshAttachmentUnsupportedType => '서버에서 이 이미지 유형을 지원하지 않습니다.';
+
+  @override
+  String get dshAttachmentReadFailed => '파일을 읽을 수 없습니다.';
+
+  @override
+  String get dshAttachmentUploadFailed => '파일을 업로드할 수 없습니다.';
+
+  @override
+  String get dshAttachmentUploading => '첨부 파일 업로드 중…';
 }

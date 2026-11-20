@@ -33171,7 +33171,7 @@ abstract class AppLocalizations {
   /// Placeholder of the WebUI link field. The token is a truncated example from the product brief, not a real credential.
   ///
   /// In en, this message translates to:
-  /// **'e.g. 127.0.0.1:3080/?token=your-token'**
+  /// **'e.g. 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…'**
   String get dshWebUiUrlHint;
 
   /// Small hint under the WebUI link field explaining when a direct connection works.
@@ -33197,12 +33197,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Models'**
   String get dshTabModels;
-
-  /// Fourth tab of the DeepSeek Harness assistant settings page; plugin-provided content settings land here.
-  ///
-  /// In en, this message translates to:
-  /// **'Content'**
-  String get dshTabContent;
 
   /// General-settings row on the DeepSeek Harness assistant settings page: chooses the remote's own default permission preset for new sessions.
   ///
@@ -33257,12 +33251,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'DeepSeek Harness models and providers will be managed here.'**
   String get dshModelsPlaceholder;
-
-  /// Placeholder body of the Content tab of the DeepSeek Harness assistant settings page until that slice lands.
-  ///
-  /// In en, this message translates to:
-  /// **'Plugin-provided content settings will appear here.'**
-  String get dshContentPlaceholder;
 
   /// Inline failure shown when no protocol adapter is registered (fine-grained foundation builds/tests).
   ///
@@ -34433,6 +34421,192 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'256K'**
   String get dshProviderDetailMaxTokensHint;
+
+  /// Fourth tab of the DeepSeek Harness assistant settings page: the Host's built-in plugin inventory, shown read-only.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in plugins'**
+  String get dshTabPlugins;
+
+  /// Fifth tab of the DeepSeek Harness assistant settings page: the agent preset compositions the Host reports, shown read-only.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent presets'**
+  String get dshTabAgentPresets;
+
+  /// Banner above the built-in plugin list; explains the list is read-only because plugin management RPCs are not used in this slice.
+  ///
+  /// In en, this message translates to:
+  /// **'Plugins are managed by the remote DeepSeek Harness; this list is read-only.'**
+  String get dshPluginsReadOnly;
+
+  /// Empty state of the built-in plugins tab when the Host reports no plugins.
+  ///
+  /// In en, this message translates to:
+  /// **'This Host reports no built-in plugins.'**
+  String get dshPluginsEmpty;
+
+  /// Status text for an enabled built-in plugin row.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get dshPluginsEnabled;
+
+  /// Status text for a disabled built-in plugin row or an inactive preset plugin row.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get dshPluginsDisabled;
+
+  /// Loader phase line under a built-in plugin row; phase is the raw Loader phase string reported by the Host.
+  ///
+  /// In en, this message translates to:
+  /// **'Phase: {phase}'**
+  String dshPluginsPhase(String phase);
+
+  /// Banner above the read-only agent preset groups in the Agent presets tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent presets are owned by the remote DeepSeek Harness; this composition is read-only.'**
+  String get dshAgentPresetsReadOnly;
+
+  /// Empty state of the Agent presets tab when the Host reports no groups.
+  ///
+  /// In en, this message translates to:
+  /// **'This Host reports no Agent presets.'**
+  String get dshAgentPresetsEmpty;
+
+  /// Badge on the agent preset group the Host marks as default.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get dshAgentPresetsDefault;
+
+  /// Section header label in the '+' tools sheet grouping add/attach actions; a heading, not a button.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get dshPlusSectionAdd;
+
+  /// Section header label in the '+' tools sheet grouping command rows such as compact and model.
+  ///
+  /// In en, this message translates to:
+  /// **'Commands'**
+  String get dshPlusSectionCommands;
+
+  /// Title of the action menu/sheet for attaching content; also used as a row label in the '+' sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'File'**
+  String get dshPlusAttachFile;
+
+  /// Subtitle under the attach row in the '+' sheet, hinting it accepts an image or file.
+  ///
+  /// In en, this message translates to:
+  /// **'Image or file'**
+  String get dshPlusAttachFileSubtitle;
+
+  /// Row label in the '+' sheet for a goal/target action, shown with a map-pin icon.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal'**
+  String get dshPlusTarget;
+
+  /// Disabled row label in the '+' sheet for a plan action, shown with a checklist icon.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan'**
+  String get dshPlusPlan;
+
+  /// Row label in the '+' sheet opening a feedback action, shown with a warning message icon.
+  ///
+  /// In en, this message translates to:
+  /// **'Feedback'**
+  String get dshPlusFeedback;
+
+  /// Row label in the '+' sheet for compacting/compressing the conversation; subtitle shows a warning when unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Compact'**
+  String get dshPlusCompress;
+
+  /// Row label in the '+' sheet for choosing the model; the current model name appears as subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get dshPlusModel;
+
+  /// Row label in the '+' sheet that downloads the log, shown with a download icon.
+  ///
+  /// In en, this message translates to:
+  /// **'Download log'**
+  String get dshPlusDownloadLog;
+
+  /// Subtitle on disabled '+' sheet rows indicating the server provides no API for that action.
+  ///
+  /// In en, this message translates to:
+  /// **'The server exposes no API for this.'**
+  String get dshPlusWireMissing;
+
+  /// Action sheet item label to pick photos for attachment, shown with an image icon.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos'**
+  String get dshPlusPickPhoto;
+
+  /// Action sheet item label to pick files for attachment, shown with a file icon.
+  ///
+  /// In en, this message translates to:
+  /// **'Files'**
+  String get dshPlusPickFile;
+
+  /// Title text at the top of the slash-commands sheet listing available commands.
+  ///
+  /// In en, this message translates to:
+  /// **'Commands'**
+  String get dshSlashCommandsTitle;
+
+  /// Error message shown when selected images exceed the server's image count limit.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many images for this server.'**
+  String get dshAttachmentTooManyImages;
+
+  /// Error message shown when a single image exceeds the server's size limit.
+  ///
+  /// In en, this message translates to:
+  /// **'An image exceeds this server\'s size limit.'**
+  String get dshAttachmentImageTooLarge;
+
+  /// Error message shown when the combined size of images exceeds the server's limit.
+  ///
+  /// In en, this message translates to:
+  /// **'The images together exceed this server\'s limit.'**
+  String get dshAttachmentImagesTooLarge;
+
+  /// Error message shown when the server rejects the image's file type.
+  ///
+  /// In en, this message translates to:
+  /// **'The server does not accept this image type.'**
+  String get dshAttachmentUnsupportedType;
+
+  /// Error message shown when a selected file cannot be read locally.
+  ///
+  /// In en, this message translates to:
+  /// **'The file could not be read.'**
+  String get dshAttachmentReadFailed;
+
+  /// Error message shown when uploading an attachment to the server fails.
+  ///
+  /// In en, this message translates to:
+  /// **'The file could not be uploaded.'**
+  String get dshAttachmentUploadFailed;
+
+  /// Status text indicating an attachment is currently being uploaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading attachment…'**
+  String get dshAttachmentUploading;
 }
 
 class _AppLocalizationsDelegate

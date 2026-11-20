@@ -103,7 +103,8 @@ import '../controllers/home_page_controller.dart';
 import '../../harness/controllers/dsh_chat_controllers_provider.dart';
 import '../../harness/controllers/dsh_chat_session.dart';
 import '../../harness/pages/chat/harness_conversation_view.dart';
-import '../../harness/pages/home/harness_more_page.dart';
+import '../../harness/pages/home/harness_surface_entries.dart';
+import '../../harness/pages/preview/dsh_file_preview_page.dart';
 import '../../harness/pages/home/harness_home_chrome.dart';
 import '../../harness/pages/home/harness_home_controller.dart';
 import '../../harness/pages/home/harness_home_gateway_adapter.dart';
@@ -112,12 +113,14 @@ import '../../harness/pages/home/harness_right_rail.dart';
 import '../../harness/pages/home/harness_session_catalog.dart';
 import '../../harness/pages/plugins/dsh_plugin_web_page.dart';
 import '../../harness/services/dsh_credential_store.dart';
+import '../../harness/services/dsh_surface_harvest.dart';
 import '../../harness/pages/assistant/dsh_assistant_settings_page.dart';
 import '../../harness/widgets/chat/dsh_model_picker.dart';
 import '../../harness/state/dsh_connections_provider.dart';
 import '../../harness/state/dsh_gateway.dart';
 import '../../harness/widgets/dsh_failure_text.dart';
 import '../../harness/widgets/dsh_side_bar.dart';
+import '../../harness/widgets/terminal/dsh_terminal_panel.dart';
 import '../widgets/side_drawer.dart';
 import '../controllers/scroll_controller.dart' as scroll_ctrl;
 import 'home_mobile_layout.dart';
@@ -229,6 +232,11 @@ class _HomePageState extends State<HomePage>
   // chrome (open/width), which belongs to navigation, not chat.
   HarnessHomeController? _harnessController;
   DshHarnessSessionCatalog? _harnessCatalog;
+
+  /// One official-WebUI surface inventory per home state: the harvest of every
+  /// remote page opened from here is stored per authority and both R5 and R7
+  /// rebuild from it. In-memory only, like the inventory itself.
+  final DshSurfaceInventory _harnessSurfaceInventory = DshSurfaceInventory();
   final InteractiveDrawerController _harnessRailController =
       InteractiveDrawerController();
   bool _harnessLandingInFlight = false;
@@ -684,6 +692,7 @@ class _HomePageState extends State<HomePage>
     _harnessController?.removeListener(_onHarnessChanged);
     _harnessController?.dispose();
     _harnessCatalog?.dispose();
+    _harnessSurfaceInventory.dispose();
     _harnessRailController.dispose();
     _controller.dispose();
     _inputController.removeListener(_syncQuoteHighlights);
@@ -1103,6 +1112,9 @@ class _HomePageState extends State<HomePage>
         remoteId: remoteId,
         sessionId: sessionId,
       ),
+      // The official-WebUI harvest fills this inventory per authority; until a
+      // page is opened once the sidebar and rail render the DSH built-ins only.
+      surfaceInventory: _harnessSurfaceInventory,
     );
     _setHarnessController(harness, catalog: catalog);
     unawaited(_requestHarnessLandingSession());
@@ -1265,69 +1277,132 @@ class _HomePageState extends State<HomePage>
     if (_drawerController.isOpen) _drawerController.close();
   }
 
-  Future<void> _openHarnessEntry(DshSidebarEntry entry) async {
+  /// Opens the surface one R5 entry row stands for.
+  ///
+  /// Every row is a full official-WebUI page here (the protocol exposes no
+  /// per-panel route): a harvested row lands on its own label, the one built-in
+  /// 更多 row lands on DSH's `PanelMoreMenu`, and the pre-harvest 插件 / 自动化任务
+  /// built-ins open the WebUI root. Every open also runs the surface harvest, so
+  /// the next build replaces the built-ins with the official rows.
+  Future<void> _openHarnessEntry(DshSidebarEntrySpec entry) async {
     final harness = _harnessController;
     if (harness == null) return;
-    final l10n = AppLocalizations.of(context)!;
-    final remote = harness.remote;
     if (_drawerController.isOpen) _drawerController.close();
-    final navigator = Navigator.of(context);
-
-    // 插件 / 自动化任务 interiors are the chat slice's WebView host: DSH
-    // contributes React slots inside its single-page app and exposes no
-    // per-panel route, so the panel is the Host's own WebUI authenticated by
-    // the stored v1 browser cookie. 更多 stays a native menu placeholder.
-    if (entry != DshSidebarEntry.more) {
-      final cookie = await const SecureDshCredentialStore().readCookie(
-        remote.id,
-      );
-      if (!mounted) return;
-      await navigator.push(
-        MaterialPageRoute<void>(
-          builder: (_) => DshPluginWebPage(
-            remote: remote,
-            title: entry == DshSidebarEntry.plugins
-                ? l10n.dshSidebarPlugins
-                : l10n.dshSidebarAutomations,
-            cookie: cookie,
-            onRequestReconnect: () {
-              // A rotated cookie only needs the assistant settings page, where
-              // a fresh WebUI link can be pasted; the WebView host cannot fix
-              // it itself.
-              navigator.pop();
-              navigator.push(
-                MaterialPageRoute<void>(
-                  builder: (_) =>
-                      DshAssistantSettingsPage.edit(remoteId: remote.id),
-                ),
-              );
-            },
-          ),
+    if (entry.isHarvested) {
+      await _openHarnessWebUi(
+        title: entry.label,
+        script: _harvestThenLanding(
+          DshSurfaceHarvest.sidebarLandingScript(entry.label),
         ),
       );
       return;
     }
+    if (entry.id == DshSidebarEntryIds.more) {
+      await _openHarnessWebUi(
+        title: entry.label,
+        script: _harvestThenLanding(DshSurfaceHarvest.moreMenuLandingScript),
+      );
+      return;
+    }
+    await _openHarnessWebUi(
+      title: entry.label,
+      script: DshSurfaceHarvest.script,
+    );
+  }
 
-    // 更多 is R5's native menu; 返回本地助手 is the one in-surface way back to
-    // the local assistant surface (leaving harness mode and disposing its
-    // remote controller).
+  /// Runs the surface harvest first, then a landing script.
+  ///
+  /// Both scripts are async IIFEs that drive the official sidebar/rail drawers,
+  /// so awaiting the harvest keeps them from racing each other. Every WebUI
+  /// page opened from Cuplivo therefore refreshes the snapshot *and* lands on
+  /// the requested surface.
+  String _harvestThenLanding(String landingScript) {
+    final harvest = DshSurfaceHarvest.script.trim();
+    final landing = landingScript.trim();
+    if (landing.isEmpty) return harvest;
+    return '(async () => { await $harvest\n await $landing\n})();';
+  }
+
+  /// Opens the Host's own WebUI with one script.
+  ///
+  /// DSH plugins contribute React slots inside its single-page app and the
+  /// protocol exposes no per-panel route, so the panel is the Host's WebUI
+  /// authenticated by the stored v1 browser cookie. [script] is either the
+  /// surface harvest or a landing script for one harvested label; both are
+  /// one-shot and best-effort. Every page posts its harvest back through
+  /// [onScriptMessage], stored per authority so R5/R7 rebuild.
+  Future<void> _openHarnessWebUi({
+    required String title,
+    String? script,
+  }) async {
+    final harness = _harnessController;
+    if (harness == null) return;
+    final remote = harness.remote;
+    final authority = remote.authority;
+    final navigator = Navigator.of(context);
+    final cookie = await const SecureDshCredentialStore().readCookie(remote.id);
+    if (!mounted) return;
+    final initialScript = script?.trim() ?? '';
     await navigator.push(
       MaterialPageRoute<void>(
-        builder: (_) => HarnessMorePage(
-          remoteName: remote.name.trim(),
-          onBackToLocalAssistants: () {
+        builder: (_) => DshPluginWebPage(
+          remote: remote,
+          title: title,
+          cookie: cookie,
+          initialScript: initialScript.isEmpty ? null : initialScript,
+          onScriptMessage: (raw) =>
+              _harnessSurfaceInventory.accept(authority, raw),
+          onRequestReconnect: () {
+            // A rotated cookie only needs the assistant settings page, where a
+            // fresh WebUI link can be pasted; the WebView host cannot fix it
+            // itself.
             navigator.pop();
-            _controller.exitHarnessMode();
+            navigator.push(
+              MaterialPageRoute<void>(
+                builder: (_) =>
+                    DshAssistantSettingsPage.edit(remoteId: remote.id),
+              ),
+            );
           },
-          onOpenSettings: () => navigator.push(
-            MaterialPageRoute<void>(
-              builder: (_) =>
-                  DshAssistantSettingsPage.edit(remoteId: remote.id),
-            ),
-          ),
         ),
       ),
     );
+  }
+
+  /// The rail's plugin cards, built from the harvest snapshot.
+  ///
+  /// Built-in cards stay native, so their labels are excluded from the
+  /// harvested list. The cards keep the remote's label verbatim and a generic
+  /// icon, and open the WebUI landed on that rail card (the rail never embeds
+  /// the WebUI, see `docs/cuplivo-dsh/v2-reuse-map.md` §4).
+  List<HarnessRailExtraEntry> _harnessRailExtraEntries(
+    HarnessHomeController harness,
+  ) {
+    final l10n = AppLocalizations.of(context)!;
+    final rows = dshHarvestedEntries(
+      harness.harvestedRailEntries,
+      excludedLabels: <String>{
+        l10n.dshRailWorkspaceFiles,
+        l10n.dshRailNewTerminal,
+        l10n.dshRailMoreTools,
+      },
+    );
+    return <HarnessRailExtraEntry>[
+      for (final row in rows)
+        HarnessRailExtraEntry(
+          id: row.id,
+          title: row.label,
+          icon: Lucide.Box,
+          onTap: () => unawaited(
+            _openHarnessWebUi(
+              title: row.label,
+              script: _harvestThenLanding(
+                DshSurfaceHarvest.railLandingScript(row.label, kind: row.kind),
+              ),
+            ),
+          ),
+        ),
+    ];
   }
 
   Future<void> _retryHarnessLink(HarnessHomeController harness) async {
@@ -1385,6 +1460,7 @@ class _HomePageState extends State<HomePage>
           onNewSession: ({String? workspaceId}) =>
               _newHarnessSession(workspaceId: workspaceId),
           onOpenEntry: (entry) => unawaited(_openHarnessEntry(entry)),
+          harvestedEntries: harness.harvestedSidebarEntries,
           query: query,
         ),
       ),
@@ -1397,6 +1473,27 @@ class _HomePageState extends State<HomePage>
         expanded: harness.railExpanded,
         onShowPage: harness.showRailPage,
         onShowStart: harness.showRailStart,
+        extraEntries: _harnessRailExtraEntries(harness),
+        // The terminal slice supplies the real host terminal; the rail keeps
+        // its honest placeholder until a session is open.
+        terminalPanelBuilder: (context, session) {
+          final id = session?.sessionId ?? harness.selectedSessionId;
+          if (id == null) return const SizedBox.shrink();
+          return DshTerminalPanel(remoteId: harness.remote.id, sessionId: id);
+        },
+        // Binary/refused kinds open the preview slice's page; the page resolves
+        // the gateway and WebView cookie itself.
+        onPreviewWorkspaceFile: (entry) {
+          unawaited(
+            DshFilePreviewPage.open(
+              context,
+              remote: harness.remote,
+              sessionId: harness.selectedSessionId ?? '',
+              path: entry.path,
+              displayName: entry.name,
+            ),
+          );
+        },
       ),
       railController: _harnessRailController,
       railOpen: harness.railOpen,

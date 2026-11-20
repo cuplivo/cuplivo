@@ -10,23 +10,27 @@ import 'package:Cuplivo/core/models/chat_input_data.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/features/harness/controllers/dsh_chat_controllers_provider.dart';
 import 'package:Cuplivo/features/harness/controllers/dsh_chat_session.dart';
+import 'package:Cuplivo/features/harness/controllers/dsh_composer_e2e.dart';
 import 'package:Cuplivo/features/harness/controllers/dsh_composer_submission.dart';
 import 'package:Cuplivo/features/harness/controllers/dsh_transcript_fold.dart';
+import 'package:Cuplivo/features/harness/services/dsh_attachment_upload_service.dart';
+import 'package:Cuplivo/features/harness/services/dsh_context_usage.dart';
 import 'package:Cuplivo/features/harness/models/dsh_remote.dart';
 import 'package:Cuplivo/features/harness/widgets/chat/dsh_approval_cards.dart';
+import 'package:Cuplivo/features/harness/widgets/chat/dsh_context_usage_sheet.dart';
 import 'package:Cuplivo/features/harness/widgets/chat/dsh_model_picker.dart';
 import 'package:Cuplivo/features/harness/widgets/chat/dsh_permission_picker.dart';
 import 'package:Cuplivo/features/harness/widgets/chat/dsh_plus_sheet.dart';
 import 'package:Cuplivo/features/harness/widgets/chat/dsh_reasoning_picker.dart';
+import 'package:Cuplivo/features/harness/widgets/chat/dsh_slash_commands_sheet.dart';
 import 'package:Cuplivo/features/harness/widgets/dsh_whale_mark.dart';
+import 'package:Cuplivo/features/home/services/file_upload_service.dart';
 import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
 import 'package:Cuplivo/features/home/widgets/message_list_view.dart';
 import 'package:Cuplivo/features/home/widgets/model_icon.dart';
-import 'package:Cuplivo/features/settings/widgets/custom_theme_widgets.dart';
 import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
-import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
-import 'package:Cuplivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/shared/widgets/action_sheet.dart';
 import 'package:Cuplivo/theme/app_font_weights.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
@@ -80,6 +84,9 @@ class _HarnessConversationViewState extends State<HarnessConversationView> {
   final FocusNode _focusNode = FocusNode();
   final ValueNotifier<String?> _processingFiles = ValueNotifier<String?>(null);
   final GlobalKey _composerBarKey = GlobalKey();
+  final ChatInputBarController _mediaController = ChatInputBarController();
+  FileUploadService? _fileUploadService;
+  bool _slashMenuOpen = false;
 
   DshChatControllersProvider? _provider;
   DshChatSession? _session;
@@ -94,9 +101,50 @@ class _HarnessConversationViewState extends State<HarnessConversationView> {
   Assistant? _ownerAssistant;
 
   @override
+  void initState() {
+    super.initState();
+    _draftController.addListener(_onDraftChanged);
+    DshComposerE2e.attach(_stageAttachmentsFromE2e);
+  }
+
+  /// Integration-test seam: stages picker-equivalent attachments into the
+  /// composer so the upload/prompt/transcript path can be driven without a
+  /// native dialog. See [DshComposerE2e].
+  void _stageAttachmentsFromE2e(
+    List<String> images,
+    List<DocumentAttachment> documents,
+  ) {
+    if (!mounted) return;
+    if (images.isNotEmpty) {
+      _mediaController.enqueueImages(
+        images,
+        context.read<SettingsProvider>().resolveImageCompressConfig(),
+      );
+    }
+    if (documents.isNotEmpty) _mediaController.addFiles(documents);
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _ensureFileUploadService();
     _resolveSession();
+  }
+
+  /// The native picker pipeline is shared with local chats: it stages images
+  /// and documents into the composer controller, and the send path turns them
+  /// into DSH prompt parts. Built once because it captures the app settings.
+  void _ensureFileUploadService() {
+    if (_fileUploadService != null) return;
+    _fileUploadService = FileUploadService(
+      getContext: () => context,
+      mediaController: _mediaController,
+      isImageCropperEnabled: () =>
+          context.read<SettingsProvider>().imageCropperEnabled,
+      getImageCompressConfig: () =>
+          context.read<SettingsProvider>().resolveImageCompressConfig(),
+      hasWorkspace: () => false,
+    );
   }
 
   @override
@@ -201,6 +249,8 @@ class _HarnessConversationViewState extends State<HarnessConversationView> {
 
   @override
   void dispose() {
+    _draftController.removeListener(_onDraftChanged);
+    DshComposerE2e.detach();
     _detach();
     _scrollController.dispose();
     _listController.dispose();
@@ -232,6 +282,13 @@ class _HarnessConversationViewState extends State<HarnessConversationView> {
     final effort = state.currentReasoningEffort;
     final permissions = state.permissions;
     final notice = folded.notices.isEmpty ? null : folded.notices.last;
+    final contextUsage = dshContextUsageSnapshot(
+      pressure: state.contextPressure,
+      remoteId: widget.remote.id,
+      sessionId: widget.sessionId,
+      providerKey: state.modelSelection?.providerId,
+      modelId: state.modelSelection?.modelId ?? state.currentModel?.id,
+    );
 
     // Both home scaffolds mount the harness body as the `Scaffold.body` of a
     // scaffold with `extendBodyBehindAppBar: true`, so the transcript has to
@@ -346,8 +403,27 @@ class _HarnessConversationViewState extends State<HarnessConversationView> {
                 composerFieldKey: const Key('dsh-composer'),
                 sendButtonKey: const Key('dsh-send'),
                 controller: _draftController,
+                mediaController: _mediaController,
                 focusNode: _focusNode,
                 conversationId: null,
+                contextUsageOverride: contextUsage,
+                onOpenContextUsage: contextUsage == null
+                    ? null
+                    : () => unawaited(
+                        showDshContextUsageSheet(
+                          context,
+                          snapshot: contextUsage,
+                        ),
+                      ),
+                onPickCamera: _fileUploadService == null
+                    ? null
+                    : () => unawaited(_pickCamera()),
+                onPickPhotos: _fileUploadService == null
+                    ? null
+                    : () => unawaited(_pickImages()),
+                onUploadFiles: _fileUploadService == null
+                    ? null
+                    : () => unawaited(_pickFiles()),
                 // The remote model is not a local provider: passing its ids would
                 // make ChatInputBar resolve Cuplivo's own provider config (image
                 // routing, local tools) for a model it does not own. The pill and the
@@ -532,63 +608,174 @@ class _HarnessConversationViewState extends State<HarnessConversationView> {
     final session = _session;
     if (session == null) return;
     final state = session.state;
-    final anchor = _plusAnchor();
+    // 压缩 is only offered when the Host's command catalog advertises it: the
+    // wire path is a real `/compact` command, and a guessed name would be a dead
+    // tap. The other disabled rows have no endpoint at all (see the sheet).
+    final compactAvailable = state.commands.any(
+      (command) => command.name.toLowerCase() == 'compact',
+    );
     await showDshPlusSheet(
       context,
       state: DshPlusMenuState(
-        workspaceLabel: state.workspaceLabel,
         permissionLabel: state.permissionPreset,
         modelLabel: state.modelDisplay,
         connectionProblem: state.connectionError,
+        compactCommandAvailable: compactAvailable,
       ),
       onOpenPermission: () => unawaited(_openPermissionPicker()),
-      onOpenWorkspace:
-          widget.onOpenWorkspace ?? () => unawaited(_showWorkspaceDetails()),
-      onOpenModelDetails: () => unawaited(_showModelDetails()),
-      onTogglePluginPanel: widget.onOpenRightRail,
-      onOpenSettings: widget.onOpenAssistantSettings,
-      anchor: anchor,
+      onOpenModel: () => unawaited(_requestModelPicker()),
+      onPickAttachment: () => unawaited(_openAttachmentPicker()),
+      onCompress: compactAvailable
+          ? () => unawaited(_runCommandLine('/compact'))
+          : null,
     );
   }
 
-  /// Read-only workspace facts when the host has no workspace pane to open.
-  Future<void> _showWorkspaceDetails() async {
+  /// Lets the user choose between the image picker and the document picker
+  /// before the native pipeline stages files into the composer.
+  Future<void> _openAttachmentPicker() async {
+    final l10n = AppLocalizations.of(context)!;
+    final items = <ActionSheetItem>[
+      ActionSheetItem(
+        icon: Lucide.Image,
+        label: l10n.dshPlusPickPhoto,
+        onTap: () => unawaited(_pickImages()),
+      ),
+      ActionSheetItem(
+        icon: Lucide.File,
+        label: l10n.dshPlusPickFile,
+        onTap: () => unawaited(_pickFiles()),
+      ),
+    ];
+    final isDesktop =
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux;
+    if (isDesktop) {
+      await showAdaptiveActionMenu(
+        context,
+        title: l10n.dshPlusAttachFile,
+        items: items,
+      );
+      return;
+    }
+    await showMobileActionSheet(
+      context,
+      title: l10n.dshPlusAttachFile,
+      items: items,
+    );
+  }
+
+  Future<void> _pickCamera() async {
+    final service = _fileUploadService;
+    if (service == null || !mounted) return;
+    await service.onPickCamera(context);
+  }
+
+  Future<void> _pickImages() async {
+    await _fileUploadService?.onPickPhotos();
+  }
+
+  Future<void> _pickFiles() async {
+    await _fileUploadService?.onPickFiles();
+  }
+
+  /// Runs one slash command through the Host's command path and reports the
+  /// in-band outcome; anything else would be a fake success.
+  Future<void> _runCommandLine(String line) async {
     final session = _session;
     if (session == null) return;
-    final state = session.state;
-    await showAppDialog<void>(
-      context,
-      child: _DshWorkspaceDetailsDialog(
-        workspaceLabel: state.workspaceLabel,
-        remoteName: widget.remote.name,
-      ),
-    );
+    final result = await session.runCommand(line);
+    if (!mounted) return;
+    final text = (result.text ?? '').trim();
+    if (text.isNotEmpty) {
+      _showSnack(text);
+      return;
+    }
+    if (!result.success) {
+      _showSnack(AppLocalizations.of(context)!.dshOperationFailed);
+    }
   }
 
-  Offset? _plusAnchor() {
-    final box =
-        _composerBarKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize) return null;
-    final origin = box.localToGlobal(box.size.bottomRight(Offset.zero));
-    return origin - const Offset(24, 12);
-  }
-
-  Future<void> _showModelDetails() async {
+  /// Watches the draft for a leading `/` and offers the Host's command list.
+  ///
+  /// The menu opens only while the user is typing the command name (before the
+  /// first argument), which keeps it from popping up for a prompt that merely
+  /// starts with a slash.
+  void _onDraftChanged() {
+    if (!mounted) return;
     final session = _session;
     if (session == null) return;
-    final state = session.state;
-    final model = state.currentModel;
-    if (model == null) return;
-    final group = state.modelCatalog.groupFor(state.modelSelection);
-    await showAppDialog<void>(
-      context,
-      child: _DshModelDetailsDialog(
-        model: model,
-        providerName: group?.displayName,
-        effort: state.currentReasoningEffort,
-        selection: state.modelSelection,
-      ),
-    );
+    final commands = session.state.commands;
+    if (commands.isEmpty) return;
+    final text = _draftController.text;
+    final trimmed = text.trimLeft();
+    if (!trimmed.startsWith('/')) return;
+    final rest = trimmed.substring(1);
+    if (rest.contains(RegExp(r'\s'))) return;
+    if (_slashMenuOpen) return;
+    if (rest.isNotEmpty &&
+        !commands.any(
+          (command) =>
+              command.name.toLowerCase().startsWith(rest.toLowerCase()),
+        )) {
+      return;
+    }
+    unawaited(_openSlashSheet());
+  }
+
+  Future<void> _openSlashSheet() async {
+    final session = _session;
+    if (session == null || _slashMenuOpen) return;
+    _slashMenuOpen = true;
+    try {
+      final picked = await showDshSlashCommandsSheet(
+        context,
+        commands: session.state.commands,
+      );
+      if (!mounted || picked == null) return;
+      _draftController.text = '/${picked.name} ';
+      _draftController.selection = TextSelection.collapsed(
+        offset: _draftController.text.length,
+      );
+      if (!picked.takesInput) {
+        _draftController.clear();
+        await _runCommandLine('/${picked.name}');
+      }
+    } finally {
+      _slashMenuOpen = false;
+    }
+  }
+
+  /// The slash command a send would execute, or null for a normal prompt.
+  ///
+  /// Only catalog commands count: an unknown `/word` stays a prompt, exactly as
+  /// the user typed it.
+  DshSlashCommand? _commandForSend(String text) {
+    final session = _session;
+    if (session == null) return null;
+    final trimmed = text.trim();
+    if (!trimmed.startsWith('/')) return null;
+    final token = trimmed.substring(1).split(RegExp(r'\s')).first;
+    if (token.isEmpty) return null;
+    for (final command in session.state.commands) {
+      if (command.name.toLowerCase() == token.toLowerCase()) return command;
+    }
+    return null;
+  }
+
+  String _attachmentFailureText(DshAttachmentFailure failure) {
+    final l10n = AppLocalizations.of(context)!;
+    return switch (failure.kind) {
+      DshAttachmentFailureKind.tooManyImages => l10n.dshAttachmentTooManyImages,
+      DshAttachmentFailureKind.imageTooLarge => l10n.dshAttachmentImageTooLarge,
+      DshAttachmentFailureKind.imagesTooLarge =>
+        l10n.dshAttachmentImagesTooLarge,
+      DshAttachmentFailureKind.unsupportedImageType =>
+        l10n.dshAttachmentUnsupportedType,
+      DshAttachmentFailureKind.readFailed => l10n.dshAttachmentReadFailed,
+      DshAttachmentFailureKind.uploadFailed => l10n.dshAttachmentUploadFailed,
+    };
   }
 
   Future<void> _cancelTurn() async {
@@ -641,9 +828,45 @@ class _HarnessConversationViewState extends State<HarnessConversationView> {
   Future<ChatInputSubmissionResult> _handleSend(ChatInputData input) async {
     final session = _session;
     if (session == null) return ChatInputSubmissionResult.rejected;
-    final result = await DshComposerSubmission(session).submitWithReason(input);
+    // A slash-command line is executed through `commands/execute`, not sent as
+    // a chat prompt. Attachments only ride prompts, so a command-with-files send
+    // stays a prompt below (the invocation line would otherwise be swallowed).
+    final command = _commandForSend(input.text);
+    final hasAttachments =
+        input.imagePaths.isNotEmpty || input.documents.isNotEmpty;
+    if (command != null && !hasAttachments) {
+      final result = await session.runCommand(input.text.trim());
+      if (!mounted) {
+        return result.success
+            ? ChatInputSubmissionResult.sent
+            : ChatInputSubmissionResult.rejected;
+      }
+      final text = (result.text ?? '').trim();
+      if (!result.success) {
+        _showSnack(
+          text.isEmpty
+              ? AppLocalizations.of(context)!.dshOperationFailed
+              : text,
+        );
+        // Keep the draft: the command did not run.
+        return ChatInputSubmissionResult.rejected;
+      }
+      if (text.isNotEmpty) _showSnack(text);
+      return ChatInputSubmissionResult.sent;
+    }
+    final result = await DshComposerSubmission(
+      session,
+      attachmentPreparer: _prepareAttachments,
+    ).submitWithReason(input);
     if (result.rejected && mounted) {
       final l10n = AppLocalizations.of(context)!;
+      final attachmentFailure = result.attachmentFailure;
+      if (attachmentFailure != null) {
+        final fileName = (attachmentFailure.fileName ?? '').trim();
+        final detail = fileName.isEmpty ? '' : ' — $fileName';
+        _showSnack('${_attachmentFailureText(attachmentFailure)}$detail');
+        return result.result;
+      }
       final message = (result.message ?? '').trim();
       _showSnack(
         message.isEmpty
@@ -652,6 +875,22 @@ class _HarnessConversationViewState extends State<HarnessConversationView> {
       );
     }
     return result.result;
+  }
+
+  /// Reads the composer's staged paths and turns them into DSH prompt parts:
+  /// images travel inline (base64), documents are uploaded for a receipt.
+  Future<List<DshPromptAttachment>> _prepareAttachments(
+    ChatInputData input,
+  ) async {
+    final session = _session;
+    if (session == null) return const <DshPromptAttachment>[];
+    final service = DshAttachmentUploadService(
+      readFile: (path) => File(path).readAsBytes(),
+      uploadFile: (bytes, {required name, mediaType}) =>
+          session.uploadAttachment(bytes, name: name, mediaType: mediaType),
+      imageLimits: () => session.state.imageLimits,
+    );
+    return service.prepare(input);
   }
 
   void _showSnack(String message) {
@@ -897,270 +1136,6 @@ class _DshConversationPlaceholder extends StatelessWidget {
         width: 20,
         height: 20,
         child: CircularProgressIndicator(strokeWidth: 2.2, color: cs.primary),
-      ),
-    );
-  }
-}
-
-/// Read-only workspace facts for a host without a workspace pane.
-class _DshWorkspaceDetailsDialog extends StatelessWidget {
-  const _DshWorkspaceDetailsDialog({
-    required this.workspaceLabel,
-    required this.remoteName,
-  });
-
-  final String? workspaceLabel;
-  final String remoteName;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final cs = Theme.of(context).colorScheme;
-    final workspace = (workspaceLabel ?? '').trim();
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AppDialogHeader(title: l10n.dshPlusWorkspace),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _DshDetailRow(
-                label: l10n.dshPlusWorkspace,
-                value: workspace.isEmpty
-                    ? l10n.dshPlusWorkspaceUnknown
-                    : workspace,
-              ),
-              _DshDetailRow(
-                label: l10n.dshAssistantNameLabel,
-                value: remoteName,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                l10n.dshChatEmptyBody,
-                style: TextStyle(
-                  fontSize: 11.5,
-                  height: 1.35,
-                  color: cs.onSurface.withValues(alpha: 0.55),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              IosCardPress(
-                baseColor: cs.onSurface.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(9),
-                pressedBlendStrength: 0.08,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 8,
-                ),
-                onTap: () => Navigator.of(context).maybePop(),
-                child: Text(
-                  l10n.commonClose,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: AppFontWeights.medium,
-                    color: cs.onSurface,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Read-only model facts: DSH owns the configuration, Cuplivo only displays it.
-class _DshModelDetailsDialog extends StatelessWidget {
-  const _DshModelDetailsDialog({
-    required this.model,
-    required this.providerName,
-    required this.effort,
-    required this.selection,
-  });
-
-  final DshModelOption model;
-  final String? providerName;
-  final DshReasoningEffort? effort;
-  final DshModelSelection? selection;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final cs = Theme.of(context).colorScheme;
-    final description = (model.description ?? '').trim();
-    final badge = (model.badge ?? '').trim();
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AppDialogHeader(title: l10n.dshModelDetailsTitle),
-        Flexible(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    CurrentModelIcon(
-                      providerKey: selection?.providerId,
-                      modelId: model.id,
-                      size: 30,
-                      iconScale: 0.62,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        model.displayName,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: AppFontWeights.semibold,
-                        ),
-                      ),
-                    ),
-                    if (badge.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: cs.primary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          badge,
-                          style: TextStyle(fontSize: 10.5, color: cs.primary),
-                        ),
-                      ),
-                  ],
-                ),
-                if (description.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      height: 1.4,
-                      color: cs.onSurface.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 14),
-                _DshDetailRow(
-                  label: l10n.dshModelDetailsProvider,
-                  value: (providerName ?? '').trim().isEmpty
-                      ? (selection?.providerId ?? model.id)
-                      : providerName!,
-                ),
-                _DshDetailRow(
-                  label: l10n.dshModelDetailsId,
-                  value: model.id,
-                  monospace: true,
-                ),
-                _DshDetailRow(
-                  label: l10n.dshModelDetailsEffort,
-                  value: effort?.name ?? '-',
-                ),
-                const SizedBox(height: 12),
-                SectionCard(
-                  radius: 10,
-                  padding: const EdgeInsets.all(10),
-                  child: Text(
-                    l10n.dshModelDetailsNote,
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      height: 1.35,
-                      color: cs.onSurface.withValues(alpha: 0.55),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              IosCardPress(
-                baseColor: cs.onSurface.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(9),
-                pressedBlendStrength: 0.08,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 8,
-                ),
-                onTap: () => Navigator.of(context).maybePop(),
-                child: Text(
-                  l10n.commonClose,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: AppFontWeights.medium,
-                    color: cs.onSurface,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _DshDetailRow extends StatelessWidget {
-  const _DshDetailRow({
-    required this.label,
-    required this.value,
-    this.monospace = false,
-  });
-
-  final String label;
-  final String value;
-  final bool monospace;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 92,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: cs.onSurface.withValues(alpha: 0.5),
-              ),
-            ),
-          ),
-          Expanded(
-            child: SelectableText(
-              value,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontFamily: monospace ? 'monospace' : null,
-                color: cs.onSurface.withValues(alpha: 0.85),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -18,7 +18,10 @@ import '../../state/dsh_gateway.dart';
 import '../../widgets/dsh_failure_text.dart';
 import '../../widgets/dsh_filled_button.dart';
 import '../../widgets/dsh_link_status_dot.dart';
+import '../../widgets/dsh_settings_tab_strip.dart';
 import '../../widgets/dsh_whale_mark.dart';
+import 'dsh_settings_tab_bodies.dart';
+import 'dsh_settings_tabs.dart';
 import 'models/dsh_models_tab_body.dart';
 
 /// One remote DeepSeek Harness, as the user configures it.
@@ -26,10 +29,10 @@ import 'models/dsh_models_tab_body.dart';
 /// The same page serves the two moments the reference pairs: [create] is the
 /// direct-connect form reached from the create menu (tab 连接设置 selected, the
 /// two cards, a WebUI link field and `确认`), and [edit] is the assistant
-/// settings page opened from the owner card or the drawer's pencil. The four
-/// tabs are the whole shell — 连接设置 and 通用设置 are live, the 模型 and 内容
-/// bodies are the placeholders their slices replace, but the tabs and
-/// navigation already exist so no later slice has to reshape the page.
+/// settings page opened from the owner card or the drawer's pencil. The tab
+/// list is DSH's own: 连接设置 (Cuplivo's own connect surface), 通用设置, 模型,
+/// 内置插件, Agent 预设, then the settings tabs enabled Host plugins register.
+/// A tab whose data source is unavailable is absent rather than a placeholder.
 ///
 /// DSH keeps every session and setting; this page writes only the local
 /// connection record and the two server settings the brief puts outside
@@ -52,7 +55,7 @@ class _DshAssistantSettingsPageState extends State<DshAssistantSettingsPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _urlController = TextEditingController();
 
-  int _tab = 0;
+  String _tabId = 'connection';
   bool _submitting = false;
   String? _error;
   String? _success;
@@ -118,6 +121,18 @@ class _DshAssistantSettingsPageState extends State<DshAssistantSettingsPage> {
     final title = _createdName.trim().isEmpty
         ? l10n.dshProductName
         : _createdName.trim();
+    final tabs = _buildTabs(
+      l10n: l10n,
+      status: status,
+      catalog: catalog,
+      connections: connections,
+    );
+    // A plugin can disappear while the page is open (disabled in another
+    // window, or the Host restarted without it); keep the strip on a tab that
+    // still exists instead of showing an empty pane. Mutating the field here is
+    // safe: this build already uses the resolved id, and no rebuild is needed.
+    final activeId = tabs.any((tab) => tab.id == _tabId) ? _tabId : 'general';
+    _tabId = activeId;
 
     return Scaffold(
       appBar: AppBar(
@@ -140,45 +155,17 @@ class _DshAssistantSettingsPageState extends State<DshAssistantSettingsPage> {
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                  child: _DshSettingsTabStrip(
+                  child: DshSettingsTabStrip(
                     key: const Key('dsh-settings-tabs'),
-                    labels: [
-                      l10n.dshTabConnection,
-                      l10n.dshTabGeneral,
-                      l10n.dshTabModels,
-                      l10n.dshTabContent,
-                    ],
-                    index: _tab,
-                    onChanged: (index) => setState(() => _tab = index),
+                    specs: tabs,
+                    activeId: activeId,
+                    onChanged: (id) => setState(() => _tabId = id),
                   ),
                 ),
                 Expanded(
                   child: IndexedStack(
-                    index: _tab,
-                    children: [
-                      _buildConnectionTab(
-                        l10n: l10n,
-                        status: status,
-                        connections: connections,
-                      ),
-                      _buildGeneralTab(
-                        l10n: l10n,
-                        status: status,
-                        catalog: catalog,
-                        connections: connections,
-                      ),
-                      DshModelsTabBody(
-                        remoteId: _remoteId ?? '',
-                        settings: connections?.providerSettingsFor(
-                          _remoteId ?? '',
-                        ),
-                      ),
-                      _PlaceholderTab(
-                        icon: Lucide.LayoutGrid,
-                        title: l10n.dshTabContent,
-                        body: l10n.dshContentPlaceholder,
-                      ),
-                    ],
+                    index: tabs.indexWhere((tab) => tab.id == activeId),
+                    children: [for (final tab in tabs) tab.body(context)],
                   ),
                 ),
               ],
@@ -187,6 +174,75 @@ class _DshAssistantSettingsPageState extends State<DshAssistantSettingsPage> {
         ),
       ),
     );
+  }
+
+  /// The DSH-native tabs first, then the settings tabs enabled Host plugins
+  /// register. A section the Host does not expose is absent, never a dead tab.
+  List<DshSettingsTabSpec> _buildTabs({
+    required AppLocalizations l10n,
+    required DshLinkStatus status,
+    required DshCatalogSnapshot? catalog,
+    required DshConnectionsProvider? connections,
+  }) {
+    final remoteId = _remoteId ?? '';
+    final tabs = <DshSettingsTabSpec>[
+      DshSettingsTabSpec(
+        id: 'connection',
+        label: l10n.dshTabConnection,
+        body: (context) => _buildConnectionTab(
+          l10n: l10n,
+          status: status,
+          connections: connections,
+        ),
+      ),
+      DshSettingsTabSpec(
+        id: 'general',
+        label: l10n.dshTabGeneral,
+        body: (context) => _buildGeneralTab(
+          l10n: l10n,
+          status: status,
+          catalog: catalog,
+          connections: connections,
+        ),
+      ),
+      DshSettingsTabSpec(
+        id: 'models',
+        label: l10n.dshTabModels,
+        key: const Key('dsh-models-tab'),
+        body: (context) => DshModelsTabBody(
+          remoteId: remoteId,
+          settings: connections?.providerSettingsFor(remoteId),
+        ),
+      ),
+    ];
+    final catalogNow = catalog;
+    if (catalogNow == null ||
+        !catalogNow.capabilities.supports(DshCapability.plugins)) {
+      return tabs;
+    }
+    final plugins = catalogNow.plugins;
+    final agentPresets = catalogNow.agentPresets;
+    tabs
+      ..add(
+        DshSettingsTabSpec(
+          id: 'plugins',
+          label: l10n.dshTabPlugins,
+          body: (context) => DshPluginsTabBody(plugins: plugins),
+        ),
+      )
+      ..add(
+        DshSettingsTabSpec(
+          id: 'agentPresets',
+          label: l10n.dshTabAgentPresets,
+          body: (context) => DshAgentPresetsTabBody(groups: agentPresets),
+        ),
+      );
+    // Plugin-registered settings sections are `settings.section` slots in the
+    // official UI, not Host metadata: inventory `meta.title` is package
+    // metadata and would turn every installed plugin into a fake tab. The spec
+    // list stays dynamic so the later generic-surface harvest can append them,
+    // but v2 ships only the five native tabs.
+    return tabs;
   }
 
   Widget _buildConnectionTab({
@@ -569,122 +625,6 @@ class _DshAssistantSettingsPageState extends State<DshAssistantSettingsPage> {
   }
 }
 
-/// The four-tab strip from the reference: a soft shell with a filled pill for
-/// the selected tab, scrolling horizontally when the tabs do not fit.
-///
-/// This is deliberately a local implementation rather than `SegmentedTabs`:
-/// the E2E scenario drives individual tabs by key (`dsh-models-tab`), and the
-/// shared widget has no per-tab key. The visuals mirror it (same radius, fill
-/// and typography), so the page stays Cuplivo-native.
-class _DshSettingsTabStrip extends StatelessWidget {
-  const _DshSettingsTabStrip({
-    super.key,
-    required this.labels,
-    required this.index,
-    required this.onChanged,
-  });
-
-  final List<String> labels;
-  final int index;
-  final ValueChanged<int> onChanged;
-
-  static const List<Key?> _tabKeys = <Key?>[
-    null,
-    null,
-    Key('dsh-models-tab'),
-    null,
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 44,
-      decoration: BoxDecoration(
-        color: context.appColors.surfaceCard,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      clipBehavior: Clip.hardEdge,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.all(4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (var i = 0; i < labels.length; i++)
-              Padding(
-                padding: EdgeInsets.only(left: i == 0 ? 0 : 6),
-                child: _TabButton(
-                  key: _tabKeys[i],
-                  label: labels[i],
-                  selected: i == index,
-                  onTap: () {
-                    if (i == index) return;
-                    Haptics.light();
-                    onChanged(i);
-                  },
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TabButton extends StatelessWidget {
-  const _TabButton({
-    super.key,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Semantics(
-      button: true,
-      selected: selected,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
-          constraints: const BoxConstraints(minWidth: 84, minHeight: 36),
-          padding: const EdgeInsets.symmetric(horizontal: 18),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: selected
-                ? cs.primary.withValues(alpha: 0.16)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 13.5,
-              color: selected
-                  ? cs.primary
-                  : cs.onSurface.withValues(alpha: 0.82),
-              fontWeight: selected
-                  ? AppFontWeights.semibold
-                  : AppFontWeights.medium,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _InlineStatusLine extends StatelessWidget {
   const _InlineStatusLine({
     required this.text,
@@ -716,55 +656,6 @@ class _InlineStatusLine extends StatelessWidget {
           child: Text(
             text,
             style: TextStyle(fontSize: 13, height: 1.3, color: color),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PlaceholderTab extends StatelessWidget {
-  const _PlaceholderTab({
-    required this.icon,
-    required this.title,
-    required this.body,
-  });
-
-  final IconData icon;
-  final String title;
-  final String body;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-      children: [
-        SectionCard(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
-          child: Column(
-            children: [
-              Icon(icon, size: 28, color: cs.onSurface.withValues(alpha: 0.35)),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: AppFontWeights.semibold,
-                  color: cs.onSurface.withValues(alpha: 0.8),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                body,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  height: 1.35,
-                  color: cs.onSurface.withValues(alpha: 0.55),
-                ),
-              ),
-            ],
           ),
         ),
       ],

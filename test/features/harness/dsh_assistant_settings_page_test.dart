@@ -3,9 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:Cuplivo/features/harness/pages/assistant/dsh_assistant_settings_page.dart';
+import 'package:Cuplivo/features/harness/pages/assistant/dsh_settings_tab_bodies.dart';
+import 'package:Cuplivo/features/harness/pages/assistant/dsh_settings_tabs.dart';
 import 'package:Cuplivo/features/harness/services/dsh_credential_store.dart';
 import 'package:Cuplivo/features/harness/services/dsh_remote_store.dart';
 import 'package:Cuplivo/features/harness/state/dsh_connections_provider.dart';
+import 'package:Cuplivo/features/harness/state/dsh_gateway.dart';
+import 'package:Cuplivo/features/harness/widgets/dsh_settings_tab_strip.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 
 import '../../support/business_test_harness.dart';
@@ -59,6 +63,14 @@ void main() {
 
     expect(find.byKey(const Key('dsh-settings-tabs')), findsOneWidget);
     expect(find.byKey(const Key('dsh-models-tab')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('dsh-settings-tab-connection')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('dsh-settings-tab-general')),
+      findsOneWidget,
+    );
     expect(find.byKey(const Key('dsh-connect-name')), findsOneWidget);
     expect(find.byKey(const Key('dsh-connect-url')), findsOneWidget);
     expect(find.byKey(const Key('dsh-connect-confirm')), findsOneWidget);
@@ -66,7 +78,11 @@ void main() {
     expect(find.text('Connection'), findsOneWidget);
     expect(find.text('General'), findsOneWidget);
     expect(find.text('Models'), findsOneWidget);
-    expect(find.text('Content'), findsOneWidget);
+    // The invented 内容 tab is gone; the Host plugin tabs only appear once the
+    // catalog is connected, so create mode has neither.
+    expect(find.text('Content'), findsNothing);
+    expect(find.text('Built-in plugins'), findsNothing);
+    expect(find.text('Agent presets'), findsNothing);
   });
 
   testWidgets('an empty name fails locally without creating a record', (
@@ -125,4 +141,125 @@ void main() {
       );
     },
   );
+
+  Widget localizedHost(Widget child) => MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(body: child),
+  );
+
+  testWidgets('the strip renders exactly the specs it is given', (
+    tester,
+  ) async {
+    var changed = '';
+    await tester.pumpWidget(
+      localizedHost(
+        DshSettingsTabStrip(
+          specs: [
+            DshSettingsTabSpec(
+              id: 'alpha',
+              label: 'Alpha',
+              body: (_) => const SizedBox.shrink(),
+            ),
+            DshSettingsTabSpec(
+              id: 'beta',
+              label: 'Beta',
+              key: const Key('beta-tab'),
+              body: (_) => const SizedBox.shrink(),
+            ),
+          ],
+          activeId: 'alpha',
+          onChanged: (id) => changed = id,
+        ),
+      ),
+    );
+
+    expect(find.text('Alpha'), findsOneWidget);
+    expect(find.text('Beta'), findsOneWidget);
+    expect(find.text('Content'), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('dsh-settings-tab-alpha')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('beta-tab')));
+    await tester.pumpAndSettle();
+    expect(changed, 'beta');
+  });
+
+  testWidgets('the plugins body lists rows and the read-only note', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      localizedHost(
+        const DshPluginsTabBody(
+          plugins: [
+            DshPluginEntry(
+              id: 'tools',
+              title: 'Harness Tools',
+              moduleName: '@dsh/tools',
+              enabled: true,
+              phase: 'active',
+              diagnostic: 'needs attention',
+            ),
+          ],
+        ),
+      ),
+    );
+
+    expect(find.text('Harness Tools'), findsOneWidget);
+    expect(find.text('@dsh/tools'), findsOneWidget);
+    expect(find.text('Enabled'), findsOneWidget);
+    expect(find.textContaining('Phase: active'), findsOneWidget);
+    expect(find.textContaining('needs attention'), findsOneWidget);
+    expect(
+      find.textContaining('Plugins are managed by the remote'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('the plugins body has an honest empty state', (tester) async {
+    await tester.pumpWidget(
+      localizedHost(const DshPluginsTabBody(plugins: [])),
+    );
+    expect(find.text('This Host reports no built-in plugins.'), findsOneWidget);
+  });
+
+  testWidgets('the agent presets body lists groups read-only', (tester) async {
+    await tester.pumpWidget(
+      localizedHost(
+        const DshAgentPresetsTabBody(
+          groups: [
+            DshAgentPresetGroup(
+              id: 'standard',
+              name: 'Standard',
+              isDefault: true,
+              plugins: [
+                DshAgentPresetPlugin(
+                  moduleName: '@dsh/tools',
+                  title: 'Toolbox',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    expect(find.text('Standard'), findsOneWidget);
+    expect(find.text('Default'), findsOneWidget);
+    expect(find.text('Toolbox'), findsOneWidget);
+    expect(
+      find.textContaining('Agent presets are owned by the remote'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('the agent presets body has an honest empty state', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      localizedHost(const DshAgentPresetsTabBody(groups: [])),
+    );
+    expect(find.text('This Host reports no Agent presets.'), findsOneWidget);
+  });
 }

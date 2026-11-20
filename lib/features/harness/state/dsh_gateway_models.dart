@@ -999,9 +999,10 @@ class DshPromptAttachment {
 
   bool get isImage => kind == DshAttachmentKind.image;
 
-  /// True when a composer can build a prompt part from this reference.
+  /// True when a composer can build a prompt part from this reference: images
+  /// need their inline bytes, files need an upload receipt.
   bool get isPromptReady =>
-      receiptId.trim().isNotEmpty && (!isImage || (bytes?.isNotEmpty ?? false));
+      isImage ? (bytes?.isNotEmpty ?? false) : receiptId.trim().isNotEmpty;
 }
 
 /// The Host's in-band outcome of one `commands/execute` call.

@@ -73,13 +73,6 @@ Future<void> showDshPlusSheet(
       defaultTargetPlatform == TargetPlatform.macOS ||
       defaultTargetPlatform == TargetPlatform.windows ||
       defaultTargetPlatform == TargetPlatform.linux;
-  final sheet = _DshPlusSheet(
-    state: state,
-    onOpenPermission: onOpenPermission,
-    onOpenModel: onOpenModel,
-    onPickAttachment: onPickAttachment,
-    onCompress: onCompress,
-  );
   if (isDesktop) {
     return showAppDialog<void>(
       context,
@@ -202,6 +195,7 @@ class _DshPlusSheet extends StatelessWidget {
                 label: l10n.dshPlusTarget,
               ),
               _DshPlusDisabledRow(
+                key: const ValueKey<String>('dsh-plus-plan'),
                 icon: Lucide.ListChecks,
                 label: l10n.dshPlusPlan,
               ),

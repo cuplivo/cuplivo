@@ -320,6 +320,7 @@ class _DshFilePreviewPageState extends State<DshFilePreviewPage> {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
+      key: const Key('dsh-file-preview-page'),
       backgroundColor: cs.surface,
       appBar: AppBar(
         leading: Tooltip(

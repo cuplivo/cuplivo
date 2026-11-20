@@ -1,10 +1,18 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
+import 'package:Cuplivo/core/models/chat_input_data.dart';
 import 'package:Cuplivo/core/models/message_part.dart';
 import 'package:Cuplivo/features/assistant/pages/assistant_settings_page.dart';
+import 'package:Cuplivo/features/harness/controllers/dsh_composer_e2e.dart';
 import 'package:Cuplivo/features/harness/pages/home/harness_home_chrome.dart';
+import 'package:Cuplivo/features/harness/pages/plugins/dsh_plugin_web_page.dart';
+import 'package:Cuplivo/features/harness/pages/preview/dsh_file_preview_page.dart';
+import 'package:Cuplivo/features/harness/widgets/dsh_web_ui_view.dart';
 import 'package:Cuplivo/features/home/pages/home_mobile_layout.dart';
 import 'package:Cuplivo/features/home/widgets/message_list_view.dart';
 import 'package:Cuplivo/features/home/widgets/side_drawer.dart';
@@ -98,6 +106,10 @@ void main() {
       urlField,
       what: 'the direct-connect form WebUI URL field (R2)',
     );
+    // R2: the URL field is empty here, so the token placeholder is the
+    // rendered hint. Assert the hint text rather than find.text: entering a
+    // URL replaces the glyphs, and the hint is the only durable evidence.
+    _expectConnectUrlPlaceholder(tester, l10n);
     await _pumpUntilFound(
       tester,
       confirmButton,
@@ -107,8 +119,10 @@ void main() {
     await _pumpUntilFound(
       tester,
       tabs,
-      what: 'the four-tab assistant settings page (R2)',
+      what: 'the assistant settings tab strip (R2)',
     );
+    // Create mode has no remote yet, so only the local tabs render; the
+    // Host-reported tabs (内置插件 / Agent 预设) arrive after connecting.
     _expectSettingsTabs(tester, l10n);
 
     if (!realMode) {
@@ -130,6 +144,17 @@ const String _dshToken = String.fromEnvironment('E2E_DSH_TOKEN');
 /// A short prompt the E2E host's temporary key can answer inside the emulator
 /// budget (`docs/cuplivo-dsh/e2e-scenario.md`).
 const String _prompt = '你好，请用一句话介绍你自己';
+
+/// A second prompt that forces a bash tool call on the Host, so R6 covers the
+/// tool-card path as well as a plain text answer (`e2e-scenario.md`).
+const String _toolPrompt =
+    '请用 bash 工具执行这条命令：echo CUPLIVO_E2E_TOOL_OK，然后把完整输出贴给我';
+
+/// The line R12 types into the Host terminal. Its workspace side effect is the
+/// assertion: `terminal_view` paints glyphs to a canvas, so no Flutter `Text`
+/// can carry the output.
+const String _terminalCommand =
+    'echo CUPLIVO_E2E_TERMINAL_OK > cuplivo-e2e-terminal.txt';
 
 AppLocalizations _l10n(WidgetTester tester) {
   final element = tester.element(find.byType(Scaffold).first);
@@ -195,9 +220,61 @@ Future<void> _runRealScenario(
     tabs,
     what: 'the assistant settings page tabs (R2)',
   );
-  _expectSettingsTabs(tester, l10n);
+  _expectSettingsTabs(tester, l10n, withHostTabs: true);
   await pumpFrames(tester, frames: 20);
   await capture(tester, binding, 'r2_settings_connection');
+
+  // R2 v2: the two Host-reported tabs. All four bodies live in one
+  // IndexedStack, so a body's text only becomes findable after its own tab is
+  // tapped (default finders skip offstage children).
+  await _openSettingsTabById(
+    tester,
+    const Key('dsh-settings-tab-plugins'),
+    what: 'the 内置插件 tab (R2)',
+  );
+  await _pumpUntilFound(
+    tester,
+    find.text(l10n.dshPluginsReadOnly),
+    what: 'the 内置插件 read-only note (R2)',
+  );
+  expect(
+    find.text(l10n.dshPluginsEnabled),
+    findsWidgets,
+    reason: 'R2 内置插件 rows report the Host plugin state',
+  );
+  expect(
+    find.textContaining('@'),
+    findsWidgets,
+    reason: 'R2 内置插件 rows show the Host module name',
+  );
+  await pumpFrames(tester, frames: 20);
+  await capture(tester, binding, 'r2_builtin_plugins');
+
+  await _openSettingsTabById(
+    tester,
+    const Key('dsh-settings-tab-agentPresets'),
+    what: 'the Agent 预设 tab (R2)',
+  );
+  await _pumpUntilFound(
+    tester,
+    find.text(l10n.dshAgentPresetsReadOnly),
+    what: 'the Agent 预设 read-only note (R2)',
+  );
+  // The Host's composition groups render by name (id when it reports no
+  // name); `standard` is the default composition, and the 默认 badge belongs
+  // to that group only.
+  expect(
+    find.text('standard'),
+    findsWidgets,
+    reason: 'R2 Agent 预设 lists the Host composition groups',
+  );
+  expect(
+    find.text(l10n.dshAgentPresetsDefault),
+    findsWidgets,
+    reason: 'R2 Agent 预设 marks the default group',
+  );
+  await pumpFrames(tester, frames: 20);
+  await capture(tester, binding, 'r2_agent_presets');
 
   // R8: the 通用设置 tab, switched through the existing pill strip. Switching
   // adds no route, so the three pops below still land on the home surface.
@@ -222,23 +299,165 @@ Future<void> _runRealScenario(
   );
   await capture(tester, binding, 'r8_general_settings');
 
-  // Back to 连接设置 before the pops; the tab strip stays where R2 left it.
-  final connectionTab = find.descendant(
+  // R9/R10/R11: the remote's model settings live on this same page. They run
+  // here, in the R2/R8 settings session, because v2 removed the native 更多
+  // menu that used to be the way back to this page.
+  final modelsTab = find.descendant(
     of: tabs,
-    matching: find.text(l10n.dshTabConnection),
+    matching: find.byKey(const Key('dsh-models-tab')),
   );
-  await tester.ensureVisible(connectionTab.first);
-  await tester.tap(connectionTab.first);
-  await pumpFrames(tester, frames: 20);
+  await _pumpUntilFound(tester, modelsTab, what: 'the 模型 tab (R9)');
+  await tester.ensureVisible(modelsTab.first);
+  await tester.tap(modelsTab.first);
 
-  // Back to the owner list, then to the home surface (settings page → home).
+  final modelsSearch = find.byKey(const Key('dsh-models-search'));
+  await _pumpUntilFound(
+    tester,
+    modelsSearch,
+    what: 'the models settings page search field (R9)',
+  );
+  await pumpUntil(tester, () => _providerRowCount(tester) > 0, maxFrames: 1200);
+  expect(
+    _providerRowCount(tester),
+    greaterThan(0),
+    reason: 'provider rows from the live catalog (R9)',
+  );
+  final customProviderRow = find.byKey(const Key('dsh-models-custom-provider'));
+  await _pumpUntilFound(
+    tester,
+    customProviderRow,
+    what: 'the 自定义提供商 row (R10)',
+  );
+  final customTop = tester.getTopLeft(customProviderRow);
+  final firstProviderTop = tester.getTopLeft(_providerRows().first);
+  expect(
+    customTop.dy <= firstProviderTop.dy,
+    isTrue,
+    reason: 'R10 the 自定义提供商 row stays first',
+  );
+  await pumpFrames(tester, frames: 20);
+  await capture(tester, binding, 'r9_models');
+
+  // R10: the add-provider list, opened by the search bar's + action. The
+  // models slice owns `dsh-models-add-provider`; the icon inside the search
+  // bar is the fallback until that key lands.
+  final keyedAddProvider = find.byKey(const Key('dsh-models-add-provider'));
+  final addProvider = keyedAddProvider.evaluate().isNotEmpty
+      ? keyedAddProvider
+      : find.descendant(of: modelsSearch, matching: find.byIcon(Lucide.Plus));
+  expect(addProvider, findsWidgets, reason: 'the R9 + add-provider action');
+  await tester.tap(addProvider.first);
+  final addProviderPicker = find.byKey(const Key('dsh-add-provider-picker'));
+  await _pumpUntilFound(
+    tester,
+    addProviderPicker,
+    what: 'the add-provider list (R10)',
+  );
+  await pumpFrames(tester, frames: 20);
+  await capture(tester, binding, 'r10_add_provider');
+
+  // R11: close the add-provider list deterministically (a barrier tap could
+  // land on the search field) and open deepseek-official's editable detail from
+  // the models list. The settings seam is wired, so every configurable row now
+  // opens the editable form rather than the read-only placeholder.
+  Navigator.of(
+    tester.element(find.byKey(const Key('dsh-add-provider-picker'))),
+  ).pop();
+  await tester.pumpAndSettle(
+    const Duration(milliseconds: 100),
+    EnginePhase.sendSemanticsUpdate,
+    const Duration(seconds: 8),
+  );
+
+  // The models list is virtualized and deepseek-official sits well below the
+  // fold, so search to build the row; this also exercises the search field.
+  await tester.enterText(modelsSearch, 'deepseek');
+  await pumpFrames(tester, frames: 20);
+  final officialRow = find.byKey(
+    const ValueKey<String>('dsh-provider-row-deepseek-official'),
+  );
+  await _pumpUntilFound(
+    tester,
+    officialRow,
+    what: 'the deepseek-official provider row after search (R11)',
+    maxFrames: 600,
+  );
+  final enabledPill = find.descendant(
+    of: officialRow,
+    matching: find.text(l10n.dshModelsProviderEnabled),
+  );
+  await _pumpUntilFound(
+    tester,
+    enabledPill,
+    what: 'the 启用 pill of the deepseek-official row (R11)',
+    maxFrames: 1200,
+  );
+  FocusManager.instance.primaryFocus?.unfocus();
+  await pumpFrames(tester, frames: 12);
+  await tester.tap(officialRow);
+
+  final providerApiKey = find.byKey(const Key('dsh-provider-detail-api-key'));
+  await _pumpUntilFound(
+    tester,
+    providerApiKey,
+    what: 'the editable provider detail form (R11)',
+    maxFrames: 900,
+  );
+  expect(
+    find.text('deepseek-official'),
+    findsWidgets,
+    reason: 'R11 provider id deepseek-official',
+  );
+  final modelsSection = find.text(l10n.dshProviderDetailModels);
+  if (modelsSection.evaluate().isEmpty) {
+    final formScrollable = find.ancestor(
+      of: providerApiKey,
+      matching: find.byType(Scrollable),
+    );
+    if (formScrollable.evaluate().isNotEmpty) {
+      await tester.drag(formScrollable.first, const Offset(0, -220));
+      await pumpFrames(tester, frames: 12);
+    }
+  }
+  expect(modelsSection, findsWidgets, reason: 'R11 模型目录 section');
+  await pumpFrames(tester, frames: 20);
+  await capture(tester, binding, 'r11_provider_detail');
+
+  // Back to the models list, then leave settings for the harness surfaces.
   await _popRoute(tester);
-  await _popRoute(tester);
-  await _popRoute(tester);
+  await pumpFrames(tester, frames: 8);
+  expect(
+    find.byKey(const Key('dsh-models-search')),
+    findsOneWidget,
+    reason: 'R11 closes back onto the models list',
+  );
+  await tester.enterText(modelsSearch, '');
+  await pumpFrames(tester, frames: 12);
+  FocusManager.instance.primaryFocus?.unfocus();
+  await pumpFrames(tester, frames: 12);
+  expect(
+    _providerRows().evaluate().length,
+    greaterThan(1),
+    reason: 'clearing the R11 search restores the full models list',
+  );
+
+  // The connect/settings flow owns a variable route depth; pop until the home
+  // surface is the only route, bounded so a deep stack fails here instead of
+  // silently going back too far.
+  var settingsPops = 0;
+  while (_rootNavigator(tester).canPop() && settingsPops < 4) {
+    await _popRoute(tester);
+    settingsPops++;
+  }
   expect(
     _rootNavigator(tester).canPop(),
     isFalse,
-    reason: 'the scenario is back on the home surface',
+    reason: 'the scenario is back on the home surface after R11',
+  );
+  await _pumpUntilFound(
+    tester,
+    find.byKey(const Key('dsh-owner-card')),
+    what: 'the connected owner card after leaving settings (R4)',
   );
   await pumpFrames(tester, frames: 20);
 
@@ -342,6 +561,185 @@ Future<void> _runRealScenario(
   );
   await capture(tester, binding, 'r6_chat');
 
+  // R6 v2: the composer plus menu. Its two groups are the whole v2 add/
+  // command surface; every row is present even when the Host exposes no wire
+  // for it (the row says so instead of disappearing).
+  final plusButton = find.byTooltip(l10n.chatInputBarMoreTooltip);
+  await _pumpUntilFound(
+    tester,
+    plusButton,
+    what: 'the composer plus button (R6)',
+  );
+  await tester.tap(plusButton.first);
+  final plusSheet = find.byKey(const ValueKey<String>('dsh-plus-sheet'));
+  await _pumpUntilFound(
+    tester,
+    plusSheet,
+    what: 'the composer plus sheet (R6)',
+  );
+  for (final key in <String>[
+    'dsh-plus-section-add',
+    'dsh-plus-attach',
+    'dsh-plus-goal',
+    'dsh-plus-plan',
+    'dsh-plus-feedback',
+    'dsh-plus-section-commands',
+    'dsh-plus-compact',
+    'dsh-plus-permission',
+    'dsh-plus-model',
+    'dsh-plus-download-log',
+  ]) {
+    expect(
+      find.descendant(
+        of: plusSheet,
+        matching: find.byKey(ValueKey<String>(key)),
+      ),
+      findsOneWidget,
+      reason: 'R6 plus menu row $key',
+    );
+  }
+  for (final label in <String>[
+    l10n.dshPlusSectionAdd,
+    l10n.dshPlusSectionCommands,
+    l10n.dshPlusAttachFile,
+    l10n.dshPlusTarget,
+    l10n.dshPlusPlan,
+    l10n.dshPlusFeedback,
+    l10n.dshPlusCompress,
+    l10n.dshPlusPermission,
+    l10n.dshPlusModel,
+    l10n.dshPlusDownloadLog,
+  ]) {
+    expect(
+      find.descendant(of: plusSheet, matching: find.text(label)),
+      findsWidgets,
+      reason: 'R6 plus menu label $label',
+    );
+  }
+  await pumpFrames(tester, frames: 20);
+  await capture(tester, binding, 'r6_plus_menu');
+  // Dismiss by tapping the barrier above the sheet, then wait for the route.
+  await tester.tapAt(const Offset(12, 12));
+  await pumpUntil(tester, () => plusSheet.evaluate().isEmpty, maxFrames: 120);
+
+  // R6 v2: a real tool turn. The prompt makes the Host run bash itself, so the
+  // transcript shows the folded tool card and its output - a wire path the
+  // text-only prompt above never exercises.
+  await tester.enterText(composer, _toolPrompt);
+  await pumpFrames(tester, frames: 10);
+  await tester.ensureVisible(sendButton);
+  await tester.tap(sendButton);
+  // The tool card is the shared renderer fed by a real DshToolEntry: its header
+  // shows the Host tool name (`bash`). That text exists only after the Host
+  // actually ran a tool - the prompt's own "bash 工具" wording is a full
+  // sentence, not this exact label. The second assistant message is the turn's
+  // answer after the tool result.
+  final toolHeader = find.descendant(
+    of: transcript,
+    matching: find.text('bash'),
+  );
+  await _pumpUntilToolCard(tester, toolHeader);
+  await pumpUntil(
+    tester,
+    () => _assistantMessageCount(tester) >= 2,
+    maxFrames: 1800,
+  );
+  // The follow-up answer quotes the command output, so the marker in an
+  // assistant text part is the wire-level proof that the Host ran the tool and
+  // the result reached the model (the tool card header alone only proves the
+  // call was rendered).
+  await pumpUntil(
+    tester,
+    () => _assistantTextContains(tester, 'CUPLIVO_E2E_TOOL_OK'),
+    maxFrames: 1800,
+  );
+  expect(
+    _assistantTextContains(tester, 'CUPLIVO_E2E_TOOL_OK'),
+    isTrue,
+    reason: 'R6 the assistant turn quotes the tool output marker',
+  );
+  FocusManager.instance.primaryFocus?.unfocus();
+  await pumpFrames(tester, frames: 40);
+  expect(toolHeader, findsWidgets, reason: 'R6 the bash tool card rendered');
+  expect(
+    _assistantMessageCount(tester),
+    greaterThanOrEqualTo(2),
+    reason: 'R6 a second assistant turn answered the tool result',
+  );
+  await capture(tester, binding, 'r6_tool_turn');
+
+  // R6 v2: the composer context ring appears once the Host reports
+  // `contextPressure` for this session (the core client maps it; the composer
+  // only renders the ring when the readout exists).
+  final contextRing = find.byKey(const ValueKey<String>('dsh-context-ring'));
+  await _pumpUntilFound(
+    tester,
+    contextRing,
+    what: 'the composer context-usage ring (R6)',
+    maxFrames: 900,
+  );
+  await pumpFrames(tester, frames: 20);
+  await capture(tester, binding, 'r6_context_ring');
+
+  // R6 v2: the attachment flow. The native pickers cannot be driven, but the
+  // composer's deterministic seam stages real DocumentAttachments into the same
+  // tray, so the chip, upload, prompt parts and transcript card all stay on the
+  // product path.
+  expect(
+    DshComposerE2e.isAvailable,
+    isTrue,
+    reason: 'R6 the remote composer registers the attachment staging seam',
+  );
+  final attachmentDir = await Directory.systemTemp.createTemp('cuplivo-e2e-');
+  final attachmentFile = File('${attachmentDir.path}/e2e-notes.txt');
+  await attachmentFile.writeAsString(
+    'CUPLIVO_E2E_ATTACHMENT_OK\nsecond line of the attached notes\n',
+  );
+  DshComposerE2e.stage(
+    images: const <String>[],
+    documents: <DocumentAttachment>[
+      DocumentAttachment(
+        path: attachmentFile.path,
+        fileName: 'e2e-notes.txt',
+        mime: 'text/plain',
+      ),
+    ],
+  );
+  await pumpFrames(tester, frames: 20);
+  expect(
+    find.byKey(const ValueKey<String>('chat-input-document-previews')),
+    findsWidgets,
+    reason: 'R6 the staged document renders its composer chip',
+  );
+  await tester.enterText(composer, '读取我附加的 e2e-notes.txt 并回复它第一行');
+  await pumpFrames(tester, frames: 10);
+  await tester.ensureVisible(sendButton);
+  await tester.tap(sendButton);
+  final attachmentCard = find.descendant(
+    of: transcript,
+    matching: find.textContaining('e2e-notes.txt'),
+  );
+  await _pumpUntilFound(
+    tester,
+    attachmentCard,
+    what: 'the e2e-notes.txt card in the transcript (R6)',
+    maxFrames: 600,
+  );
+  await pumpUntil(
+    tester,
+    () => _assistantTextContains(tester, 'CUPLIVO_E2E_ATTACHMENT_OK'),
+    maxFrames: 1800,
+  );
+  expect(
+    _assistantTextContains(tester, 'CUPLIVO_E2E_ATTACHMENT_OK'),
+    isTrue,
+    reason:
+        'R6 the assistant read the attached notes and quoted its first line',
+  );
+  FocusManager.instance.primaryFocus?.unfocus();
+  await pumpFrames(tester, frames: 40);
+  await capture(tester, binding, 'r6_attachment');
+
   // R7: opening the rail pushes the chat off-screen instead of stacking on it.
   final screenWidth = tester.getSize(find.byType(HomeMobileScaffold)).width;
   final composerBefore = tester.getRect(composer);
@@ -399,8 +797,8 @@ Future<void> _runRealScenario(
   await pumpFrames(tester, frames: 20);
   await capture(tester, binding, 'r7_right_rail');
 
-  // Close the rail through its own header action, then walk to the remote's
-  // settings page from the harness drawer (更多 → DSH 设置).
+  // Close the rail through its own header action; the harvest section below
+  // re-opens it for the Host's own cards.
   final closeRail = find.descendant(
     of: rail,
     matching: find.byKey(const Key('dsh-rail-close')),
@@ -413,186 +811,344 @@ Future<void> _runRealScenario(
     maxFrames: 120,
   );
 
+  // R5/R7 v2: the official-WebUI harvest. Everything above ran against the
+  // pre-harvest fallback (built-in 插件/自动化任务/更多 rows, a native rail).
+  // The first official page load turns the R5 sidebar into the Host's own
+  // sidebar rows and appends the R7 extra cards; this block walks that
+  // transition. 更多 stays one Cuplivo built-in row in both modes, and it now
+  // lands on the official 更多 menu instead of a native page.
+  await _pumpUntilFound(
+    tester,
+    find.byKey(const Key('dsh-composer')),
+    what: 'the harness home after closing the rail (R5)',
+  );
+
+  // Open 插件 once, pre-harvest: the WebUI page runs the harvest script and
+  // posts the official sidebar/rail labels back through `CuplivoHost`.
   await _openDrawer(tester);
-  final moreEntry = find.descendant(
+  final preHarvestPlugins = find.descendant(
     of: find.byKey(const Key('dsh-drawer-entries')),
-    matching: find.byKey(const Key('dsh-entry-more')),
+    matching: find.byKey(const ValueKey<String>('dsh-sidebar-entry-plugins')),
   );
   await _pumpUntilFound(
     tester,
-    moreEntry,
-    what: 'the 更多 row of the harness drawer (R5)',
+    preHarvestPlugins,
+    what: 'the pre-harvest 插件 row (R5)',
   );
-  await tester.ensureVisible(moreEntry.first);
+  await tester.ensureVisible(preHarvestPlugins.first);
   await pumpFrames(tester, frames: 4);
-  await tester.tap(moreEntry.first);
-  final moreSettings = find.byKey(const Key('dsh-more-settings'));
-  await _pumpUntilFound(
+  await tester.tap(preHarvestPlugins.first);
+  await _waitDshWebUiPage(
     tester,
-    moreSettings,
-    what: 'the DSH settings row of the 更多 menu',
+    label: l10n.dshSidebarPlugins,
+    l10n: l10n,
+    what: 'the official WebUI opened by 插件 (R5 harvest)',
+    maxFrames: 900,
   );
-  await tester.tap(moreSettings.first);
+  // The harvest script waits for the official nav, then opens/closes the rail;
+  // keep the page mounted so it can post the snapshot before it is popped.
+  await pumpFrames(tester, frames: 120);
+  await _popRoute(tester);
 
-  final settingsTabs = find.byKey(const Key('dsh-settings-tabs'));
+  // 搜索服务 exists only in the Host's live official sidebar: a harvested row
+  // for it is the acceptance signal that the WebUI really rendered and posted.
+  await _openDrawer(tester);
+  final harvestedDrawer = find.byKey(const Key('dsh-drawer-entries'));
   await _pumpUntilFound(
     tester,
-    settingsTabs,
-    what: 'the DSH assistant settings page',
+    harvestedDrawer,
+    what: 'the R5 drawer after the harvest',
   );
-  final modelsTab = find.byKey(const Key('dsh-models-tab'));
-  await _pumpUntilFound(tester, modelsTab, what: 'the 模型 tab (R9)');
-  await tester.ensureVisible(modelsTab);
-  await tester.tap(modelsTab);
-
-  final modelsSearch = find.byKey(const Key('dsh-models-search'));
-  await _pumpUntilFound(
-    tester,
-    modelsSearch,
-    what: 'the models settings page search field (R9)',
-  );
-  await pumpUntil(tester, () => _providerRowCount(tester) > 0, maxFrames: 1200);
-  expect(
-    _providerRowCount(tester),
-    greaterThan(0),
-    reason: 'provider rows from the live catalog (R9)',
-  );
-  final customProviderRow = find.byKey(const Key('dsh-models-custom-provider'));
-  await _pumpUntilFound(
-    tester,
-    customProviderRow,
-    what: 'the 自定义提供商 row (R10)',
-  );
-  final customTop = tester.getTopLeft(customProviderRow);
-  final firstProviderTop = tester.getTopLeft(_providerRows().first);
-  expect(
-    customTop.dy <= firstProviderTop.dy,
-    isTrue,
-    reason: 'R10 the 自定义提供商 row stays first',
-  );
-  await pumpFrames(tester, frames: 20);
-  await capture(tester, binding, 'r9_models');
-
-  // R10: the add-provider list, opened by the search bar's + action. The
-  // models slice owns `dsh-models-add-provider`; the icon inside the search bar
-  // is the fallback until that key lands.
-  final keyedAddProvider = find.byKey(const Key('dsh-models-add-provider'));
-  final addProvider = keyedAddProvider.evaluate().isNotEmpty
-      ? keyedAddProvider
-      : find.descendant(of: modelsSearch, matching: find.byIcon(Lucide.Plus));
-  expect(addProvider, findsWidgets, reason: 'the R9 + add-provider action');
-  await tester.tap(addProvider.first);
-  final addProviderPicker = find.byKey(const Key('dsh-add-provider-picker'));
-  await _pumpUntilFound(
-    tester,
-    addProviderPicker,
-    what: 'the add-provider list (R10)',
-  );
-  await pumpFrames(tester, frames: 20);
-  await capture(tester, binding, 'r10_add_provider');
-
-  // R11: close the add-provider list deterministically (a barrier tap could
-  // land on the search field) and open deepseek-official's editable detail from
-  // the models list. The settings seam is wired, so every configurable row now
-  // opens the editable form rather than the read-only placeholder.
-  Navigator.of(
-    tester.element(find.byKey(const Key('dsh-add-provider-picker'))),
-  ).pop();
-  // Bounded settle: the sheet close is a finite animation, but the live app
-  // behind these routes is not under the test's control, so a settle that
-  // never reaches quiet should fail here rather than burn the 10-minute
-  // scenario timeout.
-  await tester.pumpAndSettle(
-    const Duration(milliseconds: 100),
-    EnginePhase.sendSemanticsUpdate,
-    const Duration(seconds: 8),
-  );
-
-  // The models list is virtualized and deepseek-official sits well below the
-  // fold (r9 shows amazon-bedrock … cloudflare-workers-ai), so the offscreen row
-  // is never built. Searching the models tab both reduces the list to the
-  // route's own row and exercises the search field before opening R11.
-  await tester.enterText(modelsSearch, 'deepseek');
-  await pumpFrames(tester, frames: 20);
-  final officialRow = find.byKey(
-    const ValueKey<String>('dsh-provider-row-deepseek-official'),
+  final harvestedSearch = find.descendant(
+    of: harvestedDrawer,
+    matching: find.text('搜索服务'),
   );
   await _pumpUntilFound(
     tester,
-    officialRow,
-    what: 'the deepseek-official provider row after search (R11)',
-    maxFrames: 600,
-  );
-  // R11 reference: the row's status pill reads 启用 once the settings mapping is
-  // live; wait for it instead of assuming the first frame carries it.
-  final enabledPill = find.descendant(
-    of: officialRow,
-    matching: find.text(l10n.dshModelsProviderEnabled),
-  );
-  await _pumpUntilFound(
-    tester,
-    enabledPill,
-    what: 'the 启用 pill of the deepseek-official row (R11)',
-    maxFrames: 1200,
-  );
-  // Drop the search field's focus so the on-device IME is not over the R11
-  // capture; the filter (and the row) stays applied.
-  FocusManager.instance.primaryFocus?.unfocus();
-  await pumpFrames(tester, frames: 12);
-  await tester.tap(officialRow);
-
-  final providerApiKey = find.byKey(const Key('dsh-provider-detail-api-key'));
-  await _pumpUntilFound(
-    tester,
-    providerApiKey,
-    what: 'the editable provider detail form (R11)',
+    harvestedSearch,
+    what: 'the harvested 搜索服务 sidebar row (R5)',
     maxFrames: 900,
   );
   expect(
-    find.text('deepseek-official'),
+    harvestedSearch,
     findsWidgets,
-    reason: 'R11 provider id deepseek-official',
+    reason:
+        'R5 harvest did not surface 搜索服务 after opening 插件 once: the '
+        'official WebUI page never posted a surface snapshot',
   );
-  // The model catalog is the form's last section. If a short viewport left it
-  // unbuilt, scroll the detail form once so the frame proves it instead of
-  // assuming the first screenful reaches that far.
-  final modelsSection = find.text(l10n.dshProviderDetailModels);
-  if (modelsSection.evaluate().isEmpty) {
-    final formScrollable = find.ancestor(
-      of: providerApiKey,
-      matching: find.byType(Scrollable),
-    );
-    if (formScrollable.evaluate().isNotEmpty) {
-      await tester.drag(formScrollable.first, const Offset(0, -220));
-      await pumpFrames(tester, frames: 12);
-    }
-  }
-  expect(modelsSection, findsWidgets, reason: 'R11 模型目录 section');
-  await pumpFrames(tester, frames: 20);
-  await capture(tester, binding, 'r11_provider_detail');
-
-  // Back to the models list; the settings route is where R9 left it. The app
-  // draws its own Lucide back chevron, so `tester.pageBack()` cannot find a
-  // Material/Cupertino back button here: pop the detail route through the same
-  // root-navigator helper the rest of the scenario uses.
-  await _popRoute(tester);
-  await pumpFrames(tester, frames: 8);
+  // 更多 is not a panellist row: it is DSH's own sidebar action strip, so
+  // Cuplivo keeps exactly one built-in 更多 row in both modes.
   expect(
-    find.byKey(const Key('dsh-models-search')),
+    find.descendant(
+      of: harvestedDrawer,
+      matching: find.byKey(const ValueKey<String>('dsh-sidebar-entry-more')),
+    ),
     findsOneWidget,
-    reason: 'R11 closes back onto the models list',
+    reason: 'R5 更多 stays one Cuplivo built-in row after the harvest',
   );
-  // Clear the R11 search so `final_state` shows the full provider list again;
-  // the field is a filter only, and an empty list would read as a host change.
-  await tester.enterText(modelsSearch, '');
-  await pumpFrames(tester, frames: 12);
-  FocusManager.instance.primaryFocus?.unfocus();
-  await pumpFrames(tester, frames: 12);
+  await pumpFrames(tester, frames: 20);
+  await capture(tester, binding, 'r5_harvested_sidebar');
+
+  // Captures of the official pages the harvested rows land on. The official
+  // WebUI is a platform view, so these screenshots carry Cuplivo's chrome and
+  // the route; the Host's DOM itself is not part of the Flutter surface.
+  // Assertions therefore anchor on the route title plus the harvest: only a
+  // loaded official page can post the labels asserted above.
+  for (final page in <(String, String)>[
+    (l10n.dshSidebarPlugins, 'r5_plugins_page'),
+    ('搜索服务', 'r5_search_service_page'),
+    (l10n.dshSidebarAutomations, 'r5_automations_page'),
+    (l10n.dshSidebarMore, 'r5_more_menu'),
+  ]) {
+    await _openHarvestedSidebarRow(tester, page.$1, l10n: l10n);
+    await pumpFrames(tester, frames: 30);
+    await capture(tester, binding, page.$2);
+    await _popRoute(tester);
+  }
+
+  // R7 v2: the harvested rail cards. The built-in cards stay native; the Host's
+  // own rail labels are appended by the harvest (工作区文件 / 新建终端 /
+  // 更多工具 are excluded because Cuplivo renders those natively).
+  await _closeDrawer(tester);
+  await tester.tap(find.byKey(const Key('dsh-right-rail-button')));
+  await _pumpUntilFound(tester, rail, what: 'the right rail after the harvest');
+  await pumpUntil(
+    tester,
+    () => _railHeaderX(tester) < screenWidth / 2,
+    maxFrames: 120,
+  );
+  final diffCard = find.descendant(of: rail, matching: find.text('代码变更'));
+  await _pumpUntilFound(
+    tester,
+    diffCard,
+    what: 'the harvested 代码变更 rail card (R7)',
+    maxFrames: 900,
+  );
+  final forgeCard = find.descendant(
+    of: rail,
+    matching: find.text('Issue 与 PR'),
+  );
+  await _pumpUntilFound(
+    tester,
+    forgeCard,
+    what: 'the harvested Issue 与 PR rail card (R7)',
+    maxFrames: 300,
+  );
+  await pumpFrames(tester, frames: 20);
+  await capture(tester, binding, 'r7_harvested_cards');
+  await tester.ensureVisible(diffCard.first);
+  await pumpFrames(tester, frames: 4);
+  await tester.tap(diffCard.first);
+  await _waitDshWebUiPage(
+    tester,
+    label: '代码变更',
+    l10n: l10n,
+    what: 'the 代码变更 official page (R7)',
+    maxFrames: 900,
+  );
+  await pumpFrames(tester, frames: 30);
+  await capture(tester, binding, 'r7_diff_page');
+  await _popRoute(tester);
+  await _pumpUntilFound(
+    tester,
+    rail,
+    what: 'the rail after closing the 代码变更 page (R7)',
+  );
+
+  // R12: the rail's 新建终端 card opens the Host's real terminal. A remote PTY
+  // exists only when terminal/create + terminal/environment succeeded, so the
+  // panel, the header's shell title/cwd and an absent read-only banner are the
+  // acceptance.
+  await tester.tap(
+    find
+        .descendant(
+          of: rail,
+          matching: find.byKey(const Key('dsh-rail-new-terminal')),
+        )
+        .first,
+  );
+  final terminalPanel = find.byKey(const Key('dsh-terminal-panel'));
+  await _pumpUntilFound(
+    tester,
+    terminalPanel,
+    what: 'the Host terminal panel (R12)',
+    maxFrames: 900,
+  );
+  final terminalView = find.byKey(const Key('dsh-terminal-view'));
+  await _pumpUntilFound(
+    tester,
+    terminalView,
+    what: 'the terminal surface after terminal/create (R12)',
+    maxFrames: 900,
+  );
   expect(
-    _providerRows().evaluate().length,
-    greaterThan(1),
-    reason: 'clearing the R11 search restores the full models list',
+    find.byKey(const Key('dsh-terminal-unavailable')),
+    findsNothing,
+    reason: 'R12 the Host terminal launched instead of the unavailable card',
   );
+  final terminalHeader = find.byKey(const Key('dsh-terminal-header'));
+  await _pumpUntilFound(
+    tester,
+    terminalHeader,
+    what: 'the terminal header (R12)',
+  );
+  // These two are real Text from terminal/create + environment: they prove a
+  // remote PTY exists, which a placeholder cannot fake.
+  expect(
+    find.descendant(of: terminalHeader, matching: find.text('bash')),
+    findsWidgets,
+    reason: 'R12 terminal header shows the Host shell title',
+  );
+  expect(
+    find.descendant(
+      of: terminalHeader,
+      matching: find.textContaining('workspace'),
+    ),
+    findsWidgets,
+    reason: 'R12 terminal header shows the Host working directory',
+  );
+  expect(
+    find.byKey(const Key('dsh-terminal-readonly')),
+    findsNothing,
+    reason: 'R12 the Host terminal is writable, so no read-only banner',
+  );
+  await pumpFrames(tester, frames: 20);
+  await capture(tester, binding, 'r12_terminal');
+  // terminal_view paints its screen with a canvas: no Text carries the output.
+  // The command is driven through the IME path a phone uses and its side
+  // effect is asserted in the workspace file list instead.
+  await tester.tap(terminalView);
+  await pumpFrames(tester, frames: 10);
+  await _typeIntoTerminal(tester, _terminalCommand);
+  await capture(tester, binding, 'r12_terminal_command');
+  // Leave the terminal page (which disposes the PTY) and assert the created
+  // file; the rail files listing is re-fetched when its page mounts.
+  await tester.tap(find.byKey(const Key('dsh-rail-back')));
+  await pumpFrames(tester, frames: 8);
+  await _openRailFilesPage(tester, rail);
+  final terminalFile = find.descendant(
+    of: rail,
+    matching: find.text('cuplivo-e2e-terminal.txt'),
+  );
+  await _pumpUntilFound(
+    tester,
+    terminalFile,
+    what: 'R12 side effect: cuplivo-e2e-terminal.txt in the workspace files',
+    maxFrames: 600,
+  );
+
+  // R13: png/text stay inline in the rail; the binary kinds hand the file to
+  // the preview slice's full-screen page. PDF rendering is device-dependent, so
+  // that case accepts a rendered WebView or the honest metadata card; blob.bin
+  // only has the card.
+  await _openRailFilesPage(tester, rail);
+  final assetsDir = find.descendant(of: rail, matching: find.text('assets'));
+  await _pumpUntilFound(tester, assetsDir, what: 'the assets/ folder (R13)');
+  await tester.tap(assetsDir.first);
+  await pumpFrames(tester, frames: 12);
+  final pixel = find.descendant(of: rail, matching: find.text('pixel.png'));
+  await _pumpUntilFound(tester, pixel, what: 'assets/pixel.png (R13)');
+  await tester.tap(pixel.first);
+  final inlineImage = find.descendant(of: rail, matching: find.byType(Image));
+  await _pumpUntilFound(
+    tester,
+    inlineImage,
+    what: 'the inline png preview in the rail (R13)',
+    maxFrames: 600,
+  );
+  await pumpFrames(tester, frames: 20);
+  await capture(tester, binding, 'r13_png_inline');
+  await tester.tap(find.byKey(const Key('dsh-rail-back')));
+  await pumpFrames(tester, frames: 8);
+
+  for (final probe in <(String, String, String)>[
+    ('docs', 'report.pdf', 'r13_pdf_preview'),
+    ('data', 'blob.bin', 'r13_binary_preview'),
+  ]) {
+    await _openRailFilesPage(tester, rail);
+    final folderRow = find.descendant(of: rail, matching: find.text(probe.$1));
+    await _pumpUntilFound(
+      tester,
+      folderRow,
+      what: 'the ${probe.$1}/ folder (R13)',
+    );
+    await tester.tap(folderRow.first);
+    await pumpFrames(tester, frames: 12);
+    final fileName = find.descendant(of: rail, matching: find.text(probe.$2));
+    await _pumpUntilFound(
+      tester,
+      fileName,
+      what: '${probe.$1}/${probe.$2} (R13)',
+    );
+    await tester.tap(fileName.first);
+    // The preview page's documented root key may lag the widget type; accept
+    // either so the slice can add the key without touching this scenario.
+    final previewKey = find.byKey(const Key('dsh-file-preview-page'));
+    final previewType = find.byType(DshFilePreviewPage);
+    await pumpUntil(
+      tester,
+      () =>
+          previewKey.evaluate().isNotEmpty || previewType.evaluate().isNotEmpty,
+      maxFrames: 600,
+    );
+    final previewPage = previewKey.evaluate().isNotEmpty
+        ? previewKey
+        : previewType;
+    expect(
+      previewPage,
+      findsWidgets,
+      reason: 'the full-screen preview of ${probe.$2} (R13)',
+    );
+    expect(
+      find.descendant(of: previewPage, matching: find.text(probe.$2)),
+      findsWidgets,
+      reason: 'R13 preview title names ${probe.$2}',
+    );
+    if (probe.$2 == 'blob.bin') {
+      await _pumpUntilFound(
+        tester,
+        find.byKey(const Key('dsh-remote-file-card')),
+        what: 'the honest metadata card for blob.bin (R13)',
+        maxFrames: 600,
+      );
+      expect(
+        find.text(l10n.dshFilesPreviewUnavailable),
+        findsWidgets,
+        reason: 'R13 blob.bin card explains the unsupported kind',
+      );
+    } else {
+      // A PDF loads through the authenticated /api/file URL in the embedded
+      // Host Web UI; a device whose WebView cannot show it falls back to the
+      // same honest card, which is the documented limit.
+      final rendered = find.byType(DshWebUiView);
+      final limited = find.byKey(const Key('dsh-remote-file-card'));
+      await pumpUntil(
+        tester,
+        () => rendered.evaluate().isNotEmpty || limited.evaluate().isNotEmpty,
+        maxFrames: 600,
+      );
+      expect(
+        rendered.evaluate().isNotEmpty || limited.evaluate().isNotEmpty,
+        isTrue,
+        reason: 'R13 report.pdf renders in a WebView or states its limit',
+      );
+    }
+    await pumpFrames(tester, frames: 20);
+    await capture(tester, binding, probe.$3);
+    await _popRoute(tester);
+    await pumpFrames(tester, frames: 8);
+  }
+
+  // Close the rail so the final frame is the harness chat the scenario ends on.
+  await _closeDrawer(tester);
+  final railClose = find.descendant(
+    of: rail,
+    matching: find.byKey(const Key('dsh-rail-close')),
+  );
+  if (railClose.evaluate().isNotEmpty) {
+    await tester.tap(railClose.first);
+    await pumpFrames(tester, frames: 12);
+  }
 
   expect(tester.takeException(), isNull);
   await capture(tester, binding, 'final_state');
@@ -709,14 +1265,31 @@ Future<void> _openCreateMenu(WidgetTester tester) async {
   await pumpFrames(tester, frames: 12);
 }
 
-void _expectSettingsTabs(WidgetTester tester, AppLocalizations l10n) {
+void _expectSettingsTabs(
+  WidgetTester tester,
+  AppLocalizations l10n, {
+  bool withHostTabs = false,
+}) {
   final tabs = find.byKey(const Key('dsh-settings-tabs'));
   expect(tabs, findsOneWidget, reason: 'the assistant settings tab strip (R2)');
+  // The strip is id-keyed: every spec renders a `dsh-settings-tab-<id>` button
+  // except the models tab, which keeps its historical `dsh-models-tab` key.
+  final coreKeys = <String, Key>{
+    'connection': const Key('dsh-settings-tab-connection'),
+    'general': const Key('dsh-settings-tab-general'),
+    'models': const Key('dsh-models-tab'),
+  };
+  for (final entry in coreKeys.entries) {
+    expect(
+      find.descendant(of: tabs, matching: find.byKey(entry.value)),
+      findsOneWidget,
+      reason: 'R2 tab id ${entry.key}',
+    );
+  }
   for (final label in <String>[
     l10n.dshTabConnection,
     l10n.dshTabGeneral,
     l10n.dshTabModels,
-    l10n.dshTabContent,
   ]) {
     expect(
       find.descendant(of: tabs, matching: find.text(label)),
@@ -724,18 +1297,98 @@ void _expectSettingsTabs(WidgetTester tester, AppLocalizations l10n) {
       reason: 'R2 tab $label',
     );
   }
+  if (!withHostTabs) return;
+  // 内置插件 / Agent 预设 are Host-reported: they are absent until the remote's
+  // catalog reports plugin capability, so they are only asserted after connect.
+  final hostTabs = <String, String>{
+    'plugins': l10n.dshTabPlugins,
+    'agentPresets': l10n.dshTabAgentPresets,
+  };
+  for (final entry in hostTabs.entries) {
+    expect(
+      find.descendant(
+        of: tabs,
+        matching: find.byKey(ValueKey<String>('dsh-settings-tab-${entry.key}')),
+      ),
+      findsOneWidget,
+      reason: 'R2 tab id ${entry.key}',
+    );
+    expect(
+      find.descendant(of: tabs, matching: find.text(entry.value)),
+      findsWidgets,
+      reason: 'R2 tab ${entry.value}',
+    );
+  }
+}
+
+/// Taps one tab of the assistant settings strip by its key.
+///
+/// The strip is a horizontal `ListView`; [ensureVisible] scrolls it so a tab
+/// that is off the right edge is still tappable on a 411 dp phone.
+Future<void> _openSettingsTabById(
+  WidgetTester tester,
+  Key key, {
+  required String what,
+}) async {
+  final tab = find.descendant(
+    of: find.byKey(const Key('dsh-settings-tabs')),
+    matching: find.byKey(key),
+  );
+  await _pumpUntilFound(tester, tab, what: what);
+  await tester.ensureVisible(tab.first);
+  await pumpFrames(tester, frames: 6);
+  await tester.tap(tab.first);
+  await pumpFrames(tester, frames: 20);
+}
+
+/// R2: the empty WebUI URL field advertises the token placeholder.
+///
+/// The placeholder is the field's `hintText`; it only renders while the field
+/// is empty, which is exactly the create-form state the scenario asserts.
+void _expectConnectUrlPlaceholder(WidgetTester tester, AppLocalizations l10n) {
+  final field = find.descendant(
+    of: find.byKey(const Key('dsh-connect-url')),
+    matching: find.byType(TextField),
+  );
+  if (field.evaluate().isNotEmpty) {
+    expect(
+      tester.widget<TextField>(field.first).decoration?.hintText,
+      l10n.dshWebUiUrlHint,
+      reason: 'R2 WebUI URL field restores the token placeholder hint',
+    );
+    return;
+  }
+  final hint = find.descendant(
+    of: find.byKey(const Key('dsh-connect-url')),
+    matching: find.text(l10n.dshWebUiUrlHint),
+  );
+  expect(
+    hint,
+    findsOneWidget,
+    reason: 'R2 WebUI URL field restores the token placeholder hint',
+  );
 }
 
 void _expectDrawerSections(WidgetTester tester, Finder drawerEntries) {
-  for (final key in <String>[
-    'dsh-entry-plugins',
-    'dsh-entry-automations',
-    'dsh-entry-more',
-  ]) {
+  // Pre-harvest the three DSH built-ins are Cuplivo's own rows: the canonical
+  // `dsh-sidebar-entry-<id>` key (a harvested row puts the official label's
+  // slug in the same slot) plus the historical `dsh-entry-*` anchor.
+  for (final id in <String>['plugins', 'automations', 'more']) {
     expect(
-      find.descendant(of: drawerEntries, matching: find.byKey(Key(key))),
+      find.descendant(
+        of: drawerEntries,
+        matching: find.byKey(Key('dsh-entry-$id')),
+      ),
       findsOneWidget,
-      reason: 'R5 drawer entry $key',
+      reason: 'R5 legacy drawer entry anchor dsh-entry-$id',
+    );
+    expect(
+      find.descendant(
+        of: drawerEntries,
+        matching: find.byKey(ValueKey<String>('dsh-sidebar-entry-$id')),
+      ),
+      findsOneWidget,
+      reason: 'R5 canonical drawer entry dsh-sidebar-entry-$id',
     );
   }
   expect(
@@ -798,6 +1451,38 @@ bool _hasAssistantText(WidgetTester tester) {
   return false;
 }
 
+/// Number of assistant messages in the folded transcript.
+///
+/// R6 sends two prompts: the first answer and the tool turn's follow-up. The
+/// count is the wire-level signal that the second answer arrived, independent
+/// of glyph rendering.
+int _assistantMessageCount(WidgetTester tester) {
+  final list = find.descendant(
+    of: find.byKey(const ValueKey<String>('dsh-transcript')),
+    matching: find.byType(MessageListView),
+  );
+  if (list.evaluate().isEmpty) return 0;
+  final view = tester.widget<MessageListView>(list.first);
+  return view.messages.where((message) => message.role == 'assistant').length;
+}
+
+/// Whether any assistant text part contains [needle].
+bool _assistantTextContains(WidgetTester tester, String needle) {
+  final list = find.descendant(
+    of: find.byKey(const ValueKey<String>('dsh-transcript')),
+    matching: find.byType(MessageListView),
+  );
+  if (list.evaluate().isEmpty) return false;
+  final view = tester.widget<MessageListView>(list.first);
+  for (final message in view.messages) {
+    if (message.role != 'assistant') continue;
+    for (final part in message.parts) {
+      if (part is TextPart && part.text.contains(needle)) return true;
+    }
+  }
+  return false;
+}
+
 Future<void> _pumpUntilFound(
   WidgetTester tester,
   Finder finder, {
@@ -831,4 +1516,151 @@ Future<void> _popRoute(WidgetTester tester) async {
   expect(navigator.canPop(), isTrue, reason: 'a pushed route is below');
   navigator.pop();
   await pumpFrames(tester, frames: 12);
+}
+
+/// Closes the mobile drawer without popping a route (the drawer is a position,
+/// not a route), so the next tap can land on the home app bar again.
+Future<void> _closeDrawer(WidgetTester tester) async {
+  final scaffold = find.byType(HomeMobileScaffold);
+  if (scaffold.evaluate().isEmpty) return;
+  tester.widget<HomeMobileScaffold>(scaffold).drawerController.jumpTo(0.0);
+  await pumpFrames(tester, frames: 8);
+}
+
+/// Opens a row of the R5 harness drawer by its rendered label.
+///
+/// Harvested rows carry slug keys derived from the Host's label; the label
+/// itself is the authoritative anchor, so a Host translation change cannot
+/// silently point the scenario at a different surface. The row is tapped, then
+/// the official-WebUI page it opens is awaited by its Cuplivo chrome title.
+Future<void> _openHarvestedSidebarRow(
+  WidgetTester tester,
+  String label, {
+  required AppLocalizations l10n,
+}) async {
+  await _openDrawer(tester);
+  final drawer = find.byKey(const Key('dsh-drawer-entries'));
+  await _pumpUntilFound(tester, drawer, what: 'the R5 drawer');
+  final row = find.descendant(of: drawer, matching: find.text(label));
+  await _pumpUntilFound(
+    tester,
+    row,
+    what: 'the R5 row "$label"',
+    maxFrames: 600,
+  );
+  await tester.ensureVisible(row.first);
+  await pumpFrames(tester, frames: 4);
+  await tester.tap(row.first);
+  await _waitDshWebUiPage(
+    tester,
+    label: label,
+    l10n: l10n,
+    what: 'the official WebUI page landed on "$label"',
+  );
+  // Harvest-then-landing: the landing click happens only after the harvest
+  // script resolves, so the official surface needs the extra settle time
+  // before the evidence frame.
+  await pumpFrames(tester, frames: 100);
+}
+
+/// Awaits the plugin WebUI page and asserts its chrome title names the surface.
+///
+/// The official UI itself is a platform view: its DOM is not in the Flutter
+/// widget tree, so the route + title is the honest Flutter-side assertion and
+/// the harvest (a previous step) is the evidence that the page rendered.
+Future<void> _waitDshWebUiPage(
+  WidgetTester tester, {
+  required String label,
+  required AppLocalizations l10n,
+  required String what,
+  int maxFrames = 600,
+}) async {
+  final page = find.byType(DshPluginWebPage);
+  await _pumpUntilFound(tester, page, what: what, maxFrames: maxFrames);
+  expect(
+    find.textContaining('${l10n.dshPluginPanelTitle} · $label'),
+    findsWidgets,
+    reason: '$what title names "$label"',
+  );
+  // The WebUI itself has to finish loading before a capture is meaningful; the
+  // platform view owns its pixels and may keep painting after the first frame.
+  await pumpFrames(tester, frames: 30);
+}
+
+/// Re-opens the rail's 工作区文件 page from wherever the rail currently is.
+Future<void> _openRailFilesPage(WidgetTester tester, Finder rail) async {
+  final card = find.descendant(
+    of: rail,
+    matching: find.byKey(const Key('dsh-rail-workspace-files')),
+  );
+  if (card.evaluate().isEmpty) {
+    final back = find.byKey(const Key('dsh-rail-back'));
+    if (back.evaluate().isNotEmpty) {
+      await tester.tap(back.first);
+      await pumpFrames(tester, frames: 10);
+    }
+  }
+  await _pumpUntilFound(
+    tester,
+    find.descendant(
+      of: rail,
+      matching: find.byKey(const Key('dsh-rail-workspace-files')),
+    ),
+    what: 'the R13 工作区文件 card',
+  );
+  final target = find
+      .descendant(
+        of: rail,
+        matching: find.byKey(const Key('dsh-rail-workspace-files')),
+      )
+      .first;
+  await tester.ensureVisible(target);
+  await pumpFrames(tester, frames: 4);
+  await tester.tap(target);
+  await pumpFrames(tester, frames: 12);
+}
+
+/// Waits for the bash tool card, allowing one approval if the Host asks.
+///
+/// The E2E Host's permission preset may gate shell tools; the pending-request
+/// panel is the same UI a user sees, so answering it is part of the scenario
+/// rather than a test-only shortcut. Any other pending request is left alone so
+/// an unexpected prompt still fails on the missing tool card.
+Future<void> _pumpUntilToolCard(
+  WidgetTester tester,
+  Finder toolHeader, {
+  int maxFrames = 1800,
+}) async {
+  final allow = find.byKey(const ValueKey<String>('dsh-approval-allow'));
+  var frames = 0;
+  while (frames < maxFrames) {
+    if (toolHeader.evaluate().isNotEmpty) return;
+    if (allow.evaluate().isNotEmpty) {
+      await tester.tap(allow.first);
+      await pumpFrames(tester, frames: 4);
+      frames += 4;
+      continue;
+    }
+    await pumpFrames(tester, frames: 4);
+    frames += 4;
+  }
+  await _pumpUntilFound(
+    tester,
+    toolHeader,
+    what: 'the bash tool card in the transcript (R6)',
+    maxFrames: 1,
+  );
+}
+
+/// Types one line into the Host terminal and submits it with the IME newline.
+///
+/// `terminal_view` paints its screen with a canvas and uses a private
+/// `TextInputClient` (no `EditableText`), so `tester.enterText` has nothing to
+/// target. The test binding's text input is attached to that client instead,
+/// which is the same path a phone's IME uses to insert text and press Enter.
+Future<void> _typeIntoTerminal(WidgetTester tester, String line) async {
+  tester.testTextInput.enterText(line);
+  await pumpFrames(tester, frames: 12);
+  tester.testTextInput.receiveAction(TextInputAction.newline);
+  await pumpFrames(tester, frames: 40);
 }

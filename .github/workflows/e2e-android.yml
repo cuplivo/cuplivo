@@ -24,7 +24,11 @@ name: Android E2E
 env:
   FLUTTER_VERSION: '3.47.6'
   E2E_DRIVER: test_driver/e2e_review.dart
-  E2E_API_LEVEL: '36'
+  # API 36's bundled WebView cannot render the official DSH single-page app on
+  # the hosted emulator: its Chromium renderer exits within seconds on every
+  # attempt (logcat "Renderer process ... crash detected"), so the acceptance
+  # runs on API 35, whose WebView renders it.
+  E2E_API_LEVEL: '35'
   E2E_PROFILE: pixel_7
 
 on:
@@ -518,10 +522,6 @@ jobs:
           if [ -n "${E2E_DSH_DEFINES_FILE:-}" ]; then
             defines+=("--dart-define-from-file=$E2E_DSH_DEFINES_FILE")
           fi
-          # Hybrid composition (virtual display) kills the Chromium renderer on
-          # the software-rendered emulator, so the acceptance run composes the
-          # embedded official WebUI as a texture instead.
-          defines+=("--dart-define=DSH_E2E_TEXTURE_COMPOSITION=true")
           flutter build apk --debug \
             --target="$E2E_TARGET" \
             --target-platform=android-x64 \

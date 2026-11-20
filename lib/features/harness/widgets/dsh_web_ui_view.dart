@@ -85,16 +85,6 @@ typedef DshWebUiScriptMessageCallback = void Function(String message);
 /// injected here — browser pages only accept `v1`. A 401/403 from the Host means
 /// the launch token/cookie rotated (`dsh web` restart) and the assistant has to
 /// be reconnected; [onRequestReconnect] is the honest recovery affordance.
-/// Android platform-view composition for the embedded official Web UI.
-///
-/// Hybrid composition renders the WebView through a virtual display, which
-/// crashes the Chromium renderer on the software-rendered Android emulator the
-/// E2E runs on. The texture path is selected for that acceptance run through a
-/// dart-define; shipping builds keep the Flutter default.
-const bool _textureComposition = bool.fromEnvironment(
-  'DSH_E2E_TEXTURE_COMPOSITION',
-);
-
 class DshWebUiView extends StatefulWidget {
   const DshWebUiView({
     super.key,
@@ -332,6 +322,24 @@ class DshWebUiViewState extends State<DshWebUiView> {
     });
   }
 
+  void _onRenderProcessGone(
+    InAppWebViewController controller,
+    RenderProcessGoneDetail detail,
+  ) {
+    // The Android WebView renderer can exit (memory pressure, a Chromium
+    // crash, a WebView update). Without a handler the platform kills the app;
+    // with it the page degrades to the retry state, which recreates the view.
+    debugPrint(
+      '[dsh-webview] renderer gone: didCrash=${detail.didCrash} '
+      'priority=${detail.rendererPriorityAtExit}',
+    );
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      _setFailure(DshPluginWebFailure.network);
+    });
+  }
+
   void _onReceivedHttpError(
     InAppWebViewController controller,
     WebResourceRequest request,
@@ -387,13 +395,16 @@ class DshWebUiViewState extends State<DshWebUiView> {
             transparentBackground: false,
             supportZoom: false,
             isInspectable: kDebugMode,
-            useHybridComposition: !_textureComposition,
+            // Android reports a dead renderer so the panel can show its retry
+            // state instead of a white, unresponsive page.
+            useOnRenderProcessGone: true,
           ),
           onWebViewCreated: _onWebViewCreated,
           onLoadStart: _onLoadStart,
           onLoadStop: _onLoadStop,
           onReceivedError: _onReceivedError,
           onReceivedHttpError: _onReceivedHttpError,
+          onRenderProcessGone: _onRenderProcessGone,
         ),
         if (_loading)
           Positioned.fill(

@@ -552,8 +552,14 @@ async function main() {
 
     // 5. The official 更多 entry. The menu is a transient Radix popover: poll
     // for it instead of asserting one frame, and accept the menu rows either as
-    // menu items or as their text in the page body.
-    await reload();
+    // menu items or as their text in the page body. The landing starts from a
+    // fresh root page: the previous rail landing changed the SPA's route, and
+    // DSH restores the last workspace/rail state on a reload, while a plain
+    // navigation to the base root is the state the app's 更多 row opens from.
+    await send('Page.navigate', { url: baseUrl });
+    if (!(await waitReady())) {
+      throw new Error('the Host did not return to its root page for the 更多 landing');
+    }
     let moreState = await state();
     await evaluateScript(scripts.moreMenuLanding, 'more-menu landing');
     const moreMarkers = /Browse other plugins|Create your plugin|浏览更多插件|创建你的插件|他のプラグイン|다른 플러그인/i;

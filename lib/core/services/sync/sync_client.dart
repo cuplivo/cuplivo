@@ -614,12 +614,13 @@ class SyncClientSession {
       await request.addStream(source.openRead()).timeout(left());
       final response = await request.close().timeout(left());
       if (response.statusCode != HttpStatus.noContent) {
-        // The refusal *is* the answer, so a body that then stalls must not turn
-        // it into a generic timeout: the socket is aborted and the peer's status
+        // The refusal *is* the answer, so a body that then stalls — or a
+        // connection the peer tears down under it — must not turn it into a
+        // generic transport error: the socket is aborted and the peer's status
         // is what the caller hears.
         try {
           await response.drain<void>().timeout(left());
-        } on TimeoutException {
+        } catch (_) {
           request.abort(const SyncClientException('transfer_timeout'));
         }
         throw SyncClientException(
@@ -658,12 +659,13 @@ class SyncClientSession {
       await request.addStream(source.openRead()).timeout(left());
       final response = await request.close().timeout(left());
       if (response.statusCode != HttpStatus.noContent) {
-        // The refusal *is* the answer, so a body that then stalls must not turn
-        // it into a generic timeout: the socket is aborted and the peer's status
+        // The refusal *is* the answer, so a body that then stalls — or a
+        // connection the peer tears down under it — must not turn it into a
+        // generic transport error: the socket is aborted and the peer's status
         // is what the caller hears.
         try {
           await response.drain<void>().timeout(left());
-        } on TimeoutException {
+        } catch (_) {
           request.abort(const SyncClientException('transfer_timeout'));
         }
         throw SyncClientException(

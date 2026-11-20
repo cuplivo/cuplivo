@@ -596,6 +596,78 @@ void main() {
     );
   });
 
+  test('a refusal whose body dies mid-read is still the refusal', () async {
+    // The status is the answer; the body is only drained so the connection can
+    // be reused. A peer that writes a refusal and then drops the connection
+    // mid-body used to surface as a transport error — the caller learned the
+    // network broke when the peer had in fact said "no".
+    final peer = await HttpServer.bindSecure(
+      InternetAddress.loopbackIPv4,
+      0,
+      identity.buildContext(),
+      requestClientCertificate: false,
+    );
+    addTearDown(() => peer.close(force: true));
+    peer.listen((request) async {
+      await request.drain<void>();
+      request.response.statusCode = HttpStatus.serviceUnavailable;
+      // Promise more than is sent, then destroy the socket under the reader.
+      request.response.headers.contentLength = 100;
+      final socket = await request.response.detachSocket(writeHeaders: true);
+      socket.add(utf8.encode('{"error":"blob_busy"}'));
+      await socket.flush();
+      socket.destroy();
+    });
+
+    final directory = await Directory.systemTemp.createTemp('sync-refusal-');
+    addTearDown(() => directory.delete(recursive: true));
+    final payload = File('${directory.path}${Platform.pathSeparator}x.bin');
+    await payload.writeAsBytes(const [1, 2, 3, 4]);
+
+    final session = SyncClient(identity: identity).openSession(
+      SyncPeerRecord(
+        deviceId: identity.deviceId,
+        certPem: identity.certPem,
+        secret: secret,
+        name: 'self',
+        platform: 'test',
+      ),
+      host: '127.0.0.1',
+      port: peer.port,
+      blobDeadline: const Duration(seconds: 5),
+    );
+    addTearDown(session.close);
+
+    Object? failure;
+    try {
+      await session
+          .pushBlob(
+            entry: SyncBlobEntry(
+              kind: SyncBlobEntry.kindFile,
+              key: 'file:///managed/x.bin',
+              contentHash: blobHash,
+              byteSize: 4,
+            ),
+            source: payload,
+            size: 4,
+          )
+          .timeout(const Duration(seconds: 15));
+    } catch (error) {
+      failure = error;
+    }
+
+    expect(failure, isA<SyncClientException>());
+    expect(
+      (failure! as SyncClientException).message,
+      'blob_push_refused',
+      reason: 'the peer refused; the dead body does not change what it said',
+    );
+    expect(
+      (failure as SyncClientException).statusCode,
+      HttpStatus.serviceUnavailable,
+    );
+  });
+
   test('a cancelled write handler cannot commit beside the next one', () async {
     // The write lane orders *responses*, not handler lifetimes: a handler the
     // deadline abandoned keeps running until its next await or check. What keeps

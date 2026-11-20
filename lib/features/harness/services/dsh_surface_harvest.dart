@@ -385,6 +385,13 @@ abstract final class DshSurfaceHarvest {
     } catch (_) {}
   };
   const dialog = () => document.querySelector('[role="dialog"][data-shortcut-modal="settings"]');
+  const clickLabelled = (labels) => {
+    for (const label of labels) {
+      const button = document.querySelector('button[aria-label="' + label + '"]');
+      if (button) { button.click(); return true; }
+    }
+    return false;
+  };
   const openDialog = () => {
     if (dialog()) return true;
     const launcher = document.querySelector('[data-slot="settings.launcher"] button[aria-haspopup="menu"]');
@@ -392,6 +399,11 @@ abstract final class DshSurfaceHarvest {
     const trigger = document.querySelector('[data-slot="settings.trigger"] button[aria-haspopup="dialog"]')
       || document.querySelector('[data-slot="sidebar.settings"] button[aria-haspopup="dialog"]');
     if (trigger) { trigger.click(); return true; }
+    // Mobile: the drawer may be closed, so open it and use the 设置 row.
+    if (clickLabelled(['设置', 'Settings'])) return true;
+    if (clickLabelled(['展开侧边栏', '打开侧边栏', '打开导航栏', 'Open sidebar'])) {
+      return true;
+    }
     return false;
   };
   for (let attempt = 0; attempt < 40 && !dialog(); attempt++) {

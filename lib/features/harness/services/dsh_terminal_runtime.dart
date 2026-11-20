@@ -150,15 +150,12 @@ class DshWorkspaceRuntime implements WorkspaceRuntime {
 ///   items (the Host acks each one).
 class DshPtySession implements PtySession {
   DshPtySession({
-    required DshTerminalAttachment attachment,
+    required this.attachment,
     required DshTerminalInfo initialInfo,
-    required DshTerminalEnvironment environment,
-  }) : _attachment = attachment,
-       _info = ValueNotifier<DshTerminalInfo?>(initialInfo),
-       // ignore: prefer_initializing_formals
-       _environment = environment {
+    required this.environment,
+  }) : _info = ValueNotifier<DshTerminalInfo?>(initialInfo) {
     _writable = ValueNotifier<bool>(true);
-    _frames = _attachment.frames.listen(
+    _frames = attachment.frames.listen(
       _onFrame,
       onError: (Object error, StackTrace stack) {
         debugPrint('DSH terminal stream error: $error');
@@ -168,8 +165,11 @@ class DshPtySession implements PtySession {
     );
   }
 
-  final DshTerminalAttachment _attachment;
-  final DshTerminalEnvironment _environment;
+  /// The Host-side terminal this session drives (frames down, write/resize up).
+  final DshTerminalAttachment attachment;
+
+  /// Host-reported limits (input chunking) and cwd/shell metadata.
+  final DshTerminalEnvironment environment;
 
   final ValueNotifier<DshTerminalInfo?> _info;
 
@@ -245,16 +245,16 @@ class DshPtySession implements PtySession {
   Future<void> write(Uint8List data) async {
     if (_closed || !_writable.value || data.isEmpty) return;
     final text = utf8.decode(data, allowMalformed: true);
-    for (final chunk in _chunks(text, _environment.maxInputBytes)) {
+    for (final chunk in _chunks(text, environment.maxInputBytes)) {
       if (_closed || !_writable.value) return;
-      _attachment.write(sequence: ++_sequence, data: chunk);
+      attachment.write(sequence: ++_sequence, data: chunk);
     }
   }
 
   @override
   Future<void> resize(int cols, int rows) async {
     if (_closed || !_writable.value) return;
-    _attachment.resize(sequence: ++_sequence, cols: cols, rows: rows);
+    attachment.resize(sequence: ++_sequence, cols: cols, rows: rows);
   }
 
   @override
@@ -267,7 +267,7 @@ class DshPtySession implements PtySession {
     _writable.value = false;
     await _frames?.cancel();
     _frames = null;
-    await _attachment.close();
+    await attachment.close();
     if (!_exit.isCompleted) _exit.complete(0);
     if (!_output.isClosed) await _output.close();
   }

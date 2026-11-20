@@ -131,12 +131,12 @@ void main() {
     final endpoint = DshEndpoint.parse('http://10.0.0.5:3080/ui/?token=abc');
 
     test('upload and file routes encode their query', () {
+      // A document upload must not declare a media type: the route dispatches
+      // on that query and would treat the bytes as an image.
       expect(
-        endpoint
-            .uploadUri('session-1', name: 'notes.txt', mediaType: 'text/plain')
-            .toString(),
+        endpoint.uploadUri('session-1', name: 'notes.txt').toString(),
         'http://10.0.0.5:3080/ui/api/session/uploadFileBinary'
-        '?sessionId=session-1&name=notes.txt&mediaType=text%2Fplain',
+        '?sessionId=session-1&name=notes.txt',
       );
       expect(
         endpoint.fileUri('/workspace/demo/one.png', version: 'v1').toString(),

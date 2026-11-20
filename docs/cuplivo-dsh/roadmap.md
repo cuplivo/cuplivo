@@ -25,10 +25,10 @@ repository and is not committed. This document is the engineering breakdown.
 
 ## 2. Delivery rules (from the brief, restated as gates)
 
-1. **No local Cuplivo build or test runs.** Validation goes through the
-   repository's GitHub Actions: `pr-check.yml` for analyze/format/l10n/tests
-   and the on-demand Android E2E (`.github/workflows/e2e-android.yml`, `/e2e`
-   comment) for UI acceptance.
+1. **No local Cuplivo build, test or analysis runs** (and no local browser or
+   screenshot checks). Validation goes through the repository's GitHub Actions:
+   `pr-check.yml` for analyze/format/l10n/tests and the on-demand Android E2E
+   (`.github/workflows/e2e-android.yml`, `/e2e` comment) for UI acceptance.
 2. **One E2E acceptance scenario per PR**, under
    `integration_test/e2e/<name>_test.dart`, capturing the important frames.
 3. **UI quality first.** The E2E screenshots must be compared against the
@@ -122,8 +122,8 @@ repository and is not committed. This document is the engineering breakdown.
 
 ## 8. Working rules clarifications (owner, 2026-11-19)
 
-- **Local test/build runs are completely forbidden** (no `flutter test`,
-  `flutter build`, `flutter run`, no local analyze as a substitute for CI).
+- **Local test/build/analysis runs are completely forbidden** (no `flutter test`,
+  `flutter build`, `flutter run`, no local `dart analyze`).
   Formatting and l10n codegen (`dart format`, `flutter gen-l10n`,
   `translate.py sync`, `flutter pub get` for tooling) remain allowed; every
   behavioural verdict comes from GitHub Actions.
@@ -154,3 +154,37 @@ record, never a local run:
   browser rail card (no browser API in DSH 0.2.2), and provider-detail model
   metadata that the live catalog gateway does not expose (context window, max
   output, input modalities start empty for adapter-default models).
+- Several of those deferrals were closed by the v2 round below; §10 is the
+  current scope, §9 stays as the first-PR record.
+
+## 10. v2 round scope (2026-11-20)
+
+The v2 round closes the plugin/UI compatibility gap the first PR deferred.
+Engineering contract: `architecture.md` §9. Compatibility evidence and the
+generic JS recipes: `plugin-compat.md` §4–§6 (sidebar rows, right rail, no
+per-panel routes). Reuse decisions: `v2-reuse-map.md` §1–§6.
+
+### 10.1 Delivered
+
+| area | what landed | acceptance |
+|---|---|---|
+| Native terminal (R12) | `DshTerminalPanel` inline in the right rail plus a full-screen `DshTerminalPage`; `DshWorkspaceRuntime` over the Host's `terminal/*` endpoints, reusing the workspace terminal emulator; a writable Host PTY when the Host reports a shell, a visible read-only surface otherwise, and an honest unavailable card instead of a fake prompt | real PTY proven by the header's Host shell/cwd and a file written through the terminal (`dsh-terminal-panel/view`) |
+| Binary/remote file preview (R13) | `DshFilePreviewPage` + `DshPreviewCache`: remote text/images are materialized into a bounded temp file and reuse the existing workspace previews; PDF (and unavailable image bytes) open the authenticated `/api/file` in the shared WebView; anything else renders `DshRemoteFileCard` with a reason — never a blank pane | png/text inline, pdf/blob full-page (`dsh-remote-file-card`, `dsh-file-preview-web-<gen>`) |
+| Attachment picker and prompt parts (R6) | the plus menu's 文件 row opens the native image/document pickers; `DshAttachmentUploadService.prepare` turns the composer input into prompt attachments — images inline under the Host's budgets from `session/limits`, documents uploaded to `session/attachment` and carried as receipts; typed failures map to localized sentences | plus-sheet capture and the service tests; native pickers are not drivable from integration tests |
+| Context ring (R6) | `DshContextUsage` maps the live `contextPressure` readout to the composer's ring; the ring is hidden when the Host reports no readout, never estimated | `dsh-context-ring` after a real turn |
+| Plus and slash menus with honest rows (R6) | `DshPlusSheet` mirrors the official 添加/指令 structure and enables only rows with a wire (文件; 压缩 only when the catalog advertises `compact`; 权限; 模型), while 目标/计划/反馈 and 下载日志 stay visible with their short reason; `DshSlashCommandsSheet` lists the Host's `commands/list` | `dsh-plus-sheet` rows and the slash sheet |
+| Plugin-compat harvest for R5/R7 (R5, R7) | `DshSurfaceHarvest` reads the official sidebar labels and right-rail cards (label + language-neutral `kind`) from the official WebUI on first open; `DshSurfaceInventory` keeps one in-memory snapshot per authority; R5 rows and R7 plugin cards render the Host's own labels natively, built-ins stay native, and a tap lands the WebUI on that row/card. 更多 stays one native row that lands DSH's own `PanelMoreMenu` | harvested rows/cards replace the built-ins after one WebUI open (`dsh-sidebar-entry-<id>`, `dsh-rail-entry-<id>`) |
+| Settings tabs matching DSH (R2) | five native tabs — 连接设置, 通用设置, 模型, 内置插件 (read-only inventory), Agent 预设 (read-only groups) — data-driven, with the Host-reported tabs appended only when the catalog reports plugin capability | `dsh-settings-tabs` / `dsh-settings-tab-<id>` |
+
+### 10.2 Not delivered (explicit)
+
+- **Plugin `settings.section` tabs.** DSH plugins can register root settings
+  sections, but `pluginInventory` metadata is package metadata, not a settings
+  tab; v2 ships only the five native tabs. A plugin's own configuration page is
+  reached through the 插件 WebUI (harvest + landing), not as a Cuplivo tab.
+- **Per-panel deep links.** DSH has no URL routing for panels, settings
+  sections or rail pages; every plugin surface opens the whole SPA and is
+  steered by a best-effort landing script. There is no link to ship.
+- **Terminal persistence across rail unmount.** The terminal exists only while
+  its panel/page is mounted; unmounting disposes the PTY (`DshWorkspaceRuntime`
+  closes the terminals it created) and reopening starts a new terminal.

@@ -187,7 +187,7 @@ DshConnectionsProvider (remotes + link status, owns store + secure cookie)
 | 5 | Chat drawer: search, remote row, plugin/automation/more, workspaces, sessions, bottom bar | `SideDrawer` harness mode + `pages/home/` |
 | 6 | Chat: Cuplivo renderer, remote model/effort/permission in composer, DSH “+” menu, app-bar right-rail button replacing minimap | `pages/chat/` + home app bars |
 | 7 | Right rail pushes chat off-screen; official entries Flutter (workspace files, terminal native; browser hidden by capability), plugin WebView | right-rail widgets + `pages/plugins/` |
-| 8 | Assistant settings tabs: 连接设置 / 通用设置 / 模型 / plugin tabs | `pages/assistant/` |
+| 8 | Assistant settings tabs: 连接设置 / 通用设置 / 模型 / 内置插件 / Agent 预设 (Host-reported; v2) | `pages/assistant/` |
 | 9 | Models page mirrors Cuplivo's provider page: DSH providers/models, 自定义提供商 first, provider detail per DSH settings schema | `pages/assistant/models_*` reusing provider widgets |
 
 All strings go through ARB (`lib/l10n/app_en.arb` template + `app_zh.arb`, then
@@ -197,20 +197,24 @@ All strings go through ARB (`lib/l10n/app_en.arb` template + `app_zh.arb`, then
 
 - **浏览器 rail card: omitted.** DSH 0.2.2-rc.1 exposes no remote browser API;
   capability parity wins over the reference image. The PR lists the difference.
-- **Terminal: native, after the chat slice.** `terminal/create|attach|retain` are
-  real (attach is a bidirectional stream) and the repo already vendors
-  `dependencies/terminal_view` + the workspace terminal pages, so the card is
-  rendered when the capability probe succeeds and the page drives the remote
-  terminal with the existing emulator widget (input → attach uplink).
-- **Plugin UI: single native `插件` page** (list/enable/disable from
-  `pluginInventory/list` + `pluginManager/*`); its panel/settings interiors open
-  the WebView host with the whole DSH SPA and the v1 cookie — there is no
-  per-panel URL in 0.2.2, so the page is honest about what it is. No DOM-scraping
-  heuristics; a deep-landing JS hook exists but is optional and disabled by
-  default.
+- **Terminal: native (delivered in the v2 round, §9).** `terminal/create|attach|retain`
+  are real (attach is a bidirectional stream) and the repo already vendors
+  `dependencies/terminal_view` + the workspace terminal pages, so the rail card
+  and the full-screen page drive the remote terminal with the existing emulator
+  widget (input → attach uplink).
+- **Plugin UI: harvest + WebView (v2, §9).** The official sidebar labels and
+  right-rail cards are read once from the official WebUI (`DshSurfaceHarvest`)
+  and rendered natively; every plugin surface then opens the whole DSH SPA in
+  the shared WebView with the v1 cookie, because 0.2.2 has no per-panel URL.
+  `pluginInventory/list` feeds the read-only 内置插件 settings tab. The official
+  DOM is read for labels/kinds only, never for business data — evidence and the
+  exact anchors are in `plugin-compat.md` §4–§6.
 - **自动化任务: native list** (read/toggle/delete via `schedule/*`); creation and
   full editing open the WebView host until a native form is justified.
-- **更多: native menu** (settings, plugin page, session info, about/version).
+- **更多: one native row** that lands the official `PanelMoreMenu` (plugin
+  discovery / plugin creation); the menu content stays the Host's. The
+  pre-harvest 插件 / 自动化任务 built-ins open the official WebUI root; that
+  first open also harvests the real labels which then replace them.
 - **Models tab: full native slice** — DSH providers, `自定义提供商` first, provider
   detail driven by the DSH settings schema for the common provider, custom
   provider creation with its own base URL/API key/models and per-model reasoning
@@ -256,3 +260,64 @@ conversation logic), `assistant_select_sheet` (exclude remotes),
   brief's reference images.
 - Final comparison: each E2E screenshot vs. its reference image
   (`docs/cuplivo-dsh/reference/`, untracked), differences listed in the PR.
+- v2 additions keep the same gate: the scenario drives the surfaces of §9 by
+  the anchors in `implementation-contract.md` and the added unit suites cover
+  the pure services (harvest parsing/slugs, preview cache/kind, terminal
+  runtime, attachment budgets, context usage, WebView wrapper).
+
+## 9. v2 round additions (2026-11-20)
+
+The v2 round delivered the surfaces §6.1 left as placeholders. This chapter is
+the contract for them; `implementation-contract.md` carries the acceptance
+anchors and `roadmap.md` §10 the scope. The generic DOM/JS recipes behind the
+harvest and landings are in `plugin-compat.md` §4–§6; the reuse decisions are
+`v2-reuse-map.md` §1–§6.
+
+### 9.1 Services and widgets
+
+| file | role |
+|---|---|
+| `lib/features/harness/services/dsh_surface_harvest.dart` | `DshSurfaceEntry`/`DshSurfaceSnapshot`/`DshSurfaceInventory`: one in-memory harvest per remote authority, plus the self-contained async IIFE scripts that read the official sidebar rows and right-rail cards and the landing scripts for a sidebar label, the 更多 menu, and a rail card (`kind` preferred over label). Scripts post through the WebView bridge and are best-effort: a miss leaves the page usable. |
+| `lib/features/harness/pages/home/harness_surface_entries.dart` | `HarnessSurfaceEntry` and `dshSurfaceEntryId`: the label-slug rule used only for `dsh-sidebar-entry-<id>` / `dsh-rail-entry-<id>` keys — never for display or landing. |
+| `lib/features/harness/services/dsh_terminal_runtime.dart` | `DshTerminalRuntimeHost` + `DshWorkspaceRuntime` over the Host's `terminal/*` endpoints; ignores local `openPty` arguments (the Host owns cwd/shell/env), exposes `terminal/environment` once, and closes every terminal it created on dispose. |
+| `lib/features/harness/services/dsh_preview_cache.dart` | Bounded per-remote/session temp-file materialization of remote text/image bodies so the existing `File`-based previews are reused unchanged; per-entry and derived total caps, serialized writes, typed failures (`tooLarge`, `io`). |
+| `lib/features/harness/services/dsh_preview_kind.dart` | Pure path/media-type → preview-renderer mapping (text/image/PDF/unsupported) so the policy is testable without a widget or Host. |
+| `lib/features/harness/pages/preview/dsh_file_preview_page.dart` | Full-screen remote preview: native reuse for text/image, authenticated `/api/file` in the shared WebView for PDF and unavailable image bytes, `DshRemoteFileCard` otherwise. |
+| `lib/features/harness/services/dsh_context_usage.dart` | Exact mapping of the live `contextPressure` readout to used/limit display; absence hides the ring rather than inventing a value. |
+| `lib/features/harness/services/dsh_attachment_upload_service.dart` | `ChatInputData` → `DshPromptAttachment`: image bytes inline under `session/limits` budgets, documents uploaded to `session/attachment` and carried as receipts, typed `DshAttachmentFailure` kinds for localized messages. |
+| `lib/features/harness/widgets/dsh_web_ui_view.dart` | Extracted Host WebView (`DshWebUiView`): v1 cookie injection only (never the v2 API cookie or launch token), whole-SPA or `initialUrl`, one optional `initialScript` per generation, optional JS→Dart message channel. Hosts the plugin page, the PDF preview and the landing/harvest scripts. |
+| `lib/features/harness/widgets/chat/dsh_plus_sheet.dart`, `dsh_slash_commands_sheet.dart` | The composer's 添加/指令 sheet and the `commands/list` slash list; disabled rows keep their reason. |
+| `lib/features/harness/widgets/terminal/`, `lib/features/harness/pages/terminal/` | The rail's inline terminal panel and its full-screen page over the shared terminal surface. |
+
+### 9.2 The native-vs-WebUI rule
+
+- **Native RPC for built-in data and built-in views.** Sessions, transcripts,
+  models/providers/settings, workspace files, schedules, plugin inventory and
+  the Host terminal are Host capabilities with typed RPC/streams; Cuplivo
+  renders them natively and never scrapes them from the page.
+- **Embedded WebUI only for plugin-contributed views.** A plugin's panel body,
+  right-rail page or sidebar page is a React slot inside the official SPA; the
+  protocol exposes no registry and no per-panel URL, so the only honest host is
+  the whole SPA in `DshWebUiView`, steered by a landing script. A plugin's own
+  settings section stays inside the official settings dialog; v2 opens the SPA
+  but lands no settings section (§9.3).
+- **Plugin names, ids, orders and labels are never hardcoded.** The harvest
+  reads the official labels and language-neutral rail kinds at runtime, keeps
+  them in memory per authority (never persisted), and feeds the native rows and
+  cards; landing scripts target the harvested label/kind. The only ids Cuplivo
+  itself names are the three built-in R5 rows (`plugins`, `automations`, `more`)
+  that exist before the first harvest, and the built-in rail cards.
+- **Best-effort by construction.** A failed harvest, a renamed label or an
+  absent surface degrades to the official page the user can finish by hand; it
+  never blocks the Flutter surface or becomes an error state.
+- The mechanics and live evidence are in `plugin-compat.md` §4–§6 (sidebar slot
+  and rows, right-rail page types and cards, no routes, anchored landing
+  recipes).
+
+### 9.3 Explicitly out of scope for v2
+
+- Plugin `settings.section` tabs: not harvested and not rendered as Cuplivo
+  tabs (inventory metadata is not a section; only the five native tabs ship).
+- Per-panel deep links: DSH has no URL routing, so none can be shipped.
+- Terminal persistence across rail unmount: the PTY lives only while its
+  panel/page is mounted.

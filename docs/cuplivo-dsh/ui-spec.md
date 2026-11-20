@@ -27,16 +27,35 @@ Flutter entry (plugin UI only).
 
 - Full-page settings, dark: back arrow, centred title = assistant name
   (`DeepSeek Harness`).
-- Scrollable segmented tab strip directly under the app bar with four tabs:
-  **连接设置** (selected), **通用设置**, **模型**, **内容**. The selected tab is a
-  filled pill; unselected are plain labels.
+- Scrollable segmented tab strip directly under the app bar with five tabs, in
+  DSH's own order: **连接设置** (selected), **通用设置**, **模型**, **内置插件**,
+  **Agent 预设**. The selected tab is a filled pill; unselected are plain labels.
 - Tab 1 body, two cards:
   - Card A: leading circular avatar (DSH whale mark), label `助手名称`, text
     field with the current name.
   - Card B: label `请输入DeepSeek Harness的WebUI访问链接`; one text field with
-    placeholder `例如127.0.0.1:3080/?token=你的访问令牌……`; full-width filled
+    the reference placeholder `例如127.0.0.1:3080/?token=PEaxKDfNOHzbHp…` (a
+    truncated sample from the brief, not a real credential); full-width filled
     button `确认`.
-- The tab strip scrolls horizontally when the four tabs do not fit.
+- Tab 4 内置插件 is a native, read-only body: rows come from the remote
+  `pluginInventory/list` inventory (`catalog.plugins`) and show the plugin's
+  own localized title, module name, enabled/disabled state, Loader phase and
+  diagnostics. There are no toggles or management actions in this slice; the
+  Host owns them, so the body states that the list is read-only and has an
+  honest empty state. A "needs restart" banner is only shown when a management
+  change reports one (none exists yet, so it is not rendered speculatively).
+- Tab 5 Agent 预设 is a native, read-only body: group cards come from the
+  optional `agentPresets` groups of `pluginInventory/list`, headed by
+  `group.name` (or the id), with a default badge, the preset's plugin rows,
+  and any broken-composition reason. There is no select action in this slice.
+- The invented **内容** tab is removed; it has no data source and no ARB keys.
+- A plugin-registered settings tab is **mechanism-only** in this round: the page
+  keeps an extensible `DshSettingsTabSpec` list (`plugin:<entryId>` ids), but no
+  tabs are appended from inventory metadata. DSH settings sections are
+  client-side `settings.section` slot registrations, not Host metadata exposed
+  over RPC, so inventory `meta.title` must not be turned into fake tabs — see
+  `plugin-compat.md` §3.
+- The tab strip scrolls horizontally when the five tabs do not fit.
 
 ## R3 — Connected assistant card (`image-01a1f451…jpg`)
 

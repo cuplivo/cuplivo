@@ -2520,6 +2520,130 @@ because it reuses Cuplivo's shell and renderer (that is the point of the design)
 
 ---
 
+## 11. v2 implementation note (remote-control round)
+
+This section maps the v2 code that landed in the same worktree; it deliberately
+does not repeat the wire contract. Read
+[`client-api.md`](client-api.md) §15 for methods, payloads and stream frames,
+and treat the official-client behavior described there as the reference.
+
+### 11.1 Terminal wiring
+
+- `lib/features/harness/services/dsh_terminal_runtime.dart` adapts DSH's
+  `terminal/*` endpoints to Cuplivo's `WorkspaceRuntime`/`PtySession`
+  interfaces ([`v2-reuse-map.md`](v2-reuse-map.md) §1). `DshWorkspaceRuntime`
+  implements `openPty` as `terminal/create` + `terminal/attach`; the Host owns
+  the cwd/shell/env, so the local `cwd`/`env`/`mounts` arguments are ignored
+  and the panel only reads `terminal/environment` for display.
+- `DshPtySession` turns `snapshot`/`output` frames into the byte stream the
+  `terminal_view` emulator consumes, publishes `state`/`ack` changes through a
+  `writable` notifier, splits a write at the Host's `maxInputBytes`, keeps one
+  uplink sequence across `write` and `resize`, and completes its exit future
+  on `state:exited|failed`. An unknown frame is ignored, never fatal.
+- `lib/features/workspace/terminal/widgets/terminal_surface.dart` is the
+  extracted page body (tab strip, emulator, key bar) used by both
+  `lib/features/workspace/terminal/terminal_page.dart` and the harness hosts:
+  `lib/features/harness/widgets/terminal/dsh_terminal_panel.dart` (rail) and
+  `lib/features/harness/pages/terminal/dsh_terminal_page.dart` (full screen),
+  sharing `dsh_terminal_launcher.dart`. When the Host reports
+  `writable:false`, the surface shows its read-only banner and no key bar.
+- The emulator renders through `terminal_view`'s `TerminalPainter`: output is
+  painted cells, not text widgets. Widget tests therefore assert the seam's
+  host side (frames fed, `write` calls' sequence/data, `terminal/close` on
+  dispose) rather than looking for screen text.
+
+### 11.2 Attachment flow
+
+- The existing composer picker stages local paths; before `session/prompt`,
+  `lib/features/harness/services/dsh_attachment_upload_service.dart` turns
+  them into prompt parts. Images stay inline bytes
+  (`DshPromptAttachment.image`, base64) after the Host's `imageLimits` budget
+  is enforced (count, `mediaTypes`, `maxImageBytes`, `maxMessageImageBytes`);
+  documents go through the upload route and become `DshPromptAttachment.file`
+  with the receipt id.
+- Refusals are typed (`DshAttachmentFailure` with the real numbers) and mapped
+  to a localized sentence; the draft is kept, so nothing is half-sent.
+- In the transcript, image parts are durable references, not URLs:
+  `DshGatewayChatSession` prefetches `DshSession.attachmentBytes` (which calls
+  `session/attachment`) per `attachmentId` into an in-memory map and maps them
+  to the existing chat attachment model. Nothing is written to disk.
+
+### 11.3 Context ring
+
+- `lib/features/harness/services/dsh_context_usage.dart` maps the Host's
+  `contextPressure` projection to the shared ring's `ContextUsageSnapshot`
+  (`usedTokens`, `contextWindow`, ratio) and feeds the composer override.
+  The buckets are zero and the state is `exact` on purpose: DSH computes one
+  honest total, so Cuplivo does not fabricate its twelve composition buckets;
+  the sheet shows the real two-segment used/free bar.
+- The ring is hidden when the projection or the window is absent; a state with
+  no denominator never renders.
+- One detail to keep in mind: DSH's own meter takes
+  `projectedTokens ?? pressureTokens`, while this mapper currently reads
+  `pressureTokens` (the projection model calls the former a post-turn hint).
+  The two differ slightly while a projected estimate exists; reconcile when
+  the mapper is next touched.
+
+### 11.4 Plus and slash menus
+
+- `lib/features/harness/widgets/chat/dsh_plus_sheet.dart` mirrors the official
+  `+` menu structure but only enables rows with a wire path: 添加 —
+  文件 (attachment picker); 目标/计划/反馈 are disabled with their honest
+  reason. 指令 — 压缩 runs `/compact` only when the catalog advertises it,
+  权限 and 模型 open the existing pickers, 下载日志 is disabled (the protocol
+  has no log-download endpoint).
+- `lib/features/harness/widgets/chat/dsh_slash_commands_sheet.dart` lists the
+  Session's `commands/list` roster; `harness_conversation_view.dart` intercepts
+  a send whose leading token is an advertised command and calls
+  `DshGateway.executeCommand` → `commands/execute`. A success text is shown as
+  a notice and a failure keeps the draft; any line the Host does not claim is
+  sent as an ordinary prompt again. A slash line carrying attachments is sent
+  as a prompt instead of a command.
+
+### 11.5 Plugin surfaces without plugin knowledge
+
+- DSH plugins contribute React slots inside the official SPA and the Host RPC
+  does not enumerate them, so Cuplivo reads the official UI once: the harvest
+  script in `lib/features/harness/services/dsh_surface_harvest.dart` reads the
+  sidebar labels (`[data-slot="sidebar.panellist"]`) and the right-rail guide
+  cards (`[data-sidebar-right-guide-entry]` + kind), and posts
+  `{v, sidebar, rail}` to the `CuplivoHost` handler.
+- `DshWebUiView` (`lib/features/harness/widgets/dsh_web_ui_view.dart`) runs the
+  script once per view generation and tolerates a miss;
+  `DshSurfaceSnapshot.parse` degrades to empty on any unexpected payload. The
+  home controller keeps one snapshot per authority
+  (`harness_surface_entries.dart` builds stable keys from labels), and R5/R7
+  render the labels verbatim with generic icons — no plugin name, id or label
+  is hardcoded. Opening a harvested row runs a landing script that clicks its
+  label (or its rail kind) in the embedded official WebUI; built-in rows stay
+  native and are excluded from the harvested list.
+- The slot/DOM evidence and the bounded landing protocol are in
+  [`plugin-compat.md`](plugin-compat.md) §4–§6; nothing here asserts a URL.
+
+### 11.6 Honest limits
+
+- **PDF/office previews are WebView-dependent.** PDFs open through the
+  embedded official WebUI on the authenticated `/api/file?path=…&v=…` URL, so
+  they need a platform whose WebView backend is available. Office documents
+  are classified but currently show the unsupported metadata card — no native
+  renderer and no office→PDF conversion is wired, so they would need the same
+  WebView path (or Host-side conversion) before they can render.
+- **Unmounting the rail terminal closes the Host terminal.** The rail panel
+  owns the launch, and `dispose()` calls `closeCreatedTerminals()` →
+  `terminal/close`; switching rail tabs or leaving the page ends that shell.
+  Only terminals this launch created are closed — a terminal it attached to
+  from another surface is not adopted.
+- **Relative images in remote markdown do not resolve.** The markdown preview
+  materializes the remote file's text locally; a relative image link has no
+  workspace base URL, so it renders unresolved (absolute links still need the
+  authenticated route). Documented as acceptable for v2 in
+  [`v2-reuse-map.md`](v2-reuse-map.md) §5.
+- **Harvested plugin rows need one official-WebUI visit.** The snapshot is
+  in-memory only and taken when a WebUI page opens; before that visit the
+  sidebar/rail show only the built-in entries.
+
+---
+
 ## Appendix A — endpoint index (0.2.2-rc.1)
 
 All names are `<namespace>/<method>` for `POST /api/<namespace>/<method>` or a

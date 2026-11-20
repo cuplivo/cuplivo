@@ -192,7 +192,7 @@ sealed class DshTerminalFrame {
           raw: map,
         );
       default:
-        return DshTerminalUnknownFrame(raw: map);
+        return DshTerminalUnknownFrame(raw: map, sequence: sequence);
     }
   }
 
@@ -261,7 +261,7 @@ final class DshTerminalAckFrame extends DshTerminalFrame {
 }
 
 final class DshTerminalUnknownFrame extends DshTerminalFrame {
-  const DshTerminalUnknownFrame({required this.raw});
+  const DshTerminalUnknownFrame({required this.raw, super.sequence});
   final Map<String, Object?> raw;
 }
 
@@ -275,11 +275,13 @@ class DshTerminalAttachment {
   bool get isClosed => stream.isClosed;
 
   /// Decoded frames; single-subscription like the underlying mux stream.
-  Stream<DshTerminalFrame> get frames async* {
-    await for (final value in stream.items) {
-      yield DshTerminalFrame.fromJson(value);
-    }
-  }
+  ///
+  /// Deliberately `map` instead of an `async*` generator: cancelling a
+  /// subscription to an `async*` stream that is suspended on `await for` waits
+  /// for the source stream to end, which a long-lived attach stream never does
+  /// (the detach would deadlock). `map` cancels through immediately.
+  Stream<DshTerminalFrame> get frames =>
+      stream.items.map(DshTerminalFrame.fromJson);
 
   /// Stage-2 uplink: `{type:'write',sequence,data}` item frame.
   ///

@@ -616,7 +616,9 @@ class DshStream {
     if (_closed) return;
     _closed = true;
     _mux._streams.remove(id);
-    await _controller.close();
+    // A single-subscription controller that was never listened to never
+    // completes close(); teardown must not wait for a done event no one wants.
+    unawaited(_controller.close());
   }
 
   /// Sends one client→host item frame on this stream:
@@ -636,7 +638,7 @@ class DshStream {
     _closed = true;
     _mux._streams.remove(id);
     _mux._sendFrame({'type': 'cancel', 'streamId': id});
-    await _controller.close();
+    unawaited(_controller.close());
   }
 }
 

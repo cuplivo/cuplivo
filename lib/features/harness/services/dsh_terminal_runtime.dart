@@ -259,17 +259,24 @@ class DshPtySession implements PtySession {
 
   @override
   Future<void> close() async {
-    if (_closed) {
-      await _frames?.cancel();
-      return;
-    }
+    if (_closed) return;
     _closed = true;
     _writable.value = false;
-    await _frames?.cancel();
+    // Detach first: cancelling the frame subscription while the Host keeps the
+    // stream open leaves the subscription waiting for an end that never comes.
+    // A detach that fails (a dead socket) must not keep the panel alive.
+    try {
+      await attachment.close();
+    } on Object {
+      // The Host stream may already be gone; local teardown still completes.
+    }
+    final frames = _frames;
     _frames = null;
-    await attachment.close();
+    await frames?.cancel();
     if (!_exit.isCompleted) _exit.complete(0);
-    if (!_output.isClosed) await _output.close();
+    // Same trap as the mux stream: a never-listened single-subscription
+    // controller never completes close(), so teardown must not await it.
+    if (!_output.isClosed) unawaited(_output.close());
   }
 
   /// Splits [text] into chunks whose UTF-8 encoding fits [maxBytes].

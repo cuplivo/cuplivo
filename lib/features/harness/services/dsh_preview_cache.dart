@@ -207,8 +207,16 @@ class DshPreviewCache {
     return '${_fnv1a32Hex(path)}-$basename';
   }
 
+  /// Collapses `..` runs so a sanitized path can never contain a traversal
+  /// segment (the parent-directory token itself is the dangerous part, not the
+  /// separators).
+  static String _collapseDotRuns(String value) =>
+      value.replaceAll(RegExp(r'\.{2,}'), '_');
+
   static String _safeFileName(String name) {
-    var safe = name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+    var safe = _collapseDotRuns(
+      name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_'),
+    );
     if (safe.isEmpty || safe == '.' || safe == '..') {
       safe = 'file';
     }
@@ -225,7 +233,9 @@ class DshPreviewCache {
   }
 
   static String _safeSegment(String value) {
-    final safe = value.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+    final safe = _collapseDotRuns(
+      value.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_'),
+    );
     return safe.isEmpty || safe == '.' || safe == '..' ? 'unknown' : safe;
   }
 

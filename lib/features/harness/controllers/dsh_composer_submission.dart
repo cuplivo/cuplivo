@@ -64,13 +64,6 @@ class DshComposerSubmission {
     ChatInputData input,
   ) async {
     final text = input.text.trim();
-    final hasAttachments =
-        input.imagePaths.isNotEmpty || input.documents.isNotEmpty;
-    if (text.isEmpty && !hasAttachments) {
-      return const DshComposerSubmissionResult(
-        ChatInputSubmissionResult.rejected,
-      );
-    }
     if (!session.canSend) {
       return const DshComposerSubmissionResult(
         ChatInputSubmissionResult.rejected,
@@ -78,7 +71,10 @@ class DshComposerSubmission {
     }
     var attachments = const <DshPromptAttachment>[];
     final preparer = attachmentPreparer;
-    if (preparer != null && hasAttachments) {
+    // The preparer is authoritative about what the draft carries (it also
+    // upgrades raw picker paths), so it runs even when the text is empty: an
+    // attachment-only message is a legitimate submission.
+    if (preparer != null) {
       try {
         attachments = await preparer(input);
       } on DshAttachmentFailure catch (failure) {
@@ -91,11 +87,11 @@ class DshComposerSubmission {
           ChatInputSubmissionResult.rejected,
         );
       }
-      if (attachments.isEmpty && text.isEmpty) {
-        return const DshComposerSubmissionResult(
-          ChatInputSubmissionResult.rejected,
-        );
-      }
+    }
+    if (text.isEmpty && attachments.isEmpty) {
+      return const DshComposerSubmissionResult(
+        ChatInputSubmissionResult.rejected,
+      );
     }
     try {
       final result = await session.sendPrompt(text, attachments: attachments);

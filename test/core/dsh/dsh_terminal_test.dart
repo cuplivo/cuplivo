@@ -166,11 +166,13 @@ void main() {
       final sent = transport.sockets.single.sent;
       expect(
         sent,
-        contains({
-          'type': 'item',
-          'streamId': stream.id,
-          'value': {'type': 'write', 'sequence': 1, 'data': 'ls\n'},
-        }),
+        contains(
+          equals({
+            'type': 'item',
+            'streamId': stream.id,
+            'value': {'type': 'write', 'sequence': 1, 'data': 'ls\n'},
+          }),
+        ),
       );
       expect(sent.last, {
         'type': 'item',

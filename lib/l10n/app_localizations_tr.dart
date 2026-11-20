@@ -4001,6 +4001,32 @@ class AppLocalizationsTr extends AppLocalizations {
   String get modelDetailSheetEmbeddingType => 'Gömme';
 
   @override
+  String get modelDetailSheetDecisionType => 'Karar';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => 'Karar API\'si';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => 'Karar adresi';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint =>
+      'Boşsa sağlayıcı adresinin sonuna eklenir';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp =>
+      'Bazı sağlayıcılar karar modellerini ayrı bir adreste sunar; varsayılan adresi geçersiz kılmak için yolu girin.';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => 'Doldur';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => 'Geçerli';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => 'Bailian';
+
+  @override
   String get modelDetailSheetInputModesLabel => 'Giriş Modları';
 
   @override

@@ -3976,6 +3976,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modelDetailSheetEmbeddingType => 'Embedding';
 
   @override
+  String get modelDetailSheetDecisionType => 'Decision';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => 'Decision API';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => 'Decision URL';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint =>
+      'Empty: appended to the provider URL';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp =>
+      'Some providers serve decision models on their own endpoint; enter the path to override the default address.';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => 'Fill';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => 'Current';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => 'Bailian';
+
+  @override
   String get modelDetailSheetInputModesLabel => 'Input Modes';
 
   @override

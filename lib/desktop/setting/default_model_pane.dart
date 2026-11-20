@@ -368,6 +368,9 @@ class DesktopDefaultModelPane extends StatelessWidget {
                             context,
                             initialProviderKey: settings.directorModelProvider,
                             initialModelId: settings.directorModelId,
+                            // The director is a decision slot: a decision model
+                            // is exactly what belongs here.
+                            includeDecisionModels: true,
                           );
                       if (sel != null) {
                         await settingsProvider.setDirectorModel(

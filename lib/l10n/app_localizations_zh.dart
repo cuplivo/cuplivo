@@ -3810,6 +3810,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelDetailSheetEmbeddingType => '嵌入';
 
   @override
+  String get modelDetailSheetDecisionType => '决策';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => '决策接口';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => '决策地址';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint => '留空则拼在 provider 地址后';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp => '部分供应商的决策模型使用独立接口，需要覆盖默认请求网址。';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => '填入';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => '当前';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => '百炼';
+
+  @override
   String get modelDetailSheetInputModesLabel => '输入模式';
 
   @override
@@ -21732,6 +21756,30 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get modelDetailSheetEmbeddingType => '嵌入';
+
+  @override
+  String get modelDetailSheetDecisionType => '决策';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => '决策接口';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => '决策地址';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint => '留空则拼在 provider 地址后';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp => '部分供应商的决策模型使用独立接口，需要覆盖默认请求网址。';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => '填入';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => '当前';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => '百炼';
 
   @override
   String get modelDetailSheetInputModesLabel => '输入模式';
@@ -39661,6 +39709,30 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get modelDetailSheetEmbeddingType => '嵌入';
+
+  @override
+  String get modelDetailSheetDecisionType => '決策';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => '決策介面';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => '決策位址';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint => '留空則接在 provider 位址後';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp => '部分供應商的決策模型使用獨立介面，需要覆寫預設請求網址。';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => '填入';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => '目前';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => '百煉';
 
   @override
   String get modelDetailSheetInputModesLabel => '輸入模式';

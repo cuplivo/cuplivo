@@ -1976,6 +1976,14 @@
   "modelDetailSheetModelTypeLabel": "Model Type",
   "modelDetailSheetChatType": "Chat",
   "modelDetailSheetEmbeddingType": "Embedding",
+  "modelDetailSheetDecisionType": "Decision",
+  "modelDetailSheetDecisionDialectLabel": "Decision API",
+  "modelDetailSheetDecisionUrlLabel": "Decision URL",
+  "modelDetailSheetDecisionUrlHint": "Empty: appended to the provider URL",
+  "modelDetailSheetDecisionUrlHelp": "Some providers serve decision models on their own endpoint; enter the path to override the default address.",
+  "modelDetailSheetDecisionUrlFill": "Fill",
+  "modelDetailSheetDecisionUrlCurrent": "Current",
+  "modelDetailSheetDecisionUrlBailian": "Bailian",
   "modelDetailSheetInputModesLabel": "Input Modes",
   "modelDetailSheetOutputModesLabel": "Output Modes",
   "modelDetailSheetAbilitiesLabel": "Abilities",
@@ -11707,6 +11715,30 @@
   },
   "@modelDetailSheetReasoningAbility": {
     "description": "Checkbox label for the Reasoning ability; also used as a tag label."
+  },
+  "@modelDetailSheetDecisionType": {
+    "description": "Model type segment and model tag for a decision model: it answers typed yes/no or choice questions with probabilities and never generates chat text."
+  },
+  "@modelDetailSheetDecisionDialectLabel": {
+    "description": "Label of the segmented control that picks which decision protocol a decision model speaks (System One or OpenAI decisions)."
+  },
+  "@modelDetailSheetDecisionUrlLabel": {
+    "description": "Label of the optional field that overrides the endpoint address of a decision model."
+  },
+  "@modelDetailSheetDecisionUrlHint": {
+    "description": "Placeholder of the decision address field: leaving it empty appends the dialect's default path to the provider URL."
+  },
+  "@modelDetailSheetDecisionUrlHelp": {
+    "description": "First paragraph of the help sheet behind the info icon next to the decision address field: some providers serve decision models on a separate endpoint, so the default address has to be overridden."
+  },
+  "@modelDetailSheetDecisionUrlFill": {
+    "description": "Button in the decision address help sheet that writes the shown example path into the address field."
+  },
+  "@modelDetailSheetDecisionUrlCurrent": {
+    "description": "Small tag in the decision address help sheet marking the example row that matches the current provider's host."
+  },
+  "@modelDetailSheetDecisionUrlBailian": {
+    "description": "Name of Alibaba's Bailian model platform, used as the provider name of a decision address example."
   },
   "@modelDetailSheetCustomHeadersTitle": {
     "description": "Section title for custom HTTP headers in advanced settings and the provider custom request editor."

@@ -269,6 +269,36 @@ void main() {
       expect(resolved.modelId, 'director-model');
     });
 
+    test('a decision director never writes a group title', () async {
+      await settings.setProviderConfig(
+        'Dir',
+        ProviderConfig(
+          id: 'Dir',
+          enabled: true,
+          name: 'Dir',
+          apiKey: 'k',
+          baseUrl: 'https://example.test/v1',
+          providerType: ProviderKind.openai,
+          modelOverrides: {
+            'judge': {'type': 'decision'},
+          },
+        ),
+      );
+      await settings.setDirectorModel('Dir', 'judge');
+
+      final resolved = resolveTitleModel(
+        settings,
+        conversation: groupConversation(),
+      );
+
+      // A decision model answers typed questions and produces no text: asking
+      // it for a title is a request that can only fail, leaving the topic on
+      // its placeholder name. The chain skips it and lands on the default chat
+      // model instead.
+      expect(resolved.providerKey, 'GlobalProvider');
+      expect(resolved.modelId, 'global-model');
+    });
+
     test('a group topic falls back to the global default last', () async {
       final resolved = resolveTitleModel(
         settings,

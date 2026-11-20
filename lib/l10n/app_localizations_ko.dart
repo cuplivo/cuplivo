@@ -3880,6 +3880,31 @@ class AppLocalizationsKo extends AppLocalizations {
   String get modelDetailSheetEmbeddingType => '임베딩';
 
   @override
+  String get modelDetailSheetDecisionType => '결정';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => '결정 API';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => '결정 주소';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint => '비워 두면 provider 주소 뒤에 붙습니다';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp =>
+      '일부 공급자의 결정 모델은 별도 인터페이스를 사용하므로 기본 주소를 덮어써야 합니다.';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => '채우기';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => '현재';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => '바이리안';
+
+  @override
   String get modelDetailSheetInputModesLabel => '입력 모드';
 
   @override

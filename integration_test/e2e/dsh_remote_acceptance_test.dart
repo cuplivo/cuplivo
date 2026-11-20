@@ -869,13 +869,15 @@ Future<void> _runRealScenario(
   // route on the nearest navigator (not necessarily the root one), and a
   // barrier tap in the status-bar corner is not delivered to the app on every
   // emulator size. A left-open sheet swallows the next turn's send tap.
-  await Navigator.of(tester.element(plusSheet)).maybePop();
-  await pumpUntil(tester, () => plusSheet.evaluate().isEmpty, maxFrames: 120);
+  await _dismissComposerSheet(tester, plusSheet);
   expect(
     plusSheet,
     findsNothing,
     reason: 'R6 the plus menu closes before the tool turn',
   );
+  // Let the sheet's reverse animation and the home surface settle before the
+  // composer is touched again.
+  await pumpFrames(tester, frames: 30);
 
   // R6 v2: a real tool turn. The prompt makes the Host run bash itself, so the
   // transcript shows the folded tool card and its output - a wire path the
@@ -883,7 +885,38 @@ Future<void> _runRealScenario(
   await tester.enterText(composer, _toolPrompt);
   await pumpFrames(tester, frames: 10);
   await tester.ensureVisible(sendButton);
-  await tester.tap(sendButton);
+  // The emulator's IME animation can leave a stale hit-test frame: tap the
+  // send button only after the composer reports the prompt, and prove the tap
+  // started the turn (the composer clears) before waiting for the tool card. A
+  // tap that reopens the plus sheet is closed and retried instead of silently
+  // swallowing the turn.
+  var toolPromptSent = false;
+  for (var attempt = 1; attempt <= 3 && !toolPromptSent; attempt += 1) {
+    if (plusSheet.evaluate().isNotEmpty) {
+      e2eStep('R6 plus sheet present before the tool send (attempt $attempt)');
+      await _dismissComposerSheet(tester, plusSheet);
+    }
+    e2eStep('R6 tool send attempt $attempt');
+    await tester.tap(sendButton);
+    await pumpFrames(tester, frames: 20);
+    toolPromptSent = _composerText(tester, composer).isEmpty;
+    if (!toolPromptSent) {
+      e2eStep(
+        'R6 tool send attempt $attempt did not clear the composer '
+        '(sheet=${plusSheet.evaluate().isNotEmpty})',
+      );
+      await pumpFrames(tester, frames: 20);
+    }
+  }
+  expect(
+    toolPromptSent,
+    isTrue,
+    reason: 'R6 the tool prompt leaves the composer when the send is tapped',
+  );
+  // A visual probe for the artifacts: the frame right after the tool turn was
+  // accepted by the composer.
+  e2eStep('before r6_tool_send_probe');
+  await capture(tester, binding, 'r6_tool_send_probe');
   // The tool card is the shared renderer fed by a real DshToolEntry: its header
   // shows the Host tool name (`bash`). That text exists only after the Host
   // actually ran a tool - the prompt's own "bash 工具" wording is a full
@@ -893,7 +926,13 @@ Future<void> _runRealScenario(
     of: transcript,
     matching: find.text('bash'),
   );
-  await _pumpUntilToolCard(tester, toolHeader);
+  await _pumpUntilToolCard(
+    tester,
+    toolHeader,
+    composer: composer,
+    sendButton: sendButton,
+    plusSheet: plusSheet,
+  );
   await pumpUntil(
     tester,
     () => _assistantMessageCount(tester) >= 2,
@@ -1799,6 +1838,29 @@ bool _assistantTextContains(WidgetTester tester, String needle) {
   return false;
 }
 
+/// Dismisses the composer's modal plus sheet through the navigator that owns
+/// it, with a root-navigator fallback for the surfaces where that differs.
+Future<void> _dismissComposerSheet(WidgetTester tester, Finder sheet) async {
+  if (sheet.evaluate().isEmpty) return;
+  await Navigator.of(tester.element(sheet.first)).maybePop();
+  await pumpUntil(tester, () => sheet.evaluate().isEmpty, maxFrames: 120);
+  if (sheet.evaluate().isNotEmpty) {
+    _rootNavigator(tester).maybePop();
+    await pumpUntil(tester, () => sheet.evaluate().isEmpty, maxFrames: 120);
+  }
+  await pumpFrames(tester, frames: 10);
+}
+
+/// The text the DSH composer currently holds (empty when the field is gone).
+String _composerText(WidgetTester tester, Finder composer) {
+  final fields = find.descendant(
+    of: composer,
+    matching: find.byType(EditableText),
+  );
+  if (fields.evaluate().isEmpty) return '';
+  return tester.widget<EditableText>(fields.first).controller.text;
+}
+
 Future<void> _pumpUntilFound(
   WidgetTester tester,
   Finder finder, {
@@ -1946,9 +2008,13 @@ Future<void> _pumpUntilToolCard(
   WidgetTester tester,
   Finder toolHeader, {
   int maxFrames = 1800,
+  Finder? composer,
+  Finder? sendButton,
+  Finder? plusSheet,
 }) async {
   final allow = find.byKey(const ValueKey<String>('dsh-approval-allow'));
   var frames = 0;
+  var sendRetries = 0;
   while (frames < maxFrames) {
     if (toolHeader.evaluate().isNotEmpty) return;
     if (allow.evaluate().isNotEmpty) {
@@ -1956,6 +2022,23 @@ Future<void> _pumpUntilToolCard(
       await pumpFrames(tester, frames: 4);
       frames += 4;
       continue;
+    }
+    // A stale sheet over the composer would swallow the turn's send tap: close
+    // it and re-send the prompt instead of waiting out the whole budget.
+    if (plusSheet != null && plusSheet.evaluate().isNotEmpty) {
+      if (sendRetries < 3) {
+        e2eStep('R6 plus sheet reopened during the tool turn; closing it');
+        await _dismissComposerSheet(tester, plusSheet);
+        if (composer != null &&
+            sendButton != null &&
+            _composerText(tester, composer).trim().isNotEmpty) {
+          await tester.tap(sendButton);
+          await pumpFrames(tester, frames: 20);
+        }
+        sendRetries += 1;
+        frames += 20;
+        continue;
+      }
     }
     await pumpFrames(tester, frames: 4);
     frames += 4;

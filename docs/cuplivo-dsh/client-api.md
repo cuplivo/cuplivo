@@ -512,7 +512,8 @@ class DshCatalog {
   Future<void> setSessionLogUpload(bool enabled);        // session-log-deepseek.enabled
 
   // agent presets / plugins / account
-  Future<List<DshAgentPresetSummary>> listAgentPresets(); // agentPresets/list {presets:[{id,order,isDefault}]}
+  Future<List<DshAgentPresetSummary>> listAgentPresets(); // agentPresets/list {presets:[{id,order,isDefault,name?,description?,broken?}]}
+  Future<String> selectAgentPreset(String sessionId, String presetId); // agentPresets/select {agentId,agentPreset}
   Future<DshPluginInventory> loadPluginInventory();
   Future<List<DshPluginBundleInfo>> listPluginBundles();
   Future<List<DshPluginInfo>> listPlugins();
@@ -841,10 +842,24 @@ computed when `contextWindow > 0`.
 
 ### 13.3 Agent presets
 
-`agentPresets/list` → `{presets:[{id,order,isDefault}]}` →
-`DshCatalog.listAgentPresets()` (`DshAgentPresetSummary`). A 404 means the
-capability is absent. `pluginInventory/list` also carries the per-preset plugin
-composition already parsed in `DshPluginInventory.agentPresets`.
+`agentPresets/list` → `{presets:[{id,order,isDefault,name?,description?,broken?}]}`
+→ `DshCatalog.listAgentPresets()` (`DshAgentPresetSummary`, sorted by `order`).
+A 404 means the capability is absent. The roster is the authority for order,
+published copy and activation failures: the four shipped presets publish no
+`name`/`description`, a plugin declaration that names itself owns its copy, and
+a row with `broken` cannot compose a Session. `load()` reads the roster into
+`DshCatalogSnapshot.agentPresets` next to the rest of the first paint.
+
+`agentPresets/select {agentId, agentPreset}` → committed identity string. The
+`agentId` is the **session id**. It is valid only while the Session has not
+started its first turn; afterwards the Host refuses with
+`agent-preset/locked` and the client maps that to a `DshRemoteException`.
+`session/create` accepts the same value as `agentPreset`; `session/list`
+projections report the recorded one as `agentPreset`.
+
+`pluginInventory/list` also carries the per-preset plugin composition already
+parsed in `DshPluginInventory.agentPresets`; the gateway merges that with the
+roster so the settings tab can show the declared plugins for each roster row.
 
 ### 13.4 Terminal stage 1 (read-only attach)
 

@@ -105,10 +105,11 @@ class _DshPluginRow extends StatelessWidget {
   }
 }
 
-/// Agent 预设 tab: the compositions `pluginInventory/list` reports, read-only.
+/// Agent 预设 tab: the Host's roster joined with the compositions
+/// `pluginInventory/list` reports, read-only.
 ///
-/// The `agentPresets/*` RPCs are not in the core client yet, so this body lists
-/// the groups and their plugin rows without a select action.
+/// Selection lives on the composer (`agentPresets/select`, before the first
+/// turn); this tab only shows what each preset composes.
 class DshAgentPresetsTabBody extends StatelessWidget {
   const DshAgentPresetsTabBody({super.key, required this.groups});
 
@@ -180,6 +181,16 @@ class _DshAgentPresetCard extends StatelessWidget {
                 fontSize: 12.5,
                 height: 1.3,
                 color: cs.error.withValues(alpha: 0.9),
+              ),
+            ),
+          ] else if ((group.description ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              group.description!.trim(),
+              style: TextStyle(
+                fontSize: 12.5,
+                height: 1.35,
+                color: cs.onSurface.withValues(alpha: 0.6),
               ),
             ),
           ],

@@ -5745,5 +5745,21 @@
   "dshAttachmentUnsupportedType": "伺服器不接受這種圖片類型。",
   "dshAttachmentReadFailed": "無法讀取此檔案。",
   "dshAttachmentUploadFailed": "無法上傳此檔案。",
-  "dshAttachmentUploading": "正在上傳附件…"
+  "dshAttachmentUploading": "正在上傳附件…",
+  "dshPresetChipHint": "選擇新任務使用的 Agent 預設",
+  "dshPresetPickerTitle": "Agent 預設",
+  "dshPresetPickerEmpty": "此 Host 未提供 Agent 預設。",
+  "dshPresetLocked": "任務已開始，Agent 預設不可再變更。",
+  "dshPresetChanging": "正在切換 Agent 預設…",
+  "dshPresetBrokenTag": "無法使用",
+  "dshPresetStandardName": "標準模式",
+  "dshPresetStandardDescription": "處理程式碼、檔案和資料，適合大多數任務。Agent 會視需要使用檢索、編輯和終端等工具。",
+  "dshPresetPtcName": "PTC 模式",
+  "dshPresetPtcDescription": "包含標準模式的所有能力，更適合批次呼叫工具，並對結果進行篩選、整理、去重、統計或彙總的任務。",
+  "dshPresetMinimalName": "極簡模式",
+  "dshPresetMinimalDescription": "Agent 使用終端和圖片讀取工具，並支援上下文壓縮，適合測試和比較其基礎表現。",
+  "dshPresetCordisName": "創造模式",
+  "dshPresetCordisDescription": "用對話自訂 DSH：讓 Agent 撰寫外掛，新增功能或介面；也能組合工具和提示詞，建立自己的模式。",
+  "dshPresetSelectFailed": "無法切換 Agent 預設：{reason}",
+  "dshPresetSelectFailedUnknown": "無法切換 Agent 預設。"
 }

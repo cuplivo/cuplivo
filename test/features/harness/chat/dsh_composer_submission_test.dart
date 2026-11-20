@@ -61,6 +61,9 @@ class _FakeSession extends DshChatSession {
   Future<void> setPermission(String value) async {}
 
   @override
+  Future<void> selectAgentPreset(String presetId) async {}
+
+  @override
   Future<void> answerApproval(String requestId, {required bool allow}) async {}
 
   @override

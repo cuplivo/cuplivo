@@ -358,6 +358,8 @@ class DshSessionSummary {
     this.queued = 0,
     this.pinned = false,
     this.archived = false,
+    this.blank = true,
+    this.agentPreset,
     this.updatedAt,
   });
 
@@ -369,6 +371,14 @@ class DshSessionSummary {
   final int queued;
   final bool pinned;
   final bool archived;
+
+  /// True until the Session records its first turn. The Agent preset may only
+  /// be switched while this is true.
+  final bool blank;
+
+  /// The preset this Session runs (`agentPreset` projection); null when the
+  /// deployment composes no roster or the Session recorded none.
+  final String? agentPreset;
   final DateTime? updatedAt;
 
   DshSessionSummary copyWith({
@@ -378,6 +388,8 @@ class DshSessionSummary {
     int? queued,
     bool? pinned,
     bool? archived,
+    bool? blank,
+    String? agentPreset,
     DateTime? updatedAt,
   }) {
     return DshSessionSummary(
@@ -389,6 +401,8 @@ class DshSessionSummary {
       queued: queued ?? this.queued,
       pinned: pinned ?? this.pinned,
       archived: archived ?? this.archived,
+      blank: blank ?? this.blank,
+      agentPreset: agentPreset ?? this.agentPreset,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
@@ -405,6 +419,8 @@ class DshSessionSummary {
           other.queued == queued &&
           other.pinned == pinned &&
           other.archived == archived &&
+          other.blank == blank &&
+          other.agentPreset == agentPreset &&
           other.updatedAt == updatedAt;
 
   @override
@@ -417,6 +433,8 @@ class DshSessionSummary {
     queued,
     pinned,
     archived,
+    blank,
+    agentPreset,
     updatedAt,
   );
 }
@@ -580,6 +598,7 @@ class DshAgentPresetGroup {
   const DshAgentPresetGroup({
     required this.id,
     this.name,
+    this.description,
     this.isDefault = false,
     this.broken,
     this.plugins = const <DshAgentPresetPlugin>[],
@@ -587,6 +606,10 @@ class DshAgentPresetGroup {
 
   final String id;
   final String? name;
+
+  /// One sentence the preset published about itself; null when it publishes
+  /// none (the shipped presets leave this to the client's localization).
+  final String? description;
   final bool isDefault;
 
   /// Why the composition cannot be read (the plugin list is empty then).

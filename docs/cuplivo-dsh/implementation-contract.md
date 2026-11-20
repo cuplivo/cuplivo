@@ -49,9 +49,11 @@ The assistant settings page is a five-tab DSH surface, in this order:
 - `内置插件` is a native, read-only body over `catalog.plugins` (mapped from
   `pluginInventory/list`): plugin-localized title, module name, enabled/disabled,
   Loader phase and diagnostics. No toggles or management RPCs in this round.
-- `Agent 预设` is a native, read-only body over the inventory's optional
-  `agentPresets` groups (mapped into `DshCatalogSnapshot.agentPresets`): name/id,
-  default badge, plugin rows and broken reason; no select action.
+- `Agent 预设` is a native, read-only body over the Host's roster
+  (`agentPresets/list`, joined with the inventory's optional `agentPresets`
+  groups into `DshCatalogSnapshot.agentPresets`): name/id, published
+  description, default badge, plugin rows and broken reason. Selection is not a
+  settings write — it lives on the composer as the preset chip (see below).
 - Tabs live in `lib/features/harness/pages/assistant/dsh_settings_tabs.dart`
   (`DshSettingsTabSpec`), are rendered by
   `lib/features/harness/widgets/dsh_settings_tab_strip.dart` (strip key
@@ -125,6 +127,7 @@ honest fallback there and defers the harvest/landing proof to that job.
 | Right-rail cards (R7) | rail `dsh-right-rail`; built-in cards `dsh-rail-workspace-files`, `dsh-rail-new-terminal`, `dsh-rail-more-tools`; harvested plugin cards `dsh-rail-entry-<id>`; back/expand/close `dsh-rail-back`, `dsh-rail-expand`, `dsh-rail-close`, opened by `dsh-right-rail-button` | app-bar rail button → rail; harvested cards appear after one official WebUI open and open the landed official page; 新建终端 is built-in; the empty-harvest fallback asserts the built-in cards and leaves the harvest proof to the `dom-contract` job |
 | Native terminal (R12) | panel `dsh-terminal-panel`, surface `dsh-terminal-view`, header `dsh-terminal-header`, expand `dsh-terminal-expand`, states `dsh-terminal-readonly` / `dsh-terminal-unavailable`; full screen `dsh-terminal-page` | rail → `dsh-rail-new-terminal`; assert the Host shell title and cwd from `terminal/create` + `terminal/environment`, type a command through the surface's IME path, then return via `dsh-rail-back` and assert the created file in the rail's workspace files |
 | Remote file preview (R13) | card `dsh-remote-file-card`, retry `dsh-remote-file-retry`, WebView pane `dsh-file-preview-web-<generation>`, page root `dsh-file-preview-page` | rail → workspace files → tap the file: png/text render inline, pdf and binary open the full-screen page (pdf accepts the WebView or the honest metadata card; `blob.bin` accepts only the card) |
+| Composer presets (R6 v3) | chip `dsh-preset-chip`; picker rows `dsh-preset-<id>` | new session → the chip opens on the Host default; the picker lists `agentPresets/list` (shipped four localized by id, plugin presets by their published name, broken rows disabled with the Host reason); choosing a row writes `agentPresets/select` and the chip reports the committed value; once the first turn starts the chip is read-only |
 | Composer plus menu (R6 v2) | sheet `dsh-plus-sheet`; rows `dsh-plus-attach`, `dsh-plus-goal`, `dsh-plus-feedback`, `dsh-plus-compact`, `dsh-plus-permission`, `dsh-plus-model`, `dsh-plus-download-log`; section headers `dsh-plus-section-add`, `dsh-plus-section-commands` | composer `+` → sheet; every row is present, disabled rows carry their reason; native pickers behind `dsh-plus-attach` are not drivable from an integration test (noted in `e2e-scenario.md`) |
 | Slash commands (R6 v2) | sheet `dsh-slash-sheet`; row `dsh-slash-command-<name>` | composer `/` when the Host's `commands/list` is non-empty |
 | Context ring (R6 v2) | `dsh-context-ring` | after a real turn whose live session state carries `contextPressure` |

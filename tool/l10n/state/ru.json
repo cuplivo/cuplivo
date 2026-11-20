@@ -5745,5 +5745,21 @@
   "dshAttachmentUnsupportedType": "58796ac73139d712c1d366c901f065976d9bee41e8ead8b480c6f0fe2e611ea2",
   "dshAttachmentReadFailed": "e98a7580d59e857b533a2198a367a4231bbecf804ffdba48907697847a0ae1a9",
   "dshAttachmentUploadFailed": "1e323ce395bf7dc7f176d062d870594c0ee71fd79ea8b5a18e5c20135edb1c05",
-  "dshAttachmentUploading": "c2cb8636df5eb8d5ad7f3bd969cc026145a4acfe8a1b3a802aca42c33d51b34e"
+  "dshAttachmentUploading": "c2cb8636df5eb8d5ad7f3bd969cc026145a4acfe8a1b3a802aca42c33d51b34e",
+  "dshPresetChipHint": "686402ab51fc711e4614af3d81d693850b0d8058e2871602b83c938574596730",
+  "dshPresetPickerTitle": "3fdd5799de202ed6913abca4923354caedee7fde7ee79ed70058811f9136696e",
+  "dshPresetPickerEmpty": "76373635788cbbc93f7b496644ecea34bc71bed8bc5060e7e56586cc673f891e",
+  "dshPresetLocked": "2fa69a820dde3f3736ee0bf3d73f35c7bddd66965b93e83bc5c1bba2ec743e1b",
+  "dshPresetChanging": "7b7f3d6bd46274efbce669729c7d941b45dab4cfb1935ea76a8bcaa1084a5d22",
+  "dshPresetBrokenTag": "862083b98f87f2f65f6dcdd8528e0988755ae9b8b01768b5bdff527eb7a0a913",
+  "dshPresetStandardName": "927e466677a9406ecb715559f2304ad84a27ad5673f1c23cc84564cea822d90e",
+  "dshPresetStandardDescription": "a1293a8966d83dbc4fda54f672962ad143a867ed017e6d271d68739b5b816640",
+  "dshPresetPtcName": "0ad852d4ee0082d0cc35a1470afa4f601edb12e4e054f6e4214a6a1c83cdea4b",
+  "dshPresetPtcDescription": "5140308f7d0dc96a14974cf075c5f9e704c9dba1f936d952e679de9f4be58b15",
+  "dshPresetMinimalName": "b76ff62ed97604331e2dc166d41e2ec26419ce23e06eef77ea184169ff3b8230",
+  "dshPresetMinimalDescription": "5d52c1e39edea6236129e968f7e08c7b3c9dcd680af1bacdf654ad6a82da8656",
+  "dshPresetCordisName": "fa6c3b2cacb339b9b82063e2cc7d914c42031f0b822e2927ea48cdc5ebb7c515",
+  "dshPresetCordisDescription": "18ef5b91eceb366b384a33e50649c85b51c37a8b1b84d8152b2a2b1e882c3cc1",
+  "dshPresetSelectFailed": "92f41200a1b88e92e76d628790854029982a7ab2991d7b5d2a199dfc30137bd9",
+  "dshPresetSelectFailedUnknown": "448c0af182cd371900123813041e61495dcb44bfcb7ef327f45a43825b6a76e3"
 }

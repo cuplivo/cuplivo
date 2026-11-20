@@ -2675,7 +2675,7 @@ pluginManager/listVersionExemptions setVersionExemption                   —
 pluginInventory/list                          ★ (native plugin rows)
 pluginMarket/listIndexes readEntryDetail search setIndexes                —
 pluginRecommendations/describe                —
-agentPresets/list read select                 ○ (preset picker, if built)
+agentPresets/list read select                 ★ (composer preset chip + settings roster)
 job/list follow kill                          ○
 schedule/catalog create edit deleteInactive deliveryLimits history list run view  ○/—
 toolResults/watch                             ○

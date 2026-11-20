@@ -330,6 +330,133 @@ class DshModelCatalog {
 }
 
 // ---------------------------------------------------------------------------
+// Agent presets
+// ---------------------------------------------------------------------------
+
+/// One Agent preset the Host's `agentPresets/list` roster advertises.
+///
+/// The four shipped presets publish no display copy; Cuplivo localizes them by
+/// [id]. A plugin declaration that names itself owns its name and description,
+/// and those are always rendered verbatim.
+@immutable
+class DshAgentPresetOption {
+  const DshAgentPresetOption({
+    required this.id,
+    this.name,
+    this.description,
+    this.isDefault = false,
+    this.broken,
+  });
+
+  /// Stable identifier and the value `agentPresets/select` records.
+  final String id;
+
+  /// Display name the preset published; null for the shipped presets.
+  final String? name;
+
+  /// One sentence on what this preset is for; null when unpublished.
+  final String? description;
+
+  /// Whether a Session naming no preset composes this one.
+  final bool isDefault;
+
+  /// Why this preset cannot start a Session; null when it can.
+  final String? broken;
+
+  bool get isBroken => (broken ?? '').trim().isNotEmpty;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DshAgentPresetOption &&
+          other.id == id &&
+          other.name == name &&
+          other.description == description &&
+          other.isDefault == isDefault &&
+          other.broken == broken;
+
+  @override
+  int get hashCode => Object.hash(id, name, description, isDefault, broken);
+
+  @override
+  String toString() => 'DshAgentPresetOption($id)';
+}
+
+/// The roster and the preset the open Session runs.
+///
+/// Null means the connected Host composes no preset roster at all — the
+/// composer then hides the control instead of inventing a default.
+@immutable
+class DshAgentPresetState {
+  const DshAgentPresetState({
+    required this.options,
+    required this.currentId,
+    required this.defaultId,
+    required this.canSelect,
+    this.isChanging = false,
+  });
+
+  final List<DshAgentPresetOption> options;
+
+  /// The preset the open Session runs, or the Host-effective default while a
+  /// fresh Session records none yet.
+  final String currentId;
+
+  /// The roster's default row id; null for an empty roster.
+  final String? defaultId;
+
+  /// True while the Session has not started its first turn — the only window
+  /// in which the Host accepts a preset switch.
+  final bool canSelect;
+
+  final bool isChanging;
+
+  DshAgentPresetOption? optionFor(String id) {
+    for (final option in options) {
+      if (option.id == id) return option;
+    }
+    return null;
+  }
+
+  DshAgentPresetOption? get currentOption => optionFor(currentId);
+
+  DshAgentPresetState copyWith({
+    List<DshAgentPresetOption>? options,
+    String? currentId,
+    String? defaultId,
+    bool? canSelect,
+    bool? isChanging,
+  }) {
+    return DshAgentPresetState(
+      options: options ?? this.options,
+      currentId: currentId ?? this.currentId,
+      defaultId: defaultId ?? this.defaultId,
+      canSelect: canSelect ?? this.canSelect,
+      isChanging: isChanging ?? this.isChanging,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DshAgentPresetState &&
+          listEquals(other.options, options) &&
+          other.currentId == currentId &&
+          other.defaultId == defaultId &&
+          other.canSelect == canSelect &&
+          other.isChanging == isChanging;
+
+  @override
+  int get hashCode => Object.hash(
+    Object.hashAll(options),
+    currentId,
+    defaultId,
+    canSelect,
+    isChanging,
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Permissions
 // ---------------------------------------------------------------------------
 
@@ -860,6 +987,7 @@ class DshChatViewState {
     this.modelSelection,
     this.modelCatalog = const DshModelCatalog(),
     this.permissions,
+    this.agentPresets,
     this.approvals = const <DshPendingApproval>[],
     this.questions = const <DshPendingQuestion>[],
     this.contextPressure,
@@ -900,6 +1028,10 @@ class DshChatViewState {
 
   final DshModelCatalog modelCatalog;
   final DshPermissionState? permissions;
+
+  /// The Agent-preset roster and the open Session's preset; null when the Host
+  /// composes no preset roster.
+  final DshAgentPresetState? agentPresets;
   final List<DshPendingApproval> approvals;
   final List<DshPendingQuestion> questions;
 
@@ -969,6 +1101,7 @@ class DshChatViewState {
     DshModelSelection? modelSelection,
     DshModelCatalog? modelCatalog,
     DshPermissionState? permissions,
+    DshAgentPresetState? agentPresets,
     DshContextPressure? contextPressure,
     DshImageLimits? imageLimits,
     List<DshSlashCommand>? commands,
@@ -988,6 +1121,7 @@ class DshChatViewState {
       modelSelection: modelSelection ?? this.modelSelection,
       modelCatalog: modelCatalog ?? this.modelCatalog,
       permissions: permissions ?? this.permissions,
+      agentPresets: agentPresets ?? this.agentPresets,
       contextPressure: contextPressure ?? this.contextPressure,
       imageLimits: imageLimits ?? this.imageLimits,
       commands: commands ?? this.commands,
@@ -1066,6 +1200,13 @@ abstract class DshChatSession extends ChangeNotifier {
   /// Changes the session's permission preset. Stage 2 routes this through the
   /// `/permission` command (there is no dedicated set-permission RPC).
   Future<void> setPermission(String value);
+
+  /// Records the Agent preset for the open Session.
+  ///
+  /// Only valid before the Session's first turn: the Host refuses with
+  /// `agent-preset/locked` afterwards and the refusal surfaces through
+  /// [DshGatewayException.detail].
+  Future<void> selectAgentPreset(String presetId);
 
   /// Answers a pending approval waterfall; the turn blocks until it is.
   Future<void> answerApproval(String requestId, {required bool allow});

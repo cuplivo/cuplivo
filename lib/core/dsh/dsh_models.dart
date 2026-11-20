@@ -448,6 +448,10 @@ class DshSessionSummary {
   /// Row title from the summary projections; null means "new chat".
   String? get title => jsonString(projections?.values['title']);
 
+  /// The preset this Session runs, from `agentPreset` projections; null when
+  /// the deployment composes no preset roster or the Session recorded none.
+  String? get agentPreset => jsonString(projections?.values['agentPreset']);
+
   DshModelSelection? get nextModel {
     final model = jsonMap(projections?.values['modelSelection']);
     final next = jsonMap(model['next']);
@@ -1967,6 +1971,8 @@ class DshAgentPresetSummary {
     required this.order,
     required this.isDefault,
     this.name,
+    this.description,
+    this.broken,
     this.raw = const {},
   });
 
@@ -1977,6 +1983,8 @@ class DshAgentPresetSummary {
       order: jsonInt(map['order']) ?? 0,
       isDefault: map['isDefault'] == true,
       name: jsonString(map['name']),
+      description: jsonString(map['description']),
+      broken: jsonString(map['broken']),
       raw: map,
     );
   }
@@ -1986,7 +1994,16 @@ class DshAgentPresetSummary {
   /// Display order supplied by the Host (ascending).
   final int order;
   final bool isDefault;
+
+  /// Display name the preset published; null for the shipped presets, whose
+  /// copy the client localizes by [id].
   final String? name;
+
+  /// One sentence on what this preset is for; null when unpublished.
+  final String? description;
+
+  /// Why this preset cannot compose a Session; null when it can.
+  final String? broken;
   final Map<String, Object?> raw;
 }
 

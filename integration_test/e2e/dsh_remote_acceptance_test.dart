@@ -12,6 +12,7 @@ import 'package:Cuplivo/features/harness/pages/home/harness_home_chrome.dart';
 import 'package:Cuplivo/features/harness/pages/plugins/dsh_plugin_web_page.dart';
 import 'package:Cuplivo/features/harness/pages/preview/dsh_file_preview_page.dart';
 import 'package:Cuplivo/features/harness/services/dsh_surface_harvest.dart';
+import 'package:Cuplivo/features/harness/widgets/chat/dsh_agent_preset_picker.dart';
 import 'package:Cuplivo/features/harness/widgets/dsh_web_ui_view.dart';
 import 'package:Cuplivo/features/home/pages/home_mobile_layout.dart';
 import 'package:Cuplivo/features/home/widgets/message_list_view.dart';
@@ -675,6 +676,96 @@ Future<void> _runRealScenario(
     tester,
     composer,
     what: 'the new session composer (R6)',
+    maxFrames: 300,
+  );
+
+  // R6 v3: the Agent-preset chip above the composer. The Session the drawer
+  // just created is blank, so the Host roster is selectable; the shipped
+  // presets use Cuplivo's localized copy because the Host publishes none.
+  final presetChip = find.byKey(DshAgentPresetChip.chipKey);
+  await _pumpUntilFound(
+    tester,
+    presetChip,
+    what: 'the composer Agent-preset chip (R6)',
+    maxFrames: 300,
+  );
+  await pumpUntil(
+    tester,
+    () => find
+        .descendant(
+          of: presetChip,
+          matching: find.text(l10n.dshPresetStandardName),
+        )
+        .evaluate()
+        .isNotEmpty,
+    maxFrames: 300,
+  );
+  expect(
+    find.descendant(
+      of: presetChip,
+      matching: find.text(l10n.dshPresetStandardName),
+    ),
+    findsOneWidget,
+    reason: 'R6 the blank Session opens on the Host default preset',
+  );
+  await tester.tap(presetChip);
+  await _pumpUntilFound(
+    tester,
+    find.byKey(DshAgentPresetPicker.rowKey('standard')),
+    what: 'the Agent-preset picker roster (R6)',
+  );
+  for (final key in const ['standard', 'ptc', 'minimal', 'cordis']) {
+    expect(
+      find.byKey(DshAgentPresetPicker.rowKey(key)),
+      findsOneWidget,
+      reason: 'R6 the Host roster lists the shipped preset $key',
+    );
+  }
+  // Cuplivo localizes the shipped rows itself; the Host roster only carries
+  // ids for them.
+  expect(
+    find.text(l10n.dshPresetStandardName),
+    findsWidgets,
+    reason: 'R6 the shipped presets use the app localization',
+  );
+  e2eStep('before r6_preset_menu');
+  await capture(tester, binding, 'r6_preset_menu');
+
+  // A real write: switching a blank Session's preset goes through
+  // `agentPresets/select`, and the chip reports the committed value.
+  await tester.tap(find.byKey(DshAgentPresetPicker.rowKey('ptc')));
+  await pumpUntil(
+    tester,
+    () => find
+        .descendant(of: presetChip, matching: find.text(l10n.dshPresetPtcName))
+        .evaluate()
+        .isNotEmpty,
+    maxFrames: 300,
+  );
+  expect(
+    find.descendant(of: presetChip, matching: find.text(l10n.dshPresetPtcName)),
+    findsOneWidget,
+    reason: 'R6 the accepted preset switch reaches the chip',
+  );
+  e2eStep('before r6_preset_chip');
+  await capture(tester, binding, 'r6_preset_chip');
+  // Back to the default composition so the tool turn exercises Standard mode.
+  await tester.tap(presetChip);
+  await _pumpUntilFound(
+    tester,
+    find.byKey(DshAgentPresetPicker.rowKey('standard')),
+    what: 'the Agent-preset picker roster again (R6)',
+  );
+  await tester.tap(find.byKey(DshAgentPresetPicker.rowKey('standard')));
+  await pumpUntil(
+    tester,
+    () => find
+        .descendant(
+          of: presetChip,
+          matching: find.text(l10n.dshPresetStandardName),
+        )
+        .evaluate()
+        .isNotEmpty,
     maxFrames: 300,
   );
 

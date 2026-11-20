@@ -19863,4 +19863,59 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get dshAttachmentUploading => 'Ek yükleniyor…';
+
+  @override
+  String get dshPresetChipHint => 'Yeni göreviniz için ajan ön ayarını seçin';
+
+  @override
+  String get dshPresetPickerTitle => 'Ajan ön ayarı';
+
+  @override
+  String get dshPresetPickerEmpty => 'Bu Host ajan ön ayarı bildirmiyor.';
+
+  @override
+  String get dshPresetLocked =>
+      'Görev başladı; ajan ön ayarı artık değiştirilemez.';
+
+  @override
+  String get dshPresetChanging => 'Ajan ön ayarı değiştiriliyor…';
+
+  @override
+  String get dshPresetBrokenTag => 'Kullanılamıyor';
+
+  @override
+  String get dshPresetStandardName => 'Standart mod';
+
+  @override
+  String get dshPresetStandardDescription =>
+      'Kod, dosya ve bilgilerle çalışın. Çoğu görev için uygundur; arama, düzenleme, terminal komutları ve diğer araçlar gerektiğinde kullanılabilir.';
+
+  @override
+  String get dshPresetPtcName => 'PTC modu';
+
+  @override
+  String get dshPresetPtcDescription =>
+      'Standart modun tüm yeteneklerini içerir. Araçları toplu çağırıp sonuçları filtreleme, düzenleme, tekilleştirme, sayma veya özetleme gerektiren görevler için daha uygundur.';
+
+  @override
+  String get dshPresetMinimalName => 'Minimal mod';
+
+  @override
+  String get dshPresetMinimalDescription =>
+      'Ajan terminali ve görsel okumayı kullanır, bağlam sıkıştırmayı destekler. Temel performansını test etmek ve karşılaştırmak için kullanışlıdır.';
+
+  @override
+  String get dshPresetCordisName => 'Oluşturucu modu';
+
+  @override
+  String get dshPresetCordisDescription =>
+      'DSH\'yi konuşarak özelleştirin. Ajan özellik veya arayüz ekleyen eklentiler yazsın ya da araçları ve istemleri birleştirerek kendi modunuzu oluşturun.';
+
+  @override
+  String dshPresetSelectFailed(String reason) {
+    return 'Ajan ön ayarı değiştirilemedi: $reason';
+  }
+
+  @override
+  String get dshPresetSelectFailedUnknown => 'Ajan ön ayarı değiştirilemedi.';
 }

@@ -179,6 +179,8 @@ DshSessionSummary mapDshSessionSummary(
     running: source.running,
     pinned: pinnedIds.contains(source.sessionId),
     archived: archivedIds.contains(source.sessionId),
+    blank: source.blank,
+    agentPreset: source.agentPreset,
     updatedAt: source.updatedAt,
   );
 }
@@ -349,14 +351,45 @@ DshCatalogSnapshot mapDshCatalog(dsh.DshCatalogSnapshot source) {
     plugins: [
       for (final entry in source.plugins.entries) mapDshPluginEntry(entry),
     ],
-    agentPresets: [
-      for (final group in source.plugins.agentPresets)
-        mapDshAgentPresetGroup(group),
-    ],
+    agentPresets: _mapAgentPresets(source),
     capabilities: _mapCapabilities(source.capabilities),
     failures: _mapCatalogFailures(source.capabilities),
     loadedAt: source.loadedAt,
   );
+}
+
+/// The roster surfaces the same declarations `pluginInventory/list` groups,
+/// but it is the authority for order, copy and activation failures: it is what
+/// the Host answers a selection with. Merge the two so a preset that only the
+/// roster reports (an activation failure) still renders, and a composition that
+/// only the inventory reports keeps its plugin rows for the settings tab.
+List<DshAgentPresetGroup> _mapAgentPresets(dsh.DshCatalogSnapshot source) {
+  final groups = <String, DshAgentPresetGroup>{
+    for (final group in source.plugins.agentPresets)
+      group.id: mapDshAgentPresetGroup(group),
+  };
+  final roster = source.agentPresets;
+  if (roster.isEmpty) return groups.values.toList(growable: false);
+  final seen = <String>{};
+  final merged = <DshAgentPresetGroup>[];
+  for (final preset in roster) {
+    seen.add(preset.id);
+    final group = groups[preset.id];
+    merged.add(
+      DshAgentPresetGroup(
+        id: preset.id,
+        name: preset.name ?? group?.name,
+        description: preset.description ?? group?.description,
+        isDefault: preset.isDefault,
+        broken: preset.broken ?? group?.broken,
+        plugins: group?.plugins ?? const <DshAgentPresetPlugin>[],
+      ),
+    );
+  }
+  for (final entry in groups.entries) {
+    if (!seen.contains(entry.key)) merged.add(entry.value);
+  }
+  return List<DshAgentPresetGroup>.unmodifiable(merged);
 }
 
 // ---------------------------------------------------------------------------

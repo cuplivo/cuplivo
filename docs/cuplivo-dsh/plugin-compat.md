@@ -986,7 +986,7 @@ the compatibility decision is self-contained.
 | plugin inventory, enable/disable, bundles, install/update/remove, README | `pluginInventory/list`, `pluginManager/*` (§4.4) |
 | settings documents and schema forms | `settings/describe`, `settings/update`/`mutate`, `settings/document-updated` |
 | models/providers/credentials | `llm/*`, `credentials/*` |
-| Agent presets | `pluginInventory.agentPresets`; `agentPresets/list`, `read`, `select` exist on 0.2.2 (`protocol.md` §3) |
+| Agent presets | `agentPresets/list` is the selection roster (order, `isDefault`, published `name`/`description`, `broken`); `agentPresets/select` records one before a Session's first turn; `pluginInventory.agentPresets` adds each declaration's plugin rows. Cuplivo renders the roster natively as the composer's preset chip — a plugin-registered preset appears there by its own name, never by a hardcoded list — and `agentPresets/read` backs the settings tab's read-only composition view. |
 | automation list | `schedule/list`/`view`/`history`; mutations via `schedule/*` |
 | workspace files (right rail 工作区文件) | `workspaceFiles/*` |
 | terminal (right rail) | `terminal/attach` (see `protocol.md`) |

@@ -205,6 +205,11 @@ class DshClientSessionHandle implements DshSessionHandle {
       _run(() => _store.setPermission(presetId));
 
   @override
+  Future<void> selectAgentPreset(String presetId) => _run(() async {
+    await _client.catalog.selectAgentPreset(sessionId, presetId);
+  });
+
+  @override
   Future<void> answerApproval(
     DshApprovalRequest request, {
     required bool approved,

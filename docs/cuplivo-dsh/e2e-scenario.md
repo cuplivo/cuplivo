@@ -77,9 +77,16 @@ Each step ends with `capture(..., '<name>')` when it produces evidence.
    `DeepSeek Harness` owner row (R4): screenshot `r4_local_sidebar`. In harness
    mode assert the pre-harvest drawer (R5): built-in `插件`/`自动化任务`/`更多`
    rows; screenshot `r5_dsh_drawer`.
-9. Create a session and send a short prompt (`你好，请用一句话介绍你自己`),
-   wait for the streamed assistant answer; assert the app-bar title/subtitle
-   (R6); screenshot `r6_chat`.
+9. Create a session. Before the first prompt, assert the composer's
+   **Agent 预设** chip (`dsh-preset-chip`) opens on the Host default and is
+   selectable while the Session is blank: open it, assert the picker
+   (`dsh-preset-standard|ptc|minimal|cordis`) lists the Host roster and that
+   the shipped rows use Cuplivo's localized copy; screenshot
+   `r6_preset_menu`. Pick `ptc` — a real `agentPresets/select` write — and wait
+   for the chip to report `PTC 模式`; screenshot `r6_preset_chip`. Pick
+   `standard` again so the tool turn runs the default composition. Then send a
+   short prompt (`你好，请用一句话介绍你自己`), wait for the streamed assistant
+   answer; assert the app-bar title/subtitle (R6); screenshot `r6_chat`.
 10. Composer plus menu: assert both groups `添加`/`指令` and every row
     (文件/目标/计划/反馈, 压缩/权限/模型/下载日志), screenshot `r6_plus_menu`.
     Honest disables are rendered, not hidden (the row copy states the missing
@@ -150,7 +157,8 @@ state matters. It must not depend on pre-existing sessions.
 plugin-contributed settings section), `r2_plugin_settings_body`,
 `r2_agent_presets`, `r8_general_settings`, `r4_local_sidebar`,
 `r5_dsh_drawer`, `r9_models`, `r10_add_provider`, `r11_provider_detail`,
-`r6_chat`, `r6_plus_menu`, `r6_tool_turn`, `r6_context_ring`, `r6_attachment`,
+`r6_preset_menu`, `r6_preset_chip`, `r6_chat`, `r6_plus_menu`,
+`r6_tool_turn`, `r6_context_ring`, `r6_attachment`,
 `r7_right_rail`, `r5_harvested_sidebar`, `r5_plugins_page`, `r5_search_service_page`,
 `r5_more_menu`, `r7_harvested_cards`, `r7_diff_page`,
 `r12_terminal`, `r12_terminal_command`, `r13_png_inline`, `r13_pdf_preview`,
@@ -177,7 +185,8 @@ not depend on layout: `dsh-create-menu-item`, `dsh-engine-mode`,
 (pre-harvest built-ins: `plugins`/`automations`/`more`; harvested rows: slug of
 the Host label, e.g. `dsh-sidebar-entry-搜索服务`), `dsh-session-row`,
 `dsh-new-session`, `dsh-composer`, `dsh-send`, `dsh-transcript`,
-`dsh-plus-sheet`, `dsh-plus-section-add|commands`, `dsh-plus-attach|goal|feedback|
+`dsh-preset-chip`, `dsh-preset-<id>`, `dsh-plus-sheet`,
+`dsh-plus-section-add|commands`, `dsh-plus-attach|goal|feedback|
 compact|permission|model|download-log`, `dsh-context-ring`,
 `dsh-approval-allow`,
 `dsh-right-rail-button`, `dsh-right-rail`, `dsh-rail-back|title|expand|close`,

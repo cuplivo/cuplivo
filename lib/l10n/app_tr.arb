@@ -5745,5 +5745,21 @@
   "dshAttachmentUnsupportedType": "Sunucu bu görsel türünü kabul etmiyor.",
   "dshAttachmentReadFailed": "Dosya okunamadı.",
   "dshAttachmentUploadFailed": "Dosya yüklenemedi.",
-  "dshAttachmentUploading": "Ek yükleniyor…"
+  "dshAttachmentUploading": "Ek yükleniyor…",
+  "dshPresetChipHint": "Yeni göreviniz için ajan ön ayarını seçin",
+  "dshPresetPickerTitle": "Ajan ön ayarı",
+  "dshPresetPickerEmpty": "Bu Host ajan ön ayarı bildirmiyor.",
+  "dshPresetLocked": "Görev başladı; ajan ön ayarı artık değiştirilemez.",
+  "dshPresetChanging": "Ajan ön ayarı değiştiriliyor…",
+  "dshPresetBrokenTag": "Kullanılamıyor",
+  "dshPresetStandardName": "Standart mod",
+  "dshPresetStandardDescription": "Kod, dosya ve bilgilerle çalışın. Çoğu görev için uygundur; arama, düzenleme, terminal komutları ve diğer araçlar gerektiğinde kullanılabilir.",
+  "dshPresetPtcName": "PTC modu",
+  "dshPresetPtcDescription": "Standart modun tüm yeteneklerini içerir. Araçları toplu çağırıp sonuçları filtreleme, düzenleme, tekilleştirme, sayma veya özetleme gerektiren görevler için daha uygundur.",
+  "dshPresetMinimalName": "Minimal mod",
+  "dshPresetMinimalDescription": "Ajan terminali ve görsel okumayı kullanır, bağlam sıkıştırmayı destekler. Temel performansını test etmek ve karşılaştırmak için kullanışlıdır.",
+  "dshPresetCordisName": "Oluşturucu modu",
+  "dshPresetCordisDescription": "DSH'yi konuşarak özelleştirin. Ajan özellik veya arayüz ekleyen eklentiler yazsın ya da araçları ve istemleri birleştirerek kendi modunuzu oluşturun.",
+  "dshPresetSelectFailed": "Ajan ön ayarı değiştirilemedi: {reason}",
+  "dshPresetSelectFailedUnknown": "Ajan ön ayarı değiştirilemedi."
 }

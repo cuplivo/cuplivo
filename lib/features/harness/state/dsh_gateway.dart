@@ -152,6 +152,10 @@ abstract interface class DshSessionHandle {
   /// Applies a permission preset through the server's command path.
   Future<void> runPermissionCommand(String presetId);
 
+  /// Records the Agent preset a Session runs. Only valid before the Session's
+  /// first turn; the Host refuses with `agent-preset/locked` afterwards.
+  Future<void> selectAgentPreset(String presetId);
+
   /// Answers a pending approval.
   Future<void> answerApproval(
     DshApprovalRequest request, {

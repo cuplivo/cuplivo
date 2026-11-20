@@ -37,6 +37,13 @@ when a detail here disagrees with a research note, this file wins and is amended
    - a session's permission has no write RPC: read `permissionPreset` from the
      projections and change it with the `/permission` command; the *default* for
      new sessions is a settings write (`permission.defaultPreset`).
+   - an Agent preset is chosen **before the first turn**: `session/create`
+     carries `agentPreset` and `agentPresets/select {agentId,agentPreset}`
+     rewrites a still-blank Session (`agent-preset/locked` afterwards). The
+     roster is `agentPresets/list`, which marks the default and reports broken
+     declarations; the shipped four (`standard`/`ptc`/`minimal`/`cordis`)
+     publish no copy, so the client localizes them, while a plugin-declared
+     preset always owns its name and description.
    - `session/prompt` on a cold session requires activation (a `session/follow`
      with `activate:true` whose snapshot is awaited first).
    - the right-rail **浏览器** card has no remote API in 0.2.2-rc.1 → it is not
@@ -185,7 +192,7 @@ DshConnectionsProvider (remotes + link status, owns store + secure cookie)
 | 3 | Direct-connect form (name + WebUI URL + confirm + LAN/public hint) | `pages/connect/` |
 | 4 | Connected assistant card (“远程连接的 DeepSeek Harness”) | `pages/assistant/` |
 | 5 | Chat drawer: search, remote row, plugin/automation/more, workspaces, sessions, bottom bar | `SideDrawer` harness mode + `pages/home/` |
-| 6 | Chat: Cuplivo renderer, remote model/effort/permission in composer, DSH “+” menu, app-bar right-rail button replacing minimap | `pages/chat/` + home app bars |
+| 6 | Chat: Cuplivo renderer, remote model/effort/permission and Agent-preset chip above the composer, DSH “+” menu, app-bar right-rail button replacing minimap | `pages/chat/` + home app bars |
 | 7 | Right rail pushes chat off-screen; official entries Flutter (workspace files, terminal native; browser hidden by capability), plugin WebView | right-rail widgets + `pages/plugins/` |
 | 8 | Assistant settings tabs: 连接设置 / 通用设置 / 模型 / 内置插件 / Agent 预设 (Host-reported; v2) | `pages/assistant/` |
 | 9 | Models page mirrors Cuplivo's provider page: DSH providers/models, 自定义提供商 first, provider detail per DSH settings schema | `pages/assistant/models_*` reusing provider widgets |

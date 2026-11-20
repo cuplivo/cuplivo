@@ -34607,6 +34607,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Uploading attachment…'**
   String get dshAttachmentUploading;
+
+  /// Tooltip on the composer's Agent-preset chip while the open Session can still switch preset; it invites the user to pick the preset for the new task.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the Agent preset for your new task'**
+  String get dshPresetChipHint;
+
+  /// Title of the Agent-preset picker sheet/dialog opened from the composer chip.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent preset'**
+  String get dshPresetPickerTitle;
+
+  /// Empty state inside the Agent-preset picker when the Host's roster lists no preset.
+  ///
+  /// In en, this message translates to:
+  /// **'This Host reports no Agent presets.'**
+  String get dshPresetPickerEmpty;
+
+  /// Tooltip on the Agent-preset chip once the Session started; explains why the preset is no longer selectable.
+  ///
+  /// In en, this message translates to:
+  /// **'This task has already started; its Agent preset can no longer change.'**
+  String get dshPresetLocked;
+
+  /// Progress label under the roster while an `agentPresets/select` write is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Switching the Agent preset…'**
+  String get dshPresetChanging;
+
+  /// Short red tag on a roster row whose declaration failed to activate; the Host's reason is shown below it.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable'**
+  String get dshPresetBrokenTag;
+
+  /// Display name of the shipped `standard` Agent preset, used when the Host publishes no name for it (mirrors the official client's wording).
+  ///
+  /// In en, this message translates to:
+  /// **'Standard mode'**
+  String get dshPresetStandardName;
+
+  /// One-sentence description of the shipped `standard` Agent preset, used when the Host publishes none.
+  ///
+  /// In en, this message translates to:
+  /// **'Work with code, files, and information. Suitable for most tasks, with search, editing, terminal commands, and other tools available as needed.'**
+  String get dshPresetStandardDescription;
+
+  /// Display name of the shipped `ptc` (Programmatic Tool Calling) Agent preset, used when the Host publishes no name for it.
+  ///
+  /// In en, this message translates to:
+  /// **'PTC mode'**
+  String get dshPresetPtcName;
+
+  /// One-sentence description of the shipped `ptc` Agent preset, used when the Host publishes none.
+  ///
+  /// In en, this message translates to:
+  /// **'Includes all Standard mode capabilities. Better suited to tasks that call tools in batches and then filter, organize, deduplicate, count, or summarize the results.'**
+  String get dshPresetPtcDescription;
+
+  /// Display name of the shipped `minimal` Agent preset, used when the Host publishes no name for it.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimal mode'**
+  String get dshPresetMinimalName;
+
+  /// One-sentence description of the shipped `minimal` Agent preset, used when the Host publishes none.
+  ///
+  /// In en, this message translates to:
+  /// **'The agent uses a terminal and image reading, with context compaction. Useful for testing and comparing its basic performance.'**
+  String get dshPresetMinimalDescription;
+
+  /// Display name of the shipped `cordis` (Creator) Agent preset, used when the Host publishes no name for it.
+  ///
+  /// In en, this message translates to:
+  /// **'Creator mode'**
+  String get dshPresetCordisName;
+
+  /// One-sentence description of the shipped `cordis` Agent preset, used when the Host publishes none.
+  ///
+  /// In en, this message translates to:
+  /// **'Customize DSH through conversation. Let the agent write plugins that add features or UI, or combine tools and prompts to create your own mode.'**
+  String get dshPresetCordisDescription;
+
+  /// Snackbar after the Host refused an Agent-preset switch, such as `agent-preset/locked` when another window already started the task; {reason} is the Host's short explanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not switch the Agent preset: {reason}'**
+  String dshPresetSelectFailed(String reason);
+
+  /// Snackbar after an Agent-preset switch failed without a Host reason (link or protocol failure).
+  ///
+  /// In en, this message translates to:
+  /// **'Could not switch the Agent preset.'**
+  String get dshPresetSelectFailedUnknown;
 }
 
 class _AppLocalizationsDelegate

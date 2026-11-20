@@ -75,6 +75,18 @@ void main() {
       expect(snapshot.configurableProviders.first.settingsNs, 'llm-deepseek');
       expect(snapshot.permissionPresets.defaultPreset, 'workspace-write');
       expect(snapshot.permissionPresets.option('read-only')!.name, 'read-only');
+      expect(snapshot.agentPresets, hasLength(4));
+      expect(snapshot.agentPresets.first.id, 'standard');
+      expect(snapshot.agentPresets.first.isDefault, isTrue);
+      expect(snapshot.agentPresets[2].name, 'Code review');
+      expect(
+        snapshot.agentPresets[2].description,
+        'Prioritizes bugs and test gaps.',
+      );
+      expect(
+        snapshot.agentPresets.last.broken,
+        'Its plugin failed to activate.',
+      );
       expect(snapshot.plugins.managementAvailable, isTrue);
       expect(snapshot.plugins.entries, hasLength(2));
       expect(snapshot.plugins.entries.last.title!.resolve('zh'), '插件管理');
@@ -101,7 +113,10 @@ void main() {
     () async {
       transport.values.remove('pluginInventory/list');
       transport.values.remove('settings/describe');
+      transport.values.remove('agentPresets/list');
       final snapshot = await catalog.load();
+      expect(snapshot.agentPresets, isEmpty);
+      expect(snapshot.capabilities.supports('agentPresets/list'), isFalse);
       expect(snapshot.plugins.entries, isEmpty);
       expect(snapshot.settings.writable, isFalse);
       expect(snapshot.capabilities.supports('pluginInventory/list'), isFalse);
@@ -145,6 +160,28 @@ void main() {
         'args': {
           'request': {'workspaceId': 'w1'},
         },
+      });
+    },
+  );
+
+  test(
+    'agentPresets/list keeps host order and select sends the roster value',
+    () async {
+      transport.values['agentPresets/list'] = {
+        'presets': [
+          {'id': 'ptc', 'order': 2, 'isDefault': false},
+          {'id': 'standard', 'order': 1, 'isDefault': true},
+        ],
+      };
+      final roster = await catalog.listAgentPresets();
+      expect(roster.map((preset) => preset.id), ['standard', 'ptc']);
+      expect(roster.first.isDefault, isTrue);
+
+      transport.values['agentPresets/select'] = 'ptc';
+      final committed = await catalog.selectAgentPreset('s1', 'ptc');
+      expect(committed, 'ptc');
+      expect(transport.posted.last['payload'], {
+        'args': {'agentId': 's1', 'agentPreset': 'ptc'},
       });
     },
   );

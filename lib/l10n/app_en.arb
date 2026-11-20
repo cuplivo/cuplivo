@@ -25441,5 +25441,74 @@
   },
   "@dshAttachmentUploading": {
     "description": "Status text indicating an attachment is currently being uploaded."
+  },
+  "dshPresetChipHint": "Choose the Agent preset for your new task",
+  "@dshPresetChipHint": {
+    "description": "Tooltip on the composer's Agent-preset chip while the open Session can still switch preset; it invites the user to pick the preset for the new task."
+  },
+  "dshPresetPickerTitle": "Agent preset",
+  "@dshPresetPickerTitle": {
+    "description": "Title of the Agent-preset picker sheet/dialog opened from the composer chip."
+  },
+  "dshPresetPickerEmpty": "This Host reports no Agent presets.",
+  "@dshPresetPickerEmpty": {
+    "description": "Empty state inside the Agent-preset picker when the Host's roster lists no preset."
+  },
+  "dshPresetLocked": "This task has already started; its Agent preset can no longer change.",
+  "@dshPresetLocked": {
+    "description": "Tooltip on the Agent-preset chip once the Session started; explains why the preset is no longer selectable."
+  },
+  "dshPresetChanging": "Switching the Agent preset…",
+  "@dshPresetChanging": {
+    "description": "Progress label under the roster while an `agentPresets/select` write is in flight."
+  },
+  "dshPresetBrokenTag": "Unavailable",
+  "@dshPresetBrokenTag": {
+    "description": "Short red tag on a roster row whose declaration failed to activate; the Host's reason is shown below it."
+  },
+  "dshPresetStandardName": "Standard mode",
+  "@dshPresetStandardName": {
+    "description": "Display name of the shipped `standard` Agent preset, used when the Host publishes no name for it (mirrors the official client's wording)."
+  },
+  "dshPresetStandardDescription": "Work with code, files, and information. Suitable for most tasks, with search, editing, terminal commands, and other tools available as needed.",
+  "@dshPresetStandardDescription": {
+    "description": "One-sentence description of the shipped `standard` Agent preset, used when the Host publishes none."
+  },
+  "dshPresetPtcName": "PTC mode",
+  "@dshPresetPtcName": {
+    "description": "Display name of the shipped `ptc` (Programmatic Tool Calling) Agent preset, used when the Host publishes no name for it."
+  },
+  "dshPresetPtcDescription": "Includes all Standard mode capabilities. Better suited to tasks that call tools in batches and then filter, organize, deduplicate, count, or summarize the results.",
+  "@dshPresetPtcDescription": {
+    "description": "One-sentence description of the shipped `ptc` Agent preset, used when the Host publishes none."
+  },
+  "dshPresetMinimalName": "Minimal mode",
+  "@dshPresetMinimalName": {
+    "description": "Display name of the shipped `minimal` Agent preset, used when the Host publishes no name for it."
+  },
+  "dshPresetMinimalDescription": "The agent uses a terminal and image reading, with context compaction. Useful for testing and comparing its basic performance.",
+  "@dshPresetMinimalDescription": {
+    "description": "One-sentence description of the shipped `minimal` Agent preset, used when the Host publishes none."
+  },
+  "dshPresetCordisName": "Creator mode",
+  "@dshPresetCordisName": {
+    "description": "Display name of the shipped `cordis` (Creator) Agent preset, used when the Host publishes no name for it."
+  },
+  "dshPresetCordisDescription": "Customize DSH through conversation. Let the agent write plugins that add features or UI, or combine tools and prompts to create your own mode.",
+  "@dshPresetCordisDescription": {
+    "description": "One-sentence description of the shipped `cordis` Agent preset, used when the Host publishes none."
+  },
+  "dshPresetSelectFailed": "Could not switch the Agent preset: {reason}",
+  "@dshPresetSelectFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    },
+    "description": "Snackbar after the Host refused an Agent-preset switch, such as `agent-preset/locked` when another window already started the task; {reason} is the Host's short explanation."
+  },
+  "dshPresetSelectFailedUnknown": "Could not switch the Agent preset.",
+  "@dshPresetSelectFailedUnknown": {
+    "description": "Snackbar after an Agent-preset switch failed without a Host reason (link or protocol failure)."
   }
 }

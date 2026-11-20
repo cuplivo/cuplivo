@@ -19143,4 +19143,58 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get dshAttachmentUploading => '첨부 파일 업로드 중…';
+
+  @override
+  String get dshPresetChipHint => '새 작업에 사용할 에이전트 프리셋을 선택하세요';
+
+  @override
+  String get dshPresetPickerTitle => '에이전트 프리셋';
+
+  @override
+  String get dshPresetPickerEmpty => '이 Host는 에이전트 프리셋을 제공하지 않습니다.';
+
+  @override
+  String get dshPresetLocked => '작업이 이미 시작되어 에이전트 프리셋을 변경할 수 없습니다.';
+
+  @override
+  String get dshPresetChanging => '에이전트 프리셋 전환 중…';
+
+  @override
+  String get dshPresetBrokenTag => '사용할 수 없음';
+
+  @override
+  String get dshPresetStandardName => '표준 모드';
+
+  @override
+  String get dshPresetStandardDescription =>
+      '코드, 파일, 정보를 다룹니다. 대부분의 작업에 적합하며 검색, 편집, 터미널 명령 등 도구를 필요에 따라 사용합니다.';
+
+  @override
+  String get dshPresetPtcName => 'PTC 모드';
+
+  @override
+  String get dshPresetPtcDescription =>
+      '표준 모드의 모든 기능을 포함합니다. 도구를 일괄 호출한 뒤 결과를 필터링, 정리, 중복 제거, 계산, 요약하는 작업에 더 적합합니다.';
+
+  @override
+  String get dshPresetMinimalName => '미니멀 모드';
+
+  @override
+  String get dshPresetMinimalDescription =>
+      '에이전트가 터미널과 이미지 읽기를 사용하며 컨텍스트 압축을 지원합니다. 기본 성능을 테스트하고 비교하는 데 유용합니다.';
+
+  @override
+  String get dshPresetCordisName => '크리에이터 모드';
+
+  @override
+  String get dshPresetCordisDescription =>
+      '대화로 DSH를 맞춤 설정합니다. 에이전트가 기능이나 UI를 추가하는 플러그인을 작성하거나, 도구와 프롬프트를 조합해 나만의 모드를 만들 수 있습니다.';
+
+  @override
+  String dshPresetSelectFailed(String reason) {
+    return '에이전트 프리셋을 전환하지 못했습니다: $reason';
+  }
+
+  @override
+  String get dshPresetSelectFailedUnknown => '에이전트 프리셋을 전환하지 못했습니다.';
 }

@@ -5745,5 +5745,21 @@
   "dshAttachmentUnsupportedType": "110f663510b53e46e0f96a6c9d289783890361eb3cc8b981a9dad8f0fe1aae17",
   "dshAttachmentReadFailed": "31bc0d2964bb81eef4c97cb120b78c298a838834101659438393231cfe9b03da",
   "dshAttachmentUploadFailed": "d5b2c73c7fcceec787a55495f871d91a46cf9b681f7eeb9b815a82122c856866",
-  "dshAttachmentUploading": "383430d76b876e407287eccc3d3537ec30887d9c9431d8985c342974ab6060b9"
+  "dshAttachmentUploading": "383430d76b876e407287eccc3d3537ec30887d9c9431d8985c342974ab6060b9",
+  "dshPresetChipHint": "f016c59ebba550816614a490ff0bdf4e1eba3d7e118622897c54551ca381853d",
+  "dshPresetPickerTitle": "d168ef89454b8a0f573d3c0366b38e8e4d4af82faec2eb6f57804e979a9922cd",
+  "dshPresetPickerEmpty": "81e332ebe5419940f26f7a46b42d6450d815f37e2cc5b53d44468483ed489617",
+  "dshPresetLocked": "aff14c05907fc492a7f6307650c23e0f1fbda7e2c18e7159d1e2789b86194c31",
+  "dshPresetChanging": "2783662e3f8eaea78b64ca5c43632d4f5ad0476266d1d4ade5c0d92d1c7d86c0",
+  "dshPresetBrokenTag": "e4673adf51412544f12ecb587de3fdbb658fabf333e1407ede52bd0e6d25fe36",
+  "dshPresetStandardName": "2cf5d1a33cee9261ebda9409fdbe5c8f233c6100c85ba611d2e2ce0b0b609dbc",
+  "dshPresetStandardDescription": "493c0d158abecf0ec35aeaa6fa997265b64324b5a75767ba293d13574774b186",
+  "dshPresetPtcName": "abde9e08d5a2dcf6f2e7f3320fad56544d1b1666d1a514501c6b917896629fe5",
+  "dshPresetPtcDescription": "fef2b1939c1ef998e7e107ded6ca4966957d17a3d16ed8ab722af905a7bd1be2",
+  "dshPresetMinimalName": "8ea624812c290765e6477bad9a0743e0a6bf740bdfd22c236f5f843e17949d3a",
+  "dshPresetMinimalDescription": "8eede586944cbd16898a8b96178a219dcfaab93be57e39302f5b1a03d24e7ff5",
+  "dshPresetCordisName": "8d0cb69cfab0cc14b9664ec94c126315ef32c45139416312c72d29b649228cef",
+  "dshPresetCordisDescription": "5afd38839fa0615cb6bca162b2f806b2510b7184cce31f0fed0d3e6cc227d682",
+  "dshPresetSelectFailed": "a33d9b1e8f2ad7734c6f40a40324398a88b7b622463f8d24bc88d8066530054f",
+  "dshPresetSelectFailedUnknown": "f69d4f348a54315fbee20786f8e545d188e4fa194689a92459c356fbcc52fe3c"
 }

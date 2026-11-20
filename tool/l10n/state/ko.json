@@ -5745,5 +5745,21 @@
   "dshAttachmentUnsupportedType": "f5bb5ebef3a71c391fb0f1a59dcdd2c43f5b3ac8c3c0d5b57191b43ab54c7e83",
   "dshAttachmentReadFailed": "58a21c9b22a16b8ec872b9758c7d003e9986897cfcd750f409830dc8128b797a",
   "dshAttachmentUploadFailed": "5fa2b39ff49b0605644709135ffafa98ac093d35c026299c1788900062623a8a",
-  "dshAttachmentUploading": "f3a75f2aba004dacdb7916d2f56f5ea19e3aa22c777e6a537a45e857f1cc1e81"
+  "dshAttachmentUploading": "f3a75f2aba004dacdb7916d2f56f5ea19e3aa22c777e6a537a45e857f1cc1e81",
+  "dshPresetChipHint": "407da152166b03135a78ae8377ef78925ce5c6fc2dda7d9ec00528f674889f73",
+  "dshPresetPickerTitle": "f4e6624af049e62f54a8f11db18b9489736c6ca5796687788d11c5077d93b28c",
+  "dshPresetPickerEmpty": "5c2fee4082f61f3820aba5c60013e7407688626bea164de06421f31e6d650bd5",
+  "dshPresetLocked": "04df37b101a18958caf2053a67920cfc728f64f7e92756346c37e5ae3123b32f",
+  "dshPresetChanging": "dea3b8c3f8ba001bf0e92933778ad0cf4ee6e46e3a0473b6f40ae9e79bfe05b5",
+  "dshPresetBrokenTag": "fa603e289d2c3f4969e9dad94903b86cf1d6a4e50fe73fa40b3de2e9bdb8c8f5",
+  "dshPresetStandardName": "b39616140777e26b0f1275870f738ebcfb90c5b51bfce53c86ed5211d3a4ab7d",
+  "dshPresetStandardDescription": "f1639339212d1a2759c40bb08c1f22d74ef76d84d71f8c3290317e61f66f9496",
+  "dshPresetPtcName": "abaa79972f65e582f94c97ee6f28b905e4acde582dd4ab2cd85fcf90197bcfed",
+  "dshPresetPtcDescription": "03ce98c46640133a1471e338a086bb51669e5a0988a32b0f58b06fedc3a0af6b",
+  "dshPresetMinimalName": "2ea90f0b645148013d2fd4134f06fd2830d1c08a29bba26a0ddede55e94cd373",
+  "dshPresetMinimalDescription": "daa0d084ed1a7603b377677aa4e85f16437f3867d90cc5f2d88f3441a90f460d",
+  "dshPresetCordisName": "ccbb5fa5e41e92caa7f385fadca84378b197a43263977ea4e4de2660fe7b7428",
+  "dshPresetCordisDescription": "d8cd26e50a238d53ea61705e0469bd1e10f2c9fbe9634149dd511cc9ae64f5ea",
+  "dshPresetSelectFailed": "9eed9c486f10e127003585e4c156e214c8d24cf856f082576e9b0706d801d529",
+  "dshPresetSelectFailedUnknown": "efba9c20695a793f06ad3f257d61ed212cc6346830c1dd8acdb538d625ef1fde"
 }

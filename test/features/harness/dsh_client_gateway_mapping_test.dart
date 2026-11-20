@@ -11,15 +11,21 @@ dsh.DshSessionSummary _summary(
   String id, {
   String? title,
   bool running = false,
+  bool blank = true,
+  String? agentPreset,
   String? cwd,
 }) {
   return dsh.DshSessionSummary.fromJson({
     'sessionId': id,
     'updatedAt': 1700000000000,
     'running': running,
+    'blank': blank,
     'cwd': cwd,
     'projections': {
-      'values': {if (title != null) 'title': title},
+      'values': {
+        if (title != null) 'title': title,
+        if (agentPreset != null) 'agentPreset': agentPreset,
+      },
     },
   });
 }
@@ -34,7 +40,14 @@ dsh.DshCatalogSnapshot _catalog() {
     ..record('settings/describe', false);
   return dsh.DshCatalogSnapshot(
     sessions: [
-      _summary('s1', title: 'Pinned chat', running: true, cwd: '/repo'),
+      _summary(
+        's1',
+        title: 'Pinned chat',
+        running: true,
+        blank: false,
+        agentPreset: 'cordis',
+        cwd: '/repo',
+      ),
       _summary('s2', title: 'Loose chat'),
     ],
     workspaces: [
@@ -80,6 +93,31 @@ dsh.DshCatalogSnapshot _catalog() {
       'defaultOptions': const [],
       'defaultPreset': 'read-only',
     }),
+    agentPresets: [
+      dsh.DshAgentPresetSummary.fromJson({
+        'id': 'standard',
+        'order': 1,
+        'isDefault': true,
+      }),
+      dsh.DshAgentPresetSummary.fromJson({
+        'id': 'ptc',
+        'order': 2,
+        'name': 'PTC mode',
+        'description': 'Calls tools in batches.',
+      }),
+      dsh.DshAgentPresetSummary.fromJson({
+        'id': 'review',
+        'order': 3,
+        'name': 'Code review',
+        'description': 'Prioritizes bugs and test gaps.',
+      }),
+      dsh.DshAgentPresetSummary.fromJson({
+        'id': 'broken-one',
+        'order': 4,
+        'name': 'Broken mode',
+        'broken': 'Its plugin failed to activate.',
+      }),
+    ],
     plugins: dsh.DshPluginInventory.fromJson({
       'entries': [
         {
@@ -87,6 +125,16 @@ dsh.DshCatalogSnapshot _catalog() {
           'moduleName': 'm1',
           'enabled': true,
           'meta': {'title': 'Plugin One', 'description': 'Does things'},
+        },
+      ],
+      'agentPresets': [
+        {
+          'id': 'standard',
+          'name': 'Standard stack',
+          'isDefault': true,
+          'rows': [
+            {'moduleName': 'm1', 'enabled': true},
+          ],
         },
       ],
     }),
@@ -122,10 +170,30 @@ void main() {
       expect(catalog.models.providers.last.failureMessage, 'No credentials');
       expect(catalog.workspaces.single.sessions.single.workspaceId, 'w1');
       expect(catalog.workspaces.single.sessions.single.running, isTrue);
+      expect(catalog.workspaces.single.sessions.single.blank, isFalse);
+      expect(catalog.workspaces.single.sessions.single.agentPreset, 'cordis');
       expect(catalog.workspaces.single.sessions.single.pinned, isTrue);
       expect(catalog.ungroupedSessions.single.id, 's2');
       expect(catalog.ungroupedSessions.single.archived, isTrue);
       expect(catalog.plugins.single.title, 'Plugin One');
+      // The roster is the authority for order, copy and failures; the
+      // inventory contributes the composition rows for the presets it lists.
+      expect(catalog.agentPresets.map((group) => group.id), [
+        'standard',
+        'ptc',
+        'review',
+        'broken-one',
+      ]);
+      expect(catalog.agentPresets.first.name, 'Standard stack');
+      expect(catalog.agentPresets.first.isDefault, isTrue);
+      expect(catalog.agentPresets.first.plugins.single.moduleName, 'm1');
+      expect(catalog.agentPresets[1].name, 'PTC mode');
+      expect(catalog.agentPresets[1].description, 'Calls tools in batches.');
+      expect(
+        catalog.agentPresets.last.broken,
+        'Its plugin failed to activate.',
+      );
+      expect(catalog.ungroupedSessions.first.agentPreset, isNull);
       expect(catalog.capabilities.supports(DshCapability.modelCatalog), isTrue);
       expect(catalog.capabilities.supports(DshCapability.workspaces), isTrue);
       expect(

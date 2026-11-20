@@ -19764,4 +19764,60 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dshAttachmentUploading => 'Uploading attachment…';
+
+  @override
+  String get dshPresetChipHint => 'Choose the Agent preset for your new task';
+
+  @override
+  String get dshPresetPickerTitle => 'Agent preset';
+
+  @override
+  String get dshPresetPickerEmpty => 'This Host reports no Agent presets.';
+
+  @override
+  String get dshPresetLocked =>
+      'This task has already started; its Agent preset can no longer change.';
+
+  @override
+  String get dshPresetChanging => 'Switching the Agent preset…';
+
+  @override
+  String get dshPresetBrokenTag => 'Unavailable';
+
+  @override
+  String get dshPresetStandardName => 'Standard mode';
+
+  @override
+  String get dshPresetStandardDescription =>
+      'Work with code, files, and information. Suitable for most tasks, with search, editing, terminal commands, and other tools available as needed.';
+
+  @override
+  String get dshPresetPtcName => 'PTC mode';
+
+  @override
+  String get dshPresetPtcDescription =>
+      'Includes all Standard mode capabilities. Better suited to tasks that call tools in batches and then filter, organize, deduplicate, count, or summarize the results.';
+
+  @override
+  String get dshPresetMinimalName => 'Minimal mode';
+
+  @override
+  String get dshPresetMinimalDescription =>
+      'The agent uses a terminal and image reading, with context compaction. Useful for testing and comparing its basic performance.';
+
+  @override
+  String get dshPresetCordisName => 'Creator mode';
+
+  @override
+  String get dshPresetCordisDescription =>
+      'Customize DSH through conversation. Let the agent write plugins that add features or UI, or combine tools and prompts to create your own mode.';
+
+  @override
+  String dshPresetSelectFailed(String reason) {
+    return 'Could not switch the Agent preset: $reason';
+  }
+
+  @override
+  String get dshPresetSelectFailedUnknown =>
+      'Could not switch the Agent preset.';
 }

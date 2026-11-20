@@ -18698,6 +18698,60 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dshAttachmentUploading => '正在上传附件…';
+
+  @override
+  String get dshPresetChipHint => '选择新任务使用的 Agent 预设';
+
+  @override
+  String get dshPresetPickerTitle => 'Agent 预设';
+
+  @override
+  String get dshPresetPickerEmpty => '此 Host 未提供 Agent 预设。';
+
+  @override
+  String get dshPresetLocked => '任务已开始，Agent 预设不可再更改。';
+
+  @override
+  String get dshPresetChanging => '正在切换 Agent 预设…';
+
+  @override
+  String get dshPresetBrokenTag => '不可用';
+
+  @override
+  String get dshPresetStandardName => '标准模式';
+
+  @override
+  String get dshPresetStandardDescription =>
+      '处理代码、文件和资料，适合大多数任务。Agent 会按需使用检索、编辑和终端等工具。';
+
+  @override
+  String get dshPresetPtcName => 'PTC 模式';
+
+  @override
+  String get dshPresetPtcDescription =>
+      '包含标准模式的所有能力，更适合批量调用工具，并对结果进行筛选、整理、去重、统计或汇总的任务。';
+
+  @override
+  String get dshPresetMinimalName => '极简模式';
+
+  @override
+  String get dshPresetMinimalDescription =>
+      'Agent 使用终端和图片读取工具，并支持上下文压缩，适合测试和对比其基础表现。';
+
+  @override
+  String get dshPresetCordisName => '创造模式';
+
+  @override
+  String get dshPresetCordisDescription =>
+      '用对话定制 DSH：让 Agent 编写插件，添加新功能或界面；也能组合工具和提示词，创建自己的模式。';
+
+  @override
+  String dshPresetSelectFailed(String reason) {
+    return '无法切换 Agent 预设：$reason';
+  }
+
+  @override
+  String get dshPresetSelectFailedUnknown => '无法切换 Agent 预设。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -37394,6 +37448,60 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get dshAttachmentUploading => '正在上传附件…';
+
+  @override
+  String get dshPresetChipHint => '选择新任务使用的 Agent 预设';
+
+  @override
+  String get dshPresetPickerTitle => 'Agent 预设';
+
+  @override
+  String get dshPresetPickerEmpty => '此 Host 未提供 Agent 预设。';
+
+  @override
+  String get dshPresetLocked => '任务已开始，Agent 预设不可再更改。';
+
+  @override
+  String get dshPresetChanging => '正在切换 Agent 预设…';
+
+  @override
+  String get dshPresetBrokenTag => '不可用';
+
+  @override
+  String get dshPresetStandardName => '标准模式';
+
+  @override
+  String get dshPresetStandardDescription =>
+      '处理代码、文件和资料，适合大多数任务。Agent 会按需使用检索、编辑和终端等工具。';
+
+  @override
+  String get dshPresetPtcName => 'PTC 模式';
+
+  @override
+  String get dshPresetPtcDescription =>
+      '包含标准模式的所有能力，更适合批量调用工具，并对结果进行筛选、整理、去重、统计或汇总的任务。';
+
+  @override
+  String get dshPresetMinimalName => '极简模式';
+
+  @override
+  String get dshPresetMinimalDescription =>
+      'Agent 使用终端和图片读取工具，并支持上下文压缩，适合测试和对比其基础表现。';
+
+  @override
+  String get dshPresetCordisName => '创造模式';
+
+  @override
+  String get dshPresetCordisDescription =>
+      '用对话定制 DSH：让 Agent 编写插件，添加新功能或界面；也能组合工具和提示词，创建自己的模式。';
+
+  @override
+  String dshPresetSelectFailed(String reason) {
+    return '无法切换 Agent 预设：$reason';
+  }
+
+  @override
+  String get dshPresetSelectFailedUnknown => '无法切换 Agent 预设。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -56112,4 +56220,58 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get dshAttachmentUploading => '正在上傳附件…';
+
+  @override
+  String get dshPresetChipHint => '選擇新任務使用的 Agent 預設';
+
+  @override
+  String get dshPresetPickerTitle => 'Agent 預設';
+
+  @override
+  String get dshPresetPickerEmpty => '此 Host 未提供 Agent 預設。';
+
+  @override
+  String get dshPresetLocked => '任務已開始，Agent 預設不可再變更。';
+
+  @override
+  String get dshPresetChanging => '正在切換 Agent 預設…';
+
+  @override
+  String get dshPresetBrokenTag => '無法使用';
+
+  @override
+  String get dshPresetStandardName => '標準模式';
+
+  @override
+  String get dshPresetStandardDescription =>
+      '處理程式碼、檔案和資料，適合大多數任務。Agent 會視需要使用檢索、編輯和終端等工具。';
+
+  @override
+  String get dshPresetPtcName => 'PTC 模式';
+
+  @override
+  String get dshPresetPtcDescription =>
+      '包含標準模式的所有能力，更適合批次呼叫工具，並對結果進行篩選、整理、去重、統計或彙總的任務。';
+
+  @override
+  String get dshPresetMinimalName => '極簡模式';
+
+  @override
+  String get dshPresetMinimalDescription =>
+      'Agent 使用終端和圖片讀取工具，並支援上下文壓縮，適合測試和比較其基礎表現。';
+
+  @override
+  String get dshPresetCordisName => '創造模式';
+
+  @override
+  String get dshPresetCordisDescription =>
+      '用對話自訂 DSH：讓 Agent 撰寫外掛，新增功能或介面；也能組合工具和提示詞，建立自己的模式。';
+
+  @override
+  String dshPresetSelectFailed(String reason) {
+    return '無法切換 Agent 預設：$reason';
+  }
+
+  @override
+  String get dshPresetSelectFailedUnknown => '無法切換 Agent 預設。';
 }

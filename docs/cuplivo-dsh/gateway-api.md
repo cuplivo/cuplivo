@@ -61,6 +61,7 @@ abstract interface class DshSessionHandle {
   Future<void> selectModel(DshModelSelection selection);
   Future<void> initializeDefaultModel(DshModelSelection selection);
   Future<void> runPermissionCommand(String presetId);
+  Future<void> selectAgentPreset(String presetId);  // agentPresets/select, pre-first-turn only
   Future<void> answerApproval(DshApprovalRequest request,
       {required bool approved, String? note});
   Future<void> answerQuestions(DshQuestionRequest request,
@@ -246,12 +247,20 @@ uses). `statFile` reports `isDirectory: false` (the wire result has no type).
    therefore ignores its argument; the session `selectModel` call is what
    changes a session's next model. The seam parameter should be dropped; DSH
    0.2.2 exposes no "set default model" RPC.
-3. **No decline waterfall for host questions**: `rejectQuestions` answers with
+3. **Agent-preset selection is pre-first-turn only.** `agentPresets/select`
+   (`{agentId, agentPreset}`) is a plain unary call and the Host refuses once
+   the Session started (`agent-preset/locked`); `DshSessionHandle` exposes it
+   as `selectAgentPreset` and the chat chip goes read-only when the transcript
+   is no longer blank rather than guessing. The roster is
+   `DshCatalogSnapshot.agentPresets`, merged from `agentPresets/list` (order,
+   published copy, activation failures) and `pluginInventory/list` (declared
+   plugin rows) in `_mapAgentPresets`.
+4. **No decline waterfall for host questions**: `rejectQuestions` answers with
    an empty answer list, the closest 0.2.2 wire form; there is no
    `user-questions/reject` call.
-4. **Approval decisions carry no note**; `answerApproval(note: …)` is accepted
+5. **Approval decisions carry no note**; `answerApproval(note: …)` is accepted
    for seam symmetry and dropped (the wire has only `allowed-once|rejected`).
-5. **Session-scoped commands/skills** (see above): the adapter fills the global
+6. **Session-scoped commands/skills** (see above): the adapter fills the global
    snapshot from the first agent-available session, which is a representative roster, not
    the exact one an arbitrary open session may see. A per-session read belongs
    in the seam (`DshSessionHandle` gaining commands/skills) or in a catalog

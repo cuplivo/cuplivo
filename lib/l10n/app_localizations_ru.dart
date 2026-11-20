@@ -20083,4 +20083,62 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get dshAttachmentUploading => 'Загрузка вложения…';
+
+  @override
+  String get dshPresetChipHint =>
+      'Выберите предустановку агента для вашей новой задачи';
+
+  @override
+  String get dshPresetPickerTitle => 'Предустановка агента';
+
+  @override
+  String get dshPresetPickerEmpty =>
+      'Этот Host не сообщает предустановки агента.';
+
+  @override
+  String get dshPresetLocked =>
+      'Задача уже начата; предустановку агента изменить нельзя.';
+
+  @override
+  String get dshPresetChanging => 'Переключение предустановки агента…';
+
+  @override
+  String get dshPresetBrokenTag => 'Недоступно';
+
+  @override
+  String get dshPresetStandardName => 'Стандартный режим';
+
+  @override
+  String get dshPresetStandardDescription =>
+      'Работайте с кодом, файлами и информацией. Подходит для большинства задач, с поиском, редактированием, командами терминала и другими инструментами, доступными по мере необходимости.';
+
+  @override
+  String get dshPresetPtcName => 'Режим PTC';
+
+  @override
+  String get dshPresetPtcDescription =>
+      'Включает все возможности стандартного режима. Лучше подходит для задач, которые вызывают инструменты в пакетном режиме, а затем фильтруют, организуют, дедуплицируют, подсчитывают или суммируют результаты.';
+
+  @override
+  String get dshPresetMinimalName => 'Минимальный режим';
+
+  @override
+  String get dshPresetMinimalDescription =>
+      'Агент использует терминал и чтение изображений со сжатием контекста. Полезно для тестирования и сравнения его базовой производительности.';
+
+  @override
+  String get dshPresetCordisName => 'Режим автора';
+
+  @override
+  String get dshPresetCordisDescription =>
+      'Настройте DSH через разговор. Позвольте агенту писать плагины, которые добавляют функции или пользовательский интерфейс, или комбинируйте инструменты и подсказки для создания собственного режима.';
+
+  @override
+  String dshPresetSelectFailed(String reason) {
+    return 'Не удалось переключить предустановку агента: $reason';
+  }
+
+  @override
+  String get dshPresetSelectFailedUnknown =>
+      'Не удалось переключить предустановку агента.';
 }

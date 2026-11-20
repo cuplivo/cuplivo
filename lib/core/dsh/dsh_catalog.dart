@@ -44,6 +44,7 @@ class DshCatalogSnapshot {
     required this.providers,
     required this.configurableProviders,
     required this.permissionPresets,
+    required this.agentPresets,
     required this.plugins,
     required this.settings,
     required this.capabilities,
@@ -59,6 +60,10 @@ class DshCatalogSnapshot {
   final List<DshProviderInfo> providers;
   final List<DshConfigurableProvider> configurableProviders;
   final DshPermissionPresetCatalog permissionPresets;
+
+  /// The Agent-preset selection roster in Host order; empty when this DSH
+  /// version exposes no presets.
+  final List<DshAgentPresetSummary> agentPresets;
   final DshPluginInventory plugins;
   final DshSettingsDescription settings;
   final DshAccountState? account;
@@ -120,6 +125,11 @@ class DshCatalog {
         defaultPreset: null,
       ),
     );
+    final agentPresetsFuture = _read(
+      'agentPresets/list',
+      listAgentPresets,
+      const <DshAgentPresetSummary>[],
+    );
     final pluginsFuture = includePlugins
         ? _read(
             'pluginInventory/list',
@@ -144,6 +154,7 @@ class DshCatalog {
     final providers = await providersFuture;
     final configurableProviders = await configurableFuture;
     final permissionPresets = await presetsFuture;
+    final agentPresets = await agentPresetsFuture;
     final plugins = await pluginsFuture;
     final settings = await settingsFuture;
     final account = await accountFuture;
@@ -157,6 +168,7 @@ class DshCatalog {
       providers: providers,
       configurableProviders: configurableProviders,
       permissionPresets: permissionPresets,
+      agentPresets: agentPresets,
       plugins: plugins,
       settings: settings,
       account: account,
@@ -600,7 +612,25 @@ class DshCatalog {
     final presets = map.containsKey('presets')
         ? jsonList(map['presets'])
         : jsonList(value);
-    return presets.map(DshAgentPresetSummary.fromJson).toList(growable: false);
+    final roster = presets
+        .map(DshAgentPresetSummary.fromJson)
+        .toList(growable: false);
+    // Host order is authoritative; a row without an order sorts last so the
+    // shipped presets keep the order the Host listed them in.
+    final sorted = [...roster];
+    sorted.sort((a, b) => a.order.compareTo(b.order));
+    return List<DshAgentPresetSummary>.unmodifiable(sorted);
+  }
+
+  /// `agentPresets/select` — records [presetId] on a Session that has not
+  /// started its first turn. Returns the committed identity; the Host refuses
+  /// with `agent-preset/locked` once the Session started.
+  Future<String> selectAgentPreset(String sessionId, String presetId) async {
+    final value = await rpc.call(
+      'agentPresets/select',
+      args: {'agentId': sessionId, 'agentPreset': presetId},
+    );
+    return jsonString(value) ?? presetId;
   }
 
   Future<DshPluginInventory> loadPluginInventory() async {

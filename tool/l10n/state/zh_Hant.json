@@ -5745,5 +5745,21 @@
   "dshAttachmentUnsupportedType": "3d2ae971fd889fa7799f3ba40683f08ad50c2907e2cb58844589efc99825656c",
   "dshAttachmentReadFailed": "8e7b7a0967b77725a419810d6a561171f73a23fb307c4e0d5dc0531c58385938",
   "dshAttachmentUploadFailed": "e0a49996b83df3a16792261985e92beaa13f25f0e4402b961f45da07996b6448",
-  "dshAttachmentUploading": "91881e5f84997b03d3626bcd07fa9a7b44aec28b3b0d20423a8f14728778cc31"
+  "dshAttachmentUploading": "91881e5f84997b03d3626bcd07fa9a7b44aec28b3b0d20423a8f14728778cc31",
+  "dshPresetChipHint": "decc260436189f276c0d0960e118b4eaf7a495b0af174cec7ee15e6394834c42",
+  "dshPresetPickerTitle": "c25e2b308d5c910d217f457f743aceed91f87e299a72f2c73b62f603b127d09f",
+  "dshPresetPickerEmpty": "4b4ca4dff9a2cf88fc763b03cf624bc9e98afaeb938db26c10f837409da329f9",
+  "dshPresetLocked": "277dcc64620897a6fdb76305acc0277bd721346339196d3ae6f1e31235547793",
+  "dshPresetChanging": "53d5e46ee942d8d43123e87b16b43c3975c5709667690a1c90877dc0bb9fddaf",
+  "dshPresetBrokenTag": "3181eda0b557b716e312121b69e4d1b102368fa0e305f4bfa1194691bc056b9b",
+  "dshPresetStandardName": "e6d974f9f083981a0730bcdca6254eea4ec5107ba93ae588e7ec39daf140c2ff",
+  "dshPresetStandardDescription": "23df68e7df6067a25b3cc1fedfd922fa53d378a97ccee7ed9e43238364586d44",
+  "dshPresetPtcName": "e044e5bdc5e73f8a221318f790c6bacc81983a098e13ab97a3747ca02fd0d1ca",
+  "dshPresetPtcDescription": "1d5ea1b29dd215d5d9f95d7fbca43aafe59c807fafe8554fc446856f17742d46",
+  "dshPresetMinimalName": "f21febbb10aa25a5d8ac08c4e6fc02e96d08ad586d6e27f11bb17e19c2f9f503",
+  "dshPresetMinimalDescription": "b2118b05a84f739e00991f8bda810b5267481647f68b2db913e1bf0b5fb26ce0",
+  "dshPresetCordisName": "9662a8b295bb6cc406f5c20d9332e4dad611ab7678d8ddda90fe86d0aed65fcf",
+  "dshPresetCordisDescription": "6b3cf4da97cb24b5a40171ec265424da1fdc9365f32651aed0426d2db3391e25",
+  "dshPresetSelectFailed": "d45fb4f0f1da8cff34cb5ca0cedd19287be2d1bade082739f65264bb5346a366",
+  "dshPresetSelectFailedUnknown": "1c75c4a25ba2476c1e9c19b63fa2cfb646799033fe86a463d73d46109d50defc"
 }

@@ -17,8 +17,10 @@ import 'package:Cuplivo/features/harness/controllers/dsh_composer_submission.dar
 import 'package:Cuplivo/features/harness/controllers/dsh_transcript_fold.dart';
 import 'package:Cuplivo/features/harness/services/dsh_attachment_upload_service.dart';
 import 'package:Cuplivo/features/harness/services/dsh_context_usage.dart';
+import 'package:Cuplivo/features/harness/state/dsh_gateway.dart';
 import 'package:Cuplivo/features/harness/models/dsh_remote.dart';
 import 'package:Cuplivo/features/harness/widgets/chat/dsh_approval_cards.dart';
+import 'package:Cuplivo/features/harness/widgets/chat/dsh_agent_preset_picker.dart';
 import 'package:Cuplivo/features/harness/widgets/chat/dsh_context_usage_sheet.dart';
 import 'package:Cuplivo/features/harness/widgets/chat/dsh_model_picker.dart';
 import 'package:Cuplivo/features/harness/widgets/chat/dsh_permission_picker.dart';
@@ -285,6 +287,7 @@ class _HarnessConversationViewState extends State<HarnessConversationView> {
     final model = state.currentModel;
     final effort = state.currentReasoningEffort;
     final permissions = state.permissions;
+    final agentPresets = state.agentPresets;
     final notice = folded.notices.isEmpty ? null : folded.notices.last;
     final contextUsage = dshContextUsageSnapshot(
       pressure: state.contextPressure,
@@ -388,6 +391,13 @@ class _HarnessConversationViewState extends State<HarnessConversationView> {
               padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
               child: Row(
                 children: [
+                  if (agentPresets != null)
+                    DshAgentPresetChip(
+                      agentPresets: agentPresets,
+                      onTap: () => unawaited(_openAgentPresetPicker()),
+                    ),
+                  if (agentPresets != null && permissions != null)
+                    const SizedBox(width: 8),
                   if (permissions != null)
                     DshPermissionChip(
                       permissions: permissions,
@@ -605,6 +615,29 @@ class _HarnessConversationViewState extends State<HarnessConversationView> {
     } catch (_) {
       if (!mounted) return;
       _showSnack(AppLocalizations.of(context)!.dshPermissionChangeFailed);
+    }
+  }
+
+  Future<void> _openAgentPresetPicker() async {
+    final session = _session;
+    if (session == null) return;
+    final agentPresets = session.state.agentPresets;
+    if (agentPresets == null || !agentPresets.canSelect) return;
+    final picked = await showDshAgentPresetPicker(context, state: agentPresets);
+    if (!mounted || picked == null) return;
+    if (picked == session.state.agentPresets?.currentId) return;
+    try {
+      await session.selectAgentPreset(picked);
+    } on DshGatewayException catch (error) {
+      if (!mounted) return;
+      _showSnack(
+        AppLocalizations.of(
+          context,
+        )!.dshPresetSelectFailed(error.detail ?? error.failure.name),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      _showSnack(AppLocalizations.of(context)!.dshPresetSelectFailedUnknown);
     }
   }
 

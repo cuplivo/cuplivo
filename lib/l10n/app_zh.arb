@@ -7168,5 +7168,21 @@
   "dshAttachmentUnsupportedType": "服务器不接受这种图片类型。",
   "dshAttachmentReadFailed": "无法读取这个文件。",
   "dshAttachmentUploadFailed": "文件上传失败。",
-  "dshAttachmentUploading": "正在上传附件…"
+  "dshAttachmentUploading": "正在上传附件…",
+  "dshPresetChipHint": "选择新任务使用的 Agent 预设",
+  "dshPresetPickerTitle": "Agent 预设",
+  "dshPresetPickerEmpty": "此 Host 未提供 Agent 预设。",
+  "dshPresetLocked": "任务已开始，Agent 预设不可再更改。",
+  "dshPresetChanging": "正在切换 Agent 预设…",
+  "dshPresetBrokenTag": "不可用",
+  "dshPresetStandardName": "标准模式",
+  "dshPresetStandardDescription": "处理代码、文件和资料，适合大多数任务。Agent 会按需使用检索、编辑和终端等工具。",
+  "dshPresetPtcName": "PTC 模式",
+  "dshPresetPtcDescription": "包含标准模式的所有能力，更适合批量调用工具，并对结果进行筛选、整理、去重、统计或汇总的任务。",
+  "dshPresetMinimalName": "极简模式",
+  "dshPresetMinimalDescription": "Agent 使用终端和图片读取工具，并支持上下文压缩，适合测试和对比其基础表现。",
+  "dshPresetCordisName": "创造模式",
+  "dshPresetCordisDescription": "用对话定制 DSH：让 Agent 编写插件，添加新功能或界面；也能组合工具和提示词，创建自己的模式。",
+  "dshPresetSelectFailed": "无法切换 Agent 预设：{reason}",
+  "dshPresetSelectFailedUnknown": "无法切换 Agent 预设。"
 }

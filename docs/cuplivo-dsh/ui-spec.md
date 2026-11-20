@@ -106,7 +106,14 @@ Flutter entry (plugin UI only).
   selector, plus-menu, and the send button. Cuplivo's own hidden output
   components are not shown; the model / effort lists come from the remote.
   The permission control is the new Cuplivo-side control required by the brief:
-  *仅可查看 / 工作区内修改 / 全部权限*.
+  *仅可查看 / 工作区内修改 / 全部权限*. To its left sits the **Agent 预设**
+  control (DSH's hero chip): a small button showing the Session's preset
+  (`标准模式` on a fresh Session) that opens a sheet listing the Host roster —
+  the shipped four (*标准模式 / PTC 模式 / 极简模式 / 创造模式*) plus any
+  plugin-registered preset by its own published name, with a broken declaration
+  shown disabled and its Host reason. It is selectable only before the first
+  turn, because that is the only window the Host accepts
+  (`agentPresets/select`); afterwards it stays visible, read-only.
 - The `+` menu mirrors the DSH composer's plus menu: commands and skills come
   from the remote, grouped the way DSH groups them; attachments follow DSH.
 

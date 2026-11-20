@@ -37,6 +37,11 @@ class DshGatewayChatSession extends chat.DshChatSession {
   bool _disposed = false;
   bool _sending = false;
   bool _changingPermission = false;
+  bool _changingPreset = false;
+
+  /// The preset recorded by the last accepted selection, shown until the
+  /// catalog refresh reports it back through the Session projection.
+  String? _selectedPreset;
   bool _catalogLoading = false;
   gw.DshFailure? _linkFailure;
   chat.DshChatViewState _state = const chat.DshChatViewState();
@@ -360,6 +365,54 @@ class DshGatewayChatSession extends chat.DshChatSession {
     );
   }
 
+  chat.DshAgentPresetState? _mapAgentPresets(gw.DshCatalogSnapshot? catalog) {
+    final groups = catalog?.agentPresets ?? const <gw.DshAgentPresetGroup>[];
+    if (groups.isEmpty) return null;
+    final options = <chat.DshAgentPresetOption>[
+      for (final group in groups)
+        chat.DshAgentPresetOption(
+          id: group.id,
+          name: group.name,
+          description: group.description,
+          isDefault: group.isDefault,
+          broken: group.broken,
+        ),
+    ];
+    String? defaultId;
+    for (final option in options) {
+      if (option.isDefault) {
+        defaultId = option.id;
+        break;
+      }
+    }
+    defaultId ??= options.first.id;
+    final summary = _summaryFor(catalog);
+    final currentId =
+        summary?.agentPreset ?? _selectedPreset ?? defaultId ?? '';
+    final started =
+        (_view?.entries.isNotEmpty ?? false) || (summary?.blank == false);
+    return chat.DshAgentPresetState(
+      options: options,
+      currentId: currentId,
+      defaultId: defaultId,
+      canSelect: !started && _handle != null && _linkFailure == null,
+      isChanging: _changingPreset,
+    );
+  }
+
+  gw.DshSessionSummary? _summaryFor(gw.DshCatalogSnapshot? catalog) {
+    if (catalog == null) return null;
+    for (final session in catalog.ungroupedSessions) {
+      if (session.id == _sessionId) return session;
+    }
+    for (final workspace in catalog.workspaces) {
+      for (final session in workspace.sessions) {
+        if (session.id == _sessionId) return session;
+      }
+    }
+    return null;
+  }
+
   List<chat.DshPendingApproval> _mapApprovals() {
     final requests = _view?.pendingApprovals ?? const <gw.DshApprovalRequest>[];
     return <chat.DshPendingApproval>[
@@ -531,6 +584,7 @@ class DshGatewayChatSession extends chat.DshChatSession {
       ),
       modelCatalog: _mapCatalog(catalog),
       permissions: _mapPermissions(catalog),
+      agentPresets: _mapAgentPresets(catalog),
       approvals: _mapApprovals(),
       questions: _mapQuestions(),
       contextPressure: _mapContextPressure(view?.contextPressure),
@@ -698,6 +752,23 @@ class DshGatewayChatSession extends chat.DshChatSession {
       _changingPermission = false;
       _rebuild();
     }
+  }
+
+  @override
+  Future<void> selectAgentPreset(String presetId) async {
+    if (_changingPreset) return;
+    _changingPreset = true;
+    _rebuild();
+    try {
+      await _requireHandle().selectAgentPreset(presetId);
+      _selectedPreset = presetId;
+    } finally {
+      _changingPreset = false;
+      _rebuild();
+    }
+    // The Session projection reports the committed preset; a refresh keeps a
+    // refusal made by another window from leaving this chip on a stale value.
+    unawaited(_connections.refreshCatalog(_remoteId).catchError((Object _) {}));
   }
 
   // -------------------------------------------------------------------------

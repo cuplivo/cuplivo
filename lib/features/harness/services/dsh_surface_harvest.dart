@@ -287,6 +287,34 @@ abstract final class DshSurfaceHarvest {
 })();
 ''';
 
+  /// Landing script for the official 更多 menu.
+  ///
+  /// 更多 is not a panel-list row (it is the sidebar's own `PanelMoreMenu`, a
+  /// `sidebar.panellist.actions` registrant), so it is not part of the harvest;
+  /// Cuplivo keeps one built-in row for it and opens the menu in the official
+  /// Web UI. The trigger lives inside the `sidebar.panellist.actions` outlet.
+  static const String moreMenuLandingScript = '''
+(async () => {
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const trigger = () => {
+    const outlet = document.querySelector('[data-slot="sidebar.panellist.actions"]');
+    return outlet ? (outlet.closest('button') || outlet.querySelector('button')) : null;
+  };
+  let openedSidebar = false;
+  for (let i = 0; i < 60; i++) {
+    const button = trigger();
+    if (button) { button.click(); return; }
+    if (!openedSidebar) {
+      for (const opener of ['展开侧边栏', '打开侧边栏', '打开导航栏']) {
+        const candidate = document.querySelector('button[aria-label="' + opener + '"]');
+        if (candidate) { candidate.click(); openedSidebar = true; break; }
+      }
+    }
+    await sleep(250);
+  }
+})();
+''';
+
   /// Landing script for a right-rail card. Prefers the harvested page-type
   /// [kind] (language-neutral `data-sidebar-right-guide-entry` attribute) and
   /// falls back to the visible [label].

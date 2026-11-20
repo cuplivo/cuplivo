@@ -2,19 +2,45 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+/// One entry the official Web UI contributes to a global surface.
+///
+/// [label] is the user-visible text exactly as the official UI renders it in
+/// the current locale; [kind] is the stable, language-neutral identity for
+/// surfaces that expose one (the right rail's `data-sidebar-right-guide-entry`
+/// attribute). Neither is a DSH API: both are read from the official DOM and
+/// handed straight back to the landing scripts, so Cuplivo never has to know a
+/// plugin name, id or label in advance.
+@immutable
+class DshSurfaceEntry {
+  const DshSurfaceEntry({required this.label, this.kind});
+
+  final String label;
+
+  /// Page-type kind for right-rail cards (e.g. `bw-diff`); null for sidebar
+  /// rows, which only expose their accessible label.
+  final String? kind;
+
+  @override
+  bool operator ==(Object other) =>
+      other is DshSurfaceEntry && other.label == label && other.kind == kind;
+
+  @override
+  int get hashCode => Object.hash(label, kind);
+
+  @override
+  String toString() => kind == null ? label : '$label [$kind]';
+}
+
 /// The surfaces the embedded official Web UI exposes to a third-party client.
 ///
 /// DSH plugins contribute React slots (`sidebar.panellist`,
-/// `sidebar.right.pane.tab`, …) inside the server's single-page app, and the
-/// Host RPC does not enumerate those contributions: `pluginManager/listPlugins`
-/// carries package metadata only. The only source of truth for "which entries
-/// exist and what are they called" is the official UI itself, so Cuplivo reads
-/// it once per Web UI load and renders the resulting labels natively.
-///
-/// Nothing in this file names a plugin. Labels are opaque strings shown to the
-/// user and handed back to the landing scripts, which click the same label in
-/// the official UI — the contract is "read the surface, then open the same
-/// entry by its own label", not "know that better-search exists".
+/// `sidebar.right.tab.guide`, `settings.section`, …) inside the server's
+/// single-page app, and the Host RPC does not enumerate those contributions:
+/// `pluginManager/listPlugins` carries package metadata only. The only source of
+/// truth for "which entries exist and what are they called" is the official UI
+/// itself, so Cuplivo reads it once per Web UI load and renders the resulting
+/// labels natively. See `docs/cuplivo-dsh/plugin-compat.md` §4–§6 for the slot
+/// and DOM-anchor evidence behind these recipes.
 @immutable
 class DshSurfaceSnapshot {
   const DshSurfaceSnapshot({
@@ -24,24 +50,33 @@ class DshSurfaceSnapshot {
   });
 
   static const DshSurfaceSnapshot empty = DshSurfaceSnapshot(
-    sidebar: <String>[],
-    rail: <String>[],
+    sidebar: <DshSurfaceEntry>[],
+    rail: <DshSurfaceEntry>[],
     capturedAt: null,
   );
 
-  /// Left sidebar rows in official order, excluding the brand/new-session/chrome
+  /// Left-sidebar rows in official order, excluding brand/new-session/chrome
   /// rows. Example on a fresh 0.2.2-rc.1 Web UI with two plugins installed:
-  /// `['插件', '搜索服务', '自动化任务', '更多']`.
-  final List<String> sidebar;
+  /// `插件`, `搜索服务`, `自动化任务`. The official 更多 menu is not a row in the
+  /// panel list (it is the sidebar's own `PanelMoreMenu`), so it is not here.
+  final List<DshSurfaceEntry> sidebar;
 
-  /// Right-rail entry cards in official order. Example:
-  /// `['工作区文件', '代码变更', '新建终端', '新建 worktree', 'Issue 与 PR', '更多工具']`.
-  final List<String> rail;
+  /// Right-rail guide cards in official order, with their page-type kinds.
+  /// Example: `工作区文件 [files]`, `代码变更 [bw-diff]`, `新建终端 [terminal]`.
+  final List<DshSurfaceEntry> rail;
 
   /// When the harvest ran; null for [empty].
   final DateTime? capturedAt;
 
   bool get isEmpty => sidebar.isEmpty && rail.isEmpty;
+
+  /// Sidebar labels only, for callers that do not render kinds.
+  List<String> get sidebarLabels =>
+      List<String>.unmodifiable(sidebar.map((entry) => entry.label));
+
+  /// Rail labels only, for callers that do not render kinds.
+  List<String> get railLabels =>
+      List<String>.unmodifiable(rail.map((entry) => entry.label));
 
   /// Parses the payload posted by [DshSurfaceHarvest.script].
   ///
@@ -58,10 +93,10 @@ class DshSurfaceSnapshot {
       return empty;
     }
     if (decoded is! Map) return empty;
-    final sidebar = _labels(decoded['sidebar']);
-    final rail = _labels(decoded['rail']);
     final version = decoded['v'];
     if (version is! int || version < 1) return empty;
+    final sidebar = _entries(decoded['sidebar']);
+    final rail = _entries(decoded['rail']);
     return DshSurfaceSnapshot(
       sidebar: sidebar,
       rail: rail,
@@ -69,17 +104,30 @@ class DshSurfaceSnapshot {
     );
   }
 
-  static List<String> _labels(Object? value) {
-    if (value is! List) return const <String>[];
+  static List<DshSurfaceEntry> _entries(Object? value) {
+    if (value is! List) return const <DshSurfaceEntry>[];
     final seen = <String>{};
-    final labels = <String>[];
+    final entries = <DshSurfaceEntry>[];
     for (final item in value) {
-      if (item is! String) continue;
-      final label = item.replaceAll(RegExp(r'\s+'), ' ').trim();
-      if (label.isEmpty || label.length > 80) continue;
-      if (seen.add(label)) labels.add(label);
+      String? label;
+      String? kind;
+      if (item is String) {
+        label = item;
+      } else if (item is Map) {
+        final rawLabel = item['label'];
+        if (rawLabel is String) label = rawLabel;
+        final rawKind = item['kind'];
+        if (rawKind is String && rawKind.trim().isNotEmpty) {
+          kind = rawKind.trim();
+        }
+      }
+      if (label == null) continue;
+      final normalized = label.replaceAll(RegExp(r'\s+'), ' ').trim();
+      if (normalized.isEmpty || normalized.length > 80) continue;
+      final entry = DshSurfaceEntry(label: normalized, kind: kind);
+      if (seen.add('${entry.kind ?? ''}\u0000$normalized')) entries.add(entry);
     }
-    return List<String>.unmodifiable(labels);
+    return List<DshSurfaceEntry>.unmodifiable(entries);
   }
 }
 
@@ -121,19 +169,25 @@ class DshSurfaceInventory extends ChangeNotifier {
 /// after a successful load (or as the landing script of a native row) and never
 /// waits for them. A failed harvest or landing leaves the page usable — the
 /// fallback is always "the user finishes by hand in the official UI".
+///
+/// The recipes follow `docs/cuplivo-dsh/plugin-compat.md` §6:
+/// - sidebar rows are `nav button` elements that contain the
+///   `[data-slot="sidebar.panellist"]` outlet (label = `aria-label`);
+/// - the right rail expands via `[data-sidebar-right-expand]`, and its cards are
+///   `[data-sidebar-right-guide-entry="<kind>"]` buttons;
+/// - the settings dialog (not harvested yet) is `[data-shortcut-modal="settings"]`
+///   and is reached through `[data-slot="settings.launcher"]`.
 abstract final class DshSurfaceHarvest {
   /// Channel name the WebView host registers by default (see `DshWebUiView`).
   static const String channelName = 'CuplivoHost';
 
   /// Reads the sidebar rows and the right-rail cards, then posts
-  /// `{"v":1,"sidebar":[…],"rail":[…]}` on [channelName].
+  /// `{"v":1,"sidebar":[{"label":…}],"rail":[{"label":…,"kind":…}]}` on
+  /// [channelName].
   ///
   /// Mobile-safe: the sidebar and the right rail are drawers at phone widths,
   /// so the script opens each one when it is not visible and closes it again
-  /// after reading. Chrome rows are excluded by construction: sidebar rows must
-  /// be `button[aria-label]` inside the panel list, and rail cards are the
-  /// buttons that appear only after the rail opens (the toggle itself is
-  /// already in the DOM).
+  /// after reading. Chrome rows are excluded by construction.
   static const String script =
       '''
 (async () => {
@@ -149,58 +203,52 @@ abstract final class DshSurfaceHarvest {
     if (button) { button.click(); return true; }
     return false;
   };
-  const findNav = () => document.querySelector('nav[class*="panelList"]');
-  let nav = null;
+  const nav = () => document.querySelector('nav');
+  const rows = () => {
+    const root = nav();
+    if (!root) return [];
+    return [...root.querySelectorAll('button')]
+      .filter((button) => button.querySelector('[data-slot="sidebar.panellist"]'));
+  };
+  let root = null;
   for (let i = 0; i < 60; i++) {
-    nav = findNav();
-    if (nav) break;
+    root = nav();
+    if (root) break;
     await sleep(250);
   }
   let openedSidebar = false;
-  if (!nav) {
+  if (!rows().length) {
     openedSidebar = click('展开侧边栏') || click('打开侧边栏') || click('打开导航栏');
-    for (let i = 0; i < 20 && !nav; i++) {
-      await sleep(250);
-      nav = findNav();
-    }
+    for (let i = 0; i < 24 && !rows().length; i++) await sleep(250);
   }
   const sidebar = [];
-  if (nav) {
-    for (const button of nav.querySelectorAll('button[aria-label]')) {
-      const label = norm(button.getAttribute('aria-label'));
-      if (label && sidebar.indexOf(label) < 0) sidebar.push(label);
-    }
+  for (const button of rows()) {
+    const label = norm(button.getAttribute('aria-label')) || norm(button.textContent).split('\\n')[0];
+    if (label && sidebar.indexOf(label) < 0) sidebar.push(label);
   }
   if (openedSidebar) click('收起侧边栏');
 
   const rail = [];
-  const railToggle = document.querySelector('[aria-label="打开右侧边栏"], [aria-label="展开／收起右侧边栏"]');
+  const railToggle = document.querySelector('[data-sidebar-right-expand]')
+    || document.querySelector('[aria-label="打开右侧边栏"], [aria-label="展开／收起右侧边栏"]');
   if (railToggle) {
-    const before = new Set();
-    for (const button of document.querySelectorAll('button')) {
-      const rect = button.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) before.add(button);
-    }
     railToggle.click();
     for (let attempt = 0; attempt < 24; attempt++) {
       await sleep(250);
-      const fresh = [];
-      for (const button of document.querySelectorAll('button')) {
-        if (before.has(button)) continue;
-        const rect = button.getBoundingClientRect();
-        const label = norm(button.innerText).split('\\n')[0];
-        if (!label || label.length > 40) continue;
-        if (rect.width < 100 || rect.height < 28) continue;
-        fresh.push(label);
-      }
-      if (fresh.length) {
-        for (const label of fresh) if (rail.indexOf(label) < 0) rail.push(label);
+      const cards = [...document.querySelectorAll('[data-sidebar-right-guide-entry]')];
+      if (cards.length) {
+        for (const card of cards) {
+          const kind = norm(card.getAttribute('data-sidebar-right-guide-entry'));
+          const label = norm(card.innerText).split('\\n')[0] || norm(card.getAttribute('aria-label'));
+          if (!label) continue;
+          rail.push({ label: label, kind: kind || null });
+        }
         break;
       }
     }
     railToggle.click();
   }
-  post({ v: 1, sidebar: sidebar, rail: rail });
+  post({ v: 1, sidebar: sidebar.map((label) => ({ label: label })), rail: rail });
 })();
 ''';
 
@@ -212,21 +260,20 @@ abstract final class DshSurfaceHarvest {
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const norm = (value) => String(value == null ? '' : value).replace(/\\s+/g, ' ').trim();
   const target = ${jsonEncode(label)};
-  const findNav = () => document.querySelector('nav[class*="panelList"]');
-  const row = () => {
-    const nav = findNav();
-    if (!nav) return null;
-    for (const button of nav.querySelectorAll('button[aria-label]')) {
-      if (norm(button.getAttribute('aria-label')) === target) return button;
-    }
-    return null;
+  const rows = () => {
+    const root = document.querySelector('nav');
+    if (!root) return [];
+    return [...root.querySelectorAll('button')]
+      .filter((button) => button.querySelector('[data-slot="sidebar.panellist"]'));
   };
+  const match = () => rows().find((button) =>
+    norm(button.getAttribute('aria-label')) === target ||
+    norm(button.textContent).split('\\n')[0] === target);
   let openedSidebar = false;
   for (let i = 0; i < 60; i++) {
-    const nav = findNav();
-    const match = row();
-    if (match) { match.click(); break; }
-    if (!nav && !openedSidebar) {
+    const hit = match();
+    if (hit) { hit.click(); break; }
+    if (!openedSidebar) {
       for (const opener of ['展开侧边栏', '打开侧边栏', '打开导航栏']) {
         const button = document.querySelector('button[aria-label="' + opener + '"]');
         if (button) { button.click(); openedSidebar = true; break; }
@@ -234,29 +281,36 @@ abstract final class DshSurfaceHarvest {
     }
     await sleep(250);
   }
-  await sleep(400);
+  await sleep(500);
   const collapse = document.querySelector('button[aria-label="收起侧边栏"]');
   if (collapse) collapse.click();
 })();
 ''';
 
-  /// Landing script for a right-rail card: opens the rail, clicks the card by
-  /// its harvested label, leaves the rail open on the card's page.
-  static String railLandingScript(String label) =>
+  /// Landing script for a right-rail card. Prefers the harvested page-type
+  /// [kind] (language-neutral `data-sidebar-right-guide-entry` attribute) and
+  /// falls back to the visible [label].
+  static String railLandingScript(String label, {String? kind}) =>
       '''
 (async () => {
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const norm = (value) => String(value == null ? '' : value).replace(/\\s+/g, ' ').trim();
   const target = ${jsonEncode(label)};
-  const toggle = document.querySelector('[aria-label="打开右侧边栏"], [aria-label="展开／收起右侧边栏"]');
-  if (toggle) toggle.click();
+  const kind = ${jsonEncode(kind ?? '')};
+  const expand = document.querySelector('[data-sidebar-right-expand]')
+    || document.querySelector('[aria-label="打开右侧边栏"], [aria-label="展开／收起右侧边栏"]');
+  if (expand) expand.click();
   for (let i = 0; i < 60; i++) {
     await sleep(250);
+    if (kind) {
+      const card = document.querySelector('[data-sidebar-right-guide-entry="' + kind + '"]');
+      if (card) { card.click(); return; }
+    }
     for (const button of document.querySelectorAll('button')) {
-      const rect = button.getBoundingClientRect();
       const text = norm(button.innerText).split('\\n')[0];
-      if (rect.width < 100 || rect.height < 28) continue;
-      if (text === target || text.startsWith(target)) { button.click(); return; }
+      const rect = button.getBoundingClientRect();
+      if (rect.width < 80 || rect.height < 24) continue;
+      if (text === target) { button.click(); return; }
     }
   }
 })();

@@ -131,3 +131,26 @@ repository and is not committed. This document is the engineering breakdown.
   for development/review at `docs/cuplivo-dsh/reference/` (untracked via the
   local git exclude; never committed to the PR). Final acceptance must compare
   the E2E screenshots against those images, surface by surface.
+
+## 9. Delivered status (2026-11-20)
+
+Phases 0-7 are implemented on `feat/cuplivo-dsh` (PR #1104). Evidence is the CI
+record, never a local run:
+
+- `pr-check`: format, l10n (`translate.py check`, 0 pending across all locales),
+  identity sweep, `dart analyze --fatal-infos` (clean), full `flutter test`.
+- Android E2E on a **real** DSH 0.2.2-rc.1 host through the repository's
+  `/e2e` workflow: create the remote from the create menu, connect with the
+  launch URL, owner card, settings shell (连接设置 / 通用设置 / 模型 / 内容),
+  local drawer listing the remote (R4), DSH drawer (R5), a new session answered
+  by the real host (R6, streamed Chinese answer), the right rail (R7), the
+  models tab (R9), the add-provider picker (R10) and an existing provider's
+  editable detail (R11). Screenshots and a recording are uploaded as workflow
+  artifacts and summarized in the PR body.
+- Deferred, documented in the PR: terminal attach (`terminal/attach` stream not
+  wired; honest placeholder), attachment picker (client supports
+  `session/attachment`, UI not opened), plugin pages (host WebUI in a WebView,
+  no per-plugin URL), binary workspace-file preview (transport is JSON-only),
+  browser rail card (no browser API in DSH 0.2.2), and provider-detail model
+  metadata that the live catalog gateway does not expose (context window, max
+  output, input modalities start empty for adapter-default models).

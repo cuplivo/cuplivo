@@ -508,14 +508,20 @@ Future<void> _runRealScenario(
     const Duration(seconds: 8),
   );
 
+  // The models list is virtualized and deepseek-official sits well below the
+  // fold (r9 shows amazon-bedrock … cloudflare-workers-ai), so the offscreen row
+  // is never built. Searching the models tab both reduces the list to the
+  // route's own row and exercises the search field before opening R11.
+  await tester.enterText(modelsSearch, 'deepseek');
+  await pumpFrames(tester, frames: 20);
   final officialRow = find.byKey(
     const ValueKey<String>('dsh-provider-row-deepseek-official'),
   );
   await _pumpUntilFound(
     tester,
     officialRow,
-    what: 'the deepseek-official provider row (R11)',
-    maxFrames: 1200,
+    what: 'the deepseek-official provider row after search (R11)',
+    maxFrames: 600,
   );
   // R11 reference: the row's status pill reads 启用 once the settings mapping is
   // live; wait for it instead of assuming the first frame carries it.
@@ -529,6 +535,10 @@ Future<void> _runRealScenario(
     what: 'the 启用 pill of the deepseek-official row (R11)',
     maxFrames: 1200,
   );
+  // Drop the search field's focus so the on-device IME is not over the R11
+  // capture; the filter (and the row) stays applied.
+  FocusManager.instance.primaryFocus?.unfocus();
+  await pumpFrames(tester, frames: 12);
   await tester.tap(officialRow);
 
   final providerApiKey = find.byKey(const Key('dsh-provider-detail-api-key'));
@@ -568,6 +578,17 @@ Future<void> _runRealScenario(
     find.byKey(const Key('dsh-models-search')),
     findsOneWidget,
     reason: 'R11 closes back onto the models list',
+  );
+  // Clear the R11 search so `final_state` shows the full provider list again;
+  // the field is a filter only, and an empty list would read as a host change.
+  await tester.enterText(modelsSearch, '');
+  await pumpFrames(tester, frames: 12);
+  FocusManager.instance.primaryFocus?.unfocus();
+  await pumpFrames(tester, frames: 12);
+  expect(
+    _providerRows().length,
+    greaterThan(1),
+    reason: 'clearing the R11 search restores the full models list',
   );
 
   expect(tester.takeException(), isNull);

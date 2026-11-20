@@ -1389,7 +1389,7 @@ reachable only through the Remote endpoints above. Consequences for Cuplivo:
 
 | Namespace | Methods (args in parentheses) |
 |---|---|
-| `agentPresets` | `list ()`, `read (agentPreset)`, `select (agentId, agentPreset)` |
+| `agentPresets` | `list ()` → `{presets:[{id, order, isDefault, name?, description?, broken?}]}` (roster; a plugin declaration publishes its copy and an activation failure), `read (agentPreset)`, `select (agentId, agentPreset)` → committed identity (the `agentId` is the **session id**; only valid before the Session's first turn — afterwards `agent-preset/locked`) |
 | `actionCards` | `act (agentId, callId, verb, payload?)` — interactive cards in a message |
 | `sessionFeedback` | `record (request:{sessionId, text?, category?})` — the `/feedback` command |
 | `messageFeedback` | `put`, `list`, `delete (request)` — per-message thumbs feedback, persisted Host-side |

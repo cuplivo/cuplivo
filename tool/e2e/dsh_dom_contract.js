@@ -595,7 +595,17 @@ async function main() {
   } finally {
     cdp.close();
     chrome.child.kill('SIGKILL');
-    fs.rmSync(chrome.profile, { recursive: true, force: true });
+    // The killed browser may still be flushing its profile, so a recursive
+    // removal can race with a late write (ENOTEMPTY). Cleanup must never fail
+    // an otherwise passing contract run; retry briefly and ignore the residue.
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        fs.rmSync(chrome.profile, { recursive: true, force: true });
+        break;
+      } catch {
+        await sleep(200);
+      }
+    }
   }
 
   if (problems.length > 0) {

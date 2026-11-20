@@ -897,32 +897,14 @@ Future<void> _runRealScenario(
   await pumpFrames(tester, frames: 10);
   await tester.ensureVisible(sendButton);
   // The emulator's IME animation can leave a stale hit-test frame: tap the
-  // send button only after the composer reports the prompt, and prove the tap
-  // started the turn (the composer clears) before waiting for the tool card. A
-  // tap that reopens the plus sheet is closed and retried instead of silently
-  // swallowing the turn.
-  var toolPromptSent = false;
-  for (var attempt = 1; attempt <= 3 && !toolPromptSent; attempt += 1) {
-    if (plusSheet.evaluate().isNotEmpty) {
-      e2eStep('R6 plus sheet present before the tool send (attempt $attempt)');
-      await _dismissComposerSheet(tester, plusSheet);
-    }
-    e2eStep('R6 tool send attempt $attempt');
-    await tester.tap(sendButton);
-    await pumpFrames(tester, frames: 20);
-    toolPromptSent = _composerText(tester, composer).isEmpty;
-    if (!toolPromptSent) {
-      e2eStep(
-        'R6 tool send attempt $attempt did not clear the composer '
-        '(sheet=${plusSheet.evaluate().isNotEmpty})',
-      );
-      await pumpFrames(tester, frames: 20);
-    }
-  }
-  expect(
-    toolPromptSent,
-    isTrue,
-    reason: 'R6 the tool prompt leaves the composer when the send is tapped',
+  // send button until the composer reports the prompt gone (a tap that reopens
+  // the plus sheet is closed and retried instead of swallowing the turn).
+  await _submitComposerPrompt(
+    tester,
+    composer: composer,
+    sendButton: sendButton,
+    plusSheet: plusSheet,
+    label: 'R6 tool prompt',
   );
   // A visual probe for the artifacts: the frame right after the tool turn was
   // accepted by the composer.
@@ -1037,17 +1019,25 @@ Future<void> _runRealScenario(
   );
   await tester.enterText(composer, '读取我附加的 e2e-notes.txt 并回复它第一行');
   await pumpFrames(tester, frames: 10);
-  await tester.ensureVisible(sendButton);
-  await tester.tap(sendButton);
-  final attachmentCard = find.descendant(
-    of: transcript,
-    matching: find.textContaining('e2e-notes.txt'),
-  );
-  await _pumpUntilFound(
+  await _submitComposerPrompt(
     tester,
-    attachmentCard,
-    what: 'the e2e-notes.txt card in the transcript (R6)',
-    maxFrames: 600,
+    composer: composer,
+    sendButton: sendButton,
+    plusSheet: plusSheet,
+    label: 'R6 attachment prompt',
+  );
+  // The attachment card is another virtualized row: prove the file part in
+  // the folded transcript, then bring the last turn back into view for the
+  // evidence frame.
+  await pumpUntil(
+    tester,
+    () => _transcriptHasFilePart(tester, 'e2e-notes.txt'),
+    maxFrames: 1200,
+  );
+  expect(
+    _transcriptHasFilePart(tester, 'e2e-notes.txt'),
+    isTrue,
+    reason: 'R6 the attachment reaches the transcript as a file part',
   );
   await pumpUntil(
     tester,
@@ -1062,6 +1052,20 @@ Future<void> _runRealScenario(
   );
   FocusManager.instance.primaryFocus?.unfocus();
   await pumpFrames(tester, frames: 40);
+  await tester.scrollUntilVisible(
+    find
+        .descendant(
+          of: transcript,
+          matching: find.textContaining('CUPLIVO_E2E_ATTACHMENT_OK'),
+        )
+        .first,
+    240,
+    scrollable: find
+        .descendant(of: transcript, matching: find.byType(Scrollable))
+        .first,
+    maxScrolls: 120,
+  );
+  await pumpFrames(tester, frames: 20);
   e2eStep('before r6_attachment');
   await capture(tester, binding, 'r6_attachment');
 
@@ -1861,6 +1865,55 @@ bool _assistantTextContains(WidgetTester tester, String needle) {
     if (message.role != 'assistant') continue;
     for (final part in message.parts) {
       if (part is TextPart && part.text.contains(needle)) return true;
+    }
+  }
+  return false;
+}
+
+/// Taps the composer's send button until the prompt leaves the field.
+///
+/// The emulator's IME animation can leave a stale hit-test frame that swallows
+/// one tap, and a plus sheet left over the composer swallows it too; both are
+/// retried here so a lost tap fails with the composer still holding the text
+/// instead of timing out later on an unrelated assertion.
+Future<void> _submitComposerPrompt(
+  WidgetTester tester, {
+  required Finder composer,
+  required Finder sendButton,
+  required Finder plusSheet,
+  required String label,
+}) async {
+  await tester.ensureVisible(sendButton);
+  for (var attempt = 1; attempt <= 3; attempt += 1) {
+    if (plusSheet.evaluate().isNotEmpty) {
+      e2eStep('$label: plus sheet present before the send (attempt $attempt)');
+      await _dismissComposerSheet(tester, plusSheet);
+    }
+    e2eStep('$label: send attempt $attempt');
+    await tester.tap(sendButton);
+    await pumpFrames(tester, frames: 20);
+    if (_composerText(tester, composer).isEmpty) return;
+    e2eStep('$label: send attempt $attempt did not clear the composer');
+    await pumpFrames(tester, frames: 20);
+  }
+  expect(
+    _composerText(tester, composer),
+    isEmpty,
+    reason: '$label: the prompt leaves the composer when send is tapped',
+  );
+}
+
+/// Whether the folded transcript carries a file part named [name].
+bool _transcriptHasFilePart(WidgetTester tester, String name) {
+  final list = find.descendant(
+    of: find.byKey(const ValueKey<String>('dsh-transcript')),
+    matching: find.byType(MessageListView),
+  );
+  if (list.evaluate().isEmpty) return false;
+  final view = tester.widget<MessageListView>(list.first);
+  for (final message in view.messages) {
+    for (final part in message.parts) {
+      if (part is FilePart && part.name.contains(name)) return true;
     }
   }
   return false;

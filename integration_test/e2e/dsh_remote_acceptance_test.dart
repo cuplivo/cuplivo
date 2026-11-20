@@ -1389,6 +1389,9 @@ Future<void> _runRealScenario(
   await tester.tap(terminalView);
   await pumpFrames(tester, frames: 10);
   await _typeIntoTerminal(tester, _terminalCommand);
+  // Let the Host shell finish writing the file while the terminal is still
+  // mounted; the workspace listing is read right after leaving this page.
+  await pumpFrames(tester, frames: 120);
   e2eStep('before r12_terminal_command');
   await capture(tester, binding, 'r12_terminal_command');
   // Leave the terminal page (which disposes the PTY) and assert the created
@@ -2243,7 +2246,9 @@ Future<void> _typeIntoTerminal(WidgetTester tester, String line) async {
   tester.testTextInput.enterText(line);
   await pumpFrames(tester, frames: 12);
   // `receiveAction` is a guarded test API and returns a Future: without the
-  // await the following pump raises a Guarded function conflict.
-  await tester.testTextInput.receiveAction(TextInputAction.newline);
+  // await the following pump raises a Guarded function conflict. `done` is the
+  // action the terminal view maps to Enter (xterm only handles done, not
+  // newline), so this presses the same key a phone keyboard's return does.
+  await tester.testTextInput.receiveAction(TextInputAction.done);
   await pumpFrames(tester, frames: 40);
 }

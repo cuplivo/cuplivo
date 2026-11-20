@@ -240,6 +240,10 @@ class _HomePageState extends State<HomePage>
       DshSurfaceInventory.shared;
   final InteractiveDrawerController _harnessRailController =
       InteractiveDrawerController();
+
+  /// Identifies the rail subtree so a keyboard opening can tell whether the
+  /// focus is the rail's own (a terminal input) or the chat composer's.
+  final GlobalKey _harnessRailKey = GlobalKey(debugLabel: 'harness-rail');
   bool _harnessLandingInFlight = false;
 
   // ============================================================================
@@ -655,13 +659,36 @@ class _HomePageState extends State<HomePage>
     final nextInset = View.of(context).viewInsets.bottom;
     final keyboardOpening = nextInset > _lastViewInsetBottom + 0.5;
     _lastViewInsetBottom = nextInset;
-    // A keyboard opening needs the whole screen: the rail closes instead of
-    // competing with the composer.
-    if (keyboardOpening && (_harnessController?.railOpen ?? false)) {
+    // A keyboard opening usually means the composer got focus and needs the
+    // whole screen, so the rail closes. A terminal focused inside the rail must
+    // not close its own rail: the keyboard is how the terminal receives input.
+    if (keyboardOpening &&
+        (_harnessController?.railOpen ?? false) &&
+        !_focusInsideHarnessRail()) {
       _harnessController!.closeRail();
     }
     if (!keyboardOpening || !PlatformUtils.isMobileTarget) return;
     _controller.scrollCtrl.pinBottomDuringViewportResizeIfNeeded();
+  }
+
+  /// Whether the primary focus lives inside the right rail's subtree.
+  ///
+  /// The rail hosts its own keyboard consumers (the terminal), so the
+  /// keyboard-opening rail dismissal must exempt focus that came from within.
+  bool _focusInsideHarnessRail() {
+    final railContext = _harnessRailKey.currentContext;
+    final focusContext = FocusManager.instance.primaryFocus?.context;
+    if (railContext == null || focusContext == null) return false;
+    if (identical(focusContext, railContext)) return true;
+    var inside = false;
+    focusContext.visitAncestorElements((element) {
+      if (identical(element, railContext)) {
+        inside = true;
+        return false;
+      }
+      return true;
+    });
+    return inside;
   }
 
   @override
@@ -1465,6 +1492,7 @@ class _HomePageState extends State<HomePage>
         ),
       ),
       rail: HarnessRightRail(
+        key: _harnessRailKey,
         page: harness.railPage,
         session: harness.selectedSession,
         workspaceFiles: harness.workspaceFiles,

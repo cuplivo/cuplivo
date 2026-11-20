@@ -73,11 +73,10 @@ class DshAttachmentUploadService {
   final Future<Uint8List> Function(String path) readFile;
 
   /// Uploads bytes and returns the receipt id for the prompt's file part.
-  final Future<String> Function(
-    Uint8List bytes, {
-    required String name,
-    String? mediaType,
-  })
+  ///
+  /// Documents are the only uploads: naming a media type would make the Host's
+  /// route parse the bytes as an image instead of storing a file receipt.
+  final Future<String> Function(Uint8List bytes, {required String name})
   uploadFile;
 
   /// The Host's current budget (null when the projection has not arrived).
@@ -158,11 +157,7 @@ class DshAttachmentUploadService {
         );
       }
       try {
-        final receiptId = await uploadFile(
-          bytes,
-          name: document.fileName,
-          mediaType: document.mime,
-        );
+        final receiptId = await uploadFile(bytes, name: document.fileName);
         prepared.add(
           DshPromptAttachment.file(
             receiptId: receiptId,

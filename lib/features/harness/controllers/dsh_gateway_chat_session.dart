@@ -594,16 +594,8 @@ class DshGatewayChatSession extends chat.DshChatSession {
   }
 
   @override
-  Future<String> uploadAttachment(
-    List<int> bytes, {
-    String? name,
-    String? mediaType,
-  }) async {
-    final receipt = await _requireHandle().uploadAttachment(
-      bytes,
-      name: name,
-      mediaType: mediaType,
-    );
+  Future<String> uploadAttachment(List<int> bytes, {String? name}) async {
+    final receipt = await _requireHandle().uploadAttachment(bytes, name: name);
     return receipt.receiptId;
   }
 

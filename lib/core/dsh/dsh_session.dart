@@ -551,14 +551,18 @@ class DshSession {
   }
 
   /// Uploads raw bytes through `POST /api/session/uploadFileBinary` and returns
-  /// the receipt for a `file` prompt part (or a staged image reference).
+  /// the receipt for a `file` prompt part.
+  ///
+  /// The route stores a plain file only when the request omits the `mediaType`
+  /// query; sending a document mime there makes the Host parse the bytes as an
+  /// upload image and refuse a non-image type, so this path never sends it
+  /// (images travel inline in `session/prompt` instead).
   Future<DshUploadReceipt> uploadAttachment(
     Uint8List bytes, {
     String? name,
-    String? mediaType,
   }) async {
     final response = await transport.postBytes(
-      transport.endpoint.uploadUri(sessionId, name: name, mediaType: mediaType),
+      transport.endpoint.uploadUri(sessionId, name: name),
       bytes,
       contentType: 'application/octet-stream',
     );

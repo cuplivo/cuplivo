@@ -206,13 +206,16 @@ final class DshEndpoint {
     ).replace(scheme: secure ? 'wss' : 'ws');
   }
 
-  /// `POST <base>/api/session/uploadFileBinary?sessionId=…`.
-  Uri uploadUri(String sessionId, {String? name, String? mediaType}) {
+  /// `POST <base>/api/session/uploadFileBinary?sessionId=…&name=…` for a
+  /// document upload.
+  ///
+  /// The route dispatches on the `mediaType` query: with it the bytes must be
+  /// an image this deployment accepts (anything else is refused as
+  /// `UNSUPPORTED_IMAGE_TYPE`), and without it they are stored as a plain file
+  /// receipt. Cuplivo only uploads documents, so it never sends that query.
+  Uri uploadUri(String sessionId, {String? name}) {
     final query = <String, String>{'sessionId': sessionId};
     if (name != null && name.isNotEmpty) query['name'] = name;
-    if (mediaType != null && mediaType.isNotEmpty) {
-      query['mediaType'] = mediaType;
-    }
     return apiUri('session/uploadFileBinary').replace(queryParameters: query);
   }
 

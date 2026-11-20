@@ -132,20 +132,15 @@ class DshClientSessionHandle implements DshSessionHandle {
   Future<DshUploadReceipt> uploadAttachment(
     List<int> bytes, {
     String? name,
-    String? mediaType,
   }) async {
     try {
       final receipt = await _store.session.uploadAttachment(
         Uint8List.fromList(bytes),
         name: name,
-        mediaType: mediaType,
       );
       return DshUploadReceipt(
         receiptId: receipt.receiptId,
-        name: receipt.file?.name ?? receipt.image?.name ?? name,
-        mediaType: receipt.image?.mediaType ?? mediaType,
-        width: receipt.image?.width,
-        height: receipt.image?.height,
+        name: receipt.file?.name ?? name,
       );
     } on dsh.DshException catch (error) {
       throw dshGatewayExceptionFromClient(error);

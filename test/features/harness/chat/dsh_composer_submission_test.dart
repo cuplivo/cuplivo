@@ -37,11 +37,8 @@ class _FakeSession extends DshChatSession {
   }
 
   @override
-  Future<String> uploadAttachment(
-    List<int> bytes, {
-    String? name,
-    String? mediaType,
-  }) async => 'receipt:${name ?? ''}';
+  Future<String> uploadAttachment(List<int> bytes, {String? name}) async =>
+      'receipt:${name ?? ''}';
 
   @override
   Future<DshCommandResult> runCommand(String line) async =>

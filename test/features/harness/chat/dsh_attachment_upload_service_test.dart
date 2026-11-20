@@ -10,7 +10,7 @@ import 'package:Cuplivo/features/harness/services/dsh_attachment_upload_service.
 void main() {
   group('DshAttachmentUploadService', () {
     late Map<String, Uint8List> files;
-    late List<({String name, String? mediaType, int bytes})> uploads;
+    late List<({String name, int bytes})> uploads;
 
     DshAttachmentUploadService service({DshImageLimits? limits}) {
       return DshAttachmentUploadService(
@@ -19,8 +19,8 @@ void main() {
           if (bytes == null) throw const FileNotFoundFailure();
           return bytes;
         },
-        uploadFile: (bytes, {required name, mediaType}) async {
-          uploads.add((name: name, mediaType: mediaType, bytes: bytes.length));
+        uploadFile: (bytes, {required name}) async {
+          uploads.add((name: name, bytes: bytes.length));
           return 'receipt-1';
         },
         imageLimits: () => limits,
@@ -41,7 +41,7 @@ void main() {
 
     setUp(() {
       files = <String, Uint8List>{};
-      uploads = <({String name, String? mediaType, int bytes})>[];
+      uploads = <({String name, int bytes})>[];
     });
 
     test('an image travels inline with an inferred media type', () async {
@@ -88,8 +88,10 @@ void main() {
       expect(prepared.single.isImage, isFalse);
       expect(prepared.single.receiptId, 'receipt-1');
       expect(prepared.single.name, 'notes.txt');
+      // Documents upload without a media type: the Host's route would parse a
+      // declared non-image type as a failed image upload instead of storing a
+      // plain file receipt.
       expect(uploads.single.name, 'notes.txt');
-      expect(uploads.single.mediaType, 'text/plain');
     });
 
     test('more images than the Host allows is refused', () async {

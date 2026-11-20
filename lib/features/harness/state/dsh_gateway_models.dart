@@ -1044,19 +1044,10 @@ class DshCommandOutcome {
 /// part carries.
 @immutable
 class DshUploadReceipt {
-  const DshUploadReceipt({
-    required this.receiptId,
-    this.name,
-    this.mediaType,
-    this.width,
-    this.height,
-  });
+  const DshUploadReceipt({required this.receiptId, this.name});
 
   final String receiptId;
   final String? name;
-  final String? mediaType;
-  final int? width;
-  final int? height;
 }
 
 // ---------------------------------------------------------------------------

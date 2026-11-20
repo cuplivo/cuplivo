@@ -924,8 +924,8 @@ class _HarnessConversationViewState extends State<HarnessConversationView> {
     if (session == null) return const <DshPromptAttachment>[];
     final service = DshAttachmentUploadService(
       readFile: (path) => File(path).readAsBytes(),
-      uploadFile: (bytes, {required name, mediaType}) =>
-          session.uploadAttachment(bytes, name: name, mediaType: mediaType),
+      uploadFile: (bytes, {required name}) =>
+          session.uploadAttachment(bytes, name: name),
       imageLimits: () => session.state.imageLimits,
     );
     return service.prepare(input);

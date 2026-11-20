@@ -116,12 +116,10 @@ abstract interface class DshSessionHandle {
 
   /// Uploads raw file bytes and returns the receipt a file prompt part needs.
   ///
-  /// Images never go through here: `session/prompt` carries them inline.
-  Future<DshUploadReceipt> uploadAttachment(
-    List<int> bytes, {
-    String? name,
-    String? mediaType,
-  });
+  /// Documents only: the Host's upload route stores an image only when the
+  /// request declares its media type, and images travel inline in
+  /// `session/prompt` anyway.
+  Future<DshUploadReceipt> uploadAttachment(List<int> bytes, {String? name});
 
   /// Fetches one stored attachment's bytes for rendering.
   ///

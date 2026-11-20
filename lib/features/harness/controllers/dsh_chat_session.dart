@@ -1171,15 +1171,13 @@ abstract class DshChatSession extends ChangeNotifier {
     List<DshPromptAttachment> attachments = const <DshPromptAttachment>[],
   });
 
-  /// Uploads one file's bytes and returns the receipt id for its prompt part.
+  /// Uploads one document's bytes and returns the receipt id for its prompt
+  /// part.
   ///
   /// The composer's attachment service uses this for non-image files; images
-  /// travel inline and never hit the upload endpoint.
-  Future<String> uploadAttachment(
-    List<int> bytes, {
-    String? name,
-    String? mediaType,
-  });
+  /// travel inline and never hit the upload endpoint. The upload route only
+  /// takes the plain-file branch when no media type is declared.
+  Future<String> uploadAttachment(List<int> bytes, {String? name});
 
   /// Executes one slash-command line through the Host's command path.
   ///

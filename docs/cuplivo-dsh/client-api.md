@@ -129,7 +129,7 @@ class DshEndpoint {
   Uri get indexUri;           // GET /?token=… (login) — throws when no token
   Uri apiUri(String endpoint);
   Uri get muxUri;             // ws(s)://authority[/mount]/api/remote.mux
-  Uri uploadUri(String sessionId, {String? name, String? mediaType});
+  Uri uploadUri(String sessionId, {String? name});
   Uri fileUri(String absolutePath, {String? version});
 
   DshEndpoint withToken(String token);
@@ -1301,17 +1301,22 @@ client carries between the two calls, and the client stores neither.
 **HTTP route** (preferred, raw bytes, same cookie):
 
 ```
-POST /api/session/uploadFileBinary?sessionId=<id>&name=<display name>&mediaType=<mime?>
+POST /api/session/uploadFileBinary?sessionId=<id>&name=<display name>
 content-type: application/octet-stream
 <raw file bytes>
 ```
 
 - Without `mediaType`: a file upload, response
   `{ok:true, value:{receiptId, file:{attachmentId, name, bytes}}}`.
-- With `mediaType`: an image upload, response
+- With `mediaType=<image mime>`: an image upload, response
   `{ok:true, value:{receiptId, image:{attachmentId:'sha256:…', mediaType,
   width, height, bytes, name}}}`. The Host normalizes/validates the image; the
   receipt's image is what enters the message.
+- The `mediaType` query **selects the image branch, it does not tag a file**:
+  a document upload that declared `text/plain` is refused with
+  `session/attachment-invalid / UNSUPPORTED_IMAGE_TYPE` (verified against
+  0.2.2-rc.1). Cuplivo uploads documents only and therefore never sends the
+  query; prompt images ride inline in `session/prompt`.
 - Carrier statuses: `405` (method not POST), `415` (content-type is not
   `application/octet-stream`), `400` (missing `sessionId`). Business failures
   are HTTP 200 `{ok:false, error:{code,message,details}}` — the same

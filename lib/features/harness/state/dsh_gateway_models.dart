@@ -884,6 +884,7 @@ final class DshAssistantEntry extends DshTranscriptEntry {
   const DshAssistantEntry({
     required super.key,
     required this.text,
+    this.time,
     this.reasoning = '',
     this.streaming = false,
     this.interrupted = false,
@@ -894,6 +895,9 @@ final class DshAssistantEntry extends DshTranscriptEntry {
   });
 
   final String text;
+
+  /// When the Host recorded this message; null when the row carried no stamp.
+  final DateTime? time;
   final String reasoning;
   final bool streaming;
   final bool interrupted;

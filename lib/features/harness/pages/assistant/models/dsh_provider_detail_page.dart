@@ -21,13 +21,14 @@ import 'package:Cuplivo/theme/app_semantic_colors.dart';
 ///
 /// Two honest modes:
 /// - with a [DshProviderSettingsGateway] the form edits the provider profile
-///   and credential on the remote host through [DshProviderSettingsController];
-///   a custom provider additionally edits its models and per-model reasoning
-///   efforts;
-/// - without the seam (this build) the page still shows the provider header
-///   and the models the live catalog serves, and states plainly that editing
-///   needs the settings adapter — it never writes local provider rows or makes
-///   up values.
+///   and credential on the remote host through [DshProviderSettingsController].
+///   Every configurable route shows the same editable model rows; a shipped
+///   route whose profile declares no models shows the adapter's catalog rows
+///   under `正在使用适配器默认模型`, and only a custom provider adds the
+///   per-model reasoning-effort editor;
+/// - without the seam the page still shows the provider header and the models
+///   the live catalog serves, and states plainly that editing needs the
+///   settings adapter — it never writes local provider rows or makes up values.
 class DshProviderDetailPage extends StatefulWidget {
   const DshProviderDetailPage({
     super.key,
@@ -62,13 +63,15 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
   List<_DshModelEditor> _models = <_DshModelEditor>[];
   DshProviderApi _api = DshProviderApi.openAiChatCompletions;
   bool _customExpanded = true;
+  bool _usesAdapterDefaults = false;
+  bool _modelsEdited = false;
   bool _saving = false;
   bool _initialized = false;
   String? _inlineError;
 
   bool get _hasSeam => widget.settings != null;
   bool get _isNew => widget.createCustom;
-  bool get _editableModels => _isNew || (_entry?.isCustom ?? false);
+  bool get _isCustomProvider => _isNew || (_entry?.isCustom ?? false);
 
   @override
   void initState() {
@@ -158,12 +161,23 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
     _providerIdController.text = entry.id;
     _displayNameController.text = entry.displayName;
     _disposeModels();
-    if (_editableModels) {
+    _modelsEdited = false;
+    final profileModels = entry.profile.models;
+    _usesAdapterDefaults = profileModels.isEmpty;
+    if (!_hasSeam) return;
+    if (profileModels.isNotEmpty) {
       _models = [
-        for (final model in entry.profile.models)
-          _DshModelEditor.fromModel(model),
+        for (final model in profileModels) _DshModelEditor.fromModel(model),
       ];
+      return;
     }
+    // No profile models: the adapter is serving its default catalog. Surface
+    // those models as the same editable rows so R11 has one shape (the ids and
+    // names are the host's; specs the catalog does not expose stay empty).
+    _models = [
+      for (final model in widget.catalogGroup?.models ?? const <DshModel>[])
+        _DshModelEditor.fromCatalog(model),
+    ];
   }
 
   void _disposeModels() {
@@ -245,13 +259,15 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
     final defaultBaseURL = (entry?.defaultBaseURL ?? '').trim();
     final baseURLEnv = entry?.baseURLEnv ?? const <String>[];
     final hasCredential =
-        configured || (_apiKeyController.text.trim().isNotEmpty);
-    final catalogModels = widget.catalogGroup?.models ?? const <DshModel>[];
-    final profileModels = entry?.profile.models ?? const <DshProviderModel>[];
-    // A non-custom route declares no models of its own: the adapter supplies
-    // the catalog. The cards are read-only, but their ids/names are the host's.
-    final adapterDefaultNote = !_editableModels && profileModels.isEmpty;
+        configured || _apiKeyController.text.trim().isNotEmpty;
     final modelEditors = _models;
+    // R11: every configurable route is editable through the settings adapter;
+    // a shipped route may serve its model list from the adapter instead of its
+    // profile, and those rows stay editable. First-config (no credential yet)
+    // shows only the connection/credential fields.
+    final showsModelCatalog =
+        !_isNew && (hasCredential || modelEditors.isNotEmpty);
+    final adapterDefaultNote = _usesAdapterDefaults && modelEditors.isNotEmpty;
 
     return _pageScaffold(
       title: displayName,
@@ -425,19 +441,18 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
             ),
           ),
           const SizedBox(height: 18),
-          if (hasCredential) ...[
+          if (showsModelCatalog) ...[
             Row(
               children: [
                 _SectionLabel(text: l10n.dshProviderDetailModels),
                 const Spacer(),
-                if (_editableModels)
-                  IosIconButton(
-                    icon: Lucide.Plus,
-                    size: 17,
-                    tooltip: l10n.dshProviderDetailAddModel,
-                    semanticLabel: l10n.dshProviderDetailAddModel,
-                    onTap: _saving ? null : _addModel,
-                  ),
+                IosIconButton(
+                  icon: Lucide.Plus,
+                  size: 17,
+                  tooltip: l10n.dshProviderDetailAddModel,
+                  semanticLabel: l10n.dshProviderDetailAddModel,
+                  onTap: _saving ? null : _addModel,
+                ),
               ],
             ),
             const SizedBox(height: 4),
@@ -453,7 +468,7 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
               ),
               const SizedBox(height: 8),
             ],
-            if (_editableModels && modelEditors.isEmpty)
+            if (modelEditors.isEmpty)
               Text(
                 l10n.dshProviderDetailModelsEmpty,
                 style: TextStyle(
@@ -463,9 +478,6 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
                   ).colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
               )
-            else if (!_editableModels)
-              for (final model in catalogModels)
-                _ReadOnlyCatalogModelCard(model: model)
             else
               _buildEditableModels(modelEditors),
           ] else
@@ -509,6 +521,7 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
       itemCount: editors.length,
       onReorderItem: (oldIndex, newIndex) {
         setState(() {
+          _modelsEdited = true;
           final editor = editors.removeAt(oldIndex);
           editors.insert(newIndex, editor);
         });
@@ -522,10 +535,11 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
             editor: editor,
             index: index,
             editable: true,
-            showReasoningEfforts: true,
-            onChanged: () => setState(() {}),
+            showReasoningEfforts: _isCustomProvider,
+            onChanged: () => setState(() => _modelsEdited = true),
             onRemove: () {
               setState(() {
+                _modelsEdited = true;
                 editors.removeAt(index);
                 editor.dispose();
               });
@@ -538,6 +552,7 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
 
   void _addModel() {
     setState(() {
+      _modelsEdited = true;
       _models = [..._models, _DshModelEditor.empty()];
     });
   }
@@ -587,7 +602,9 @@ class _DshProviderDetailPageState extends State<DshProviderDetailPage> {
       profile: DshProviderProfile(
         api: _api,
         baseURL: baseURL.isEmpty ? null : baseURL,
-        models: _editableModels || _isNew ? models : entry!.profile.models,
+        models: _isNew || !_usesAdapterDefaults || _modelsEdited
+            ? models
+            : entry!.profile.models,
       ),
       expectedRevision: _isNew ? null : entry!.revision,
       isNew: _isNew,
@@ -935,23 +952,6 @@ class _OAuthNote extends StatelessWidget {
   }
 }
 
-/// Read-only model card for models that come from the live catalog.
-class _ReadOnlyCatalogModelCard extends StatelessWidget {
-  const _ReadOnlyCatalogModelCard({required this.model});
-
-  final DshModel model;
-
-  @override
-  Widget build(BuildContext context) {
-    return _ReadOnlyModelCard(
-      model: model,
-      subtitle: model.reasoningEfforts.isEmpty
-          ? null
-          : model.reasoningEfforts.map((effort) => effort.title).join(' · '),
-    );
-  }
-}
-
 class _ReadOnlyModelCard extends StatelessWidget {
   const _ReadOnlyModelCard({required this.model, this.subtitle});
 
@@ -1043,6 +1043,18 @@ class _DshModelEditor {
       ),
       inputs: {...model.inputs},
       reasoningEfforts: [...model.reasoningEfforts],
+    );
+  }
+
+  factory _DshModelEditor.fromCatalog(DshModel model) {
+    return _DshModelEditor(
+      keyId: _nextKey++,
+      idController: TextEditingController(text: model.modelId),
+      nameController: TextEditingController(text: model.title),
+      contextWindowController: TextEditingController(),
+      maxTokensController: TextEditingController(),
+      inputs: <DshModelInput>{DshModelInput.text},
+      reasoningEfforts: <DshReasoningChoice>[],
     );
   }
 

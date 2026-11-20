@@ -72,10 +72,19 @@ void main() {
         (transcript.rows.first as DshUserMessageRow).requestId,
         '66ac0d91-fe81-441d-8b38-c665decb002f',
       );
+      final user = transcript.rows.first as DshUserMessageRow;
+      expect(
+        user.time,
+        DateTime.fromMillisecondsSinceEpoch(1795110874469, isUtc: true),
+      );
       final assistant = transcript.rows.last as DshAssistantMessageRow;
       expect(assistant.text, 'pong');
       expect(assistant.reasoning, '');
       expect(assistant.usage!.effectiveTotal, 8933);
+      expect(
+        assistant.time,
+        DateTime.fromMillisecondsSinceEpoch(1795110875000, isUtc: true),
+      );
       expect(transcript.isRunning, isFalse);
       expect(transcript.lastTurnReason!.isCompleted, isTrue);
       expect(transcript.draft, isNull);
@@ -99,7 +108,15 @@ void main() {
                 'step': 1,
                 'nextIndex': 2,
                 'stream': [
-                  {'type': 'block-start', 'index': 0, 'blockType': 'text'},
+                  {
+                    'type': 'chunk',
+                    'time': 1795110874476,
+                    'chunk': {
+                      'type': 'block-start',
+                      'index': 0,
+                      'blockType': 'text',
+                    },
+                  },
                   {'type': 'text-delta', 'index': 0, 'text': 'hel'},
                 ],
               },
@@ -109,6 +126,10 @@ void main() {
       expect(transcript.draft, isNotNull);
       expect(transcript.draft!.turn, 1);
       expect(transcript.draft!.text, 'hel');
+      expect(
+        transcript.draft!.time,
+        DateTime.fromMillisecondsSinceEpoch(1795110874476, isUtc: true),
+      );
     });
   });
 
@@ -136,6 +157,12 @@ void main() {
       expect(tools.single.decodedArguments, {
         'path': '/workspace/demo/notes.txt',
       });
+      expect(
+        tools.single.time,
+        DateTime.fromMillisecondsSinceEpoch(1795110874500, isUtc: true),
+        reason:
+            'the card keeps the tool/call time after tool/result patches it',
+      );
     });
 
     test(
@@ -149,6 +176,10 @@ void main() {
         expect(assistant.turn, 1);
         expect(assistant.step, 2);
         expect(assistant.usage!.inputTokens, 10);
+        expect(
+          assistant.time,
+          DateTime.fromMillisecondsSinceEpoch(1795110874540, isUtc: true),
+        );
       },
     );
 
@@ -223,6 +254,10 @@ void main() {
       expect(transcript.draft!.text, 'pong');
       expect(transcript.draft!.revision, 9);
       expect(transcript.draft!.usage!.outputTokens, 3);
+      expect(
+        transcript.draft!.time,
+        DateTime.fromMillisecondsSinceEpoch(1795110874476, isUtc: true),
+      );
       expect(transcript.isRunning, isTrue);
     });
 
@@ -308,12 +343,24 @@ void main() {
 
     test('tool call deltas surface a live tool call', () {
       final transcript = DshTranscript()..applySnapshot(_emptySnapshot());
+      // Chunks belong to an attempt: the start/baseline must precede them.
+      transcript.applyAssistantFrame(
+        DshAssistantStreamFrame.fromJson({
+          'type': 'start',
+          'attemptId': 's1:1',
+          'revision': 1,
+          'turn': 1,
+          'step': 1,
+          'startedAfterSeq': 0,
+        }),
+      );
       transcript.applyAssistantFrame(
         DshAssistantStreamFrame.fromJson({
           'type': 'chunk',
           'attemptId': 's1:1',
-          'revision': 1,
+          'revision': 2,
           'index': 1,
+          'time': 1795110874476,
           'chunk': {
             'type': 'tool-call-delta',
             'index': 0,
@@ -327,7 +374,7 @@ void main() {
         DshAssistantStreamFrame.fromJson({
           'type': 'chunk',
           'attemptId': 's1:1',
-          'revision': 2,
+          'revision': 3,
           'index': 2,
           'chunk': {
             'type': 'tool-call-delta',

@@ -143,6 +143,39 @@ void main() {
       expect(folded.messages.single.timestamp, isNotNull);
       expect(folded.messages.single.timestamp.millisecondsSinceEpoch, 0);
     });
+
+    test('a UTC wire time is rendered as a local timestamp', () {
+      final wire = DateTime.fromMillisecondsSinceEpoch(1000, isUtc: true);
+      final folded = foldDshTranscript(
+        conversationId: conversationId,
+        state: DshChatViewState(
+          items: <DshChatItem>[
+            DshAssistantMessageItem(id: 'a1', text: 'hi', timestamp: wire),
+          ],
+        ),
+      );
+
+      final rendered = folded.messages.single.timestamp;
+      expect(rendered, wire.toLocal());
+      expect(rendered.isUtc, isFalse);
+    });
+
+    test('an epoch-zero assistant time keeps the hidden sentinel', () {
+      final folded = foldDshTranscript(
+        conversationId: conversationId,
+        state: DshChatViewState(
+          items: <DshChatItem>[
+            DshAssistantMessageItem(
+              id: 'a1',
+              text: 'hi',
+              timestamp: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+            ),
+          ],
+        ),
+      );
+
+      expect(folded.messages.single.timestamp.millisecondsSinceEpoch, 0);
+    });
   });
 
   group('groupDshTranscript', () {

@@ -175,6 +175,7 @@ class DshGatewayChatSession extends chat.DshChatSession {
         items.add(
           chat.DshAssistantMessageItem(
             id: entry.key,
+            timestamp: entry.time,
             text: entry.text,
             reasoning: entry.reasoning.trim().isEmpty
                 ? const <chat.DshReasoningSegment>[]

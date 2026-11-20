@@ -64,10 +64,20 @@ class DshFoldedTranscript {
   bool get isEmpty => messages.isEmpty;
 }
 
-/// A timestamp the renderer can always format. The Host reports epoch
-/// milliseconds; a synthesised row (e.g. an optimistic bubble) may carry none.
-DateTime _renderTimestamp(DateTime? timestamp) =>
-    timestamp ?? DateTime.fromMillisecondsSinceEpoch(0);
+/// A timestamp the renderer can always format, in the local zone like every
+/// local-chat row.
+///
+/// The Host reports UTC epoch milliseconds; the renderer formats the value it
+/// is given verbatim, so the conversion happens here. Rows without an
+/// authoritative wire time (null, or the epoch-zero default a missing stamp
+/// decodes to) keep epoch zero, which the message row treats as "no time" and
+/// hides instead of printing 1970.
+DateTime _renderTimestamp(DateTime? timestamp) {
+  if (timestamp == null || timestamp.millisecondsSinceEpoch == 0) {
+    return DateTime.fromMillisecondsSinceEpoch(0);
+  }
+  return timestamp.toLocal();
+}
 
 List<stream_ctrl.ReasoningSegmentData> _foldReasoning(
   List<DshReasoningSegment> segments,

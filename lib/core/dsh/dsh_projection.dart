@@ -27,11 +27,22 @@ enum DshToolState { running, succeeded, failed, cancelled }
 sealed class DshChatRow {
   const DshChatRow({required this.seq});
   final int seq;
+
+  /// Event time in UTC; null when the Host/fixture carried no `time`.
+  DateTime? get time;
 }
 
 final class DshUserMessageRow extends DshChatRow {
-  const DshUserMessageRow({required super.seq, required this.message});
+  const DshUserMessageRow({
+    required super.seq,
+    required this.message,
+    this.time,
+  });
   final DshMessage message;
+
+  /// Event time in UTC; null when the Host/fixture carried no `time`.
+  @override
+  final DateTime? time;
 
   String get text => message.text;
   List<DshImageAttachment> get images => message.images;
@@ -49,6 +60,7 @@ final class DshAssistantMessageRow extends DshChatRow {
     this.step = 0,
     this.usage,
     this.interrupted = false,
+    this.time,
   });
 
   final DshMessage message;
@@ -56,6 +68,10 @@ final class DshAssistantMessageRow extends DshChatRow {
   final int step;
   final DshTokenUsage? usage;
   final bool interrupted;
+
+  /// Event time in UTC; null when the Host/fixture carried no `time`.
+  @override
+  final DateTime? time;
 
   String get text => message.text;
   String get reasoning => message.reasoning;
@@ -71,6 +87,7 @@ final class DshToolRow extends DshChatRow {
     this.resultText,
     this.meta,
     this.approvalOutcome,
+    this.time,
   });
 
   final String callId;
@@ -85,6 +102,10 @@ final class DshToolRow extends DshChatRow {
   final Object? meta;
   final DshApprovalOutcome? approvalOutcome;
 
+  /// Event time in UTC; null when the Host/fixture carried no `time`.
+  @override
+  final DateTime? time;
+
   Map<String, Object?>? get decodedArguments {
     if (arguments.isEmpty) return null;
     final decoded = tryDecodeJson(arguments);
@@ -98,6 +119,7 @@ final class DshToolRow extends DshChatRow {
     String? resultText,
     Object? meta,
     DshApprovalOutcome? approvalOutcome,
+    DateTime? time,
   }) {
     return DshToolRow(
       seq: seq,
@@ -108,6 +130,7 @@ final class DshToolRow extends DshChatRow {
       resultText: resultText ?? this.resultText,
       meta: meta ?? this.meta,
       approvalOutcome: approvalOutcome ?? this.approvalOutcome,
+      time: time ?? this.time,
     );
   }
 }
@@ -149,6 +172,7 @@ class DshDraft {
     this.usage,
     this.failure,
     this.active = true,
+    this.time,
   });
 
   final String attemptId;
@@ -161,6 +185,10 @@ class DshDraft {
   final DshTokenUsage? usage;
   final DshLlmFailure? failure;
   final bool active;
+
+  /// Time of the first live chunk (UTC); null until the first chunk arrives
+  /// and for older snapshots that carried no timestamps.
+  final DateTime? time;
 
   bool get hasContent =>
       text.isNotEmpty || reasoning.isNotEmpty || toolCalls.isNotEmpty;
@@ -175,6 +203,7 @@ class DshDraft {
     DshTokenUsage? usage,
     DshLlmFailure? failure,
     bool? active,
+    DateTime? time,
   }) {
     return DshDraft(
       attemptId: attemptId,
@@ -187,6 +216,7 @@ class DshDraft {
       usage: usage ?? this.usage,
       failure: failure ?? this.failure,
       active: active ?? this.active,
+      time: time ?? this.time,
     );
   }
 }
@@ -316,6 +346,7 @@ class DshTranscript {
         revision: snapshot.assistantStream.revision,
         turn: baseline.turn,
         step: baseline.step,
+        time: baseline.firstChunkTime,
       );
       for (final chunk in baseline.stream) {
         _applyChunk(chunk);
@@ -382,7 +413,11 @@ class DshTranscript {
         // `revision` is a per-frame counter, not per-attempt: keep the latest
         // one to drop out-of-order frames without resetting the draft.
         if (revision < existing.revision) return;
-        _draft = existing.copyWith(revision: revision);
+        var next = existing.copyWith(revision: revision);
+        if (next.time == null && frame.time != null) {
+          next = next.copyWith(time: frame.time);
+        }
+        _draft = next;
         _applyChunk(chunk);
       case DshAssistantStreamEnd():
         final draft = _draft;
@@ -435,7 +470,9 @@ class DshTranscript {
         _lastFailure = reason.failure ?? _lastFailure;
       case DshUserMessageEvent(:final message):
         if (!event.isAppendOrigin || !event.isHumanPrompt) break;
-        _appendRow(DshUserMessageRow(seq: event.seq, message: message));
+        _appendRow(
+          DshUserMessageRow(seq: event.seq, message: message, time: event.time),
+        );
       case DshAssistantMessageEvent(:final message):
         if (!event.isAppendOrigin) break;
         _appendRow(
@@ -446,6 +483,7 @@ class DshTranscript {
             step: event.step,
             usage: event.usage,
             interrupted: event.interrupted,
+            time: event.time,
           ),
         );
         if (event.usage != null) _liveUsage = event.usage;
@@ -462,6 +500,7 @@ class DshTranscript {
           event.callId,
           name: event.name,
           arguments: event.arguments,
+          time: event.time,
         );
       case DshToolResultEvent():
         if (!event.isAppendOrigin) break;
@@ -486,6 +525,7 @@ class DshTranscript {
                   : DshToolState.succeeded,
               resultText: resultText,
               meta: event.meta,
+              time: event.time,
             ),
           );
         }
@@ -623,6 +663,7 @@ class DshTranscript {
     String callId, {
     required String name,
     required String arguments,
+    DateTime? time,
   }) {
     if (callId.isEmpty) return;
     final index = _toolRowIndex[callId];
@@ -632,7 +673,13 @@ class DshTranscript {
       return;
     }
     _appendRow(
-      DshToolRow(seq: seq, callId: callId, name: name, arguments: arguments),
+      DshToolRow(
+        seq: seq,
+        callId: callId,
+        name: name,
+        arguments: arguments,
+        time: time,
+      ),
     );
   }
 

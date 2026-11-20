@@ -373,10 +373,10 @@ Models (immutable; `raw` kept where forward compatibility matters):
   `DshMuxUnknown`
 - follow snapshot: `DshSessionSnapshot { header, cursor, records, hasMore,
   projections, assistantStream }`, `DshAssistantStreamBaseline`,
-  `DshAssistantStreamAttempt`
-- durable events: `DshSessionEvent` sealed hierarchy with ``seq``, ``time``,
-  ``type``, ``surfaceOp``, ``isAppendOrigin``, ``sourceEventSeqs``,
-  ``ignorable``, ``raw``: `DshTurnStarted`, `DshTurnEnded` (→ `DshTurnEndReason`
+  `DshAssistantStreamAttempt` (also `streamTimes`/`firstChunkTime`, UTC)
+- durable events: `DshSessionEvent` sealed hierarchy with `seq`, `time`,
+  `type`, `surfaceOp`, `isAppendOrigin`, `sourceEventSeqs`,
+  `ignorable`, `raw`: `DshTurnStarted`, `DshTurnEnded` (→ `DshTurnEndReason`
   with `DshLlmFailure`), `DshStepStarted`, `DshStepEnded`, `DshUserMessageEvent`
   (`isHumanPrompt`), `DshAssistantMessageEvent`, `DshAssistantAttemptEvent`,
   `DshToolCallEvent`, `DshToolResultEvent`, `DshTitleEvent`,
@@ -579,6 +579,10 @@ class DshPromptReceipt { String requestId; bool accepted; }             // match
 class DshSessionHistoryPage { List<DshSessionEvent> events; bool hasMore; }
 ```
 
+Event and chunk `time` values are parsed as UTC (`DshSessionEvent.time`,
+`DshAssistantStreamChunkFrame.time`) and the transcript carries them onto rows
+and the draft, so the chat can render timestamps without re-reading raw frames.
+
 `watch()` is the activation path: `openSession(id)` → `watch(activate: true)`
 before the first `prompt()` on a cold session. The stream is **not resumable**:
 each generation begins with a snapshot (emitted as `DshSessionSnapshotUpdate`),
@@ -656,12 +660,13 @@ class DshTranscript {
   DshUserMessageRow? get firstUserMessage;
 }
 
-sealed class DshChatRow { int get seq; }
-final class DshUserMessageRow { DshMessage message; String text; images; files; String? requestId; }
-final class DshAssistantMessageRow { DshMessage message; int turn, step; DshTokenUsage? usage; bool interrupted; String text, reasoning; }
+sealed class DshChatRow { int get seq; DateTime? get time; } // time is UTC
+final class DshUserMessageRow { DshMessage message; DateTime? time; String text; images; files; String? requestId; }
+final class DshAssistantMessageRow { DshMessage message; int turn, step; DateTime? time; DshTokenUsage? usage; bool interrupted; String text, reasoning; }
 enum DshToolState { running, succeeded, failed, cancelled }
 final class DshToolRow {
   String callId, name, arguments;           // arguments = raw JSON text
+  DateTime? time;                          // tool/call event time, kept after result
   DshToolState state; String? resultText; Object? meta;
   DshApprovalOutcome? approvalOutcome;     // ask/decided audits
   Map<String, Object?>? decodedArguments;
@@ -669,6 +674,7 @@ final class DshToolRow {
 
 class DshDraft {
   String attemptId; int revision, turn, step;
+  DateTime? time;                          // first live chunk (UTC); resumed baseline replays it
   String text, reasoning;
   List<DshLiveToolCall> toolCalls;         // streaming tool cards
   DshTokenUsage? usage; DshLlmFailure? failure; bool active;
@@ -693,6 +699,8 @@ Fold rules (from `protocol.md` §5.2–§5.6):
 - waterfalls become `pendingApprovals`/`pendingQuestions`; `cancel`, settle and
   `approval/decided` remove them; reconnecting keeps them until the Host
   retracts;
+- row/draft `time` is the event's UTC `time` (chunk time for the draft); it is
+  nullable so fixtures, older snapshots and events without `time` still fold;
 - unknown events, chunks, parts and projection keys are ignored; gaps are
   filled by the session layer so the fold stays ordered.
 

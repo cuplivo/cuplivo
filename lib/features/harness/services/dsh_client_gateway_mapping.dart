@@ -515,11 +515,13 @@ DshTranscriptEntry _mapRow(dsh.DshChatRow row) {
     dsh.DshUserMessageRow(:final seq) => DshUserEntry(
       key: 'user:$seq',
       text: row.text,
+      time: row.time,
       attachments: _attachmentsOf(row),
     ),
     dsh.DshAssistantMessageRow(:final seq) => DshAssistantEntry(
       key: 'assistant:$seq',
       text: row.text,
+      time: row.time,
       reasoning: row.reasoning,
       streaming: false,
       interrupted: row.interrupted,
@@ -567,6 +569,7 @@ List<DshTranscriptEntry> mapDshTranscriptEntries(dsh.DshTranscript transcript) {
       DshAssistantEntry(
         key: 'draft:${draft.attemptId}',
         text: draft.text,
+        time: draft.time,
         reasoning: draft.reasoning,
         streaming: true,
         toolCallIds: toolIds,

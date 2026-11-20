@@ -16,6 +16,7 @@ import 'response_truncation_notice.dart';
 import 'dart:async';
 import 'dart:collection';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter/foundation.dart'
     show
@@ -2014,6 +2015,13 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     );
   }
 
+  /// [ChatMessage] requires a non-null timestamp, so a producer that has no
+  /// authoritative wire time stores epoch zero. Rendering "1970-01-01" is worse
+  /// than hiding the label: rows from such producers (the DeepSeek Harness
+  /// transcript until the client exposes per-row time) simply omit it.
+  bool get _hasRenderableTimestamp =>
+      widget.message.timestamp.millisecondsSinceEpoch != 0;
+
   Widget _buildUserMessage() {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -2102,7 +2110,8 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               if (userMessageSettings.showName ||
-                  userMessageSettings.showTimestamp)
+                  (userMessageSettings.showTimestamp &&
+                      _hasRenderableTimestamp))
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -2116,9 +2125,11 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                         ),
                       ),
                     if (userMessageSettings.showName &&
-                        userMessageSettings.showTimestamp)
+                        userMessageSettings.showTimestamp &&
+                        _hasRenderableTimestamp)
                       const SizedBox(height: 2),
-                    if (userMessageSettings.showTimestamp)
+                    if (userMessageSettings.showTimestamp &&
+                        _hasRenderableTimestamp)
                       Text(
                         _dateFormat.format(widget.message.timestamp),
                         style: TextStyle(
@@ -3314,9 +3325,9 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     // its own: the global "show model name" switch only governs the model name
     // line, never whether the assistant name replaces it.
     final showHeaderName = showModelName || widget.useAssistantName;
-    final showModelTimestamp = context.select<SettingsProvider, bool>(
-      (s) => s.showModelTimestamp,
-    );
+    final showModelTimestamp =
+        context.select<SettingsProvider, bool>((s) => s.showModelTimestamp) &&
+        _hasRenderableTimestamp;
     final showTotalTokens = context.select<SettingsProvider, bool>(
       (s) => s.showTotalTokens,
     );
@@ -4335,6 +4346,21 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
   Widget _buildAssistantAvatar(ColorScheme cs) {
     final av = (widget.assistantAvatar ?? '').trim();
     if (av.isNotEmpty) {
+      // Brand marks ship as SVG assets; a raster path or url never matches.
+      // The remote owners (DeepSeek Harness) use the same whale the drawer and
+      // creator rows use, as a circular avatar like the initial fallback.
+      if (av.startsWith('assets/') && av.endsWith('.svg')) {
+        return Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: cs.primary.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: SvgPicture.asset(av, width: 20, height: 20),
+        );
+      }
       if (av.startsWith('http') || av.startsWith('/') || av.contains(':')) {
         return AvatarImage(
           source: av,

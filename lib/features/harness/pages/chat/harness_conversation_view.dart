@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
 
+import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/chat_input_data.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/features/harness/controllers/dsh_chat_controllers_provider.dart';
@@ -84,6 +85,14 @@ class _HarnessConversationViewState extends State<HarnessConversationView> {
   DshChatSession? _session;
   bool _creatingSession = false;
 
+  /// The owner identity the transcript rows render with. A harness owner is a
+  /// remote, not a local assistant, so its replies must not fall back to the
+  /// local "assistant" name/robot icon: the row carries the remote's display
+  /// name and the DSH whale mark, matching the drawer's owner row. Cached so
+  /// [MessageListView]'s identity guard does not invalidate every extent on
+  /// each rebuild.
+  Assistant? _ownerAssistant;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -107,6 +116,23 @@ class _HarnessConversationViewState extends State<HarnessConversationView> {
   /// session yet: `sessionFor` notifies the provider, and notifying during
   /// build would rebuild another listener mid-build (the host's app bar watches
   /// the same provider).
+  Assistant _ownerAssistantFor() {
+    final name = widget.remote.name.trim();
+    final displayName = name.isEmpty ? 'DeepSeek Harness' : name;
+    final id = 'dsh-owner:${widget.remote.id}';
+    final cached = _ownerAssistant;
+    if (cached != null && cached.id == id && cached.name == displayName) {
+      return cached;
+    }
+    return _ownerAssistant = Assistant(
+      id: id,
+      name: displayName,
+      avatar: DshWhaleMark.assetPath,
+      useAssistantAvatar: true,
+      useAssistantName: true,
+    );
+  }
+
   void _resolveSession() {
     DshChatControllersProvider? provider;
     try {
@@ -247,6 +273,7 @@ class _HarnessConversationViewState extends State<HarnessConversationView> {
                         contentSplits: folded.contentSplits,
                         toolParts: folded.toolParts,
                         translations: const {},
+                        assistant: _ownerAssistantFor(),
                         selecting: false,
                         selectedItems: const <String>{},
                         dividerPadding: EdgeInsets.zero,

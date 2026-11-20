@@ -491,43 +491,84 @@ Future<void> _runRealScenario(
   await pumpFrames(tester, frames: 20);
   await capture(tester, binding, 'r10_add_provider');
 
-  // R11: the custom provider detail, with the credential/base-URL fields.
-  final customPick = find.byKey(const Key('dsh-provider-pick-custom'));
+  // R11: close the add-provider list deterministically (a barrier tap could
+  // land on the search field) and open deepseek-official's editable detail from
+  // the models list. The settings seam is wired, so every configurable row now
+  // opens the editable form rather than the read-only placeholder.
+  Navigator.of(
+    tester.element(find.byKey(const Key('dsh-add-provider-picker'))),
+  ).pop();
+  // Bounded settle: the sheet close is a finite animation, but the live app
+  // behind these routes is not under the test's control, so a settle that
+  // never reaches quiet should fail here rather than burn the 10-minute
+  // scenario timeout.
+  await tester.pumpAndSettle(
+    const Duration(milliseconds: 100),
+    EnginePhase.sendSemanticsUpdate,
+    const Duration(seconds: 8),
+  );
+
+  final officialRow = find.byKey(
+    const ValueKey<String>('dsh-provider-row-deepseek-official'),
+  );
   await _pumpUntilFound(
     tester,
-    customPick,
-    what: 'the 自定义提供商 row of the add-provider list (R11)',
+    officialRow,
+    what: 'the deepseek-official provider row (R11)',
+    maxFrames: 1200,
   );
-  await tester.tap(customPick);
-  // R11 has two honest shapes in this build: the editing form once the
-  // provider-settings adapter is wired, and the read-only page that states the
-  // adapter is missing. The scenario accepts either and proves it is the
-  // provider detail page in both.
-  final providerApiKey = find.byKey(const Key('dsh-provider-detail-api-key'));
-  final providerId = find.byKey(const Key('dsh-provider-detail-id'));
-  final settingsUnavailable = find.text(l10n.dshModelsSettingsUnavailableTitle);
-  await pumpUntil(
+  // R11 reference: the row's status pill reads 启用 once the settings mapping is
+  // live; wait for it instead of assuming the first frame carries it.
+  final enabledPill = find.descendant(
+    of: officialRow,
+    matching: find.text(l10n.dshModelsProviderEnabled),
+  );
+  await _pumpUntilFound(
     tester,
-    () =>
-        providerApiKey.evaluate().isNotEmpty ||
-        providerId.evaluate().isNotEmpty ||
-        settingsUnavailable.evaluate().isNotEmpty,
-    maxFrames: 300,
+    enabledPill,
+    what: 'the 启用 pill of the deepseek-official row (R11)',
+    maxFrames: 1200,
+  );
+  await tester.tap(officialRow);
+
+  final providerApiKey = find.byKey(const Key('dsh-provider-detail-api-key'));
+  await _pumpUntilFound(
+    tester,
+    providerApiKey,
+    what: 'the editable provider detail form (R11)',
+    maxFrames: 900,
   );
   expect(
-    providerApiKey.evaluate().isNotEmpty ||
-        providerId.evaluate().isNotEmpty ||
-        settingsUnavailable.evaluate().isNotEmpty,
-    isTrue,
-    reason: 'the custom provider detail page (R11)',
-  );
-  expect(
-    find.text(l10n.dshProviderDetailCustomProviderTitle),
+    find.text('deepseek-official'),
     findsWidgets,
-    reason: 'R11 custom provider detail title',
+    reason: 'R11 provider id deepseek-official',
   );
+  // The model catalog is the form's last section. If a short viewport left it
+  // unbuilt, scroll the detail form once so the frame proves it instead of
+  // assuming the first screenful reaches that far.
+  final modelsSection = find.text(l10n.dshProviderDetailModels);
+  if (modelsSection.evaluate().isEmpty) {
+    final formScrollable = find.ancestor(
+      of: providerApiKey,
+      matching: find.byType(Scrollable),
+    );
+    if (formScrollable.evaluate().isNotEmpty) {
+      await tester.drag(formScrollable.first, const Offset(0, -220));
+      await pumpFrames(tester, frames: 12);
+    }
+  }
+  expect(modelsSection, findsWidgets, reason: 'R11 模型目录 section');
   await pumpFrames(tester, frames: 20);
   await capture(tester, binding, 'r11_provider_detail');
+
+  // Back to the models list; the settings route is where R9 left it.
+  await tester.pageBack();
+  await pumpFrames(tester, frames: 20);
+  expect(
+    find.byKey(const Key('dsh-models-search')),
+    findsOneWidget,
+    reason: 'R11 closes back onto the models list',
+  );
 
   expect(tester.takeException(), isNull);
   await capture(tester, binding, 'final_state');

@@ -475,19 +475,29 @@ class DshAssistantStreamAttempt {
     required this.step,
     required this.nextIndex,
     required this.stream,
+    this.streamTimes = const [],
   });
 
   factory DshAssistantStreamAttempt.fromJson(Object? json) {
     final map = jsonMap(json);
+    final stream = <DshStreamChunk>[];
+    final streamTimes = <DateTime?>[];
+    for (final raw in jsonList(map['stream'])) {
+      final item = jsonMap(raw);
+      // The replay carries `{type:'chunk', time, chunk:{…}}`; tests and older
+      // fixtures may store the bare chunk object.
+      final chunk = item.containsKey('chunk') ? item['chunk'] : item;
+      stream.add(DshStreamChunk.fromJson(chunk));
+      streamTimes.add(jsonEpochMs(item['time']));
+    }
     return DshAssistantStreamAttempt(
       attemptId: jsonString(map['attemptId']) ?? '',
       startedAfterSeq: jsonInt(map['startedAfterSeq']) ?? 0,
       turn: jsonInt(map['turn']) ?? 0,
       step: jsonInt(map['step']) ?? 0,
       nextIndex: jsonInt(map['nextIndex']) ?? 0,
-      stream: jsonList(
-        map['stream'],
-      ).map(DshStreamChunk.fromJson).toList(growable: false),
+      stream: stream,
+      streamTimes: streamTimes,
     );
   }
 
@@ -497,6 +507,18 @@ class DshAssistantStreamAttempt {
   final int step;
   final int nextIndex;
   final List<DshStreamChunk> stream;
+
+  /// UTC time of each entry in [stream] (`null` when the Host omitted it).
+  final List<DateTime?> streamTimes;
+
+  /// Time of the first replayed chunk; null for older snapshots/tests that
+  /// stored bare chunks without a timestamp.
+  DateTime? get firstChunkTime {
+    for (final time in streamTimes) {
+      if (time != null) return time;
+    }
+    return null;
+  }
 }
 
 /// One live assistant frame (`session/follow` item type `assistant-stream`).

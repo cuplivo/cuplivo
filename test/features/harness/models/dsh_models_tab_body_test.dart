@@ -6,6 +6,7 @@ import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/features/harness/pages/assistant/models/dsh_models_tab_body.dart';
 import 'package:Cuplivo/features/harness/pages/assistant/models/dsh_provider_detail_page.dart';
 import 'package:Cuplivo/features/harness/models/dsh_provider_settings.dart';
+import 'package:Cuplivo/features/harness/state/dsh_gateway.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 
 import '../../../support/business_test_harness.dart';
@@ -166,6 +167,50 @@ void main() {
     expect(find.text('Model catalog'), findsOneWidget);
   });
 
+  testWidgets('an existing provider renders the editable R11 model rows', (
+    tester,
+  ) async {
+    final gateway = _FakeSettingsGateway(<DshProviderEntry>[
+      _entry(id: 'deepseek-official', name: 'DeepSeek'),
+    ]);
+    await pumpSlice(
+      tester,
+      DshProviderDetailPage(
+        remoteId: 'remote-1',
+        settings: gateway,
+        entry: _entry(id: 'deepseek-official', name: 'DeepSeek'),
+        catalogGroup: const DshProviderGroup(
+          id: 'deepseek-official',
+          title: 'DeepSeek',
+          models: <DshModel>[
+            DshModel(
+              providerId: 'deepseek-official',
+              modelId: 'deepseek-flash',
+              title: 'DeepSeek-V4.1-Flash',
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Existing route: header id + credential field + custom settings + the
+    // provider's catalog models as the same editable rows a custom route gets.
+    expect(find.text('deepseek-official'), findsWidgets);
+    expect(
+      find.byKey(const Key('dsh-provider-detail-api-key')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('dsh-provider-detail-base-url')),
+      findsOneWidget,
+    );
+    expect(find.text('Model catalog'), findsOneWidget);
+    expect(find.text('Using the adapter’s default models'), findsOneWidget);
+    expect(find.text('deepseek-flash'), findsOneWidget);
+    expect(find.byKey(const Key('dsh-provider-detail-save')), findsOneWidget);
+  });
+
   testWidgets('without the settings seam the detail page is honest', (
     tester,
   ) async {
@@ -236,5 +281,11 @@ void main() {
     ]);
     expect(gateway.credentialRef, 'MY_GATEWAY_API_KEY');
     expect(gateway.credentialValue, 'test-key');
+
+    // The save path raises the success snackbar before popping; let its 3 s
+    // auto-dismiss timer fire (and finish the exit animation) so teardown does
+    // not report a pending Timer.
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
   });
 }

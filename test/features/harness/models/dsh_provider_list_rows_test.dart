@@ -88,6 +88,46 @@ void main() {
     expect(rows.first.entry?.id, 'anthropic');
   });
 
+  test('a healthy live catalog row is enabled without a stored credential', () {
+    // The shipped DeepSeek route reads its key from the host environment, while
+    // `configured` speaks for the derived `DEEPSEEK_OFFICIAL_API_KEY` reference.
+    // The live catalog is the Host's own "this route works" answer.
+    final rows = dshProviderListRows(
+      settingsEntries: <DshProviderEntry>[
+        _entry(id: 'deepseek-official', name: 'DeepSeek'),
+        _entry(id: 'broken', name: 'Broken', configured: true),
+      ],
+      catalogGroups: const <DshProviderGroup>[
+        DshProviderGroup(
+          id: 'deepseek-official',
+          title: 'DeepSeek',
+          models: <DshModel>[
+            DshModel(
+              providerId: 'deepseek-official',
+              modelId: 'deepseek-flash',
+              title: 'DeepSeek-V4.1-Flash',
+            ),
+          ],
+        ),
+        DshProviderGroup(
+          id: 'broken',
+          title: 'Broken',
+          failureMessage: 'No credential',
+        ),
+      ],
+    );
+
+    final deepseek = rows.singleWhere(
+      (row) => row.providerId == 'deepseek-official',
+    );
+    final broken = rows.singleWhere((row) => row.providerId == 'broken');
+    expect(deepseek.enabled, isTrue);
+    expect(deepseek.modelCount, 1);
+    expect(deepseek.group?.id, 'deepseek-official');
+    expect(broken.enabled, isFalse);
+    expect(broken.diagnostic, 'No credential');
+  });
+
   test('search matches display name and provider id', () {
     final entries = <DshProviderEntry>[
       _entry(id: 'deepseek-official', name: 'DeepSeek'),

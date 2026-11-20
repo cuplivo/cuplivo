@@ -64,6 +64,20 @@ class DshProviderListRow {
   );
 }
 
+/// Whether a settings row is usable.
+///
+/// The credential reference is not the only way a route gets credentials: the
+/// shipped DeepSeek route reads `DEEPSEEK_API_KEY` from the host environment,
+/// while `credentials/describe` answers for the derived reference
+/// (`DEEPSEEK_OFFICIAL_API_KEY`), so `configured` is false although the route
+/// routes fine. A group the live catalog lists is the Host's own "this provider
+/// works" answer, so it wins; absent from the catalog, the credential state is
+/// the only signal left.
+bool _settingsRowEnabled(DshProviderEntry entry, DshProviderGroup? group) {
+  if (group != null) return (group.failureMessage ?? '').trim().isEmpty;
+  return entry.configured && (entry.error ?? '').trim().isEmpty;
+}
+
 /// Builds the provider rows the 模型 tab shows.
 ///
 /// The settings list wins when available because it is the complete route
@@ -76,16 +90,25 @@ List<DshProviderListRow> dshProviderListRows({
   List<DshProviderGroup> catalogGroups = const <DshProviderGroup>[],
   String query = '',
 }) {
+  final groupById = <String, DshProviderGroup>{
+    for (final group in catalogGroups)
+      if (group.id.trim().isNotEmpty) group.id: group,
+  };
   final rows = <DshProviderListRow>[
     if (settingsEntries != null)
       for (final entry in settingsEntries)
         DshProviderListRow(
           providerId: entry.id,
           displayName: entry.effectiveDisplayName,
-          enabled: entry.configured && (entry.error ?? '').trim().isEmpty,
-          modelCount: entry.profile.models.length,
+          enabled: _settingsRowEnabled(entry, groupById[entry.id]),
+          modelCount: entry.profile.models.isNotEmpty
+              ? entry.profile.models.length
+              : groupById[entry.id]?.models.length ?? 0,
           entry: entry,
-          diagnostic: entry.error,
+          group: groupById[entry.id],
+          diagnostic: (entry.error ?? '').trim().isNotEmpty
+              ? entry.error
+              : groupById[entry.id]?.failureMessage,
         )
     else
       for (final group in catalogGroups)
@@ -124,15 +147,16 @@ List<DshProviderListRow> dshProviderListRows({
 /// own catalog, and accepts an optional [settings] seam for editing provider
 /// profiles. Without the seam the list and the read-only model details still
 /// work; the detail page then says provider editing needs the settings adapter
-/// that ships in the next slice — never fake data.
+/// — never fake data.
 class DshModelsTabBody extends StatefulWidget {
   const DshModelsTabBody({super.key, required this.remoteId, this.settings});
 
   /// The remote whose providers this tab lists.
   final String remoteId;
 
-  /// Provider-settings seam. Null until the foundation wires the adapter;
-  /// everything that needs a write is disabled honestly in that case.
+  /// Provider-settings seam for this remote. Null when the host has no
+  /// settings adapter (not connected yet), in which case everything that
+  /// needs a write is disabled honestly.
   final DshProviderSettingsGateway? settings;
 
   @override

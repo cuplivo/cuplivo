@@ -377,6 +377,67 @@ jobs:
             valid `integration_test/e2e/<name>_test.dart` path. Fix the path
             or retry the request; see `docs/e2e-android.md`.
 
+  dom-contract:
+    name: DSH DOM contract / real Host
+    needs: request
+    # Same-repository runs only: the live Host's launch token is a repository
+    # secret and must never reach fork code. This job proves the official-WebUI
+    # recipes the app ships against the real Host in a desktop Chrome at phone
+    # width; the Android emulator's Chromium renderer cannot render that
+    # single-page app (it exits within seconds), so the emulator run asserts the
+    # native surfaces and the honest WebView degradation instead.
+    if: needs.request.outputs.run == 'true' && needs.request.outputs.same_repo == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      E2E_DSH_URL: ${{ secrets.E2E_DSH_URL }}
+      E2E_DSH_TOKEN: ${{ secrets.E2E_DSH_TOKEN }}
+    steps:
+      - name: Checkout the requested revision
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.request.outputs.checkout_ref || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Print the DOM recipes the app ships
+        run: dart run tool/e2e/print_dsh_surface_scripts.dart > "$RUNNER_TEMP/dsh_surface_scripts.json"
+
+      - name: Run the recipes against the live Host
+        run: |
+          set -euo pipefail
+          if [ -z "${E2E_DSH_URL:-}" ]; then
+            echo "::notice::E2E_DSH_URL is not configured; the DOM-contract check needs the live Host and stays skipped."
+            exit 0
+          fi
+          DSH_SURFACE_SCRIPTS="$RUNNER_TEMP/dsh_surface_scripts.json" node tool/e2e/dsh_dom_contract.js
+
+      - name: Upload the official-UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dom-contract-screenshots
+          path: ${{ runner.temp }}/dom-contract-shots
+          if-no-files-found: ignore
+          retention-days: 7
+
   run:
     name: Android emulator (API 36)
     needs: request
@@ -587,6 +648,10 @@ jobs:
           E2E_PR_NUMBER: ${{ needs.request.outputs.pr_number }}
           E2E_HEAD_SHA: ${{ needs.request.outputs.head_sha }}
           E2E_API_LEVEL: ${{ env.E2E_API_LEVEL }}
+          # The v2 scenario drives several official-WebUI pages (each a real
+          # WebView load with a landing script) on a software-rendered
+          # emulator; the runner's 420 s v1 budget kills it mid-run.
+          E2E_DRIVE_TIMEOUT_SECONDS: '1200'
         with:
           api-level: ${{ env.E2E_API_LEVEL }}
           target: google_apis

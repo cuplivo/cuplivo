@@ -61,6 +61,12 @@ import 'core/providers/hotkey_provider.dart';
 import 'core/providers/workspace_provider.dart';
 import 'core/providers/group_chat_provider.dart';
 import 'core/providers/chat_owners_provider.dart';
+import 'features/harness/controllers/dsh_chat_controllers_provider.dart';
+import 'features/harness/controllers/dsh_gateway_chat_session.dart';
+import 'features/harness/services/dsh_client_gateway.dart';
+import 'features/harness/services/dsh_credential_store.dart';
+import 'features/harness/services/dsh_remote_store.dart';
+import 'features/harness/state/dsh_connections_provider.dart';
 import 'core/services/workspace/workspace_binding_actions.dart';
 import 'core/providers/environment_provider.dart';
 import 'features/workspace/pages/environment_page.dart';
@@ -1101,11 +1107,40 @@ class MyApp extends StatelessWidget {
             businessRepository: ctx.read<BusinessRepository>(),
           ),
         ),
+        // Remote DeepSeek Harness records and their live links. The protocol
+        // adapter factory creates one gateway per remote over the
+        // Flutter-free client in `lib/core/dsh/`; the provider owns cookie
+        // persistence, the catalog cache and the per-remote state. Created
+        // before ChatOwnersProvider because the shared owner order reads its
+        // ids.
+        ChangeNotifierProvider(
+          create: (_) => DshConnectionsProvider(
+            store: DshRemoteStore(businessPreferences),
+            credentials: const SecureDshCredentialStore(),
+            // The protocol adapter: one gateway per remote id, over the
+            // Flutter-free DSH client in `lib/core/dsh/`.
+            gatewayFactory: (_) => DshClientGateway(),
+          ),
+        ),
+        // Chat controllers for open DSH sessions, one per (remote, session).
+        // The factory is the only place the chat slice learns which remote's
+        // gateway a session belongs to, and it never constructs a client: the
+        // adapter opens the session handle through the connections provider.
+        ChangeNotifierProvider(
+          create: (ctx) {
+            final connections = ctx.read<DshConnectionsProvider>();
+            return DshChatControllersProvider(
+              (remote, sessionId) =>
+                  DshGatewayChatSession(connections, remote, sessionId),
+            );
+          },
+        ),
         ChangeNotifierProvider(
           create: (ctx) => ChatOwnersProvider(
             assistants: ctx.read<AssistantProvider>(),
             groups: ctx.read<GroupChatProvider>(),
             preferences: businessPreferences,
+            harnesses: ctx.read<DshConnectionsProvider>(),
           ),
         ),
         ChangeNotifierProvider(

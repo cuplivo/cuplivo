@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
-import 'package:terminal_view/terminal_view.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:Cuplivo/core/services/haptics.dart';
@@ -13,9 +12,7 @@ import 'package:Cuplivo/core/services/workspace/file_link_resolver.dart';
 import 'package:Cuplivo/core/services/workspace/workspace_runtime.dart';
 import 'package:Cuplivo/features/settings/widgets/custom_theme_widgets.dart';
 import 'package:Cuplivo/features/workspace/terminal/terminal_session_manager.dart';
-import 'package:Cuplivo/features/workspace/terminal/widgets/system_terminal_card.dart';
-import 'package:Cuplivo/features/workspace/terminal/widgets/terminal_key_bar.dart';
-import 'package:Cuplivo/features/workspace/terminal/widgets/terminal_tab_strip.dart';
+import 'package:Cuplivo/features/workspace/terminal/widgets/terminal_surface.dart';
 import 'package:Cuplivo/features/workspace/widgets/files/workspace_prompts.dart';
 import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
@@ -55,16 +52,8 @@ class TerminalPage extends StatefulWidget {
 }
 
 class _TerminalPageState extends State<TerminalPage> {
-  final Map<String, TerminalController> _controllers =
-      <String, TerminalController>{};
-  final Map<String, StreamSubscription<Uri>> _urlSubs =
-      <String, StreamSubscription<Uri>>{};
-  final Map<String, VoidCallback> _selectionListeners =
-      <String, VoidCallback>{};
   final GlobalKey _moreAnchorKey = GlobalKey();
   String? _activeId;
-  double _pinchBaseFont = kTerminalDefaultFontSize;
-  Timer? _copyDebounce;
   late final TerminalSessionManager _manager;
 
   @override
@@ -74,71 +63,22 @@ class _TerminalPageState extends State<TerminalPage> {
     _activeId =
         widget.initialSessionId ??
         (_manager.sessions.isEmpty ? null : _manager.sessions.last.id);
-    _syncSessionBindings(_manager);
     _manager.addListener(_onManagerChanged);
   }
 
   @override
   void dispose() {
-    _copyDebounce?.cancel();
     _manager.removeListener(_onManagerChanged);
-    for (final sub in _urlSubs.values) {
-      unawaited(sub.cancel());
-    }
-    _urlSubs.clear();
-    for (final entry in _selectionListeners.entries) {
-      _controllers[entry.key]?.removeListener(entry.value);
-    }
-    _selectionListeners.clear();
-    for (final controller in _controllers.values) {
-      controller.dispose();
-    }
-    _controllers.clear();
     super.dispose();
   }
 
   void _onManagerChanged() {
     if (!mounted) return;
     final manager = context.read<TerminalSessionManager>();
-    _syncSessionBindings(manager);
     if (_activeId != null && manager.byId(_activeId!) == null) {
       _activeId = manager.sessions.isEmpty ? null : manager.sessions.last.id;
     }
     setState(() {});
-  }
-
-  void _syncSessionBindings(TerminalSessionManager manager) {
-    final ids = manager.sessions.map((session) => session.id).toSet();
-    for (final id in List<String>.from(_urlSubs.keys)) {
-      if (!ids.contains(id)) {
-        unawaited(_urlSubs.remove(id)?.cancel());
-      }
-    }
-    for (final id in List<String>.from(_controllers.keys)) {
-      if (!ids.contains(id)) {
-        final listener = _selectionListeners.remove(id);
-        final controller = _controllers.remove(id);
-        if (listener != null) controller?.removeListener(listener);
-        controller?.dispose();
-      }
-    }
-    for (final session in manager.sessions) {
-      _controllers.putIfAbsent(session.id, () {
-        final controller = TerminalController();
-        void onSelection() =>
-            _copySelection(session, controller, debounce: true);
-        _selectionListeners[session.id] = onSelection;
-        controller.addListener(onSelection);
-        return controller;
-      });
-      _urlSubs.putIfAbsent(
-        session.id,
-        () => session.openUrlRequests.listen((uri) {
-          if (!mounted) return;
-          unawaited(_handleOpenUrl(session, uri));
-        }),
-      );
-    }
   }
 
   TerminalSession? get _active {
@@ -347,34 +287,6 @@ class _TerminalPageState extends State<TerminalPage> {
     );
   }
 
-  void _copySelection(
-    TerminalSession session,
-    TerminalController controller, {
-    bool debounce = false,
-  }) {
-    void copy() {
-      final range = controller.selection;
-      if (range == null) return;
-      final text = session.terminal.buffer.getText(range);
-      if (text.trim().isEmpty) return;
-      unawaited(Clipboard.setData(ClipboardData(text: text)));
-    }
-
-    if (!debounce) {
-      copy();
-      return;
-    }
-    _copyDebounce?.cancel();
-    _copyDebounce = Timer(const Duration(milliseconds: 350), copy);
-  }
-
-  Future<void> _paste(TerminalSession session) async {
-    final data = await Clipboard.getData(Clipboard.kTextPlain);
-    final text = data?.text;
-    if (text == null || text.isEmpty) return;
-    session.pasteText(text);
-  }
-
   Future<void> _handleOpenUrl(TerminalSession session, Uri uri) async {
     final l10n = AppLocalizations.of(context)!;
     if (uri.scheme == 'kelivo') {
@@ -468,74 +380,21 @@ class _TerminalPageState extends State<TerminalPage> {
           const SizedBox(width: 12),
         ],
       ),
-      body: Column(
-        children: [
-          if (supportsPty)
-            TerminalTabStrip(
-              sessions: manager.sessions,
-              activeId: session?.id,
-              onSelect: (id) => setState(() => _activeId = id),
-              onAdd: () => unawaited(_addSession()),
-              onRename: (id) => unawaited(_renameSession(id)),
-              onClose: (id) => unawaited(_closeSession(id)),
-            ),
-          Expanded(
-            child: !supportsPty || session == null
-                ? SystemTerminalCard(
-                    hostDir: hostDir,
-                    onOpen: canOpenSystem
-                        ? () => unawaited(_openSystemTerminal())
-                        : null,
-                  )
-                : _buildEmulator(session),
-          ),
-          if (supportsPty && session != null)
-            TerminalKeyBar(
-              session: session,
-              onCopy: () {
-                final controller = _controllers[session.id];
-                if (controller != null) {
-                  _copySelection(session, controller);
-                }
-              },
-              onPaste: () => unawaited(_paste(session)),
-            ),
-        ],
+      body: TerminalSurface(
+        manager: manager,
+        session: session,
+        supportsPty: supportsPty,
+        hostDir: hostDir,
+        onOpenUrl: _handleOpenUrl,
+        pinchAreaKey: TerminalPage.pinchAreaKey,
+        onSelectSession: (id) => setState(() => _activeId = id),
+        onAddSession: supportsPty ? () => unawaited(_addSession()) : null,
+        onRenameSession: (id) => unawaited(_renameSession(id)),
+        onCloseSession: (id) => unawaited(_closeSession(id)),
+        onOpenSystemTerminal: canOpenSystem
+            ? () => unawaited(_openSystemTerminal())
+            : null,
       ).animate().fadeIn(duration: 180.ms),
-    );
-  }
-
-  Widget _buildEmulator(TerminalSession session) {
-    final controller = _controllers[session.id];
-    return KeyedSubtree(
-      key: TerminalPage.pinchAreaKey,
-      child: ColoredBox(
-        color: Theme.of(context).colorScheme.surface,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onScaleStart: (_) => _pinchBaseFont = session.fontSize,
-            onScaleUpdate: (details) {
-              if (details.pointerCount < 2) return;
-              context.read<TerminalSessionManager>().setFontSize(
-                session.id,
-                _pinchBaseFont * details.scale,
-              );
-            },
-            child: TerminalView(
-              session.terminal,
-              controller: controller,
-              autofocus: true,
-              deleteDetection: true,
-              backgroundOpacity: 0,
-              theme: buildTerminalViewTheme(Theme.of(context).colorScheme),
-              textStyle: TerminalStyle(fontSize: session.fontSize),
-              keyboardAppearance: Theme.of(context).brightness,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

@@ -15,11 +15,20 @@ class _DesktopAssistantsBody extends StatelessWidget {
         group.id: group,
     };
     final owners = context.watch<ChatOwnersProvider>();
+    // Remote DeepSeek Harness records are owners too, but not assistants: they
+    // resolve through their own provider and open their own settings page.
+    final harnessConnections = context.watch<DshConnectionsProvider?>();
+    final harnessRemotes = <String, DshRemote>{
+      for (final remote in harnessConnections?.remotes ?? const <DshRemote>[])
+        remote.id: remote,
+    };
     // One row per owner, in the same order the sidebar drags.
     final rows = [
       for (final owner in owners.owners)
         if (owner.isGroup
             ? groups.containsKey(owner.id)
+            : owner.isHarness
+            ? harnessRemotes.containsKey(owner.id)
             : assistants.containsKey(owner.id))
           owner,
     ];
@@ -30,28 +39,47 @@ class _DesktopAssistantsBody extends StatelessWidget {
     final separated =
         canSeparate && context.watch<SettingsProvider>().separateChatOwners;
     // Each section is one kind read through the shared projection, so the two
-    // halves cannot disagree with the mixed list about where a row goes.
+    // halves cannot disagree with the mixed list about where a row goes. A
+    // remote sorts in the assistants half: it is not taggable and it is not a
+    // group.
     final assistantRows = separated
-        ? owners.inOwnerOrder(
-            assistants.values,
-            (assistant) => ChatOwner.assistant(assistant.id).key,
-          )
-        : const <Assistant>[];
+        ? owners.inOwnerOrder<ChatOwner>([
+            for (final assistant in assistants.values)
+              ChatOwner.assistant(assistant.id),
+            for (final remote in harnessRemotes.values)
+              ChatOwner.harness(remote.id),
+          ], (owner) => owner.key)
+        : const <ChatOwner>[];
     final groupRows = separated
         ? owners.inOwnerOrder(
             groups.values,
             (group) => ChatOwner.group(group.id).key,
           )
         : const <GroupChat>[];
-    final assistantKeys = {
-      for (final assistant in assistantRows)
-        ChatOwner.assistant(assistant.id).key,
-    };
+    final assistantKeys = {for (final owner in assistantRows) owner.key};
     final groupKeys = {
       for (final group in groupRows) ChatOwner.group(group.id).key,
     };
 
+    Widget harnessCard(DshRemote remote) {
+      return DshOwnerCard(
+        key: const Key('dsh-owner-card'),
+        dense: true,
+        remote: remote,
+        subtitle: AppLocalizations.of(context)!.dshAssistantSubtitle,
+        status:
+            harnessConnections?.linkStatus(remote.id) ??
+            const DshLinkStatus.idle(),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => DshAssistantSettingsPage.edit(remoteId: remote.id),
+          ),
+        ),
+      );
+    }
+
     Widget cardFor(ChatOwner owner) {
+      if (owner.isHarness) return harnessCard(harnessRemotes[owner.id]!);
       final group = owner.isGroup ? groups[owner.id] : null;
       return group != null
           ? _DesktopGroupCard(group: group, assistants: assistants)
@@ -122,18 +150,19 @@ class _DesktopAssistantsBody extends StatelessWidget {
                                 )!.chatOwnersSectionAssistants,
                               ),
                             ),
-                            _ownerSliver<Assistant>(
+                            _ownerSliver<ChatOwner>(
                               assistantRows,
                               keyPrefix: 'desktop-assistant',
-                              itemKeyOf: (assistant) =>
-                                  ChatOwner.assistant(assistant.id).key,
-                              itemBuilder: (assistant) => _DesktopAssistantCard(
-                                item: assistant,
-                                onTap: () => showAssistantDesktopDialog(
-                                  context,
-                                  assistantId: assistant.id,
-                                ),
-                              ),
+                              itemKeyOf: (owner) => owner.key,
+                              itemBuilder: (owner) => owner.isHarness
+                                  ? harnessCard(harnessRemotes[owner.id]!)
+                                  : _DesktopAssistantCard(
+                                      item: assistants[owner.id]!,
+                                      onTap: () => showAssistantDesktopDialog(
+                                        context,
+                                        assistantId: owner.id,
+                                      ),
+                                    ),
                               onReorder: (oldIndex, newIndex) =>
                                   owners.reorderWithin(
                                     keys: assistantKeys,
@@ -331,6 +360,14 @@ class _AddOwnerButtonState extends State<_AddOwnerButton> {
                 icon: lucide.Lucide.Users,
                 label: l10n.groupChatCreate,
                 onTap: () => _createGroup(context),
+              ),
+              // The third owner kind: a remote DeepSeek Harness. Same brand
+              // glyph and label as the mobile create menu.
+              ActionSheetItem(
+                key: const Key('dsh-create-menu-item'),
+                svgAsset: DshWhaleMark.assetPath,
+                label: l10n.dshProductName,
+                onTap: () => startDshAssistantCreation(context),
               ),
             ],
           );

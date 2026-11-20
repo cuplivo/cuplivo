@@ -200,6 +200,20 @@ rotates with every server restart). Compose the connection URL in the scenario
 as `$E2E_DSH_URL/?token=$E2E_DSH_TOKEN` when the connection form takes the
 tokenized URL.
 
+When the endpoint is configured for a same-repository run, a second job,
+`dom-contract`, proves the official-WebUI DOM recipes the app ships: it prints
+them with `tool/e2e/print_dsh_surface_scripts.dart` and runs
+`tool/e2e/dsh_dom_contract.js` — a dependency-free Node script that drives the
+runner's desktop Chrome at phone width (412×915) over the DevTools protocol —
+against the live Host. It asserts the harvested sidebar rows, right-rail cards,
+settings sections and the three landing recipes (sidebar row, rail card, 更多).
+This job exists because the Android emulator's Chromium renderer exits within
+seconds on that single-page app, so the emulator run can only assert the honest
+fallback; the DOM contract is where "the generic compatibility works against
+the real Host" is proven, and it needs the same two secrets but no emulator.
+The job logs `[dom-contract] ok …` / `FAIL …` lines and skips itself when the
+secrets are absent.
+
 Two preflight steps run before the build and fail in seconds when the endpoint
 is unreachable or the token is stale. A step after the run deletes any artifact
 that contains the token and fails the job, because `e2e-logs`, screenshots,

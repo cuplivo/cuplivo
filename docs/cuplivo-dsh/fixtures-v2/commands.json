@@ -1,0 +1,113 @@
+{
+  "_source": "real DSH Host (0.2.2-rc.1), captured 2026-11-20",
+  "commands_list": {
+    "method": "commands/list",
+    "args": {
+      "agentId": "<sessionId>"
+    },
+    "value": [
+      {
+        "definitionId": "@deepseek-ai/dsh-command-compact",
+        "name": "compact",
+        "description": "Compact older conversation history"
+      },
+      {
+        "definitionId": "@deepseek-ai/dsh-session-log-export",
+        "name": "export",
+        "description": "Download this Session log as a ZIP archive"
+      },
+      {
+        "definitionId": "@deepseek-ai/dsh-command-feedback",
+        "name": "feedback",
+        "description": "Record feedback about this session",
+        "input": {
+          "hint": "<text>"
+        }
+      },
+      {
+        "definitionId": "@deepseek-ai/dsh-command-goal",
+        "name": "goal",
+        "description": "Set or view the goal for a long-running task",
+        "input": {
+          "hint": "[<objective>|clear|edit <objective>|pause|resume]",
+          "attachments": true
+        }
+      },
+      {
+        "definitionId": "@deepseek-ai/dsh-permission-presets",
+        "name": "permission",
+        "description": "Switch the permission preset (sandbox mode + approval policy)",
+        "input": {
+          "hint": "<preset>"
+        }
+      },
+      {
+        "definitionId": "@deepseek-ai/dsh-plan-mode",
+        "name": "plan",
+        "description": "Enter or leave plan mode",
+        "input": {
+          "hint": "[off|message]",
+          "attachments": true
+        }
+      }
+    ],
+    "note": "session-composed roster; the exact set depends on the Host's plugins and the Session preset. Each row is {definitionId?, name, description, input?:{hint, attachments?}}"
+  },
+  "skills_list": {
+    "method": "skills/list",
+    "args": {
+      "request": {
+        "sessionId": "<sessionId>"
+      }
+    },
+    "value": {
+      "skills": []
+    },
+    "note": "empty on this Host; each entry is {path?, name, description, whenToUse?, modelInvocable}"
+  },
+  "file_references_list": {
+    "method": "fileReferences/list",
+    "args": {
+      "agentId": "<sessionId>",
+      "query": "he"
+    },
+    "value": [
+      {
+        "path": "hello.txt",
+        "kind": "file"
+      }
+    ],
+    "note": "composer @ candidates; a directory carries kind 'directory' and is opened with a quoted token (@\"dir/\") so the path can contain spaces"
+  },
+  "execute_permission": {
+    "method": "commands/execute",
+    "args": {
+      "agentId": "<sessionId>",
+      "line": "/permission workspace-write",
+      "submittedAttachments": []
+    },
+    "value": {
+      "commandId": "<commandId>",
+      "result": {
+        "kind": "success",
+        "text": "preset workspace-write"
+      }
+    }
+  },
+  "execute_unknown": {
+    "method": "commands/execute",
+    "args": {
+      "agentId": "<sessionId>",
+      "line": "/nope",
+      "submittedAttachments": []
+    },
+    "value": null,
+    "note": "the Host answers ok with no value because it did not claim the line; the composer then sends it as an ordinary prompt"
+  },
+  "order": {
+    "subscribe": "the / trigger source 'command' (host roster + client contributions) and source 'skill' (skills/list) share one popup, commands first",
+    "client_contribution": "the built-in /file row (label 添加文件, action → open file dialog) comes from the conversation plugin, after the host roster",
+    "leading_vs_inline": "a leading '/' offers every row; an inline '/name' offers only commands without an input hint",
+    "invalidation": "commands/change invalidates the roster; agent-preset/selected resets a Session"
+  }
+}

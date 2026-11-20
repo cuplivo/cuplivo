@@ -7,6 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:ui' as ui;
 
 import '../../../l10n/app_localizations.dart';
+import 'package:Cuplivo/features/harness/pages/home/harness_home_chrome.dart';
 import '../../../shared/widgets/interactive_drawer.dart';
 import '../widgets/side_drawer.dart';
 import '../../../icons/lucide_adapter.dart';
@@ -54,6 +55,7 @@ class HomeMobileScaffold extends StatelessWidget {
     required this.onExitGlobalSearch,
     required this.onOpenGlobalSearchResult,
     this.appBarOverride,
+    this.harness,
     required this.body,
   });
 
@@ -90,11 +92,17 @@ class HomeMobileScaffold extends StatelessWidget {
   )
   onOpenGlobalSearchResult;
   final PreferredSizeWidget? appBarOverride;
+
+  /// Non-null in DeepSeek Harness mode: replaces the app bar, the chat body and
+  /// the drawer's list source, and adds the right drawer. Null keeps the local
+  /// path unchanged.
+  final HarnessHomeChrome? harness;
   final Widget body;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final harness = this.harness;
 
     return InteractiveDrawer(
       controller: drawerController,
@@ -104,6 +112,7 @@ class HomeMobileScaffold extends StatelessWidget {
       maxScrimOpacity: 0.12,
       barrierDismissible: true,
       drawer: SideDrawer(
+        remoteSidebarSource: harness?.sidebarSource,
         userName: context.watch<UserProvider>().name,
         assistantName: _getAssistantName(context),
         closePickerTicker: assistantPickerCloseTick,
@@ -134,15 +143,40 @@ class HomeMobileScaffold extends StatelessWidget {
       ),
       child: ChatFrostedBackdrop(
         backdrop: const MobileBackgroundLayer(),
-        child: Scaffold(
-          key: scaffoldKey,
-          resizeToAvoidBottomInset: true,
-          extendBodyBehindAppBar: true,
-          backgroundColor: Colors.transparent,
-          appBar: appBarOverride ?? _buildAppBar(context, cs),
-          body: body,
-        ),
+        child: _withHarnessRightDrawer(context, harness, cs),
       ),
+    );
+  }
+
+  /// Harness mode adds the R7 rail as a real right drawer around the same
+  /// scaffold; local mode returns the scaffold untouched.
+  Widget _withHarnessRightDrawer(
+    BuildContext context,
+    HarnessHomeChrome? harness,
+    ColorScheme cs,
+  ) {
+    final scaffold = Scaffold(
+      key: scaffoldKey,
+      resizeToAvoidBottomInset: true,
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+      appBar: harness?.appBar ?? appBarOverride ?? _buildAppBar(context, cs),
+      body: harness?.body ?? body,
+    );
+    if (harness == null) return scaffold;
+    final width = MediaQuery.sizeOf(context).width;
+    return InteractiveDrawer(
+      controller: harness.railController,
+      side: DrawerSide.right,
+      // Near-full width: the drawer translates its child with progress, so the
+      // conversation is pushed off-screen instead of sitting under a panel
+      // (R7's rule; `width` when the rail asked for the whole screen).
+      drawerWidth: harness.railExpanded ? width : width * 0.94,
+      scrimColor: cs.onSurface,
+      maxScrimOpacity: 0.08,
+      barrierDismissible: true,
+      drawer: harness.rail,
+      child: scaffold,
     );
   }
 

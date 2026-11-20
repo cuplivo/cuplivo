@@ -26,6 +26,13 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import '../../harness/models/dsh_remote.dart';
+import '../../harness/pages/assistant/dsh_assistant_settings_page.dart';
+import '../../harness/pages/connect/dsh_create_flow.dart';
+import '../../harness/state/dsh_connections_provider.dart';
+import '../../harness/state/dsh_gateway.dart';
+import '../../harness/widgets/dsh_owner_card.dart';
+import '../../harness/widgets/dsh_whale_mark.dart';
 
 /// Settings › 助手与群聊: assistants and groups in one list, in one order.
 ///
@@ -59,6 +66,14 @@ class _ChatOwnerSettingsPageState extends State<ChatOwnerSettingsPage> {
         group.id: group,
     };
     final owners = context.watch<ChatOwnersProvider>();
+    // Remote DeepSeek Harness records are owners too, but not assistants: they
+    // resolve through their own provider and render their own card/page. A
+    // host that does not provide the DSH feature simply has none.
+    final harnessConnections = context.watch<DshConnectionsProvider?>();
+    final harnessRemotes = <String, DshRemote>{
+      for (final remote in harnessConnections?.remotes ?? const <DshRemote>[])
+        remote.id: remote,
+    };
     // One switch, two layouts. The row only changes anything once there is a
     // group to separate from the assistants, so it waits for the first one; the
     // setting itself is kept either way.
@@ -71,32 +86,53 @@ class _ChatOwnerSettingsPageState extends State<ChatOwnerSettingsPage> {
       for (final owner in owners.owners)
         if (owner.isGroup
             ? groups.containsKey(owner.id)
+            : owner.isHarness
+            ? harnessRemotes.containsKey(owner.id)
             : assistants.containsKey(owner.id))
           owner,
     ];
     // Each section is one kind read through the shared projection, so the two
-    // halves cannot disagree with the mixed list about where a row goes.
+    // halves cannot disagree with the mixed list about where a row goes. A
+    // remote sorts in the assistants half: it is not taggable and it is not a
+    // group, and hiding it in separated mode would make a created remote
+    // disappear from this page.
     final assistantRows = separated
-        ? owners.inOwnerOrder(
-            assistants.values,
-            (assistant) => ChatOwner.assistant(assistant.id).key,
-          )
-        : const <Assistant>[];
+        ? owners.inOwnerOrder<ChatOwner>([
+            for (final assistant in assistants.values)
+              ChatOwner.assistant(assistant.id),
+            for (final remote in harnessRemotes.values)
+              ChatOwner.harness(remote.id),
+          ], (owner) => owner.key)
+        : const <ChatOwner>[];
     final groupRows = separated
         ? owners.inOwnerOrder(
             groups.values,
             (group) => ChatOwner.group(group.id).key,
           )
         : const <GroupChat>[];
-    final assistantKeys = {
-      for (final assistant in assistantRows)
-        ChatOwner.assistant(assistant.id).key,
-    };
+    final assistantKeys = {for (final owner in assistantRows) owner.key};
     final groupKeys = {
       for (final group in groupRows) ChatOwner.group(group.id).key,
     };
 
+    Widget harnessCard(DshRemote remote) {
+      return DshOwnerCard(
+        key: const Key('dsh-owner-card'),
+        remote: remote,
+        subtitle: l10n.dshAssistantSubtitle,
+        status:
+            harnessConnections?.linkStatus(remote.id) ??
+            const DshLinkStatus.idle(),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => DshAssistantSettingsPage.edit(remoteId: remote.id),
+          ),
+        ),
+      );
+    }
+
     Widget cardFor(ChatOwner owner) {
+      if (owner.isHarness) return harnessCard(harnessRemotes[owner.id]!);
       final group = owner.isGroup ? groups[owner.id] : null;
       return group != null
           ? _GroupCard(group: group, assistants: assistants)
@@ -121,6 +157,7 @@ class _ChatOwnerSettingsPageState extends State<ChatOwnerSettingsPage> {
             child: Tooltip(
               message: l10n.settingsPageChatOwnersCreate,
               child: _TactileIconButton(
+                key: const ValueKey('dsh-create-action'),
                 icon: Lucide.Plus,
                 color: cs.onSurface,
                 size: 22,
@@ -152,11 +189,12 @@ class _ChatOwnerSettingsPageState extends State<ChatOwnerSettingsPage> {
                       title: l10n.chatOwnersSectionAssistants,
                     ),
                   ),
-                  _OwnerSliver<Assistant>(
+                  _OwnerSliver<ChatOwner>(
                     items: assistantRows,
-                    itemKeyOf: (assistant) =>
-                        ChatOwner.assistant(assistant.id).key,
-                    itemBuilder: (assistant) => _AssistantCard(item: assistant),
+                    itemKeyOf: (owner) => owner.key,
+                    itemBuilder: (owner) => owner.isHarness
+                        ? harnessCard(harnessRemotes[owner.id]!)
+                        : _AssistantCard(item: assistants[owner.id]!),
                     onReorder: (oldIndex, newIndex) => owners.reorderWithin(
                       keys: assistantKeys,
                       oldIndex: oldIndex,
@@ -213,6 +251,15 @@ class _ChatOwnerSettingsPageState extends State<ChatOwnerSettingsPage> {
           icon: Lucide.Users,
           label: l10n.groupChatCreate,
           onTap: () => _createGroup(context),
+        ),
+        // The third owner kind: a remote DeepSeek Harness. Its whale mark is
+        // the brand glyph (the same asset the provider icons use), not a
+        // generic icon, matching the reference create menu.
+        ActionSheetItem(
+          key: const Key('dsh-create-menu-item'),
+          svgAsset: DshWhaleMark.assetPath,
+          label: l10n.dshProductName,
+          onTap: () => startDshAssistantCreation(context),
         ),
       ],
     );
@@ -629,6 +676,7 @@ class _GroupCard extends StatelessWidget {
 // --- iOS-style tactile helpers ---
 class _TactileIconButton extends StatefulWidget {
   const _TactileIconButton({
+    super.key,
     required this.icon,
     required this.color,
     required this.onTap,

@@ -1,0 +1,59 @@
+{
+  "_source": "real DSH Host (0.2.2-rc.1), captured 2026-11-20 after one completed turn",
+  "method": "session/projections",
+  "args": {
+    "request": {
+      "sessionId": "<sessionId>"
+    }
+  },
+  "value": {
+    "asOfSeq": 20,
+    "values": {
+      "tokenUsage": {
+        "uncachedInputTokens": 486,
+        "outputTokens": 2,
+        "cacheReadTokens": 8448,
+        "cacheWriteTokens": 0
+      },
+      "contextPressure": {
+        "pressureTokens": 8934,
+        "projectedTokens": 8947,
+        "contextWindow": 1048576
+      },
+      "contextBreakdown": {
+        "systemTokens": 1452,
+        "toolsTokens": 7476,
+        "messageTokens": 286
+      },
+      "modelSelection": {
+        "lastUsed": {
+          "provider": "deepseek-official",
+          "model": "deepseek-flash"
+        },
+        "next": {
+          "provider": "deepseek-official",
+          "model": "deepseek-flash"
+        }
+      },
+      "sessionStats": {
+        "turns": 1,
+        "steps": 1,
+        "llmMs": 806,
+        "toolMs": 0,
+        "ttftMs": 786,
+        "ttftSteps": 1,
+        "decodeMs": 20,
+        "decodeTokens": 2
+      }
+    }
+  },
+  "ring": {
+    "usedTokens": "contextPressure.projectedTokens ?? contextPressure.pressureTokens",
+    "contextWindow": "contextPressure.contextWindow",
+    "percent": "min(100, round(usedTokens / contextWindow * 100))",
+    "panelRows": "contextBreakdown {systemTokens, toolsTokens, messageTokens} — heuristic composition, does not sum to projectedTokens",
+    "absentUntil": "provider-reported usage for a turn; both pressure fields are absent before that",
+    "alsoSeenIn": "follow frame events: request/context carries {provider, model, contextWindow} and assistant-stream chunk 'usage' carries inputTokens/outputTokens/cacheReadTokens/cacheWriteTokens/totalTokens",
+    "invalidation": "projection frames on session/control (0.2.2 batched changes[{key,val}])"
+  }
+}

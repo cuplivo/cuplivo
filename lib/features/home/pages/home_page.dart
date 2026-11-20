@@ -34,6 +34,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../desktop/desktop_tab.dart';
 import '../../../main.dart';
 import '../../../shared/widgets/interactive_drawer.dart';
+import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/visible_route_theme.dart';
 import '../../../shared/widgets/selection_back_scope.dart';
 import '../../../shared/responsive/breakpoints.dart';
@@ -99,6 +100,28 @@ import '../widgets/user_message_edit_overlay.dart';
 import '../utils/model_display_helper.dart';
 import '../utils/chat_layout_constants.dart';
 import '../controllers/home_page_controller.dart';
+import '../../harness/controllers/dsh_chat_controllers_provider.dart';
+import '../../harness/controllers/dsh_chat_session.dart';
+import '../../harness/pages/chat/harness_conversation_view.dart';
+import '../../harness/pages/home/harness_surface_entries.dart';
+import '../../harness/pages/preview/dsh_file_preview_page.dart';
+import '../../harness/pages/home/harness_home_chrome.dart';
+import '../../harness/pages/home/harness_home_controller.dart';
+import '../../harness/pages/home/harness_home_gateway_adapter.dart';
+import '../../harness/pages/home/harness_home_models.dart';
+import '../../harness/pages/home/harness_right_rail.dart';
+import '../../harness/pages/home/harness_session_catalog.dart';
+import '../../harness/pages/plugins/dsh_plugin_web_page.dart';
+import '../../harness/services/dsh_credential_store.dart';
+import '../../harness/services/dsh_surface_harvest.dart';
+import '../../harness/pages/assistant/dsh_assistant_settings_page.dart';
+import '../../harness/widgets/chat/dsh_model_picker.dart';
+import '../../harness/state/dsh_connections_provider.dart';
+import '../../harness/state/dsh_gateway.dart';
+import '../../harness/widgets/dsh_failure_text.dart';
+import '../../harness/widgets/dsh_side_bar.dart';
+import '../../harness/widgets/terminal/dsh_terminal_panel.dart';
+import '../widgets/side_drawer.dart';
 import '../controllers/scroll_controller.dart' as scroll_ctrl;
 import 'home_mobile_layout.dart';
 import 'home_desktop_layout.dart';
@@ -195,6 +218,33 @@ class _HomePageState extends State<HomePage>
   late final Future<void> _chatReady;
   bool _readingIncomingShares = false;
   bool _incomingShareChanged = false;
+
+  // ============================================================================
+  // DeepSeek Harness mode
+  // ============================================================================
+  //
+  // Harness mode reuses the two home scaffolds instead of growing a second
+  // shell: it replaces the app bar, the chat body, the drawer's list source and
+  // the desktop side panel with remote-owned widgets. Local conversation state
+  // (`HomePageController`'s conversations, `ChatService`, `HomeViewModel`,
+  // `ChatController`, the `AssistantProvider` selection) is never entered in
+  // this mode; the only local state still read here is the shared left-sidebar
+  // chrome (open/width), which belongs to navigation, not chat.
+  HarnessHomeController? _harnessController;
+  DshHarnessSessionCatalog? _harnessCatalog;
+
+  /// The app-wide official-WebUI surface inventory: every remote page opened
+  /// from here (or from the assistant settings page) stores its harvest per
+  /// authority, and R5/R7 plus the extra settings tabs rebuild from it.
+  DshSurfaceInventory get _harnessSurfaceInventory =>
+      DshSurfaceInventory.shared;
+  final InteractiveDrawerController _harnessRailController =
+      InteractiveDrawerController();
+
+  /// Identifies the rail subtree so a keyboard opening can tell whether the
+  /// focus is the rail's own (a terminal input) or the chat composer's.
+  final GlobalKey _harnessRailKey = GlobalKey(debugLabel: 'harness-rail');
+  bool _harnessLandingInFlight = false;
 
   // ============================================================================
   // Page Controller (manages all business logic and state)
@@ -609,8 +659,36 @@ class _HomePageState extends State<HomePage>
     final nextInset = View.of(context).viewInsets.bottom;
     final keyboardOpening = nextInset > _lastViewInsetBottom + 0.5;
     _lastViewInsetBottom = nextInset;
+    // A keyboard opening usually means the composer got focus and needs the
+    // whole screen, so the rail closes. A terminal focused inside the rail must
+    // not close its own rail: the keyboard is how the terminal receives input.
+    if (keyboardOpening &&
+        (_harnessController?.railOpen ?? false) &&
+        !_focusInsideHarnessRail()) {
+      _harnessController!.closeRail();
+    }
     if (!keyboardOpening || !PlatformUtils.isMobileTarget) return;
     _controller.scrollCtrl.pinBottomDuringViewportResizeIfNeeded();
+  }
+
+  /// Whether the primary focus lives inside the right rail's subtree.
+  ///
+  /// The rail hosts its own keyboard consumers (the terminal), so the
+  /// keyboard-opening rail dismissal must exempt focus that came from within.
+  bool _focusInsideHarnessRail() {
+    final railContext = _harnessRailKey.currentContext;
+    final focusContext = FocusManager.instance.primaryFocus?.context;
+    if (railContext == null || focusContext == null) return false;
+    if (identical(focusContext, railContext)) return true;
+    var inside = false;
+    focusContext.visitAncestorElements((element) {
+      if (identical(element, railContext)) {
+        inside = true;
+        return false;
+      }
+      return true;
+    });
+    return inside;
   }
 
   @override
@@ -639,6 +717,10 @@ class _HomePageState extends State<HomePage>
     _chatFocus.dispose();
     _controller.removeListener(_onControllerChanged);
     _drawerController.removeListener(_onDrawerValueChanged);
+    _harnessController?.removeListener(_onHarnessChanged);
+    _harnessController?.dispose();
+    _harnessCatalog?.dispose();
+    _harnessRailController.dispose();
     _controller.dispose();
     _inputController.removeListener(_syncQuoteHighlights);
     _quoteInteractions.dispose();
@@ -804,6 +886,9 @@ class _HomePageState extends State<HomePage>
   }
 
   void _onControllerChanged() {
+    // Entering/leaving a remote owner changes the surface itself, so it is
+    // synced here (one place) rather than from the tap handler.
+    _syncHarnessMode();
     _syncFindSession();
     _observeCompression();
     final conversationId = _controller.currentConversation?.id;
@@ -830,6 +915,11 @@ class _HomePageState extends State<HomePage>
 
   void _onDrawerValueChanged() {
     _controller.onDrawerValueChanged(_drawerController.value);
+    // One drawer at a time: opening the left sidebar puts the rail away.
+    if (_drawerController.value > 0.05 &&
+        (_harnessController?.railOpen ?? false)) {
+      _harnessController!.closeRail();
+    }
     // Close assistant picker when drawer closes
     if (_drawerController.value < 0.95) {
       final sp = context.read<SettingsProvider>();
@@ -1013,9 +1103,673 @@ class _HomePageState extends State<HomePage>
         ),
       );
 
+  // ============================================================================
+  // DeepSeek Harness mode
+  // ============================================================================
+
+  /// Builds (or drops) the remote controller when the active remote changes.
+  ///
+  /// Called from the one place local owner changes are observed, so a remote
+  /// owner opened from any entry point (drawer, deep link, share sheet) lands on
+  /// the same surface. The state layer owns the remote record; a remote that is
+  /// gone falls back to the local page rather than a dead shell.
+  void _syncHarnessMode() {
+    final remoteId = _controller.activeHarnessRemoteId;
+    final current = _harnessController;
+    if (remoteId == null) {
+      if (current != null) _setHarnessController(null);
+      return;
+    }
+    if (current != null && current.remote.id == remoteId) return;
+    final connections = context.read<DshConnectionsProvider?>();
+    final remote = connections?.remoteById(remoteId);
+    if (connections == null || remote == null) {
+      if (current != null) _setHarnessController(null);
+      return;
+    }
+    final catalog = DshHarnessSessionCatalog(
+      connections: connections,
+      remoteId: remoteId,
+    );
+    final harness = HarnessHomeController(
+      remote: remote,
+      catalog: catalog,
+      workspaceFilesForSession: (sessionId) => DshHarnessWorkspaceFiles(
+        connections: connections,
+        remoteId: remoteId,
+        sessionId: sessionId,
+      ),
+      // The official-WebUI harvest fills this inventory per authority; until a
+      // page is opened once the sidebar and rail render the DSH built-ins only.
+      surfaceInventory: _harnessSurfaceInventory,
+    );
+    _setHarnessController(harness, catalog: catalog);
+    unawaited(_requestHarnessLandingSession());
+  }
+
+  void _setHarnessController(
+    HarnessHomeController? next, {
+    DshHarnessSessionCatalog? catalog,
+  }) {
+    final previous = _harnessController;
+    if (identical(previous, next)) return;
+    previous?.removeListener(_onHarnessChanged);
+    previous?.dispose();
+    _harnessCatalog?.dispose();
+    _harnessCatalog = catalog;
+    _harnessController = next;
+    next?.addListener(_onHarnessChanged);
+    if (next == null) {
+      // Leaving the surface resets the drawer it may have left half-open; the
+      // value survives a detached controller, so an explicit reset keeps the
+      // next remote from inheriting it.
+      _harnessRailController.jumpTo(0);
+    }
+    _updateHarnessRail();
+  }
+
+  void _onHarnessChanged() {
+    if (!mounted) return;
+    _updateHarnessRail();
+    final harness = _harnessController;
+    // The catalog becomes readable after the link handshake; pick the landing
+    // session then, not on the first (still empty) frame.
+    if (harness != null &&
+        harness.selectedSessionId == null &&
+        harness.catalog.isAvailable) {
+      unawaited(_requestHarnessLandingSession());
+    }
+    setState(() {});
+  }
+
+  /// R6's landing rule: open the remote's most recent session, or create one
+  /// when the remote has none and allows creation.
+  Future<void> _requestHarnessLandingSession() async {
+    final harness = _harnessController;
+    if (harness == null || _harnessLandingInFlight) return;
+    if (harness.selectedSessionId != null) return;
+    if (!harness.catalog.isAvailable) return;
+    _harnessLandingInFlight = true;
+    try {
+      final catalog = harness.catalog;
+      final sessions = <HarnessSessionSummary>[
+        ...catalog.ungroupedSessions,
+        for (final group in catalog.workspaces) ...group.sessions,
+      ];
+      if (sessions.isEmpty) {
+        if (!catalog.capabilities.create) return;
+        await harness.startNewSession();
+        return;
+      }
+      sessions.sort((a, b) {
+        final left = a.updatedAt;
+        final right = b.updatedAt;
+        if (left == null) return right == null ? 0 : 1;
+        if (right == null) return -1;
+        return right.compareTo(left);
+      });
+      if (!mounted || !identical(_harnessController, harness)) return;
+      harness.selectSession(sessions.first.sessionId);
+    } on HarnessCatalogException catch (error) {
+      if (mounted && identical(_harnessController, harness)) {
+        _showHarnessError(error);
+      }
+    } finally {
+      _harnessLandingInFlight = false;
+    }
+  }
+
+  void _updateHarnessRail() {
+    final open = _harnessController?.railOpen ?? false;
+    if (open && _harnessRailController.isClosed) {
+      _animateHarnessRailDrawer(_harnessRailController.open);
+    }
+    if (!open && _harnessRailController.isOpen) {
+      _animateHarnessRailDrawer(_harnessRailController.close);
+    }
+  }
+
+  /// Drives the mobile right drawer from the rail state.
+  ///
+  /// Only the mobile scaffold mounts a right `InteractiveDrawer`; the
+  /// tablet/desktop host lays the rail out with geometry instead. An
+  /// unattached controller is therefore the normal desktop case, not a fault,
+  /// so the expected "not attached" failure is swallowed here.
+  void _animateHarnessRailDrawer(Future<void> Function() action) {
+    unawaited(action().catchError((Object _) {}));
+  }
+
+  void _showHarnessError(HarnessCatalogException error) {
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
+    final cause = error.cause;
+    final message = switch (cause) {
+      DshFailure failure => dshFailureText(l10n, failure),
+      _ => error.userMessage ?? l10n.dshOperationFailed,
+    };
+    showAppSnackBar(context, message: message);
+  }
+
+  void _toggleHarnessSidebarForMobile() {
+    if (_harnessController?.railOpen ?? false) _harnessController!.closeRail();
+    _drawerController.toggle();
+  }
+
+  void _toggleHarnessSidebarForDesktop() {
+    if (_harnessController?.railOpen ?? false) _harnessController!.closeRail();
+    _controller.toggleTabletSidebar();
+  }
+
+  void _toggleHarnessRail() {
+    final harness = _harnessController;
+    if (harness == null) return;
+    if (harness.railOpen) {
+      harness.closeRail();
+      return;
+    }
+    // One drawer at a time.
+    if (_drawerController.isOpen) _drawerController.close();
+    harness.openRail();
+  }
+
+  Future<void> _newHarnessSession({String? workspaceId}) async {
+    final harness = _harnessController;
+    if (harness == null) return;
+    try {
+      await harness.startNewSession(workspaceId: workspaceId);
+      if (!mounted) return;
+      if (_drawerController.isOpen) _drawerController.close();
+      if (_harnessController?.railOpen ?? false) {
+        _harnessController!.closeRail();
+      }
+    } on HarnessCatalogException catch (error) {
+      if (mounted) _showHarnessError(error);
+    }
+  }
+
+  void _selectHarnessSession(HarnessSessionSummary session) {
+    final harness = _harnessController;
+    if (harness == null) return;
+    final previous = harness.selectedSessionId;
+    if (previous == session.sessionId) return;
+    harness.selectSession(session.sessionId);
+    // The old controller is dropped only after the selection moved, so the
+    // transcript view is not disposed while still on screen.
+    if (previous != null) {
+      context.read<DshChatControllersProvider?>()?.release(
+        harness.remote,
+        previous,
+      );
+    }
+    if (_drawerController.isOpen) _drawerController.close();
+  }
+
+  /// Opens the surface one R5 entry row stands for.
+  ///
+  /// Every row is a full official-WebUI page here (the protocol exposes no
+  /// per-panel route): a harvested row lands on its own label, the one built-in
+  /// 更多 row lands on DSH's `PanelMoreMenu`, and the pre-harvest 插件 / 自动化任务
+  /// built-ins open the WebUI root. Every open also runs the surface harvest, so
+  /// the next build replaces the built-ins with the official rows.
+  Future<void> _openHarnessEntry(DshSidebarEntrySpec entry) async {
+    final harness = _harnessController;
+    if (harness == null) return;
+    if (_drawerController.isOpen) _drawerController.close();
+    if (entry.isHarvested) {
+      await _openHarnessWebUi(
+        title: entry.label,
+        script: _harvestThenLanding(
+          DshSurfaceHarvest.sidebarLandingScript(entry.label),
+        ),
+      );
+      return;
+    }
+    if (entry.id == DshSidebarEntryIds.more) {
+      await _openHarnessWebUi(
+        title: entry.label,
+        script: _harvestThenLanding(DshSurfaceHarvest.moreMenuLandingScript),
+      );
+      return;
+    }
+    await _openHarnessWebUi(
+      title: entry.label,
+      script: DshSurfaceHarvest.script,
+    );
+  }
+
+  /// Runs the surface harvest first, then a landing script.
+  ///
+  /// Both scripts are async IIFEs that drive the official sidebar/rail drawers,
+  /// so awaiting the harvest keeps them from racing each other. Every WebUI
+  /// page opened from Cuplivo therefore refreshes the snapshot *and* lands on
+  /// the requested surface.
+  String _harvestThenLanding(String landingScript) {
+    final harvest = DshSurfaceHarvest.script.trim();
+    final landing = landingScript.trim();
+    if (landing.isEmpty) return harvest;
+    return '(async () => { await $harvest\n await $landing\n})();';
+  }
+
+  /// Opens the Host's own WebUI with one script.
+  ///
+  /// DSH plugins contribute React slots inside its single-page app and the
+  /// protocol exposes no per-panel route, so the panel is the Host's WebUI
+  /// authenticated by the stored v1 browser cookie. [script] is either the
+  /// surface harvest or a landing script for one harvested label; both are
+  /// one-shot and best-effort. Every page posts its harvest back through
+  /// [onScriptMessage], stored per authority so R5/R7 rebuild.
+  Future<void> _openHarnessWebUi({
+    required String title,
+    String? script,
+  }) async {
+    final harness = _harnessController;
+    if (harness == null) return;
+    final remote = harness.remote;
+    final authority = remote.authority;
+    final navigator = Navigator.of(context);
+    final cookie = await const SecureDshCredentialStore().readCookie(remote.id);
+    if (!mounted) return;
+    final initialScript = script?.trim() ?? '';
+    await navigator.push(
+      MaterialPageRoute<void>(
+        builder: (_) => DshPluginWebPage(
+          remote: remote,
+          title: title,
+          cookie: cookie,
+          initialScript: initialScript.isEmpty ? null : initialScript,
+          onScriptMessage: (raw) =>
+              _harnessSurfaceInventory.accept(authority, raw),
+          onRequestReconnect: () {
+            // A rotated cookie only needs the assistant settings page, where a
+            // fresh WebUI link can be pasted; the WebView host cannot fix it
+            // itself.
+            navigator.pop();
+            navigator.push(
+              MaterialPageRoute<void>(
+                builder: (_) =>
+                    DshAssistantSettingsPage.edit(remoteId: remote.id),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  /// The rail's plugin cards, built from the harvest snapshot.
+  ///
+  /// Built-in cards stay native, so their labels are excluded from the
+  /// harvested list. The cards keep the remote's label verbatim and a generic
+  /// icon, and open the WebUI landed on that rail card (the rail never embeds
+  /// the WebUI, see `docs/cuplivo-dsh/v2-reuse-map.md` §4).
+  List<HarnessRailExtraEntry> _harnessRailExtraEntries(
+    HarnessHomeController harness,
+  ) {
+    final l10n = AppLocalizations.of(context)!;
+    final rows = dshHarvestedEntries(
+      harness.harvestedRailEntries,
+      // The built-in cards keep their native labels; exclude them by the
+      // language-neutral page kinds so the exclusion still holds when the
+      // official UI renders its labels in another locale.
+      excludedKinds: const <String>{'files', 'terminal'},
+      excludedLabels: <String>{l10n.dshRailMoreTools},
+    );
+    return <HarnessRailExtraEntry>[
+      for (final row in rows)
+        HarnessRailExtraEntry(
+          id: row.id,
+          title: row.label,
+          icon: Lucide.Box,
+          onTap: () => unawaited(
+            _openHarnessWebUi(
+              title: row.label,
+              script: _harvestThenLanding(
+                DshSurfaceHarvest.railLandingScript(row.label, kind: row.kind),
+              ),
+            ),
+          ),
+        ),
+    ];
+  }
+
+  Future<void> _retryHarnessLink(HarnessHomeController harness) async {
+    final connections = context.read<DshConnectionsProvider?>();
+    if (connections == null) return;
+    final status = await connections.retry(harness.remote.id);
+    if (!mounted || status.isReady) return;
+    _showHarnessError(HarnessCatalogException(cause: status.failure));
+  }
+
+  /// The harness surface, or null when the remote record is unavailable (the
+  /// caller then keeps the local page).
+  Widget? _buildHarnessPage(BuildContext context, {required bool desktop}) {
+    final harness = _harnessController;
+    if (harness == null) return null;
+    final l10n = AppLocalizations.of(context)!;
+    final connections = context.watch<DshConnectionsProvider?>();
+    final chatControllers = context.watch<DshChatControllersProvider?>();
+    final remote = harness.remote;
+    final remoteId = remote.id;
+    final sessionId = harness.selectedSessionId;
+    final link =
+        connections?.linkStatus(remoteId) ?? const DshLinkStatus.idle();
+    final view = sessionId == null
+        ? const DshChatViewState()
+        : chatControllers?.viewState(remoteId, sessionId) ??
+              const DshChatViewState();
+
+    final chrome = HarnessHomeChrome(
+      body: _buildHarnessBody(context, harness, link, l10n, sessionId, view),
+      appBar: HarnessAppBar(
+        title: _harnessTitle(l10n, harness, view),
+        subtitle: _harnessModelSubtitle(view),
+        onToggleSidebar: desktop
+            ? _toggleHarnessSidebarForDesktop
+            : _toggleHarnessSidebarForMobile,
+        onNewSession: () => unawaited(_newHarnessSession()),
+        onToggleRail: _toggleHarnessRail,
+        railOpen: harness.railOpen,
+        isDesktop: desktop,
+        onSelectModel: sessionId == null || view.modelCatalog.groups.isEmpty
+            ? null
+            : () => unawaited(
+                _pickHarnessModel(context, harness, sessionId, view),
+              ),
+      ),
+      sidebarSource: RemoteSidebarSource(
+        bodyBuilder: (context, query) => DshSideBar(
+          remoteName: remote.name.trim().isEmpty
+              ? l10n.dshProductName
+              : remote.name.trim(),
+          catalog: harness.catalog,
+          selectedSessionId: harness.selectedSessionId,
+          onSelectSession: _selectHarnessSession,
+          onNewSession: ({String? workspaceId}) =>
+              _newHarnessSession(workspaceId: workspaceId),
+          onOpenEntry: (entry) => unawaited(_openHarnessEntry(entry)),
+          harvestedEntries: harness.harvestedSidebarEntries,
+          query: query,
+        ),
+      ),
+      rail: HarnessRightRail(
+        key: _harnessRailKey,
+        page: harness.railPage,
+        session: harness.selectedSession,
+        workspaceFiles: harness.workspaceFiles,
+        onClose: harness.closeRail,
+        onToggleExpanded: harness.toggleRailExpanded,
+        expanded: harness.railExpanded,
+        onShowPage: harness.showRailPage,
+        onShowStart: harness.showRailStart,
+        extraEntries: _harnessRailExtraEntries(harness),
+        // The terminal slice supplies the real host terminal; the rail keeps
+        // its honest placeholder until a session is open.
+        terminalPanelBuilder: (context, session) {
+          final id = session?.sessionId ?? harness.selectedSessionId;
+          if (id == null) return const SizedBox.shrink();
+          return DshTerminalPanel(remoteId: harness.remote.id, sessionId: id);
+        },
+        // Binary/refused kinds open the preview slice's page; the page resolves
+        // the gateway and WebView cookie itself.
+        onPreviewWorkspaceFile: (entry) {
+          unawaited(
+            DshFilePreviewPage.open(
+              context,
+              remote: harness.remote,
+              sessionId: harness.selectedSessionId ?? '',
+              path: entry.path,
+              displayName: entry.name,
+            ),
+          );
+        },
+      ),
+      railController: _harnessRailController,
+      railOpen: harness.railOpen,
+      railExpanded: harness.railExpanded,
+    );
+
+    if (desktop) {
+      // The desktop scaffold's sidebar state comes from the same controller as
+      // local mode (open/width preferences), so initialize it the same way.
+      _controller.initDesktopUi();
+      return HomeDesktopScaffold(
+        scaffoldKey: _scaffoldKey,
+        assistantPickerCloseTick: _assistantPickerCloseTick,
+        loadingConversationIds: const <String>{},
+        title: '',
+        providerName: null,
+        modelDisplay: null,
+        tabletSidebarOpen: _controller.tabletSidebarOpen,
+        embeddedSidebarWidth: _controller.embeddedSidebarWidth,
+        sidebarMinWidth: HomePageController.sidebarMinWidth,
+        sidebarMaxWidth: HomePageController.sidebarMaxWidth,
+        onToggleSidebar: _toggleHarnessSidebarForDesktop,
+        onSelectConversation: (_) {},
+        onNewConversation: () {},
+        onOpenOwner: _controller.openOwner,
+        onRevealTopics: () {},
+        onCreateNewConversation: () async {},
+        onToggleTemporaryConversation: () async {},
+        onSelectModel: () {},
+        canToggleTemporaryConversation: false,
+        temporaryConversationEnabled: false,
+        globalSearchMode: false,
+        globalSearchQuery: '',
+        onGlobalSearchQueryChanged: (_) {},
+        onOpenGlobalSearchResult:
+            (conversationId, messageId, surfaceKey) async {},
+        onSidebarWidthChanged: _controller.updateSidebarWidth,
+        onSidebarWidthChangeEnd: _controller.saveSidebarWidth,
+        buildAssistantBackground: _buildAssistantBackground,
+        harness: chrome,
+        body: chrome.body,
+      );
+    }
+    return HomeMobileScaffold(
+      scaffoldKey: _scaffoldKey,
+      drawerController: _drawerController,
+      assistantPickerCloseTick: _assistantPickerCloseTick,
+      loadingConversationIds: const <String>{},
+      title: '',
+      providerName: null,
+      modelDisplay: null,
+      onToggleDrawer: _toggleHarnessSidebarForMobile,
+      onDismissKeyboard: () {},
+      onSelectConversation: (_) {},
+      onNewConversation: () {},
+      onOpenOwner: _controller.openOwner,
+      onOpenMiniMap: () {},
+      onCreateNewConversation: () async {},
+      onToggleTemporaryConversation: () async {},
+      onSelectModel: () {},
+      canToggleTemporaryConversation: false,
+      temporaryConversationEnabled: false,
+      globalSearchMode: false,
+      globalSearchQuery: '',
+      onGlobalSearchQueryChanged: (_) {},
+      onEnterGlobalSearch: () {},
+      onExitGlobalSearch: () {},
+      onOpenGlobalSearchResult:
+          (conversationId, messageId, surfaceKey) async {},
+      harness: chrome,
+      body: chrome.body,
+    );
+  }
+
+  Widget _buildHarnessBody(
+    BuildContext context,
+    HarnessHomeController harness,
+    DshLinkStatus link,
+    AppLocalizations l10n,
+    String? sessionId,
+    DshChatViewState view,
+  ) {
+    if (link.isFailed || link.isIdle) {
+      return _harnessNotice(
+        icon: Lucide.CloudOff,
+        title: l10n.dshHomeOfflineTitle,
+        hint: l10n.dshHomeOfflineHint,
+        actionLabel: link.isConnecting ? null : l10n.dshHomeRetry,
+        onAction: () => unawaited(_retryHarnessLink(harness)),
+        spinning: link.isConnecting,
+      );
+    }
+    if (sessionId == null) {
+      return _harnessNotice(
+        icon: Lucide.MessageCircle,
+        title: l10n.dshHomeNoSession,
+        hint: l10n.dshSessionsEmpty,
+        actionLabel: l10n.dshNewSession,
+        onAction: () => unawaited(_newHarnessSession()),
+      );
+    }
+    return HarnessConversationView(
+      remote: harness.remote,
+      sessionId: sessionId,
+      onRequestModelPicker: () =>
+          unawaited(_pickHarnessModel(context, harness, sessionId, view)),
+      onOpenWorkspace: () =>
+          harness.showRailPage(HarnessRailPage.workspaceFiles),
+      onOpenRightRail: harness.openRail,
+      onOpenAssistantSettings: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              DshAssistantSettingsPage.edit(remoteId: harness.remote.id),
+        ),
+      ),
+    );
+  }
+
+  /// R6's model capsule: the chat slice's DSH picker, applied to the session
+  /// through the session controller (never through local model settings).
+  Future<void> _pickHarnessModel(
+    BuildContext context,
+    HarnessHomeController harness,
+    String sessionId,
+    DshChatViewState view,
+  ) async {
+    final chatControllers = context.read<DshChatControllersProvider?>();
+    final picked = await showDshModelPicker(
+      context,
+      catalog: view.modelCatalog,
+      current: view.modelSelection,
+    );
+    if (picked == null || !mounted) return;
+    final session = chatControllers?.peek(harness.remote, sessionId);
+    if (session == null) return;
+    try {
+      await session.selectModel(picked);
+    } catch (error) {
+      if (!mounted) return;
+      _showHarnessError(HarnessCatalogException(cause: error));
+    }
+  }
+
+  Widget _harnessNotice({
+    required IconData icon,
+    required String title,
+    String? hint,
+    String? actionLabel,
+    VoidCallback? onAction,
+    bool spinning = false,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (spinning)
+              const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              Icon(icon, size: 30, color: cs.onSurface.withValues(alpha: 0.3)),
+            const SizedBox(height: 14),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: AppFontWeights.medium,
+                color: cs.onSurface.withValues(alpha: 0.8),
+              ),
+            ),
+            if (hint != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                hint,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.4,
+                  color: cs.onSurface.withValues(alpha: 0.5),
+                ),
+              ),
+            ],
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: 18),
+              IosCardPress(
+                borderRadius: BorderRadius.circular(10),
+                baseColor: cs.primary.withValues(alpha: 0.12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 9,
+                ),
+                onTap: onAction,
+                child: Text(
+                  actionLabel,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: AppFontWeights.medium,
+                    color: cs.primary,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _harnessTitle(
+    AppLocalizations l10n,
+    HarnessHomeController harness,
+    DshChatViewState view,
+  ) {
+    final live = view.title?.trim();
+    if (live != null && live.isNotEmpty) return live;
+    final summary = harness.selectedSession?.trimmedTitle;
+    if (summary != null && summary.isNotEmpty) return summary;
+    return l10n.dshNewSession;
+  }
+
+  String? _harnessModelSubtitle(DshChatViewState view) {
+    // The chat slice owns the `model (provider)` formatting for this surface;
+    // empty means the catalog has not loaded, so the bar shows the title only.
+    final display = view.modelDisplay.trim();
+    return display.isEmpty ? null : display;
+  }
+
   Widget _buildPage(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     final desktop = !kIsWeb && _controller.isDesktopPlatform;
+    // DeepSeek Harness mode replaces the whole page: the local app bar, chat
+    // body and side panel are local-chat concepts, and the remote surface owns
+    // its own. Falling through is only for the degraded case where the remote
+    // record vanished (deleted or never loaded) — then the local page is the
+    // safest thing still on screen.
+    if (_controller.isHarnessMode) {
+      final harnessPage = _buildHarnessPage(
+        context,
+        desktop: desktop || width >= AppBreakpoints.tablet,
+      );
+      if (harnessPage != null) return harnessPage;
+    }
     final cs = Theme.of(context).colorScheme;
     final settings = context.watch<SettingsProvider>();
     final assistant = context.watch<AssistantProvider>().currentAssistant;

@@ -68,6 +68,7 @@ void main() {
     await _openDrawer(tester);
     if (!realMode) {
       // Hermetic evidence starts with the untouched local drawer.
+      await e2eStep('before hermetic_local_drawer');
       await capture(tester, binding, 'hermetic_local_drawer');
     }
     await _openChatOwnerSettings(tester, l10n);
@@ -89,6 +90,7 @@ void main() {
     final engineMode = find.byKey(const Key('dsh-engine-mode'));
     await _pumpUntilFound(tester, engineMode, what: 'the 直接连接 engine row (R1)');
     if (!realMode) {
+      await e2eStep('before hermetic_engine_sheet');
       await capture(tester, binding, 'hermetic_engine_sheet');
     }
     await tester.tap(engineMode);
@@ -135,7 +137,7 @@ void main() {
     // network round-trips - connect and one model answer - and 10-14 screenshot
     // frames). Every wait is capped (<=2 min of pumped frames in total), so a
     // hung Host fails with the wait's own message long before this timeout.
-  }, timeout: const Timeout(Duration(minutes: 10)));
+  }, timeout: const Timeout(Duration(minutes: 15)));
 }
 
 const String _dshUrl = String.fromEnvironment('E2E_DSH_URL');
@@ -208,6 +210,7 @@ Future<void> _runRealScenario(
   );
   await pumpFrames(tester, frames: 30);
   expect(ownerCard, findsOneWidget);
+  await e2eStep('before r3_connected_card');
   await capture(tester, binding, 'r3_connected_card');
 
   // R2: the remote's assistant settings page, opened from the owner card.
@@ -222,6 +225,7 @@ Future<void> _runRealScenario(
   );
   _expectSettingsTabs(tester, l10n, withHostTabs: true);
   await pumpFrames(tester, frames: 20);
+  await e2eStep('before r2_settings_connection');
   await capture(tester, binding, 'r2_settings_connection');
 
   // R2 v2: the two Host-reported tabs. Every body lives in one IndexedStack, so
@@ -248,6 +252,7 @@ Future<void> _runRealScenario(
     reason: 'R2 内置插件 rows show the Host module name',
   );
   await pumpFrames(tester, frames: 20);
+  await e2eStep('before r2_builtin_plugins');
   await capture(tester, binding, 'r2_builtin_plugins');
 
   // R2 v2b: the generic plugin-settings tabs. Cuplivo knows no plugin names:
@@ -277,7 +282,7 @@ Future<void> _runRealScenario(
   await pumpUntil(
     tester,
     () => DshSurfaceInventory.shared.snapshotFor(authority).settings.isNotEmpty,
-    maxFrames: 2400,
+    maxFrames: 600,
   );
   await _popRoute(tester);
   expect(
@@ -321,6 +326,7 @@ Future<void> _runRealScenario(
       );
     }
     await pumpFrames(tester, frames: 20);
+    await e2eStep('before r2_plugin_settings_tabs');
     await capture(tester, binding, 'r2_plugin_settings_tabs');
     await tester.ensureVisible(pluginTab.first);
     await pumpFrames(tester, frames: 4);
@@ -331,6 +337,7 @@ Future<void> _runRealScenario(
       findsWidgets,
       reason: 'R2 a plugin settings tab embeds the official section',
     );
+    await e2eStep('before r2_plugin_settings_body');
     await capture(tester, binding, 'r2_plugin_settings_body');
   }
 
@@ -358,6 +365,7 @@ Future<void> _runRealScenario(
     reason: 'R2 Agent 预设 marks the default group',
   );
   await pumpFrames(tester, frames: 20);
+  await e2eStep('before r2_agent_presets');
   await capture(tester, binding, 'r2_agent_presets');
 
   // R8: the 通用设置 tab, switched through the existing pill strip. Switching
@@ -381,6 +389,7 @@ Future<void> _runRealScenario(
     findsWidgets,
     reason: 'R8 在使用官方模型API时上传Session Log',
   );
+  await e2eStep('before r8_general_settings');
   await capture(tester, binding, 'r8_general_settings');
 
   // R9/R10/R11: the remote's model settings live on this same page. They run
@@ -420,6 +429,7 @@ Future<void> _runRealScenario(
     reason: 'R10 the 自定义提供商 row stays first',
   );
   await pumpFrames(tester, frames: 20);
+  await e2eStep('before r9_models');
   await capture(tester, binding, 'r9_models');
 
   // R10: the add-provider list, opened by the search bar's + action. The
@@ -438,6 +448,7 @@ Future<void> _runRealScenario(
     what: 'the add-provider list (R10)',
   );
   await pumpFrames(tester, frames: 20);
+  await e2eStep('before r10_add_provider');
   await capture(tester, binding, 'r10_add_provider');
 
   // R11: close the add-provider list deterministically (a barrier tap could
@@ -505,6 +516,7 @@ Future<void> _runRealScenario(
   }
   expect(modelsSection, findsWidgets, reason: 'R11 模型目录 section');
   await pumpFrames(tester, frames: 20);
+  await e2eStep('before r11_provider_detail');
   await capture(tester, binding, 'r11_provider_detail');
 
   // Back to the models list, then leave settings for the harness surfaces.
@@ -560,6 +572,7 @@ Future<void> _runRealScenario(
   await pumpFrames(tester, frames: 20);
   // R4: the local sidebar lists the remote as an owner (whale avatar and the
   // pencil setting), above the conversation list, under the search field.
+  await e2eStep('before r4_local_sidebar');
   await capture(tester, binding, 'r4_local_sidebar');
   await pumpFrames(tester, frames: 4);
   await tester.tap(ownerRow);
@@ -578,6 +591,7 @@ Future<void> _runRealScenario(
   await _pumpUntilFound(tester, drawerEntries, what: 'the R5 drawer content');
   await pumpFrames(tester, frames: 20);
   _expectDrawerSections(tester, drawerEntries);
+  await e2eStep('before r5_dsh_drawer');
   await capture(tester, binding, 'r5_dsh_drawer');
 
   // R6: a new session, a short prompt, and the streamed answer.
@@ -643,6 +657,7 @@ Future<void> _runRealScenario(
     isNotEmpty,
     reason: 'R6 app-bar subtitle shows model (provider)',
   );
+  await e2eStep('before r6_chat');
   await capture(tester, binding, 'r6_chat');
 
   // R6 v2: the composer plus menu. Its two groups are the whole v2 add/
@@ -701,6 +716,7 @@ Future<void> _runRealScenario(
     );
   }
   await pumpFrames(tester, frames: 20);
+  await e2eStep('before r6_plus_menu');
   await capture(tester, binding, 'r6_plus_menu');
   // Dismiss by tapping the barrier above the sheet, then wait for the route.
   await tester.tapAt(const Offset(12, 12));
@@ -750,6 +766,7 @@ Future<void> _runRealScenario(
     greaterThanOrEqualTo(2),
     reason: 'R6 a second assistant turn answered the tool result',
   );
+  await e2eStep('before r6_tool_turn');
   await capture(tester, binding, 'r6_tool_turn');
 
   // R6 v2: the composer context ring appears once the Host reports
@@ -763,6 +780,7 @@ Future<void> _runRealScenario(
     maxFrames: 900,
   );
   await pumpFrames(tester, frames: 20);
+  await e2eStep('before r6_context_ring');
   await capture(tester, binding, 'r6_context_ring');
 
   // R6 v2: the attachment flow. The native pickers cannot be driven, but the
@@ -822,6 +840,7 @@ Future<void> _runRealScenario(
   );
   FocusManager.instance.primaryFocus?.unfocus();
   await pumpFrames(tester, frames: 40);
+  await e2eStep('before r6_attachment');
   await capture(tester, binding, 'r6_attachment');
 
   // R7: opening the rail pushes the chat off-screen instead of stacking on it.
@@ -879,6 +898,7 @@ Future<void> _runRealScenario(
     reason: 'R7 browser card must not exist in this build',
   );
   await pumpFrames(tester, frames: 20);
+  await e2eStep('before r7_right_rail');
   await capture(tester, binding, 'r7_right_rail');
 
   // Close the rail through its own header action; the harvest section below
@@ -971,6 +991,7 @@ Future<void> _runRealScenario(
     reason: 'R5 更多 stays one Cuplivo built-in row after the harvest',
   );
   await pumpFrames(tester, frames: 20);
+  await e2eStep('before r5_harvested_sidebar');
   await capture(tester, binding, 'r5_harvested_sidebar');
 
   // Captures of the official pages the harvested rows land on. The official
@@ -1019,6 +1040,7 @@ Future<void> _runRealScenario(
     maxFrames: 300,
   );
   await pumpFrames(tester, frames: 20);
+  await e2eStep('before r7_harvested_cards');
   await capture(tester, binding, 'r7_harvested_cards');
   await tester.ensureVisible(diffCard.first);
   await pumpFrames(tester, frames: 4);
@@ -1031,6 +1053,7 @@ Future<void> _runRealScenario(
     maxFrames: 900,
   );
   await pumpFrames(tester, frames: 30);
+  await e2eStep('before r7_diff_page');
   await capture(tester, binding, 'r7_diff_page');
   await _popRoute(tester);
   await _pumpUntilFound(
@@ -1097,6 +1120,7 @@ Future<void> _runRealScenario(
     reason: 'R12 the Host terminal is writable, so no read-only banner',
   );
   await pumpFrames(tester, frames: 20);
+  await e2eStep('before r12_terminal');
   await capture(tester, binding, 'r12_terminal');
   // terminal_view paints its screen with a canvas: no Text carries the output.
   // The command is driven through the IME path a phone uses and its side
@@ -1104,6 +1128,7 @@ Future<void> _runRealScenario(
   await tester.tap(terminalView);
   await pumpFrames(tester, frames: 10);
   await _typeIntoTerminal(tester, _terminalCommand);
+  await e2eStep('before r12_terminal_command');
   await capture(tester, binding, 'r12_terminal_command');
   // Leave the terminal page (which disposes the PTY) and assert the created
   // file; the rail files listing is re-fetched when its page mounts.
@@ -1141,6 +1166,7 @@ Future<void> _runRealScenario(
     maxFrames: 600,
   );
   await pumpFrames(tester, frames: 20);
+  await e2eStep('before r13_png_inline');
   await capture(tester, binding, 'r13_png_inline');
   await tester.tap(find.byKey(const Key('dsh-rail-back')));
   await pumpFrames(tester, frames: 8);
@@ -1235,6 +1261,7 @@ Future<void> _runRealScenario(
   }
 
   expect(tester.takeException(), isNull);
+  await e2eStep('before final_state');
   await capture(tester, binding, 'final_state');
 }
 
@@ -1249,9 +1276,11 @@ Future<void> _runHermeticTail(
   expect(find.byKey(const Key('dsh-connect-url')), findsOneWidget);
   expect(find.byKey(const Key('dsh-connect-confirm')), findsOneWidget);
   await pumpFrames(tester, frames: 20);
+  await e2eStep('before hermetic_create_form');
   await capture(tester, binding, 'hermetic_create_form');
 
   expect(tester.takeException(), isNull);
+  await e2eStep('before final_state');
   await capture(tester, binding, 'final_state');
   debugPrint(
     '[dsh-e2e] hermetic mode: E2E_DSH_URL and E2E_DSH_TOKEN are empty, so '

@@ -587,6 +587,10 @@ jobs:
           E2E_PR_NUMBER: ${{ needs.request.outputs.pr_number }}
           E2E_HEAD_SHA: ${{ needs.request.outputs.head_sha }}
           E2E_API_LEVEL: ${{ env.E2E_API_LEVEL }}
+          # The v2 scenario drives several official-WebUI pages (each a real
+          # WebView load with a landing script) on a software-rendered
+          # emulator; the runner's 420 s v1 budget kills it mid-run.
+          E2E_DRIVE_TIMEOUT_SECONDS: '1200'
         with:
           api-level: ${{ env.E2E_API_LEVEL }}
           target: google_apis

@@ -50,6 +50,8 @@ Future<void> bootSeededApp(
   await pumpFrames(tester, frames: 30);
   expect(tester.takeException(), isNull);
 
+  _e2eStartedAt = DateTime.now();
+
   if (Platform.isAndroid) {
     // Required before `takeScreenshot` on Android; the binding reverts the
     // surface in its teardown. See package:integration_test.
@@ -58,14 +60,33 @@ Future<void> bootSeededApp(
   }
 }
 
+DateTime? _e2eStartedAt;
+
+/// Logs one scenario milestone with the elapsed wall clock.
+///
+/// The E2E job's log is the only place a timeout currently explains nothing
+/// about where the run was; a milestone line makes the last reached step part
+/// of the artifacts. Never logs a URL, token or any other credential.
+void e2eStep(String message) {
+  final startedAt = _e2eStartedAt;
+  if (startedAt == null) {
+    debugPrint('[dsh-e2e] $message');
+    return;
+  }
+  final elapsed = DateTime.now().difference(startedAt).inSeconds;
+  debugPrint('[dsh-e2e] +${elapsed}s $message');
+}
+
 /// Captures one acceptance screenshot after letting transient animation decay.
 Future<void> capture(
   WidgetTester tester,
   IntegrationTestWidgetsFlutterBinding binding,
   String name,
 ) async {
+  e2eStep('capture $name');
   await pumpFrames(tester, frames: 20);
   await binding.takeScreenshot(name);
+  e2eStep('captured $name');
 }
 
 Future<void> pumpFrames(WidgetTester tester, {int frames = 8}) async {

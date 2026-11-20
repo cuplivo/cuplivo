@@ -92,7 +92,10 @@ Flutter entry (plugin UI only).
 - App bar: hamburger left; title `新会话`; subtitle `deepseek-flash (DeepSeek)`
   (remote model + provider group); right side: new-conversation icon, then a
   **right-rail button to its right** (the minimap entry is removed on this
-  surface).
+  surface). The transcript scrolls behind the bar (`extendBodyBehindAppBar`),
+  so the bar paints a frosted scrim (blur + translucent surface) exactly like
+  DSH's floating session header; without it a scrolled transcript reads through
+  the title.
 - User message: right-aligned bubble, `用户` name and timestamp above, avatar;
   under it the Cuplivo action row (copy / regenerate / edit / more / version
   arrows).

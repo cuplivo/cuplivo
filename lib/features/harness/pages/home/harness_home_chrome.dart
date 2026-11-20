@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -115,6 +117,17 @@ class HarnessAppBar extends StatelessWidget implements PreferredSizeWidget {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
+      // The harness body scrolls behind this bar (`extendBodyBehindAppBar`), so
+      // the bar paints a frosted scrim: without it the transcript legibly runs
+      // through the title. Same treatment as DSH's floating session header.
+      flexibleSpace: ClipRect(
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: ColoredBox(
+            color: cs.surface.withValues(alpha: dark ? 0.7 : 0.78),
+          ),
+        ),
+      ),
       leading: IosIconButton(
         size: 20,
         padding: const EdgeInsets.all(8),

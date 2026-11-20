@@ -134,6 +134,11 @@ Flutter entry (plugin UI only).
 - Official tool panels are native: workspace files browser, terminal, browser
   use Cuplivo's own surfaces driven by the remote's APIs, not an embedded DSH
   Web page.
+- A keyboard opening closes the rail so the composer gets the whole screen
+  (DSH's own composer behaviour), except when the focus belongs to the rail
+  itself — the terminal autofocuses and needs the keyboard without losing its
+  surface. Once focus leaves the rail, the next keyboard opening dismisses it
+  as usual.
 
 ## R8 — 通用设置 (`image` — text-only requirement)
 

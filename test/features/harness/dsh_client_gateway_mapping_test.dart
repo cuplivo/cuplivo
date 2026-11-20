@@ -449,6 +449,20 @@ void main() {
         ),
         DshFailure.unknown,
       );
+      // A binary body is a refuses-read, not a transport failure: the preview
+      // page has to render its honest unsupported card, not a load error.
+      expect(
+        dshFailureFromClient(
+          const dsh.DshRemoteException('workspace-file/not-text', 'binary'),
+        ),
+        DshFailure.unsupported,
+      );
+      expect(
+        dshFailureFromClient(
+          const dsh.DshRemoteException('workspace-file/not-found', 'gone'),
+        ),
+        DshFailure.unsupported,
+      );
       final wrapped = dshGatewayExceptionFromClient(
         const dsh.DshAuthException('rejected'),
       );

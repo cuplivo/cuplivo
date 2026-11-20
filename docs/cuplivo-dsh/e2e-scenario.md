@@ -140,9 +140,13 @@ Each step ends with `capture(..., '<name>')` when it produces evidence.
     cwd (contains `workspace`), and no read-only banner; screenshot
     `r12_terminal`. Type
     `echo CUPLIVO_E2E_TERMINAL_OK > cuplivo-e2e-terminal.txt` through the
-    terminal's IME connection, submit Enter, screenshot `r12_terminal_command`.
-    `terminal_view` paints glyphs to a canvas, so the assertion is the workspace
-    side effect: the file appears in the rail 工作区文件 listing.
+    terminal's IME connection and submit it with the `done` action — the value
+    `terminal_view` maps to Enter (it ignores `newline`) — then wait for the
+    shell side effect and screenshot `r12_terminal_command`. `terminal_view`
+    paints glyphs to a canvas, so the assertion is the workspace side effect:
+    the file appears in the rail 工作区文件 listing. The terminal autofocuses,
+    and the rail must stay open while its terminal owns the keyboard; the
+    keyboard dismissal only applies to focus outside the rail.
 16. R13 previews: 工作区文件 → `assets/pixel.png` renders inline in the rail
     (screenshot `r13_png_inline`); `docs/report.pdf` and `data/blob.bin` open the
     full-screen preview page. A PDF may render through the authenticated

@@ -46,7 +46,11 @@ DshFailure dshFailureFromClient(dsh.DshException? error) {
     dsh.DshRemoteException(:final code) =>
       code.contains('auth') || code.contains('unauthorized')
           ? DshFailure.auth
-          : code.contains('not-found') || code.contains('unsupported')
+          : code.contains('not-found') ||
+                code.contains('unsupported') ||
+                // `workspace-file/not-text` is a read refusal for a binary
+                // body: the file exists, the preview kind is unsupported.
+                code.contains('not-text')
           ? DshFailure.unsupported
           : DshFailure.unknown,
   };

@@ -193,7 +193,7 @@ DshConnectionsProvider (remotes + link status, owns store + secure cookie)
 All strings go through ARB (`lib/l10n/app_en.arb` template + `app_zh.arb`, then
 `tool/l10n/translate.py sync` for ru/ko/tr/zh_Hant).
 
-### 6.1 Scope decisions for this PR (product answers to `client-reference.md` §10.2)
+### 6.1 Scope decisions (first PR; terminal/plugin bullets updated by §9)
 
 - **浏览器 rail card: omitted.** DSH 0.2.2-rc.1 exposes no remote browser API;
   capability parity wins over the reference image. The PR lists the difference.
@@ -299,8 +299,10 @@ harvest and landings are in `plugin-compat.md` §4–§6; the reuse decisions ar
   right-rail page or sidebar page is a React slot inside the official SPA; the
   protocol exposes no registry and no per-panel URL, so the only honest host is
   the whole SPA in `DshWebUiView`, steered by a landing script. A plugin's own
-  settings section stays inside the official settings dialog; v2 opens the SPA
-  but lands no settings section (§9.3).
+  `settings.section` is the same situation: after one settings-dialog visit the
+  section becomes a settings tab whose body is the SPA landed on that section
+  (`DshPluginSettingsTabBody`); the tab exists only because the official UI
+  listed a label DSH itself did not register.
 - **Plugin names, ids, orders and labels are never hardcoded.** The harvest
   reads the official labels and language-neutral rail kinds at runtime, keeps
   them in memory per authority (never persisted), and feeds the native rows and
@@ -316,8 +318,9 @@ harvest and landings are in `plugin-compat.md` §4–§6; the reuse decisions ar
 
 ### 9.3 Explicitly out of scope for v2
 
-- Plugin `settings.section` tabs: not harvested and not rendered as Cuplivo
-  tabs (inventory metadata is not a section; only the five native tabs ship).
+- (Retired) Plugin `settings.section` tabs are now harvested and rendered as
+  Cuplivo tabs (mechanism in `plugin-compat.md` §3.4a); the note stays here only
+  to mark what changed from the v2 plan.
 - Per-panel deep links: DSH has no URL routing, so none can be shipped.
 - Terminal persistence across rail unmount: the PTY lives only while its
   panel/page is mounted.

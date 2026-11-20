@@ -30,6 +30,20 @@ class DshSettingsTabSpec {
   final Key? key;
 }
 
+/// Stable ASCII slug for a plugin-contributed settings section.
+///
+/// DSH exposes no id for `settings.section` slots — only the label the official
+/// UI renders — so the tab id is derived from that label. A label with no ASCII
+/// letters/digits (e.g. a CJK-only label) cannot be slugged; [ordinal] keeps the
+/// fallback stable for as long as the Host keeps the section order.
+String dshSettingsSectionSlug(String label, {required int ordinal}) {
+  final slug = label
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+      .replaceAll(RegExp(r'^-+|-+$'), '');
+  return slug.isEmpty ? 'section-$ordinal' : slug;
+}
+
 /// Resolves a plugin-authored `meta.title` for the current UI locale, falling
 /// back to [fallback] when the plugin shipped no matching language.
 ///

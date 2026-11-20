@@ -11,6 +11,7 @@ import 'package:Cuplivo/features/harness/controllers/dsh_composer_e2e.dart';
 import 'package:Cuplivo/features/harness/pages/home/harness_home_chrome.dart';
 import 'package:Cuplivo/features/harness/pages/plugins/dsh_plugin_web_page.dart';
 import 'package:Cuplivo/features/harness/pages/preview/dsh_file_preview_page.dart';
+import 'package:Cuplivo/features/harness/services/dsh_surface_harvest.dart';
 import 'package:Cuplivo/features/harness/widgets/dsh_web_ui_view.dart';
 import 'package:Cuplivo/features/home/pages/home_mobile_layout.dart';
 import 'package:Cuplivo/features/home/widgets/message_list_view.dart';
@@ -223,9 +224,9 @@ Future<void> _runRealScenario(
   await pumpFrames(tester, frames: 20);
   await capture(tester, binding, 'r2_settings_connection');
 
-  // R2 v2: the two Host-reported tabs. All four bodies live in one
-  // IndexedStack, so a body's text only becomes findable after its own tab is
-  // tapped (default finders skip offstage children).
+  // R2 v2: the two Host-reported tabs. Every body lives in one IndexedStack, so
+  // a body's text only becomes findable after its own tab is tapped (default
+  // finders skip offstage children).
   await _openSettingsTabById(
     tester,
     const Key('dsh-settings-tab-plugins'),
@@ -248,6 +249,90 @@ Future<void> _runRealScenario(
   );
   await pumpFrames(tester, frames: 20);
   await capture(tester, binding, 'r2_builtin_plugins');
+
+  // R2 v2b: the generic plugin-settings tabs. Cuplivo knows no plugin names:
+  // the 内置插件 tab carries one affordance that visits the Host's own settings
+  // dialog, and the settings harvest reports whatever `settings.section` slots
+  // the installed plugins registered. Those become tabs in the same strip.
+  final officialSettings = find.byKey(
+    const ValueKey<String>('dsh-settings-open-official'),
+  );
+  await _pumpUntilFound(
+    tester,
+    officialSettings,
+    what: 'the 内置插件 official-settings affordance (R2)',
+  );
+  await tester.ensureVisible(officialSettings);
+  await pumpFrames(tester, frames: 4);
+  await tester.tap(officialSettings);
+  await _pumpUntilFound(
+    tester,
+    find.byType(DshPluginWebPage),
+    what: 'the official settings WebUI page (R2)',
+    maxFrames: 900,
+  );
+  // The settings script opens the official dialog and reads its nav rows; it is
+  // the only source of truth for the plugin-contributed sections.
+  final authority = Uri.parse(_dshUrl).authority;
+  await pumpUntil(
+    tester,
+    () => DshSurfaceInventory.shared.snapshotFor(authority).settings.isNotEmpty,
+    maxFrames: 2400,
+  );
+  await _popRoute(tester);
+  expect(
+    find.byKey(const Key('dsh-settings-tabs')),
+    findsOneWidget,
+    reason: 'R2 returns to the assistant settings page after the visit',
+  );
+  final harvestedSections = DshSurfaceInventory.shared
+      .snapshotFor(authority)
+      .pluginSettingsSections;
+  final pluginTab = find.byWidgetPredicate(
+    (widget) =>
+        widget.key is ValueKey<String> &&
+        (widget.key! as ValueKey<String>).value.startsWith(
+          'dsh-settings-tab-plugin-',
+        ),
+    description: 'a plugin-registered settings tab (R2)',
+  );
+  if (harvestedSections.isNotEmpty) {
+    await _pumpUntilFound(
+      tester,
+      pluginTab,
+      what: 'a plugin-registered settings tab (R2)',
+      maxFrames: 600,
+    );
+    expect(
+      pluginTab,
+      findsNWidgets(harvestedSections.length),
+      reason:
+          'every plugin-contributed settings section became exactly one tab '
+          '(labels: ${harvestedSections.map((entry) => entry.label).join(', ')})',
+    );
+    for (final section in harvestedSections) {
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('dsh-settings-tabs')),
+          matching: find.text(section.label),
+        ),
+        findsWidgets,
+        reason: 'R2 the plugin tab keeps the Host label "${section.label}"',
+      );
+    }
+    await pumpFrames(tester, frames: 20);
+    await capture(tester, binding, 'r2_plugin_settings_tabs');
+    await tester.ensureVisible(pluginTab.first);
+    await pumpFrames(tester, frames: 4);
+    await tester.tap(pluginTab.first);
+    await pumpFrames(tester, frames: 120);
+    expect(
+      find.byType(DshWebUiView),
+      findsWidgets,
+      reason: 'R2 a plugin settings tab embeds the official section',
+    );
+    await capture(tester, binding, 'r2_plugin_settings_body');
+  }
 
   await _openSettingsTabById(
     tester,

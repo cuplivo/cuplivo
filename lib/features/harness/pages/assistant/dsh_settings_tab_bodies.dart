@@ -14,9 +14,18 @@ import 'dsh_settings_tabs.dart';
 /// switch: it shows what the Host reports (title, module name, enabled state,
 /// Loader phase and diagnostics) and says so in one sentence.
 class DshPluginsTabBody extends StatelessWidget {
-  const DshPluginsTabBody({super.key, required this.plugins});
+  const DshPluginsTabBody({
+    super.key,
+    required this.plugins,
+    this.onOpenOfficialSettings,
+  });
 
   final List<DshPluginEntry> plugins;
+
+  /// Opens the Host's own settings dialog once so Cuplivo can learn which
+  /// plugin-registered sections exist. Null in create mode, where there is no
+  /// remote to visit yet.
+  final VoidCallback? onOpenOfficialSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -24,6 +33,20 @@ class DshPluginsTabBody extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       children: [
+        if (onOpenOfficialSettings != null) ...[
+          SectionCard(
+            children: [
+              IosNavRow(
+                key: const ValueKey<String>('dsh-settings-open-official'),
+                icon: Lucide.Settings,
+                label: l10n.dshPluginPanelTitle,
+                subtitle: l10n.dshPluginsReadOnly,
+                onTap: onOpenOfficialSettings,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+        ],
         _DshSettingsNoteCard(text: l10n.dshPluginsReadOnly),
         const SizedBox(height: 12),
         if (plugins.isEmpty)

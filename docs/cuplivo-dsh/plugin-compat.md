@@ -309,6 +309,35 @@ host describes 21 namespaces (`subagent`, `web-search-deepseek`, `ui-settings`,
 A namespace can back a section, a row config page, or nothing visible. The
 namespace list is useful for native forms (§7); it is not a UI registry.
 
+### 3.4a How Cuplivo renders a plugin-contributed settings section
+
+The implementation is generic and name-agnostic:
+
+- `DshSurfaceHarvest.settingsScript` opens the official settings dialog through
+  the `settings.launcher`/`settings.trigger` anchors, reads the `nav button`
+  labels of `[role="dialog"][data-shortcut-modal="settings"]`, posts
+  `{v:1, settings:[{label}…]}` on the `CuplivoHost` channel, and (with a
+  `landLabel`) leaves the dialog on that section.
+- `DshSurfaceInventory.shared` merges the message into the per-authority
+  snapshot. `snapshot.pluginSettingsSections` is every harvested label that is
+  not one of DSH's own (`DshSettingsSectionLabels.builtIn`, all eight shipped
+  locales — §6.2b).
+- The assistant settings page appends one tab per such section and lands its
+  inline official-WebUI body with `settingsScript(landLabel: <label>)`. A visit
+  is required because the Host RPC never lists those slots.
+- The 内置插件 tab keeps one `打开官方设置` affordance for that visit and for
+  plugins whose configuration lives in `plugins.row.config` (the better-search /
+  better-workspaces placement below).
+
+On the tested host for this PR (`@ds-hu/dsh-better-search` +
+`@ds-hu/dsh-better-workspaces` installed) the harvest reports **no**
+plugin-contributed settings section, and that is the correct result: neither
+package registers `settings.section` (better-search chose `plugins.row.config`,
+better-workspaces contributes sidebar/rail entries). Cuplivo therefore shows the
+five native tabs and no plugin tabs, and the generic mechanism is exercised by
+unit tests plus any plugin that does register the slot. The R5/R7 harvest is
+where the two installed plugins are accepted live.
+
 ---
 
 ## 4. Q2 — The sidebar rows: slot, owner, and what is discoverable

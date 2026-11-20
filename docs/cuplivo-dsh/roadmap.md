@@ -160,9 +160,10 @@ record, never a local run:
 ## 10. v2 round scope (2026-11-20)
 
 The v2 round closes the plugin/UI compatibility gap the first PR deferred.
-Engineering contract: `architecture.md` §9. Compatibility evidence and the
-generic JS recipes: `plugin-compat.md` §4–§6 (sidebar rows, right rail, no
-per-panel routes). Reuse decisions: `v2-reuse-map.md` §1–§6.
+Engineering contract: `architecture.md` §9; acceptance anchors:
+`implementation-contract.md` "v2 acceptance anchors". Compatibility evidence
+and the generic JS recipes: `plugin-compat.md` §4–§6 (sidebar rows, right rail,
+no per-panel routes). Reuse decisions: `v2-reuse-map.md` §1–§6.
 
 ### 10.1 Delivered
 

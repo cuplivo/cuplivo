@@ -49,13 +49,16 @@ Flutter entry (plugin UI only).
   `group.name` (or the id), with a default badge, the preset's plugin rows,
   and any broken-composition reason. There is no select action in this slice.
 - The invented **内容** tab is removed; it has no data source and no ARB keys.
-- A plugin-registered settings tab is **mechanism-only** in this round: the page
-  keeps an extensible `DshSettingsTabSpec` list (`plugin:<entryId>` ids), but no
-  tabs are appended from inventory metadata. DSH settings sections are
-  client-side `settings.section` slot registrations, not Host metadata exposed
-  over RPC, so inventory `meta.title` must not be turned into fake tabs — see
-  `plugin-compat.md` §3.
-- The tab strip scrolls horizontally when the five tabs do not fit.
+- A plugin-registered settings tab is generic: after the user visits the
+  Host's own settings dialog once, every `settings.section` the official UI
+  lists that DSH itself did not register becomes one more tab in this strip
+  (`plugin:<slug>`, label is the Host's own text — Cuplivo never knows a plugin
+  name). Its body is the embedded official Web UI landed on that section; the
+  body is built only when the tab is first selected. Inventory `meta.title` is
+  never turned into a tab. See `plugin-compat.md` §3.4a. The 内置插件 tab carries
+  one `打开官方设置` row (`dsh-settings-open-official`) that performs that visit.
+- The tab strip scrolls horizontally when the five native tabs plus the
+  plugin-registered ones do not fit.
 
 ## R3 — Connected assistant card (`image-01a1f451…jpg`)
 

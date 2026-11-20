@@ -47,6 +47,16 @@ Each step ends with `capture(..., '<name>')` when it produces evidence.
    `r2_settings_connection`.
    - 内置插件: read-only note (`dshPluginsReadOnly`), the Host's own plugin rows
      (status `已启用`, module subtitle `@…`); screenshot `r2_builtin_plugins`.
+   - Plugin-registered settings tabs (generic): tap the
+     `dsh-settings-open-official` row, wait for the official WebUI page, wait
+     until `DshSurfaceInventory.shared.snapshotFor(<authority>).settings` is
+     non-empty (the visit is the only source), go back, and then assert one
+     `dsh-settings-tab-plugin-*` tab per `pluginSettingsSections` entry with the
+     Host's label. The tested host's two plugins register no `settings.section`,
+     so the list is empty by evidence — the scenario then only asserts that the
+     visit harvested DSH's own sections, and the log line reports the count.
+     Screenshots when non-empty: `r2_plugin_settings_tabs`,
+     `r2_plugin_settings_body`.
    - Agent 预设: read-only note (`dshAgentPresetsReadOnly`), the default
      composition group (`standard`, badge `默认`); screenshot
      `r2_agent_presets`.
@@ -128,7 +138,9 @@ state matters. It must not depend on pre-existing sessions.
 ## Screenshots
 
 `r1_create_menu`, `r3_connected_card`, `r2_settings_connection`,
-`r2_builtin_plugins`, `r2_agent_presets`, `r8_general_settings`, `r4_local_sidebar`,
+`r2_builtin_plugins`, `r2_plugin_settings_tabs` (only when the Host reports a
+plugin-contributed settings section), `r2_plugin_settings_body`,
+`r2_agent_presets`, `r8_general_settings`, `r4_local_sidebar`,
 `r5_dsh_drawer`, `r9_models`, `r10_add_provider`, `r11_provider_detail`,
 `r6_chat`, `r6_plus_menu`, `r6_tool_turn`, `r6_context_ring`, `r6_attachment`,
 `r7_right_rail`, `r5_harvested_sidebar`, `r5_plugins_page`, `r5_search_service_page`,

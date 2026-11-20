@@ -12,6 +12,8 @@ import '../../../../theme/app_font_weights.dart';
 import '../../../../theme/app_semantic_colors.dart';
 import '../../models/dsh_remote.dart';
 import '../../models/dsh_web_ui_link.dart';
+import '../../services/dsh_credential_store.dart';
+import '../../services/dsh_surface_harvest.dart';
 import '../../state/dsh_connections_provider.dart';
 import '../../state/dsh_gateway.dart';
 import '../../widgets/dsh_failure_text.dart';
@@ -19,6 +21,8 @@ import '../../widgets/dsh_filled_button.dart';
 import '../../widgets/dsh_link_status_dot.dart';
 import '../../widgets/dsh_settings_tab_strip.dart';
 import '../../widgets/dsh_whale_mark.dart';
+import '../plugins/dsh_plugin_web_page.dart';
+import 'dsh_plugin_settings_tab_body.dart';
 import 'dsh_settings_tab_bodies.dart';
 import 'dsh_settings_tabs.dart';
 import 'models/dsh_models_tab_body.dart';
@@ -38,12 +42,22 @@ import 'models/dsh_models_tab_body.dart';
 /// Cuplivo's scope. The launch token from the pasted link is used for one
 /// connect attempt and never stored.
 class DshAssistantSettingsPage extends StatefulWidget {
-  const DshAssistantSettingsPage.create({super.key}) : remoteId = null;
+  const DshAssistantSettingsPage.create({super.key})
+    : remoteId = null,
+      credentials = const SecureDshCredentialStore();
 
-  const DshAssistantSettingsPage.edit({super.key, required this.remoteId});
+  const DshAssistantSettingsPage.edit({
+    super.key,
+    required this.remoteId,
+    this.credentials = const SecureDshCredentialStore(),
+  });
 
   /// Null in create mode; otherwise the record this page edits.
   final String? remoteId;
+
+  /// Where the embedded plugin-settings tabs read the browser cookie from.
+  /// Injected so widget tests stay hermetic; the app always uses the keychain.
+  final DshCredentialStore credentials;
 
   @override
   State<DshAssistantSettingsPage> createState() =>
@@ -69,6 +83,13 @@ class _DshAssistantSettingsPageState extends State<DshAssistantSettingsPage> {
   void initState() {
     super.initState();
     _remoteId = widget.remoteId;
+    DshSurfaceInventory.shared.addListener(_onSurfacesChanged);
+  }
+
+  /// The official UI posts its settings sections after a settings visit; the
+  /// plugin tabs appear (or vanish) without the user leaving this page.
+  void _onSurfacesChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -92,6 +113,7 @@ class _DshAssistantSettingsPageState extends State<DshAssistantSettingsPage> {
 
   @override
   void dispose() {
+    DshSurfaceInventory.shared.removeListener(_onSurfacesChanged);
     _nameController
       ..removeListener(_onNameChanged)
       ..dispose();
@@ -164,7 +186,14 @@ class _DshAssistantSettingsPageState extends State<DshAssistantSettingsPage> {
                 Expanded(
                   child: IndexedStack(
                     index: tabs.indexWhere((tab) => tab.id == activeId),
-                    children: [for (final tab in tabs) tab.body(context)],
+                    children: [
+                      for (final tab in tabs)
+                        _DshLazyTabBody(
+                          key: ValueKey<String>('dsh-settings-lazy-${tab.id}'),
+                          active: tab.id == activeId,
+                          builder: tab.body,
+                        ),
+                    ],
                   ),
                 ),
               ],
@@ -217,16 +246,27 @@ class _DshAssistantSettingsPageState extends State<DshAssistantSettingsPage> {
     final catalogNow = catalog;
     if (catalogNow == null ||
         !catalogNow.capabilities.supports(DshCapability.plugins)) {
+      // No catalog means no Host plugin inventory, but a settings harvest from
+      // an earlier WebUI visit is still valid surface data.
+      _appendPluginSettingsTabs(tabs, connections: connections);
       return tabs;
     }
     final plugins = catalogNow.plugins;
     final agentPresets = catalogNow.agentPresets;
+    final remote = _remoteId == null
+        ? null
+        : connections?.remoteById(_remoteId!);
     tabs
       ..add(
         DshSettingsTabSpec(
           id: 'plugins',
           label: l10n.dshTabPlugins,
-          body: (context) => DshPluginsTabBody(plugins: plugins),
+          body: (context) => DshPluginsTabBody(
+            plugins: plugins,
+            onOpenOfficialSettings: remote == null
+                ? null
+                : () => _openOfficialSettings(remote),
+          ),
         ),
       )
       ..add(
@@ -236,12 +276,75 @@ class _DshAssistantSettingsPageState extends State<DshAssistantSettingsPage> {
           body: (context) => DshAgentPresetsTabBody(groups: agentPresets),
         ),
       );
-    // Plugin-registered settings sections are `settings.section` slots in the
-    // official UI, not Host metadata: inventory `meta.title` is package
-    // metadata and would turn every installed plugin into a fake tab. The spec
-    // list stays dynamic so the later generic-surface harvest can append them,
-    // but v2 ships only the five native tabs.
+    _appendPluginSettingsTabs(tabs, connections: connections);
     return tabs;
+  }
+
+  /// Appends one tab per `settings.section` the official settings dialog shows
+  /// that DSH itself did not register.
+  ///
+  /// The data comes exclusively from a real visit to the official settings
+  /// dialog ([DshSurfaceHarvest.settingsScript]); the Host RPC never lists those
+  /// sections, and `pluginInventory/list`'s `meta.title` is package metadata
+  /// that would turn every installed plugin into a fake tab. Until that visit
+  /// happens the page has no way to know a section exists, so the tabs are
+  /// simply absent — the 内置插件 tab carries the affordance that performs the
+  /// visit.
+  void _appendPluginSettingsTabs(
+    List<DshSettingsTabSpec> tabs, {
+    required DshConnectionsProvider? connections,
+  }) {
+    final remoteId = _remoteId;
+    final remote = remoteId == null ? null : connections?.remoteById(remoteId);
+    if (remote == null) return;
+    final sections = DshSurfaceInventory.shared
+        .snapshotFor(remote.authority)
+        .pluginSettingsSections;
+    final usedSlugs = <String>{};
+    for (var i = 0; i < sections.length; i++) {
+      final section = sections[i];
+      var slug = dshSettingsSectionSlug(section.label, ordinal: i + 1);
+      if (!usedSlugs.add(slug)) {
+        slug = '$slug-${i + 1}';
+        usedSlugs.add(slug);
+      }
+      tabs.add(
+        DshSettingsTabSpec(
+          id: 'plugin:$slug',
+          key: ValueKey<String>('dsh-settings-tab-plugin-$slug'),
+          label: section.label,
+          body: (context) => DshPluginSettingsTabBody(
+            remote: remote,
+            section: section,
+            slug: slug,
+            credentials: widget.credentials,
+            onRequestReconnect: () => setState(() => _tabId = 'connection'),
+          ),
+        ),
+      );
+    }
+  }
+
+  /// Visits the official settings dialog and harvests its sections, then lets
+  /// the inventory listener append the plugin tabs to this page.
+  Future<void> _openOfficialSettings(DshRemote remote) async {
+    final l10n = AppLocalizations.of(context)!;
+    final navigator = Navigator.of(context);
+    final cookie = await widget.credentials.readCookie(remote.id);
+    if (!mounted) return;
+    await navigator.push(
+      MaterialPageRoute<void>(
+        builder: (_) => DshPluginWebPage(
+          remote: remote,
+          title: l10n.dshPluginPanelTitle,
+          cookie: cookie,
+          initialScript: DshSurfaceHarvest.settingsScript(),
+          scriptMessageHandlerName: DshSurfaceHarvest.channelName,
+          onScriptMessage: (raw) =>
+              DshSurfaceInventory.shared.accept(remote.authority, raw),
+        ),
+      ),
+    );
   }
 
   Widget _buildConnectionTab({
@@ -790,5 +893,48 @@ class _PresetRow extends StatelessWidget {
           : null,
       onTap: onTap,
     );
+  }
+}
+
+/// Builds a tab body only once its tab has been selected.
+///
+/// The page used to build every body eagerly inside the `IndexedStack`, which
+/// is fine for native lists but not for a plugin tab: its body embeds the
+/// official Web UI, and a user who never opens that tab should not pay for a
+/// WebView generation. Once activated the body stays mounted, so switching back
+/// and forth does not recreate it.
+class _DshLazyTabBody extends StatefulWidget {
+  const _DshLazyTabBody({
+    super.key,
+    required this.active,
+    required this.builder,
+  });
+
+  final bool active;
+  final WidgetBuilder builder;
+
+  @override
+  State<_DshLazyTabBody> createState() => _DshLazyTabBodyState();
+}
+
+class _DshLazyTabBodyState extends State<_DshLazyTabBody> {
+  bool _activated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _activated = widget.active;
+  }
+
+  @override
+  void didUpdateWidget(_DshLazyTabBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.active) _activated = true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_activated) return const SizedBox.shrink();
+    return widget.builder(context);
   }
 }

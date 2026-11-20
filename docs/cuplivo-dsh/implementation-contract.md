@@ -58,11 +58,18 @@ The assistant settings page is a five-tab DSH surface, in this order:
   `dsh-settings-tabs`, per-tab `dsh-settings-tab-<id>`, models keeps
   `dsh-models-tab`), and the bodies are in
   `lib/features/harness/pages/assistant/dsh_settings_tab_bodies.dart`.
-- Plugin-registered settings tabs are **mechanism-only**: the spec list can
-  append `plugin:<entryId>` tabs later, but v2 appends none. DSH settings
-  sections are client-side `settings.section` slot registrations, not Host
-  metadata exposed over RPC, so inventory `meta.title` must never be turned
-  into fake tabs — see `plugin-compat.md` §3.
+- Plugin-registered settings tabs are driven by the shared harvest inventory:
+  the page listens to `DshSurfaceInventory.shared`, and every
+  `snapshot.pluginSettingsSections` entry (a `settings.section` label the
+  official dialog shows that is not in `DshSettingsSectionLabels.builtIn`)
+  becomes a tab with id `plugin:<slug>` (ASCII slug, `section-<ordinal>` when
+  the label has no ASCII, tab key `dsh-settings-tab-plugin-<slug>`, body root
+  key `dsh-settings-plugin-body-<slug>`). The body is
+  `DshPluginSettingsTabBody`: the official Web UI inline, landed with
+  `DshSurfaceHarvest.settingsScript(landLabel: label)`; it is built lazily on
+  first selection. The 内置插件 tab has one `dsh-settings-open-official`
+  affordance that performs the settings visit. Inventory `meta.title` is never
+  turned into a tab — see `plugin-compat.md` §3.4a.
 
 ## l10n protocol
 
@@ -94,13 +101,14 @@ typed exceptions, not raw strings.
 ## v2 acceptance anchors
 
 The v2 E2E (`integration_test/e2e/dsh_remote_acceptance_test.dart`, designed in
-`e2e-scenario.md`) reaches every added surface through a stable widget key, not
-through remote text: harvested sidebar/rail labels are the Host's UI text and
-change with locale and Host composition. Keys are part of the contract — adding,
-renaming or removing one updates this table and `e2e-scenario.md` in the same
-commit. The harvest/landing recipes behind the rows and cards are in
-`plugin-compat.md` §4–§6; the hosting/preview reuse decisions they encode are
-`v2-reuse-map.md` §4 (WebView hosting) and §5 (preview fallback).
+`e2e-scenario.md`) reaches a Cuplivo surface through its stable widget key, never
+through layout; the one deliberate exception is a harvested row/card, whose
+authoritative value is the Host's own label (the key is the secondary anchor).
+Keys are part of the contract — adding, renaming or removing one updates this
+table and `e2e-scenario.md` in the same commit. The harvest/landing recipes
+behind the rows and cards are in `plugin-compat.md` §4–§6; the
+hosting/preview reuse decisions they encode are `v2-reuse-map.md` §4 (WebView
+hosting) and §5 (preview fallback).
 
 | surface | keys | E2E route |
 |---|---|---|
@@ -108,7 +116,7 @@ commit. The harvest/landing recipes behind the rows and cards are in
 | DSH sidebar rows (R5) | `dsh-drawer-entries` container; `dsh-sidebar-entry-<id>` per row (pre-harvest ids `plugins`, `automations`, `more`; a harvested row uses its label's slug); legacy `dsh-entry-<id>` anchors remain asserted | local drawer → expand the current-assistant tile → tap the `DeepSeek Harness` owner → DSH drawer; open 插件 once (pre-harvest) so the official page posts the harvest, then the drawer shows the Host's rows (`搜索服务` is the live signal) and taps land the official page by label; 更多 stays one built-in row |
 | Right-rail cards (R7) | rail `dsh-right-rail`; built-in cards `dsh-rail-workspace-files`, `dsh-rail-new-terminal`, `dsh-rail-more-tools`; harvested plugin cards `dsh-rail-entry-<id>`; back/expand/close `dsh-rail-back`, `dsh-rail-expand`, `dsh-rail-close`, opened by `dsh-right-rail-button` | app-bar rail button → rail; harvested cards appear after one official WebUI open and open the landed official page; 新建终端 is built-in |
 | Native terminal (R12) | panel `dsh-terminal-panel`, surface `dsh-terminal-view`, header `dsh-terminal-header`, expand `dsh-terminal-expand`, states `dsh-terminal-readonly` / `dsh-terminal-unavailable`; full screen `dsh-terminal-page` | rail → `dsh-rail-new-terminal`; assert the Host shell title and cwd from `terminal/create` + `terminal/environment`, type a command through the surface's IME path, then return via `dsh-rail-back` and assert the created file in the rail's workspace files |
-| Remote file preview (R13) | card `dsh-remote-file-card`, retry `dsh-remote-file-retry`, WebView pane `dsh-file-preview-web-<generation>`; the preview page root key is `dsh-file-preview-page` (contract; the page does not expose it yet, so the scenario locates `DshFilePreviewPage` by type) | rail → workspace files → tap the file: png/text render inline, pdf and binary open the full-screen page (pdf accepts the WebView or the honest metadata card; `blob.bin` accepts only the card) |
+| Remote file preview (R13) | card `dsh-remote-file-card`, retry `dsh-remote-file-retry`, WebView pane `dsh-file-preview-web-<generation>`, page root `dsh-file-preview-page` | rail → workspace files → tap the file: png/text render inline, pdf and binary open the full-screen page (pdf accepts the WebView or the honest metadata card; `blob.bin` accepts only the card) |
 | Composer plus menu (R6 v2) | sheet `dsh-plus-sheet`; rows `dsh-plus-attach`, `dsh-plus-goal`, `dsh-plus-feedback`, `dsh-plus-compact`, `dsh-plus-permission`, `dsh-plus-model`, `dsh-plus-download-log`; section headers `dsh-plus-section-add`, `dsh-plus-section-commands` | composer `+` → sheet; every row is present, disabled rows carry their reason; native pickers behind `dsh-plus-attach` are not drivable from an integration test (noted in `e2e-scenario.md`) |
 | Slash commands (R6 v2) | sheet `dsh-slash-sheet`; row `dsh-slash-command-<name>` | composer `/` when the Host's `commands/list` is non-empty |
 | Context ring (R6 v2) | `dsh-context-ring` | after a real turn whose live session state carries `contextPressure` |

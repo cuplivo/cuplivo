@@ -2239,6 +2239,7 @@ One conflation worth naming: the conversation row's merge is not pure LWW.
 peers compute the same value whoever won the row — but "who wins" and "what the row ends up as" are
 now two places. A third such column should become a registration in the family table, not a third
 patch in the applier.
+
 ### The third grain: a key inside a column that does travel
 
 The conversation-grant fix added the narrowest grain of the same question. The conversation row's
@@ -2438,6 +2439,12 @@ to point one lane over.
 * **The read lane is not capped.** One paired peer can hold as many reads open as its sockets allow.
   Today's traffic is one pull at a time per session, so a cap would be a number without a basis; the
   refusal path (`ping_busy`'s shape) is what it would take.
+* **One commit point is check-then-write, so the window is the write.** `handlePair` checks the gate
+  immediately before `savePeer`, and a deadline that lands *inside* that write still leaves the peer
+  record — a peer this device lists whose secret the initiator never received (F-6's state). It is
+  one file write, chained behind the record's other writes, and the initiator's re-pair heals it,
+  because the 504 is what makes it pair again. Closing it needs the store to refuse a commit on a
+  gate it does not know about, which is a wider change than this amendment.
 * **A paired peer's write flood now queues other peers behind it**, because the write lane is
   device-wide. That is the price of the lane key; it is not worse than the single chain it replaced.
 * **A push refused while it was queued spends its own transfer budget.** A request whose deadline runs

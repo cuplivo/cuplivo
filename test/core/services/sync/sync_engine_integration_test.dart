@@ -1786,6 +1786,48 @@ void main() {
     expect(await b.store.findPeer(a.identity.deviceId), isNull);
   });
 
+  test('a push beat the deadline abandoned applies no conversation', () async {
+    // The cell below proves the *loop* stops between conversations; this one
+    // proves the engine hands it a predicate that can stop it. Without the hook
+    // the loop applies every conversation and only the later `check()` throws —
+    // the DB writes are already committed, so the beat lands rows the peer was
+    // told never arrived.
+    final (a, b) = await pair();
+    await _seedConversation(a, id: 'conv-x1', contents: ['one']);
+    await _seedConversation(a, id: 'conv-x2', contents: ['two']);
+    final first = (await a.dataPlane.readSubtree('conv-x1'))!;
+    final second = (await a.dataPlane.readSubtree('conv-x2'))!;
+    expect(
+      await b.engine.handleHello(
+        a.identity.deviceId,
+        a.hello(),
+        admission: b.gate(),
+      ),
+      isA<SyncHello>(),
+    );
+
+    Object? cancelled;
+    try {
+      await b.engine.handleApplySubtrees(
+        a.identity.deviceId,
+        SyncDeltaBatch([first, second]),
+        admission: b.spentGate(),
+      );
+    } catch (error) {
+      cancelled = error;
+    }
+
+    expect(cancelled, isA<SyncAdmissionLost>());
+    final ids = await _conversationIds(b);
+    expect(
+      ids,
+      isNot(contains('conv-x1')),
+      reason:
+          'a cancelled push applies nothing, not even its first conversation',
+    );
+    expect(ids, isNot(contains('conv-x2')));
+  });
+
   test(
     'a cancelled apply finishes the conversation it is on, then stops',
     () async {

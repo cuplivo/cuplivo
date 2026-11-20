@@ -2347,8 +2347,9 @@ class SyncEngine implements SyncServerHandler {
     }
     // Before the PIN is spent: a pairing the deadline abandoned must not close a
     // window the user is standing in front of. (A cancellation that lands after
-    // this point loses the PIN without installing the peer — the window has to
-    // be reopened, and nothing wrong is remembered on either side.)
+    // this point but before the write below loses the PIN without installing
+    // anything; one that lands *inside* the write leaves the record — see the
+    // note at the commit.)
     admission.check();
     // One-shot: a PIN is spent on first success.
     _pairingPin = null;
@@ -2396,10 +2397,18 @@ class SyncEngine implements SyncServerHandler {
     // And the networks this pair already met, behind the fresh ones — the
     // responder's half of the memory the initiator keeps (see [pairWith]).
     if (existing != null) peer.rememberEndpointHistory(existing.endpoints);
-    // The commit: from here the pair exists on this side. A pairing abandoned
-    // at the deadline must stop *before* it, because the initiator never gets
-    // the answer that carries [secret] — it would show a paired device whose
-    // every request this device refuses 401, and only a re-pair would fix it.
+    // The commit: from here the pair exists on this side, and a pairing
+    // abandoned at the deadline must stop before it — the initiator never gets
+    // the answer that carries [secret], and this device would list a peer whose
+    // every request it refuses 401.
+    //
+    // The check is as close to the write as the shape allows, and it is a
+    // check *then* write: a deadline that lands inside `savePeer` still leaves
+    // the record. That window is the write's own duration (one file, chained
+    // behind the peer's other writes), and what heals it is the initiator's
+    // re-pair — the one it performs because it got a 504 in place of the
+    // secret. Making it atomic would need the store to refuse a commit on a
+    // gate it does not know about, which is a wider change than this one.
     admission.check();
     await store.savePeer(peer);
     // The pairing request arrived on this listener, so the peer is known here

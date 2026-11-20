@@ -183,7 +183,7 @@ await _transfer((left) async {
 | # | 失效 | 表现 | 防线 |
 |---|---|---|---|
 | F-1 | 某处提交点漏了 `check()` | 超时后照样落库（O2 原样） | G5 注入证明：注掉 #8 那格红；hash 还原 |
-| F-2 | 读读到半张表 | 对端 404/尺寸不符，多传一轮 | I-2；状态表有一格专测并发读 |
+| F-2 | 读读到半张表 | 对端 404/尺寸不符，多传一轮 | I-2：整表替换由 #11 一格测，并发读者本身不另测——它看到的是没有第二次赋值的那个 map |
 | F-3 | 把 `.timeout` 当取消 | 只解除调用者的等待，被放弃的 work 继续写 | `io()` 只用于**可放弃**的等待；要写的东西自己过 check |
 | F-4 | 504 之后处理器再写 response | 双 close（`_safeRespond` 已有 try/catch，会**掩盖**） | 状态表断言"只答一次"；gate 死了就不进 `_route` 的应答路径 |
 | F-5 | `finally` 没跑 | `beatsInFlight` 不归零，会话永不被 sweep | `_endBeat` 在 gate 抛出的路径上也要跑 |
@@ -194,7 +194,7 @@ await _transfer((left) async {
 ## 7. 状态表 —— 一格一测
 
 一格一个用例，下面第三列就是用例名（原写的"编号就是用例名"是假的，第一版交付时还没有这些用例）。
-表外另有两格，测的是机制而不是某一格情形：`every route takes the lane its effect names`（路由与车道同一张表，16 个 method×path 逐条观测）和 I-1 那一格（被取消的处理器提交不了）。
+表外另有三格，测的是机制而不是某一格情形：`every route takes the lane its effect names`（路由与车道同一张表，16 个 method×path 逐条观测）、I-1 那一格（被取消的处理器提交不了）、以及 `a stream that keeps emitting is cut when the budget ends`（`ioStream` 逐块读预算，而不只是查空闲）。
 
 | # | 情形 | 用例（`test/core/services/sync/`） |
 |---|---|---|
@@ -208,12 +208,12 @@ await _transfer((left) async {
 | 8 | hello 超时 | 同上：a hello the deadline abandoned installs no session |
 | 9 | PUT 落盘前超时 | 同上：a pushed file is written only for the version the session asked for（末段的 spent-gate） |
 | 10 | `/pair` 超时 | 同上：a pairing the deadline abandoned installs nothing |
-| 11 | 读与写并发时不看到半张表 | `workspace_content_sync_test.dart`：a published table is replaced whole, never merged |
+| 11 | 发布是整表替换（读者看到的只可能是旧表或新表） | `workspace_content_sync_test.dart`：a published table is replaced whole, never merged（测的是替换，不是交错；一份已赋值给 `_served[peer]` 的表不会再被原地改，所以"半张表"在结构上不成立） |
 | 12 | 未鉴权的 hello | `sync_admission_test.dart`：an unauthenticated request never joins a queue |
 | 13 | 4 个 `/pair` 并发 | 同上：pairing has its own capped lane, and cannot hold the data plane |
 | 14 | 上传时对端不读 socket | 同上：a push the peer never reads ends inside its budget |
 | 15 | 错误响应正文不结束 | 同上：an error body that never ends is not waited out |
-| 16 | 事务中途取消 | `sync_engine_integration_test.dart`：a cancelled apply finishes the conversation it is on, then stops |
+| 16 | 事务中途取消 | 两格：`sync_engine_integration_test.dart`：a push beat the deadline abandoned applies no conversation（引擎把 gate 接进 apply 的那一段）+ a cancelled apply finishes the conversation it is on, then stops（循环本身，直接调 `dataPlane`） |
 | 17 | ping 仍在进行中的 beat 旁应答 | 同上：/sync/ping is answered beside a beat that is still running（既有） |
 
 提交点没有编号，也各有一格：hello 安装（#8）、`/pair` 记录（#10）、`revoke` 删除

@@ -22788,6 +22788,10 @@
   "@lanSyncPairErrorUnreachable": {
     "description": "Pairing error shown when the other device could not be reached, suggesting the address, port and network are checked."
   },
+  "lanSyncPairErrorBusy": "The other device is busy with another pairing request. Try again in a moment.",
+  "@lanSyncPairErrorBusy": {
+    "description": "Pairing error shown when the other device's pairing lane is full (four requests in flight), so this one was refused. The advice must not be about the address: the device answered."
+  },
   "lanSyncPairErrorNoCertificate": "The other device did not identify itself. Pairing aborted.",
   "@lanSyncPairErrorNoCertificate": {
     "description": "Pairing error shown when the other device did not present a certificate, so pairing was aborted."

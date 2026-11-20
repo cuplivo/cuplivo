@@ -30888,6 +30888,12 @@ abstract class AppLocalizations {
   /// **'Could not reach the device. Check the address and port, and that both devices are on the same network.'**
   String get lanSyncPairErrorUnreachable;
 
+  /// Pairing error shown when the other device's pairing lane is full (four requests in flight), so this one was refused. The advice must not be about the address: the device answered.
+  ///
+  /// In en, this message translates to:
+  /// **'The other device is busy with another pairing request. Try again in a moment.'**
+  String get lanSyncPairErrorBusy;
+
   /// Pairing error shown when the other device did not present a certificate, so pairing was aborted.
   ///
   /// In en, this message translates to:

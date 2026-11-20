@@ -2319,11 +2319,15 @@ stopped reading held the upload forever, and seven `response.drain()` calls had 
 
 ### Decision
 
-**A route is classified by effect, not by path.** `SyncServer._laneOf` is the one place that decides
-*which lane*, and `_writesState` the one place that decides *read or write* for everything but
-`/pair` — that route is classified by authentication rather than by effect (it is the one route with
-no secret to check), and one answer for it rather than two is why `_writesState` does not know the
-path. A route neither names writes nothing.
+**A route is classified by effect, not by path, in one table.** `SyncServer._classify` returns the
+route *and* its lane, `_laneOf` reads the lane from that one row, and `_route` is an exhaustive
+`switch` over the route — so a route cannot be served without a lane, and a lane cannot be answered
+twice. (The first cut had two answers: a `_writesState` for read-or-write and a separate path `switch`
+for the handler. The gap between them was fail-open — a mutating route added to one and forgotten in
+the other ran on the concurrent read lane, beside a write beat, with nothing failing loudly — and the
+table is the repair.) `/pair` is classified by authentication rather than by effect: it is the one
+route with no secret to check, and the row says so. A path no row names writes nothing and answers its
+404 beside the lanes.
 
 | route | effect | lane |
 |---|---|---|
@@ -2405,7 +2409,7 @@ the same turn its timer would have fired).
 ### What the read lane's concurrency rests on
 
 Two facts that predate this amendment and are now load-bearing, which is why they are written down in
-`_writesState`'s comment:
+`_classify`'s comment:
 
 * **A read serves a published snapshot, never a table being built.** `WorkspaceContentSync.publish`
   constructs the whole table and assigns it, so a reader sees the old one or the new one and never a

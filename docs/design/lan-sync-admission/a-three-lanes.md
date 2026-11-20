@@ -3,8 +3,8 @@
 **已采纳**（2026-11-19，决定 D-1a）。落地后与本文的差别：`_Admission` 叫 `sync_admission.dart`
 里的 `SyncAdmission`；`_WriteLane` 没有成为一个类，写车道仍是 `_serve` 里的那条 future 链；
 `gate.io` 收的是回调而不是 future（一个已经启动的 future 被 gate 拒绝时会留下无人监听的错误）；
-预算用 `Stopwatch` 量（单调钟，见 §2 的注）；车道判定在 `_laneOf`，`_writesState` 只管读/写、
-不认 `/pair`（见 §1 的注）。
+预算用 `Stopwatch` 量（单调钟，见 §2 的注）；车道判定是一张表——`_classify` 同时给 route 和 lane，
+`_route` 对它穷尽 switch，`/pair` 在表里按鉴权分类（见 §1 的注）。
 ADR 的正式文本见 `docs/adr/0003-lan-sync-architecture.md` 的 "Amendment (2026-11, admission)"。
 
 > 读不排队；写互相排队；`/pair` 自成一队。预算从**入队**起算；超时不是"不再等这个 future"，

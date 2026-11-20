@@ -790,8 +790,10 @@ contradicts one of them is a bug, not a preference.
   60 s, push/fetch 20 min, blob 15 min of inactivity, pairing 60 s, and a push is one budget from its
   first byte to its last drain; server routes are bounded too (pair/hello 60 s, revoke 30 s, data
   routes 30 min). The deadline **cancels**: the request carries a gate that a handler checks before
-  each state change, so a handler the deadline abandoned cannot install a session, write a checkpoint
-  or land a file after its peer was told the request was over.
+  each state change, so a handler the deadline abandoned cannot *begin* installing a session, writing
+  a checkpoint or landing a file after its peer was told the request was over — one that had already
+  begun can still finish, which is why those writes are idempotent and re-planned by the next session.
+  The lane orders answers; the gate orders commits.
 - **A route runs on a lane chosen by its effect (按效果分道)**: reads run beside everything (a blob
   pull is what a three-device ring would otherwise deadlock on), writes run one at a time
   device-wide, probes and pairing have lanes of their own — pairing capped, and answered 503

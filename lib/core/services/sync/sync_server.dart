@@ -377,8 +377,12 @@ class SyncServer {
       if (lane == _Lane.pair) {
         // Unauthenticated by nature — a pairing has no secret yet — so it
         // answers on a lane of its own, capped: a stranger who fills it gets a
-        // 503 that says so, and neither the data routes nor this device's own
-        // ability to pair is held behind it.
+        // 503 that says so, and the data routes keep running beside it. What the
+        // cap does *not* do is spare this device's own pairing — in the responder
+        // role that request is the fifth one, and it is refused too. The refusal
+        // is why it is worth retrying rather than queueing, and why the client
+        // renders `pair_busy` as "busy, try again" instead of an unreachable
+        // address.
         unawaited(_servePair(request, admission));
         continue;
       }
@@ -1058,15 +1062,20 @@ class SyncServer {
       );
       await admission.io(() => request.response.close());
     } on SyncAdmissionLost {
-      // The budget died mid-file: the caller was told 504 by `_serveOne`, and
-      // the rest of the file is not owed to it.
+      // The budget died mid-file, and the status line went out as `200` with the
+      // full length before the first chunk did: no 504 can follow it now, and
+      // `_serveOne`'s arm never runs because this method returns normally. What
+      // the peer holds is a truncated body under a 200 — its client reads that
+      // as a stream error and re-fetches, which is the retry this side wants.
+      // (An earlier note here claimed the peer "was told 504"; it was not, and
+      // the status is decided before the first await for exactly that reason.)
       try {
-        await request.response.close();
+        await request.response.close().timeout(const Duration(seconds: 5));
       } catch (_) {}
     } catch (_) {
       // The peer hung up mid-stream; nothing to salvage.
       try {
-        await request.response.close();
+        await request.response.close().timeout(const Duration(seconds: 5));
       } catch (_) {}
     }
   }

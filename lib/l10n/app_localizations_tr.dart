@@ -17672,6 +17672,10 @@ class AppLocalizationsTr extends AppLocalizations {
       'Cihaza ulaşılamadı. Adresi ve bağlantı noktasını, iki cihazın aynı ağda olduğunu kontrol edin.';
 
   @override
+  String get lanSyncPairErrorBusy =>
+      'Diğer cihaz başka bir eşleştirme isteğiyle meşgul. Birazdan tekrar deneyin.';
+
+  @override
   String get lanSyncPairErrorNoCertificate =>
       'Diğer cihaz kimliğini göstermedi. Eşleştirme iptal edildi.';
 

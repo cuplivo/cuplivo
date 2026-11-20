@@ -100,16 +100,31 @@ class SyncAdmission {
   /// The same guard for a stream a handler reads or writes chunk by chunk. The
   /// error is delivered as a stream error and the stream closed, so an
   /// `await for` around it throws instead of hanging on a silent socket.
+  ///
+  /// The timeout alone bounds **silence**, not the request: `Stream.timeout`
+  /// restarts its countdown on every event, so a body that keeps trickling in
+  /// arrives inside every interval and would outlive the budget indefinitely.
+  /// The budget is absolute, so each event re-reads what is left of it — a drip
+  /// is cut at the deadline, a silent socket by the timeout, and both unwind the
+  /// handler so its `finally` runs.
   Stream<T> ioStream<T>(Stream<T> stream) {
     check();
-    return stream.timeout(
-      remaining,
-      onTimeout: (sink) {
-        lose();
-        sink.addError(const SyncAdmissionLost());
-        sink.close();
-      },
-    );
+    return stream
+        .timeout(
+          remaining,
+          onTimeout: (sink) {
+            lose();
+            sink.addError(const SyncAdmissionLost());
+            sink.close();
+          },
+        )
+        .map((event) {
+          if (!alive) {
+            lose();
+            throw const SyncAdmissionLost();
+          }
+          return event;
+        });
   }
 }
 

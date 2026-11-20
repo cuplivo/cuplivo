@@ -17864,6 +17864,10 @@ class AppLocalizationsRu extends AppLocalizations {
       'Не удалось связаться с устройством. Проверьте адрес и порт, а также что оба устройства в одной сети.';
 
   @override
+  String get lanSyncPairErrorBusy =>
+      'Другое устройство занято другим запросом на сопряжение. Повторите попытку через минуту.';
+
+  @override
   String get lanSyncPairErrorNoCertificate =>
       'Другое устройство не подтвердило свою личность. Сопряжение прервано.';
 

@@ -5126,6 +5126,7 @@
   "lanSyncPairErrorInvalidPin": "Eşleştirme kodu yanlış veya diğer cihazın eşleştirme penceresi kapalı.",
   "lanSyncPairErrorInvalidAddress": "Diğer cihazın adresini ve bağlantı noktasını girin.",
   "lanSyncPairErrorUnreachable": "Cihaza ulaşılamadı. Adresi ve bağlantı noktasını, iki cihazın aynı ağda olduğunu kontrol edin.",
+  "lanSyncPairErrorBusy": "Diğer cihaz başka bir eşleştirme isteğiyle meşgul. Birazdan tekrar deneyin.",
   "lanSyncPairErrorNoCertificate": "Diğer cihaz kimliğini göstermedi. Eşleştirme iptal edildi.",
   "lanSyncPairErrorIdMismatch": "Diğer cihazın kimliği doğrulanamadı. Eşleştirme iptal edildi.",
   "lanSyncPairErrorNoListener": "Bu cihazdaki eşitleme dinleyicisi henüz çalışmıyor.",

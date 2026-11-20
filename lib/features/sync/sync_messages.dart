@@ -56,6 +56,8 @@ String syncPairErrorMessage(AppLocalizations l10n, SyncPairOutcome outcome) {
       return l10n.lanSyncPairErrorNoEndpointInQr;
     case 'no_listener':
       return l10n.lanSyncPairErrorNoListener;
+    case 'busy':
+      return l10n.lanSyncPairErrorBusy;
     case 'unreachable':
       return l10n.lanSyncPairErrorUnreachable;
     default:

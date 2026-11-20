@@ -642,6 +642,112 @@ void main() {
     expect(handler.commits, [true, false]);
   });
 
+  test('a body that keeps arriving is cut at the deadline, not at its end', () async {
+    // `Stream.timeout` restarts on every event, so it bounds *silence*: a peer
+    // that dribbles a chunk inside every interval would hold the handler — and
+    // its temp file and its beat — for as long as it likes. The budget is
+    // absolute, so the read must end at the deadline whether or not the body
+    // stopped.
+    final handler = _RecordingHandler()..observeBody = true;
+    final server = await startServer(
+      handler,
+      deadlineFor: (_) => const Duration(milliseconds: 400),
+    );
+    final http = client();
+    final request = await http.putUrl(
+      Uri.parse(
+        'https://127.0.0.1:${server.port!}${SyncServer.workspaceFilePath}',
+      ),
+    );
+    authenticate(request);
+    request.headers.set(
+      SyncServer.workspaceIdHeader,
+      base64Url.encode(utf8.encode('w1')),
+    );
+    request.headers.set(
+      SyncServer.workspaceRelPathHeader,
+      base64Url.encode(utf8.encode('a.txt')),
+    );
+    const chunks = 20;
+    request.contentLength = chunks * 4;
+    final watch = Stopwatch()..start();
+    final body = Stream<List<int>>.periodic(
+      const Duration(milliseconds: 50),
+      (_) => const [1, 2, 3, 4],
+    ).take(chunks);
+    final pending = request.addStream(body).then((_) => request.close());
+    HttpClientResponse? response;
+    Object? sendError;
+    try {
+      response = await pending.timeout(const Duration(seconds: 10));
+    } catch (error) {
+      // The listener closed the connection with the body still arriving, so the
+      // uploader may never read a status. Which of the two it gets is not what
+      // this cell measures: the read ending is.
+      sendError = error;
+    }
+    if (response != null) {
+      await response.drain<void>();
+      expect(response.statusCode, HttpStatus.gatewayTimeout);
+    } else {
+      // Whichever end it reaches, the upload ends: a status or a dead socket.
+      expect(sendError, isNotNull);
+    }
+    watch.stop();
+    // Two mechanisms can end the read at the deadline, and which one wins is a
+    // race this cell does not need to settle: the gate's per-event check (the
+    // unit cell below) or the response being written and the connection closed
+    // under the still-arriving body. What must not happen is the third outcome:
+    // a body read to its end after the budget was gone.
+    expect(
+      handler.bodyError,
+      isNotNull,
+      reason: 'the read ends, it is not drained',
+    );
+    expect(
+      handler.bodyChunks,
+      lessThan(chunks),
+      reason: 'a drip cannot reach the end of the body inside the budget',
+    );
+    expect(
+      watch.elapsed,
+      lessThan(const Duration(seconds: 3)),
+      reason: 'and the beat ends at the deadline, not after the body',
+    );
+  });
+
+  test('a stream that keeps emitting is cut when the budget ends', () async {
+    // `Stream.timeout` restarts its countdown on every event, so on its own it
+    // bounds silence: a stream that emits inside every interval would never trip
+    // it. This is the mechanism that makes the budget absolute, tested without a
+    // socket so the gate — not a torn-down connection — is what ends it.
+    final gate = SyncAdmission(budget: const Duration(milliseconds: 200));
+    final watch = Stopwatch()..start();
+    var seen = 0;
+    Object? failure;
+    try {
+      await for (final _ in gate.ioStream(
+        Stream<int>.periodic(
+          const Duration(milliseconds: 20),
+          (value) => value,
+        ).take(200),
+      )) {
+        seen++;
+      }
+    } catch (error) {
+      failure = error;
+    }
+    watch.stop();
+
+    expect(failure, isA<SyncAdmissionLost>());
+    expect(seen, lessThan(200), reason: 'the stream is cut, not consumed');
+    expect(
+      watch.elapsed,
+      lessThan(const Duration(seconds: 2)),
+      reason: 'at the budget, not at the end of the stream',
+    );
+  });
+
   test('every route takes the lane its effect names', () async {
     // `SyncServer._classify` is one row per route and the dispatch is an
     // exhaustive switch over it, so a route cannot be served without a lane. This
@@ -865,6 +971,16 @@ class _RecordingHandler implements SyncServerHandler {
     required SyncAdmission admission,
   }) async => const SyncApplyAck(applied: 0);
 
+  /// Read the PUT body chunk by chunk and record where the read ended, instead
+  /// of draining it at once — the shape a drip test needs.
+  bool observeBody = false;
+
+  /// How many chunks the body reader saw.
+  int bodyChunks = 0;
+
+  /// What ended the read, when it was not the end of the body.
+  Object? bodyError;
+
   @override
   Future<bool> handlePutWorkspaceFile(
     String peerDeviceId,
@@ -874,7 +990,17 @@ class _RecordingHandler implements SyncServerHandler {
     required Stream<List<int>> body,
     required SyncAdmission admission,
   }) async {
-    await body.drain<void>();
+    if (!observeBody) {
+      await body.drain<void>();
+      return true;
+    }
+    try {
+      await for (final _ in body) {
+        bodyChunks++;
+      }
+    } catch (error) {
+      bodyError = error;
+    }
     return true;
   }
 

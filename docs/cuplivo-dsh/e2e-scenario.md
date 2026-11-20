@@ -106,8 +106,13 @@ Each step ends with `capture(..., '<name>')` when it produces evidence.
     (`DshComposerE2e.stage`): the scenario writes `e2e-notes.txt`, stages it as a
     real `DocumentAttachment`, asserts the composer chip
     (`chat-input-document-previews`), sends
-    `读取我附加的 e2e-notes.txt 并回复它第一行`, waits for the transcript card, and asserts the answer quotes the
-    file's first line (`CUPLIVO_E2E_ATTACHMENT_OK`); screenshot `r6_attachment`.
+    `读取我附加的 e2e-notes.txt 并回复它第一行`, waits until the folded
+    transcript holds a `FilePart` for `e2e-notes.txt` (the list is virtualized),
+    asserts the answer quotes the file's first line
+    (`CUPLIVO_E2E_ATTACHMENT_OK`), then scrolls the last turn into view for
+    `r6_attachment`. Both sends go through one retrying helper: an IME/pop
+    animation can swallow a send tap on the emulator, and a lost tap must fail
+    with the composer still holding the text rather than time out elsewhere.
 12. Open the right rail; assert it pushes the chat off-screen and renders the
     built-in cards `工作区文件`/`新建终端`/`更多工具` (浏览器 intentionally
     absent — capability parity); screenshot `r7_right_rail`. Close the rail.

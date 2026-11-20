@@ -1870,6 +1870,30 @@ bool _assistantTextContains(WidgetTester tester, String needle) {
   return false;
 }
 
+/// Logs what the composer and its surrounding notifications hold when a send
+/// tap did not take, so a failure says why instead of only that it happened.
+void _logComposerState(WidgetTester tester, String label, int attempt) {
+  final snackbars = find.descendant(
+    of: find.byType(SnackBar),
+    matching: find.byType(Text),
+  );
+  final snackbarText = snackbars
+      .evaluate()
+      .map((element) => (element.widget as Text).data ?? '')
+      .where((text) => text.isNotEmpty)
+      .join(' | ');
+  final docs = find
+      .byKey(const ValueKey<String>('chat-input-document-previews'))
+      .evaluate()
+      .length;
+  final dialogs = find.byType(Dialog).evaluate().length;
+  final sheets = find.byType(BottomSheet).evaluate().length;
+  e2eStep(
+    '$label: attempt $attempt state '
+    'snackbar="$snackbarText" docs=$docs dialogs=$dialogs sheets=$sheets',
+  );
+}
+
 /// Taps the composer's send button until the prompt leaves the field.
 ///
 /// The emulator's IME animation can leave a stale hit-test frame that swallows
@@ -1883,6 +1907,29 @@ Future<void> _submitComposerPrompt(
   required Finder plusSheet,
   required String label,
 }) async {
+  // While a turn streams, the send button is the stop button: a tap there
+  // cancels the turn instead of submitting. Wait for the idle send glyph before
+  // typing into the composer, otherwise an attachment sent during the previous
+  // answer would be silently dropped (or worse, cancel the running turn).
+  final sendGlyph = find.descendant(
+    of: sendButton,
+    matching: find.byKey(const ValueKey<String>('send')),
+  );
+  final stopGlyph = find.descendant(
+    of: sendButton,
+    matching: find.byKey(const ValueKey<String>('stop')),
+  );
+  await pumpUntil(
+    tester,
+    () => sendGlyph.evaluate().isNotEmpty && stopGlyph.evaluate().isEmpty,
+    maxFrames: 2400,
+  );
+  await pumpFrames(tester, frames: 20);
+  expect(
+    sendGlyph,
+    findsOneWidget,
+    reason: '$label: the composer is back to an idle send state',
+  );
   await tester.ensureVisible(sendButton);
   for (var attempt = 1; attempt <= 3; attempt += 1) {
     if (plusSheet.evaluate().isNotEmpty) {
@@ -1891,11 +1938,17 @@ Future<void> _submitComposerPrompt(
     }
     e2eStep('$label: send attempt $attempt');
     await tester.tap(sendButton);
-    await pumpFrames(tester, frames: 20);
+    await pumpFrames(tester, frames: 30);
     if (_composerText(tester, composer).isEmpty) return;
     e2eStep('$label: send attempt $attempt did not clear the composer');
-    await pumpFrames(tester, frames: 20);
+    _logComposerState(tester, label, attempt);
+    await pumpFrames(tester, frames: 30);
   }
+  // The rejected-send path restores the draft asynchronously after the tap;
+  // give that settle a moment before declaring the send lost.
+  await pumpFrames(tester, frames: 120);
+  if (_composerText(tester, composer).isEmpty) return;
+  _logComposerState(tester, label, 4);
   expect(
     _composerText(tester, composer),
     isEmpty,

@@ -2579,6 +2579,17 @@ deletions inferred. The next session finds the row in both manifests and either 
 
 `sync_engine_integration_test.dart` holds it (`a none heal does not record a row written during the
 session`); disabling the stamp turns the cell into the loss — the following session deletes the row.
-What the stamp cannot see is a mid-session rename: the conversation row's clock and digest move but no
-indexed row does, so the entry claims a title the peer has not seen, and the next merge lets the
-local row's newer clock win — one redundant round, never a loss.
+
+The entry carries **two** clocks, and both have to be drawn: the message clocks (the ledger the
+deletion oracle consults) and the conversation row's own clock. The second one is not decoration —
+`syncConversationDigest` covers the conversation's families and never the root row, so a rename, a
+pin or a version selection moves no digest and no message row: that clock is the only carrier of the
+write, and it is what the plan's delete branch reads to tell an edited copy from an untouched one
+(`copyWrittenSinceAgreement`). A refresh whose row clock is newer than the one the manifest attested
+waits the round too, so an entry never claims a write the peer has not seen.
+
+What the stamp still cannot see is a mid-session write in a *different* family — a part or an artifact
+row. The digest moves (it covers those families) but no ledger row does, so the entry claims a digest
+the peer has not seen; the deletion oracle only knows ledger rows, so nothing is deleted and the cost
+is one redundant round. The same was once said here about a rename and it was wrong: the clock above
+is exactly what a rename is made of.

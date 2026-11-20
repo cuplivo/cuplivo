@@ -667,8 +667,10 @@ contradicts one of them is a bug, not a preference.
   devices. An `iSend` entry also describes the payload that was actually sent, never a fresh read:
   a row written while the session was in flight was never sent, and recording it as peer-seen made
   the next merge delete it here. The receive side asks the same question of the payload it was handed
-  (`peerSends`), and the `none` heal — the one entry built from a live re-read — is bounded by a stamp
-  taken before the manifest was read, so a row written mid-session waits a round instead of being
+  (`peerSends`), and the `none` heal — the one entry built from a live re-read — is bounded by what the
+  manifest attested on both clocks it reads: the stamp taken before the read for the message ledger,
+  and the manifest entry's own clock for the conversation row, which is the only carrier of a rename,
+  a pin or a version selection. A mid-session write on either clock waits a round instead of being
   claimed.
 - **A premise is re-read where it is used (前提在用的时刻重读)**: a plan is computed from a walk and
   executed beats later, so the half of its premise that can move — the local row, the local file,

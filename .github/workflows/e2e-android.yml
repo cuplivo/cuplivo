@@ -429,6 +429,15 @@ jobs:
           fi
           node tool/e2e/dsh_dom_contract.js
 
+      - name: Upload the official-UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dom-contract-screenshots
+          path: ${{ runner.temp }}/dom-contract-shots
+          if-no-files-found: ignore
+          retention-days: 7
+
   run:
     name: Android emulator (API 36)
     needs: request

@@ -33,6 +33,14 @@ function log(message) {
   process.stdout.write(`[dom-contract] ${message}\n`);
 }
 
+// Screenshots of the official UI the recipes read, so a reviewer can see that
+// the contract ran against a rendered app and not against an error page. They
+// are uploaded as the `dom-contract-screenshots` artifact.
+const shotsDir =
+  process.env.DSH_CONTRACT_SHOTS ||
+  path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'dom-contract-shots');
+fs.mkdirSync(shotsDir, { recursive: true });
+
 function fail(message) {
   process.stderr.write(`[dom-contract] FAILED: ${message}\n`);
   process.exit(1);
@@ -375,6 +383,12 @@ async function main() {
     await send('Page.reload');
     if (!(await waitReady())) throw new Error('the Host did not become ready after a reload');
   };
+  const capture = async (name) => {
+    const shot = await send('Page.captureScreenshot', { format: 'png' });
+    const file = path.join(shotsDir, `${name}.png`);
+    fs.writeFileSync(file, Buffer.from(shot.data, 'base64'));
+    log(`captured ${file}`);
+  };
 
   try {
     await send('Page.enable');
@@ -390,6 +404,7 @@ async function main() {
       fail('the Host Web UI did not render its sidebar within 40 s');
     }
     log('host ready at phone width');
+    await capture('01-host-root');
 
     // 1. Surface harvest.
     const harvestPosts = await evaluateScript(scripts.harvest, 'harvest');
@@ -432,6 +447,20 @@ async function main() {
       sectionLabels.some((label) => knownBuiltIns.includes(label)),
       sectionLabels.join(' | '),
     );
+    // Land on a real section and screenshot the dialog while it is open.
+    const settingsLandTarget = sectionLabels.find((label) =>
+      ['General', '通用', '通用设置', 'Models', '模型'].includes(label),
+    );
+    if (settingsLandTarget) {
+      const land = scripts.settingsLand.replace(
+        '"__SETTINGS_SECTION__"',
+        JSON.stringify(settingsLandTarget),
+      );
+      await Promise.race([evaluate(land, true), sleep(60000)]);
+      await sleep(1200);
+      await capture('02-settings-dialog');
+      log(`settings dialog landed on: ${settingsLandTarget}`);
+    }
 
     // 3. Landing on a harvested sidebar row.
     await reload();
@@ -455,6 +484,7 @@ async function main() {
         after.bodyText.includes(sidebarTarget),
         after.bodyText.slice(0, 160),
       );
+      await capture('03-sidebar-panel');
     }
 
     // 4. Landing on a harvested right-rail card.
@@ -481,6 +511,7 @@ async function main() {
         /Uncommitted|No changes|Wrap lines|未提交|无更改|±\s*diff/i.test(after.bodyText),
         after.bodyText.slice(0, 160),
       );
+      await capture('04-right-rail-page');
     }
 
     // 5. The official 更多 entry.
@@ -493,6 +524,7 @@ async function main() {
       afterMore.menuItems.length > 0,
       afterMore.menuItems.join(' | '),
     );
+    await capture('05-more-menu');
     void morePosts;
   } finally {
     cdp.close();

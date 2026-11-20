@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import 'dsh_surface_scripts.dart';
+
 /// One entry the official Web UI contributes to a global surface.
 ///
 /// [label] is the user-visible text exactly as the official UI renders it in

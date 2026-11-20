@@ -904,9 +904,24 @@ with a different shell there. Measured on the live 0.2.2-rc.1 host at
   where one exists (right-rail cards) and on the official label set for
   settings sections, and it renders harvested labels verbatim.
 
-`DshSurfaceHarvest` implements exactly these recipes; the E2E scenario asserts
-the resulting snapshot instead of a hard-coded plugin name, so the acceptance
-holds under any UI language.
+The recipe strings live in `lib/features/harness/services/dsh_surface_scripts.dart`:
+pure Dart, no Flutter imports, and the single copy the app executes.
+`DshSurfaceHarvest` only forwards to it for its callers. That split exists for
+one reason — the CI `dom-contract` job (in `.github/workflows/e2e-android.yml`)
+prints the same strings with `tool/e2e/print_dsh_surface_scripts.dart` and runs
+them in a desktop Chrome at 412×915 against the live Host, so the DOM contract
+the acceptance proves is literally the code the app ships, not a second copy
+that can drift from it. The job asserts the harvested sidebar rows, the rail
+cards and their kinds, the settings sections and the three landing recipes
+(sidebar row, rail card, 更多), and it runs on every same-repository real-mode
+E2E request.
+
+The Android acceptance scenario consumes the resulting snapshot instead of a
+hard-coded plugin name, so it holds under any UI language. On the hosted
+emulator it cannot: that emulator's Chromium renderer exits within seconds on
+the official single-page app, so the scenario asserts the honest fallback there
+(built-in sidebar rows and rail cards stay usable, the WebUI route still opens)
+and leaves the harvest/landing proof to the `dom-contract` job.
 
 ### 6.4 Where to land for each Cuplivo need
 

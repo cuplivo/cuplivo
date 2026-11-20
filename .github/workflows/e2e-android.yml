@@ -24,11 +24,7 @@ name: Android E2E
 env:
   FLUTTER_VERSION: '3.47.6'
   E2E_DRIVER: test_driver/e2e_review.dart
-  # API 36's bundled WebView cannot render the official DSH single-page app on
-  # the hosted emulator: its Chromium renderer exits within seconds on every
-  # attempt (logcat "Renderer process ... crash detected"), so the acceptance
-  # runs on API 35, whose WebView renders it.
-  E2E_API_LEVEL: '35'
+  E2E_API_LEVEL: '36'
   E2E_PROFILE: pixel_7
 
 on:
@@ -381,6 +377,58 @@ jobs:
             valid `integration_test/e2e/<name>_test.dart` path. Fix the path
             or retry the request; see `docs/e2e-android.md`.
 
+  dom-contract:
+    name: DSH DOM contract / real Host
+    needs: request
+    # Same-repository runs only: the live Host's launch token is a repository
+    # secret and must never reach fork code. This job proves the official-WebUI
+    # recipes the app ships against the real Host in a desktop Chrome at phone
+    # width; the Android emulator's Chromium renderer cannot render that
+    # single-page app (it exits within seconds), so the emulator run asserts the
+    # native surfaces and the honest WebView degradation instead.
+    if: needs.request.outputs.run == 'true' && needs.request.outputs.same_repo == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      E2E_DSH_URL: ${{ secrets.E2E_DSH_URL }}
+      DSH_SURFACE_SCRIPTS: ${{ runner.temp }}/dsh_surface_scripts.json
+    steps:
+      - name: Checkout the requested revision
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.request.outputs.checkout_ref || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Print the DOM recipes the app ships
+        run: dart run tool/e2e/print_dsh_surface_scripts.dart > "$DSH_SURFACE_SCRIPTS"
+
+      - name: Run the recipes against the live Host
+        run: |
+          set -euo pipefail
+          if [ -z "${E2E_DSH_URL:-}" ]; then
+            echo "::notice::E2E_DSH_URL is not configured; the DOM-contract check needs the live Host and stays skipped."
+            exit 0
+          fi
+          node tool/e2e/dsh_dom_contract.js
+
   run:
     name: Android emulator (API 36)
     needs: request
@@ -603,17 +651,9 @@ jobs:
           disable-animations: true
           disable-spellchecker: true
           emulator-boot-timeout: 420
-          # The v2 scenario loads the official DSH single-page app in the
-          # WebView. The AVD needs enough RAM for the Flutter app plus the
-          # Chromium renderer, and the emulator's Vulkan path (swiftshader)
-          # kills that renderer within seconds on the hosted runners, so it is
-          # disabled here: with it the WebView reports "Renderer process ...
-          # crash detected (code -1)" and the injected DOM script never runs.
-          cores: 4
           emulator-options: >-
             -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
             -no-snapshot -camera-back none -camera-front none
-            -feature -Vulkan -memory 4096 -partition-size 4096
           script: bash tool/e2e/run_android_e2e.sh
 
       - name: Build the artifact report

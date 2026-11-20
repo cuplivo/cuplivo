@@ -1409,6 +1409,20 @@ Future<void> _runRealScenario(
     what: 'R12 side effect: cuplivo-e2e-terminal.txt in the workspace files',
     maxFrames: 600,
   );
+  // The file alone would also exist if the shell created it empty for a failed
+  // redirect; its content is the proof that the typed line actually ran.
+  await tester.tap(terminalFile.first);
+  await _pumpUntilFound(
+    tester,
+    find.descendant(
+      of: rail,
+      matching: find.textContaining('CUPLIVO_E2E_TERMINAL_OK'),
+    ),
+    what: 'R12 the terminal command wrote its marker into the file',
+    maxFrames: 600,
+  );
+  await tester.tap(find.byKey(const Key('dsh-rail-files-back')));
+  await pumpFrames(tester, frames: 8);
 
   // R13: png/text stay inline in the rail; the binary kinds hand the file to
   // the preview slice's full-screen page. PDF rendering is device-dependent, so
@@ -2263,7 +2277,11 @@ Future<void> _pumpUntilToolCall(
 /// target. The test binding's text input is attached to that client instead,
 /// which is the same path a phone's IME uses to insert text and press Enter.
 Future<void> _typeIntoTerminal(WidgetTester tester, String line) async {
-  tester.testTextInput.enterText(line);
+  // The terminal views create their IME connection with deleteDetection: its
+  // initial editing value is two spaces, and the inserted text is everything
+  // after them. An IME appends to that baseline; the test input replaces the
+  // value, so prepend the sentinel or the first two characters are eaten.
+  tester.testTextInput.enterText('  $line');
   await pumpFrames(tester, frames: 12);
   // `receiveAction` is a guarded test API and returns a Future: without the
   // await the following pump raises a Guarded function conflict. `done` is the

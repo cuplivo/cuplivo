@@ -917,21 +917,20 @@ Future<void> _runRealScenario(
   // accepted by the composer.
   e2eStep('before r6_tool_send_probe');
   await capture(tester, binding, 'r6_tool_send_probe');
-  // The tool card is the shared renderer fed by a real DshToolEntry: its header
-  // shows the Host tool name (`bash`). That text exists only after the Host
-  // actually ran a tool - the prompt's own "bash 工具" wording is a full
-  // sentence, not this exact label. The second assistant message is the turn's
-  // answer after the tool result.
-  final toolHeader = find.descendant(
-    of: transcript,
-    matching: find.text('bash'),
-  );
-  await _pumpUntilToolCard(
+  // The Host's tool call becomes a `ToolUIPart` in the transcript data before
+  // its card is painted: the list is virtualized and auto-scrolls to the
+  // answer, so the card can sit above the built range. Assert the wire-level
+  // part first, then scroll the list to the card for the evidence frame.
+  await _pumpUntilToolCall(
     tester,
-    toolHeader,
     composer: composer,
     sendButton: sendButton,
     plusSheet: plusSheet,
+  );
+  expect(
+    _transcriptHasToolCall(tester, 'bash'),
+    isTrue,
+    reason: 'R6 the Host tool call reached the transcript as a bash part',
   );
   await pumpUntil(
     tester,
@@ -954,6 +953,22 @@ Future<void> _runRealScenario(
   );
   FocusManager.instance.primaryFocus?.unfocus();
   await pumpFrames(tester, frames: 40);
+  // Scroll the virtualized transcript up to the tool card: its header is the
+  // shared renderer's tool name, which exists only after the Host ran the
+  // call. `scrollUntilVisible` also proves the card is reachable to a reader.
+  final toolHeader = find.descendant(
+    of: transcript,
+    matching: find.text('bash'),
+  );
+  await tester.scrollUntilVisible(
+    toolHeader,
+    -240,
+    scrollable: find
+        .descendant(of: transcript, matching: find.byType(Scrollable))
+        .first,
+    maxScrolls: 80,
+  );
+  await pumpFrames(tester, frames: 20);
   expect(toolHeader, findsWidgets, reason: 'R6 the bash tool card rendered');
   expect(
     _assistantMessageCount(tester),
@@ -2004,9 +2019,28 @@ Future<void> _openRailFilesPage(WidgetTester tester, Finder rail) async {
 /// panel is the same UI a user sees, so answering it is part of the scenario
 /// rather than a test-only shortcut. Any other pending request is left alone so
 /// an unexpected prompt still fails on the missing tool card.
-Future<void> _pumpUntilToolCard(
-  WidgetTester tester,
-  Finder toolHeader, {
+/// Whether the folded transcript already holds a tool call named [toolName].
+///
+/// The transcript list is virtualized, so the rendered card can be outside the
+/// built range while the folded message data already has the call; this reads
+/// the data the card is rendered from.
+bool _transcriptHasToolCall(WidgetTester tester, String toolName) {
+  final list = find.descendant(
+    of: find.byKey(const ValueKey<String>('dsh-transcript')),
+    matching: find.byType(MessageListView),
+  );
+  if (list.evaluate().isEmpty) return false;
+  final view = tester.widget<MessageListView>(list.first);
+  for (final parts in view.toolParts.values) {
+    for (final part in parts) {
+      if (part.toolName == toolName) return true;
+    }
+  }
+  return false;
+}
+
+Future<void> _pumpUntilToolCall(
+  WidgetTester tester, {
   int maxFrames = 1800,
   Finder? composer,
   Finder? sendButton,
@@ -2016,7 +2050,7 @@ Future<void> _pumpUntilToolCard(
   var frames = 0;
   var sendRetries = 0;
   while (frames < maxFrames) {
-    if (toolHeader.evaluate().isNotEmpty) return;
+    if (_transcriptHasToolCall(tester, 'bash')) return;
     if (allow.evaluate().isNotEmpty) {
       await tester.tap(allow.first);
       await pumpFrames(tester, frames: 4);
@@ -2043,12 +2077,6 @@ Future<void> _pumpUntilToolCard(
     await pumpFrames(tester, frames: 4);
     frames += 4;
   }
-  await _pumpUntilFound(
-    tester,
-    toolHeader,
-    what: 'the bash tool card in the transcript (R6)',
-    maxFrames: 1,
-  );
 }
 
 /// Types one line into the Host terminal and submits it with the IME newline.

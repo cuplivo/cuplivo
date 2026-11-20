@@ -95,8 +95,8 @@ Each step ends with `capture(..., '<name>')` when it produces evidence.
     把完整输出贴给我`, wait until the folded transcript holds a `bash`
     `ToolUIPart` (the list is virtualized, so the rendered card can sit outside
     the built range) and a second assistant message whose text quotes the
-    marker; then scroll the transcript up until the `bash` card header is
-    visible and screenshot `r6_tool_turn`. If the
+    marker; then scroll the transcript up until the card's localized
+    `调用工具: bash` header is visible and screenshot `r6_tool_turn`. If the
     Host's permission preset gates shell tools, the scenario answers the
     pending 允许 prompt (`dsh-approval-allow`) the same way a user would. Then
     wait for the composer context ring

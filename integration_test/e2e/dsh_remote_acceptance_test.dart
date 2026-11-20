@@ -964,15 +964,17 @@ Future<void> _runRealScenario(
   );
   FocusManager.instance.primaryFocus?.unfocus();
   await pumpFrames(tester, frames: 40);
-  // Scroll the virtualized transcript up to the tool card: its header is the
-  // shared renderer's tool name, which exists only after the Host ran the
-  // call. `scrollUntilVisible` also proves the card is reachable to a reader.
+  // Scroll the virtualized transcript up to the tool card. Its header is the
+  // shared renderer's localized tool-call title (`调用工具: bash`), which exists
+  // only after the Host ran the call; the bare `bash` label is not what the
+  // card paints. `scrollUntilVisible` also proves the card is reachable.
+  final bashToolTitle = l10n.chatMessageWidgetToolCall('bash');
   final toolHeader = find.descendant(
     of: transcript,
-    matching: find.text('bash'),
+    matching: find.text(bashToolTitle),
   );
   await tester.scrollUntilVisible(
-    toolHeader,
+    toolHeader.first,
     -240,
     scrollable: find
         .descendant(of: transcript, matching: find.byType(Scrollable))

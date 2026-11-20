@@ -949,21 +949,13 @@ Future<void> _runRealScenario(
   // Scroll the virtualized transcript up to the tool card. Its header is the
   // shared renderer's localized tool-call title (`调用工具: bash`), which exists
   // only after the Host ran the call; the bare `bash` label is not what the
-  // card paints. `scrollUntilVisible` also proves the card is reachable.
+  // card paints.
   final bashToolTitle = l10n.chatMessageWidgetToolCall('bash');
   final toolHeader = find.descendant(
     of: transcript,
     matching: find.text(bashToolTitle),
   );
-  await tester.scrollUntilVisible(
-    toolHeader.first,
-    -240,
-    scrollable: find
-        .descendant(of: transcript, matching: find.byType(Scrollable))
-        .first,
-    maxScrolls: 80,
-  );
-  await pumpFrames(tester, frames: 20);
+  await _dragTranscriptUntil(tester, transcript, toolHeader, dy: -300);
   expect(toolHeader, findsWidgets, reason: 'R6 the bash tool card rendered');
   expect(
     _assistantMessageCount(tester),
@@ -1052,20 +1044,15 @@ Future<void> _runRealScenario(
   );
   FocusManager.instance.primaryFocus?.unfocus();
   await pumpFrames(tester, frames: 40);
-  await tester.scrollUntilVisible(
-    find
-        .descendant(
-          of: transcript,
-          matching: find.textContaining('CUPLIVO_E2E_ATTACHMENT_OK'),
-        )
-        .first,
-    240,
-    scrollable: find
-        .descendant(of: transcript, matching: find.byType(Scrollable))
-        .first,
-    maxScrolls: 120,
+  await _dragTranscriptUntil(
+    tester,
+    transcript,
+    find.descendant(
+      of: transcript,
+      matching: find.textContaining('CUPLIVO_E2E_ATTACHMENT_OK'),
+    ),
+    dy: 300,
   );
-  await pumpFrames(tester, frames: 20);
   e2eStep('before r6_attachment');
   await capture(tester, binding, 'r6_attachment');
 
@@ -2148,6 +2135,36 @@ Future<void> _openRailFilesPage(WidgetTester tester, Finder rail) async {
   await pumpFrames(tester, frames: 4);
   await tester.tap(target);
   await pumpFrames(tester, frames: 12);
+}
+
+/// Drags the transcript until [target] is built, then scrolls it into view.
+///
+/// `scrollUntilVisible` cannot be used here: its finder must resolve to exactly
+/// one element at the end, and a `.first` finder throws while the target is
+/// still unbuilt (the very state the scroll exists to leave). The transcript
+/// rows are also matched more than once (a tool call and its result share the
+/// same localized title), so this waits for any match and then ensures the
+/// first one is on screen.
+Future<void> _dragTranscriptUntil(
+  WidgetTester tester,
+  Finder transcript,
+  Finder target, {
+  required double dy,
+}) async {
+  final scrollable = find
+      .descendant(of: transcript, matching: find.byType(Scrollable))
+      .first;
+  for (var drag = 0; drag < 120 && target.evaluate().isEmpty; drag += 1) {
+    await tester.drag(scrollable, Offset(0, dy));
+    await pumpFrames(tester, frames: 4);
+  }
+  expect(
+    target,
+    findsWidgets,
+    reason: 'the transcript reaches the requested row when dragged',
+  );
+  await tester.ensureVisible(target.first);
+  await pumpFrames(tester, frames: 20);
 }
 
 /// Waits for the bash tool card, allowing one approval if the Host asks.

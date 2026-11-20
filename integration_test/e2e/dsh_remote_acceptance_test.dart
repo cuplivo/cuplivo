@@ -571,9 +571,12 @@ Future<void> _runRealScenario(
   await pumpFrames(tester, frames: 20);
   await capture(tester, binding, 'r11_provider_detail');
 
-  // Back to the models list; the settings route is where R9 left it.
-  await tester.pageBack();
-  await pumpFrames(tester, frames: 20);
+  // Back to the models list; the settings route is where R9 left it. The app
+  // draws its own Lucide back chevron, so `tester.pageBack()` cannot find a
+  // Material/Cupertino back button here: pop the detail route through the same
+  // root-navigator helper the rest of the scenario uses.
+  await _popRoute(tester);
+  await pumpFrames(tester, frames: 8);
   expect(
     find.byKey(const Key('dsh-models-search')),
     findsOneWidget,

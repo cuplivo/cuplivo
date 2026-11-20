@@ -1183,6 +1183,21 @@ Future<Set<String>> _messageIds(_Side side, String conversationId) async => {
     row['id'] as String,
 };
 
+/// One message row's stored text, or null when the row is not there.
+///
+/// The wire read of a message row carries no `content` (the body travels as a
+/// document, not in the ledger row), so this goes through [getMessage], which
+/// rebuilds the message the way a reader sees it.
+Future<String?> _messageContent(
+  _Side side,
+  String conversationId,
+  String messageId,
+) async {
+  final message = await side.repository.getMessage(messageId);
+  if (message == null || message.conversationId != conversationId) return null;
+  return message.content;
+}
+
 /// The stored `message_order` of every row, in order — the property the apply's
 /// re-derivation must produce, and the one id-set assertions cannot see.
 Future<List<int>> _messageOrders(_Side side, String conversationId) async {
@@ -5381,6 +5396,79 @@ void main() {
       reason: 'the rename landed after the agreement: edit beats delete',
     );
   });
+
+  test(
+    'an edit during a bothSend session is not recorded as the agreement',
+    () async {
+      // The arm's guard compared ids, and an edit keeps the id: the snapshot
+      // recorded the edit's clock as the agreement, and the peer's later
+      // deletion of that row read "untouched here" and deleted the edit.
+      final a = _Side('a');
+      final b = _Side('b');
+      await a.start(
+        root,
+        midApplyWrite: (conversationId) async {
+          await a.repository.putMessage(
+            ChatMessage(
+              id: 'conv-c-m0',
+              conversationId: 'conv-c',
+              role: 'user',
+              content: 'edited while syncing',
+            ),
+          );
+        },
+      );
+      await b.start(root);
+      sides.addAll([a, b]);
+      await pairSides(a, b);
+
+      await _seedConversation(a, id: 'conv-c', contents: ['c1']);
+      await a.engine.syncWithPeer(await a.peer(b));
+
+      // Both sides change conv-c, so the next session is bothSend; the edit of
+      // m0 lands while A applies B's copy.
+      await a.repository.putMessage(
+        ChatMessage(
+          id: 'conv-c-a1',
+          conversationId: 'conv-c',
+          role: 'assistant',
+          content: 'written on a',
+        ),
+      );
+      await b.repository.putMessage(
+        ChatMessage(
+          id: 'conv-c-b1',
+          conversationId: 'conv-c',
+          role: 'assistant',
+          content: 'written on b',
+        ),
+      );
+      final both = await a.engine.syncWithPeer(await a.peer(b));
+      expect(both.success, isTrue, reason: both.summary);
+      expect(
+        await _messageContent(a, 'conv-c', 'conv-c-m0'),
+        'edited while syncing',
+      );
+
+      // B deletes m0. A edited it after the last agreement, so the edit beats
+      // the deletion: the row stays here and travels back.
+      await b.repository.deleteMessage('conv-c-m0');
+      final next = await a.engine.syncWithPeer(await a.peer(b));
+      expect(next.success, isTrue, reason: next.summary);
+      expect(
+        await _messageContent(a, 'conv-c', 'conv-c-m0'),
+        'edited while syncing',
+        reason:
+            'the entry never claimed the edit, so its absence is not a '
+            'deletion',
+      );
+      expect(
+        await _messageContent(b, 'conv-c', 'conv-c-m0'),
+        'edited while syncing',
+        reason: 'and the edit travels, one round later',
+      );
+    },
+  );
 
   test('a peer deletion the peer deferred is retried, not undone', () async {
     final (a, b) = await pair();

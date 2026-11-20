@@ -2317,7 +2317,7 @@ The client therefore builds a batch that fits, decided before the batch exists:
   checkpoint entry stays at `prior`, and the next session retries it while the other conversations
   still travel. The report names the count (`conversationsOmittedForSize`): most of them are
   the plan's tail and ride the next round on their own, and a conversation past the
-  per-conversation limit is the one case the user has to act on.
+  per-conversation limit is the one that can only arrive when the peer pulls it.
 
 Two things this does **not** do, both deliberate:
 
@@ -2375,14 +2375,21 @@ The rule is now symmetric, in bytes:
   makes of the same payload, so one transfer produces one entry, identical on both sides. A row this
   device wrote while the session ran is in neither payload and cannot be claimed.
 - **`bothSend` is the merge of two payloads**, which no single payload describes, so its entry stays
-  the apply's snapshot — but only when that snapshot holds nothing the two payloads and the previous
-  agreement cannot account for. A row from neither waits a round: the entry keeps the previous one and
-  the next session sends it. What this cannot see is a mid-session write in a family the checkpoint
-  does not index (an artifact row, which carries no message clock); that costs one round of
+  the apply's snapshot — but only when every row in that snapshot sits at the clock the peer's own copy
+  carries for it. The peer's copy is the right witness: it is read after the responder applied this
+  session's push, so anything that crossed is in it at the clock it crossed with, and anything newer
+  there was written here while the session ran. A row that fails that comparison waits a round: the
+  entry keeps the previous one and the next session sends it.
+  The comparison is by **clock**, not by id, and that distinction is the whole rule: an edit keeps the
+  id and moves the clock, so an id check admits it, the ledger records the edit as the agreement, and
+  the peer's later deletion of that row reads "untouched here" — the one reading the deletion oracle
+  acts on — and deletes the edit. What the rule still cannot see is a mid-session write in a family the
+  ledger does not index (an artifact row, which carries no message clock); that costs one round of
   convergence, never a deletion.
 
-`sync_engine_integration_test.dart` holds both halves: the receiver's mid-session write survives and
-travels one round later, for `peerSends` and for `bothSend`.
+`sync_engine_integration_test.dart` holds the halves: the receiver's mid-session insert survives and
+travels one round later for `peerSends` and `bothSend`, and a mid-session *edit* survives the peer
+deleting that same row.
 
 ### And the guard knows about the edge it cannot fix
 
@@ -2416,6 +2423,13 @@ pin or a version selection moves no digest and no message row: that clock is the
 write, and it is what the plan's delete branch reads to tell an edited copy from an untouched one
 (`copyWrittenSinceAgreement`). A refresh whose row clock is newer than the one the manifest attested
 waits the round too, so an entry never claims a write the peer has not seen.
+
+One bound on that half: a message row's clock is `COALESCE(updated_at, timestamp)`, and an insert
+leaves `updated_at` empty — so a row whose `timestamp` is *backdated* (an import preserving the
+original time) could sit under the stamp. The ordinary write path also moves the conversation row,
+which the second clock catches; what would slip is a raw import writing into an already-settled
+conversation without touching its row, and no such path is known today. If one appears, a ledger keyed
+on row clocks is the wrong witness for an insert, and only an id set read at hello would close it.
 
 What the stamp still cannot see is a mid-session write in a *different* family — a part or an artifact
 row. The digest moves (it covers those families) but no ledger row does, so the entry claims a digest

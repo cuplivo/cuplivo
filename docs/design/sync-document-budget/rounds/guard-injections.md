@@ -112,3 +112,23 @@ B 刷新出来的条目时钟比约定晚 359 µs（`Expected: (null or <1795176
 （诚实的）检查点时钟（`_announcementKills` / `_conversationDeletionStillStands` 的公告分支），所以那一路被挡住了。
 但条目仍然在撒谎，而挡住删除的是隔着一千行的另一个机制；这一条把它修在源头，并且把这格测试的第二个断言
 （删除后副本仍在）留在里面，作为"今天由公告挡下"的钉子。
+
+## 第 12 条｜`bothSend` 的快照守卫要比**时钟**，不是比 id
+
+第五轮评审指出：`bothSend` 的快照守卫只问"这个 id 见没见过"，而**编辑**一个已有消息保留 id、只移动时钟。
+于是条目把编辑的时钟记成"已约定"，对端后来删这一行时，删除 oracle 读到"本地时钟 == 记录时钟"→ 当作"本地没动过"→ 删掉编辑。
+（机制：apply 的本地读在事务内、LWW 留下较新的那份、outcome 把这份交给 `buildCheckpointConversation`；
+`mergeMessageRows` 的删除分支是 `messageRowMutationUs(entry.value) == seenAt`。）
+
+修法：每个快照行的时钟必须等于**对端副本**在同一 id 上的时钟。对端副本是理想的证人——它在响应方应用完本次推送之后才读出，
+所以"过线的那份"在里面就是这个时钟。
+
+| # | 注入 | 应红的测试 | 实测 | 不变量 |
+| --- | --- | --- | --- | --- |
+| 12 | 守卫退回只比 id 是否在 `peerClocks` 里 | › an edit during a bothSend session is not recorded as the agreement | 红：`Expected: 'edited while syncing'` / `Actual: <null>` —— 编辑被下一轮的删除带走 | 条目只描述过线的那份 |
+
+注入前 `sync_engine.dart` = `F76F1CAE634F95C3C0E005493F011C067FB6437B27045DAF9CEB281BED54DF7B`（201,510 字节），
+还原后同一哈希。
+
+这格测试的第一版用 `syncReadMessageRows` 读 content，拿到 `null` 就以为行丢了——其实消息正文不在那投影里
+（正文作为 document 走，账本行没有 `content` 列），改用 `repository.getMessage` 才读到。

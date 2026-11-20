@@ -774,8 +774,10 @@ Future<void> _runRealScenario(
   await pumpFrames(tester, frames: 20);
   e2eStep('before r6_plus_menu');
   await capture(tester, binding, 'r6_plus_menu');
-  // Dismiss by tapping the barrier above the sheet, then wait for the route.
-  await tester.tapAt(const Offset(12, 12));
+  // Dismiss through the navigator: the sheet is a modal route, and a barrier
+  // tap in the status-bar corner is not delivered to the app on every emulator
+  // size (it left the sheet open and swallowed the next turn's send tap).
+  await _popRoute(tester);
   await pumpUntil(tester, () => plusSheet.evaluate().isEmpty, maxFrames: 120);
 
   // R6 v2: a real tool turn. The prompt makes the Host run bash itself, so the

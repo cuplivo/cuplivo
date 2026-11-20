@@ -267,30 +267,54 @@ Future<void> _runRealScenario(
     officialSettings,
     what: 'the 内置插件 official-settings affordance (R2)',
   );
-  await tester.ensureVisible(officialSettings);
-  await pumpFrames(tester, frames: 4);
-  await tester.tap(officialSettings);
-  await _pumpUntilFound(
-    tester,
-    find.byType(DshPluginWebPage),
-    what: 'the official settings WebUI page (R2)',
-    maxFrames: 900,
-  );
-  // The settings script opens the official dialog and reads its nav rows; it is
-  // the only source of truth for the plugin-contributed sections.
   final authority = Uri.parse(_dshUrl).authority;
-  await pumpUntil(
-    tester,
-    () => DshSurfaceInventory.shared.snapshotFor(authority).settings.isNotEmpty,
-    maxFrames: 900,
-  );
-  final officialSections = DshSurfaceInventory.shared
-      .snapshotFor(authority)
-      .settings;
-  debugPrint(
-    '[dsh-e2e] official settings harvest: ${officialSections.length} '
-    'section(s) (${officialSections.map((entry) => entry.label).join(' | ')})',
-  );
+  // The settings script opens the official dialog and reads its nav rows; it is
+  // the only source of truth for the plugin-contributed sections. The emulator
+  // WebView occasionally loses its renderer process on the first cold platform
+  // view (logcat: "Renderer process ... crash detected", nothing posts), so a
+  // failed attempt is retried from this same settings page instead of failing
+  // the acceptance on an emulator flake.
+  const officialAttempts = 3;
+  var officialSections = const <DshSurfaceEntry>[];
+  for (var attempt = 1; attempt <= officialAttempts; attempt++) {
+    await tester.ensureVisible(officialSettings);
+    await pumpFrames(tester, frames: 4);
+    await tester.tap(officialSettings);
+    await _pumpUntilFound(
+      tester,
+      find.byType(DshPluginWebPage),
+      what: 'the official settings WebUI page (R2 attempt $attempt)',
+      maxFrames: 900,
+    );
+    await pumpUntil(
+      tester,
+      () =>
+          DshSurfaceInventory.shared.snapshotFor(authority).settings.isNotEmpty,
+      maxFrames: 450,
+    );
+    officialSections = DshSurfaceInventory.shared
+        .snapshotFor(authority)
+        .settings;
+    if (officialSections.isNotEmpty) {
+      debugPrint(
+        '[dsh-e2e] official settings harvest (attempt $attempt): '
+        '${officialSections.length} section(s) '
+        '(${officialSections.map((entry) => entry.label).join(' | ')})',
+      );
+      break;
+    }
+    debugPrint(
+      '[dsh-e2e] official settings harvest attempt $attempt posted nothing; '
+      'the WebView renderer may have crashed, retrying',
+    );
+    await _popRoute(tester);
+    await pumpFrames(tester, frames: 30);
+    await _openSettingsTabById(
+      tester,
+      const Key('dsh-settings-tab-plugins'),
+      what: 'the 内置插件 tab after a failed official-settings attempt (R2)',
+    );
+  }
   e2eStep('before r2_official_settings');
   await capture(tester, binding, 'r2_official_settings');
   await _popRoute(tester);
@@ -298,8 +322,9 @@ Future<void> _runRealScenario(
     officialSections,
     isNotEmpty,
     reason:
-        'R2 the official settings dialog must report its own sections: the '
-        'harvest scripts post a stage diagnostic when they cannot open it',
+        'R2 the official settings dialog must report its own sections after '
+        '$officialAttempts real WebUI attempts: the harvest scripts post a '
+        'stage diagnostic when they cannot open it',
   );
   expect(
     find.byKey(const Key('dsh-settings-tabs')),

@@ -393,7 +393,6 @@ jobs:
       contents: read
     env:
       E2E_DSH_URL: ${{ secrets.E2E_DSH_URL }}
-      DSH_SURFACE_SCRIPTS: ${{ runner.temp }}/dsh_surface_scripts.json
     steps:
       - name: Checkout the requested revision
         uses: actions/checkout@v6
@@ -418,7 +417,7 @@ jobs:
         run: flutter pub get --enforce-lockfile
 
       - name: Print the DOM recipes the app ships
-        run: dart run tool/e2e/print_dsh_surface_scripts.dart > "$DSH_SURFACE_SCRIPTS"
+        run: dart run tool/e2e/print_dsh_surface_scripts.dart > "$RUNNER_TEMP/dsh_surface_scripts.json"
 
       - name: Run the recipes against the live Host
         run: |
@@ -427,7 +426,7 @@ jobs:
             echo "::notice::E2E_DSH_URL is not configured; the DOM-contract check needs the live Host and stays skipped."
             exit 0
           fi
-          node tool/e2e/dsh_dom_contract.js
+          DSH_SURFACE_SCRIPTS="$RUNNER_TEMP/dsh_surface_scripts.json" node tool/e2e/dsh_dom_contract.js
 
       - name: Upload the official-UI screenshots
         if: always()

@@ -63,6 +63,25 @@ void main() {
       expect([for (final row in rows) row.label], ['代码变更']);
     });
 
+    test('drops built-in cards by their language-neutral kind', () {
+      // The same official card renders a different label per UI language, so
+      // the built-in de-duplication must key on the kind when it has one.
+      final rows = dshHarvestedEntries(
+        const <DshSurfaceEntry>[
+          DshSurfaceEntry(label: 'Workspace files', kind: 'files'),
+          DshSurfaceEntry(label: 'Changes', kind: 'bw-diff'),
+          DshSurfaceEntry(label: 'New terminal', kind: 'terminal'),
+          DshSurfaceEntry(label: 'New worktree', kind: 'bw-worktree'),
+          DshSurfaceEntry(label: 'Issues & PRs', kind: 'bw-forge'),
+        ],
+        excludedKinds: const <String>{'files', 'terminal'},
+      );
+      expect(
+        [for (final row in rows) row.label],
+        ['Changes', 'New worktree', 'Issues & PRs'],
+      );
+    });
+
     test('dedupes id collisions with a stable suffix', () {
       final rows = dshHarvestedEntries(const <DshSurfaceEntry>[
         DshSurfaceEntry(label: 'Search service'),

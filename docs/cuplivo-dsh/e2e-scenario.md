@@ -55,8 +55,9 @@ Each step ends with `capture(..., '<name>')` when it produces evidence.
      Host's label. The tested host's two plugins register no `settings.section`,
      so the list is empty by evidence — the scenario then only asserts that the
      visit harvested DSH's own sections, and the log line reports the count.
-     Screenshots when non-empty: `r2_plugin_settings_tabs`,
-     `r2_plugin_settings_body`.
+     The visit also captures `r2_official_settings` (the official settings
+     page Cuplivo opened); screenshots when non-empty:
+     `r2_plugin_settings_tabs`, `r2_plugin_settings_body`.
    - Agent 预设: read-only note (`dshAgentPresetsReadOnly`), the default
      composition group (`standard`, badge `默认`); screenshot
      `r2_agent_presets`.
@@ -138,7 +139,8 @@ state matters. It must not depend on pre-existing sessions.
 ## Screenshots
 
 `r1_create_menu`, `r3_connected_card`, `r2_settings_connection`,
-`r2_builtin_plugins`, `r2_plugin_settings_tabs` (only when the Host reports a
+`r2_builtin_plugins`, `r2_official_settings`,
+`r2_plugin_settings_tabs` (only when the Host reports a
 plugin-contributed settings section), `r2_plugin_settings_body`,
 `r2_agent_presets`, `r8_general_settings`, `r4_local_sidebar`,
 `r5_dsh_drawer`, `r9_models`, `r10_add_provider`, `r11_provider_detail`,

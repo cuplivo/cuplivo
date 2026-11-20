@@ -84,16 +84,22 @@ String _collapseDashes(String value) {
 ///
 /// Keeps the exact label text (the landing scripts and the e2e anchors depend
 /// on it) and the rail's [DshSurfaceEntry.kind], drops empty/over-long labels,
-/// removes labels repeated in [excludedLabels] — the built-in cards Cuplivo
+/// removes labels repeated in [excludedLabels] and entries whose language-neutral
+/// [DshSurfaceEntry.kind] is in [excludedKinds] — the built-in cards Cuplivo
 /// renders natively, which the official surface also lists in the same
-/// harvested region — and dedupes id collisions with a numeric suffix. Order is
+/// harvested region; the kind exclusion keeps that de-duplication working when
+/// the Host renders the same card in another UI language — and dedupes id
+/// collisions with a numeric suffix. Order is
 /// preserved; nothing is invented and a label Cuplivo does not know still
 /// renders generically.
 List<HarnessSurfaceEntry> dshHarvestedEntries(
   Iterable<DshSurfaceEntry> entries, {
   Set<String> excludedLabels = const <String>{},
+  Set<String> excludedKinds = const <String>{},
 }) {
   final excluded = <String>{for (final label in excludedLabels) label.trim()}
+    ..remove('');
+  final excludedKinds = <String>{for (final kind in excludedKinds) kind.trim()}
     ..remove('');
   final seenLabels = <String>{};
   final seenIds = <String>{};
@@ -102,6 +108,8 @@ List<HarnessSurfaceEntry> dshHarvestedEntries(
     final label = entry.label.trim();
     if (label.isEmpty || label.length > 80) continue;
     if (excluded.contains(label)) continue;
+    final kind = entry.kind?.trim();
+    if (kind != null && excludedKinds.contains(kind)) continue;
     if (!seenLabels.add(label)) continue;
     final base = dshSurfaceEntryId(label);
     var id = base;

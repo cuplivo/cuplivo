@@ -1381,11 +1381,11 @@ class _HomePageState extends State<HomePage>
     final l10n = AppLocalizations.of(context)!;
     final rows = dshHarvestedEntries(
       harness.harvestedRailEntries,
-      excludedLabels: <String>{
-        l10n.dshRailWorkspaceFiles,
-        l10n.dshRailNewTerminal,
-        l10n.dshRailMoreTools,
-      },
+      // The built-in cards keep their native labels; exclude them by the
+      // language-neutral page kinds so the exclusion still holds when the
+      // official UI renders its labels in another locale.
+      excludedKinds: const <String>{'files', 'terminal'},
+      excludedLabels: <String>{l10n.dshRailMoreTools},
     );
     return <HarnessRailExtraEntry>[
       for (final row in rows)

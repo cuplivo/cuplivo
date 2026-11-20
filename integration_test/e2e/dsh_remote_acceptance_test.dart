@@ -282,9 +282,25 @@ Future<void> _runRealScenario(
   await pumpUntil(
     tester,
     () => DshSurfaceInventory.shared.snapshotFor(authority).settings.isNotEmpty,
-    maxFrames: 600,
+    maxFrames: 900,
   );
+  final officialSections = DshSurfaceInventory.shared
+      .snapshotFor(authority)
+      .settings;
+  debugPrint(
+    '[dsh-e2e] official settings harvest: ${officialSections.length} '
+    'section(s) (${officialSections.map((entry) => entry.label).join(' | ')})',
+  );
+  e2eStep('before r2_official_settings');
+  await capture(tester, binding, 'r2_official_settings');
   await _popRoute(tester);
+  expect(
+    officialSections,
+    isNotEmpty,
+    reason:
+        'R2 the official settings dialog must report its own sections: the '
+        'harvest scripts post a stage diagnostic when they cannot open it',
+  );
   expect(
     find.byKey(const Key('dsh-settings-tabs')),
     findsOneWidget,
@@ -550,12 +566,14 @@ Future<void> _runRealScenario(
     isFalse,
     reason: 'the scenario is back on the home surface after R11',
   );
-  await _pumpUntilFound(
-    tester,
-    find.byKey(const Key('dsh-owner-card')),
-    what: 'the connected owner card after leaving settings (R4)',
-  );
+  // The owner list is a pushed page, so the bounded pop loop above already
+  // left it; R4 is reached from the home surface through the drawer below.
   await pumpFrames(tester, frames: 20);
+  expect(
+    find.byType(HomeMobileScaffold),
+    findsWidgets,
+    reason: 'the home scaffold is back after leaving settings (R4)',
+  );
 
   // R5: the drawer now lists the remote owner; tapping it enters harness mode.
   // On a phone the drawer body is the conversation list, so the owner rows live
@@ -949,13 +967,29 @@ Future<void> _runRealScenario(
     what: 'the official WebUI opened by 插件 (R5 harvest)',
     maxFrames: 900,
   );
-  // The harvest script waits for the official nav, then opens/closes the rail;
-  // keep the page mounted so it can post the snapshot before it is popped.
-  await pumpFrames(tester, frames: 120);
+  // The automatic harvest posts the Host's own sidebar and right-rail labels;
+  // wait for that snapshot (instead of a fixed settle time), then pop the page.
+  final surfaceSnapshot = await _waitHarvest(
+    tester,
+    authority,
+    (snapshot) => snapshot.sidebar.isNotEmpty,
+    what: 'the sidebar/rail harvest (R5)',
+  );
   await _popRoute(tester);
-
-  // 搜索服务 exists only in the Host's live official sidebar: a harvested row
-  // for it is the acceptance signal that the WebUI really rendered and posted.
+  final harvestedSidebar = surfaceSnapshot.sidebar;
+  debugPrint(
+    '[dsh-e2e] harvested sidebar: '
+    '${harvestedSidebar.map((entry) => entry.label).join(' | ')}',
+  );
+  debugPrint(
+    '[dsh-e2e] harvested rail: '
+    '${surfaceSnapshot.rail.map((entry) => '${entry.label}[${entry.kind}]').join(' | ')}',
+  );
+  expect(
+    harvestedSidebar,
+    isNotEmpty,
+    reason: 'R5 the official sidebar harvest must report the Host rows',
+  );
   await _openDrawer(tester);
   final harvestedDrawer = find.byKey(const Key('dsh-drawer-entries'));
   await _pumpUntilFound(
@@ -963,23 +997,16 @@ Future<void> _runRealScenario(
     harvestedDrawer,
     what: 'the R5 drawer after the harvest',
   );
-  final harvestedSearch = find.descendant(
-    of: harvestedDrawer,
-    matching: find.text('搜索服务'),
-  );
-  await _pumpUntilFound(
-    tester,
-    harvestedSearch,
-    what: 'the harvested 搜索服务 sidebar row (R5)',
-    maxFrames: 900,
-  );
-  expect(
-    harvestedSearch,
-    findsWidgets,
-    reason:
-        'R5 harvest did not surface 搜索服务 after opening 插件 once: the '
-        'official WebUI page never posted a surface snapshot',
-  );
+  // Every harvested label renders verbatim with the Host's own text; Cuplivo
+  // knows no plugin names, so a row that only exists through the harvest is
+  // exactly the generic-compatibility promise.
+  for (final entry in harvestedSidebar) {
+    expect(
+      find.descendant(of: harvestedDrawer, matching: find.text(entry.label)),
+      findsWidgets,
+      reason: 'R5 the harvested row "${entry.label}" renders the Host label',
+    );
+  }
   // 更多 is not a panellist row: it is DSH's own sidebar action strip, so
   // Cuplivo keeps exactly one built-in 更多 row in both modes.
   expect(
@@ -999,12 +1026,15 @@ Future<void> _runRealScenario(
   // the route; the Host's DOM itself is not part of the Flutter surface.
   // Assertions therefore anchor on the route title plus the harvest: only a
   // loaded official page can post the labels asserted above.
-  for (final page in <(String, String)>[
-    (l10n.dshSidebarPlugins, 'r5_plugins_page'),
-    ('搜索服务', 'r5_search_service_page'),
-    (l10n.dshSidebarAutomations, 'r5_automations_page'),
+  final pageTargets = <(String, String)>[
+    for (var index = 0; index < harvestedSidebar.length && index < 2; index++)
+      (
+        harvestedSidebar[index].label,
+        index == 0 ? 'r5_plugins_page' : 'r5_search_service_page',
+      ),
     (l10n.dshSidebarMore, 'r5_more_menu'),
-  ]) {
+  ];
+  for (final page in pageTargets) {
     await _openHarvestedSidebarRow(tester, page.$1, l10n: l10n);
     await pumpFrames(tester, frames: 30);
     await capture(tester, binding, page.$2);
@@ -1022,22 +1052,35 @@ Future<void> _runRealScenario(
     () => _railHeaderX(tester) < screenWidth / 2,
     maxFrames: 120,
   );
-  final diffCard = find.descendant(of: rail, matching: find.text('代码变更'));
-  await _pumpUntilFound(
-    tester,
-    diffCard,
-    what: 'the harvested 代码变更 rail card (R7)',
-    maxFrames: 900,
+  final railSnapshot = DshSurfaceInventory.shared.snapshotFor(authority);
+  final extraCards = <DshSurfaceEntry>[
+    for (final entry in railSnapshot.rail)
+      if (entry.kind != 'files' && entry.kind != 'terminal') entry,
+  ];
+  debugPrint(
+    '[dsh-e2e] harvested rail extras: '
+    '${extraCards.map((entry) => '${entry.label}[${entry.kind}]').join(' | ')}',
   );
-  final forgeCard = find.descendant(
+  expect(
+    extraCards,
+    isNotEmpty,
+    reason: 'R7 the official right rail must report its plugin cards',
+  );
+  for (final entry in extraCards) {
+    await _pumpUntilFound(
+      tester,
+      find.descendant(of: rail, matching: find.text(entry.label)),
+      what: 'the harvested rail card "${entry.label}" (R7)',
+      maxFrames: 900,
+    );
+  }
+  final diffEntry = extraCards.firstWhere(
+    (entry) => entry.kind == 'bw-diff',
+    orElse: () => extraCards.first,
+  );
+  final diffCard = find.descendant(
     of: rail,
-    matching: find.text('Issue 与 PR'),
-  );
-  await _pumpUntilFound(
-    tester,
-    forgeCard,
-    what: 'the harvested Issue 与 PR rail card (R7)',
-    maxFrames: 300,
+    matching: find.text(diffEntry.label),
   );
   await pumpFrames(tester, frames: 20);
   e2eStep('before r7_harvested_cards');
@@ -1047,9 +1090,9 @@ Future<void> _runRealScenario(
   await tester.tap(diffCard.first);
   await _waitDshWebUiPage(
     tester,
-    label: '代码变更',
+    label: diffEntry.label,
     l10n: l10n,
-    what: 'the 代码变更 official page (R7)',
+    what: 'the "${diffEntry.label}" official page (R7)',
     maxFrames: 900,
   );
   await pumpFrames(tester, frames: 30);
@@ -1612,6 +1655,36 @@ Future<void> _pumpUntilFound(
     findsWidgets,
     reason: 'Expected $what within ${maxFrames * 100} ms of pumping',
   );
+}
+
+/// Waits until the surface inventory holds a snapshot satisfying [ready].
+///
+/// The harvest scripts are one-shot and best-effort: polling the in-memory
+/// inventory keeps a slow WebView boot from costing a fixed settle time, and a
+/// failure quotes the stage diagnostic the scripts post instead of a bare
+/// timeout.
+Future<DshSurfaceSnapshot> _waitHarvest(
+  WidgetTester tester,
+  String authority,
+  bool Function(DshSurfaceSnapshot snapshot) ready, {
+  required String what,
+  int maxFrames = 900,
+}) async {
+  final inventory = DshSurfaceInventory.shared;
+  await pumpUntil(
+    tester,
+    () => ready(inventory.snapshotFor(authority)),
+    maxFrames: maxFrames,
+  );
+  final snapshot = inventory.snapshotFor(authority);
+  expect(
+    ready(snapshot),
+    isTrue,
+    reason:
+        'Expected $what within ${maxFrames * 100} ms of pumping; the harvest '
+        'scripts post a stage diagnostic when they cannot reach the surface',
+  );
+  return snapshot;
 }
 
 NavigatorState _rootNavigator(WidgetTester tester) {

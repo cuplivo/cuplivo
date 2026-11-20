@@ -865,6 +865,49 @@ acceptable implementations, in order of preference:
   surface and only once per page load (cache the row's `aria-label` or index for
   the session).
 
+### 6.3a Phone-width recipes (what the embedded WebView actually runs)
+
+The recipes above were harvested at a wide viewport. The embedded WebView on a
+phone is a *narrow* viewport, and the official UI renders the same surfaces
+with a different shell there. Measured on the live 0.2.2-rc.1 host at
+412×915 with pure in-page JS (the only kind the WebView script can run):
+
+- **The sidebar and the right rail are dialogs, closed by default.** The
+  sidebar is `[role="dialog"][data-shortcut-modal="sidebar"]` and starts at
+  `translateX(-100%)`; the right rail is the `rightbar` overlay. A script must
+  click the *visible* toggle first (a button whose `aria-label` matches
+  `open sidebar` / `打开侧边栏` … in the user's language), wait ~0.7 s for the
+  drawer, and only then read rows or cards. `inView` filtering matters: the
+  closed dialog's buttons still exist in the DOM at negative `x`, so a raw
+  `querySelector` clicks the wrong copy.
+- **There is no `settings.trigger` button at phone width.** Settings is only
+  reachable through the account menu in the sidebar footer:
+  `[data-slot="sidebar.settings"] button[aria-haspopup="menu"]` (the
+  `settings.launcher` outlet), then the menu item whose text is
+  `Settings`/`设置`/… The item is a Radix menu row and only opens on a real
+  pointer sequence, so dispatch `pointerdown`/`mousedown`/`pointerup`/
+  `mouseup`/`click` on it instead of calling `.click()`.
+- **The settings dialog is full-screen** (`settings.header` + a `nav` of
+  section buttons + `settings.close`), so landing on a section is one
+  `press` on the nav button that carries the harvested label.
+- **Sidebar rows** are `nav button`s that contain `[data-slot="sidebar.panellist"]`
+  (3 on the tested host: plugins, search services, automation tasks). 更多 is
+  the one nav row *without* that outlet; clicking it is the mobile equivalent
+  of the wide-layout `PanelMoreMenu`, and clicking a row closes the drawer by
+  itself.
+- **Right-rail cards** are the same `[data-sidebar-right-guide-entry="<kind>"]`
+  buttons as on the wide layout (`files`, `bw-diff`, `terminal`, `bw-worktree`,
+  `bw-forge` on the tested host); clicking one opens that card's page inside
+  the rail.
+- **Labels are localized by the user's UI language, kinds are not.** The
+  harvest therefore keys built-in de-duplication on the language-neutral kind
+  where one exists (right-rail cards) and on the official label set for
+  settings sections, and it renders harvested labels verbatim.
+
+`DshSurfaceHarvest` implements exactly these recipes; the E2E scenario asserts
+the resulting snapshot instead of a hard-coded plugin name, so the acceptance
+holds under any UI language.
+
 ### 6.4 Where to land for each Cuplivo need
 
 | Cuplivo need | landing |

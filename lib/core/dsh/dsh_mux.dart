@@ -619,6 +619,17 @@ class DshStream {
     await _controller.close();
   }
 
+  /// Sends one client→host item frame on this stream:
+  /// `{type:'item',streamId,value}`.
+  ///
+  /// Only `terminal/attach` uses uplink items in 0.2.2 (`write`/`resize`); the
+  /// mux itself stays transport-only. A closed stream ignores the item (a
+  /// terminal racing a detach should not throw).
+  void sendItem(Map<String, Object?> value) {
+    if (_closed) return;
+    _mux._sendFrame({'type': 'item', 'streamId': id, 'value': value});
+  }
+
   /// Half-closes the uplink and releases the stream locally.
   Future<void> cancel() async {
     if (_closed) return;

@@ -252,6 +252,14 @@ class DshTranscript {
 
   DshTokenUsage? get usage => _liveUsage;
 
+  /// `contextPressure` projection; null when the Host did not send it.
+  DshContextPressure? get contextPressure {
+    final value = _values['contextPressure'];
+    if (value == null) return null;
+    final pressure = DshContextPressure.fromJson(value);
+    return pressure.isEmpty ? null : pressure;
+  }
+
   DshSessionHeader? get sessionHeader => header;
 
   /// Chat title from the projection (null means "New chat").

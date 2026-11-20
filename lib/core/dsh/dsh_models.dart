@@ -596,6 +596,50 @@ class DshQueuedItem {
 /// Values are partial by design (absent key = unknown capability). Typed
 /// getters cover what the chat surface needs; [values] stays available for
 /// forward-compatible and plugin keys.
+/// `contextPressure` projection: the Host-computed token pressure for the ring.
+///
+/// Sample: `{pressureTokens: 8930, projectedTokens: 8943, contextWindow: 1048576}`.
+/// All three are nullable so an older/partial Host does not break the fold; the
+/// ring must render only when [contextWindow] is a positive number.
+class DshContextPressure {
+  const DshContextPressure({
+    this.pressureTokens,
+    this.projectedTokens,
+    this.contextWindow,
+  });
+
+  factory DshContextPressure.fromJson(Object? json) {
+    final map = jsonMap(json);
+    return DshContextPressure(
+      pressureTokens: jsonInt(map['pressureTokens']),
+      projectedTokens: jsonInt(map['projectedTokens']),
+      contextWindow: jsonInt(map['contextWindow']),
+    );
+  }
+
+  static const empty = DshContextPressure();
+
+  final int? pressureTokens;
+
+  /// Post-turn projection (the meter's hint), not the used value.
+  final int? projectedTokens;
+  final int? contextWindow;
+
+  bool get isEmpty =>
+      pressureTokens == null &&
+      projectedTokens == null &&
+      contextWindow == null;
+
+  /// Fraction of the context window in use, or null when the Host did not
+  /// provide a usable window. Never guessed.
+  double? get ratio {
+    final used = pressureTokens;
+    final window = contextWindow;
+    if (used == null || window == null || window <= 0) return null;
+    return used / window;
+  }
+}
+
 class DshSessionProjections {
   const DshSessionProjections({required this.asOfSeq, required this.values});
 
@@ -636,6 +680,14 @@ class DshSessionProjections {
   DshSessionUsage? get usage {
     final value = values['tokenUsage'];
     return value == null ? null : DshSessionUsage.fromJson(value);
+  }
+
+  /// `contextPressure` projection; null when the Host did not send it.
+  DshContextPressure? get contextPressure {
+    final value = values['contextPressure'];
+    if (value == null) return null;
+    final pressure = DshContextPressure.fromJson(value);
+    return pressure.isEmpty ? null : pressure;
   }
 
   DshImageLimits get imageLimits =>
@@ -1864,6 +1916,78 @@ class DshAccountState {
   final Object? attempt;
 
   bool get signedOut => status == 'signed-out';
+}
+
+/// One `workspaceFiles/stat` answer.
+///
+/// `absolutePath` is what `GET /api/file?path=` expects; `version` is the
+/// cache-busting token the versioned preview URL carries. [bytes] is present
+/// when the Host included the size.
+class DshFileStat {
+  const DshFileStat({
+    required this.absolutePath,
+    this.path,
+    this.version,
+    this.bytes,
+    this.mediaType,
+    this.raw = const {},
+  });
+
+  factory DshFileStat.fromJson(Object? json, {String? path}) {
+    final map = jsonMap(json);
+    return DshFileStat(
+      absolutePath: jsonString(map['absolutePath']) ?? '',
+      path: path,
+      version: jsonString(map['version']),
+      bytes: jsonInt(map['bytes']),
+      mediaType: jsonString(map['mediaType']),
+      raw: map,
+    );
+  }
+
+  /// Absolute Host path (`GET /api/file?path=` consumes it).
+  final String absolutePath;
+
+  /// The workspace-relative path that was requested (echoed by the client).
+  final String? path;
+
+  /// Version token for `GET /api/file?path=…&v=…` (cacheable preview URL).
+  final String? version;
+  final int? bytes;
+  final String? mediaType;
+  final Map<String, Object?> raw;
+
+  bool get hasAbsolutePath => absolutePath.isNotEmpty;
+}
+
+/// One `agentPresets/list` row (`{presets:[{id,order,isDefault}]}`).
+class DshAgentPresetSummary {
+  const DshAgentPresetSummary({
+    required this.id,
+    required this.order,
+    required this.isDefault,
+    this.name,
+    this.raw = const {},
+  });
+
+  factory DshAgentPresetSummary.fromJson(Object? json) {
+    final map = jsonMap(json);
+    return DshAgentPresetSummary(
+      id: jsonString(map['id']) ?? '',
+      order: jsonInt(map['order']) ?? 0,
+      isDefault: map['isDefault'] == true,
+      name: jsonString(map['name']),
+      raw: map,
+    );
+  }
+
+  final String id;
+
+  /// Display order supplied by the Host (ascending).
+  final int order;
+  final bool isDefault;
+  final String? name;
+  final Map<String, Object?> raw;
 }
 
 /// Session-control stream frames (`session/control`).

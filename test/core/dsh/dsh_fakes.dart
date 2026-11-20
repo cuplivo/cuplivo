@@ -171,6 +171,12 @@ class FakeDshTransport implements DshTransport {
   /// Frames pushed first on `$events` (ready is added automatically).
   List<Object?> hostFrames = [];
 
+  /// Scripted `GET` responses by URI (e.g. `/api/file` bytes/redirects).
+  Future<DshHttpResponse> Function(Uri uri)? onGet;
+
+  /// Every URI requested through [get], in order.
+  final List<Uri> getRequests = [];
+
   bool autoReady = true;
   bool verifySucceeds = true;
 
@@ -304,6 +310,9 @@ class FakeDshTransport implements DshTransport {
 
   @override
   Future<DshHttpResponse> get(Uri uri) async {
+    getRequests.add(uri);
+    final handler = onGet;
+    if (handler != null) return handler(uri);
     return _json(200, '{"ok":true}');
   }
 

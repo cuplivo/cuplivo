@@ -616,6 +616,19 @@ class DshCatalog {
   // ---------------------------------------------------------------------------
   // Plugins
 
+  /// `agentPresets/list` — the selectable agent presets in Host order.
+  ///
+  /// The value is `{presets:[{id,order,isDefault}]}`; a bare list is accepted
+  /// defensively. A 404 means the Host does not expose presets.
+  Future<List<DshAgentPresetSummary>> listAgentPresets() async {
+    final value = await rpc.call('agentPresets/list', idempotent: true);
+    final map = jsonMap(value);
+    final presets = map.containsKey('presets')
+        ? jsonList(map['presets'])
+        : jsonList(value);
+    return presets.map(DshAgentPresetSummary.fromJson).toList(growable: false);
+  }
+
   Future<DshPluginInventory> loadPluginInventory() async {
     final value = await rpc.call(
       'pluginInventory/list',

@@ -19,6 +19,7 @@ import 'dsh_models.dart';
 import 'dsh_mux.dart';
 import 'dsh_projection.dart';
 import 'dsh_rpc.dart';
+import 'dsh_terminal.dart';
 import 'dsh_transport.dart';
 
 class DshSessionOptions {
@@ -514,21 +515,29 @@ class DshSession {
     return selected.isEmpty ? selection : DshModelSelection.fromJson(selected);
   }
 
-  /// Changes the current permission preset through the `/permission` command.
-  /// The durable `permission/preset` event and the projection frame confirm it.
-  Future<DshCommandExecution> setPermission(String preset) async {
+  /// Executes one slash-command line through `commands/execute` and returns the
+  /// Host's in-band outcome.
+  ///
+  /// This is the same wire call the permission path uses; a command's durable
+  /// events/projections are what confirm any resulting state change.
+  Future<DshCommandExecution> executeCommand(String line) async {
     final value = jsonMap(
       await rpc.call(
         'commands/execute',
         args: {
           'agentId': sessionId,
-          'line': '/permission $preset',
+          'line': line,
           'submittedAttachments': const <Object?>[],
         },
       ),
     );
     return DshCommandExecution.fromJson(value);
   }
+
+  /// Changes the current permission preset through the `/permission` command.
+  /// The durable `permission/preset` event and the projection frame confirm it.
+  Future<DshCommandExecution> setPermission(String preset) =>
+      executeCommand('/permission $preset');
 
   Future<DshSessionState> currentState() async {
     final value = await rpc.call(
@@ -614,6 +623,85 @@ class DshSession {
     }
     _hasMoreHistory = page.hasMore;
     return DshSessionHistoryPage(events: events, hasMore: page.hasMore);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Terminal stage 1 (read-only attach)
+
+  /// `terminal/shells` — executables the Host verified for this session.
+  Future<List<DshTerminalShell>> terminalShells() async {
+    final value = await rpc.call(
+      dshTerminalShellsEndpoint,
+      args: {'agentId': sessionId},
+      idempotent: true,
+    );
+    return jsonList(
+      value,
+    ).map(DshTerminalShell.fromJson).toList(growable: false);
+  }
+
+  /// `terminal/environment` — the session workspace, caps and shell defaults.
+  Future<DshTerminalEnvironment> terminalEnvironment() async {
+    final value = await rpc.call(
+      dshTerminalEnvironmentEndpoint,
+      args: {'agentId': sessionId},
+      idempotent: true,
+    );
+    return DshTerminalEnvironment.fromJson(value);
+  }
+
+  /// `terminal/list` — terminals owned by this session on this Host lifetime.
+  Future<List<DshTerminalInfo>> listTerminals() async {
+    final value = await rpc.call(
+      dshTerminalListEndpoint,
+      args: {'sessionId': sessionId},
+      idempotent: true,
+    );
+    return jsonList(
+      value,
+    ).map(DshTerminalInfo.fromJson).toList(growable: false);
+  }
+
+  /// `terminal/create` — idempotent for an open identity; `id` defaults to a
+  /// fresh uuid so the caller does not have to manage identity.
+  Future<DshTerminalInfo> createTerminal({
+    required int cols,
+    required int rows,
+    String? shellPath,
+    String? id,
+  }) async {
+    final terminalId = id ?? dshUuidV4();
+    final value = await rpc.call(
+      dshTerminalCreateEndpoint,
+      args: {
+        'agentId': sessionId,
+        'request': {
+          'id': terminalId,
+          'cols': cols,
+          'rows': rows,
+          if (shellPath != null && shellPath.isNotEmpty) 'shellPath': shellPath,
+        },
+      },
+    );
+    return DshTerminalInfo.fromJson(value);
+  }
+
+  /// `terminal/attach` — one mux stream; frames are decoded by
+  /// [DshTerminalAttachment.frames]. The first frame is a snapshot.
+  Future<DshTerminalAttachment> attachTerminal(String terminalId) async {
+    final stream = await mux.open(
+      dshTerminalAttachEndpoint,
+      args: {'agentId': sessionId, 'id': terminalId},
+    );
+    return DshTerminalAttachment(id: terminalId, stream: stream);
+  }
+
+  /// `terminal/close` — ends the process behind one terminal.
+  Future<void> closeTerminal(String terminalId) async {
+    await rpc.call(
+      dshTerminalCloseEndpoint,
+      args: {'agentId': sessionId, 'id': terminalId},
+    );
   }
 
   Future<DshHistoryPage> _loadPage({

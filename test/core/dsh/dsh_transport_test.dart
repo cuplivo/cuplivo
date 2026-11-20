@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:Cuplivo/core/dsh/dsh_endpoint.dart';
 import 'package:Cuplivo/core/dsh/dsh_errors.dart';
@@ -86,6 +87,28 @@ void main() {
       final fatal = httpStatusException(418, 'x');
       expect((fatal as DshTransportException).retryable, isFalse);
     });
+  });
+
+  test('a GET response keeps the raw bytes alongside the UTF-8 body', () async {
+    final http = FakeDshHttpClient();
+    http.handler = (request) async => DshHttpResponse(
+      statusCode: 200,
+      headers: const {'content-type': 'image/png'},
+      setCookie: const [],
+      body: 'binary',
+      bytes: Uint8List.fromList([0, 255, 1, 2]),
+    );
+    final transport = DshHttpTransport(
+      DshEndpoint.parse('http://127.0.0.1:3080/?token=t'),
+      httpClient: http,
+    );
+    final response = await transport.get(
+      transport.endpoint.fileUri('/tmp/image.png'),
+    );
+    expect(response.isSuccess, isTrue);
+    expect(response.bodyBytes, [0, 255, 1, 2]);
+    expect(response.bytes, isNotNull);
+    expect(response.contentType, 'image/png');
   });
 
   group('DshHttpTransport', () {

@@ -204,16 +204,29 @@ class DshHttpResponse {
     required this.headers,
     required this.setCookie,
     required this.body,
+    this.bytes,
   });
 
   final int statusCode;
   final Map<String, String> headers;
   final List<String> setCookie;
+
+  /// UTF-8 view of the body (JSON envelopes, error text).
   final String body;
+
+  /// Raw response bytes when the carrier captured them (`GET /api/file`).
+  ///
+  /// JSON-only carriers may leave this null; use [bodyBytes] for a uniform
+  /// accessor.
+  final Uint8List? bytes;
 
   bool get isSuccess => statusCode >= 200 && statusCode < 300;
 
   String? get contentType => headers['content-type'];
+
+  /// Raw bytes, falling back to the UTF-8 body for carriers that only build
+  /// [body].
+  Uint8List get bodyBytes => bytes ?? Uint8List.fromList(utf8.encode(body));
 }
 
 /// One upgradeable WebSocket carrying decoded JSON frames.
@@ -495,6 +508,7 @@ class DshIoHttpClient implements DshHttpClient {
       await for (final chunk in response.timeout(request.timeout)) {
         builder.add(chunk);
       }
+      final bytes = builder.takeBytes();
       return DshHttpResponse(
         statusCode: response.statusCode,
         headers: {
@@ -503,7 +517,8 @@ class DshIoHttpClient implements DshHttpClient {
               name: response.headers.value(name)!,
         },
         setCookie: response.headers[HttpHeaders.setCookieHeader] ?? const [],
-        body: utf8.decode(builder.takeBytes(), allowMalformed: true),
+        body: utf8.decode(bytes, allowMalformed: true),
+        bytes: bytes,
       );
     } on TimeoutException catch (error) {
       throw DshTransportException(

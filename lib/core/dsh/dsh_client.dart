@@ -7,11 +7,13 @@
 library;
 
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'dsh_catalog.dart';
 import 'dsh_endpoint.dart';
 import 'dsh_errors.dart';
 import 'dsh_events.dart';
+import 'dsh_models.dart';
 import 'dsh_mux.dart';
 import 'dsh_projection.dart';
 import 'dsh_rpc.dart';
@@ -159,6 +161,112 @@ class DshClient {
       agentPreset: agentPreset,
     );
     return openSession(created.sessionId);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Workspace files (preview bytes)
+
+  /// `workspaceFiles/stat` — maps a workspace-relative path to the absolute
+  /// Host path and version token that `GET /api/file` consumes.
+  Future<DshFileStat> statWorkspaceFile(
+    String sessionId,
+    String path, {
+    Duration? timeout,
+  }) async {
+    final value = await rpc.call(
+      'workspaceFiles/stat',
+      args: {'workspaceFileScopeId': sessionId, 'path': path},
+      timeout: timeout,
+      idempotent: true,
+    );
+    return DshFileStat.fromJson(value, path: path);
+  }
+
+  /// Reads a workspace file's raw bytes through the authenticated
+  /// `GET /api/file?path=<absolutePath>&v=<version>` route.
+  ///
+  /// This is the byte path for previews (the multipart `workspaceFiles/readBytes`
+  /// RPC cannot be decoded by the JSON transport). It stats first so a
+  /// workspace-relative [path] maps to the absolute path the route requires,
+  /// then follows the Host's 302 to the versioned URL.
+  Future<Uint8List> readFileBytes(
+    String sessionId,
+    String path, {
+    Duration? timeout,
+  }) async {
+    final stat = await statWorkspaceFile(sessionId, path, timeout: timeout);
+    if (!stat.hasAbsolutePath) {
+      throw DshProtocolException(
+        'workspaceFiles/stat returned no absolutePath for $path',
+      );
+    }
+    return readAbsoluteFileBytes(
+      stat.absolutePath,
+      version: stat.version,
+      timeout: timeout,
+    );
+  }
+
+  /// Low-level `GET /api/file` for an absolute Host path already returned by
+  /// [statWorkspaceFile] (the WebView preview can use the same URL).
+  ///
+  /// A 302 to the versioned cache URL is followed locally (the shared transport
+  /// does not follow redirects by default, and the redirect keeps the same
+  /// cookie/authority). 401 is [DshAuthException], 400/403 are
+  /// [DshFileException], 404 is [DshUnsupportedException].
+  Future<Uint8List> readAbsoluteFileBytes(
+    String absolutePath, {
+    String? version,
+    Duration? timeout,
+  }) async {
+    var uri = endpoint.fileUri(absolutePath, version: version);
+    var response = await transport.get(uri);
+    for (var redirects = 0; redirects < 5; redirects += 1) {
+      final status = response.statusCode;
+      if (status < 300 || status >= 400) break;
+      final location = response.headers['location'];
+      if (location == null || location.isEmpty) {
+        throw DshProtocolException(
+          'GET /api/file answered $status without a Location header',
+        );
+      }
+      final parsed = Uri.tryParse(location);
+      if (parsed == null) {
+        throw DshProtocolException(
+          'GET /api/file answered an unusable Location: $location',
+        );
+      }
+      uri = parsed.hasScheme ? parsed : uri.resolveUri(parsed);
+      response = await transport.get(uri);
+    }
+    if (response.isSuccess) return response.bodyBytes;
+    throw _fileStatusException(
+      response.statusCode,
+      absolutePath,
+      response.body,
+    );
+  }
+
+  DshException _fileStatusException(int statusCode, String path, String body) {
+    final detail = body.trim().isEmpty ? '' : ': ${body.trim()}';
+    return switch (statusCode) {
+      401 => DshAuthException(
+        'The DSH session expired while reading $path$detail',
+        statusCode: statusCode,
+      ),
+      400 => DshFileException(
+        'GET /api/file requires an absolute path ($path)$detail',
+        statusCode: statusCode,
+        path: path,
+      ),
+      403 => DshFileException(
+        'GET /api/file refused $path (directory or outside the workspace)$detail',
+        statusCode: statusCode,
+        path: path,
+      ),
+      404 => const DshUnsupportedException('/api/file'),
+      _ => httpStatusException(statusCode, '/api/file', body: body),
+    };
   }
 
   /// Returns the cached handle or creates one. The caller starts following with

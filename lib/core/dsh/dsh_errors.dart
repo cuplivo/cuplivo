@@ -115,6 +115,25 @@ final class DshUnsupportedException extends DshException {
   String toString() => 'DshUnsupportedException($endpoint)';
 }
 
+/// `GET /api/file` answered a caller-visible refusal (400/403).
+///
+/// 400 means the `path` was not absolute; 403 means the path is a directory
+/// (or outside the workspace root). Neither is an auth failure, so it must not
+/// be mapped to [DshAuthException] (which asks the owner for a new URL).
+final class DshFileException extends DshException {
+  const DshFileException(super.message, {required this.statusCode, this.path});
+
+  /// 400 (relative path) or 403 (directory / forbidden path).
+  final int statusCode;
+  final String? path;
+
+  bool get isRelativePath => statusCode == 400;
+  bool get isDirectoryOrForbidden => statusCode == 403;
+
+  @override
+  String toString() => 'DshFileException($statusCode): $message';
+}
+
 /// The caller closed the client, the stream, or the session.
 final class DshClosedException extends DshException {
   const DshClosedException([super.message = 'closed']);

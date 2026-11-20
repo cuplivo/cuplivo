@@ -45,15 +45,16 @@ capture), `docs/cuplivo-dsh/client-reference.md` (client-layer design),
 |---|---|
 | `dsh_errors.dart` | sealed `DshException` hierarchy + endpoint exception (shared; one small file beyond the §3 list so lower layers can throw typed errors without import cycles) |
 | `dsh_endpoint.dart` | `DshEndpoint`: URL/token parsing, authority, secure flag, URI builders |
-| `dsh_transport.dart` | `DshCookie`, HTTP/WebSocket carrier (`DshTransport`, `DshHttpTransport`, `DshIoHttpClient`), login, upload, request/asset timeouts |
+| `dsh_transport.dart` | `DshCookie`, HTTP/WebSocket carrier (`DshTransport`, `DshHttpTransport`, `DshIoHttpClient`), login, upload, raw HTTP response bytes, request/asset timeouts |
 | `dsh_rpc.dart` | `DshRpc`: `{type:'client-request'…}` envelope, `server-response` decode, error mapping, one retry for idempotent reads, `dshUuidV4()` |
-| `dsh_mux.dart` | `DshMux`: `/api/remote.mux` connection, generations, `$events` ready + host requests, logical streams, reconnect backoff, keepalive, disposal |
+| `dsh_mux.dart` | `DshMux`: `/api/remote.mux` connection, generations, `$events` ready + host requests, logical streams (incl. `sendItem` uplink), reconnect backoff, keepalive, disposal |
 | `dsh_events.dart` | wire event vocabulary: `DshConnectionState`, session log events, `session/follow` snapshot frames, assistant-stream frames/chunks, host events, approvals/questions, mux frames, workspace updates, `DshSessionUpdate` |
-| `dsh_models.dart` | tolerant JSON helpers + domain models: messages/parts/usage, session summaries/state/projections, model catalog, providers, permissions, commands, skills, plugins, settings, account, credentials |
-| `dsh_catalog.dart` | typed reads/writes for sessions, workspaces, models, providers, plugins, commands, skills, permission presets, settings, account; live `session/control` + `workspace/follow` watchers; capability probes |
-| `dsh_session.dart` | one session handle: `watch()` (snapshot + live events + host requests), prompt (text/images/files), cancel, model/reasoning/permission writes, approvals/questions, history paging, commands/skills, upload, dispose; `DshSessionStore` = handle + `DshTranscript` + change stream for the UI controller |
+| `dsh_models.dart` | tolerant JSON helpers + domain models: messages/parts/usage, session summaries/state/projections (incl. `contextPressure`), file stats, agent presets, model catalog, providers, permissions, commands, skills, plugins, settings, account, credentials |
+| `dsh_catalog.dart` | typed reads/writes for sessions, workspaces, models, providers, plugins, commands, skills, permission presets, agent presets, settings, account; live `session/control` + `workspace/follow` watchers; capability probes |
+| `dsh_session.dart` | one session handle: `watch()` (snapshot + live events + host requests), prompt (text/images/files), cancel, model/reasoning/permission writes, approvals/questions, history paging, commands/skills, upload, terminal stage-1 RPCs, dispose; `DshSessionStore` = handle + `DshTranscript` + change stream for the UI controller |
 | `dsh_projection.dart` | `DshTranscript`: folds snapshot + durable events + live assistant frames into ordered renderable items and UI state (no Flutter) |
-| `dsh_client.dart` | public entry: `DshClient(endpoint)` → `login`, `useCookie`, `connect`, `loadCatalog`, `createSession`, `openSession`, `close` |
+| `dsh_terminal.dart` | terminal stage 1: `terminal/*` constants, `DshTerminalEnvironment/Info/Shell`, tolerant `terminal/attach` frames (`snapshot`/`output`/`state`/`ack`/unknown), `DshTerminalAttachment` (frames + write/resize/close) |
+| `dsh_client.dart` | public entry: `DshClient(endpoint)` → `login`, `useCookie`, `connect`, `loadCatalog`, `createSession`, `openSession`, workspace-file stat/bytes, `close` |
 
 ## 3. Errors (`dsh_errors.dart`)
 
@@ -185,7 +186,9 @@ class DshHttpResponse {
   final int statusCode;
   final Map<String, String> headers;
   final List<String> setCookie;
-  final String body;
+  final String body;        // UTF-8 view (JSON envelopes, diagnostics)
+  final Uint8List? bytes;   // raw carrier bytes, when the carrier captured them
+  Uint8List get bodyBytes;  // bytes ?? utf8.encode(body)
 }
 
 abstract interface class DshSocket {
@@ -208,6 +211,13 @@ abstract interface class DshHttpClient {
 
 class DshIoHttpClient implements DshHttpClient { ... } // dart:io HttpClient / WebSocket
 ```
+
+`DshTransport.get` is also the raw-byte GET path: `DshIoHttpClient` keeps the
+exact response bytes (`DshHttpResponse.bytes` / `bodyBytes`) alongside the UTF-8
+`body`, so PNG/PDF/attachment downloads are not corrupted by decoding. The
+`GET /api/file` 302 to the versioned cache URL is followed **by `DshClient`
+locally, with the same cookie and authority** (the shared transport keeps
+`followRedirects:false`); see §13.
 
 Behaviour: 10 s TCP/TLS connect, 30 s default request timeout, 10 minutes for attachment upload, 120 s for `llm/discoverModels`; `HttpClient.autoUncompress = true`; no `Origin`,
 `Referer`, or `Sec-Fetch-*` headers; `Host` always the endpoint authority;
@@ -366,6 +376,12 @@ Models (immutable; `raw` kept where forward compatibility matters):
   `DshSessionControlProjection(sessionId, List<DshSessionControlChange>, seq)`.
   Each change carries `key` + complete new `value`; `key`/`value` getters are
   conveniences for the single-change frame.
+- v2 additions: `DshContextPressure{pressureTokens, projectedTokens,
+  contextWindow, ratio}`, `DshFileStat{absolutePath, path?, version?, bytes?,
+  mediaType?, raw}`, `DshAgentPresetSummary{id, order, isDefault, name?, raw}`.
+  `DshPluginInventory.agentPresets` is already a parsed
+  `List<DshAgentPresetPluginGroup>` (id/name/isDefault/broken/rows), so plugin
+  settings can use it without re-parsing the inventory JSON.
 
 `dsh_events.dart` exports:
 
@@ -497,7 +513,8 @@ class DshCatalog {
   Future<void> setDefaultPermissionPreset(String preset); // permission.defaultPreset
   Future<void> setSessionLogUpload(bool enabled);        // session-log-deepseek.enabled
 
-  // plugins / account
+  // agent presets / plugins / account
+  Future<List<DshAgentPresetSummary>> listAgentPresets(); // agentPresets/list {presets:[{id,order,isDefault}]}
   Future<DshPluginInventory> loadPluginInventory();
   Future<List<DshPluginBundleInfo>> listPluginBundles();
   Future<List<DshPluginInfo>> listPlugins();
@@ -565,6 +582,14 @@ class DshSession {
   Future<DshCommandExecution> setPermission(String preset); // /permission payload
   Future<DshSessionState> currentState();
   Future<DshUploadReceipt> uploadAttachment(Uint8List bytes, {String? name, String? mediaType});
+
+  // terminal stage 1 (read-only attach; agentId == sessionId)
+  Future<List<DshTerminalShell>> terminalShells();          // terminal/shells {agentId}
+  Future<DshTerminalEnvironment> terminalEnvironment();     // terminal/environment {agentId}
+  Future<List<DshTerminalInfo>> listTerminals();            // terminal/list {sessionId}
+  Future<DshTerminalInfo> createTerminal({required int cols, required int rows, String? shellPath, String? id});
+  Future<DshTerminalAttachment> attachTerminal(String id);  // mux {agentId,id}
+  Future<void> closeTerminal(String id);                    // terminal/close {agentId,id}
   Future<Uint8List> attachmentBytes(DshImageAttachment attachment);
   Future<DshSessionHistoryPage> loadOlder();
   Future<void> dispose();
@@ -651,6 +676,7 @@ class DshTranscript {
   DshTurnEndReason? get lastTurnReason;
   DshLlmFailure? get lastFailure;
   DshTokenUsage? get usage;
+  DshContextPressure? get contextPressure; // projection `contextPressure`; null = no ring
   DshDraft? get draft;                     // transient live step
   List<DshChatRow> get rows;
   List<DshApprovalRequest> get pendingApprovals;
@@ -741,6 +767,11 @@ class DshClient {
 
   Future<DshCatalogSnapshot> loadCatalog({bool includePlugins = true, bool includeSettings = true, bool includeAccount = true});
 
+  // workspace-file preview bytes (core owns transport/auth; no feature HttpClient)
+  Future<DshFileStat> statWorkspaceFile(String sessionId, String path, {Duration? timeout});
+  Future<Uint8List> readFileBytes(String sessionId, String path, {Duration? timeout}); // stats + GET /api/file, exact bytes
+  Future<Uint8List> readAbsoluteFileBytes(String absolutePath, {String? version, Duration? timeout});
+
   Future<DshSession> createSession({String? cwd, String? workspaceId, String? agentPreset});
   DshSession openSession(String sessionId, {DshSessionOptions options = const DshSessionOptions()});
   Future<DshSessionStore> store(String sessionId, {bool activate = true, DshSessionOptions options = const DshSessionOptions(), DshTranscript? transcript});
@@ -770,12 +801,86 @@ await store.dispose();
 await client.close();
 ```
 
+The feature gateway already holds a `DshClient` (`_requireClient()`); its
+`readFileBytes(sessionId, path)` is a one-liner over
+`client.readFileBytes(sessionId, path)` — no new accessor and no second
+transport implementation. `readAbsoluteFileBytes` exists for a URL/stat the
+preview already has (e.g. caching for a WebView).
+
 Resume path: `DshClient.pair(storedUrl, storedCookie: cookie)` (no token in the
 URL). A 401/403 anywhere means the stored cookie is stale: ask for a fresh WebUI
 URL; never retry a rejected token. `pair()` keeps only the cookie in
 `transport` — `client.endpoint.token` is null after pairing.
 
-## 13. What is deliberately not in this client
+## 13. v2 stage-1 additions
+
+### 13.1 Context pressure (token ring)
+
+`contextPressure` projection: `{pressureTokens, projectedTokens, contextWindow}`
+(protocol sample `{8930, 8943, 1048576}`). Parsed into
+`DshContextPressure` and available as `DshSessionProjections.contextPressure`
+and `DshTranscript.contextPressure`. It is **absent → null** (old Host, not yet
+loaded): render no ring, never derive it from `tokenUsage`. `ratio` is only
+computed when `contextWindow > 0`.
+
+### 13.2 Workspace files and `GET /api/file`
+
+- `workspaceFiles/stat {workspaceFileScopeId:<sessionId>, path}` →
+  `{absolutePath, version, bytes?}` → `DshFileStat`.
+- `GET /api/file?path=<absolutePath>[&v=<version>]` with the API cookie:
+  exact bytes, `302` to a versioned cache URL for versioned paths, `403` for a
+  directory, `400` for a relative path.
+- `DshEndpoint.fileUri(absolutePath, {version})` builds that URL (never string
+  concatenate it).
+- `DshClient.readFileBytes(sessionId, path)` stats then GETs and returns
+  `Uint8List`; `readAbsoluteFileBytes(abs, {version})` is the already-resolved
+  form. The 302 is followed locally with the same cookie/authority; the raw
+  bytes come from `DshHttpResponse.bodyBytes`.
+- Failures: 401 `DshAuthException`; 400/403 `DshFileException`
+  (`isRelativePath`/`isDirectoryOrForbidden`); 404 `DshUnsupportedException`;
+  5xx `DshTransportException`.
+
+### 13.3 Agent presets
+
+`agentPresets/list` → `{presets:[{id,order,isDefault}]}` →
+`DshCatalog.listAgentPresets()` (`DshAgentPresetSummary`). A 404 means the
+capability is absent. `pluginInventory/list` also carries the per-preset plugin
+composition already parsed in `DshPluginInventory.agentPresets`.
+
+### 13.4 Terminal stage 1 (read-only attach)
+
+Wire (the `agentId` is the **session id**; 0.2.2 has no separate agent id):
+
+| endpoint | kind | args | value |
+|---|---|---|---|
+| `terminal/shells` | unary | `{agentId}` | `[{path,args,name}]` |
+| `terminal/environment` | unary | `{agentId}` | `{cwd,maxInputBytes,maxBufferedBytes,maxCols,maxRows,scrollback}` |
+| `terminal/create` | unary | `{agentId, request:{id, cols, rows, shellPath?}}` | `WebTerminalInfo` (client-chosen `id` is echoed) |
+| `terminal/list` | unary | `{sessionId}` | `[WebTerminalInfo]` |
+| `terminal/attach` | mux stream | `{agentId, id}` | `snapshot`, then ordered `output`/`state`/`ack` |
+| `terminal/close` | unary | `{agentId, id}` | void |
+
+Frames (typed, tolerant; code-read names, verified live by the recon slice):
+`DshTerminalSnapshotFrame{sequence, screen, info, writable, inputWindow}`,
+`DshTerminalOutputFrame{sequence, data}`,
+`DshTerminalStateFrame{info, writable}`,
+`DshTerminalAckFrame{sequence, refusal?}` (`read-only`/`not-running`), plus
+`DshTerminalUnknownFrame` preserved raw.
+
+Uplink (the only client→host stream in 0.2.2): `DshStream.sendItem(value)` sends
+`{type:'item', streamId, value}`; `DshTerminalAttachment.write({sequence,data})`
+and `.resize({sequence,cols,rows})` wrap it with
+`{type:'write',sequence,data}` / `{type:'resize',sequence,cols,rows}`.
+Sequences are consecutive from 1 per attachment; the Host answers with `ack`
+and refuses with `read-only`/`not-running`. Stage 1 is **read-only**: the panel
+attaches and renders frames but does not enable input until the terminal slice
+opts into write/resize; `snapshot.writable`/`state.writable` are the truth.
+
+`DshTerminalAttachment` = `{id, stream, isClosed, frames:
+Stream<DshTerminalFrame>, write(...), resize(...), close()}`. The terminal UI
+slice consumes exactly these names; keep them stable.
+
+## 14. What is deliberately not in this client
 
 - No DSH data persistence/cache/offline mode; the only stored secret is the
   cookie the feature layer keeps.

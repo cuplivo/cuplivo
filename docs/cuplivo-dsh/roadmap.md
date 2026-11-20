@@ -175,14 +175,17 @@ no per-panel routes). Reuse decisions: `v2-reuse-map.md` §1–§6.
 | Context ring (R6) | `DshContextUsage` maps the live `contextPressure` readout to the composer's ring; the ring is hidden when the Host reports no readout, never estimated | `dsh-context-ring` after a real turn |
 | Plus and slash menus with honest rows (R6) | `DshPlusSheet` mirrors the official 添加/指令 structure and enables only rows with a wire (文件; 压缩 only when the catalog advertises `compact`; 权限; 模型), while 目标/计划/反馈 and 下载日志 stay visible with their short reason; `DshSlashCommandsSheet` lists the Host's `commands/list` | `dsh-plus-sheet` rows and the slash sheet |
 | Plugin-compat harvest for R5/R7 (R5, R7) | `DshSurfaceHarvest` reads the official sidebar labels and right-rail cards (label + language-neutral `kind`) from the official WebUI on first open; `DshSurfaceInventory` keeps one in-memory snapshot per authority; R5 rows and R7 plugin cards render the Host's own labels natively, built-ins stay native, and a tap lands the WebUI on that row/card. 更多 stays one native row that lands DSH's own `PanelMoreMenu` | harvested rows/cards replace the built-ins after one WebUI open (`dsh-sidebar-entry-<id>`, `dsh-rail-entry-<id>`) |
-| Settings tabs matching DSH (R2) | five native tabs — 连接设置, 通用设置, 模型, 内置插件 (read-only inventory), Agent 预设 (read-only groups) — data-driven, with the Host-reported tabs appended only when the catalog reports plugin capability | `dsh-settings-tabs` / `dsh-settings-tab-<id>` |
+| Settings tabs matching DSH (R2) | five native tabs — 连接设置, 通用设置, 模型, 内置插件 (read-only inventory), Agent 预设 (read-only groups) — data-driven, with the Host-reported tabs appended only when the catalog reports plugin capability; the 内置插件 tab carries one `打开官方设置` row that harvests the official dialog | `dsh-settings-tabs` / `dsh-settings-tab-<id>` / `dsh-settings-open-official` |
+| Plugin-registered settings tabs (R2, generic) | `DshSurfaceHarvest.settingsScript` opens the official settings dialog and posts its `settings.section` labels; `DshSurfaceSnapshot.pluginSettingsSections` keeps the labels that are not DSH's own (all 8 locales); the page appends one tab per section (`plugin:<slug>`, Host label verbatim) whose body is the official WebUI landed on that section and is built lazily on first selection | unit-tested mechanism; live host with better-search/better-workspaces reports no third-party `settings.section` (both use other seats), so the E2E asserts the harvest and reports the count |
 
 ### 10.2 Not delivered (explicit)
 
-- **Plugin `settings.section` tabs.** DSH plugins can register root settings
-  sections, but `pluginInventory` metadata is package metadata, not a settings
-  tab; v2 ships only the five native tabs. A plugin's own configuration page is
-  reached through the 插件 WebUI (harvest + landing), not as a Cuplivo tab.
+- ~~**Plugin `settings.section` tabs.**~~ Delivered generically in §10.1: the
+  sections are learned from the official dialog and rendered as tabs; on the
+  tested host neither better-search nor better-workspaces registers one, so the
+  live evidence is the harvest itself rather than a plugin tab. A plugin's own
+  configuration page (`plugins.row.config`) still opens inside the official
+  Plugins panel.
 - **Per-panel deep links.** DSH has no URL routing for panels, settings
   sections or rail pages; every plugin surface opens the whole SPA and is
   steered by a best-effort landing script. There is no link to ship.

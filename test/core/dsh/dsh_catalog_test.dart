@@ -306,22 +306,6 @@ void main() {
     });
   });
 
-  test('permission changes go through the /permission command', () async {
-    transport.values['commands/execute'] = {
-      'commandId': 'cmd-1',
-      'result': {'kind': 'success', 'text': 'Permission updated'},
-    };
-    final execution = await catalog.setSessionPermission('s1', 'read-only');
-    expect(execution.result.success, isTrue);
-    expect(transport.posted.last['payload'], {
-      'args': {
-        'agentId': 's1',
-        'line': '/permission read-only',
-        'submittedAttachments': <Object?>[],
-      },
-    });
-  });
-
   test('model selection sends request with provider/model/effort', () async {
     transport.values['session/selectModel'] = {
       'selected': {

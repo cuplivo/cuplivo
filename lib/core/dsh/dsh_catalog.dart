@@ -559,16 +559,8 @@ class DshCatalog {
     return DshPermissionPresetCatalog.fromJson(value);
   }
 
-  /// Changes the session's current permission preset. This is a command on the
-  /// wire (`/permission <preset>`), not an RPC; the durable event and the
-  /// `session/control` projection frame are the confirmation.
-  Future<DshCommandExecution> setSessionPermission(
-    String sessionId,
-    String preset,
-  ) {
-    return executeCommand(sessionId, '/permission $preset');
-  }
-
+  /// Lists the slash commands the live session advertises. Execution goes
+  /// through `DshSession.executeCommand` (single commands/execute path).
   Future<List<DshCommandDescriptor>> listCommands(String sessionId) async {
     final value = await rpc.call(
       'commands/list',
@@ -578,24 +570,6 @@ class DshCatalog {
     return jsonList(
       value,
     ).map(DshCommandDescriptor.fromJson).toList(growable: false);
-  }
-
-  Future<DshCommandExecution> executeCommand(
-    String sessionId,
-    String line, {
-    List<Map<String, Object?>> submittedAttachments = const [],
-  }) async {
-    final value = jsonMap(
-      await rpc.call(
-        'commands/execute',
-        args: {
-          'agentId': sessionId,
-          'line': line,
-          'submittedAttachments': submittedAttachments,
-        },
-      ),
-    );
-    return DshCommandExecution.fromJson(value);
   }
 
   Future<List<DshSkill>> listSkills(String sessionId) async {

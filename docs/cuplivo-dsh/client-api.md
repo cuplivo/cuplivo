@@ -500,9 +500,7 @@ class DshCatalog {
 
   // permissions / commands / skills
   Future<DshPermissionPresetCatalog> loadPermissionPresets();
-  Future<DshCommandExecution> setSessionPermission(String sessionId, String preset); // /permission command
-  Future<List<DshCommandDescriptor>> listCommands(String sessionId);
-  Future<DshCommandExecution> executeCommand(String sessionId, String line, {List<Map<String, Object?>> submittedAttachments = const []});
+  Future<List<DshCommandDescriptor>> listCommands(String sessionId); // commands/list roster
   Future<List<DshSkill>> listSkills(String sessionId);
 
   // settings
@@ -579,7 +577,8 @@ class DshSession {
   Future<void> answerQuestions(String eventId, List<DshQuestionAnswer> answers);
 
   Future<DshModelSelection> setModel(DshModelSelection selection);
-  Future<DshCommandExecution> setPermission(String preset); // /permission payload
+  Future<DshCommandExecution> executeCommand(String line); // the ONLY commands/execute path
+  Future<DshCommandExecution> setPermission(String preset); // delegates to executeCommand('/permission <preset>')
   Future<DshSessionState> currentState();
   Future<DshUploadReceipt> uploadAttachment(Uint8List bytes, {String? name, String? mediaType});
 
@@ -1415,6 +1414,11 @@ hints on `feedback`, `goal`, `permission`, `plan`, and `attachments:true` on
 ```
 
 → `{commandId, result:{kind:'success', text?} | {kind:'error', text}}`.
+The Dart wrapper is `DshSession.executeCommand(String line)`; it is the only
+`commands/execute` path in the client (`setPermission(preset)` delegates to it
+with `/permission <preset>`, and the catalog only lists the roster). The plus
+menu's compact action is therefore just the catalog-advertised line, e.g.
+`session.executeCommand('/compact')`; no separate compact RPC exists.
 `submittedAttachments` accepts `{type:'image', mediaType, data, name?}` or
 `{type:'file', receiptId}`; only commands declaring `input.attachments:true`
 can receive them, and a capable composer refuses the submission otherwise.

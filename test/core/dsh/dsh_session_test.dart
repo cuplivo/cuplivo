@@ -339,6 +339,28 @@ void main() {
   );
 
   test(
+    'executeCommand sends one commands/execute line with no attachments',
+    () async {
+      transport.values['commands/execute'] = {
+        'commandId': 'c2',
+        'result': {'kind': 'success', 'text': 'Compacted'},
+      };
+      final execution = await session.executeCommand('/compact');
+      expect(execution.commandId, 'c2');
+      expect(execution.result.success, isTrue);
+      expect(execution.result.text, 'Compacted');
+      expect(transport.posted.last['endpoint'], 'commands/execute');
+      expect(transport.posted.last['payload'], {
+        'args': {
+          'agentId': session.sessionId,
+          'line': '/compact',
+          'submittedAttachments': <Object?>[],
+        },
+      });
+    },
+  );
+
+  test(
     'uploadAttachment posts octet-stream bytes and returns the receipt',
     () async {
       final receipt = await session.uploadAttachment(

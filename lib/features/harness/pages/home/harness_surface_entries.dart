@@ -99,8 +99,9 @@ List<HarnessSurfaceEntry> dshHarvestedEntries(
 }) {
   final excluded = <String>{for (final label in excludedLabels) label.trim()}
     ..remove('');
-  final excludedKinds = <String>{for (final kind in excludedKinds) kind.trim()}
-    ..remove('');
+  final excludedKindSet = <String>{
+    for (final kind in excludedKinds) kind.trim(),
+  }..remove('');
   final seenLabels = <String>{};
   final seenIds = <String>{};
   final rows = <HarnessSurfaceEntry>[];
@@ -109,7 +110,7 @@ List<HarnessSurfaceEntry> dshHarvestedEntries(
     if (label.isEmpty || label.length > 80) continue;
     if (excluded.contains(label)) continue;
     final kind = entry.kind?.trim();
-    if (kind != null && excludedKinds.contains(kind)) continue;
+    if (kind != null && excludedKindSet.contains(kind)) continue;
     if (!seenLabels.add(label)) continue;
     final base = dshSurfaceEntryId(label);
     var id = base;

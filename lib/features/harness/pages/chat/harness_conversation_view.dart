@@ -17,7 +17,8 @@ import 'package:Cuplivo/features/harness/controllers/dsh_composer_submission.dar
 import 'package:Cuplivo/features/harness/controllers/dsh_transcript_fold.dart';
 import 'package:Cuplivo/features/harness/services/dsh_attachment_upload_service.dart';
 import 'package:Cuplivo/features/harness/services/dsh_context_usage.dart';
-import 'package:Cuplivo/features/harness/state/dsh_gateway.dart';
+import 'package:Cuplivo/features/harness/state/dsh_gateway.dart'
+    show DshGatewayException;
 import 'package:Cuplivo/features/harness/models/dsh_remote.dart';
 import 'package:Cuplivo/features/harness/widgets/chat/dsh_approval_cards.dart';
 import 'package:Cuplivo/features/harness/widgets/chat/dsh_agent_preset_picker.dart';

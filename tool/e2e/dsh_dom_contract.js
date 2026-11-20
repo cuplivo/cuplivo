@@ -447,17 +447,28 @@ async function main() {
       sectionLabels.some((label) => knownBuiltIns.includes(label)),
       sectionLabels.join(' | '),
     );
-    // Land on a real section and screenshot the dialog while it is open.
+    // Land on a real section and screenshot the dialog while it is open. The
+    // landing gets its own page load: reopening the dialog right after the
+    // harvest script closed it can race the dialog's own close animation, and
+    // the app never does that either (every official visit is a fresh load).
     const settingsLandTarget = sectionLabels.find((label) =>
       ['General', '通用', '通用设置', 'Models', '模型'].includes(label),
     );
     if (settingsLandTarget) {
-      const land = scripts.settingsLand.replace(
+      await reload();
+      await installBridge();
+      const landingScript = scripts.settingsLand.replace(
         '"__SETTINGS_SECTION__"',
         JSON.stringify(settingsLandTarget),
       );
-      await Promise.race([evaluate(land, true), sleep(60000)]);
-      await sleep(1200);
+      await Promise.race([evaluate(landingScript, true), sleep(60000)]);
+      await sleep(1500);
+      const landingPosts = await drainPosts();
+      check(
+        'the settings landing opens the dialog on a real section',
+        JSON.parse(landingPosts[0]?.payload || '{}').stage === undefined,
+        JSON.stringify(landingPosts.map((post) => post.payload)),
+      );
       await capture('02-settings-dialog');
       log(`settings dialog landed on: ${settingsLandTarget}`);
     }

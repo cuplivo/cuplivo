@@ -92,8 +92,11 @@ Each step ends with `capture(..., '<name>')` when it produces evidence.
     Honest disables are rendered, not hidden (the row copy states the missing
     wire).
 11. Tool turn: send `请用 bash 工具执行这条命令：echo CUPLIVO_E2E_TOOL_OK，然后
-    把完整输出贴给我`, wait for the `bash` tool card and a second assistant
-    message whose text quotes the marker; screenshot `r6_tool_turn`. If the
+    把完整输出贴给我`, wait until the folded transcript holds a `bash`
+    `ToolUIPart` (the list is virtualized, so the rendered card can sit outside
+    the built range) and a second assistant message whose text quotes the
+    marker; then scroll the transcript up until the `bash` card header is
+    visible and screenshot `r6_tool_turn`. If the
     Host's permission preset gates shell tools, the scenario answers the
     pending 允许 prompt (`dsh-approval-allow`) the same way a user would. Then
     wait for the composer context ring

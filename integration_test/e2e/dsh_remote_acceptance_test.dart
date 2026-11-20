@@ -678,6 +678,15 @@ Future<void> _runRealScenario(
     what: 'the new session composer (R6)',
     maxFrames: 300,
   );
+  // The composer exists while the drawer's create call is still switching the
+  // page; wait for the blank transcript of the *new* Session before reading
+  // the preset chip, then let the drawer's pop animation finish.
+  await pumpUntil(
+    tester,
+    () => _assistantMessageCount(tester) == 0,
+    maxFrames: 300,
+  );
+  await pumpFrames(tester, frames: 30);
 
   // R6 v3: the Agent-preset chip above the composer. The Session the drawer
   // just created is blank, so the Host roster is selectable; the shipped
@@ -689,6 +698,18 @@ Future<void> _runRealScenario(
     what: 'the composer Agent-preset chip (R6)',
     maxFrames: 300,
   );
+  await pumpUntil(tester, () {
+    final hosts = find.ancestor(
+      of: presetChip,
+      matching: find.byType(DshAgentPresetChip),
+    );
+    if (hosts.evaluate().isEmpty) return false;
+    return tester
+        .widget<DshAgentPresetChip>(hosts.first)
+        .agentPresets
+        .canSelect;
+  }, maxFrames: 300);
+  e2eStep('R6 preset chip is selectable');
   await pumpUntil(
     tester,
     () => find
@@ -708,12 +729,7 @@ Future<void> _runRealScenario(
     findsOneWidget,
     reason: 'R6 the blank Session opens on the Host default preset',
   );
-  await tester.tap(presetChip);
-  await _pumpUntilFound(
-    tester,
-    find.byKey(DshAgentPresetPicker.rowKey('standard')),
-    what: 'the Agent-preset picker roster (R6)',
-  );
+  await _openAgentPresetPicker(tester, presetChip);
   for (final key in const ['standard', 'ptc', 'minimal', 'cordis']) {
     expect(
       find.byKey(DshAgentPresetPicker.rowKey(key)),
@@ -750,12 +766,7 @@ Future<void> _runRealScenario(
   e2eStep('before r6_preset_chip');
   await capture(tester, binding, 'r6_preset_chip');
   // Back to the default composition so the tool turn exercises Standard mode.
-  await tester.tap(presetChip);
-  await _pumpUntilFound(
-    tester,
-    find.byKey(DshAgentPresetPicker.rowKey('standard')),
-    what: 'the Agent-preset picker roster again (R6)',
-  );
+  await _openAgentPresetPicker(tester, presetChip);
   await tester.tap(find.byKey(DshAgentPresetPicker.rowKey('standard')));
   await pumpUntil(
     tester,
@@ -1851,6 +1862,24 @@ bool _assistantTextContains(WidgetTester tester, String needle) {
     }
   }
   return false;
+}
+
+/// Opens the composer's Agent-preset sheet, retrying the tap a few times: the
+/// chip sits at the sane place the drawer's pop animation may still cover.
+Future<void> _openAgentPresetPicker(WidgetTester tester, Finder chip) async {
+  final row = find.byKey(DshAgentPresetPicker.rowKey('standard'));
+  for (var attempt = 1; attempt <= 3; attempt += 1) {
+    await tester.tap(chip);
+    await pumpUntil(tester, () => row.evaluate().isNotEmpty, maxFrames: 60);
+    if (row.evaluate().isNotEmpty) return;
+    e2eStep('R6 preset picker did not open (attempt $attempt)');
+    await pumpFrames(tester, frames: 10);
+  }
+  await _pumpUntilFound(
+    tester,
+    row,
+    what: 'the Agent-preset picker roster (R6)',
+  );
 }
 
 /// Dismisses the composer's modal plus sheet through the navigator that owns

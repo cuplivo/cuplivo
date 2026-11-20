@@ -387,8 +387,7 @@ class DshGatewayChatSession extends chat.DshChatSession {
     }
     defaultId ??= options.first.id;
     final summary = _summaryFor(catalog);
-    final currentId =
-        summary?.agentPreset ?? _selectedPreset ?? defaultId ?? '';
+    final currentId = summary?.agentPreset ?? _selectedPreset ?? defaultId;
     final started =
         (_view?.entries.isNotEmpty ?? false) || (summary?.blank == false);
     return chat.DshAgentPresetState(
@@ -768,7 +767,11 @@ class DshGatewayChatSession extends chat.DshChatSession {
     }
     // The Session projection reports the committed preset; a refresh keeps a
     // refusal made by another window from leaving this chip on a stale value.
-    unawaited(_connections.refreshCatalog(_remoteId).catchError((Object _) {}));
+    unawaited(
+      _connections
+          .refreshCatalog(_remoteId)
+          .then<void>((_) {}, onError: (Object _) {}),
+    );
   }
 
   // -------------------------------------------------------------------------

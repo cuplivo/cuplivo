@@ -339,7 +339,6 @@ class _DshAssistantSettingsPageState extends State<DshAssistantSettingsPage> {
           title: l10n.dshPluginPanelTitle,
           cookie: cookie,
           initialScript: DshSurfaceHarvest.settingsScript(),
-          scriptMessageHandlerName: DshSurfaceHarvest.channelName,
           onScriptMessage: (raw) =>
               DshSurfaceInventory.shared.accept(remote.authority, raw),
         ),

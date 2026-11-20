@@ -6,8 +6,12 @@ import 'package:Cuplivo/features/harness/pages/home/harness_right_rail.dart';
 import 'package:Cuplivo/features/harness/pages/home/harness_session_catalog.dart';
 import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+
+import '../../../support/business_test_harness.dart';
 
 class _FakeWorkspaceFiles implements HarnessWorkspaceFiles {
   _FakeWorkspaceFiles({this.entries = const [], this.refuseText = false});
@@ -58,29 +62,36 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    // Every card press goes through `IosCardPress`, whose haptic path reads
+    // SettingsProvider; the real app always has it above the home surface.
+    final settings = SettingsProvider(createBusinessTestPreferences());
+    addTearDown(settings.dispose);
     await tester.pumpWidget(
-      MaterialApp(
-        locale: const Locale('en'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: Align(
-            alignment: Alignment.topLeft,
-            child: SizedBox(
-              width: 380,
-              height: 820,
-              child: HarnessRightRail(
-                page: page,
-                session: session,
-                workspaceFiles: workspaceFiles,
-                onClose: () {},
-                onToggleExpanded: () {},
-                expanded: false,
-                onShowPage: onShowPage ?? (_) {},
-                onShowStart: () {},
-                extraEntries: extraEntries,
-                terminalPanelBuilder: terminalPanelBuilder,
-                onPreviewWorkspaceFile: onPreviewWorkspaceFile,
+      ChangeNotifierProvider<SettingsProvider>.value(
+        value: settings,
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 380,
+                height: 820,
+                child: HarnessRightRail(
+                  page: page,
+                  session: session,
+                  workspaceFiles: workspaceFiles,
+                  onClose: () {},
+                  onToggleExpanded: () {},
+                  expanded: false,
+                  onShowPage: onShowPage ?? (_) {},
+                  onShowStart: () {},
+                  extraEntries: extraEntries,
+                  terminalPanelBuilder: terminalPanelBuilder,
+                  onPreviewWorkspaceFile: onPreviewWorkspaceFile,
+                ),
               ),
             ),
           ),

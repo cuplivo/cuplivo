@@ -294,7 +294,10 @@ void main() {
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: DshAssistantSettingsPage.edit(remoteId: remote.id),
+          home: DshAssistantSettingsPage.edit(
+            remoteId: remote.id,
+            credentials: store,
+          ),
         ),
       ),
     );

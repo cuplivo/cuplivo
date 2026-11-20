@@ -5668,9 +5668,16 @@ class _ContextUsageInputControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final snapshot =
-        contextUsageOverride ?? context.watch<ContextUsageService?>()?.current;
-    if (snapshot == null) return const SizedBox.shrink();
+    final service = context.watch<ContextUsageService?>();
+    final snapshot = contextUsageOverride ?? service?.current;
+    // The local composer keeps the ring on screen before the first usage
+    // readout (the ring draws an empty track for a null snapshot), exactly as
+    // before the DSH override existed; the remote composer only reaches this
+    // control when it has a readout, so a null snapshot there is still "no
+    // ring". The only state that renders nothing is "no source at all".
+    if (snapshot == null && contextUsageOverride == null && service == null) {
+      return const SizedBox.shrink();
+    }
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: ContextUsageRing(

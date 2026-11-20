@@ -198,7 +198,7 @@ void main() {
 
     test('the settings script reads the dialog and can land on a section', () {
       final script = DshSurfaceHarvest.settingsScript(landLabel: '团队搜索设置');
-      expect(script, contains('data-shortcut-modal=\"settings\"'));
+      expect(script, contains('data-shortcut-modal="settings"'));
       expect(script, contains('"团队搜索设置"'));
       expect(script, contains('settings.close'));
       expect(DshSurfaceHarvest.settingsScript(), isNot(contains('"团队搜索设置"')));

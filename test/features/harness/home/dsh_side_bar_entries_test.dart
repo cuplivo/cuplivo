@@ -1,9 +1,13 @@
+import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/features/harness/pages/home/harness_session_catalog.dart';
 import 'package:Cuplivo/features/harness/services/dsh_surface_harvest.dart';
 import 'package:Cuplivo/features/harness/widgets/dsh_side_bar.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+
+import '../../../support/business_test_harness.dart';
 
 /// R5's entry list is spec-driven: the DSH built-ins before a harvest, the
 /// official sidebar rows afterwards plus exactly one built-in 更多. Plugin rows
@@ -20,20 +24,27 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    // Row taps go through `IosCardPress`, whose haptic path reads
+    // SettingsProvider; the real app always has it above the drawer.
+    final settings = SettingsProvider(createBusinessTestPreferences());
+    addTearDown(settings.dispose);
     await tester.pumpWidget(
-      MaterialApp(
-        locale: const Locale('en'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: DshSideBar(
-            remoteName: 'Studio',
-            catalog: HarnessUnavailableSessionCatalog(),
-            selectedSessionId: null,
-            onSelectSession: (_) {},
-            onNewSession: ({String? workspaceId}) async {},
-            onOpenEntry: onOpenEntry ?? (_) {},
-            harvestedEntries: harvestedEntries,
+      ChangeNotifierProvider<SettingsProvider>.value(
+        value: settings,
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: DshSideBar(
+              remoteName: 'Studio',
+              catalog: HarnessUnavailableSessionCatalog(),
+              selectedSessionId: null,
+              onSelectSession: (_) {},
+              onNewSession: ({String? workspaceId}) async {},
+              onOpenEntry: onOpenEntry ?? (_) {},
+              harvestedEntries: harvestedEntries,
+            ),
           ),
         ),
       ),

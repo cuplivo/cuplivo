@@ -734,6 +734,7 @@ class _RailWorkspaceFilesPageState extends State<_RailWorkspaceFilesPage> {
           child: Row(
             children: [
               IosIconButton(
+                key: const Key('dsh-rail-files-back'),
                 icon: Lucide.ArrowLeft,
                 size: 17,
                 minSize: 36,

@@ -1415,6 +1415,26 @@ Future<void> _runRealScenario(
   // that case accepts a rendered WebView or the honest metadata card; blob.bin
   // only has the card.
   await _openRailFilesPage(tester, rail);
+  // A text file previews inline in the rail: the workspace text read is the
+  // Host's paged line reader (`workspaceFiles/read`), so the preview content is
+  // the proof that the page actually arrived.
+  final helloFile = find.descendant(of: rail, matching: find.text('hello.txt'));
+  await _pumpUntilFound(tester, helloFile, what: 'hello.txt (R13)');
+  await tester.tap(helloFile.first);
+  await _pumpUntilFound(
+    tester,
+    find.descendant(
+      of: rail,
+      matching: find.textContaining('Hello from the Cuplivo'),
+    ),
+    what: 'the inline text preview of hello.txt (R13)',
+    maxFrames: 600,
+  );
+  e2eStep('before r13_text_inline');
+  await capture(tester, binding, 'r13_text_inline');
+  await tester.tap(find.byKey(const Key('dsh-rail-files-back')));
+  await pumpFrames(tester, frames: 8);
+
   final assetsDir = find.descendant(of: rail, matching: find.text('assets'));
   await _pumpUntilFound(tester, assetsDir, what: 'the assets/ folder (R13)');
   await tester.tap(assetsDir.first);

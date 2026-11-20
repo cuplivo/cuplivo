@@ -1152,6 +1152,13 @@ and `changes` are documented here for the next wrapper.
 | --- | --- | --- |
 | `workspaceFiles/list` | `{workspaceFileScopeId, path}` | `WorkspaceDirectoryListing` |
 | `workspaceFiles/read` | `{workspaceFileScopeId, path, range}` | `WorkspaceFileText` |
+
+`workspaceFiles/read` pages lines from **1-based** `range.offset` (offset `0` is
+refused with `gateway/bad-request`; `limit` defaults to the Host's max lines)
+and answers `{..., text, lines, eof}`. A whole-file text preview reads until
+`eof`, advancing `offset` by `lines`. A binary body is refused with
+`workspace-file/not-text` (NUL bytes); the preview maps that to its honest
+unsupported card rather than a load failure.
 | `workspaceFiles/readBytes` | `{workspaceFileScopeId, path, options}` | `WorkspaceFileBytes` (multipart) |
 | `workspaceFiles/stat` | `{workspaceFileScopeId, path}` | `WorkspaceFileStat` |
 | `workspaceFiles/changes` | `{workspaceFileScopeId, path}` | stream of `{kind:'ready'}` / `{kind:'change',change}` |

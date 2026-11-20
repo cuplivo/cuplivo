@@ -147,9 +147,10 @@ Each step ends with `capture(..., '<name>')` when it produces evidence.
     the file appears in the rail 工作区文件 listing. The terminal autofocuses,
     and the rail must stay open while its terminal owns the keyboard; the
     keyboard dismissal only applies to focus outside the rail.
-16. R13 previews: 工作区文件 → `assets/pixel.png` renders inline in the rail
-    (screenshot `r13_png_inline`); `docs/report.pdf` and `data/blob.bin` open the
-    full-screen preview page. A PDF may render through the authenticated
+16. R13 previews: 工作区文件 → `hello.txt` renders inline in the rail from the
+    Host's paged line reader (screenshot `r13_text_inline`); `assets/pixel.png`
+    renders inline in the rail (screenshot `r13_png_inline`); `docs/report.pdf`
+    and `data/blob.bin` open the full-screen preview page. A PDF may render through the authenticated
     `/api/file` WebView or fall back to the honest card; `blob.bin` must render
     the metadata card (`dsh-remote-file-card`, text
     `dshFilesPreviewUnavailable`), never a blank pane. Screenshots

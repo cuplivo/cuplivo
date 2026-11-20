@@ -368,21 +368,39 @@ class DshClientGateway
   @override
   Future<String> readTextFile(String sessionId, String path) async {
     final client = _requireClient();
+    // `workspaceFiles/read` is a paged line reader: the offset is 1-based and
+    // the answer carries one page with `lines`/`eof`. Ask for the first page
+    // (offset 1 — the Host rejects 0) and keep asking until EOF, so the preview
+    // receives the whole text rather than a silent first page.
+    final buffer = StringBuffer();
+    var offset = 1;
     try {
-      final value = await client.rpc.call(
-        'workspaceFiles/read',
-        args: {
-          'workspaceFileScopeId': sessionId,
-          'path': workspaceFilePathForWire(path),
-          'range': const {'offset': 0},
-        },
-        idempotent: true,
-      );
-      return dsh.jsonString(dsh.jsonMap(value)['text']) ?? '';
+      while (buffer.length < _maxPreviewChars) {
+        final value = await client.rpc.call(
+          'workspaceFiles/read',
+          args: {
+            'workspaceFileScopeId': sessionId,
+            'path': workspaceFilePathForWire(path),
+            'range': {'offset': offset},
+          },
+          idempotent: true,
+        );
+        final page = dsh.jsonMap(value);
+        buffer.write(dsh.jsonString(page['text']) ?? '');
+        if (dsh.jsonBool(page['eof']) ?? true) break;
+        final lines = dsh.jsonInt(page['lines']) ?? 0;
+        if (lines <= 0) break;
+        offset += lines;
+      }
     } on dsh.DshException catch (error) {
       throw dshGatewayExceptionFromClient(error);
     }
+    return buffer.toString();
   }
+
+  /// Cap on the text a preview reads across pages; larger files stop at the
+  /// cap instead of streaming megabytes into the UI.
+  static const int _maxPreviewChars = 400000;
 
   @override
   Future<DshFileStat> statFile(String sessionId, String path) async {

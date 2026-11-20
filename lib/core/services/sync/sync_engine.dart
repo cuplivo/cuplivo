@@ -2706,12 +2706,7 @@ class SyncEngine implements SyncServerHandler {
             next[id] = _entryFor(received);
             break;
           }
-          if (_snapshotClaimsUnsentRows(
-            outcome,
-            prior,
-            sentSubtrees[id],
-            received,
-          )) {
+          if (_snapshotOutrunsPeerCopy(outcome, received)) {
             if (prior != null) next[id] = prior;
             break;
           }
@@ -2764,30 +2759,34 @@ class SyncEngine implements SyncServerHandler {
         digest: composeConversationDigest(identityContributionsOf(payload)),
       );
 
-  /// Whether the apply's post-merge snapshot carries a message row that neither
-  /// payload of this session nor the last agreement knows.
+  /// Whether the apply's post-merge snapshot holds a message row the peer's own
+  /// copy does not carry at that clock.
   ///
-  /// Such a row was written here while the session was in flight: the apply
-  /// reads its base inside its own transaction, so the snapshot is the merge of
-  /// the two payloads *plus* whatever landed between the hello and the apply.
-  /// Recording it would make the peer's silence in a later payload read as a
-  /// deletion, so the entry waits a round instead — the row is here, and the
-  /// next session sends it.
-  static bool _snapshotClaimsUnsentRows(
+  /// The apply reads its base inside its own transaction and the merge keeps the
+  /// newer copy, so a row written here while the session ran is in the snapshot
+  /// at a clock the peer has never seen. A ledger recording that clock makes the
+  /// peer's later silence read as "untouched here" — the one reading the
+  /// deletion oracle acts on — so the entry waits a round instead: the row is
+  /// here, and the next session sends it.
+  ///
+  /// The comparison is by **clock**, not by id. An id check admits an *edit* of
+  /// an existing row, whose id is known and whose clock is new, and an edit is
+  /// exactly the write that loses: the snapshot would record it as the
+  /// agreement, and a later peer deletion of that row would read as a deletion
+  /// of a row nobody touched. The peer's copy is the right witness — it is read
+  /// after the responder applied this session's push, so a row that crossed is
+  /// in it at the clock it crossed with.
+  static bool _snapshotOutrunsPeerCopy(
     SyncSubtreeApplyOutcome outcome,
-    SyncCheckpointConversation? prior,
-    SyncSubtreePayload? sent,
     SyncSubtreePayload? received,
   ) {
-    final known = <String>{
-      ...?prior?.rows.keys,
-      if (sent != null)
-        for (final row in sent.rowsOf(_messageFamily)) row['id'] as String,
-      if (received != null)
-        for (final row in received.rowsOf(_messageFamily)) row['id'] as String,
+    if (received == null) return true;
+    final peerClocks = {
+      for (final row in received.rowsOf(_messageFamily))
+        row['id'] as String: messageRowMutationUs(row),
     };
     for (final row in outcome.messageRows) {
-      if (!known.contains(row['id'])) return true;
+      if (peerClocks[row['id']] != messageRowMutationUs(row)) return true;
     }
     return false;
   }

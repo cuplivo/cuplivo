@@ -247,9 +247,10 @@ class _SuccessBreakdown extends StatelessWidget {
           l10n.lanSyncReportWorkspacesOmitted(report.workspacesOmitted),
         ),
       // A conversation the push budget left behind: nothing was deleted, but it
-      // is not syncing either, and making it smaller is the user's move — so it
-      // is named rather than folded into the deferred count, which waits on a
-      // generation to stop.
+      // is not syncing either, so it is named rather than folded into the
+      // deferred count, which waits on a generation to stop or a fetch to
+      // deliver. The wording says what happened, not what to do about it: most
+      // of them ride the next session.
       if (report.conversationsOmittedForSize > 0)
         (
           Lucide.Hourglass,

@@ -5264,6 +5264,61 @@ void main() {
     );
   });
 
+  test('a none heal does not record a row written during the session', () async {
+    // The third writer of a checkpoint entry. A conversation this device holds
+    // and the peer pulled leaves this side's entry at `prior` (a fetch response
+    // is never acknowledged), so a later `none` session heals it — from a live
+    // read, which includes a row written while that session ran. Recording it is
+    // the same loss as the two send arms: the next session serves the peer's
+    // copy without the row and deletes it here.
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(
+      root,
+      midApplyWrite: (conversationId) async {
+        await a.repository.putMessage(
+          ChatMessage(
+            id: 'conv-x-typed',
+            conversationId: 'conv-x',
+            role: 'user',
+            content: 'typed while the session ran',
+          ),
+        );
+      },
+    );
+    await b.start(root);
+    sides.addAll([a, b]);
+    await pairSides(a, b);
+
+    await _seedConversation(a, id: 'conv-x', contents: ['x1']);
+    final pulled = await b.engine.syncWithPeer(await b.peer(a));
+    expect(pulled.success, isTrue, reason: pulled.summary);
+    expect(await _messageIds(b, 'conv-x'), contains('conv-x-m0'));
+
+    // A new conversation from B gives the next session something to apply, and
+    // the write into conv-x lands while A heals it.
+    await _seedConversation(b, id: 'conv-z', contents: ['z1']);
+    final healed = await b.engine.syncWithPeer(await b.peer(a));
+    expect(healed.success, isTrue, reason: healed.summary);
+    expect(await _messageIds(a, 'conv-x'), contains('conv-x-typed'));
+    expect(await _conversationIds(a), contains('conv-z'));
+
+    // A initiates this one, because the deletion only happens to the side that
+    // *fetches* a copy without the row: the responder serves its own.
+    final next = await a.engine.syncWithPeer(await a.peer(b));
+    expect(next.success, isTrue, reason: next.summary);
+    expect(
+      await _messageIds(a, 'conv-x'),
+      contains('conv-x-typed'),
+      reason: 'the heal never claimed it, so its absence is not a deletion',
+    );
+    expect(
+      await _messageIds(b, 'conv-x'),
+      contains('conv-x-typed'),
+      reason: 'and it travels one round later',
+    );
+  });
+
   test('a peer deletion the peer deferred is retried, not undone', () async {
     final (a, b) = await pair();
     await _seedConversation(a, id: 'conv-a', contents: ['a1']);

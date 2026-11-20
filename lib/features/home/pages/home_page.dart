@@ -233,10 +233,11 @@ class _HomePageState extends State<HomePage>
   HarnessHomeController? _harnessController;
   DshHarnessSessionCatalog? _harnessCatalog;
 
-  /// One official-WebUI surface inventory per home state: the harvest of every
-  /// remote page opened from here is stored per authority and both R5 and R7
-  /// rebuild from it. In-memory only, like the inventory itself.
-  final DshSurfaceInventory _harnessSurfaceInventory = DshSurfaceInventory();
+  /// The app-wide official-WebUI surface inventory: every remote page opened
+  /// from here (or from the assistant settings page) stores its harvest per
+  /// authority, and R5/R7 plus the extra settings tabs rebuild from it.
+  DshSurfaceInventory get _harnessSurfaceInventory =>
+      DshSurfaceInventory.shared;
   final InteractiveDrawerController _harnessRailController =
       InteractiveDrawerController();
   bool _harnessLandingInFlight = false;
@@ -692,7 +693,6 @@ class _HomePageState extends State<HomePage>
     _harnessController?.removeListener(_onHarnessChanged);
     _harnessController?.dispose();
     _harnessCatalog?.dispose();
-    _harnessSurfaceInventory.dispose();
     _harnessRailController.dispose();
     _controller.dispose();
     _inputController.removeListener(_syncQuoteHighlights);

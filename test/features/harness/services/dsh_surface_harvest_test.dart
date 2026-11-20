@@ -86,6 +86,58 @@ void main() {
     });
   });
 
+  group('DshSurfaceSnapshot settings', () {
+    test('keeps only labels that DSH itself does not own', () {
+      final snapshot = DshSurfaceSnapshot.parse(
+        jsonEncode(<String, Object?>{
+          'v': 1,
+          'settings': <Object?>[
+            <String, Object?>{'label': '通用设置'},
+            <String, Object?>{'label': '模型'},
+            <String, Object?>{'label': '内置插件'},
+            <String, Object?>{'label': 'Agent 预设'},
+            <String, Object?>{'label': '团队搜索设置'},
+          ],
+        }),
+      );
+      expect(snapshot.settings.length, 5);
+      final plugins = snapshot.pluginSettingsSections;
+      expect(plugins.map((e) => e.label), <String>['团队搜索设置']);
+    });
+
+    test('recognizes the official labels in every shipped locale', () {
+      for (final label in <String>[
+        'General',
+        '模型',
+        'Allgemein',
+        'Встроенные плагины',
+        'Ajustes preestablecidos del agente',
+        'Conta',
+      ]) {
+        expect(
+          DshSettingsSectionLabels.isBuiltIn(label),
+          isTrue,
+          reason: label,
+        );
+      }
+      expect(DshSettingsSectionLabels.isBuiltIn('团队搜索设置'), isFalse);
+    });
+
+    test('a settings message alone is a valid snapshot', () {
+      final snapshot = DshSurfaceSnapshot.parse(
+        jsonEncode(<String, Object?>{
+          'v': 1,
+          'settings': <Object?>[
+            <String, Object?>{'label': '团队搜索设置'},
+          ],
+        }),
+      );
+      expect(snapshot.isEmpty, isFalse);
+      expect(snapshot.sidebar, isEmpty);
+      expect(snapshot.rail, isEmpty);
+    });
+  });
+
   group('DshSurfaceInventory', () {
     test('notifies once per distinct snapshot per authority', () {
       final inventory = DshSurfaceInventory();
@@ -107,8 +159,20 @@ void main() {
       expect(notifications, 2);
       expect(inventory.snapshotFor('host-a').sidebar.length, 2);
       expect(inventory.snapshotFor('missing').isEmpty, isTrue);
+      // A settings-only message must merge, not wipe the sidebar/rail snapshot.
+      inventory.accept(
+        'host-a',
+        jsonEncode(<String, Object?>{
+          'v': 1,
+          'settings': <Object?>[
+            <String, Object?>{'label': '团队搜索设置'},
+          ],
+        }),
+      );
+      expect(inventory.snapshotFor('host-a').sidebar.length, 2);
+      expect(inventory.snapshotFor('host-a').pluginSettingsSections.length, 1);
       inventory.clear('host-a');
-      expect(notifications, 3);
+      expect(notifications, 4);
       expect(inventory.snapshotFor('host-a').isEmpty, isTrue);
     });
   });
@@ -130,6 +194,14 @@ void main() {
           'post({ v: 1, sidebar: sidebar.map((label) => ({ label: label })), rail: rail })',
         ),
       );
+    });
+
+    test('the settings script reads the dialog and can land on a section', () {
+      final script = DshSurfaceHarvest.settingsScript(landLabel: '团队搜索设置');
+      expect(script, contains('data-shortcut-modal=\"settings\"'));
+      expect(script, contains('"团队搜索设置"'));
+      expect(script, contains('settings.close'));
+      expect(DshSurfaceHarvest.settingsScript(), isNot(contains('"团队搜索设置"')));
     });
 
     test('landing scripts carry the escaped label and the surface anchors', () {

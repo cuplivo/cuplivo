@@ -368,6 +368,19 @@ contradicts one of them is a bug, not a preference.
   deviceId; row present on one side: union in. Both devices compute the same result
   independently. There is deliberately **no direction knob** (no initiatorWins/serverWins) —
   the 3.x session-priority control existed only because its merge was not symmetric.
+- **A conversation row carries two clocks (两枚时钟)**: `updated_at` is the *display* clock — it
+  says when the conversation's content last changed, and it is what the home list orders and
+  groups by, so a new message, an edit or a deletion moves it. `extras['sync.clock']` is the
+  *mutation* clock — it says when a device last wrote the row, and it is what sync compares, so
+  renaming, pinning, summarising, regenerating suggestions, changing the model override or
+  changing the workspace binding travel without reordering anything. Every local write moves the
+  mutation clock to `max(now, updated_at, previous + 1)`, read from the row inside the writing
+  transaction; a row written before the key existed falls back to `updated_at`, so there is no
+  backfill. The applier writes the winner's clock and never stamps — stamping would push both
+  peers' clocks to "now" every session — and floors `updated_at` at the local value, because the
+  winner (decided by the mutation clock) may carry the older content clock. The manifest's SQL
+  and the Dart merge read the same key and are held equal by a test: a plan that reads one clock
+  and a merge that reads the other re-sends the row every round.
 - **A local edit never lowers a row's clock**: every update path floors `updated_at` at the row's
   own `timestamp` (message updates, the UI's partial-field writes, parts and provider artifacts
   alike), because the effective LWW clock is `COALESCE(updated_at, timestamp)`: a message authored

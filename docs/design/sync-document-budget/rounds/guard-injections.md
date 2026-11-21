@@ -2,6 +2,13 @@
 
 > 每条都是：注入缺陷 → 指定测试红 → 字节级还原（SHA-256 相等）。
 
+> **重挣记录（rebase 到 `9da9b1c94` 之后）**：引擎侧的 8 条（第 1、6、7/8、10、11、12、13、14 条）在**当前树**上重跑过一遍——
+> 注入 → 指定测试红 → 从干净副本还原，哈希回到同一值。当前 `sync_engine.dart` =
+> `0608B619C5F3BB83469739F2FF5EDF1645942772D3DF577D3FCE8441070E59F4`（207,406 字节），注入前后都是它。
+> `sync_budget.dart` 未被 rebase 触碰，第 2–5、9 条的 `429D0A5A…`（6,036 字节）仍然有效。
+> 第 1 条的注入形状也更新为"两层都关"：第 5 轮之后 `sent == null` 与 `_snapshotOutrunsPeerCopy` 都会挡住被省略的
+> 会话，只关一层测试仍然是绿的（先试过，记在这里），两条都关才复现出记录里的红。
+
 ## 第 1 条｜`bothSend` 的检查点不检查"这一半发了没有"
 
 这是审计发现的数据丢失（见 `decisions.md`），修在准入之前，证明也先做。
@@ -10,7 +17,7 @@
 | --- | --- | --- | --- | --- |
 | 1 | 发送臂的守卫整个去掉：`myHalfCrossed` 恒定 `true`（`_advanceCheckpoint` 里 `peerSends || bothSend` 合并后的那一处） | `sync_engine_integration_test.dart` › one push's byte budget an omitted bothSend conversation keeps the edit it did not send | 红：`Expected: contains 'conv-a-aonly'` / `Actual: Set:['conv-a-m0', 'conv-a-bonly']` —— 本机没发出去的那行被下一轮删掉了 | I3「被跳过的会话检查点停在 prior」 |
 
-注入前 `sync_engine.dart` = `5D1A0149DF3787F9266D8B943D7A7887036667BE2D371264038452FB4011AA69`（193,925 字节），
+注入前 `sync_engine.dart` = `0608B619C5F3BB83469739F2FF5EDF1645942772D3DF577D3FCE8441070E59F4`（207,406 字节），
 还原后同一哈希。
 
 > 这条在评审后被重跑过一次：第一次记录的是 `907B8100…`，而评审拿到的树是 `B2A4B232…` —— 那份记录证明的是
@@ -46,7 +53,7 @@
 | --- | --- | --- | --- | --- |
 | 6 | 把发送点的预算改成 `assertPushFits(pushBatch, 1, envelopeBytes: 0)` | `sync_engine_integration_test.dart` › one push's byte budget a conversation the budget leaves behind is deferred, not failed | 红：`error:Bad state: push body 108 B exceeds the 1 B budget` —— 断言量的是**真正要发出去的那份 body** | G0「不会因为体积打出 413」 |
 
-注入前同一哈希 `5D1A0149…AA69`，还原后一致。断言本身另有一条纯函数测试
+注入前同一哈希 `0608B619…E59F4`，还原后一致。断言本身另有一条纯函数测试
 （`sync_budget_test.dart` › the batch about to be sent is checked against the budget）：恰好等于预算通过，少一个字节抛错。
 
 ## 第 7、8 条｜一次传输两端记同一件事
@@ -61,7 +68,7 @@
 | 7 | `peerSends` 走快照建条目 | › a write during the session is not recorded as the peer's | 红：`Expected: contains 'conv-a-typed'` / `Actual: Set:['conv-a-m0','conv-a-b']` —— 会话里写的行被下一轮删掉 | 条目描述"过线的那份" |
 | 8 | `bothSend` 的脏快照守卫关掉 | › a write during a bothSend session is not recorded either | 红：`Expected: contains all of ['conv-a-aonly','conv-a-typed']` / `Actual: Set:['conv-a-m0','conv-a-aonly','conv-a-bonly']` | 同上 |
 
-注入前 `sync_engine.dart` = `ED48DB73F97401346F73BCFF9156597A173191BF4185E29E1DE30EAD1682ACBF`（198,806 字节），
+注入前 `sync_engine.dart` = `0608B619C5F3BB83469739F2FF5EDF1645942772D3DF577D3FCE8441070E59F4`（207,406 字节），
 还原后同一哈希。
 
 ## 第 9 条｜评审留下的 probe：发送点断言与"固定部分自身超预算"的对立
@@ -85,7 +92,7 @@
 | --- | --- | --- | --- | --- |
 | 10 | `none` 的刷新不再看 manifest 戳 | › a none heal does not record a row written during the session | 红：`Expected: contains 'conv-x-typed'` / `Actual: Set:['conv-x-m0']` —— 下一轮把窗口里写的行删掉 | 条目只描述过线的那份 |
 
-注入前 `sync_engine.dart` = `54A5C22026493A6DBFD5D3E4AC3FF2399816A0862C6CE9FF8AAB1C532C2FA455`（200,907 字节），
+注入前 `sync_engine.dart` = `0608B619C5F3BB83469739F2FF5EDF1645942772D3DF577D3FCE8441070E59F4`（207,406 字节），
 还原后同一哈希。
 
 这格测试的第一版把第三轮交给响应方发起，注入下仍然是绿的——删除只发生在**取回**一份不含该行的副本的那一侧，
@@ -108,7 +115,7 @@ B 刷新出来的条目时钟比约定晚 359 µs（`Expected: (null or <1795176
 | --- | --- | --- | --- | --- |
 | 11 | 边界退回只看消息时钟 | › a rename during a heal is not recorded as the agreement | 红：`Actual: <1795177207053633>` —— 条目把窗口里的改名记成了"已约定" | 条目只描述过线的那份 |
 
-注入前 `sync_engine.dart` = `D9CE4C64D3C27480FD21F192000B1864ADD4014791F78BB93490F191E1ED6A84`（201,204 字节），
+注入前 `sync_engine.dart` = `0608B619C5F3BB83469739F2FF5EDF1645942772D3DF577D3FCE8441070E59F4`（207,406 字节），
 还原后同一哈希。
 
 **评审给的那条后果没有复现**：它说下一轮会按被污染的时钟判成 `iDelete`，把本地副本删掉。把同一格的不变量断言
@@ -131,7 +138,7 @@ B 刷新出来的条目时钟比约定晚 359 µs（`Expected: (null or <1795176
 | --- | --- | --- | --- | --- |
 | 12 | 守卫退回只比 id 是否在 `peerClocks` 里 | › an edit during a bothSend session is not recorded as the agreement | 红：`Expected: 'edited while syncing'` / `Actual: <null>` —— 编辑被下一轮的删除带走 | 条目只描述过线的那份 |
 
-注入前 `sync_engine.dart` = `F76F1CAE634F95C3C0E005493F011C067FB6437B27045DAF9CEB281BED54DF7B`（201,510 字节），
+注入前 `sync_engine.dart` = `0608B619C5F3BB83469739F2FF5EDF1645942772D3DF577D3FCE8441070E59F4`（207,406 字节），
 还原后同一哈希。
 
 这格测试的第一版用 `syncReadMessageRows` 读 content，拿到 `null` 就以为行丢了——其实消息正文不在那投影里
@@ -153,7 +160,7 @@ heal 从不写条目；而没有 `prior` 时什么都不写，账本为空 → `
 | --- | --- | --- | --- | --- |
 | 13 | 在值比较之外再加一条"任何行时钟晚于本机 `clockUs()` 就拒绝" | › a heal is not blocked by a peer clock that runs ahead | 红：`Expected: not null` / `Actual: <null>` —— 条目永远写不出来 | 条目只描述对端证成的状态 |
 
-注入前 `sync_engine.dart` = `1022DDC0974DC950665670C35207FDFACF801CF9DF3549E8E98E40E73929703C`（200,810 字节），
+注入前 `sync_engine.dart` = `0608B619C5F3BB83469739F2FF5EDF1645942772D3DF577D3FCE8441070E59F4`（207,406 字节），
 还原后同一哈希。这条注入同时能当隔离证据：窗口那两格（插入、改名）在注入下仍然是绿的——新格钉住的正是
 "用本机的钟当标尺"这一条，而不是旧的两条。
 
@@ -170,5 +177,5 @@ heal 从不写条目；而没有 `prior` 时什么都不写，账本为空 → `
 | --- | --- | --- | --- | --- |
 | 14 | `claimsPeerCopy` 退回只认 `peerSends`（响应方的 `bothSend` 回到 `prior`） | `sync_engine_integration_test.dart` › a message deleted after a bothSend session goes on both sides | 红：`Expected: contains 'conv-p-a'` / `Actual: _CompactKeysIterable<String>:['conv-p-m0']` —— 响应方账本停在上一份约定，推送进来的行没有钟 | 条目只描述过线的那份 |
 
-注入前 `sync_engine.dart` = `FF872E1F93FCFA25F72E7E719772490B08F1D1BEADF2E7A3AF9DF368BD77ACD8`（201,391 字节），
+注入前 `sync_engine.dart` = `0608B619C5F3BB83469739F2FF5EDF1645942772D3DF577D3FCE8441070E59F4`（207,406 字节），
 还原后同一哈希。

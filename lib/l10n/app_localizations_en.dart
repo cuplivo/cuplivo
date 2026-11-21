@@ -17650,6 +17650,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not reach the device. Check the address and port, and that both devices are on the same network.';
 
   @override
+  String get lanSyncPairErrorBusy =>
+      'The other device is busy with another pairing request. Try again in a moment.';
+
+  @override
   String get lanSyncPairErrorNoCertificate =>
       'The other device did not identify itself. Pairing aborted.';
 

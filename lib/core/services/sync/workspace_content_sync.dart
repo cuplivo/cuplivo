@@ -361,6 +361,7 @@ class WorkspaceContentSync {
     required Map<String, Map<String, SyncAgreedFile>> ledger,
     required bool allowDeletes,
     WorkspaceFileFetcher? fetch,
+    bool Function()? cancelled,
   }) async {
     final processed = <String, Map<String, SyncAgreedFile>>{};
     var filesLanded = 0;
@@ -373,6 +374,11 @@ class WorkspaceContentSync {
     final replacedUnlanded = <String>{};
 
     for (final snapshot in mine) {
+      // One file is one commit (stage, then a rename), so this is the boundary a
+      // cancelled beat may stop on. What is left unplanned stays in the ledger
+      // exactly as it was: an un-attempted file is not an agreement, and the
+      // next session plans it again.
+      if (cancelled?.call() ?? false) break;
       final peerTable = peerTables[snapshot.id];
       // Not both sides sharing it: nothing here is this device's business.
       // There is deliberately no "the peer shares it, so I must too" branch —
@@ -406,6 +412,7 @@ class WorkspaceContentSync {
       final landed = <String, WorkspaceFileStamp>{};
       final deleted = <String>{};
       for (final item in plan) {
+        if (cancelled?.call() ?? false) break;
         switch (item.action) {
           case WorkspaceFileAction.peerSends:
           case WorkspaceFileAction.peerWins:

@@ -16721,6 +16721,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncPairErrorUnreachable => '无法连接到该设备。请检查地址与端口，并确认两台设备在同一网络。';
 
   @override
+  String get lanSyncPairErrorBusy => '另一台设备正在处理另一个配对请求，请稍后再试。';
+
+  @override
   String get lanSyncPairErrorNoCertificate => '对方未能出示身份，配对已中止。';
 
   @override
@@ -34715,6 +34718,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get lanSyncPairErrorUnreachable => '无法连接到该设备。请检查地址与端口，并确认两台设备在同一网络。';
+
+  @override
+  String get lanSyncPairErrorBusy => '另一台设备正在处理另一个配对请求，请稍后再试。';
 
   @override
   String get lanSyncPairErrorNoCertificate => '对方未能出示身份，配对已中止。';
@@ -52722,6 +52728,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get lanSyncPairErrorUnreachable => '無法連線到該裝置。請檢查位址與連接埠，並確認兩台裝置在同一網路。';
+
+  @override
+  String get lanSyncPairErrorBusy => '另一台裝置正在處理另一個配對請求，請稍後再試。';
 
   @override
   String get lanSyncPairErrorNoCertificate => '對方未能出示身分，配對已中止。';

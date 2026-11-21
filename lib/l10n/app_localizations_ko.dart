@@ -17109,6 +17109,10 @@ class AppLocalizationsKo extends AppLocalizations {
       '기기에 연결하지 못했어요. 주소와 포트, 두 기기가 같은 네트워크에 있는지 확인하세요.';
 
   @override
+  String get lanSyncPairErrorBusy =>
+      '다른 기기에서 다른 페어링 요청을 처리 중입니다. 잠시 후 다시 시도하세요.';
+
+  @override
   String get lanSyncPairErrorNoCertificate => '상대 기기가 신원을 제시하지 않아 페어링을 중단했어요.';
 
   @override

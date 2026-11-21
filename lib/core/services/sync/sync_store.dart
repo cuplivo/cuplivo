@@ -120,17 +120,43 @@ class SyncStore {
   ///
   /// Every other writer merges through [mutatePeer] instead, so the fields it
   /// did not mean to touch are not overwritten from a copy it read earlier.
-  Future<void> savePeer(SyncPeerRecord peer) async {
+  ///
+  /// It takes the record's place in the write chain like every other writer:
+  /// "the record's origin" does not make it safe to run beside a session that is
+  /// mutating that record — a pairing and a session for the same device are
+  /// milliseconds apart exactly when a re-pair happens mid-sync, and the whole
+  /// record this writes is one read earlier than the session's section. Both
+  /// would then write the same temporary file, and the loser's rename is what
+  /// Windows refuses (`PathAccessException`, errno 32), leaving the *old* secret
+  /// on disk while memory holds the new one — the peer answers 401 after the
+  /// next launch, and the panel still calls it paired.
+  Future<void> savePeer(SyncPeerRecord peer) {
+    return _serializePeerWrite(peer.deviceId, () => _writePeerWhole(peer));
+  }
+
+  /// One pending write per peer record, whatever its kind: a [savePeer], a
+  /// [mutatePeer] section or a [deletePeer]. Also what makes [_writeAtomic]'s
+  /// single temporary path safe — two writers of one record never overlap.
+  final Map<String, Future<void>> _peerWrites = {};
+
+  /// Runs [body] after every earlier write of the same record, and keeps the
+  /// chain alive across a failure: one throw must not cancel every later write.
+  Future<T> _serializePeerWrite<T>(String deviceId, Future<T> Function() body) {
+    final previous = _peerWrites[deviceId] ?? Future<void>.value();
+    final write = previous.then((_) => body());
+    _peerWrites[deviceId] = write.then((_) {}, onError: (_) {});
+    return write;
+  }
+
+  /// The record write itself, without taking the chain — so [mutatePeer] can
+  /// call it from inside its own section rather than deadlocking on it.
+  Future<void> _writePeerWhole(SyncPeerRecord peer) async {
     await _peersDir.create(recursive: true);
     final file = File(
       '${_peersDir.path}${Platform.pathSeparator}${peer.deviceId}.json',
     );
     await _writeAtomic(file, utf8.encode(jsonEncode(peer.toJson())));
   }
-
-  /// One pending mutation per peer, so two writers cannot read the same record
-  /// and then both write it.
-  final Map<String, Future<void>> _peerWrites = {};
 
   /// Serialized read-modify-write of one peer record, and the **only** merge
   /// path: a whole-record write from a copy read earlier is how a session's own
@@ -154,18 +180,15 @@ class SyncStore {
     String deviceId,
     bool Function(SyncPeerRecord peer) mutate,
   ) {
-    final previous = _peerWrites[deviceId] ?? Future<void>.value();
-    final write = previous.then((_) async {
+    return _serializePeerWrite(deviceId, () async {
       final peer = await readPeer(deviceId);
       if (peer == null) return null;
       if (!mutate(peer)) return peer;
-      await savePeer(peer);
+      // The write itself, not [savePeer]: that would queue behind this section
+      // and wait for a chain link that only completes when this returns.
+      await _writePeerWhole(peer);
       return peer;
     });
-    // The chain has to survive a failed write: one throw must not cancel every
-    // later mutation of that peer.
-    _peerWrites[deviceId] = write.then((_) {}, onError: (_) {});
-    return write;
   }
 
   /// Writes through a temporary file in the same directory, so a concurrent
@@ -183,15 +206,22 @@ class SyncStore {
     }
   }
 
-  Future<void> deletePeer(String deviceId) async {
-    final file = File(
-      '${_peersDir.path}${Platform.pathSeparator}$deviceId.json',
-    );
-    if (await file.exists()) await file.delete();
-    final checkpoint = File(
-      '${_checkpointsDir.path}${Platform.pathSeparator}$deviceId.json.gz',
-    );
-    if (await checkpoint.exists()) await checkpoint.delete();
+  /// Forgets one peer entirely — its record and its checkpoint.
+  ///
+  /// In the record's chain: a revocation that lands beside a session writing
+  /// that record used to leave the file behind (delete then re-create), which is
+  /// a peer the panel no longer lists and the store still authenticates.
+  Future<void> deletePeer(String deviceId) {
+    return _serializePeerWrite(deviceId, () async {
+      final file = File(
+        '${_peersDir.path}${Platform.pathSeparator}$deviceId.json',
+      );
+      if (await file.exists()) await file.delete();
+      final checkpoint = File(
+        '${_checkpointsDir.path}${Platform.pathSeparator}$deviceId.json.gz',
+      );
+      if (await checkpoint.exists()) await checkpoint.delete();
+    });
   }
 
   // ---- checkpoints ----

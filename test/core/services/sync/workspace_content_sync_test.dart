@@ -1225,4 +1225,54 @@ void main() {
     expect(Directory('${root.path}/workspaces/w1/files').existsSync(), isFalse);
     expect(Directory('${root.path}/workspaces/w1').existsSync(), isFalse);
   });
+
+  test('a published table is replaced whole, never merged', () async {
+    // What the read lane's concurrency rests on: a fetch resolves against the
+    // table `publish` assigned, and the assignment is the only mutation — so a
+    // reader sees one walk or the next, never a file from each. A merge in place
+    // would make "the table the peer may fetch from" a set that never shrinks,
+    // and a file the walk dropped would stay fetchable for the session.
+    await putWorkspace('w1');
+    await putFile('w1', 'a.txt', 'aa');
+    await putFile('w1', 'b.txt', 'bb');
+    content.publish('peer-a', await content.snapshots());
+    expect(
+      await content.serve(
+        peerDeviceId: 'peer-a',
+        workspaceId: 'w1',
+        relPath: 'a.txt',
+      ),
+      isNotNull,
+    );
+    expect(
+      await content.serve(
+        peerDeviceId: 'peer-a',
+        workspaceId: 'w1',
+        relPath: 'b.txt',
+      ),
+      isNotNull,
+    );
+
+    // The next walk no longer sees b.txt.
+    await workspaceFile('w1', 'b.txt').delete();
+    content.publish('peer-a', await content.snapshots());
+
+    expect(
+      await content.serve(
+        peerDeviceId: 'peer-a',
+        workspaceId: 'w1',
+        relPath: 'b.txt',
+      ),
+      isNull,
+      reason: 'the previous walk is not still in the table',
+    );
+    expect(
+      await content.serve(
+        peerDeviceId: 'peer-a',
+        workspaceId: 'w1',
+        relPath: 'a.txt',
+      ),
+      isNotNull,
+    );
+  });
 }

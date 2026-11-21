@@ -78,6 +78,22 @@ const int kMaxBlobRequestsPerSession = 2048;
 /// what a miss costs is a file that waits for the push fallback instead.
 const int kMaxReverseDialCandidates = 3;
 
+/// How many pairing requests one listener answers at once.
+///
+/// The pairing route is the one face that answers before any authentication, so
+/// it cannot share the data lanes: a stranger who fills it would otherwise hold
+/// the write lane — and pairing is *the* route a user reaches for when the pair
+/// is broken. Past this cap the caller is answered 503 `pair_busy`, the same
+/// refusal language `ping_busy` uses, because it says the same thing ("this
+/// listener is loaded"), which the caller can act on.
+///
+/// Four, and deliberately **not** derived from [kMaxPeerEndpoints]: pairing is
+/// bounded by a human standing in front of two devices — one pairing at a time,
+/// plus a double-tap and a retry — while the endpoint cap is a memory of
+/// networks. Tying the two together would invent a relationship neither has,
+/// and the last bound that was derived from a wish is why this file exists.
+const int kMaxPairRequestsInFlight = 4;
+
 // ---- workspace content ----
 
 /// How many files one managed workspace may carry into a sync (ADR-0003 slice

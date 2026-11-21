@@ -786,10 +786,21 @@ contradicts one of them is a bug, not a preference.
   unpaired or revokes, when a workspace is switched off, and at the next hello (the responder's table
   has to outlive the fetch response, because the initiator pulls *after* it — the files are served
   from that table by stamp-checked path).
-- **Every request is bounded**: a peer that stops answering costs one deadline, not the process.
-  Client budgets are hello 60 s, push/fetch 20 min, blob 15 min of inactivity, pairing 60 s;
-  server routes are bounded too (pair/hello 60 s, revoke 30 s, data routes 30 min), so a body that
-  stops arriving cannot hold the serial request loop open and silence pairing and sync alike.
+- **Every request is bounded, and the bound starts at admission (从入队起有界)**: a peer that stops
+  answering costs one deadline, not the process, and time spent queued behind another beat is spent —
+  a request that waited is answered 504 rather than given a fresh budget. Client budgets are hello
+  60 s, push/fetch 20 min, blob 15 min of inactivity, pairing 60 s, and a push is one budget from its
+  first byte to its last drain; server routes are bounded too (pair/hello 60 s, revoke 30 s, data
+  routes 30 min). The deadline **cancels**: the request carries a gate that a handler checks before
+  each state change, so a handler the deadline abandoned cannot *begin* installing a session, writing
+  a checkpoint or landing a file after its peer was told the request was over — one that had already
+  begun can still finish, which is why those writes are idempotent and re-planned by the next session.
+  The lane orders answers; the gate orders commits.
+- **A route runs on a lane chosen by its effect (按效果分道)**: reads run beside everything (a blob
+  pull is what a three-device ring would otherwise deadlock on), writes run one at a time
+  device-wide, probes and pairing have lanes of their own — pairing capped, and answered 503
+  `pair_busy` past the cap rather than queued. A `/sync/*` request that cannot prove a paired caller
+  is answered 401 at dispatch and never joins a queue.
 - **Clock skew: accept and surface (接受+显性化)**: hello exchanges clock readings (protocol
   v4); a divergence beyond five minutes raises a yellow-flag line in the sync report — on
   **both** devices, each computing it from the same pair of readings — but sync proceeds

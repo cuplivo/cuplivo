@@ -657,7 +657,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         peerDeviceId: record.deviceId,
       );
     } on SyncClientException catch (error) {
-      return _mapPairError(error);
+      return mapPairError(error);
     } on SocketException catch (error) {
       return SyncPairOutcome.failure('unreachable', error.message);
     } on TimeoutException catch (error) {
@@ -708,7 +708,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         wasKnownPeer,
       );
     } on SyncClientException catch (error) {
-      return SyncPairQrOutcome(_mapPairError(error), wasKnownPeer);
+      return SyncPairQrOutcome(mapPairError(error), wasKnownPeer);
     } on SocketException catch (error) {
       return SyncPairQrOutcome(
         SyncPairOutcome.failure('unreachable', error.message),
@@ -747,7 +747,14 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     unawaited(syncNow(peer.deviceId).catchError((Object _) => null));
   }
 
-  static SyncPairOutcome _mapPairError(SyncClientException error) {
+  /// The pairing form's failure table: a wire refusal code to the outcome the
+  /// form renders.
+  ///
+  /// Public so a test can drive it: every code here is produced by a *listener*
+  /// this device does not own, and one of them (`pair_busy`) is the listener
+  /// saying "I answered, and I am full" — reporting that as `unreachable` sends
+  /// the user to check an address that just worked.
+  static SyncPairOutcome mapPairError(SyncClientException error) {
     switch (error.message) {
       case 'invalid_pin':
         return SyncPairOutcome.failure(
@@ -760,6 +767,10 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         return const SyncPairOutcome.failure('id_mismatch');
       case 'pair_fingerprint_mismatch':
         return const SyncPairOutcome.failure('fingerprint_mismatch');
+      case 'pair_busy':
+        // The peer's pairing lane was full: it answered, and it is busy. The
+        // request is worth retrying, and nothing about the address is wrong.
+        return const SyncPairOutcome.failure('busy');
       default:
         return SyncPairOutcome.failure(
           'unreachable',

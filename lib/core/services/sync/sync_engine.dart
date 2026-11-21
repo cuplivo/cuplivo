@@ -6,6 +6,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import 'blob_sync.dart';
+import 'sync_admission.dart';
 import 'sync_client.dart';
 import 'sync_data_plane.dart';
 import 'sync_family_registry.dart';
@@ -648,7 +649,15 @@ class SyncEngine implements SyncServerHandler {
   /// per-peer secret is what authenticated the request, so no third device
   /// can revoke someone else's pairing.
   @override
-  Future<void> handleRevoke(String peerDeviceId) async {
+  Future<void> handleRevoke(
+    String peerDeviceId, {
+    required SyncAdmission admission,
+  }) async {
+    // One commit: the session, the publication, the record on disk and the
+    // in-memory secret. Checked before the first of them, so a revoke the
+    // deadline abandoned leaves the pairing exactly as it was — the peer's next
+    // session finds it too and revokes again.
+    admission.check();
     _sessions.remove(peerDeviceId);
     dataPlane.clearWorkspacePublication(peerDeviceId);
     await store.deletePeer(peerDeviceId);
@@ -1522,6 +1531,7 @@ class SyncEngine implements SyncServerHandler {
     String peerDeviceId,
     SyncHello initiatorHello, {
     String? remoteAddress,
+    required SyncAdmission admission,
   }) async {
     _sweepSessions();
     // A new session replaces the previous session's advertisement: it was
@@ -1646,6 +1656,11 @@ class SyncEngine implements SyncServerHandler {
       peerReplaced: peerReplaced,
       yielded: yielded,
     );
+    // The commit: installing the session is what makes every later beat of this
+    // exchange possible, so it is the point past which a cancelled hello must
+    // not go. Everything above it is planning; everything below it is that
+    // plan being promised to the peer.
+    admission.check();
     _sessions[initiatorHello.deviceId] = session;
     _assertSessionInvariants();
     return SyncHello(
@@ -1669,8 +1684,9 @@ class SyncEngine implements SyncServerHandler {
   @override
   Future<SyncApplyAck> handleApplySubtrees(
     String peerDeviceId,
-    SyncDeltaBatch batch,
-  ) async {
+    SyncDeltaBatch batch, {
+    required SyncAdmission admission,
+  }) async {
     final session = _sessions[peerDeviceId];
     if (session == null) throw const SyncRequestRefusal.sessionMissing();
     // One push, one fetch — the half of the rule the fetch beat enforces from
@@ -1687,7 +1703,7 @@ class SyncEngine implements SyncServerHandler {
     // long it runs.
     _beginBeat(session);
     try {
-      return await _applyPushedBatch(peerDeviceId, session, batch);
+      return await _applyPushedBatch(peerDeviceId, session, batch, admission);
     } finally {
       _endBeat(session);
       _assertSessionInvariants();
@@ -1698,6 +1714,7 @@ class SyncEngine implements SyncServerHandler {
     String peerDeviceId,
     _ResponderSession session,
     SyncDeltaBatch batch,
+    SyncAdmission admission,
   ) async {
     // The fetch beat answers the same peer on the same session, and it reads the
     // ledger this beat produces. Marked before any await, so a fetch that
@@ -1738,7 +1755,11 @@ class SyncEngine implements SyncServerHandler {
     try {
       session.blobPull = reverse == null
           ? _unreachableBlobPull(wanted.values.toList())
-          : await _pullBlobs(wanted.values.toList(), reverse);
+          : await _pullBlobs(
+              wanted.values.toList(),
+              reverse,
+              cancelled: () => !admission.alive,
+            );
       session.deferredSkills = {
         ...adoptions.deferred,
         for (final id in adoptions.wantedSkillIds)
@@ -1750,6 +1771,11 @@ class SyncEngine implements SyncServerHandler {
         batch.subtrees,
         myDeviceId: identity.deviceId,
         peerDeviceId: peerDeviceId,
+        // The apply is the one place a push beat can run long: one transaction
+        // per conversation. The check is between transactions (never inside
+        // one), so a cancelled beat finishes the conversation it is on and
+        // starts none after it.
+        cancelled: () => !admission.alive,
         checkpointRowsByConversation: _rowsOf(
           session.checkpoint,
           // A replaced caller's absences prove nothing about this device's rows.
@@ -1786,6 +1812,7 @@ class SyncEngine implements SyncServerHandler {
       // the push has to be able to put it back (slice 24).
       session.pushedBusiness = batch.business;
       session.receivedBusiness = applicable;
+      admission.check();
       session.businessOutcome = await dataPlane.applyBusiness(
         applicable,
         myDeviceId: identity.deviceId,
@@ -1808,6 +1835,10 @@ class SyncEngine implements SyncServerHandler {
         peerTables: batch.workspaceFiles,
         ledger: session.checkpoint.workspaceFiles,
         allowDeletes: !session.peerReplaced,
+        // Per file, because that is the commit: a landing that has not started
+        // is not owed once the beat is cancelled, while one already landing
+        // is atomic (staging, then a rename).
+        cancelled: () => !admission.alive,
         fetch: reverse == null
             ? null
             : (workspaceId, relPath, destination) => reverse.fetchWorkspaceFile(
@@ -1989,8 +2020,9 @@ class SyncEngine implements SyncServerHandler {
   @override
   Future<SyncDeltaBatch> handleFetchSubtrees(
     String peerDeviceId,
-    SyncFetchRequest request,
-  ) async {
+    SyncFetchRequest request, {
+    required SyncAdmission admission,
+  }) async {
     final session = _sessions[peerDeviceId];
     if (session == null) throw const SyncRequestRefusal.sessionMissing();
     // The fetch beat is the second half of one push: the initiator pushes, then
@@ -2003,7 +2035,12 @@ class SyncEngine implements SyncServerHandler {
     if (!session.pushSeen) throw const SyncRequestRefusal.pushRequired();
     _beginBeat(session);
     try {
-      return await _serveFetchSubtrees(peerDeviceId, session, request);
+      return await _serveFetchSubtrees(
+        peerDeviceId,
+        session,
+        request,
+        admission,
+      );
     } finally {
       _endBeat(session);
       _assertSessionInvariants();
@@ -2014,6 +2051,7 @@ class SyncEngine implements SyncServerHandler {
     String peerDeviceId,
     _ResponderSession session,
     SyncFetchRequest request,
+    SyncAdmission admission,
   ) async {
     final outgoing = <SyncSubtreePayload>[];
     final skipped = <String>{};
@@ -2045,7 +2083,14 @@ class SyncEngine implements SyncServerHandler {
     final deleted = <String>{};
     final failedDeletes = <String>{};
     final blockedDeletes = <String>{};
+    // The deletion loops are the last stretch of state changes before the
+    // checkpoint, and each deletion is idempotent against the plan that asked
+    // for it ("still stands" re-reads the row), so one check before the loop is
+    // the boundary: a beat cancelled here removes nothing further and records
+    // the rest as failed, which the next session re-plans.
+    final deletionsAllowed = admission.alive;
     for (final item in session.plan) {
+      if (!deletionsAllowed) break;
       if (item.action != SyncConvAction.iDelete) continue;
       if (!await _conversationDeletionStillStands(
         item.conversationId,
@@ -2067,6 +2112,7 @@ class SyncEngine implements SyncServerHandler {
     final deletedSkillIds = <String>{};
     var keptWorkspaceFolders = 0;
     for (final item in session.businessPlan) {
+      if (!deletionsAllowed) break;
       if (item.action != SyncConvAction.iDelete) continue;
       final key = syncBusinessKey(item.kindWire, item.id);
       if (!await _businessDeletionStillStands(
@@ -2181,6 +2227,13 @@ class SyncEngine implements SyncServerHandler {
       skillHashes: responseSkillHashes,
       workspaceFiles: advertised.tables,
     );
+    // The last commit of the session, and the only one that must never happen
+    // after the deadline: the checkpoint is what both sides plan their next
+    // session from, so a cancelled beat that wrote it would advance state the
+    // peer was told (504) never arrived. Everything after this point is one
+    // unwind — the peer record, the report and the session removal describe the
+    // outcome the file now holds.
+    admission.check();
     await store.saveCheckpointUnlessReplaced(
       peerDeviceId,
       epochAtHello: session.epochAtHello,
@@ -2277,8 +2330,9 @@ class SyncEngine implements SyncServerHandler {
   @override
   Future<SyncPairAnswer?> handlePair(
     SyncPairRequest request,
-    String? initiatorHost,
-  ) async {
+    String? initiatorHost, {
+    required SyncAdmission admission,
+  }) async {
     if (!isPairingOpen) return null;
     if (request.pin != _pairingPin) {
       // A 6-digit PIN is brute-forceable inside the window unless wrong
@@ -2291,6 +2345,12 @@ class SyncEngine implements SyncServerHandler {
       }
       return null;
     }
+    // Before the PIN is spent: a pairing the deadline abandoned must not close a
+    // window the user is standing in front of. (A cancellation that lands after
+    // this point but before the write below loses the PIN without installing
+    // anything; one that lands *inside* the write leaves the record — see the
+    // note at the commit.)
+    admission.check();
     // One-shot: a PIN is spent on first success.
     _pairingPin = null;
     _pairingExpiresAt = null;
@@ -2337,6 +2397,19 @@ class SyncEngine implements SyncServerHandler {
     // And the networks this pair already met, behind the fresh ones — the
     // responder's half of the memory the initiator keeps (see [pairWith]).
     if (existing != null) peer.rememberEndpointHistory(existing.endpoints);
+    // The commit: from here the pair exists on this side, and a pairing
+    // abandoned at the deadline must stop before it — the initiator never gets
+    // the answer that carries [secret], and this device would list a peer whose
+    // every request it refuses 401.
+    //
+    // The check is as close to the write as the shape allows, and it is a
+    // check *then* write: a deadline that lands inside `savePeer` still leaves
+    // the record. That window is the write's own duration (one file, chained
+    // behind the peer's other writes), and what heals it is the initiator's
+    // re-pair — the one it performs because it got a 504 in place of the
+    // secret. Making it atomic would need the store to refuse a commit on a
+    // gate it does not know about, which is a wider change than this one.
+    admission.check();
     await store.savePeer(peer);
     // The pairing request arrived on this listener, so the peer is known here
     // already; the initiator learns the same secret from the answer.
@@ -3083,6 +3156,7 @@ class SyncEngine implements SyncServerHandler {
     List<SyncBlobEntry> wanted,
     SyncClientSession session, {
     void Function(int done, int total)? onProgress,
+    bool Function()? cancelled,
   }) async {
     final outcome = _BlobPullOutcome();
     // Nothing to pull is not a beat: publishing "downloading files" for an
@@ -3090,6 +3164,14 @@ class SyncEngine implements SyncServerHandler {
     if (wanted.isEmpty) return outcome;
     for (var i = 0; i < wanted.length; i++) {
       final entry = wanted[i];
+      if (cancelled?.call() ?? false) {
+        // Stop here rather than pull into a beat the peer has already been told
+        // is over. The ones not tried are *not* recorded as failed: a cancelled
+        // beat writes no checkpoint, so nothing would carry that record — the
+        // retry set this beat would have advanced is behind the same gate, and
+        // what is still owed comes back from the peer's next manifest.
+        break;
+      }
       onProgress?.call(i, wanted.length);
       File? temp;
       try {
@@ -3268,7 +3350,13 @@ class SyncEngine implements SyncServerHandler {
   /// throw the transfer away. The hasher memoises by (path, length, mtime), so
   /// an unchanged file costs a stat.
   Future<File?> _blobToPush(String peerDeviceId, SyncBlobEntry entry) async {
-    final file = await handleFetchBlob(peerDeviceId, entry.contentHash);
+    final File? file;
+    try {
+      file = await _servableBlob(entry.contentHash);
+    } catch (error) {
+      debugPrint('sync: serving blob ${entry.contentHash} failed: $error');
+      return null;
+    }
     if (file == null) return null;
     if (entry.kind == SyncBlobEntry.kindFile) {
       final hash = await dataPlane.fileHasher.hashOf(file);
@@ -3301,23 +3389,18 @@ class SyncEngine implements SyncServerHandler {
   }
 
   @override
-  Future<File?> handleFetchBlob(String peerDeviceId, String contentHash) async {
+  Future<File?> handleFetchBlob(
+    String peerDeviceId,
+    String contentHash, {
+    required SyncAdmission admission,
+  }) async {
     try {
-      final published = _publishedBlobs[contentHash];
-      if (published != null && await published.exists()) return published;
-      final skillId = _publishedSkillIds[contentHash];
-      if (skillId != null) {
-        return await dataPlane.skillBlobForHash(
-          skillId: skillId,
-          dirHash: contentHash,
-        );
-      }
-      // A pending retry from a previous launch: the content-addressed asset
-      // registry is the durable authority for what this device holds.
-      final registered = await dataPlane.assetFileForContentHash(contentHash);
-      if (registered != null && await registered.exists()) return registered;
-      // A skill body that still hashes to the requested value.
-      return await dataPlane.skillBlobForContentHash(contentHash);
+      // Zipping a skill body is the one read that can take minutes (it walks
+      // and archives a directory), so the whole resolution runs under the
+      // request's budget: a peer that stopped waiting is not owed a body.
+      return await admission.io(() => _servableBlob(contentHash));
+    } on SyncAdmissionLost {
+      rethrow;
     } catch (error) {
       // A body that changed between the manifest and the fetch is simply not
       // servable: the peer records the miss and retries next session.
@@ -3326,12 +3409,33 @@ class SyncEngine implements SyncServerHandler {
     }
   }
 
+  /// The local file this device can serve for [contentHash], or null.
+  ///
+  /// Shared by the `GET` route (through [handleFetchBlob]) and by this device's
+  /// own push of a blob the peer asked for, so a pushed blob is exactly the one
+  /// a fetch would have received.
+  Future<File?> _servableBlob(String contentHash) async {
+    final published = _publishedBlobs[contentHash];
+    if (published != null && await published.exists()) return published;
+    final skillId = _publishedSkillIds[contentHash];
+    if (skillId != null) {
+      return dataPlane.skillBlobForHash(skillId: skillId, dirHash: contentHash);
+    }
+    // A pending retry from a previous launch: the content-addressed asset
+    // registry is the durable authority for what this device holds.
+    final registered = await dataPlane.assetFileForContentHash(contentHash);
+    if (registered != null && await registered.exists()) return registered;
+    // A skill body that still hashes to the requested value.
+    return dataPlane.skillBlobForContentHash(contentHash);
+  }
+
   @override
   Future<File?> handleFetchWorkspaceFile(
     String peerDeviceId,
     String workspaceId,
-    String relPath,
-  ) async {
+    String relPath, {
+    required SyncAdmission admission,
+  }) async {
     final content = dataPlane.workspaceContent;
     // No content support in this build (conversation-only tests): the route
     // answers 404 and the caller counts an unapplied file, which is exactly
@@ -3372,6 +3476,7 @@ class SyncEngine implements SyncServerHandler {
     String relPath, {
     required int size,
     required Stream<List<int>> body,
+    required SyncAdmission admission,
   }) async {
     final session = _sessions[peerDeviceId];
     if (session == null) {
@@ -3393,6 +3498,7 @@ class SyncEngine implements SyncServerHandler {
         relPath,
         size: size,
         body: body,
+        admission: admission,
       );
     } finally {
       _endBeat(session);
@@ -3406,6 +3512,7 @@ class SyncEngine implements SyncServerHandler {
     String relPath, {
     required int size,
     required Stream<List<int>> body,
+    required SyncAdmission admission,
   }) async {
     if (!session.pushSeen) {
       await _discard(body, size);
@@ -3450,6 +3557,10 @@ class SyncEngine implements SyncServerHandler {
         );
         return false;
       }
+      // The commit: the rename into the workspace happens inside `acceptPushed`,
+      // so a cancel has to land before the call rather than inside it. Staging
+      // is not state — the whole body arrived, and it is thrown away either way.
+      admission.check();
       final landed = await content.acceptPushed(
         workspaceId: workspaceId,
         relPath: relPath,
@@ -3483,6 +3594,10 @@ class SyncEngine implements SyncServerHandler {
       // session, and the next one re-plans from the ledger this produced.
       session.workspaceRequests.remove(key);
       return true;
+    } on SyncAdmissionLost {
+      // Not a failed transfer: the request is over, and the caller must hear
+      // 504 rather than the 404 a refused push would mean.
+      rethrow;
     } catch (error) {
       debugPrint(
         'sync workspace: receiving the pushed $workspaceId/$relPath failed: '
@@ -3543,6 +3658,7 @@ class SyncEngine implements SyncServerHandler {
     required String key,
     required int size,
     required Stream<List<int>> body,
+    required SyncAdmission admission,
   }) async {
     final session = _sessions[peerDeviceId];
     if (session == null) {
@@ -3562,6 +3678,7 @@ class SyncEngine implements SyncServerHandler {
         key: key,
         size: size,
         body: body,
+        admission: admission,
       );
     } finally {
       _endBeat(session);
@@ -3577,6 +3694,7 @@ class SyncEngine implements SyncServerHandler {
     required String key,
     required int size,
     required Stream<List<int>> body,
+    required SyncAdmission admission,
   }) async {
     if (!session.pushSeen) {
       await _discard(body, size);
@@ -3632,6 +3750,9 @@ class SyncEngine implements SyncServerHandler {
           return false;
         }
       }
+      // The commit, same rule as the file plane: the placement (a rename, or a
+      // verified directory swap) must not start once the request is over.
+      admission.check();
       final landed = await _landStagedBlob(requested, staged);
       if (landed == null) {
         debugPrint('sync blob: the pushed $kind "$key" did not verify');
@@ -3647,6 +3768,8 @@ class SyncEngine implements SyncServerHandler {
         await _pairPushedSkill(peerDeviceId, session, key);
       }
       return true;
+    } on SyncAdmissionLost {
+      rethrow;
     } catch (error) {
       debugPrint('sync blob: receiving the pushed $kind "$key" failed: $error');
       return false;

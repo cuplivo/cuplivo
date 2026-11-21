@@ -138,6 +138,16 @@ contradicts one of them is a bug, not a preference.
   nothing on the peer, so its row is filtered out at the row level — the one entity kind with a
   per-row exclusion, and it has to stay that way, because a row that never entered the manifest
   cannot be read as a deletion.
+- **A row can be held on one device (仅本机)**: the MCP edit form's switch holds one server — its
+  `syncBusinessKey` goes into a device-local file (`sync/local-only.json`), not a column, because a
+  column would travel under LWW and the peer's "not held" would flip this device's "held". A held row
+  is left out of this device's manifest, plans **no exchange at all** (not even a deletion, and not the
+  `none` that means "we agree"), and is refused on the apply side; the hello announces the *keys*
+  (`hello.localOnly`, protocol 10) so the peer knows an absence it sees is a hold rather than a
+  deletion. Without that announcement the peer plans `peerDeletes` and removes its own copy, every
+  session — the defect this exists for. A hold is not a fourth disposition: nothing about the row
+  changes, only whether this device offers it, and a key whose row is gone is kept so a server
+  restored from the recycle bin comes back still held.
 - **A family is a registration (家族登记)**: what crosses devices, how it enters a
   conversation's identity, and which of its columns may reference a file are **one entry** in
   `sync_family_registry.dart` — table, scope, kind filter, identity rule, blob columns, and

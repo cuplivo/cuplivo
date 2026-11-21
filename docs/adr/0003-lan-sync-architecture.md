@@ -2326,7 +2326,9 @@ Two things this does **not** do, both deliberate:
   receiver never caps, and the peer's own plan requests it. So the conversation converges as long as
   the peer dials — and an install where only one side ever dials keeps it one-sided. That is the
   known limitation, and the reason the panel says the conversation *did not fit in this push*
-  rather than *lost*.
+  rather than *lost*. One cost is measure-side and worth naming: the subtree is read and serialised
+  before admission can know its size, so such a conversation costs one full read and one full encode
+  on every session until it is trimmed or the peer pulls it.
 - **The fetch response is not budgeted.** The 256 MB cap is a request-body cap; a 200 MB response is
   read whole by the client. Bounding that direction needs its own admission point and its own state
   table (the responder cannot report an omission — the response is never acknowledged), which is a
@@ -2408,31 +2410,28 @@ plan reads that checkpoint as current — fetches a copy without the row and del
 
 The refresh cannot simply be dropped: it is what records that the peer has seen these rows, and
 without it a peer's deletion of a row in a settled conversation would never be applied, because the
-ledger only knows what to delete from what an earlier agreement claimed. So the line is drawn with a
-stamp taken **before** the manifest is read: a refresh whose rows include one written after that
-instant waits a round, keeping the previous entry — or none, which is safe, since no entry means no
-deletions inferred. The next session finds the row in both manifests and either heals or sends it.
+ledger only knows what to delete from what an earlier agreement claimed. So a refresh is admitted only
+when it **is** the state the manifest attested: same digest (the message identity the peer saw — it
+contributes each row's id and clock) and same conversation-row clock (the one field the identity cannot
+see, and the one the delete branch reads). A write in the window moves one of the two, and the refresh
+then waits a round, keeping the previous entry — or none, which is safe, since no entry means no
+deletions inferred. The next session finds the write in both manifests and either heals or sends it.
 
-`sync_engine_integration_test.dart` holds it (`a none heal does not record a row written during the
-session`); disabling the stamp turns the cell into the loss — the following session deletes the row.
+`sync_engine_integration_test.dart` holds it: `a none heal does not record a row written during the
+session` (a message row) and `a rename during a heal is not recorded as the agreement` (the row clock).
 
-The entry carries **two** clocks, and both have to be drawn: the message clocks (the ledger the
-deletion oracle consults) and the conversation row's own clock. The second one is not decoration —
-`syncConversationDigest` covers the conversation's families and never the root row, so a rename, a
-pin or a version selection moves no digest and no message row: that clock is the only carrier of the
-write, and it is what the plan's delete branch reads to tell an edited copy from an untouched one
-(`copyWrittenSinceAgreement`). A refresh whose row clock is newer than the one the manifest attested
-waits the round too, so an entry never claims a write the peer has not seen.
+Both comparisons are **by value, never against a clock of this device's own**, and that distinction is
+load-bearing rather than stylistic. A message clock was written by whichever device authored the row,
+and the session report already names the case where a peer's clock runs ahead; a rule of the form "a
+row newer than my instant" then refuses the heal on every session, for ever. With no entry written,
+the ledger is empty, `mergeMessageRows` keeps every local row the peer's payload lacks, and a deletion
+— never inferred — comes back as a row the other side re-sends, for as long as the clock stays ahead.
+Comparing the agreement with itself has no such ruler: a row that merely runs ahead moves neither
+value, and the row that *was* written mid-session moves one of them, whatever its clock says. Symmetric
+for the backdated import: it cannot slip under a bound that is not expressed in wall-clock terms.
 
-One bound on that half: a message row's clock is `COALESCE(updated_at, timestamp)`, and an insert
-leaves `updated_at` empty — so a row whose `timestamp` is *backdated* (an import preserving the
-original time) could sit under the stamp. The ordinary write path also moves the conversation row,
-which the second clock catches; what would slip is a raw import writing into an already-settled
-conversation without touching its row, and no such path is known today. If one appears, a ledger keyed
-on row clocks is the wrong witness for an insert, and only an id set read at hello would close it.
-
-What the stamp still cannot see is a mid-session write in a *different* family — a part or an artifact
-row. The digest moves (it covers those families) but no ledger row does, so the entry claims a digest
-the peer has not seen; the deletion oracle only knows ledger rows, so nothing is deleted and the cost
-is one redundant round. The same was once said here about a rename and it was wrong: the clock above
-is exactly what a rename is made of.
+What remains unseen is a mid-session write in a *different* family — a part or an artifact row. The
+digest moves (it covers those families) but no ledger row does, so the entry claims a digest the peer
+has not seen; the deletion oracle only knows ledger rows, so nothing is deleted and the cost is one
+redundant round. The same was once said here about a rename and it was wrong: the row clock above is
+exactly what a rename is made of.

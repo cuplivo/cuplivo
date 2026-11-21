@@ -128,6 +128,11 @@ const int kSyncMaxBodyBytes = 256 * 1024 * 1024;
 /// costs the sender several times the cap in memory. Sixty rather than eighty
 /// because this runs on phones.
 ///
+/// The measurement's own copy is inside that figure too: admission serialises
+/// one conversation at a time to learn its size, so a conversation at the
+/// per-conversation ceiling adds one encode of its own on top of the batch it
+/// is being admitted into.
+///
 /// Named for what it holds: the *budget*, not the headroom. A name carrying the
 /// other side of the ratio would make "give the send path more headroom" a
 /// change that halves it.

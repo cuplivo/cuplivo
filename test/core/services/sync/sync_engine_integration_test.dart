@@ -5162,6 +5162,49 @@ void main() {
         );
       },
     );
+
+    test('an omitted conversation rides the next round once it fits', () async {
+      // The other half of "deferred, not failed", and the only cell where an
+      // omission ends in a transfer: nothing about it is sticky. Too big this
+      // round, it shrinks before the next one, which carries it with a zero
+      // count. (The pair's budget is sized here so both states are unambiguous;
+      // the other cells' conversations stay over it deliberately.)
+      final (a, b) = await budgetPair(budget: 4000);
+      await _seedConversation(a, id: 'conv-a', contents: ['shared']);
+      final first = await a.engine.syncWithPeer(await a.peer(b));
+      expect(first.success, isTrue, reason: first.summary);
+
+      await a.repository.putMessage(
+        ChatMessage(
+          id: 'conv-a-big',
+          conversationId: 'conv-a',
+          role: 'user',
+          content: 'x' * 4000,
+        ),
+      );
+      final omitted = await a.engine.syncWithPeer(await a.peer(b));
+      expect(omitted.success, isTrue, reason: omitted.summary);
+      expect(omitted.conversationsOmittedForSize, 1);
+      expect(await _messageIds(b, 'conv-a'), isNot(contains('conv-a-big')));
+
+      await a.repository.deleteMessage('conv-a-big');
+      await a.repository.putMessage(
+        ChatMessage(
+          id: 'conv-a-a2',
+          conversationId: 'conv-a',
+          role: 'user',
+          content: 'small',
+        ),
+      );
+      final retried = await a.engine.syncWithPeer(await a.peer(b));
+      expect(retried.success, isTrue, reason: retried.summary);
+      expect(retried.conversationsOmittedForSize, 0);
+      expect(
+        await _messageIds(b, 'conv-a'),
+        contains('conv-a-a2'),
+        reason: 'it fits again, so this round carries it',
+      );
+    });
   });
 
   test('a write during the session is not recorded as the peer\'s', () async {
@@ -5469,6 +5512,71 @@ void main() {
       );
     },
   );
+
+  test('a heal is not blocked by a peer clock that runs ahead', () async {
+    // The heal used to compare a message clock against this device's own
+    // instant. A row written by a device whose clock runs ahead — the skew the
+    // report names — or imported with a future timestamp is "newer than the
+    // manifest" forever: the heal never writes an entry, the ledger stays
+    // empty, and every later deletion in that conversation is undone. The
+    // agreement is compared by value instead, and a clock that merely runs
+    // ahead changes neither value.
+    final (a, b) = await pair();
+    final future = DateTime.now().add(const Duration(hours: 1)).toUtc();
+    await b.repository.putMigrationBatch(
+      conversations: [
+        Conversation(
+          id: 'conv-f',
+          title: 'conv-f',
+        ).copyWith(messageIds: ['conv-f-m0']),
+      ],
+      messages: [
+        (
+          message: ChatMessage(
+            id: 'conv-f-m0',
+            conversationId: 'conv-f',
+            role: 'user',
+            content: 'from the future',
+            timestamp: future,
+          ),
+          messageOrder: 0,
+        ),
+      ],
+      toolEventsByMessageId: const {},
+      geminiSignaturesByMessageId: const {},
+    );
+    await b.chatService.reloadAfterExternalChange();
+
+    // S1: A pulls it. B served it in a fetch response, so B's own entry stays
+    // at prior — which is none.
+    final pulled = await a.engine.syncWithPeer(await a.peer(b));
+    expect(pulled.success, isTrue, reason: pulled.summary);
+    expect(await _messageIds(a, 'conv-f'), contains('conv-f-m0'));
+
+    // S2: both manifests agree, so the plan is `none` and the heal is the only
+    // writer that can record what A now holds.
+    final idle = await a.engine.syncWithPeer(await a.peer(b));
+    expect(idle.success, isTrue, reason: idle.summary);
+    final entry = (await b.store.loadCheckpoint(
+      a.identity.deviceId,
+    )).conversations['conv-f'];
+    expect(
+      entry,
+      isNotNull,
+      reason: 'the agreement, not this device\'s wall clock, decides',
+    );
+
+    // S3: A deletes that row. B's ledger knows it now, so the deletion lands
+    // instead of coming back as a row B re-sends.
+    await a.repository.deleteMessage('conv-f-m0');
+    final next = await a.engine.syncWithPeer(await a.peer(b));
+    expect(next.success, isTrue, reason: next.summary);
+    expect(
+      await _messageIds(b, 'conv-f'),
+      isNot(contains('conv-f-m0')),
+      reason: 'the deletion reaches B and stays',
+    );
+  });
 
   test('a peer deletion the peer deferred is retried, not undone', () async {
     final (a, b) = await pair();

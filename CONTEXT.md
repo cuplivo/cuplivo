@@ -583,6 +583,19 @@ contradicts one of them is a bug, not a preference.
   a session needs, and it is cheap enough to ask every ten seconds. It is what replaced the bare
   TCP connect that used to decide the online dot: that probe could answer while every session
   failed, because "the port is open" is not "this peer will talk to me".
+- **A push has a byte budget (一次推送的字节预算)**: one push is one JSON document, and the
+  receiver counts it after decompression, refusing 413 past `kSyncMaxBodyBytes`. A refused push
+  fails the whole round and the next round rebuilds the same body, so an over-cap push is a pair
+  that stops converging. Before the batch is built, `sync_budget.dart` measures the parts that
+  travel whatever the conversation list is — business rows, the asset manifest, the skill hashes,
+  the workspace tables — and admits conversations in plan order against what is left
+  (`kSyncDeltaByteBudget`, with half of it as one conversation's ceiling). A conversation that
+  does not fit is **deferred, not failed**: it stays out of the push, its checkpoint does not
+  move, and the next session retries it while everything else still travels. The report names the
+  count (`conversationsOmittedForSize`): most of them are the plan's tail and ride the next session
+  on their own, and only one past the single-conversation ceiling needs the peer to pull it.
+  Not fragmented: a conversation too large for any push still arrives when the peer *pulls* it,
+  which is the fetch response's unbounded path (ADR-0003's known limitation).
 - **One plan, two faces**: conversations and business rows (entities + preferences) are decided
   by the same table — present on one side, newer clock, tie to the higher deviceId — and travel
   in the same batch, so one session moves a conversation and the assistant it references.
@@ -653,7 +666,16 @@ contradicts one of them is a bug, not a preference.
   (conversations and business rows) — and an interrupted fetch deleted the only copy on both
   devices. An `iSend` entry also describes the payload that was actually sent, never a fresh read:
   a row written while the session was in flight was never sent, and recording it as peer-seen made
-  the next merge delete it here.
+  the next merge delete it here. The receive side asks the same question of the payload it was handed
+  (`peerSends`, and `bothSend` on the responder, whose own half — the fetch response — is never
+  acknowledged); `bothSend` on the initiator, whose push the responder acknowledged, is the apply's
+  snapshot admitted only when every row in it sits at the clock the peer's own copy carries, because the
+  clock is what tells a later deletion that this device edited the row. The `none` heal — the one entry
+  built from a live re-read — is admitted only when that read **is** the state the manifest attested:
+  same digest (the message identity) and same conversation-row clock (the only carrier of a rename, a
+  pin or a version selection). Both comparisons are by value, never against a clock of this device's
+  own, so a peer's fast clock or a backdated import cannot block the heal — which would leave the ledger
+  empty and every later deletion undone.
 - **A premise is re-read where it is used (前提在用的时刻重读)**: a plan is computed from a walk and
   executed beats later, so the half of its premise that can move — the local row, the local file,
   the workspace switch, the history — is read again at the moment of the write, while the half that

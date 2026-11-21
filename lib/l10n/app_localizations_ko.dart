@@ -17417,6 +17417,11 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportConversationsOmittedForSize(Object count) {
+    return '이번 전송에 담지 못한 대화 $count개';
+  }
+
+  @override
   String lanSyncReportWorkspacesKept(Object count) {
     return '작업 공간 폴더 $count개를 디스크에 유지했습니다(동기화가 꺼져 있거나 동기화되지 않은 파일 포함)';
   }

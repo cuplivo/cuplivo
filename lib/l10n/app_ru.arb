@@ -5229,6 +5229,7 @@
   "lanSyncReportWorkspaceConflicts": "Перезаписано правок файлов рабочей области: {count}",
   "lanSyncReportWorkspaceMissing": "Не применено файлов рабочей области: {count}",
   "lanSyncReportWorkspacesOmitted": "Рабочих областей без синхронизации файлов: {count}",
+  "lanSyncReportConversationsOmittedForSize": "Не вошло в эту отправку чатов: {count}",
   "lanSyncReportWorkspacesKept": "Папок рабочей области сохранено на диске: {count} (синхронизация выключена или в папке есть несинхронизированные файлы)",
   "lanSyncReportDeletesBlocked": "Пропущено удалений: {count} (локальная копия изменилась)",
   "lanSyncReportRowsLost": "Заменено более новыми записями с другого устройства: {n} (можно вернуть в корзине)",

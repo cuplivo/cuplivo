@@ -2464,3 +2464,150 @@ to point one lane over.
 * The "Every request has a deadline, on both planes" bullet (slice 5) is now "from admission", and the
   deadline *cancels* rather than merely returning.
 * Slice 19's and slice 24's descriptions of the request loop are superseded by the lane table above.
+
+## A push has a byte budget
+
+One push is one JSON document (`SyncDeltaBatch`), and the receiving side counts it **after
+decompression** against `kSyncMaxBodyBytes` (`sync_server.dart`). Past that cap it answers 413 and
+the whole round fails — and the next round rebuilds the same body from the same rows, so an
+over-cap push is not a slow pair: it is a pair that never syncs again, with one "failed" line on the
+card to show for it. The conversations that made the body big are exactly the ones carrying the
+documents v9 started sending, so the failure arrives with the feature that makes it likely.
+
+The client therefore builds a batch that fits, decided before the batch exists:
+
+- `sync_budget.dart` measures the part that travels whatever the conversation list is — business
+  rows, the asset manifest, the skill hashes, the workspace tables — by serialising it once
+  (`pushEnvelopeBytes`). The asset manifest is built for *every planned* conversation, which is an
+  upper bound of the one that will be sent, so the measurement cannot be beaten by the final batch.
+- Conversations are admitted in plan order against `kSyncDeltaByteBudget - envelope`, each costing
+  its own serialised length plus one comma. The identity is exact — `body = envelope + Σ(size + 1)
+  − 1` — so the bound is arithmetic, not headroom. `kSyncMaxConversationBytes` (half the budget)
+  stops one huge conversation from displacing the rest of the round.
+- A conversation that does not fit is **deferred, not failed**. It stays out of `outgoing`, its
+  checkpoint entry stays at `prior`, and the next session retries it while the other conversations
+  still travel. The report names the count (`conversationsOmittedForSize`): most of them are
+  the plan's tail and ride the next round on their own, and a conversation past the
+  per-conversation limit is the one that can only arrive when the peer pulls it.
+
+Two things this does **not** do, both deliberate:
+
+- **No fragmentation.** A conversation larger than `kSyncMaxConversationBytes` cannot ride in any
+  push. It still arrives when the peer *pulls* it: the fetch response is a response body, which the
+  receiver never caps, and the peer's own plan requests it. So the conversation converges as long as
+  the peer dials — and an install where only one side ever dials keeps it one-sided. That is the
+  known limitation, and the reason the panel says the conversation *did not fit in this push*
+  rather than *lost*. One cost is measure-side and worth naming: the subtree is read and serialised
+  before admission can know its size, so such a conversation costs one full read and one full encode
+  on every session until it is trimmed or the peer pulls it.
+- **The fetch response is not budgeted.** The 256 MB cap is a request-body cap; a 200 MB response is
+  read whole by the client. Bounding that direction needs its own admission point and its own state
+  table (the responder cannot report an omission — the response is never acknowledged), which is a
+  separate change. Until then a library large enough to matter can still hurt the *pulling* side.
+
+And one edge the measurement cannot fix: **the parts that travel whatever the conversations are can
+themselves exceed the budget.** The envelope is measured, not capped — workspace tables top out at
+20,000 ledger entries and the asset manifest grows with the blobs the rows reference, so a fixed part
+above 153.6 MB admits no conversation at all and the body is still only refused at the 256 MB cap.
+Reaching it takes a pathological library; shrinking it needs the business/asset faces to be admitted
+too, which is a different change.
+
+The send path's own copies are why the budget is 60% of the cap: the batch's row maps, the JSON
+text, its UTF-8 buffer and the gzip buffer are all alive before a byte reaches the socket. The very
+batch that leaves is measured once more under `assert` (`assertPushFits`), so a future edit that
+measures one list and sends another fails on the sender instead of as a 413 on the peer.
+
+### The rule the budget exposed in the checkpoint
+
+Deferring a send was already a thing (a conversation being generated is not pushed). The budget adds
+a second, *durable* reason, and that turned a latent bug into a deterministic one: the checkpoint's
+`iSend` arm refused to advance for a skipped send, but the `bothSend` arm advanced from the peer's
+apply alone. An entry built that way recorded the post-merge local state as "the peer has this" —
+including rows the peer never received — so the next session planned `peerSends`, fetched a copy
+without those rows, and the merge deleted them (local-only, clock equal to the recorded one). Two
+sessions turned "not sent this round" into data loss.
+
+The rule is now one question, asked by both send arms: **did this device's copy cross the wire** —
+`sentSubtrees` (the batch this beat built) plus `sendsConfirmed` (a fetch response is never
+acked). `sync_engine_integration_test.dart` holds the proof twice: a conversation omitted on the
+`bothSend` path keeps the edit it did not send, with a prior entry and without one.
+
+### The same question, asked of an arrival
+
+The rule above is about what this device *sent*. The entry for a conversation the peer sends has the
+same requirement, and had the same defect: whether `peerSends` or `bothSend`, it was composed from the
+apply's post-merge snapshot. That snapshot starts from a local read taken **inside** the apply
+transaction, so a row the user wrote between the hello and the apply — a window that spans the push
+beat and the whole blob pull — is in it. The entry then recorded that row as peer-held, and the next
+session, planning from a checkpoint that already matched its own digest, fetched a copy without the
+row and deleted it here. Same data loss, other direction, longer window.
+
+The rule is now symmetric, in bytes:
+
+- **`peerSends` records the payload that arrived** — the same construction the sender's `iSend` arm
+  makes of the same payload, so one transfer produces one entry, identical on both sides. A row this
+  device wrote while the session ran is in neither payload and cannot be claimed.
+- **`bothSend` is the merge of two payloads**, which no single payload describes, so which payload a
+  device may claim depends on which half of the session it can show crossed.
+  On the **initiator**, whose push the responder acknowledged, the peer's copy is read after it applied
+  that push — so the entry is the apply's snapshot, admitted only when every row in it sits at the clock
+  the peer's own copy carries for it. The comparison is by **clock**, not by id, and that distinction is
+  the whole rule: an edit keeps the id and moves the clock, so an id check admits it, the ledger records
+  the edit as the agreement, and the peer's later deletion of that row reads "untouched here" — the one
+  reading the deletion oracle acts on — and deletes the edit.
+  On the **responder**, whose half is the fetch response and nothing acknowledges a response, the entry
+  is the payload the initiator pushed — the same construction `peerSends` uses. The rows the responder
+  served itself are deliberately not in it: they may have been lost with the response, and claiming them
+  would let the peer's later silence delete them. They are recorded one session later, when both
+  manifests agree and the heal runs. Without that distinction the responder's entry never moved at all,
+  so a row that arrived in the push had no ledger clock and the initiator's later deletion of it could
+  not be inferred: the responder kept it and served it back.
+  What the rule still cannot see is a mid-session write in a family the ledger does not index (an
+  artifact row, which carries no message clock); that costs one round of convergence, never a deletion.
+
+`sync_engine_integration_test.dart` holds the halves: the receiver's mid-session insert survives and
+travels one round later for `peerSends` and `bothSend`, and a mid-session *edit* survives the peer
+deleting that same row.
+
+### And the guard knows about the edge it cannot fix
+
+The send-site guard (`assertPushFits`) takes the measured fixed part as its bound when that part is
+larger than the budget: a round whose envelope alone is over the budget admits no conversation and its
+body *is* the envelope, which only the receiver's 256 MB cap may refuse. A debug build must not fail a
+round release lets the peer answer.
+
+### The third writer: a heal is a live read too
+
+`none` is the arm where both manifests agree and the entry is refreshed, and its source is a live
+re-read — the one place a checkpoint entry is built from "however the row looks now" rather than from
+a payload. The same window therefore applies: a message written while the session ran is in the
+refresh and in neither manifest, so the entry claims the peer holds it, and the next session — whose
+plan reads that checkpoint as current — fetches a copy without the row and deletes it here.
+
+The refresh cannot simply be dropped: it is what records that the peer has seen these rows, and
+without it a peer's deletion of a row in a settled conversation would never be applied, because the
+ledger only knows what to delete from what an earlier agreement claimed. So a refresh is admitted only
+when it **is** the state the manifest attested: same digest (the message identity the peer saw — it
+contributes each row's id and clock) and same conversation-row clock (the one field the identity cannot
+see, and the one the delete branch reads). A write in the window moves one of the two, and the refresh
+then waits a round, keeping the previous entry — or none, which is safe, since no entry means no
+deletions inferred. The next session finds the write in both manifests and either heals or sends it.
+
+`sync_engine_integration_test.dart` holds it: `a none heal does not record a row written during the
+session` (a message row) and `a rename during a heal is not recorded as the agreement` (the row clock).
+
+Both comparisons are **by value, never against a clock of this device's own**, and that distinction is
+load-bearing rather than stylistic. A message clock was written by whichever device authored the row,
+and the session report already names the case where a peer's clock runs ahead; a rule of the form "a
+row newer than my instant" then refuses the heal on every session, for ever. With no entry written,
+the ledger is empty, `mergeMessageRows` keeps every local row the peer's payload lacks, and a deletion
+— never inferred — comes back as a row the other side re-sends, for as long as the clock stays ahead.
+Comparing the agreement with itself has no such ruler: a row that merely runs ahead moves neither
+value, and the row that *was* written mid-session moves one of them, whatever its clock says. Symmetric
+for the backdated import: it cannot slip under a bound that is not expressed in wall-clock terms.
+
+What remains unseen is a mid-session write in a *different* family — a part or an artifact row. The
+digest moves (it covers those families) but no ledger row does, so the entry claims a digest the peer
+has not seen; the deletion oracle only knows ledger rows, so nothing is deleted and the cost is one
+redundant round. The same was once said here about a rename and it was wrong: the row clock above is
+exactly what a rename is made of.

@@ -17024,6 +17024,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportConversationsOmittedForSize(Object count) {
+    return '$count 个对话没能放进本轮推送';
+  }
+
+  @override
   String lanSyncReportWorkspacesKept(Object count) {
     return '已保留 $count 个工作区文件夹（开关已关闭或含未同步文件）';
   }
@@ -35020,6 +35025,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String lanSyncReportWorkspacesOmitted(Object count) {
     return '$count 个工作区未同步文件';
+  }
+
+  @override
+  String lanSyncReportConversationsOmittedForSize(Object count) {
+    return '$count 个对话没能放进本轮推送';
   }
 
   @override
@@ -53030,6 +53040,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String lanSyncReportWorkspacesOmitted(Object count) {
     return '$count 個工作區未同步檔案';
+  }
+
+  @override
+  String lanSyncReportConversationsOmittedForSize(Object count) {
+    return '$count 個對話沒能放進本輪推送';
   }
 
   @override

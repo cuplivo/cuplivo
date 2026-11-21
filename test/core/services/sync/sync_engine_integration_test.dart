@@ -405,6 +405,8 @@ class _Side {
     this.workspaceMaxFiles = kMaxWorkspaceFiles,
     this.workspaceMaxLedgerEntries = kMaxWorkspaceLedgerEntries,
     this.yieldedSessionTtl = SyncEngine.kYieldedSessionTtl,
+    this.deltaByteBudget = kSyncDeltaByteBudget,
+    this.maxConversationBytes = kSyncMaxConversationBytes,
     this.now,
   });
 
@@ -444,6 +446,12 @@ class _Side {
   /// sweep drops it. The production default everywhere: the tests that drive a
   /// session's clock move *time*, which is what the rule is defined by.
   final Duration sessionIdleTtl = SyncEngine.kSessionIdleTtl;
+
+  /// This side's push budget and per-conversation cap — the production values,
+  /// shrunk by the budget tests so a conversation of a few kilobytes is "too
+  /// large to push" instead of a fixture of tens of megabytes.
+  final int deltaByteBudget;
+  final int maxConversationBytes;
 
   /// This side's wall clock, when a test needs to move time instead of waiting
   /// for it. Null means the production `DateTime.now`.
@@ -743,6 +751,8 @@ class _Side {
       onResponderSession: (peer, report) => responderReport = report,
       yieldedSessionTtl: yieldedSessionTtl,
       sessionIdleTtl: sessionIdleTtl,
+      deltaByteBudget: deltaByteBudget,
+      maxConversationBytes: maxConversationBytes,
       now: now,
       clockUs: () => DateTime.now().microsecondsSinceEpoch + clockOffsetUs,
     );
@@ -1185,6 +1195,21 @@ Future<Set<String>> _messageIds(_Side side, String conversationId) async => {
   for (final row in await side.repository.syncReadMessageRows(conversationId))
     row['id'] as String,
 };
+
+/// One message row's stored text, or null when the row is not there.
+///
+/// The wire read of a message row carries no `content` (the body travels as a
+/// document, not in the ledger row), so this goes through [getMessage], which
+/// rebuilds the message the way a reader sees it.
+Future<String?> _messageContent(
+  _Side side,
+  String conversationId,
+  String messageId,
+) async {
+  final message = await side.repository.getMessage(messageId);
+  if (message == null || message.conversationId != conversationId) return null;
+  return message.content;
+}
 
 /// The stored `message_order` of every row, in order — the property the apply's
 /// re-derivation must produce, and the one id-set assertions cannot see.
@@ -5214,6 +5239,713 @@ void main() {
       expect(await _messageIds(a, 'conv-a'), contains('conv-a-m1'));
     },
   );
+
+  group('one push\'s byte budget', () {
+    // A budget of a couple of kilobytes, so "too large to push" is a message of
+    // a few thousand characters rather than a fixture of tens of megabytes. The
+    // production values are derived in `sync_limits.dart`.
+    const tinyBudget = 1500;
+
+    Future<(_Side, _Side)> budgetPair({
+      int budget = tinyBudget,
+      int perConversation = kSyncMaxConversationBytes,
+    }) async {
+      final a = _Side(
+        'a',
+        deltaByteBudget: budget,
+        maxConversationBytes: perConversation,
+      );
+      final b = _Side('b');
+      await a.start(root);
+      await b.start(root);
+      sides.addAll([a, b]);
+      final pin = b.engine.openPairing();
+      await a.engine.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+      return (a, b);
+    }
+
+    test(
+      'a conversation the budget leaves behind is deferred, not failed',
+      () async {
+        final (a, b) = await budgetPair();
+        await _seedConversation(a, id: 'conv-big', contents: ['x' * 4000]);
+
+        final report = await a.engine.syncWithPeer(await a.peer(b));
+        expect(report.success, isTrue, reason: report.summary);
+        expect(
+          report.conversationsOmittedForSize,
+          1,
+          reason: 'the push left it behind and said so',
+        );
+        expect(
+          report.deferred,
+          0,
+          reason: 'the omission is counted once, not twice',
+        );
+        expect(report.conversationsSent, 0);
+        expect(await _conversationIds(b), isEmpty);
+      },
+    );
+
+    test(
+      'an omitted bothSend conversation keeps the edit it did not send',
+      () async {
+        // The data-loss shape the budget must not create: A's copy sat out the
+        // round, so the peer never received A's row. An entry built from the
+        // *apply* of B's copy claims the opposite, and the next session then
+        // reads A's own row as local-only and deletes it.
+        final (a, b) = await budgetPair();
+        await _seedConversation(a, id: 'conv-a', contents: ['shared']);
+        final first = await a.engine.syncWithPeer(await a.peer(b));
+        expect(first.success, isTrue, reason: first.summary);
+        expect(
+          await _conversationIds(b),
+          contains('conv-a'),
+          reason: 'the small copy fits, so both sides start from an agreement',
+        );
+
+        await a.repository.putMessage(
+          ChatMessage(
+            id: 'conv-a-aonly',
+            conversationId: 'conv-a',
+            role: 'user',
+            content: 'x' * 3000,
+          ),
+        );
+        await b.repository.putMessage(
+          ChatMessage(
+            id: 'conv-a-bonly',
+            conversationId: 'conv-a',
+            role: 'user',
+            content: 'written on b',
+          ),
+        );
+
+        final omitted = await a.engine.syncWithPeer(await a.peer(b));
+        expect(omitted.success, isTrue, reason: omitted.summary);
+        expect(omitted.conversationsOmittedForSize, 1);
+        expect(
+          await _messageIds(a, 'conv-a'),
+          containsAll(<String>['conv-a-aonly', 'conv-a-bonly']),
+          reason: 'B\'s copy was applied; A\'s own row is still here',
+        );
+
+        // The session where the false entry would show: A plans from the
+        // checkpoint, and a "we agree" entry turns it into peerSends — B serves a
+        // copy without the row A never sent, and the merge deletes it.
+        final next = await a.engine.syncWithPeer(await a.peer(b));
+        expect(next.success, isTrue, reason: next.summary);
+        expect(
+          await _messageIds(a, 'conv-a'),
+          contains('conv-a-aonly'),
+          reason: 'a send that did not happen must not be recorded as received',
+        );
+      },
+    );
+
+    test(
+      'an omitted bothSend conversation with no prior entry records none',
+      () async {
+        // The same rule with nothing to fall back to: prior == null must leave
+        // no entry, never one built from the peer's apply.
+        final (a, b) = await budgetPair();
+        await _seedConversation(a, id: 'conv-a', contents: ['shared']);
+        await _seedConversation(b, id: 'conv-a', contents: ['shared on b']);
+        await a.repository.putMessage(
+          ChatMessage(
+            id: 'conv-a-aonly',
+            conversationId: 'conv-a',
+            role: 'user',
+            content: 'x' * 3000,
+          ),
+        );
+
+        final omitted = await a.engine.syncWithPeer(await a.peer(b));
+        expect(omitted.success, isTrue, reason: omitted.summary);
+        expect(omitted.conversationsOmittedForSize, 1);
+
+        final next = await a.engine.syncWithPeer(await a.peer(b));
+        expect(next.success, isTrue, reason: next.summary);
+        expect(
+          await _messageIds(a, 'conv-a'),
+          contains('conv-a-aonly'),
+          reason: 'no entry was written, so A still owes its own copy',
+        );
+      },
+    );
+
+    test(
+      'a conversation past the per-conversation cap is left behind alone',
+      () async {
+        // The cap is the bound that keeps one huge conversation from displacing
+        // the rest of the round: the budget here is ten times the cap, and the
+        // conversation still does not ride.
+        final (a, b) = await budgetPair(budget: 20000, perConversation: 2000);
+        await _seedConversation(a, id: 'conv-huge', contents: ['x' * 3000]);
+        await _seedConversation(a, id: 'conv-ok', contents: ['hi']);
+
+        final report = await a.engine.syncWithPeer(await a.peer(b));
+        expect(report.success, isTrue, reason: report.summary);
+        expect(report.conversationsOmittedForSize, 1);
+        expect(report.conversationsSent, 1);
+        expect(await _conversationIds(b), {'conv-ok'});
+      },
+    );
+
+    test(
+      'a conversation left behind does not hold back the business face',
+      () async {
+        final (a, b) = await budgetPair();
+        await _seedConversation(a, id: 'conv-big', contents: ['x' * 4000]);
+        await a.businessPreferences.setString('user_name', 'Alice');
+
+        final report = await a.engine.syncWithPeer(await a.peer(b));
+        expect(report.success, isTrue, reason: report.summary);
+        expect(report.conversationsOmittedForSize, 1);
+        expect(
+          await b.businessRepository.syncReadPreferenceRows({'user_name'}),
+          hasLength(1),
+          reason: 'the two faces share a body, not a budget line',
+        );
+      },
+    );
+
+    test(
+      'a conversation left behind still arrives when the peer pulls it',
+      () async {
+        // The known limitation, pinned: the budget bounds the push body only.
+        // The fetch response is not budgeted, so the peer's own plan delivers what
+        // this device could not push — as long as the peer dials.
+        final (a, b) = await budgetPair();
+        await _seedConversation(a, id: 'conv-big', contents: ['x' * 4000]);
+
+        final pushed = await a.engine.syncWithPeer(await a.peer(b));
+        expect(pushed.conversationsOmittedForSize, 1);
+        expect(await _conversationIds(b), isEmpty);
+
+        final pulled = await b.engine.syncWithPeer(await b.peer(a));
+        expect(pulled.success, isTrue, reason: pulled.summary);
+        expect(await _conversationIds(b), {'conv-big'});
+      },
+    );
+
+    test(
+      'one conversation is one row, omitted and unserved together',
+      () async {
+        // A `bothSend` conversation the push left out *and* the peer could not
+        // serve (it is generating there) is one conversation. Both numbers used
+        // to name it: the omission from the budget and the fetch's miss.
+        final (a, b) = await budgetPair();
+        await _seedConversation(a, id: 'conv-a', contents: ['shared']);
+        final first = await a.engine.syncWithPeer(await a.peer(b));
+        expect(first.success, isTrue, reason: first.summary);
+
+        await a.repository.putMessage(
+          ChatMessage(
+            id: 'conv-a-big',
+            conversationId: 'conv-a',
+            role: 'user',
+            content: 'x' * 4000,
+          ),
+        );
+        await b.repository.putMessage(
+          ChatMessage(
+            id: 'conv-a-bonly',
+            conversationId: 'conv-a',
+            role: 'user',
+            content: 'written on b',
+          ),
+        );
+        await _setStreaming(b, 'conv-a', streaming: true);
+
+        final report = await a.engine.syncWithPeer(await a.peer(b));
+        expect(report.success, isTrue, reason: report.summary);
+        expect(
+          report.conversationsOmittedForSize,
+          1,
+          reason: 'it did not fit the push',
+        );
+        expect(
+          report.deferred,
+          0,
+          reason: 'and the peer could not serve it either — still one row',
+        );
+      },
+    );
+
+    test('an omitted conversation rides the next round once it fits', () async {
+      // The other half of "deferred, not failed", and the only cell where an
+      // omission ends in a transfer: nothing about it is sticky. Too big this
+      // round, it shrinks before the next one, which carries it with a zero
+      // count. (The pair's budget is sized here so both states are unambiguous;
+      // the other cells' conversations stay over it deliberately.)
+      final (a, b) = await budgetPair(budget: 4000);
+      await _seedConversation(a, id: 'conv-a', contents: ['shared']);
+      final first = await a.engine.syncWithPeer(await a.peer(b));
+      expect(first.success, isTrue, reason: first.summary);
+
+      await a.repository.putMessage(
+        ChatMessage(
+          id: 'conv-a-big',
+          conversationId: 'conv-a',
+          role: 'user',
+          content: 'x' * 4000,
+        ),
+      );
+      final omitted = await a.engine.syncWithPeer(await a.peer(b));
+      expect(omitted.success, isTrue, reason: omitted.summary);
+      expect(omitted.conversationsOmittedForSize, 1);
+      expect(await _messageIds(b, 'conv-a'), isNot(contains('conv-a-big')));
+
+      await a.repository.deleteMessage('conv-a-big');
+      await a.repository.putMessage(
+        ChatMessage(
+          id: 'conv-a-a2',
+          conversationId: 'conv-a',
+          role: 'user',
+          content: 'small',
+        ),
+      );
+      final retried = await a.engine.syncWithPeer(await a.peer(b));
+      expect(retried.success, isTrue, reason: retried.summary);
+      expect(retried.conversationsOmittedForSize, 0);
+      expect(
+        await _messageIds(b, 'conv-a'),
+        contains('conv-a-a2'),
+        reason: 'it fits again, so this round carries it',
+      );
+    });
+  });
+
+  test('a write during the session is not recorded as the peer\'s', () async {
+    // The window is the push beat plus the whole blob pull, and a user types in
+    // it. The apply reads its base inside its own transaction, so that row is
+    // part of the post-merge snapshot — and an entry built from the snapshot
+    // recorded it as peer-held. The next session then served the peer's copy
+    // without it and deleted it here.
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(
+      root,
+      midApplyWrite: (conversationId) async {
+        await a.repository.putMessage(
+          ChatMessage(
+            id: 'conv-a-typed',
+            conversationId: conversationId,
+            role: 'user',
+            content: 'typed while the session ran',
+          ),
+        );
+      },
+    );
+    await b.start(root);
+    sides.addAll([a, b]);
+    await pairSides(a, b);
+
+    await _seedConversation(a, id: 'conv-a', contents: ['a1']);
+    await a.engine.syncWithPeer(await a.peer(b));
+    await b.repository.putMessage(
+      ChatMessage(
+        id: 'conv-a-b',
+        conversationId: 'conv-a',
+        role: 'user',
+        content: 'written on b',
+      ),
+    );
+
+    // A is the receiver here (peerSends) and types while B's copy is fetched.
+    final received = await a.engine.syncWithPeer(await a.peer(b));
+    expect(received.success, isTrue, reason: received.summary);
+    expect(
+      await _messageIds(a, 'conv-a'),
+      containsAll(<String>['conv-a-b', 'conv-a-typed']),
+    );
+
+    // The row is here and the entry never claimed it, so the next session
+    // carries it instead of reading its absence from B's copy as a deletion.
+    final next = await a.engine.syncWithPeer(await a.peer(b));
+    expect(next.success, isTrue, reason: next.summary);
+    expect(
+      await _messageIds(a, 'conv-a'),
+      contains('conv-a-typed'),
+      reason: 'the peer never received it, so it is not a deletion here',
+    );
+    expect(
+      await _messageIds(b, 'conv-a'),
+      contains('conv-a-typed'),
+      reason: 'and it travels, one round later',
+    );
+  });
+
+  test('a write during a bothSend session is not recorded either', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(
+      root,
+      midApplyWrite: (conversationId) async {
+        await a.repository.putMessage(
+          ChatMessage(
+            id: 'conv-a-typed',
+            conversationId: conversationId,
+            role: 'user',
+            content: 'typed while the session ran',
+          ),
+        );
+      },
+    );
+    await b.start(root);
+    sides.addAll([a, b]);
+    await pairSides(a, b);
+
+    await _seedConversation(a, id: 'conv-a', contents: ['a1']);
+    await a.engine.syncWithPeer(await a.peer(b));
+    await a.repository.putMessage(
+      ChatMessage(
+        id: 'conv-a-aonly',
+        conversationId: 'conv-a',
+        role: 'user',
+        content: 'written on a',
+      ),
+    );
+    await b.repository.putMessage(
+      ChatMessage(
+        id: 'conv-a-bonly',
+        conversationId: 'conv-a',
+        role: 'user',
+        content: 'written on b',
+      ),
+    );
+
+    final both = await a.engine.syncWithPeer(await a.peer(b));
+    expect(both.success, isTrue, reason: both.summary);
+
+    final next = await a.engine.syncWithPeer(await a.peer(b));
+    expect(next.success, isTrue, reason: next.summary);
+    expect(
+      await _messageIds(a, 'conv-a'),
+      containsAll(<String>['conv-a-aonly', 'conv-a-typed']),
+    );
+    expect(
+      await _messageIds(b, 'conv-a'),
+      contains('conv-a-typed'),
+      reason: 'the entry waited a round, then the next push carried it',
+    );
+  });
+
+  test('a message deleted after a bothSend session goes on both sides', () async {
+    // The responder's `bothSend` entry describes the payload the initiator
+    // pushed — its own half is the fetch response, and nothing acknowledges a
+    // response. It used to keep the *previous* agreement, so a row that arrived
+    // in that push had no ledger clock: deleting it afterwards left it on the
+    // responder, which then served it back.
+    final (a, b) = await pair();
+    await _seedConversation(a, id: 'conv-p', contents: ['p0']);
+    await a.engine.syncWithPeer(await a.peer(b)); // S1: the agreement
+
+    await a.repository.putMessage(
+      ChatMessage(
+        id: 'conv-p-a',
+        conversationId: 'conv-p',
+        role: 'user',
+        content: 'written on a',
+      ),
+    );
+    await b.repository.putMessage(
+      ChatMessage(
+        id: 'conv-p-b',
+        conversationId: 'conv-p',
+        role: 'assistant',
+        content: 'written on b',
+      ),
+    );
+    final both = await a.engine.syncWithPeer(await a.peer(b)); // S2: bothSend
+    expect(both.success, isTrue, reason: both.summary);
+    expect(
+      await _messageIds(b, 'conv-p'),
+      containsAll(<String>['conv-p-a', 'conv-p-b']),
+    );
+
+    // The row that arrived in the push must be in the responder's ledger, or
+    // the deletion below has no agreed clock to compare its absence against.
+    final entry = (await b.store.loadCheckpoint(
+      a.identity.deviceId,
+    )).conversations['conv-p'];
+    expect(entry?.rows.keys, contains('conv-p-a'));
+
+    await a.repository.deleteMessage('conv-p-a');
+    final next = await a.engine.syncWithPeer(await a.peer(b)); // S3: deletion
+    expect(next.success, isTrue, reason: next.summary);
+    expect(
+      await _messageIds(b, 'conv-p'),
+      isNot(contains('conv-p-a')),
+      reason: 'the deletion reaches the responder',
+    );
+
+    final after = await a.engine.syncWithPeer(await a.peer(b)); // S4
+    expect(after.success, isTrue, reason: after.summary);
+    expect(
+      await _messageIds(a, 'conv-p'),
+      isNot(contains('conv-p-a')),
+      reason: 'and does not come back',
+    );
+    expect(await _messageIds(b, 'conv-p'), isNot(contains('conv-p-a')));
+  });
+
+  test('a none heal does not record a row written during the session', () async {
+    // The third writer of a checkpoint entry. A conversation this device holds
+    // and the peer pulled leaves this side's entry at `prior` (a fetch response
+    // is never acknowledged), so a later `none` session heals it — from a live
+    // read, which includes a row written while that session ran. Recording it is
+    // the same loss as the two send arms: the next session serves the peer's
+    // copy without the row and deletes it here.
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(
+      root,
+      midApplyWrite: (conversationId) async {
+        await a.repository.putMessage(
+          ChatMessage(
+            id: 'conv-x-typed',
+            conversationId: 'conv-x',
+            role: 'user',
+            content: 'typed while the session ran',
+          ),
+        );
+      },
+    );
+    await b.start(root);
+    sides.addAll([a, b]);
+    await pairSides(a, b);
+
+    await _seedConversation(a, id: 'conv-x', contents: ['x1']);
+    final pulled = await b.engine.syncWithPeer(await b.peer(a));
+    expect(pulled.success, isTrue, reason: pulled.summary);
+    expect(await _messageIds(b, 'conv-x'), contains('conv-x-m0'));
+
+    // A new conversation from B gives the next session something to apply, and
+    // the write into conv-x lands while A heals it.
+    await _seedConversation(b, id: 'conv-z', contents: ['z1']);
+    final healed = await b.engine.syncWithPeer(await b.peer(a));
+    expect(healed.success, isTrue, reason: healed.summary);
+    expect(await _messageIds(a, 'conv-x'), contains('conv-x-typed'));
+    expect(await _conversationIds(a), contains('conv-z'));
+
+    // A initiates this one, because the deletion only happens to the side that
+    // *fetches* a copy without the row: the responder serves its own.
+    final next = await a.engine.syncWithPeer(await a.peer(b));
+    expect(next.success, isTrue, reason: next.summary);
+    expect(
+      await _messageIds(a, 'conv-x'),
+      contains('conv-x-typed'),
+      reason: 'the heal never claimed it, so its absence is not a deletion',
+    );
+    expect(
+      await _messageIds(b, 'conv-x'),
+      contains('conv-x-typed'),
+      reason: 'and it travels one round later',
+    );
+  });
+
+  test('a rename during a heal is not recorded as the agreement', () async {
+    // The heal's stamp vets message clocks. The entry's own clock is the
+    // conversation row's, which a rename, a pin or a version selection moves on
+    // its own — the digest never sees it. Recorded as the agreement, the entry
+    // claims a write the peer never acknowledged.
+    final a = _Side('a');
+    final b = _Side('b');
+    await b.start(
+      root,
+      midApplyWrite: (conversationId) async {
+        await b.chatService.renameConversation(
+          'conv-c',
+          'renamed while healing',
+        );
+      },
+    );
+    await a.start(root);
+    sides.addAll([a, b]);
+    await pairSides(a, b);
+
+    // B holds conv-c and serves it in a fetch, so B's own entry stays at prior.
+    await _seedConversation(b, id: 'conv-c', contents: ['c1']);
+    await b.chatService.reloadAfterExternalChange();
+    final pulled = await a.engine.syncWithPeer(await a.peer(b));
+    expect(pulled.success, isTrue, reason: pulled.summary);
+    final agreement = (await a.store.loadCheckpoint(
+      b.identity.deviceId,
+    )).conversations['conv-c']!;
+
+    // A gives the next session something B applies; the rename lands while B
+    // heals conv-c from its live read.
+    await _seedConversation(a, id: 'conv-z', contents: ['z1']);
+    final healed = await a.engine.syncWithPeer(await a.peer(b));
+    expect(healed.success, isTrue, reason: healed.summary);
+    expect(
+      (await b.repository.syncReadConversationRow('conv-c'))!['title'],
+      'renamed while healing',
+    );
+    final entry = (await b.store.loadCheckpoint(
+      a.identity.deviceId,
+    )).conversations['conv-c'];
+    expect(
+      entry?.updatedAtUs,
+      anyOf(isNull, agreement.updatedAtUs),
+      reason:
+          'a mid-session rename is not the agreed clock: the entry either '
+          'inherits the agreement or waits a round',
+    );
+
+    // And the consequence the poisoned clock would have: A deletes conv-c, and
+    // B's copy was renamed after the agreement, so the edit beats the delete.
+    // (The announcement carries A's own honest clock, which is what blocks it
+    // today — the entry above is the invariant, this is the behaviour.)
+    await a.repository.deleteConversation('conv-c');
+    final next = await a.engine.syncWithPeer(await a.peer(b));
+    expect(next.success, isTrue, reason: next.summary);
+    expect(
+      await b.repository.syncReadConversationRow('conv-c'),
+      isNotNull,
+      reason: 'the rename landed after the agreement: edit beats delete',
+    );
+  });
+
+  test(
+    'an edit during a bothSend session is not recorded as the agreement',
+    () async {
+      // The arm's guard compared ids, and an edit keeps the id: the snapshot
+      // recorded the edit's clock as the agreement, and the peer's later
+      // deletion of that row read "untouched here" and deleted the edit.
+      final a = _Side('a');
+      final b = _Side('b');
+      await a.start(
+        root,
+        midApplyWrite: (conversationId) async {
+          await a.repository.putMessage(
+            ChatMessage(
+              id: 'conv-c-m0',
+              conversationId: 'conv-c',
+              role: 'user',
+              content: 'edited while syncing',
+            ),
+          );
+        },
+      );
+      await b.start(root);
+      sides.addAll([a, b]);
+      await pairSides(a, b);
+
+      await _seedConversation(a, id: 'conv-c', contents: ['c1']);
+      await a.engine.syncWithPeer(await a.peer(b));
+
+      // Both sides change conv-c, so the next session is bothSend; the edit of
+      // m0 lands while A applies B's copy.
+      await a.repository.putMessage(
+        ChatMessage(
+          id: 'conv-c-a1',
+          conversationId: 'conv-c',
+          role: 'assistant',
+          content: 'written on a',
+        ),
+      );
+      await b.repository.putMessage(
+        ChatMessage(
+          id: 'conv-c-b1',
+          conversationId: 'conv-c',
+          role: 'assistant',
+          content: 'written on b',
+        ),
+      );
+      final both = await a.engine.syncWithPeer(await a.peer(b));
+      expect(both.success, isTrue, reason: both.summary);
+      expect(
+        await _messageContent(a, 'conv-c', 'conv-c-m0'),
+        'edited while syncing',
+      );
+
+      // B deletes m0. A edited it after the last agreement, so the edit beats
+      // the deletion: the row stays here and travels back.
+      await b.repository.deleteMessage('conv-c-m0');
+      final next = await a.engine.syncWithPeer(await a.peer(b));
+      expect(next.success, isTrue, reason: next.summary);
+      expect(
+        await _messageContent(a, 'conv-c', 'conv-c-m0'),
+        'edited while syncing',
+        reason:
+            'the entry never claimed the edit, so its absence is not a '
+            'deletion',
+      );
+      expect(
+        await _messageContent(b, 'conv-c', 'conv-c-m0'),
+        'edited while syncing',
+        reason: 'and the edit travels, one round later',
+      );
+    },
+  );
+
+  test('a heal is not blocked by a peer clock that runs ahead', () async {
+    // The heal used to compare a message clock against this device's own
+    // instant. A row written by a device whose clock runs ahead — the skew the
+    // report names — or imported with a future timestamp is "newer than the
+    // manifest" forever: the heal never writes an entry, the ledger stays
+    // empty, and every later deletion in that conversation is undone. The
+    // agreement is compared by value instead, and a clock that merely runs
+    // ahead changes neither value.
+    final (a, b) = await pair();
+    final future = DateTime.now().add(const Duration(hours: 1)).toUtc();
+    await b.repository.putMigrationBatch(
+      conversations: [
+        Conversation(
+          id: 'conv-f',
+          title: 'conv-f',
+        ).copyWith(messageIds: ['conv-f-m0']),
+      ],
+      messages: [
+        (
+          message: ChatMessage(
+            id: 'conv-f-m0',
+            conversationId: 'conv-f',
+            role: 'user',
+            content: 'from the future',
+            timestamp: future,
+          ),
+          messageOrder: 0,
+        ),
+      ],
+      toolEventsByMessageId: const {},
+      geminiSignaturesByMessageId: const {},
+    );
+    await b.chatService.reloadAfterExternalChange();
+
+    // S1: A pulls it. B served it in a fetch response, so B's own entry stays
+    // at prior — which is none.
+    final pulled = await a.engine.syncWithPeer(await a.peer(b));
+    expect(pulled.success, isTrue, reason: pulled.summary);
+    expect(await _messageIds(a, 'conv-f'), contains('conv-f-m0'));
+
+    // S2: both manifests agree, so the plan is `none` and the heal is the only
+    // writer that can record what A now holds.
+    final idle = await a.engine.syncWithPeer(await a.peer(b));
+    expect(idle.success, isTrue, reason: idle.summary);
+    final entry = (await b.store.loadCheckpoint(
+      a.identity.deviceId,
+    )).conversations['conv-f'];
+    expect(
+      entry,
+      isNotNull,
+      reason: 'the agreement, not this device\'s wall clock, decides',
+    );
+
+    // S3: A deletes that row. B's ledger knows it now, so the deletion lands
+    // instead of coming back as a row B re-sends.
+    await a.repository.deleteMessage('conv-f-m0');
+    final next = await a.engine.syncWithPeer(await a.peer(b));
+    expect(next.success, isTrue, reason: next.summary);
+    expect(
+      await _messageIds(b, 'conv-f'),
+      isNot(contains('conv-f-m0')),
+      reason: 'the deletion reaches B and stays',
+    );
+  });
 
   test('a peer deletion the peer deferred is retried, not undone', () async {
     final (a, b) = await pair();

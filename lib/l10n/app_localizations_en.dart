@@ -17965,6 +17965,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportConversationsOmittedForSize(Object count) {
+    return '$count conversations did not fit in this push';
+  }
+
+  @override
   String lanSyncReportWorkspacesKept(Object count) {
     return '$count workspace folders kept on disk (switched off, or holding unsynced files)';
   }

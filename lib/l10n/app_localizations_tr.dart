@@ -18064,6 +18064,11 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportConversationsOmittedForSize(Object count) {
+    return 'Bu gönderime sığmayan sohbet: $count';
+  }
+
+  @override
   String lanSyncReportWorkspacesKept(Object count) {
     return '$count çalışma alanı klasörü diskte tutuldu (kapalı veya eşitlenmemiş dosyalar içeriyor)';
   }

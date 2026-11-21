@@ -777,6 +777,16 @@ class SyncPeerReport {
   /// the card names compression history and settings.
   final int conversationsWithDocumentsReplaced;
 
+  /// Conversations the push budget left behind this round: too large to ride,
+  /// so their checkpoints did not move and the next session retries them.
+  ///
+  /// Persisted with the rest of the card because that is what the panel reads
+  /// (`sync_report_breakdown.dart`), and named for the user because the number
+  /// is the only trace of a conversation that did not travel: most are the
+  /// plan's tail and ride the next session by themselves, while one past the
+  /// single-conversation ceiling arrives only when the peer pulls it.
+  final int conversationsOmittedForSize;
+
   /// Signed clock divergence against this peer in milliseconds, present only
   /// when it exceeded [kClockSkewWarnMs] (positive: this device ran ahead).
   /// The session still succeeded — this is the yellow flag, not a failure.
@@ -814,6 +824,7 @@ class SyncPeerReport {
     this.entityRowsLost = 0,
     this.preferencesLost = 0,
     this.conversationsWithDocumentsReplaced = 0,
+    this.conversationsOmittedForSize = 0,
     this.clockSkewMs,
     this.refusal,
     this.failure,
@@ -842,6 +853,7 @@ class SyncPeerReport {
     'workspaceFilesMissing': workspaceFilesMissing,
     'workspaceFoldersKept': workspaceFoldersKept,
     'workspacesOmitted': workspacesOmitted,
+    'conversationsOmittedForSize': conversationsOmittedForSize,
     'entityRowsLost': entityRowsLost,
     'preferencesLost': preferencesLost,
     'conversationsWithDocumentsReplaced': conversationsWithDocumentsReplaced,
@@ -875,6 +887,8 @@ class SyncPeerReport {
         (json['workspaceFilesMissing'] as num?)?.toInt() ?? 0,
     workspaceFoldersKept: (json['workspaceFoldersKept'] as num?)?.toInt() ?? 0,
     workspacesOmitted: (json['workspacesOmitted'] as num?)?.toInt() ?? 0,
+    conversationsOmittedForSize:
+        (json['conversationsOmittedForSize'] as num?)?.toInt() ?? 0,
     entityRowsLost: (json['entityRowsLost'] as num?)?.toInt() ?? 0,
     preferencesLost: (json['preferencesLost'] as num?)?.toInt() ?? 0,
     conversationsWithDocumentsReplaced:

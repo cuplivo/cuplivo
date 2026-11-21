@@ -5228,6 +5228,7 @@
   "lanSyncReportWorkspaceConflicts": "34aa8435a2a07c9a69cfda549d915e6c6f7def8923658929326e10ad46a867d2",
   "lanSyncReportWorkspaceMissing": "3631ca435436f96e5f807a32334cfbb177f5395fe0970e30f6718392b4717b2e",
   "lanSyncReportWorkspacesOmitted": "79ce0ed491dd18bafc35c19dd83b01136d28f20f31e1ddb70c59e747fdb5b2a3",
+  "lanSyncReportConversationsOmittedForSize": "386b2c61704aeb1e5d5c9105d36bbd1b4d3b5a9c15e5ebc7250027eb969da5a2",
   "lanSyncReportWorkspacesKept": "47d370ad149ae4db5a4bb7dca8a29a7a15855bab5d673a45a2779fb54fe81052",
   "lanSyncReportDeletesBlocked": "60a7d1b8b67e583bc7f755be13715d5ac6ea35b428946b5c1ecf6cb2924d0fd1",
   "lanSyncReportRowsLost": "afb183d6f6166a1aa4b88c9c4c1cdfb53619d6fc58326f326b7c9883754b43fe",

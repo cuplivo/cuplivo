@@ -16,6 +16,7 @@ import 'sync_models.dart';
 /// - `checkpoints/<deviceId>.json.gz` — per-peer checkpoint, including the
 ///   workspace file ledger the content plan reads (slice 18)
 /// - `workspaces.json`        — which workspaces this device syncs files for
+/// - `local-only.json`        — rows this device holds without offering them
 /// - `epoch.json`             — this device's data epoch (see [readDataEpoch])
 class SyncStore {
   SyncStore(this.root);
@@ -518,6 +519,84 @@ class SyncStore {
 
   File get _workspaceSettingsFile =>
       File('${root.path}${Platform.pathSeparator}workspaces.json');
+
+  // ---- rows this device keeps to itself ----
+
+  /// The business keys (`syncBusinessKey`) this device holds but does not offer
+  /// to a peer.
+  ///
+  /// The third device-local fact beside the peer records and the workspace
+  /// toggles: a row the user decided belongs to this machine — an MCP server
+  /// whose stdio command only exists here — is *withheld* rather than deleted.
+  /// Withholding is a state the peer has to be told about, because the plan
+  /// reads "missing from the peer's manifest" as "the peer deleted it": that is
+  /// what [SyncHello.localOnly] announces, and it is the whole reason this set
+  /// is not simply a filter on the way out.
+  ///
+  /// A key naming a row that no longer exists is **kept, not swept**: the row
+  /// may come back from the recycle bin, and a server deleted and then restored
+  /// has to come back still withheld. Nothing reads a key that names no row, so
+  /// a leftover costs one string in this file and never a decision.
+  ///
+  /// An unreadable file reads as "nothing withheld", the same reading the
+  /// workspace toggles take: refusing to sync *anything* because a preferences
+  /// file was truncated would be the worse failure.
+  Future<Set<String>> readLocalOnlyKeys() async {
+    final file = _localOnlyFile;
+    if (!await file.exists()) return const {};
+    try {
+      final json = jsonDecode(await file.readAsString());
+      if (json is! Map) return const {};
+      final raw = json['keys'];
+      if (raw is! List) return const {};
+      return {
+        for (final key in raw)
+          if (key is String && key.isNotEmpty) key,
+      };
+    } catch (error) {
+      debugPrint('sync store: unreadable local-only keys: $error');
+      return const {};
+    }
+  }
+
+  /// Reads, edits and writes the set as one indivisible step, and reports
+  /// whether [mutate] changed anything.
+  ///
+  /// The only way a caller may change one row's choice, for the reason
+  /// [mutateWorkspaceContentDisabled] exists: the whole answer lives in one
+  /// file, so two concurrent read-modify-writes lose one of them — and the
+  /// loss here is a server that quietly starts syncing again on the next read,
+  /// which is the exact defect the switch was added to fix.
+  Future<bool> mutateLocalOnlyKeys(bool Function(Set<String> current) mutate) =>
+      _serializeLocalOnly(() async {
+        final current = {...await readLocalOnlyKeys()};
+        if (!mutate(current)) return false;
+        await _writeLocalOnlyNow(current);
+        return true;
+      });
+
+  Future<void> _writeLocalOnlyNow(Set<String> keys) async {
+    await root.create(recursive: true);
+    final sorted = keys.where((key) => key.isNotEmpty).toList()..sort();
+    await _writeAtomic(
+      _localOnlyFile,
+      utf8.encode(jsonEncode({'keys': sorted})),
+    );
+  }
+
+  /// Chains [action] behind every earlier write of this file. The tail swallows
+  /// errors so one failed write cannot wedge every later toggle; the caller
+  /// still sees its own failure through the future this returns.
+  Future<T> _serializeLocalOnly<T>(Future<T> Function() action) {
+    final result = _localOnlyQueue.then((_) => action());
+    _localOnlyQueue = result.then((_) {}, onError: (Object _) {});
+    return result;
+  }
+
+  Future<void> _localOnlyQueue = Future<void>.value();
+
+  File get _localOnlyFile =>
+      File('${root.path}${Platform.pathSeparator}local-only.json');
 }
 
 /// What [SyncPeerRecord.addEndpoint] did, instead of a bool that reads the same

@@ -208,16 +208,44 @@ class SyncBusinessPlanItem {
   final String id;
   final SyncConvAction action;
 
-  const SyncBusinessPlanItem(this.kindWire, this.id, this.action);
+  /// This key is held by one of the two devices without being offered, so
+  /// neither side may move it: the action is [SyncConvAction.none] and this
+  /// flag says what that `none` means.
+  ///
+  /// The distinction matters to the checkpoint. A plain `none` is an
+  /// *agreement* — both manifests carry the same digest — and the business
+  /// advance records the local row as the shared state. A withheld key has no
+  /// agreement at all; recording one would make the first session after the
+  /// user un-withholds it resolve by "this device's copy wins" instead of by
+  /// the table's own last-write-wins, which is a switch that changes the
+  /// winner rather than only the traffic.
+  final bool withheld;
+
+  const SyncBusinessPlanItem(
+    this.kindWire,
+    this.id,
+    this.action, {
+    this.withheld = false,
+  });
 }
 
 /// Plans every business row in one pass over the union of both manifests and
 /// the checkpoint. Entity kinds and preference keys go through the same table:
 /// they are rows on the same clock.
+///
+/// [localOnly] is the union of both devices' withheld keys — this device's own
+/// set and the peer's hello announcement — and every key in it plans `none`
+/// with [SyncBusinessPlanItem.withheld] set. Both halves belong here for
+/// different reasons. A key *this* device withholds must not leave and must not
+/// come back: the row is the user's, on this machine. A key the *peer*
+/// withholds must not leave either — the peer's copy is its own, and sending
+/// this device's version would overwrite it through the apply — and must not be
+/// read as deleted, which is exactly what the peer's announcement protests.
 List<SyncBusinessPlanItem> planBusinessSync({
   required SyncManifest mine,
   required SyncManifest peers,
   required SyncCheckpoint checkpoint,
+  Set<String> localOnly = const {},
 }) {
   final plans = <SyncBusinessPlanItem>[];
 
@@ -238,23 +266,28 @@ List<SyncBusinessPlanItem> planBusinessSync({
       ...checkpointRows.keys,
     };
     for (final id in ids) {
+      final withheld = localOnly.contains(syncBusinessKey(kind, id));
       plans.add(
         SyncBusinessPlanItem(
           kind,
           id,
-          planRowSync(
-            mineDigest: mineRows[id]?.digest,
-            peerDigest: peerRows[id]?.digest,
-            checkpointDigest: checkpointRows[id]?.digest,
-            // A business row's digest is its content, and a restore writes the
-            // same content back with a fresh clock — so the delete branch cannot
-            // see a restore from the digest alone any more than the conversation
-            // face can. The clocks are already in both manifests and the
-            // checkpoint, so the same rule applies. [peerClock] stays out on
-            // purpose; see [planRowSync].
-            mineClock: mineRows[id]?.updatedAtUs,
-            checkpointClock: checkpointRows[id]?.updatedAtUs,
-          ),
+          withheld
+              ? SyncConvAction.none
+              : planRowSync(
+                  mineDigest: mineRows[id]?.digest,
+                  peerDigest: peerRows[id]?.digest,
+                  checkpointDigest: checkpointRows[id]?.digest,
+                  // A business row's digest is its content, and a restore
+                  // writes the same content back with a fresh clock — so the
+                  // delete branch cannot see a restore from the digest alone
+                  // any more than the conversation face can. The clocks are
+                  // already in both manifests and the checkpoint, so the same
+                  // rule applies. [peerClock] stays out on purpose; see
+                  // [planRowSync].
+                  mineClock: mineRows[id]?.updatedAtUs,
+                  checkpointClock: checkpointRows[id]?.updatedAtUs,
+                ),
+          withheld: withheld,
         ),
       );
     }
@@ -266,18 +299,25 @@ List<SyncBusinessPlanItem> planBusinessSync({
     ...checkpoint.preferences.keys,
   };
   for (final key in keys) {
+    final withheld = localOnly.contains(
+      syncBusinessKey(kSyncPreferenceWire, key),
+    );
     plans.add(
       SyncBusinessPlanItem(
         kSyncPreferenceWire,
         key,
-        planRowSync(
-          mineDigest: mine.preferences[key]?.digest,
-          peerDigest: peers.preferences[key]?.digest,
-          checkpointDigest: checkpoint.preferences[key]?.digest,
-          // Same as the entity loop: a synced preference's digest is its value.
-          mineClock: mine.preferences[key]?.updatedAtUs,
-          checkpointClock: checkpoint.preferences[key]?.updatedAtUs,
-        ),
+        withheld
+            ? SyncConvAction.none
+            : planRowSync(
+                mineDigest: mine.preferences[key]?.digest,
+                peerDigest: peers.preferences[key]?.digest,
+                checkpointDigest: checkpoint.preferences[key]?.digest,
+                // Same as the entity loop: a synced preference's digest is its
+                // value.
+                mineClock: mine.preferences[key]?.updatedAtUs,
+                checkpointClock: checkpoint.preferences[key]?.updatedAtUs,
+              ),
+        withheld: withheld,
       ),
     );
   }
